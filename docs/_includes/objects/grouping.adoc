@@ -1,0 +1,286 @@
+Grouping ties objects together so that they move, transform and take attributes as one.  A
+group keeps its members' stacking order and relative positions; groups nest inside groups;
+and a member can still be reached inside the group with the Subselect tool.  Ungrouping sets
+the members free again.
+
+// TODO screenshot: three objects selected, then the same objects grouped, showing the single bounding box
+
+== Grouping and ungrouping
+
+[cols="2,1,3"]
+|===
+|Command |Shortcut |Does
+
+|menu:Modify[Group]
+|kbd:[Cmd+G]
+|Makes the selected objects into one group on the active layer.  Members on other layers are
+moved to the active layer; their stacking order relative to one another is preserved.
+
+|menu:Modify[Ungroup]
+|kbd:[Cmd+Shift+G]
+|Dissolves the selected group.  Members take the group's place in the stacking order, in
+their order inside the group.  Attributes applied to the group as a whole are lost.
+|===
+
+To group objects:
+
+. Select two or more objects (or one -- a group of one is allowed, and is useful for
+  giving a single object a second attribute stack).
+. Choose menu:Modify[Group].
+
+To ungroup:
+
+. Select the group.
+. Choose menu:Modify[Ungroup].  With several groups selected, each is ungrouped one level.
+
+To return members to their original layers when ungrouping, turn on *Remember layer info* in
+menu:WireTuner[Settings… > General] before grouping.  A member whose original layer has since
+been deleted stays on the group's layer.
+
+== Nesting
+
+A group can be a member of another group.  To nest, select the object or group to add,
+kbd:[Shift]-click the group to add it to, and choose menu:Modify[Group]: the result is a new
+group containing both.  There is no limit on nesting depth, but deeply nested groups are
+slower to render and to print, and harder to edit.
+
+== Attributes of a group
+
+Members keep their own strokes, fills and effects.  Subselect a member to change them.
+
+A group also has attributes of its own.  Select the group and add a stroke, fill or effect
+in the Object panel, and it is applied to the group as one shape, on top of what the members
+draw, without changing any member.  Ungrouping discards these group-level attributes.
+
+The Object panel shows these rows for a group:
+
+[cols="1,3"]
+|===
+|Row |Meaning
+
+|Group (root)
+|Position and size of the group's bounds; *Name*, *Note*, *Locked*; *Transform as unit*.
+
+|Contents
+|Double-click to subselect every member.  Selecting the row shows how many members the group
+has and what kinds.
+
+|Strokes, fills, effects
+|The group's own attribute stack, if any.
+|===
+
+*Transform as unit* controls what happens to members' strokes when the group is scaled.  Off
+(the default), scaling a group scales the shapes but leaves stroke widths as they were.  On,
+strokes scale with the group -- a 1 pt stroke in a group scaled 300% draws at 3 pt -- so a
+group can be shrunk or enlarged like a picture.  Fills and effects on the members follow the
+same switch.
+
+== Working inside groups
+
+To select a member, subselect it (kbd:[Option]-click with the Pointer, or the Subselect
+tool).  kbd:[Shift]-subselect adds more members.  Press kbd:[~] to go back to the group,
+kbd:[Tab] or click elsewhere to deselect (xref:selecting.adoc[Selecting]).
+
+Anything you can do to an object you can do to a subselected member: move it, transform it,
+change its attributes, delete it, cut it out of the group.  Two things you cannot do from
+inside: move a member to another layer, or group it with something outside the group.
+Ungroup first, or cut and Paste In Front.
+
+To add an object to an existing group, cut it, subselect a member, and choose
+menu:Edit[Special > Paste In Front] or menu:Edit[Special > Paste Behind]
+(xref:copying.adoc[Copying]).
+
+== Working with others
+
+When someone groups objects you can see, their outlines are replaced by one group outline.
+Anything you were doing to one of those objects continues: if you were dragging it, it lands
+inside the new group at the place you dropped it; if you had it selected, it is still
+selected, now as a member.
+
+When someone ungroups a group you are editing, your edit lands on the member, which is now on
+its own.
+
+If you and a collaborator both group overlapping selections at the same moment, each object
+ends up in exactly one of the two groups -- the one whose change arrived later.  Neither
+group is lost; one may be missing members.  After an offline period, the review shows the
+objects that were pulled two ways.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,2"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Group / Ungroup
+|Same.
+|Faithful
+
+|Grouping moves members to the current layer
+|Same.
+|Faithful
+
+|Remember Layer Info returns members to original layers on ungroup
+|Same; the origin is recorded on the group at grouping time.
+|Faithful
+
+|Group-level attributes, lost on ungroup
+|Same.
+|Faithful
+
+|Nesting limit of 20 (28 internal)
+|No limit.
+|Adapted -- the limit was an implementation constraint; the tree has none.
+
+|Transform as Unit (Object panel)
+|Same.
+|Faithful
+
+|Cannot move a member to another layer or group with outsiders
+|Same restrictions enforced by the commands.
+|Faithful
+|===
+
+=== Data model
+
+[source,protobuf]
+----
+// proto/wiretuner/doc/v1/group.proto
+enum GroupKind {
+  GROUP_KIND_UNSPECIFIED = 0;
+  GROUP_KIND_GROUP = 1;   // ordinary group
+  GROUP_KIND_CLIP = 2;    // clipping path: see clipping-paths
+}
+
+// A group node.  Children are the members, in stacking order (bottom first).  Their
+// CommonProps.transform is relative to the group; the group's own CommonProps.transform
+// maps group space to the parent's space.
+message GroupProps {
+  // Immutable after creation; the client never writes it twice.
+  GroupKind kind = 1;
+  // When true, the group's transform also scales member stroke widths, fill geometry and
+  // effect parameters (rendered as "transform as unit").  When false, members are stroked at
+  // nominal width after their geometry is transformed.
+  bool transform_as_unit = 2;
+  // Clip groups only: the child that clips.  Dangling => contents render unclipped.
+  NodeRef clip_path = 3 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
+  // Where each member came from, for "Remember layer info" on ungroup.  Written once at
+  // grouping time; entries whose child or layer is gone read as unset.
+  repeated LayerOrigin layer_origins = 4 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  // The group's own appearance stack lives in the shared AppearanceProps (ATTR), as for any
+  // drawable node.
+}
+message LayerOrigin {
+  ElementId id = 1;
+  NodeRef child = 2 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
+  NodeRef layer = 3 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
+}
+----
+
+`Group`::
+One change, label `Group`:
+. `CreateNode(parent = active layer, position = position of the topmost selected top-level
+  object, props = GroupProps{kind: GROUP})`.  The group's `transform` is identity.
+. `MoveNode(child, parent = group, position = fresh, in the members' current z-order)` for
+  each selected node.  Members from other layers are moved too; their `transform` is
+  unchanged (layers have no transform, so layer space and group space coincide at creation).
+. `ElementInsert` of a `LayerOrigin` per member when *Remember layer info* is on.
+
+`Ungroup`::
+One change, label `Ungroup`, for a group `G` under parent `P` at position `p`:
+. For each child `C` (bottom first): `SetFields(C.transform = G.transform × C.transform)`.
+  This *bakes* the group's matrix into the member so it does not jump.
+. `MoveNode(C, parent = P or C's origin layer, position = between p and the next sibling)`,
+  generating positions in order so members stay in their relative order and occupy the
+  group's slot.
+. `SetDeleted(G, true)`.
+The group's own appearance stack goes with the deleted node -- "lost", but restorable by undo.
+
+=== Merge semantics
+
+Grouping and ungrouping are tree moves plus register writes; the move algorithm (CRDT-002)
+keeps the tree well-formed in every order.
+
+* *Group vs. move (same object)*: the move writes `transform`, the group writes parent.
+  Both apply; since the new group has identity transform, the object appears where the mover
+  put it, inside the group.
+* *Group vs. group (overlapping selections)*: each object's parent register ends at the
+  group of the later `MoveNode`.  Both groups exist; one may be missing members.  The review
+  sheet lists each contested object as `move vs move` (parent), showing the two groups.
+* *Group vs. delete (member)*: the deleted member is moved into the group and stays deleted.
+* *Ungroup vs. edit member*: the edit writes registers on the member; ungroup moves it and
+  writes its `transform`.  A concurrent *move* of the member (also `transform`) collides with
+  the bake: LWW.  If the bake loses, the member is at its group-relative matrix in layer
+  space -- it appears offset by the former group's transform.  This is the one visible
+  anomaly of baking; it is rare (needs a move of a member concurrent with an ungroup of its
+  group, both offline) and the review sheet lists it as a *Position* conflict.  The
+  alternative -- leaving the group in place as a transform carrier -- would make "ungroup"
+  not ungroup, so we accept it.
+* *Ungroup vs. ungroup*: idempotent in effect; the second's moves target children already
+  moved; each child's `transform` bake is computed from the same group matrix, so equal
+  values.  The group is deleted once.
+* *Ungroup vs. transform group*: the transform writes `G.transform`; the bake read the
+  earlier value.  If the transform is later in OpId order, `G` is deleted anyway and the
+  members carry the pre-transform bake: the group transform is lost.  Listed as `edit vs
+  delete` on `G` with *Restore*.
+* *Transform as unit* is an ordinary register: LWW.
+
+Read-time normalizations:
+
+* A group with zero live children renders nothing and is not selectable; it is skipped by
+  *Select All* and pruned from the Layers panel.  It is not deleted automatically.
+* A `kind` register is never written after creation; if a malformed change does so, the
+  reader uses the value at creation.
+* Cycles cannot occur: the move algorithm rejects them.
+
+=== Offline behavior
+
+Fully offline.  Group followed by ungroup while offline coalesces to `Noop`s for the created
+group (created-then-deleted with nothing else referencing it), but the members' `MoveNode`s
+and transform bakes remain, so history stays truthful.
+
+=== Server
+
+Nothing beyond storing and relaying changes.
+
+=== Client
+
+* `GroupCommand`, `UngroupCommand` in `WTModel/Commands/Grouping.swift`.  Ungroup composes
+  matrices with `WTGeometry.Transform` (GEO-005).
+* Rendering: `WTRender` pushes the group's transform onto the CTM; with `transform_as_unit`
+  false, member strokes are generated in pasteboard space (transform the path, then stroke at
+  nominal width); with it true, strokes are generated in member space and transformed
+  (REND-002 exposes both).
+* Hit testing (REND-003) resolves a hit on a member to the outermost group unless the tool
+  is in subselect mode, in which case it returns the innermost node.
+* Undo: one step each.
+
+=== Build tasks
+
+[[OBJ-016]]
+==== OBJ-016 Group and Ungroup commands
+[horizontal]
+Track:: client-model
+Depends on:: CRDT-002, CRDT-004, APP-011, GEO-005
+Size:: M
+Delivers:: `group.proto` (`GroupProps`, `LayerOrigin`), `GroupCommand` and `UngroupCommand` with cross-layer collection, z-order preservation, transform baking on ungroup, *Remember layer info*, menu items and shortcuts.
+Done when::
+* Grouping members from two layers moves them under one group on the active layer in their original relative order.
+* Ungroup bakes `G.transform × C.transform` into each member; a rotated group ungroups with members visually unchanged (pixel test).
+* Merge test: concurrent group of overlapping selections converges with each object in exactly one group; concurrent ungroup and member move converges and the losing matrix is retained in the log.
+* Conformance vector: `GroupProps` with `layer_origins` inserted concurrently from two replicas.
+
+[[OBJ-017]]
+==== OBJ-017 Group inspector and Transform as unit rendering
+[horizontal]
+Track:: client-render
+Depends on:: OBJ-016, REND-002, APP-007
+Size:: M
+Delivers:: The group root and *Contents* rows in the Object panel (double-click subselects all), the *Transform as unit* toggle, and the two stroke-generation modes in `WTRender`.
+Done when::
+* A group scaled 300% with the toggle off strokes at 1 pt; with it on, at 3 pt (reference render).
+* Double-clicking *Contents* selects every live member and nothing else.
+* Toggling writes one register and repaints only the group's tiles (REND-004).
+endif::spec[]

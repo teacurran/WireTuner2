@@ -1,0 +1,417 @@
+A branch is a place to try something without changing the document everyone else is working
+in.  It starts as an exact copy of the document at the moment you create it, you work in it
+exactly as you would in the document, and when you are done you merge it back -- all of it,
+or object by object -- through the same review you use after working offline.  Branches are
+for "let me try a new palette for a week", for "I want to rework this page without anyone
+tripping over it", and for keeping the changes you made offline when you would rather not
+merge them yet (xref:collaboration.adoc[Working together]).
+
+// TODO screenshot: title bar with the branch popup open, showing main and two branches
+
+== What a branch is
+
+* A branch is its own document, with the same people and roles as its parent.  It has its own
+  history and its own collaborators' cursors.
+* It knows where it came from: the parent document and the point in the parent's history it
+  was created from.  That is what makes merging possible.
+* The parent does not change when you edit the branch, and the branch does not change when
+  people edit the parent.  You see the difference when you compare or merge.
+* A document can have any number of branches; branches cannot themselves have branches.
+
+NOTE: A branch is not a copy for safekeeping.  If you want a frozen version, name one
+(xref:history.adoc[Version history]); if you want an independent document, duplicate it in
+the library window (xref:creating-opening.adoc[Creating and opening documents]).
+
+== Creating a branch
+
+To create a branch of the open document:
+
+. Choose menu:File[Branch > New Branch…], or click the branch popup in the title bar (it
+  reads *main* when you are in the parent) and choose *New Branch…*.
+. Type a name -- "Autumn palette", "Cover rework" -- and click btn:[Create].
+. The window switches to the branch.  The title bar reads "Catalogue — Autumn palette", and the
+  branch popup lists the parent and the other branches.
+
+Anyone with the editor role on a document can create a branch of it.  You need the network to
+create a branch from the title bar; see <<offline,Branches while offline>> for the case where
+you have unsent work.
+
+== Switching between the parent and its branches
+
+The title bar's branch popup lists *main* -- the parent -- and every active branch, with who
+last worked in each and when.  Choose one to switch the window to it.  Each branch remembers
+its own zoom and page.
+
+The same list is under menu:File[Branch > Switch To].  Branches also appear in the library
+window, nested under their parent, so you can open a branch in its own window and see it side
+by side with the parent.
+
+Collaborators in the parent see your avatar with a branch badge while you are in a branch,
+and you see theirs likewise (xref:presence.adoc[Presence]).
+
+== Seeing what changed
+
+To compare a branch with its parent:
+
+. In the branch, choose menu:File[Branch > Compare with Main…]; or in the parent, choose the
+  branch under menu:File[Branch > Compare With].
+. The Review Changes sheet opens in *compare* mode.  It lists every object that differs between
+  the branch and the parent as it is now, with the same filters and preview as after an
+  offline session -- the buttons read btn:[Main], btn:[Branch] and btn:[Overlay].  Nothing is
+  written; close the sheet when you have seen enough.
+
+Objects changed on *both* sides since the branch was created are marked, as they would be
+after an offline session, so you know where a merge will need your judgment.
+
+== Merging a branch
+
+Merging brings the branch's changes into the parent.  The parent's own changes since the
+branch was created are kept; where both changed the same object, you decide.
+
+To merge a branch:
+
+. In the branch, choose menu:File[Branch > Merge into Main…]; or in the parent, choose the
+  branch under menu:File[Branch > Merge].
+. {product} merges the branch's changes into the parent *in a preview* and opens the Review
+  Changes sheet with the branch as "mine" and the parent as "theirs", exactly as after an
+  offline session (xref:collaboration.adoc#review[The Review Changes sheet]).  Objects that
+  changed only on the branch are simply brought over; objects that changed on both sides are
+  listed as conflicts.
+. For each conflict, choose btn:[Use branch], btn:[Use main] or btn:[Keep both copies], or
+  leave the merged result.
+. Click btn:[Done].  The merged result becomes the parent's current state, and the branch is
+  marked *Merged*.
+
+Partial merges are allowed: choosing btn:[Use main] for an object leaves that object exactly
+as it is in the parent, taking nothing from the branch for it.  You can also merge a branch
+more than once: after the first merge the branch stays open (if you choose *Keep branch
+open* before btn:[Done]) and a later merge brings only what changed on the branch since.
+
+Everyone in the parent sees the merge land as ordinary changes attributed to the branch and
+to the people who made them, and can undo nothing of it -- like any other change, a merge is
+not undone but reverted, from xref:history.adoc[Version history] or by merging the other way.
+
+Merging needs the network and the editor role on the parent.
+
+== Archiving and deleting a branch
+
+A merged branch is archived automatically; you can archive an unmerged one to get it out of
+the popup without losing it:
+
+. Choose menu:File[Branch > Archive Branch] in the branch, or use the branch's row in the
+  library window.
+. Archived branches are listed under *Archived* in the library window and can be reopened
+  (read-only) or restored to active.
+
+To delete a branch, use the library window: select the branch and choose menu:File[Move to
+Trash].  A trashed branch is kept for 30 days like any document.  Deleting the parent trashes
+its branches with it.
+
+== Branch permissions
+
+A branch has the same members and roles as its parent, always: sharing the parent shares its
+branches, removing someone removes them from the branches too, and the Share sheet in a branch
+is the parent's Share sheet.  Named versions in a branch are the branch's own.
+
+[[offline]]
+== Branches while offline
+
+You cannot create a branch from the title bar without a network, because the branch is made
+on the server.  There is one exception, and it is the important one.
+
+When you reconnect after working offline and the Review Changes sheet offers *Keep my changes
+on a branch*, choosing it makes a branch *right there on your Mac* from the changes you made
+offline: the parent goes back to what your collaborators left, your work lives in the new
+branch, and the branch is created on the server the moment you are online -- which, since
+you just reconnected, is immediately.  If the connection drops again before that happens,
+the branch stays on your Mac, marked "not yet on the server" in the popup, and is created on
+the server at the next opportunity.  You can keep working in it meanwhile.
+
+Everything else about branches -- switching to one you have opened before, editing it,
+comparing it with the parent as your Mac last saw it -- works offline.  Merging, creating and
+archiving wait for the network.
+
+== Working with others
+
+Several people can work in one branch, with all the presence and merging of the main
+document.  When someone merges a branch you are working in, the branch stays as it was and
+is marked merged; you can keep editing it and merge again later.  When someone merges a
+branch into a parent *you* are working in, the merged objects pulse with the merger's name and
+a toast says "Autumn palette merged by Priya".
+
+If you are in a branch when its parent is deleted or your access is removed, the branch
+closes with the same read-only bar and the same offer to save your unsent changes as a copy
+(xref:sharing.adoc[Sharing]).
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,2"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|--
+|Branches with fork points, compare, partial merge, offline creation.
+|Added -- no FreeHand equivalent
+|===
+
+=== Data model
+
+Server state (SRV-003 `branch`, extended by COLLAB-019) plus the `docs.v1` sketches below.
+The branch's *contents* are an ordinary document: its own change log, snapshots, replicas
+and presence.  The document schema is unchanged.
+
+[source,protobuf]
+----
+// proto/wiretuner/docs/v1/branch.proto (sketch)
+service BranchService {
+  // Creates the branch document from the parent's state at `fork_server_seq` and ingests
+  // `initial_changes` (the offline-created case).  Idempotent by `branch_document_id`.
+  rpc CreateBranch(CreateBranchRequest) returns (CreateBranchResponse);
+  rpc ListBranches(ListBranchesRequest) returns (ListBranchesResponse);
+  rpc GetBranch(GetBranchRequest) returns (GetBranchResponse);
+  rpc RenameBranch(RenameBranchRequest) returns (RenameBranchResponse);
+  // Replays the branch's changes since its last merge point into the parent, excluding the
+  // nodes listed, then appends the client's re-assertions.  See Merge semantics.
+  rpc MergeBranch(MergeBranchRequest) returns (MergeBranchResponse);
+  rpc SetBranchState(SetBranchStateRequest) returns (SetBranchStateResponse);   // ACTIVE / ARCHIVED
+}
+
+message Branch {
+  string branch_document_id = 1;    // the branch is a document; this is its id
+  string parent_document_id = 2;
+  string name = 3 [(buf.validate.field).string.max_len = 256];
+  // The parent's server_seq the branch was forked from.
+  uint64 fork_server_seq = 4;
+  // The branch's own server_seq up to which it has been merged into the parent (0 = never),
+  // and the parent's server_seq at which that merge landed.  A second merge replays only
+  // branch changes after `merged_branch_seq`.
+  uint64 merged_branch_seq = 5;
+  uint64 merged_parent_seq = 6;
+  BranchState state = 7;
+  string created_by = 8;
+  google.protobuf.Timestamp created_at = 9;
+  // For the popup: who last changed the branch and when.
+  string last_author = 10;
+  google.protobuf.Timestamp last_change_at = 11;
+  // False until the server has created it (offline-created branches sync this flag).
+  bool on_server = 12;
+}
+enum BranchState { BRANCH_STATE_UNSPECIFIED = 0; BRANCH_STATE_ACTIVE = 1;
+                   BRANCH_STATE_ARCHIVED = 2; BRANCH_STATE_MERGED = 3; }
+
+message CreateBranchRequest {
+  string parent_document_id = 1;
+  string branch_document_id = 2;    // client-generated UUIDv7 (idempotency key)
+  string name = 3;
+  // Head the client had applied when it forked; the server builds the branch from the
+  // parent's snapshot at or before it plus the tail to exactly this seq.
+  uint64 fork_server_seq = 4;
+  // Changes already made on the branch locally (the offline case).  The replicas they carry
+  // are bound to the branch document and their highest seqs recorded as those replicas'
+  // baseline, so the client's session on the branch continues from the next seq.  Large sets
+  // stream through PushChanges after creation instead.
+  repeated wiretuner.doc.v1.Change initial_changes = 5
+      [(buf.validate.field).repeated.max_items = 1000];
+}
+message CreateBranchResponse { Branch branch = 1; }
+
+message ListBranchesRequest { string parent_document_id = 1; bool include_archived = 2; }
+message ListBranchesResponse { repeated Branch branches = 1; }
+message GetBranchRequest { string branch_document_id = 1; }
+message GetBranchResponse { Branch branch = 1; }
+message RenameBranchRequest { string branch_document_id = 1; string name = 2; }
+message RenameBranchResponse { Branch branch = 1; }
+
+message MergeBranchRequest {
+  string branch_document_id = 1;
+  // The parent head the client reviewed against; the server refuses (FAILED_PRECONDITION,
+  // MERGE_STALE) if the parent has advanced past it by changes touching excluded or
+  // re-asserted nodes, so the review is never applied to a state the user did not see.
+  uint64 reviewed_parent_seq = 2;
+  // Nodes for which the user chose "Use main": their branch ops are skipped in the replay.
+  repeated wiretuner.doc.v1.OpId excluded_nodes = 3;
+  // Re-assertions the review produced ("Use branch", "Keep both copies", "Restore"), as
+  // ordinary changes from the client's parent replica, appended after the replay.
+  repeated wiretuner.doc.v1.Change resolutions = 4;
+  bool keep_open = 5;               // leave ACTIVE instead of MERGED
+}
+message MergeBranchResponse {
+  Branch branch = 1;
+  uint64 first_parent_seq = 2;      // range the merge occupies in the parent's log
+  uint64 last_parent_seq = 3;
+  // Branch ops that were no-ops in the parent (they named nodes compacted out of the parent
+  // since the fork), listed for the toast.
+  uint32 dropped_ops = 4;
+}
+message SetBranchStateRequest { string branch_document_id = 1; BranchState state = 2; }
+message SetBranchStateResponse { Branch branch = 1; }
+
+// sync.v1 DocumentEvent case, delivered on the parent's and the branch's sessions.
+message BranchEvent {
+  Branch branch = 1;
+  enum Kind { KIND_UNSPECIFIED = 0; CREATED = 1; MERGED = 2; ARCHIVED = 3; RESTORED = 4;
+              TRASHED = 5; RENAMED = 6; }
+  Kind kind = 2;
+  string actor = 3;
+}
+----
+
+Changes replayed into the parent by a merge are stored verbatim (the server never modifies a
+change) and the `change_log` row carries `merged_from_branch_id`, so history and attribution
+show both the person and the branch.
+
+=== Merge semantics
+
+The reconcile page defines a merge as "replay the branch's changes into the parent as ops
+from the branch's replicas, then run the review with the branch as mine"
+(xref:reconcile.adoc[Reconciling offline edits]).  Precisely:
+
+Fork::
+The branch's initial state is the parent's state at `fork_server_seq`: same node ids, same
+register OpIds, same unstable tombstones.  The branch's replicas are distinct from the
+parent's (a client's branch store gets a fresh replica id, except in the offline case
+below), so every op ever made on the branch has an id no parent op has.
+
+Replay::
+Merging applies the branch's changes after `merged_branch_seq`, in branch-log order, to the
+parent as if they had arrived from any other replica.  Because ids are unique and the engine
+is order-independent, this is plain application: register writes win or lose by OpId
+against the parent's writes since the fork, tree moves go through the move log, text
+interleaves by Fugue.  Lamport counters on branch ops were generated against the branch's
+clock, which started from the parent's at the fork; a parent replica whose clock is behind
+bumps it on receipt, as for any op.
+
+Review::
+The client computes the merged preview locally (it holds both logs) and runs the review with
+`A = branch head`, `B = parent head`, `C = merged preview` (COLLAB-002).  The overlap set is
+"nodes touched by branch ops after the last merge point" ∩ "nodes touched by parent ops after
+the fork (or the last merge)".  The review's decision rules apply unchanged; a branch merge
+with no overlap and under 500 ops on each side lands silently with the toast.
+
+Choices::
+*Use branch* re-asserts the branch's register values as new ops from the client's *parent*
+replica (they then win by OpId, being newest).  *Use main* adds the node to
+`excluded_nodes`: its branch ops are skipped in the replay, so the parent's version stands
+untouched -- this is the partial merge, and it is why replay happens on the server after the
+review rather than before.  *Keep both copies* and *Restore* are ordinary resolutions.
+Excluding a node whose branch ops *created* it means the node never appears in the parent;
+excluding a node that branch ops moved children into leaves those children's moves in place
+(they target the node by id, and it exists in the parent) -- the review warns when an
+excluded node has dependents.
+
+Nasty cases::
+* Branch deletes an object the parent edited: the review lists _Edited and deleted_ with
+  *Restore*; default result is deleted with the edits retained.
+* Both sides moved one object into different groups: the move log resolves it (later OpId
+  wins); _Both moved_ is listed.
+* The parent compacted a node the branch edited (deleted in the parent over 30 days ago):
+  the branch's ops on it are deterministic no-ops in the parent (totality); the server counts
+  them in `dropped_ops` and the review lists them under "not merged".  Branches do not hold
+  back the parent's garbage collection; a branch older than the compaction window is merged
+  best-effort and says so.
+* Second merge: only branch changes after `merged_branch_seq` replay.  Re-assertions from the
+  first merge live in the parent as ordinary changes and are not part of the branch log, so
+  they are not replayed twice.
+* Merge while the parent advances: `reviewed_parent_seq` guards the review; `MERGE_STALE`
+  reopens the sheet with the new parent changes folded in.
+
+Offline-created branch::
+`Keep my changes on a branch` moves the *unsent* changes from the parent's outbox into a new
+local branch store whose `meta` copies the parent's replica id (the changes already carry
+it; the server binds replica ids per document, so the same id in two documents is
+legitimate).  `fork_server_seq` is the parent's last applied head.  The parent store then
+reverts to the remote state by dropping those changes from `changes` and rebuilding from the
+snapshot (the local undo stack for them is discarded with a notice).  When online,
+`CreateBranch` is called with the first 1,000 changes and the rest follow through
+`PushChanges`; the branch's replica continues its seq numbering.  If `CreateBranch` fails with
+`REPLICA_CONFLICT` (a store copy raced), the branch's changes take the rotation path
+(SYNC-010).
+
+Read-time normalization: none beyond the parent document's own.
+
+=== Offline behavior
+
+Create (from the title bar), merge, archive, rename and trash need the network.  A branch
+opened at least once on this Mac has its own local store and works fully offline; comparing
+against the parent uses the parent's local store.  Offline creation exists only through the
+review sheet, as above; the branch shows *not yet on the server* until `CreateBranch`
+succeeds, and its `Branch.on_server` drives that.
+
+=== Server
+
+SRV-011 delivers fork at head, list, merge-as-replay and delete.  COLLAB-019 adds:
+`initial_changes` binding on create, `excluded_nodes` and `resolutions` on merge with the
+`reviewed_parent_seq` guard, `merged_branch_seq` bookkeeping for repeated merges,
+`merged_from_branch_id` on replayed log rows, archive state, `BranchEvent` fan-out to both
+sessions, cascade of trash and role changes from parent to branches, and the branch
+permission rule (a branch has no `document_member` rows of its own; role lookups resolve to
+the parent).
+
+=== Client
+
+* `WTSync`: a branch store is a normal document store with `meta.parent_document_id` and
+  `meta.fork_server_seq`; `BranchLocalCreate` implements the outbox move above;
+  `BranchSyncState` tracks `on_server`.
+* `WTApp/Branches`: `BranchPopover` in the title bar (`NSPopUpButton` styled as the
+  window's subtitle), the menu:File[Branch] submenu, `BranchMergeFlow` (builds the preview
+  document in memory from both logs, hosts COLLAB-002 in merge mode with the retitled
+  buttons, submits `MergeBranch`), the merge toast in the parent.
+* Comparing or merging the design-point document with a 10,000-change branch must build the
+  preview in under 2 s; the replay runs on a background actor.
+* Undo: merge resolutions are ordinary changes in the parent (each undoable); the merge
+  itself is not an undo step -- reverting it is a history action.
+
+=== Build tasks
+
+[[COLLAB-016]]
+==== COLLAB-016 Branch switcher and lifecycle UI
+[horizontal]
+Track:: client-ui
+Depends on:: APP-002, APP-005, APP-009, SRV-011, PROTO-007
+Size:: M
+Delivers:: The title-bar branch popup (main + active branches with last author/time, New Branch…, not-yet-on-server marker), menu:File[Branch] submenu (New, Switch To, Compare With, Merge, Archive, Rename), branches nested under parents in the library window with Archived and Trash, per-branch view state.
+Done when::
+* Creating, renaming, switching, archiving, restoring and trashing a branch each round-trip through `BranchService` and appear in a second client via `BranchEvent` within 1 s.
+* Offline, New Branch… is disabled with the explanation; a branch store already on disk opens.
+* UI tests for the popup and every menu item.
+
+[[COLLAB-017]]
+==== COLLAB-017 Branch stores and offline branch creation
+[horizontal]
+Track:: client-sync
+Depends on:: SYNC-002, SYNC-005, SYNC-006, SYNC-010, SRV-011
+Size:: M
+Delivers:: Branch store metadata (parent id, fork seq, on_server), *Keep my changes on a branch* as the outbox move described under Merge semantics, parent revert to remote state, deferred `CreateBranch` with `initial_changes` and `PushChanges` for the remainder, `REPLICA_CONFLICT` fallback to rotation.
+Done when::
+* Simulator test: 5,000 unsent changes kept on a branch offline; on reconnect the branch's server hash equals the local branch hash and the parent's local hash equals the remote head.
+* Killing the app between the local move and `CreateBranch` loses nothing; the branch is created on next launch.
+* Merge test: the parent's outbox is empty after the move; a change made in the parent afterwards uploads normally.
+
+[[COLLAB-018]]
+==== COLLAB-018 Branch compare and merge flow
+[horizontal]
+Track:: client-ui
+Depends on:: COLLAB-002, COLLAB-016, COLLAB-017
+Size:: M
+Delivers:: `BranchMergeFlow`: preview built from both logs on a background actor, review sheet in compare mode (Main/Branch/Overlay, read-only) and merge mode (Use branch / Use main / Keep both copies / Restore, Keep branch open), `MergeBranch` submission with exclusions and resolutions, `MERGE_STALE` reopen, dropped-op listing, merge toast in the parent with attribution.
+Done when::
+* A branch with 10,000 changes against a parent that advanced 10,000 previews in under 2 s and the post-merge parent hash matches the server's (SRV-011 done-when scenario, driven end to end).
+* Use main on a node leaves its parent registers byte-identical; Use branch re-asserts every differing register in one labelled change.
+* Merge test: a second client editing an excluded node during the review triggers `MERGE_STALE` and the reopened sheet shows the new change.
+* Every resolution is one undo step in the parent.
+
+[[COLLAB-019]]
+==== COLLAB-019 Branch server refinements
+[horizontal]
+Track:: server
+Depends on:: SRV-011, SRV-010
+Size:: M
+Delivers:: `initial_changes` binding with per-replica seq baselines, `excluded_nodes`/`resolutions`/`reviewed_parent_seq` on merge, repeated merges via `merged_branch_seq`, `merged_from_branch_id` on log rows, archive state and `SetBranchState`, `BranchEvent` fan-out, cascade of trash and access changes to branches, role resolution through the parent.
+Done when::
+* Tests: create with 1,000 initial changes then a session continuing from seq 1,001 is accepted; a merge excluding 50 nodes leaves their parent registers unchanged; a second merge replays only the tail; `MERGE_STALE` fires when an excluded node changed after `reviewed_parent_seq`.
+* Removing a member from the parent rejects their next change on the branch with `ROLE_INSUFFICIENT`.
+* Replayed rows are byte-identical to the branch's rows and carry the branch id.
+endif::spec[]

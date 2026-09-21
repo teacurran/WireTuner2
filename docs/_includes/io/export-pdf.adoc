@@ -1,0 +1,518 @@
+PDF is the format to reach for when the artwork has to arrive intact: at a print shop, in a
+page-layout program, in someone's mail.  {product} writes PDFs that keep text as text, vector
+as vector, transparency live, spot colors named, fonts embedded and every page in one file,
+and it can produce the PDF/X files printers ask for, with bleed and printer's marks.
+
+To export a PDF:
+
+. Choose menu:File[Export…] and choose *PDF* from the *Format* menu.
+. Choose what to export.  *All pages* and page ranges go into one PDF; *Output area* and
+  *Selected objects* make a one-page PDF cropped to them (xref:exporting.adoc[Exporting
+  files]).
+. Click btn:[Options…] and choose a *Preset* at the top of the sheet, or set the options
+  below.
+. Click btn:[OK], then btn:[Export].
+
+// TODO screenshot: PDF options sheet, General section, with the preset menu
+
+The options sheet has five sections.  The *Preset* menu at its top fills all of them at once:
+*Print (PDF/X-4)*, *Press (PDF/X-1a)*, *Screen*, *Smallest file*, *Editable (Illustrator)*, and
+any presets you have saved (xref:exporting.adoc[Exporting files]).
+
+== General
+
+[cols="1,3"]
+|===
+|Option |Effect
+
+|*Compatibility*
+|*PDF 1.4* (Acrobat 5) through *PDF 1.7* (Acrobat 8 and later, default) and *PDF 2.0*.  Every
+level from 1.4 up keeps transparency live; 1.5 adds layers and object streams (smaller files);
+1.7 is what nearly everything reads today and the first level that carries Display P3 colors
+with their profile -- below it they are converted to the destination RGB profile and listed.
+
+|*Standard*
+|*None*, *PDF/X-1a:2001*, *PDF/X-4:2010*.  Choosing a standard fixes the options it requires
+(below) and validates the result.
+
+|*Layers*
+|Writes each {product} layer as a PDF layer that Acrobat and Illustrator can show and hide.
+Needs PDF 1.5 or later.
+
+|*Embed {product} document*
+|Attaches a complete package of the document to the PDF, so opening the PDF in {product} gives
+you the editable original (xref:saving.adoc[Saving]).  The attachment is visible in Acrobat's
+attachments pane.
+
+|*Optimize for fast web view*
+|Arranges the file so the first page displays before the rest downloads.
+
+|*Include document info*
+|Writes the Document Info fields (xref:file-info.adoc[Adding file information]).  Always on
+for PDF/X.
+
+|*Tagged PDF (PDF/UA-1)*
+|On by default.  Writes the structure a screen reader needs: every object with alt text
+becomes a figure carrying that text, decorative objects are marked as artifacts, text stays
+text in reading order, and the document's language comes from Document Info
+(xref:names-notes.adoc[Names, notes and alt text]).  The file claims PDF/UA-1 conformance
+only when it can: with *Convert text to outlines* chosen, or with no document language set, the
+tags are still written but the claim is left out and the export sheet says why.  Run
+menu:File[Check Accessibility…] first to find undescribed objects and low-contrast text.
+|===
+
+== Compression
+
+[cols="1,3"]
+|===
+|Option |Effect
+
+|*Color and grayscale images*
+|*Automatic* (default) uses JPEG for photographs and lossless for everything else; *JPEG* with
+a *Quality* of Maximum, High, Medium, Low or Minimum; *Lossless*; *None*.
+
+|*Downsample images above*
+|Reduces images whose resolution exceeds the threshold to the target: for example, downsample
+above 450 ppi to 300 ppi for print, or above 150 ppi to 100 ppi for screen.  Off keeps every
+image at its placed resolution.
+
+|*Monochrome images*
+|*CCITT Group 4* (default), *Lossless*, *None*, with their own downsampling threshold.
+
+|*Compress text and line art*
+|Lossless compression of everything that is not an image.  Always on except for debugging.
+|===
+
+NOTE: For {fh} users: *ASCII Format* is gone (7-bit mail gateways are gone too).  *Compress
+Text and Graphics* is *Compress text and line art*, on by default.
+
+== Fonts
+
+[cols="1,3"]
+|===
+|Option |Effect
+
+|*Embed fonts*
+|*Subset* (default) embeds only the glyphs used, which is what every viewer needs.  *Complete*
+embeds whole fonts, for files someone will edit.  *Convert text to outlines* writes paths
+instead of text: nothing depends on fonts, but the text cannot be searched or selected, and
+files are larger.
+
+|*Always outline*
+|Fonts whose license forbids embedding are outlined regardless, and the export sheet lists
+them (xref:print-fonts.adoc[Fonts and printing]).  PDF/X requires embedding or outlining.
+|===
+
+== Color
+
+[cols="1,3"]
+|===
+|Option |Effect
+
+|*Colors*
+|*Keep document colors* (default): sRGB stays sRGB, Display P3 stays Display P3 (tagged with
+its profile; PDF 1.7 or later), Lab stays Lab, OKLab is written as Display P3, CMYK stays
+CMYK, spot colors stay spot.  *Convert to CMYK* converts everything to the destination
+profile, each color from its own space.  *Convert to RGB* converts to sRGB (or the chosen RGB
+profile), pulling wide-gamut colors in when the profile is narrower.  See
+xref:color-management.adoc[Color management].
+
+|*Destination profile*
+|The CMYK or RGB profile to convert to, and the profile named in the PDF/X output intent.
+Defaults to the document's working profile.  A PDF without a PDF/X standard that keeps
+Display P3 colors also names Display P3 as its output intent, so viewers know what the
+document was made for.
+
+|*Preserve spot colors*
+|Keeps spot colors as named separations for the printer.  Off converts them to process using
+their definitions (xref:spot-process.adoc[Spot and process colors]).
+
+|*Preserve overprint*
+|Keeps overprint settings on objects.  On by default; PDF/X requires it to be honored.
+
+|*Embed profiles*
+|Tags images and the document with their profiles.  Required by PDF/X-4, forbidden by
+PDF/X-1a (which uses the output intent only).  Display P3 objects are always written with
+their profile when kept; turning this off converts them to the destination RGB profile.
+|===
+
+== Pages and marks
+
+[cols="1,3"]
+|===
+|Option |Effect
+
+|*Page size*
+|*Page* writes each page at its size.  *Page plus bleed* adds the document's bleed on every
+side (xref:printing.adoc[Printing]).  *Custom* lets you type a size and centers the page in
+it.
+
+|*Bleed*
+|Uses the document bleed, or a value you type.  Sets the PDF's bleed box; the trim box is
+always the page.
+
+|*Marks*
+|*Crop marks*, *Registration marks*, *Color bars*, *Page information* (file name, page, date,
+plate names), each on or off, with *Offset* from the trim and *Weight*.  Marks need room:
+the page size becomes *Page plus bleed and marks* automatically.
+
+|*Page boxes*
+|Written from the above: media box (everything), bleed box, trim box, art box (the artwork's
+bounds).  Layout programs read the trim and bleed boxes to place the PDF correctly.
+|===
+
+== Interactive
+
+[cols="1,3"]
+|===
+|Option |Effect
+
+|*Links from URLs*
+|Objects and text with attached URLs become clickable links (xref:urls.adoc[Attaching
+URLs]).
+
+|*Notes as comments*
+|Object notes from the Object panel become PDF comment annotations positioned on the object
+(xref:names-notes.adoc[Names and notes]).  Useful for review PDFs.  Off for print.
+
+|*Bookmarks from page names*
+|Named pages become bookmarks in the PDF's navigation pane.
+
+|*Open password*
+|Requires a password to open the file.  *Permissions password* restricts printing, copying
+and editing for anyone without it.  Not available with PDF/X.
+|===
+
+== PDF/X
+
+PDF/X is what printers mean by "send us a print-ready PDF".  Choosing a standard sets the
+options it requires and checks the result before the file is written; anything that cannot
+be made to comply is listed with what {product} did about it.
+
+[cols="1,2,2"]
+|===
+| |PDF/X-1a:2001 |PDF/X-4:2010
+
+|Ask for it when
+|The printer's workflow is older, or they say "X-1a".
+|Any current printer; the default.
+
+|Transparency
+|Flattened on export (xref:export-vector.adoc[Exporting vector artwork]).
+|Kept live; the printer's RIP flattens.
+
+|Colors
+|CMYK and spot only; every RGB object and image is converted to the destination profile.
+|CMYK, spot, and profile-tagged RGB (Display P3 included) and Lab all allowed.
+
+|Fonts
+|Embedded or outlined.
+|Embedded or outlined.
+
+|Output intent
+|Required; the destination profile.
+|Required; the destination profile.
+
+|Not allowed
+|Transparency, RGB, layers, passwords, JavaScript, comments.
+|Passwords, JavaScript.  Comments and links are written only if you turn them on.
+|===
+
+Overprint is preserved in both.  Bleed and marks are set in *Pages and marks*.  The
+resulting file identifies its standard in its metadata so a preflight tool can confirm it.
+
+== What the PDF keeps
+
+Everything {product} draws is representable in PDF 1.4 or later: paths, text, gradients of
+every shape (as smooth shadings), transparency and blend modes, clipping, images with alpha,
+spot colors, Display P3 and Lab colors (PDF 1.7 or later for P3), overprint, live effects
+(vector effects are expanded to paths; raster effects
+are embedded as images with alpha at the document's raster effects resolution,
+xref:raster-effects.adoc[Raster effects]).  Text stays selectable and searchable unless
+outlined; text on a path is written as positioned glyphs, so it selects but re-flows as a
+line.  Textured, pattern and PostScript fills are rendered to images.  Pages of any size up
+to the PDF maximum of 200 inches are written at full size; larger pages use the PDF scaling
+feature that modern readers honor.  With *Tagged PDF* on, the alt text, *Decorative*
+settings and reading order from the Object panel are kept too, so the PDF reads aloud in the
+order you arranged (xref:names-notes.adoc[Names, notes and alt text]).
+
+NOTE: For {fh} users: the PDF limits listed in the {fh} manual -- no alpha transparency, no
+text effects, no custom fills, overprint turned off, pages clipped to 45 inches -- are gone.
+
+== Working with others
+
+PDF export reads the document at the instant you click btn:[Export] and never changes it.
+The fonts embedded are those on your Mac (xref:font-substitution.adoc[Font substitution]);
+a colleague on another Mac with a different font installed for the same name gets their
+copy.  For a reproducible handoff, export from the same Mac each time, or embed the fonts in
+the document (xref:print-fonts.adoc[Fonts and printing]).
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,2"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Pages: All / From-To
+|In the Export sheet: Current / All / Range.
+|Faithful.
+
+|Color and Grayscale Image Compression (JPEG levels)
+|*Color and grayscale images*: Automatic / JPEG quality / Lossless / None, plus downsampling.
+|Faithful, extended.
+
+|Convert Colors To CMYK / RGB / CMYK and RGB
+|*Colors*: Keep / Convert to CMYK / Convert to RGB, with a destination profile.
+|Faithful (renamed).
+
+|Compatibility: Acrobat 1, 2, 3, 4
+|PDF 1.4 through 2.0, PDF/X-1a, PDF/X-4.
+|Adapted -- Acrobat 1--4 targets are two decades unsupported; 1.4 is the floor that keeps
+transparency.
+
+|Compress Text and Graphics
+|*Compress text and line art*.
+|Faithful.
+
+|ASCII Format
+|Not offered.
+|Dropped -- 7-bit transport is gone.
+
+|Editable Text Format (keep text blocks intact for re-import)
+|Text is always editable in the PDF; the round-trip use is *Embed {product} document*.
+|Adapted -- the option existed to work around PDF re-import limits that the package removes.
+
+|Export Notes as annotations
+|*Notes as comments*.
+|Faithful.
+
+|Export URLs as link annotations
+|*Links from URLs*.
+|Faithful.
+
+|Embed Fonts (TrueType and Type 1)
+|*Embed fonts*: Subset / Complete / Outlines, with license handling; OpenType and variable
+fonts included.
+|Faithful, extended.
+
+|Unsupported in PDF: custom and PostScript fills and strokes, arrowheads, textured fills;
+alpha transparency; EPS images (preview exported instead); text effects; overprint turned off;
+page size capped at 3240 × 3240 px
+|All supported; overprint preserved; page size up to 200 in, larger via `/UserUnit`.
+|Adapted -- improvements.
+
+|--
+|PDF/X-1a and PDF/X-4, bleed and marks, layers, bookmarks, passwords, fast web view,
+embedded package, Display P3 and Lab colors kept with their profiles.
+|Addition.
+
+|--
+|Tagged PDF with PDF/UA-1 structure: figures with alternate text, artifacts, logical reading
+order, document language.
+|Added -- accessible PDF is a legal requirement for much published work; the data is on the
+objects (xref:names-notes.adoc[]).
+|===
+
+=== Data model
+
+[source,protobuf]
+----
+// interchange/v1/export_options.proto (client-only)
+message PdfOptions {
+  enum Version { V1_4 = 0; V1_5 = 1; V1_6 = 2; V1_7 = 3; V2_0 = 4; }
+  Version version = 1;               // default V1_7
+  enum Standard { NONE = 0; PDFX_1A_2001 = 1; PDFX_4_2010 = 2; }
+  Standard standard = 2;
+  bool layers = 3;
+  bool embed_package = 4;
+  bool linearize = 5;
+  bool include_document_info = 6;    // default true; forced true by a standard
+
+  enum ImageCompression { AUTO = 0; JPEG = 1; LOSSLESS = 2; NONE = 3; }
+  ImageCompression color_images = 10;
+  uint32 jpeg_quality = 11;          // 1..100; presets map Maximum..Minimum to 95/85/70/50/30
+  bool downsample = 12;
+  uint32 downsample_above_ppi = 13;  // e.g. 450
+  uint32 downsample_to_ppi = 14;     // e.g. 300
+  enum MonoCompression { CCITT_G4 = 0; MONO_LOSSLESS = 1; MONO_NONE = 2; }
+  MonoCompression mono_images = 15;
+  uint32 mono_downsample_above_ppi = 16;
+  uint32 mono_downsample_to_ppi = 17;
+  bool compress_content = 18;        // default true
+
+  FontOptions fonts = 20;            // EMBED_SUBSET default; REFERENCE not offered for PDF
+  ColorOptions colors = 30;
+  string destination_profile_id = 31;   // CMS profile id; "" = document working profile
+  bool preserve_spot = 32;           // default true
+  bool preserve_overprint = 33;      // default true
+  bool embed_profiles = 34;          // default true; forced by standard
+
+  enum PageSize { PAGE = 0; PAGE_PLUS_BLEED = 1; CUSTOM = 2; }
+  PageSize page_size = 40;
+  double custom_width_pt = 41;
+  double custom_height_pt = 42;
+  bool use_document_bleed = 43;      // default true
+  double bleed_pt = 44;              // when not using the document bleed
+  bool crop_marks = 45;
+  bool registration_marks = 46;
+  bool color_bars = 47;
+  bool page_information = 48;
+  double marks_offset_pt = 49;       // default 6 pt
+  double marks_weight_pt = 50;       // default 0.25 pt
+
+  bool links_from_urls = 60;         // default true
+  bool notes_as_comments = 61;
+  bool bookmarks_from_page_names = 62;   // default true
+  string open_password = 63;         // never stored in a preset; presets store "" and ask
+  string permissions_password = 64;
+  bool allow_printing = 65;          // default true
+  bool allow_copying = 66;           // default true
+  bool allow_editing = 67;           // default true
+  bool tagged = 68;                  // default true: structure tree, /MarkInfo, PDF/UA-1 claim when eligible
+}
+----
+
+Passwords are not persisted in presets; a preset with a password set stores a flag and the
+sheet asks at export time.
+
+=== Merge semantics
+
+None; the exporter writes no registers.
+
+=== Offline behavior
+
+Works offline.  Embedded fonts come from the local font cache (TXT-002); cloud fonts not yet
+cached are outlined with a warning.
+
+=== Server
+
+Nothing.
+
+=== Client
+
+* The PDF writer is {product}'s own (`WTInterchange.PDFWriter`), fed by a `WTRender` backend
+  that emits PDF content-stream operators rather than through `CGPDFContext`.  Reason:
+  `CGPDFContext` cannot write `Separation`/`DeviceN` color spaces for spot colors, overprint
+  graphics states, output intents, page boxes beyond media/crop, PDF/X identification, optional
+  content groups, or embedded files, and gives no control over object streams or
+  linearization.  The operator set of PDF is the Core Graphics drawing model, so the renderer's
+  display list maps one-to-one; REND-001's "screen equals PDF" guarantee is met by rendering
+  the corpus through both backends and diffing.
+* Shadings: axial (type 2) and radial (type 3) for linear and radial gradients; contour,
+  cone and rectangular gradients as type 4/6/7 meshes; gradients with more than the
+  document's blend steps are written as smooth shadings regardless (steps are a print concept).
+* Transparency: `ExtGState` with `/CA`, `/ca`, `/BM`, soft masks for masked objects; blend
+  groups for knockout/isolated groups mapped from the document's group settings.  PDF/X-1a runs
+  the `Flattener` (IO-017) first.
+* Fonts: CFF and TrueType subsets built from Core Text glyph data with `ToUnicode` CMaps so
+  text is searchable; Type 3 is never written.  Variable fonts are instanced to a static (xref:type-specifications.adoc#TYPE-048[TYPE-048])
+  subset.
+* Images: `DCTDecode` for JPEG (re-using the original JPEG bytes when the placed file is a
+  JPEG and no resampling is needed), `FlateDecode` for lossless, `CCITTFaxDecode` for mono,
+  `SMask` for alpha, ICC-based color spaces when embedding profiles.
+* Vector colors by space (CMS-015 supplies the objects): sRGB as `/ICCBased` sRGB (or
+  `/DeviceRGB` when profiles are not embedded), Display P3 as one shared `/ICCBased` object
+  carrying the Display P3 profile (ICC v4, hence the PDF 1.7 gate; below 1.7, or with *Embed
+  profiles* off, converted to the destination RGB profile and reported), CIELAB as `/Lab`
+  with the D50 white point, OKLab converted to Display P3 (PDF has no OKLab), CMYK as
+  `/ICCBased` Working CMYK or `/DeviceCMYK`.  Gradient stops of one gradient are written in
+  one space -- the widest among its stops -- since a shading has one color space.  A PDF
+  without a standard that keeps P3 objects gets an `/OutputIntents` entry naming Display P3
+  (`GTS_PDFA1`-style dictionary without the PDF/A claim); PDF/X keeps the CMYK output intent
+  and, in X-4, the P3 objects tagged.
+* PDF/X: output intent dictionary from the destination profile, `GTS_PDFXVersion` in XMP,
+  trapped flag `/False`, validation pass over the object graph before writing with a report
+  sheet of fixes made (RGB converted, transparency flattened, comments dropped).
+* Linearization is a second pass over the finished object set.  Encryption: AES-256 (PDF 2.0
+  R6) or AES-128 (R4 for 1.6--1.7), never RC4.
+* Annotations: `/Link` with `/URI` actions from `CommonProps.url`; `/Text` annotations from
+  `CommonProps.note` at the object's top-left; outline items from page names; `EmbeddedFile`
+  with `AFRelationship /Source` for the package.
+* Marks are drawn by the PRINT epic's marks renderer into the margin area.
+* Tagged PDF (`tagged`): the writer emits a structure tree (`/StructTreeRoot`,
+  `/MarkInfo << /Marked true >>`, `/ParentTree`) with one `/Document` element per file and a
+  `/Sect` per page whose kids follow `Page.readingOrder` (OBJ-041).  Each readable node
+  (OBJ-040 `isReadable`) becomes a `/Figure` with `/Alt` from `accessibleDescription`
+  and a `/BBox`; its content is wrapped in a marked-content sequence (`/Figure <</MCID n>>
+  BDC … EMC`).  A group with `alt` is one `/Figure` around all its content.  Text blocks emit
+  `/P` per paragraph (`/H1`--`/H3` when the paragraph style is marked as a heading by the
+  TYPE epic, else `/P`), `/Span` per line with `/ActualText` where ligatures or outlined
+  glyphs would otherwise mis-read; text on a path is one `/Span`.  Decorative nodes, page
+  backgrounds, marks, guides and rasterized effects of decorative nodes are `/Artifact`
+  sequences.  Links from WEB-005 become `/Link` structure elements holding the annotation
+  (`/OBJR`) with `/Contents` from `NavigationProps.alt`.  `/Lang` on the catalog is
+  `DocumentInfo.language`; `/ViewerPreferences << /DisplayDocTitle true >>` and the XMP
+  `pdfuaid:part = 1` claim are written only when the language is set, every font is embedded,
+  no text is outlined and no readable node lacks a description -- otherwise the tags stay and
+  the sheet lists the reasons.  PDF/X modes keep tagging (both standards allow it).  The
+  structure tree is built from the same node walk the content stream uses, so `/MCID`s and
+  content never diverge.
+* Undo: none.
+
+=== Build tasks
+
+[[IO-025]]
+==== IO-025 PDF writer
+[horizontal]
+Track:: import-export
+Depends on:: REND-002, IO-013, IO-012, TXT-002
+Size:: L
+Delivers:: `PDFWriter` and the `WTRender` PDF backend: object model, content streams, versions 1.4--2.0, shadings, transparency, clipping, images with compression and downsampling, font subsetting with ToUnicode, color spaces including Separation, overprint, layers as optional content, page boxes, document info and XMP, object streams, linearization, the General/Compression/Fonts/Color sections of the options sheet.
+Done when::
+* The corpus renders through the PDF backend and through the screen backend within anti-aliasing tolerance (PDFKit rasterization of the output at 4×).
+* `qpdf --check` and `verapdf` (in non-X mode) report no structural errors; text is searchable in Preview for every embedded font type.
+* A 50,000-object document exports in under 15 s on M1; a document with 200 MiB of placed JPEGs re-uses their bytes and exports without recompression.
+* Fonts with restricted embedding are outlined and reported.
+* A P3 fill at PDF 1.7 is written through the shared `/ICCBased` Display P3 object with a Display P3 output intent and shows as P3 in Preview; at PDF 1.4 it is converted to the destination RGB profile and reported; a Lab swatch is written as `/Lab`.
+
+[[IO-026]]
+==== IO-026 PDF/X and print-ready output
+[horizontal]
+Track:: import-export
+Depends on:: IO-025, IO-017
+Size:: M
+Delivers:: PDF/X-1a and PDF/X-4 modes with forced options, output intents, validation and fix report, the *Pages and marks* section with bleed, marks and page boxes, and the shipped *Print* and *Press* presets.
+Done when::
+* `verapdf` validates the corpus as PDF/X-1a and PDF/X-4 respectively; a Ghent Workgroup test-suite subset passes.
+* Bleed and trim boxes match the document settings to 0.01 pt; marks fall outside the bleed box.
+* An RGB image in X-1a mode is converted to the destination profile and listed in the fix report.
+
+[[IO-027]]
+==== IO-027 PDF interactive features and security
+[horizontal]
+Track:: import-export
+Depends on:: IO-025
+Size:: S
+Delivers:: Link annotations from URLs, note comments, bookmarks from page names, open and permissions passwords with AES, the *Interactive* section of the sheet and the password prompt at export time.
+Done when::
+* Links open in Preview and Acrobat; notes appear as comments at the object's position; bookmarks list page names.
+* A permissions password blocks copying in Preview; PDF/X modes disable and strip all of these.
+
+[[IO-028]]
+==== IO-028 Embedded package in PDF and EPS, and reopening
+[horizontal]
+Track:: import-export
+Depends on:: IO-005, IO-006, IO-025, IO-018
+Size:: S
+Delivers:: The *Embed {product} document* option for PDF (EmbeddedFile) and EPS (data block), and detection on open: a PDF or EPS carrying a package opens through the package importer as a new document.
+Done when::
+* Export with the option, reopen through menu:File[Open Package…] and Finder double-click; the canonical read-out equals the original.
+* A PDF without the attachment falls through to the IMG epic's PDF importer.
+* File size with the option is under 2.2× the size without for the corpus.
+
+[[IO-032]]
+==== IO-032 Tagged PDF and PDF/UA-1
+[horizontal]
+Track:: import-export
+Depends on:: IO-025, IO-027, OBJ-040, OBJ-041
+Size:: M
+Delivers:: The structure tree, marked content, `/Figure` with `/Alt`, `/Artifact`, `/P`/`/H`/`/Span` with `/ActualText`, `/Link` structure elements, `/Lang`, `/MarkInfo`, `/ParentTree`, the PDF/UA-1 eligibility rules and their reasons in the export sheet, the *Tagged PDF* option and the `pdfuaid` XMP claim.
+Done when::
+* `verapdf --flavour ua1` validates the corpus exported with a language, embedded fonts and every readable node described; removing one description makes the export drop the claim and name the object.
+* Acrobat's Read Out Loud and Preview's VoiceOver read a two-page fixture in the arranged reading order, skip decorative objects and read each figure's alt text once (manual acceptance, recorded).
+* `/MCID`s are unique per page and every marked-content sequence is referenced by exactly one structure element (structural test over the object graph).
+* A document with no alt text anywhere still tags text and artifacts, and its file size grows by under 3% for the corpus.
+endif::spec[]

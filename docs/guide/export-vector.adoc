@@ -1,0 +1,7 @@
+= Exporting vector artwork
+include::_attributes.adoc[]
+:page-slug: export-vector
+:page-group: Saving and exporting
+:page-fh: Chapter 12, "Exporting vector artwork", "Exporting to EPS format", "Exporting to Photoshop EPS format", "Exporting to EMF format (Windows)"
+
+include::_includes/io/export-vector.adoc[]

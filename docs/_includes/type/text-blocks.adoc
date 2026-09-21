@@ -1,0 +1,378 @@
+Once a text block exists it is an object like any other: select it with the Pointer tool, drag
+it, delete it, group it, put it on a layer, rotate or skew it, give it a stroke and a fill.  This
+page covers what is particular to text blocks -- their handles, the link box in their corner,
+switching between fixed and auto-expanding, insets, and flowing one story through several
+blocks.  Creating a block is on xref:creating-text.adoc[Creating text]; what goes on inside it
+starts at xref:editing-text.adoc[Editing text].
+
+== Reading the handles
+
+A selected text block shows eight selection handles and a small square *link box* at the lower
+right.  The handles tell you which dimensions are fixed:
+
+[cols="1,2"]
+|===
+|Handle |Meaning
+
+|Solid side handles
+|The width is fixed; text wraps at the right edge.
+
+|Hollow side handles
+|The width auto-expands with the longest line.
+
+|Solid bottom center handle
+|The height is fixed; text that does not fit overflows.
+
+|Hollow bottom center handle
+|The height auto-expands with the number of lines.
+
+|Dot in the link box
+|The block holds more text than it can show (overflow).  Auto-expanding blocks never overflow.
+
+|Arrow in the link box
+|The block is linked to another; its overflow continues there.
+|===
+
+// TODO screenshot: fixed-width block with solid side handles and an overflow dot, beside an auto-expanding block with hollow handles
+
+== Moving, resizing and deleting
+
+To move a text block, drag it with the Pointer tool, or nudge it with the arrow keys; everything
+on xref:moving.adoc[Moving objects] applies.
+
+To resize a fixed-size text block:
+
+. Choose the Pointer tool and select the block.
+. Do one of the following:
+* Drag a corner handle.  The text reflows to the new size.
+* kbd:[Shift]-drag a corner handle to keep the block's proportions.
+* kbd:[Option]-drag a corner handle to scale the block *and its type size* together.
+* kbd:[Shift+Option]-drag a corner handle to scale block and type proportionally.
+* Double-click the link box to shrink the block to fit its text exactly.
+
+Dragging a side or bottom-center handle does not resize: those handles adjust kerning and
+leading (xref:type-tools.adoc[The type adjustment tools]).  Precise width and height are typed
+in the Object panel's *Text Block* section.
+
+To delete a text block, select it and press kbd:[Delete], or choose menu:Edit[Clear].  An
+empty auto-expanding block deletes itself when you deselect it.  To sweep every empty block
+out of the document at once, choose menu:Extensions[Delete > Empty Text Blocks].
+
+NOTE: {fh} called the Extensions menu *Xtras*.
+
+To remove rotation, skew and scaling from a text block while keeping its position, select it
+and choose menu:Text[Remove Transforms].  Live effects applied in the Object panel are not
+affected.
+
+== Fixed-size or auto-expanding
+
+Each dimension of a block is independently fixed or auto-expanding.  A label is usually
+auto-expanding in both; body copy is fixed in both; a caption that must keep its column width
+but may grow downward is fixed-width and auto-height.
+
+To convert one block:
+
+* Double-click a *side* handle to toggle the width between fixed and auto-expanding.
+* Double-click the *bottom center* handle to toggle the height.
+
+To convert several blocks at once:
+
+. kbd:[Shift]-click the blocks with the Pointer tool.
+. In the Object panel, select the *Text Block* row.
+. Click btn:[Auto width] or btn:[Auto height] to make that dimension auto-expanding, or click
+  it again to fix the dimension at its current size.
+
+When a dimension becomes fixed it keeps the size it had at that moment.  When it becomes
+auto-expanding the block immediately grows or shrinks to fit its text.
+
+== The Text Block section of the Object panel
+
+Select a block with the Pointer tool and choose the *Text Block* row in the Object panel's
+properties list.  The lower half shows:
+
+[cols="1,3"]
+|===
+|Control |Does
+
+|*Width*, *Height*
+|The fixed size in points.  Dimmed for an auto-expanding dimension, where the current value is
+shown for reference.
+
+|btn:[Auto width], btn:[Auto height]
+|Toggle each dimension between fixed and auto-expanding.
+
+|*Inset* l, r, t, b
+|The distance between the block's edge and its text, per side.  Zero puts text against the
+edge; positive values move it inward; negative values let it hang outside.  Text on a path
+offers only left and right (xref:text-on-path.adoc[Text on a path]).
+
+|*Display border*
+|Shows or hides the block's own stroke and fill (xref:text-color.adoc[Coloring text and text
+blocks]) and any column or row rules.  Off by default until you add a stroke.
+
+|*Columns and Rows*, *Adjust Columns*
+|Covered on xref:columns-tables.adoc[Columns, rows and tables].
+|===
+
+== Double-click behaviors
+
+[cols="1,2"]
+|===
+|Double-click with the Pointer tool on… |Does
+
+|the text
+|Switches to the Text tool with the insertion point where you clicked.
+
+|a side handle
+|Toggles auto width.
+
+|the bottom center handle
+|Toggles auto height.
+
+|the link box
+|Shrinks a fixed-size block to fit its text.
+
+|the text with kbd:[Option] held
+|Opens the block in the Text Editor window (xref:editing-text.adoc[Editing text]).
+|===
+
+== Linking text blocks
+
+A story that does not fit one block can continue in another.  You link a fixed-size block to
+any other text block, or to a path, and overflow text flows into it; link that one onward and
+the story spans as many blocks and pages as you need.  A thin *link line* shows the order of
+the flow when a linked block is selected.
+
+Only a fixed-size block can overflow, so only a fixed-size block makes sense at the start or
+in the middle of a chain.  An auto-expanding block can be the *end* of a chain: it grows to
+hold whatever reaches it.
+
+To link text blocks:
+
+. Select the block whose text should continue (it usually shows the overflow dot).
+. Drag from its link box into the inside of another text block, or onto a path.
+. The link box shows an arrow, the link line appears, and overflow text flows on.  Repeat from
+  the new block to extend the chain.
+
+The block you drag onto must be empty.  If it is a path, the path becomes a text container
+(text flows inside it, as on xref:text-on-path.adoc[Text on a path]) and keeps the text block
+settings it acquires even after the text is gone again.
+
+Changing type in one block can reflow text through the chain: enlarge a font in the first block
+and the last line of it moves to the second.
+
+To break a link and keep the text where it is:
+
+. Select the block whose outgoing link you want to break.
+. Drag the link line from its link box to an empty spot on the pasteboard, or to a different
+  block or path.
+. The text stays intact.  Dropped on empty space, the text that had flowed onward returns to
+  the originating block as overflow; dropped on another block, it flows there instead.  Resize
+  the end of the chain if it now shows an overflow dot.
+
+Deleting a block in the middle of a chain closes the gap: its predecessor links directly to its
+successor and the text reflows.
+
+== Working with others
+
+* A collaborator resizing a block you are typing in simply reflows your text as you type;
+  neither of you is interrupted.
+* Two people resizing the same block at once: the drag that finishes later sets the size.
+  Width and height are separate, so one of you widening while the other makes it taller ends
+  with both changes.
+* Toggling auto-expanding, changing insets and editing the text are all independent; they
+  never undo each other.
+* If someone deletes a block while you are editing its text, it leaves your canvas and a notice
+  offers *Restore*.  Restoring brings back the block with every character either of you typed.
+* Linking: if you and a collaborator each link the same block onward to different targets, one
+  link wins (the later one) and the other target simply stays a separate block with its own
+  text.  A chain can never loop: if two links would form a circle, {product} breaks the circle
+  at one link and the affected block shows an overflow dot so you can see something changed.
+
+After being offline, block sizes and positions merge property by property; where you and
+someone else both changed the same property of the same block, the review sheet lists it with
+both values (xref:reconcile.adoc[Reconciling offline edits]).
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,1"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Solid/hollow handles indicate fixed/auto dimensions
+|Same.
+|Faithful
+
+|Link box with overflow dot
+|Same, plus an arrow glyph when linked.
+|Faithful
+
+|Corner drag resizes; Shift proportional; Option scales type; double-click link box fits
+|Same.
+|Faithful
+
+|Double-click side/bottom handle toggles auto-expanding
+|Same.
+|Faithful
+
+|Object panel Width/Height buttons convert several blocks
+|Same controls, labelled *Auto width* / *Auto height*.
+|Faithful
+
+|Delete empty text blocks (Xtras > Delete > Empty Text Blocks)
+|menu:Extensions[Delete > Empty Text Blocks].
+|Faithful (menu renamed with the Extensions menu)
+
+|Text > Remove Transforms
+|Same; resets `CommonProps.transform` to translation only.
+|Faithful
+
+|Layer highlight colors for selected text blocks in Preview mode
+|Handled by the LIB epic's layers page.
+|Faithful
+
+|Link fixed-size blocks and paths; auto-expanding only as chain end
+|Same rules; the UI refuses a drop on a non-empty block.
+|Faithful
+
+|Break a link and retain text; break a link and delete following blocks
+|Retain-and-reflow is the only unlink gesture.  Deleting the following blocks is an ordinary
+delete of those nodes afterwards.
+|Adapted -- one gesture with a predictable outcome; the destructive variant is two steps.
+
+|Linked object acquires text block attributes and keeps them
+|Same: a path that receives a link gains `on_path` with `INSIDE` mode and keeps it.
+|Faithful
+
+|Text flows across pages in a chain
+|Same; a chain is a list of node references and pages are geometry.
+|Faithful
+|===
+
+=== Data model
+
+All fields are in `TextProps` and `TextBlockProps` on xref:creating-text.adoc[Creating text]:
+`auto_width`, `auto_height`, `width`, `height`, `inset`, `display_border`, `next_link`,
+`prev_link`.  Position, rotation and skew are `CommonProps.transform` (ATOMIC).
+
+The head of a chain owns the flow's text.  `next_link`/`prev_link` are written on both nodes
+in one change when linking (`A.next = B`, `B.prev = A`) and cleared on both when unlinking.
+`prev_link` is a cache for walking backwards; the chain is *defined* by `next_link` alone.
+
+=== Merge semantics
+
+Size and toggles:: `width`, `height`, `auto_width`, `auto_height` and each inset side are
+independent ATOMIC registers.  Two concurrent drags of the same corner: LWW per dimension, so
+the later drag's width and the later drag's height win; in practice both come from the same
+drag.  A toggle vs. a resize keeps both: the dimension becomes fixed at the other user's size.
+
+Option-drag (scale type):: Writes `width`, `height` and a `size` mark over the whole text in
+one change.  Concurrent typing inside the block: the new characters are inside the mark's
+anchors and get the new size.
+
+Delete vs. edit:: A deleted block keeps receiving text; the live client, on seeing
+`deleted = true` arrive for the node holding the local caret, ends editing and shows a notice
+whose *Restore* writes `deleted = false` (a normal change, undoable).  Offline: *edit vs delete*
+row with *Restore* on the review sheet.
+
+Link races:: `next_link` is LWW.  A links X→Y while B links X→Z: X's link resolves to one of
+them; the loser's target has `prev_link = X` with no reciprocal `next_link`, so it is a chain
+head showing its own (dormant, typically empty) text.  Deleting Y in the middle of X→Y→Z: the
+delete command also writes `X.next = Z`, `Z.prev = X`.  Concurrently B links Y→W: B's write
+lands on the deleted node; W's `prev_link` points at a deleted node, reads unset, and W is a
+head.  The review sheet lists Y under *edit vs delete*.
+
+Loops:: Concurrent links can form a cycle (A links X→Y while B links Y→X).  Normalize on read:
+walking `next_link` from every node, a cycle is cut by treating the `next_link` of the cycle
+member with the smallest node id as unset (xref:crdt-model.adoc[CRDT model]).  The block whose
+link was cut shows the overflow dot.  The next unlink or link command by any user writes a
+consistent state.
+
+Dormant text:: A node that is a non-head chain member does not render its own `text`; edits
+to it still apply and are revealed by unlinking.  Linking in the UI requires an empty target
+precisely so that no text is hidden by a link.
+
+Read-time normalizations::
+* `next_link` to a deleted, unknown or non-`text` node: unset.
+* A node whose `prev_link` does not point at a node whose `next_link` points back: treated as
+  a head (its `prev_link` is ignored).
+* Cycles cut as above.
+* `width` or `height` at or below 0: laid out at 1 pt and shown as such in the Object panel.
+
+=== Offline behavior
+
+Resizes coalesce in the outbox (one `SetFields` per register per change).  Nothing needs the
+server.
+
+=== Server
+
+Nothing beyond storing and relaying changes.
+
+=== Client
+
+Handles and hit testing:: `WTRender` draws the handle set for `text` nodes (REND-003 hit
+regions: eight handles, link box, link line).  Side and bottom-center handle drags are routed
+to the type adjustment behaviors (xref:type-tools.adoc[The type adjustment tools]); corner
+drags resize.  Handle hollowness reads `auto_width`/`auto_height` live so remote toggles
+redraw.
+
+Layout across a chain:: `WTText` lays out the head's attributed string through the containers
+of the chain in order (TXT-001's linked-flow support), each container with its own inset,
+columns and transform.  The overflow dot is set on the last container when characters remain.
+
+Undo grouping:: One drag = one change ("Resize text block"); toggles and inset edits are one
+change each; link and unlink are one change each ("Link text blocks", "Unlink text blocks"),
+including the delete-and-splice case ("Delete text block").
+
+=== Build tasks
+
+[[TYPE-005]]
+==== TYPE-005 Text block handles and resizing
+[horizontal]
+Track:: client-ui
+Depends on:: APP-006, REND-003, TYPE-003
+Size:: M
+Delivers:: Handle drawing (solid/hollow), corner resize with kbd:[Shift]/kbd:[Option]/
+kbd:[Shift+Option], double-click toggles on side and bottom handles, double-click link box to
+fit, menu:Text[Remove Transforms], menu:Extensions[Delete > Empty Text Blocks], empty-block
+auto-delete on deselect.
+Done when::
+* UI tests for each drag modifier assert the resulting `width`, `height` and (for kbd:[Option])
+  the size mark.
+* Toggling auto width on a block with wrapped text re-lays it out on one line.
+* Merge test: concurrent resize and auto-height toggle from two replicas converge with the
+  toggle applied and the other user's height fixed.
+
+[[TYPE-006]]
+==== TYPE-006 Text Block inspector section
+[horizontal]
+Track:: client-ui
+Depends on:: APP-007, TYPE-002
+Size:: S
+Delivers:: The *Text Block* row of the Object panel: width, height, auto width/height buttons
+(multi-selection aware), inset l/r/t/b, display border.
+Done when::
+* Mixed selections show mixed values and write only the field edited.
+* Remote changes update the fields without stealing focus (APP-007 rule).
+* Merge test: inset left from one replica and inset right from another both survive.
+
+[[TYPE-007]]
+==== TYPE-007 Linked text flow
+[horizontal]
+Track:: client-model
+Depends on:: TXT-001, TYPE-002, TYPE-005
+Size:: M
+Delivers:: Link drag from the link box (to a block or a path), unlink drag, delete-and-splice,
+link line drawing, chain walking with normalization (dangling, non-reciprocal, cycle cut),
+dormant text rule, layout of one story through a chain across pages.
+Done when::
+* A three-block chain across two pages lays out and reflows when the first block's font grows.
+* Merge test: two replicas link the same block to different targets; both converge, the loser
+  is a head, no text is lost.
+* Merge test: concurrent X→Y and Y→X links converge to the same cut chain on both engines and
+  the client shows the overflow dot on the cut block.
+* Conformance vector for `next_link`/`prev_link` written in one change.
+endif::spec[]

@@ -1,0 +1,7 @@
+= Typeface documents
+include::_attributes.adoc[]
+:page-slug: typeface-documents
+:page-group: Typeface documents
+:page-fh: None (addition); reference: FontForge, "User Interface" overview and "Font View"
+
+include::_includes/typeface/typeface-documents.adoc[]

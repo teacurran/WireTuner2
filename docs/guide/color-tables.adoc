@@ -1,0 +1,7 @@
+= Color conversion and spot color preview
+include::_attributes.adoc[]
+:page-slug: color-tables
+:page-group: Color management
+:page-fh: Chapter 13, "Using color tables"
+
+include::_includes/cms/color-tables.adoc[]

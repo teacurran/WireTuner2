@@ -1,0 +1,293 @@
+Editing color in {product} happens at two levels.  Edit a *swatch* and every object that uses
+it changes -- that is what naming a color is for.  Edit the *objects* with the Colors
+extensions and each object gets its own adjusted, unnamed color while the swatches stay as
+they were.  This page covers both, and the global replace that swaps one color for another
+throughout the artwork.
+
+NOTE: {fh} users: the *Xtras* menu is called *Extensions* in {product}; menu:Xtras[Colors] is
+menu:Extensions[Colors].
+
+== Editing a named color
+
+Change a swatch and everything using it -- fills, strokes, text, tints of it, gradient stops
+-- follows.  Nothing needs to be selected; in fact, deselect first so that you do not apply
+the color by accident.
+
+To redefine a swatch:
+
+. Press kbd:[Tab] to deselect everything.
+. Load the swatch into the Color Mixer: kbd:[Option]-click it in the Swatches panel.
+. Adjust the sliders (xref:color-mixer.adoc[Color Mixer]).
+. Drag the Mixer's color well onto the swatch in the Swatches panel and release.
+
+You can also drop any color -- from the Tints panel, an Object panel well, or the Eyedropper
+-- onto a swatch to redefine it.  If the swatch still has its default name, the name updates
+to the new values (the *Auto-rename colors* preference); a name you chose is kept
+(xref:swatches.adoc[Swatches]).  The default White, Black and Registration cannot be
+redefined.
+
+Converting a swatch between spot and process or between RGB and CMYK is also an edit of the
+swatch: xref:spot-process.adoc[Spot and process colors].
+
+== Brightening and dulling colors
+
+The four one-step extensions nudge every color in the selection.  Each application nudges a
+little more, until the color reaches its limit.  They adjust *process* colors only: a spot
+color is an ink, and an ink cannot be lightened by a menu command, so objects using spot
+colors are left alone.
+
+To brighten or dull the selected objects' colors:
+
+. Select the objects.
+. Choose one of:
++
+[cols="1,3"]
+|===
+|Command |Effect
+
+|menu:Extensions[Colors > Lighten Colors] |Moves each color a step toward white.
+|menu:Extensions[Colors > Darken Colors] |Moves each color a step toward black.
+|menu:Extensions[Colors > Saturate Colors] |Makes each color a step purer.
+|menu:Extensions[Colors > Desaturate Colors] |Makes each color a step grayer.
+|===
+
+The results are unnamed colors on the objects: the swatches they were based on do not
+change.  Name the results with menu:Extensions[Colors > Name All Colors] if you want them in
+the list.  Text, gradient stops and every fill and stroke in the selection are adjusted;
+bitmap images are not (see xref:image-color.adoc[Image color]).
+
+== Controlling color values
+
+For precise adjustment, *Color Control* adds or subtracts an amount from each component of
+every color in the selection.
+
+To adjust color components:
+
+. Select the objects.
+. Choose menu:Extensions[Colors > Color Control…] (also in the Swatches panel's Options menu).
+. In the sheet, choose the mode: *CMYK*, *RGB* or *HLS*.
+. Drag the sliders or type values: −100% to +100% for every component except hue, which takes
+  −360° to +360°.  Zero means no change.
+. Leave *Preview* on to see the effect on the canvas as you adjust.
+. Click btn:[Apply].
+
+// TODO screenshot: the Color Control sheet in HLS mode with Preview on
+
+The mode is a way of adjusting, not a conversion: a CMYK color adjusted in HLS stays CMYK.  A
+component already at its limit stays there.  Spot colors are skipped.  As with the one-step
+commands, the results are unnamed colors and the swatches are untouched.
+
+== Converting to grayscale
+
+menu:Extensions[Colors > Convert to Grayscale] turns every color in the selection into a tint
+of Black of matching darkness.  Tints of a converted color become tints of Black too.  The
+command works on vector objects; for images use xref:image-color.adoc[Image color].  Because
+the results are tints of the Black swatch, you can drop a different color onto them afterwards
+for a monochrome effect in any color: select the objects, then apply a tint from the Tints
+panel.
+
+== Making global color changes
+
+=== Replacing a color
+
+*Replace* swaps a swatch for another color everywhere it is used, in one step.
+
+To replace a color:
+
+. In the Swatches panel, select the swatch to replace.
+. Choose *Replace…* from the Options menu.
+. Choose the source of the replacement:
+* *Color list* -- another swatch in this document.  Every fill, stroke, text and tint that
+  used the original now uses the chosen swatch, and the original swatch is removed.
+* *Library* -- a color from a color library.  The original swatch takes the library color's
+  value, name and kind; everything using it follows because it is the same swatch.
+. Click btn:[Replace].
+
+The defaults White, Black, None and Registration cannot be replaced.  To replace colors by
+*attribute* -- every object whose stroke is red, say, whether named or not -- use
+menu:Edit[Find & Replace] (xref:find-replace.adoc[Find and replace]).
+
+=== Randomizing named colors
+
+menu:Extensions[Colors > Randomize Named Colors] gives every named color in the document
+except the defaults a new random value, keeping its kind and space.  Every object using them
+changes at once.  It is for exploration: undo brings the palette back in one step.
+
+=== Other list-wide commands
+
+menu:Extensions[Colors > Name All Colors], menu:Extensions[Colors > Sort Color List by Name]
+and menu:Extensions[Delete > Unused Named Colors] act on the color list; they are described
+on xref:swatches.adoc[Swatches].
+
+== Working with others
+
+Redefining a swatch is one change that everyone sees everywhere the color is used.  If two of
+you redefine the same swatch at the same moment, the later edit stands and both panels show
+it.  Redefining a color while a collaborator applies it to new objects is fine: their objects
+get the color, whatever it is now.
+
+The Colors extensions change the *objects* you selected.  Someone else adjusting different
+objects, or the same objects' shape, is unaffected.  Two people lightening the same object at
+once produce one lightening, not two -- the later change stands -- because each command
+writes the resulting color rather than "lighten by a step".
+
+*Replace* from the color list touches many objects in one change.  If someone is coloring an
+object with the old swatch at that moment, their object keeps the old color as an unnamed
+color, and the reconnect review or the *Restore Deleted Colors…* sheet can bring the old
+swatch back.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,1"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Editing a named color redefines it everywhere
+|Same: objects hold a `NodeRef` to the swatch and read its live value.
+|Faithful
+
+|Lighten, Darken, Saturate, Desaturate Colors; spot colors unaffected; repeatable to a limit
+|Same; results are `ColorRef.inline`.
+|Faithful
+
+|Color Control Xtra: CMYK/RGB/HLS, −100..100%, hue ±360°, Preview
+|Same, as a sheet; also reachable from the Swatches Options menu.
+|Faithful
+
+|Convert to Grayscale → tints of black
+|Same: `ColorRef.tint` of the Black swatch.
+|Faithful
+
+|Replace from the color list or a library
+|Same.  From the list: reference rewrite plus removal; from a library: a swatch edit.
+|Faithful
+
+|Randomize Named Colors
+|Same.
+|Faithful
+
+|Defaults cannot be replaced
+|Same.
+|Faithful
+
+|Global replace via Find & Replace Graphics
+|xref:find-replace.adoc[Find and replace] (OBJ epic).
+|--
+|===
+
+=== Data model
+
+No new fields.  These commands write `SwatchProps.value` / `name` / `spot` / `deleted`
+(xref:swatches.adoc[Swatches]) and objects' `ColorRef` registers
+(xref:applying-color.adoc[Applying color]).
+
+=== Merge semantics
+
+Each command is one change:
+
+[cols="1,3"]
+|===
+|Command |Ops and concurrent behavior
+
+|Redefine swatch
+|One `SetFields` on `value` (and `name` when auto-renaming).  LWW on `value`; the ATOMIC
+`Color` means two concurrent redefinitions never mix components.  Redefine vs delete: the
+edit lands on the deleted node; review lists "edited a color that was deleted".
+
+|Lighten / Darken / Saturate / Desaturate / Color Control / Convert to Grayscale
+|One `SetFields` per affected `ColorRef` register (topmost basic fills and strokes of every
+selected object and its descendants, text marks, gradient stops).  The written value is the
+*result*, not the delta, so concurrent applications on one object do not compound: LWW picks
+one.  Objects referencing a swatch get an `inline` (or `tint`) written over the reference;
+the swatch is untouched.  Concurrent recolor of the same register by another user: LWW, the
+loser listed after an offline session.
+
+|Replace from list (A → B)
+|For every register referencing A (from `SwatchDependents`): `SetFields` to reference B with
+B's cache; tints of A: `SetFields parent = B`; then `SetDeleted A`.  A reference to A written
+concurrently by someone else dangles → cached → looks like A; the review lists "used a color
+that was deleted".  B deleted concurrently: every rewritten reference dangles → cached →
+looks like B; *Restore* fixes all at once.
+
+|Replace from library
+|A swatch edit: `value`, `name`, `spot`, `library`, `library_key` in one change.  LWW per
+register.
+
+|Randomize Named Colors
+|One `SetFields value` per non-protected swatch.  Concurrent recolor of one swatch: LWW.
+Two concurrent Randomize runs: each swatch takes one of the two random values, which is as
+random as either.  Undo reverts only the swatches still holding this user's values.
+|===
+
+Read-time normalizations::
+None beyond those on xref:applying-color.adoc[Applying color].
+
+Undo::
+Every command above is one labelled change (`Lighten colors of 12 objects`, `Replace "Grape"
+with "Plum"`, `Randomize named colors`).  Preview in the Color Control sheet does not write
+changes: it renders through a transient override in the display list until btn:[Apply].
+
+=== Offline behavior
+
+Nothing here needs the network.  Replace from a team library needs the library cached.
+
+=== Server
+
+Nothing beyond storing and relaying changes.
+
+=== Client
+
+* `WTModel`: `ColorAdjustment` (the four steps: lighten/darken move L by 10 points in HLS
+  space computed from the color's own space and written back in it; saturate/desaturate move
+  S by 10 points; Color Control applies per-component deltas with clamping; grayscale maps
+  luminance `Y = 0.2126 R + 0.7152 G + 0.0722 B` of the sRGB rendering to a Black tint at
+  `(1 − Y) × 100`%), a `ColorRegisterWalker` that enumerates every `ColorRef` register under a
+  selection (shared with Find & Replace in the OBJ epic), and the commands `AdjustColors`,
+  `ConvertToGrayscale`, `ReplaceSwatch`, `RandomizeSwatches`.
+* `WTRender`: a transient color override table for Color Control preview (COLOR-006's
+  resolver consults it before the model).
+* `WTApp`: the Color Control sheet (`NSAlert`-style sheet with SwiftUI body: mode
+  segmented control, three or four sliders with fields, Preview toggle), the Replace sheet
+  (source segmented control, swatch or library chooser).
+
+=== Build tasks
+
+[[COLOR-014]]
+==== COLOR-014 Color adjustment commands
+[horizontal]
+Track:: client-model
+Depends on:: COLOR-003, COLOR-006, APP-006
+Size:: M
+Delivers:: `ColorRegisterWalker`, `ColorAdjustment`, and the commands `AdjustColors` (Lighten, Darken, Saturate, Desaturate, Color Control deltas), `ConvertToGrayscale`, `RandomizeSwatches`; the Extensions menu entries.
+Done when::
+* Unit tests: each step's numeric effect in CMYK and RGB; limits reached and held; spot references skipped; grayscale maps a mid-gray to a 50% Black tint within one step.
+* Each command is one change over every color register in the selection including text marks and gradient stops; undo restores all.
+* Merge tests: two clients lighten one object concurrently -- one step, not two, on both replicas; Randomize on two clients converges.
+* Conformance vector: a change writing `inline` over a `swatch` reference.
+
+[[COLOR-015]]
+==== COLOR-015 Replace color
+[horizontal]
+Track:: client-model
+Depends on:: COLOR-014, COLOR-013
+Size:: M
+Delivers:: `ReplaceSwatch` from the color list (reference rewrite, tint re-base, removal) and from a library (swatch edit), the Replace sheet, protection of the defaults.
+Done when::
+* Replacing a swatch used by 10,000 registers is one change under 100 ms on M1 and undoable as one.
+* Merge tests: replace A→B vs concurrent apply of A leaves the object rendering A's color with a dangling reference; replace A→B vs concurrent delete of B converges and Restore B re-links every rewritten reference.
+* Conformance vector for the tint re-base write.
+
+[[COLOR-017]]
+==== COLOR-017 Color Control sheet with live preview
+[horizontal]
+Track:: client-ui
+Depends on:: COLOR-014, APP-007
+Size:: S
+Delivers:: The Color Control sheet (CMYK/RGB/HLS modes, sliders and fields with ranges, Preview through the renderer's transient override, Apply/Cancel), reachable from menu:Extensions[Colors] and the Swatches Options menu.
+Done when::
+* UI tests: preview changes the canvas without writing a change (outbox count unchanged); Cancel restores; Apply writes one change.
+* A remote change to a previewed object during preview re-renders with the override still applied.
+endif::spec[]

@@ -1,0 +1,7 @@
+= Perspective grids
+include::_attributes.adoc[]
+:page-slug: perspective
+:page-group: Effects
+:page-fh: Chapter 7, "Creating perspective"
+
+include::_includes/effects/perspective.adoc[]

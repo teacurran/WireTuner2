@@ -1,0 +1,768 @@
+Layers split an illustration into stacked planes, the way a traditional illustrator draws the
+parts of a picture on separate sheets of tracing film.  Every object sits on exactly one layer,
+each layer keeps its own front-to-back order of objects, and the layers themselves stack in the
+order the Layers panel shows them.  A new document has three layers: *Foreground*, where drawing
+and importing happen until you choose another layer; *Guides*, which holds ruler guides and
+guide paths; and *Background*, a non-printing layer for reference material.  You can hide, lock,
+reorder, merge, recolor and remove layers, and you can decide which ones print.
+
+// TODO screenshot: the Layers panel with the foreground/background separator and every column labelled
+
+== The Layers panel
+
+The Layers panel lists every layer in the document, frontmost at the top.  Each row carries,
+from left to right: a visibility check mark, a Preview/Keyline circle, a padlock, the layer's
+highlight color swatch, and the layer name.  A pen icon to the right of a name marks the
+*active layer*, the one new objects and imports land on.
+
+To show the Layers panel, do one of the following:
+
+* Choose menu:Window[Layers].
+* Click the Layers button in the Main toolbar.
+
+A horizontal *separator line* divides the list.  Layers above it are *foreground layers* and
+print; layers below it are *background layers*, which never print and whose objects are drawn
+dimmed on screen.  The Background layer starts below the line; any layer can be moved there.
+
+[cols="1,3"]
+|===
+|Column |What it does
+
+|Check mark
+|Shows or hides the layer.  Hidden layers cannot be edited.  A hidden layer can still be
+printed if *Include invisible layers* is turned on in the output options
+(xref:output-area.adoc[Setting the output area]).
+
+|Circle
+|A filled circle means the layer draws in Preview; a hollow circle means it draws in Keyline
+(outlines only).  This affects the screen only, never printing or export.  The document-wide
+view modes on xref:document-view.adoc[Viewing the document] combine with the per-layer setting:
+a layer set to Keyline is always drawn as outlines.
+
+|Padlock
+|Locks the layer so its objects cannot be selected, moved or edited from the canvas, while
+remaining visible.
+
+|Color swatch
+|The layer's *highlight color*: the color of selection outlines, points and transform handles
+for objects on this layer.  It has no effect on the objects' own colors.
+
+|Name
+|Click to make the layer active.  Double-click to rename.
+|===
+
+The panel's options menu (the control at the top right of the panel) holds:
+
+[cols="1,3"]
+|===
+|Command |What it does
+
+|*New*
+|Adds a layer directly above the active layer and makes it active.
+
+|*Duplicate*
+|Copies the selected layer with all of its objects; the copy sits above the original.
+
+|*Remove*
+|Deletes the selected layers and everything on them, after a confirmation when any of them is
+not empty.
+
+|*Merge Selected Layers*
+|Combines the selected layers onto the lowest one of them.
+
+|*Merge Foreground Layers*
+|Combines every layer above the separator, except Guides, onto the lowest foreground layer.
+
+|*Move Objects to Current Layer*
+|Moves the selected objects onto the active layer.
+
+|*All On* / *All Off*
+|Shows or hides every layer at once.
+|===
+
+The same commands are on the context menu of a layer row (kbd:[Control]-click or right-click),
+which adds *Move Selection to This Layer* for the row you clicked.
+
+== Creating layers
+
+You can set up all of your layers before drawing or add them one at a time as an illustration
+grows.  A new layer becomes the active layer immediately, so anything you draw or import next
+lands on it.
+
+To add a layer:
+
+. Show the Layers panel (menu:Window[Layers]).
+. From the panel's options menu choose *New*.
+. Double-click the new layer's name and type a name of your own.
+
+To duplicate a layer together with the objects on it:
+
+. Deselect everything (menu:Edit[Select > None], or press kbd:[Tab]) so the selection is not
+  moved onto the new layer by accident (see the *Clicking a layer name moves selected objects*
+  preference below).
+. Click the layer's name in the Layers panel.
+. From the options menu choose *Duplicate*.
+
+To rename a layer:
+
+. Double-click the layer name in the Layers panel.
+. Type the new name and press kbd:[Return].  Press kbd:[Esc] to keep the old name.
+
+The Guides layer cannot be renamed.
+
+== Selecting layers and the objects on them
+
+Clicking a layer name makes it the *active layer*, marked with a pen icon.  The next object you
+draw, paste or import goes onto it.  Selecting an object on the canvas highlights the name of
+its layer in the panel, so the panel doubles as a "which layer is this on?" readout.
+
+To make a layer active:
+
+. Deselect everything (menu:Edit[Select > None] or kbd:[Tab]) unless you intend to move the
+  selection to that layer.
+. Click the layer name.
+
+To select every object on one layer:
+
+* kbd:[Option]-click the layer name.
+
+To select several layers (for merging or removing):
+
+* kbd:[Cmd]-click layer names to add or remove individual layers.
+* kbd:[Shift]-click to select a contiguous range.
+
+By default you can select objects on any visible, unlocked layer.  If you prefer to work on
+one layer at a time, turn on the *Edit current layer only* preference in the *Object* category
+of Preferences: the canvas then selects only objects on the active layer, and objects on other
+layers behave as if locked (xref:preferences.adoc[Setting preferences]).
+
+== Moving objects between layers
+
+An object's layer decides which other objects it can overlap: a layer's objects always draw
+above everything on the layers below it, whatever their individual front-to-back order
+(xref:arranging.adoc[Arranging objects]).  You can move objects between layers with the Layers
+panel, with menu commands, or by cutting and pasting.
+
+To move the selected objects to a layer with the Layers panel:
+
+. Select the objects.  Their layers' names are highlighted in the panel.
+. Click the name of the destination layer.  The objects move there and go to the front of that
+  layer, keeping their order relative to each other.
+
+This works because the *Clicking a layer name moves selected objects* preference (in the
+*Panels* category of Preferences) is on by default.  Turn it off if you find yourself moving
+things by accident; you can still move objects with the commands below.
+
+To move objects to a layer with a command:
+
+. Deselect everything and click the destination layer in the Layers panel to make it active.
+. Select the objects on the canvas.  They may come from several layers.
+. Do one of the following:
+* From the Layers panel options menu choose *Move Objects to Current Layer*.
+* kbd:[Control]-click the destination layer's row and choose *Move Selection to This Layer*.
+
+To move objects by cutting and pasting:
+
+. Select the objects and choose menu:Edit[Cut] (kbd:[Cmd+X]).
+. Make the destination layer active and choose menu:Edit[Paste] (kbd:[Cmd+V]).
+  With *Remember layer info* turned off (the default), pasted objects land on the active layer.
+
+Grouping objects that live on different layers pulls the whole group onto the active layer,
+as does joining or clipping them (xref:grouping.adoc[Grouping objects]).  With *Remember layer
+info* turned on, ungrouping, splitting or releasing a clipping path returns each object to the
+layer it came from.
+
+=== Remembering layer information
+
+The *Remember layer info* preference (in the *General* category) makes objects carry the name
+of their layer with them:
+
+* Ungrouping, splitting a join or releasing a clipping path puts each object back on the layer
+  it was on before.
+* Pasting into another document puts each object on the layer of the same name there.  If the
+  destination has no layer with that name, {product} creates one.
+
+To copy objects between documents and keep their layers:
+
+. Turn on *Remember layer info* in Preferences and click btn:[OK].
+. In the source document select the objects and choose menu:Edit[Copy] or menu:Edit[Cut].
+. Switch to the destination document and choose menu:Edit[Paste].
+
+== Reordering layers
+
+Dragging a layer name up or down the list changes where its objects draw: above everything on
+the layers now below it, beneath everything on the layers above.
+
+To move a layer in front of or behind another layer:
+
+. Deselect everything (kbd:[Tab]) so that clicking a layer does not move objects onto it.
+. Drag the layer name to its new position.  A horizontal insertion line shows where it will
+  land.
+
+// TODO screenshot: dragging a layer name with the insertion line visible
+
+=== Foreground and background layers
+
+Layers below the separator line are *background layers*: they never print or export, and their
+objects are drawn dimmed on screen so a scanned sketch or a reference image does not compete
+with the artwork.  The Background layer starts there; any layer can join it.
+
+To make a layer non-printing, do one of the following:
+
+* Drag the layer below the separator line.
+* Drag the separator line above the layer.
+* Hide the layer.  (Unlike the first two, a hidden layer still prints when *Include invisible
+  layers* is on in the output options.)
+
+Dragging a background layer back above the separator makes it a printing layer again and draws
+its objects at full strength.
+
+== Merging layers
+
+When an illustration is finished, merging layers tidies the document.  Objects on merged layers
+keep their front-to-back order: everything that was on a higher layer stays in front of
+everything that was on a lower one.  The Guides layer never takes part in a merge.
+
+To merge selected layers:
+
+. In the Layers panel select the layers: kbd:[Cmd]-click to add layers one by one, or
+  kbd:[Shift]-click to select a range.
+. From the options menu choose *Merge Selected Layers*.  The layers merge onto the lowest
+  selected layer, which keeps its name and settings.
+
+To merge every foreground layer:
+
+* From the options menu choose *Merge Foreground Layers*.  Every layer above the separator
+  except Guides merges onto the lowest of them.
+
+== Removing layers
+
+To remove a layer:
+
+. Select the layer (or several, with kbd:[Cmd]-click or kbd:[Shift]-click).
+. From the options menu choose *Remove*, or kbd:[Control]-click the row and choose *Remove*.
+. If a layer is not empty, a sheet warns that its objects will be removed too.  Click
+  btn:[Remove] to proceed.
+
+Removing a layer is undoable, and a removed layer can also be brought back from
+xref:history.adoc[History].  The Guides layer cannot be removed, and a document always keeps at
+least one printing layer.
+
+== Showing and hiding layers
+
+Hiding a layer hides its objects without removing them.  If you hide the active layer, objects
+you draw next are invisible until you show the layer again, so {product} shows a warning strip
+at the top of the canvas while the active layer is hidden.
+
+To show or hide layers, do one of the following in the Layers panel:
+
+* Click the check mark column beside a layer.  A check mark means visible.
+* Drag up or down the check mark column to show or hide a run of layers at once.
+* kbd:[Option]-click the check mark column to show or hide every layer.
+* Choose *All On* or *All Off* from the options menu.
+
+== Preview and Keyline per layer
+
+Each layer can draw as it will print (Preview) or as outlines (Keyline).  The circle to the
+left of the name is filled for Preview and hollow for Keyline.  The setting affects the screen
+only.
+
+To switch a layer between Preview and Keyline, do one of the following:
+
+* Click the circle beside the layer.
+* Drag through the circle column to switch a run of layers.
+* kbd:[Option]-click any circle to switch every layer.
+
+== Locking and unlocking layers
+
+Locking protects a layer's objects from accidental edits while keeping them visible.  A closed
+padlock means locked.  Objects on a locked layer cannot be selected with the mouse, moved,
+edited, or made the target of a paste, and the layer cannot be made active.
+
+To lock or unlock layers, do one of the following:
+
+* Click the padlock beside a layer.
+* Drag through the padlock column to lock or unlock a run of layers.
+* kbd:[Option]-click any padlock to lock or unlock every layer.
+
+== The Guides layer and guide paths
+
+The Guides layer holds ruler guides, guides typed into the Guides editor, and any path you turn
+into a guide (xref:grid-guides.adoc[Using the grid and guides]).  You can hide, lock, move and
+recolor the Guides layer, but not rename, merge or remove it.
+
+To show or hide guides:
+
+* Click the check mark column beside the Guides layer.
+
+To change the guide color:
+
+. Open Preferences (kbd:[Cmd+,]) and choose the *Colors* category.
+. Click the *Guide color* well and pick a color.
+
+To draw guides in black instead of the guide color:
+
+* Click the circle beside the Guides layer (Keyline draws guides black; Preview draws them in
+  the guide color).
+
+To put guides in front of the artwork:
+
+* Drag the Guides layer to the top of the list.  Guides on a lower layer draw beneath the
+  objects above them.
+
+To turn a path into a guide:
+
+. Select the path.
+. Click the Guides layer in the Layers panel.  The path moves there, takes on the guide color,
+  and behaves as a guide for snapping.
+
+To turn a guide path back into an ordinary path:
+
+. Double-click the guide path.
+. In the Guides sheet click btn:[Release], then btn:[OK].  The path returns to the layer it came
+  from.
+
+== Layer highlight colors
+
+Giving layers different highlight colors tells you at a glance which layer a selected object
+belongs to: its selection outline, points and transform handles draw in the layer's color.
+The objects' own fills and strokes are untouched.
+
+To change a layer's highlight color, do one of the following:
+
+* Drag a color from the color well in the Swatches panel or the Color Mixer onto the swatch
+  beside the layer name (xref:swatches.adoc[Using the Swatches panel]).
+* Drag the swatch of another layer onto it.
+* Drag a stroke or fill color swatch from the Object panel's Properties list onto it.
+* With the Eyedropper tool, drag a color from an object on the canvas onto it.
+* Double-click the swatch to open the system color panel.
+
+By default only selection handles and points use the highlight color; path segments of a
+selected object draw in the color too when *Highlight selected paths* is turned on in the
+*General* category of Preferences.
+
+== Working with others
+
+Layers are shared: everyone with the document open sees the same list, in the same order, with
+the same visibility, lock and print settings.  When a collaborator adds, renames, reorders,
+hides or locks a layer, the Layers panel updates within a moment, and the change carries their
+name in xref:history.adoc[History].
+
+* *Two people rename the same layer.*  The later rename wins for everyone.  If yours lost, the
+  next sync review lists the layer with both names so you can put yours back.
+* *Someone removes a layer while you are drawing on it.*  Your new objects are not lost.  They
+  appear on the document's default layer (the lowest printing layer) with a note in the sync
+  review offering to restore the removed layer, which puts them back where you drew them.
+* *Someone merges layers while you are editing on one of them.*  Objects you added to a merged
+  layer follow it onto the layer it merged into.
+* *Locking is a courtesy, not a padlock on other people.*  When you lock a layer, everyone's
+  tools stop selecting its objects.  A collaborator who already had one of those objects
+  selected, or who was in the middle of dragging it, can finish that edit; the lock only stops
+  new edits.  If you need exclusive control of part of a document, work on a
+  xref:branches.adoc[branch].
+* *Hiding a layer hides it for everyone.*  Use it the way you would on a shared drawing board:
+  say so, or hide only layers you own.  A per-person "hide for me" view is planned.
+* *Offline.*  Everything on this page works offline.  When you reconnect, layer changes merge
+  like any other: both people's new layers appear, reorders combine, and the review sheet lists
+  only the places where you and a collaborator touched the same layer or the same object
+  (xref:collaboration.adoc[Working together]).
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,2"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Foreground, Guides and Background layers in a new document
+|Same three layers, created by the document template with the roles below.
+|Faithful
+
+|Separator line; layers below it do not print and draw dimmed
+|Same appearance and behavior.  Stored as a `printing` flag per layer rather than a separator
+position (see Data model).
+|Adapted -- a per-layer flag survives concurrent reordering; a separator position does not.
+
+|Show/hide, Preview/Keyline, lock per layer, with drag-through and kbd:[Option]-click for all
+|Same gestures.
+|Faithful
+
+|Include invisible layers when printing
+|Output options on xref:output-area.adoc[Setting the output area].
+|Faithful
+
+|New, Duplicate, Remove, Merge Selected, Merge Foreground, Move Objects to Current Layer
+|Same commands in the panel options menu and on the row context menu.
+|Faithful
+
+|Windows-only context menu (*Move Selection to This Layer*, *Remove*)
+|Available on macOS as a kbd:[Control]-click context menu.
+|Adapted -- macOS has context menus; no reason to keep it Windows-only.
+
+|Rename by double-click; Guides layer cannot be renamed, merged or removed
+|Same.
+|Faithful
+
+|kbd:[Option]-click a layer name selects all objects on it
+|Same.
+|Faithful
+
+|Clicking a layer name moves the selection (Panels preference)
+|Same, same preference name.
+|Faithful
+
+|Remember layer info (General preference): paste keeps the layer, ungroup restores layers
+|Same, using an origin-layer name stored on the object.
+|Faithful
+
+|Layer highlight color from Swatches, Mixer, another layer, Object panel, Eyedropper
+|Same sources, plus double-click for the system color panel.
+|Faithful
+
+|Highlight selected paths (General preference)
+|Same.
+|Faithful
+
+|Guide color (Colors preference), guides black in Keyline
+|Same; the preference is documented on xref:grid-guides.adoc[Using the grid and guides].
+|Faithful
+
+|Guide paths: path to guide by clicking the Guides layer; release from the Guides dialog
+|Same, the dialog is a sheet.
+|Faithful
+
+|Warning when removing a non-empty layer
+|Same, as a sheet; removal is undoable and restorable from History.
+|Faithful
+
+|"Edit all layers" versus current layer only
+|*Edit current layer only* preference (Object category), default off.
+|Adapted -- {fh} MX exposes this only through selection behavior; a named preference is clearer.
+
+|Hiding or locking a layer is a document setting
+|Same: shared with collaborators.  A per-user "hide for me" is an open question.
+|Faithful
+|===
+
+=== Data model
+
+Layers are children of the well-known `layers` node (xref:crdt-model.adoc[CRDT model]).  Their
+order among the `layers` children is the stacking order, bottom first; a layer's own children
+are its objects, again bottom first.  The panel lists both in reverse.
+
+[source,protobuf]
+----
+// proto/wiretuner/doc/v1/layer.proto (sketch)
+syntax = "proto3";
+package wiretuner.doc.v1;
+
+// Roles a layer can play.  Exactly one Guides layer exists per document; the document
+// template creates it.  Every other layer is ORDINARY.
+enum LayerRole {
+  LAYER_ROLE_ORDINARY = 0;
+  LAYER_ROLE_GUIDES = 1;     // ruler guides and guide paths; not renameable, mergeable or deletable
+}
+
+// Properties of a node of kind `layer`.  Name lives in CommonProps.name.
+// The whole message is STRUCT (the default): each flag is an independent choice, so one person
+// hiding a layer while another locks it keeps both.
+message LayerProps {
+  // Fixed at creation; readers ignore later writes (the client never issues them).
+  LayerRole role = 1;
+  // Objects on the layer are drawn and selectable.  Shared, as in FreeHand.
+  bool visible = 2;
+  // Objects on the layer cannot be selected or edited from the canvas.  Advisory: it constrains
+  // each client's own tools and is never enforced against remote ops (see Merge semantics).
+  bool locked = 3;
+  // True above the separator line.  False = background layer: never printed or exported,
+  // drawn dimmed.  A property of the layer, not a position, so it moves with the layer
+  // through any reorder.
+  bool printing = 4;
+  // Draw this layer as outlines regardless of the document view mode.  Screen only.
+  bool keyline = 5;
+  // Selection highlight color for objects on this layer.  ATOMIC by default (Color is a
+  // message annotated ATOMIC in common.proto).
+  Color highlight = 6;
+  // Set when this layer is deleted by a merge: the layer its objects were moved onto.  Readers
+  // route objects that arrive on this layer afterwards to the target (see Merge semantics).
+  NodeRef merged_into = 7 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
+}
+
+// Extension to CommonProps (common.proto, owned by PROTO-003), on every object:
+//   // Name of the layer the object was on before it was grouped, joined, clipped or turned
+//   // into a guide, or the name of its layer in the document it was copied from.  Written
+//   // only when the "Remember layer info" preference is on; read by ungroup, split, guide
+//   // release and cross-document paste.  Empty = no memory.
+//   string origin_layer = 8 [(buf.validate.field).string.max_len = 256];
+----
+
+Why a flag and not a separator node::
+A separator that is itself a child of `layers` (a well-known node whose position marks the
+boundary) is faithful to the panel, but under concurrent reordering it produces results nobody
+asked for.  Priya drags the separator down two rows to make two layers print; at the same time
+Tom drags a third layer, which was printing, to the bottom of the list, below where he saw the
+separator.  Both moves apply; depending on the fractional positions generated, Tom's layer may
+land above or below Priya's new separator position, so whether it prints is decided by a random
+suffix.  With a `printing` flag the printing status is a register on the layer: Tom's drag
+below the separator writes `printing = false` and Priya's separator drag writes `printing = true`
+on the two layers she crossed; each layer ends up with the value of whichever person last
+touched *that layer*, which the review sheet can show.  The separator is then a derived
+position: the boundary between the printing and non-printing groups.
+
+Ordering rule::
+The panel orders layers by `(printing desc, position, node id)`: printing layers first, then
+background layers, each group in tree order.  Rendering uses the same order, so a background
+layer is always drawn beneath every printing layer even if a merge left it with a higher
+position.  Moving a layer across the separator writes both a `MoveNode` (to keep the tree order
+consistent with the display) and `SetFields(printing)`; dragging the separator writes only the
+flags of the layers it crossed.  Nothing depends on the tree order agreeing with the flag; the
+`MoveNode` is cosmetic so that later drags produce sensible neighbors.
+
+Objects on the Guides layer::
+An object whose parent is the Guides layer is a guide.  It renders in the guide color (or black
+when the layer is Keyline), snaps as a guide, never prints, and is hit-tested only for the
+double-click that opens the Guides sheet.  The DOC epic's xref:grid-guides.adoc[grid and guides]
+page owns ruler guides, which are also nodes on this layer.
+
+=== Merge semantics
+
+[cols="1,1,3"]
+|===
+|Field |Policy |Concurrent behavior
+
+|`name`, `role`
+|ATOMIC (LWW)
+|Two renames: greatest OpId wins.  The review sheet lists the layer as *same register* when the
+local write lost, with both names.
+
+|`visible`, `locked`, `printing`, `keyline`
+|Each ATOMIC, independent
+|Toggling different flags at once keeps both.  Toggling the same flag at once: LWW; the loser
+sees the flag flip back, which the panel animates so it is not mistaken for a click that did
+not register.
+
+|`highlight`
+|ATOMIC
+|LWW.
+
+|`merged_into`
+|ATOMIC
+|Written once, by the merge command, in the same change as `deleted = true`.
+
+|Layer order
+|Tree move
+|Two people dragging different layers: both moves apply.  Two people dragging the same layer:
+the greater OpId wins (Kleppmann move semantics); the review sheet lists *move vs move* with
+both positions.
+
+|Objects' parent
+|Tree move
+|Moving an object to a layer is a `MoveNode` under the destination layer with a position at the
+top of its children.  Two people moving one object to different layers: greater OpId wins;
+review lists *move vs move*.
+|===
+
+Delete layer versus add objects to it::
+*Remove* sets `deleted = true` on every object the deleting client can see on the layer, then on
+the layer, all in one change labelled "Remove layer <name>".  Marking the objects individually
+matters: it lets the review sheet's *Restore* bring back one object without the whole layer, and
+it distinguishes the objects the deleter meant to remove from ones that arrive concurrently.
+An object a collaborator created on, moved onto, or pasted into that layer at the same time is
+*not* marked deleted; it becomes a live child of a deleted layer.  Read-time normalization: a
+live object whose layer is deleted is presented as being on the layer's `merged_into` target if
+that resolves to a live layer, otherwise on the *default layer*.  The review sheet lists the
+object as "added to a layer that was removed" with *Restore layer* (writes `deleted = false` on
+the layer only; its individually deleted objects stay deleted) and *Leave it* (writes a
+`MoveNode` onto the default layer so the state matches what is displayed).  Nobody writes the
+move automatically: every client would write it at once.
+
+Default layer::
+The live, printing, non-Guides layer with the smallest node id.  If no such layer exists (every
+printing layer was deleted concurrently, or all were dragged below the separator), the
+non-Guides layer with the smallest node id is treated as live and printing for reading.  The
+client refuses locally to delete the last printing layer, so this arises only from concurrent
+deletes.
+
+Merge layers::
+`Merge Selected Layers` is one change: for each source layer from lowest to highest, a
+`MoveNode` per object onto the target with fresh positions above the target's existing
+children (preserving relative order), then `SetFields(merged_into = target)` and `deleted =
+true` on each source.  A concurrent edit to a moved object applies to it wherever it is.  A
+concurrent new object on a source layer is routed to the target by the normalization above.
+A concurrent move of a source layer above the separator is moot -- it is deleted.  Two people
+merging overlapping selections onto different targets: every object ends up on one of the two
+targets (LWW per object's move), both source layers are deleted, and the review sheet lists
+the objects under *move vs move*; nothing is lost.
+
+Duplicate layer::
+One change: `CreateNode` for the layer (copying `LayerProps`, name suffixed " copy") plus a deep
+copy of every visible object.  Concurrent edits to the originals do not reach the copies.
+
+Delete layer versus edit objects on it::
+The edit applies to the deleted object.  The review sheet lists *edit vs delete* per object,
+and its *Restore* restores the object; since its layer is deleted, the restored object is
+displayed on `merged_into` or the default layer until *Restore layer* is also chosen.  The
+sheet groups these rows under the layer with a single *Restore layer* button.
+
+Concurrent lock and edit::
+`locked` is advisory.  Each client checks it before its own tools select, drag, or paste onto
+the layer.  A remote change to an object on a layer that is locked locally applies unchanged;
+there is no rejection path and the server does not know what a lock is.  The UX consequence,
+stated in the guide: a lock stops new edits by everyone whose client has received it, but an
+edit already in progress (a drag, or a text edit in an open block) finishes.  The Layers panel
+shows who locked a layer (from History) in the row's tooltip.
+
+Guides layer invariants::
+Clients never rename, merge, delete or write `role` on the Guides layer.  Read-time
+normalization guards the tree anyway: if the Guides layer node is deleted it is treated as
+live; if more than one layer carries `LAYER_ROLE_GUIDES` (possible only through a bug or a
+malicious client), the one with the smallest node id is the Guides layer and the rest read as
+ORDINARY.
+
+Remember layer info::
+`origin_layer` is written by group, join, clip and path-to-guide commands when the preference is
+on, and by copy (into the pasteboard payload, not the document) so that paste into another
+document can match by name.  A paste that creates a missing layer creates it above the active
+layer in the same change as the pasted objects.  Two people pasting into the same document
+with the same missing layer name at once create two layers of that name; the review sheet
+lists nothing (no overlap) and the user sees two layers, which merge cleanly with *Merge
+Selected Layers*.
+
+What the review sheet shows::
+Layer rows appear in the conflict list under the layer's name with the kinds above.  A layer
+that was deleted on one side and had objects added on the other is a single row with a count
+("3 objects added to removed layer Sketch").  Rows for objects moved between layers show the
+source and destination layer names in the *Position* line.
+
+=== Offline behavior
+
+Every command on this page works offline.  Coalescing (xref:offline.adoc[Offline]) collapses
+repeated toggles of one flag into the last value and repeated reorders of one layer into the
+last move.  A layer created and removed offline disappears from the outbox entirely.
+
+=== Server
+
+Nothing beyond storing and relaying changes.
+
+=== Client
+
+Package:: `WTModel` owns `LayerCommands` (create, duplicate, rename, remove, reorder, set flag,
+set highlight, merge, move objects) and the `LayerOrder` derived view (the `(printing,
+position, id)` ordering, default-layer resolution, `merged_into` routing).  `WTApp` owns the
+Layers panel; `WTRender` consumes `LayerOrder` and the per-layer visibility, keyline and
+dimming.
+
+Panel:: An `NSOutlineView` with one row per layer, four fixed-width columns of `NSButton`s
+(check, circle, padlock) and a color well, and an editable name cell.  Drag-through toggling is
+implemented as a mouse-down on a column button that captures the mouse and applies the
+initial button's new state to every row the pointer crosses.  Row reordering uses
+`NSOutlineView` drag and drop restricted to the same parent; the separator is a non-selectable
+row drawn between the groups and is itself draggable.  Remote changes update rows in place
+without disturbing an in-progress name edit.
+
+Rendering:: `WTRender` builds the display list layer by layer in `LayerOrder`.  Hidden layers
+contribute nothing; keyline layers are drawn through the keyline path renderer; background
+layers are drawn into a group with 50% opacity over the pasteboard color.  Selection overlays
+take their color from the object's layer `highlight`; with *Highlight selected paths* on, the
+selected path's outline is drawn in that color too.  Hit testing (REND-003) skips hidden and
+locked layers, and with *Edit current layer only* skips all but the active layer.
+
+Undo grouping:: Each command is one change and one undo step.  Drag-through toggling of several
+layers is one change ("Hide 4 layers").  Merge is one change ("Merge 3 layers").  Removing a
+layer is one change; undo restores the layer and its objects.
+
+Preferences:: *Clicking a layer name moves selected objects* (Panels, default on);
+*Remember layer info* (General, default off); *Highlight selected paths* (General, default off);
+*Edit current layer only* (Object, default off).  *Guide color* belongs to
+xref:grid-guides.adoc[grid and guides].
+
+=== Build tasks
+
+[[LIB-001]]
+==== LIB-001 Layer schema
+[horizontal]
+Track:: proto
+Depends on:: PROTO-003
+Size:: S
+Delivers:: `doc/v1/layer.proto` with `LayerRole`, `LayerProps` as sketched, the `layer` case in `NodeProps.kind`, and the `CommonProps.origin_layer` field.
+Done when::
+* `buf lint` with `COMMENTS` passes; `buf breaking` passes against main.
+* The generated merge table shows every `LayerProps` field ATOMIC within a STRUCT message and `merged_into` with `REF_FALLBACK_UNSET`.
+* A conformance vector writes every field from two replicas concurrently and both engines agree on the state hash.
+
+[[LIB-002]]
+==== LIB-002 Layer commands
+[horizontal]
+Track:: client-model
+Depends on:: CRDT-002, CRDT-003, APP-011, LIB-001
+Size:: M
+Delivers:: `LayerCommands` in `WTModel`: new (above active), duplicate (deep copy), rename, remove (objects then layer, one change), reorder, set visible/locked/printing/keyline, set highlight, plus the `LayerOrder` derived view with the `(printing, position, id)` ordering and default-layer resolution.
+Done when::
+* Every command emits one change with the labels in the Client section and is undoable in one step.
+* Removing the last printing layer or touching the Guides layer's name, role or deletion is refused by the command layer.
+* Merge tests: concurrent rename (LWW, loser retained in log); concurrent toggles of different flags keep both; remove layer vs. create object on it leaves the object live and displayed on the default layer.
+* Conformance vector for the default-layer rule when every printing layer is deleted concurrently.
+
+[[LIB-003]]
+==== LIB-003 Moving objects between layers and merging layers
+[horizontal]
+Track:: client-model
+Depends on:: LIB-002
+Size:: M
+Delivers:: Move selection to layer (panel click, *Move Objects to Current Layer*, context menu), cut/paste onto the active layer, *Merge Selected Layers*, *Merge Foreground Layers*, `merged_into` routing in `LayerOrder`.
+Done when::
+* Moved objects arrive at the top of the destination in their previous relative order.
+* Merge preserves relative stacking across source layers and is one undoable change.
+* Merge tests: merge vs. concurrent add to a source layer routes the new object to the target; two overlapping merges onto different targets lose nothing; move vs. move of one object lists *move vs move* in the review model.
+* Conformance vector for `merged_into` resolution when the target is itself deleted (falls through to the default layer).
+
+[[LIB-004]]
+==== LIB-004 Layers panel
+[horizontal]
+Track:: client-ui
+Depends on:: APP-004, APP-005, APP-006, LIB-003
+Size:: L
+Delivers:: The Layers panel: rows with check, circle, padlock, color well and editable name; pen icon on the active layer; the derived separator row, draggable; drag-through toggling; kbd:[Option]-click for all; kbd:[Option]-click a name to select its objects; kbd:[Cmd]/kbd:[Shift] multi-selection; options menu and row context menu with every command; highlight color drops from Swatches, Mixer, Object panel, another row and the Eyedropper; the warning strip when the active layer is hidden; the non-empty removal sheet.
+Done when::
+* UI tests for every gesture in the guide, including drag-through over five rows producing one change.
+* A remote rename arriving during a local name edit does not lose keystrokes; a remote reorder does not cancel a drag in progress.
+* The panel shows who locked a layer in the row tooltip.
+
+[[LIB-005]]
+==== LIB-005 Layer rendering and hit-testing rules
+[horizontal]
+Track:: client-render
+Depends on:: REND-003, REND-005, LIB-001
+Size:: M
+Delivers:: `WTRender` consuming `LayerOrder`: hidden layers skipped, per-layer keyline, background layers dimmed to 50%, guide rendering for objects on the Guides layer (guide color or black in keyline), selection overlay and optional path outline in the layer highlight color; hit testing skipping hidden and locked layers and honoring *Edit current layer only*.
+Done when::
+* Reference renders for a corpus document with hidden, keyline and background layers match expected images.
+* Hit testing never returns an object on a hidden or locked layer; with *Edit current layer only* it returns only active-layer objects.
+* Toggling a layer flag repaints only that layer's tiles (REND-004 dirty-rect mapping).
+
+[[LIB-006]]
+==== LIB-006 Remember layer info
+[horizontal]
+Track:: client-model
+Depends on:: LIB-003
+Size:: M
+Delivers:: Writing `origin_layer` on group, join, clip and path-to-guide when the preference is on; restoring layers on ungroup, split, clip release and guide release; pasteboard payload carrying layer names; paste matching by name and creating missing layers.
+Done when::
+* Round trip: group objects from three layers, ungroup, each is back on its layer (preference on) or all on the active layer (preference off).
+* Cross-document paste creates a missing layer above the active layer in the same change as the objects.
+* Merge test: two concurrent pastes creating the same missing layer name yield two layers and no conflict rows.
+* Conformance vector for `origin_layer` as an ATOMIC string register.
+
+[[LIB-007]]
+==== LIB-007 Layer preferences
+[horizontal]
+Track:: client-ui
+Depends on:: APP-010, LIB-004, LIB-005
+Size:: S
+Delivers:: *Clicking a layer name moves selected objects* (Panels), *Remember layer info* (General), *Highlight selected paths* (General), *Edit current layer only* (Object) wired to the panel, model and renderer.
+Done when::
+* Each preference has a default matching the Client section and takes effect without relaunch.
+* UI test: with the Panels preference off, clicking a layer name changes the active layer and moves nothing.
+endif::spec[]

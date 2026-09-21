@@ -1,0 +1,498 @@
+*Font Info* is the sheet that holds everything about a typeface that is not a glyph: its names,
+the size of its em, the vertical metrics that every glyph canvas draws as lines, the OS/2
+classification that applications use to sort it into menus, and its license.  Open it with
+menu:Font[Font Info…] (kbd:[Cmd+Option+F]) from anywhere in a typeface document.  Every value in
+it is part of the document and is shared with everyone editing it.
+
+// TODO screenshot: the Font Info sheet on the Metrics pane
+
+The sheet has five panes in a sidebar: *Names*, *Metrics*, *OS/2*, *Guides*, *License*.  Changes
+apply when you click btn:[OK]; btn:[Cancel] discards them.  Each pane's values become one undoable
+change per pane.
+
+== Names
+
+[cols="1,3"]
+|===
+|Field |Meaning
+
+|Family name
+|The name applications group styles under (`Marlowe`).  Any Unicode text; kept short because font
+menus truncate.
+
+|Style name
+|The style within the family (`Regular`, `Bold Italic`, `Condensed Light`).
+
+|PostScript name
+|Generated from the family and style (`Marlowe-BoldItalic`: ASCII letters and digits, no spaces,
+family and style joined by a hyphen).  Click btn:[Custom] to type your own; a name that is not
+valid is shown in red and the sheet refuses btn:[OK] until it is.
+
+|Full name
+|Family and style joined by a space, generated the same way; also customizable.
+
+|Version
+|`major.minor`, `1.000` for a new document.  Applications and web caches use it to tell releases
+apart, so raise it before each release.
+
+|Copyright, Trademark
+|Free text.
+
+|Designer, Designer URL, Manufacturer, Manufacturer URL
+|Free text; the URLs are validated.
+
+|Description, Sample text
+|Free text.  Sample text is what Font Book shows.
+|===
+
+Every name is written into the generated font's name table in English; per-language names are
+not supported.
+
+== Metrics
+
+The em and the vertical metrics.  All values are in *font units*.
+
+[cols="1,3"]
+|===
+|Field |Meaning
+
+|Units per em (UPM)
+|How many units make up the em, the design size of the font.  1000 is the PostScript tradition
+and the default; 2048 the TrueType one.  Changing it is special; see below.
+
+|Ascender
+|The height of the tallest ascending letters (usually `d`, `h`, `k`) above the baseline.
+Positive.
+
+|Descender
+|The depth of the lowest descenders (`p`, `g`) below the baseline.  Negative.  Ascender minus
+descender is often equal to the UPM but need not be.
+
+|x-height
+|The height of the lowercase letters without ascenders (`x`, `z`).
+
+|Cap height
+|The height of the capitals (`H`, `I`).
+
+|Italic angle
+|Degrees, negative for a rightward lean (`-12`), `0` for upright.  Slants the side-bearing lines
+and the cursor on the canvas; written to the font.
+
+|Underline position, Underline thickness
+|Where and how thick an application draws underlines; position is negative (below the baseline).
+
+|Line gap
+|Extra leading applications add between lines, in addition to ascender minus descender.  `0` by
+default.
+
+|Windows ascent, Windows descent
+|The clipping box some applications use: the highest and lowest point any glyph reaches.  By
+default *Computed*: {product} measures the flattened outlines at generate time.  Turn off
+*Computed* to type values.
+
+|Typographic ascender, descender, line gap
+|What the OpenType specification calls the `typo` metrics; by default they follow the Ascender,
+Descender and Line gap above (*Same as metrics*).  Turn the checkbox off to set them separately.
+|===
+
+=== Changing the units per em
+
+When you change the UPM, {product} asks *Scale the glyphs to the new em?*
+
+* *Scale* -- every glyph's artwork, advance width, anchors, guides, every metric on this pane and
+  every kerning value is multiplied by new ÷ old.  The font looks the same at any point size; only
+  the numbers change.  This is the usual choice when moving between 1000 and 2048.
+* *Do not scale* -- only the number changes.  Glyphs that filled the em now fill a larger or
+  smaller part of it.  Use this when the drawings were made at the new size all along.
+
+Scaling every glyph is a large change: it touches every object in every glyph.  It is one undo
+step for you and, for collaborators, it is always listed in the review sheet (see
+<<_working_with_others,Working with others>>).
+
+== OS/2
+
+The OS/2 pane holds the classification fields applications read from the OS/2 table.
+
+[cols="1,3"]
+|===
+|Field |Meaning
+
+|Weight class
+|100 (Thin) to 900 (Black) in steps of 100; 400 is Regular, 700 Bold.  A pop-up with the standard
+names and a field for a value.
+
+|Width class
+|1 (Ultra-condensed) to 9 (Ultra-expanded); 5 is Medium (normal).
+
+|Vendor ID
+|Four ASCII characters identifying the foundry (`WTNR` by default).
+
+|Style
+|Checkboxes *Bold* and *Italic* for the style bits applications use for style linking, set
+automatically from the style name and changeable.
+
+|Embedding
+|The permission applications honor when embedding the font in documents: *Installable* (the
+default), *Editable*, *Preview and print*, *Restricted*.  Plus *No subsetting* and *Bitmap
+embedding only* checkboxes.
+
+|PANOSE
+|Ten pop-ups describing the design (family kind, serif style, weight, proportion, …).  *Any* in
+all ten by default; applications use PANOSE only for substitution.  Optional.
+
+|Unicode ranges, Code pages
+|Computed from the glyphs at generate time; shown here read-only for information.
+|===
+
+== Guides
+
+Defaults for every glyph canvas.  Each metric line can be shown or hidden and colored; the
+colors are shared with everyone because they are part of the document.
+
+[cols="1,3"]
+|===
+|Option |Meaning
+
+|Show baseline, x-height, cap height, ascender, descender
+|Which metric lines every glyph canvas draws.  All on by default.
+
+|Show side bearings
+|The left and right side bearing lines and the advance width handle.  On by default.
+
+|Show em box
+|A faint fill from the descender to the ascender across the advance width, like a page's white.
+On by default.
+
+|Extra metric lines
+|A list of named horizontal lines (`small cap height 480`, `overshoot 715`).  btn:[+] adds one;
+double-click a name or value to edit.  Drawn like the standard lines and snapped to.
+
+|Label lines with their names
+|Draws the name and value at the right end of each line.  On by default.
+|===
+
+Grid settings for glyph canvases are in menu:View[Grid > Edit Grid…] as for any document
+(xref:grid-guides.adoc[Grid and guides]); the default grid is 10 font units.
+
+== License
+
+*License* (free text; typically the full text of the license) and *License URL*.  The btn:[Use
+SIL Open Font License] button fills both with the OFL 1.1 text and its URL, with the copyright
+line from the Names pane inserted.
+
+== Working with others
+
+Font Info is one sheet, but each value in it is shared independently: if you change the x-height
+while a collaborator changes the vendor ID, both changes apply.  If you both change the *same*
+value, the later change stands and the other person is told, with a *Reapply mine* button.
+
+Metrics are drawn on every glyph canvas, so when a collaborator changes one, the line moves on your
+screen right away and a notice at the top of the canvas says who changed what ("Priya set the
+x-height to 500").  The notice is a reminder, not a conflict; your drawing is untouched.
+
+Changing the UPM *with scaling* is the one Font Info change that does touch drawings.  If you were
+drawing while someone scaled the font:
+
+* Everything you had drawn before their change is scaled along with the rest, because scaling is
+  applied to each object and your object was there.
+* Anything you drew *during* the change -- objects that did not exist yet when they scaled -- keeps
+  its original size and is listed in the review sheet under "drawn while the font was rescaled",
+  with a *Rescale mine* button that applies the same factor to those objects.
+* Advance widths or anchors you typed at the same moment are listed too, with *Use mine* and
+  *Use theirs*.
+
+After being offline, all font-level metric changes made on both sides are listed in the review
+sheet, whether or not they collided, because a metric change moves every glyph's lines and is
+worth a look.
+
+ifdef::spec[]
+== Specification
+
+=== FontForge parity
+
+[cols="2,3,1"]
+|===
+|FontForge capability |{product} behavior |Verdict
+
+|PS Names pane: fontname, family, weight, version, copyright, base filename
+|Names pane; PostScript name generated from family and style with a custom override; weight is
+the OS/2 weight class; base filename is chosen at generate time.
+|Adapted -- one source for names (no separate PS vs. TTF name panes).
+
+|TTF Names pane: per-language name strings, 20+ name ids
+|English only: family, style, PostScript, full, version, copyright, trademark, designer,
+manufacturer, URLs, description, sample text, license.
+|Adapted -- per-language names dropped for v1; recorded in Decisions.
+
+|General: em size, ascent/descent (sum = em), italic angle, underline, vertical metrics
+|Metrics pane; ascender and descender need not sum to the em; vertical (CJK) metrics not
+supported.
+|Adapted -- vertical writing is out of scope.
+
+|Scale outlines when changing em size
+|Same; the *Scale* / *Do not scale* choice, scaling also advance widths, anchors, kerning and
+metrics.
+|Faithful
+
+|OS/2: weight, width, vendor, embedding (fsType), PANOSE, style map, line gap, win/typo/hhea metrics
+|OS/2 pane with weight, width, vendor, style bits, embedding, PANOSE; win metrics computed by
+default; typo follows the design metrics by default; hhea always equals typo.
+|Adapted -- hhea/typo split dropped; the *USE_TYPO_METRICS* bit is always set.
+
+|Unicode ranges and code pages
+|Computed at generate time; shown read-only.
+|Faithful
+
+|Layers pane, PS Private (hinting), PS UID, TeX, Size, Mac FOND, gasp, WOFF metadata, comments
+|Not present.  Hinting is not supported in v1; other panes are format-specific data {product} does
+not write.
+|Dropped -- outside the fundamentals; the compiler writes sensible defaults.
+
+|Lookups pane (GSUB/GPOS)
+|Replaced by the Features editor (xref:opentype-features.adoc[OpenType features]).
+|Adapted
+
+|Mark classes and sets
+|Not exposed; anchors carry their own class by name.
+|Dropped -- basic mark attachment only.
+
+|Guide layer shared by all glyphs
+|The Guides pane: standard metric lines, extra named lines, colors.
+|Faithful
+|===
+
+=== Data model
+
+[source,protobuf]
+----
+// FontProps: STRUCT on DocumentSettings.font.  Each field is an independent register.
+
+message FontNames {
+  string family = 1 [(buf.validate.field).string = {min_len: 1, max_len: 63}];
+  string style = 2 [(buf.validate.field).string = {min_len: 1, max_len: 63}];
+  // Empty = generated from family and style.  ASCII, no spaces, max 63 per the spec.
+  string postscript = 3 [(buf.validate.field).string = {max_len: 63, pattern: "^[A-Za-z0-9._-]*$"}];
+  string full = 4 [(buf.validate.field).string.max_len = 127];        // empty = generated
+  string version = 5 [(buf.validate.field).string = {pattern: "^[0-9]+\\.[0-9]{3}$"}];   // "1.000"
+  string copyright = 6 [(buf.validate.field).string.max_len = 4096];
+  string trademark = 7 [(buf.validate.field).string.max_len = 1024];
+  string designer = 8 [(buf.validate.field).string.max_len = 255];
+  string designer_url = 9 [(buf.validate.field).string = {max_len: 1024, uri: true}];
+  string manufacturer = 10 [(buf.validate.field).string.max_len = 255];
+  string manufacturer_url = 11 [(buf.validate.field).string = {max_len: 1024, uri: true}];
+  string description = 12 [(buf.validate.field).string.max_len = 4096];
+  string sample_text = 13 [(buf.validate.field).string.max_len = 255];
+  string license = 14 [(buf.validate.field).string.max_len = 65536];
+  string license_url = 15 [(buf.validate.field).string = {max_len: 1024, uri: true}];
+}
+
+// A metric value that is either computed at generate time or typed.  ATOMIC: the flag and the
+// value are one choice.
+message OptionalMetric { bool computed = 1; double value = 2; }
+
+message FontMetrics {
+  uint32 upm = 1 [(buf.validate.field).uint32 = {gte: 16, lte: 16384}];   // 0 reads as 1000
+  double ascender = 2;             // > 0 by convention; not validated beyond finite
+  double descender = 3;            // < 0 by convention
+  double x_height = 4;
+  double cap_height = 5;
+  double italic_angle = 6 [(buf.validate.field).double = {gte: -90, lte: 90}];
+  double underline_position = 7;
+  double underline_thickness = 8 [(buf.validate.field).double.gte = 0];
+  double line_gap = 9;
+  OptionalMetric win_ascent = 10 [(wt.crdt.field).merge = MERGE_ATOMIC];    // unset = computed
+  OptionalMetric win_descent = 11 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  bool typo_separate = 12;         // false: typo_* follow ascender/descender/line_gap
+  double typo_ascender = 13;
+  double typo_descender = 14;
+  double typo_line_gap = 15;
+}
+
+enum Embedding {
+  EMBEDDING_UNSPECIFIED = 0;       // reads as INSTALLABLE
+  EMBEDDING_INSTALLABLE = 1;       // fsType 0
+  EMBEDDING_EDITABLE = 2;          // fsType 8
+  EMBEDDING_PREVIEW_PRINT = 3;     // fsType 4
+  EMBEDDING_RESTRICTED = 4;        // fsType 2
+}
+
+message Os2Props {
+  uint32 weight_class = 1 [(buf.validate.field).uint32 = {gte: 1, lte: 1000}];   // 0 reads as 400
+  uint32 width_class = 2 [(buf.validate.field).uint32 = {gte: 1, lte: 9}];       // 0 reads as 5
+  string vendor_id = 3 [(buf.validate.field).string = {len: 4, pattern: "^[ -~]{4}$"}];   // "" reads as "WTNR"
+  bool style_bold = 4;
+  bool style_italic = 5;
+  Embedding embedding = 6;
+  bool no_subsetting = 7;
+  bool bitmap_embedding_only = 8;
+  bytes panose = 9 [(wt.crdt.field).merge = MERGE_ATOMIC, (buf.validate.field).bytes = {len: 10}];   // empty = all zero (Any)
+}
+
+// A named extra metric line.  Element of a SEQUENCE.
+message MetricLine {
+  ElementId id = 1;
+  string name = 2 [(buf.validate.field).string = {min_len: 1, max_len: 63}];
+  double y = 3;                    // font units, y up (a font value, not a canvas coordinate)
+}
+
+message MetricGuideSettings {
+  bool hide_baseline = 1;          // inverted so that the proto3 default shows every line
+  bool hide_x_height = 2;
+  bool hide_cap_height = 3;
+  bool hide_ascender = 4;
+  bool hide_descender = 5;
+  bool hide_side_bearings = 6;
+  bool hide_em_box = 7;
+  bool hide_labels = 8;
+  Color baseline_color = 9 [(wt.crdt.field).merge = MERGE_ATOMIC];    // unset = default palette
+  Color metric_color = 10 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  Color bearing_color = 11 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  repeated MetricLine extra_lines = 12 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+}
+
+message FontProps {
+  FontNames names = 1;
+  FontMetrics metrics = 2;
+  Os2Props os2 = 3;
+  MetricGuideSettings guides = 4;
+  // Kerning: kerning-metrics page.
+  repeated KernPair pairs = 5 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  repeated KernClass classes = 6 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  repeated ClassKern class_kerns = 7 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  // Feature file: opentype-features page.
+  RichText features = 8 [(wt.crdt.field).merge = MERGE_TEXT];
+  bool omit_generated_kern = 9;    // opentype-features
+  bool omit_generated_mark = 10;
+  bool omit_generated_liga = 11;
+}
+----
+
+Defaults, written by *Convert to typeface* and *New Typeface* (and read for any unset field):
+UPM 1000, ascender 800, descender −200, x-height 500, cap height 700, italic angle 0, underline
+position −100, thickness 50, line gap 0, version `1.000`, weight 400, width 5, vendor `WTNR`,
+embedding installable.
+
+The *Scale* variant of a UPM change is one change containing: `SetFields(metrics.upm)`;
+`SetFields` of every scaled metric field; for every top-level object on every glyph canvas,
+`SetFields(CommonProps.transform)` = old transform pre-multiplied by the uniform scale *s* = new ÷
+old about the origin; for every glyph, `SetFields(advance_width)` and one `SetFields` per anchor
+`position`, per guide `position`, per extra metric line `y`; for every kern pair and class kern,
+`SetFields(value)`.  At the design point (a 3,000-glyph font with 20 objects per glyph) this is
+about 70,000 ops, under the 10,000-op change limit only when split: the command emits it as a
+*change group* -- consecutive changes with the same label and a `group` marker in the label
+(`"Scale to 2048 UPM [1/8]"`) -- which undo and the review sheet treat as one.
+
+=== Merge semantics
+
+Per field:: Every `FontProps` scalar and string is ATOMIC, later wins.  `OptionalMetric` and
+`panose` are ATOMIC messages.  `extra_lines` is a SEQUENCE; rename vs. move of one line both
+apply.
+
+The always-list rule for font-level metrics:: Any change that writes a field of `FontMetrics`
+(and `document_kind`, per xref:typeface-documents.adoc[Typeface documents]) is treated by the
+divergence measurement as overlapping *every glyph node* the other side touched.  Consequence:
+when one side changed a metric and the other side edited any glyph, the review sheet opens (small
+overlap) or lists the metric change (large overlap), always.  Live, the same rule produces the
+canvas notice.  Rationale: a metric line moving under a drawing is the font equivalent of a
+same-register loss of visible work (xref:reconcile.adoc[Reconciling offline edits]).
+
+UPM scale vs. concurrent drawing::
+* An object that existed when the scaler ran has its `transform` register written by the scaler.
+  A concurrent *point* edit on that object is in object space and is unaffected -- it merges
+  correctly, which is why scaling is applied through the transform rather than by rewriting
+  points.
+* A concurrent *transform* write (the drawer dragged the object) wins or loses whole.  If the
+  drag wins, the object is at its dragged, unscaled transform.  Listed as *same register* with
+  *Use mine* (re-drag) and *Rescale* (apply *s* to the current transform).
+* An object *created* concurrently was not in the scaler's change.  It stays unscaled.  The review
+  sheet detects "creations on a glyph canvas concurrent with a `metrics.upm` write" and lists them
+  under "drawn while the font was rescaled" with *Rescale mine*, which writes the transform
+  multiplied by *s*.  This is the one case that cannot merge by construction and the sheet says
+  so.
+* Concurrent `advance_width`, anchor or kern writes lose or win whole against the scaler's write;
+  listed as same-register.
+* Two concurrent UPM scales (1000→2048 and 1000→1200): both write `upm` and every object's
+  transform.  The two change groups cannot interleave per object: a group's ops carry consecutive
+  counters, and whichever group has the greater `start_counter` has greater OpIds for *all* of its
+  registers, so one group wins every register.  The result is consistent -- one factor everywhere,
+  applied to the pre-scale transforms both scalers started from -- and `upm` agrees with it.  Listed
+  for both.
+
+Scale vs. UPM change without scale:: Same registers; later wins; listed.
+
+Metric change vs. metric change:: Different fields (x-height vs. cap height) both apply.  Same
+field: later wins; always listed.
+
+Read-time normalizations::
+* `upm == 0` reads as 1000; `weight_class == 0` as 400; `width_class == 0` as 5; `vendor_id == ""`
+  as `WTNR`; `panose` empty as ten zero bytes; `version` empty as `1.000`.
+* `postscript` empty reads as the generated name; a stored value that fails the pattern (from an
+  older client) reads as generated.
+* `ascender <= descender` (a scale that lost against a stray write): both metric lines still
+  render; the validation report before generate refuses to generate until fixed.
+* `typo_separate == false`: `typo_*` read as `ascender`, `descender`, `line_gap`.
+* An `OptionalMetric` with `computed == false` and a non-finite value reads as computed.
+
+=== Offline behavior
+
+Standard.  A UPM scale made offline is uploaded as its change group in one bulk push; its size is
+well under the coalescing and frame limits.
+
+=== Server
+
+Nothing beyond storing and relaying changes; the protovalidate rules above run on ingest.
+
+=== Client
+
+* `WTModel.Font`: typed view over `settings.font` with the defaults and normalizations;
+  `WTModel.FontCommands`: `setNames`, `setMetric(_:value:)`, `setUPM(_:scale:)`, `setOs2`,
+  `setGuideSettings`, `addExtraLine`, `editExtraLine`, `removeExtraLine`, `applyLicensePreset`.
+* `setUPM(scale: true)` builds the change group described above by iterating the canvas index
+  once; runs on the model actor with progress reported to a sheet for fonts over 500 glyphs.
+* The Font Info sheet is a SwiftUI form in an `NSPanel` sheet: sidebar with the five panes;
+  fields commit on btn:[OK]; a pane's edits become one change labelled "Font Info: Names" and so
+  on.  Remote changes arriving while the sheet is open update fields the user has not edited and
+  mark edited fields with a dot ("changed by Priya"); btn:[OK] writes only the fields the user
+  edited.
+* The canvas notice for remote metric changes is the standard live notice from APP-002's notice
+  bar, with *Reapply mine* when the user's own write lost and no button otherwise.
+* Undo: one step per pane; the UPM scale group is one step.
+
+=== Build tasks
+
+[[FONT-005]]
+==== FONT-005 Font model and metric commands
+[horizontal]
+Track:: client-model
+Depends on:: FONT-002
+Size:: M
+Delivers:: `WTModel.Font` with defaults and normalizations, `FontCommands` including `setUPM(scale:)` as a change group, generated PostScript and full names, OFL preset.
+Done when::
+* Every command is one change (or one labelled group) with an inverse; undo of a scale restores every transform, width, anchor, guide and kern value.
+* Merge tests: scale vs. concurrent point edit (edit survives, scaled); scale vs. concurrent object creation (unscaled, detected); two concurrent scales (later's factor everywhere); x-height vs. cap height (both apply).
+* Conformance vectors for each normalization and for the change group's inverse.
+
+[[FONT-006]]
+==== FONT-006 Font Info sheet
+[horizontal]
+Track:: client-ui
+Depends on:: APP-004, APP-010, FONT-005
+Size:: L
+Delivers:: The Font Info sheet with the five panes, validation of PostScript name and URLs, the UPM scale prompt with progress, remote-change dots, and the canvas notice for remote metric changes.
+Done when::
+* UI tests: edit each pane and verify one change per pane; invalid PostScript name blocks OK; UPM 1000→2048 with Scale rescales a three-glyph fixture and the metric lines.
+* A remote write to a field being edited does not replace the typed text; OK writes only edited fields.
+* Notice appears within 200 ms of a remote metric change on an open glyph canvas.
+
+[[FONT-007]]
+==== FONT-007 Always-list rule for font-level changes
+[horizontal]
+Track:: client-sync
+Depends on:: SYNC-006, SYNC-007, FONT-005
+Size:: M
+Delivers:: The divergence measurement extension: `FontMetrics` and `document_kind` writes overlap every glyph the other side touched; detection of creations concurrent with a `upm` write; the review sheet rows "drawn while the font was rescaled" with *Rescale mine*, and *Rescale* on transform conflicts.
+Done when::
+* Unit tests for the rule against the reconcile decision table: metric write vs. one glyph edit opens the sheet; metric write vs. nothing merges silently with the toast.
+* Simulator test: replica A scales 1000→2048 while replica B draws two new paths offline; after reconnect B's sheet lists both paths and *Rescale mine* produces outlines identical to A's scaled fixture within 0.01 units.
+* Every action is a normal change and undoable.
+endif::spec[]

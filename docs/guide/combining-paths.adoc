@@ -1,0 +1,7 @@
+= Combining paths
+include::_attributes.adoc[]
+:page-slug: combining-paths
+:page-group: Objects
+:page-fh: Chapter 4, "Combining paths", "Creating composite paths by joining", "Using the Union/Divide/Intersect/Punch/Crop command"
+
+include::_includes/objects/combining-paths.adoc[]

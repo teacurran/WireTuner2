@@ -1,0 +1,612 @@
+The Swatches panel is the document's color list.  Every color you name lives here, and a
+color that lives here is *named*: apply it to fifty objects, then edit the swatch, and all
+fifty change.  The panel also converts colors between spot and process and between color
+spaces, imports color libraries, exports your own, and tidies the list.  Show or hide it with
+menu:Window[Swatches].
+
+The Swatches panel is shared with everyone editing the document.  Add a color and your
+collaborators see it appear in their panel a moment later; rename one and the new name shows
+up in their Object panels.  Colors you have not named -- mixed in the Color Mixer and applied
+directly -- are *unnamed colors*: they belong to the object alone and are not listed here.
+
+// TODO screenshot: Swatches panel with the default colors, a few named colors, a tint, and the Fill/Stroke/Both selectors
+
+== The panel
+
+[cols="1,3"]
+|===
+|Element |Purpose
+
+|*Fill*, *Stroke* and *Both* selectors
+|Three wells at the top left.  The pressed one decides what a click in the list applies to:
+the fill of the selected objects, the stroke, or both.  The wells also *show* the fill and
+stroke colors of the current selection, as the Tools panel's color wells do
+(xref:applying-color.adoc[Applying color]).
+
+|*Add* button (the arrow at the top right)
+|A drop target.  Drag a color from the Color Mixer, the Tints panel, the Object panel or the
+Eyedropper here to add it as a named color.
+
+|Color list
+|The swatches, in the order you keep them.  Process color names are italic, spot color names
+are upright.  A small badge names the space of every color that is not CMYK -- *RGB* (sRGB),
+*P3* (Display P3), *Lab* or *OKLab* -- and CMYK colors carry none
+(xref:spot-process.adoc[Spot and process colors]).  Tints are listed under their base color,
+indented, with the percentage before the name (`40% Grape`).
+
+|Options menu (the panel's action button)
+|Duplicate, Remove, Replace…, Make Spot, Make Process, Convert to (sRGB, Display P3, CMYK),
+Hide Names / Show Names, New Group…, the bundled color libraries, Import…, Import from Document…, Team
+Libraries, Export…, Restore Deleted Colors…, and Color Control… (a shortcut to the same
+sheet as menu:Extensions[Colors > Color Control…]).
+|===
+
+NOTE: {fh} users: the *Xtras* menu is called *Extensions* in {product}.  Everything under
+{fh}'s menu:Xtras[Colors] and menu:Xtras[Delete] is under menu:Extensions[Colors] and
+menu:Extensions[Delete].
+
+=== Default colors
+
+Every new document starts with four entries that cannot be removed, renamed or redefined:
+
+[cols="1,3"]
+|===
+|Entry |Meaning
+
+|*None*
+|No color.  Applying it to a fill or a stroke removes that fill or stroke's color; an object
+with no fill and no stroke is invisible but still selectable by its path.
+
+|*White*
+|Process white (C0 M0 Y0 K0).
+
+|*Black*
+|Black, printed on the process black plate.  It is listed as a spot color so that separations
+never split it into four plates.
+
+|*Registration*
+|Prints solid on every plate.  Use it for crop marks, trim marks and anything a press
+operator needs to see on each separation.  It is drawn as black on screen.
+|===
+
+== Adding colors
+
+A color enters the list from the Color Mixer, the Tints panel, an object (through the Object
+panel or the Eyedropper), a color library, another document, or a drop.
+
+To add a color from the Color Mixer or the Tints panel:
+
+. Mix the color (xref:color-mixer.adoc[Color Mixer]) or set up the tint
+  (xref:tints.adoc[Tints]).
+. Click btn:[Add to Swatches] at the bottom of that panel.
+. In the sheet, type a name or keep the suggested one, choose *Spot* or *Process*, and click
+  btn:[Add].
+
+kbd:[Cmd]-click btn:[Add to Swatches] to skip the sheet: the color takes its default name and
+the spot/process choice you made last time.
+
+To add a color by dragging:
+
+. Drag the color well of the Color Mixer, the Tints panel, or a color well in the Object panel.
+. Drop it in the empty space at the bottom of the list, or on the btn:[Add] arrow.
+
+Dropping on an *existing* swatch instead *redefines* that swatch (see
+xref:editing-colors.adoc[Editing colors]); everything using it changes.  If you meant to add,
+undo (kbd:[Cmd+Z]) and drop below the list.
+
+To add the colors an object already uses:
+
+. Select the object.
+. Do one of the following:
+* In the Object panel, select the fill or stroke row and choose *Add to Swatches…* from its
+  color pop-up menu.  Name it, choose Spot or Process, click btn:[Add].
+* Drag the color well in the Object panel to the Swatches panel's btn:[Add] arrow.
+* With the Eyedropper tool, drag from the object to the btn:[Add] arrow.
+* Choose menu:Extensions[Colors > Name All Colors] to name every unnamed color and tint used
+  anywhere in the document at once (bitmap pixels are not colors and are not named).
+
+Colors in artwork you paste or import from other files (PDF, EPS, Illustrator) arrive as named
+colors if they were named in the source, and stay in the list even if you delete the imported
+objects.  An imported color whose name clashes with one already in the list is renamed to its
+mix values.
+
+To duplicate a color:
+
+. Select the swatch.
+. Choose *Duplicate* from the Options menu.  The copy is named `Copy of <name>` and sits just
+  below the original.
+
+=== Names
+
+Every swatch has a unique name.  When {product} names a color for you it uses the mix values:
+
+[cols="1,2"]
+|===
+|Kind |Default name
+
+|CMYK |`0c 80m 90y 0k` (percentages)
+|RGB (sRGB) |`230r 57g 70b` (0--255)
+|Display P3 |`p3(0.90 0.22 0.27)` (0--1, the form the Color Mixer's field accepts)
+|Lab |`lab(54 63 32)`
+|OKLab |`oklch(62% 0.22 25)` (lightness, chroma, hue -- as the Mixer's OKLCH mode shows it)
+|Tint |`40% Grape` (the percentage, then the base color's name)
+|===
+
+Every default name can be typed back into the Color Mixer's color field to get the color
+again (xref:color-mixer.adoc[Color Mixer]).  Adding a second color that would get the same
+default name appends `-1`, `-2` and so on.
+
+When you redefine a swatch that still has its default name -- by dropping a new color on it
+-- the name updates to the new values, so a swatch never says `0c 80m 90y 0k` while showing
+blue.  A swatch you named yourself keeps its name: drop red onto *Grape* and Grape is red.
+Turn the automatic renaming off with the *Auto-rename colors* preference
+(xref:preferences.adoc[Preferences]).
+
+To rename a color:
+
+. Double-click the swatch name (or select it and press kbd:[Return]).
+. Type the new name and press kbd:[Return].  kbd:[Esc] cancels.
+
+If the name is already taken, the field shakes and stays open.  Renaming does not touch any
+object: objects refer to the swatch, not to its name.
+
+== Managing the list
+
+To rearrange colors:: Drag a swatch *by its name* to a new position.  Dragging the color chip
+itself drops the color onto whatever it lands on and redefines it.  Tints move with their base
+color.
+
+To sort by name:: Choose menu:Extensions[Colors > Sort Color List by Name].  The defaults stay
+at the top; everything else sorts numerically, then alphabetically, tints under their bases.
+Show names first if they are hidden.
+
+To hide or show names:: Choose *Hide Names* or *Show Names* from the Options menu.  With names
+hidden the panel shows a grid of chips so more colors fit; the selected chip has a solid
+border.  You cannot rearrange colors in this view, and hovering a chip shows its name.
+
+To group colors:: Choose *New Group…* from the Options menu, name the group, and drag swatches
+into it.  Groups are collapsible headers in the list; colors imported from a library land in a
+group named after the library.  Groups are a {product} addition and are shared with your
+collaborators like the rest of the list.
+
+// TODO screenshot: Swatches panel with a collapsed and an expanded group
+
+== Removing colors
+
+Removing a swatch never changes how anything looks.  Objects that used it keep the color as
+an unnamed color; a spot color becomes a process color on those objects, so separations of
+them may change.  Removing a base color also removes its tints.
+
+To remove colors:
+
+. Press kbd:[Tab] or choose menu:Edit[Select > None] so that no object is selected.
+. Click a swatch.  kbd:[Shift]-click to extend the selection to adjacent swatches,
+  kbd:[Cmd]-click to add swatches that are not adjacent.
+. Choose *Remove* from the Options menu or press kbd:[Delete].
+. If any of the selected swatches is in use, a sheet says how many objects use them and
+  offers btn:[Remove All], btn:[Remove Unused Only] and btn:[Cancel].
+
+To remove every named color that nothing uses:
+
+Choose menu:Extensions[Delete > Unused Named Colors].  A sheet lists what will be removed;
+click btn:[Remove].  A color is *used* when any fill, stroke, text, guide, or another swatch
+(a tint) refers to it.
+
+To get a removed color back:
+
+* Choose menu:Edit[Undo] right away, or
+* Choose *Restore Deleted Colors…* from the Options menu at any time within thirty days.  The
+  sheet lists removed swatches, marks the ones objects still refer to, and restores the ones
+  you tick -- objects that kept the color as unnamed pick the swatch back up.
+
+== Importing Photoshop color tables
+
+A Photoshop color table (`.act`) holds up to 256 RGB colors.  Choose menu:Extensions[Colors >
+Import RGB Color Table…], pick the file, and its colors are added as sRGB process colors (the
+format carries no color space; Photoshop writes them as sRGB) in a group named after the file.  Color tables for *exporting* indexed images are on
+xref:color-tables.adoc[Color tables].
+
+== Working with others
+
+The color list is one list for everyone.  When a collaborator adds, renames, reorders or
+removes a swatch you see it happen in your panel within a moment, and the change is theirs in
+menu:File[History].  Nothing you are doing is interrupted: if you are typing a name when a
+swatch moves, your field stays open.
+
+Two people editing the *same* swatch's color at the same moment cannot both win: the later
+edit stands, and the other person's panel updates to it.  Editing different things about one
+swatch -- one of you renames it while the other recolors it -- keeps both.
+
+If someone removes a color you are using, your objects do not change: they keep the color as
+an unnamed color, and *Restore Deleted Colors…* brings the swatch back.  If you removed a
+color while offline and someone applied it meanwhile, the review that runs when you reconnect
+lists "used a color that was deleted" with a *Restore* button
+(xref:collaboration.adoc[Working together]).
+
+Sorting the list while someone else drags a swatch is harmless: their swatch lands near where
+they put it and you can sort again.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,1"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Swatches panel with Fill / Stroke / Both selectors and the Add arrow
+|Same.
+|Faithful
+
+|Default colors None, White, Black, Registration; not removable or renamable
+|Same.  Black is a spot swatch with `role = BLACK`; the printer maps it to the K plate.
+|Faithful
+
+|Italic process names, upright spot names, RGB icon
+|Same; the RGB icon becomes a space badge (*RGB*, *P3*, *Lab*, *OKLab*) because a color now
+carries its space.  The Hexachrome hexagon icon goes with Hexachrome.
+|Faithful, extended
+
+|Make RGB / Make CMYK in the Options menu
+|*Convert to > sRGB / Display P3 / CMYK*; see xref:spot-process.adoc[Spot and process colors].
+|Faithful, extended
+
+|--
+|Every swatch carries its color space; Display P3, Lab and OKLab swatches beside sRGB and
+CMYK ones; libraries and `.wtcolors` files carry the space of each color.
+|Added: every Mac since 2016 has a Display P3 screen, and a color that does not know its
+space cannot be shown on one honestly.
+
+|Add from Mixer / Tints with a naming sheet; Cmd-click bypasses the sheet
+|Same.
+|Faithful
+
+|Windows right-click "Add to Swatches" on a color box
+|Every color well has a context menu with *Add to Swatches* on macOS as well.
+|Adapted: was Windows-only; macOS has context menus too.
+
+|Drop onto an existing swatch redefines it
+|Same.
+|Faithful
+
+|Duplicate ("Copy of …")
+|Same.
+|Faithful
+
+|Default names from mix values; `-1` suffixes; Auto-Rename Colors preference
+|Same.
+|Faithful
+
+|Rename by double-click; unique names enforced
+|Same.  Uniqueness is enforced when the command runs; concurrent renames to one name are
+disambiguated on read.
+|Faithful
+
+|Imported color with a clashing name is renamed to its mix values
+|Same.
+|Faithful
+
+|Name All Colors Xtra
+|menu:Extensions[Colors > Name All Colors].
+|Faithful
+
+|Sort Color List by Name Xtra; Show / Hide Names; drag to rearrange
+|Same.  Sort writes canonical positions so concurrent sorts agree.
+|Faithful
+
+|Swatch groups
+|Collapsible groups in the list.  Not in {fh}.
+|Adapted: addition; libraries of hundreds of colors need structure.
+
+|Remove with the all / unused prompt; removing spot converts objects to process; removing a base removes its tints
+|Same.
+|Faithful
+
+|Cannot remove colors from an unconverted EPS
+|EPS is placed as an opaque asset; its colors are never listed (xref:import-formats.adoc[Import formats]).
+|Faithful
+
+|Delete > Unused Named Colors
+|menu:Extensions[Delete > Unused Named Colors] with a preview sheet.  Not refused during
+concurrent use; see Merge semantics.
+|Faithful
+
+|Restore Deleted Colors…
+|Lists swatches deleted in the last 30 days for restoration.  Not in {fh}.
+|Adapted: addition; multiplayer deletion needs an undo that outlives the deleter's undo stack.
+
+|Import RGB Color Table (Photoshop ACT)
+|Same, into a group.
+|Faithful
+
+|Color libraries in the Options menu
+|See xref:spot-process.adoc[Spot and process colors].
+|--
+|===
+
+=== Data model
+
+Swatches are nodes under the well-known `swatches` collection (`0:5`).  A swatch's position
+among its siblings is the list order; its `CommonProps.name` is the swatch name.  None is not
+a node: it is the `none` case of `ColorRef` (xref:applying-color.adoc[Applying color]).
+
+[source,protobuf]
+----
+// proto/wiretuner/doc/v1/color.proto
+
+// The space a Color's components are in.  Zero is sRGB, so an `rgb` written before this tag
+// existed -- every earlier sketch and every earlier document -- reads exactly as it did.
+enum ColorSpace {
+  COLOR_SPACE_SRGB = 0;        // with `rgb`: sRGB (IEC 61966-2-1)
+  COLOR_SPACE_DISPLAY_P3 = 1;  // with `rgb`: Display P3 (P3 primaries, D65 white, sRGB transfer curve)
+  COLOR_SPACE_LAB = 2;         // with `lab`: CIELAB, D50 white (the ICC profile connection space)
+  COLOR_SPACE_OKLAB = 3;       // with `lab`: OKLab (what the Mixer's OKLCH mode stores)
+}
+
+// A color value.  ATOMIC: the components and the space they are in only mean something
+// together -- merging a cyan from one user with a magenta from another produces a color nobody
+// mixed, mixing a CMYK write with an RGB write per field is nonsense, and a P3 tag from one
+// writer over sRGB components from another is a color neither of them chose.  A space change
+// is therefore a value change.
+message Color {
+  oneof components {
+    Cmyk cmyk = 1;            // meaning: the document's Working CMYK profile
+    Rgb rgb = 2;              // meaning: `space`, SRGB or DISPLAY_P3
+    Lab lab = 3;              // meaning: `space`, LAB or OKLAB
+  }
+  // Which space `rgb` or `lab` is in.  Ignored for `cmyk`.  A value this client does not know
+  // (a newer space) reads as SRGB with the components as-is; the read-time rules are on
+  // the Spot and process colors page.
+  ColorSpace space = 4;
+}
+message Cmyk {                // each component 0..1 (the UI shows percentages)
+  double c = 1 [(buf.validate.field).double = {gte: 0, lte: 1}];
+  double m = 2 [(buf.validate.field).double = {gte: 0, lte: 1}];
+  double y = 3 [(buf.validate.field).double = {gte: 0, lte: 1}];
+  double k = 4 [(buf.validate.field).double = {gte: 0, lte: 1}];
+}
+message Rgb {                 // each component 0..1 in `Color.space` (the UI shows 0..255 and hex)
+  double r = 1 [(buf.validate.field).double = {gte: 0, lte: 1}];
+  double g = 2 [(buf.validate.field).double = {gte: 0, lte: 1}];
+  double b = 3 [(buf.validate.field).double = {gte: 0, lte: 1}];
+}
+// One message for both Lab spaces; `Color.space` says which.  Natural ranges:
+//   CIELAB (LAB):   l 0..100, a and b -128..128.
+//   OKLab  (OKLAB): l 0..1,   a and b -0.5..0.5 (real colors stay within about ±0.4).
+// The validation ranges are the union; readers clamp to the space's own range.  The Mixer's
+// OKLCH is the polar form of OKLab (C = sqrt(a² + b²), H = atan2(b, a)) and is never stored.
+message Lab {
+  double l = 1 [(buf.validate.field).double = {gte: 0, lte: 100}];
+  double a = 2 [(buf.validate.field).double = {gte: -128, lte: 128}];
+  double b = 3 [(buf.validate.field).double = {gte: -128, lte: 128}];
+}
+
+enum SwatchRole {
+  SWATCH_ROLE_UNSPECIFIED = 0;  // an ordinary swatch
+  SWATCH_ROLE_WHITE = 1;        // the document's White: protected
+  SWATCH_ROLE_BLACK = 2;        // the document's Black: protected, prints on the K plate
+  SWATCH_ROLE_REGISTRATION = 3; // prints on every plate; protected; drawn black on screen
+}
+
+// NodeProps.kind case `swatch`.  STRUCT: name, value, spot and grouping are independent
+// choices, so a rename and a recolor from two people both survive.
+message SwatchProps {
+  // The color.  Unused (and ignored) when `parent` is set: a tint's color is computed.
+  Color value = 1 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Spot (true) or process (false).  Independent of the color space.
+  bool spot = 2;
+  // Set on a tint: the base swatch.  ATOMIC (a NodeRef always is).  `cached` holds the base's
+  // Color at write time so a tint whose base was deleted still resolves.
+  NodeRef parent = 3 [(wt.crdt.field).on_dangling = REF_FALLBACK_CACHED];
+  // Tint strength, 1..100.  Meaningful only with `parent`.
+  double tint_percent = 4 [(buf.validate.field).double = {gte: 1, lte: 100}];
+  // Protected defaults.  Set once at document creation; the client never writes it afterwards.
+  SwatchRole role = 5;
+  // Group header this swatch is listed under; empty = ungrouped.  Groups are names, not nodes:
+  // a group exists while any swatch names it, so there is nothing to delete concurrently.
+  string group = 6 [(buf.validate.field).string.max_len = 128];
+  // Origin, when the swatch came from a color library: library name and the color's key in
+  // it ("PANTONE 300 C").  Lets Update from Library re-sync values by key
+  // (xref:exporting-colors.adoc[Exporting and sharing colors]).
+  string library = 7 [(buf.validate.field).string.max_len = 128];
+  string library_key = 8 [(buf.validate.field).string.max_len = 128];
+}
+----
+
+The three protected swatches are created by the first change of every new document (the
+document template, xref:creating-opening.adoc[Creating and opening documents]), with their
+`role` set, in the order White, Black, Registration, so every document has exactly one of
+each.  `role` is never written after creation; a merged state with two `BLACK` swatches is
+impossible because creation happens once, on one replica.
+
+The `view` state of the document (BASIC epic, `local_only`) carries the panel's *names hidden*
+flag, the collapsed groups and the selected swatches; none of that syncs.
+
+=== Merge semantics
+
+[cols="1,1,3"]
+|===
+|Field |Policy |Concurrent case
+
+|`value`
+|ATOMIC, LWW
+|Two people recolor one swatch: the greater OpId wins on every replica; the loser's value is
+retained in the log.  If the loss happened during an offline session it is a *same register*
+overlap and the review sheet lists it with both colors (as in the reconcile page's mock-up)
+and *Use mine*.  Live, the loser simply sees the swatch change under them -- the Mixer, if it
+was showing that swatch, re-reads it.  A *Convert to* command writes the same register, so a
+space change races a recolor exactly like a recolor; the review sheet shows both values in
+their own spaces (`Mine: p3(0.90 0.22 0.27), Theirs: #E63946`).
+
+|`name`
+|ATOMIC, LWW
+|Rename vs rename: LWW.  Rename vs recolor: both kept (different registers).  Two concurrent
+renames to the *same* name, or a rename racing an add with that name, yield duplicate names;
+see normalization.
+
+|`spot`, `group`, `library*`
+|ATOMIC each
+|Independent.  Make Spot vs Make CMYK: both apply.
+
+|`parent`, `tint_percent`
+|ATOMIC each
+|See xref:tints.adoc[Tints].
+
+|position (tree)
+|Move op, LWW per node
+|Drag vs drag of the same swatch: later wins.  Drag vs sort: the dragged swatch's position was
+generated between two neighbors that the sort has since moved; it lands wherever that key
+falls in the new order.  Harmless; sort again.  Sort vs sort: both changes write *canonical*
+positions (a fixed ladder derived from the rank in the sorted order, with no random suffix),
+so two concurrent sorts of the same list produce identical keys and the merge is sorted; when
+the lists differ (one side added a swatch), the extra swatch's key comes from its own insert
+and may interleave.  Ties on equal keys (equal names) break by node id, as everywhere.
+
+|`deleted`
+|register
+|Delete vs recolor / rename: the edit applies to the deleted node and is visible after
+Restore.  Review sheet: "edited a color that was deleted" with *Restore*.  Delete vs *use* (an
+object's `ColorRef` written to point at it): the object reads the reference's cache
+(`REF_FALLBACK_CACHED`) and looks unchanged; the Swatches panel does not list the swatch; the
+Object panel shows the fill as an unnamed color with a *Restore "Grape"* item in its color
+pop-up; the review sheet lists "used a color that was deleted" with *Restore*.  Delete base vs
+create tint of it: the tint remains with a dangling `parent`; see xref:tints.adoc[Tints].
+|===
+
+Delete Unused Named Colors and concurrent use::
+The command computes "unused" against the local state at the moment it runs.  A collaborator
+may be applying that very color, online with their change still in flight, or offline.  We
+considered refusing to delete swatches referenced by changes received since the last snapshot;
+it does not close the race (the conflicting use has by definition not arrived) and it makes the
+command's behavior depend on invisible history.  *Decision:* the command is never refused.  The
+race is made safe instead: the use keeps its cached color, so nothing changes on anyone's
+canvas; the deletion is a normal undoable change; the deleted node stays restorable for 30
+days through *Restore Deleted Colors…*; and the review sheet surfaces the overlap after an
+offline session.  The confirmation sheet, when presence shows other editors, adds one line:
+"N people are editing.  A color they apply before this reaches them stays on their objects as
+an unnamed color."
+
+Read-time normalizations::
+* Duplicate names: the panel shows the later-created swatch (greater node id) with a
+  ` (2)` suffix; nothing is written.  Lookups by name (importers, scripts) resolve to the
+  smallest node id.  The next rename of either swatch clears the duplicate.
+* A swatch with `role` set that is `deleted` (only possible through a malformed change) is
+  read as not deleted; the client never emits such a change.
+* Two swatches with the same `role` (impossible by construction, tolerated by reading): the
+  smallest node id is the document's default; the other is listed as an ordinary swatch.
+* A `group` naming no other swatch is simply a group of one.
+* The rules for a `Color` whose `space` does not fit its components, or names a space this
+  client does not know, are on xref:spot-process.adoc[Spot and process colors].
+
+Undo::
+Every command on this page is one change with a label (`Add color "Grape"`, `Remove 3
+colors`, `Sort colors`, `Rename "Grape" to "Plum"`).  Undo of a removal restores the swatch
+(`deleted = false`) and its tints together.  Undo of a redefinition restores `value` only if
+the register still holds this user's write.
+
+=== Offline behavior
+
+Everything here works offline.  Adding, renaming, recoloring and removing while offline
+coalesce per register in the outbox: a swatch recolored fifty times sends one write.  A
+swatch created and removed offline is dropped entirely.  *Restore Deleted Colors…* reads the
+local log, so it works offline for deletions the log has seen.  Library import needs nothing
+from the network unless the library is a team library not yet cached
+(xref:exporting-colors.adoc[Exporting and sharing colors]).
+
+=== Server
+
+Nothing beyond storing and relaying changes.
+
+=== Client
+
+* `WTModel`: `Swatch` typed wrapper over `SwatchProps`; commands `AddSwatch`, `RemoveSwatches`
+  (expands to tints, one change), `RenameSwatch` (uniqueness check, `-1` suffixing),
+  `RedefineSwatch` (value + optional auto-rename), `DuplicateSwatch`, `MoveSwatch`,
+  `SortSwatches` (canonical positions), `SetSwatchGroup`, `NameAllColors`, `DeleteUnusedSwatches`,
+  `RestoreSwatches`.  A `SwatchIndex` keeps name → node and swatch → referencing registers
+  (maintained from applied changes, local and remote) so "unused" and "N objects use this" are
+  O(1).
+* `WTApp`: the panel body is SwiftUI hosted in the panel framework (APP-004): a `List` with
+  inline rename, group sections, multi-selection, drag reordering (`onMove`), drop targets
+  (`NSItemProvider` carrying a `ColorRef` pasteboard type and, for cross-document drags, an
+  encoded library entry).  The Fill/Stroke/Both wells mirror the Tools panel wells.  Remote
+  changes update the list through the model's observation without disturbing an open rename
+  field.
+* Rendering: swatch → dependents invalidation lives on
+  xref:applying-color.adoc[Applying color] (COLOR-006).
+
+=== Build tasks
+
+[[COLOR-001]]
+==== COLOR-001 Color, swatch and color-reference schema
+[horizontal]
+Track:: proto
+Depends on:: PROTO-003
+Size:: M
+Delivers:: `doc/v1/color.proto` with `ColorSpace`, `Color` (the `components` oneof plus the `space` tag), `Cmyk`, `Rgb`, `Lab`, `SwatchRole`, `SwatchProps`, `ColorRef`, `InlineTint` (xref:applying-color.adoc[Applying color]) exactly as sketched, the `swatch` case in `NodeProps.kind` in the COLOR block, and `Color` moved from `common.proto` if PROTO-003 placed a stub there.
+Done when::
+* `buf lint` with COMMENTS passes; every field carries its `wt.crdt` option where the default is wrong and its protovalidate range; `Color` is ATOMIC in the generated merge table with `space` inside the register.
+* Conformance vectors: STRUCT merge of `SwatchProps` with concurrent `name` and `value` writes keeping both; ATOMIC replacement of `value` across spaces (CMYK → P3, P3 → sRGB, OKLab → CMYK); `ColorRef` oneof case replacement.
+* Conformance vectors for the tag: an `rgb` with no `space` reads as sRGB; an `rgb` with an enum value neither engine knows reads as sRGB with the components as-is and the tag preserved in the state (both engines, same `state_hash`); a `lab` tagged `SRGB` reads as CIELAB.
+* `NodeRef.cached` for a swatch reference is documented as an encoded `Color`, space included.
+
+[[COLOR-003]]
+==== COLOR-003 Swatch commands and defaults
+[horizontal]
+Track:: client-model
+Depends on:: COLOR-001, COLOR-002, APP-011
+Size:: L
+Delivers:: `WTModel` swatch wrapper, `SwatchIndex`, and the commands `AddSwatch`, `RemoveSwatches`, `RenameSwatch`, `RedefineSwatch`, `DuplicateSwatch`, `SetSwatchGroup`, `RestoreSwatches`, `DeleteUnusedSwatches`, `NameAllColors`; creation of the three protected swatches in the document template; protection rules; default naming and `-1` suffixing; the *Auto-rename colors* preference.
+Done when::
+* Every command is one labelled, undoable change; protected swatches refuse remove, rename and redefine.
+* Removing a base removes its tints in the same change; undo restores all of them.
+* `SwatchIndex` answers "used by" and name lookups in O(1) and stays correct across remote changes (unit tests apply remote changes out of order).
+* Merge tests: rename vs recolor keeps both; recolor vs recolor converges on every replica; delete vs use leaves the object's rendered color unchanged; concurrent Name All Colors on two replicas converges (duplicates tolerated).
+* Conformance vectors for each command's op shape.
+
+[[COLOR-004]]
+==== COLOR-004 Swatch order and sort
+[horizontal]
+Track:: client-model
+Depends on:: COLOR-003
+Size:: S
+Delivers:: `MoveSwatch` (drag), `SortSwatches` with canonical rank-derived positions, group-aware ordering (tints under bases, defaults first), and the read-time ordering rule.
+Done when::
+* Merge tests: two concurrent sorts of the same list produce a sorted list with identical positions on both replicas; sort vs drag converges; sort vs add keeps the added swatch.
+* Conformance vector for canonical positions.
+
+[[COLOR-007]]
+==== COLOR-007 Swatches panel
+[horizontal]
+Track:: client-ui
+Depends on:: APP-004, APP-006, COLOR-003, COLOR-004
+Size:: L
+Delivers:: The Swatches panel: list with italic/upright names and the space badge (RGB, P3, Lab, OKLab), Fill/Stroke/Both selectors, Add arrow drop target, drops onto swatches (redefine) and below the list (add), inline rename, multi-select removal with the all/unused sheet, drag reordering, Hide/Show Names grid, groups, the Options menu, the Import RGB Color Table command, and the Delete Unused Named Colors preview sheet with the presence line.
+Done when::
+* UI tests: add by drop, add by arrow, redefine by drop, rename with a clash, remove in use with each button, reorder, hide names, group create and drag into.
+* The badge of a swatch follows its `Color.space` (none for CMYK) and updates when a collaborator's *Convert to* arrives; the *Convert to* submenu is enabled only for named, unprotected swatches with nothing selected.
+* A remote rename or reorder during an inline rename keeps the field open with the typed text.
+* Keyboard: kbd:[Delete] removes, kbd:[Return] renames, kbd:[Esc] cancels.
+
+[[COLOR-016]]
+==== COLOR-016 Deleted-color recovery
+[horizontal]
+Track:: client-ui
+Depends on:: COLOR-007, SYNC-007
+Size:: M
+Delivers:: *Restore Deleted Colors…* sheet (deleted swatches from the local log within 30 days, "still used by N objects" markers), the Object panel's *Restore "<name>"* item for an unnamed color whose reference is dangling, and the review sheet rows "used a color that was deleted" and "edited a color that was deleted" with *Restore*.
+Done when::
+* Restoring re-links every object whose reference dangles to the restored swatch with no new writes on those objects (the reference resolves again by itself).
+* UI test: delete on replica A while replica B applies; B's review lists the object; Restore clears the row.
+
+[[COLOR-022]]
+==== COLOR-022 Swatch concurrency scenarios
+[horizontal]
+Track:: test
+Depends on:: TEST-001, COLOR-003, COLOR-004
+Size:: M
+Delivers:: Multi-client simulator scenarios for the color list: recolor storm on one swatch from five clients, delete-unused racing use under partition, sort vs drag vs add, tint base deletion vs tint creation, Name All Colors on two partitioned clients.
+Done when::
+* Every scenario converges to one hash; the read-outs (panel order, resolved colors of every object) match the expected vectors; runs inside the TEST-001 CI budget.
+endif::spec[]

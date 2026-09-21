@@ -1,0 +1,263 @@
+The Pen and Bezigon tools build a path one point at a time, which gives you exact control over
+every segment.  They share a slot in the Tools panel and produce identical paths; the
+difference is in the hand motion.  With the *Pen*, you click for a corner and drag for a
+curve, pulling out the handles as you go, and the tool shows a preview of the segment about
+to be placed.  With the *Bezigon*, you click to drop each point and let {product} choose the
+handles, so it is the faster way to place straight segments and rough out a curve you will
+tune later.  Both pointers change shape to tell you what a click will do: start a path, add a
+point, close the path, or continue an existing one.
+
+// TODO screenshot: Pen pointer variants (new path, add point, close, continue, add to segment)
+
+== Drawing with the Pen tool
+
+To draw with the Pen tool:
+
+. Choose the Pen tool.
+. Place points:
+* Click to place a corner point.
+* Drag to place a curve point; the drag pulls out its handles.  Keep dragging until the
+  preview of the segment looks right.
+* kbd:[Control]-click to place a connector point.  Dragging while placing it extends the
+  handle that shapes the next segment.
+. Finish the path:
+* Double-click the last point, or press kbd:[Tab], to leave the path open.
+* Click the first point to close it.  The pointer shows a small circle when it is over the
+  first point.
+
+Modifier keys while placing a point::
+kbd:[Shift]:: Constrains the new segment (and, when dragging, the handle) to the constrain
+angle and every 45° from it.
+kbd:[Cmd]:: While dragging a curve point, moves the point itself instead of its handles, so
+you can reposition it before committing.
+kbd:[Option]:: While dragging, breaks the handle pair so the two handles move independently,
+turning the point into a corner point with extended handles.
+kbd:[Control]:: Places a connector point.
+kbd:[Esc]:: Ends the path where it is (same as kbd:[Tab]).
+
+With *Pen tool preview* on (the default), a rubber-band segment follows the pointer from the
+last point, showing the curve you would get by clicking now.  Turn it off in the *General*
+settings if you prefer to see only committed segments.
+
+== Drawing with the Bezigon tool
+
+To draw with the Bezigon tool:
+
+. Choose the Bezigon tool.
+. Place points:
+* Click to place a corner point.
+* kbd:[Option]-click to place a curve point.  {product} sets its handles automatically so the
+  path passes smoothly through it, and keeps adjusting them as you add more points.
+* kbd:[Control]-drag to place a connector point.
+* Hold kbd:[Cmd] and drag any point you have placed to move it, handles and all.
+. Finish as with the Pen: double-click or kbd:[Tab] for an open path, click the first point
+  to close.
+
+kbd:[Shift] constrains the segment angle exactly as for the Pen.  A Bezigon curve point is an
+*automatic* point (xref:editing-paths.adoc[Editing paths]); once you drag one of its handles
+by hand it becomes an ordinary curve point.
+
+== Continuing, closing and opening paths
+
+Both tools can add to a path that already exists, drawn with any tool, and you can switch
+between Pen and Bezigon at any point.
+
+To continue a selected path:
+
+. Choose the Subselect tool and click one end point of an open path.
+. Choose the Pen or Bezigon tool.
+. Click or drag to add segments from that end.
+
+To continue a path that is not selected:
+
+. Choose the Pen or Bezigon tool.
+. Move the pointer over an end point of the path; the pointer shows a small *+*.
+. kbd:[Option]-drag from the end point, then keep placing points.
+
+To close a selected open path, do one of the following:
+
+* With the Pointer or Subselect tool, drag one end point onto the other.
+* In the Object panel, turn on *Closed*.  A straight segment joins the two ends.
+
+To open a selected closed path:
+
+* In the Object panel, turn off *Closed*.  The segment that closed the path is removed.
+* Or, with the Subselect tool, select a segment and press kbd:[Delete]: the path opens
+  there (xref:editing-paths.adoc[Editing paths]).
+
+Joining two paths::
+When a Pen or Bezigon path ends on an end point of *another* open path, the two are joined into
+one path (the pointer shows the join cursor).  This is governed by the *Auto-join paths*
+preference in the *Object* settings, on by default; turn it off if you often draw paths that
+happen to start or end on other paths' ends.  Two paths can also be joined explicitly with
+menu:Modify[Join] (xref:combining-paths.adoc[Combining paths]).
+
+NOTE: For {fh} users: Windows' right-button gestures for connector points are kbd:[Control]
+gestures on the Mac, as they were in {fh} for Macintosh.
+
+== Working with others
+
+While you place points, collaborators see your path grow one point at a time; each click or
+drag is shared as soon as you release it.  They can start editing the points you have placed
+before you finish the path, and their edits stay.  If a collaborator closes the path you are
+still extending, your later points are added anyway and the closing segment moves to run from
+your last point back to the start.  If someone deletes the path you are drawing on, your next
+click starts a new path.  Continuing someone else's path works the same as continuing your
+own.  After working offline, points you and a collaborator both moved are listed in the
+review sheet; points only one of you touched merge silently.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,1"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Pen: click corner, drag curve, kbd:[Control]-click connector, kbd:[Cmd]-drag to move the
+point while placing, double-click/kbd:[Tab] to end, click first point to close
+|Same.
+|Faithful
+
+|Pen rubber-band preview
+|Same, governed by the *Pen tool preview* preference.
+|Faithful
+
+|Bezigon: click corner, kbd:[Option]-click curve, kbd:[Control]-drag connector, kbd:[Cmd]-drag
+to move
+|Same.  Bezigon curve points are stored as `automatic` points.
+|Faithful
+
+|kbd:[Shift] constrains segments
+|Same, honoring the document constrain angle.
+|Faithful
+
+|Continue a selected path from a selected end point; continue an unselected path by
+kbd:[Option]-dragging its end point; Pen and Bezigon interchangeable
+|Same.
+|Faithful
+
+|Close by dragging end onto end, or Object panel *Closed*; open via Object panel; Windows
+context-menu Path > Closed/Open
+|Mac methods kept; the context-menu variant is offered on the Mac too under
+xref:context-menus.adoc[Context menus] since there is no reason to withhold it.
+|Adapted
+
+|kbd:[Option]-drag to break a curve point's handle pair while placing it
+|Added (an Illustrator convention {fh} users expect on the Mac).
+|Adapted
+|===
+
+=== Data model
+
+None beyond `PathProps`.  A Pen session creates a `path` node with one open contour on the
+first click and inserts a point element per placed point; closing writes `closed = true`.
+The *Pen tool preview* and *Auto-join paths* preferences are local.
+
+=== Merge semantics
+
+Placing a point:: One change per placed point (element insert after the current end, plus a
+handle write on the previous point for a Bezigon automatic re-smooth).  The path is therefore
+visible and editable by others from the first click.
+
+Close vs. append, reverse vs. insert, delete vs. append:: As specified on
+xref:vector-basics.adoc[Vector basics].  The tool tracks the element id of the point it is
+extending from, not an index, so a remote insert or delete elsewhere in the contour never
+changes where the next point goes.
+
+Start point deleted while drawing toward it:: Clicking the (now gone) start point cannot
+happen: the tool re-resolves the start element on every event and, if it is deleted, the
+"close" cursor is not offered; the click places an ordinary point.
+
+Continuing a path someone else is also continuing:: Both append after the same end element;
+fractional positions after the end are generated independently, so both runs of points land
+after the original end in `position` order.  The result is a legal contour with the two runs
+concatenated (interleaving is possible but unlikely with random suffixes); the review sheet
+does not flag it because no register collided.  Live, each user sees the other's points appear
+at the end and the tool keeps extending from *its own* last placed element, so the two users'
+paths diverge visibly and each can undo their own points.
+
+Auto-join:: Joining copies the other path's points into this contour and deletes the other
+node (see Join under xref:vector-basics.adoc[Vector basics]).  The join is a separate change
+from the point placement so undo can undo just the join.
+
+=== Offline behavior
+
+Works offline.  A Pen session's per-point changes stay separate in the outbox (they are
+different registers), which is fine: a hundred-point path is a hundred small ops.
+
+=== Server
+
+Nothing beyond storing and relaying changes.
+
+=== Client
+
+Tools:: `PenTool` and `BezigonTool` in `WTApp` share `PathBuildingSession`, which owns the
+node id, contour id, the element id of the active end and which end (start or end) is being
+extended.  The session survives tool switches between Pen and Bezigon and ends on kbd:[Tab],
+kbd:[Esc], double-click, close, a click on another tool, or the node's deletion.
+
+Cursors:: `NSCursor` variants: pen, pen-with-plus (continue), pen-with-circle (close),
+pen-with-minus (over an existing point of the active path: click deletes it, as in {fh}'s
+Pen), pen-with-caret (over a segment of a selected path: click adds a point; see
+xref:editing-paths.adoc[Editing paths]).
+
+Preview:: The rubber-band segment is drawn in the tool overlay from the active end's anchor
+and out-handle to the pointer, using the handle that the click would produce (Bezigon's
+automatic estimate uses the Catmull–Rom tangent from the previous two anchors).
+
+Snapping:: Points snap through GEO-005 (grid, guides, points) before the constraint is applied.
+
+Undo:: One group per placed point, one per close, one per join.  Undoing every point of a new
+path also undoes the creation (the create is grouped with the first point).
+
+=== Build tasks
+
+[[DRAW-021]]
+==== DRAW-021 Pen tool
+[horizontal]
+Track:: client-ui
+Depends on:: DRAW-002, DRAW-003, APP-003, GEO-005
+Size:: M
+Delivers:: `PathBuildingSession` and `PenTool`: click, drag, kbd:[Control]-click connector, kbd:[Cmd]-drag reposition, kbd:[Option]-drag handle break, kbd:[Shift] constraint, double-click/kbd:[Tab]/kbd:[Esc] finish, click-first-point close, cursor variants, snapping.
+Done when::
+* UI tests produce open, closed and cancelled paths with each point kind and modifier and verify the stored points and handles.
+* Each placed point is one change; undoing all points removes the node.
+* Merge tests: close vs. append and delete-start-point vs. close behave as specified; two replicas continuing the same end both keep their points.
+
+[[DRAW-022]]
+==== DRAW-022 Bezigon tool
+[horizontal]
+Track:: client-ui
+Depends on:: DRAW-021
+Size:: S
+Delivers:: `BezigonTool` on the shared session: click corner, kbd:[Option]-click automatic curve point, kbd:[Control]-drag connector, kbd:[Cmd]-drag move, and the automatic-handle re-smoothing of the previous point on each placement.
+Done when::
+* A Bezigon curve point is stored with `automatic = true` and renders through the neighbors-based handle rule.
+* Switching Pen to Bezigon and back mid-path continues the same contour.
+* Merge test: Bezigon re-smooth of the previous point vs. a concurrent handle drag on it by another replica resolves per register LWW without error.
+
+[[DRAW-023]]
+==== DRAW-023 Continue, close, open and auto-join
+[horizontal]
+Track:: client-ui
+Depends on:: DRAW-021, DRAW-004
+Size:: M
+Delivers:: Continuation from a selected end point and from an unselected one via kbd:[Option]-drag; closing by dragging end onto end with the Pointer/Subselect tools; Object panel *Closed* wiring; auto-join at another path's end with the join cursor and the *Auto-join paths* preference; context-menu Path > Closed/Open.
+Done when::
+* UI tests for each continuation and closing method; auto-join produces one node whose contour is the concatenation in the correct direction (the joined path is reversed if its end, not its start, was hit).
+* Merge test: join on one replica vs. an edit to the absorbed path on another yields the joined path plus an *edit vs delete* review entry and *Restore* re-creates the absorbed path.
+* Undo of a join restores both paths.
+
+[[DRAW-024]]
+==== DRAW-024 Pen preview and drawing preferences
+[horizontal]
+Track:: client-ui
+Depends on:: DRAW-021, APP-010
+Size:: S
+Delivers:: The rubber-band preview overlay, the *Pen tool preview* (General) and *Auto-join paths* (Object) preferences in the Settings window.
+Done when::
+* Preview toggles live without restarting the tool; UI test asserts the overlay is empty when off.
+* Auto-join off: ending on another path's end places a normal point and creates no join.
+endif::spec[]

@@ -1,0 +1,7 @@
+= Using styles
+include::_attributes.adoc[]
+:page-slug: styles
+:page-group: Layers, symbols and styles
+:page-fh: Chapter 9, "Using styles", "Using the Styles panel", "Applying styles", "Adding, duplicating, and removing styles", "Modifying styles", "Basing one style on another", "Importing and exporting styles"
+
+include::_includes/library/styles.adoc[]

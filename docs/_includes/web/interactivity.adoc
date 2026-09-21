@@ -1,0 +1,260 @@
+A document can behave like a small clickable prototype: click an arrow and the next page
+appears, click a logo and the company's site opens.  {product} keeps this to two things an object
+can do when clicked -- *go to a page* of the document, or *open a link* -- because those are the
+two that every output format can honor.  A PDF opens the page or the URL; an SVG or a published
+web page follows the anchor; menu:File[Preview in Browser] lets you click through before
+exporting.  Page links are set in the *Navigation* panel or drawn with the *Link tool*.
+
+NOTE: {fh} assigned Flash *actions* (ActionScript) with an Action tool.  {product} has no Flash
+player to run scripts, so actions are reduced to page links and web links; the Action tool is
+now the *Link tool*.  See the parity table at the end for what became of each action.
+
+== Setting what happens on click
+
+Every object has an *On click* setting in the Navigation panel (menu:Window[Navigation]):
+
+[cols="1,3"]
+|===
+|On click |Result
+
+|*Nothing*
+|The default.  The object is plain artwork.
+
+|*Go to page*
+|Choose a page from the pop-up menu beside it (pages are listed by number and name).  In a PDF the
+viewer jumps to that page; in HTML and SVG the browser scrolls or navigates to it; in the
+browser preview likewise.
+
+|*Open link*
+|Uses the *Link* field of the same panel (xref:urls.adoc[Attaching links to objects and text]).
+|===
+
+An object can have both a link and a page target; if it does, *Go to page* is what happens on
+click, and the output warnings mention the unused link.  Text ranges cannot have page targets,
+only links.
+
+To set a page link in the Navigation panel:
+
+. Select the object.
+. Choose menu:Window[Navigation].
+. Choose *Go to page* from the *On click* pop-up menu, then choose the page.
+
+An object with a page link shows a small *link badge* at the lower right of its bounding box
+whenever menu:View[Show Links] is on, and always while the Link tool is selected.  Hovering the
+badge shows the target page; double-clicking it goes there.
+
+== The Link tool
+
+The Link tool draws a page link by dragging: start on an object, end on a page.
+
+To link an object to a page with the Link tool:
+
+. Choose the Link tool in the Tools panel (its shortcut is kbd:[L]).
+. Drag from the object to any point on the target page.  While you drag, the page under the
+  pointer highlights and a connector follows the pointer; kbd:[Space] pans, and the view
+  auto-scrolls near the window edges so a page off-screen can be reached.
+. Release the mouse.  The object gets a link badge and the Navigation panel shows *Go to page*
+  with the target.
+
+To remove a page link:
+
+* With the Link tool, drag the object's link badge to an empty spot on the same page and
+  release.
+* Or choose *Nothing* from *On click* in the Navigation panel.
+
+To move a page link to another page, drag the badge with the Link tool and drop it on the new
+page.  Dropping on the object's own page removes the link, as above; kbd:[Option]-drop on the
+object's own page links to it (a "return here" button on a spread).
+
+The Link tool's pointer shows a small chain when it is over an object that can be linked and a
+"no" symbol over a text range or a locked object.  It links whatever the pointer is over, so a
+group member inside a group needs the group taken apart first, or the link set on the group
+instead.
+
+== Links in exported files
+
+[cols="1,3"]
+|===
+|Format |What a page link becomes
+
+|PDF
+|A link annotation with a *GoTo* action to the page (fit-page destination).  Combined with links
+from xref:urls.adoc[Attaching links to objects and text], the PDF is a clickable presentation.
+
+|SVG
+|`<a href="page-3.svg">` when pages are exported as separate files, `<a href="#page-3">` when
+the exporter puts all pages in one file (xref:export-vector.adoc[Exporting vector formats]).
+
+|Published HTML
+|`<a href="#page-3">` in Stacked layout, `<a href="page-3.html">` in Separate files
+(xref:publish-html.adoc[Publishing as HTML]).
+
+|Browser preview
+|Works like published HTML.
+
+|Bitmaps, EPS, print
+|Ignored.
+|===
+
+== Working with others
+
+A page link is a property of the object, like its name.  If you and a collaborator set different
+targets at the same time, the later one stands and the badge updates.  Deleting a page that
+others' objects point to does not break anything: those objects simply have no target any more,
+the Navigation panel shows *Go to page* with *(deleted page)*, and choosing a new page fixes
+them.  If the page is restored, the links come back with it.
+
+Dragging with the Link tool is a single change made when you release the mouse; nothing is
+shared while you drag, so collaborators see the badge appear, not the connector.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,2"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Go To and Stop / Go To and Play (to a page and layer/frame)
+|*Go to page*.  No frame parameter.
+|Adapted -- page navigation kept; frame-level jumps need a player.
+
+|Get URL
+|*Open link* (the object's URL).
+|Faithful
+
+|Play, Stop
+|Dropped.
+|Dropped -- animation in exported SVG cannot be controlled per object without scripts.
+
+|Print (frames)
+|Dropped.
+|Dropped -- no player; a PDF viewer's own Print command covers printing.
+
+|Full Screen
+|Dropped.
+|Dropped -- a player feature.
+
+|Start/Stop Drag
+|Dropped.
+|Dropped -- requires a runtime.
+
+|Load Movie / Unload Movie
+|Dropped.
+|Dropped -- needs a movie player; the closest intent (show another page) is *Go to page*.
+
+|Tell Target
+|Dropped.
+|Dropped -- needs a movie player.
+
+|Events: On Press, On Release, On Roll Over, Frame Action, keyboard
+|Only click (On Release).
+|Adapted -- the one event PDF, SVG and HTML all support without scripts.
+
+|Action tool: drag from object to page, default Go To and Stop
+|Link tool: drag from object to page sets *Go to page*.
+|Adapted (renamed) -- same gesture, one behavior.
+
+|Action proton at lower right; drag to empty spot to remove
+|Link badge; same removal gesture.
+|Faithful
+
+|Action tool options: Link to Target Page / Print Target Page / Load Target Page as Movie
+|No options dialog; only linking exists.
+|Dropped -- the other two behaviors were dropped with Flash.
+
+|Multiple actions per object
+|One click behavior per object.
+|Dropped -- nothing left to combine.
+|===
+
+=== Data model
+
+The field is `NavigationProps.go_to_page` defined on xref:urls.adoc[Attaching links to objects
+and text]: a `NodeRef` to a page node with `REF_FALLBACK_UNSET`.  *On click* is not stored; it
+is derived: `go_to_page` set → Go to page; else `url` non-empty → Open link; else Nothing.
+Setting *Nothing* clears `go_to_page` and leaves `url` alone (the link is still exportable as an
+ordinary link; only the click precedence changes), which is what {fh}'s Get URL action also
+implied.
+
+=== Merge semantics
+
+`go_to_page`:: ATOMIC `NodeRef`.  Concurrent different targets: greater OpId wins; the review
+sheet shows "Go to page: mine page 3 / theirs page 5".
+Target page deleted concurrently:: The reference dangles and reads as unset; nothing is
+written.  If the page is restored the link reads again.  The review sheet does not list this
+(no register was contested); the Navigation panel shows *(deleted page)* while the reference
+dangles so the user can see it.
+Object deleted concurrently with linking:: The link applies to the deleted node; listed as
+"edited something that was deleted".
+Link tool drag:: No change until mouse-up; a remote change to the source object during the drag
+does not cancel the drag.  If the source object is deleted remotely mid-drag, mouse-up writes the
+link to the deleted node anyway (it will come back with the node if restored) and the badge does
+not appear.
+
+Read-time normalization: `go_to_page` referencing a node that is not a page (or is a master
+page) reads as unset.
+
+=== Offline behavior
+
+Nothing beyond the ordinary outbox rules.
+
+=== Server
+
+Nothing beyond storing and relaying changes.
+
+=== Client
+
+* Link tool: a `Tool` (APP-003) with a drag state machine (source hit test via REND-003, page
+  hit test by pasteboard rectangle, auto-scroll timer, kbd:[Space] temporary pan); overlay draws
+  the connector and highlights the page rect; on mouse-up emits `setGoToPage(node:page:)` from
+  WEB-001, or clears it when dropped on the source's own page without kbd:[Option].  Badge hit
+  testing takes priority over object hit testing while the tool is active.
+* The badge is drawn in the overlay layer at the object's bounds' lower-right, 12 × 12 pt,
+  `NSCursor` chain variant from an asset catalog, tooltip via `NSView.addToolTip`.
+* Navigation panel *On click* section (WEB-002's host slot): a pop-up bound to the derived
+  state, a page pop-up listing pages from the `pages` collection in order with names.
+* Export: the PDF exporter's annotation hook (WEB-005) adds `/A << /S /GoTo /D [pageRef /Fit] >>`;
+  the SVG writer's `<a>` wrapping takes an href from the multi-page strategy of the vector
+  exporter; the HTML publisher supplies `#page-N` or `page-N.html`.
+* Undo: one step per link set or cleared, labelled "Link to page N" / "Remove page link".
+
+=== Build tasks
+
+[[WEB-021]]
+==== WEB-021 On click section of the Navigation panel
+[horizontal]
+Track:: client-ui
+Depends on:: WEB-002
+Size:: S
+Delivers:: The *On click* pop-up (Nothing, Go to page, Open link) and page pop-up in the Navigation panel; *(deleted page)* display for dangling targets; link badge drawing in the overlay when menu:View[Show Links] is on (extends WEB-004's overlay).
+Done when::
+* Choosing a page writes `go_to_page`; choosing Nothing clears it and leaves `url`; the derived state matches the precedence rule.
+* A remote page deletion changes the display to *(deleted page)* without writing anything; restoring the page restores the display.
+* UI test covers set, change, clear, and mixed selection.
+
+[[WEB-022]]
+==== WEB-022 Link tool
+[horizontal]
+Track:: client-ui
+Depends on:: APP-003, REND-003, WEB-001, WEB-021
+Size:: M
+Delivers:: The Link tool with drag-to-page, page highlight, connector overlay, auto-scroll and kbd:[Space] pan, badge drag to remove or retarget, kbd:[Option]-drop for self-links, cursors, kbd:[L] shortcut, Tools panel registration.
+Done when::
+* Drag from an object to another page sets the link in one change; dropping on the source page clears it; kbd:[Option]-drop on the source page links to it.
+* Dragging over text ranges and locked objects shows the "no" cursor and does nothing on release.
+* Merge test: two replicas link the same object to different pages concurrently and converge on the greater OpId; the badge on both shows the winning page.
+* UI tests with modifiers cover every gesture above.
+
+[[WEB-023]]
+==== WEB-023 Page links in PDF, SVG and HTML output
+[horizontal]
+Track:: import-export
+Depends on:: WEB-005, WEB-008
+Size:: M
+Delivers:: GoTo annotations in PDF, `href` targets in SVG (per file or per fragment) and HTML (`#page-N` / `page-N.html`), the precedence rule (page over URL) and the unused-link warning through WEB-010's sink.
+Done when::
+* A fixture with page links on every page exports to PDF with correct destinations (parsed back), to SVG in both single- and multi-file modes with resolvable hrefs, and to HTML in both page modes where every anchor resolves.
+* An object with both a link and a page target exports the page target and raises the warning.
+endif::spec[]

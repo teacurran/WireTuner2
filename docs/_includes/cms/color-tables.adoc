@@ -1,0 +1,205 @@
+Every time {product} shows a CMYK swatch on an RGB screen, previews a PANTONE color, or fills
+in the RGB equivalent of a CMYK mix in the Color Mixer, it converts between color spaces.  This
+page explains where those conversions come from, why every collaborator gets the same answer,
+and how spot colors are previewed.
+
+NOTE: {fh} shipped prebuilt *color tables* -- lookup tables for CMYK display and RGB
+conversion computed from a fixed set of default profiles -- as a lightweight alternative to a
+full color management system, and let you rebuild them from ColorSync.  {product} has no
+tables to manage: every conversion is computed from the document's working profiles when
+needed and cached.  The *Color Tables* choice, *Rebuild Color Tables* option and the
+rebuilding procedure have no counterpart.
+
+== How conversions are computed
+
+A conversion needs three things: the source profile, the destination profile, and the
+rendering intent.  All three come from the document (xref:color-management.adoc[Color
+management]) or from an image's own settings (xref:image-color.adoc[Managing image color]),
+never from a per-Mac setting, so two people converting the same color get the same numbers.
+
+[cols="1,3"]
+|===
+|Conversion |Where it happens
+
+|CMYK swatch shown on screen
+|Working CMYK → your display profile (or → proof profile → display when proofing), for
+every CMYK fill, stroke and swatch chip.  Computed for display only; the document keeps the
+CMYK values.
+
+|CMYK → RGB in the Color Mixer
+|When you switch a color's model in the Mixer, {product} converts through Working CMYK →
+Working RGB with the document intent and *writes the result* into the color.  From then on
+it is an RGB color with those exact values, and everyone sees the same numbers
+(xref:color-mixer.adoc[Color Mixer]).
+
+|RGB → CMYK in the Mixer or when printing separations
+|Working RGB → Working CMYK with the document intent.  In the Mixer the result is written;
+at print time it is computed on the way out and the RGB values stay in the document.
+
+|Spot color preview
+|The library's measured color → Working RGB (or → proof → display), see below.
+|===
+
+The numbers you type are never rounded or "corrected" by a conversion: a conversion only
+happens when you ask for one in the Mixer or when the color is drawn or output.  This is what
+lets a document be re-targeted to another press by changing one profile.
+
+== How spot colors are previewed
+
+A spot color is an instruction to the printer to use a particular ink; the number in the
+document is the ink's name.  To show it on screen, {product} needs to know what that ink
+looks like.  Each spot color library shipped with {product} records, for every ink, a
+measured color (a Lab value, device-independent) and a nominal CMYK mix for printing the ink
+as process color.
+
+With *Color manage spot colors* on (the default, in menu:File[Color Settings…]):
+
+* The measured Lab value is converted to your display through the working RGB profile, so on
+  a calibrated display the on-screen chip is as close to the printed ink as the display allows.
+* Under menu:View[Proof Colors] with a press target, the chip shows the ink as that press
+  would render it -- that is, its CMYK simulation -- which is what a client will see if the
+  job is printed as process.
+* Tints of a spot color are computed from the measured value, not from the CMYK mix.
+
+With it off:
+
+* The chip is drawn from the nominal CMYK mix through the working CMYK profile.  This is
+  faster and matches older workflows, but less accurate; judge the color against a printed
+  swatch book.
+
+Spot colors you define yourself (xref:spot-process.adoc[Spot and process colors]) carry the
+values you mixed; they are previewed from those values through the working profiles like any
+process color.
+
+// TODO screenshot: a PANTONE swatch chip with spot management on and off, proof on
+
+== Getting the same color on two Macs
+
+Because the profiles, the intent and the library values are all in the document or in the
+app, two collaborators with calibrated displays see the same on-screen color for the same
+swatch.  What differs between Macs is only the last step -- each display's own profile -- and
+that is exactly the step calibration exists to make faithful
+(xref:monitor-calibration.adoc[Calibrating your display]).  A collaborator on an uncalibrated
+laptop sees a less accurate rendering, but the color *values* they read in the Mixer, the
+Swatches panel and the Object panel are identical to yours.
+
+== Working with others
+
+There is nothing on this page for two people to edit at once.  Conversions are computed on
+each Mac from the shared settings; only the results of a Mixer conversion become part of the
+document, and those are ordinary color edits with the usual behavior
+(xref:color-mixer.adoc[Color Mixer]).  Changing *Color manage spot colors* is a document
+setting: everyone's spot chips re-render, and the change is listed in the review sheet after
+an offline period (xref:color-management.adoc[Color management]).
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,2"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Color Tables color management type (prebuilt CMYK display and RGB conversion tables)
+|Conversions computed from the working profiles through ColorSync and cached in memory.
+|Adapted: a modern CMM computes a transform in milliseconds; prebuilt tables were a
+performance workaround with worse accuracy.
+
+|Rebuild Color Tables using KDS or ColorSync with chosen monitor and separations profiles
+|Not needed: the cache is keyed by the profiles and rebuilds itself when they change.
+|Dropped: nothing to rebuild.
+
+|Color Manage Spot Colors under Color Tables
+|Same setting, in the document's Color Settings.
+|Faithful.
+
+|Monitor Simulates under Color Tables (None / Separations Printer)
+|Proof setup.
+|Adapted: see xref:color-management.adoc[Color management].
+
+|Spot colors previewed from the CMS when managed, from swatch book values otherwise
+|Managed: Lab from the library through ColorSync.  Unmanaged: nominal CMYK through the
+working CMYK profile.
+|Faithful.
+
+|No profile assignment to images under Color Tables / Adjust Display Colors / None
+|Always available, since color management is always on.
+|Adapted.
+|===
+
+=== Data model
+
+Nothing new in the document.  Spot color library data is shipped in the app, not stored in
+documents; a spot swatch stores its library id, ink name and nominal values (the COLOR epic's
+swatch node), and `ColorSettings.no_spot_color_management` selects the preview path.
+
+Library data format (app bundle, not the document):
+
+[source,protobuf]
+----
+// Resources/SpotLibraries/<library>.binpb -- one per library, generated at build time from the
+// vendor data files under the terms recorded in decisions.adoc.
+message SpotLibrary {
+  string id = 1;                 // "pantone-solid-coated"
+  string name = 2;               // shown in the Swatches library menu
+  string version = 3;            // vendor edition, shown in About
+  repeated SpotInk inks = 4;
+}
+message SpotInk {
+  string name = 1;               // "PANTONE 300 C" -- the value stored in a swatch
+  float lab_l = 2;               // measured, D50, 2° observer
+  float lab_a = 3;
+  float lab_b = 4;
+  float c = 5;                   // nominal process equivalent, 0..1
+  float m = 6;
+  float y = 7;
+  float k = 8;
+}
+----
+
+=== Merge semantics
+
+Nothing on this page merges; a swatch created from a library is a COLOR epic node and merges
+there.  Read-time normalization: a spot swatch naming a library or ink the app does not have
+(an older app, a withdrawn library) is previewed from its stored nominal CMYK values, and the
+Swatches panel marks it "library not available".
+
+=== Offline behavior
+
+Fully local; the libraries are in the app bundle.
+
+=== Server
+
+Nothing.
+
+=== Client
+
+* `WTColor.Converter` (CMS-003) is the single conversion entry point; the COLOR epic's Mixer
+  calls it for model switches and writes the result with the canonical rounding rule (four
+  decimals of 0..1), so the written values are bit-identical wherever the switch is made.
+* Spot preview: `SpotLibraryStore` loads `.binpb` resources lazily; `previewColor(ink,
+  settings)` returns a `CGColor` in Working RGB (managed) or Working CMYK (unmanaged), cached
+  per `(library, ink, settings hash)`.  Tints multiply in Lab (managed) or scale the CMYK mix
+  (unmanaged), matching {fh}'s two behaviors.
+* Determinism: ColorSync is the CMM on every Mac; results are identical on the same macOS
+  version and within 1/255 across versions (CMS-003's committed corpus).  Because nothing
+  derived is ever written to the document except on an explicit Mixer conversion, and that
+  value is then shared, cross-version differences can only affect pixels on screen, never
+  the document.  Replacing ColorSync with a bundled CMM for bit-exactness across versions is
+  an open question recorded in xref:decisions.adoc[Decisions].
+
+=== Build tasks
+
+[[CMS-014]]
+==== CMS-014 Spot color libraries and preview
+[horizontal]
+Track:: client-render
+Depends on:: CMS-003
+Size:: M
+Delivers:: The `SpotLibrary` resource format, the build-time generator from vendor data (with the license check recorded in xref:decisions.adoc[Decisions] and a placeholder library for development), `SpotLibraryStore`, `previewColor` for the managed and unmanaged paths, tint computation, and the "library not available" normalization.  The COLOR epic's Swatches panel consumes it.
+Done when::
+* The preview of an ink through sRGB on the managed path matches the vendor's published sRGB value within 2/255 for a sampled set.
+* Toggling *Color manage spot colors* re-renders every spot chip and changes no document value; merge test: two replicas toggle it concurrently and converge with the loser retained.
+* A swatch naming an unknown library previews from its nominal CMYK and is flagged in the panel.
+endif::spec[]

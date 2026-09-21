@@ -1,0 +1,7 @@
+= Naming objects and adding notes
+include::_attributes.adoc[]
+:page-slug: names-notes
+:page-group: Objects
+:page-fh: Chapter 4, "Adding names and notes to objects"
+
+include::_includes/objects/names-notes.adoc[]

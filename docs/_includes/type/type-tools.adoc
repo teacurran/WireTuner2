@@ -1,0 +1,296 @@
+Type is adjusted from four places that all do the same things: the *Text* section of the
+Object panel (the most complete), the Text toolbar (the quickest), the Text menu (with
+keyboard shortcuts), and the text block's own handles (for leading and kerning by eye).  This
+page maps those four places; the meaning of each setting is on
+xref:type-specifications.adoc[Setting type specifications], xref:paragraphs.adoc[Paragraphs]
+and xref:tabs-indents.adoc[Tabs, indents and margins].
+
+== The Text section of the Object panel
+
+Select a block with the Pointer tool or a range with the Text tool, then click the *Text* row
+(marked with an *A*) in the Object panel's properties list.  With nothing selected and a text
+style chosen in the Styles panel, the same section shows and edits the document's default text
+attributes (xref:default-attributes.adoc[Default attributes]).
+
+Five buttons at the bottom left of the panel switch the lower half between sections:
+
+[cols="1,3"]
+|===
+|Section |Holds
+
+|*Character*
+|Font, style, size, alignment, leading, kerning and range kerning, baseline shift, text
+effects, text style.
+
+|*Paragraph*
+|Space above and below, left, right and first-line indents, hyphenation, hanging punctuation,
+paragraph rules.
+
+|*Spacing*
+|Horizontal scale, word and letter spacing ranges, keep lines together, keep selected words
+together.
+
+|*Columns and Rows*
+|Column and row counts, sizes, gutters, rules, flow direction.
+
+|*Adjust Columns*
+|Balance, modify leading, copyfit, first-line leading.
+|===
+
+The properties list also shows a *Text Block* row (size, inset, border --
+xref:text-blocks.adoc[Working with text blocks]) and, above the Text row, any strokes, fills and
+effects applied to the block itself.
+
+// TODO screenshot: Object panel with a text block selected: properties list with Text Block and Text rows, Character section open
+
+== The Text toolbar
+
+Show it with menu:Window[Toolbars > Text].  From left to right:
+
+[cols="1,3"]
+|===
+|Control |Does
+
+|Font name pop-up
+|Chooses the family; hovering over a name previews it in the selection when *Display font
+preview* is on.
+
+|Font style pop-up
+|Chooses the face within the family.
+
+|Size field and pop-up
+|Type size in points.
+
+|Leading pop-up (+, =, %) and field
+|Leading mode and value.
+
+|Alignment buttons
+|Left, center, right, justified.
+
+|btn:[Attach to Path], btn:[Flow Inside Path], btn:[Detach from Path]
+|xref:text-on-path.adoc[Text on a path].
+
+|btn:[Flow Around Selection]
+|xref:text-effects.adoc[Text effects, inline graphics and text wrap].
+
+|btn:[Convert to Paths]
+|xref:text-to-paths.adoc[Converting text to paths].
+
+|btn:[Editor], btn:[Spelling]
+|xref:editing-text.adoc[Editing text].
+|===
+
+The toolbar can be extended with any text command through xref:customizing.adoc[Customizing].
+
+== The Text menu
+
+[cols="1,3"]
+|===
+|Item |Contents
+
+|menu:Text[Font]
+|Every installed family, with recently used families at the top.
+
+|menu:Text[Size]
+|The preset sizes, *Smaller* (kbd:[Cmd+Shift+,]), *Larger* (kbd:[Cmd+Shift+.]) in 1-point steps,
+and *Other…*.
+
+|menu:Text[Font Style]
+|Plain, Bold, Italic, Bold Italic and the family's other faces.
+
+|menu:Text[Type Style]
+|Underline, Strikethrough, Small Caps, Superscript, Subscript -- each a preset text effect or
+baseline shift.
+
+|menu:Text[Align]
+|Left (kbd:[Cmd+Shift+L]), Center (kbd:[Cmd+Shift+C]), Right (kbd:[Cmd+Shift+R]), Justified
+(kbd:[Cmd+Shift+J]).
+
+|menu:Text[Leading]
+|Solid, Auto (120%), Other….
+
+|menu:Text[Effect]
+|The six text effects and *None*.
+
+|menu:Text[Convert Case]
+|Uppercase, Lowercase, Small Caps, Title, Sentence, Settings….
+
+|menu:Text[Special Characters]
+|The nine special characters.
+
+|menu:Text[Editor…], menu:Text[Spelling…]
+|Windows.
+
+|menu:Text[Attach to Path], menu:Text[Flow Inside Path], menu:Text[Detach from Path],
+menu:Text[Flow Around Selection…], menu:Text[Convert to Paths], menu:Text[Remove Transforms]
+|Commands.
+|===
+
+Right-clicking (or kbd:[Control]-clicking) a text block shows the same commands in a context
+menu (xref:context-menus.adoc[Context menus]).
+
+== Adjusting by dragging
+
+The handles of a selected text block do double duty.  Corner handles resize; the others adjust
+type for the whole block:
+
+To adjust leading by dragging::
+Select the block with the Pointer tool and drag its *top or bottom center* handle.  Dragging
+away from the block opens up the lines; dragging toward the center tightens them.  The Object
+panel's leading field follows.
+
+To adjust kerning by dragging::
+Drag a *side* handle.  Away from the block spreads the letters (positive range kerning);
+toward the center tightens them.
+
+Hold kbd:[Shift] while dragging either handle for coarser steps (whole points of leading, whole
+percent of kerning).  Double-clicking these handles toggles auto-expanding instead of adjusting
+(xref:text-blocks.adoc[Working with text blocks]), so start the drag deliberately.
+
+== Adjusting with the keyboard
+
+With a range selected or an insertion point placed by the Text tool:
+
+[cols="1,2"]
+|===
+|Keys |Adjusts
+
+|kbd:[Cmd+Option+←] / kbd:[Cmd+Option+→]
+|Kerning at the insertion point, or range kerning of the selection, by 1% of an em.
+
+|kbd:[Cmd+Option+Shift+←] / kbd:[Cmd+Option+Shift+→]
+|The same by 10% of an em.
+
+|kbd:[Control+Option+↑] / kbd:[Control+Option+↓]
+|Baseline shift by 1 point.
+
+|kbd:[Control+Option+Shift+↑] / kbd:[Control+Option+Shift+↓]
+|Baseline shift by 10 points.
+
+|kbd:[Cmd+Shift+,] / kbd:[Cmd+Shift+.]
+|Type size by 1 point.
+|===
+
+== Working with others
+
+Every adjustment, however you make it, is one change that applies to the characters you had
+selected.  A collaborator typing in the same block keeps typing; if they type inside the range
+you adjusted, their new characters take the adjustment too, as if they had typed after you.
+Two people dragging the same handle at once end with the value of whichever let go later.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,1"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Five type attribute buttons in the Object panel
+|Same five sections.
+|Faithful
+
+|Text toolbar with font, size, style, leading, alignment, path and editor buttons
+|Same, customizable.
+|Faithful
+
+|Text menu and submenus
+|Same structure; *Type Style* holds the preset effects.
+|Faithful
+
+|Text context menu (Windows only)
+|Available on macOS via kbd:[Control]-click.
+|Adapted -- macOS has context menus; no reason to drop it.
+
+|Drag top/bottom center handle for leading, side handle for kerning
+|Same, with kbd:[Shift] for coarse steps.
+|Faithful
+
+|Cmd+Option+arrows kerning by 1 em; with Shift by 10% em
+|kbd:[Cmd+Option] arrows step 1% of an em, with kbd:[Shift] 10%.
+|Adapted -- {fh}'s manual states 1 em for the unmodified step, which is unusable as a fine
+step; the common convention (and the Shift step it documents) implies 1%.
+
+|Control+Option+arrows baseline shift
+|Same, 1 pt; with kbd:[Shift], 10 pt.
+|Faithful
+|===
+
+=== Data model
+
+No new fields.  Leading and kerning drags write `TextMarkValue.leading` and
+`TextMarkValue.range_kerning` marks over the block's whole text; keyboard nudges write
+`kerning` (span 1, at an insertion point), `range_kerning` or `baseline_shift` over the
+selection.
+
+=== Merge semantics
+
+Every control ends in `applyMark` over a span, so the mark rules on
+xref:creating-text.adoc[Creating text] apply: per-attribute LWW by OpId where spans overlap,
+expansion at the end anchor for all of these attributes except `kerning`.  A handle drag emits
+one mark at mouse-up (the live preview is local).  Two concurrent drags: the later OpId wins
+over the whole block.  A drag concurrent with a range kerning applied to one word inside:
+the word's mark has the greater OpId if applied later and shows through; otherwise the block
+mark covers it.  Neither is reviewed unless offline and in the same paragraph.
+
+=== Offline behavior
+
+Nothing beyond outbox coalescing.
+
+=== Server
+
+Nothing beyond storing and relaying changes.
+
+=== Client
+
+The Text toolbar and menu items are declared in the command registry (APP-005) with
+validation tied to the editing session's selection.  Handle drags are `Tool` behaviors on the
+Pointer tool that distinguish corner, side and center handles by hit region (REND-003) and
+report the value to the Object panel live.  Undo grouping: one step per drag, nudge or menu
+command; repeated nudges within 1 s coalesce into one step ("Kern").
+
+=== Build tasks
+
+[[TYPE-017]]
+==== TYPE-017 Text menu and Text toolbar
+[horizontal]
+Track:: client-ui
+Depends on:: APP-005, TYPE-002, TYPE-010
+Size:: M
+Delivers:: The Text menu tree with shortcuts and validation, the Text toolbar with font/style/
+size/leading/alignment controls and command buttons, the text context menu, font preview on
+hover.
+Done when::
+* Every item on this page exists, validates against the selection, and maps to a command.
+* Hovering a font name previews without writing a change; leaving restores.
+* Merge test: alignment from the toolbar on one replica and font from the menu on another
+  both apply to the same paragraph.
+
+[[TYPE-018]]
+==== TYPE-018 Leading and kerning handle drags
+[horizontal]
+Track:: client-ui
+Depends on:: TYPE-005
+Size:: S
+Delivers:: Top/bottom center handle drag → leading mark, side handle drag → range kerning
+mark, kbd:[Shift] coarse steps, live preview, Object panel readout, distinction from the
+double-click toggles.
+Done when::
+* UI tests drag each handle and assert the mark value and a single change.
+* Merge test: two replicas drag the leading handle concurrently; both converge to one value.
+
+[[TYPE-019]]
+==== TYPE-019 Keyboard type nudges
+[horizontal]
+Track:: client-ui
+Depends on:: TYPE-010
+Size:: S
+Delivers:: The kerning, baseline shift and size key bindings with 1 s coalescing into one undo
+step and one change.
+Done when::
+* Ten rapid kerning nudges produce one change; a pause produces two.
+* Kerning at an insertion point writes a span-1 `kerning` mark on the preceding character.
+* Merge test: kerning nudge concurrent with a remote insert at the same spot keeps the pair
+  kerned and the inserted character unkerned.
+endif::spec[]

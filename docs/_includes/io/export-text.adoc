@@ -1,0 +1,207 @@
+The text in a document -- a story, a text block, a selection of words -- can leave {product}
+three ways: through the Export sheet as an RTF or plain text file, through Copy and Paste,
+and by dragging.  RTF keeps the formatting a word processor understands; plain text keeps the
+words.
+
+== Exporting a text file
+
+To export text through the Export sheet:
+
+. Choose menu:File[Export…].
+. Choose *Rich Text* or *Plain Text* from the *Format* menu.
+. Choose what to export:
++
+[cols="1,3"]
+|===
+|Choice |Exports
+
+|*Pages* (current, all or a range)
+|Every text block on those pages.  Linked blocks export as one story in link order, once,
+where the first block of the chain appears.  Unlinked blocks export in stacking order,
+bottom to top, page by page, each separated by a blank line.
+
+|*Selected objects*
+|The selected text blocks in the same order; or, while editing text, just the selected
+characters.
+|===
+. For plain text, click btn:[Options…] to choose the *Encoding* (UTF-8 with or without a
+  byte-order mark, UTF-16) and *Line endings* (macOS/Unix or Windows).  Rich Text has an
+  *Embed inline graphics* option (below).
+. Click btn:[Export].
+
+Only text goes into the file.  Artwork is left out; text on a path exports as its
+characters; text inside groups, symbols and clipping paths is included; text on hidden layers
+is not.
+
+== Copying and dragging text
+
+* Select characters in a text block and choose menu:Edit[Copy] (kbd:[Cmd+C]).  The clipboard
+  holds both rich and plain text, and the receiving application takes the one it prefers:
+  Pages, Word and Mail paste formatting, a code editor pastes plain words.
+* Select a text block as an object and copy it: the clipboard holds the block's text as rich
+  and plain text, as well as the artwork for pasting into other {product} windows
+  (xref:copying-type.adoc[Copying type]).
+* Drag selected characters, or a text block, out of the window into another application to
+  hand over the same thing.  Dragging into the Finder writes an `.rtf` file.
+
+== What formatting is preserved
+
+Rich Text carries the formatting that word processors share.  From the type settings on
+xref:type-specifications.adoc[Type specifications], xref:paragraphs.adoc[Paragraphs] and
+xref:tabs-indents.adoc[Tabs and indents]:
+
+[cols="1,3"]
+|===
+|Kept |
+
+|Characters
+|Font family, style and size; bold and italic (as font styles); color (converted to RGB);
+underline and strikethrough; superscript and subscript; baseline shift; horizontal scale;
+kerning and range kerning (tracking); small caps and all caps as font features where the
+receiving program supports them; the language.
+
+|Paragraphs
+|Alignment, left and right indents, first-line indent, space before and after, line spacing
+(fixed, or a multiple), tab stops with their alignment and leaders, paragraph rules, keep
+with next, hyphenation on or off.
+
+|Styles
+|Text styles become RTF paragraph and character styles with their names, so a document's
+styles reappear in Word's style list (xref:text-styles.adoc[Text styles]).
+
+|Structure
+|Columns export as consecutive text (column breaks become paragraph breaks); tables export as
+RTF tables with column widths (xref:columns-tables.adoc[Columns and tables]); page breaks
+between pages.
+
+|Inline graphics
+|With *Embed inline graphics* on (default), each graphic is rendered to a PNG at the
+document's raster resolution and embedded in the RTF.  Off, or in plain text, a bullet stands
+in for each graphic.
+|===
+
+[cols="1,3"]
+|===
+|Not kept |
+
+|Text effects
+|Highlight, inline, shadow, zoom and other text effects (xref:text-effects.adoc[Text
+effects]) do not exist in RTF; the text exports plain.  Underline and strikethrough are the
+exceptions.
+
+|Shape
+|Text on a path, text wrapped inside a shape, rows, inset and vertical text export as
+ordinary paragraphs.
+
+|Attributes RTF lacks
+|Gradient or pattern text fills (converted to the first color), spot colors (converted to
+RGB), OpenType feature choices beyond small caps, and text linked to an external file.
+|===
+
+Plain text keeps characters, paragraph breaks and tabs only.  Smart quotes, dashes and other
+typographic characters are kept as the Unicode characters they are.
+
+NOTE: For {fh} users: {fh} lost outline, subscript and superscript on RTF export; {product}
+keeps subscript and superscript.  Inline graphics no longer have to be converted to paths for
+any export.
+
+== Working with others
+
+Text export reads the document; it never changes it.  A story someone else is typing in
+exports as far as their typing has reached this Mac.  If a colleague has a text block open
+while you export, you get their text as it currently reads, not a locked or partial version:
+there are no locks on text.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,2"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Export RTF and ASCII text from the Export dialog
+|*Rich Text* and *Plain Text* formats with encoding and line-ending options.
+|Faithful, extended.
+
+|Linked blocks in link order; unlinked in stacking order, first page to last
+|Same order rule.
+|Faithful.
+
+|Drag text to other applications; Copy and Paste
+|Same, with RTF and plain-text flavors, and drag to the Finder as `.rtf`.
+|Faithful, extended.
+
+|Outline, Subscript, Superscript not maintained in RTF
+|Subscript and superscript kept; outline (a text effect) not.
+|Adapted -- improvement where RTF has the construct.
+
+|Inline graphics replaced by bullets in formats without graphics
+|Bullets in plain text; embedded PNG in RTF by default.
+|Adapted -- improvement.
+
+|Text with inline graphics must be converted to paths for Illustrator or Photoshop 3 EPS
+|Not required; every format handles inline graphics.
+|Adapted -- improvement.
+|===
+
+=== Data model
+
+[source,protobuf]
+----
+// interchange/v1/export_options.proto (client-only)
+message RtfOptions  { bool embed_inline_graphics = 1; }   // default true
+message TextOptions {
+  enum Encoding { UTF8 = 0; UTF8_BOM = 1; UTF16 = 2; }
+  Encoding encoding = 1;
+  bool crlf = 2;                     // false = LF
+}
+----
+
+=== Merge semantics
+
+None; exports write nothing.  The text read is the plain-string read-out of each `RichText`
+register with its resolved marks, taken from the `SceneSnapshot` so a concurrent
+`TextInsert` arriving mid-export does not split the story.
+
+=== Offline behavior
+
+Works offline.
+
+=== Server
+
+Nothing.
+
+=== Client
+
+* `WTInterchange.RTFWriter` builds an `NSAttributedString` from the text layout's attributed
+  runs (TXT-001) with paragraph styles, tab stops, `NSTextTable` for tables, `NSTextAttachment`
+  with PNG data for inline graphics, and document attributes for the style sheet; then
+  `rtf(from:documentAttributes:)` for characters-only output and `rtfd` is not used (RTFD
+  bundles are a macOS-only convention).  Style names are written by post-processing the RTF
+  `\stylesheet` group, which `NSAttributedString` does not emit.
+* Story ordering: linked chains are walked from their head block; a chain forming a loop is
+  cut per the read-time normalization in xref:crdt-model.adoc[CRDT model].  Unlinked blocks
+  are sorted by page (geometric page containment of the block's origin), then stacking order.
+* Plain text: the same walk, `String` joined with paragraph separators, tabs kept, attachments
+  replaced by U+2022.
+* Pasteboard: `public.rtf`, `public.utf8-plain-text` (and `com.apple.flat-rtfd` when the
+  selection contains inline graphics), written lazily.
+* Undo: none.
+
+=== Build tasks
+
+[[IO-030]]
+==== IO-030 Text export: RTF and plain text
+[horizontal]
+Track:: import-export
+Depends on:: TXT-001, IO-013, IO-014
+Size:: M
+Delivers:: `RTFWriter` and plain-text writer with the ordering rules, style sheet, tables, inline graphics as PNG, encoding and line-ending options, pasteboard flavors for Copy and drag, drag to Finder as `.rtf`.
+Done when::
+* A corpus document with linked and unlinked blocks across three pages exports in the specified order; Word and Pages open the RTF with fonts, indents, tabs, tables and named styles intact.
+* Subscript, superscript, tracking and baseline shift round-trip through `NSAttributedString` RTF parsing.
+* A text block with an inline graphic exports a PNG attachment in RTF and a bullet in plain text.
+* Pasting a selection into TextEdit yields formatted text; into a plain-text field, the same characters.
+endif::spec[]

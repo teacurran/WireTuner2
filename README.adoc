@@ -1,0 +1,25 @@
+= WireTuner
+
+A native macOS vector illustration application with the feature set of Macromedia FreeHand MX,
+rebuilt as a multiplayer, cloud-saved, offline-capable tool: Swift client, Quarkus server, gRPC
+via buf, CRDT documents.
+
+== Documentation
+
+`docs/` is one AsciiDoc source that renders as two books:
+
+* the *user guide* (`make docs-guide`), also shipped in the app as its Help Book;
+* the *specification* (`make docs-spec`), which is the same pages with their data model, merge
+  semantics, offline behavior and build tasks turned on, plus the architecture pages.
+
+Start at `docs/spec/architecture.adoc`, then `docs/spec/backlog.adoc` for the task waves.  How
+to write a page is in `docs/spec/authoring.adoc`.
+
+[source,bash]
+----
+make docs-check   # fast render of both books with the asciidoctor CLI; warnings fail
+make docs         # the Maven render CI uses (docs/pom.xml), output under docs/target/docs
+----
+
+`docs/inspo/` holds the FreeHand MX manual used as the reference for feature parity.  It is
+reference material only and is never quoted in the book.

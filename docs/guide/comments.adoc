@@ -1,0 +1,7 @@
+= Comments
+include::_attributes.adoc[]
+:page-slug: comments
+:page-group: Collaboration
+:page-fh: None -- addition (no FreeHand equivalent)
+
+include::_includes/collaboration/comments.adoc[]

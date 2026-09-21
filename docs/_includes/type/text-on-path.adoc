@@ -1,0 +1,295 @@
+Text does not have to sit in a rectangle.  Attach a text block to a path and the characters
+follow its curve -- around a circle, along a wave, up a diagonal.  Flow text *inside* a closed
+path and it fills the shape, wrapping at the path's edges.  Either way the text stays text:
+you can edit it, style it, spell-check it, and link it to other blocks; and the path stays a
+path you can reshape.  Text wrap *around* objects is on xref:text-effects.adoc[Text effects,
+inline graphics and text wrap].
+
+== Attaching text to a path
+
+To attach text to a path:
+
+. With the Pointer tool, select a text block and a path (kbd:[Shift]-click the second).  The
+  path may be open or closed, with any mix of corner and curve points.
+. Choose menu:Text[Attach to Path] (kbd:[Cmd+Shift+Y]) or click btn:[Attach to Path] in the
+  Text toolbar.
+
+The text now runs along the path from its start point in the path's direction.  Its type
+settings are unchanged.  Edit it in place with the Text tool or in the Text Editor
+(xref:editing-text.adoc[Editing text]).  Transform the whole thing as one object.
+
+On an *open* path only the text up to the first paragraph end or tab is shown.  On a *closed*
+path, text up to the first paragraph end runs along the *top*, and the text from there to the
+second paragraph end runs along the *bottom*: that is how you set a name above and a slogan
+below a circle.  Text that does not fit shows an overflow dot in the link box; link it onward
+like any block (xref:text-blocks.adoc[Working with text blocks]).  Left-aligned text on a
+tight curve is spaced out automatically so glyphs do not collide.  Tabs and tab leaders are
+not available on a path.
+
+To put text on the top and bottom of an ellipse:
+
+. In the text block, click with the Text tool where the text should split and press
+  kbd:[Return].
+. Select the block and the ellipse with the Pointer tool and choose menu:Text[Attach to Path].
+. If nothing appears, check the *Top* and *Bottom* alignment pop-ups in the Object panel:
+  with both set to *None* the text is hidden.
+. If the text runs the wrong way, kbd:[Option]-click the path to select it alone (easiest in
+  Keyline view or with *Show path* on) and choose menu:Modify[Alter Path > Reverse Direction].
+
+// TODO screenshot: a circle with "TOP LINE" along the top and "bottom line" along the bottom
+
+== Orientation and alignment on the path
+
+Select the text on the path with the Pointer tool and look at the Object panel's *Text on
+path* section:
+
+[cols="1,3"]
+|===
+|Control |Meaning
+
+|*Orientation*
+|How each glyph sits relative to the curve: *Rotate around path* (glyphs turn with the
+tangent -- the usual choice), *Vertical* (glyphs stay upright, only their positions follow the
+path), *Skew horizontal* (glyphs stay upright but lean with the curve), *Skew vertical*
+(glyphs turn with the curve and their verticals stay vertical).
+
+|*Show path*
+|Draws the path itself, with the stroke it had.  Off by default after attaching.
+
+|*Alignment: Top*, *Bottom*
+|Which part of the text touches the path, for the top run and the bottom run: *None*
+(hidden), *Baseline*, *Ascent* (the tops of the tallest letters on the path) or *Descent*
+(the bottoms of descenders on the path).
+
+|*Left*, *Right*
+|Offsets along the path, in points, from its start and end -- the same fields as the block's
+left and right inset.  These are the only insets a path has.
+|===
+
+To slide the text along the path by hand:
+
+. Click in the text with the Text tool or select the path with the Pointer tool.  A small
+  triangle appears at the left, center or right of the text, matching its alignment.
+. Drag the triangle along the path.  Hold kbd:[Option] to see the text move as you drag rather
+  than only the triangle.  The *Left* and *Right* fields follow.
+
+To move the text a precise distance, type into *Left* or *Right*.
+
+The text's direction follows the path's: reverse the path to reverse the text.  Reshaping the
+path with the Pen or Pointer tools re-lays the text at once.
+
+== Flowing text inside a path
+
+To fill a closed shape with text:
+
+. Select a text block and a closed path with the Pointer tool.
+. Choose menu:Text[Flow Inside Path] or click btn:[Flow Inside Path] in the Text toolbar.
+. To keep the text off the edges, set *Inset* values in the Object panel (all four sides
+  apply here).  Tick *Display border* or use Keyline view to see the path while you work.
+
+A small box below the shape shows overflow with a dot; link from it to continue the text
+elsewhere, or use *Adjust Columns* to copyfit the text to the shape
+(xref:columns-tables.adoc[Columns, rows and tables]).  Linking a text block onto a path with
+the link box does the same as Flow Inside Path for the overflow text.
+
+== Detaching
+
+Select the text on or in the path and choose menu:Text[Detach from Path] or click
+btn:[Detach from Path].  You get two objects again: a text block as wide as the path, with its
+text and formatting, and the path with the stroke and fill it had.  Transformations applied
+while they were joined are removed.
+
+== Working with others
+
+* Text on a path is still a text block: collaborators edit its characters exactly as in any
+  block, with carets following the curve.
+* Someone reshaping the path while you type re-lays the text under your caret; your insertion
+  point stays on its character.
+* Attaching and detaching are single actions.  If a collaborator deletes the path you are
+  attaching to at the same moment, the attachment lands on a deleted path and the text falls
+  back to an ordinary block; the review sheet offers to restore the path, which restores the
+  attachment.
+* Two people dragging the text's position handle at once end with the later position.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,1"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Attach to Path from a text block and a path; open and closed paths; top/bottom runs on a
+closed path; open path shows first line only
+|Same.
+|Faithful
+
+|Overflow dot; text on a path linkable
+|Same.
+|Faithful
+
+|Left-aligned text on a curve respaced to avoid overlap
+|Same.
+|Faithful
+
+|Orientation: Rotate Around Path, Vertical, Skew Horizontal, Skew Vertical; Show Path
+|Same.
+|Faithful
+
+|Alignment Top/Bottom: None, Baseline, Ascent, Descent
+|Same.
+|Faithful
+
+|Triangle handle to slide text; Option to see text while dragging; Left/Right fields
+|Same.
+|Faithful
+
+|Reverse text by reversing the path
+|Same (the OBJ epic's Reverse Direction).
+|Faithful
+
+|Flow Inside Path with insets; overflow box below the shape
+|Same.
+|Faithful
+
+|Detach from Path: two objects, transforms removed, block width = path width
+|Same.
+|Faithful
+
+|Tabs unavailable on a path
+|Same.
+|Faithful
+|===
+
+=== Data model
+
+`TextProps.on_path` on xref:creating-text.adoc[Creating text].  The path is the text node's
+*child* (a `path` node parented under the `text` node) rather than a `NodeRef`, so that the
+pair moves, deletes, copies and stacks as one object and so that the path cannot be attached
+to two texts.  Attaching is `MoveNode(path → under text)` plus `SetFields(on_path)`;
+detaching is `MoveNode(path → text's parent, just below the text)` plus clearing `on_path`.
+
+[source,protobuf]
+----
+message TextOnPathProps {             // STRUCT
+  PathTextMode mode = 1;              // along the path, or inside it
+  PathOrientation orientation = 2;
+  bool show_path = 3;
+  PathAlignment top = 4;              // which part of the top run touches the path
+  PathAlignment bottom = 5;
+  double offset_start = 6;            // "Left": points from the path start
+  double offset_end = 7;              // "Right": points from the path end
+}
+enum PathTextMode { PATH_TEXT_MODE_ALONG = 0; PATH_TEXT_MODE_INSIDE = 1; }
+enum PathOrientation {
+  PATH_ORIENTATION_ROTATE = 0; PATH_ORIENTATION_VERTICAL = 1;
+  PATH_ORIENTATION_SKEW_HORIZONTAL = 2; PATH_ORIENTATION_SKEW_VERTICAL = 3;
+}
+enum PathAlignment {
+  PATH_ALIGNMENT_NONE = 0; PATH_ALIGNMENT_BASELINE = 1;
+  PATH_ALIGNMENT_ASCENT = 2; PATH_ALIGNMENT_DESCENT = 3;
+}
+----
+
+Alternative considered: a `NodeRef` to a path that stays in the layer tree.  Rejected: every
+command on the pair (move, delete, duplicate, arrange) would have to be taught about the pair,
+and two texts could claim one path.
+
+=== Merge semantics
+
+Attach vs. path edit:: The path's geometry is on the path node; a concurrent point drag by
+another user merges into the path wherever it lives.  The text re-lays out.
+
+Attach vs. path delete:: The `MoveNode` applies to a deleted node (deletion does not block
+moves); `on_path` is set on the text.  Read-time: a text with `on_path` set but no live
+`path` child renders as an ordinary block with `on_path` ignored.  The review sheet lists the
+path under *edit vs delete* (it was moved); *Restore* brings it back under the text and the
+attachment reappears.
+
+Attach vs. attach:: Two users attach the same path to different texts: two `MoveNode`s; the
+later one in OpId order wins (Kleppmann move semantics), the other text has `on_path` set
+without a path child and normalizes to a plain block.
+
+Two texts attached, one path each, concurrently (independent):: No interaction.
+
+Handle drag:: `offset_start`/`offset_end` are registers; one change at mouse-up; LWW.
+
+Detach vs. edit:: Detaching moves the path out and clears `on_path`; concurrent typing is
+in the text node and unaffected; a concurrent orientation change writes a register the client
+then ignores (and clears on the next attach).
+
+Read-time normalizations::
+* `on_path` set, no live `path` child: plain block.
+* More than one live `path` child (possible after concurrent attaches to the same text): the
+  one with the smallest node id is the path; the others render as ordinary children on top.
+* `mode = INSIDE` on an open path: the path is closed for layout purposes.
+* Both alignments `NONE`: nothing drawn, overflow dot shown (as {fh}).
+
+=== Offline behavior
+
+Nothing beyond outbox coalescing.
+
+=== Server
+
+Nothing beyond storing and relaying changes.
+
+=== Client
+
+Layout:: `WTText` (TXT-001's text-on-path support) uses GEO-001 arc-length parametrization to
+place each glyph's origin at its advance distance from `offset_start`, applies the
+orientation as a per-glyph transform, splits runs at the first and second U+000A for closed
+paths, respaces left-aligned text on concave curves by advancing to the next non-colliding
+position, and for `INSIDE` uses the path (offset inward by the inset via GEO-003) as the
+container frame.  Hit testing maps back through the glyph transforms.
+
+Handle:: The triangle is a canvas overlay; dragging projects the pointer onto the path
+(nearest point, GEO-001) and previews locally; kbd:[Option] previews the text as well.
+
+Undo:: One step per attach, detach, drag or field commit.
+
+=== Build tasks
+
+[[TYPE-041]]
+==== TYPE-041 Attach, flow inside and detach commands
+[horizontal]
+Track:: client-model
+Depends on:: TYPE-002, TYPE-007
+Size:: M
+Delivers:: menu:Text[Attach to Path], *Flow Inside Path*, *Detach from Path* as commands
+(move + `on_path`), detach geometry (block width from path bounds, transforms removed),
+linking a block onto a path as INSIDE, read-time normalizations.
+Done when::
+* Attach, edit, detach round-trips the text and path unchanged.
+* Merge test: attach vs. concurrent path delete converges to a plain block; Restore brings the
+  attachment back.
+* Merge test: two replicas attach one path to different texts; one wins, the other normalizes.
+* Conformance vector for `TextOnPathProps` as STRUCT.
+
+[[TYPE-042]]
+==== TYPE-042 Text on path layout
+[horizontal]
+Track:: client-render
+Depends on:: TXT-001, GEO-001, GEO-003, TYPE-041
+Size:: L
+Delivers:: Glyph placement along open and closed paths, top and bottom runs, four
+orientations, three alignments plus None, offsets, collision respacing, overflow, text inside
+a path with insets, hit testing, caret and selection drawing along the curve, remote carets.
+Done when::
+* Reference renders for each orientation × alignment on a circle and an S-curve match the
+  corpus.
+* Reshaping the path re-lays 500 characters under 8 ms.
+* A caret on a path survives a remote insert before it (anchor mapping).
+
+[[TYPE-043]]
+==== TYPE-043 Text on path inspector and handle
+[horizontal]
+Track:: client-ui
+Depends on:: TYPE-042, APP-007
+Size:: S
+Delivers:: The *Text on path* section (orientation, show path, top/bottom alignment, left/
+right offsets), the triangle drag handle with kbd:[Option] preview, Text toolbar buttons.
+Done when::
+* UI tests set each control and drag the handle; registers verified.
+* Merge test: concurrent handle drags converge to the later offset.
+endif::spec[]

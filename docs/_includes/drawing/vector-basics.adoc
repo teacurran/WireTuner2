@@ -1,0 +1,465 @@
+Everything you draw in {product} is a *path*: a chain of points joined by straight or curved
+segments.  A rectangle, a spiral, a letterform converted to outlines and a freehand scribble
+are all paths, and every drawing tool on the following pages is a different way of placing
+points.  Because a path is described by its points rather than by pixels, it stays crisp at any
+zoom level and on any printer, and a document full of them is small.  This page explains what a
+path is made of, how {product} shows it to you, and which of its properties you can set in the
+Object panel.  Bitmap images -- photographs and scans -- can be imported, traced and placed
+alongside your paths; see xref:importing.adoc[Importing artwork] and xref:tracing.adoc[Tracing].
+
+== Paths, points and segments
+
+A path has at least two points.  Each point anchors one or two *segments*, and each segment is
+either a straight line or a curve.  The shape of a curved segment is set by the *control
+handles* of the points at its ends: drag a handle away from its point and the curve bulges
+further; drag it back onto the point and the segment straightens.
+
+Open and closed paths::
+An *open* path has a beginning and an end that are not joined.  A *closed* path returns to
+where it started, so it has no ends.  Only a closed path encloses an area, though an open path
+can still carry a fill; whether a newly drawn open path shows its fill is a preference
+(below).
+
+Direction::
+Every path runs in a direction, from its beginning point to its end point (a closed path is
+clockwise or counterclockwise).  The Rectangle, Ellipse and Polygon tools draw clockwise; the
+Line, Pen, Bezigon and Pencil tools draw in the order you place or drag points.  Direction
+decides which end an arrowhead sits on, where text on a path starts, how blends pair up their
+points and how overlapping contours of a composite path fill.  You can reverse it at any time
+(xref:editing-paths.adoc[Editing paths]).
+
+Contours::
+One path object may contain several separate contours -- the letter *O* is one path with two
+contours.  Each contour is open or closed on its own.  {fh} calls this a composite path; see
+xref:combining-paths.adoc[Combining paths].
+
+Size limits::
+A contour can hold up to 32,000 points, enough for imported artwork of any practical
+complexity.  Paths with thousands of points draw and print more slowly; the Simplify command
+(xref:editing-paths.adoc[Editing paths]) reduces them.
+
+// TODO screenshot: an open path and a closed path side by side with points visible
+
+== Point types
+
+A point's *type* decides how its two handles behave when you drag one of them.
+
+[cols="1,1,3"]
+|===
+|Type |Shown as |Behavior
+
+|Corner
+|Square
+|The two handles move independently, so the path can change direction sharply at the point.
+The tools place a corner point when you draw a straight segment.  A corner point's handles
+start out retracted (sitting on the point).
+
+|Curve
+|Circle when selected
+|The two handles stay in a straight line through the point, so the path flows smoothly.  The
+tools place a curve point when you draw a curved segment.  A curve point's handles start out
+extended.
+
+|Connector
+|Triangle when selected
+|Joins a straight segment to a curved one smoothly: the handle on the curved side is kept in
+line with the straight segment, so you can only lengthen or shorten it.  Whether its handle
+starts extended depends on the neighboring points.
+|===
+
+Unselected curve and connector points draw as squares like corner points; the shape appears
+when you select the point.  You change a point's type with the Object panel or by
+kbd:[Option]-clicking it with the Pointer tool (xref:editing-paths.adoc[Editing paths]).
+
+// TODO screenshot: corner, curve and connector points with their handles
+
+== Path and point display
+
+Two preferences in the *General* category of menu:WireTuner[Settings…] (kbd:[Cmd+,]) change how
+points look, which helps in dense drawings.
+
+To change how points and handles are drawn:
+
+. Choose menu:WireTuner[Settings…] and click *General*.
+. Set either option:
++
+Smaller handles:: Draws points and handles at half size.
+Show solid points:: Draws points as filled shapes.  Turn it off to draw them as outlines.
+. Close the settings window.  The change applies at once.
+
+To decide whether new open paths show their fill:
+
+. Choose menu:WireTuner[Settings…] and click *Object*.
+. Select *Show fill for new open paths*.
+. Close the settings window.  The setting affects paths you draw from now on; existing paths
+  keep their behavior.
+
+NOTE: For {fh} users: the Preferences dialog is the macOS *Settings…* window
+(xref:preferences.adoc[Preferences]).  The categories keep their {fh} names.
+
+== Path properties in the Object panel
+
+Select a path and the Object panel (menu:Window[Object], kbd:[Cmd+I]) lists its properties
+above its strokes, fills and effects.
+
+[cols="1,3"]
+|===
+|Property |Meaning
+
+|Closed
+|Whether the path's contour is closed.  Turning it on adds a segment from the end point back to
+the beginning; turning it off removes that closing segment.
+
+|Even/odd fill
+|How a self-overlapping contour, or overlapping contours of one path, are filled.  On, an area
+is filled when it is inside an odd number of contours, which leaves overlaps hollow regardless
+of direction.  Off, {product} uses the winding rule: overlaps of contours running the same way
+fill solid, overlaps of opposite-running contours are hollow.
+
+|Flatness
+|How finely curves are approximated when the path is printed or exported.  Leave it at 0 to use
+the output device's default; raise it to speed up printing on older printers at the cost of
+visibly faceted curves (xref:print-performance.adoc[Print performance]).
+
+|Points
+|The number of points in the path, for information.
+|===
+
+When a path has several contours the *Closed* box shows a mixed state if the contours differ,
+and setting it applies to every contour.  Selecting a single point adds the point editor to the
+panel: its type, its handles and its location (xref:editing-paths.adoc[Editing paths]).
+
+// TODO screenshot: Object panel showing a selected path's properties
+
+== Working with others
+
+Paths are shared at the level of individual points.  When a collaborator drags a point on a
+path you are looking at, you see that point move and the neighboring segments follow it; the
+rest of the path, including any point you are dragging yourself, is untouched.  Two people can
+edit different points of one path at the same time with no interference.  If you both drag the
+*same* point, it follows whoever moved it most recently, and when you both let go the position
+released last is the one that stays.
+
+If someone deletes a point you are moving, it disappears from under your pointer and the path
+heals across the gap; nothing else you did is lost.  If someone closes a path while you are
+extending it, your new points are included and the closing segment runs from your last point
+back to the beginning.  Reversing a path's direction never disturbs points other people are
+adding or moving: the points keep their places, and the path simply runs the other way.
+
+After you have been offline, your path edits merge the same way, point by point.  When you and
+someone else changed the same point, or one of you deleted a path the other reshaped,
+{product} lists those paths in the review sheet so you can keep your version, theirs, or a copy
+of each (xref:collaboration.adoc[Working together]).
+
+ifdef::spec[]
+== Specification
+
+This page owns the path data model.  Every other drawing page, and the Objects, Effects and Type
+chapters, build on `PathProps` as defined here.
+
+=== FreeHand parity
+
+[cols="2,3,1"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Open and closed paths, up to 32,000 points
+|Same.  The limit is enforced when the client writes a change; a merged contour that exceeds it
+still renders.
+|Faithful
+
+|Corner, curve and connector points with the same handle behavior and glyphs
+|Same.
+|Faithful
+
+|Path direction, set by the tool that drew the path
+|Same tools, same directions.  Direction is stored as a per-contour flag rather than by
+physically reordering points (see Data model).
+|Faithful
+
+|Preferences: Smaller handles, Show solid points, Show fill for new open paths
+|Same three preferences in the Settings window.
+|Faithful
+
+|Object panel: Closed, Even/odd fill, Flatness, point count
+|Same.
+|Faithful
+
+|Point display when selected vs. unselected
+|Same glyphs; remote users' selections also show point glyphs, tinted in their presence color.
+|Faithful
+
+|Composite (multi-contour) paths
+|One path node, several contour elements.  The Combine operations live on
+xref:combining-paths.adoc[Combining paths].
+|Faithful
+|===
+
+=== Data model
+
+`doc/v1/path.proto`.  Coordinates are pasteboard points (y down).  A path's own
+`CommonProps.transform` applies on top of the point coordinates, so moving or rotating a whole
+path writes one register and never touches the points.
+
+[source,protobuf]
+----
+// A vector path: one or more contours, each a sequence of points.
+message PathProps {
+  CommonProps common = 1;                     // name, note, lock, transform, canvas, style
+  // The contours.  SEQUENCE: contours are inserted, deleted and reordered individually
+  // (Combine, Split, Join) and each contour's fields merge as STRUCT.
+  repeated Contour contours = 2 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  // Strokes, fills and effects: the attribute stack (see attribute-stack).
+  Appearance appearance = 3;
+  bool even_odd = 4;                          // Object panel "Even/odd fill"; false = winding
+  double flatness = 5 [(buf.validate.field).double.gte = 0];   // 0 = device default
+  // Whether an open contour paints its fill.  Copied from the "Show fill for new open paths"
+  // preference when the path is created; never changed by the preference afterwards.
+  bool fill_when_open = 6;
+}
+
+message Contour {
+  ElementId id = 1;
+  bool closed = 2;                            // Object panel "Closed"
+  // Points in stored order.  SEQUENCE: each point has identity; positions are fractional
+  // indexes, so concurrent inserts anywhere in the contour merge without renumbering.
+  repeated PathPoint points = 3 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  // Direction flag.  The stored order never changes; readers iterate backwards and swap
+  // in/out handles when this is true.  See "Reverse direction" under Merge semantics.
+  bool reversed = 4;
+  // The point at which an open contour begins, as a cyclic rotation of the stored order.
+  // Unset = the first stored point.  Lets "open a closed path at segment k" be one register
+  // write instead of a reorder.  Ignored while closed.
+  ElementId start = 5;
+}
+
+// One anchor point with its two control handles.
+message PathPoint {
+  ElementId id = 1;
+  // Point is ATOMIC (common.proto): x and y only make sense together.
+  Point anchor = 2;
+  // Handles are OFFSETS from the anchor, not absolute positions, so that moving the anchor
+  // (one register) carries the handles along and a concurrent handle drag still merges.
+  // Unset = retracted (the handle sits on the anchor).  in_handle shapes the segment arriving
+  // at this point in stored order; out_handle shapes the segment leaving it.
+  Point in_handle = 3;
+  Point out_handle = 4;
+  PointKind kind = 5;                         // corner, curve, connector
+  // Object panel "Automatic": handles are recomputed from the neighbors on read and on edit.
+  bool automatic = 6;
+}
+
+enum PointKind {
+  POINT_KIND_UNSPECIFIED = 0;                 // reads as CORNER
+  POINT_KIND_CORNER = 1;
+  POINT_KIND_CURVE = 2;                       // handles collinear through the anchor
+  POINT_KIND_CONNECTOR = 3;                   // one handle constrained to the straight side
+}
+----
+
+Why the handles are two registers rather than one ATOMIC pair: a corner point's handles are
+independent decisions, and two people shaping the two segments that meet at a corner is a
+realistic concurrent edit that must keep both.  The price is that a curve point's tandem drag
+writes both registers and can merge with a concurrent drag of the other handle into a
+non-collinear pair; that case is handled on read (below) rather than by making every handle
+edit all-or-nothing.
+
+`Point`, `CommonProps`, `ElementId` come from `common.proto` (PROTO-003); `Appearance` from the
+Strokes and fills chapter.  The Line tool produces a `PathProps` with two corner points; the
+Spiral and Arc tools produce ordinary paths; rectangles, ellipses and polygons are their own
+node kinds that read as paths (xref:rectangles-ellipses-lines.adoc[Rectangles, ellipses and
+lines], xref:polygons-stars.adoc[Polygons and stars]).
+
+=== Merge semantics
+
+Per field::
+* `contours`, `points`: SEQUENCE.  Insert, delete and position of each element are independent
+  registers; a point's `anchor`, `in_handle`, `out_handle`, `kind`, `automatic` are each a
+  register (STRUCT inside the element).
+* `closed`, `reversed`, `start`, `even_odd`, `flatness`, `fill_when_open`: ATOMIC, LWW by
+  `OpId`.
+* `appearance`: as specified on xref:attribute-stack.adoc[The attribute stack].
+
+Two people drag the same point::
+Both write `anchor` of the same element; the greater `OpId` wins.  Online, each client applies
+the other's intermediate writes as they arrive, so the point visibly follows the most recent
+writer and settles on the position released last (the release op has the highest counter both
+sides have seen).  Offline, the review sheet lists the path under *same register* with both
+positions and offers *Use mine* / *Use theirs* / *Keep both copies*.
+
+Move a point vs. move a handle of the same point::
+Different registers; both survive.  Because handles are offsets, the handle lands relative to
+the moved anchor, which is what both users meant.
+
+Two handles of one curve point dragged concurrently::
+User A's tandem drag writes `in_handle` and `out_handle`; user B's writes both too.  Per
+register LWW can leave A's `in_handle` and B's `out_handle`, which are not collinear.  *Read
+normalization:* the geometry renders exactly as stored (no one's work is hidden); the point
+keeps `kind = CURVE` and the Object panel shows its type with a "handles unlinked" hint.  The
+next handle drag or type change by anyone rewrites both handles collinear.  This is deliberate:
+silently re-mirroring one handle would discard a visible edit.
+
+Delete a point vs. move it::
+The element's `deleted` register wins independently of the `anchor` write.  The point is gone;
+the anchor write is retained in the log.  The review sheet lists *edit vs delete* on the path
+and *Restore* re-inserts a point with the moved anchor and the last handles at the same
+position (a new element id, as with text undo).  Live, the mover sees the point vanish
+mid-drag; the tool ends the drag without error.
+
+Delete a point vs. insert a neighbor::
+Independent.  The inserted point's position was generated between the deleted point and its
+other neighbor; ordering by position still places it correctly once the tombstone is skipped.
+
+Close a path vs. append a point::
+`closed = true` is one register; the append is an element insert after the last position.  The
+merge is a closed contour whose closing segment runs from the appended point to the start.
+Both intents survive.  Symmetrically, *open vs. append*: the contour opens and the appended
+point is its new end.
+
+Reverse direction vs. insert a point::
+Reverse is a single write of `reversed`.  The stored order of points never changes, so an
+insert positioned between stored neighbors *p~3~* and *p~4~* stays between them; when read in
+reverse it appears between *p~4~* and *p~3~*, which is the same segment.  Two concurrent
+reversals both write `true`; the contour is reversed once, and the review sheet shows the
+register as touched by both.  Handles are swapped on read, so an `out_handle` written by a
+client that saw the contour unreversed is still stored as `out_handle` and read as the
+arriving handle after the flag flips -- which is the correct geometry, because the segment it
+shapes is the same segment.
+
+Open a closed path at a segment (delete one segment)::
+Writes `closed = false` and `start = <point after the removed segment>`.  Concurrent point
+edits are untouched.  If `start` names a point that is deleted or unknown by the time it is
+read, the contour starts at the surviving point that follows it in stored order (read
+normalization).
+
+Join two open paths (drag end over end, or Pen ends on another path's end)::
+The joiner inserts copies of the second contour's points (new element ids) after the first
+contour's last point and deletes the second path node.  A concurrent edit to a point of the
+second path applies to the deleted node and is listed as *edit vs delete*; *Restore* brings the
+original second path back beside the joined one.  This is the one path operation that cannot
+preserve the other side's work by construction, and the review sheet says so.
+
+Split at a point::
+The retained part keeps its element ids (points before the split stay in place and the
+contour's `closed` becomes `false`); the separated part is a new path node with copied points.
+Concurrent edits to retained points survive; edits to separated points are *edit vs delete*
+as for Join.
+
+Insert a point on a segment (Pen click on a segment, Add Points)::
+One change: element insert of the new point plus writes to the two neighbors' facing handles
+(de Casteljau split).  A concurrent drag of one of those handles wins or loses per LWW; the
+curve keeps its shape approximately either way.
+
+Type change vs. handle drag::
+`kind` and the handles are separate registers.  A `CURVE` kind arriving over independently
+dragged handles reads as above (rendered as stored).  A `CONNECTOR` whose neighbors are both
+curved, or both straight, reads as `CORNER`.
+
+Read-time normalizations (complete list)::
+* Fewer than two live points in a contour: the contour does not render and cannot be selected;
+  a path with no renderable contour renders nothing but stays selectable by its name in the
+  Layers panel.
+* `start` dangling: use the next surviving point in stored order.
+* `CURVE` with non-collinear handles: render as stored.
+* `CONNECTOR` with no straight side: treat as `CORNER`.
+* `automatic = true`: handles computed from neighbors on read; stored handles ignored.
+* Contour over 32,000 live points: renders; the client refuses further inserts into it.
+* A `Point` handle offset that is NaN or infinite (cannot come from the client validators, but
+  can from an older client): treated as retracted.
+
+=== Offline behavior
+
+Works offline.  A drag of one point coalesces to one `SetFields` per register touched
+(xref:offline.adoc[Offline]).  A Pen session that creates a path and then edits it heavily
+coalesces to the creation plus the final register values.  Nothing on this page needs the
+server.
+
+=== Server
+
+Nothing beyond storing and relaying changes.  The server validates `flatness >= 0` and the
+per-op `max_items` on point inserts, and nothing else about path geometry.
+
+=== Client
+
+Package:: `WTModel` holds the typed `Path`, `Contour` and `PathPoint` values and the commands
+that write them; `WTGeometry` converts a contour to cubic segments (a retracted handle is a
+handle at the anchor, which makes a straight segment when both sides are retracted);
+`WTRender` draws paths and point glyphs; `WTApp` hosts the Object panel section.
+
+Rendering:: Point glyphs (square 5 pt, circle, triangle; half size with *Smaller handles*;
+filled or outlined with *Show solid points*) are drawn in an overlay layer above the artwork,
+in screen space so they do not scale with zoom.  Handles are 1 px lines from anchor to handle
+with a small circle at the end.  Remote selections draw the same glyphs in the collaborator's
+presence color at 60% opacity, without handles.
+
+Hit-testing:: Points before segments before fills; the *Pick distance* preference sets the
+tolerance.  A retracted handle is not hit-testable until its point is selected and
+kbd:[Option]-dragged out.
+
+Object panel:: The path section is a SwiftUI form registered with APP-007 for kind `path`.
+*Closed* writes every contour's `closed` (and for opening, leaves `start` alone).  Edits are
+one change each; the panel shows mixed state for multi-contour and multi-object selections.
+
+Undo:: Each drag is one undo group (mouse down to mouse up).  Each Object panel edit is one
+group.
+
+=== Build tasks
+
+[[DRAW-001]]
+==== DRAW-001 Path schema
+[horizontal]
+Track:: proto
+Depends on:: PROTO-003, PROTO-005
+Size:: S
+Delivers:: `doc/v1/path.proto` with `PathProps`, `Contour`, `PathPoint`, `PointKind` exactly as in the Data model, registered in `NodeProps.kind` as `path`, with protovalidate rules (`flatness >= 0`, at most 32,000 points per insert) and every field commented.
+Done when::
+* `buf lint` and `buf breaking` pass; the wtcrdt merge table lists `contours` and `points` as SEQUENCE and `anchor`, `in_handle`, `out_handle` as ATOMIC.
+* Conformance vector: a path with two contours, one reversed with a `start`, round-trips both engines with identical `state_hash`.
+
+[[DRAW-002]]
+==== DRAW-002 Path model and commands
+[horizontal]
+Track:: client-model
+Depends on:: DRAW-001, CRDT-004, CRDT-008
+Size:: L
+Delivers:: `WTModel` types `Path`, `Contour`, `PathPoint` with read-time normalization (direction, start, dangling start, automatic handles, degenerate contours) and commands: create path, set anchor, set handles (tandem for curve, constrained for connector), set kind, set automatic, insert point after/before element, insert point on segment, delete points, delete segment (open at segment), set closed, reverse, join two paths, split at points, set even-odd, set flatness.  Each command emits one change with a label and records inverses.
+Done when::
+* Every command has a unit test against the typed model and an inverse test (apply then undo equals identity when uncontested).
+* Merge tests: the eight named cases under Merge semantics (same-point drag, point vs. handle, curve tandem conflict, delete vs. move, close vs. append, reverse vs. insert, open-at-segment vs. edit, join vs. edit) run through two in-process replicas and produce the documented result.
+* Conformance vectors for the same eight cases are added under `crdt-conformance/path/`.
+
+[[DRAW-003]]
+==== DRAW-003 Path rendering and point glyphs
+[horizontal]
+Track:: client-render
+Depends on:: DRAW-002, REND-002, REND-003
+Size:: M
+Delivers:: Contour-to-`CGPath` conversion honoring `reversed`, `start`, `closed`, even-odd vs. winding, `fill_when_open`; the selection overlay with corner/curve/connector glyphs, handles, the *Smaller handles* and *Show solid points* preferences, and remote-selection glyphs; hit-testing of points, handles and segments through REND-003.
+Done when::
+* Reference renders of the path corpus match {fh} output within anti-aliasing tolerance for both fill rules.
+* Glyph overlay stays screen-sized across zoom; UI test toggles both preferences and verifies glyph size and fill.
+* Hit tests for point, handle and segment at the Pick distance pass at 100% and 1600% zoom.
+
+[[DRAW-004]]
+==== DRAW-004 Object panel: path and point sections
+[horizontal]
+Track:: client-ui
+Depends on:: DRAW-002, APP-007
+Size:: M
+Delivers:: The path section (Closed, Even/odd fill, Flatness, point count) and the point section (type buttons, retract handles, Automatic, X/Y location) of the Object panel, with mixed-state display for multiple selections and live update when remote changes land.
+Done when::
+* Each control writes one change with the documented label; undo reverts it.
+* A remote change to the selected path updates the panel without stealing focus from a field being edited (APP-007 rule).
+* Merge test: toggling Closed while another replica appends a point yields a closed contour containing the appended point.
+
+[[DRAW-005]]
+==== DRAW-005 Path display preferences
+[horizontal]
+Track:: client-ui
+Depends on:: DRAW-003, APP-010
+Size:: S
+Delivers:: *Smaller handles*, *Show solid points* (General) and *Show fill for new open paths* (Object) in the Settings window, wired to the overlay renderer and to path creation.
+Done when::
+* Changing either General preference repaints open documents immediately.
+* A path created after enabling *Show fill for new open paths* has `fill_when_open = true`; one created before keeps `false`.
+endif::spec[]

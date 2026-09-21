@@ -1,0 +1,156 @@
+= Modernizations
+include::_attributes.adoc[]
+:page-slug: modernizations
+
+{fh} MX shipped in 2003.  Matching its features is the floor, not the ceiling: a designer in
+2026 brings expectations that did not exist then -- 120 Hz displays, wide-gamut color, comments
+in the document, variable fonts, accessibility law, and a Mac that indexes and previews
+everything.  This page lists the modernizations accepted before building, why each is worth its
+cost, and where in the book it is specified.  Everything here is `Added` in parity terms.
+
+== Before wave 0: architecture and schema
+
+These change a foundation decision or a schema message, so they are settled before the first
+task starts.
+
+[cols="1,3,2"]
+|===
+|Modernization |Why now |Specified on
+
+|[[M-01]]*M-01* Sync without bidirectional streams
+|gRPC-Web and Connect cannot carry a bidi stream, nor can most HTTP/1 load balancers.  A
+server-streaming `Subscribe` plus unary `PushChange` gives the same causality with acks in
+responses, and the same schema can later serve a browser viewer or an iPad client through a
+gateway.  Rewriting the session protocol after clients ship would be far costlier.
+|xref:sync-protocol.adoc[Sync protocol], xref:api-conventions.adoc[API conventions],
+xref:backlog.adoc#PROTO-006[PROTO-006], xref:backlog.adoc#SRV-005[SRV-005],
+xref:backlog.adoc#SYNC-003[SYNC-003]
+
+|[[M-02]]*M-02* Metal canvas from wave 2; Core Graphics stays the truth
+|Zoom and pan are judged in the first minute on a ProMotion display.  The display list is
+renderer-agnostic; Metal draws the canvas at 120 Hz, Core Graphics remains the reference for
+print, PDF and golden tests, and the two are compared per tile.
+|xref:stack.adoc[Stack], xref:client.adoc[Client], xref:testing.adoc[Testing],
+xref:backlog.adoc#REND-006[REND-006], xref:backlog.adoc#REND-007[REND-007]
+
+|[[M-03]]*M-03* Colors carry their color space; Display P3 and OKLab first-class
+|Every Mac since 2016 is P3.  `Color` is an ATOMIC register, so adding a space later means
+migrating every swatch; adding it now costs one enum.  OKLCH gives perceptually even mixing,
+replacing HLS.
+|xref:spot-process.adoc[Spot and process color], xref:color-mixer.adoc[Color Mixer],
+xref:color-management.adoc[Color management], xref:export-bitmap.adoc[], xref:export-pdf.adoc[]
+
+|[[M-04]]*M-04* Server-side text index and document thumbnails
+|The library needs thumbnails and "find the document containing _invoice_".  The snapshotter
+already runs the Java engine; extracting a search record there is cheap now and awkward
+later.  Thumbnails are rendered by the client and uploaded; the server never renders.
+|xref:server.adoc[Server], xref:creating-opening.adoc[Creating and opening],
+xref:backlog.adoc#SRV-007[SRV-007], xref:backlog.adoc#SRV-009[SRV-009],
+xref:backlog.adoc#APP-009[APP-009]
+
+|[[M-05]]*M-05* Comments in v1
+|A multiplayer tool without pinned threads, mentions and resolve reads as unfinished, and the
+`commenter` role already exists.  One node kind and a panel.
+|xref:comments.adoc[Comments], xref:security.adoc[Accounts, teams and security]
+
+|[[M-06]]*M-06* Sign in with Apple and passkeys as first-class credentials
+|App Store rules require Sign in with Apple wherever third-party sign-in is offered; passkeys
+are the current best credential.  Declaring both in the Keycloak realm from day one avoids
+merging identities later.
+|xref:security.adoc[Accounts, teams and security], xref:backlog.adoc#SRV-002[SRV-002],
+xref:backlog.adoc#APP-008[APP-008]
+|===
+
+== Features a 2026 designer expects
+
+[cols="1,3,2"]
+|===
+|Modernization |Why |Specified on
+
+|[[M-07]]*M-07* Smart guides and measurement overlays
+|Dynamic alignment, equal-spacing and size-match hints, and kbd:[Option] distance readouts.
+{fh} snapped only to points, grid and guides.  The largest daily-use gain on the list.
+|xref:moving.adoc[Moving], xref:grid-guides.adoc[Grid and guides]
+
+|[[M-08]]*M-08* Command palette
+|The command registry exists; a kbd:[Cmd+K] palette over commands, panels, pages, layers and
+views is days of work and removes menu diving.
+|xref:workspace.adoc[Workspace], xref:customizing.adoc[Customizing]
+
+|[[M-09]]*M-09* Live corners and live boolean shapes
+|{fh}'s Combine is destructive and its radius is rectangle-only.  As live effects they stay
+editable and merge like any effect.
+|xref:live-effects.adoc[Live effects], xref:combining-paths.adoc[Combining paths]
+
+|[[M-10]]*M-10* Symbol instance overrides
+|Instances that can override text, colors and visibility are what "component" means now; the
+per-field registers already exist on the instance node.
+|xref:library.adoc[Library and symbols]
+
+|[[M-11]]*M-11* Variable fonts and OpenType feature controls
+|Axes sliders and feature toggles are standard in every current layout tool; Core Text does the
+shaping.
+|xref:type-specifications.adoc[Type specifications], xref:creating-text.adoc[Creating text]
+
+|[[M-12]]*M-12* Inspect mode for viewers
+|Measurements, colors and copyable SVG/CSS/Swift snippets are how developers consume design
+files.  Viewer role, no new document data.
+|xref:inspect.adoc[Inspect]
+
+|[[M-13]]*M-13* Accessibility metadata in output
+|Alt text and reading order flowing into SVG, tagged PDF (PDF/UA) and HTML are increasingly a
+legal requirement for web and public-sector print.
+|xref:names-notes.adoc[Names, notes and alt text], xref:export-vector.adoc[],
+xref:export-pdf.adoc[]
+
+|[[M-14]]*M-14* Native Mac integration
+|Quick Look and Spotlight for packages, a Share extension, Handoff between Macs: small pieces
+that make the app feel like it belongs on the platform.
+|xref:saving.adoc[Saving], xref:exporting.adoc[Exporting], xref:importing.adoc[Importing]
+
+|[[M-15]]*M-15* On-device machine learning in the image tools
+|Subject masks for one-click background removal and an ML-assisted tracer, all local, no
+privacy story needed.  No generative drawing in v1: a different product.
+|xref:bitmaps.adoc[Bitmaps], xref:tracing.adoc[Tracing], xref:selecting.adoc[Selecting]
+
+|[[M-16]]*M-16* Canvas rotation and the full trackpad vocabulary
+|Illustrators on tablets rotate the canvas; pinch, two-finger rotate and Force click are the
+expected input vocabulary.  View state only.
+|xref:document-view.adoc[Setting the document view]
+|===
+
+== Considered and left out
+
+[cols="1,3"]
+|===
+|Idea |Why not
+
+|Auto-layout and constraints
+|The core of a UI-design tool, not an illustration tool; constraint solving under concurrent
+edits is a research project.
+
+|End-to-end encryption
+|Incompatible with server-side snapshotting, merge verification, search and web publishing.
+The honest statement is encrypted in transit and at rest.
+
+|Plug-in SDK in v1
+|xref:decisions.adoc#D-019[D-019]; the command registry and the scripting dictionary are one
+object so a JavaScriptCore plug-in API later is a thin layer.
+
+|Lottie export
+|SVG animations are the vector animation format (xref:svg-animation.adoc[]).
+
+|Generative ("draw this for me") features
+|See M-15.
+|===
+
+== Two risks to watch
+
+Text engine scope:: Chapter 8 plus xref:backlog.adoc#TXT-001[TXT-001] is the largest single
+piece of the client; Core Text shapes glyphs but does not lay out columns, tab leaders,
+paragraph rules or text on a path.  Text on a path and tables are candidates for a second wave
+if the first slips.
+
+Bit-exact rendering across Macs:: Golden-image tests will flake across macOS versions unless
+color conversion is deterministic (xref:decisions.adoc#Q-008[Q-008]).  Deciding on a bundled
+CMM before xref:backlog.adoc#REND-001[REND-001] saves test churn.

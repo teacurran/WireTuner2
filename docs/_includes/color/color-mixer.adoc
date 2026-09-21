@@ -1,0 +1,280 @@
+The Color Mixer is where colors are made.  Pick a mode, move the sliders or type numbers, watch
+the color well, and when it is right either apply it directly -- as an unnamed color -- or add
+it to the Swatches panel as a named color.  It is also the place to inspect a color: drop any
+swatch or object color on it and the sliders show the components.  Show or hide the panel with
+menu:Window[Color Mixer].
+
+// TODO screenshot: Color Mixer in CMYK mode with the four sliders, the split color well, the mode buttons and the Add to Swatches button
+
+== The panel
+
+[cols="1,3"]
+|===
+|Element |Purpose
+
+|Mode buttons
+|*CMYK*, *RGB*, *P3*, *OKLCH*, *HLS*, *Grayscale* and *System*.  The first six change the
+sliders; *System* opens the macOS Colors panel.  *RGB* is sRGB; *P3* is Display P3, the wider
+space of every Mac display since 2016 (xref:spot-process.adoc[Spot and process colors]).
+
+|Sliders and fields
+|One per component.  Drag a slider or type a value and press kbd:[Return].  kbd:[Up] and
+kbd:[Down] in a field step by one; with kbd:[Shift], by ten.  Each slider's track shows the
+colors that component would give at the current mix; in *P3* and *OKLCH* the part of a track
+that no display can show is hatched.
+
+|Color field (RGB, P3 and OKLCH modes)
+|A six-digit hex triplet, with or without `#`, is an sRGB color; three digits are expanded
+(`f03` → `ff0033`).  The field also takes the forms style sheets use: `p3(0.9 0.22 0.27)` or
+`color(display-p3 0.9 0.22 0.27)` for Display P3, `oklch(62% 0.22 25)` for OKLCH, `lab(54 63
+32)` for Lab.  Typing a form from another space switches the Mixer to that space.  The field
+always shows the current color in the current mode's form, so you can copy it into CSS.
+
+|Gamut indicator
+|Under the color well: *sRGB* when the color can be shown on any screen, *P3* when it needs a
+wide-gamut display, *Out of gamut* when even Display P3 cannot show it (possible in OKLCH,
+where the sliders reach beyond every screen).  When the display this window is on cannot show
+the color, the indicator adds *clipped on this display*: the well and the canvas show the
+nearest color your screen can make, while the color itself is exactly what you mixed and
+shows fully on a screen that can.
+
+|btn:[Web Safe] (RGB mode)
+|Snaps the current color to the nearest of the 216 browser-safe colors.
+
+|Color well
+|Split in two: the *original* color on the left (the one you started from -- the selection's
+color, or the swatch you dropped), the *new* color on the right.  Drag from either half to an
+object, a panel, or the Swatches panel.  Clicking the left half copies the original back to
+the right.
+
+|btn:[Add to Swatches]
+|Names the new color and adds it to the color list.  kbd:[Cmd]-click skips the naming sheet.
+
+|btn:[Apply]
+|Applies the new color to the selected objects' fill, stroke or both, according to the
+Swatches panel's Fill / Stroke / Both selector.
+|===
+
+Prefer a single, larger well?  Turn off the *Color Mixer and Tints use a split color well*
+preference (xref:preferences.adoc[Preferences]); the well then shows only the new color.
+
+== Mixing a color
+
+To mix a CMYK, RGB or Display P3 color:
+
+. Click *CMYK*, *RGB* or *P3*.
+. Drag the sliders or type values.  CMYK takes percentages, 0--100; RGB and P3 take 0--255, or
+  a value in the color field.  The same numbers mean a more vivid color in P3 than in RGB:
+  P3 255/0/0 is a red that sRGB cannot reach.
+. Watch the right half of the color well and the gamut indicator.
+. Apply the color (drag it, or click btn:[Apply]) or add it to the Swatches panel.
+
+The Mixer opens in *RGB* or *P3* according to the *Default color space for new colors*
+preference (xref:preferences.adoc[Preferences]); Display P3 unless you change it.
+
+To mix a color by lightness, chroma and hue:
+
+. Click *OKLCH*.  Three sliders: *L* (lightness, 0--100%), *C* (chroma, 0 for gray up to the
+  most colorful your screens can show) and *H* (hue, 0°--360°, red near 25°, yellow near
+  100°, green near 145°, blue near 265°).
+. Set the lightness first, then the hue, then push the chroma up until the color is as vivid
+  as you want.  Where a slider's track turns hatched the color leaves what Display P3 can
+  show; the gamut indicator says *Out of gamut*.
+. Apply or add.  OKLCH colors are stored as OKLab and the Swatches panel shows them with the
+  *OKLab* badge.
+
+OKLCH does what HLS promises: equal moves of a slider look like equal changes, and changing
+the hue or the chroma leaves the color exactly as light as it was, whereas in HLS a yellow
+and a blue at the same lightness number look nothing alike in brightness.  Use it to build a
+palette of colors that belong together -- one lightness, several hues -- or a ramp of one hue.
+
+To mix a color by hue, lightness and saturation:
+
+. Click *HLS*.  The sliders are replaced by a color wheel and a lightness slider.
+. Set the hue by dragging the point around the wheel, or type 0°--360° in the *H* field.  Red
+  is 0°, then orange, yellow, green, cyan, blue and magenta around the circle.
+. Set the lightness with the vertical slider or the *L* field: 0% is black, 100% is white.
+. Set the saturation by dragging the point toward the centre (grayer) or the rim (purer), or
+  type 0--100% in the *S* field.
+. Switch to *RGB* or *P3* at any time to see the same color as red, green and blue.  HLS
+  colors are RGB colors in your default color space; the Swatches panel shows them with that
+  space's badge.
+
+To mix a gray:
+
+. Click *Grayscale*.
+. Set the single slider, 0% (white) to 100% (black).  The result is a CMYK color with only
+  black in it, so it separates to the black plate alone.
+
+To use the macOS Colors panel:
+
+. Click *System*.  The Colors panel opens beside the Mixer.
+. Pick with any of its tabs -- wheel, sliders, palettes, image, pencils -- or with its
+  eyedropper anywhere on the screen.
+. The Mixer follows the panel as you pick.  On a Mac with a Display P3 screen the panel picks
+  P3 colors and the color is stored as Display P3; if your default color space is sRGB, or
+  the screen is not P3, it is stored as sRGB -- pulled into sRGB if it has to be, which the
+  gamut indicator shows.
+
+== Inspecting a color
+
+To load an existing color into the Mixer, do one of the following:
+
+* kbd:[Option]-click a swatch in the Swatches panel.
+* Drag a swatch, an Object panel color well, or an Eyedropper pick onto the Mixer's color
+  well.
+* Select an object: the Mixer shows the color of its topmost fill (or stroke, if the Swatches
+  panel's *Stroke* selector is pressed).
+
+The Mixer switches to the color's own space and shows its components; a Lab color, which has
+no mode of its own, is shown in OKLCH and becomes an OKLab color if you change it.  Adjusting
+components edits a *copy*: the object or swatch does not change until you apply or add.  To redefine the
+swatch itself, drag the new color back onto it, or use the Swatches panel
+(xref:editing-colors.adoc[Editing colors]).
+
+== Working with others
+
+The Mixer is your own workbench: nothing you do in it is visible to anyone until you apply
+the color to an object or add it to the Swatches panel.  Your sliders are not shared, and a
+collaborator's Mixer is not affected by yours.  If you loaded a swatch into the Mixer and
+someone else then edits that swatch, the *original* half of the well updates to their new
+color so you can see what you are departing from; your *new* half is untouched.
+
+The gamut indicator's *clipped on this display* note is about your screen, not the document.
+A collaborator on an sRGB monitor sees the same Display P3 color clipped and the same note;
+the document holds one value for both of you, and the color prints and exports in full.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,1"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|CMYK, RGB, HLS and System modes
+|Same, plus Grayscale, P3 and OKLCH modes.  System stores Display P3 when the panel returns
+it.
+|Faithful
+
+|Grayscale mode
+|A single K slider producing CMYK 0/0/0/k.
+|Adapted: addition; grays are the most common quick mix.
+
+|Hex entry
+|Color field in RGB, P3 and OKLCH modes: hex (sRGB), `p3(…)` / `color(display-p3 …)`,
+`oklch(…)`, `lab(…)`, as CSS Color 4 writes them.
+|Adapted: addition; every screen designer types hex, and CSS now types P3 and OKLCH.
+
+|--
+|*P3* mode (Display P3 sliders), *OKLCH* mode (perceptual sliders storing OKLab), the gamut
+indicator with the per-display clipping warning, the *Default color space for new colors*
+preference.
+|Added: every Mac since 2016 has a P3 display; OKLCH is the perceptually even picker HLS was
+meant to be.
+
+|Web Safe snap
+|btn:[Web Safe] in RGB mode.
+|Adapted: addition, paired with the Color Cubes palette.
+
+|Split color box, with a preference for a single box
+|Same; preference *Color Mixer and Tints use a split color well*, default on.
+|Faithful
+
+|Add to Swatches with naming sheet; Cmd-click to bypass
+|Same.
+|Faithful
+
+|Drag from the color box to add or apply
+|Same.
+|Faithful
+
+|Option-click a swatch to show its components
+|Same.
+|Faithful
+
+|Change attribute color (apply to selection) button
+|btn:[Apply], honouring the Fill / Stroke / Both selector.
+|Faithful
+
+|Windows Control+U to open preferences
+|kbd:[Cmd+,] (macOS standard).
+|Adapted: platform convention.
+|===
+
+=== Data model
+
+None.  The Mixer's state -- mode, current and original colors -- is view state on this Mac
+(`local_only` in the BASIC epic's view message, so it survives relaunch).  Applying writes a
+`ColorRef.inline` (xref:applying-color.adoc[Applying color]); adding writes a swatch node
+(xref:swatches.adoc[Swatches]).
+
+=== Merge semantics
+
+No document fields of its own.  btn:[Apply] to N objects is one change of N `ColorRef`
+writes, each an ordinary ATOMIC LWW.  A slider drag bound to a selection (the Mixer in
+"live" mode, when the *Apply as you mix* toggle in the panel's menu is on) writes coalescing
+changes: one per drag, undone as one.  When a swatch loaded into the Mixer is changed
+remotely, the Mixer re-reads the original from the model; the working copy is local.
+
+=== Offline behavior
+
+Nothing here needs the network.
+
+=== Server
+
+Nothing beyond storing and relaying changes.
+
+=== Client
+
+* `WTApp`: SwiftUI panel body.  Sliders are custom (gradient-backed tracks showing the
+  component's range at the current mix, as {fh} does; the P3 and OKLCH tracks are drawn in a
+  Display P3 context and hatch the out-of-P3 run, found by sampling the track at 64 points
+  through COLOR-002's in-gamut test).  The HLS wheel is a custom view with a lightness
+  slider.  *System* opens `NSColorPanel` in continuous mode and observes `changeColor(_:)`;
+  the Mixer takes the `NSColor` through `usingColorSpace(.displayP3)` and stores it as
+  Display P3, or gamut-maps it to sRGB (COLOR-024) when the default space is sRGB.  The
+  gamut indicator combines COLOR-002's in-gamut tests (sRGB, P3) with COLOR-024's display
+  query for the *clipped on this display* note; the well and the canvas simply draw the
+  tagged `CGColor` and let the window server clip.  The color field is one `NSTextField`
+  whose parser is COLOR-002's CSS Color 4 parser; a parse that yields another space switches
+  the mode.  The `ColorRef` pasteboard type (`com.villagecompute.wiretuner.colorref`: the
+  encoded `ColorRef` plus its resolved `Color` and name) and the split-well / drag-source
+  views are defined here and reused by the Tints panel, the Swatches panel and the Object
+  panel.  The `Color` in the pasteboard carries its space; the `NSColor` written for other
+  applications is in Display P3 when the color is, else sRGB.
+* The *Default color space for new colors* preference (Colors, synced; sRGB or Display P3,
+  default Display P3) is read here for the opening mode, HLS results, System results and
+  pasted `NSColor`s; the Eyedropper reads it for bitmap picks
+  (xref:applying-color.adoc[Applying color]).
+* Color arithmetic from COLOR-002; gamut mapping and the display query from COLOR-024.
+* Undo grouping: nothing in the Mixer is undoable until applied; live mode groups per drag.
+
+=== Build tasks
+
+[[COLOR-008]]
+==== COLOR-008 Color Mixer panel
+[horizontal]
+Track:: client-ui
+Depends on:: APP-004, APP-010, COLOR-002, COLOR-003, COLOR-006
+Size:: M
+Delivers:: The `ColorRef` pasteboard type, the shared split color well and drag-source views, and the Color Mixer panel: CMYK, RGB (with hex and Web Safe), HLS wheel, Grayscale and System (`NSColorPanel`) modes, split/single color well with the preference, drag in and out, Option-click inspection, btn:[Apply] with the Fill/Stroke/Both selector, btn:[Add to Swatches] with the sheet and kbd:[Cmd]-click bypass, *Apply as you mix* live mode, and local persistence of its state.
+Done when::
+* UI tests: each mode produces the expected stored `Color`; hex parsing of 3- and 6-digit values; Web Safe snaps to a cube color; loading a swatch shows its components in its own space.
+* Live mode: one change per slider drag, undone as one; a remote change to the bound object during the drag never loses slider input.
+* Add with kbd:[Cmd]-click uses the last spot/process choice and the default name.
+
+[[COLOR-023]]
+==== COLOR-023 OKLCH and P3 Mixer modes
+[horizontal]
+Track:: client-ui
+Depends on:: COLOR-002, COLOR-008
+Size:: M
+Delivers:: The *P3* mode (RGB-style sliders and 0--255 fields over Display P3), the *OKLCH* mode (L, C, H sliders with gradient tracks that hatch the run outside Display P3), the color field in RGB, P3 and OKLCH modes with CSS Color 4 entry and display (`#hex` as sRGB, `p3(…)`, `color(display-p3 …)`, `oklch(…)`, `lab(…)`; entry of another space switches the mode), the gamut indicator (*sRGB* / *P3* / *Out of gamut*, plus *clipped on this display* from COLOR-024's query), `NSColorPanel` results taken in Display P3, Lab colors loaded into OKLCH, the *Default color space for new colors* preference and its effect on the opening mode, HLS results, System results and pasted colors, and the P3/sRGB-aware `NSColor` pasteboard writing.
+Done when::
+* UI tests: P3 mode stores `rgb` with `space = DISPLAY_P3`; OKLCH mode stores `lab` with `space = OKLAB` and the polar-to-rectangular conversion; typing `color(display-p3 1 0 0)` in RGB mode switches to P3 and shows 255/0/0; typing `#e63946` in P3 mode stores sRGB; the field shows the same string COLOR-002 formats as the default name.
+* The indicator reads *sRGB* for `#e63946`, *P3* for `p3(1 0 0)`, *Out of gamut* for `oklch(70% 0.4 30)`, and adds the display note on a simulated sRGB screen and drops it on a simulated P3 screen.
+* Picking in the Colors panel on a P3 display stores a P3 color; with the preference set to sRGB the same pick stores the gamut-mapped sRGB color and the indicator reads *sRGB*.
+* Loading a Lab swatch shows it in OKLCH with converted values; applying without touching a slider writes nothing; moving one writes an OKLab color.
+endif::spec[]

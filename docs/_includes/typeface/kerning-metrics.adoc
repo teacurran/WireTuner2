@@ -1,0 +1,383 @@
+Spacing is half of a typeface.  The *Metrics window* is where you set it: type a word or a line,
+see it set in your glyphs, and drag to adjust each glyph's side bearings and advance width, and
+the *kerning* between particular pairs.  Kerning can be set pair by pair or, more efficiently,
+between *kerning classes* -- groups of glyphs that space alike, so one value covers `T` against
+every lowercase `a`-shaped letter.  Everything here is generated into the font's `kern` feature
+automatically (xref:opentype-features.adoc[OpenType features]).
+
+// TODO screenshot: the Metrics window showing "Hamburgefonstiv" with the value table below
+
+== The Metrics window
+
+Open it with menu:Window[Metrics] (kbd:[Cmd+Option+M]).  It is a separate window of the typeface
+document, so you can keep it beside a glyph tab.
+
+The window has three parts:
+
+* A *text field* at the top.  Type any text; every character with a glyph is set at the size in
+  the pop-up beside the field.  A character without a glyph shows a hollow box.  Selecting glyphs
+  in the grid before opening the window fills the field with them.  The pop-up's history keeps
+  your last twenty strings, and the presets *Lowercase*, *Uppercase*, *Digits*, *Mixed pairs*
+  fill it with useful test text (`nn on no oo`, `HH OH HO OO` and so on).
+* The *setting*: the glyphs on a baseline, with a faint line at each glyph's origin and advance,
+  and the kerning between each pair drawn as a small colored bar (blue for negative, orange for
+  positive).  Click a glyph to make it current; the current glyph shows its left side bearing line
+  in green and its advance line in blue.
+* The *value table*: one column per glyph in the setting, rows *Name*, *Width*, *LSB*, *RSB*,
+  *Kern* (the kern between this glyph and the previous one) and, if the pair is covered by
+  classes, *Class kern*.  Every value is a field you can type in; kbd:[Tab] moves along a row.
+
+=== Adjusting by dragging
+
+With the Pointer in the setting:
+
+[cols="1,3"]
+|===
+|Drag |Changes
+
+|The current glyph's body
+|Its left side bearing.  The glyph and everything after it shifts.
+
+|Its blue advance line
+|Its advance width (and so its right side bearing).
+
+|Its green origin line
+|The kerning between it and the previous glyph.  Dragging left tightens (negative kern).
+
+|kbd:[Option]-drag the body
+|Moves the glyph by changing the kern, not the bearing -- the same as dragging the origin line.
+|===
+
+Hold kbd:[Shift] to move in steps of 10 units.  A readout shows the value while dragging.  Each
+drag is one undoable change.
+
+With the keyboard: select a field in the value table, or the current glyph, and press
+kbd:[Left] / kbd:[Right] to change the selected value by 1 unit, kbd:[Shift+Left] /
+kbd:[Shift+Right] by 10, kbd:[Option+Left] / kbd:[Option+Right] by 100.  kbd:[Up] / kbd:[Down]
+move between rows; kbd:[Tab] between glyphs.
+
+=== Kerning pairs and classes
+
+A kern value you set between two glyphs is a *pair kern* -- an exception that applies to exactly
+that pair.  When both glyphs belong to kerning classes and the classes have a value, the setting
+shows the *class kern* and applies it unless a pair kern exists for the two glyphs: pair kerns
+always win over class kerns.  The value table shows which is in effect; a pair kern that equals
+its class kern is redundant and the btn:[Remove Pair] button in the table's context menu removes
+it.
+
+Drag or type on a pair to create a pair kern.  To set the *class* value instead, hold kbd:[Cmd]
+while dragging the origin line, or type in the *Class kern* row; the value applies to every pair
+of the two classes.
+
+menu:Metrics[Remove Kerning Pair] removes the pair kern of the current pair; menu:Metrics[Remove
+All Kerning…] clears every pair and class value after confirmation.
+
+=== Checking features
+
+The *Features* pop-up in the window's toolbar lists the OpenType features of the font -- the
+automatic ones and those in your feature file -- with checkboxes.  Turning one on shows its effect
+in the setting: `liga` on shows `f` `i` as the `f_i` glyph; `smcp` shows `.sc` variants.  This
+preview uses a quick compile of the font; if the feature file has an error, the pop-up shows a
+warning and only the automatic features are available (xref:opentype-features.adoc[OpenType
+features]).
+
+== The Kerning Classes editor
+
+Open it with menu:Metrics[Kerning Classes…] (kbd:[Cmd+Option+K]) or the btn:[Classes] button in
+the Metrics window.
+
+The editor shows two lists and a matrix:
+
+* *Left classes* -- classes used for the glyph on the left of a pair.  A class has a name (`O`,
+  `round`) and a list of member glyphs; a glyph belongs to at most one left class.
+* *Right classes* -- likewise for the right side.  A glyph can be in one left and one right
+  class, and they need not correspond: `a` may be in left class `a` (with `ae`) and right class
+  `a` (alone) as your spacing dictates.
+* The *matrix* has a row per left class and a column per right class; each cell holds the class
+  kern.  Click a cell to type a value; the pair set below the matrix shows the first glyph of each
+  class set together, and you can drag there as in the Metrics window.
+
+To create a class:
+
+. Click btn:[+] under the left or right list and type a name.
+. Add glyphs: type names or characters into the *Members* field, drag cells from the glyph grid
+  into the list, or select glyphs in the grid and choose menu:Metrics[Add to Left Class] /
+  menu:Metrics[Add to Right Class].
+. A glyph already in another class of the same side is moved, and the editor says so.
+
+btn:[Guess Classes] proposes classes from the glyphs' names and shapes: accented variants join
+their base (`a`, `agrave`, `aacute`, …), and glyphs whose outline near the relevant edge matches
+another's within a tolerance are grouped (`o`, `c`, `e` on the left).  The proposal appears as a
+list you can edit before btn:[Apply].  It is a starting point, not a decision.
+
+Exceptions: any pair kern between two glyphs of kerned classes is listed under *Exceptions* at the
+bottom, with the class value beside it, so you can see and prune them.
+
+== Automatic kerning
+
+menu:Metrics[Auto Kern…] proposes kerning values for a set of classes or glyphs by measuring the
+optical gap between each pair and kerning toward a target separation:
+
+. Choose *All classes*, *Selected classes* or *Selected glyphs*.
+. Set the *Separation* (in units; the average gap between straight stems is a good value -- the
+  sheet suggests one measured from `n` `n`) and the *Minimum kern* below which no value is written
+  (5 units by default).
+. Choose whether to *Replace existing values* or fill only empty cells.
+. Click btn:[Preview] to see the proposed values in the matrix, then btn:[Apply].
+
+Auto-kerning is a rough first pass and is deliberately simple; expect to correct it in the
+Metrics window.  The result is one undoable change.
+
+== Spacing overview
+
+menu:Window[Spacing Overview] shows every glyph of the font in a table with Name, Width, LSB and
+RSB, sortable by any column and editable in place, and a column of miniatures set between `n`
+and `o`.  It is the quickest way to see that all the round letters share a side bearing, or to
+find a stray width.  Select rows and use the Glyph menu's width and bearing commands on them, as
+in the grid.
+
+== Working with others
+
+Kerning and spacing are shared as they are made.  When a collaborator adjusts a pair you are
+looking at, the setting in your Metrics window shifts and the value table updates -- the field you
+are typing in keeps your text until you commit it.
+
+* *Two people set the same pair or the same class cell* -- the later value stands; the other is
+  told, with *Reapply mine*.
+* *Two people create the same class* (say, both add a left class `O` while offline) -- both
+  classes exist after the merge, with the same name.  Glyphs that ended up in both are treated as
+  members of the newer one; the review sheet lists the duplicate classes with *Merge classes*,
+  which combines the members and keeps whichever cells were set.
+* *One person adds a glyph to a class while another removes the class* -- the class stays removed;
+  the review sheet offers *Restore*.
+* *Someone changes a glyph's width while you kern against it* -- both apply; kerning is measured
+  from the advance, so the pair shifts by the width change and your kern value is unchanged.
+* *Auto Kern by two people at once* -- every cell is written by both; the later run wins
+  everywhere, and both runs are listed.
+
+ifdef::spec[]
+== Specification
+
+=== FontForge parity
+
+[cols="2,3,1"]
+|===
+|FontForge capability |{product} behavior |Verdict
+
+|Metrics View: enter text, drag width, LSB, kern; numeric fields; arrow keys with Shift ×10
+|Same, with kbd:[Option] ×100 and history/preset strings.
+|Faithful
+
+|Metrics View shows OpenType features with checkboxes and previews substitutions
+|Features pop-up, previewed from a quick compile.
+|Faithful
+
+|Kern by classes: first/second classes, matrix, exceptions as pair kerns
+|Kerning Classes editor with left/right classes, matrix, exceptions list.
+|Faithful
+
+|Kern pair closeup with device tables
+|Not present.
+|Dropped -- device tables (pixel-size corrections) are a hinting-era feature.
+
+|Auto Kern with separation, min kern, class guessing
+|Auto Kern with separation, minimum kern, replace/fill; Guess Classes.
+|Adapted -- simpler optical measurement; documented as a first pass.
+
+|Auto Width
+|Not present; Spacing Overview and the bearing commands instead.
+|Dropped -- FontForge's own docs call it unreliable; spacing is a design act.
+
+|Vertical metrics and VKern
+|Not present.
+|Dropped -- no vertical writing.
+
+|Set Width / LBearing / RBearing / Center / Thirds
+|Glyph menu commands (xref:glyph-grid.adoc[The glyph grid]).
+|Faithful
+
+|Metrics menu modes: kerning only, width only, both
+|Not present; the table always shows all values, and drags are distinguished by target.
+|Dropped -- macOS drag targets make the modes unnecessary.
+|===
+
+=== Data model
+
+Kerning lives on `FontProps` (xref:font-info.adoc[Font Info]).  Pairs and class memberships refer
+to glyphs by node, so renames never break kerning.
+
+[source,protobuf]
+----
+enum KernSide {
+  KERN_SIDE_UNSPECIFIED = 0;    // reads as LEFT
+  KERN_SIDE_LEFT = 1;           // the class applies to the first glyph of a pair
+  KERN_SIDE_RIGHT = 2;          // to the second
+}
+
+// A pair kern (exception).  Element of a SEQUENCE.  Duplicates resolved on read.
+message KernPair {
+  ElementId id = 1;
+  NodeRef left = 2 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];    // glyph node
+  NodeRef right = 3 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
+  double value = 4 [(buf.validate.field).double = {gte: -32767, lte: 32767}];   // font units, negative tightens
+}
+
+// A class member.  Element of a SEQUENCE whose order is meaningless (a set of messages has no
+// SET policy); a glyph in two classes of one side is resolved on read.
+message KernClassMember {
+  ElementId id = 1;
+  NodeRef glyph = 2 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
+}
+
+message KernClass {
+  ElementId id = 1;
+  string name = 2 [(buf.validate.field).string = {min_len: 1, max_len: 63, pattern: "^[A-Za-z0-9._]+$"}];
+  KernSide side = 3;            // immutable in practice; a side change is a new class
+  repeated KernClassMember members = 4 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+}
+
+// One matrix cell.  Element of a SEQUENCE.  Absent cell = 0.  Duplicates resolved on read.
+message ClassKern {
+  ElementId id = 1;
+  ElementId left = 2;           // a KernClass with side LEFT
+  ElementId right = 3;          // a KernClass with side RIGHT
+  double value = 4 [(buf.validate.field).double = {gte: -32767, lte: 32767}];
+}
+----
+
+Lookup, for a pair of glyphs (L, R): the live `KernPair` with `left == L && right == R` if any;
+else the `ClassKern` for (class of L on the LEFT side, class of R on the RIGHT side) if both exist;
+else 0.
+
+Commands::
+* Set pair: `ElementInsert(pairs)` if none exists, else `SetFields(pairs[e].value)`.  Setting a
+  pair to exactly its class value removes the pair (`ElementDelete`) -- the redundant exception is
+  not kept.
+* Set class cell: `ElementInsert(class_kerns)` or `SetFields(class_kerns[e].value)`; a value of 0
+  deletes the element.
+* Create class: `ElementInsert(classes)` with `name`, `side`; add member: `ElementInsert(members)`,
+  and, when the glyph is in another class of that side, `ElementDelete` of that membership, in one
+  change.
+* Remove class: `ElementDelete(classes[e])` plus `ElementDelete` of every `class_kerns` cell naming
+  it.
+* Remove all kerning: `ElementDelete` of every pair and cell, one change.
+* Auto Kern: one change of inserts/writes labelled "Auto kern N cells".
+* Width and bearing edits from the table: the glyph commands of xref:glyph-grid.adoc[The glyph
+  grid].
+
+=== Merge semantics
+
+Pair value:: `value` is a register inside a SEQUENCE element; two sets of an existing pair → later
+wins, listed as same-register.
+
+Concurrent creation of the same pair:: Two elements with equal (`left`, `right`).  *Read
+normalization*: the element with the *greater* element id is used (the more recently inserted --
+a kern value is a setting, where the latest intent wins, unlike a name or codepoint, which is a
+claim); the other is ignored and listed as a duplicate.  The next set of that pair writes the
+winner and deletes the loser.
+
+Set a pair vs. remove it:: Element deleted; the write is edit vs. delete; *Restore* re-inserts with
+the written value.
+
+Set a pair vs. set its class cell:: Independent; the pair wins at lookup, as specified.  If the
+pair-setter's value equals the new class value, the redundant pair is still present (removal was
+decided against the old class value); the Exceptions list shows it and *Remove Pair* clears it.
+
+Classes::
+* Two classes with the same name and side (concurrent creation): both live.  Membership: a glyph
+  present in two classes of one side reads as a member of the class whose membership element id is
+  greater (its most recent placement).  The review sheet lists "two left classes named *O*" with
+  *Merge classes*, which moves every membership and every cell of the newer class onto the older
+  one (keeping older cells where both are set -- the sheet shows the conflicts) and deletes the
+  newer class.  Nothing is normalized beyond the membership rule; two same-named classes are a
+  valid, if untidy, state, and the generator names them `O` and `O_2` in the feature file.
+* Add member vs. remove class: class deleted; membership orphaned (never read); listed as edit vs.
+  delete with *Restore*.
+* Rename vs. add member: both apply.
+* A member whose glyph is deleted reads as absent; a cell whose class is deleted reads as absent.
+
+Class cells:: As pairs: value register later-wins; duplicate cells for the same (left, right) →
+greater element id wins.
+
+Auto Kern vs. Auto Kern:: Every cell written by both; the change with the greater `start_counter`
+has greater OpIds for all its writes, so it wins uniformly.  Listed for both.
+
+Width change vs. kern:: Different registers on different nodes; both apply.
+
+Read-time normalizations (complete list)::
+* Duplicate pairs / cells → greater element id wins.
+* Glyph in two classes of one side → greater membership element id wins.
+* Pair or member with a dangling glyph, cell with a dangling class → absent.
+* A class with `side` unset → LEFT.
+* `value` non-finite → 0.
+
+=== Offline behavior
+
+Standard.  A kerning session coalesces to one write per pair or cell touched.  The Features
+pop-up's quick compile is local (the compiler ships in the app), so feature preview works offline.
+
+=== Server
+
+Nothing beyond storing and relaying changes; validates the value ranges.
+
+=== Client
+
+* `WTModel.Kerning`: typed view with `value(for:_:)` lookup, class maps per side with the
+  membership rule, exception listing, and the commands above.  Lookup is backed by dictionaries
+  rebuilt incrementally from element changes; a 3,000-glyph font with 50,000 cells looks up in
+  constant time.
+* `WTApp.MetricsWindowController`: an `NSWindow` per document; the setting is an `NSView` drawing
+  flattened outlines from FONT-015 at the chosen size with kern bars; drags dispatch to width,
+  LSB or kern by target; kbd:[Cmd] switches to the class cell; the value table is an
+  `NSTableView` with editable cells committing on kbd:[Return] or focus loss; the Features pop-up
+  drives a quick compile through FONT-018 with a 500 ms debounce and shapes the string through
+  Core Text using the in-memory font (`CTFontCreateWithGraphicsFont` from the compiled bytes).
+* Kerning Classes editor: a sheet with two `NSTableView` lists, a matrix `NSTableView` with
+  editable cells, drag-and-drop from the glyph grid (`NSPasteboard` type `com.wiretuner.glyph`),
+  Guess Classes (name decomposition via `GlyphNaming` plus an edge-profile comparison at 16 samples
+  with 8-unit tolerance), Exceptions list.
+* Auto Kern: for each pair, sample the flattened outlines' right and left edge profiles at 32
+  heights from descender to ascender, take the minimum horizontal gap weighted toward the x-height
+  band, kern = separation − gap, discard |kern| < minimum.  Runs off the main actor with a
+  progress sheet.
+* Spacing Overview: an `NSTableView` window with in-place editing through the glyph commands.
+* Undo: each drag, field commit, matrix cell, class edit or Auto Kern run is one step.
+
+=== Build tasks
+
+[[FONT-016]]
+==== FONT-016 Kerning model
+[horizontal]
+Track:: client-model
+Depends on:: FONT-008
+Size:: M
+Delivers:: `WTModel.Kerning` with lookup, classes, exceptions, all commands (set pair with redundancy removal, set cell, create/rename/remove class, add/move member, remove all, auto kern application), the read-time normalizations, Merge classes.
+Done when::
+* Each command is one change with an inverse.
+* Merge tests: same pair set twice (later wins); same pair created on two replicas (greater element id read); set vs. remove (restore); same class created twice with overlapping members (membership rule; Merge classes converges); auto kern vs. auto kern (uniform winner).
+* Conformance vectors for every normalization.
+
+[[FONT-020]]
+==== FONT-020 Metrics window
+[horizontal]
+Track:: client-ui
+Depends on:: FONT-016, FONT-015, FONT-018, APP-004
+Size:: L
+Delivers:: The Metrics window: text field with history and presets, setting view with drags and kern bars, value table, keyboard adjustments, kbd:[Cmd] class drags, Remove Kerning Pair / Remove All Kerning, the Features pop-up with quick compile and Core Text shaping, the Spacing Overview window.
+Done when::
+* UI tests: drag width, LSB and kern on `AV`; type values; kbd:[Shift] and kbd:[Option] steps; `liga` preview shows `f_i` for "fi".
+* A remote kern change to a visible pair updates the setting within 200 ms without disturbing a field being edited.
+* Quick compile of a 500-glyph font with kern and liga completes under 1 s on M1.
+
+[[FONT-021]]
+==== FONT-021 Kerning Classes editor and Auto Kern
+[horizontal]
+Track:: client-ui
+Depends on:: FONT-016, FONT-020
+Size:: M
+Delivers:: The Kerning Classes sheet (lists, matrix, pair set, drag from grid, Guess Classes, Exceptions), Add to Left/Right Class menu items, the Auto Kern sheet with preview, the Merge classes review action.
+Done when::
+* UI tests: create classes, set a cell, see the exception list update when a pair is set inside kerned classes; Guess Classes groups `a`, `agrave`, `aacute`.
+* Auto Kern over Basic Latin classes produces negative values for `AV`, `To`, `LT` and none for `nn` at the suggested separation.
+* Each action is one change and undoable.
+endif::spec[]

@@ -1,0 +1,195 @@
+= Accounts, teams and security
+include::_attributes.adoc[]
+:page-slug: security
+
+== Accounts
+
+Every person has one *personal account*, identified by a Keycloak subject.  Sign-in is OIDC
+with PKCE from the Mac (`ASWebAuthenticationSession`); Keycloak owns every credential and
+the server never sees one.  The realm declares, in this order of preference:
+
+Passkeys (WebAuthn)::
+The preferred credential.  Keycloak's passwordless WebAuthn flow is the first option on the
+sign-in page and is offered to every account that does not yet have one after its first
+sign-in by any other means.  `ASWebAuthenticationSession` runs the platform authenticator, so
+a passkey created on one Mac is in iCloud Keychain on the next.
+Sign in with Apple::
+Required by App Store guideline 4.8 as soon as any third-party sign-in is offered, and the
+natural choice on a Mac.  Keycloak has no built-in Apple provider: it is configured as a
+generic OIDC identity provider with `response_mode = form_post`, the `name` and `email`
+scopes, and a client secret that is a JWT signed with the developer team's `.p8` key and
+valid for at most six months -- the *Apple secret* job (xref:server.adoc[Server]) rotates
+it every 30 days through the admin API.  Apple sends the user's name only on the first
+authorization; the first-broker-login flow stores it then.  (Whether to use the community
+Apple provider extension instead of the generic OIDC provider is an open question for SEC-004.)
+Email and password::
+The fallback, with Keycloak's email verification and brute-force protection.
+Workspace SSO::
+A SAML or OIDC identity-provider connection per company workspace (below); a workspace may
+require it for its members.
+
+Every method ends in the same Keycloak subject, so the server sees one account.  Which method
+signed in on a device is a claim in the access token (`wt_auth_method`, a protocol mapper:
+`passkey`, `apple`, `password` or `sso:<idp alias>`) that SRV-002 records on the device row
+the first time it sees the device; the account page's device list shows it beside each Mac.
+
+Account linking:: A person who signs in by a second method must end up in the same account.
+The rules, implemented as Keycloak's first-broker-login flow plus a server-side check:
+
+* An identity whose email the provider asserts as *verified* links automatically to the
+  existing account with that email (Apple sets `email_verified`; workspace SSO asserts it;
+  email+password verifies by mail before the account is usable).  An unverified email never
+  links: the person is asked to sign in the existing way and add the method from the account
+  page.
+* Apple *private relay* addresses (`@privaterelay.appleid.com`) are treated as verified for
+  linking -- they are Apple's, and unique per app, so they only ever match an account created
+  through Apple -- but are *never* used for workspace domain matching: a relay address neither
+  auto-admits anyone to a workspace nor satisfies a require-SSO rule.  A person who hid their
+  email and later joins a workspace links their work identity from the account page, which
+  adds the verified work address to the account.
+* Passkeys never link anything: a passkey is registered on an account that is already signed
+  in.
+* Linked identities are rows in `account_identity`; unlinking the last remaining identity is
+  refused.  The device list shows the method; the account page lists the identities and lets
+  the person add or remove them.
+
+An account owns: a personal space of documents, a list of devices, its linked identities,
+preferences, and its team memberships.  Personal documents can be shared with anyone by
+invitation or link (xref:sharing.adoc[Sharing]).
+
+== Teams
+
+A *team* is a named group of accounts with a shared document space, shared libraries
+(xref:library.adoc[Library]) and shared settings.  Requirements:
+
+* A person can belong to *any number* of teams at once, and switches between Personal and each
+  team in the library window without signing out.  A document belongs to exactly one space.
+* Team roles: `owner` (billing, delete team, transfer), `admin` (members, workspace settings,
+  team libraries), `member` (create and edit team documents per the team's default document
+  role), `guest` (only documents explicitly shared with them; cannot see the team list).
+* A team may be bound to a *company workspace*: one or more verified email domains and,
+  optionally, a Keycloak identity-provider connection (SAML/OIDC SSO).  A workspace-bound team
+  can auto-admit anyone who signs in with a verified address on its domain, can require SSO for
+  its members, and can restrict sharing of its documents to team members only.  Domain
+  verification is by DNS TXT record.  Only addresses asserted verified by their provider
+  count, and Apple private relay addresses never count (Accounts, above).
+* Leaving or being removed from a team removes access to the team's documents at the next
+  change or session open (xref:sync-protocol.adoc[Sync protocol]); local stores remain on the
+  device until the user deletes them, but the app will not open them past the role check
+  without a fresh token (they can be exported as a package if the team allows it; a
+  workspace-bound team may disallow this).
+* Deleting a team trashes its documents for 30 days; the owner can transfer documents to
+  another space before that.
+
+.Schema (SRV-003)
+[listing]
+....
+account(id, subject, email, display_name, created_at)
+account_identity(account_id, provider, provider_subject, email, email_verified, is_relay, linked_at)
+device(id, account_id, name, platform, auth_method, last_seen_at, revoked_at)
+team(id, name, slug, owner_account_id, created_at, deleted_at)
+team_member(team_id, account_id, role, joined_at)
+team_invite(id, team_id, email, role, token_hash, expires_at, accepted_at)
+workspace(team_id, sso_idp_alias, require_sso, auto_admit, restrict_sharing)
+workspace_domain(team_id, domain, verification_token, verified_at)
+space: a document row has owner_account_id XOR team_id
+....
+
+[source,protobuf]
+----
+// proto/wiretuner/account/v1/team.proto (sketch)
+service TeamService {
+  rpc CreateTeam(CreateTeamRequest) returns (CreateTeamResponse);
+  rpc ListTeams(ListTeamsRequest) returns (ListTeamsResponse);      // the caller's memberships
+  rpc GetTeam(GetTeamRequest) returns (GetTeamResponse);
+  rpc UpdateTeam(UpdateTeamRequest) returns (UpdateTeamResponse);
+  rpc InviteMember(InviteMemberRequest) returns (InviteMemberResponse);
+  rpc AcceptInvite(AcceptInviteRequest) returns (AcceptInviteResponse);
+  rpc SetMemberRole(SetMemberRoleRequest) returns (SetMemberRoleResponse);
+  rpc RemoveMember(RemoveMemberRequest) returns (RemoveMemberResponse);
+  rpc LeaveTeam(LeaveTeamRequest) returns (LeaveTeamResponse);
+  rpc AddWorkspaceDomain(AddWorkspaceDomainRequest) returns (AddWorkspaceDomainResponse);
+  rpc VerifyWorkspaceDomain(VerifyWorkspaceDomainRequest) returns (VerifyWorkspaceDomainResponse);
+  rpc SetWorkspaceSettings(SetWorkspaceSettingsRequest) returns (SetWorkspaceSettingsResponse);
+}
+
+enum TeamRole { TEAM_ROLE_UNSPECIFIED = 0; TEAM_ROLE_OWNER = 1; TEAM_ROLE_ADMIN = 2;
+                TEAM_ROLE_MEMBER = 3; TEAM_ROLE_GUEST = 4; }
+----
+
+== Document roles
+
+Per document, independent of team role: `owner`, `editor`, `commenter` (may write only under the
+`comments (0:12)` collection: start threads, reply, mention, react, edit and delete own comments,
+resolve own threads -- xref:comments.adoc[Comments]), `viewer`.  A change from a `commenter`
+session is accepted only if every op targets a node under `0:12` and obeys the per-comment
+ownership rules on the Comments page; a `viewer` session may not write under `0:12` at all.  Effective role = max(explicit membership, team default for members, share
+link role if the link was used).  The server evaluates it on every RPC and at every session
+open; a change from a session whose role dropped below `editor` is rejected with
+`ROLE_INSUFFICIENT` (xref:api-conventions.adoc[API conventions]).
+
+== Replica binding
+
+A replica id is bound to `(account, device)` on first use.  Changes carrying that replica id
+from any other principal are rejected, so a leaked local store cannot impersonate its owner's
+history.  Devices can be revoked from the account page; a revoked device's token refresh
+fails and its outbox is offered for export as a package.
+
+== Tokens and transport
+
+* Access tokens: 15 minutes; refresh tokens: 30 days rotating, stored in the Keychain.  The
+  access token carries `wt_auth_method`; a workspace's require-SSO rule is checked against it
+  on every call, not only at sign-in.
+* TLS everywhere; the compose stack terminates TLS at the API for parity with production.
+* Server-side rate limits per account and per document (SRV-014), `RESOURCE_EXHAUSTED` with
+  `RetryInfo`.
+
+== Data protection
+
+* Documents are private by default; share links are unguessable (128-bit) and can expire.
+* Blobs are content-addressed but only served to principals with a role on a document that
+  references them.
+* Exports and packages are produced on the client; the server never renders artwork.
+* Account deletion: personal documents trashed, team memberships removed, personal data purged
+  after 30 days; change-log attribution keeps an opaque author id.
+
+== Build tasks
+
+[[SEC-001]]
+=== SEC-001 Teams schema and service
+[horizontal]
+Track:: server
+Depends on:: SRV-002, SRV-003, PROTO-009
+Size:: L
+Delivers:: The team, member, invite, workspace and domain tables; `TeamService`; effective-role evaluation used by every document RPC; invitation mail through Qute.
+Done when:: Tests: a person in three teams sees the right documents in each; a removed member's next change is rejected; a guest cannot list the team.
+
+[[SEC-002]]
+=== SEC-002 Workspace binding
+[horizontal]
+Track:: server
+Depends on:: SEC-001
+Size:: M
+Delivers:: DNS TXT domain verification job, auto-admit on sign-in for verified domains, require-SSO enforcement via a Keycloak IdP alias per workspace, restrict-sharing enforcement in `ShareService`.
+Done when:: Tests for each workspace switch; an SSO-required team rejects a password-only token.
+
+[[SEC-003]]
+=== SEC-003 Account and team UI
+[horizontal]
+Track:: client-ui
+Depends on:: APP-008, APP-009, SEC-001
+Size:: M
+Delivers:: Space switcher (Personal + teams) in the library window, team settings sheet (members, roles, invites, workspace), accept-invite flow from a link, device list with the sign-in method beside each device and revoke, the linked-identities list with add and remove.
+Done when:: UI tests for switching spaces offline (cached list) and online; the device list shows `Passkey`, `Apple`, `Password` or the workspace name per device.
+
+[[SEC-004]]
+=== SEC-004 Realm: passkeys, Sign in with Apple, linking
+[horizontal]
+Track:: server
+Depends on:: SRV-001, SRV-002, SRV-003
+Size:: M
+Delivers:: The committed Keycloak realm export with the passwordless WebAuthn flow first, the Apple OIDC identity provider (or the community Apple extension -- decide and record), email+password with verification, the `wt_auth_method` protocol mapper, the first-broker-login flow implementing the linking rules (verified email links; relay addresses link but are flagged `is_relay`; unverified never links), the `account_identity` table kept in step by an event listener or by the server on first sight of a new identity, the *Apple secret* rotation job, and the compose mock for Apple's endpoints.
+Done when::
+* Integration tests: a passkey sign-in and an Apple sign-in with the same verified email land in one account; an Apple relay address creates its own account and does not auto-admit to a workspace whose domain it would otherwise match; an unverified password account with a matching email is not linked.
+* The rotation job replaces the Apple client secret in a test realm and a sign-in succeeds afterwards.
+* A device row records the method on first sight; require-SSO rejects a `passkey` token from a member of an SSO-required workspace.

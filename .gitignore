@@ -1,0 +1,29 @@
+# Build output
+docs/target/
+target/
+build/
+.build/
+DerivedData/
+proto/gen/
+node_modules/
+
+# Editor and OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*~
+xcuserdata/
+*.xcuserstate
+
+# Secrets and local config
+.env
+*.local
+*.pem
+*.p8
+*.p12
+*credentials*.json
+
+# Reference material: the FreeHand MX manual is copyrighted and is not part of the work.
+# Keep it locally at docs/inspo/ (the book cites it); do not commit it.
+docs/inspo/*.pdf

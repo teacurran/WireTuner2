@@ -1,0 +1,7 @@
+= Kerning and metrics
+include::_attributes.adoc[]
+:page-slug: kerning-metrics
+:page-group: Typeface documents
+:page-fh: None (addition); reference: FontForge, "Metrics View", "Metrics menu", kerning classes
+
+include::_includes/typeface/kerning-metrics.adoc[]

@@ -1,0 +1,437 @@
+A typeface document becomes a font with menu:File[Generate Fonts…].  {product} checks the font,
+flattens every glyph's artwork into clean outlines, compiles the metrics, kerning and features,
+and writes OTF, TTF or WOFF2 files -- or a UFO package for other font editors.  The same sheet
+installs the font on your Mac for testing.  In the other direction, an existing OTF, TTF or UFO
+can be opened as a new typeface document to start from.
+
+// TODO screenshot: the Generate Fonts sheet with the validation list showing two warnings
+
+== Generating fonts
+
+To generate a font:
+
+. Choose menu:File[Generate Fonts…] (kbd:[Cmd+Shift+E]).
+. {product} validates the font (below).  Errors must be fixed before generating; warnings are
+  listed and can be ignored.
+. Choose one or more *Formats*:
+* *OTF* -- OpenType with PostScript (CFF) outlines.  Cubic curves, exactly as you drew them.  The
+  usual choice for desktop fonts.
+* *TTF* -- OpenType with TrueType outlines.  Your curves are converted to quadratic segments, which
+  adds points but is what some platforms and older applications prefer.
+* *WOFF2* -- the compressed web format, wrapping either the OTF or the TTF (choose which).
+. Set the options:
+* *File name* -- the PostScript name by default (`Marlowe-Regular.otf`).
+* *Include glyphs* -- *All exported glyphs* (the default) or *Selected glyphs only* (for a quick
+  test font).
+* *Keep overlaps* -- off by default; on writes the artwork's contours without merging, which some
+  workflows want for further processing (the font renders with overlaps filled, which is usually
+  fine on modern systems).
+* *Autohint* -- not available; the generated font is unhinted, which renders well on every
+  current platform.
+* *Add `.notdef`, `space`, `NULL` and `CR`* -- the glyphs every font should have, generated if
+  missing (`.notdef` as a rectangle, the others empty).  On by default.
+* *Install for testing* -- after generating, register the font with your Mac (below).
+. Click btn:[Generate] and choose a folder.  One file per format is written.
+
+Generation runs in the background with progress in the sheet; a large font takes a few seconds.
+
+=== Validation
+
+The validation list at the top of the sheet is the font-wide result of the checks in
+xref:glyph-editing.adoc[Editing glyphs], plus font-level ones:
+
+[cols="1,1,3"]
+|===
+|Check |Level |Meaning
+
+|Glyph name or character collisions; invalid names
+|Error
+|Two glyphs named or encoded alike (xref:glyph-grid.adoc[The glyph grid]).  Click to select them
+in the grid.
+
+|Dangling or looping components
+|Error
+|Fix in the glyph.
+
+|Feature file does not compile
+|Error
+|Click to open the Features editor at the line.
+
+|Ascender not above descender, UPM out of range, empty family or style name, invalid PostScript
+name
+|Error
+|Fix in Font Info.
+
+|Open contours, mixed components and paths, points off the grid, missing extrema, wrong direction
+|Warning
+|Corrected automatically during generation; listed so you know.
+
+|Exported glyph with no outline (other than space-like glyphs)
+|Warning
+|Probably unfinished.
+
+|Base anchor with no mark using it; mark with no base to attach to
+|Warning
+|Attachment feature will be incomplete.
+
+|Kerning present but *Generate kern* turned off (likewise mark, liga)
+|Warning
+|The font will not contain it.
+
+|More than 65,535 glyphs; a glyph with more than 1,500 points after flattening
+|Error / Warning
+|Format limits.
+
+|Missing `.notdef` or `space`
+|Warning
+|Added automatically if the option is on.
+|===
+
+Double-clicking any row goes to the glyph, the Font Info pane or the feature line concerned.
+btn:[Fix All Warnings] applies Correct Directions, Remove Overlaps, Add Extrema and Round to
+Units to the artwork of every warned glyph -- a permanent edit, undoable in one step -- for those
+who prefer the document itself to be clean.
+
+=== What happens to your artwork
+
+Generation never changes the document.  For each exported glyph it builds an outline from the
+artwork:
+
+. Components are replaced by their source glyph's outline, positioned by the component's
+  transform; nested components are followed all the way down.
+. Every path on a *printing* layer is taken; non-printing layers, hidden objects and open paths
+  without a stroke are skipped.  Text has already been converted to paths on the way in.
+. Strokes are expanded to shapes (menu:Modify[Alter Path > Expand Stroke] on each), joins and
+  caps included.  Fills' colors, gradients, effects and transparency are discarded -- a glyph is a
+  shape.
+. All shapes are merged with a union (menu:Modify[Combine > Union]), unless *Keep overlaps* is on.
+. Contour directions are set (outer contours one way, counters the other), points are added at
+  extremes, and coordinates are rounded to whole units.  The glyph's y axis is flipped into the
+  font's convention.
+. For TTF, cubic curves are converted to quadratic ones within half a unit of the original.
+
+Then the font tables are compiled: names, metrics and OS/2 from Font Info; advance widths and
+bearings from the glyphs; the character map from codepoints; kerning, mark attachment, ligatures
+and your feature file into the layout tables; a `post` table with the glyph names.  Windows
+ascent and descent are measured from the outlines if *Computed*.
+
+=== Variable fonts
+
+Not in this version.  A variable font needs several *masters* -- complete drawings of every glyph
+at, say, Light and Black -- with point-for-point compatible outlines, plus an axis design.  A
+typeface document holds one drawing per glyph.  Interpolation between documents is planned as a
+later addition; for now, generate one static font per style.
+
+== Installing for testing
+
+*Install for testing* in the Generate sheet (or menu:File[Install for Testing], kbd:[Cmd+Option+I])
+generates the font and registers it with macOS for your user account, so it appears in every
+application's font menu right away.  The font is kept in {product}'s own folder, not in your
+Fonts folder, and is replaced each time you install again; the family name gets a *Test* suffix
+by default (*Marlowe Test*) so it never shadows an installed release of the same family -- turn
+off *Add "Test" to the family name* to install under the real name.  menu:File[Remove Test
+Fonts] unregisters every test font this document has installed.
+
+Applications that are already running may need the font menu reopened, and some cache fonts until
+relaunched; the sheet says so the first time.  For a permanent installation, open the generated
+file in Font Book.
+
+== UFO packages
+
+UFO (Unified Font Object) is the open interchange format font editors share: a folder with one
+file per glyph, plus the font's info, kerning, groups and feature file.
+
+To export a UFO:
+
+. Choose menu:File[Export UFO…].
+. Choose whether glyph artwork is written *flattened* (as the generated outlines: components kept
+  as components, everything else merged) or *as drawn* (each path as a contour, strokes as
+  contours with a note, overlaps intact -- the closest a UFO can get to your artwork).
+. Click btn:[Export] and choose a location.  A `.ufo` package is written (UFO version 3).
+
+The UFO carries: every exported glyph's outline, components, anchors, width, codepoints and note;
+the font names, metrics and OS/2 values; kerning pairs and classes (as UFO groups `public.kern1.*`
+and `public.kern2.*`); the feature file text; the glyph order; and the mark colors.
+
+To import a UFO: menu:File[Open…] and choose the package, or menu:File[Import UFO into
+Typeface…] to add its glyphs to the current document.  Opening a UFO creates a new typeface
+document.  Everything above is read back; unknown data in the package's `lib` is kept and written
+back on export, so a round trip through {product} loses nothing another editor stored.
+
+== Opening an existing font
+
+menu:File[Open…] accepts OTF and TTF files and creates a typeface document from them:
+
+* Outlines become paths on the glyph canvases (TrueType quadratics are converted to cubics
+  exactly).  Composite TrueType glyphs become components.
+* Names, metrics and OS/2 values fill Font Info; codepoints and glyph names come from the font's
+  tables.
+* Kerning is read from the font's `kern` feature: class-based pairs become kerning classes and
+  cells; single pairs become pair kerns.  A `kern` table in the old format is read too.
+* Mark attachment is read from the `mark` and `mkmk` features into anchors, named by their class
+  order (`top`, `bottom`, …, or `anchor1`, `anchor2` when the font gives no clue).
+* Ligature substitutions in `liga` become Ligature-kind glyphs where the names allow; every other
+  layout feature is written into the feature file as text if it uses a supported rule type,
+  otherwise listed in the import report and dropped.
+* Hinting and instructions are not read.
+
+An import report lists what was dropped.  Fonts whose license does not permit modification should
+of course not be opened this way; {product} shows the embedding permission from the font in the
+report and refuses fonts marked *Restricted*.
+
+== Working with others
+
+Generating, installing and exporting act on the document as you see it at that moment, on your
+Mac; nothing about them is shared, and the files are written only where you choose.  A generated
+font is a snapshot: if collaborators are still drawing, generate again later.  The sheet shows the
+document's sync state and the number of collaborators active in the last minute, as a reminder.
+
+Importing a font or a UFO into an existing document adds glyphs like any other add -- they arrive
+for everyone -- and glyphs that collide by name or character with existing ones are handled as on
+xref:glyph-grid.adoc[The glyph grid].  Opening a font as a new document creates that document in
+your library, private until you share it.
+
+ifdef::spec[]
+== Specification
+
+=== FontForge parity
+
+[cols="2,3,1"]
+|===
+|FontForge capability |{product} behavior |Verdict
+
+|Generate: OpenType (CFF), TrueType, Type 1, Type 3, Type 42, CID, SVG fonts, bitmap fonts
+|OTF, TTF, WOFF2.
+|Adapted -- the formats in use today; Type 1 and bitmap formats dropped (Decisions).
+
+|WOFF/WOFF2 via File > Generate
+|WOFF2 only.
+|Adapted -- WOFF1 is superseded.
+
+|Options: round to int, hints, flex, AFM/PFM/TFM, Apple vs. OpenType layout, old-style kern table,
+dummy DSIG, PfEd table
+|Keep overlaps, include set, add standard glyphs, install for testing.  Rounding always; no
+hinting; OpenType layout only; no legacy kern table written.
+|Adapted -- hinting and legacy tables dropped.
+
+|Validate before saving; Validate window with fixes
+|Validation list in the sheet, errors block, warnings listed, Fix All Warnings.
+|Faithful
+
+|Unlink references and remove overlap on save (per-glyph flag)
+|Always: components are decomposed when mixed with paths; overlaps removed unless Keep overlaps.
+|Adapted
+
+|UFO export and import (via File > Save As / Open)
+|Export UFO… with flattened or as-drawn outlines; Open and Import UFO.
+|Faithful
+
+|Open OTF/TTF: outlines, metrics, kerning, anchors, lookups, hints
+|Same except hints; unsupported lookups reported and dropped.
+|Adapted -- hinting not modelled.
+
+|Multiple master / variable font generation
+|Not present.
+|Dropped -- one master per document; interpolation is a later addition.
+
+|Install the font on the system
+|Install for Testing with a Test suffix, Remove Test Fonts.
+|Adapted -- FontForge has no install; this is a {product} convenience.
+|===
+
+=== Data model
+
+No document fields.  Generation reads the model; the only persisted state is local: the list of
+test fonts installed by this document, in the local store's `view` table (`local_only`), so *Remove
+Test Fonts* can find them.
+
+=== Merge semantics
+
+Nothing on this page writes the document except *Fix All Warnings* (the Glyph menu commands, one
+change) and imports (glyph adds, xref:glyph-grid.adoc[The glyph grid]).
+
+=== Offline behavior
+
+Everything on this page works offline: the compiler is bundled in the app; installing is local.
+Opening a font file offline creates the document locally, as any new document.
+
+=== Server
+
+Nothing.  The server never sees a generated font; exports are produced on the client
+(xref:security.adoc[Accounts, teams and security]).
+
+=== Client
+
+Font compiler decision::
+Three ways to produce OTF/TTF were weighed:
++
+[cols="1,2,2"]
+|===
+|Option |For |Against
+
+|Write our own compiler in Swift (`CFF`, `glyf`/`loca`, `cmap`, `name`, `OS/2`, `hhea`, `hmtx`,
+`maxp`, `post`, `head`, plus a feature-file compiler into `GSUB`/`GPOS`/`GDEF`)
+|No foreign toolchain; full control; Swift end to end.
+|The feature-file compiler alone is a multi-month project with a long tail of spec corner cases;
+CFF subroutinization and charstring encoding are subtle; every bug is ours to find with no
+existing corpus of users.
+
+|Bundle *fontc* (Rust; Google Fonts' compiler with `fea-rs`, `write-fonts`, `cu2qu`-equivalent
+conversion) as a static library behind a C interface, built into an XCFramework in CI
+|Production-quality compiler maintained by the people who compile Google Fonts; takes UFO input,
+which {product} writes anyway; compiles a font in well under a second; MIT/Apache licensed.
+|A Rust toolchain in the build; ~10 MB of binary; a C FFI boundary to keep memory-safe; fontc's
+error messages must be mapped back to feature-file lines.
+
+|Bundle *fontmake* (Python)
+|The reference pipeline.
+|Embedding a Python runtime in a signed, sandboxed Mac app is fragile and heavy; rejected.
+|===
++
+*Decision: bundle fontc.*  {product} exports a UFO into a temporary directory (FONT-023), invokes
+fontc through the FFI to produce OTF or TTF bytes, and post-processes: WOFF2 wrapping, the `Test`
+family suffix for installs, and the *Keep overlaps* variant (which passes the as-drawn UFO with
+fontc's overlap removal disabled).  Recorded in xref:decisions.adoc[Decisions] with the
+tradeoff.  If fontc proves unmaintainable, the seam is the UFO: any compiler that reads UFO can
+replace it.
+
+WOFF2:: Written by `WTInterchange.WOFF2Writer` in Swift: table directory with the null glyf/loca
+transform (flag 3) so no table transformation is needed, Brotli through Apple's `Compression`
+framework (available from macOS 15).  A `woff2_compress`-produced file is about 15% smaller because
+of the glyf transform; acceptable for v1 and noted as a follow-up.
+
+Pipeline::
+. `WTModel` snapshot of the typeface (an immutable copy of the relevant state, so drawing can
+  continue).
+. Validation (FONT-014's checks plus the font-level ones) → list; errors stop here.
+. Flatten every exported glyph (FONT-015) with the target's direction convention (CFF:
+  counter-clockwise outer in y-up; TrueType: clockwise outer) and, for TTF, quadratic conversion.
+. Write the UFO (FONT-023) to a temporary directory with `.notdef`/`space`/`NULL`/`CR` synthesized
+  if requested and the generated features appended to `features.fea`.
+. fontc compile (FONT-018) → bytes; errors mapped to the validation list.
+. WOFF2 wrap if requested (FONT-027); write files; optionally install.
+
+Install for testing:: `CTFontManagerRegisterFontURLs(_:scope: .user, enabled: true)` on a copy
+under `~/Library/Application Support/WireTuner/TestFonts/<document id>/`; the `Test` suffix is
+applied by rewriting the `name` table entries (family, full, PostScript, unique id) before
+registration.  Re-installing unregisters the previous URL first.  The registered URLs are listed
+in the local store's `view` table.
+
+OTF/TTF import:: `WTInterchange.OpenTypeReader`, a table parser in Swift for `head`, `hhea`,
+`hmtx`, `maxp`, `OS/2`, `name`, `cmap` (formats 4, 12), `post` (2.0 names), `glyf`/`loca` (simple
+and composite), `CFF ` (charstrings Type 2, subroutines; CID-keyed CFF reported and refused),
+`GDEF` classes, `GPOS` pair positioning formats 1 and 2 under `kern`, mark-to-base and
+mark-to-mark under `mark`/`mkmk`, `GSUB` ligature substitution under `liga`, and a best-effort
+decompiler of the remaining single/multiple/alternate/ligature/chaining subtables into feature
+text.  Core Text is used only for a sanity check (`CTFontCreateWithGraphicsFont` renders `A`
+identically to our parsed outline).  Import writes glyphs in one change group labelled "Import
+<file>".
+
+UFO:: `WTInterchange.UFOWriter` / `UFOReader` for UFO 3: `metainfo.plist`, `fontinfo.plist`
+(names, metrics, OS/2 keys, italic angle, underline), `glyphs/contents.plist` with glif files
+(contours with `curve`/`line`/`offcurve` points, `component` elements with `xScale` … `yOffset`,
+`anchor` elements, `advance width`, `unicode` elements, `note`, `lib` with `public.markColor`),
+`kerning.plist` and `groups.plist` (`public.kern1.<name>`, `public.kern2.<name>`), `features.fea`,
+`lib.plist` (`public.glyphOrder`, and a `com.wiretuner.*` key holding the as-drawn artwork as a
+{product} pasteboard blob when *as drawn* is chosen, so a {product}-to-{product} round trip keeps
+strokes and effects).  Unknown `lib` keys are preserved in the document as an opaque blob on
+`settings` (`bytes ufo_lib_passthrough`, ATOMIC, `local_only = false`) and written back.
+
+Undo:: Imports into an existing document are one undo step.  Fix All Warnings is one step.
+Generation, installation and export are not document changes.
+
+=== Build tasks
+
+[[FONT-018]]
+==== FONT-018 Font compiler integration
+[horizontal]
+Track:: import-export
+Depends on:: APP-001
+Size:: L
+Delivers:: A CI job building fontc as a universal static library with a C interface (`wt_fontc_compile(ufo_path, options, out_bytes, out_diagnostics)`), packaged as an XCFramework and pinned by version and checksum; a Swift wrapper `WTInterchange.FontCompiler` with async compile, diagnostics parsing (file, line, column, message), cancellation, and a quick-compile mode for previews (skips WOFF2, uses an in-memory UFO); the decision record for xref:decisions.adoc[Decisions].
+Done when::
+* `swift build` on a clean macOS 15 runner produces the app with the XCFramework; notarization passes.
+* Compiling the reference UFO corpus (FONT-028) yields fonts identical to fontc's CLI output.
+* A feature-file error maps to the right line of the user's text; a compile of a 500-glyph font completes under 1 s on M1.
+
+[[FONT-023]]
+==== FONT-023 UFO export
+[horizontal]
+Track:: import-export
+Depends on:: FONT-015, FONT-019, FONT-016
+Size:: M
+Delivers:: `UFOWriter` for UFO 3 with flattened and as-drawn modes, kerning groups, features (user plus generated), glyph order, mark colors, lib passthrough, standard glyph synthesis, and the Export UFO sheet.
+Done when::
+* Exported UFOs validate with the `ufonormalizer`/`fontTools` checks in the test suite and compile with fontc.
+* Round trip export → import → export is byte-identical after normalization for the reference corpus.
+* An as-drawn export of a stroked path keeps the stroke on a {product} re-import.
+
+[[FONT-024]]
+==== FONT-024 UFO import
+[horizontal]
+Track:: import-export
+Depends on:: FONT-008, FONT-016, FONT-013
+Size:: M
+Delivers:: `UFOReader` for UFO 2 and 3 creating a typeface document (Open) or adding glyphs (Import UFO into Typeface…): glyphs, contours as paths, components, anchors with the underscore convention, unicodes, advance widths, fontinfo into Font Info, kerning and groups into classes and pairs, features text, glyph order, mark colors, lib passthrough; an import report.
+Done when::
+* The reference corpus imports with every glyph outline within 0.01 units of the source, every kerning value equal, every anchor present.
+* Collisions with existing glyphs on Import into Typeface follow the grid's rules and are listed in the report.
+* Merge test: an import on one replica concurrent with a rename on another converges (name collision rule).
+
+[[FONT-025]]
+==== FONT-025 OTF/TTF import
+[horizontal]
+Track:: import-export
+Depends on:: FONT-024
+Size:: L
+Delivers:: `OpenTypeReader` for the tables listed under Client; quadratic→cubic conversion; composite glyphs → components; kern pair/class lookups → kerning; mark/mkmk → anchors; liga → ligature glyphs; decompilation of other supported subtables into feature text; embedding-permission check; the import report; menu:File[Open…] for `.otf`/`.ttf`.
+Done when::
+* The reference fonts open with outlines matching Core Text's `CTFontCreatePathForGlyph` within 0.01 units for every glyph, advances equal, cmap equal.
+* Kerning read from the fonts matches Core Text kerning for 1,000 random pairs.
+* A font with fsType Restricted is refused with the report; a CID-keyed CFF is refused with a clear message.
+
+[[FONT-026]]
+==== FONT-026 Generate Fonts sheet and validation
+[horizontal]
+Track:: client-ui
+Depends on:: FONT-018, FONT-023, FONT-014, FONT-005
+Size:: L
+Delivers:: The Generate Fonts sheet: validation list with navigation and Fix All Warnings, formats and options, background progress, file writing, Install for Testing with the Test suffix and Remove Test Fonts, the sync-state reminder; menu:File[Install for Testing]; the font-level validation checks.
+Done when::
+* UI tests: generate OTF and TTF from the Basic Latin fixture; an error row blocks Generate and navigates to the glyph; Fix All Warnings is one undo step.
+* Install for Testing makes "Marlowe Test" available to `NSFontManager` within 1 s; Remove Test Fonts removes it.
+* Generated OTF and TTF pass `fontbakery`'s universal profile checks selected in the test suite (no FAIL).
+
+[[FONT-027]]
+==== FONT-027 WOFF2 writer
+[horizontal]
+Track:: import-export
+Depends on:: FONT-018
+Size:: S
+Delivers:: `WOFF2Writer` with the null glyf transform and Brotli via `Compression`, plus the WOFF2 option in the Generate sheet.
+Done when::
+* Output decodes with `woff2_decompress` to a font byte-identical to the input after table re-ordering.
+* Safari and Chrome load the generated WOFF2 in the test harness page.
+
+[[FONT-028]]
+==== FONT-028 Round-trip test suite
+[horizontal]
+Track:: test
+Depends on:: FONT-023, FONT-024, FONT-025, FONT-026, FONT-027
+Size:: M
+Delivers:: A reference corpus of OFL-licensed fonts and UFOs (at least three families with kerning classes, marks and ligatures) committed with their licenses; tests for OTF→document→OTF, TTF→document→TTF, UFO→document→UFO comparing outlines (per-glyph tolerance), metrics, cmap, kerning, anchors and features; fontbakery and WOFF2 decode checks; CI job.
+Done when::
+* Runs in CI under 5 minutes; a failure names the glyph and the value that differs.
+* Any drop in a round trip is either asserted as an expected loss (hinting) or fails.
+
+[[FONT-029]]
+==== FONT-029 Typeface multi-client scenarios
+[horizontal]
+Track:: test
+Depends on:: TEST-001, FONT-008, FONT-016, FONT-007, FONT-019
+Size:: M
+Delivers:: Simulator scenarios: two glyphs claim one codepoint; rename collision; UPM scale vs. concurrent drawing on three glyphs; kern pair race and same-pair creation; class creation race with Merge classes; feature file edits in the same and different blocks; glyph removal vs. drawing; an offline day of glyph work on two clients with generate afterwards.
+Done when::
+* All scenarios converge to identical hashes and identical generated fonts on every client, and the expected review entries are produced.
+* Runs inside the TEST-001 CI budget.
+endif::spec[]

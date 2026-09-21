@@ -1,0 +1,7 @@
+= Text styles
+include::_attributes.adoc[]
+:page-slug: text-styles
+:page-group: Type
+:page-fh: Chapter 8, "Using text styles"
+
+include::_includes/type/text-styles.adoc[]

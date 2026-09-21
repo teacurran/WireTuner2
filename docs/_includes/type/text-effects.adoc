@@ -1,0 +1,370 @@
+Beyond fonts and colors, text can carry six built-in *effects* -- highlight, inline, shadow,
+strikethrough, underline and zoom -- each with its own options; it can hold *inline
+graphics*, objects pasted into the text that flow with it like characters; other text can
+*wrap* around any object; and a block can be set to run *vertically*.  Text on and inside
+paths is on xref:text-on-path.adoc[Text on a path].
+
+== Text effects
+
+To apply an effect with its default settings:
+
+. Select blocks with the Pointer tool or a range with the Text tool.
+. In the Character section of the Object panel, choose the effect from the *Effect* pop-up at
+  the bottom; or choose menu:Text[Effect] and the effect.  *None* removes it.
+
+One effect at a time applies to a character.  menu:Text[Type Style > Underline] and
+*Strikethrough* are shortcuts for those two effects with defaults.
+
+To set an effect's options:
+
+. Select text that has the effect.
+. Choose *Edit…* from the *Effect* pop-up, or menu:Text[Effect] and the effect's name.  A
+  sheet opens for that effect.
+. Change the options and click btn:[OK].  The options apply to the selected characters only;
+  other text with the same effect keeps its own options.
+
+.Highlight, Underline and Strikethrough
+[cols="1,3"]
+|===
+|Option |Meaning
+
+|*Position*
+|Distance of the line from the baseline in points; positive above, negative below.
+Highlight's position is the bottom of its band.
+
+|*Dash*
+|A dash pattern for the line, from the document's dash list.
+
+|*Stroke width*
+|Thickness in points.  Highlight's band height.
+
+|*Color*
+|A swatch or color for the line.
+
+|*Overprint*
+|Print the line over the text rather than knocking out, to hide slight misregistration
+(xref:printing.adoc[Printing]).
+|===
+
+.Inline
+[cols="1,3"]
+|===
+|Option |Meaning
+
+|*Count* |How many outlines ring each glyph.
+|*Stroke width* |Thickness of each outline.
+|*Stroke color* |Color of the outlines.
+|*Background width* |Width of the band between the glyph and the outline.
+|*Background color* |Color of that band.
+|===
+
+.Shadow
+[cols="1,3"]
+|===
+|Option |Meaning
+
+|*Offset X*, *Offset Y* |Where the shadow falls, in points.
+|*Color* |The shadow's swatch or color.
+|*Tint* |Slider and field: the shadow's tint percentage of that color.
+|===
+
+.Zoom
+[cols="1,3"]
+|===
+|Option |Meaning
+
+|*Zoom to* |Size of the foreground copy as a percentage of the text; 50% halves it.
+|*Offset X*, *Offset Y* |Where the foreground copy sits relative to the original.
+|*From* |Color of the background (original) copy.
+|*To* |Color of the foreground copy; the steps between blend from one to the other.
+|===
+
+Effects are drawn on screen; the *Display text effects* preference (menu:{product}[Settings… >
+Redraw]) turns them off while you work if redraw is slow, and Keyline view never shows them.
+Effects are kept when text is converted to paths where they can be expressed as paths
+(underline, strikethrough, highlight, inline, shadow) and dropped for zoom; some export
+formats drop them (xref:export-formats.adoc[Export formats]).
+
+To find text carrying an effect, choose menu:Edit[Find and Replace > Graphics…], the *Select*
+tab, *Text effect* from *Attribute*, the effect, and a scope, then click btn:[Find]
+(xref:find-replace.adoc[Find and replace]).
+
+== Inline graphics
+
+An inline graphic is an object that lives inside the text as if it were a character: it flows
+with the words, wraps with them, and takes the text's transformations.  Its size is its own
+height; the text does not scale it.
+
+To place an inline graphic:
+
+. Select the object with the Pointer tool.  Group text blocks or text on paths first so they
+  paste as one graphic and not as characters.  Transform it first if the transformation
+  should stick.
+. Choose menu:Edit[Copy] or menu:Edit[Cut].
+. Click in a text block with the Text tool where the graphic should go.
+. Choose menu:Edit[Special > Paste Special…], pick *Inline graphic*, and click btn:[OK].
+  (Plain menu:Edit[Paste] pastes the object's *text* if it is a text block, or the object
+  inline if it is not.)
+
+The graphic sits on the baseline.  Select it with the Text tool like a character to adjust it:
+*leading* to make room for its height, *kerning* to pull the neighbours in or out,
+*baseline shift* to raise or lower it, and *size*, which scales it.  The *Effect* pop-up
+shows *Graphic* for a selected inline graphic; fonts, faces and other effects do not apply.
+
+To edit the graphic itself, double-click it; it opens for editing in place and the text
+around it dims.  To remove it, select it and press kbd:[Delete] or choose menu:Edit[Cut].
+
+In the Text Editor an inline graphic shows as a placeholder box.  In a styled paragraph it
+counts as an override; removing the override scales it to match the style's size.
+
+== Wrapping text around objects
+
+Any single object -- a path, an imported image, a composite path, another text block -- can
+push text away from itself.  Groups and blends cannot; draw a path around them and wrap
+around the path.
+
+To wrap text around an object:
+
+. Place the object over the text and choose menu:Modify[Arrange > Bring to Front]: the object
+  must be in front of the text it repels.
+. Select the object (for a pull quote, select the other text block, giving it an inset and a
+  stroke first so it has a visible edge).
+. Choose menu:Text[Flow Around Selection…] or click btn:[Flow Around Selection] in the Text
+  toolbar.
+. Click btn:[Text wrap] and type a *Standoff*: the gap between the object and the text, in the
+  document's units.  Negative lets text run under the object's edge.
+. Click btn:[OK].
+
+Every text block behind the object, on any layer, wraps around the object's outline plus the
+standoff.  To stop, select the object, open the sheet, and click btn:[Remove text wrap].
+
+== Vertical text
+
+A text block can run vertically: characters stack top to bottom and lines run right to left,
+as for Japanese and Chinese.  Select the block and choose *Vertical* from the *Direction*
+pop-up in the *Text Block* section.  Latin characters are rotated on their side; CJK characters
+stay upright; punctuation uses the vertical forms of the font.  Tabs, columns, rows and text on
+a path are horizontal-only and are ignored in a vertical block.
+
+NOTE: {fh} had no vertical text.  {product} adds it because the layout engine supports it and
+Unicode documents need it.
+
+== Working with others
+
+* An effect is formatting like bold: it stays on its characters as others type around them,
+  and characters typed inside an effected range take the effect.  Effect options are part of
+  the effect, so two people editing options on the same characters at once end with the later
+  set.
+* An inline graphic is one object inside the text; one person can edit the graphic while
+  another types around it, and neither disturbs the other.  If someone deletes the paragraph
+  holding the graphic, the graphic goes with it; undo or the review sheet brings both back.
+* Text wrap belongs to the object, so moving it re-wraps everyone's text; two people setting
+  different standoffs at once end with the later one.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,1"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Six text effects with the documented options
+|Same options, same sheets.
+|Faithful
+
+|Text > Effect submenu; Effect pop-up in Character options; Graphic pseudo-effect
+|Same.
+|Faithful
+
+|Display Text Effects preference; effects hidden in Keyline
+|Same.
+|Faithful
+
+|Find text effects in the Select panel
+|Same.
+|Faithful
+
+|Inline graphics via Paste Special, sized by height, adjusted by leading/kerning/baseline
+shift, shown as a dot in the Text Editor, override in styled paragraphs
+|Same; placeholder box rather than a dot; in-place editing added.
+|Faithful (extended)
+
+|Flow Around Selection with Standoff, Remove Text Wrap; object must be in front; no wrap
+around groups or blends
+|Same rules.  Wrap applies to every text block behind the object on any layer.
+|Faithful
+
+|Vertical text
+|Added as a block direction.
+|Adapted -- no {fh} feature; TXT-001 already lays out vertical text.
+
+|Effects lost for non-PostScript printing, some exports
+|Effects rasterize or convert to paths on export where the format lacks them (IO epic).
+|Adapted -- modern output paths keep them.
+|===
+
+=== Data model
+
+`TextMarkValue.effect`, `TextMarkValue.inline_graphic`, `TextBlockProps.direction` on
+xref:creating-text.adoc[Creating text]; `CommonProps.text_wrap` added to `common.proto` by
+TYPE-001.
+
+[source,protobuf]
+----
+// One effect with its options.  Written whole inside a TextMark (a mark value is one
+// register), so the kind and its options never mix between users.
+message TextEffect {
+  oneof effect {
+    LineEffect highlight = 1;
+    LineEffect underline = 2;
+    LineEffect strikethrough = 3;
+    InlineEffect inline = 4;
+    ShadowEffect shadow = 5;
+    ZoomEffect zoom = 6;
+  }
+}
+message LineEffect { double position = 1; NodeRef dash = 2; double width = 3; ColorRef color = 4; bool overprint = 5; }
+message InlineEffect { uint32 count = 1; double stroke_width = 2; ColorRef stroke_color = 3; double background_width = 4; ColorRef background_color = 5; }
+message ShadowEffect { double offset_x = 1; double offset_y = 2; ColorRef color = 3; double tint = 4; }
+message ZoomEffect { double zoom_to = 1; double offset_x = 2; double offset_y = 3; ColorRef from = 4; ColorRef to = 5; }
+
+// On CommonProps (any object): text behind this object flows around it.
+message TextWrap {
+  bool enabled = 1;
+  double standoff = 2;              // points; negative overlaps
+}
+----
+
+An inline graphic is a U+FFFC character with an `inline_graphic` mark (span exactly that
+character, non-expanding) referring to a child node of the text node.  The child is an
+ordinary object node (path, group, image) parented under the text node; it is not rendered
+by the layer pass but by the text layout at the glyph position.
+
+=== Merge semantics
+
+Effects:: A mark per the general rules; the whole `TextEffect` is one register, so option
+edits from two users on the same characters resolve to one by OpId (and are reviewed).
+
+Inline graphics:: `Paste Special` is one change: `CreateNode` (child under the text node),
+`TextInsert` of U+FFFC and `TextMark inline_graphic`.  Deleting the character tombstones it;
+the child node is *also* marked deleted by the command.  Concurrent edits to the child (a
+collaborator editing the graphic in place) land on a deleted node and appear as *edit vs
+delete* with *Restore*, which restores the node but not the character; the client's Restore
+for an inline graphic re-inserts U+FFFC at the original anchor as well.  Two U+FFFC characters
+referring to one node (possible after a concurrent paste-and-move race) draw the node at the
+first only.  Cut and paste of an inline graphic elsewhere moves the child node (`MoveNode`) and
+inserts a new U+FFFC; a concurrent edit to the graphic follows it.
+
+Text wrap:: `enabled` and `standoff` are two registers on the object; LWW each.  Wrap is
+computed at layout time from geometry, so nothing about wrapping is written into text nodes;
+a moved object re-wraps every replica's layout identically.
+
+Direction:: One register; concurrent typing is unaffected.
+
+Read-time normalizations::
+* An `inline_graphic` mark whose node is missing renders an empty box the height of the type
+  size.
+* A U+FFFC with no mark renders as nothing (zero width).
+* `TextWrap` on a group or blend is ignored (the UI never writes it).
+
+=== Offline behavior
+
+Nothing beyond outbox coalescing.
+
+=== Server
+
+Nothing beyond storing and relaying changes.
+
+=== Client
+
+Rendering:: `WTText` draws effects in the glyph pass: line effects as stroked paths with the
+dash from the document's dash list; inline as repeated outset strokes; shadow as a second
+fill pass; zoom as N intermediate fills between `from` and `to` (N from the offset length, as
+{fh}: one step per point).  Vertical layout uses Core Text's vertical glyph forms
+(`kCTVerticalFormsAttributeName`) with a rotated frame.  Wrap: `WTText` receives exclusion
+paths from `WTRender` -- every object in front of the block with `text_wrap.enabled`, offset
+by `standoff` via GEO-003 -- and lays out around them.
+
+Inline graphic editing:: Double-click enters an in-place edit mode reusing the group-editing
+mechanism from the OBJ epic, with the child's transform composed with the glyph origin.
+
+Undo:: One step per effect application or sheet btn:[OK], per paste, per wrap sheet.
+
+=== Build tasks
+
+[[TYPE-036]]
+==== TYPE-036 Text effect rendering
+[horizontal]
+Track:: client-render
+Depends on:: TXT-001, TYPE-001, TYPE-021
+Size:: M
+Delivers:: Rendering of the six effects with every option, the *Display text effects*
+preference hook, Keyline suppression.
+Done when::
+* Reference renders for each effect and its options match the corpus.
+* Rendering a 10,000-character effected text stays within the TXT-001 budget.
+* Conformance vector for `TextEffect` as a whole mark value (no per-option merge).
+
+[[TYPE-037]]
+==== TYPE-037 Text effect editing
+[horizontal]
+Track:: client-ui
+Depends on:: TYPE-036, TYPE-020
+Size:: S
+Delivers:: The Effect pop-up and menu:Text[Effect], the four option sheets, Type Style
+shortcuts, the *Text effect* attribute in the Find & Replace panel's Select tab.
+Done when::
+* Each sheet writes one `effect` mark with the options as a whole.
+* Merge test: two replicas edit shadow offsets on the same word; one whole `ShadowEffect`
+  wins.
+* Conformance vector for `TextEffect` as a mark value.
+
+[[TYPE-038]]
+==== TYPE-038 Inline graphics
+[horizontal]
+Track:: client-model
+Depends on:: TYPE-002, TYPE-021
+Size:: M
+Delivers:: Paste Special → Inline graphic, U+FFFC with mark and child node, layout at the glyph
+origin with size/leading/kerning/baseline shift, selection as a character, delete and cut with
+node deletion, Restore re-inserting the character, in-place editing, Text Editor placeholder,
+style override handling.
+Done when::
+* A pasted group flows with the text across a line break and a linked block.
+* Merge test: delete the paragraph vs. concurrent edit of the graphic; Restore brings back
+  both node and character.
+* Merge test: two replicas paste different graphics at the same anchor; both appear, not
+  interleaved with each other's characters.
+
+[[TYPE-039]]
+==== TYPE-039 Flow Around Selection
+[horizontal]
+Track:: client-render
+Depends on:: TXT-001, GEO-003, TYPE-001
+Size:: M
+Delivers:: `CommonProps.text_wrap` editing sheet, exclusion path collection from objects in
+front of a block with standoff offsetting, layout around exclusions, refusal for groups and
+blends, live re-wrap on move.
+Done when::
+* A pull-quote block with inset and stroke wraps body text around it at the standoff.
+* Moving the wrapped object re-lays out under 16 ms for a page of text.
+* Merge test: standoff from one replica and enable from another both apply.
+
+[[TYPE-040]]
+==== TYPE-040 Vertical text
+[horizontal]
+Track:: client-render
+Depends on:: TXT-001, TYPE-006, TYPE-021
+Size:: S
+Delivers:: `TextBlockProps.direction` layout: vertical glyph forms, right-to-left line stacking,
+rotated Latin, upright CJK, vertical punctuation forms; the *Direction* pop-up in the Text
+Block section; carets and selections in vertical blocks; tabs, columns, rows and path text
+ignored with a note in the inspector.
+Done when::
+* A vertical block with mixed Latin and CJK text renders upright CJK and rotated Latin and
+  matches the reference render.
+* Merge test: direction from one replica and typing from another converge; the caret survives.
+* Conformance vector for `WritingDirection`.
+endif::spec[]

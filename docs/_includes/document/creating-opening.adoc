@@ -1,0 +1,270 @@
+{product} documents live in your cloud library and are cached on every Mac you open them on.  A
+new document is created from a template, is yours the moment it exists, and is saved continuously:
+there is no Save command to remember, no unsaved changes to review on quit, and no file to lose.
+You can open as many documents as you like, in tabs or separate windows, and switch between them
+from the Window menu.
+
+// TODO screenshot: the Library window with folders, a recents list and offline badges
+
+== Creating a document
+
+To create a new document, do one of the following:
+
+* Choose menu:File[New] (kbd:[Cmd+N]).  The document is created from your default template
+  (xref:templates.adoc[Templates and starting points]) and opens in a new tab.
+* Choose menu:File[New from Template…] (kbd:[Cmd+Shift+N]) to pick a template from the gallery.
+* Click btn:[New] in the Library window's toolbar.
+
+A new document is named *Untitled* and lives at the top level of your library until you rename or
+move it; both can be done from the title bar's document menu or in the Library window.  The
+document is shared with nobody until you share it (xref:sharing.adoc[Sharing]).
+
+If you are offline, the document is created locally and uploaded when you reconnect; you can work
+in it in the meantime exactly as if you were online.
+
+== Opening a document
+
+To open a document:
+
+. Choose menu:File[Open…] (kbd:[Cmd+O]) to bring up the Library window, or choose
+  menu:Window[Library].
+. Browse your folders, *Shared with me*, or *Recents*, or type in the search field.
+. Double-click the document, or select it and click btn:[Open].
+
+The Library window is described in xref:workspace.adoc[The workspace]; the essentials:
+
+Thumbnails:: Every document shows a picture of its first page.  The picture is refreshed while
+you work -- every few minutes and when you close the document -- so the library reflects what
+the document looks like now, not when it was created.
+Search:: The search field finds documents by *name* and by *content*: the words in text blocks,
+object names and notes, swatch, style and symbol names, page names, and the keywords from
+Document Info (xref:file-info.adoc[Adding file information]).  Each result shows the document
+and, under its name, the matching text with the match highlighted, so "Spring" finds the
+catalog whose headline says *Spring Sale* as well as the document called "Spring flyer".  A
+document's contents become searchable a few minutes after you change them.  Search covers the
+space you are looking at (Personal or one team); switch spaces to search another.
+Folders:: Your own folders, plus each team you belong to.  Drag documents between folders.
+Shared with me:: Documents other people have shared with you, with their role (editor, commenter,
+viewer).
+Recents:: The documents you opened most recently, on any of your Macs.  The same list is in
+menu:File[Open Recent], ten deep.
+Offline available:: A badge on every document that has a copy on this Mac.  Only these can be
+opened without a network connection; the rest are listed but dimmed while offline.  Right-click a
+document and choose *Keep Available Offline* to download it now.
+
+Opening a document you already have open brings its window forward.  Opening a document someone
+else is editing simply joins them (xref:collaboration.adoc[Working together]).
+
+=== Opening other file types
+
+menu:File[Open…] opens {product} documents from the library.  To bring in {fh} files, Illustrator
+files, PDF, EPS and other formats, use menu:File[Import…] or drag the file onto the Library window,
+which creates a new document from it (xref:import-formats.adoc[Import formats]).  The original
+file is never modified.
+
+== Working in several documents
+
+Each document opens in a tab of the current window by default; drag a tab out to make a separate
+window, or choose menu:Window[Move Tab to New Window].  To switch documents, click a tab, press
+kbd:[Cmd+Shift+\]] and kbd:[Cmd+Shift+[], or choose the document's name at the bottom of the Window
+menu.  Panels follow the frontmost document.  There is no limit on the number of open documents.
+
+== Closing and quitting
+
+To close a document, choose menu:File[Close] (kbd:[Cmd+W]).  To quit, choose
+menu:{product}[Quit {product}] (kbd:[Cmd+Q]).  Nothing is asked about saving: every change is
+already in the document.  If some of your changes have not reached the server yet -- you are
+offline, or the upload is still running -- quitting keeps them on this Mac and sends them next time
+{product} runs, and the quit alert says so ("3 changes will sync when you are back online").
+
+== Document preferences
+
+menu:{product}[Settings… > Document] (kbd:[Cmd+,]) holds:
+
+Restore view when opening:: Open a document at the zoom, scroll position and page it had when you
+last closed it on this Mac.  On by default.  Off, documents open on page 1 at *Fit Page*.
+Remember window size and location:: Reopen a document in the window frame it last had.  On by
+default.
+New document template:: The template menu:File[New] uses: *Built-in* or any template in your
+library (xref:templates.adoc[Templates and starting points]).
+Search for missing links in:: A folder {product} searches for the files behind broken links when
+you open a document (xref:linking-embedding.adoc[Linking and embedding]).
+Defaults:: Restores this pane's settings.
+
+== Working with others
+
+A document you create is private until you share it.  Opening a shared document joins whoever is
+already in it: their cursors, selections and current pages are visible immediately, and your
+changes reach them as you make them.  Closing a document while others are in it changes nothing for
+them.
+
+While you are offline, the Library window still lists everything but only opens what is cached
+on your Mac; documents created offline sync up when you reconnect, and documents shared with you
+in the meantime appear then.  Offline, the search field matches document names only; searching
+inside documents needs a connection.  Thumbnails you have already seen stay; a document you
+worked on offline gets its new picture when you reconnect.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,1"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|File > New based on the default template
+|Same; template is a library document or the built-in default.
+|Faithful
+
+|File > Open, Open Recent (four most recent)
+|Library window; Open Recent lists ten, synced across the account's Macs.
+|Adapted -- documents are library entries, not files; recents come from the account.
+
+|Multiple open documents, switched via the Window menu
+|Same, plus tabs and next/previous tab shortcuts.
+|Faithful
+
+|Review unsaved documents on quit; Always Review Unsaved Documents upon Quit preference
+|No unsaved state exists.  Quit alert only mentions unsent changes.
+|Dropped -- continuous saving makes the review meaningless (recorded in decisions).
+
+|Restore View When Opening Document preference
+|Same name, per Mac.
+|Faithful
+
+|Remember Window Size and Location preference
+|Same name, per Mac.
+|Faithful
+
+|New Document Template preference with a file chooser
+|Same name; chooser lists library templates.
+|Adapted -- templates are library documents.
+
+|Search for Missing Links (Mac only)
+|Kept as *Search for missing links in*.
+|Faithful
+
+|Opening files of other types, including Illustrator 1.1--9
+|Import creates a new document; formats on the import pages.
+|Adapted -- opening a foreign file in place would imply saving back to it, which {product} never does.
+
+|Opening documents from FreeHand 8 and later; converted file renamed "(Converted)"
+|Import of `.fh8`--`.fh11` produces a new library document named after the file; the source file is untouched.
+|Adapted -- same intent; delivered by the import epic.
+
+|--
+|Library search by content (text, names, notes, keywords, page names) with highlighted matches.
+|Added -- the cloud library holds every document's contents; the Finder never could search inside a FreeHand file.
+
+|File preview thumbnail inside the saved file
+|A thumbnail per library document, rendered by the client on close and every few minutes of change, shown in the Library window.
+|Added -- {fh}'s preview lived in the file; here the library is the file browser.
+|===
+
+=== Data model
+
+No document fields.  A new document is a `DocumentService.Create` with a client-generated UUIDv7
+and an initial change (from replica `0`-independent ids of the creating replica) that writes the
+template's content: for the built-in template, one Letter page at the pasteboard origin, default
+swatches, styles and settings; for a library template, a copy of that template's snapshot re-issued
+as a single creation change (so the new document's history begins at "Created from <template>"
+rather than inheriting the template's history).
+
+Recents, offline availability and the last view state are local (`view` table and the app's
+library cache) or account data (`AccountService` preferences for the synced recents list).
+
+Search and thumbnails add no document fields either.  The search record is server state
+derived from snapshots (`document_search`, xref:server.adoc[Server]); the thumbnail is a blob
+the client uploads with `tag = THUMBNAIL`, referenced from the `document` row rather than from
+the document (xref:sync-protocol.adoc[Sync protocol]).  The library's `Document` message gains
+`thumbnail_blob` (sha256, empty when none) and `thumbnail_at`; `DocumentService.Search` is
+sketched on the server page.
+
+=== Merge semantics
+
+Creating a document has no concurrency: a document has one creator.  The initial change is
+sequenced first because nothing else can exist before `Create` returns (or, offline, before the
+local store exists).  Two Macs of one account creating offline produce two documents.
+
+=== Offline behavior
+
+* menu:File[New] offline creates the local store and the document record locally with its UUIDv7;
+  `DocumentService.Create` runs on reconnect before the outbox uploads.  The Library window shows
+  the document with a *Waiting to upload* badge.
+* Opening a document with no local store is disabled offline with an explanation; *Keep Available
+  Offline* queues a download.
+* Recents merge by timestamp across Macs when online.
+* Search offline filters the cached library list by document name locally; the field says
+  *Searching names only -- connect to search contents*.  Online, the same field calls
+  `DocumentService.Search` (debounced 300 ms) and merges the name matches from the cache so
+  the list never empties while the call is out.
+* The thumbnail is rendered offline as usual and queued in `blobs_pending` with its tag; it
+  uploads first when the blob queue resumes (xref:offline.adoc[Offline]).  Thumbnails already
+  downloaded are cached in the library cache and shown offline.
+
+=== Server
+
+`DocumentService.Create`, `List`, `Get`, `Rename`, `MoveToFolder`, recents in `AccountService`
+preferences.  All exist in the foundation (SRV-009, PROTO-007, PROTO-009).  This page adds
+`DocumentService.Search` over the `document_search` records the snapshotter extracts, and the
+`thumbnail_blob` column set by tagged uploads (SRV-007, SRV-009, PROTO-007, PROTO-008, as
+extended in the backlog).  The server never renders a thumbnail.
+
+=== Client
+
+* `WTApp.DocumentController`: creates `WTModel` + `WTSync` store pairs, owns the tab/window
+  mapping, implements `NSWindowRestoration` for *Remember window size and location*, restores
+  view state from the `view` table for *Restore view when opening*.
+* Library window (APP-009) provides open/new/recents/offline badges, the search field with
+  highlighted result rows, and the thumbnail grid; this page adds the
+  menu:File[New], New from Template…, Open…, Open Recent, Close and the Window menu document list,
+  through the command registry (APP-005).
+* `WTSync.ThumbnailCapture` (DOC-032): at the local snapshot cadence (on close and at the
+  *Snapshot interval* when the document changed, xref:saving.adoc[Saving]) it asks `WTRender`
+  for the first page at 512 px on the long edge, sRGB PNG with alpha, off the main actor, and
+  enqueues it in `blobs_pending` with `tag = THUMBNAIL`, replacing any pending thumbnail.  The
+  same render, at 1024 px, is what the package writer embeds (IO-005).
+* Quit path: `applicationShouldTerminate` inspects every open store's outbox; unsent changes
+  produce the informational alert with btn:[Quit] and btn:[Cancel], never a save prompt.
+* The built-in template content is a textproto resource in `WTModel` applied as one change.
+
+=== Build tasks
+
+[[DOC-019]]
+==== DOC-019 New document from a template
+[horizontal]
+Track:: client-model
+Depends on:: DOC-002, SYNC-001
+Size:: M
+Delivers:: `WTModel.newDocument(from:)` producing the initial change from the built-in template resource or from a template document's snapshot, the local store creation for a new UUIDv7 document, and deferred `DocumentService.Create` when offline.
+Done when::
+* A new built-in document has exactly one page, default settings, and one change in its log labelled "Created".
+* A document created from a library template contains the template's pages, masters, guides, styles, swatches, symbols, custom sizes and units, with fresh node ids.
+* Creating offline and reconnecting yields one server document with the same id and the outbox uploaded after `Create`.
+* Merge test: none applicable (single creator); conformance vector for the built-in initial change hash.
+
+[[DOC-020]]
+==== DOC-020 File and Window menu document commands
+[horizontal]
+Track:: client-ui
+Depends on:: APP-005, APP-009, APP-010, DOC-019
+Size:: M
+Delivers:: menu:File[New], New from Template…, Open…, Open Recent (10, account-synced), Close; tabs and windows with next/previous shortcuts and the Window menu list; the quit alert for unsent changes; the *Restore view when opening*, *Remember window size and location* and *New document template* preferences.
+Done when::
+* UI tests: create, open from Recents, switch tabs by shortcut, close, quit with a pending outbox shows the informational alert.
+* Window frames and view state survive relaunch when the preferences are on and are ignored when off.
+
+[[DOC-032]]
+==== DOC-032 Library thumbnail capture and upload
+[horizontal]
+Track:: client-sync
+Depends on:: SYNC-001, SYNC-008, REND-001
+Size:: S
+Delivers:: `WTSync.ThumbnailCapture`: first-page render at 512 px through `WTRender` on window close and at the snapshot interval when the document changed since the last capture, PNG encoding off the main actor, `blobs_pending` row with `tag = THUMBNAIL` that replaces any pending thumbnail, upload through `BlobService.Upload` with the tag, and the library cache's thumbnail download and display.
+Done when::
+* Closing a changed document produces exactly one thumbnail upload; an unchanged document produces none; five minutes of edits produce one.
+* Offline, the pending thumbnail is replaced rather than accumulated, and uploads before other blobs on reconnect.
+* The server's `thumbnail_blob` for the document equals the hash of the uploaded PNG; the library window shows it within one `List` refresh.
+* Merge test: none applicable (the thumbnail is not document state); the capture must not enqueue a change.
+endif::spec[]

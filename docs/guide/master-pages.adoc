@@ -1,0 +1,7 @@
+= Master pages
+include::_attributes.adoc[]
+:page-slug: master-pages
+:page-group: Document setup
+:page-fh: Chapter 2, "Working with master pages"
+
+include::_includes/document/master-pages.adoc[]

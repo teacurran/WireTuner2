@@ -1,0 +1,7 @@
+= Using the Object panel
+include::_attributes.adoc[]
+:page-slug: object-panel
+:page-group: Objects
+:page-fh: Chapter 4, "Using the Object panel"
+
+include::_includes/objects/object-panel.adoc[]

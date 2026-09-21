@@ -1,0 +1,283 @@
+Every object on a layer sits somewhere in a stack: what is drawn later covers what was drawn
+earlier.  The menu:Modify[Arrange] commands move objects up and down that stack; the Align
+panel lines objects up with one another or with the page; locking keeps an object from being
+changed; hiding takes it off the screen until you ask for it back.
+
+// TODO screenshot: Align panel with the preview and the Align to Page checkbox
+
+== Stacking order
+
+Stacking order lives within a layer.  The Arrange commands never move an object to another
+layer; to do that, use the Layers panel (xref:layers.adoc[Layers]).  Inside a group or
+clipping path, the commands rearrange the selected member among its fellow members.
+
+[cols="2,1,3"]
+|===
+|Command |Shortcut |Does
+
+|menu:Modify[Arrange > Bring to Front]
+|kbd:[Cmd+Shift+Up]
+|Puts the selection on top of everything else on its layer (or in its group).
+
+|menu:Modify[Arrange > Bring Forward]
+|kbd:[Cmd+Up]
+|Moves the selection up one step.
+
+|menu:Modify[Arrange > Send Backward]
+|kbd:[Cmd+Down]
+|Moves the selection down one step.
+
+|menu:Modify[Arrange > Send to Back]
+|kbd:[Cmd+Shift+Down]
+|Puts the selection under everything else on its layer (or in its group).
+|===
+
+With several objects selected, they move together and keep their order among themselves.
+Bring Forward and Send Backward step past one unselected neighbor at a time, so on a stack of
+objects that do not overlap the change may not be visible; the Layers panel shows the order.
+
+To put an object at an exact place in the stack, cut it, select the object it should sit
+next to, and choose menu:Edit[Special > Paste In Front] or menu:Edit[Special > Paste Behind]
+(xref:copying.adoc[Copying]).
+
+== Aligning and distributing
+
+The Align panel (menu:Window[Align], kbd:[Cmd+Option+A]) moves objects so that their edges or
+centers line up, or spaces them evenly.  It works on whole objects and on selected points;
+points align by their position, since they have no edges.  A locked object in the selection
+stays put and the others align to it.
+
+To align or distribute:
+
+. Select the objects or points.
+. Open the Align panel.
+. Choose horizontal and vertical options, either by clicking in the preview -- an edge of
+  the preview aligns to that edge; a square inside it aligns both ways -- or from the two
+  pop-up menus.  The preview's three rectangles show the setting; a fourth appears for
+  distribution settings.
+. Tick *Align to page* to align or distribute relative to the current page instead of to the
+  selection's own bounds.
+. Click btn:[Apply].
+
+[cols="1,3"]
+|===
+|Option (each axis) |Effect
+
+|No change
+|Leaves this axis alone.
+
+|Align top / bottom (vertical), Align left / right (horizontal)
+|Moves every object so the named edge lines up with the selection's outermost such edge (or
+the page's).
+
+|Align center
+|Lines up centers on this axis.
+
+|Distribute tops / bottoms / left edges / right edges
+|Spaces the named edges evenly between the outermost two.
+
+|Distribute centers
+|Spaces centers evenly.
+
+|Distribute widths / heights
+|Makes the gaps between objects equal.
+|===
+
+The last settings are remembered, so btn:[Apply] on a new selection repeats them.  Blends
+and power-duplicating are other ways to space identical objects evenly
+(xref:blends.adoc[Blends], xref:copying.adoc[Copying]).
+
+== Locking
+
+A locked object can be selected -- so you can see what it is and copy it -- but not moved,
+transformed, reshaped, deleted or restacked.  Its attributes cannot be changed either, unless
+the *Edit locked objects* preference (menu:WireTuner[Settings… > Object]) is on, which allows
+strokes, fills, effects and the text inside a locked text block to be edited while the
+object stays put.
+
+[cols="2,1,3"]
+|===
+|Command |Shortcut |Does
+
+|menu:Modify[Lock]
+|kbd:[Cmd+L]
+|Locks the selection.  Also the *Locked* checkbox in the Object panel and the lock button on
+the Main toolbar.
+
+|menu:Modify[Unlock]
+|kbd:[Cmd+Shift+L]
+|Unlocks the selection.  Dimmed when nothing selected is locked.
+|===
+
+Locking is part of the document: a locked object is locked for everyone.  Locking a group
+locks its members; a member cannot be unlocked separately.  To lock a whole layer, use the
+Layers panel.
+
+== Hiding
+
+Hiding takes objects off your screen so they cannot get in the way or be selected by
+accident.  Hidden objects still print, unless they are on a non-printing layer.
+
+[cols="2,1,3"]
+|===
+|Command |Shortcut |Does
+
+|menu:View[Hide Selection]
+|kbd:[Cmd+3]
+|Hides the selected objects.
+
+|menu:View[Show All]
+|kbd:[Cmd+4]
+|Shows every hidden object.  Hidden *layers* are not affected.
+|===
+
+Hiding is yours alone: it does not hide the object for collaborators, and everything is
+shown again when you close the document.  To keep something out of everyone's way, put it on
+a hidden layer.
+
+== Working with others
+
+If a collaborator restacks an object while you do too, the later change decides where it
+ends up.  Restacking never interferes with editing: someone can recolor an object while you
+send it to the back.
+
+Aligning writes a new position for every aligned object.  If someone moves one of those
+objects at the same moment, that object gets whichever position was later; the rest of the
+alignment stands.
+
+Locking is immediate for everyone.  If you lock an object at the moment someone else is
+dragging it, their drag completes -- the lock arrived after they started -- and the object
+is then locked for both of you.  Anyone can unlock anything; locking is a guard against
+accidents, not a permission (for that, see xref:sharing.adoc[Sharing] roles).
+
+Hiding is private, so nothing you hide changes for anyone else.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,2"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Bring to Front / Move Forward / Move Backward / Send to Back
+|Same; "Move" renamed "Bring/Send" to match macOS menu convention.
+|Faithful
+
+|Arrange applies only within a layer
+|Same.
+|Faithful
+
+|Align panel: preview clicks, pop-up menus, Align to Page, Apply
+|Same, with the full option set.
+|Faithful
+
+|Locked objects stay put during alignment
+|Same.
+|Faithful
+
+|Lock / Unlock, toolbar buttons
+|Same.
+|Faithful
+
+|Edit Locked Objects preference
+|Same.
+|Faithful
+
+|Hide Selection / Show All; hidden objects reappear on reopen; hidden objects print
+|Same; hidden state is per user and never syncs.
+|Faithful
+|===
+
+=== Data model
+
+No new document fields.  Stacking order is the node's `position` (written by `MoveNode`
+with the same parent); locking is `CommonProps.locked`; alignment writes
+`CommonProps.transform`; hidden is the local `view` table set described on
+xref:selecting.adoc[Selecting].
+
+=== Merge semantics
+
+* *Arrange* emits one `MoveNode` per selected node with the same parent and a fresh
+  position computed against the *unselected* neighbors: Bring to Front generates a position
+  after the last child; Bring Forward generates between the next unselected sibling and the
+  one after it; and symmetrically.  A multi-object arrange generates consecutive positions so
+  the selection keeps its internal order.
+* *Arrange vs. arrange*: same parent, position register LWW per node; the tree stays valid in
+  every case.  Two people bringing different objects to the front: both positions are past
+  the old end; the later OpId sorts last (fractional keys generated after the same neighbor
+  differ by their random suffix; ties are broken by node id).  Nobody sees an anomaly.
+* *Arrange vs. reparent*: `MoveNode` carries both parent and position; the later one wins
+  the whole (parent, position) pair.  A "bring to front" that loses to a "move into group"
+  leaves the object in the group at its group position.
+* *Align* is N `transform` writes in one change `Align N objects`; each merges as a move
+  (xref:moving.adoc[Moving]).  Locked objects are not written.
+* *Lock vs. edit*: `locked` is a register; commands check it locally at command time.  A
+  remote edit that was made before the lock arrived is applied -- locks are advisory to the
+  merge, enforced by the UI.  A remote edit made *after* the lock is impossible from a
+  well-behaved client and is applied if it arrives.
+* *Lock vs. unlock*: LWW.
+* *Hide*: not merged.
+
+No read-time normalization.
+
+=== Offline behavior
+
+Fully offline.  Repeated Bring Forward on one object coalesces to one `MoveNode`.
+
+=== Server
+
+Nothing beyond storing and relaying changes.
+
+=== Client
+
+* `ArrangeCommand(direction:)`, `AlignCommand(options:, toPage:)`, `LockCommand`,
+  `UnlockCommand` in `WTModel`.  Position generation uses CRDT-003's `between(a, b)`.
+* Align computes bounds through each node's full transform chain (GEO-005) and writes the
+  translation delta composed onto `transform`; for points it writes point registers.
+* The Align panel is a SwiftUI panel body in the APP-004 framework with a custom preview
+  view; settings persist in `UserDefaults`.
+* Locked enforcement: every mutating command filters out locked nodes (and members of locked
+  groups) before emitting ops, except appearance and text commands when *Edit locked objects*
+  is on.  Locked nodes draw with a small lock glyph at the selection's corner.
+* Preferences: *Edit locked objects* (off).
+
+=== Build tasks
+
+[[OBJ-018]]
+==== OBJ-018 Arrange commands
+[horizontal]
+Track:: client-model
+Depends on:: CRDT-002, CRDT-003, APP-005, APP-011
+Size:: S
+Delivers:: The four Arrange commands over `MoveNode` with neighbor-relative position generation inside layers, groups and clip groups, and their menu items and shortcuts.
+Done when::
+* A multi-selection brought forward past one neighbor keeps its internal order.
+* Inside a clip group, Send to Back never places a member before the clip path.
+* Merge test: two replicas bring different objects to front concurrently; both engines agree on the order and neither object is lost.
+
+[[OBJ-019]]
+==== OBJ-019 Align panel
+[horizontal]
+Track:: client-ui
+Depends on:: OBJ-008, APP-004
+Size:: M
+Delivers:: The Align panel with clickable preview, option menus, *Align to page*, btn:[Apply], remembered settings, alignment and distribution for objects and points, locked objects as anchors.
+Done when::
+* Every option combination on a corpus of three to ten objects matches expected positions to 0.001 pt.
+* Merge test: align concurrent with a remote move of one member leaves that member at the later matrix and the others aligned.
+* Points selected in a path are distributed by position without changing handles' relative offsets.
+
+[[OBJ-020]]
+==== OBJ-020 Lock, Unlock and locked enforcement
+[horizontal]
+Track:: client-model
+Depends on:: APP-006, APP-011, APP-010
+Size:: S
+Delivers:: Lock/Unlock commands, toolbar buttons, the *Locked* checkbox, the command-level filter for locked nodes and locked groups, the *Edit locked objects* preference, and the lock glyph.
+Done when::
+* A locked object cannot be moved, transformed, deleted, restacked or reshaped; with the preference on, its fill can be changed and its text edited.
+* Members of a locked group are treated as locked; Unlock on a member is disabled.
+* Merge test: lock concurrent with a remote move converges to moved-and-locked; lock vs. unlock converges by OpId.
+endif::spec[]

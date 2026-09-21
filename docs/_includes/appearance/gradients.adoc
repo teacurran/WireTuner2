@@ -1,0 +1,377 @@
+A Gradient fill blends smoothly between two or more colors.  You choose the colors on a *ramp*
+in the Object panel and shape the blend with handles on the object itself: a *start point*
+where the first color sits and one or two *end points* that set how far, in which direction,
+and how wide the blend runs.  Six gradient types decide the blend's geometry, and a *behavior*
+decides what happens past the end points.
+
+// TODO screenshot: the six gradient types on identical squares
+
+== Applying a gradient
+
+To apply a gradient to the selected fill:
+
+. In the Object panel, select the fill in the Attributes list
+  (xref:attribute-stack.adoc[Strokes, fills and the Attributes list]) and choose *Gradient*
+  from the *Fill type* pop-up.
+. Choose a type from the *Gradient type* pop-up: *Linear*, *Logarithmic*, *Radial*,
+  *Rectangle*, *Contour* or *Cone*.
+. Set the colors on the ramp (below).
+. Choose a *Behavior* and, for Repeat and Reflect, a *Count*.
+. Shape the gradient by dragging its handles on the canvas.
+
+Switching a Gradient fill to Basic fills the object with the ramp's left-hand color.
+
+To apply a gradient by dragging a swatch onto an object, hold a modifier as you drop it:
+
+[cols="1,3"]
+|===
+|Modifier |Result
+
+|kbd:[Control]
+|A linear gradient from the swatch's color to the fill's current color, angled from the drop
+point.
+
+|kbd:[Option]
+|A radial gradient centered at the drop point.
+
+|kbd:[Cmd+Option]
+|A contour gradient centered at the drop point.
+|===
+
+Dropping without a modifier colors the fill solid (xref:applying-color.adoc[Applying color]).
+
+=== The ramp
+
+The ramp is the color bar in the gradient editor.  Its left swatch is the start color and its
+right swatch the end color; any swatches between are intermediate colors.
+
+// TODO screenshot: gradient editor with the ramp, type, behavior and count controls
+
+* To set a color, click its swatch on the ramp and choose from the color pop-up, or drag a
+  swatch from the Swatches panel onto it.
+* To add a color, drag a swatch from the Swatches panel to a position on the ramp.
+* To move a color, drag its swatch along the ramp.  Dragging an end swatch inward leaves a
+  copy at the end, so the ramp always has two ends.
+* To copy a color to another position, kbd:[Cmd]-drag its swatch.
+* To remove a color, drag its swatch off the ramp.  The two end swatches cannot be removed.
+
+Colors on the ramp may be swatches from the Swatches panel (they follow the swatch when it is
+edited) or colors of their own.  To keep a finished gradient for reuse, drag the ramp to the
+Swatches panel; applying a gradient swatch later copies its ramp into the fill
+(xref:swatches.adoc[Swatches]).
+
+=== Behaviors
+
+[horizontal]
+Normal:: The blend runs from the start point to the end point; beyond them the end colors
+continue.
+Repeat:: The blend runs *Count* times between the start and end points, restarting from the
+first color each time.
+Reflect:: The blend runs forward and then backward, *Count* times.
+Auto size:: The blend spans the object's bounding box exactly and the handles are not shown;
+adjust the gradient from the Object panel instead.
+
+== Gradient types
+
+=== Linear and Logarithmic
+
+Both blend along a straight line from the start point to the end point.  Linear spaces the
+colors evenly; Logarithmic starts fast and slows, so bands become wider toward the end.
+
+* Drag the start point to move the whole gradient.
+* Drag the end point to change its length and angle.  Hold kbd:[Shift] to constrain the angle
+  to 45° steps.
+
+=== Radial and Rectangle
+
+Radial blends outward in concentric ellipses from the start point; Rectangle blends outward in
+concentric rectangles.  Both have three handles: the start point at the center and two end
+points that set the width, height and rotation.
+
+* Drag the start point to move the center.
+* Drag either end point to change that axis's length, or both together by holding
+  kbd:[Option] while dragging one.
+
+TIP: To set a radial gradient's center and center color in one motion, kbd:[Option]-drag a
+swatch onto the object.
+
+=== Contour
+
+Contour follows the object's own shape: the first color lies at the edge of the path and the
+blend moves inward, so the last color sits at the start point.
+
+* Drag the start point to move where the last color lands.
+* Drag the end point to set how far from the edge the blend reaches.
+
+=== Cone
+
+Cone sweeps the blend through a full circle around the start point.
+
+* Drag the start point to move the center.
+* Drag the end point to set the angle at which the blend begins.
+
+== Gradients on groups, text and blends
+
+Applying a gradient to a group applies it to every object in the group individually, each with
+its own handles.  Text takes gradients per text block (xref:text-color.adoc[Coloring text]).  A
+blend between two objects with gradient fills blends each color stop in turn when both ends
+have the same number of stops; otherwise the blend steps switch from one gradient to the other
+at the midpoint (xref:blends.adoc[Blends]).
+
+Stops may carry different color spaces (xref:spot-process.adoc[]).  On screen and in bitmap
+output the ramp interpolates in OKLab, as CSS Color 4 does, so a red-to-blue ramp does not pass
+through gray; PDF and SVG output pick one shading space -- the widest among the stops -- and
+convert the others into it (xref:export-pdf.adoc[]).
+
+== Working with others
+
+A gradient's shape and its colors are shared like every other attribute.  When you and a
+collaborator both drag handles of the same gradient at once, the handles move under both your
+cursors and the position that lands last stands; the shape is always one of the two you drew,
+never something in between.  Colors on the ramp are separate: you can recolor one stop while
+someone else moves another and both changes keep.  If you drag off a stop that someone else is
+recoloring at that moment, the stop goes, and their color is kept aside for the review sheet
+after an offline session.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,1a"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Gradient fill with two or more colors on a ramp
+|Same.
+|Faithful
+
+|Six types: Linear, Logarithmic, Radial, Rectangle, Contour, Cone
+|Same six.
+|Faithful
+
+|Behaviors Normal, Repeat, Reflect (with count) and Auto Size
+|Same.
+|Faithful
+
+|Handles on the canvas: start point and one or two end points; none for Auto Size
+|Same, plus kbd:[Shift] constrain and kbd:[Option] symmetric axes.
+|Faithful
+
+|Ramp editing: click to color, drag to add, drag to move, end-swatch replacement, Cmd-drag to copy, drag off to remove
+|Same gestures.
+|Faithful
+
+|Control-drag, Option-drag, Cmd+Option-drag swatch for linear/radial/contour
+|Same.
+|Faithful
+
+|Gradient to Basic uses the left color
+|Same.
+|Faithful
+
+|Redraw preference "Better (but slower) display"
+|Not offered; gradients always render fully.
+|Dropped -- Core Graphics shadings cost nothing to render smoothly.
+
+|Gradient applied to a group applies per object
+|Same.
+|Faithful
+|===
+
+=== Data model
+
+[source,protobuf]
+----
+// proto/wiretuner/doc/v1/gradient.proto (sketch)
+
+message GradientFill {
+  GradientType type = 1;
+  GradientBehavior behavior = 2;       // unset reads NORMAL
+  uint32 repeat_count = 3;             // REPEAT, REFLECT: 1 .. 100; unset reads 1
+  // The handles.  One value: a start from one user and an end from another is a shape
+  // nobody drew.  Object-local coordinates.
+  GradientAxis axis = 4 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Color stops.  Elements are edited in place; the ramp order is by `offset`, not by
+  // sequence position (see Merge semantics).
+  repeated GradientStop stops = 5 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  bool overprint = 6;
+}
+enum GradientType { GRADIENT_TYPE_UNSPECIFIED = 0; LINEAR = 1; LOGARITHMIC = 2; RADIAL = 3;
+  RECTANGLE = 4; CONTOUR = 5; CONE = 6; }
+enum GradientBehavior { GRADIENT_BEHAVIOR_UNSPECIFIED = 0; NORMAL = 1; REPEAT = 2;
+  REFLECT = 3; AUTO_SIZE = 4; }
+
+message GradientAxis {
+  Point start = 1;                     // first color / center
+  Point end = 2;                       // LINEAR, LOGARITHMIC, CONTOUR: end; RADIAL, RECTANGLE:
+                                       // first axis end; CONE: angle point
+  Point end2 = 3;                      // RADIAL, RECTANGLE: second axis end
+}
+
+message GradientStop {
+  ElementId id = 1;
+  double offset = 2;                   // 0 .. 1 along the ramp
+  ColorRef color = 3;                  // ATOMIC; swatch reference or inline color
+}
+----
+
+=== Merge semantics
+
+`type`, `behavior`, `repeat_count`::
+Independent ATOMIC registers.  A changes type to Radial while B drags the axis: both apply;
+the axis is read with the Radial interpretation (see normalizations for a missing `end2`).
+
+`axis`::
+ATOMIC.  Two people dragging handles: the later `OpId` wins in full.  During a drag the client
+coalesces its writes, so a remote axis arriving mid-drag is overridden by the next local write
+and the local drag feels continuous; on mouse-up, the last write stands.  The review sheet
+lists "Gradient shape" with both shapes as thumbnails.
+
+`stops`::
+SEQUENCE.  Add, move (an `offset` write), recolor and remove of different stops all merge.
+Same stop, same field: later wins.  Remove vs. recolor: the tombstone holds the color; the
+review offers *Restore*, which re-inserts a stop with that offset and color.  Two users adding
+stops at the same offset produce two stops; the read-out orders them by id and the ramp shows
+both.
+
+Ramp order::
+Determined at read time by sorting live stops by `offset`, then element id.  Sequence
+positions are written (the engine requires them) but not read.
+
+Read-time normalizations::
+* Fewer than two live stops: a ramp with one stop reads as that color at both ends; no stops
+  reads as a Basic fill of the object's default fill color.  The command layer never removes
+  the last two stops.
+* `offset` outside 0..1 clamps.
+* `end2` unset for RADIAL or RECTANGLE reads as `start` plus the vector `end - start` rotated
+  90°, i.e. a circle or square.  `end` equal to `start` reads as a 1 pt axis.
+* `axis` unset reads as `AUTO_SIZE` geometry regardless of `behavior`.
+* `repeat_count` 0 reads 1; a count on NORMAL or AUTO_SIZE is ignored.
+
+=== Offline behavior
+
+Nothing beyond the general rules; handle drags coalesce to one `axis` write per drag.
+
+=== Server
+
+Nothing beyond storing and relaying changes.
+
+=== Client
+
+Rendering (`WTRender`)::
+* The ramp is compiled to a `CGFunction` over `t ∈ [0, 1]` from the sorted stops, with the
+  behavior applied first: NORMAL clamps, REPEAT takes `frac(t × count)`, REFLECT takes the
+  triangle wave of `t × count`, AUTO_SIZE maps the object's bounding box to `[0, 1]` along the
+  type's natural axis (horizontal for Linear/Logarithmic/Cone start angle 0; center-out for the
+  others).  LOGARITHMIC samples the ramp at `ln(1 + 9t) / ln(10)`.
+* LINEAR/LOGARITHMIC: `CGShading` axial from `start` to `end`, extended.
+* RADIAL: elliptical, drawn as a circular `CGShading` under the affine map that sends the unit
+  circle to the ellipse defined by `end - start` and `end2 - start`.
+* RECTANGLE: `t` is the Chebyshev-like distance in the axis frame,
+  `max(|u|, |v|)` for object-local coordinates expressed in the (end − start, end2 − start)
+  basis; rendered by a custom shading callback.
+* CONE: `t = angle(p − start) − angle(end − start)` normalized to `[0, 1)`; custom callback.
+* CONTOUR: a signed distance field of the fill region is rasterized at the display tile's
+  resolution (jump flooding on the GPU when available, else a two-pass distance transform);
+  `t = min(1, d(p) / d_max)` where `d_max` is the distance at `start` scaled by
+  `|end − start| / d_default`, `d_default` being the object's inradius.  The result is
+  cached per (object, zoom bucket) and invalidated on geometry change.
+* Every type is clipped to the path with the path's fill rule.  PDF export emits native
+  axial/radial shadings for LINEAR, LOGARITHMIC (with a sampled function) and RADIAL; the other
+  three export as a sampled function shading (`ShadingType 1`) at 300 dpi to keep them vector.
+
+Handles:: Drawn by the Pointer tool's selection overlay for the selected object's Gradient
+fills (each visible gradient fill in the stack gets its own handle set; the selected fill's is
+drawn in full color, others dimmed).  Drag semantics per type as in the guide; kbd:[Shift]
+constrains the dragged end's angle to 45° steps; kbd:[Option] on a Radial/Rectangle end drags
+both ends symmetrically.  A drag writes `axis` continuously (coalesced) and is one undo step.
+
+Ramp editor:: A custom `NSView` under the gradient form: stop swatches as draggable thumbs;
+drop target for Swatches-panel drags (adds a stop at the drop offset or recolors the thumb
+under the cursor); kbd:[Cmd]-drag duplicates; drag beyond the view's vertical bounds removes;
+double-click opens the color popover.
+
+Undo:: Each stop gesture (add, move, recolor, remove) and each handle drag is one step.
+
+=== Build tasks
+
+[[ATTR-023]]
+==== ATTR-023 Gradient schema
+[horizontal]
+Track:: proto
+Depends on:: ATTR-001
+Size:: S
+Delivers:: `gradient.proto`: `GradientFill`, `GradientAxis`, `GradientStop`, enums, validation rules.
+Done when::
+* `buf lint` passes with every field commented.
+* Conformance vectors: concurrent axis writes; concurrent stop add at one offset; stop remove vs. recolor; type change vs. axis write.
+
+[[ATTR-024]]
+==== ATTR-024 Gradient model commands
+[horizontal]
+Track:: client-model
+Depends on:: ATTR-002, ATTR-023, CRDT-004
+Size:: M
+Delivers:: Commands: set type/behavior/count, set axis (with drag coalescing), add/move/recolor/copy/remove stop with the two-end invariant, gradient-to-basic conversion, per-object application over groups, the sorted ramp read-out and normalizations.
+Done when::
+* Unit tests for every command and normalization.
+* Merge test: replica A removes a stop while B recolors it and C drags the axis; all converge, the tombstone carries B's color, and the axis is C's.
+* Undo of a handle drag after a remote drag leaves the remote axis.
+
+[[ATTR-025]]
+==== ATTR-025 Gradient ramp editor
+[horizontal]
+Track:: client-ui
+Depends on:: ATTR-017, ATTR-024
+Size:: M
+Delivers:: The gradient form (type, behavior, count) and the ramp view with all stop gestures, Swatches-panel drop, kbd:[Cmd]-drag copy, drag-off removal, color popover, and remote updates without disturbing an in-progress drag.
+Done when::
+* UI tests for each gesture verify the stops.
+* Dragging an end stop inward leaves a replacement at the end.
+
+[[ATTR-026]]
+==== ATTR-026 Gradient handles on the canvas
+[horizontal]
+Track:: client-ui
+Depends on:: APP-003, ATTR-024
+Size:: M
+Delivers:: Selection-overlay handles per gradient type, drag with kbd:[Shift] and kbd:[Option] modifiers, hidden under Auto size, dimmed sets for non-selected gradient fills in the stack.
+Done when::
+* UI tests drag every handle of every type and verify `axis`; each drag is one undo step and one coalesced write.
+* Handles follow a remote axis change live when the local user is not dragging.
+
+[[ATTR-027]]
+==== ATTR-027 Gradient rendering
+[horizontal]
+Track:: client-render
+Depends on:: REND-002, GEO-001, ATTR-023
+Size:: L
+Delivers:: Ramp compilation with the four behaviors and the logarithmic curve; axial, elliptical, rectangle, cone and contour shadings including the cached distance field; PDF export mapping.
+Done when::
+* Reference renders for every type × behavior on the corpus match {fh} within tolerance.
+* Contour on a 500-point path renders under 10 ms at screen resolution on M1 after the first frame.
+* PDF export of each type reopens in Preview identically to the screen.
+
+[[ATTR-028]]
+==== ATTR-028 Modifier-drag gradient application
+[horizontal]
+Track:: client-ui
+Depends on:: ATTR-024, APP-006
+Size:: S
+Delivers:: Canvas drop handling for swatch drags with kbd:[Control], kbd:[Option] and kbd:[Cmd+Option], computing the axis from the drop point; needs the draggable swatches from the COLOR epic's Swatches panel.
+Done when::
+* UI tests for the three modifiers verify type, axis and the two stop colors.
+* A drop on a group applies to the object under the cursor only.
+
+[[ATTR-029]]
+==== ATTR-029 Gradient swatch interchange
+[horizontal]
+Track:: client-model
+Depends on:: ATTR-024
+Size:: S
+Delivers:: Copying a `GradientFill` ramp into a gradient swatch node and applying a gradient swatch by copying its ramp and type into a fill, keeping stop swatch references intact; needs the gradient swatch node kind from the COLOR epic.
+Done when::
+* Round trip fill → swatch → fill is lossless in unit tests.
+* Merge test: two replicas apply different gradient swatches to one fill concurrently; the later application wins in full (stops replaced as one change).
+endif::spec[]

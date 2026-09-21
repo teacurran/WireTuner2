@@ -1,0 +1,511 @@
+The Document panel is where a document's pages and its output settings live.  It shows the whole
+pasteboard in miniature, one thumbnail per page, and lets you set the size, orientation and bleed
+of the selected page, choose the resolution the document is prepared for, and add, remove and
+rearrange pages without leaving the panel.  Everything you change here is part of the document:
+collaborators see it as soon as it syncs, and it is remembered when you are offline.
+
+// TODO screenshot: the Document panel with a three-page document, page 2 selected
+
+== Opening the Document panel
+
+To show the Document panel, do one of the following:
+
+. Choose menu:Window[Document].
+. Click the *Document* tab in the Properties panel group, if the group is visible.
+. Click the *Document* button in the Main toolbar.  The button is not on the toolbar by default;
+  add it as described in xref:customizing.adoc[Customizing toolbars].
+
+The panel has four regions: the *Page Size* row (size pop-up, orientation buttons, *Edit…*), the
+*Bleed* and *Printer Resolution* fields, the *Master Page* pop-up with its btn:[Edit] button
+(xref:master-pages.adoc[Master pages]), and the *pasteboard view* with its magnification buttons.
+The panel's Options menu (the small menu button at the top right of the panel) holds the page
+commands.
+
+== Setting page options
+
+Page size, orientation and bleed belong to each page individually; a document can mix sizes.  The
+options apply to the *selected* page, or to every selected page when several are selected with the
+Page tool (xref:pages.adoc[Working with pages]).
+
+To set the size, orientation and bleed of a page:
+
+. Select the page: click its thumbnail in the pasteboard view, or click it on the canvas with the
+  Page tool.
+. Choose a size from the *Page Size* pop-up menu.
+. Click the *portrait* (tall) or *landscape* (wide) button to the right of the pop-up.
+. Type a bleed amount in the *Bleed* field and press kbd:[Return].
+
+.Page Size pop-up
+[cols="1,3"]
+|===
+|Item |Meaning
+
+|Letter, Legal, Tabloid, A3, A4, A5, B4, B5
+|Standard sizes.  Choosing one replaces the page's width and height; the orientation buttons decide
+which dimension is the width.
+
+|_Custom sizes_
+|Sizes you have defined for this document (below).  They are listed after the standard sizes, in
+the order you created them.
+
+|Custom
+|Keeps whatever width and height the page currently has.  A page shows as *Custom* after it has
+been resized by dragging with the Page tool or after the custom size it used was deleted.
+
+|Edit…
+|Opens the *Page Sizes* sheet for defining and removing custom sizes.
+|===
+
+Bleed:: The distance objects may extend beyond the page edge and still be printed.  The bleed
+area is drawn as a faint rectangle around the page.  Bleed is measured in the document's units; the
+paper size chosen at print time must be larger than page plus bleed
+(xref:printing.adoc[Printing]).
+
+Orientation:: Changing orientation swaps the page's width and height around its top-left corner.
+Objects on the page do not move or rotate.
+
+NOTE: A page that is a child of a master page cannot be resized, re-oriented or given a different
+bleed here; change the master page instead (xref:master-pages.adoc[Master pages]).
+
+== Printer resolution
+
+The *Printer Resolution* pop-up records the resolution the document is prepared for: 72, 144, 300,
+600, 1200, 2400 or 3600 dpi, or a value you type.  It is used by flatness calculations, by raster
+effects and by bitmap export as the default resolution, and by the output settings in
+xref:printing.adoc[Printing].  It does not change how the document looks on screen.
+
+To set the printer resolution, choose a value from the *Printer Resolution* pop-up menu, or type
+one in the field and press kbd:[Return].  The setting is a document setting shared by every page.
+
+== The pasteboard view
+
+The lower part of the panel shows the pasteboard with a thumbnail for every page, numbered in page
+order.  The selected page is highlighted; pages that other people are currently viewing carry a
+small colored dot in their color (xref:presence.adoc[Presence]).
+
+Magnification buttons:: The three buttons under the view show the pasteboard at small, medium and
+large scale.  At the larger scales not every page fits in the view.  The magnification is a
+personal setting: it is remembered per document on your Mac and is not shared.
+
+To move a page on the pasteboard from the panel::
+Drag its thumbnail to a new position.  The page's objects move with it.  The move is one undoable
+change and is visible to collaborators when it syncs.
+
+To scroll the pasteboard view::
+Hold kbd:[Space] and drag inside the view.
+
+To select a page::
+Click its thumbnail.  Double-clicking a thumbnail also scrolls the document window to that page.
+
+== Page commands in the Options menu
+
+The panel's Options menu offers:
+
+[cols="1,3"]
+|===
+|Command |What it does
+
+|Add Pages…
+|Opens the *Add Pages* sheet: number of pages, size, orientation, bleed and, if the document has
+master pages, *Make child of master page*.  New pages go after the selected page in page order and
+are placed on the pasteboard to the right of the rightmost page.
+
+|Duplicate
+|Duplicates the selected page with all its objects, immediately after it in page order.
+
+|Remove
+|Removes the selected page and the objects on it.  If the page has objects, an alert asks you to
+confirm.  A document always keeps at least one page.
+
+|New Master Page
+|Creates a master page from the selected page's settings (xref:master-pages.adoc[Master pages]).
+
+|Convert to Master Page
+|Turns the selected page's contents into a new master page and makes the page its child.
+
+|Release Child Page
+|Detaches the selected page from its master, copying the master's objects onto the page.
+|===
+
+The details of each command are in xref:pages.adoc[Working with pages] and
+xref:master-pages.adoc[Master pages].
+
+== Document units
+
+The unit of measure used by the rulers, the panels and every numeric field is chosen in the
+*Units* pop-up at the bottom left of the document window.  The choice is part of the document, so
+everyone editing it sees the same units.
+
+To set the document's unit of measure:
+
+. Click the *Units* pop-up at the bottom of the document window.
+. Choose *Points*, *Picas*, *Inches*, *Decimal inches*, *Millimeters*, *Centimeters*, *Kyus*,
+  *Pixels*, or one of the custom units defined for the document
+  (xref:rulers.adoc[Rulers and units]).
+
+Type sizes, leading and other typographic values stay in points regardless of the document unit.
+
+=== Typing values in another unit
+
+Any numeric field accepts a value followed by a unit abbreviation.  The value is converted to the
+document's unit when you press kbd:[Return].
+
+[cols="1,1"]
+|===
+|Suffix |Unit
+
+|`pt` |points
+|`p` |picas (`7p` is 7 picas; `7p6` is 7 picas 6 points)
+|`i` or `in` |inches
+|`m` or `mm` |millimeters
+|`c` or `cm` |centimeters
+|`q` |kyus
+|`x` or `px` |pixels
+|_name_ |a custom unit, by the name you gave it
+|===
+
+=== Arithmetic in fields
+
+A numeric field also evaluates a simple expression: `+`, `-`, `*` and `/`, with multiplication and
+division taken before addition and subtraction.  Units may be mixed inside the expression
+(`2i + 3p` is 2 inches plus 3 picas).  A value without a suffix uses the document's unit.  If the
+expression cannot be evaluated, the field shows the previous value and highlights briefly; nothing
+is changed.
+
+== Working with others
+
+The Document panel reflects the document as everyone is editing it.  If a collaborator adds a page,
+its thumbnail appears; if they resize the page you are looking at, the size pop-up and thumbnail
+update under you.  Page settings you are in the middle of typing are never overwritten by someone
+else's change: the field you are editing keeps your text until you press kbd:[Return], and then your
+value is applied.
+
+When two people change the *same* setting of the same page at about the same time, the change made
+later stands.  {product} tells the person whose change was overridden ("Priya changed page 2 to A4
+while you set it to Letter") in a brief notice, with a *Reapply mine* button.  Changes to different
+settings -- one person changing a page's bleed while another changes its size -- both apply.
+
+After you have been offline, your page settings are merged with everyone else's when you reconnect.
+If the same page setting was changed on both sides, the review sheet lists it
+(xref:collaboration.adoc[Working together]).
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,1"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Document panel: pasteboard preview with page thumbnails
+|Same panel, same regions; thumbnails render page contents at low resolution and show presence dots.
+|Faithful
+
+|Page Size pop-up with standard sizes, Custom and Edit
+|Same list; custom sizes defined per document.
+|Faithful
+
+|Orientation buttons
+|Same; swaps width and height around the page's top-left corner.
+|Faithful
+
+|Bleed field
+|Same, per page.
+|Faithful
+
+|Printer Resolution pop-up
+|Same values plus a typed value; stored in document settings.
+|Faithful
+
+|Magnification buttons for the preview
+|Same three levels; stored locally per document, not shared.
+|Faithful
+
+|Drag thumbnails to move pages
+|Same, moves page and contents.
+|Faithful
+
+|Space-drag to scroll the preview
+|Same.
+|Faithful
+
+|Document panel button in the Main toolbar (off by default)
+|Same; the toolbar customization is on the customizing page.
+|Faithful
+
+|Custom page sizes cannot be edited, only deleted and recreated
+|Custom sizes can be renamed and resized in the Page Sizes sheet; pages using a size follow it.
+|Adapted -- no reason to keep the limitation; the sheet is a simple list editor.
+
+|Deleting a custom size turns pages using it to Custom
+|Same.
+|Faithful
+
+|Units pop-up at the bottom of the window (points, picas, inches, decimal inches, mm, kyus, cm, pixels)
+|Same list plus custom units.
+|Faithful
+
+|Unit suffixes in numeric fields
+|Same suffixes; `pt`, `in`, `mm`, `cm`, `px` accepted as well.
+|Faithful
+
+|Math in numeric fields
+|Same operators and precedence; invalid input leaves the field unchanged instead of writing 0.
+|Adapted -- writing 0 into a page width or a stroke width on a typo is destructive in a shared document.
+|===
+
+=== Data model
+
+The document setup chapter owns the `page` and `master` node kinds and the setup fields of the
+`settings` node.  Pages are children of the well-known `pages` node (0:2); their sibling
+`position` is the page order.  Masters are children of `masters` (0:3).  Everything is in points on
+the pasteboard, y down, origin at the pasteboard's top left (xref:crdt-model.adoc[CRDT model]).
+
+[source,protobuf]
+----
+// proto/wiretuner/doc/v1/document.proto (DOC epic sketch)
+
+enum Unit {
+  UNIT_UNSPECIFIED = 0;
+  UNIT_POINTS = 1;
+  UNIT_PICAS = 2;
+  UNIT_INCHES = 3;
+  UNIT_DECIMAL_INCHES = 4;   // inches shown as decimals rather than fractions
+  UNIT_MILLIMETERS = 5;
+  UNIT_CENTIMETERS = 6;
+  UNIT_KYUS = 7;             // 0.25 mm
+  UNIT_PIXELS = 8;           // 1 px = 1 pt at 72 dpi
+  UNIT_CUSTOM = 9;           // see UnitChoice.custom
+}
+
+enum Orientation { ORIENTATION_UNSPECIFIED = 0; ORIENTATION_PORTRAIT = 1; ORIENTATION_LANDSCAPE = 2; }
+
+// The document's unit.  ATOMIC: a custom-unit choice is meaningless without the element id.
+message UnitChoice {
+  Unit unit = 1;
+  ElementId custom = 2;      // element in DocumentSettings.custom_units when unit == UNIT_CUSTOM
+}
+
+// Width, height, orientation and the preset they came from.  ATOMIC because a width from one
+// user and a height from another is a page nobody asked for; the whole geometry is one choice.
+message PageGeometry {
+  string preset = 1 [(buf.validate.field).string.max_len = 64];   // "Letter", "A4", a custom size name, or "" for Custom
+  double width = 2 [(buf.validate.field).double = {gt: 0, lte: 15984}];   // points, as oriented (222 in max)
+  double height = 3 [(buf.validate.field).double = {gt: 0, lte: 15984}];
+  Orientation orientation = 4;
+}
+
+// A ruler guide.  Element of a SEQUENCE on PageProps / MasterProps.
+message Guide {
+  ElementId id = 1;
+  Axis axis = 2;             // AXIS_HORIZONTAL: a y position; AXIS_VERTICAL: an x position
+  double position = 3;       // points from the page's top-left corner along the axis
+}
+
+message PageProps {
+  Point origin = 1 [(wt.crdt.field).merge = MERGE_ATOMIC];     // page top-left on the pasteboard
+  PageGeometry geometry = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  double bleed = 3 [(buf.validate.field).double = {gte: 0, lte: 720}];   // points beyond every edge
+  NodeRef master = 4 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];  // master node under 0:3, or unset
+  Point ruler_origin = 5 [(wt.crdt.field).merge = MERGE_ATOMIC];  // zero point relative to the page's top-left; see the rulers page
+  repeated Guide guides = 6 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+}
+
+message MasterProps {
+  PageGeometry geometry = 1 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  double bleed = 2 [(buf.validate.field).double = {gte: 0, lte: 720}];
+  repeated Guide guides = 3 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  // Name: CommonProps.name.  Contents: objects under layers with CommonProps.canvas = this node.
+}
+
+message GridSettings {
+  double size = 1 [(buf.validate.field).double = {gt: 0, lte: 7200}];   // points between grid lines
+  bool relative = 2;         // snap to the same offset within the destination cell rather than to intersections
+}
+
+message Size { double width = 1; double height = 2; }   // points; ATOMIC wherever used
+
+message CustomPageSize {
+  ElementId id = 1;
+  string name = 2 [(buf.validate.field).string.max_len = 64];
+  Size size = 3 [(wt.crdt.field).merge = MERGE_ATOMIC];   // portrait width and height in points
+}
+
+// One custom unit equals `definition.amount` of `definition.base`.  ATOMIC so amount and base
+// cannot be mixed from two writers.
+message UnitDefinition { double amount = 1 [(buf.validate.field).double.gt = 0]; Unit base = 2; }
+message CustomUnit {
+  ElementId id = 1;
+  string name = 2 [(buf.validate.field).string.max_len = 32];
+  UnitDefinition definition = 3 [(wt.crdt.field).merge = MERGE_ATOMIC];
+}
+
+// Fields this chapter adds to the settings node (0:1).  Other chapters add their own.
+message DocumentSettings {
+  UnitChoice units = 1 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  uint32 printer_resolution = 2 [(buf.validate.field).uint32 = {gte: 72, lte: 9600}];   // dpi
+  GridSettings grid = 3;     // STRUCT by default: size and relative are independent choices
+  repeated CustomPageSize custom_page_sizes = 4 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  repeated CustomUnit custom_units = 5 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  bool guides_locked = 6;    // View > Guides > Lock; shared, see the grid and guides page
+}
+----
+
+Not in the document: the Document panel's magnification level, the current page, zoom and scroll,
+and the show/snap toggles of the View menu.  They live in the local store's `view` table
+(xref:offline.adoc[Offline]) keyed by document id; they never sync.
+
+Derived, never stored:
+
+* *Page number* is the 1-based index of a page among the non-deleted children of `pages` in
+  sibling order.
+* *Page rectangle* is `origin` and `geometry`; the *bleed rectangle* is the page rectangle grown
+  by `bleed` on every side.
+* *Objects on a page* is a geometric query: a top-level object on the main canvas belongs to the
+  page whose bleed rectangle contains the center of its bounds; an object whose center is on no
+  page is on the pasteboard.  (Printing, which draws every object touching a page, uses its own
+  intersection query.)
+
+=== Merge semantics
+
+[cols="1,1,3"]
+|===
+|Field |Policy |Concurrent behavior
+
+|`PageProps.geometry`
+|ATOMIC
+|Two people setting the size of one page: the later OpId wins whole (width, height, orientation,
+preset together).  Objects are not moved by either write.  The loser's write is retained in the log
+and, because it is a same-register loss of the user's own visible work, always listed in the review
+sheet.  Live, the loser sees the notice with *Reapply mine*.
+
+|`PageProps.origin`
+|ATOMIC
+|Two people dragging the same page on the pasteboard: later wins; the objects on the page were
+translated by each mover in the same change (see xref:pages.adoc[Working with pages]), so the
+review sheet shows the objects' `move vs move` overlap as well.
+
+|`PageProps.bleed`
+|ATOMIC scalar
+|Independent of geometry: one person's bleed and another's size both apply.
+
+|`DocumentSettings.units`
+|ATOMIC
+|Later wins.  Changing units never changes a stored value (everything is points), so a concurrent
+edit typed in the other unit is still the number the typist saw.
+
+|`DocumentSettings.printer_resolution`
+|ATOMIC scalar
+|Later wins; listed in review when both sides wrote it.
+
+|`custom_page_sizes`, `custom_units`
+|SEQUENCE
+|Adding on both sides keeps both, in order of insertion.  Rename vs. resize of the same custom size
+both apply (STRUCT element fields).  Delete vs. edit: the element stays deleted; pages that used it
+read as *Custom* with their own geometry, and the review sheet lists the edit-vs-delete with
+*Restore*.
+
+|`grid`
+|STRUCT
+|`size` and `relative` are independent registers.
+|===
+
+Read-time normalizations:
+
+* A `PageGeometry.preset` naming a custom size that no longer exists (deleted, or from a template
+  the document never had) reads as `""` (Custom); the width and height are the truth.
+* A `units.custom` pointing at a deleted custom unit reads as `UNIT_POINTS`.
+* `printer_resolution == 0` (never set) reads as 300.
+* A document with no non-deleted page reads as having one Letter page at the pasteboard origin --
+  it is not written until someone edits it (xref:pages.adoc[Working with pages] for how this can
+  happen).
+
+=== Offline behavior
+
+Nothing beyond the standard outbox: page setting writes coalesce (a slider drag on the bleed field
+is one op).  Presence dots in the pasteboard view disappear while offline.
+
+=== Server
+
+Nothing beyond storing and relaying changes.  The server validates the ranges above on every op.
+
+=== Client
+
+* `WTModel` exposes `Page`, `MasterPage` and `DocumentSettings` as typed views over the node tree,
+  with commands `setPageGeometry`, `setBleed`, `setPrinterResolution`, `setUnits`,
+  `addCustomPageSize`, `editCustomPageSize`, `removeCustomPageSize`.
+* `WTModel.Units` parses field input: a decimal number, an optional suffix from the table above
+  (longest match, case-insensitive), pica notation `NpM`, and infix `+ - * /` with the usual
+  precedence and mixed units.  Formatting rounds to the unit's display precision (points and
+  pixels 0.01, picas 0p0.01, inches 0.0001, decimal inches 0.001, mm 0.01, cm 0.001, kyus 0.1).
+* The Document panel is a SwiftUI body hosted by the panel framework (APP-004).  The pasteboard
+  view is an AppKit `NSView` drawing page rectangles and cached thumbnails from `WTRender` at the
+  three magnifications; thumbnails re-render on `REND-004` invalidation with a 250 ms debounce.
+* Numeric fields commit on kbd:[Return] or focus loss, never per keystroke; a remote value arriving
+  while a field has focus is shown after commit.
+* Undo grouping: each committed field is one change labelled "Change page size", "Change bleed",
+  "Change units", and so on.
+
+=== Build tasks
+
+[[DOC-001]]
+==== DOC-001 Document setup schema
+[horizontal]
+Track:: proto
+Depends on:: PROTO-003
+Size:: M
+Delivers:: `doc/v1/document.proto` with `PageProps`, `MasterProps`, `Guide`, `PageGeometry`, `GridSettings`, `CustomPageSize`, `CustomUnit`, `UnitChoice`, the setup fields of `DocumentSettings`, and the `page` and `master` cases in `NodeProps.kind` in the DOC block; protovalidate ranges as sketched.
+Done when::
+* `buf lint` and `buf breaking` pass; every field commented.
+* `protoc-gen-wtcrdt` emits ATOMIC for `origin`, `geometry`, `ruler_origin`, `units`, `CustomPageSize.size`, `CustomUnit.definition`, SEQUENCE for `guides`, `custom_page_sizes`, `custom_units`.
+* Conformance vectors: concurrent `geometry` writes (later wins whole), concurrent `bleed` and `geometry` writes (both apply), custom size insert on two replicas.
+
+[[DOC-002]]
+==== DOC-002 Page and settings model
+[horizontal]
+Track:: client-model
+Depends on:: DOC-001, CRDT-001, CRDT-002, CRDT-004
+Size:: M
+Delivers:: `WTModel` typed `Page`, `MasterPage`, `DocumentSettings` views; commands for geometry, bleed, printer resolution, units, custom page sizes; page-number and objects-on-page queries; the read-time normalizations above.
+Done when::
+* Every command emits one change with the label in the Client section and records its inverse.
+* Objects-on-page query for 50,000 objects runs under 5 ms using the REND-003 spatial index.
+* Merge test: two replicas set the same page's geometry concurrently; both converge to the later write and the losing replica's log retains its value.
+* Conformance vectors for each normalization (dangling custom size, dangling custom unit, zero resolution, no pages).
+
+[[DOC-003]]
+==== DOC-003 Unit parsing and formatting
+[horizontal]
+Track:: client-model
+Depends on:: DOC-002
+Size:: S
+Delivers:: `WTModel.Units`: parse suffixes, pica notation, expressions with mixed units and custom units; format per unit precision; conversion tables.
+Done when::
+* Table-driven tests: `7p`, `7p6`, `2i + 3p`, `4*50-49`, `125m`, a custom unit by name, invalid input returns nil.
+* Round-trip format→parse is identity at display precision for every unit.
+
+[[DOC-004]]
+==== DOC-004 Document panel
+[horizontal]
+Track:: client-ui
+Depends on:: APP-004, APP-002, DOC-002, DOC-003
+Size:: L
+Delivers:: The Document panel: size pop-up, orientation buttons, bleed and resolution fields, master pop-up host, pasteboard view with thumbnails, magnification buttons, Space-drag scrolling, thumbnail drag to move pages, Options menu wired to the page commands, the Units pop-up in the window's bottom bar, the remote-override notice with *Reapply mine*.
+Done when::
+* Field commits are one change each; a remote write to a focused field does not replace the typed text.
+* Thumbnails update within 500 ms of a remote change to a page's contents.
+* UI tests: change size, orientation, bleed, resolution, units; drag a thumbnail; Reapply mine restores the local value.
+
+[[DOC-005]]
+==== DOC-005 Page Sizes sheet
+[horizontal]
+Track:: client-ui
+Depends on:: DOC-004
+Size:: S
+Delivers:: The *Page Sizes* sheet from the Page Size pop-up's *Edit…*: list of custom sizes with name, width and height in document units, btn:[New], btn:[Delete], inline editing; pages using an edited size follow it.
+Done when::
+* Creating, renaming, resizing and deleting a custom size each produce one change.
+* Deleting a size in use turns those pages' preset to Custom without changing their dimensions.
+* Merge test: rename on one replica and resize on another converge with both.
+endif::spec[]

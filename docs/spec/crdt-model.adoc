@@ -1,0 +1,406 @@
+= CRDT model
+include::_attributes.adoc[]
+:page-slug: crdt-model
+
+A {product} document is an operation-based CRDT whose schema is written in protobuf.  Every
+replica -- each Mac with the document open, and the server's snapshotter -- applies the same
+operations and reaches the same state regardless of the order in which it received them.
+
+We do not adopt Automerge, Yjs or Loro.  None of them has production-ready bindings for both
+Swift and the JVM today, and each would put an FFI layer and an opaque binary between our
+protobuf schema and our merge logic (xref:decisions.adoc#D-001[D-001]).  Instead we implement
+well-published algorithms directly, in both languages, against one generated schema:
+
+* last-writer-wins registers ordered by Lamport ids, for properties;
+* Kleppmann et al.'s highly-available *move* operation for the node tree
+  (https://martin.kleppmann.com/papers/move-op.pdf[TPDS 2021]), the same algorithm as Loro's
+  movable tree;
+* jittered fractional indexing for sibling order (z-order) and short ordered lists, as Figma
+  does (https://www.figma.com/blog/realtime-editing-of-ordered-sequences/[Evan Wallace]);
+* Fugue for character sequences, with Peritext's anchoring for formatting marks
+  (https://www.inkandswitch.com/peritext/[Ink & Switch]).
+
+== Identifiers
+
+`OpId`:: `(counter: uint64, replica: fixed64)`.  Every operation has one.  `counter` is a Lamport
+clock: a replica's next counter is one more than the largest counter it has created *or seen*.
+Ids are totally ordered by `counter`, then `replica` as an unsigned integer.  This total order
+decides every last-writer-wins tie, so it is the most important comparison in the system; it
+never involves wall-clock time or floating point.
+
+Replica id:: A random 64-bit value chosen by the client for each (install, document) pair, and
+stored in the document's local store.  It is regenerated whenever the store is restored from
+backup or copied to another Mac (the store records the hardware UUID it was created on) and
+whenever the server answers `REPLICA_CONFLICT`.  The server binds a replica id to the user and
+device that first used it and rejects it from anyone else.  Replica `0` is reserved for the
+well-known nodes below.
+
+Node id:: The `OpId` of the operation that created the node.
+
+Element id:: The `OpId` of the operation that inserted an element into a sequence (a point in a
+contour, a fill in an appearance stack, a character in text).  An insert of *n* elements takes
+*n* consecutive counters.
+
+== The node tree
+
+Everything in a document is a *node*: pages, layers, paths, groups, text blocks, swatches,
+styles, symbols.  Nodes form one tree.  Each node has an immutable `kind`, a mutable parent, a
+position among its siblings, a `deleted` flag and typed properties.
+
+[listing]
+....
+document (0:0)
+├── settings    (0:1)   units, default attributes, print & export settings
+├── pages       (0:2)   ── page …                       (order = page order)
+├── masters     (0:3)   ── master page …
+├── layers      (0:4)   ── layer …  ── object …         (order = stacking, bottom first)
+│                                        └── group ── object …
+├── swatches    (0:5)   ── color / tint / gradient swatch …
+├── styles      (0:6)   ── graphic style / text style …
+├── symbols     (0:7)   ── symbol ── object …           (Library panel)
+├── brushes     (0:8)   ── brush …
+├── assets      (0:9)   ── image / font / embedded file (blob references)
+├── trash       (0:10)  (reserved; deleted nodes stay in place, see Deletion)
+├── glyphs      (0:11)  ── glyph …   (typeface documents only; a glyph is a canvas like a page)
+└── comments    (0:12)  ── comment_thread …   (conversation, not artwork; never rendered or exported by default)
+....
+
+The well-known nodes (replica `0`, counters `0`--`15`) exist in every document without being
+created; counters `13`--`15` are reserved for future collections.  `glyphs` is empty in an
+illustration document (xref:typeface-documents.adoc[Typeface documents]).
+
+Artwork lives under layers, as in {fh}: a top-level object's parent is its layer, and its
+position among the layer's children is its stacking order.  Objects sit on one large pasteboard
+in pasteboard coordinates (points, 1/72 inch, y down, origin at the pasteboard's top left); a
+page is a rectangle on the pasteboard, and "the objects on page 3" is a geometric query, not a
+tree relationship.  Master pages are separate canvases: a top-level object carries
+`CommonProps.canvas`, unset for the main pasteboard or the id of the master page it belongs
+to, so layers remain the single stacking hierarchy for every canvas.
+
+== Merge policies [[options]]
+
+Every field of every props message has a merge policy, declared with a `wt.crdt` field option:
+
+[source,protobuf]
+----
+// proto/wt/crdt/options.proto
+syntax = "proto3";
+package wt.crdt;
+
+import "google/protobuf/descriptor.proto";
+
+enum Merge {
+  // Scalars, strings, bytes, enums and repeated scalars: ATOMIC.
+  // Singular message fields: STRUCT.
+  MERGE_UNSPECIFIED = 0;
+  // The whole value is one register; the op with the greatest OpId wins.
+  MERGE_ATOMIC = 1;
+  // Each field of the message is its own register (recursively).
+  MERGE_STRUCT = 2;
+  // A repeated message whose first field is `ElementId id = 1`.  Elements are inserted,
+  // moved and deleted individually; order is a fractional position per element (LWW);
+  // each element's fields merge as STRUCT.
+  MERGE_SEQUENCE = 3;
+  // A RichText field: Fugue character sequence plus Peritext formatting marks.
+  MERGE_TEXT = 4;
+  // A repeated scalar, or a repeated ElementId/OpId, treated as an add-wins observed-remove
+  // set; members compare by value.
+  MERGE_SET = 5;
+  // A message with an enum discriminator (`kind`) and one sibling STRUCT message per case.
+  // The discriminator is a register; every case's fields are registers that survive a
+  // concurrent kind switch, so switching back restores them.  Preferred over `oneof` for
+  // anything users toggle between (fill kinds, effect kinds): a protobuf oneof drops the
+  // inactive case and has no defined merge for its discriminator.
+  MERGE_VARIANT = 6;
+}
+
+enum RefFallback {
+  // Reference to a deleted or unknown node reads as unset.
+  REF_FALLBACK_UNSET = 0;
+  // Read the value cached beside the reference (see NodeRef.cached).
+  REF_FALLBACK_CACHED = 1;
+  // The referencing node renders as a placeholder until the reference resolves.
+  REF_FALLBACK_PLACEHOLDER = 2;
+}
+
+message FieldOptions {
+  Merge merge = 1;
+  RefFallback on_dangling = 2;
+  // Never leaves the device: view state stored in the document for convenience.
+  bool local_only = 3;
+}
+
+extend google.protobuf.FieldOptions {
+  FieldOptions field = 51234;
+}
+----
+
+Annotate a field only when its default is not what you mean.  The two defaults cover most
+fields: a `double width` is ATOMIC, a `StrokeProps stroke` is STRUCT.
+
+.Choosing a policy
+[cols="1,3"]
+|===
+|Use |When
+
+|ATOMIC on a message
+|Its fields only make sense together.  `Color`, `Transform` (a 2×3 matrix), `Point`,
+`DashPattern`, a gradient's axis.  Merging a rotation from one user with a scale from another
+per matrix component produces a shear nobody drew; one of them winning is correct.
+
+|STRUCT
+|Its fields are independent choices.  A stroke's width, cap, join and miter limit; a text
+block's inset and column count.
+
+|SEQUENCE
+|An ordered list whose elements have identity and are edited in place: contour points, the
+fill/stroke/effect stack, gradient stops, tab stops, table columns, chart data rows.
+
+|TEXT
+|User-typed text.  Only `RichText` fields.
+
+|SET
+|Membership with no order: the members of a named selection, keyword tags.
+|===
+
+[source,protobuf]
+----
+// Excerpt of proto/wiretuner/doc/v1/common.proto
+message ElementId { uint64 counter = 1; fixed64 replica = 2; }
+
+// A reference to another node.  `cached` optionally carries the referent's resolved value at
+// write time (e.g. the CMYK of a swatch) for REF_FALLBACK_CACHED.
+message NodeRef {
+  OpId id = 1;
+  bytes cached = 2;
+}
+
+message CommonProps {
+  string name = 1 [(buf.validate.field).string.max_len = 256];   // Object panel name
+  string note = 2 [(buf.validate.field).string.max_len = 8192];  // Object panel notes
+  bool locked = 3;
+  Transform transform = 4 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  NodeRef canvas = 5 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
+  string url = 6;                                              // Attached URL
+  NodeRef style = 7 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
+  string alt = 9 [(buf.validate.field).string.max_len = 512];   // accessible description (names-notes.adoc)
+  bool decorative = 10;                                          // skipped by assistive technology
+}
+----
+
+Registers are addressed by a *field path*: a list of segments from `NodeProps`, each either a
+field number or, inside a SEQUENCE, an element id.  `[kind.path=12, contours=3, <elem 91:7>,
+points=2, <elem 91:12>, anchor=1]` addresses one anchor point.  The generated merge tables tell
+both engines which segments are STRUCT, SEQUENCE and so on; the engines themselves contain no
+per-feature code.
+
+== Operations
+
+Operations are fixed; features add fields, not operations.
+
+[source,protobuf]
+----
+// proto/wiretuner/doc/v1/ops.proto (sketch)
+message Op {
+  oneof op {
+    CreateNode create = 1;
+    SetFields set = 2;
+    MoveNode move = 3;
+    SetDeleted set_deleted = 4;
+    ElementInsert element_insert = 5;
+    ElementMove element_move = 6;
+    ElementDelete element_delete = 7;
+    TextInsert text_insert = 8;
+    TextDelete text_delete = 9;
+    TextMark text_mark = 10;
+    SetAdd set_add = 11;
+    SetRemove set_remove = 12;
+    Noop noop = 13;            // keeps a counter slot when the outbox coalesces an op away
+  }
+}
+
+message CreateNode {        // node id = this op's id
+  OpId parent = 1;
+  bytes position = 2;       // fractional index among the parent's children
+  NodeProps props = 3;      // kind (the oneof case) + initial values
+}
+message SetFields {
+  OpId node = 1;
+  repeated FieldPath paths = 2;   // registers written by this op
+  NodeProps values = 3;           // a sparse NodeProps holding the new values; a path listed
+                                  // in `paths` with no value in `values` CLEARS that register
+                                  // (writes unset with this op's OpId), e.g. removing a style override
+}
+message MoveNode { OpId node = 1; OpId parent = 2; bytes position = 3; }
+message SetDeleted { OpId node = 1; bool deleted = 2; }
+message ElementInsert {     // element ids = this op's counter, counter+1, ...
+  OpId node = 1;
+  FieldPath sequence = 2;
+  repeated bytes positions = 3;
+  NodeProps values = 4;     // sparse, holding the inserted elements
+}
+message ElementMove { OpId node = 1; FieldPath element = 2; bytes position = 3; }
+message ElementDelete {     // writes each element's `deleted` register; `deleted = false` restores it
+  OpId node = 1;
+  repeated FieldPath elements = 2;
+  bool deleted = 3;         // default true; false = restore (the review sheet's Restore)
+}
+message TextInsert {        // character ids = this op's counter, counter+1, ...
+  OpId node = 1;
+  FieldPath text = 2;
+  ElementId left_origin = 3;   // Fugue origins; zero id = start / end
+  ElementId right_origin = 4;
+  string chars = 5;
+}
+message TextDelete { OpId node = 1; FieldPath text = 2; repeated ElementIdRange ranges = 3; }
+message TextMark {
+  OpId node = 1;
+  FieldPath text = 2;
+  Anchor start = 3;          // Peritext: before/after a character id
+  Anchor end = 4;
+  TextMarkValue value = 5;   // font, size, color, style ref, ... (see Type pages)
+}
+----
+
+A *change* is the atomic unit a user action produces -- one drag of fifty objects, one
+paste, one typed word -- and the unit of sync, undo and history.
+
+[source,protobuf]
+----
+message Change {
+  fixed64 replica = 1;
+  uint64 seq = 2;               // 1, 2, 3 ... per replica, no gaps
+  uint64 start_counter = 3;     // op i has counter start_counter + i
+  uint64 base_server_seq = 4;   // causal past: everything the server had sequenced up to here
+  int64 wall_time_ms = 5;       // informational only (history UI); never used to merge
+  string label = 6;             // "Move 3 objects": history and undo menu
+  repeated Op ops = 7 [(buf.validate.field).repeated.max_items = 10000];
+}
+----
+
+The server is the hub, which keeps causality cheap: everything a client knows about other
+replicas came from the server's log in order, so a change's causal past is exactly "the server
+log up to `base_server_seq`, plus this replica's earlier changes".  No vector clocks or hash
+DAGs travel with changes (xref:sync-protocol.adoc[Sync protocol]).
+
+== Merge rules
+
+Registers:: A register holds `(value, OpId)`.  Applying a write whose OpId is greater than the
+register's replaces it; otherwise the write is ignored but *retained in the change log*, so the
+conflict review can show the losing value and offer it back.  Unset is a value: a
+`SetFields` that lists a path without a value writes `(unset, OpId)`, so clearing a field (a
+style override, an attached URL) competes with concurrent writes by the same rule instead of
+reverting to the schema default silently.
+
+Tree moves:: Parent and position change only through `CreateNode` and `MoveNode`.  All tree
+ops are applied in OpId order using the undo-do-redo scheme of Kleppmann et al.: when an op
+arrives out of order, later moves are undone, the new op applied, and the later ones redone.  A
+move that would make a node its own ancestor is skipped.  Only moves not yet causally stable
+need to be kept for this, which keeps the log short.
+
+Sibling order:: Children sort by `position` (bytewise), then by node id.  Positions are
+fractional-index byte strings generated between neighbors with a random suffix, so two people
+inserting "between the same two objects" at once almost never produce equal keys, and the node
+id breaks any tie.  Positions are never rebalanced.  Interleaving of concurrent inserts, a
+known weakness of fractional indexing, is harmless for stacked objects and list items.
+
+Deletion:: `deleted` is a register on the node.  A deleted node keeps its properties, children
+and history; it is simply not rendered or selectable.  Edits to a deleted node still apply, so
+restoring it (writing `deleted = false`) restores them too.  The conflict review lists "edited
+something that was deleted" and offers *Restore*.
+
+Sequences:: An element is an id, a position register, a deleted register and STRUCT fields.
+Inserting, moving and deleting elements are independent registers, so one user reordering the
+fill stack while another edits a fill's color keeps both.
+
+Text:: Fugue ordering of character elements (maximally non-interleaving for concurrent typing
+at the same spot).  Deleted characters remain as tombstones until causally stable.  Formatting
+is a set of marks anchored to character ids (Peritext): a mark's span grows as text is typed
+inside it and follows its characters when others edit nearby.  Paragraph properties (alignment,
+indents, tabs, rules, spacing, paragraph style) are STRUCT registers on the paragraph's
+terminating newline element, so they travel with the paragraph.
+
+Sets:: Add-wins: a concurrent add and remove of the same member keeps it.
+
+References:: A `NodeRef` is an ATOMIC register.  If its target is deleted, unknown or the wrong
+kind, readers apply the field's `on_dangling` fallback; references never block a merge.
+
+Totality:: Every op applies to every state.  An op naming an unknown node, a wrong-kind field,
+or a malformed path is a deterministic no-op in both engines.  The server rejects such ops on
+ingest where it can cheaply tell, but the engines never assume it did.
+
+== Normalize on read
+
+The model layer (`WTModel`) interprets merged states that violate an invariant, deterministically,
+without writing anything:
+
+* A text flow chain that forms a loop is cut at the link with the smallest node id.
+* A blend whose endpoint is no longer a path renders as its endpoints only.
+* A symbol instance whose symbol is deleted renders as a hatched placeholder with the symbol's
+  name (`REF_FALLBACK_PLACEHOLDER`).
+* A clipping group with no remaining clip path renders its contents unclipped.
+
+Each feature page lists its own read-time normalizations under *Merge semantics*.  If a user
+then edits the object, the ordinary command writes a valid state.
+
+== Undo
+
+Undo is per user and local.  Undoing never rewinds the shared document; it writes a new change.
+
+* When `WTModel` applies a local command, it records the inverse of each op against the state
+  just before: the prior `(value, OpId)` of each register written, the prior parent and
+  position of each moved node, the inserted element ids, the deleted characters.
+* *Undo* emits a change restoring each prior value *only where the register still holds the
+  value this user wrote*.  If someone else has since changed it, that part of the undo is
+  skipped: undo never reverts other people's work.  Redo is symmetric.
+* Undo of a creation sets `deleted = true`; undo of a deletion sets it back to `false`.  Undo of
+  typed text deletes the inserted character ids; undo of a deletion re-inserts the text as new
+  characters at the original anchor.
+* The undo stack survives relaunch (it is kept in the local store) and is capped by the
+  *Undo levels* preference (xref:undo.adoc[Undoing actions]).
+
+== Snapshots
+
+A `DocumentSnapshot` is the full merge state at a server sequence number: every node with its
+registers and their OpIds, sequence elements including unstable tombstones, the unstable part of
+the move log, and each replica's highest applied seq.  Snapshots are zstd-compressed protobuf,
+chunked to 1 MiB for transfer, and carry a `state_hash` (SHA-256 over a canonical encoding) that
+both engines compute identically.  Clients compare their own hash to the server's at the same
+sequence number whenever their outbox is empty.  A mismatch is a bug report plus an automatic
+re-bootstrap from the snapshot.
+
+== Garbage collection
+
+Tombstones (deleted characters, deleted sequence elements) and move-log entries can be dropped
+once they are *causally stable*: every replica that could still send an op referencing them has
+acknowledged a server sequence past them.  The server tracks each replica's acknowledged
+sequence and publishes the stable point.
+
+* A replica silent for longer than the retention window (90 days by default, per team setting)
+  is *retired* and stops holding back the stable point.  If it comes back, its unsent changes go
+  through salvage (xref:offline.adoc#expiry[Offline]).  One or two days offline is far inside
+  the window and never triggers this.
+* Deleted *nodes* are not purged by stability alone: they stay restorable for 30 days, then are
+  compacted out of new snapshots.  They remain in the cold change log for version history.
+
+== Schema evolution [[evolution]]
+
+* Fields and kinds are only added, never renumbered or retyped (`buf breaking`).
+* `protoc-gen-wtcrdt` emits a merge table (field path → policy) that is also serialized into
+  every `Welcome`, so a client that meets a field newer than itself still merges it correctly
+  and preserves it for others.
+* A feature whose *rendering* matters (a new effect type) bumps the document's feature level
+  when first used; clients below it open the document read-only with an update prompt.
+
+== Performance budget
+
+Design point: 50,000 live nodes, 1,000,000 registers, 200,000 characters of text, 100,000 ops
+per day across all collaborators.  Applying a typical remote change (under 50 ops) must take
+under 1 ms on an M1; bootstrapping the design-point document from a snapshot must take under
+1.5 s.  If text history becomes the bottleneck, the Eg-walker approach (store plain text plus
+the event graph, rebuild CRDT state transiently to merge) is the planned optimization
+(https://arxiv.org/abs/2409.14252[Gentle & Kleppmann, EuroSys 2025]).
+
+== Build tasks
+
+The engine is the critical path; see xref:backlog.adoc[Backlog] for CRDT-001 onward.

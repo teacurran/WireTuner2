@@ -1,0 +1,7 @@
+= Color management
+include::_attributes.adoc[]
+:page-slug: color-management
+:page-group: Color management
+:page-fh: Chapter 13, "Color management strategy", "The FreeHand color management workflow", "Using Kodak Digital Science and Apple ColorSync CMS", "Setting CMS options", "About rendering intent"
+
+include::_includes/cms/color-management.adoc[]

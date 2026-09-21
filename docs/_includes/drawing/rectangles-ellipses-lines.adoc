@@ -1,0 +1,310 @@
+Rectangles, ellipses and lines are the shapes you draw most, so {product} gives each its own
+tool and makes the first two *live* shapes: a rectangle remembers that it is a rectangle, so
+you can round its corners or retype its size in the Object panel long after drawing it.  A
+line is an ordinary two-point path.  The three tools share one slot in the Tools panel; press
+and hold the slot to pick one.
+
+// TODO screenshot: the Rectangle/Ellipse/Line tool group popped out of the Tools panel
+
+== Drawing a rectangle, ellipse or line
+
+To draw a rectangle, ellipse or line:
+
+. In the Tools panel, choose the Rectangle, Ellipse or Line tool from the shape tool group
+  (the single-key shortcuts are listed on xref:toolbars.adoc[Toolbars]).
+. Drag on the canvas from one corner (or end) to the other and release.
+
+To draw from the center instead of a corner:
+
+. Choose the tool.
+. Hold kbd:[Option] and drag.  The point where you pressed stays the center of the shape.
+
+Modifier keys while dragging::
+kbd:[Shift]:: Constrains the shape: a rectangle becomes a square, an ellipse a circle, and a
+line snaps to the constrain angle and every 45° from it.
+kbd:[Option]:: Draws from the center.
+kbd:[Option+Shift]:: Draws a constrained shape from the center.
+kbd:[Space]:: Repositions the shape while you are still dragging; release kbd:[Space] to go
+back to sizing it.  Works for polygons and stars too.
+
+The *constrain angle* is a document setting, normally 0°, that tilts every constrained
+operation: at 15°, kbd:[Shift] snaps lines to 15°, 60°, 105° and so on, and rectangles and
+ellipses are drawn rotated by 15°.  Set it in menu:File[Document Settings > Constrain]
+(xref:document-panel.adoc[Document panel]).
+
+The new shape takes the current default stroke and fill
+(xref:default-attributes.adoc[Default attributes]) and is selected when you release.
+
+== Rectangles with rounded corners
+
+A rectangle's corners can be rounded uniformly or one at a time.
+
+To set the corner radius before drawing:
+
+. Double-click the Rectangle tool in the Tools panel.
+. In the Rectangle Tool sheet, type a radius or drag the slider.  0 is a square corner; the
+  slider runs to 100 points, and you can type larger values.
+. Click btn:[OK], then draw.  Every rectangle you draw from now on starts with this radius.
+
+To round the corners of an existing rectangle by dragging:
+
+. Choose the Subselect tool and click the rectangle.  A small radius handle appears at each
+  corner.
+. Drag any handle inward.  With *Uniform* on (the default) all four corners follow.
+
+To round corners independently:
+
+. Select the rectangle with the Subselect tool.
+. In the Object panel, turn off *Uniform*.  Four radius fields appear.
+. Type a radius for each corner, or drag a corner's handle.  Corners you re-lock (by turning
+  *Uniform* back on) share the largest value.
+
+A radius larger than half the shorter side is shown clamped, so a very rounded rectangle
+becomes a stadium or a circle rather than folding over itself.
+
+// TODO screenshot: Object panel rectangle section with Uniform off and four radius fields
+
+TIP: Corner rounding is not only for rectangles.  The *Corners* live effect
+(xref:live-effects.adoc[Live vector effects]) rounds, scoops or chamfers the corners of any
+shape -- stars, polygons, paths you drew -- and can be added to a rectangle too, for an
+inverted or chamfered corner.  The rectangle's own radius stays the quickest way to round a
+rectangle; while a rectangle carries a Corners effect, the effect takes over, the *Radius* field
+is dimmed with a note, and the corner handles adjust the effect instead.
+
+== Editing a shape by numbers
+
+Select a rectangle or ellipse and the Object panel shows its position and size:
+
+[cols="1,3"]
+|===
+|Field |Meaning
+
+|X, Y
+|Position of the shape's top-left corner (before any rotation), in the document's unit,
+measured from the page's zero point.
+
+|W, H
+|Width and height.
+
+|Radius (rectangles)
+|One field with *Uniform* on, four (top-left, top-right, bottom-right, bottom-left) with it
+off.
+|===
+
+Type a value and press kbd:[Return] to apply it.  This is also how to draw to exact
+dimensions: drag a rough shape, then type its size.
+
+== Converting a shape to a path
+
+A rectangle or ellipse stays editable as a shape until you need to edit its points.  Choose
+menu:Modify[Ungroup] (kbd:[Cmd+Shift+G]) to convert it to a plain path with corner and curve
+points; the shape's rounded corners, position and size are preserved, but the Object panel no
+longer offers the radius or size fields.  Ungrouping cannot be reversed except by
+menu:Edit[Undo].
+
+NOTE: For {fh} users: rectangles and ellipses are not groups in {product}, but *Ungroup*
+still converts them to paths so the habit carries over.
+
+== Working with others
+
+A collaborator can round the corners of a rectangle you are resizing; you will see the corners
+change while your drag continues, and both edits stay.  If you both change the same thing --
+say, the width -- the value set last wins and the other person sees theirs replaced.  If
+someone converts a rectangle to a path while you are editing its radius, your radius change
+has nowhere to land: the shape becomes a path with the corners it had when they converted it.
+After working offline, any shape you and someone else both changed appears in the review
+sheet with both sets of values.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,1"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Rectangle, Ellipse and Line tools; drag to draw; kbd:[Option] from center; kbd:[Shift]
+constrain; constrain angle from Document Settings
+|Same.
+|Faithful
+
+|kbd:[Space] to reposition while drawing; Windows right-button reposition
+|kbd:[Space] kept; right-button variant dropped (Windows-only).
+|Adapted
+
+|Rectangles and ellipses are grouped objects; Ungroup converts to a path
+|Rectangles and ellipses are `rect` and `ellipse` node kinds (not groups).  menu:Modify[Ungroup]
+converts them to `path` nodes, preserving the {fh} habit.  Reason: a group with a phantom child
+would complicate the tree for no benefit; a kind with derived geometry is one node with a few
+registers.
+|Adapted
+
+|Rectangle Tool dialog radius 0--100; Object panel Uniform and per-corner radii; Subselect
+radius handles
+|Same.  Values above 100 accepted by typing.
+|Faithful
+
+|Object panel X, Y, W, H for rectangles and ellipses
+|Same.
+|Faithful
+|===
+
+=== Data model
+
+`doc/v1/shape.proto`.  A shape's geometry is *derived on read*: `WTModel` exposes every
+`rect` and `ellipse` node as a `Path` (four corner points with arc corners, or four curve
+points) so that every consumer -- rendering, hit-testing, blends, text on a path, export --
+sees a path.  Only the shape editors care about the kind.
+
+[source,protobuf]
+----
+// A live rectangle.  Its local frame has its top-left corner at the origin;
+// CommonProps.transform places, rotates and skews it on the pasteboard.
+message RectProps {
+  CommonProps common = 1;
+  // Size is one register: a Shift-constrained resize sets both together and a concurrent
+  // resize by someone else should replace both, not produce a shape nobody dragged.
+  Size size = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  CornerRadii corners = 3;                    // STRUCT: each corner is its own decision
+  Appearance appearance = 4;
+}
+
+message CornerRadii {
+  bool uniform = 1;                           // Object panel "Uniform"; default true
+  double top_left = 2     [(buf.validate.field).double.gte = 0];
+  double top_right = 3    [(buf.validate.field).double.gte = 0];
+  double bottom_right = 4 [(buf.validate.field).double.gte = 0];
+  double bottom_left = 5  [(buf.validate.field).double.gte = 0];
+}
+
+// A live ellipse inscribed in its local frame.
+message EllipseProps {
+  CommonProps common = 1;
+  Size size = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  Appearance appearance = 3;
+}
+
+message Size { double width = 1; double height = 2; }   // ATOMIC where used
+----
+
+A line is a `PathProps` with one open contour of two corner points, so it needs nothing here.
+The Rectangle Tool sheet's radius is a *tool setting*, kept in preferences, not in the document.
+
+=== Merge semantics
+
+Per field::
+`size`: ATOMIC.  `corners.*`: each radius and `uniform` a register.  `appearance`: see the
+attribute stack.  Position and rotation: `common.transform` (ATOMIC, owned by
+xref:moving.adoc[Moving] and xref:transforming.adoc[Transforming]).
+
+Resize vs. resize:: LWW on `size`; the other size is retained for the review sheet.
+
+Resize vs. round corners:: Independent registers; both survive.  If the resulting radii exceed
+half the shorter side, the read clamps them (below); nothing is rewritten.
+
+Uniform toggled vs. one corner edited:: `uniform = true` reads all four corners as the value of
+`top_left`.  The concurrent per-corner edit is preserved in its register and reappears if
+*Uniform* is turned off again.  The Object panel writes all four radii when *Uniform* is on
+(so turning it off later shows four equal values), which means a uniform edit and a per-corner
+edit of `top_left` collide as *same register*.
+
+Corners effect vs. own radius:: A live, unhidden `CornersEffect` in the rectangle's
+`appearance` supersedes `corners` on read: the derived path is built with zero radii and the
+effect rounds it (xref:live-effects.adoc[Live vector effects]).  The `corners` registers are
+not rewritten, so concurrent edits to them still merge and read again once the effect is
+removed or hidden.  Nothing is reviewed: the two are different registers.
+
+Convert to path vs. any shape edit:: Conversion creates a `path` node from the geometry the
+converter saw and deletes the shape node.  Concurrent edits to the shape node apply to the
+deleted node: *edit vs delete* in the review sheet, with *Restore* bringing the shape back
+alongside the path.
+
+Read-time normalizations::
+* Each radius is clamped to half of `min(width, height)`.
+* `uniform = true`: all corners read as `top_left`.
+* A live Corners effect present: all radii read as 0 and the effect applies (above).
+* A `size` with a zero or negative dimension renders nothing and is selectable only from the
+  Layers panel; the client validators prevent writing one.
+
+=== Offline behavior
+
+Works offline; nothing needs the server.  A resize drag coalesces to one `size` write.
+
+=== Server
+
+Nothing beyond storing and relaying changes.
+
+=== Client
+
+Tools:: `RectangleTool`, `EllipseTool`, `LineTool` in `WTApp`, on the APP-003 `Tool` protocol.
+The drag state machine handles modifier changes mid-drag (kbd:[Shift] and kbd:[Option] can
+be pressed or released at any time before mouse-up) and kbd:[Space] as a "move the anchor
+point" sub-state.  The node is created on mouse-down with a zero size and its `size` written
+on each drag event; a drag that ends with a size under 1 pt is undone locally (the create and
+its edits coalesce to nothing in the outbox).
+
+Geometry:: `WTGeometry.rectPath(size:radii:)` produces four corner points with quarter-circle
+corners as cubic segments (kappa 0.5523), clockwise from top-left; `ellipsePath(size:)`
+produces four curve points, clockwise from the top.  The constrain angle is applied by
+composing a rotation into `common.transform` at creation.
+
+Object panel:: `rect` and `ellipse` sections registered with APP-007: X/Y/W/H (X/Y edit
+`transform`, W/H edit `size`), Radius with the Uniform lock, and per-corner fields.
+
+Subselect handles:: Radius handles are drawn at each corner along the diagonal, in the shape's
+local space, and drag in local units; hit-tested before points.  When the rectangle carries a
+live Corners effect they drive that effect's `radius` instead (FX-047), and the Object panel's
+*Radius* field is dimmed with "Overridden by Corners effect".
+
+Undo:: One group per drag; one per Object panel field commit; Ungroup is one group labelled
+"Convert to path".
+
+=== Build tasks
+
+[[DRAW-006]]
+==== DRAW-006 Rectangle and ellipse schema
+[horizontal]
+Track:: proto
+Depends on:: PROTO-003, PROTO-005
+Size:: S
+Delivers:: `doc/v1/shape.proto` with `RectProps`, `EllipseProps`, `CornerRadii`, `Size`; `rect` and `ellipse` kinds in `NodeProps`; validation rules as above.
+Done when::
+* Lints clean; merge table shows `size` ATOMIC and `corners` STRUCT.
+* Conformance vector: concurrent `size` writes and concurrent per-corner writes converge with identical hashes in both engines.
+
+[[DRAW-007]]
+==== DRAW-007 Rectangle, Ellipse and Line tools
+[horizontal]
+Track:: client-ui
+Depends on:: DRAW-002, DRAW-006, APP-003, GEO-005
+Size:: M
+Delivers:: The three tools with drag-to-draw, kbd:[Shift] constrain (honoring the document constrain angle), kbd:[Option] from center, kbd:[Space] reposition, mid-drag modifier changes, cancel with kbd:[Esc], default attributes applied, tool shortcuts, and the shape-tool group in the Tools panel.
+Done when::
+* UI tests draw each shape with every modifier combination and check the resulting node's size, transform and (for lines) the two points.
+* A drag under 1 pt leaves no node and nothing in the outbox.
+* Merge test: two replicas each draw a rectangle concurrently; both rectangles exist on both replicas in a deterministic stacking order.
+
+[[DRAW-008]]
+==== DRAW-008 Shape geometry and rendering
+[horizontal]
+Track:: client-render
+Depends on:: DRAW-006, DRAW-003
+Size:: S
+Delivers:: `rectPath` and `ellipsePath` in `WTGeometry`, the read-time radius clamp and Uniform rule in `WTModel`'s path view of shape nodes, and hit-testing through the derived path.
+Done when::
+* Derived paths match {fh} exports of the same shapes within 0.01 pt.
+* Radius clamp and Uniform read rules have unit tests, including a merged state with radii larger than the shape.
+
+[[DRAW-009]]
+==== DRAW-009 Rectangle corners, Object panel and conversion
+[horizontal]
+Track:: client-ui
+Depends on:: DRAW-007, DRAW-008, DRAW-004
+Size:: M
+Delivers:: The Rectangle Tool sheet (radius, slider, stored as a tool preference), Subselect radius handles with the Uniform behavior, the rect/ellipse Object panel sections (X, Y, W, H, Radius, Uniform, four corners), and menu:Modify[Ungroup] on a shape converting it to a `path` node.
+Done when::
+* UI tests: drag a radius handle with Uniform on and off; type W/H and verify `size`; ungroup and verify a `path` node with the same outline exists and the shape node is deleted.
+* Merge test: resize on one replica while another edits a corner radius keeps both; ungroup on one replica while another edits the radius produces a path plus an *edit vs delete* entry.
+* Undo of ungroup restores the shape node (deleted = false).
+endif::spec[]

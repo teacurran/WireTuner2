@@ -1,0 +1,155 @@
+The Print dialog shows, on its left, a preview of every sheet the job will produce, drawn with
+the settings currently chosen.  Change the scale, turn on tiling, switch to separations or add
+crop marks, and the preview redraws.  It is the place to check that a page fits the paper,
+that marks are not being clipped, and that a tiled poster comes out as the number of sheets
+you expect -- before any paper is used.
+
+NOTE: {fh} users: the Print dialog no longer has its own preview pane with a hand pointer.  The
+macOS preview shows the same information, and the page is moved on the paper with the *Offset*
+fields rather than by dragging.
+
+// TODO screenshot: the Print dialog preview showing a page on larger paper with crop marks, bleed area and a two-sheet tile grid
+
+== Reading the preview
+
+The preview is a true rendering of the sheet: the artwork as it prints, the paper edge, and
+every mark and label.  A few things are drawn in addition, in light gray, and do not print:
+
+[cols="1,3"]
+|===
+|Element |Meaning
+
+|Paper outline
+|The sheet chosen in *Paper Size*, in the chosen orientation.
+
+|Printable area
+|A dotted rectangle just inside the paper edge: the region the printer can reach.  Anything
+outside it -- artwork, marks or labels -- is clipped, and a small warning appears under the
+preview.
+
+|Page outline
+|The document page, or the output area's boundary when printing that
+(xref:output-area.adoc[Defining an output area]).
+
+|Bleed area
+|A tinted band around the page, shown only when *Bleed* is greater than 0.
+
+|Tile grid
+|With automatic tiling, the grid of tiles over the page, with the current sheet highlighted
+and the overlap shown as a hatched strip.
+|===
+
+Use the arrows beneath the preview to step through the sheets.  The counter reads `Sheet 3 of
+8`; with separations on, each sheet is also named for its ink (`Page 1, Magenta`), and with
+tiling, for its position (`Page 1, row 2 column 1`).
+
+== Positioning the page on the paper
+
+The page is centred on the paper by default.
+
+To move it:
+
+. In the *{product}* pane, enter values for *Offset X* and *Offset Y* in document units.
+  Positive values move the page right and down.
+. Watch the preview; the page moves as you type.
+. Click btn:[Center] to return it to the centre of the paper.
+
+The offset moves the printed page only; nothing in the document moves.  The offset is a
+document print setting, so the whole team prints with the same placement until someone changes
+it.
+
+== Previewing at full size
+
+For a closer look than the dialog allows, choose *Open in Preview* from the btn:[PDF] menu at
+the bottom of the dialog.  Preview opens the exact PDF the printer would receive, every sheet
+of it, at any magnification.  Nothing is sent to the printer; return to {product} and print
+when satisfied.
+
+== Working with others
+
+The preview reflects the document as it is now, including changes collaborators make while
+the dialog is open: an object someone moves onto the page appears in the preview a moment
+later, and a bleed value someone changes redraws the bleed band.  What prints is what the
+preview shows when you click btn:[Print].
+
+ifdef::spec[]
+== Specification
+
+The preview is the print panel's own preview of the `NSPrintOperation` view; {product} adds
+nothing to the panel's chrome beyond its accessory pane.  What this page specifies is what the
+view draws in preview and how the pane keeps it current.
+
+=== FreeHand parity
+
+[cols="2,3,2"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Preview pane in the Print dialog showing print area, paper, crop and registration marks,
+bleed
+|The `NSPrintPanel` preview, which renders the actual sheets; the same non-printing
+overlays (paper, printable area, page outline, bleed, tile grid) are drawn by the view when it
+knows it is drawing for the panel.
+|Faithful
+
+|Hand pointer to reposition objects on the paper for the current output only
+|Numeric *Offset X/Y* and btn:[Center] in the pane; the offset is a document setting.
+|Adapted -- the panel preview is not interactive; a stored offset is reproducible across the
+team.
+
+|Reset arrow (click the pasteboard to restore the original location)
+|btn:[Center].
+|Adapted -- same intent.
+
+|Preview modes X-Box, Keyline, Preview
+|Dropped.  The panel preview renders asynchronously off the main thread and can be collapsed
+(btn:[Hide Details]) if it is slow; X-Box existed to make the dialog open faster.
+|Dropped -- performance workaround no longer needed.
+
+|Windows: Preview button for non-PostScript printers
+|Not applicable.
+|Dropped -- Windows only.
+|===
+
+=== Data model
+
+Adds `PrintSettings.offset` (a `Point`, ATOMIC), sketched on xref:printing.adoc[Printing].
+No other fields.
+
+=== Merge semantics
+
+`offset` is one ATOMIC register: concurrent moves keep the later one whole.  It follows the
+review-sheet exemption for print settings.  Read-time: an offset that places the page entirely
+outside the printable area is honored (the user may want it) but the preview warns.
+
+=== Offline behavior
+
+Works offline.
+
+=== Server
+
+Nothing beyond storing and relaying changes.
+
+=== Client
+
+* `PrintPlanView.draw(_:)` checks `NSPrintOperation.current?.isPreview` (the panel sets the
+  operation's context for preview) and, when true, draws the non-printing overlays after the
+  sheet: paper outline, printable area (from `NSPrintInfo.imageablePageBounds`), page outline,
+  bleed band, tile grid with the current tile highlighted.  Overlays are never drawn to the
+  spooled job.
+* The sheet name shown under the preview comes from the view's `printJobTitle` and the
+  accessory's `localizedSummaryItems()`; the panel shows `Sheet n of m` itself.
+* The pane declares `keyPathsForValuesAffectingPreview` for every setting including the
+  offset; the panel invalidates and re-paginates on any change.
+* Clipping detection: after pagination the plan computes whether any mark or label rectangle
+  falls outside `imageablePageBounds` and publishes a warning string the pane shows beneath
+  the preview.
+* Remote changes to the document while the dialog is open post the same invalidation, so the
+  preview redraws when artwork or settings change under it.
+
+=== Build tasks
+
+The preview overlays, sheet naming and the clipping warning are delivered by
+xref:printing.adoc#PRINT-004[PRINT-004] together with the pane, and the offset by
+xref:printing.adoc#PRINT-003[PRINT-003]; this page adds no task of its own.
+endif::spec[]

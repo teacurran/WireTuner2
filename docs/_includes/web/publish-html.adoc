@@ -1,0 +1,519 @@
+*Publish as HTML* turns a document into a web page: one folder holding an `index.html`, one SVG
+(or PNG) per page, the images, fonts and video the pages need, and a stylesheet.  Open the
+folder in a browser and the document is there, links working, animation playing, at any screen
+size.  You can publish to a folder on your Mac, or publish to a *web link* -- a read-only copy
+hosted for you that anyone with the link can open, updated each time you publish again.
+
+Named *HTML settings* control what the publisher produces.  The built-in *Default* setting
+writes SVG pages, JPEG images and embedded fonts into a folder called `{product} HTML Output`
+in your Documents folder.  You can edit it, add your own, and publish the same document several
+times with different settings -- once as crisp SVG for modern browsers, once as PNG for an email
+client -- as long as each goes to a different folder or name.
+
+NOTE: {fh} wrote movie files for vector art and offered an HTML *Assistant*.  {product} writes SVG
+and has no assistant: the Setup sheet is short enough to fill in directly.
+
+== Publishing
+
+To publish a document as HTML:
+
+. Choose menu:File[Publish as HTML…].  The Publish sheet opens.
+. Choose an *HTML setting* from the pop-up menu, or click btn:[Setup…] to create or edit one (see
+  below).
+. Under *Pages*, choose *All* or enter a range.
+. Under *Publish to*, choose *Folder on this Mac* or *Web link*.
+. Optionally select *Show output warnings* to see, when publishing finishes, a list of anything
+  that could not be reproduced exactly.
+. Optionally select *Open when done* and choose a browser from the pop-up menu -- your default
+  browser, any browser installed, or btn:[Other…] to pick an application.
+. Click btn:[Publish].
+
+Publishing runs in the background; the progress appears in the sheet, which you can close and
+reopen from the same menu.  When it finishes, the folder is revealed in the Finder (or the web
+link is copied to the clipboard), the browser opens if you asked for it, and the warnings list
+appears if there was anything to report.
+
+// TODO screenshot: Publish as HTML sheet
+
+=== Output warnings
+
+The warnings list names each object that lost something in translation, with a btn:[Show] button
+that selects it on the canvas:
+
+* effects rasterized because SVG has no equivalent (some raster effects, transparency knockout
+  groups);
+* fonts converted to outlines because the font's license does not permit embedding, or because
+  the font was missing (xref:font-substitution.adoc[Font substitution]);
+* links whose URL could not be made valid;
+* links on stroke-only paths, which respond only on the stroke in image maps;
+* a placed SVG animation that depends on script (xref:svg-animation.adoc[SVG animations and browser preview]);
+* pages larger than 16,384 pixels on a side at the chosen scale, which are clamped in PNG mode.
+
+== HTML settings
+
+To create or edit an HTML setting:
+
+. In the Publish sheet, click btn:[Setup…].
+. In the HTML Setup sheet, click btn:[+] to add a setting and name it, or choose an existing one
+  from the list on the left.  btn:[--] deletes the selected setting; *Default* cannot be deleted,
+  only edited.
+. Fill in the options below.
+. Click btn:[Apply] to save and keep editing, or btn:[OK] to save and return to the Publish sheet.
+
+// TODO screenshot: HTML Setup sheet
+
+[cols="1,3"]
+|===
+|Option |Meaning
+
+|*Location*
+|The folder that receives the output when publishing to a folder.  Click btn:[Choose…].  Each
+document publishes into its own subfolder named after the document.  This is the only option that
+is yours alone; every other option in a setting is shared with collaborators.
+
+|*Layout*
+|*Whole pages* (default) renders each document page as one picture.  Objects stay exactly where
+they are and overlap freely.
+*Positioned objects* renders each top-level object as its own picture and places it with CSS.
+The page is then easy to take apart in a web editor -- swap a logo, hide a layer -- at the cost
+of many more files.  Objects still overlap correctly; stacking order becomes `z-index`.
+
+|*Pages*
+|*Stacked in one file* puts every published page into `index.html`, one after another, each in a
+`<section id="page-N">`.  *Separate files* writes `page-N.html` per page with previous/next
+navigation, and `index.html` for the first.  Page-to-page links (xref:interactivity.adoc[Adding
+interactivity]) work in both.
+
+|*Vector art*
+|*SVG* (default) keeps paths as paths.  *PNG* rasterizes every page (or object) at the chosen
+*Scale*; links become image maps.
+
+|*Scale*
+|For PNG output: *1×*, *2×* or *3×* CSS pixels per point.  The HTML sizes the image back down, so
+the page looks the same size at every setting and sharper at higher ones.
+
+|*Images*
+|The format for bitmaps placed in the document: *JPEG*, *PNG* or *WebP*, with a *Quality* slider
+for lossy formats.  Bitmaps with transparency use PNG or WebP regardless.  See
+xref:web-compression.adoc[Compressing artwork for the web].
+
+|*Fonts*
+|*Embed* (default) subsets each font used and writes it as WOFF2, where the font's license allows
+embedding; fonts that forbid it are converted to outlines and listed in the warnings.
+*Convert to outlines* converts all text to paths -- no fonts, no selectable text, exact
+appearance.  *System fonts* keeps text as text and names the font without embedding; the viewer's
+Mac or browser substitutes if it lacks the font.
+
+|*Animation*
+|*Include* (default) writes the document's frame animation into the SVG pages when the
+document has animation settings (xref:animation.adoc[Animating objects and text]).  *Still*
+publishes the pages as they look on the canvas.
+
+|*SVG animations*
+|*Play* (default) writes placed SVG animations inline so they play; *Poster only* writes the
+still (xref:svg-animation.adoc[SVG animations and browser preview]).  *Allow scripts* keeps any
+script inside placed files; off (default) strips it.
+
+|*Page background*
+|*Transparent*, *White* or *Document* (the page color from the Document panel).
+
+|*Title*
+|The `<title>` of the HTML; defaults to the document name.
+|===
+
+Text encoding is always UTF-8; there is no option.
+
+Colors need no option either.  sRGB colors are written as hex; Display P3, OKLCH and Lab
+colors are written the way current browsers read them (`color(display-p3 …)`, `oklch(…)`,
+`lab(…)`) with an sRGB version beside each for browsers that do not, so a wide-gamut brand
+red is that red on a P3 screen and the nearest sRGB red elsewhere
+(xref:spot-process.adoc[Spot and process colors]).  PNG output embeds the Display P3 profile
+when the document holds such colors (xref:export-bitmap.adoc[Exporting bitmaps]).
+
+=== What the folder contains
+
+[listing]
+....
+Brochure/
+├── index.html            the page(s); a <section> per document page in Stacked layout
+├── page-2.html …         only with Separate files
+├── style.css             layout, page sizes, animation keyframes
+├── pages/page-1.svg …    one file per page (or per object, under objects/)
+├── images/               placed bitmaps in the chosen format, named by content hash
+├── fonts/                subsetted WOFF2 files
+└── animations/           placed SVG animations that are emitted as files, and their posters
+....
+
+Everything is relative, so the folder can be moved, zipped, mailed, or dropped onto any static
+host.  Files are named deterministically, so republishing over the same folder changes only what
+changed.
+
+== Publishing to a web link
+
+A web link is the same output, hosted by {product} and served at a permanent address such as
+`https://pub.wiretuner.app/d/3f9c…/`.  Use it to hand a client a preview, to show a page on a
+phone, or to keep a "latest" URL that always shows the current state of the document.
+
+To publish to a web link:
+
+. Choose menu:File[Publish as HTML…] and pick an HTML setting.
+. Under *Publish to*, choose *Web link*.
+. Choose who can open it:
+  *People with access to this document* (they sign in) or *Anyone with the link*.
+. Click btn:[Publish].  The address appears in the sheet and is copied to the clipboard.
+
+The address stays the same each time you publish again; viewers who reload see the newest
+publish.  Every publish is listed under menu:File[Publish as HTML… > Published links…] with its
+date, the setting used and who published it, and any of them can be reopened, downloaded as a
+folder, or *unpublished*, which makes the address stop working.  Unpublishing is not undoable but
+publishing again restores it at the same address.
+
+Publishing to a web link needs a network connection; the option is disabled offline with a note
+saying so.  Changing who can open the link later is done in the *Published links* sheet or on the
+document's share settings (xref:sharing.adoc[Sharing documents]).
+
+NOTE: A web link is a *copy*.  Viewers cannot edit, comment, or see later changes until someone
+publishes again.  To collaborate on the document itself, share it instead.
+
+== Working with others
+
+Publishing reads the document at the moment you click btn:[Publish] and does not change it, so
+collaborators see nothing happen.  The HTML settings themselves are part of the document -- a
+setting you add appears in everyone's Setup sheet, and if two people edit the same setting at
+once the later edit wins field by field (your *Fonts* choice and their *Scale* choice both
+survive).  The output folder location is the one thing that stays yours, because a path on your
+Mac means nothing on theirs.
+
+Two people can publish the same document to its web link at the same time; the one that finishes
+uploading later becomes the current one, and both are listed.  If you publish while a
+collaborator's latest changes are still syncing to you, they are not in the output; the
+*Published links* sheet shows the document version each publish was made from, so you can tell.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,2"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|File > Publish as HTML with named HTML settings
+|menu:File[Publish as HTML…] with named settings stored in the document.
+|Faithful
+
+|HTML Output dialog: setting pop-up, Setup, Wizard/Assistant
+|Setting pop-up and btn:[Setup…]; no Assistant.
+|Adapted -- the Setup sheet is small enough not to need a wizard.
+
+|Page range
+|Same.
+|Faithful
+
+|Show Output Warnings
+|Same, with btn:[Show] to select the offending object.
+|Faithful
+
+|View in Browser or HTML Editor
+|*Open when done* with a browser pop-up; an editor can be chosen with btn:[Other…].
+|Faithful
+
+|Default setting: desktop folder "FreeHand HTML Output", layers, Latin 1, movie + JPEG
+|`~/Documents/{product} HTML Output`, Whole pages, UTF-8, SVG + JPEG.
+|Adapted -- SVG for vectors; encoding fixed.
+
+|Layout: Positioning with Layers
+|*Positioned objects* (absolute CSS positioning, `z-index` from stacking order).
+|Adapted -- same intent, modern CSS.
+
+|Layout: Positioning with Tables
+|Dropped.  Also adds *Whole pages* as the default.
+|Dropped -- table layout existed for pre-4.0 browsers; slicing overlapping objects into cells is worse than any modern option.
+
+|Encoding pop-up
+|Always UTF-8.
+|Dropped -- every browser and font path handles UTF-8; the choice only caused mojibake.
+
+|Vector Art format (movie/GIF/JPEG/PNG)
+|SVG or PNG.
+|Adapted -- SVG replaces the movie format; JPEG/GIF are poor for rasterized vectors and PNG covers the case.
+
+|Images format (GIF/JPEG/PNG)
+|JPEG, PNG, WebP.
+|Faithful (extended)
+
+|Bitmap export options set only in the Export dialog
+|Quality and scale are in the HTML setting.
+|Adapted -- fewer round trips.
+
+|Link on a stroke-only object active only on the stroke
+|Same in image maps; SVG mode behaves the same because SVG hit-testing follows the painted area.
+|Faithful
+
+|--
+|*Publish to web link* (hosted read-only copy).
+|Addition -- collaboration feature; no {fh} equivalent.
+
+|--
+|Wide-gamut colors written as CSS Color 4 values with sRGB fallbacks; PNG pages tagged
+Display P3 when needed.
+|Addition -- {fh} predates wide-gamut displays and CSS Color 4.
+|===
+
+=== Data model
+
+HTML settings live in the document's `settings` node so they are shared; the local folder is
+`local_only`.  Published links are server records, not document state.
+
+[source,protobuf]
+----
+// settings.proto -- extension of the well-known settings node (0:1)
+message SettingsProps {
+  // ... other settings
+  // Named HTML settings.  SEQUENCE: settings are added, renamed and deleted individually;
+  // order is the order of the Setup sheet's list.
+  repeated HtmlSetting html_settings = 60 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  // Which setting the Publish sheet selects by default.  Falls back to the first setting.
+  NodeRef html_setting_selected = 61 [(wt.crdt.field).local_only = true];
+}
+
+// One HTML setting.  STRUCT: each option is an independent choice.
+message HtmlSetting {
+  ElementId id = 1;
+  string name = 2 [(buf.validate.field).string.max_len = 64];
+  // The output folder on this Mac.  Never synced; each Mac keeps its own.
+  string location = 3 [(wt.crdt.field).local_only = true];
+  HtmlLayout layout = 4;                  // WHOLE_PAGES (default) or POSITIONED_OBJECTS
+  HtmlPageMode page_mode = 5;             // STACKED (default) or SEPARATE_FILES
+  HtmlVectorFormat vector_format = 6;     // SVG (default) or PNG
+  uint32 scale = 7 [(buf.validate.field).uint32 = {gte: 1, lte: 3}];   // PNG scale; default 2
+  HtmlImageFormat image_format = 8;       // JPEG (default), PNG, WEBP
+  uint32 image_quality = 9 [(buf.validate.field).uint32.lte = 100];   // default 80
+  HtmlFontMode font_mode = 10;            // EMBED (default), OUTLINES, SYSTEM
+  bool animation_still = 11;              // true = publish stills even if animated
+  bool svg_animation_poster_only = 12;    // true = placed SVG animations as poster images only
+  bool allow_scripts = 15;                // keep <script> inside placed SVG animations (default strip)
+  HtmlBackground background = 13;         // TRANSPARENT, WHITE, DOCUMENT (default)
+  string title = 14 [(buf.validate.field).string.max_len = 256];   // empty = document name
+}
+
+enum HtmlLayout       { HTML_LAYOUT_UNSPECIFIED = 0; HTML_LAYOUT_WHOLE_PAGES = 1; HTML_LAYOUT_POSITIONED_OBJECTS = 2; }
+enum HtmlPageMode     { HTML_PAGE_MODE_UNSPECIFIED = 0; HTML_PAGE_MODE_STACKED = 1; HTML_PAGE_MODE_SEPARATE_FILES = 2; }
+enum HtmlVectorFormat { HTML_VECTOR_FORMAT_UNSPECIFIED = 0; HTML_VECTOR_FORMAT_SVG = 1; HTML_VECTOR_FORMAT_PNG = 2; }
+enum HtmlImageFormat  { HTML_IMAGE_FORMAT_UNSPECIFIED = 0; HTML_IMAGE_FORMAT_JPEG = 1; HTML_IMAGE_FORMAT_PNG = 2; HTML_IMAGE_FORMAT_WEBP = 3; }
+enum HtmlFontMode     { HTML_FONT_MODE_UNSPECIFIED = 0; HTML_FONT_MODE_EMBED = 1; HTML_FONT_MODE_OUTLINES = 2; HTML_FONT_MODE_SYSTEM = 3; }
+enum HtmlBackground   { HTML_BACKGROUND_UNSPECIFIED = 0; HTML_BACKGROUND_DOCUMENT = 1; HTML_BACKGROUND_WHITE = 2; HTML_BACKGROUND_TRANSPARENT = 3; }
+----
+
+The *Default* setting is not stored: it is synthesized at read time when the sequence is empty,
+and materialized (created as an element) the first time someone edits it, so a document that has
+never been published carries no settings.
+
+Published links are server state, in package `wiretuner.publish.v1`:
+
+[source,protobuf]
+----
+// publish.proto (sketch)
+service PublishService {
+  // Registers a publish whose files are already uploaded as blobs.  Idempotent on publish_id.
+  rpc CreatePublish(CreatePublishRequest) returns (Publish);
+  rpc ListPublishes(ListPublishesRequest) returns (ListPublishesResponse);
+  rpc SetPublishAccess(SetPublishAccessRequest) returns (Publish);   // who may open the link
+  rpc DeletePublish(DeletePublishRequest) returns (google.protobuf.Empty);   // unpublish
+}
+
+message PublishManifest {
+  // Path inside the bundle -> blob hash and media type.  Paths are relative, normalized,
+  // no "..", at most 4096 entries.
+  repeated PublishFile files = 1;
+}
+message PublishFile { string path = 1; bytes sha256 = 2; string media_type = 3; uint64 size = 4; }
+
+message Publish {
+  string publish_id = 1;         // client-supplied UUIDv7
+  string document_id = 2;
+  uint64 server_seq = 3;         // document version the bundle was rendered from
+  string setting_name = 4;
+  string published_by = 5;       // user id
+  google.protobuf.Timestamp published_at = 6;
+  PublishAccess access = 7;      // MEMBERS or ANYONE_WITH_LINK
+  string url = 8;                // https://pub.<host>/d/<document_id>/
+  bool current = 9;              // the one the url serves
+}
+----
+
+=== Merge semantics
+
+`html_settings`:: SEQUENCE.  Concurrent edits to different fields of one setting both apply;
+the same field resolves LWW.  A setting deleted concurrently with an edit stays deleted (the
+element's `deleted` register), and the review sheet lists "edited an HTML setting that was
+deleted" with *Restore*.  Two people adding a setting with the same name produce two settings;
+the Setup sheet shows both and appends " (2)" to the later one's display name (read-time only).
+`location`:: `local_only`; never on the wire.  A setting arriving from another replica has no
+location on this Mac and shows "Choose a folder" until one is picked.
+Publishing:: Reads a consistent snapshot of the model on the main actor (the display list is
+built from one state), then renders on a background task.  Nothing is written to the document.
+
+=== Offline behavior
+
+* Publishing to a folder works offline.  Placed images and SVG animations whose blobs have not been
+  downloaded yet are rendered as their placeholders and listed in the warnings; the sheet offers
+  btn:[Wait for downloads] when any are pending and the network is up.
+* Publishing to a web link is disabled offline (the radio button is dimmed with "Needs a
+  connection").  It is never queued: a publish made from stale state hours later is not what the
+  user asked for.
+* The *Published links* sheet shows the cached list offline, read-only.
+
+=== Server
+
+`PublishService` and a static file endpoint, both in the Quarkus `api` module.
+
+* `CreatePublish` verifies the caller has at least *editor* on the document, that every
+  `sha256` in the manifest exists in blob storage and is associated with the document
+  (`document_blob`), that total size is under 512 MiB and file count under 4096, and that
+  every path is a safe relative path.  It inserts a `publish` row and `publish_file` rows, marks
+  the publish current, and emits a document event so other clients refresh the sheet.
+* Serving: `GET https://pub.<host>/d/<document_id>/{path}` on a *separate origin* from the app
+  and the API, so published HTML can never read app cookies or call the API with the viewer's
+  credentials.  The handler resolves the current publish, checks access (`ANYONE_WITH_LINK`, or a
+  signed-in member for `MEMBERS`, via the Keycloak session cookie set on the pub origin after a
+  redirect through the API), and streams the blob from R2/MinIO with `Content-Type` from the
+  manifest, `Cache-Control: private, max-age=0, must-revalidate` and an `ETag` of the blob hash.
+  Responses carry `Content-Security-Policy: sandbox allow-same-origin; default-src 'self'
+  data: blob:; script-src 'none'` -- the bundle needs no scripts; `X-Content-Type-Options:
+  nosniff`; `Referrer-Policy: no-referrer`.  Path `""` and `"/"` serve `index.html`.
+* `DeletePublish` removes the rows; blobs are retained by the ordinary history rules and
+  garbage-collected with the document.  Publishes are deleted with the document.
+* Access defaults to the document's share-link policy when one exists, else `MEMBERS`.
+* Rate limit: 30 publishes per document per hour (`RESOURCE_EXHAUSTED` with `RetryInfo`).
+
+=== Client
+
+* Accessibility: every emitted `<img>` and inlined SVG carries the object's alt text
+  (`CommonProps.alt`; `aria-hidden` when decorative), image-map `<area>` elements carry the
+  link alt with the object alt as fallback, and areas are listed in the page's reading order
+  (xref:names-notes.adoc[]).
+
+* `WTInterchange.HtmlPublisher` builds a bundle in a temporary directory from a `Document`
+  snapshot and an `HtmlSetting`, using the SVG writer (IO epic, extended by WEB-005 and
+  WEB-018), the bitmap encoders (WEB-006), the font subsetter (WOFF2 via a bundled `woff2`
+  static library; `fsType` checked for embedding permission), and the placed-SVG-animation
+  emitter (WEB-028).  The output is deterministic for a given snapshot and setting: file names are
+  content hashes for assets and page numbers for pages, so republishing over a folder rewrites
+  only changed files.
+* Whole-pages mode: one `<img src="pages/page-N.svg">` per page in a page-sized `<section>`;
+  in SVG mode links live inside the SVG (`<a>`), so the SVG is inlined with `<object>` rather
+  than `<img>` when the page has links, because `<img>` does not follow anchors.  PNG mode uses
+  `<img usemap>` with `<area shape="poly">` from the flattened outline (`WTGeometry`
+  flattening at 0.25 px tolerance) and `shape="rect"` per text line for ranges.
+* Positioned-objects mode: one file per top-level node, `position:absolute` with `left/top/
+  width/height` from the node's page-space bounds (effects' expanded bounds included) and
+  `z-index` from stacking order; background layers (below the separator) are still rendered as
+  one file per page.
+* Colors: every `Color` is serialized by CMS-015's CSS Color 4 serializer.  In SVG, an sRGB
+  color is the presentation attribute (`fill="#e63946"`); a Display P3, OKLab or Lab color
+  is written twice -- the attribute holds the sRGB fallback (COLOR-024's gamut mapping) and
+  a `style` on the same element holds `fill: color(display-p3 …)`, `oklch(…)` or `lab(…)`,
+  which wins in a browser that parses it and is dropped, leaving the attribute, in one that
+  does not.  Gradient stops use `stop-color` the same way.  In `style.css` (page background,
+  positioned-object backgrounds) the fallback declaration precedes the wide-gamut one.  In
+  PNG mode the pages are rendered through IO-021's rasterizer with `rgb_space = AUTO`, so a
+  document with wide-gamut colors gets Display P3-tagged PNGs.  Colors in placed bitmaps
+  are untouched (WEB-006 handles their profiles).
+* The Publish sheet is an `NSViewController` sheet hosting SwiftUI, with progress from an
+  `AsyncStream` and cancellation.  Warnings are a list with btn:[Show] calling the selection
+  API.  *Open when done* uses `NSWorkspace.open(_:withApplicationAt:configuration:)`; the
+  browser list comes from `NSWorkspace.urlsForApplications(toOpen: URL)` for an `.html` URL.
+* Publish to web link (`WTSync.PublishUploader`): upload every file of the bundle through
+  `BlobService.Upload` (largest last, reusing hashes the server already has via `Stat`), then
+  `CreatePublish` with the manifest.  Progress in the sheet; resumable per blob; cancel deletes
+  nothing on the server (uploaded blobs are harmless orphans until GC).
+* Undo: nothing on this page is undoable except edits to HTML settings, which are one change
+  per field commit labelled "Change HTML setting".
+
+=== Build tasks
+
+[[WEB-007]]
+==== WEB-007 HTML settings in the document model
+[horizontal]
+Track:: client-model
+Depends on:: PROTO-003, CRDT-001, CRDT-004, APP-011
+Size:: S
+Delivers:: `HtmlSetting` sequence and enums on `SettingsProps`, `local_only` location, the synthesized Default setting, commands to add, rename, edit and delete settings with inverses.
+Done when::
+* A fresh document reports one setting (Default) without any element existing; editing it creates the element with the edited field and defaults for the rest.
+* Merge test: two replicas edit different fields of one setting concurrently and both edits survive; one edits while the other deletes and the setting stays deleted with the edit retained.
+* Conformance vectors for the sequence, each enum field and the `local_only` location (must not appear on the wire).
+
+[[WEB-008]]
+==== WEB-008 HTML bundle writer
+[horizontal]
+Track:: import-export
+Depends on:: WEB-005, WEB-006, WEB-007, TXT-002
+Size:: L
+Delivers:: `HtmlPublisher`: Whole pages and Positioned objects layouts, Stacked and Separate files page modes, SVG and PNG vector output with image maps, image format and quality, WOFF2 font subsetting with license check and outline fallback, page background, title, deterministic file naming, the warnings list model.
+Done when::
+* A corpus of 20 documents publishes under every combination of layout × page mode × vector format and the result validates as HTML5 and SVG 1.1; a headless WebKit render of each page matches the app's own render within anti-aliasing tolerance.
+* Republishing an unchanged document over its folder rewrites no file (byte-identical output).
+* Fonts with `fsType` restricting embedding are outlined and reported; embedded fonts are subsetted to the glyphs used.
+* Links from WEB-005 are clickable in SVG mode and present as `<area>` polygons in PNG mode.
+* A P3 fill publishes as an sRGB attribute plus a `color(display-p3 …)` style; headless WebKit renders the P3 value with CSS Color 4 on and the fallback with it off; an OKLab fill publishes as `oklch(…)`; PNG mode of the same document writes Display P3-tagged pages.
+
+[[WEB-009]]
+==== WEB-009 Publish sheet and HTML Setup sheet
+[horizontal]
+Track:: client-ui
+Depends on:: APP-005, APP-010, WEB-007, WEB-008
+Size:: M
+Delivers:: menu:File[Publish as HTML…] sheet (setting pop-up, pages, publish-to, warnings toggle, open-when-done with browser list, progress, cancel), the HTML Setup sheet with the settings list and every option, folder chooser with security-scoped bookmark, warnings list with btn:[Show], reveal in Finder on completion.
+Done when::
+* Every option in the guide table is present, bound to `HtmlSetting`, and a change from a remote collaborator appears in the open sheet without losing the field being edited.
+* Publishing 50 pages runs off the main actor with live progress and can be cancelled, leaving no partial folder.
+* UI tests cover create/rename/delete of a setting, a range publish, and warnings navigation.
+
+[[WEB-010]]
+==== WEB-010 Output warnings collection
+[horizontal]
+Track:: import-export
+Depends on:: WEB-008
+Size:: S
+Delivers:: The warning kinds listed in the guide (rasterized effect, outlined font, missing font, invalid link, stroke-only link, script-dependent SVG animation, clamped page) raised by the SVG writer, font subsetter and bundle writer through one `ExportWarnings` sink with node ids.
+Done when::
+* Each warning kind is produced by a fixture document and carries the node id the sheet needs.
+* Warnings are stable across runs (same order, same text) for the same input.
+
+[[WEB-011]]
+==== WEB-011 publish.v1 schema
+[horizontal]
+Track:: proto
+Depends on:: PROTO-001, PROTO-003
+Size:: S
+Delivers:: `proto/wiretuner/publish/v1/publish.proto` with `PublishService`, `PublishManifest`, `Publish`, `PublishAccess`, protovalidate rules (path safety, counts, sizes) and error reasons.
+Done when::
+* `buf lint` and `buf breaking` pass; every RPC and field commented; Swift and Java stubs generate.
+
+[[WEB-012]]
+==== WEB-012 PublishService and the pub origin
+[horizontal]
+Track:: server
+Depends on:: SRV-002, SRV-003, SRV-008, SRV-010, WEB-011
+Size:: M
+Delivers:: Flyway migration for `publish` and `publish_file`, `PublishService` implementation with role and manifest checks, the static-serving resource on the `pub` origin with access check, CSP and caching headers, session cookie hand-off for member-only links, document events on create/delete, rate limiting, deletion with the document.
+Done when::
+* Integration tests: create with a missing blob is rejected; anyone-with-link serves without auth; members-only redirects unauthenticated viewers and serves members; deleted publish returns 404; path traversal returns 400.
+* Served responses carry the CSP, nosniff and referrer headers, and the pub origin sets no API cookies.
+* A load test serves a 200-file bundle to 100 concurrent viewers under 200 ms p95 from MinIO.
+
+[[WEB-013]]
+==== WEB-013 Publish to web link
+[horizontal]
+Track:: client-sync
+Depends on:: SYNC-003, SYNC-008, WEB-009, WEB-011
+Size:: M
+Delivers:: `PublishUploader` (blob upload of the bundle with `Stat` de-duplication, `CreatePublish`, progress, cancel, resume), the *Web link* destination and access chooser in the Publish sheet, the *Published links* sheet (list, open, download as folder, unpublish, change access), clipboard copy of the URL, offline disabling.
+Done when::
+* Publishing a 40 MB bundle over a simulated 10 Mbit link shows progress and completes; a dropped connection resumes from the last uploaded blob.
+* Republishing an unchanged bundle uploads no blob bytes.
+* Offline, the destination is disabled with the explanatory note and the sheet lists cached publishes read-only.
+* The multi-client simulator (TEST-001) shows a second client's *Published links* sheet updating from the document event.
+endif::spec[]

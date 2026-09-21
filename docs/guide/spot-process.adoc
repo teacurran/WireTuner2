@@ -1,0 +1,7 @@
+= Spot and process colors, color spaces and libraries
+include::_attributes.adoc[]
+:page-slug: spot-process
+:page-group: Color
+:page-fh: Chapter 5, "Spot and process colors", "Color spaces", "Converting between RGB and CMYK", "Specifying colors as process or spot", "Adding colors from color libraries"
+
+include::_includes/color/spot-process.adoc[]

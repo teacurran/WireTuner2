@@ -1,0 +1,281 @@
+Tabs, indents and margins are how you line things up inside a text block: columns of figures,
+hanging bullets, a quotation pulled in from both sides, a caption set a few points in from the
+block's edge.  Tabs and indents belong to paragraphs and are set on the *text ruler* above a
+block or in the Paragraph section of the Object panel; margins (insets) belong to the block and
+are set in its *Text Block* section.
+
+== The text ruler
+
+The ruler appears above a block whenever you click into it with the Text tool, unless
+menu:View[Text Rulers] is off.  It shows the block's width in points and, for the paragraphs in
+the selection, their tab stops and indent markers.
+
+// TODO screenshot: text ruler with the five tab kinds in the tab well, default tab ticks, and the three indent markers
+
+At the left end is the *tab well* with the five tab kinds; along the ruler are the *indent
+markers*; faint ticks every half inch are the *default tabs*.  Pressing kbd:[Tab] in text
+advances to the next tab stop, default or set.  Placing a tab stop removes the default tabs to
+its left.
+
+[cols="1,3"]
+|===
+|Tab kind |Aligns
+
+|Left
+|The text's left edge at the stop.
+
+|Right
+|The text's right edge at the stop.
+
+|Center
+|The text's center on the stop.
+
+|Decimal
+|The decimal separator (the one your locale uses) on the stop; text without one is
+right-aligned.
+
+|Wrapping
+|Text between this stop and the next wraps as a column: lines that reach the next stop break
+and continue below, under this stop.  Two wrapping tabs with a plain tab between them make a
+gutter.
+|===
+
+== Setting tabs
+
+To set a tab on the ruler:
+
+. Click in a paragraph with the Text tool, or select several paragraphs.
+. Drag a tab of the kind you want from the tab well onto the ruler, just above the numbers.
+  While you drag, a vertical guide line runs down the block showing where the stop will fall
+  (turn this off with the *Track tab movement with vertical line* preference).
+. In the text, press kbd:[Tab] before the text that should align to it.
+
+To move a tab, drag it along the ruler.  To delete it, drag it off the ruler (up or down).
+kbd:[Option]-drag a tab to duplicate it.
+
+To set a tab precisely:
+
+. Click in the paragraph, then double-click the ruler (or double-click an existing tab to edit
+  it).  The *Edit Tab* sheet opens.
+. Choose the *Alignment*: Left, Right, Center, Decimal or Wrapping.
+. Type the *Position* in points from the block's left edge (after the inset).
+. Optionally choose a *Leader* (see below).
+. Click btn:[OK].  Repeat for more tabs.
+
+The Paragraph section of the Object panel has a *Tabs…* button that opens the same sheet as a
+table of every stop in the paragraph, for editing several at once.
+
+=== Tab leaders
+
+A leader fills the space before a tab with a repeated character -- the dots between a menu
+item and its price.  In the *Edit Tab* sheet, pick a leader from the *Leader* pop-up (none,
+dots, dashes, underscores) or type any single character in the field.  Leaders take the font
+of the character before the tab.  Wrapping tabs cannot have leaders, and text on a path has no
+tabs at all.
+
+== Indents
+
+A paragraph has three indents, all in points and all relative to the column or block edge
+after its inset:
+
+[cols="1,3"]
+|===
+|Indent |Meaning
+
+|Left
+|Where every line but the first starts.  Negative values push text outside the block.
+
+|Right
+|Where every line ends.
+
+|First line
+|Where the first line starts, relative to the left indent.  Negative for a hanging indent.
+|===
+
+To set indents on the ruler, drag the markers: the lower-left triangle is the *left indent*,
+the upper-left triangle the *first-line indent* (drag the small square beneath them to move
+both together), and the right triangle the *right indent*.
+
+To set indents precisely, click in the paragraph, open the Paragraph section of the Object
+panel, and type *Left*, *Right* and *First line* values.
+
+To make a hanging indent, drag the left indent to the right, then the first-line marker back
+to the left of it (or type a negative *First line*).  Add a tab stop at the left indent so the
+text after a bullet or number aligns.
+
+Hanging punctuation, which lets quotation marks and hyphens sit outside the indent, is a
+Paragraph section option described on xref:paragraphs.adoc[Paragraphs].
+
+== Margins (insets)
+
+The inset is the space between a block's edge and its text, per side.  Select the block with
+the Pointer tool, choose the *Text Block* row in the Object panel, and type *l*, *r*, *t* and
+*b* values in points.  Zero puts text against the edge; positive moves it in; negative lets it
+hang out.  For text on a path only left and right are offered
+(xref:text-on-path.adoc[Text on a path]).  Paragraph spacing above and below is on
+xref:paragraphs.adoc[Paragraphs].
+
+== Working with others
+
+* Tabs and indents belong to the paragraph, so two people editing different paragraphs never
+  interfere.
+* In the same paragraph, each tab stop is its own thing: you can move one while a collaborator
+  adds another, and both changes stay.  If you both move the same stop, the later drag wins.
+* Indents are separate values, so one person's left indent and another's first-line indent
+  both survive.
+* Pressing kbd:[Return] copies the paragraph's tabs and indents into the new paragraph at that
+  moment; a collaborator's later change to the original paragraph applies only to the
+  paragraph they changed.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,1"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Text ruler with tab well, default half-inch tabs, indent markers
+|Same.
+|Faithful
+
+|Five tab kinds: left, right, center, decimal, wrapping
+|Same.
+|Faithful
+
+|Drag to place/move/delete tabs; vertical tracking line (preference)
+|Same, plus kbd:[Option]-drag to duplicate.
+|Faithful
+
+|Edit Tab dialog: alignment, position, leader (preset or custom character)
+|Same as a sheet; a *Tabs…* table view added for bulk editing.
+|Faithful
+
+|Tab leaders unavailable on wrapping tabs and on text on a path
+|Same.
+|Faithful
+
+|Left/right/first-line indents on ruler and Object panel; hanging indent
+|Same.
+|Faithful
+
+|Inset l/r/t/b in the Text Block property
+|Same.
+|Faithful
+
+|Decimal tab aligns on "."
+|Aligns on the locale's decimal separator; "." and "," both recognized when the paragraph's
+language is unset.
+|Adapted -- localized documents need the comma.
+|===
+
+=== Data model
+
+`ParagraphProps.left_indent`, `right_indent`, `first_line_indent` and `tabs` on
+xref:creating-text.adoc[Creating text]; `TextBlockProps.inset` on the same page.
+
+[source,protobuf]
+----
+// ParagraphProps.tabs is MERGE_SEQUENCE of these; order is by `position` at read time,
+// not by the sequence's fractional order (which only breaks ties).
+message TabStop {
+  ElementId id = 1;
+  TabKind kind = 2;
+  double position = 3;             // points from the column's left edge after inset
+  string leader = 4;               // empty = none; one grapheme repeated
+}
+enum TabKind {
+  TAB_KIND_LEFT = 0; TAB_KIND_RIGHT = 1; TAB_KIND_CENTER = 2;
+  TAB_KIND_DECIMAL = 3; TAB_KIND_WRAPPING = 4;
+}
+----
+
+=== Merge semantics
+
+Tabs:: A SEQUENCE: insert, delete and per-field edits (`kind`, `position`, `leader`) are
+independent.  Moving a stop is a `position` write, not an element move.  Two people moving the
+same stop: LWW.  One deletes a stop while another changes its leader: the delete wins (the
+element is a tombstone; the leader write is retained in the log and shown by the review sheet
+under *same text* for that paragraph).  Two people adding a stop at the same position: two
+stops; layout keeps both (the second is redundant) and the Tabs table shows both so one can be
+removed.
+
+Indents:: Three ATOMIC registers on the newline element; independent.
+
+Paragraph split:: The new newline receives a copy of the tab sequence (new element ids, same
+values) and indents at split time.
+
+Inset:: Four registers on the block; independent.
+
+Read-time normalizations::
+* Tabs are sorted by `position`; equal positions keep sequence order.
+* A stop with `position` beyond the column width is ignored for layout but still listed.
+* A leader on a wrapping tab is ignored.
+* A negative `position` is treated as 0.
+
+=== Offline behavior
+
+Nothing beyond outbox coalescing.
+
+=== Server
+
+Nothing beyond storing and relaying changes.
+
+=== Client
+
+Ruler:: An `NSView` above the block in canvas coordinates, following the block's transform
+(a rotated block gets a rotated ruler, as in {fh}).  Drags produce one change at mouse-up;
+the tracking line is a canvas overlay.
+
+Layout:: `WTText` implements tabs itself rather than through `NSTextTab` so that wrapping
+tabs (which Core Text lacks) and leaders in the preceding character's font behave as
+specified: a wrapping tab defines a sub-column whose lines break at the next stop and resume
+under the wrapping stop.
+
+Undo grouping:: One step per ruler drag, per sheet btn:[OK], per Object panel field.
+
+=== Build tasks
+
+[[TYPE-023]]
+==== TYPE-023 Text ruler
+[horizontal]
+Track:: client-ui
+Depends on:: TYPE-010, APP-002
+Size:: L
+Delivers:: The text ruler view: width readout, tab well, default tab ticks, drag to place,
+move, delete and kbd:[Option]-duplicate stops, indent markers with the linked-drag square,
+tracking line and its preference, rotation with the block, menu:View[Text Rulers].
+Done when::
+* UI tests place each tab kind and move each indent marker and verify the paragraph registers.
+* Placing a stop hides default ticks to its left.
+* Merge test: two replicas add different stops to one paragraph; both stops exist.
+* Conformance vector for `TabStop` as a SEQUENCE element with three registers.
+
+[[TYPE-024]]
+==== TYPE-024 Edit Tab sheet and Tabs table
+[horizontal]
+Track:: client-ui
+Depends on:: TYPE-023
+Size:: S
+Delivers:: The Edit Tab sheet (alignment, position, leader presets and custom character), the
+Tabs table in the Paragraph section, indent and inset fields in their sections.
+Done when::
+* Entering a position moves the stop; the ruler updates live.
+* A leader on a wrapping tab is refused in the UI.
+* Merge test: leader change vs. concurrent delete of the same stop converges to deleted.
+
+[[TYPE-025]]
+==== TYPE-025 Tab layout
+[horizontal]
+Track:: client-render
+Depends on:: TXT-001, TYPE-001
+Size:: M
+Delivers:: `WTText` tab handling: default half-inch tabs, the five kinds including wrapping
+sub-columns, decimal alignment on the locale separator, leaders in the preceding font,
+sorting and normalizations.
+Done when::
+* A fixture table built with left, wrapping and decimal tabs matches the reference render.
+* A wrapping tab column of three lines lays out under its stop with the next column intact.
+* Layout of a 1,000-row tabbed table stays under 50 ms incremental.
+endif::spec[]

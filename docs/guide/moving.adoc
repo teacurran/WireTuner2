@@ -1,0 +1,7 @@
+= Moving objects
+include::_attributes.adoc[]
+:page-slug: moving
+:page-group: Objects
+:page-fh: Chapter 4, "Moving objects", "Snapping to points and other objects"
+
+include::_includes/objects/moving.adoc[]

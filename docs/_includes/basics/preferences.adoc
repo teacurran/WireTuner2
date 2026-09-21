@@ -1,0 +1,549 @@
+Preferences shape how {product} behaves for you: how close you must click to select, whether
+new text blocks grow as you type, which colors guides use, how much you want to be asked when
+your offline work meets someone else's.  Most preferences follow you from Mac to Mac through
+your account; a few describe the machine you are sitting at and stay there.  This page lists
+every preference by category.
+
+// TODO screenshot: the Preferences window, General category, sidebar visible.
+
+== The Preferences window
+
+To open Preferences::
+Choose menu:WireTuner[Preferences…] or press kbd:[Cmd+,].  The window has a category list
+on the left and the settings for the chosen category on the right.  Changes apply as you make
+them; there is no OK button.
+
+NOTE: {fh} opened preferences with kbd:[Cmd+U] and applied them with btn:[OK].  {product}
+follows macOS: kbd:[Cmd+,], immediate effect.  kbd:[Cmd+U] now toggles menu:View[Smart
+Guides], as it does in Illustrator (xref:moving.adoc#smart-guides[Smart guides],
+xref:customizing.adoc[Customizing your environment]).
+
+To restore every preference to its default::
+Click btn:[Restore Defaults] at the bottom of the window and confirm.  This resets every
+category, including your panel layout; keyboard shortcut sets are not touched.
+
+To restore one category::
+Hold kbd:[Option]; the button becomes btn:[Restore This Category].
+
+Synced and local preferences::
+Categories marked *synced* below are stored with your account and applied on every Mac you
+sign in on; the newest change from any Mac wins.  Categories marked *local* describe this
+Mac.  Turn syncing off with *Sync preferences with my account* in the *Sync and
+collaboration* category; each Mac then keeps its own copy.
+
+== General (synced)
+
+[cols="2,1,3"]
+|===
+|Preference |Default |Effect
+
+|Pick distance |3 px |How close to a path or point a click must land to select it (1--5). xref:selecting.adoc[Selecting]
+|Snap distance |3 px |How close a dragged point must come to a point, path, grid line or guide to snap (1--10). xref:moving.adoc[Moving]
+|Smaller handles |Off |Draws points and handles at two-thirds size.
+|Show solid points |On |Draws points filled; off draws them hollow. xref:vector-basics.adoc[Vector basics]
+|Highlight selected paths |On |Draws selected path segments in the layer's highlight color, not only the handles. xref:layers.adoc[Layers]
+|Double-click enables transform handles |On |Double-clicking an object with the Pointer shows transform handles. xref:transforming.adoc[Transforming]
+|Remember layer info |Off |Pasted objects return to a layer of the same name rather than the current layer. xref:copying.adoc[Copying]
+|Dragging a guide scrolls the window |On |Dragging a guide past the edge scrolls the view. xref:grid-guides.adoc[Grid and guides]
+|Pen tool preview |On |The Pen tool draws the segment that would be created as you move. xref:pen-bezigon.adoc[Pen and Bezigon]
+|Smoother editing |On |Point drags reshape the whole path live rather than the segment alone. xref:editing-paths.adoc[Editing paths]
+|Show the gallery at launch |On |Opens the template gallery when {product} starts with no document. xref:templates.adoc[Templates]
+|Flash changes by others |On |Objects a collaborator changes pulse briefly with their color. xref:collaboration.adoc[Working together]
+|Smart guides |On |Shows alignment, spacing and size guides while you drag, resize or draw, and snaps to them; menu:View[Smart Guides] (kbd:[Cmd+U]) is the same switch. xref:moving.adoc#smart-guides[Smart guides]
+|Show measurements while holding Option |On |With an object selected, holding kbd:[Option] over another object shows the distances between them, and over empty page the distances to its edges. xref:moving.adoc#smart-guides[Smart guides]
+|Rotate canvas with trackpad |On |The two-finger rotate gesture turns the canvas; off leaves rotation to menu:View[Rotate Canvas] and the compass. xref:document-view.adoc[Setting the document view]
+|===
+
+Undo levels moved to *Sync and collaboration* (below); {fh} kept it here.
+
+== Object (synced)
+
+[cols="2,1,3"]
+|===
+|Preference |Default |Effect
+
+|Option-drag copies paths |On |kbd:[Option]-dragging an object drags a copy.  Off: kbd:[Option]-drag previews the object while dragging. xref:copying.adoc[Copying]
+|Changing object changes defaults |Off |Changing a selected object's attributes also changes the defaults for new objects. xref:default-attributes.adoc[Default attributes]
+|Show fill for new open paths |Off |Open paths drawn from now on display their fill. xref:vector-basics.adoc[Vector basics]
+|Edit locked objects |Off |Lets the stroke, fill and text of locked objects be changed while they stay unmovable. xref:selecting.adoc[Selecting]
+|Path operations consume original paths |On |Union, Punch and the others remove the source paths. xref:combining-paths.adoc[Combining paths]
+|Join non-touching paths |Off |Join connects open paths whose ends are within the snap distance. xref:combining-paths.adoc[Combining paths]
+|Default line weights |0.5 1 2 4 8 12 16 24 |The stroke width presets in the Object panel, in points, space separated. xref:stroke-attributes.adoc[Stroke attributes]
+|Auto-apply new styles to selection |Off |A style created from the selection is applied to it. xref:styles.adoc[Styles]
+|Confirm before opening an external editor |On |Asks before opening a bitmap in another application. xref:external-editors.adoc[External editors]
+|Default image editor |System default |The application menu:Edit With[] opens by default (local; see below). xref:external-editors.adoc[External editors]
+|Auto-join paths |On |Drawing from an open path's end point with the Pen continues that path. xref:pen-bezigon.adoc[Pen and Bezigon]
+|Edit current layer only |Off |Tools select and edit objects on the current layer alone. xref:layers.adoc[Layers]
+|Constrain angle |0° |The angle kbd:[Shift] constrains drags, lines and transforms to (and its 45° steps). xref:transforming.adoc[Transforming]
+|Arrow key distance |1 pt |How far the arrow keys nudge the selection (1--864). xref:moving.adoc[Moving]
+|Shift-arrow key distance |10 pt |How far kbd:[Shift]+arrow nudges. xref:moving.adoc[Moving]
+|===
+
+*Default image editor* is the one local item in this category: application paths differ between
+Macs.
+
+== Text (synced)
+
+[cols="2,1,3"]
+|===
+|Preference |Default |Effect
+
+|New text containers auto-expand |On |Clicking with the Text tool makes a block that grows as you type; off makes a fixed-size block. xref:creating-text.adoc[Creating text]
+|Show text handles when ruler is off |On |Text block handles stay visible with text rulers hidden. xref:text-blocks.adoc[Text blocks]
+|Always use text editor |Off |Clicking with the Text tool opens the Text Editor window instead of editing in place. xref:editing-text.adoc[Editing text]
+|Smart quotes |On, “ ” ‘ ’ |Typed quotes become typographic quotes in the chosen style (six styles). xref:editing-text.adoc[Editing text]
+|Track tab movement with vertical line |On |Dragging a tab stop shows a vertical guide through the text. xref:tabs-indents.adoc[Tabs and indents]
+|Dragging a text style changes |Single paragraph |Whether dropping a style on text styles the paragraph or the whole block. xref:text-styles.adoc[Text styles]
+|Build text styles based on |First paragraph |Redefining a style from a selection uses the first paragraph or the shared attributes. xref:text-styles.adoc[Text styles]
+|Preview fonts in menus |On |Font menus draw each name in its own face. xref:type-specifications.adoc[Type specifications]
+|Text tool reverts to Pointer |On |Finishing a text block returns to the Pointer tool. xref:creating-text.adoc[Creating text]
+|Font substitutions |empty |The remembered replacements for fonts this account lacks, and the *Default substitute* (Helvetica Neue). xref:font-substitution.adoc[Missing fonts]
+|===
+
+== Document (synced unless noted)
+
+[cols="2,1,3"]
+|===
+|Preference |Default |Effect
+
+|Restore view when opening document |On |Reopens at the magnification, mode and position you last had on this Mac. xref:document-view.adoc[Setting the document view]
+|Remember window size and location |On |New document windows open where the last one was (local).
+|New document template |{product} default |The template for menu:File[New]; btn:[Choose…] picks another. xref:templates.adoc[Templates]
+|Warn when quitting with unsynced changes |On |Quitting while offline with changes waiting shows a sheet listing the documents; the changes are kept either way. xref:saving.adoc[Saving]
+|Search for missing links |On, folder unset |Looks for linked graphics in the chosen folder and its subfolders when a link is broken. xref:linking-embedding.adoc[Linking and embedding]
+|Changing view sets the active page |On |Scrolling to a page, or choosing it in the Document panel, makes it the current page. xref:pages.adoc[Pages]
+|Using tools sets the active page |On |Using any tool on a page makes it the current page. xref:pages.adoc[Pages]
+|Ask for a version name when saving |On |kbd:[Cmd+S] asks for a name; off names the version by time. xref:saving.adoc[Saving]
+|Warn when image resolution is below |150 ppi |Low-resolution images are flagged in the Object panel and before printing. xref:bitmaps.adoc[Bitmaps]
+|===
+
+{fh}'s *Always review unsaved documents upon quit* has no work to do: there are no unsaved
+documents.  *Warn when quitting with unsynced changes* is its replacement.
+
+== Import (synced unless noted)
+
+[cols="2,1,3"]
+|===
+|Preference |Default |Effect
+
+|Embed images upon import |On |Imported bitmaps are copied into the document; off links them to the file on this Mac. xref:linking-embedding.adoc[Linking and embedding]
+|Convert editable EPS when imported |On |EPS files whose paths can be recovered import as editable objects. xref:import-formats.adoc[Import formats]
+|PDF import: Import notes |On |PDF notes become objects on a Notes layer. xref:import-formats.adoc[Import formats]
+|PDF import: Import URLs |On |PDF links become links on a URLs layer. xref:import-formats.adoc[Import formats]
+|DXF: Import invisible block attributes |Off |Imports DXF objects with invisible stroke and fill. xref:import-formats.adoc[Import formats]
+|DXF: Convert white strokes to black |On |xref:import-formats.adoc[Import formats]
+|DXF: Convert white fills to black |Off |xref:import-formats.adoc[Import formats]
+|Paste formats |PDF, SVG, {product}, Image, Text |The pasteboard types {product} accepts, in priority order (local). xref:copying.adoc[Copying]
+|Downsample images larger than |50 megapixels |Imported images above this are resampled (Off, 20, 50, 100). xref:importing.adoc[Importing]
+|Embedded image profiles |Use embedded |Use embedded, Ask, or Ignore an ICC profile found in an imported image. xref:image-color.adoc[Image color]
+|===
+
+Embedding is on by default because a linked file exists only on one Mac, and a shared
+document should look the same for everyone.  {fh}'s *Convert PICT patterns to grays* is gone
+with the PICT format.
+
+== Export (synced unless noted)
+
+[cols="2,1,3"]
+|===
+|Preference |Default |Effect
+
+|Copy formats |PDF, SVG, {product}, Image |The pasteboard types written when you copy (local). xref:copying.adoc[Copying]
+|Convert colors to |Unchanged |The color space of copied artwork: Unchanged, CMYK, RGB. xref:copying.adoc[Copying]
+|Include TIFF preview in EPS |On |Exported EPS files carry a bitmap preview for applications that cannot render PostScript. xref:export-vector.adoc[Exporting vector formats]
+|Include Quick Look thumbnail |On |Exported files carry a thumbnail for the Finder. xref:exporting.adoc[Exporting]
+|Bitmap export resolution |72 dpi |Default for bitmap export: 72, 144 or 300. xref:export-bitmap.adoc[Exporting bitmaps]
+|Bitmap export anti-aliasing |4 |Default level: None, 2, 3 or 4. xref:export-bitmap.adoc[Exporting bitmaps]
+|Default background |Transparent |Whether bitmap exports carry the page color or transparency. xref:export-bitmap.adoc[Exporting bitmaps]
+|Embed color profile |On |Bitmap exports carry their ICC profile. xref:export-bitmap.adoc[Exporting bitmaps]
+|Quick Export preset |PNG 1× 2× 3× |What menu:File[Quick Export] writes. xref:exporting.adoc[Exporting]
+|Drag export format |PDF |The format written when objects are dragged to the Finder. xref:exporting.adoc[Exporting]
+|Multi-page file name pattern |`{name}-{page}` |How multi-page exports are named. xref:exporting.adoc[Exporting]
+|Open exported file with |None |Per format, an application to open the result (local). xref:exporting.adoc[Exporting]
+|Preview browser |System default |The browser menu:File[Preview in Browser] uses (local). xref:svg-animation.adoc[SVG animations and browser preview]
+|===
+
+{fh}'s *Include Portfolio preview* served Extensis Portfolio, which is discontinued; the Quick
+Look thumbnail takes its place.
+
+== Spelling (synced)
+
+[cols="2,1,3"]
+|===
+|Preference |Default |Effect
+
+|Find duplicate words |On |xref:editing-text.adoc[Editing text]
+|Find capitalization errors |On |
+|Ignore words with numbers |Off |
+|Ignore internet and file addresses |On |
+|Ignore words in uppercase |Off |
+|Dictionary |Automatic by language |The macOS spelling dictionary to use; {product} uses the system spell checker, so its learned words are shared with other apps.
+|Check spelling while typing |On |Underlines unknown words as you type. xref:editing-text.adoc[Editing text]
+|Add words to dictionary |Exactly as typed |Whether learned words keep their case. xref:editing-text.adoc[Editing text]
+|===
+
+== Colors (synced unless noted)
+
+[cols="2,1,3"]
+|===
+|Preference |Default |Effect
+
+|Guide color |Cyan |The color guides are drawn in. xref:grid-guides.adoc[Grid and guides]
+|Grid color |Light gray |The color of the document grid. xref:grid-guides.adoc[Grid and guides]
+|Smart guide color |Magenta |The color of smart guides and of the kbd:[Option] measurements (local; chosen against this Mac's display). xref:moving.adoc#smart-guides[Smart guides]
+|Color Mixer and Tints panels use split color box |On |The color box shows the previous and new color side by side. xref:color-mixer.adoc[Color Mixer]
+|Default color space for new colors |Display P3 |The space a color gets when nothing fixes it: the Color Mixer's opening RGB mode, HLS results, the System picker, Eyedropper picks from images and pasted colors.  sRGB or Display P3. xref:color-mixer.adoc[Color Mixer]
+|Auto-rename colors |On |Editing a named color whose name was automatic renames it to match. xref:editing-colors.adoc[Editing colors]
+|Swatches apply color to |Text |Whether dropping a swatch on a text block colors the text or the block. xref:text-color.adoc[Text color]
+|Color management |ColorSync |None or Apple ColorSync (local; depends on this Mac's display). xref:color-management.adoc[Color management]
+|Color manage spot colors |Off |xref:color-management.adoc[Color management]
+|Monitor, composite and separations profiles |System defaults |Set through btn:[Setup…] (local). xref:color-profiles.adoc[Color profiles]
+|===
+
+Kodak Digital Science color management is not offered; ColorSync is the macOS engine.
+
+== Panels (local)
+
+[cols="2,1,3"]
+|===
+|Preference |Default |Effect
+
+|Label panel tabs with |Text and icon |Text only, Icon only, or both. xref:panels.adoc[Using panels]
+|Show tooltips |On |Pausing over a tool or button shows its name and shortcut. xref:toolbars.adoc[Toolbars]
+|Clicking a layer name moves selected objects |On |Clicking a layer in the Layers panel moves the selection to it; off only makes it current. xref:layers.adoc[Layers]
+|===
+
+== Redraw (local)
+
+[cols="2,1,3"]
+|===
+|Preference |Default |Effect
+
+|Preview drag |200 objects |How many objects draw fully while dragging; beyond it, outlines. xref:document-view.adoc[Setting the document view]
+|Display text effects |On |Draw text effects on screen. xref:text-effects.adoc[Text effects]
+|Greek type below |8 px |Text smaller than this on screen draws as gray bars. xref:document-view.adoc[Setting the document view]
+|Image display |High resolution |High resolution, Proxy or Gray boxes for imported bitmaps on screen. xref:bitmaps.adoc[Bitmaps]
+|Raster effect preview |Screen resolution |Screen resolution, Document resolution, Draft or Off for live raster effects on screen. xref:raster-effects.adoc[Raster effects]
+|===
+
+Anti-aliasing, *Redraw while scrolling* and *Better (but slower) display* are not options:
+artwork is always anti-aliased and always redrawn live.
+
+== Sounds (local)
+
+{fh} for the Mac could play a sound when something snapped.  {product} keeps the feature and
+uses the system alert sounds; it is silent when *Play user interface sound effects* is off in
+System Settings.
+
+[cols="2,1,3"]
+|===
+|Preference |Default |Effect
+
+|Snap to point sound |None |Sound played when a dragged point snaps to a point.
+|Snap to object sound |None |…to a path.
+|Snap to grid sound |None |…to the grid.
+|Snap to guide sound |None |…to a guide.
+|===
+
+== Sync and collaboration (synced unless noted)
+
+These preferences have no {fh} equivalent; they govern undo, what happens when your work and
+someone else's meet, and what others see of you.
+
+[cols="2,1,3"]
+|===
+|Preference |Default |Effect
+
+|Sync preferences with my account |On |Whether the synced categories follow you between Macs (local -- it decides for this Mac).
+|Undo levels |100 |How many steps menu:Edit[Undo] keeps per document (1--1000).  The stack survives relaunch. xref:undo.adoc[Undo]
+|Auto-merge below |500 changes |When you reconnect and nobody touched the same objects, merges smaller than this on either side happen silently; larger ones offer a review. xref:collaboration.adoc[Collaboration]
+|Ask when overlap exceeds |20 objects |If more objects than this were changed by both you and someone else while you were apart, {product} shows the whole-document review before sending anything; fewer are listed one by one.
+|Ask when overlap share exceeds |25% |The same, as a share of either side's changed objects.
+|Always ask when anything overlaps |Off |Show the review whenever even one object was changed on both sides.
+|Suggest review after |12 hours |Offer *Review what changed* after a merge when you were apart longer than this, even with no overlap.
+|Keep both offset |10 pt |How far *Keep both copies* in the review sheet moves your copy from theirs.
+|Show my cursor and selection to others |On |Broadcasts your pointer, selection and current tool to collaborators. xref:presence.adoc[Presence]
+|Show others' cursors |On |Draws collaborators' pointers on your canvas.
+|Show others' selections |On |Draws collaborators' selection outlines.
+|Offline snapshot interval |5 minutes |How often the local copy of an open document is compacted, which bounds reopen time after a crash (local; 1--60).
+|Show names on collaborators' cursors |On |Draws each remote pointer with its owner's name. xref:presence.adoc[Presence]
+|===
+
+A team can set a floor for the review thresholds; when it has, the fields show the team's
+value and cannot be lowered below it (xref:sharing.adoc[Sharing]).
+
+== Printing (synced)
+
+[cols="2,1,3"]
+|===
+|Preference |Default |Effect
+
+|Warn about missing fonts before printing |On |Shows the substitution sheet before a print job that would substitute fonts. xref:print-fonts.adoc[Printing fonts]
+|===
+
+== Typeface (synced)
+
+Only shown while a typeface document is open (xref:typeface-documents.adoc[Typeface documents]).
+
+[cols="2,1,3"]
+|===
+|Preference |Default |Effect
+
+|Glyph cell size |Medium |Small, Medium or Large cells in the glyph grid. xref:glyph-grid.adoc[The glyph grid]
+|Snap to metric lines |On |Points snap to the baseline, x-height, cap height, ascender and descender. xref:glyph-editing.adoc[Editing glyphs]
+|Font preview text |Hamburgefonstiv |The sample string in the glyph canvas preview strip. xref:glyph-editing.adoc[Editing glyphs]
+|Show generated features |On |The features editor shows the kern, mark and liga features {product} generates. xref:opentype-features.adoc[OpenType features]
+|===
+
+== Working with others
+
+Preferences are about you, not the document.  Two people with different *Pick distance* or
+*Snap distance* values work on the same drawing without noticing.  The only preferences with a
+visible effect on others are the presence ones: turning off *Show my cursor and selection to
+others* makes you appear in the collaborator list without a cursor on anyone's canvas.
+
+Because synced preferences follow your account, a change you make on your laptop reaches your
+desktop the next time it is online.  If you change the same preference on two Macs while one
+is offline, the later change wins when both have synced; nothing asks.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,1"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Preferences dialog, Cmd+U, categories General/Object/Text/Document/Import/Export/Spelling/Colors/Panels/Redraw/Sounds, OK/Defaults
+|Preferences window, Cmd+, , same categories plus Sync and collaboration, immediate apply, Restore Defaults.
+|Adapted -- macOS conventions; category set kept.
+
+|Undo levels 1--100 in General, effective after reopen
+|Undo levels 1--1000 in Sync and collaboration, effective at once.
+|Adapted -- persistent local undo makes memory a non-issue; grouped with the other cross-user behaviors.
+
+|Right Mouse Button Magnification
+|Removed.
+|Dropped -- see xref:context-menus.adoc[Context menus].
+
+|Always Review Unsaved Documents upon Quit
+|Warn when quitting with unsynced changes.
+|Adapted -- no unsaved state exists; the analogous risk is unsent changes.
+
+|Embed Images and EPS upon Import (default off)
+|Embed images upon import, default on.
+|Adapted -- linked files are not visible to collaborators.
+
+|Convert PICT Patterns to Grays
+|Removed.
+|Dropped -- PICT import is not supported.
+
+|Clipboard Paste Formats (Windows only) / Clipboard Output Formats
+|Paste formats and Copy formats with macOS pasteboard types.
+|Adapted
+
+|Bitmap PICT Previews for EPS
+|Include TIFF preview in EPS.
+|Adapted -- PICT is gone; TIFF is the surviving EPS preview format.
+
+|Include Portfolio Preview and size
+|Include Quick Look thumbnail.
+|Adapted -- Extensis Portfolio is discontinued.
+
+|Bitmap Export defaults (Windows only)
+|Available on macOS.
+|Adapted
+
+|Kodak Digital Science / Apple ColorSync
+|ColorSync only.
+|Dropped (KDS) -- not available on modern macOS.
+
+|Enable Anti-Aliasing, Redraw While Scrolling, Better (but Slower) Display
+|Removed.
+|Dropped -- see xref:document-view.adoc[Setting the document view].
+
+|Snap sounds (Mac only)
+|Kept, using system alert sounds.
+|Faithful
+
+|Preferences file per user, copy between machines by hand
+|Synced through the account; local categories stay on the Mac.
+|Adapted
+
+|Spelling options
+|Same options over the macOS spell checker.
+|Faithful
+|===
+
+=== Data model
+
+Preferences are not document data.  Synced categories are one `Preferences` message in
+`account.v1` (PROTO-009); local categories live in `NSUserDefaults` under the `wt.` prefix.
+The message is versioned by field addition only, and every field is `optional` so "unset"
+means "default", which lets defaults change in later versions without rewriting stored
+preferences.
+
+[source,protobuf]
+----
+// proto/wiretuner/account/v1/preferences.proto (sketch; account.v1 has no wt.crdt options --
+// it is not a CRDT.  Merge is per field, newest `updated_at_ms` wins, resolved by the server.)
+message Preferences {
+  // One entry per synced preference; the key is the preference id below.  Storing a map
+  // rather than typed fields keeps the schema stable while feature epics add preferences.
+  map<string, PreferenceValue> values = 1;
+}
+
+message PreferenceValue {
+  oneof value {
+    bool bool_value = 1;
+    int64 int_value = 2;
+    double double_value = 3;
+    string string_value = 4;
+    Color color_value = 5;        // doc.v1 Color, for guide and grid colors
+    StringList list_value = 6;    // default line weights, DXF options, ...
+  }
+  int64 updated_at_ms = 10;       // client wall time; ties broken by the server's receipt order
+  string device = 11;             // wt-device that wrote it (for the account's device list UI)
+}
+
+message StringList { repeated string items = 1; }
+----
+
+Preference ids are dotted, lower-case, category first: `general.pick_distance`,
+`general.smart_guides`, `general.option_measurements`, `general.trackpad_rotate`,
+`object.option_drag_copies`, `text.smart_quotes_style`, `document.new_template`,
+`import.embed_images`, `export.eps_tiff_preview`, `spelling.ignore_uppercase`,
+`colors.guide_color`, `sync.undo_levels`, `sync.auto_merge_below`, `sync.ask_overlap_count`,
+`sync.ask_overlap_share`, `sync.always_ask`, `sync.suggest_review_after_hours`,
+`sync.keep_both_offset`, `sync.share_presence`, `sync.show_cursors`, `sync.show_selections`.
+Local ids use the same names in `NSUserDefaults` (`wt.panels.label_style`,
+`wt.redraw.preview_drag`, `wt.sounds.snap_point`, `wt.sync.enabled`,
+`wt.sync.snapshot_interval_minutes`, `wt.object.external_editors`, `wt.import.paste_formats`,
+`wt.export.copy_formats`, `wt.colors.color_management`, `wt.colors.smart_guide_color`,
+`wt.document.remember_window`).
+
+Team floors for the review thresholds arrive in `Welcome` as part of the document's team
+policy (COLLAB epic) and are applied as `max(user, team)` for counts and hours, `min` for
+`auto_merge_below`.
+
+=== Merge semantics
+
+Not a CRDT.  `AccountService.SetPreferences` sends only the entries the client changed, each
+with `updated_at_ms`; the server keeps, per key, the entry with the greater `updated_at_ms`
+(receipt order on ties) and returns the full map.  A client applies the returned map
+wholesale.  Clock skew between two of one user's Macs can make an older edit win; this is
+accepted -- preferences are cheap to re-set and the alternative (vector clocks per
+preference) is not worth it.  Document data is never affected by a preference change.
+
+=== Offline behavior
+
+Preferences read and write locally at once; changed synced entries queue in a small
+`preferences_outbox` table in the app-level store (not a document store) and are sent on
+the next `AccountService` call or within 30 s of connectivity.  A fresh sign-in on a new Mac
+fetches the map before the first document opens; if that fetch fails, defaults apply and the
+fetch retries.
+
+=== Server
+
+`AccountService.GetPreferences` / `SetPreferences` (PROTO-009) with the per-key
+newest-wins rule above, stored as one JSONB column per account (`account.preferences`),
+size-limited to 64 KiB.  Team policy floors are a `team` table column read by the session's
+`Welcome`.
+
+=== Client
+
+* `WTApp/Preferences`.  `PreferenceStore` is an `@Observable` actor-backed facade over
+  `NSUserDefaults` (local) and the synced map, exposing typed accessors generated from a
+  `PreferenceCatalog` (id, category, scope, type, default, range, title, help slug).  Feature
+  code reads `prefs.general.pickDistance`; the catalog is the single place a preference is
+  declared, and this page's tables are generated from it in the docs build (`docs` track
+  follow-up).
+* The window is `NSWindow` + `NSSplitViewController` (sidebar `NSOutlineView` of categories,
+  SwiftUI form per category via `NSHostingController`).  Fields commit on change; numeric
+  fields validate against the catalog range and revert with a beep.
+* `Restore Defaults` clears every catalog id from both stores and pushes a `SetPreferences`
+  with explicit default values so other Macs reset too; kbd:[Option] scopes it to the
+  visible category.
+* Sync thresholds are read by `WTSync` (SYNC-006) at reconcile time; `Keep both offset` by
+  the review sheet (SYNC-007); presence flags by SYNC-009; undo levels by APP-011; snapshot
+  interval by SYNC-001.  Changing a value takes effect at the next use, without restart.
+* Sounds: `NSSound(named:)` from the system alert set, played through `ToolManager`'s snap
+  callback, gated by `NSWorkspace` UI sound setting.
+* *Smart guides*, *Show measurements while holding Option* and *Smart guide color* are read
+  by OBJ-039 (xref:moving.adoc#smart-guides[Smart guides]); menu:View[Smart Guides] writes
+  `general.smart_guides` through the store so the menu check mark and the preference never
+  disagree.  *Rotate canvas with trackpad* is read by BASIC-034
+  (xref:document-view.adoc[Setting the document view]).
+
+=== Build tasks
+
+[[BASIC-020]]
+==== BASIC-020 Preferences message and account RPC fields
+[horizontal]
+Track:: proto
+Depends on:: PROTO-009
+Size:: S
+Delivers:: `account/v1/preferences.proto` with `Preferences`, `PreferenceValue`, `StringList`, and `GetPreferences`/`SetPreferences` request/response messages carrying partial maps; the id naming rule in comments.
+Done when::
+* Lints clean with comments; a 64 KiB size constraint is declared on the map.
+* Round-trip test in Swift and Java for every `PreferenceValue` case.
+
+[[BASIC-021]]
+==== BASIC-021 Preference catalog and store
+[horizontal]
+Track:: client-ui
+Depends on:: APP-010, BASIC-020
+Size:: M
+Delivers:: `PreferenceCatalog` with every preference on this page (id, scope, type, default, range, help slug), `PreferenceStore` with typed accessors, local persistence, change notifications, and `Restore Defaults` (all / category).
+Done when::
+* A catalog snapshot test lists exactly the ids on this page; adding an undocumented id fails the test until the docs table is updated.
+* Out-of-range writes are rejected; defaults apply for unset keys after a schema addition.
+* Restore Defaults resets both stores and emits one `SetPreferences` with defaults.
+
+[[BASIC-022]]
+==== BASIC-022 Preferences window content
+[horizontal]
+Track:: client-ui
+Depends on:: APP-010, BASIC-021
+Size:: M
+Delivers:: The twelve category forms with every control on this page, immediate apply, validation, the Option-key category reset, and the synced/local badge per category.
+Done when::
+* UI tests toggle one control per category and read the value back from the store.
+* Every control has an accessibility identifier `pref.<id>`.
+* External editor and template pickers use `NSOpenPanel` and store bookmarks that survive relaunch.
+
+[[BASIC-023]]
+==== BASIC-023 Preferences sync
+[horizontal]
+Track:: client-sync
+Depends on:: APP-008, SYNC-003, BASIC-020, BASIC-021
+Size:: M
+Delivers:: `preferences_outbox`, `SetPreferences` partial pushes with `updated_at_ms`, `GetPreferences` on sign-in and on reconnect, newest-wins application, the *Sync preferences with my account* switch, and team floor application from `Welcome`.
+Done when::
+* Simulator: two devices change the same key while one is offline; after reconnect both show the newer value.
+* With sync off, a remote change does not apply locally and local changes are not pushed.
+* Team floor of 40 objects raises a user's 20 to 40 in the window and in `WTSync`'s decision.
+
+[[BASIC-024]]
+==== BASIC-024 Sync and collaboration preferences wiring
+[horizontal]
+Track:: client-sync
+Depends on:: SYNC-006, SYNC-007, SYNC-009, APP-011, BASIC-021
+Size:: S
+Delivers:: Consumption of *Undo levels*, the four review thresholds, *Suggest review after*, *Keep both offset*, the three presence flags and *Offline snapshot interval* by their owning components, read live at each use.
+Done when::
+* Unit tests for SYNC-006 decision rows pass with non-default values injected through the store.
+* Turning off *Show my cursor and selection to others* stops presence frames within one coalescing interval; the collaborator list still shows the user.
+* Lowering undo levels below the current stack length trims the oldest entries on the next command.
+
+[[BASIC-025]]
+==== BASIC-025 Snap sounds
+[horizontal]
+Track:: client-ui
+Depends on:: GEO-005, BASIC-021
+Size:: S
+Delivers:: The Sounds category playback: system alert sound per snap kind from the snap resolver's callback, gated by the system UI-sounds setting.
+Done when::
+* Selecting a sound plays it once as a preview; a snap during a drag plays it at most once per 100 ms.
+endif::spec[]

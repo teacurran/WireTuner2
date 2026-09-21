@@ -1,0 +1,641 @@
+Color management is how {product} keeps the colors you see on screen honest about the colors
+that will come out of a press, a proof printer, or someone else's display.  A monitor makes
+color by adding red, green and blue light; a press makes it by laying cyan, magenta, yellow and
+black ink on paper, and the press can reach far fewer colors than the screen.  Every device in
+between -- a scanner, a camera, a colleague's laptop, a proofer -- has its own idea of what a
+given color number means.  A color management system reads a *profile* for each device (a
+mathematical description of the colors that device can produce) and translates between them, so
+that the swatch you mixed looks as close as the hardware allows to what will finally be printed
+or shown.
+
+In {product} the color decisions that affect how the artwork is *interpreted* live in the
+document and travel with it: the working color spaces, the rendering intent, the proof setup,
+and how spot colors are previewed.  Everyone who opens the document sees the artwork through
+the same settings.  Every color in the artwork also carries its own space -- sRGB, Display P3,
+Lab, OKLab or CMYK (xref:spot-process.adoc[Spot and process colors]) -- so a Display P3 red
+mixed on a MacBook is a Display P3 red on every other Mac, shown in full on a P3 screen and as
+the nearest color a narrower screen can make, never silently rewritten.  The one thing that
+belongs to your Mac, not to the document, is your display's own profile, which macOS manages
+(xref:monitor-calibration.adoc[Calibrating your display]).
+
+NOTE: In {fh}, color management was chosen per computer in menu:Preferences[Colors] with a
+choice of engine (Kodak Digital Science or Apple ColorSync) and a *Color Management Setup*
+dialog.  {product} uses Apple ColorSync only, and the setup dialog has become the
+menu:File[Color Settings…] sheet, stored in the document so that collaborators share it.  The
+old *Adjust Display Colors* and *Color Tables* options are covered by
+xref:monitor-calibration.adoc[Calibrating your display] and
+xref:color-tables.adoc[Color conversion and spot color preview].
+
+== A color-managed workflow
+
+Most documents need only the first two steps.  The rest matter when you are preparing
+artwork for a specific press or proofer.
+
+. Let macOS profile your display, or calibrate it with a measuring device
+  (xref:monitor-calibration.adoc[Calibrating your display]).
+. Choose the document's working spaces -- the CMYK profile that defines what its CMYK values
+  mean and the RGB profile it outputs in (xref:color-profiles.adoc[Choosing color profiles]).
+. Choose a rendering intent that suits the artwork (<<intent,About rendering intent>>).
+. Set up proofing so the screen simulates the output device, and turn on
+  menu:View[Proof Colors] while you judge color (<<proof,Proofing colors on screen>>).
+. For imported photographs and other bitmaps, check that each image is interpreted through the
+  right source profile (xref:image-color.adoc[Managing image color]).
+
+If your artwork is destined for the web or another screen, the working RGB space (sRGB by
+default) is the output space for anything you ask to be converted, wide-gamut colors are
+written as such where the format allows (xref:export-bitmap.adoc[Exporting bitmaps],
+xref:publish-html.adoc[Publishing as HTML]), and proofing is normally off.  If it is destined
+for print, the CMYK working profile should describe the press or the paper standard your
+printer works to.
+
+== The Color Settings sheet
+
+menu:File[Color Settings…] opens a sheet with everything the document stores about color.  The
+same sheet opens from the btn:[Color Settings…] button in the Document panel.
+
+// TODO screenshot: the Color Settings sheet with its four groups
+
+[cols="1,3"]
+|===
+|Setting |What it does
+
+|Working RGB
+|The document's RGB *output* space: what *Convert to RGB* converts to at export and print,
+what RGB bitmap exports are written in (unless wide-gamut colors call for Display P3, see
+below), and the profile assumed for RGB images with no profile of their own.  The RGB colors
+in the artwork are not reinterpreted by it: each carries its own space, sRGB or Display P3
+(xref:spot-process.adoc[Spot and process colors]).  Default: sRGB.
+
+|Working CMYK
+|The profile that gives meaning to every CMYK color, and the profile of the press the document
+is separated for.  {fh} called this the *Separations Printer*.  Default: the bundled
+*Default CMYK* press profile.
+
+|Intent
+|The rendering intent used when colors are translated between spaces
+(<<intent,About rendering intent>>).  Default: Relative Colorimetric.
+
+|Black point compensation
+|Maps the darkest color of the source space to the darkest color of the destination so
+shadows keep their detail when proofing or converting.  Default: on.
+
+|Color manage spot colors
+|On: spot colors from libraries such as PANTONE are previewed from the library's measured
+values through the color management system, so they look right on a calibrated display.  Off:
+spot colors are previewed from their nominal CMYK or RGB mix without translation, which is
+faster but less accurate; judge them against a printed swatch book instead
+(xref:color-tables.adoc[Color conversion and spot color preview]).  Default: on.
+
+|Default RGB image source
+|The profile assumed for RGB images that carry no embedded profile and have no source profile
+of their own (xref:image-color.adoc[Managing image color]).  Default: same as Working RGB.
+
+|Proof setup
+|What menu:View[Proof Colors] simulates: nothing, the separations press, or a composite
+proofer, plus the paper white and black ink options (<<proof,Proofing colors on screen>>).
+|===
+
+To change the document's color settings:
+
+. Choose menu:File[Color Settings…].
+. Pick a profile from the Working RGB and Working CMYK menus.  Each menu lists the profiles
+  bundled with {product}, then the ICC profiles installed on your Mac, then *Other…* to load
+  an `.icc` file (xref:color-profiles.adoc[Choosing color profiles]).
+. Choose an Intent and whether to use black point compensation.
+. Set the spot color, image source and proof options as needed.
+. Click btn:[OK].  The canvas re-renders with the new interpretation.  Nobody's color values
+  change: a swatch that was C=100 M=0 Y=0 K=0 still is; only what that mix *looks like* on
+  screen and in output changes.
+
+The change is one undo step (menu:Edit[Undo Change Color Settings]).
+
+== Where each color goes
+
+Because every color carries its space, {product} knows exactly what to do with it at each
+stage.  Nothing in this table changes a value in the document.
+
+[cols="1,2,2,2"]
+|===
+|A color stored as |On screen |Converted to CMYK (separations, *Convert to CMYK*) |Exported as RGB
+
+|sRGB
+|Shown through your display's profile; every display can show all of it.
+|Through the working CMYK profile with the document's intent.
+|Unchanged.
+
+|Display P3
+|Shown in full on a P3 display; on a narrower display the nearest color it can make, with
+*clipped on this display* in the Color Mixer.
+|Through the working CMYK profile with the document's intent.  A press reaches some P3 colors
+sRGB cannot name, so a P3 orange may separate more faithfully than its sRGB neighbor.
+|Kept as P3 when the file carries a profile, otherwise pulled into sRGB with a warning
+(xref:export-bitmap.adoc[Exporting bitmaps]).
+
+|Lab, OKLab
+|Converted by formula to the display's space; clipped like P3 when out of reach.
+|Through the working CMYK profile from Lab (the profile's own connection space), the most
+direct route there is.
+|Lab kept where the format has it (PDF); OKLab written as P3 or, for the web, as `oklch()`
+with an sRGB fallback (xref:publish-html.adoc[Publishing as HTML]).
+
+|CMYK
+|Through the working CMYK profile, then your display's -- the color as the press will print
+it.
+|Unchanged.
+|Through the working CMYK profile into the RGB output space.
+|===
+
+With menu:View[Proof Colors] on, "on screen" becomes "through the proof profile first"
+(<<proof,Proofing colors on screen>>) for every row.
+
+[[intent]]
+== About rendering intent
+
+When a color from one space cannot be reproduced in another -- a vivid screen blue that no
+ink can match -- something has to give.  The rendering intent is the rule for what gives.  The
+result depends on the artwork and on the two profiles, so try another intent if a proof looks
+wrong.
+
+Perceptual::
+Squeezes the whole source gamut into the destination so that the *relationships* between
+colors are kept, even though most values shift a little.  Best for photographs.
+
+Saturation::
+Keeps colors as vivid as possible at the cost of accuracy.  Best for charts, diagrams and
+presentation graphics where punch matters more than fidelity.
+
+Relative Colorimetric::
+Reproduces every in-gamut color exactly after aligning the white of the source to the white
+of the destination; out-of-gamut colors are clipped to the nearest reproducible color.  Best
+for illustration, and the default.
+
+Absolute Colorimetric::
+Like Relative Colorimetric, but without aligning the white points, so the paper's own tint is
+simulated as well.  Best for matching brand and logo colors on a proof.  Two distinct source
+colors may collapse onto one destination color.
+
+The intent in Color Settings is the document's default.  An individual image can override it
+(xref:image-color.adoc[Managing image color]).
+
+[[proof]]
+== Proofing colors on screen
+
+Proofing makes the display pretend to be another device.  With proofing set to the separations
+press and menu:View[Proof Colors] turned on, an RGB photograph is shown the way it will print
+after separation, and a CMYK swatch is shown through the press profile and then your display
+profile, rather than as the nearest bright screen color.
+
+NOTE: {fh} called this *Monitor Simulates* and set it in Preferences.  In {product} the
+proof *setup* is part of the document's Color Settings, so that everyone proofing the document
+simulates the same device; the on/off switch is per window, so turning it on does not change
+what your collaborators see.
+
+To set up proofing:
+
+. Choose menu:File[Color Settings…].
+. Under Proof setup, choose what the screen should simulate:
++
+[horizontal]
+None:: No simulation.  RGB colors are shown through the working RGB profile and CMYK colors
+through the working CMYK profile, both converted straight to your display.  Choose this for
+artwork that will be viewed on screen.
+Separations Printer:: Simulate the press described by the Working CMYK profile: each color as
+it will print on its own plate.
+Composite Printer:: Simulate a composite proofer (a device that prints all colors in one
+pass).  Choose its profile from the Composite Printer menu.  Tick *Composite simulates
+separations* if the proofer should itself imitate the separations press -- that is, show
+what the press will do, printed on the proofer -- which is what most contract proofing wants.
+Leave it unticked when the composite printer *is* the final output.
+. Optionally tick *Simulate paper white* (show the paper's tint instead of pure screen white;
+  this implies Absolute Colorimetric for the last step to the display) and *Simulate black
+  ink* (show the press's deepest black rather than the display's).
+. Click btn:[OK].
+
+To turn proofing on or off, choose menu:View[Proof Colors] (kbd:[Cmd+Option+Y]).  The window's
+title bar shows *Proof: <profile name>* while it is on.  Proofing is a view setting: it never
+changes a color value, and it does not affect export or printing, which apply the document's
+output settings directly (xref:printing.adoc[Printing], xref:export-formats.adoc[Export formats]).
+
+// TODO screenshot: the same artwork with Proof Colors off and on, side by side
+
+== Preferences that stay on your Mac
+
+menu:{product}[Settings… > Colors] holds the few color choices that are about your computer
+rather than the document:
+
+Monitor profile::
+Read-only.  The profile macOS has assigned to the display the document window is on, with an
+*Open Display Settings…* button (xref:monitor-calibration.adoc[Calibrating your display]).
+
+Embedded image profiles::
+What to do when an imported image carries its own profile: *Use embedded* (default), *Ask*, or
+*Ignore* (xref:image-color.adoc[Managing image color]).
+
+== Working with others
+
+Color settings belong to the whole document, so when a collaborator changes them you see it
+at once: the canvas re-renders and a brief message names the change, for example "Priya changed
+Working CMYK to ISO Coated v2".  No color value in the artwork changes; only its interpretation.
+
+If two people change the same setting at the same moment, the later change stands and the
+earlier one is offered back in the review sheet (menu:File[Review Merge…]), so nothing is
+silently lost.  Because a working-space change affects how every object looks, any change to
+color settings made while you were offline -- yours or theirs -- is listed in the review
+sheet when you reconnect, even when nothing else overlapped.
+
+Proofing on or off is yours alone: turning on menu:View[Proof Colors] changes your window and
+nobody else's.  Custom profiles loaded from `.icc` files are part of the document and reach
+everyone; a collaborator who has not received the profile data yet sees the artwork through
+the nearest bundled profile with a *profile pending* badge in the status bar until it arrives.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,2"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Color management type: None
+|No separate mode.  Equivalent to proofing off with the working spaces; color management is
+always on because the document, not the machine, defines color meaning.
+|Adapted: a per-machine "off" would show collaborators different colors for the same document.
+
+|Color management type: Adjust Display Colors (visual calibration dialog)
+|macOS Display Calibrator and the display's ColorSync profile; {product} shows the current
+profile and links to System Settings.
+|Adapted: see xref:monitor-calibration.adoc[Calibrating your display].
+
+|Color management type: Color Tables
+|Conversions computed on demand from the ICC profiles and cached; no user-managed tables.
+|Adapted: see xref:color-tables.adoc[Color conversion and spot color preview].
+
+|Color management type: Kodak Digital Science
+|Not offered.
+|Dropped: the Kodak CMM no longer exists; ColorSync is the platform engine on macOS.
+
+|Color management type: Apple ColorSync
+|The only engine.
+|Faithful.
+
+|Color Manage Spot Colors
+|*Color manage spot colors* in Color Settings, stored in the document.
+|Faithful (moved from Preferences to the document).
+
+|Rebuild Color Tables
+|Not offered; conversions are always derived from the current profiles.
+|Dropped: nothing to rebuild.
+
+|Color Management Setup: Monitor profile
+|Taken from the display the window is on; not chosen in the app.
+|Adapted: macOS owns the display profile per screen, including multi-display setups.
+
+|Monitor Simulates: None / Composite Printer / Separations Printer
+|Proof setup in Color Settings (document) plus menu:View[Proof Colors] (per window).
+|Adapted: setup is shared, toggle is local.
+
+|Separations Printer profile
+|Working CMYK profile.
+|Faithful (renamed; the NOTE on xref:color-profiles.adoc[Choosing color profiles] says so).
+
+|Composite Printer profile, Composite Simulates Separations
+|Composite Printer profile and *Composite simulates separations* in Proof setup; honored by
+printing to a composite device (PRINT epic).
+|Faithful.
+
+|Intent (four rendering intents)
+|Same four intents, document default plus per-image override.
+|Faithful.
+
+|Default RGB Image Source
+|*Default RGB image source* in Color Settings.
+|Faithful.
+
+|Black point compensation, Simulate paper white, Simulate black ink
+|Offered in Color Settings and Proof setup.
+|Addition: standard ICC proofing controls that ColorSync provides for free.
+
+|Verifying installation of the Kodak CMS (Windows)
+|--
+|Dropped: Windows-only and Kodak-only.
+
+|--
+|Colors carry their own space through the pipeline: Display P3, Lab and OKLab colors are
+converted from their own space to the display, the proof, the press and every export; the
+Working RGB profile is the output space, not the meaning of artwork colors.
+|Added: {fh} predates wide-gamut displays; a single "RGB means the working profile" rule
+cannot hold both an sRGB hex value and a P3 pick.
+|===
+
+=== Data model
+
+`ColorSettings` is a field of the `settings` node's props (`SettingsProps.color`, well-known
+node `0:1`).  `ProfileRef` and the enums are shared with
+xref:image-color.adoc[Managing image color] and xref:color-profiles.adoc[Choosing color
+profiles]; they are defined here.
+
+[source,protobuf]
+----
+// proto/wiretuner/doc/v1/color_management.proto (sketch)
+
+// Identifies one ICC profile.  Always used as an ATOMIC register: name, hash, bundled id and
+// space describe the same bytes and are meaningless apart.
+message ProfileRef {
+  // The profile's description tag, shown in menus and the review sheet.  Informational.
+  string name = 1 [(buf.validate.field).string.max_len = 256];
+  // SHA-256 of the ICC data.  Set for every profile, bundled or not, so two clients can tell
+  // whether they hold the same bytes and the review sheet can tell "same name, different
+  // profile".  For a custom profile this is also its blob hash (BlobService).
+  bytes sha256 = 2 [(buf.validate.field).bytes.len = 32];
+  // Non-empty for a profile shipped inside the app ("srgb", "display-p3", "default-cmyk", ...).
+  // Readers use the bundled data and never fetch a blob.  Empty means: fetch the blob.
+  string bundled_id = 3 [(buf.validate.field).string.max_len = 64];
+  // Color space class of the profile, so a reader can choose a fallback of the right class
+  // without having the ICC data.
+  ProfileSpace space = 4;
+}
+
+enum ProfileSpace {
+  PROFILE_SPACE_UNSPECIFIED = 0;
+  PROFILE_SPACE_RGB = 1;
+  PROFILE_SPACE_CMYK = 2;
+  PROFILE_SPACE_GRAY = 3;
+  PROFILE_SPACE_LAB = 4;
+}
+
+enum RenderingIntent {
+  RENDERING_INTENT_UNSPECIFIED = 0;   // "use the document default" where a default exists
+  RENDERING_INTENT_PERCEPTUAL = 1;
+  RENDERING_INTENT_RELATIVE_COLORIMETRIC = 2;
+  RENDERING_INTENT_SATURATION = 3;
+  RENDERING_INTENT_ABSOLUTE_COLORIMETRIC = 4;
+}
+
+enum ProofTarget {
+  PROOF_TARGET_UNSPECIFIED = 0;       // reads as NONE
+  PROOF_TARGET_NONE = 1;
+  PROOF_TARGET_SEPARATIONS = 2;       // simulate the Working CMYK press
+  PROOF_TARGET_COMPOSITE = 3;         // simulate ProofSettings.composite_profile
+}
+
+// STRUCT (default for a message field): each setting is an independent choice and two people
+// changing different ones concurrently should both win.
+message ColorSettings {
+  // Working RGB: the RGB *output* space (Convert to RGB, RGB exports, untagged RGB images).
+  // Artwork colors carry their own space in `Color.space` and are never reinterpreted by
+  // this profile.  Unset reads as bundled "srgb".
+  ProfileRef rgb_profile = 1 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Working CMYK; the separations press.  Unset reads as bundled "default-cmyk".
+  ProfileRef cmyk_profile = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Document default intent.  UNSPECIFIED reads as RELATIVE_COLORIMETRIC.
+  RenderingIntent intent = 3;
+  // Written as its negation so that the unset default is "on".
+  bool no_black_point_compensation = 4;
+  // Written as its negation so that the unset default is "on" (FreeHand's Color Manage Spot Colors).
+  bool no_spot_color_management = 5;
+  // Profile assumed for RGB images with neither embedded nor assigned profile.
+  // Unset reads as rgb_profile.
+  ProfileRef default_image_rgb_profile = 6 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Proof setup (View > Proof Colors simulates this).  STRUCT.
+  ProofSettings proof = 7;
+}
+
+message ProofSettings {
+  ProofTarget target = 1;
+  // Used when target == COMPOSITE.  Unset reads as cmyk_profile.
+  ProfileRef composite_profile = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // The composite proofer imitates the separations press (Working CMYK) rather than being
+  // the final device.  Also read by the PRINT epic when printing to a composite device.
+  bool composite_simulates_separations = 3;
+  bool simulate_paper_white = 4;      // last step to display uses absolute colorimetric
+  bool simulate_black_ink = 5;
+}
+----
+
+The *Proof Colors* on/off state is per window and lives in the local `view` table
+(xref:offline.adoc[Offline]) as a `local_only` field on the window's view state, owned by the
+document-view page.  It is never synced.
+
+=== Merge semantics
+
+Per field::
+* Every `ProfileRef` field is ATOMIC: two concurrent choices of Working CMYK resolve by OpId
+  order; the loser is retained in the log and offered back.
+* `intent`, the two negated booleans and `default_image_rgb_profile` are independent
+  registers: one person changing the intent while another changes the CMYK profile keeps
+  both.
+* `ProofSettings` is STRUCT for the same reason; `target` and `composite_profile` are
+  separate registers, so "switch to composite" and "pick the composite profile" from two
+  people compose into a sensible state.
+
+Nasty cases::
+* *Two working-space changes at once* (A picks SWOP, B picks FOGRA): LWW on the register.
+  Both replicas converge; the loser's canvas visibly changes after the merge.  This is the case
+  the always-list rule below exists for.
+* *Profile chosen, blob not yet uploaded*: A loads a custom `.icc` and switches to it while
+  offline.  The `SetFields` carries the hash; the blob follows through the blob queue.  Until
+  it arrives, other replicas read the field normally but *render* through the fallback
+  (below) and show the *profile pending* badge.  No replica ever writes a "fix-up" change.
+* *Undo across a remote change*: undoing a color-settings change restores only the registers
+  that still hold this user's value (xref:crdt-model.adoc[CRDT model]); a collaborator's later
+  change to the CMYK profile survives an undo of the local RGB profile change.
+
+Review sheet::
+A change to any register under `SettingsProps.color` is *always listed* in the review sheet
+after reconnecting, whether it was made locally or remotely and whether or not it overlapped
+with anything, under the heading "Color settings changed by <user>" with the old and new
+profile names (and a "same name, different data" note when only the hash differs).  This is
+proposed as an addition to the decision rules in xref:reconcile.adoc[Reconciling offline
+edits]: a working-space change alters the appearance of every object, which is exactly the
+kind of surprise the review exists to prevent, yet it touches only one node and would
+otherwise merge silently.  Live (online) changes are not reviewed; they are announced with a
+toast naming the user and the setting.
+
+Read-time normalizations::
+* An unset `ProfileRef` reads as the default named in the sketch.
+* A `ProfileRef` with an empty `bundled_id` whose blob is not available locally renders through
+  the bundled default of the same `space` (`srgb` for RGB, `default-cmyk` for CMYK, `generic-gray`
+  for GRAY); the model exposes a `pending` flag that the status bar and the Color Settings sheet
+  display.  When the blob arrives the renderer is invalidated; nothing is written.
+* A `ProfileRef` whose `space` does not match the field (a CMYK profile in `rgb_profile`, which
+  a buggy client could write) reads as unset.
+* `composite_profile` unset with `target == COMPOSITE` reads as the Working CMYK profile.
+
+=== Offline behavior
+
+Everything on this page works offline.  A custom profile chosen offline is queued in
+`blobs_pending` like any other blob and uploaded after the change log; other clients tolerate
+its absence as above.  Profile blobs are small (4 KiB to 3 MiB) and are uploaded before images
+in the queue.
+
+=== Server
+
+Nothing beyond storing and relaying changes and storing profile blobs through `BlobService`.
+The server never converts a color.
+
+=== Client
+
+Package:: The color-management kernel lives in `WTRender` as `WTColor` (a module directory,
+not a separate package): profile registry, conversion cache, proof transforms.  `WTModel`
+exposes `ColorSettings` with defaults resolved; `WTApp` owns the sheet and the View menu item.
+
+Profiles as Core Graphics objects:: Every `ProfileRef` resolves to a `CGColorSpace` built with
+`CGColorSpace(iccData:)` from bundled data or the blob cache, cached by `sha256`.  Bundled
+profiles are loaded once per process.  The display's profile comes from
+`NSScreen.colorSpace` for the window's screen and is refreshed on
+`NSWindow.didChangeScreenProfileNotification` and when the window moves between displays.
+
+Rendering in tagged spaces:: The display list carries every vector color as a `CGColor` in
+the space it is stored in (COLOR-024 builds them): sRGB colors in `CGColorSpace.sRGB`,
+Display P3 colors in `.displayP3`, CIELAB colors in `.genericLab` (D50), OKLab colors
+converted by matrix to linear sRGB and carried in `.extendedLinearSRGB` (whose range admits
+components outside 0..1, so a P3-only OKLab color is not clipped before the display sees it),
+CMYK colors in Working CMYK, and spot colors as their preview color (see
+xref:color-tables.adoc[Color conversion and spot color preview]).  Working RGB appears in
+rendering only for untagged RGB images.  Tile contexts and window backing stores are tagged
+Display P3 at 8 bits per channel (16 for exports above 8-bit), so wide-gamut colors survive
+to the window server, which matches each tile to the display's profile: a P3 display shows
+them, an sRGB display clips them per channel (ColorSync relative colorimetric), and the
+document is untouched either way -- this is exactly the "None" proof state.  Because the same
+display list prints and exports, screen and output agree (REND-001's pixel-identity
+requirement).
+
+Soft proof:: When *Proof Colors* is on, the tile renderer builds a proof transform from
+`ColorSettings`: a `ColorSyncTransform` whose chain is source space (the color's own
+`CGColorSpace` above, or the image's source profile) → proof profile (to-device with the
+document intent, black point compensation as set) → proof profile (device-to-PCS) → display
+profile (relative colorimetric, or absolute when `simulate_paper_white`).  A P3 color proofed
+to the separations press therefore shows what the press makes of it, which is the same P3 →
+Working CMYK conversion *Convert to CMYK* and separations use (CMS-003).  Vector and
+gradient-stop colors are converted once per distinct color at display-list build and cached
+by `(sha256 of color bytes, proof key)` -- the space tag is part of the bytes, so an sRGB and
+a P3 color with equal components never share a cache entry; images and rasterized effects are
+converted per tile through a `CGColorConversionInfo` built from the same chain.  Gradients are proofed by converting stops, not interpolated pixels -- an accepted
+approximation.  `simulate_black_ink` off means the display's black is substituted for the
+proof profile's darkest value in the last step (black point scaling).
+
+Invalidation:: Any change to `SettingsProps.color` or to the display profile invalidates every
+tile and the cached converted colors; the invalidation from a remote change goes through
+REND-004 as a whole-document dirty rect.
+
+AppKit:: The Color Settings sheet is an `NSPanel` sheet with `NSPopUpButton`s for profiles
+(grouped: Bundled, Installed, Document, Other…), an `NSPopUpButton` for intent, checkboxes for
+the rest, and a Proof setup group.  The View menu item is validated from the window's view
+state.  The toast for remote changes uses the shared notification strip from the COLLAB epic.
+
+Undo:: One change per btn:[OK] labelled "Change Color Settings"; the sheet edits a draft and
+writes only the registers that differ from the current values.
+
+=== Build tasks
+
+[[CMS-001]]
+==== CMS-001 Color management schema
+[horizontal]
+Track:: proto
+Depends on:: PROTO-003, PROTO-005
+Size:: S
+Delivers:: `doc/v1/color_management.proto` with `ProfileRef`, `ProfileSpace`, `RenderingIntent`, `ProofTarget`, `ColorSettings`, `ProofSettings`, and `ImageColorSettings` (xref:image-color.adoc[Managing image color]); `SettingsProps.color` wired in.
+Done when::
+* `buf lint` with `COMMENTS` passes; every `ProfileRef` field carries `MERGE_ATOMIC`; `ColorSettings` and `ProofSettings` are STRUCT in the generated merge table.
+* Conformance vectors: concurrent writes to `rgb_profile` and `cmyk_profile` from two replicas keep both; concurrent writes to `cmyk_profile` resolve by OpId with the loser retained; `proof.target` vs `proof.composite_profile` concurrent writes keep both.
+* `state_hash` identical in both engines for each vector.
+
+[[CMS-002]]
+==== CMS-002 Profile registry and bundled profiles
+[horizontal]
+Track:: client-render
+Depends on:: APP-001
+Size:: M
+Delivers:: `WTColor.ProfileRegistry`: bundled ICC profiles with stable `bundled_id`s (sRGB, Display P3, a generic gray, *Default CMYK* and the freely redistributable press characterizations whose licenses permit bundling, as checked and recorded in xref:decisions.adoc[Decisions]); enumeration of installed profiles through `ColorSyncIterateInstalledProfiles` filtered by class and space; `CGColorSpace` construction and caching by `sha256`; `ProfileRef` creation from ICC data (description tag, hash, space).
+Done when::
+* Every bundled profile round-trips `ProfileRef` → `CGColorSpace` → `ProfileRef` with the same hash.
+* An embedded sRGB profile from a common camera file is recognized as `bundled_id = "srgb"` by hash, and an unknown profile yields an empty `bundled_id` with the correct `space`.
+* Installed-profile enumeration excludes device-link and abstract profiles and completes under 100 ms with 500 profiles installed.
+
+[[CMS-003]]
+==== CMS-003 Conversion service
+[horizontal]
+Track:: client-render
+Depends on:: CMS-002
+Size:: M
+Delivers:: `WTColor.Converter`: `CGColorConversionInfo` and `ColorSyncTransform` cache keyed by `(source sha256, destination sha256, intent, black point compensation)`; scalar conversions for `Color` values in any model (RGB, CMYK, gray, Lab) to any profile; proof chain construction per <<proof,Proofing colors on screen>>; a deterministic canonical rounding rule (round half away from zero to 1/255 for display, 1/10000 for stored values).
+Done when::
+* Converting a 1,000-color table twice on the same machine yields byte-identical results; converting on two Macs on the same macOS version yields identical results; across the two most recent macOS versions the results differ by at most 1/255 per channel, with the test corpus committed.
+* Building a transform is cached; converting 100,000 colors through a cached transform takes under 50 ms on M1.
+* Unit tests cover all four intents, black point compensation on/off, and the proof chain with paper-white on/off.
+
+[[CMS-004]]
+==== CMS-004 Document color settings model
+[horizontal]
+Track:: client-model
+Depends on:: CMS-001, APP-011
+Size:: S
+Delivers:: `WTModel.ColorSettings` view with defaults resolved, the read-time normalizations above, the `pending` flag from the blob cache, and a `ChangeColorSettings` command that writes only differing registers with the label "Change Color Settings".
+Done when::
+* New documents read sRGB / Default CMYK / Relative Colorimetric / spot management on / proof None.
+* Merge test: replica A changes `intent` while B changes `cmyk_profile`; both converge to both values; undo on A restores A's intent and leaves B's profile.
+* Conformance vector: an RGB profile written into `cmyk_profile` reads as unset on both engines.
+
+[[CMS-005]]
+==== CMS-005 Color Settings sheet
+[horizontal]
+Track:: client-ui
+Depends on:: CMS-004, CMS-002, APP-005, APP-010
+Size:: M
+Delivers:: menu:File[Color Settings…] and the Document panel button; the sheet described under *Client*; the *Other…* open panel that loads an `.icc` file; the *Monitor profile* and *Embedded image profiles* rows in menu:{product}[Settings… > Colors].
+Done when::
+* Every setting in the table on this page can be changed and is one undo step.
+* Choosing a profile whose `space` does not match the menu is impossible (menus are filtered).
+* A remote change while the sheet is open updates the sheet's current-value labels without discarding the user's draft; UI test covers it.
+* Merge test: two clients open the sheet, change different settings, click btn:[OK]; both see both.
+
+[[CMS-006]]
+==== CMS-006 Working-space rendering
+[horizontal]
+Track:: client-render
+Depends on:: CMS-003, REND-002, REND-004
+Size:: M
+Delivers:: Display-list colors as `CGColor`s in their own tagged spaces (from COLOR-024) and CMYK in Working CMYK; window and tile contexts tagged Display P3 and matched to the display's profile by the window server; refresh on display-profile change and on window moves between displays; whole-document invalidation on `SettingsProps.color` changes.
+Done when::
+* A C=100 swatch renders through the Working CMYK profile: changing the profile changes the pixels, changing the display profile changes the pixels, and neither changes the document.
+* A `p3(1 0 0)` fill and an `#ff0000` fill render as different pixels on a P3 display and as the same clipped pixels on a simulated sRGB display; changing Working RGB changes neither.
+* Screen and PDF output of the reference corpus remain pixel-identical (REND-001 invariant).
+* Dragging a window between two displays with different profiles re-renders within one frame.
+
+[[CMS-007]]
+==== CMS-007 Soft proof (View > Proof Colors)
+[horizontal]
+Track:: client-render
+Depends on:: CMS-006
+Size:: M
+Delivers:: The proof transform path (vector colors and gradient stops converted at build, rasters per tile), the per-window *Proof Colors* view flag with kbd:[Cmd+Option+Y], the title-bar *Proof:* indicator, paper white and black ink options, and the `composite_simulates_separations` chain.
+Done when::
+* Toggling Proof Colors changes on-screen pixels for an out-of-gamut RGB fill and leaves in-gamut CMYK fills within 1/255.
+* Two windows on the same document with proofing on and off render differently; the flag survives relaunch and is never sent.
+* Proofing frame time at the design point stays within 20% of unproofed.
+
+[[CMS-008]]
+==== CMS-008 Profile blobs
+[horizontal]
+Track:: client-sync
+Depends on:: SYNC-008, CMS-002
+Size:: M
+Delivers:: Custom profiles as content-addressed blobs: loading an `.icc` file hashes it, stores it in the blob cache, queues the upload ahead of images, and returns a `ProfileRef`; lazy download on first reference by any `ProfileRef` with an empty `bundled_id`; the `pending` notification to `WTModel`; de-duplication by hash.
+Done when::
+* Choosing a custom Working CMYK while offline and reconnecting uploads the blob before any queued image and other clients render through it within 2 s of arrival.
+* Two documents referencing the same custom profile share one cached file.
+* Merge test: a document whose `cmyk_profile` names an unavailable blob renders through Default CMYK with `pending` set, and flips without a write when the blob arrives.
+
+[[CMS-009]]
+==== CMS-009 Always-list rule for color settings
+[horizontal]
+Track:: client-sync
+Depends on:: SYNC-006, SYNC-007, CMS-001
+Size:: S
+Delivers:: The divergence measurement flags any change to `SettingsProps.color` (local unsent or remote since the previous head) as an always-listed item; the review sheet row "Color settings changed by <user>" with old/new profile names, hash-mismatch note, and *Use mine* / *Use theirs*.
+Done when::
+* Simulator test: A changes the CMYK profile offline, B changes nothing; on reconnect B's review sheet lists the change even with zero overlap; A's does not.
+* Same-name-different-hash is shown as such.
+* The row's choices are undoable changes like any other review action.
+endif::spec[]

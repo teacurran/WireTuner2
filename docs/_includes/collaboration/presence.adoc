@@ -1,0 +1,397 @@
+Presence is everything {product} shows you about the other people in a document *right now*:
+who is here, where they are looking, what they have selected, where they are typing.  None of
+it is part of the document -- it is not saved, not in history, and it vanishes when a person
+closes the window.  Its purpose is to make working together feel like sharing a table rather
+than mailing files: you can see a colleague reaching for the object you were about to move,
+and you can bring everyone to the page you are talking about.  xref:collaboration.adoc[Working
+together] is the overview; this page has the details and the options.
+
+// TODO screenshot: avatar strip with four collaborators, one dimmed as idle, and the hover card for one of them
+
+== The avatar strip
+
+Everyone with the document open is shown as an avatar at the right end of the document
+window's toolbar, newest arrival last, with your own avatar at the far right.  Up to six
+avatars are shown; more collapse into a "+N" button that lists the rest.  Each avatar has a
+colored ring in the person's color.
+
+Hover an avatar for a card with the person's name, their role in the document, and what they
+are doing:
+
+[cols="1,2"]
+|===
+|Card says |Meaning
+
+|_Editing Logo mark_ |They are dragging, typing into, or otherwise changing that object.
+|_Selected 3 objects_ |They have a selection but are not changing it.
+|_Commenting on Logo mark_ |They are writing in a comment thread pinned to that object (xref:comments.adoc[Comments]).
+|_Viewing page 2_ |They have nothing selected; the page named is where their view is.
+|_Editing on branch "Autumn palette"_ |They are in a xref:branches.adoc[branch] of this document rather than in this document.
+|_Idle_ |No input from them for two minutes.  The avatar is dimmed.
+|_Reconnecting_ |Their connection dropped within the last few seconds.
+|===
+
+Click an avatar to follow that person (<<following,Following>>).  Click your own avatar for a
+menu: *Spotlight Me*, *Stop Following*, and the display options below.
+
+People who have opened the document only from a xref:branches.adoc[branch] appear with a
+branch badge; people who are members but do not have the document open do not appear at all.
+The Share sheet lists everyone with access (xref:sharing.adoc[Sharing]).
+
+== Colors
+
+Each person has one color in each document.  It is assigned the first time they open the
+document, from a palette of twelve, in order, and it never changes for that person in that
+document -- so "the orange one is Priya" stays true tomorrow.  When more than twelve people
+have opened a document, colors repeat.  Your own color is shown on your avatar's ring and
+nowhere else: your own selection and caret use the ordinary system highlight.
+
+== Cursors
+
+A collaborator's pointer is drawn on your canvas as an arrow in their color, with a name label
+beside it.  The label hides after three seconds without movement and reappears when the
+pointer moves.  While they are dragging with a tool, the tool's icon appears beside the name.
+When their pointer leaves the canvas, their cursor disappears from yours.
+
+Cursors are shown at your zoom level, in the position they occupy on the pasteboard, so a
+cursor on a page you are not looking at is simply out of view.
+
+== Selections and carets
+
+An object in someone else's selection gets an outline in their color with a small name tag at
+its top-left corner.  When several people have selected the same object, the outlines nest.
+Their selection highlights points and segments too when they are editing a path
+(xref:editing-paths.adoc[Editing paths]): the selected points show as small squares in their
+color.
+
+When someone is editing text, their caret is drawn in the text block in their color, with a
+flag carrying their name; a selection range is shown as a tinted highlight.  Their caret stays
+in place as you type before it, and yours stays in place as they type before yours
+(xref:editing-text.adoc[Editing text]).
+
+The Object panel adds a line under the object's name -- _Priya is editing this object_ -- when
+the selected object is in a collaborator's selection and they are actively changing it.
+
+None of these is a lock.  They tell you where people are so that you can avoid colliding, and
+{product} merges cleanly if you do not (xref:collaboration.adoc[Working together]).
+
+A collaborator's selection can also be *read*: click the name tag on their selection outline,
+or choose menu:View[Collaborators > Inspect Selection], and the Inspect panel shows the
+selected objects' size, colors and type settings, following their selection as it changes
+until you select something yourself (xref:inspect.adoc[Inspect mode]).  Following someone
+(<<following,Following>>) keeps working while you inspect.
+
+[[following]]
+== Following someone
+
+To follow a collaborator:
+
+. Click their avatar in the strip, or choose them from menu:View[Collaborators > Follow].
+. Your view moves to match theirs: page, position and zoom.  A border in their color surrounds
+  the canvas and a bar above it reads "Following Priya" with a btn:[Stop] button.
+. Keep working if you like.  Selecting and editing objects does not stop following; your
+  view simply stays with theirs.
+
+Following ends when you:
+
+* scroll, zoom or change page yourself;
+* click btn:[Stop], press kbd:[Esc] with nothing else to cancel, or choose menu:View[Collaborators > Stop Following];
+* follow someone else instead;
+* or when the person you are following closes the document.
+
+If the person you follow switches to a branch, following ends and the bar offers to open that
+branch.
+
+== Asking others to follow you
+
+*Spotlight Me* asks everyone in the document to follow you -- for walking a team through a
+layout, or getting people to the page under discussion.
+
+To spotlight yourself:
+
+. Choose menu:View[Collaborators > Spotlight Me], or click your avatar and choose it there.
+. Everyone else in the document sees a banner: "Priya wants you to follow her" with
+  btn:[Follow] and btn:[Dismiss].  Nobody is moved without clicking.
+. While you are spotlighting, your avatar shows a small beacon and the menu item reads
+  *Stop Spotlighting*.  It stops on its own when you close the document.
+
+People who dismiss the banner are not asked again for the same spotlight.
+
+== Display options
+
+Each of these is in menu:View[Collaborators] and in Preferences under *Collaboration*; the
+menu and the preference are the same switch.
+
+[cols="2,1,3"]
+|===
+|Option |Default |Effect
+
+|*Show collaborators' cursors*
+|On
+|Draws other people's pointers on your canvas.  Off hides them; avatars, selections and carets
+are unaffected.
+
+|*Show names on collaborators' cursors*
+|On
+|The name label beside each cursor.  Off leaves colored arrows only.
+
+|*Show collaborators' selections*
+|On
+|Outlines, point highlights and text carets of other people.  Off hides them all; the "is
+editing this object" line in the Object panel remains.
+|===
+
+All three affect only what *you* see; they never affect what others see of you, and there is
+no way to be invisible to collaborators -- everyone in a document can see everyone else.
+
+== Presence and the network
+
+* While you are offline, others see your avatar marked _Reconnecting_ for a few seconds and
+  then it disappears; your cursor and selection vanish with it.  When you reconnect you appear
+  again with the same color.
+* On your side, the moment the connection drops the other cursors freeze where they were.
+  After a few seconds they are cleared and the avatar strip collapses to a single
+  status: "Offline -- working alone until you reconnect".  Following ends.
+* Presence is live only: no part of it is stored, so there is no presence in history, and
+  nothing about who was looking at what is ever kept.
+
+== Working with others
+
+This page is about what you see of others; the same is true in reverse.  Your pointer,
+selection and caret are visible to every collaborator in the document at all times, drawn in
+your color with your name.  Your role does not change that: viewers are shown with cursors
+just as editors are, so a viewer can point at things during a discussion.
+
+After being offline, nothing about presence needs merging -- it simply resumes.  If people
+joined or left while you were away, the strip shows who is here now.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,2"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|--
+|Avatars, colors, remote cursors, selections, carets, follow, spotlight.
+|Added -- no FreeHand equivalent
+|===
+
+=== Data model
+
+Presence never enters the document or the change log.  It is the `PresenceUpdate` /
+`PresenceSnapshot` `UpdatePresence` calls up and `PresenceUpdate`/`PresenceSnapshot` frames of `SyncService.Subscribe` down (xref:sync-protocol.adoc[Sync protocol]),
+extended here with the fields the guide needs.  The server fills `user`, `color_index`
+and `branch` itself; a client's values for them are ignored.
+
+[source,protobuf]
+----
+// proto/wiretuner/sync/v1/presence.proto (sketch)
+
+// One collaborator's live state.  Sent by the client at most 20 times a second; the server
+// coalesces and fans out.  Every field is "current state", never a delta, so a lost frame
+// costs nothing.
+message PresenceUpdate {
+  // Server-filled.  The account this session belongs to, with display data so clients need
+  // no lookup.  Ignored on the way up.
+  Participant user = 1;
+  // Server-filled.  Index into the 12-color palette, stable per (document, user).
+  uint32 color_index = 2 [(buf.validate.field).uint32.lt = 12];
+  // Server-filled.  Set when this session is on a branch of the document rather than on the
+  // document itself (the branch's participants are relayed to the parent's session and
+  // vice versa, so both sides see each other).
+  string branch_id = 3;
+
+  // ACTIVE, IDLE (no input for 2 min) or GONE (client sent a final frame on close).
+  PresenceState state = 4;
+  // Node id of the page the viewport is mostly on.  Unset on a master page canvas.
+  wiretuner.doc.v1.OpId page = 5;
+  // Pointer position in pasteboard points.  Unset when the pointer is off the canvas.
+  wiretuner.doc.v1.Point cursor = 6;
+  // Visible rect in pasteboard points and the zoom, for Follow.
+  Viewport viewport = 7;
+  // Identifier of the active tool ("pointer", "pen", ...), for the cursor badge.
+  string tool = 8 [(buf.validate.field).string.max_len = 32];
+  // Selected nodes.  Capped; a larger selection sends the first 200 and `selection_count`.
+  repeated wiretuner.doc.v1.OpId selection = 9 [(buf.validate.field).repeated.max_items = 200];
+  uint32 selection_count = 10;
+  // Selected points or segments, as field paths into the selected path nodes.
+  repeated wiretuner.doc.v1.FieldPath sub_selection = 11 [(buf.validate.field).repeated.max_items = 500];
+  // Nodes the user is actively changing (mouse is down on them, or a field is being edited).
+  // Drives "Priya is editing this object".
+  repeated wiretuner.doc.v1.OpId editing = 12 [(buf.validate.field).repeated.max_items = 200];
+  // Text caret, when editing text.
+  TextCaret caret = 13;
+  // True while the user is spotlighting.  Others show the banner once per rising edge.
+  bool spotlight = 14;
+  // The user this session is following, if any (informational: shown on the hover card).
+  string following_user_id = 15;
+}
+
+enum PresenceState { PRESENCE_STATE_UNSPECIFIED = 0; PRESENCE_STATE_ACTIVE = 1;
+                     PRESENCE_STATE_IDLE = 2; PRESENCE_STATE_GONE = 3; }
+
+message Participant {
+  string user_id = 1;
+  string display_name = 2;
+  // Avatar image as a blob hash, if the account has one; clients cache by hash.
+  string avatar_sha256 = 3;
+  wiretuner.account.v1.DocumentRole role = 4;
+}
+
+message Viewport {
+  wiretuner.doc.v1.Rect visible = 1;   // pasteboard points
+  double zoom = 2;                     // 1.0 = 100%
+}
+
+message TextCaret {
+  wiretuner.doc.v1.OpId node = 1;          // the text block
+  wiretuner.doc.v1.FieldPath text = 2;     // which RichText field
+  wiretuner.doc.v1.ElementId position = 3; // character id the caret is before; zero = end
+  // Selection range end when a range is selected; unset for a bare caret.
+  wiretuner.doc.v1.ElementId range_end = 4;
+}
+
+// Sent once on join and whenever the server rebuilds it: everyone currently present.
+message PresenceSnapshot { repeated PresenceUpdate participants = 1; }
+
+// Added to SequencedChange so attribution needs no replica lookup (used by
+// xref:collaboration.adoc[Working together] and xref:history.adoc[Version history]).
+message SequencedChange {
+  uint64 server_seq = 1;
+  wiretuner.doc.v1.Change change = 2;
+  Participant author = 3;   // server-filled from the replica binding
+}
+----
+
+Color assignment is server state: `document_member.color_index` (SRV-003 schema, extended by
+COLLAB-005), assigned on the first `Subscribe` from that user as the lowest palette index not in
+use among members who have ever opened the document, wrapping after twelve.  Users with
+access through a team default or a link, who have no `document_member` row, get one created
+with `role = NONE` purely to hold the color.
+
+=== Merge semantics
+
+None.  Presence is not merged; the newest frame per session replaces the previous one, and a
+session's entry expires 15 s after its last frame.  Two sessions from one user (two Macs)
+are two participants with the same color.
+
+The only document-adjacent behavior is caret placement: a `TextCaret` names a character id,
+so it survives concurrent edits by construction (the id does not move); the layout engine
+maps it to a glyph position (TXT-001).  A caret whose character was deleted is drawn before
+the next surviving character.
+
+Read-time normalization: a presence entry naming a node that does not exist locally yet (the
+change creating it has not arrived) is kept and shown as soon as the node appears; one naming
+a deleted node is not drawn.
+
+=== Offline behavior
+
+Presence requires the session.  On disconnect the client marks every remote participant
+frozen; after 5 s it clears them and shows the offline status.  On reconnect, `Subscribe` delivers
+a `PresenceSnapshot` after replay and normal operation resumes.  Outgoing presence while
+offline is dropped, not queued.
+
+=== Server
+
+SRV-012 relays presence.  COLLAB-005 adds: color assignment on first join, validation and
+truncation of the caps above, filling of the server-owned fields, relaying between a branch
+session and its parent's sessions, and `author` on every `SequencedChange`.  Spotlight is an
+ordinary presence field; the server does nothing special with it.
+
+=== Client
+
+* `WTSync.PresenceModel` (SYNC-009): an observable dictionary `session id → PresenceUpdate`
+  with the local user excluded, published on the main actor.
+* `WTRender`: a `PresenceOverlayLayer` above the tiled canvas draws cursors, labels,
+  selection outlines, point highlights, carets and attribution flashes.  It is redrawn on
+  presence changes and on scroll/zoom, never invalidating document tiles.  Hit testing
+  ignores it.
+* `WTApp/Collaboration`: `AvatarStripView` (SwiftUI in the toolbar), `FollowController`
+  (drives the canvas scroll/zoom from a participant's `viewport`, ends on local navigation),
+  `SpotlightBanner`, the menu:View[Collaborators] menu bound to the three preferences.
+* Outgoing presence: `WTApp` publishes cursor, viewport, selection, editing set and caret to
+  `WTSync`, which coalesces at 20 Hz.  `editing` is set for the duration of a mouse-down drag
+  on a node and while an Object panel field on it has focus, and carries a `comment_thread`
+  node id while a thread's composer has focus (xref:comments.adoc[Comments]); the hover card
+  renders that as _Commenting on <anchor name>_.
+* Inspecting a collaborator's selection (xref:inspect.adoc[Inspect mode], COLLAB-037) reads
+  `selection` from `PresenceModel`; nothing is sent for it.
+* Idle: two minutes without key or mouse input sets `IDLE`; any input clears it.
+* No undo involvement: nothing here writes to the document.
+
+=== Build tasks
+
+[[COLLAB-004]]
+==== COLLAB-004 Presence frame extensions and change author
+[horizontal]
+Track:: proto
+Depends on:: PROTO-006, PROTO-009
+Size:: S
+Delivers:: `sync/v1/presence.proto` as sketched: `PresenceUpdate` with viewport, editing set, sub-selection, caret range, spotlight, following, state; `Participant`; `SequencedChange.author`; caps as protovalidate rules.
+Done when::
+* Lints clean with `COMMENTS`; every cap has a rule and the server-filled fields are documented as such.
+* Conformance vector: a `PresenceUpdate` at every cap round-trips in Swift and Java.
+
+[[COLLAB-005]]
+==== COLLAB-005 Presence colors, server-owned fields and branch relay
+[horizontal]
+Track:: server
+Depends on:: SRV-012, COLLAB-004
+Size:: S
+Delivers:: Color assignment stored on `document_member.color_index`, overwrite of `user`, `color_index` and `branch_id` on inbound frames, truncation to caps, presence relay between a branch's sessions and its parent's, `author` attached to every `SequencedChange`.
+Done when::
+* Twelve users get twelve distinct colors; the thirteenth wraps; a returning user keeps their index across sessions and server restarts.
+* A client that sends a forged `user` sees its own account in the fan-out.
+* Participants on a branch appear in the parent's snapshot with `branch_id` set, and vice versa.
+
+[[COLLAB-006]]
+==== COLLAB-006 Avatar strip and hover cards
+[horizontal]
+Track:: client-ui
+Depends on:: SYNC-009, APP-002, APP-008, COLLAB-004
+Size:: M
+Delivers:: `AvatarStripView` in the document toolbar: ordered avatars with color rings, "+N" overflow, idle dimming, reconnecting state, hover card (name, role, activity text derived from `editing`, `selection`, `page`, `branch_id`), own-avatar menu, offline collapse to the status text.
+Done when::
+* A joining participant appears within 200 ms of the snapshot; a departed one disappears within 15 s; a `GONE` frame removes them immediately.
+* Activity text matches the guide's table for each combination of fields (unit tests).
+* Going offline collapses the strip to the offline status; reconnecting restores it (TEST-001 scenario).
+
+[[COLLAB-007]]
+==== COLLAB-007 Remote cursors, selections and editing hints
+[horizontal]
+Track:: client-render
+Depends on:: REND-001, SYNC-009, APP-006, APP-007, COLLAB-004
+Size:: M
+Delivers:: `PresenceOverlayLayer`: cursors with name labels (3 s fade) and tool badges, selection outlines with name tags, nested outlines for shared selections, point highlights from `sub_selection`, the three display preferences, the "is editing this object" line in the Object panel, and outgoing `editing` publication during drags and field edits.
+Done when::
+* Remote cursor and selection render within 100 ms locally and never invalidate document tiles (tile counters).
+* 50 participants with 200-node selections each redraw the overlay in under 4 ms per frame on M1.
+* Toggling each preference takes effect immediately and persists across relaunch.
+* A presence entry naming a not-yet-received node draws nothing until the node arrives, then draws (simulator test).
+
+[[COLLAB-008]]
+==== COLLAB-008 Remote text carets
+[horizontal]
+Track:: client-render
+Depends on:: TXT-001, COLLAB-007
+Size:: S
+Delivers:: Caret and range drawing from `TextCaret` through the layout engine's character-id mapping, name flags, deleted-character fallback, and outgoing caret publication from the text editor.
+Done when::
+* Two clients typing in one paragraph see each other's carets stay put relative to the text (UI test through the simulator).
+* A caret on a deleted character draws before the next surviving character.
+
+[[COLLAB-009]]
+==== COLLAB-009 Follow and Spotlight
+[horizontal]
+Track:: client-ui
+Depends on:: APP-002, APP-005, COLLAB-006
+Size:: M
+Delivers:: `FollowController` (view tracks the followed participant's viewport and page, colored canvas border, "Following X" bar, ends on local navigation / Stop / Esc / target leaves / target switches branch with an offer to open it), the menu:View[Collaborators] menu items, Spotlight publication and the banner with once-per-spotlight dismissal.
+Done when::
+* Following keeps the view within one frame of the target's viewport at 20 Hz updates; selecting and editing while following does not end it; scrolling does.
+* Spotlight shows one banner per rising edge of `spotlight`; Dismiss suppresses it until the next edge.
+* Following a participant who switches to a branch ends with the offer bar (UI test).
+endif::spec[]

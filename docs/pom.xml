@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd"
+         xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>com.villagecompute.wiretuner</groupId>
+  <artifactId>wiretuner-docs</artifactId>
+  <version>1.0-SNAPSHOT</version>
+  <!-- The user guide and the specification are one source (spec/authoring.adoc). Maven only
+       drives asciidoctor here; there is no Java in this module. -->
+  <packaging>pom</packaging>
+
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <!-- same pair as dissipate-server's admin docs, so the two render identically -->
+    <version.asciidoctor-maven-plugin>3.2.0</version.asciidoctor-maven-plugin>
+    <version.asciidoctorj>3.0.0</version.asciidoctorj>
+  </properties>
+
+  <build>
+    <plugins>
+      <!-- Three renders over one source tree, bound to generate-resources so `mvn package`
+           builds all of them, and each reachable on its own, e.g.
+             mvn org.asciidoctor:asciidoctor-maven-plugin:process-asciidoc@render-guide
+
+           render-guide  guide/*.adoc                  -> target/docs/guide   (no `spec` attribute)
+           render-spec   guide/*.adoc                  -> target/docs/spec    (`spec` set)
+           render-arch   spec/*.adoc                   -> target/docs/spec    (`spec` set)
+
+           The guide render is also what the macOS app ships as its Help Book (help-book.adoc).
+           Includes and images resolve from the docs root (baseDir), so a page can sit in guide/ or
+           spec/ without every path knowing how deep it is. -->
+      <plugin>
+        <groupId>org.asciidoctor</groupId>
+        <artifactId>asciidoctor-maven-plugin</artifactId>
+        <version>${version.asciidoctor-maven-plugin}</version>
+        <dependencies>
+          <dependency>
+            <groupId>org.asciidoctor</groupId>
+            <artifactId>asciidoctorj</artifactId>
+            <version>${version.asciidoctorj}</version>
+          </dependency>
+        </dependencies>
+        <configuration>
+          <baseDir>${project.basedir}</baseDir>
+          <standalone>true</standalone>
+          <attributes>
+            <!-- asciidoctorj bundles rouge; the CLI check (make docs-check) skips highlighting so a
+                 missing gem never fails it -->
+            <source-highlighter>rouge</source-highlighter>
+          </attributes>
+          <!-- a missing include, an unresolved image or a dangling attribute is a red build: a doc
+               that silently drops a section reads as complete when it is not. -->
+          <logHandler>
+            <failIf>
+              <severity>WARN</severity>
+            </failIf>
+          </logHandler>
+        </configuration>
+        <executions>
+          <execution>
+            <id>render-guide</id>
+            <phase>generate-resources</phase>
+            <goals>
+              <goal>process-asciidoc</goal>
+            </goals>
+            <configuration>
+              <sourceDirectory>${project.basedir}/guide</sourceDirectory>
+              <outputDirectory>${project.build.directory}/docs/guide</outputDirectory>
+              <attributes>
+                <audience>guide</audience>
+              </attributes>
+            </configuration>
+          </execution>
+          <execution>
+            <id>render-spec</id>
+            <phase>generate-resources</phase>
+            <goals>
+              <goal>process-asciidoc</goal>
+            </goals>
+            <configuration>
+              <sourceDirectory>${project.basedir}/guide</sourceDirectory>
+              <outputDirectory>${project.build.directory}/docs/spec</outputDirectory>
+              <attributes>
+                <spec>true</spec>
+                <audience>spec</audience>
+              </attributes>
+            </configuration>
+          </execution>
+          <execution>
+            <id>render-arch</id>
+            <phase>generate-resources</phase>
+            <goals>
+              <goal>process-asciidoc</goal>
+            </goals>
+            <configuration>
+              <sourceDirectory>${project.basedir}/spec</sourceDirectory>
+              <outputDirectory>${project.build.directory}/docs/spec</outputDirectory>
+              <attributes>
+                <spec>true</spec>
+                <audience>spec</audience>
+              </attributes>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+</project>

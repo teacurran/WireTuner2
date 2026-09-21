@@ -1,0 +1,200 @@
+Page rulers run along the top and left edges of the document window and measure the pasteboard in
+the document's units.  They follow the view as you scroll and zoom, show the pointer's position as
+you move it, and are the place you drag guides from (xref:grid-guides.adoc[Grid and guides]).
+The point they count from -- the *zero point* -- can be moved, and each page remembers its own.
+
+// TODO screenshot: document window with rulers showing, zero-point marker at the top left
+
+== Showing and hiding the rulers
+
+Choose menu:View[Page Rulers > Show].  A check mark shows when the rulers are visible.  The setting
+is yours alone: showing rulers in your window does not show them in anyone else's.
+
+Rulers use the document's unit (xref:document-panel.adoc[The Document panel]).  Large tick marks
+are labelled in that unit; small ticks subdivide it, more finely as you zoom in.  While you drag an
+object, thin lines on both rulers track its edges.
+
+NOTE: Text blocks have their own text ruler for tabs and indents, shown in the block while you
+edit text (xref:tabs-indents.adoc[Tabs and indents]).
+
+== The zero point
+
+The rulers count from the zero point.  By default it is at the bottom-left corner of the active
+page, with x growing to the right and y growing upward, as in {fh}, so that the Object panel's
+position fields, the Info bar, and the rulers all agree.  Each page has its own zero point; when
+you make a different page active, the rulers switch to that page's.
+
+To move the zero point:
+
+. Drag the zero-point marker -- the small crosshair where the two rulers meet at the top left of
+  the window -- onto the pasteboard.
+. Release where the new origin should be.  It snaps to the grid and to guides when snapping is on;
+  hold kbd:[Shift] to snap to the active page's corners and center.
+
+To reset the zero point of the active page, double-click the zero-point marker.
+
+The zero point is part of the document, per page: everyone sees the same coordinates for the same
+page, so a position read off the Info bar means the same thing to a collaborator.
+
+== Coordinates in the Info bar
+
+The Info toolbar (xref:toolbars.adoc[Toolbars]) shows the pointer's x and y relative to the active
+page's zero point in the document's units, and while dragging, the distance moved and the angle.
+Values there and in the Object panel are typed and displayed in the document's unit; suffixes and
+expressions work in every field (xref:document-panel.adoc[The Document panel]).
+
+== Custom units
+
+Besides the built-in units you can define units of your own -- meters, feet, yards, miles,
+nautical miles, kilometers, ciceros, didots, or anything else -- as a multiple of a built-in unit.
+Custom units belong to the document and appear in the *Units* pop-up alongside the built-in ones;
+to reuse them in new documents, put them in a template
+(xref:templates.adoc[Templates and starting points]).
+
+To define a custom unit:
+
+. Choose menu:View[Page Rulers > Edit Units…].
+. In the *Units* sheet, click btn:[+].  A new unit appears with a placeholder name.
+. Type a name.  It is also the suffix you type after numbers in fields, so keep it short and
+  unique (`ft`, `cic`).
+. Type how much of a base unit one custom unit equals, and choose the base unit from the pop-up
+  (for example, 1 `ft` = 12 inches).
+. Click btn:[+] again for more units, or btn:[Done].
+
+To delete a custom unit:
+
+. Choose menu:View[Page Rulers > Edit Units…].
+. Select the unit in the list and click btn:[-].
+. Confirm the alert.  If the document was using the unit, it switches to points.
+
+To edit a custom unit, change its name or definition in the sheet; every field using it updates.
+
+== Working with others
+
+Rulers themselves are yours -- showing them, and the way they follow your scrolling, affect only
+your window.  The zero point and custom units are shared: if a collaborator moves page 2's zero
+point, your rulers move with it the next time page 2 is active, and a unit they define appears in
+your *Units* pop-up.
+
+When two people move the same page's zero point at the same time, the later placement stands.
+When two people define custom units at the same time, both units are kept.  If one person deletes
+a custom unit that another is editing, the unit stays deleted and the review sheet offers to
+restore it after offline work.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,1"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|View > Page Rulers > Show toggle
+|Same; per user.
+|Faithful
+
+|Rulers adjust with scroll and zoom; ticks in document units
+|Same.
+|Faithful
+
+|Drag the zero-point marker; double-click to reset
+|Same; Shift snaps to page corners and center.
+|Faithful
+
+|Zero point per page
+|Same; stored per page in the document (shared).
+|Faithful
+
+|Custom units per document via Edit Units dialog (name, amount, base unit, +/-)
+|Same, as a sheet; units are also editable in place.
+|Faithful
+
+|Custom units carried by templates
+|Same, because a template is a document.
+|Faithful
+|===
+
+=== Data model
+
+`PageProps.ruler_origin` (ATOMIC `Point`, relative to the page's top-left in points, y down) and
+`DocumentSettings.custom_units` are on xref:document-panel.adoc[The Document panel].  Master
+pages have no `ruler_origin`; the master canvas uses the bottom-left corner of the master.
+
+Default (`ruler_origin` unset) is `(0, height)` -- the bottom-left corner.  The rulers display
+`(x - origin.x, origin.y - y)` in the document's unit, so y increases upward on screen as in {fh}
+while the pasteboard stays y-down internally.
+
+Why the zero point is shared document data and not local view state:: The zero point defines what
+the numbers in the Object panel's X and Y fields mean.  Two people discussing "move it to
+x = 100" must be reading the same frame, and a script or a print mark referring to page
+coordinates must mean the same thing on every Mac.  {fh} stored it in the file for the same
+reason.  It changes rarely, so LWW is unproblematic.  Zoom and scroll, by contrast, describe
+*where a person is looking*, not the document, and stay in the local `view` table.
+
+Rulers visible:: Local `view` table, per document.
+
+=== Merge semantics
+
+`ruler_origin`:: ATOMIC, later wins; listed as a same-register loss in the review sheet when both
+sides wrote it.  A reset writes the register to unset, so reset vs. move is the same case.
+
+`custom_units`:: SEQUENCE.  Concurrent adds keep both.  Rename vs. redefine both apply (`name` and
+`definition` are separate registers, `definition` itself ATOMIC).  Delete vs. edit: deleted wins,
+review offers *Restore*.  Delete vs. choose-as-document-unit: `units.custom` dangles and reads as
+points; review lists the edit-vs-delete.
+
+Read-time normalizations:
+
+* `ruler_origin` outside the pasteboard bounds (possible after a page resize) still applies as
+  written; nothing to normalize.
+* Two custom units with the same name: the suffix resolves to the one with the smaller element id;
+  the Units sheet shows both and marks the duplicate.
+
+=== Offline behavior
+
+Standard.
+
+=== Server
+
+Nothing beyond storing and relaying changes.
+
+=== Client
+
+* `RulerView` (AppKit, `WTApp`): two `NSView`s in the scroll view's accessory positions
+  (`NSScrollView.hasHorizontalRuler` is not used -- {fh}-style ticks and the pointer tracker are
+  custom drawn).  Tick spacing chosen from the unit's natural subdivisions (points: 1/6/12/72;
+  picas: 1/6/12; inches: 1/2/4/8/16; mm: 1/5/10; pixels: 1/10/100) so that labelled ticks are at
+  least 40 px apart.
+* Zero-point drag is a temporary tool that draws crosshair guides during the drag and writes
+  `ruler_origin` once on mouse-up (one change, "Move zero point").
+* Info bar values come from `WTModel.Units` formatting the pointer's model coordinates transformed
+  by the active page's origin.
+* The Units sheet is SwiftUI with an editable table; each edit commits one change.
+
+=== Build tasks
+
+[[DOC-014]]
+==== DOC-014 Rulers and zero point
+[horizontal]
+Track:: client-ui
+Depends on:: APP-002, DOC-002, DOC-003
+Size:: M
+Delivers:: `RulerView` for both edges, tick generation per unit and zoom, pointer and drag-edge trackers, zero-point marker with drag, kbd:[Shift] page snapping and double-click reset, the menu:View[Page Rulers > Show] command, Info bar coordinate readout relative to the active page's zero point.
+Done when::
+* Ticks are labelled in every built-in and custom unit at zoom 6%--25,600% with no overlap.
+* Moving the zero point is one change and one undo step; another client's rulers follow when that page is active.
+* Merge test: two replicas move the same page's zero point; both converge to the later write.
+
+[[DOC-015]]
+==== DOC-015 Custom units sheet
+[horizontal]
+Track:: client-ui
+Depends on:: DOC-014
+Size:: S
+Delivers:: menu:View[Page Rulers > Edit Units…] sheet: add, rename, redefine, delete custom units; the units appear in the Units pop-up and as field suffixes.
+Done when::
+* Each edit is one change; deleting the document's current unit switches the document to points in the same change.
+* UI test defines `ft = 12 in`, types `2ft` in a width field and reads 144 pt.
+* Merge test: rename on one replica, redefine on another, converge with both.
+endif::spec[]

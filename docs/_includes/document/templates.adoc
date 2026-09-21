@@ -1,0 +1,210 @@
+A template is a document you start other documents from.  It carries everything a document can:
+pages and their sizes, master pages, guides, layers, graphic and text styles, swatches, symbols,
+brushes, custom page sizes and custom units, and any objects you leave on the pages.  Templates
+live in your library like any other document, marked with a template badge, and appear in the
+*New from Template* gallery.  One of them can be your default for menu:File[New].
+
+// TODO screenshot: the New from Template gallery with the built-in starting points and a team template
+
+NOTE: {fh} for Windows had *wizards* -- guided screens for setting up stationery, publications and
+screen graphics.  {product} replaces them with the template gallery's built-in *starting points*,
+which cover the same ground on macOS.
+
+== Starting a document from a template
+
+To create a document from a template:
+
+. Choose menu:File[New from Template…] (kbd:[Cmd+Shift+N]).  The gallery opens; it also appears
+  when {product} launches with no document open, unless you turn that off in
+  menu:{product}[Settings… > General] (*Show the gallery at launch*).
+. Pick a template:
+* *Starting points* -- built in: *Blank* (one Letter page), *Print* (a CMYK document with bleed and
+  print marks presets), *Screen* (an RGB document in pixels with a web-safe swatch set), *Stationery*
+  (letterhead, envelope and business card pages with guides), *Publication* (a multi-page document
+  with facing pages, a master page and folio text), *Technical* (a pica-and-inches document with a
+  fine grid and a technical stroke set).
+* *My templates* and each team's templates from the library.
+. For a starting point, set the size, orientation, units, color mode and, for *Publication*, the
+  number of pages in the side panel.
+. Click btn:[Create].
+
+The new document is an untitled copy; the template itself is untouched.
+
+== Saving a document as a template
+
+Any document can become a template.
+
+To make a template from the current document:
+
+. Set the document up: pages, masters, guides, styles, swatches, defaults, and any objects every
+  new document should start with.
+. Choose menu:File[Save as Template…].
+. Type a name, choose *My templates* or a team, and click btn:[Save].
+
+A *copy* of the document is stored as the template; the document you were working in stays a
+normal document.  To turn an existing document into a template in place, select it in the Library
+window and choose *Use as Template* from its context menu; *Use as Document* reverses it.
+
+To edit a template, open it from the Library window's *Templates* section: it opens as itself, not
+as a copy, and edits are saved to the template.  Documents already made from it are not affected.
+
+To delete a template, move it to the trash in the Library window.  Documents made from it keep
+everything they inherited.
+
+== The default template
+
+menu:File[New] creates a document from the default template.
+
+To change the default template:
+
+. Choose menu:{product}[Settings… > Document] (kbd:[Cmd+,]).
+. Under *New document template*, choose *Built-in* or a template from the list of your own and
+  your teams' templates.
+. Close the settings window.
+
+The preference is yours and follows you to your other Macs.  If the template is later deleted or
+unshared, menu:File[New] falls back to *Built-in* and tells you once.
+
+== What a template carries
+
+Everything in the document: guides, layers and their settings, graphic and text styles, swatches
+including custom colors, symbols and master pages, all objects, custom brushes, custom page sizes,
+custom units, document units, grid settings, printer resolution, and the default attributes for
+new objects.  Not carried: the template's history, its collaborators and sharing, comments, and
+your own view state.
+
+== Working with others
+
+A template stored in a team's library is available to every member; a change to it affects
+documents created afterwards.  Two people can edit a template at the same time, as with any
+document.  If someone deletes a template you had as your default, your next menu:File[New] uses
+*Built-in* and says why.  Creating a document from a template while offline works if the template
+is available offline on your Mac; team templates are cached the first time you use them.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,1"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Templates as defaults for new documents; default template preference
+|Same; templates are library documents with a flag.
+|Adapted -- no template file format; a template is a document with `is_template`.
+
+|Template saves guides, layers, styles, symbols, masters, objects, brushes, colors, custom sizes, custom units
+|Same, because a template is a document.
+|Faithful
+
+|Opening a template yields an untitled copy
+|Same via New from Template; opening from the Templates section edits the template itself.
+|Adapted -- editing needs a way in; {fh} used Save As over the original.
+
+|Save As > FreeHand Template
+|menu:File[Save as Template…] stores a copy with the flag.
+|Adapted -- no Save As exists.
+
+|Edit a template by open, change, Save As over it
+|Open from Templates and edit in place.
+|Adapted
+
+|Finder Stationery Pad toggle
+|*Use as Template* / *Use as Document* in the Library window.
+|Adapted -- there is no file in the Finder.
+
+|Default template stored in the Settings folder
+|Preference references a library document id.
+|Adapted
+
+|Windows wizards: Welcome, Setup, Screen-based, Stationery, Publication
+|The gallery's built-in starting points with a side panel of options; gallery at launch.
+|Adapted -- Windows-only feature; the gallery gives the same outcomes in macOS idiom (recorded in decisions).
+
+|Wizard adds preset color palettes to swatches
+|Starting points carry swatch sets; the side panel offers a palette choice for Print and Screen.
+|Faithful
+|===
+
+=== Data model
+
+No document fields.  The template flag is document metadata on the server (`document.is_template`
+in the `document` table, exposed through `DocumentService` as `is_template` on the document
+resource and in `List` filters), because it describes how the library treats the document, not its
+content.  Built-in starting points are textproto resources in `WTModel` parameterized by the side
+panel's options.
+
+The *New document template* preference is `Preferences.new_document_template` (a document id or
+empty for built-in) in `AccountService`.  *Show the gallery at launch* is a local preference.
+
+=== Merge semantics
+
+Nothing in the document merges differently for templates.  Creating a document from a template
+copies the template's current snapshot into a single creation change with fresh ids
+(xref:creating-opening.adoc[Creating and opening documents]); a template edit concurrent with
+someone creating from it lands in the template only.  The flag is a server field with
+last-write-wins semantics at the API level.
+
+=== Offline behavior
+
+* New from a cached template works offline; uncached team templates are dimmed with a reason.
+* Save as Template offline creates the template locally and flags it on reconnect.
+* Toggling the flag on an existing document requires the server; the context menu item is
+  disabled offline.
+
+=== Server
+
+`DocumentService`: `SetTemplate(document, is_template)` and an `is_template` filter on `List`;
+templates are ordinary documents for every other RPC, so sharing, trash, history and branches
+apply unchanged.  Deleting a template referenced by users' preferences requires no server work;
+clients fall back on `NOT_FOUND`.
+
+=== Client
+
+* Gallery window (`WTApp`): `NSCollectionView` of starting points and library templates with
+  thumbnails (from the library cache), a side panel (SwiftUI) of options per starting point, and
+  btn:[Create].  Shown at launch under `applicationOpenUntitledFile` when the preference is on.
+* `WTModel.StartingPoints` builds each built-in template's initial change from parameters:
+  size, orientation, units, color mode (sets the default swatch set), page count with facing
+  pages and a master with folio text for *Publication*.
+* menu:File[Save as Template…] runs `DocumentService.Duplicate` then `SetTemplate` (or the local
+  equivalents offline); the Library window's Templates section and context menu items are part of
+  the library UI (APP-009) and this epic adds the flag handling.
+
+=== Build tasks
+
+[[DOC-028]]
+==== DOC-028 Template flag on documents
+[horizontal]
+Track:: server
+Depends on:: SRV-009
+Size:: S
+Delivers:: `is_template` column and migration, `DocumentService.SetTemplate`, the `is_template` field on the document resource and the `List` filter, role check (editor or owner).
+Done when::
+* Tests per role; listing with the filter returns only templates; a duplicated document does not inherit the flag unless requested.
+
+[[DOC-029]]
+==== DOC-029 Template gallery and starting points
+[horizontal]
+Track:: client-ui
+Depends on:: APP-009, DOC-019, DOC-028
+Size:: L
+Delivers:: The gallery window with the six starting points and their side-panel options, library templates with thumbnails, launch behavior and the *Show the gallery at launch* preference, `WTModel.StartingPoints`.
+Done when::
+* Each starting point creates a document matching its description (page count, units, color mode, master, guides, swatches) in one change, verified by tests on the resulting model.
+* Creating from a team template offline uses the cache; an uncached template is dimmed with an explanation.
+* UI tests: gallery at launch, create from each starting point, create from a library template.
+
+[[DOC-030]]
+==== DOC-030 Save as Template and the default template
+[horizontal]
+Track:: client-ui
+Depends on:: DOC-028, DOC-020
+Size:: M
+Delivers:: menu:File[Save as Template…] sheet (name, destination), *Use as Template* / *Use as Document* in the Library window's context menu, the Templates section, the *New document template* preference with fallback to Built-in and its one-time notice.
+Done when::
+* Save as Template leaves the working document unchanged and produces a flagged copy with the same content hash before its creation change.
+* menu:File[New] with a deleted default template creates a built-in document and shows the notice once.
+* Offline: the flag toggle is disabled with a reason; Save as Template queues correctly.
+endif::spec[]

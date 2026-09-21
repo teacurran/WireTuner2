@@ -1,0 +1,245 @@
+A text block can be divided into columns, rows, or both.  Columns are the usual way to set a
+long text in a narrow measure; columns and rows together make a grid of equal cells -- a
+simple table or a form -- and the block's stroke draws the lines between them.  Tables with
+cells of different widths are built with tabs instead (xref:tabs-indents.adoc[Tabs, indents
+and margins]).  The *Adjust Columns* section then helps the text fill its columns evenly.
+
+== Creating columns and rows
+
+To divide a block into columns or rows:
+
+. Select the block with the Pointer tool.
+. In the Object panel, select the *Text* row and click the *Columns and Rows* button.
+. For columns, type the number in *Columns*, the column *Height* (h) in points, and the
+  *Spacing* between columns.  Choose the column *Rules*:
+* *None* -- no lines between columns.
+* *Inset* -- lines as tall as the text area (the block minus its inset).
+* *Full height* -- lines the full height of the block.
+. For rows, type the number in *Rows*, the row *Width* (w), and the *Spacing* between rows.
+  Choose the row *Rules*: *None*, *Inset* (as wide as the text area) or *Full width*.
+. Under *Flow*, click the button for how text fills the cells: *down* (fill the first column
+  top to bottom, then the next) or *across* (fill the first row left to right, then the
+  next).
+
+// TODO screenshot: Columns and Rows section with a 3×2 grid block beside it, flow arrows shown
+
+The column height and row width are normally the block's own height and width divided among
+the cells; edit them to make the block larger.  The lines between cells are drawn with the
+block's stroke: with the *Text Block* row selected, click btn:[Add Stroke], choose its weight
+and color, and tick *Display border* if you also want the outer border.
+
+To force text into the next cell, place the insertion point and choose
+menu:Text[Special Characters > End of Column] (kbd:[Cmd+Return]).
+
+== Tables
+
+To make a table with uniform cells:
+
+. Set the columns and rows as above with *Spacing* 0 for both.
+. Choose *Full height* for column rules and *Full width* for row rules.
+. Add a stroke to the block; tick *Display border* for the outer frame.
+. Type the cell contents, pressing kbd:[Cmd+Return] to move to the next cell.  Empty cells
+  are fine for a form.
+
+To make a table with cells of varying widths:
+
+. Drag a fixed-size block the size of the table with the Text tool.
+. On the text ruler, place a left tab at each column's left edge, and a wrapping tab at the
+  right edge of any column whose cells run to more than one line.
+. Type the first row, pressing kbd:[Tab] between cells, and kbd:[Return] at the end of each
+  row.
+. Set *Space above* or *Space below* in the Paragraph section for the row height, and add
+  paragraph rules for lines between rows (xref:paragraphs.adoc[Paragraphs]).
+. Add a stroke to the block for the frame.
+
+== Balancing and fitting columns
+
+The *Adjust Columns* section (the fifth button in the Text row) fits text to its columns,
+and fits text to an irregular container when the text flows inside a path
+(xref:text-on-path.adoc[Text on a path]).
+
+[cols="1,3"]
+|===
+|Control |Does
+
+|*Balance*
+|Distributes the lines evenly among the columns so that none is much longer than the others.
+An odd line count leaves some columns one line longer.
+
+|*Modify leading*, *Threshold*
+|Adds leading so text fills each column top to bottom.  Only columns already at least the
+threshold percentage full are stretched (50% by default), so a short last column is not
+spread out absurdly.
+
+|*Copyfit* min / max
+|Lets {product} shrink or enlarge the type size and leading together, within the range you
+allow as a percentage of the current size, until the text exactly fills the block.  Leave both
+at 100 to disable.
+
+|*First line leading*
+|The space above the first line of each column, as *+* points added to the type size, *=* an
+exact value, or *%* of the type size -- the same three modes as leading
+(xref:type-specifications.adoc[Setting type specifications]).
+|===
+
+Balancing and copyfitting are live: the text is re-fitted whenever it or the block changes.
+
+== Linked blocks and columns
+
+Columns and rows happen inside one block; a story that outgrows the block continues in the
+next linked block, which can have its own column settings
+(xref:text-blocks.adoc[Working with text blocks]).  kbd:[Cmd+Return] at the last cell of a
+block moves to the first cell of the next linked block.
+
+== Working with others
+
+* Column count, spacing, rules and flow are separate settings, so two people can adjust
+  different ones at once and both keep.  The same setting changed by both at once takes the
+  later value.
+* Changing columns while a collaborator types reflows their text under them; their insertion
+  point stays on the same character.
+* Copyfit and balance are computed on each Mac from the same settings, so everyone sees the
+  same result.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,1"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Columns: count, height, spacing, rules (Inset / Full height)
+|Same.
+|Faithful
+
+|Rows: count, width, spacing, rules (Inset / Full width)
+|Same.
+|Faithful
+
+|Flow down or across
+|Same.
+|Faithful
+
+|End of Column character
+|Same, kbd:[Cmd+Return].
+|Faithful
+
+|Stroke on the block draws rules and the border; Display Border
+|Same.
+|Faithful
+
+|Uniform tables via columns/rows; variable tables via tabs and paragraph rules
+|Same.
+|Faithful
+
+|Adjust Columns: Balance, Modify Leading with Threshold, Copyfit min/max, First Line Leading
+|Same.
+|Faithful
+
+|Copyfit to an irregular path
+|Same, through the same settings on text flowed inside a path.
+|Faithful
+|===
+
+=== Data model
+
+`TextBlockProps.columns` and `TextBlockProps.adjust` on xref:creating-text.adoc[Creating text]:
+
+[source,protobuf]
+----
+message ColumnsRows {                 // STRUCT: every field independent
+  uint32 columns = 1;                 // ≥ 1
+  double column_height = 2;           // points
+  double column_spacing = 3;
+  RuleExtent column_rules = 4;
+  uint32 rows = 5;                    // ≥ 1
+  double row_width = 6;
+  double row_spacing = 7;
+  RuleExtent row_rules = 8;
+  FlowOrder flow = 9;
+}
+enum RuleExtent { RULE_EXTENT_NONE = 0; RULE_EXTENT_INSET = 1; RULE_EXTENT_FULL = 2; }
+enum FlowOrder { FLOW_ORDER_DOWN = 0; FLOW_ORDER_ACROSS = 1; }
+
+message AdjustColumns {               // STRUCT
+  bool balance = 1;
+  bool modify_leading = 2;
+  double threshold_percent = 3;       // default 50
+  double copyfit_min_percent = 4;     // default 100
+  double copyfit_max_percent = 5;     // default 100
+  Leading first_line_leading = 6 [(wt.crdt.field).merge = MERGE_ATOMIC];
+}
+----
+
+Copyfit results are never stored: the fitted size is derived at layout time from the settings
+and the text, so every replica computes the same value from the same state.
+
+=== Merge semantics
+
+Every field is an independent register; the only ATOMIC value is `first_line_leading` (mode
+plus value).  Concurrent column count and spacing changes both apply.  A concurrent column
+count change and an End of Column insert: the U+000C character is a text edit and lands in
+the text; layout applies it under the new count.  Nothing here produces a review row unless
+the same register was written by both sides.
+
+Read-time normalizations::
+* `columns` or `rows` of 0 read as 1.
+* `column_height` or `row_width` at or below 0 fall back to the block's dimension divided by
+  the count.
+* `copyfit_min_percent > copyfit_max_percent` reads as both equal to the min.
+* U+000C in a block with one column and one row and no link behaves as U+2028.
+
+=== Offline behavior
+
+Nothing beyond outbox coalescing.
+
+=== Server
+
+Nothing beyond storing and relaying changes.
+
+=== Client
+
+Layout:: `WTText` builds the cell grid from `ColumnsRows` and the block frame, fills cells in
+flow order treating U+000C as a cell break, and continues into the next linked container.
+Balance is a second pass over line counts; modify leading and copyfit are fixed-point
+iterations over the layout (bounded to 8 iterations, deterministic in floating point by using
+the same sequence of operations on every platform -- both engines are Swift here, so this is
+a single implementation).  Rules and borders are drawn from the block stroke by `WTRender`.
+
+Inspector:: Two sections registered with APP-007.  Undo: one step per field commit.
+
+=== Build tasks
+
+[[TYPE-032]]
+==== TYPE-032 Columns and rows
+[horizontal]
+Track:: client-render
+Depends on:: TXT-001, TYPE-001, TYPE-006
+Size:: M
+Delivers:: `WTText` cell grid layout with flow order, U+000C cell breaks, continuation into
+linked containers, column and row rules and the border drawn from the block stroke; the
+Columns and Rows inspector section.
+Done when::
+* A 3×2 grid with down and across flow matches reference renders.
+* Rules honour Inset vs. Full extents and hide with *Display border* off (rules only, not
+  paragraph rules).
+* Merge test: column count from one replica and row spacing from another both apply.
+* Conformance vector for `ColumnsRows` as STRUCT.
+
+[[TYPE-033]]
+==== TYPE-033 Adjust Columns
+[horizontal]
+Track:: client-render
+Depends on:: TYPE-032
+Size:: M
+Delivers:: Balance, modify leading with threshold, copyfit min/max, first-line leading; the
+Adjust Columns inspector section; application to text inside a path.
+Done when::
+* Copyfit converges within 8 iterations on the fixture corpus and yields identical sizes on
+  two Macs.
+* Balance leaves at most a one-line difference between columns.
+* Merge test: concurrent copyfit range and text edits converge and fit.
+* Conformance vector for `AdjustColumns.first_line_leading` as ATOMIC.
+endif::spec[]

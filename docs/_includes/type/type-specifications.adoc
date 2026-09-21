@@ -1,0 +1,569 @@
+Type specifications are the character-level settings: which font, how big, which face, how far
+apart the lines and letters sit, where the baseline is, and how wide the glyphs are drawn.  They
+apply to whatever is selected -- a range with the Text tool, or every character in the blocks
+selected with the Pointer tool.  With no selection they set the defaults for text you create
+next (xref:default-attributes.adoc[Default attributes]).  Where to find the controls is on
+xref:type-tools.adoc[The type adjustment tools]; this page is what each one means.
+
+== Font, size and style
+
+To choose a font for selected text, do one of the following:
+
+* Choose menu:Text[Font] and pick a family.
+* Pick from the *Font* pop-up in the Character section of the Object panel or in the Text
+  toolbar.  Hovering a family name previews it on the selection (turn this off with the
+  *Display font preview* preference).
+* Start typing a family name into the Object panel's font field to filter the list.
+
+To set the size:
+
+* Choose menu:Text[Size] and a preset, *Smaller* or *Larger* for 1-point steps, or *Other…* to
+  type any size from 1 to 10,000 points.
+* Type a value in the *Size* field of the Object panel or Text toolbar and press kbd:[Return].
+
+To choose a face:
+
+* Choose menu:Text[Font Style] and a face (Plain, Bold, Italic, Bold Italic, and the family's
+  other faces such as Light or Condensed).
+* Pick from the *Style* pop-up in the Object panel or the Text toolbar.
+
+Fonts are any that macOS can load, including variable fonts, whose named instances appear as
+faces.  Bold and Italic applied to a family that lacks that face are synthesized (a heavier
+stroke, a slant) and shown with a warning icon in the Object panel, since synthesized faces
+print poorly.  A font the document uses that is missing on your Mac is substituted and listed
+in the Missing Fonts sheet (xref:font-substitution.adoc[Font substitution]).
+
+NOTE: {fh} listed PostScript Type 1 and TrueType fonts.  macOS no longer supports Type 1, so
+{product} does not offer them; a document that names one gets a substitute.
+
+Type set smaller than the *Greek type below* preference (8 pixels on screen by default) is
+drawn as gray bars to keep scrolling fast; selected text is always drawn in full.
+
+== Variable font axes
+
+A variable font carries a whole range of designs in one file -- weight from hairline to black,
+width from condensed to extended -- along *axes* you can set anywhere in their range, not only
+at the named faces.  When the chosen font is variable, an *Axes* group appears in the Character
+section with a slider and a value field for each axis the font offers:
+
+[cols="1,3"]
+|===
+|Axis |What it does
+
+|*Weight*
+|Stroke thickness, typically 100 (thin) to 900 (black).
+
+|*Width*
+|Glyph width as a percentage of normal; below 100 condenses, above 100 extends.
+
+|*Slant*
+|Lean in degrees; negative values lean right in most fonts.
+
+|*Optical size*
+|The design tuned for a given point size: finer details at large sizes, sturdier at small.  Left
+at *Auto* it follows the type size; set it to pin one design.
+
+|Other axes
+|Any further axis the font defines, under the name the font gives it (Grade, Contrast, Casual…).
+|===
+
+The *Style* pop-up lists the font's *named instances* -- the designer's chosen combinations,
+such as Light or Semibold Condensed -- and picking one sets every axis at once.  Move a slider
+and the pop-up shows *Custom*.  Click the reset arrow beside an axis to return it to the font's
+default, or pick a named instance to return every axis.  Axis settings apply to the selection
+like any other setting, spread as you type, and can be part of a text style
+(xref:text-styles.adoc[Text styles]).
+
+For a variable font with a weight axis, menu:Text[Font Style > Bold] moves the weight axis to
+the font's bold instance instead of synthesizing a bold, so no warning icon appears.  If a
+collaborator lacks the font, their substitute ignores the axes it does not have; your settings
+stay in the document.
+
+// TODO screenshot: Character section with the Axes group open for a variable font
+
+== OpenType features
+
+Many fonts hold alternate glyphs and behaviors -- ligatures, small capitals, old-style figures,
+swashes -- that are switched on and off with OpenType *features*.  The *Features* group of the
+Character section lists the features the chosen font actually offers, so you never see a
+checkbox that would do nothing:
+
+[cols="1,3"]
+|===
+|Feature |What it does
+
+|*Ligatures*
+|Standard ligatures such as fi and fl.  Most fonts turn these on by default.
+
+|*Discretionary ligatures*
+|Decorative ligatures the designer left optional, such as ct and st.
+
+|*Small caps*
+|Lowercase letters set as the font's designed small capitals.
+
+|*All small caps*
+|Capitals as well as lowercase set as small capitals.
+
+|*Old-style figures*, *Lining figures*
+|Numerals that dip below the baseline like lowercase letters, or numerals that sit on the
+baseline at capital height.  Choose one or leave the font's default.
+
+|*Tabular figures*, *Proportional figures*
+|Numerals of equal width that line up in columns, or numerals fitted to their own shapes.
+
+|*Fractions*
+|Turns 1/2 and similar sequences into true fractions.
+
+|*Swashes*
+|Flourished alternates of letters.
+
+|*Stylistic sets*
+|The font's alternate designs, *Stylistic set 1* to *20*, with the designer's names where the
+font provides them (Single-storey a, Rounded…).
+
+|*Contextual alternates*
+|Letter shapes chosen from their neighbors, as in connected scripts.  Usually on by default.
+|===
+
+Each checkbox starts at the font's own default for that feature and shows a reset arrow once
+you have changed it; the arrow puts the font back in charge.  Feature settings apply to the
+selection like any other setting, spread as you type, and can be part of a text style.
+
+NOTE: *Small caps* here uses the font's designed small capitals; if the font has none the
+checkbox is absent.  menu:Text[Convert Case > Small Caps] (xref:editing-text.adoc[Editing text])
+draws scaled capitals instead and works with any font.
+
+// TODO screenshot: Features group with Ligatures, Old-style figures and Stylistic set 3 ticked
+
+== Alignment
+
+Left, center, right or justified, per paragraph, from menu:Text[Align], the alignment buttons
+in the Character section, or the Text toolbar.  Alignment is a paragraph setting and is
+described with the rest of them on xref:paragraphs.adoc[Paragraphs].
+
+== Leading
+
+Leading is the baseline-to-baseline distance between lines.  It is set per character range and
+the largest value on a line wins for that line.  Three modes:
+
+[cols="1,1,3"]
+|===
+|Mode |Symbol |Meaning
+
+|Extra
+|+
+|Type size plus the value in points.  `+0` is *solid* leading (lines as tall as the type).
+Changing the size keeps the extra.
+
+|Fixed
+|=
+|Exactly the value in points, whatever the size.
+
+|Percentage
+|%
+|The value as a percentage of the size.  `120%` is *auto* leading, the default.
+|===
+
+To set leading, choose the mode from the pop-up beside the *Leading* field (Object panel or
+Text toolbar) and type the value; or choose menu:Text[Leading > Solid], menu:Text[Leading >
+Auto] or menu:Text[Leading > Other…] for a sheet with both controls.  Dragging a block's top
+or bottom center handle adjusts it by eye (xref:type-tools.adoc[The type adjustment tools]).
+
+== Kerning and range kerning
+
+Kerning adjusts the space between one pair of characters; range kerning adjusts the space
+between every pair in a selection.  Both are in percent of an em (the type size), positive to
+open, negative to close, and both add to the font's own kerning pairs, which are always
+applied.
+
+To kern a pair, click between the two characters with the Text tool and type a value in the
+*Kerning* field, or press kbd:[Cmd+Option+←] / kbd:[Cmd+Option+→].  To range kern, select the
+characters and use the *Range kerning* field or the same keys.  Dragging a side handle range
+kerns the whole block.
+
+== Baseline shift
+
+Raises (positive) or lowers (negative) selected characters from the baseline, in points, from
+the *Baseline shift* field or kbd:[Control+Option+↑] / kbd:[Control+Option+↓].  A raised
+baseline plus a smaller size is how you make a superscript "™" or a footnote mark; the
+menu:Text[Type Style > Superscript] and *Subscript* commands apply that combination for you.
+
+== Horizontal scale
+
+In the Spacing section, *Horizontal scale* stretches or compresses the glyph shapes, in
+percent, without changing their height or spacing.  Values above 100 widen, below 100 narrow.
+Word and letter spacing, which sit beside it, are paragraph-level and described on
+xref:paragraphs.adoc[Paragraphs].
+
+== Text effects and text styles
+
+The bottom of the Character section has the *Effect* pop-up (highlight, inline, shadow,
+strikethrough, underline, zoom -- xref:text-effects.adoc[Text effects, inline graphics and
+text wrap]) and the *Style* pop-up, which applies a text style from the Styles panel
+(xref:text-styles.adoc[Text styles]).
+
+== How settings spread as you type
+
+Text you type takes the settings of the character before the insertion point.  If you set
+something with an insertion point but no selection -- click after a word, choose Bold, type --
+the new characters get it, and the characters you type after them keep it until you change it
+again.  Typing immediately after a bold word continues in bold; typing immediately before it
+does not.  Attached links and inline graphics are the exception: typing at either end of a link
+stays outside it.
+
+== Finding and replacing type attributes
+
+To change every occurrence of a font, face or size across a document, use the Find & Replace
+panel rather than editing block by block.
+
+To select text blocks by their type attributes:
+
+. Choose menu:Edit[Find and Replace > Graphics…] and click the *Select* tab.
+. Choose *Font* from the *Attribute* pop-up.
+. Choose where to look in *Search in*: *Selection*, *Page* or *Document*.  For a selection, tick
+  *Remove from selection* to deselect matches instead; for a page or document, tick *Add to
+  selection* to keep what is already selected.
+. Choose a family (or *Any font*), a face (or *Any style*), and a size range (leave both empty
+  for any size, or only *Min* for one exact size).
+. Click btn:[Find].  The matching blocks are selected and counted at the bottom of the panel.
+
+To find and replace type attributes:
+
+. In the Find & Replace panel's *Replace* tab, choose *Font* from *Attribute*.
+. Choose the scope in *Change in*.
+. Under *From*, choose the family, face and size range to look for.
+. Under *To*, choose the replacement family (or *No change*), face (or *No change*), and size
+  (or leave empty).
+. Click btn:[Change].  The number of blocks changed is shown at the bottom of the panel.
+
+Finding by text *effect* is on xref:text-effects.adoc[Text effects, inline graphics and text
+wrap]; the panel itself is described on xref:find-replace.adoc[Find and replace].
+
+== Working with others
+
+* A setting you apply to a range applies to exactly those characters, even if a collaborator
+  is typing elsewhere in the block at the same moment.  If they are typing inside your range,
+  their new characters take your setting too, as they would if they had typed after you
+  finished.
+* If two people set the same attribute on overlapping text at once, the later setting shows on
+  the overlap and each person's setting stays on the rest of their range.  After offline work,
+  such a paragraph is listed in the review sheet.
+* Font substitution is per Mac: a collaborator without your font sees a substitute but the
+  document still names your font, and their edits do not change it.
+* A font Find & Replace across the whole document is one change; collaborators see every block
+  update together.
+* Axes and features are settings like any other.  If you and a collaborator drag the weight of
+  the same word at once, the later drag wins on that word; if one of you switches on ligatures
+  while the other switches on a stylistic set, both apply.  The same feature set opposite ways
+  on the same characters goes to the later change, and the review sheet lists the paragraph
+  after offline work.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,1"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Font, size, style from menu, Object panel, toolbar
+|Same; type-to-filter added in the panel.
+|Faithful
+
+|Size submenu with Smaller/Larger/Other
+|Same.
+|Faithful
+
+|Font preview on hover, *Display Font Preview* preference
+|Same.
+|Faithful
+
+|Greek type below N pixels (Redraw preference)
+|Same preference, *Greek type below*, default 8 px.
+|Faithful
+
+|Leading: Extra, Fixed, Percentage; Solid; Auto = 120%
+|Same three modes, `Leading` message.
+|Faithful
+
+|Kerning at insertion point, range kerning, in % em; keyboard nudges
+|Same.
+|Faithful
+
+|Baseline shift with keyboard nudges
+|Same; *Superscript*/*Subscript* presets added under Type Style.
+|Faithful
+
+|Horizontal scale in Spacing options
+|Same.
+|Faithful
+
+|Settings with no selection apply to subsequent text
+|Same: pending format at an insertion point, document defaults with nothing selected.
+|Faithful
+
+|Select / Find & Replace by Font attribute (family, style, size range; Any Font; No Change)
+|Same in the Find & Replace panel (OBJ epic's panel).
+|Faithful
+
+|PostScript Type 1 fonts
+|Not loadable on modern macOS; substituted.
+|Dropped -- platform no longer supports the format.
+
+|Synthesized bold/italic
+|Offered with a warning icon; real faces preferred in the list.
+|Adapted -- {fh} silently synthesized; a warning avoids print surprises.
+
+|Variable font axes (no {fh} counterpart)
+|*Axes* group in the Character section: sliders for wght, wdth, slnt, opsz and custom axes,
+named instances in the Style pop-up, Bold via the weight axis, axes in text styles.
+|Added -- {fh} predates variable fonts; Core Text renders them natively and the document
+needs one mark field.
+
+|OpenType feature controls (no {fh} counterpart)
+|*Features* group listing only the features the font offers: ligatures, discretionary
+ligatures, small caps, all small caps, figure styles, fractions, swashes, stylistic sets 1--20,
+contextual alternates; features in text styles.
+|Added -- {fh} had no OpenType layout; Core Text applies features natively and a checkbox per
+feature is what every current layout application offers.
+|===
+
+=== Data model
+
+Fields on xref:creating-text.adoc[Creating text]: `font_family`, `font_style`, `size`,
+`leading`, `kerning`, `range_kerning`, `baseline_shift`, `horizontal_scale`, `axes`
+(`FontVariation`) and `feature` (`FeatureSetting`, one mark per feature tag).  Fonts are named
+by PostScript family and face names; a document-level font list for embedding is the IO
+epic's concern (xref:print-fonts.adoc[Fonts and printing]).  A named instance is written as
+`font_style` *and* the instance's axis values in `axes`, so a Mac whose copy of the font lacks
+that instance name still renders the same design.
+
+=== Merge semantics
+
+All ten are marks; the general rules on xref:creating-text.adoc[Creating text] apply.
+
+Axes:: `FontVariation` is ATOMIC per mark: the whole list of `(tag, value)` pairs is one value.
+A named instance is one choice in the design space, and a slider drag rewrites the full list
+carrying the other axes as the dragger read them.  Two people dragging *different* axes of the
+same characters concurrently therefore collide: the later mark wins on the overlap and the
+other person's axis reverts to what the winner read, listed under *same text* in the review.
+Chosen over one mark per axis because a named instance would then be several marks whose
+concurrent partial replacement can land on a combination no one chose, and because an axis
+tuple is what layout, caching and export key on.  Live, the loser sees the revert within a
+moment and drags again.
+
+Features:: One mark per feature tag, each a tri-state register (`DEFAULT`, `ON`, `OFF`); the
+attribute identity for overlap resolution is `(feature, tag)`.  Marks with different tags stack;
+overlapping marks of the same tag resolve by OpId per character like any attribute, so a
+concurrent *Ligatures on* and *Ligatures off* on the same word goes to the greater OpId, and a
+concurrent *Ligatures on* and *Stylistic set 3 on* both apply.  `DEFAULT` is a value: the reset
+arrow writes it, and it competes with concurrent `ON`/`OFF` writes by OpId instead of vanishing.
++
+Two alternatives were rejected.  A SET of signed tags (`+liga`, `-liga`) on one mark cannot say
+"off" without contradiction handling -- add-wins keeps a concurrent `+liga` and `-liga` both,
+so the read would need a second rule that reaches into the set's add OpIds -- and "back to the
+font default" is a remove, which loses to any concurrent add.  A single STRUCT-like
+`FeatureSettings` mark with one field per feature cannot be STRUCT at all in text: a mark is a
+whole-value register, so a concurrent Ligatures toggle and Stylistic-set toggle on the same
+range would collide.  Per-tag marks are the same idea as per-tag registers, landed where marks
+live; on a text style, where fields *are* registers, the same tri-states are a STRUCT
+(`FeatureSettings`, xref:text-styles.adoc[Text styles]).
+
+Insertion-point settings:: With no selection, a setting is *pending* on the client: the next
+`TextInsert` in that session is followed, in the same change, by `TextMark` ops for the pending
+attributes over the new ids.  Nothing is written if the user clicks away without typing.
+Concurrent remote typing at the same anchor is unaffected (marks cover only the local ids).
+
+Overlap:: Two replicas set `size` on overlapping ranges: per character, the covering mark with
+the greater OpId wins.  The review sheet's *same text* row shows the paragraph diff with both
+sizes named.
+
+Leading per line:: Layout takes the maximum leading among a line's characters; a concurrent
+leading change on part of a line therefore always shows, which is what {fh} did.
+
+Find & Replace font:: One change ("Replace font Helvetica → Inter (N blocks)") of `TextMark`
+ops over the matched runs, per block.  Concurrent typing inside a matched run: the typed
+characters are inside the run's original marks and pick up the replacement like the rest.
+
+Read-time normalizations::
+* `font_family` naming a font not installed: substituted per TXT-002; the mark is untouched.
+* `horizontal_scale` at or below 0: rendered as 100.
+* `size` outside 1–10,000: rendered as the default size.
+* An `Axis.tag` the resolved font lacks is ignored; a value outside the axis range is clamped
+  to it; duplicate tags in one `FontVariation` take the last.
+* A `feature` tag the resolved font lacks is ignored; a `DEFAULT` state reads as no mark.
+
+=== Offline behavior
+
+Nothing beyond outbox coalescing.  Font substitution needs no server; the team font library
+does (TXT-002).
+
+=== Server
+
+Nothing beyond storing and relaying changes.
+
+=== Client
+
+Character section:: SwiftUI-hosted inspector section registered with APP-007 for `text` nodes
+and text ranges; mixed values show as "--" and write only the edited field.  Font list from
+`NSFontManager`/CoreText with recents and type-to-filter; preview writes a transient attribute
+to the layout only.
+
+Layout:: `WTText` maps `size`, `leading`, `kerning`, `range_kerning`, `baseline_shift` and
+`horizontal_scale` to Core Text attributes (`kCTKernAttributeName` for pair and range kerning
+combined, a horizontal scale via a per-run glyph transform since Core Text has no scale
+attribute, baseline offset via `kCTBaselineOffsetAttributeName`).  Greeking is a render-time
+choice by pixel size.
+
+Axes and features:: The Axes group reads the resolved font's axes with `CTFontCopyVariationAxes`
+(tag, localized name, minimum, default, maximum) and its named instances from the family's
+font descriptors carrying `kCTFontVariationAttribute`; the Features group reads
+`CTFontCopyFeatures` and shows only the tags in this page's table that the font provides,
+with stylistic-set names from the font's `name` table entries.  `WTText` builds each run's
+font with `kCTFontVariationAttribute` (a dictionary of axis tag → value layered over the
+named instance chosen by `font_style`) and `kCTFontFeatureSettingsAttribute` (an array of
+`{kCTFontOpenTypeFeatureTag, kCTFontOpenTypeFeatureValue}` entries; `OFF` writes value 0 so
+a font's on-by-default feature is switched off).  An unset `opsz` leaves Core Text's automatic
+optical sizing on.  Bold on a variable font with `wght` writes `axes` at the bold instance's
+weight rather than `font_style` alone.  A substitute font receives only the axes and features
+it has (TXT-002 reports what was dropped in the Missing Fonts sheet).
+
+Export:: PDF has no variable fonts, so IO-025's writer *instances*: for each distinct
+`(font, axis tuple)` used on exported pages it produces a static TrueType subset from the
+glyf/gvar font by applying the `gvar` deltas (through `avar`) at that tuple, dropping `fvar`,
+`gvar`, `avar`, `HVAR`, `MVAR` and `STAT`, and embeds it as its own font resource named
+`Family-Instance-<tuple hash>`; the instancer lives in `WTInterchange` and has no third-party
+dependency.  CFF2-flavored variable fonts, and any font the instancer rejects, are written as
+outlines for those runs and listed in the export sheet beside restricted fonts ("converted to
+outlines: variable font"); a CFF2 instancer is a later task.  Features need nothing at export:
+the PDF carries positioned glyph ids and `ToUnicode` maps them back.  Printing goes through
+Core Graphics (PRINT-014), which handles variation itself; EPS and SVG take outlines per
+IO-017 and IO-019.
+
+Undo grouping:: One step per field commit; the size field's stepper coalesces within 1 s; an
+axis slider drag is one step and coalesces to one mark in the outbox.
+
+=== Build tasks
+
+[[TYPE-020]]
+==== TYPE-020 Character inspector section
+[horizontal]
+Track:: client-ui
+Depends on:: APP-007, TYPE-002, TYPE-010
+Size:: L
+Delivers:: The Character section: font family (list, recents, filter, preview), face with
+synthesized-face warning, size, alignment buttons, leading mode and value, kerning, range
+kerning, baseline shift, effect pop-up, style pop-up; pending-format handling at an insertion
+point; document-default editing with nothing selected; the *Display font preview* and *Greek
+type below* preferences.
+Done when::
+* UI tests set every field on a range and on an insertion point and verify marks and pending
+  format respectively.
+* A face the family lacks shows the warning and renders synthesized.
+* Merge test: overlapping size marks from two replicas converge and the Object panel shows the
+  winning value per character.
+* Conformance vectors for `Leading` as ATOMIC (mode and value never split).
+
+[[TYPE-021]]
+==== TYPE-021 Type attribute rendering
+[horizontal]
+Track:: client-render
+Depends on:: TXT-001, TYPE-001
+Size:: M
+Delivers:: `WTText` handling of size, leading modes with per-line maximum, pair and range
+kerning combined with font kerning, baseline shift, horizontal scale via glyph transform,
+greeking, synthesized faces.
+Done when::
+* Reference renders for each attribute match {fh} output within anti-aliasing tolerance for
+  the corpus.
+* Leading per line equals the maximum over the line's characters.
+* Layout with a 200,000-character mixed-attribute text stays under the TXT-001 budget.
+
+[[TYPE-022]]
+==== TYPE-022 Find and replace type attributes
+[horizontal]
+Track:: client-ui
+Depends on:: TYPE-020
+Size:: S
+Delivers:: The *Font* attribute in the Find & Replace panel's Select and Replace tabs: family,
+face, size range, Any/No change options, scope, add/remove from selection, result count.
+Done when::
+* Replacing a family across a fixture document is one change touching only matching runs.
+* Merge test: concurrent typing inside a matched run picks up the replacement.
+
+[[TYPE-045]]
+==== TYPE-045 Variable axis and OpenType feature schema
+[horizontal]
+Track:: proto
+Depends on:: CRDT-006, TYPE-001
+Size:: S
+Delivers:: `FontVariation`, `Axis`, `FeatureSetting`, `FeatureState` and `FeatureSettings` in
+`doc/v1/text.proto` as sketched on xref:creating-text.adoc[Creating text]; the `axes` and
+`feature` cases on `TextMarkValue`; `axes` and `features` on `CharacterSettings`
+(xref:text-styles.adoc[Text styles]); the `(feature, tag)` attribute identity declared for mark
+resolution.
+Done when::
+* `buf lint` (with `COMMENTS`) and `buf breaking` pass; tags validated to four characters;
+  the merge table shows `axes` ATOMIC in both places and `FeatureSettings` STRUCT.
+* Conformance vectors: overlapping `axes` marks (later OpId wins whole tuple); `liga ON` vs.
+  `liga OFF` overlapping (later wins per character); `liga ON` vs. `ss03 ON` overlapping (both
+  resolve); `DEFAULT` written over `ON` (reads as no mark); two replicas editing different
+  fields of a style's `features` (both kept).
+
+[[TYPE-046]]
+==== TYPE-046 Axes and features in the Character section and text styles
+[horizontal]
+Track:: client-ui
+Depends on:: TYPE-020, TYPE-035, TYPE-045, TYPE-047
+Size:: M
+Delivers:: The *Axes* group (slider and field per axis, reset arrows, *Auto* for `opsz`, named
+instances and *Custom* in the Style pop-up, Bold via `wght`), the *Features* group (checkboxes
+for offered features only, tri-state with reset arrows, stylistic-set names), pending-format
+handling for both, and the axes and features controls in the Style Behavior sheet with
+*No selection*.
+Done when::
+* UI tests: drag an axis on a range and verify one `axes` mark carrying the full tuple; pick a
+  named instance and verify `font_style` plus `axes`; tick and untick a feature and verify
+  `ON`, `OFF` and `DEFAULT` marks; a static font shows neither group.
+* A slider drag is one undo step and one mark in the outbox.
+* Merge test: two replicas set `liga` opposite ways on one word; both panels show the winning
+  state per the greater OpId.
+
+[[TYPE-047]]
+==== TYPE-047 Variation and feature layout
+[horizontal]
+Track:: client-render
+Depends on:: TXT-001, TXT-002, TYPE-021, TYPE-045
+Size:: M
+Delivers:: `WTText` run fonts built with `kCTFontVariationAttribute` and
+`kCTFontFeatureSettingsAttribute` from resolved marks and styles, per-run font caching keyed by
+`(family, style, axis tuple, feature set)`, automatic optical size when `opsz` is unset,
+dropping of axes and features the resolved (or substitute) font lacks with a report to the
+Missing Fonts sheet, and the per-tag mark resolution to attributed runs.
+Done when::
+* Reference renders at three weights of a variable font and with `liga`, `smcp`, `onum`,
+  `tnum`, `frac` and `ss01` toggled match Core Text reference output pixel for pixel.
+* Layout of the 200,000-character fixture with axes on every paragraph stays within the
+  TXT-001 budget; run-font cache hit rate above 99% on relayout.
+* A substitute without the axis renders and reports the dropped axis; the marks are untouched.
+
+[[TYPE-048]]
+==== TYPE-048 Static instancing for export
+[horizontal]
+Track:: import-export
+Depends on:: TXT-002, TYPE-047
+Size:: M
+Delivers:: The `WTInterchange` glyf/gvar instancer (gvar deltas through avar at a tuple,
+variable tables dropped, HVAR-derived advances baked, one static subset per distinct tuple),
+its use by the PDF writer for every variable font on exported pages, outlining with an export
+sheet entry for CFF2 and rejected fonts, and the same instancing behind *Embed fonts:
+Complete*.  (Prose dependency on IO-025.)
+Done when::
+* A PDF exported with three weights of one variable font contains three static font resources
+  whose glyph outlines match Core Text's rendering of the same tuples within 0.01 em, and
+  `qpdf --check` passes.
+* Text in the instanced fonts is searchable in Preview; a CFF2 font's runs are outlines and the
+  export sheet lists the font.
+* Instancing a 2,000-glyph font at one tuple takes under 200 ms on M1.
+endif::spec[]

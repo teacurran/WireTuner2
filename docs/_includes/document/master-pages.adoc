@@ -1,0 +1,336 @@
+A master page is a page layout that other pages inherit: its size, orientation and bleed, plus any
+objects placed on it -- running heads, folios, frames, a logo.  Pages that follow a master are its
+*child pages*.  Editing the master updates every child at once.  A document can have as many
+master pages as it needs, and master pages are managed alongside symbols in the Library panel
+(xref:library.adoc[Symbols and the Library]).
+
+// TODO screenshot: a master page open in its own tab beside a document with two child pages
+
+Master pages differ from templates: a template starts a *new document* with a set of defaults
+(xref:templates.adoc[Templates and starting points]); a master page applies a layout to pages
+*inside* a document.
+
+== How master pages behave
+
+* A child page takes the master's size, orientation and bleed and cannot change them itself.
+* The master's objects appear on each child page beneath the page's own objects, layer by layer:
+  what the master has on the *Foreground* layer sits at the bottom of the child's *Foreground*
+  layer, and so on.  You cannot select or edit master objects on a child page; open the master to
+  change them.
+* Objects that run past the master's edge into its bleed are printed on child pages up to the
+  bleed rectangle.
+* Guides on a master page are shown on its children, and can be moved or removed only on the
+  master (xref:grid-guides.adoc[Grid and guides]).
+* Master pages appear in the Library panel with a page icon.  Choose *Show Master Pages* from the
+  Library panel's Options menu to show or hide them there.  They can be renamed, duplicated,
+  grouped and deleted like symbols, and exported to and imported from other documents
+  (xref:library.adoc[Symbols and the Library]).
+
+== Creating a master page
+
+To create an empty master page:
+
+. Do one of the following:
+* In the Document panel, open the Options menu and choose *New Master Page*.
+* In the Library panel, open the Options menu and choose *New Master Page*.
+. The master page opens in a new tab of the document window, titled with its name (*Master 1*,
+  *Master 2*, …).  It starts with the size, orientation and bleed of the active page -- or of the
+  active page's master, if it has one.
+. Place text and graphics on it.
+. Close the tab, or click the document's tab, to return to the pages.  Nothing needs saving.
+
+To convert an existing page into a master page:
+
+. Select the page (xref:pages.adoc[Working with pages]).  If it is a child of another master,
+  release it first (below).
+. In the Document panel's Options menu, choose *Convert to Master Page*.
+
+The page's objects move onto the new master, and the page becomes the master's child, so it looks
+the same as before; other pages can now follow the same layout.
+
+== Applying a master page to pages
+
+To make pages children of a master:
+
+. Select one or more pages with the Page tool.
+. Do one of the following:
+* In the Document panel, choose the master from the *Master Page* pop-up.
+* Drag the master's icon from the Library panel and drop it on a selected page.
+
+Only the selected pages become children.  Choosing *None* in the pop-up detaches the selected
+pages: they keep their size but lose the master's objects (this is different from releasing,
+below, which keeps copies of the objects).
+
+To add new child pages:
+
+* In the *Add Pages* sheet, select *Make child of master page* and choose the master.
+* Or select an existing child page and choose *Duplicate* from the Document panel's Options menu.
+* Or, with the Page tool, kbd:[Option]-drag a child page to an empty part of the pasteboard.
+
+== Editing a master page
+
+To edit a master page:
+
+. Do one of the following:
+* Double-click the master's icon in the Library panel.
+* Select a child page and click btn:[Edit] next to the *Master Page* pop-up in the Document panel.
+. The master opens in its tab.  Edit it as you would any page: its size, orientation and bleed
+  in the Document panel, its objects with the ordinary tools.
+. Close the tab or switch back to the document tab.  Child pages update as you work.
+
+To rename a master page, double-click its name in the Library panel.  To delete one, select it in
+the Library panel and choose *Delete* from the Options menu; its children become ordinary pages of
+the same size.
+
+== Releasing a child page
+
+Releasing turns a child page back into an ordinary page while keeping what it inherited.
+
+To release child pages:
+
+. Select one or more child pages with the Page tool.
+. In the Document panel's Options menu, choose *Release Child Page*.
+
+The master's objects are copied onto each released page as one group per layer, so the page looks
+unchanged but is now independent: it can be resized, and the copied objects can be edited.  Later
+changes to the master no longer affect it.
+
+== Importing and exporting master pages
+
+Master pages travel with symbols: *Import…* and *Export…* in the Library panel's Options menu list
+master pages next to symbols, and an exported master page carries its objects and settings
+(xref:library.adoc[Symbols and the Library]).  Copying a page between documents with a master
+also brings the master along.
+
+== Working with others
+
+Several people can edit a master page at the same time, just as they can edit a page: each sees
+the other's objects arrive, and every child page in every window updates live.  Opening a master
+page marks you as present on it, so others can see who is working on the layout.
+
+Collisions worth knowing about:
+
+* *One person releases a child page while another is editing the master.*  The released page
+  gets a copy of the master *as the releaser saw it*; the master edits made at the same moment are
+  not in that copy.  {product} tells the releaser ("Priya changed Master A while you released
+  page 4") and offers *Update the copies*, which replaces the copied objects with the current
+  master's.  The offer is repeated in the review sheet after offline work.
+* *One person deletes a master while another assigns it to pages.*  The pages simply behave as
+  ordinary pages; the review sheet lists the deleted master with *Restore*.
+* *Two people resize the master.*  As with any page, the later size stands and the other person
+  is offered *Reapply mine*.
+* *Someone converts a page to a master while another person draws on that page.*  The new
+  objects land on the child page, not on the master, and the page still looks right.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,1"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|New Master Page from the Document panel or Library panel
+|Same, opens in a tab.
+|Faithful
+
+|New master takes the active page's (or its master's) size, orientation, bleed
+|Same.
+|Faithful
+
+|Convert to Master Page (page's elements move to the master)
+|Same; the page becomes the new master's child.
+|Faithful
+
+|Apply via Master Page pop-up or drag from Library panel
+|Same.
+|Faithful
+
+|Add child pages via Add Pages, Duplicate, Option-drag
+|Same.
+|Faithful
+
+|Master objects appear at the bottom of each layer of the child
+|Same, by rendering the master canvas per layer below the page's objects.
+|Faithful
+
+|Master bleed rectangle controls child imaging
+|Same.
+|Faithful
+
+|Edit master: double-click in Library, or Edit button in Document panel
+|Same; a master page window is a tab of the document window.
+|Adapted -- tabs instead of a separate window, matching modern macOS document windows.
+
+|Release Child Page: master objects pasted as one group per layer
+|Same.
+|Faithful
+
+|Show Master Pages toggle in the Library panel
+|Same.
+|Faithful
+
+|Import / export master pages through the Library panel
+|Same; delivered by the LIB epic's import/export.
+|Faithful
+
+|Master pages listed in a document report
+|Report is on the printing page.
+|Faithful
+
+|Children cannot be modified, resized, rotated
+|Same.
+|Faithful
+
+|Deleting a master leaves children as ordinary pages
+|Same; recorded as `on_dangling = UNSET`.
+|Faithful
+|===
+
+=== Data model
+
+`MasterProps` and `PageProps.master` are on xref:document-panel.adoc[The Document panel].  A
+master's objects are ordinary objects under `layers` with `CommonProps.canvas` set to the master's
+node id (xref:crdt-model.adoc[CRDT model]); coordinates on a master canvas are relative to the
+master's top-left corner (the master has no pasteboard position).  A master's guides are its own
+`guides` sequence.
+
+Commands:
+
+New Master Page:: `CreateNode` under `masters` (0:3) with `geometry` and `bleed` from the active
+page or its master; name `Master N` where N is one more than the largest existing.
+Convert to Master Page:: One change: `CreateNode(master)`, then for every top-level object on the
+page a `SetFields(canvas = master, transform translated by -page.origin)`, then
+`SetFields(page.master = master)`.
+Apply:: `SetFields(page.master)` per selected page.  The page's `geometry` and `bleed` registers are
+left as they were; they are *masked* while `master` is set (below).
+None:: `SetFields(page.master = unset)`.  The page's own `geometry` register reappears; the command
+first writes the master's geometry into it so nothing jumps.
+Release:: One change: `SetFields(page.master = unset)` and `SetFields(page.geometry, bleed)` from
+the master, then for each layer that has master objects a `CreateNode(group)` on that layer at the
+bottom of the layer's stacking order with `canvas` unset, containing deep copies of the master's
+objects on that layer, translated by `+page.origin`.  The change's label is "Release page N from
+<master>" and it records `released_from = master id` in `Change.label` metadata for the review
+sheet (the label is free text; `WTSync` parses a trailing `[master:<id>]` tag).
+Delete master:: `SetDeleted(master, true)`.  Children keep their `master` reference; it dangles and
+reads unset.  The objects on the master canvas stay with the master.
+
+Effective page geometry:: `page.master` set and resolving → the master's `geometry` and `bleed`;
+otherwise the page's own.  This is a read rule, not a write: a child's own registers are never
+touched by master edits, so releasing many children is cheap and a master edit is one small
+change.
+
+=== Merge semantics
+
+Master edit vs. child release::
+Release copies the master's objects as of the releaser's state; concurrent master edits apply to
+the master's nodes, not to the copies.  Mechanically both apply and the result is consistent -- a
+released page holding a slightly stale copy.  `WTSync` treats a release change as *touching* the
+master's subtree (it reads the `[master:<id>]` tag), so any concurrent write to a node on that
+master's canvas is an overlap of kind `released stale master`.  The review sheet lists it under the
+page with *Update the copies* (delete the copied groups and re-copy from the current master, one
+change) or *Keep my copies*.  Live, the same choice is a notice.
+
+Delete master vs. apply master::
+`page.master` points at a deleted node; `REF_FALLBACK_UNSET` makes the page ordinary, showing its
+own `geometry` (which the apply command left untouched, so it is the pre-apply size).  Review:
+edit-vs-delete on the master with *Restore*.
+
+Two people edit the master's geometry::
+ATOMIC later-wins, listed as same-register loss; all children follow the winner.
+
+Convert to master vs. draw on the page::
+The converter's change moves the objects it saw; a concurrently created object stays on the page
+(canvas unset) and is drawn above the master content.  No review entry: nothing was lost.
+
+Release vs. release of the same page::
+Both changes create copy groups.  Normalize on read: nothing to normalize mechanically (two sets of
+copies), so `WTSync` detects `page.master` written by both sides and the second set of groups is
+listed as "duplicate release" with *Remove duplicates* (deletes the groups from the later change).
+
+Master deleted while someone edits an object on its canvas::
+Ordinary edit-vs-delete on the master node's canvas objects; *Restore* on the master.
+
+Read-time normalizations:
+
+* `page.master` dangling → page reads as ordinary, with its own registers.
+* A `page.master` that points at a *page* node (wrong kind, only possible through a malformed op)
+  reads unset.
+* An object whose `canvas` names a deleted master is not rendered anywhere (it is the master's
+  content), but is restorable with the master.
+
+=== Offline behavior
+
+Standard.  A master page opened offline is editable; children update locally.
+
+=== Server
+
+Nothing beyond storing and relaying changes.
+
+=== Client
+
+* `WTModel.MasterCommands`: `newMaster(from:)`, `convertToMaster(page:)`, `apply(master:to:)`,
+  `detach(pages:)`, `release(pages:)`, `deleteMaster`, `renameMaster`.  `effectiveGeometry(page)`
+  implements the masking read rule.
+* Rendering (`WTRender`): the display list for a child page is built per layer as
+  `[master objects on layer L, translated by page.origin] + [page objects on layer L]`.  Master
+  objects on a child are not hit-testable (REND-003 skips canvas-mismatched entries when the
+  current canvas is the main pasteboard).  Clipping to the master's bleed rectangle applies at
+  print and export, not on screen.
+* Master page tab (`WTApp`): a second canvas view over the same `WTModel` with `currentCanvas =
+  master id`; the Document panel, rulers, guides and the Page tool operate on the master while its
+  tab is frontmost; the page selector is hidden.  Presence reports `canvas` so collaborators show
+  as "on Master A".
+* Library panel integration (LIB epic): master pages are listed by the Library panel from the
+  `masters` collection; drag-and-drop to a page calls `apply`.
+
+=== Build tasks
+
+[[DOC-010]]
+==== DOC-010 Master page model
+[horizontal]
+Track:: client-model
+Depends on:: DOC-006
+Size:: M
+Delivers:: `WTModel.MasterCommands` as listed, the effective-geometry read rule, the release label tag, and the dangling-master normalizations.
+Done when::
+* Convert, apply, detach and release each produce one change with a correct inverse (undoing a release removes the copied groups and restores `master`).
+* Merge tests: master edit vs. release (stale copy, tag present in the change); delete vs. apply (page reads ordinary); release vs. release (two copy sets, both present); concurrent master geometry writes.
+* Conformance vectors for the dangling-master read-outs.
+
+[[DOC-011]]
+==== DOC-011 Master content rendering
+[horizontal]
+Track:: client-render
+Depends on:: REND-001, REND-003, DOC-010
+Size:: M
+Delivers:: Per-layer interleaving of master objects below child page objects, translation by page origin, non-hit-testability of master content on children, bleed-rectangle clipping for print and export paths.
+Done when::
+* A master with objects on two layers renders below the child's objects on each of those layers.
+* A remote edit to a master object repaints only the affected tiles of every child page (REND-004).
+* Hit tests over master content on a child return the child's objects or nothing.
+
+[[DOC-012]]
+==== DOC-012 Master page tab and Document panel controls
+[horizontal]
+Track:: client-ui
+Depends on:: DOC-004, DOC-010, DOC-011
+Size:: M
+Delivers:: The master page tab, *Master Page* pop-up and btn:[Edit] button, the Options menu commands (New Master Page, Convert to Master Page, Release Child Page), presence on masters, the live notices for stale release and master deletion with *Update the copies* and *Restore*.
+Done when::
+* Opening a master from the Library panel or the Edit button shows its tab; closing it needs no save.
+* UI tests: create, convert, apply by pop-up and by drag from the Library panel, release; child handles are dimmed.
+* The stale-release notice appears in a two-client UI test and *Update the copies* yields the current master's objects.
+
+[[DOC-013]]
+==== DOC-013 Release-overlap detection in reconcile
+[horizontal]
+Track:: client-sync
+Depends on:: SYNC-006, DOC-010
+Size:: S
+Delivers:: `WTSync` divergence measurement extended with the `released stale master` and `duplicate release` overlap kinds from the release label tag, and their review-sheet actions.
+Done when::
+* Unit tests: a release with a concurrent master-canvas write yields exactly one overlap entry naming the page; two releases of one page yield a duplicate entry.
+* *Update the copies* and *Remove duplicates* are single undoable changes.
+endif::spec[]

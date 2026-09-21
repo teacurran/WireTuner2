@@ -1,0 +1,155 @@
+Artwork headed for a web page has to be small and has to look right in a browser.  {product}
+gives you two ways to get there: keep the artwork as vectors (SVG, which browsers render
+natively and which stays sharp at every size) or rasterize it into a compressed bitmap.  This
+page is about choosing between them and, when you rasterize, choosing a format.  The export
+procedures and every option of each format live on xref:export-bitmap.adoc[Exporting bitmap
+images] and xref:export-vector.adoc[Exporting vector formats]; xref:publish-html.adoc[Publishing
+as HTML] applies these choices to a whole document at once.
+
+NOTE: {fh} offered GIF, JPEG and PNG, plus a movie format for vectors.  {product} keeps the
+three bitmap formats, adds WebP and AVIF, and uses SVG -- animated where needed -- for vectors.
+
+== Vector or bitmap?
+
+Export as SVG when the artwork is what {product} is for -- paths, text, gradients, flat color.
+An SVG is usually smaller than a bitmap of the same drawing, scales to any screen density, keeps
+text selectable and links clickable, and can carry the frame-by-frame animation described in
+xref:animation.adoc[Animating objects and text].
+
+Rasterize when the artwork depends on things SVG cannot express well: raster effects, complex
+transparency stacks, large placed photographs, or thousands of tiny paths that would make the
+SVG bigger than a picture of it.  The output warnings of the HTML publisher tell you which objects
+were rasterized and why.
+
+== Choosing a bitmap format
+
+[cols="1,2,2"]
+|===
+|Format |Best for |Notes
+
+|PNG
+|Flat color, sharp edges, text, anything needing transparency.
+|Lossless.  Replaces GIF for nearly every job.  8-bit palette mode for small flat images,
+24/32-bit for everything else.
+
+|JPEG
+|Photographs, scanned art, wide gradients.
+|Lossy; the *Quality* slider trades size for artifacts.  No transparency: transparent areas are
+filled with the *Matte* color.
+
+|WebP
+|Either of the above, when older browsers do not matter.
+|Lossy or lossless, with transparency, typically 25--35% smaller than JPEG or PNG at the same
+quality.  Supported by every current browser.
+
+|AVIF
+|Photographs where every kilobyte counts.
+|Lossy, often half the size of JPEG.  Slower to encode; not every tool outside browsers reads
+it.  Requires macOS 14 or later to encode.
+
+|GIF
+|Legacy pages and simple frame animation for chat and social tools.
+|256 colors, 1-bit transparency.  Use PNG for stills; use GIF only where an animated GIF is
+required (xref:animation.adoc[Animating objects and text]).
+|===
+
+== Settings that matter
+
+These options appear in the Export sheet for every bitmap format (xref:export-bitmap.adoc[Exporting
+bitmap images]); the ones below matter most for the web.
+
+Resolution and scale::
+Web images are sized in CSS pixels; a 300 × 200 image on a Retina screen needs 600 × 400
+pixels to look sharp.  Export at *2×* (the default for the *Web* presets) and let the page scale it
+down, or export both *1×* and *2×* and use both in a `srcset`.  Dots per inch are irrelevant to a
+browser.
+
+Quality::
+For JPEG, WebP and AVIF.  Start at 80; go lower until artifacts appear where they matter.
+
+Colors::
+For PNG-8 and GIF: fewer colors, smaller file.  Dithering hides banding in gradients at the cost of
+size.
+
+Matte::
+The color that shows through transparent areas in formats without transparency, and under
+anti-aliased edges in PNG-8 and GIF.  Match it to the page background.
+
+Metadata::
+*Strip metadata* removes color profiles and file info; keep the profile only if the image has to
+match a print piece (xref:color-management.adoc[Managing color]).
+
+== Web presets
+
+The Export sheet's *Preset* pop-up includes *Web -- PNG 2×*, *Web -- JPEG 80*, *Web -- WebP 80*
+and *Web -- SVG*.  A preset fills in the format and every option above; the sheet shows the
+estimated file size before you click btn:[Export] so you can compare presets on the same
+artwork.  Presets are yours, not the document's, and are edited in the same sheet.
+
+== Working with others
+
+Exporting reads the document and writes a file on your Mac; nothing changes in the shared
+document, so collaborators are not affected and nothing needs to sync.  Presets live in your
+preferences, not in the document; a teammate who wants the same settings recreates them or
+imports your exported preset file.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,2"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Compress artwork as GIF, JPEG or PNG
+|Same formats plus WebP and AVIF, all via ImageIO.
+|Faithful (extended)
+
+|Choose a format by color characteristics and browser support
+|Guidance table above; browser support is no longer a differentiator for PNG.
+|Faithful
+
+|Export vectors as a movie to keep them small
+|SVG, and animated SVG for motion, is the vector web format.
+|Adapted -- SVG is native to browsers and needs no player.
+|===
+
+=== Data model
+
+None.  Presets are local preferences (`UserDefaults`, `wt.export.presets`), exportable as a
+`.wtpreset` JSON file.
+
+=== Merge semantics
+
+Not applicable; nothing on this page writes to the document.
+
+=== Offline behavior
+
+Fully available offline.
+
+=== Server
+
+Nothing.
+
+=== Client
+
+`WTInterchange` owns the bitmap encoders (ImageIO: `public.png`, `public.jpeg`, `org.webmproject.webp`,
+`public.avif`, `com.compuserve.gif`).  The size estimate encodes to memory at the sheet's
+settings on a background task, debounced 300 ms, cancelled on change.  The *Export* sheet itself
+belongs to the IO epic; this page contributes the presets and the estimate.
+
+=== Build tasks
+
+[[WEB-006]]
+==== WEB-006 Web export presets and size estimate
+[horizontal]
+Track:: import-export
+Depends on:: REND-001, APP-010
+Size:: S
+Delivers:: The four *Web* presets, preset storage in preferences with import/export as `.wtpreset`, the 1×/2× scale option, *Strip metadata*, and a live estimated-size readout in the Export sheet (which the IO epic's export sheet hosts).
+Done when::
+* Selecting a preset sets every option; the estimate for a 2000 × 2000 test page appears within one second and is within 5% of the written file.
+* WebP and AVIF encode with transparency preserved; AVIF is hidden on macOS versions that cannot encode it.
+* Preset files round-trip through export and import.
+endif::spec[]

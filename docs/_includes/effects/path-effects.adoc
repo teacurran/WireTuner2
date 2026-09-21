@@ -1,0 +1,639 @@
+The tools and commands on this page reshape objects for good.  Where a live effect
+(xref:live-effects.adoc[Live vector effects]) is an attribute you can adjust or remove later,
+everything here *changes the path itself*: Roughen moves the points, the Shadow tool makes a
+real copy behind the object, Emboss builds real facets, the 3D Rotation tool rewrites the
+outline.  That is the point of them -- the result is ordinary paths you can edit point by point
+-- and it is also the caution: once applied, the only way back is Undo.
+
+// TODO screenshot: the effect tools' pop-up in the Tools panel
+
+Most of these tools share pop-up slots in the Tools panel (xref:toolbars.adoc[The Tools
+panel]); the commands live in the *Extensions* menu and on the *Operations* toolbar
+(menu:Window[Toolbars > Operations]).
+
+NOTE: {fh} called these *Xtras*, with an *Xtra Tools* toolbar and an *Xtra Operations*
+toolbar.  {product} calls the menu *Extensions* and the toolbar *Operations*; the tools sit in
+the Tools panel.  See xref:extensions.adoc[Extensions].
+
+Every tool that has options opens them when you double-click the tool in the Tools panel.  Tool
+options are remembered on your Mac between sessions and are not part of the document.
+
+[cols="1,2,1"]
+|===
+|Tool or command |What it does |Live alternative
+
+|Add Points |Adds a point midway on every segment |--
+|Roughen tool |Jitters the outline |Ragged effect
+|Fisheye Lens tool |Bulges or dents through a lens |--
+|Bend tool |Spikes or bloats around a centre |Bend effect
+|Smudge tool |Trails fading copies |Drop Shadow effect
+|Shadow tool |Places a shadow copy behind |Drop Shadow effect
+|Emboss |Builds relief from facets |Bevel and Emboss effects
+|Fractalize |Recursively spikes every segment |--
+|Mirror tool |Reflects around axes |Duet effect
+|3D Rotation tool |Rotates in 3D |Extrude (xref:extrude.adoc[Extruding objects])
+|Envelope |Warps contents inside a shape |--
+|===
+
+== Adding points
+
+Adding points makes a path more detailed without changing its shape, so a later tool or effect
+has more to work with -- a Roughen on a four-point rectangle can only wobble at the corners.
+
+To add points to a selected path:
+
+* Click btn:[Add Points] on the Operations toolbar, or choose menu:Extensions[Distort > Add
+  Points].  One point is inserted at the middle of every segment.  Repeat to double again.
+
+== Roughening
+
+The Roughen tool adds points along a path and moves them in and out at random, for a jagged or
+hand-drawn edge.  Its options set how many points and what kind; the drag sets how far.
+
+To set Roughen options:
+
+. Double-click the Roughen tool.
+. Set *Amount*: points added per inch, 0--100.
+. Set *Edge*: *Rough* uses corner points for a jagged edge; *Smooth* uses curve points for a
+  wavy one.
+. Click btn:[OK].
+
+To roughen a selected path:
+
+. Select the Roughen tool from its pop-up.
+. Press on the path and drag.  Dragging further from the starting point roughens more; the
+  outline previews as you drag.  Release to apply.
+
+To roughen text, convert it to paths first (xref:text-to-paths.adoc[Converting text to
+paths]).
+
+== Fisheye lens
+
+The Fisheye Lens tool distorts the selection as if seen through a round lens: *convex* bulges
+the middle outward, *concave* sinks it.  Symmetrical shapes and grids show it best.
+
+To set Fisheye Lens options:
+
+. Double-click the Fisheye Lens tool.
+. Set *Perspective* from −100 (fully concave) to 100 (fully convex), by field or slider.  The
+  preview shows the distortion.
+. Click btn:[OK].
+
+To apply the lens:
+
+. Select the Fisheye Lens tool from its pop-up.
+. Drag over the selection to draw the lens.  The drag's start is the lens centre and its
+  length the radius; kbd:[Option]-drag draws the lens from its centre outward.  Release to
+  apply.
+
+== Bending and bloating
+
+The Bend tool spikes or bloats a shape around a centre point.  *Spiked*: the segments curve
+inward while the points move outward, giving a star.  *Bloated*: the segments curve outward
+while the points move inward, giving a cushion.
+
+To set Bend tool options:
+
+. Double-click the Bend tool.
+. Set the amount of distortion, 1--10, by field or slider.
+. Click btn:[OK].
+
+To bend or bloat a selected path:
+
+. Select the Bend tool from its pop-up.
+. Press where the centre of the distortion should be.
+. Drag *up* for a spiked result, *down* for a bloated one.  The further you drag, the
+  stronger the distortion.  Release to apply.
+
+== Smudging
+
+The Smudge tool drags out a trail of fading copies behind an object, blending from the object's
+own colors to the smudge colors -- a quick soft shadow or a motion trail.  The copies and the
+original are grouped.  Smudging an already smudged group smudges every copy in it, so the
+count multiplies; {product} refuses when a smudge would create more than 1,000 objects.
+
+To set Smudge options:
+
+. Double-click the Smudge tool.
+. Click the *Fill* color box and choose the color the fill fades toward; click the *Stroke*
+  color box for the stroke.  For a drop shadow, pick a slightly darker tint of the background
+  as the fill and *None* for the stroke.
+. Click btn:[OK].
+
+To smudge a selected object:
+
+. Select the Smudge tool from its pop-up.
+. Press on the object and drag outward.  A line links the preview to the original.
+* Hold kbd:[Option] while dragging to smudge outward from the centre in every direction, for a
+  soft halo.
+. Release to apply.
+
+== Adding a drop shadow with the Shadow tool
+
+The Shadow tool places a copy of the object behind it as a shadow and groups the two.  Three
+kinds: *Hard Edge* (a flat copy), *Soft Edge* (a copy that fades into a background color) and
+*Zoom* (a copy scaled and blended back toward the original, like a beam of light).  The tool
+does not apply to bitmaps, text or clipping paths: convert text to paths first, and shadow an
+object before you use it as a clipping path.  For a live shadow on anything, including text,
+use the Drop Shadow effect (xref:raster-effects.adoc[Live raster effects]).
+
+// TODO screenshot: Hard Edge, Soft Edge and Zoom shadows under the same shape
+
+To set Shadow tool options:
+
+. Double-click the Shadow tool.
+. Choose a *Type*: Hard Edge, Soft Edge or Zoom.
+. For Hard Edge and Soft Edge, choose a *Fill*:
+* *Tint*: a tint of the object's own color, 0 (white) to 100%.
+* *Shade*: the object's color with a percentage of black added.
+* *Color*: any color from the pop-up palette.
+. For Soft Edge, drag a color to *Fade to* (white by default) and set *Soft edge* from 0
+  (hard) to 100 (soft throughout).
+. For Zoom, set a *Stroke* color and *Fill* color.
+. Set *Scale*: the shadow's size as a percentage of the object.
+. Set *Offset X* and *Y*: how far the shadow sits from the object.
+. Click btn:[Apply] to preview without closing, or btn:[OK].
+
+To add a shadow to the selected objects:
+
+. Select the Shadow tool from its pop-up.
+. Click to place the shadow at the options' offset, or drag to place it by hand.  Each click
+  starts again from directly under the object.
+
+Soft Edge and Zoom shadows are built from a series of intermediate colors.  Objects colored
+with spot or RGB colors produce process CMYK intermediates.
+
+== Embossing
+
+The Emboss operation builds a relief out of real paths: highlight and shadow facets around the
+object's edges, grouped with the original.  It applies to closed paths with a basic, gradient
+or pattern fill.  For a live relief use the Bevel and Emboss effects
+(xref:raster-effects.adoc[Live raster effects]).
+
+// TODO screenshot: Emboss, Deboss, Chisel, Ridge and Quilt on a rounded square
+
+To emboss a selected object:
+
+. Choose menu:Extensions[Create > Emboss], or click btn:[Emboss] on the Operations toolbar.
+  kbd:[Cmd]-click the toolbar button to apply the previous settings without the dialog.
+. Click a style at the top of the dialog: *Emboss* (raised), *Deboss* (sunken), *Chisel*,
+  *Ridge* or *Quilt*.
+. Choose how facets are colored from *Vary*:
+* *Contrast*: highlights are tints of the object's color, shadows are its color with black
+  added.
+* *Colors*: highlights and shadows use the two color boxes.
+. Set *Depth*: 1--72 points by field, 1--20 by slider.
+. Set *Angle*: the light direction, by field or dial.
+. For Emboss and Deboss, select *Soft edge* to blend the relief in steps.
+. Click btn:[Apply] to preview, or btn:[OK].
+
+Intermediate facet colors are process CMYK when the object uses spot or RGB colors.
+
+== Fractalize
+
+Fractalize replaces every segment with a spiked version of itself and nearly doubles the point
+count each time.  Applied several times to a circle it produces a snowflake-like pattern.
+
+To fractalize a selected object:
+
+* Click btn:[Fractalize] on the Operations toolbar (menu:Extensions[Distort > Fractalize]).
+  Apply again for more detail; watch the point count in the Object panel.
+
+== Mirror
+
+The Mirror tool reflects a path, text block or image across one or more axes to build
+symmetrical patterns.  The whole object is mirrored even if only some of its points are
+selected.
+
+To set Mirror options:
+
+. Double-click the Mirror tool.
+. Choose an *Axis*: *Horizontal* (top to bottom), *Vertical* (left to right), *Horizontal &
+  Vertical* (both), or *Multiple* (around several axes).
+. For Multiple, set the number of *Axes* (1--50 by slider, 1--100 by field) and choose
+  *Reflect* (each copy is mirrored) or *Rotate* (copies are rotated only).
+. Select *Close paths* to close open paths whose ends fall within the snap distance
+  (xref:preferences.adoc[Preferences]).
+. Click btn:[OK].
+
+To mirror the selection:
+
+. Select the Mirror tool from its pop-up.
+. Drag to set the halfway point between the object and its reflection, or the centre of a
+  multiple reflection.  Keylines preview every copy.  While dragging:
+* kbd:[Option] rotates the axes around the pointer.
+* kbd:[Option+Shift] constrains the rotation to 45° steps.
+* kbd:[Up Arrow] / kbd:[Down Arrow] switch between Reflect and Rotate for Multiple.
+* kbd:[Right Arrow] / kbd:[Left Arrow] add or remove an axis for Multiple.
+. Release to apply.  The copies are ordinary objects.
+
+== 3D rotation
+
+The 3D Rotation tool tilts a flat object in space and projects it back onto the page, with
+perspective.  For a solid with sides use xref:extrude.adoc[Extruding objects].
+
+To set 3D Rotation options:
+
+. Double-click the 3D Rotation tool.
+. Choose *Easy* or *Expert* control.
+. Choose *Rotate from*: *Mouse click*, *Center of selection*, *Center of gravity* (the visual
+  centre) or *Origin* (the lower-left corner).
+. Set *Distance*, by field or slider: smaller distances exaggerate the perspective, larger
+  ones flatten it.
+. With Expert, choose the *Project from* point -- the vanishing point: *Mouse click*, *Center
+  of selection*, *Center of gravity*, *Origin*, or *X/Y* coordinates you type (defaulting to
+  the last pointer position).
+. Click btn:[OK].
+
+To rotate the selection in 3D:
+
+. Select the 3D Rotation tool from its pop-up.
+. Press on the object and drag.  The direction of the drag tilts the object; the outline
+  previews.  Hold kbd:[Shift] to constrain the rotation to 45° steps.
+. Release to apply.
+
+== Envelopes
+
+An envelope is an invisible wrapper drawn around one or more objects: reshape the wrapper and
+the contents warp to fill it.  Envelopes are the exception on this page -- they are *live* while
+the envelope exists, and become permanent only when you release them.  Text inside an envelope
+stays editable text.
+
+// TODO screenshot: a text block in a rectangular envelope, then with the envelope's top edge curved
+
+To apply an envelope:
+
+. Select the objects.
+. Choose menu:Modify[Envelope > Create], or click btn:[Create] on the Envelope toolbar
+  (menu:Window[Toolbars > Envelope]).  A rectangular envelope appears around the selection,
+  with the preset chosen in the toolbar's pop-up.
+. Edit the envelope as you would any path -- drag its points and handles, add points, use the
+  Freeform tool -- and watch the contents follow (xref:editing-paths.adoc[Editing paths]).
+
+To use another path as an envelope:
+
+. Select the path and choose menu:Edit[Copy].
+. Select the object to warp and choose menu:Modify[Envelope > Paste as Envelope] (or the
+  toolbar button).  The path's shape becomes the envelope.
+
+To see how the envelope maps its contents:
+
+* Choose menu:Modify[Envelope > Show Map].  A mesh shows the distortion grid.  Choose it again
+  to hide it.
+
+To get the envelope's shape as a path:
+
+. Select the enveloped object and choose menu:Modify[Envelope > Copy as Path].
+. Choose menu:Edit[Paste].
+
+To remove an envelope:
+
+* menu:Modify[Envelope > Release] keeps the warped shape and turns the contents into ordinary
+  paths (text becomes paths).
+* menu:Modify[Envelope > Remove] discards the warp and restores the contents as they were.
+
+To save an envelope as a preset:
+
+. Select the enveloped object and choose menu:Modify[Envelope > Save as Preset].
+. Type a name and click btn:[OK].  The preset appears in the Envelope toolbar's pop-up.  Presets
+  are stored with your account preferences, so they follow you between Macs.
+
+To delete a preset, choose it in the toolbar's pop-up and choose menu:Modify[Envelope > Delete
+Preset].
+
+== Working with others
+
+* Every tool on this page writes ordinary path edits, so collaborating on them works as it
+  does for any path: if you roughen a path while someone else moves it, both changes apply.
+  If you roughen it while someone else drags one of its points, their point lands where they
+  put it and your roughening applies to the rest -- a merge review after a long offline
+  stretch shows both.
+* Operations that create objects (Shadow, Smudge, Emboss, Mirror, Release of an envelope)
+  create them on your side; a collaborator sees them appear next to the original.  If they
+  deleted the original at the same moment, the copies remain and the original is offered
+  back in the merge review.
+* Envelopes are live and shared: while you reshape an envelope, a collaborator can edit the text
+  inside it, and everyone sees both.  Two people dragging the same envelope point end with the
+  later position, listed in the merge review.
+* Tool options (a Roughen amount, a Shadow type) are yours, not the document's.  Envelope
+  presets are yours too.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,1"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Add Points (Xtra Operations toolbar, menu:Xtras[Distort > Add Points])
+|Same; Operations toolbar, menu:Extensions[Distort > Add Points].
+|Adapted -- renaming only.
+
+|Roughen tool: Amount 0--100 per inch, Rough/Smooth; drag distance
+|Same.
+|Faithful
+
+|Fisheye Lens tool: Perspective −100..100, drag lens
+|Same, plus kbd:[Option]-drag from centre.
+|Faithful
+
+|Bend tool: amount 1--10, drag up = spike, down = bloat
+|Same.
+|Faithful
+
+|Shadow tool: Hard/Soft/Zoom, Tint/Shade/Color, Fade to, Soft edge, Scale, Offset, Apply
+|Same.  Limitations (no bitmaps, text, clipping paths) kept.
+|Faithful
+
+|Smudge tool: fill and stroke colors, Option-drag from centre, error past capacity
+|Same; capacity is 1,000 objects per smudge.
+|Faithful
+
+|Emboss Xtra: five styles, Vary Contrast/Colors, Depth, Angle, Soft Edge, Apply, Cmd-click
+toolbar button
+|Same.
+|Faithful
+
+|Fractalize
+|Same.
+|Faithful
+
+|Mirror Xtra tool: four axis modes, Multiple with axes count and Reflect/Rotate, Close Paths,
+modifier keys and arrow keys during drag
+|Same, from the Tools panel.
+|Faithful
+
+|3D Rotation tool: Easy/Expert, Rotate from, Distance, Project from, Shift constrain
+|Same.
+|Faithful
+
+|Envelopes: Create, presets, Paste as Envelope, Show Map, Copy as Path, Release, Remove, Save
+as Preset, Delete Preset, Envelope toolbar
+|Same commands.  Presets live in account preferences instead of a settings file.
+|Adapted -- no per-app settings folder; preferences sync gives the same result on every Mac.
+
+|Envelope settings file `Envelope` in Application Support
+|Not used.
+|Dropped -- replaced by preferences (above).
+|===
+
+=== Data model
+
+The destructive tools and operations add no schema: they emit the DRAW epic's path operations
+(`SetFields` on contours, `ElementInsert`/`ElementDelete` of points, `CreateNode` for copies,
+`MoveNode` into a new `group`).
+
+Envelopes are a node kind `envelope`: a group-like wrapper whose live children are the contents
+and whose props hold the envelope shape as an editable path.
+
+[source,protobuf]
+----
+// proto/wiretuner/doc/v1/envelope.proto (sketch); EnvelopeProps is a NodeProps.kind case
+message EnvelopeProps {
+  CommonProps common = 1;
+  // The envelope outline: one closed contour, edited with the same path tools and merging
+  // point by point exactly as PathProps.contours does (DRAW epic's Contour, SEQUENCE).
+  repeated Contour contours = 2 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  // The contents' bounds at creation, in the envelope's coordinates: the source rectangle
+  // the warp maps from.  ATOMIC: written once by Create/Paste as Envelope.
+  Rect source_bounds = 3 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Which four points of the contour are the corners of the warp patch (element ids, in
+  // order TL, TR, BR, BL).  Points between corners shape that edge.  ATOMIC as a set of four.
+  EnvelopeCorners corners = 4 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  bool show_map = 5 [(wt.crdt.field).local_only = true];   // view state
+}
+message EnvelopeCorners { ElementId tl = 1; ElementId tr = 2; ElementId br = 3; ElementId bl = 4; }
+
+// Envelope presets are not document data: a `repeated EnvelopePreset` in the account
+// Preferences message (PROTO-009), each {string name; Contour contour; EnvelopeCorners corners}.
+----
+
+Envelope shape edits reuse the path command set, so the whole of xref:editing-paths.adoc[Editing
+paths] applies to the envelope contour.
+
+=== Merge semantics
+
+Destructive tools:: Each application is one change of ordinary path ops.  Concurrent edits to
+the same path merge per point: a Roughen (which inserts points and moves existing ones) and a
+concurrent point drag keep the dragged point at its dragged position and the roughened
+positions elsewhere; a Roughen and a concurrent Add Points both insert, so the path ends up
+with both sets of new points -- odd-looking but well-defined, and reviewed as *both edited* on
+that node.  Object-creating tools (Shadow, Smudge, Emboss, Mirror) create nodes and a group;
+if the original is concurrently deleted, the group contains a deleted member and the copies
+remain, reviewed as edit-vs-delete with *Restore*.
+
+Smudge/Shadow groups:: Grouping is `CreateNode(group)` + `MoveNode(original)`; a concurrent
+move of the original elsewhere follows Kleppmann ordering, and the group may end up holding
+only the copies.  No normalization needed.
+
+Envelope:: Contour points merge as path points; `source_bounds` and `corners` are ATOMIC
+registers written on create/paste.  Concurrent envelope-point drag and content edit: both
+apply, contents re-warp on read.  Release vs. content edit: as blend release -- the baked
+group is computed from the releasing replica's state, the edit lands on the deleted child,
+reviewed as edit-vs-delete with *Restore* (re-deletes the baked group, un-deletes the
+envelope).  Remove vs. edit: contents are moved out; the edit lands on the freed child.
+
+Read-time normalizations::
+* An envelope whose `corners` name deleted points: the corner falls back to the nearest live
+  point by contour order; with fewer than four live points the envelope renders its contents
+  unwarped and the Object panel says "Envelope needs four points".
+* More than one contour in `contours`: the first live one is the envelope; others are drawn
+  as its outline only when *Show Map* is on.
+* An envelope with no live children renders as an empty outline.
+
+=== Offline behavior
+
+Nothing beyond the general rules.  Envelope presets need the account preferences sync to
+follow the user to another Mac; on the same Mac they are available offline.
+
+=== Server
+
+Nothing beyond storing and relaying changes, and storing envelope presets with account
+preferences (PROTO-009's `Preferences` message).
+
+=== Client
+
+Package:: `WTGeometry/Distort/` (`RoughenKernel`, `FisheyeKernel`, `BendKernel` shared with
+the Bend effect, `FractalizeKernel`, `Rotate3DKernel`, `EnvelopeWarp`), `WTApp/Tools/`
+(one `Tool` per tool), `WTApp/Extensions/` (Emboss dialog, Add Points, Fractalize),
+`WTApp/Toolbars/EnvelopeToolbar`.
+
+Kernels::
+* *Add Points*: split every segment at `t = 0.5` (GEO-001).
+* *Roughen*: sample the outline every `1/amount` inch, displace by
+  `random(−1, 1) × dragDistance × 0.1`, rebuild corner or curve points.  Unseeded: this is a
+  one-time operation and the result is written, so replicas never recompute it.
+* *Fisheye*: for each point inside the lens circle of radius `r` at distance `d`, map
+  `d' = r × f(d/r, perspective)` with `f` the barrel/pincushion curve; handles mapped with
+  their anchors.
+* *Bend tool*: the Bend effect kernel with `size = ±dragDistance × amount/10`, sign from the
+  drag direction (up negative for spike: points outward, segments inward -- implemented as
+  anchor displacement outward with handle displacement inward).
+* *Smudge*: `n = dragDistance / 2 pt` copies (min 1, max 1,000 objects including nested),
+  each translated by `i/n` of the drag and colored by linear interpolation to the smudge
+  colors; kbd:[Option]: scaled about the centre instead.
+* *Shadow*: one copy (Hard), or `soft_edge/4 + 1` concentric insets (Soft, GEO-003 offsets)
+  fading to *Fade to*, or a scaled-then-blended series (Zoom, reusing the blend interpolator
+  from xref:blends.adoc[Working with blends]); grouped behind the original.
+* *Emboss*: GEO-003 offset of the outline by `depth` along `angle` split into lit and shaded
+  facets (`GEO-002` boolean difference), five style recipes, soft edge as `depth/2` stepped
+  facets.
+* *Fractalize*: replace each segment by four segments forming a Koch-style spike on the
+  outward side.
+* *Mirror*: affine reflections/rotations (GEO-005), keyline preview in the overlay; close paths
+  by joining ends within the snap distance.
+* *3D Rotation*: rotate the outline about the chosen origin in 3D by the drag vector
+  (trackball), project with a perspective of focal length `distance` from the projection
+  point; Easy mode fixes projection at the rotation origin.
+* *Envelope*: a bicubic Coons patch from the four edge curves of the envelope contour (each
+  edge is the contour section between two corners, refit as one cubic if it has intermediate
+  points), mapping `source_bounds` to the patch; contents are warped by mapping every anchor
+  and handle (curves are subdivided until the warped error is under 0.1 pt).  Text is laid
+  out flat then warped glyph by glyph as outlines while remaining editable.
+
+Tools:: Each is a `Tool` (APP-003) with a preview in the overlay layer during the drag and a
+single change on release.  Options dialogs are sheets opened by double-click on the tool
+(APP-003's tool-options hook); values persist in `UserDefaults`.
+
+Undo:: One step per application ("Roughen", "Fisheye lens", "Bend", "Smudge", "Add shadow",
+"Emboss", "Fractalize", "Mirror", "3D rotate", "Create envelope", "Release envelope"…).
+
+=== Build tasks
+
+[[FX-030]]
+==== FX-030 Operations toolbar and Extensions menu entries
+[horizontal]
+Track:: client-ui
+Depends on:: APP-005
+Size:: S
+Delivers:: The *Operations* toolbar (Add Points, Fractalize, Emboss, Blend and the
+combine/arrange buttons other epics register) and the menu:Extensions[Create] and
+menu:Extensions[Distort] submenus from the command registry; kbd:[Cmd]-click on Emboss to skip
+the dialog.
+Done when::
+* Buttons validate against the selection; the toolbar appears in menu:Window[Toolbars].
+* UI test clicks each button with a valid selection.
+
+[[FX-031]]
+==== FX-031 Add Points and Fractalize
+[horizontal]
+Track:: client-model
+Depends on:: APP-011, GEO-001
+Size:: S
+Delivers:: The two commands as path edits with their kernels.
+Done when::
+* Add Points on an n-segment path yields 2n segments with unchanged geometry (tolerance
+  1e-6); Fractalize on a square yields the expected 16 segments.
+* Merge test: Add Points vs. concurrent point drag keeps both.
+
+[[FX-032]]
+==== FX-032 Roughen, Fisheye Lens and Bend tools
+[horizontal]
+Track:: client-ui
+Depends on:: APP-003, APP-011, GEO-001, FX-004
+Size:: M
+Delivers:: Three tools with drag previews, options sheets with every option, and their kernels
+in `WTGeometry/Distort`.
+Done when::
+* UI tests: each tool's drag produces one change; each option affects the result as
+  documented; kbd:[Option]-drag for the lens draws from the centre.
+* Bend tool up/down produce spike/bloat; the Bend effect with the equivalent size renders the
+  same outline.
+
+[[FX-033]]
+==== FX-033 Smudge and Shadow tools
+[horizontal]
+Track:: client-ui
+Depends on:: APP-003, APP-011, GEO-003, FX-025
+Size:: M
+Delivers:: Both tools, their options sheets (all options, btn:[Apply] preview for Shadow),
+grouping behind the original, the eligibility rules, the 1,000-object smudge cap with its
+explanation.
+Done when::
+* UI tests for each shadow type and fill option; Soft Edge fades to the chosen color; Zoom
+  uses the blend interpolator.
+* Merge test: shadow added while the original is deleted concurrently → copies remain,
+  reviewed as edit-vs-delete.
+
+[[FX-034]]
+==== FX-034 Emboss operation
+[horizontal]
+Track:: client-ui
+Depends on:: APP-011, GEO-002, GEO-003, FX-030
+Size:: M
+Delivers:: The Emboss dialog (five styles, Vary, Depth, Angle, Soft edge, Apply/OK) and the
+facet-building kernel; eligibility (closed paths with basic, gradient or pattern fills).
+Done when::
+* Reference renders of the five styles on a rounded square match the manual visually.
+* Spot/RGB inputs produce CMYK facet colors; Apply previews without committing.
+
+[[FX-035]]
+==== FX-035 Mirror tool
+[horizontal]
+Track:: client-ui
+Depends on:: APP-003, APP-011, GEO-005
+Size:: M
+Delivers:: The Mirror tool with its options sheet, keyline preview, kbd:[Option] /
+kbd:[Option+Shift] / arrow-key modifiers during the drag, Close paths.
+Done when::
+* UI tests for each axis mode; arrow keys change mode and axis count mid-drag; whole objects
+  mirror even with partial point selection.
+
+[[FX-036]]
+==== FX-036 3D Rotation tool
+[horizontal]
+Track:: client-ui
+Depends on:: APP-003, APP-011, GEO-005
+Size:: M
+Delivers:: The 3D Rotation tool, Easy/Expert options with every rotate-from and project-from
+choice, distance, kbd:[Shift] constraint, drag preview.
+Done when::
+* Rotation by 0 is identity; Origin mode leaves the lower-left corner fixed; Expert X/Y
+  projection point defaults to the last pointer position.
+
+[[FX-037]]
+==== FX-037 Envelope node kind and presets
+[horizontal]
+Track:: proto
+Depends on:: PROTO-003, PROTO-009
+Size:: S
+Delivers:: `envelope` kind with `EnvelopeProps` and `EnvelopeCorners`; `EnvelopePreset` in the
+account `Preferences` message.
+Done when::
+* Lints clean; `contours` SEQUENCE, `source_bounds`/`corners` ATOMIC, `show_map` local-only.
+* Conformance vectors: concurrent envelope point drags; corner point deleted concurrently with
+  a content edit; release vs. content edit.
+
+[[FX-038]]
+==== FX-038 Envelope warp kernel
+[horizontal]
+Track:: client-render
+Depends on:: GEO-001, TXT-001, FX-037
+Size:: L
+Delivers:: `EnvelopeWarp`: Coons patch from the contour and corners, point and handle mapping
+with subdivision, text warping per glyph, the map mesh for *Show Map*, the read-time corner
+fallbacks, rendering through the display list with REND-004 invalidation.
+Done when::
+* A rectangular envelope equal to `source_bounds` is identity; moving one corner warps only the
+  adjacent edges' influence region.
+* Warped curves deviate under 0.1 pt from the exact mapping on the test corpus.
+* Text in an envelope remains editable (caret placement through the inverse map).
+
+[[FX-039]]
+==== FX-039 Envelope commands, toolbar and presets UI
+[horizontal]
+Track:: client-ui
+Depends on:: APP-005, APP-011, FX-038
+Size:: M
+Delivers:: menu:Modify[Envelope] commands (Create, Paste as Envelope, Show Map, Copy as Path,
+Release, Remove, Save as Preset, Delete Preset), the Envelope toolbar with the preset pop-up,
+preset storage in preferences, the default preset set.
+Done when::
+* Each command is one change with an inverse; Release bakes to paths (text to paths); Remove
+  restores contents exactly.
+* Merge tests: envelope point drag vs. content text edit (both keep); release vs. content
+  edit (reviewed, Restore works).
+* Presets round-trip through preferences and appear on a second signed-in Mac.
+endif::spec[]

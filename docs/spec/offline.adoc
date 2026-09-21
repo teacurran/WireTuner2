@@ -1,0 +1,102 @@
+= Offline and large backlogs
+include::_attributes.adoc[]
+:page-slug: offline
+
+{product} works fully offline.  The user's requirement that drives this page: someone works on a
+plane, or in a studio with no network, for one or two days, producing tens of thousands of
+operations, then reconnects -- and so does everyone else on the team.  Everything below is about
+making that boring.
+
+== Local store
+
+Each open document lives in a SQLite database (GRDB) under
+`~/Library/Application Support/WireTuner/Documents/<document id>/store.sqlite`.
+
+[cols="1,3"]
+|===
+|Table |Holds
+
+|`meta` |Document id, replica id, hardware UUID the store was created on, last applied `server_seq`, feature level, merge table version.
+|`snapshot` |The newest local snapshot (compressed) and its `server_seq`.  Rewritten on close and every 5 minutes while open.
+|`changes` |Every change applied since the snapshot: remote (with `server_seq`) and local (with `seq`, `sent_at` null until acked).  This is the outbox.
+|`undo` |The undo/redo stack with inverse changes.
+|`blobs_pending` |Hashes of blobs waiting to upload, with their local file paths and an optional tag.  The document's thumbnail (tag `THUMBNAIL`, rendered on close and at the snapshot interval) is one row here; a newer thumbnail replaces the pending one.
+|`view` |Zoom, scroll, open panels, current page -- `local_only` fields.
+|===
+
+Opening a document loads the snapshot, replays `changes`, and connects.  If the network is down
+the document is simply open.  The title bar shows the sync state (xref:saving.adoc[Saving]).
+
+== Outbox and coalescing
+
+A local change is appended to `changes` in the same transaction that applies it to the
+in-memory state.  Nothing can be lost between "I saw it on screen" and "it is queued".
+
+While offline, consecutive local changes are *coalesced* before sending when doing so cannot
+change the merged result:
+
+* Two `SetFields` on the same register from the same replica with no other replica's writes
+  between them: keep the later one.  Dragging an object for a minute produces one op, not a
+  thousand.  The counter slots the dropped ops occupied are kept by `Noop` ops, so a
+  replica's counters remain dense and ids never collide.
+* A node created and then deleted with nothing else referencing it: drop both, leaving `Noop`s.
+* Consecutive `TextInsert`s of adjacent characters: one op.
+
+Coalescing is applied at send time to changes that are not yet acked, preserving change
+boundaries (labels) so history remains readable.  It typically shrinks a day's work by 10× or
+more.  Undo state is unaffected because the undo stack holds inverses, not the sent ops.
+
+== Reconnecting with a backlog
+
+. The client subscribes with its last applied `server_seq`.  `Welcome` reports head and the
+  replica's last accepted seq, which is where the upload will resume.
+. *Download first.*  If the gap is small the subscription streams it; if `Welcome` hints at a
+  snapshot, the client fetches the snapshot, replays the tail, and applies it.  Local unsent
+  changes are already in the local state (they were applied when made) -- applying remote
+  changes on top is just more merging.
+. *Measure divergence* (xref:reconcile.adoc[Reconciling]).  If the reconcile rules say to ask,
+  the client does not send anything yet; the review sheet decides what to send.
+. *Upload.*  The outbox is coalesced and sent through `PushChanges`, a client-streaming call
+  designed for bulk: frames of up to 1 MiB, progress read from the caller's own changes
+  echoing on the subscription, resumable from `Welcome.last_accepted_seq` if the connection
+  drops (below the bulk threshold the ordinary pipelined `PushChange` calls are used instead,
+  xref:sync-protocol.adoc[Sync protocol]).  Uploading 20,000 ops (about 2 MiB after
+  coalescing and compression) takes seconds.
+. Blobs in `blobs_pending` upload afterwards on a background queue with retry: the thumbnail
+  first (it is small and the library is waiting for it), then the rest, largest last.
+* The subscription stays open during upload; other users see the backlog arrive as it is
+  sequenced, which is preferable to a stall followed by a single huge burst.
+
+== Replica expiry and salvage [[expiry]]
+
+A replica silent for the retention window (90 days) is retired so garbage collection can
+proceed (xref:crdt-model.adoc[CRDT model]).  A retired replica that reconnects gets
+`REPLICA_EXPIRED`.  Its unsent changes are not lost:
+
+. The client rotates to a new replica id and rebases: for every unsent change, it re-issues the
+  ops that still make sense against the current state as new ops from the new replica, with
+  fresh counters.  Ops referencing tombstones that were collected are dropped and listed.
+. The result is shown in the conflict review as "changes recovered from an expired session",
+  with the dropped items named.  The user can send, or keep the whole set as a branch.
+
+`REPLICA_CONFLICT` (a store restored from backup onto a second Mac while the first is still in
+use) takes the same rotation path without the salvage prose.
+
+== What needs the network
+
+Everything about drawing works offline.  The following do not:
+
+* Opening a document you have never opened on this Mac (no local store).  The library window
+  lists documents cached locally and marks the rest unavailable; its search field matches
+  document names in the cached list only, since searching contents is a server query.
+  Thumbnails already downloaded are shown; new ones wait.
+* Sharing, changing roles, creating branches on the server, merging branches, and version
+  history beyond what the local log holds.
+* Cloud fonts and team libraries not yet cached.
+* Publishing (HTML export uploads assets), sending invitations.
+
+Each is disabled with an explanation, not an error after the fact.
+
+== Build tasks
+
+See xref:backlog.adoc[Backlog]: SYNC-001 through SYNC-010, SRV-013.

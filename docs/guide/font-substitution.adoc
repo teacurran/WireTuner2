@@ -1,0 +1,7 @@
+= Missing fonts
+include::_attributes.adoc[]
+:page-slug: font-substitution
+:page-group: Document setup
+:page-fh: Chapter 2, "Handling font substitution", "Replacing missing fonts", "Automatic font substitution"
+
+include::_includes/document/font-substitution.adoc[]

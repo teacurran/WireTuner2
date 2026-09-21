@@ -1,0 +1,665 @@
+A comment is a note pinned to the drawing: "make this red", "is this the approved logo?",
+"@Priya can you check the kerning here?".  Comments live in the document, next to the artwork
+they are about, so a conversation about the star badge happens *on* the star badge rather than
+in an email that has to describe where the star badge is.  Anyone who can open the document
+can read them; commenters, editors and owners can write them; and everyone who is mentioned
+finds out.  Comments are part of the document and sync like everything else, but they are
+never part of the artwork: they do not print, and they are left out of exports unless you ask
+for them.
+
+// TODO screenshot: canvas with three comment pins (one with an unread badge), the open thread popover with a reply and a reaction, and the Comments panel beside it
+
+NOTE: {fh} had no comments.  The nearest thing was the *Note* field in the Object panel
+(xref:names-notes.adoc[Names and notes]), which is still there and is still the place for a
+description that belongs to the object itself.  A comment is a conversation; a note is a label.
+
+== Pins and threads
+
+Every comment thread has a *pin* on the canvas: a small numbered marker in its author's color.
+A pin is attached to one of two things:
+
+* *An object.*  When you comment on an object, the pin sticks to it.  Move, rotate or scale the
+  object and the pin goes with it; move it to another page and the pin goes there too.  This is
+  the usual case.
+* *A point.*  When you click on empty pasteboard or an empty part of a page, the pin stays at
+  that spot.  Use this for "the whole page feels crowded" and "add something here".
+
+A thread is the opening comment plus any replies, in order.  Each comment shows its author,
+when it was written, its text and any reactions.  A thread is either *open* or *resolved*
+(<<resolving,Resolving a thread>>).
+
+Pins are drawn on top of the artwork at a constant size, whatever the zoom, and never hide
+what they point at: hover a pin to see the first line of its thread, click it to open the
+thread.  Resolved threads' pins are hidden unless you turn them on
+(<<showing-hiding,Showing and hiding pins>>).
+
+== Adding a comment
+
+To comment on an object or a spot:
+
+. Choose the Comment tool in the Tools panel, or press kbd:[C].
+. Click the object you want to talk about, or click an empty spot.  A pin appears there and a
+  composer opens beside it.
+. Type your comment.  To mention someone, type kbd:[@] and start typing their name, then pick
+  them from the list (<<mentions,Mentioning people>>).
+. Press kbd:[Cmd+Return] or click btn:[Comment].  Press kbd:[Esc] instead to discard it; the
+  pin goes away with it.
+
+The composer accepts plain text with line breaks; long comments are fine.  You can also comment
+on the current selection without the tool: choose menu:Object[Add Comment…] with something
+selected, and the pin attaches to the selected object.
+
+To reply to a thread:
+
+. Click its pin, or select it in the Comments panel.
+. Type in the reply field at the bottom of the thread and press kbd:[Cmd+Return].
+
+To move a pin, drag it with the Comment tool or the Pointer tool.  Drop it on another object to
+re-attach it, or on empty space to make it a point pin.  You can move the pins of your own
+threads; editors can move any pin.
+
+== Editing and deleting your comments
+
+Hover a comment of yours and use its menu (the small chevron at its right):
+
+Edit:: Reopens the text for editing.  An edited comment shows _edited_ after its time.  The
+change is visible to everyone at once.
+Delete:: Removes the comment.  A deleted reply disappears from the thread; deleting the
+*opening* comment of a thread with replies leaves the thread in place with "Comment deleted" at
+the top, so the replies keep their context.  Deleting the opening comment of a thread with no
+replies deletes the thread and its pin.
+
+You can edit and delete only your own comments.  A document owner can delete anyone's comment
+or an entire thread.  Deleted comments are not restorable from the History panel; think of a
+delete as final.
+
+[[mentions]]
+== Mentioning people
+
+Type kbd:[@] in a comment and start typing a name.  The list offers everyone who has access to
+the document; pick one and their name appears as a tag in the comment.  In a team document the
+list also offers the team itself ("@Marketing"), which mentions every member of the team who
+has access.  Someone without access to the document cannot be mentioned -- invite them first
+(xref:sharing.adoc[Sharing]).
+
+Mentioned people are told (<<notifications,Being told about comments>>).  Mentioning someone
+does not change their role.
+
+== Reactions
+
+Hover a comment and click the smiley to add a reaction from a small set: 👍, ❤️, 👀, ✅, ❓ and
+🎉.  Reactions show under the comment with a count; click one you have added to take it back.
+Anyone who can comment can react.
+
+[[resolving]]
+== Resolving a thread
+
+When a thread has been dealt with, resolve it:
+
+. Open the thread and click btn:[Resolve] at its top, or choose *Resolve* from the thread's
+  row in the Comments panel.
+. The pin disappears from the canvas (unless resolved pins are shown) and the thread moves to
+  the *Resolved* list in the panel.  Nothing is deleted.
+
+To reopen a resolved thread, open it from the Resolved list and click btn:[Reopen]; the pin
+comes back.  You can resolve and reopen threads you started; editors and owners can resolve and
+reopen any thread.  Replying to a resolved thread does not reopen it.
+
+[[panel]]
+== The Comments panel
+
+Open it with menu:Window[Comments] or click the Comments button in the toolbar, which shows the
+number of unread comments.  The panel lists every thread in the document, newest activity
+first.  Each row shows the pin number, the first line of the opening comment, the author, the
+number of replies, the time of the latest reply, and a blue dot when something in the thread is
+unread.
+
+The list can be narrowed with the popups at the top:
+
+[cols="1,3"]
+|===
+|Filter |Shows
+
+|*Open* / *Resolved* / *All*
+|Threads by state.  *Open* is the default.
+
+|*Everywhere* / *This page* / a page name
+|Threads by the page their pin is on.  Point pins on the pasteboard between pages are listed
+under *Pasteboard*.
+
+|*Everyone* / a person
+|Threads that person started or replied to.
+
+|*Mentions me*
+|Only threads in which you, or a team you belong to, are mentioned.
+|===
+
+Select a row to scroll the canvas to its pin and open the thread; double-click to zoom to the
+pin.  Right-click a row for *Resolve*, *Reopen*, *Copy Link* (a link that opens the document
+at this thread) and, for owners, *Delete Thread*.
+
+The panel also holds the search field: type a word to filter threads whose comments contain
+it.
+
+[[showing-hiding]]
+== Showing and hiding pins
+
+menu:View[Comments] has three switches, also in Preferences under *Sync and collaboration*:
+
+[cols="2,1,3"]
+|===
+|Switch |Default |Effect
+
+|*Show Pins*
+|On
+|Draws pins on the canvas.  Off hides every pin; the Comments panel still works, and selecting
+a thread there shows its pin briefly.
+
+|*Show Resolved Pins*
+|Off
+|Draws pins for resolved threads too, in gray.
+
+|*Pins Follow Filter*
+|Off
+|Draws only the pins of the threads the Comments panel currently lists.  Useful for "show me
+Tom's comments on page 3".
+|===
+
+Pins are hidden while you are in a tool that draws (the Pen, Bezigon and Freeform tools) so
+they never sit under the point you are placing; they come back when you switch tools.
+
+[[notifications]]
+== Being told about comments
+
+{product} keeps track, per document, of which comments you have seen.  A comment counts as
+read once its thread has been open on your screen.
+
+* The Comments button in the toolbar shows the number of unread comments in the document.
+* Threads with unread comments show a blue dot in the panel, and their pins carry a small blue
+  badge on the canvas.
+* In the library window, a document with an unread comment that mentions you shows a dot
+  beside its name.
+* When you are mentioned while you have the document open, a brief notice appears at the top
+  of the canvas: "Priya mentioned you" with btn:[Show].
+* When you are mentioned while you do *not* have the document open, {product} emails you.
+  Mentions in one document within a short stretch of time arrive as one email.  Turn this off
+  with *Email me when I'm mentioned* in Preferences.
+
+Replies to a thread you started, and a thread of yours being resolved, are counted as unread
+but never emailed.
+
+== Comments and exports
+
+Comments never print and never appear in SVG, HTML, EPS or bitmap exports.  When you export a
+PDF you can include them: turn on *Comments as annotations* in the *Interactive* section of the
+export sheet (xref:export-pdf.adoc[Exporting PDF]).  Each open thread becomes a PDF comment
+annotation on the object it is pinned to, with its replies, so a reviewer without {product} can
+read them in Preview or Acrobat.  The option is off by default and is ignored for PDF/X.
+
+Objects copied to another document take no comments with them.
+
+== Comments on branches
+
+A branch (xref:branches.adoc[Branches]) starts with a copy of the parent's comments, and you
+can comment on a branch exactly as in the parent.  When the branch is merged, its threads come
+into the parent as threads: a new thread made on the branch appears in the parent pinned to
+the same object, and a reply made on the branch appears in the parent's copy of that thread.
+Comments are never listed as conflicts in the Review Changes sheet.  If a thread was resolved
+on one side and reopened on the other, the later of the two stands.
+
+== Who may do what
+
+[cols="1,3"]
+|===
+|Role |Comments
+
+|Viewer
+|Read every thread and see pins.  Cannot comment or react.
+
+|Commenter
+|Everything a viewer may, plus start threads, reply, mention people, react, edit and delete
+their own comments, move their own pins, and resolve and reopen threads they started.  A
+commenter cannot change the artwork.
+
+|Editor
+|Everything a commenter may, plus move any pin and resolve or reopen any thread.
+
+|Owner
+|Everything an editor may, plus delete anyone's comment or thread.
+|===
+
+== Working with others
+
+Comments are the most conversational part of a document, and they behave like a conversation:
+a reply someone writes appears in the open thread within a moment, with a brief highlight; a
+new thread's pin appears on your canvas as it is made; a thread resolved by someone else slides
+out of the Open list as you watch.  Two people replying to the same thread at the same time
+both land, one after the other -- nothing is lost and nobody is asked to choose.  Two people
+resolving and reopening a thread in the same moment get the later of the two.
+
+Comments work offline.  You can read every thread your Mac already has, start threads, reply,
+resolve and react while offline; the pins show at once, and everything is sent when you
+reconnect.  People you mention are told when your comment reaches the server, not before.
+Reactions and read marks made offline catch up in the same way.
+
+When someone deletes an object that has a comment thread on it, the thread stays.  Its pin
+disappears with the object, and in the panel the thread shows the object's name with "(deleted)"
+after it; if the object is restored, the pin comes back.  In the Review Changes sheet after an
+offline session, an object you commented on that someone else deleted appears under _Edited
+and deleted_ with the same btn:[Restore] as any other edit, so a comment on a deleted object
+is never a dead end.
+
+Presence shows comments too: while a collaborator is typing in a thread, the hover card on
+their avatar reads _Commenting on Logo mark_ (xref:presence.adoc[Presence]).
+
+ifdef::spec[]
+== Specification
+
+Comments are document data under a new well-known collection, `comments (0:12)`, and are the
+first feature for which the server reads the *content* of changes rather than relaying them
+blind: mention notifications, unread counters and the commenter role check all inspect ops
+under `0:12`.  Everything else about comments -- pins, panel, tool, merge -- is the ordinary
+node machinery of xref:crdt-model.adoc[CRDT model].  Comment text is a `RichText`
+(MERGE_TEXT) so that concurrent edits of one comment merge by character and mentions are
+Peritext marks that survive editing around them.
+
+=== FreeHand parity
+
+[cols="2,3,2"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|--
+|Pinned comment threads, replies, mentions, reactions, resolve, Comments panel, notifications,
+comments in PDF export, commenter role.
+|Added -- no FreeHand equivalent
+
+|Object notes (Object panel)
+|Kept unchanged (xref:names-notes.adoc[Names and notes]).  A note is a property of the object;
+a comment is a thread about it.
+|Faithful -- comments are added beside notes, not instead of them.
+|===
+
+=== Data model
+
+`comments (0:12)` is a well-known collection node like `swatches` or `symbols`
+(xref:crdt-model.adoc[CRDT model]); its children are `comment_thread` nodes, ordered by
+creation (position among siblings is informational; the panel sorts by activity).  Counters
+`13`--`15` remain reserved.
+
+[source,protobuf]
+----
+// proto/wiretuner/doc/v1/comments.proto (sketch, COLLAB-025)
+
+// NodeProps gains:  CommentThreadProps comment_thread = <next kind number>;
+
+message CommentThreadProps {
+  // The object the pin is attached to.  Unset for a point pin.  When the target is deleted
+  // or unknown the reference reads as unset and the pin falls back to `point`; the panel
+  // still names the object (a deleted node keeps its CommonProps.name).  Never rewritten by
+  // edits to the object: the pin follows the object because it references it, so a thousand
+  // moves of the object write nothing here.
+  NodeRef anchor = 1 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
+  // Pin position.  With `anchor` set: in the anchored node's local coordinate space (before
+  // its transform), so the pin rides along with move, rotate and scale.  Without `anchor`,
+  // or when it dangles: pasteboard coordinates (points).  ATOMIC: x and y are one position.
+  Point point = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Pasteboard position recorded when the thread was created or the pin last dropped, used
+  // as the fallback when `anchor` dangles and the anchored node's transform is gone (it was
+  // compacted).  ATOMIC for the same reason.
+  Point fallback_point = 3 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // The page the pin was on when created or last dropped; the panel's "by page" filter for
+  // point pins and dangling anchors.  Anchored pins are grouped by the anchor's current page.
+  NodeRef page = 4 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
+  // Open / resolved.  A register: concurrent resolve and reopen resolve by OpId.
+  bool resolved = 5;
+  // The opening comment is comments[0]; replies follow.  SEQUENCE: each comment is an
+  // element with its own registers; concurrent replies are both kept.
+  repeated Comment comments = 6 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+}
+
+message Comment {
+  ElementId id = 1;
+  // Server-verified on ingest: must equal the account bound to the change's replica.
+  string author_account_id = 2;
+  RichText body = 3 [(wt.crdt.field).merge = MERGE_TEXT];
+  int64 wall_time_ms = 4;                       // informational; display only
+  // Edited-since-posted marker for the "edited" label: the wall time of the last edit.
+  int64 edited_wall_time_ms = 5;
+  // Account ids mentioned, or "team:<team id>" for a whole team.  SET: a concurrent edit
+  // that adds a mention and one that removes another both apply.  The server notifies from
+  // this field, not from the text.
+  repeated string mentions = 6 [(wt.crdt.field).merge = MERGE_SET,
+                                (buf.validate.field).repeated.max_items = 50];
+  // "<account id>:<emoji>" members; add-wins.  Emoji restricted to the six in the guide.
+  repeated string reactions = 7 [(wt.crdt.field).merge = MERGE_SET,
+                                 (buf.validate.field).repeated.max_items = 500];
+  // Soft delete.  The element's own `deleted` register is not used for comments so that a
+  // deleted opening comment keeps its place at the head of the thread.
+  bool deleted = 8;
+}
+----
+
+A mention inside the text is a Peritext mark `mention(account_id)` over the name's characters
+(xref:creating-text.adoc[Creating text] for `TextMarkValue`), which is how the tag renders and
+follows edits; the `mentions` set is the authoritative list the server acts on and is written
+by the same command.
+
+`comments.proto` also adds the `docs.v1` service the client uses for read state and
+notifications, and one `sync.v1` event:
+
+[source,protobuf]
+----
+service CommentService {
+  // Unread state for the caller in one document: per thread, the element ids of comments
+  // the caller has not seen.  Called on open and refreshed from CommentEvent.
+  rpc GetUnread(GetUnreadRequest) returns (GetUnreadResponse);
+  // The caller has seen a thread through a given comment.  Idempotent; monotone per thread.
+  rpc MarkRead(MarkReadRequest) returns (MarkReadResponse);
+  // Documents with unread mentions of the caller (library window dots), account-wide.
+  rpc ListMentionedDocuments(ListMentionedDocumentsRequest) returns (ListMentionedDocumentsResponse);
+}
+
+message GetUnreadRequest { string document_id = 1; }
+message GetUnreadResponse {
+  repeated ThreadUnread threads = 1;
+  uint32 total = 2;                              // the toolbar count
+}
+message ThreadUnread {
+  wiretuner.doc.v1.OpId thread = 1;
+  repeated wiretuner.doc.v1.ElementId unread = 2;
+  bool mentions_me = 3;
+}
+message MarkReadRequest {
+  string document_id = 1;
+  wiretuner.doc.v1.OpId thread = 2;
+  wiretuner.doc.v1.ElementId through = 3;       // the newest comment displayed
+}
+message MarkReadResponse {}
+message ListMentionedDocumentsRequest {}
+message ListMentionedDocumentsResponse { repeated string document_ids = 1; }
+
+// sync.v1 DocumentEvent case: the server saw a mention of the caller (or a reply to a thread
+// the caller started) land in this document.  Drives the in-canvas notice and refreshes the
+// unread state without a round trip.
+message CommentEvent {
+  wiretuner.doc.v1.OpId thread = 1;
+  wiretuner.doc.v1.ElementId comment = 2;
+  wiretuner.sync.v1.Participant author = 3;
+  enum Kind { KIND_UNSPECIFIED = 0; MENTION = 1; REPLY = 2; RESOLVED = 3; }
+  Kind kind = 4;
+}
+----
+
+Server tables (COLLAB-030), none of which is document state:
+
+[listing]
+....
+comment_read(account_id, document_id, thread_node_id, through_counter, through_replica, updated_at)
+comment_notification(id, account_id, document_id, thread_node_id, comment_counter, comment_replica,
+                     kind, author_account_id, created_at, seen_at, emailed_at)
+....
+
+Unread for a thread is "elements of `comments` with an id greater than `through`, not
+authored by the caller, not deleted"; the server evaluates it against its own merge state
+(the snapshotter's), so the count is right even for comments the client has not received.
+
+=== Merge semantics
+
+Fields and policies as annotated above; the cases:
+
+* *Concurrent replies* to one thread are two `ElementInsert`s after the same last element.
+  Both are kept; their order is by fractional position then element id, the same on every
+  replica, so everyone sees the same thread even if it is not wall-clock order.  The panel
+  never re-sorts replies by time.
+* *Concurrent resolve and reopen* is LWW on `resolved`: the greater OpId stands.  The loser is
+  retained in the log like any losing register write but is *not* offered back by the review
+  sheet (below).
+* *Edit vs. delete of one comment*: `deleted` and the body's characters are independent
+  registers.  A deleted comment with concurrent text edits stays deleted with the edited text
+  inside it; since comments are never restored through the UI the edit is invisible, which is
+  the intended outcome.  Deleting the opening comment of a thread with no replies sets the
+  thread node's `deleted` (`SetDeleted`) as well; a reply inserted concurrently is kept on a
+  deleted thread and *normalizes* the thread back to visible on read (below).
+* *Anchor moves with the object, no writes*: the pin is drawn at `anchor`'s current transform
+  applied to `point`.  Moving, rotating, scaling, re-layering or re-paging the object writes
+  nothing under `0:12`, so comment nodes never become part of an artwork conflict.
+* *Anchor deleted*: `anchor` reads unset (`REF_FALLBACK_UNSET`); the pin is not drawn; the
+  panel shows `CommonProps.name` of the deleted node (still readable on the tombstone) with
+  "(deleted)".  If the node is restored, the reference resolves again and the pin returns.
+  If the node was compacted out (30 days), the reference is unknown: the panel shows the
+  thread without an object name and the pin is drawn at `fallback_point`.
+* *Re-pinning* (drag) writes `anchor`, `point`, `fallback_point` and `page` in one
+  `SetFields`.  Two people dragging one pin: each field is LWW and all four come from the
+  same op on each side, so the result is one person's drop, never a mix.
+* *Reactions* are an add-wins set of `account:emoji`; concurrent add and remove of the same
+  member keeps it.  A client removes its own members only; the server rejects a `SetRemove`
+  of another account's member (role rule below).
+* *Mentions* are a set so that concurrent edits that mention different people both notify.
+  Removing a mention by editing the text removes the set member; the server never sends a
+  second notification for a member re-added later within 24 hours.
+
+Review sheet: `comments (0:12)` is excluded from the *local set* and *remote set* of the
+divergence measurement (xref:reconcile.adoc[Reconciling offline edits]): comment threads are
+never listed and never hold the outbox.  A commented object that was deleted remotely *is*
+listed -- as _Edited and deleted_ on the *artwork* node -- because the client counts "has an
+open thread anchored to it" as a local touch for the purpose of the edit-vs-delete row only.
+*Restore* there is the ordinary `SetDeleted(false)`.
+
+Branches: a branch's fork copies `0:12` with everything else; branch comment ops replay into
+the parent as ordinary ops (new threads are `CreateNode` under `0:12`; replies are
+`ElementInsert`s into threads that exist in both), which is exactly "branch threads merge into
+the parent as threads".  `MergeBranch.excluded_nodes` never contains a comment node because
+the sheet never lists one.  The `RestoreCommand` of xref:history.adoc[Version history] skips
+`0:12`, so restoring a version neither deletes threads written since nor resurrects deleted
+comments.
+
+Read-time normalization:
+
+* A `comment_thread` whose `deleted` is true but that has a non-deleted element after
+  `comments[0]` is shown as a thread with a deleted opening comment.
+* A thread whose `comments` sequence is empty (every element deleted) is not shown.
+* A `reactions` member whose emoji is outside the allowed six, or whose account is not a
+  member of the document, is not drawn.
+* A `mentions` member naming an account that has since lost access is drawn as plain text.
+
+=== Offline behavior
+
+Every comment action is a change in the outbox and works offline; the outbox coalesces
+repeated `SetFields` on one comment's body as it does for text.  `MarkRead` calls are queued
+in `pending_calls` (COLLAB-024) and sent after the outbox drains; until then the local read
+state is authoritative for badges.  Mention notifications are produced by the server when the
+change is *sequenced*, so a mention written on a plane goes out on landing, dated then.
+`GetUnread` is cached per document and served from the cache offline; counts may be stale by
+whatever arrived meanwhile.  The email digest, the library-window mention dots and *Copy Link*
+need nothing from the client beyond the sequenced change.
+
+=== Server
+
+The server does three things with comments beyond storing and relaying:
+
+Mention notifications (COLLAB-030)::
+On ingest, `SRV-004` already parses every op to validate it; an `ElementInsert` or
+`SetFields` that writes a `Comment.mentions` member under a node in `0:12` enqueues a
+`comment_notification` row per resolved account (a `team:` member expands to the team's
+members who have access at that moment, excluding the author), and a `REPLY` row for the
+thread's opener and prior repliers, and a `RESOLVED` row for the opener when `resolved` flips
+to true.  Rows for accounts with a live session on the document are pushed as `CommentEvent`
+on that session and marked `seen_at` when the client acknowledges with `MarkRead`.
+
+Unread counters (COLLAB-030)::
+`comment_read` per (account, document, thread); `GetUnread` evaluates against the
+snapshotter's state (`wt-crdt`) at head, which the server keeps warm for open documents.
+Rows are deleted with the document and with the account.
+
+Email digest (COLLAB-031)::
+A job, *Comment digest*, every 5 minutes: for each account with `MENTION` rows older than 10
+minutes with no `seen_at` and no `emailed_at`, and with no live session on that document,
+render one Qute mail per (account, document) listing the mentions with the thread's opening
+line, the author and a `wiretuner://doc/<id>/thread/<node id>` link, honoring the *Email me
+when I'm mentioned* preference read from the account's preferences.  Sends through the same
+mailer as invitations (`mailpit` in the compose stack).
+
+Commenter role (COLLAB-030)::
+Effective-role evaluation gains a middle tier: a change from a `COMMENTER` session is accepted
+if and only if every op in it targets a node under `0:12` (or creates one there), every
+`Comment.author_account_id` written equals the caller, every `SetRemove` on `reactions`
+removes a member prefixed with the caller's account id, and every `SetFields` on a `Comment`
+targets an element the caller authored -- except `resolved`, which a commenter may write on a
+thread whose `comments[0]` they authored.  Anything else is `ROLE_INSUFFICIENT`.  `EDITOR`
+adds `resolved` and pin fields on any thread; `OWNER` adds `deleted` on any comment and
+`SetDeleted` on any thread.  `VIEWER` sessions may not write under `0:12` at all.  This is
+the one place the server's role check looks inside a change; it uses the same parsed ops as
+validation and adds no second pass.
+
+The server never renders or emails comment *bodies* beyond their first 200 characters (the
+digest quotes the opening line only).
+
+=== Client
+
+* `WTModel/Comments`: `CommentThreadModel` (observable list of threads with resolved pin
+  positions, page grouping and unread overlay), commands `CreateThread`, `Reply`,
+  `EditComment`, `DeleteComment`, `SetResolved`, `MovePin`, `React`.  Each command is one
+  change with a label (`Comment on Logo mark`, `Reply to Priya`, `Resolve thread 14`) and one
+  undo step; *Delete* confirms and is undoable until the window closes.  The undo rule
+  "never revert other people's work" applies unchanged.
+* `WTRender`: `CommentPinLayer` above `PresenceOverlayLayer`, constant-size pins, unread badge,
+  author color, hover preview; redrawn on comment changes and scroll/zoom, never invalidating
+  document tiles.  Pins are hit-tested by the layer itself (`REND-003`'s spatial index is not
+  involved): the Comment tool and the Pointer tool query it before the document.
+* `WTApp/Comments`: `CommentTool` (kbd:[C]; click → `CreateThread` composer; drag →
+  `MovePin`), `ThreadPopover` (SwiftUI; composer with `@` completion over `ListMembers`
+  plus the team, reactions bar, Resolve/Reopen), `CommentsPanel` (filters, search, rows, row
+  actions, Copy Link), `MentionNotice` (the in-canvas banner), the menu:View[Comments] switches
+  bound to three preferences, the toolbar button with its count, and menu:Object[Add Comment…].
+* `WTSync`: `CommentReadState` (local mirror of `comment_read` plus queued `MarkRead`s),
+  `CommentEvent` handling, `ListMentionedDocuments` polling for the library window (on open and
+  every 5 minutes).
+* `WTInterchange`: the PDF writer's *Comments as annotations* option (COLLAB-033): one `/Text`
+  annotation per open thread at the pin's page position, replies as `/Text` annotations with
+  `/IRT` pointing at the opener, `/T` the author's display name, `/M` from `wall_time_ms`;
+  dropped by the PDF/X validation pass with the existing "comments dropped" report line.
+  The SVG, HTML, EPS and bitmap writers never see `0:12`.
+* Presence: while the composer or a reply field has focus, `editing` carries the thread's
+  node id, and the hover card renders a `comment_thread` id as _Commenting on <anchor name>_.
+
+=== Build tasks
+
+[[COLLAB-025]]
+==== COLLAB-025 Comment schema
+[horizontal]
+Track:: proto
+Depends on:: PROTO-003, PROTO-007, PROTO-006
+Size:: S
+Delivers:: `doc/v1/comments.proto` as sketched: the `comments (0:12)` well-known node, `comment_thread` kind, `CommentThreadProps`, `Comment` with merge options and validation rules (mention and reaction caps, the six-emoji rule as a CEL constraint), `docs.v1 CommentService`, the `CommentEvent` case of `DocumentEvent`, and the `mention` `TextMarkValue`.
+Done when::
+* Lints clean with `COMMENTS`; `buf breaking` passes against main; the merge table lists `comments` as SEQUENCE, `body` as TEXT, `mentions` and `reactions` as SET, `point` and `fallback_point` as ATOMIC.
+* Conformance vectors: concurrent replies to one thread; concurrent resolve and reopen; edit vs. delete of one comment; concurrent add and remove of one reaction -- identical results in Swift and Java.
+
+[[COLLAB-026]]
+==== COLLAB-026 Comment model and commands
+[horizontal]
+Track:: client-model
+Depends on:: CRDT-004, CRDT-005, CRDT-007, APP-011, COLLAB-025
+Size:: M
+Delivers:: `CommentThreadModel` with resolved pin positions (anchor transform × `point`, fallbacks for dangling and compacted anchors), page grouping, the read-time normalizations, and the commands `CreateThread`, `Reply`, `EditComment`, `DeleteComment` (with thread deletion for a reply-less opener), `SetResolved`, `MovePin`, `React`, each as one labelled change with mention marks and the `mentions` set written together.
+Done when::
+* Moving, rotating, scaling and re-paging an anchored object changes the pin's screen position and writes nothing under `0:12` (asserted by an empty diff of the collection).
+* Deleting the anchor hides the pin and names the object with "(deleted)"; restoring it brings the pin back; a compacted anchor falls back to `fallback_point`.
+* Merge test: two replicas reply to one thread concurrently; both replies appear in the same order on both; two replicas resolve and reopen concurrently and converge (hash equality).
+* Undo of a reply removes it; undo after someone else edited the reply's text is skipped for the text and applies for the rest.
+
+[[COLLAB-027]]
+==== COLLAB-027 Comment pins overlay
+[horizontal]
+Track:: client-render
+Depends on:: REND-001, APP-003, COLLAB-026
+Size:: M
+Delivers:: `CommentPinLayer`: constant-size numbered pins in author color, unread badge, resolved pins in gray when shown, hover preview, own hit testing exposed to tools, hiding while a drawing tool is active, and the three menu:View[Comments] preferences.
+Done when::
+* 2,000 pins redraw in under 4 ms per frame on M1 at any zoom; pin changes and scroll invalidate no document tiles (tile counters).
+* A pin whose anchor is on a page not in view is not drawn; one on a dangling anchor is not drawn; one on a compacted anchor draws at `fallback_point`.
+* Each preference takes effect immediately and persists across relaunch.
+
+[[COLLAB-028]]
+==== COLLAB-028 Comment tool and thread popover
+[horizontal]
+Track:: client-ui
+Depends on:: APP-003, APP-005, APP-006, COLLAB-027
+Size:: M
+Delivers:: The Comment tool (kbd:[C]) with click-to-comment on an object or a point, pin dragging with re-anchoring, the thread popover (composer with `@` completion of members and the team, kbd:[Cmd+Return] to post, kbd:[Esc] to discard, replies, edit and delete menus, reactions bar, Resolve/Reopen), menu:Object[Add Comment…] on the selection, and role-based enabling of every control.
+Done when::
+* UI tests: comment on an object, on a point, reply, mention a person and the team, react and un-react, edit, delete a reply, delete an opener with and without replies, resolve, reopen, drag a pin onto another object and onto empty space.
+* As a commenter, controls for moving others' pins, resolving others' threads and deleting others' comments are absent; as a viewer, the tool is absent from the Tools panel and kbd:[C] does nothing.
+* Merge test: a reply posted while another client edits the same thread's opener converges on both (hash equality) and the popover shows both edits without losing the local draft.
+
+[[COLLAB-029]]
+==== COLLAB-029 Comments panel and unread badges
+[horizontal]
+Track:: client-ui
+Depends on:: APP-004, APP-009, SYNC-003, COLLAB-028
+Size:: M
+Delivers:: `CommentsPanel` (filters by state, page, person and Mentions me; search; rows with unread dot; select-to-scroll and double-click-to-zoom; row actions including Copy Link and owner-only Delete Thread), the toolbar Comments button with its count, `CommentReadState` with `MarkRead` on display, `CommentEvent` handling with the `MentionNotice` banner, and the library-window mention dots from `ListMentionedDocuments`.
+Done when::
+* UI tests for each filter and row action; a reply from another client appears in the open thread within 1 s with the highlight and increments the count until displayed.
+* Displaying a thread for one second sends one `MarkRead` and clears its dot; offline, the dot clears locally and the call is sent after reconnect (simulator test).
+* A `CommentEvent` of kind MENTION shows the banner once; btn:[Show] scrolls to the pin and opens the thread.
+
+[[COLLAB-030]]
+==== COLLAB-030 Mention notifications, unread counters and the commenter role
+[horizontal]
+Track:: server
+Depends on:: SRV-004, SRV-005, SRV-010, SRV-007, COLLAB-025
+Size:: L
+Delivers:: `comment_read` and `comment_notification` tables (Flyway), notification rows produced from ingested ops under `0:12` (mentions with team expansion, replies, resolved), `CommentEvent` push to live sessions, `CommentService` (`GetUnread` against the warm merge state, `MarkRead`, `ListMentionedDocuments`), the 24-hour re-mention suppression, and the commenter/editor/owner op rules for `0:12` in effective-role evaluation.
+Done when::
+* Tests: a change mentioning two people and a team creates one row per resolved account excluding the author; a live session receives `CommentEvent` within 1 s; an offline account's row stays unseen.
+* `GetUnread` on a thread with 1,000 comments and a read mark at 990 returns 10 in under 50 ms; the count excludes the caller's own and deleted comments.
+* A `COMMENTER` change that touches any node outside `0:12`, writes another account's `author_account_id`, removes another account's reaction, or edits another account's comment is rejected with `ROLE_INSUFFICIENT`; one that resolves the caller's own thread is accepted; a `VIEWER` change under `0:12` is rejected.
+* Merge test: two server nodes ingest concurrent replies to one thread; the snapshotter's state and both clients agree (hash equality) and exactly one notification row exists per recipient per comment.
+
+[[COLLAB-031]]
+==== COLLAB-031 Mention email digest
+[horizontal]
+Track:: server
+Depends on:: SRV-013, COLLAB-030
+Size:: S
+Delivers:: The *Comment digest* job (every 5 minutes, advisory-locked): one Qute mail per (account, document) for unseen `MENTION` rows older than 10 minutes with no live session on the document, quoting the opening line, the author and a `wiretuner://` thread link; `emailed_at` bookkeeping; the *Email me when I'm mentioned* preference honored from the account's preferences.
+Done when::
+* Tests: three mentions in one document within 10 minutes produce one mail listing three threads; a mention seen in-app before the delay produces none; a mention to an account with the preference off produces none.
+* The mail renders in mailpit with the thread link resolving to the document and thread ids.
+
+[[COLLAB-032]]
+==== COLLAB-032 Comments in the review sheet and in restore
+[horizontal]
+Track:: client-sync
+Depends on:: SYNC-006, SYNC-007, COLLAB-026
+Size:: S
+Delivers:: Exclusion of `0:12` from the divergence measurement's local and remote sets, the "open thread anchored here" local touch that lists a remotely deleted commented object as _Edited and deleted_ with *Restore*, and the `RestoreCommand` rule that skips `0:12`.
+Done when::
+* Simulator test: 200 comment threads written offline against 200 remote artwork edits produce no review rows and do not hold the outbox.
+* A thread anchored to an object deleted remotely lists the object as _Edited and deleted_; *Restore* brings the object and its pin back.
+* Merge test: restoring a version from before a thread existed leaves the thread in place; both replicas converge.
+
+[[COLLAB-033]]
+==== COLLAB-033 Comments as PDF annotations
+[horizontal]
+Track:: import-export
+Depends on:: REND-002, COLLAB-026
+Size:: S
+Delivers:: The *Comments as annotations* option (off by default) in the PDF export sheet's *Interactive* section, writing one `/Text` annotation per open thread at the pin's page position with replies as `/IRT` annotations, author and time, through the PDF writer of xref:export-pdf.adoc[Exporting PDF] (scheduled after IO-025 and IO-027); resolved threads omitted; the option ignored and reported for PDF/X; SVG, HTML, EPS and bitmap writers asserted comment-free.
+Done when::
+* A PDF exported with the option shows the threads as comments in Preview and Acrobat, positioned on the objects, with replies threaded; `qpdf --check` passes.
+* With the option off (the default) and for PDF/X, the output contains no `/Text` annotations from comments; SVG and HTML output of a commented document is byte-identical to the same document without comments.
+
+[[COLLAB-034]]
+==== COLLAB-034 Multi-client comment scenarios
+[horizontal]
+Track:: test
+Depends on:: TEST-001, TEST-002, COLLAB-029, COLLAB-030
+Size:: M
+Delivers:: Scripted simulator and UI scenarios: concurrent replies, resolve vs. reopen, edit vs. delete, pin drag vs. pin drag, comment on an object another client deletes then restores, offline commenting with mentions delivered on sync, commenter-role rejection, branch comments merged into the parent, and the digest job against a mailpit assertion.
+Done when::
+* Every scenario asserts hash convergence on all clients, the exact panel rows and unread counts on each, and the notification rows on the server.
+* Screenshots of the pins, the thread popover and the Comments panel are captured into `docs/images` for this page.
+endif::spec[]

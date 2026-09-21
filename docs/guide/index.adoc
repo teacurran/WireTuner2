@@ -1,0 +1,211 @@
+= {product-full}: {book}
+include::_attributes.adoc[]
+:page-slug: index
+
+{product} is a vector illustration application for the Mac with the feature set, interaction
+model and keyboard feel of Macromedia {fh} -- and, unlike {fh}, it saves every edit to the
+cloud as you make it, lets any number of people draw in one document at the same time, and keeps
+working when you are offline.
+
+ifdef::spec[]
+This is the *Specification* render: every page below also carries its data model, merge
+semantics, offline behavior and build tasks, and the specification-only pages appear at the
+end.  The same source renders as the user guide with those sections omitted
+(xref:authoring.adoc[Authoring]).
+endif::[]
+
+== Basics
+
+* xref:workspace.adoc[The workspace]
+* xref:panels.adoc[Panels]
+* xref:toolbars.adoc[Toolbars and the Tools panel]
+* xref:document-view.adoc[Viewing the document]
+* xref:context-menus.adoc[Context menus]
+* xref:preferences.adoc[Preferences]
+* xref:customizing.adoc[Customizing shortcuts and toolbars]
+* xref:extensions.adoc[Extensions]
+
+== Working together
+
+* xref:collaboration.adoc[Working together]
+* xref:presence.adoc[Who is here]
+* xref:comments.adoc[Comments]
+* xref:sharing.adoc[Sharing, teams and roles]
+* xref:branches.adoc[Branches]
+* xref:history.adoc[Version history]
+* xref:inspect.adoc[Inspect mode]
+* xref:saving.adoc[Saving and syncing]
+
+== Setting up a document
+
+* xref:creating-opening.adoc[Creating and opening documents]
+* xref:templates.adoc[Templates]
+* xref:document-panel.adoc[The Document panel]
+* xref:pages.adoc[Pages]
+* xref:master-pages.adoc[Master pages]
+* xref:rulers.adoc[Rulers]
+* xref:grid-guides.adoc[Grid and guides]
+* xref:linking-embedding.adoc[Linking and embedding]
+* xref:font-substitution.adoc[Font substitution]
+* xref:scripting.adoc[Scripting]
+
+== Drawing
+
+* xref:vector-basics.adoc[Paths and points]
+* xref:rectangles-ellipses-lines.adoc[Rectangles, ellipses and lines]
+* xref:polygons-stars.adoc[Polygons and stars]
+* xref:spirals-arcs.adoc[Spirals and arcs]
+* xref:freeform.adoc[Freeform drawing]
+* xref:pen-bezigon.adoc[The Pen and Bezigon tools]
+* xref:editing-paths.adoc[Editing paths]
+* xref:charts.adoc[Charts and pictographs]
+* xref:connectors.adoc[Connectors]
+* xref:graphic-hose.adoc[The Graphic Hose]
+
+== Working with objects
+
+* xref:object-panel.adoc[The Object panel]
+* xref:selecting.adoc[Selecting]
+* xref:moving.adoc[Moving]
+* xref:copying.adoc[Copying, cloning and duplicating]
+* xref:grouping.adoc[Grouping]
+* xref:arranging.adoc[Arranging and aligning]
+* xref:names-notes.adoc[Names and notes]
+* xref:find-replace.adoc[Find and replace graphics]
+* xref:combining-paths.adoc[Combining paths]
+* xref:clipping-paths.adoc[Clipping paths]
+* xref:expand-stroke.adoc[Expanding a stroke]
+* xref:inset-path.adoc[Insetting a path]
+* xref:transforming.adoc[Transforming]
+* xref:undo.adoc[Undoing]
+* xref:default-attributes.adoc[Default attributes]
+
+== Color
+
+* xref:applying-color.adoc[Applying color]
+* xref:spot-process.adoc[Spot and process color]
+* xref:color-mixer.adoc[The Color Mixer]
+* xref:tints.adoc[Tints]
+* xref:swatches.adoc[Swatches]
+* xref:editing-colors.adoc[Editing colors]
+* xref:exporting-colors.adoc[Exporting and sharing colors]
+
+== Strokes and fills
+
+* xref:attribute-stack.adoc[Strokes, fills and the attribute stack]
+* xref:stroke-attributes.adoc[Stroke attributes]
+* xref:fill-attributes.adoc[Fill attributes]
+* xref:gradients.adoc[Gradients]
+
+== Effects
+
+* xref:live-effects.adoc[Live vector effects]
+* xref:raster-effects.adoc[Live raster effects]
+* xref:transparency.adoc[Transparency]
+* xref:extrude.adoc[Extrude]
+* xref:blends.adoc[Blends]
+* xref:path-effects.adoc[Path effect tools]
+* xref:perspective.adoc[Perspective]
+
+== Type
+
+* xref:creating-text.adoc[Creating text]
+* xref:text-blocks.adoc[Text blocks]
+* xref:importing-text.adoc[Importing text]
+* xref:editing-text.adoc[Editing text]
+* xref:type-tools.adoc[Type adjustment tools]
+* xref:type-specifications.adoc[Type specifications]
+* xref:tabs-indents.adoc[Tabs, indents and margins]
+* xref:paragraphs.adoc[Paragraphs]
+* xref:text-color.adoc[Coloring text]
+* xref:copying-type.adoc[Copying type attributes]
+* xref:columns-tables.adoc[Columns, rows and tables]
+* xref:text-styles.adoc[Text styles]
+* xref:text-effects.adoc[Text effects]
+* xref:text-on-path.adoc[Text on a path]
+* xref:text-to-paths.adoc[Converting text to paths]
+
+== Layers, symbols and styles
+
+* xref:layers.adoc[Layers]
+* xref:library.adoc[The Library and symbols]
+* xref:styles.adoc[Styles]
+
+== Imported artwork
+
+* xref:importing.adoc[Importing]
+* xref:import-formats.adoc[Import formats]
+* xref:bitmaps.adoc[Bitmap images]
+* xref:external-editors.adoc[External editors]
+* xref:tracing.adoc[Tracing]
+* xref:rasterizing.adoc[Rasterizing]
+* xref:cropping-bitmaps.adoc[Cropping bitmaps]
+
+== Web and animation
+
+* xref:urls.adoc[Attaching URLs]
+* xref:web-compression.adoc[Compressing artwork for the web]
+* xref:publish-html.adoc[Publishing as HTML]
+* xref:animation.adoc[Animation]
+* xref:interactivity.adoc[Interactivity]
+* xref:svg-animation.adoc[SVG animations and browser preview]
+
+== Saving and exporting
+
+* xref:saving.adoc[Saving and syncing]
+* xref:file-info.adoc[Document information]
+* xref:export-formats.adoc[Export formats]
+* xref:exporting.adoc[Exporting]
+* xref:export-vector.adoc[Exporting vector artwork]
+* xref:export-bitmap.adoc[Exporting bitmap images]
+* xref:export-pdf.adoc[Exporting PDF]
+* xref:export-text.adoc[Exporting text]
+
+== Color management
+
+* xref:color-management.adoc[Color management]
+* xref:monitor-calibration.adoc[Monitor calibration]
+* xref:color-profiles.adoc[Color profiles]
+* xref:image-color.adoc[Image color]
+* xref:color-tables.adoc[Color tables]
+
+== Printing
+
+* xref:printing.adoc[Printing]
+* xref:print-preview.adoc[Print preview]
+* xref:output-area.adoc[The output area]
+* xref:print-fonts.adoc[Fonts and printing]
+* xref:halftones.adoc[Halftones]
+* xref:output-devices.adoc[Output devices]
+* xref:print-performance.adoc[Printing faster]
+
+== Typeface documents
+
+* xref:typeface-documents.adoc[Typeface documents]
+* xref:font-info.adoc[Font information]
+* xref:glyph-grid.adoc[The glyph grid]
+* xref:glyph-editing.adoc[Editing glyphs]
+* xref:kerning-metrics.adoc[Kerning and metrics]
+* xref:opentype-features.adoc[OpenType features]
+* xref:font-export.adoc[Generating fonts]
+
+ifdef::spec[]
+== Specification
+
+* xref:architecture.adoc[Architecture]
+* xref:stack.adoc[Technology stack]
+* xref:api-conventions.adoc[API conventions]
+* xref:crdt-model.adoc[CRDT model]
+* xref:sync-protocol.adoc[Sync protocol]
+* xref:offline.adoc[Offline and large backlogs]
+* xref:reconcile.adoc[Reconciling offline edits]
+* xref:server.adoc[Server]
+* xref:client.adoc[Client]
+* xref:security.adoc[Accounts, teams and security]
+* xref:testing.adoc[Testing]
+* xref:decisions.adoc[Decisions]
+* xref:modernizations.adoc[Modernizations]
+* xref:parity.adoc[FreeHand parity]
+* xref:backlog.adoc[Backlog]
+* xref:authoring.adoc[Authoring this book]
+endif::[]

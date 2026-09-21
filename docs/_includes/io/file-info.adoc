@@ -1,0 +1,268 @@
+A document can carry information about itself -- who made it, what it shows, who owns the
+rights, which keywords describe it -- and {product} writes that information into every file it
+exports that has a place for it: PDF, SVG, EPS, PNG, JPEG, TIFF, WebP, HEIC, AVIF and PSD.  The
+fields follow the IPTC Core standard, so a picture desk, a digital asset manager or Adobe
+Bridge reads them without help.
+
+NOTE: For {fh} users: menu:Xtras[Other > File Info] is now menu:File[Document Info…].  The
+same information is written, plus a few fields the modern IPTC Core schema added.  The
+separate *Portfolio Info* command is gone; its keywords and description are the same
+*Keywords* and *Description* fields here.
+
+== Adding document information
+
+To add or change document information:
+
+. Choose menu:File[Document Info…] (kbd:[Cmd+Option+I]).
+. Fill in any of the fields in the four sections below.  Every field is optional.
+. Click btn:[Done].
+
+// TODO screenshot: the Document Info sheet, Description section
+
+The sheet's sections and fields:
+
+.Description
+Title:: A short name for the work.  Defaults to the document's name in the library if left
+empty; exported files use whichever is set.
+Headline:: A one-line summary.
+Description:: A caption or longer description.
+Keywords:: Words or phrases that describe the content, one per token.  Type a keyword and press
+kbd:[Return] to add it; press kbd:[Delete] on a token to remove it.  Keywords are also what the
+library window's search matches.
+Category:: A category and up to three supplemental categories, for asset managers that still
+use them.
+
+.Creator
+Creator:: The name or names of the people who made the work.  Prefilled with your name the
+first time the sheet opens on a document with no creator.
+Creator's job title:: The role to credit, such as "Illustrator".
+Credit line:: How the work should be credited when published.
+Source:: The original owner or provider.
+
+.Rights
+Copyright notice:: The text a publisher should print, for example "© 2026 Example Studio".
+Copyright status:: *Unknown*, *Copyrighted* or *Public domain*.
+Rights usage terms:: Free text describing what may be done with the work.
+Web statement of rights:: A URL where the rights are explained.
+
+.Origin
+Date created:: Set to the document's creation date automatically; editable.
+City, State/Province, Country:: Where the work was made.
+Instructions:: Notes for whoever handles the file next: "Bleed 3 mm", "Do not crop".
+
+Character limits follow the IPTC Core specification (for instance, a headline is at most 256
+characters); the sheet shows a count where a limit applies.  Everything in the sheet is part
+of the document and syncs like any other change; a collaborator opening the sheet sees what
+you typed.
+
+== Where the information goes
+
+[cols="1,3"]
+|===
+|Export format |What is written
+
+|PDF
+|The Document Information dictionary (Title, Author, Subject, Keywords) and an XMP packet with
+the full IPTC Core set.  PDF/X requires a Title; the exporter uses the document name if the
+field is empty (xref:export-pdf.adoc[Exporting PDF files]).
+
+|SVG
+|An RDF/XMP block inside the `<metadata>` element, plus `<title>` and `<desc>` children of the
+root.
+
+|EPS
+|`%%Title`, `%%Creator`, `%%CreationDate` and `%%Copyright` header comments, and an XMP packet
+in the document's private data block.
+
+|PNG, JPEG, TIFF, WebP, HEIC, AVIF
+|An XMP packet.  JPEG and TIFF also get an IPTC-IIM record for older readers.  The pixel
+density and color profile are written regardless.
+
+|PSD
+|XMP packet and the IPTC-IIM image resource block Photoshop reads into its own File Info.
+
+|GIF, BMP, Targa, DXF, RTF, plain text
+|Nothing: these formats have no metadata container.  The Export dialog notes this when one of
+them is chosen.
+|===
+
+Exporting never *removes* metadata that a placed image carries of its own: a photograph's
+camera data stays inside the photograph when the export embeds it.  The document's fields
+describe the exported file as a whole.
+
+TIP: Set *Copyright notice* and *Creator* once in a template
+(xref:templates.adoc[Templates]) and every document made from it starts with them filled in.
+
+The *Language* field (BCP 47, e.g. `en-GB`) tells screen readers and tagged PDF how to read
+the document; the accessibility checker (xref:names-notes.adoc[]) reports it when missing.
+
+== Working with others
+
+Document information is one shared set of fields per document.  If you and a colleague edit
+different fields at the same time, both edits keep.  If you both edit the *same* field at the
+same moment, the later one stands and the earlier author is told what changed.  Keywords are a
+list you both add to: adding and removing different keywords at once always works, and a
+keyword one person adds while another removes it stays.
+
+After being offline, your changes to the sheet merge with everyone else's the same way; the
+review sheet lists "Document Info" among the things both sides changed only when you both
+touched the same field.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,2"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|File Info Xtra with Origin, Credits, Caption, Categories and Keywords sections
+|menu:File[Document Info…] with Description, Creator, Rights and Origin sections covering the
+same IPTC fields plus IPTC Core additions (rights usage terms, web statement, instructions).
+|Faithful (renamed; it is a document command, not an extension).
+
+|Information preserved in exported files that support IPTC
+|Written as XMP everywhere XMP fits, IPTC-IIM in JPEG, TIFF and PSD, PDF Info dictionary,
+SVG metadata, EPS header comments.
+|Faithful, extended to more formats.
+
+|IPTC character limits enforced in the dialog
+|Enforced by protovalidate constraints and shown as counters.
+|Faithful.
+
+|Portfolio Info keywords (31 characters, up to 200) and description (254 characters)
+|The same *Keywords* and *Description* fields, with IPTC Core limits instead.
+|Adapted -- one set of fields serves both; Extensis Portfolio itself is not supported.
+|===
+
+=== Data model
+
+`DocumentInfo.language` (`string`, BCP 47, at most 35 characters) maps to XMP `dc:language`, PDF
+`/Lang` and SVG `xml:lang`.
+
+`DocumentInfo` is a singular message field on the `settings` node (0:1), so it is `STRUCT`
+by default: each field an independent register.
+
+[source,protobuf]
+----
+// doc/v1/settings.proto
+message SettingsProps {
+  // ... other epics' fields ...
+  DocumentInfo info = 130;   // STRUCT by default: every field merges on its own
+}
+
+// IPTC Core fields.  Limits follow IPTC Photo Metadata Standard 2024.1.
+message DocumentInfo {
+  string title = 1 [(buf.validate.field).string.max_len = 256];         // dc:title
+  string headline = 2 [(buf.validate.field).string.max_len = 256];      // photoshop:Headline
+  string description = 3 [(buf.validate.field).string.max_len = 2000];  // dc:description
+  // dc:subject.  Add-wins set: concurrent add and remove of the same keyword keeps it.
+  repeated string keywords = 4 [(wt.crdt.field).merge = MERGE_SET,
+                                (buf.validate.field).repeated.max_items = 500,
+                                (buf.validate.field).repeated.items.string.max_len = 64];
+  string category = 5 [(buf.validate.field).string.max_len = 3];        // photoshop:Category
+  // Ordered, small, edited as a unit: ATOMIC (the default for repeated scalars).
+  repeated string supplemental_categories = 6 [(buf.validate.field).repeated.max_items = 3];
+
+  // Ordered list of names; edited as one field in the sheet, so ATOMIC by default.
+  repeated string creators = 10 [(buf.validate.field).repeated.max_items = 32];   // dc:creator
+  string creator_job_title = 11;      // photoshop:AuthorsPosition
+  string credit = 12;                 // photoshop:Credit
+  string source = 13;                 // photoshop:Source
+
+  string copyright_notice = 20 [(buf.validate.field).string.max_len = 1024];  // dc:rights
+  CopyrightStatus copyright_status = 21;                                      // xmpRights:Marked
+  string rights_usage_terms = 22;     // xmpRights:UsageTerms
+  string web_statement = 23 [(buf.validate.field).string.uri = true];        // xmpRights:WebStatement
+
+  // ISO 8601 date or date-time as text, because IPTC allows partial dates ("2026-03").
+  string date_created = 30 [(buf.validate.field).string.max_len = 32];       // photoshop:DateCreated
+  string city = 31;                   // photoshop:City
+  string state = 32;                  // photoshop:State
+  string country = 33;                // photoshop:Country
+  string instructions = 34 [(buf.validate.field).string.max_len = 2000];    // photoshop:Instructions
+}
+
+enum CopyrightStatus {
+  COPYRIGHT_STATUS_UNSPECIFIED = 0;   // "Unknown"
+  COPYRIGHT_STATUS_COPYRIGHTED = 1;
+  COPYRIGHT_STATUS_PUBLIC_DOMAIN = 2;
+}
+----
+
+=== Merge semantics
+
+* Every scalar is its own LWW register; `keywords` is an add-wins set.  Concurrent edits to
+  different fields both keep.  Concurrent edits to the same field: greater OpId wins, the
+  losing value is retained in the log, and the review sheet lists it as `same register` on the
+  settings node, displayed as "Document Info · Title" with *Use mine* / *Use theirs*.
+* `creators` and `supplemental_categories` are ATOMIC lists: the sheet edits them as one
+  field, so a whole-list LWW matches what the user did.
+* The settings node cannot be deleted, so edit-vs-delete does not arise.
+* Read-time normalization: leading and trailing whitespace is trimmed on read; `keywords`
+  read-out is sorted case-insensitively for display and export (the set has no order);
+  duplicate keywords differing only in case are collapsed to the first by that order.
+* Undo: one change per field commit (focus leaves a field or the sheet closes), labelled
+  "Change Document Info".
+
+=== Offline behavior
+
+Nothing beyond ordinary merge.  Export reads the local merged state.
+
+=== Server
+
+Nothing beyond storing and relaying changes.
+
+=== Client
+
+* The sheet is SwiftUI in an `NSWindow` sheet from `WTApp`, with a token field for keywords
+  (`NSTokenField` hosted) and counters driven by the generated validators.  It observes the
+  settings node so remote edits appear live without stealing focus (the APP-007 rule).
+* `WTInterchange.MetadataWriter` maps `DocumentInfo` to: an XMP packet (RDF/XML, namespaces
+  `dc`, `xmp`, `xmpRights`, `photoshop`, `Iptc4xmpCore`, `pdf`), an IPTC-IIM record (records
+  2:05 object name, 2:25 keywords, 2:80 by-line, 2:85 by-line title, 2:105 headline, 2:110
+  credit, 2:115 source, 2:116 copyright, 2:120 caption, 2:90/95/101 city/state/country, 2:55
+  date created, 2:40 special instructions, 2:15/20 category), a PDF Info dictionary, EPS DSC
+  comments, and SVG `<metadata>`.  Each exporter asks the writer for the container it needs.
+* Image formats receive XMP through `CGImageDestination` properties
+  (`kCGImagePropertyIPTCDictionary` for IIM, and the XMP packet through the destination's
+  metadata `CGImageMetadata`).
+
+=== Build tasks
+
+[[IO-010]]
+==== IO-010 DocumentInfo schema
+[horizontal]
+Track:: proto
+Depends on:: PROTO-003, PROTO-005
+Size:: S
+Delivers:: `DocumentInfo` and `CopyrightStatus` in `doc/v1/settings.proto` with the validators above and `keywords` as `MERGE_SET`.
+Done when::
+* Lints clean with `COMMENTS`; generated Swift validators reject a 257-character headline.
+* Conformance vectors: concurrent edits to two fields; same field from two replicas; concurrent add/remove of one keyword; whole-list replacement of `creators` from two replicas.
+
+[[IO-011]]
+==== IO-011 Document Info sheet
+[horizontal]
+Track:: client-ui
+Depends on:: APP-005, APP-007, IO-010
+Size:: M
+Delivers:: menu:File[Document Info…] sheet with the four sections, keyword tokens, counters, creator prefill, live remote updates, per-field undo changes, library search over keywords.
+Done when::
+* UI test fills every field, reopens the sheet and reads them back; a remote change to *Headline* while *Description* is being typed loses no keystrokes.
+* Merge test: two clients edit the same field concurrently; the loser's value appears in the review sheet as "Document Info · <field>".
+* Undoing after editing three fields takes three steps with the label "Change Document Info".
+
+[[IO-012]]
+==== IO-012 Metadata writer for exports
+[horizontal]
+Track:: import-export
+Depends on:: IO-010
+Size:: M
+Delivers:: `MetadataWriter` producing XMP, IPTC-IIM, PDF Info, EPS DSC and SVG metadata from `DocumentInfo`, with the empty-title fallback to the document name, and hooks the format exporters call.
+Done when::
+* Exported PDF, PNG, JPEG, TIFF, PSD and SVG read back every field with `exiftool` in a test; JPEG and TIFF read back the IIM record too.
+* Fields containing XML-significant characters and non-BMP text round-trip.
+* A placed JPEG's own EXIF survives inside a PDF and TIFF export.
+endif::spec[]

@@ -1,0 +1,389 @@
+{fh} could import movies, place them on a page, send them out for editing, export the document
+as a movie, and test the result in a playback window.  {product} does each of those jobs with
+*SVG animations*: animated SVG files that every browser plays natively, need no plug-in or
+player, stay vector at any size, and are just text a designer can read.
+
+* *Placed SVG animations* -- an animated SVG file placed on a page like an image, shown on the
+  canvas as a still *poster frame* taken at a time you choose, played live on a published web
+  page and in Preview in Browser, and exported unchanged into HTML and SVG output.
+* *Animations you make here* -- the layer-and-page animation of
+  xref:animation.adoc[Animating objects and text] exports as an animated SVG, and that file can be
+  placed into any other document as a placed SVG animation.
+* *Preview in Browser* -- the current page, or the whole document, rendered exactly as
+  xref:publish-html.adoc[Publishing as HTML] would and opened in your browser, with links, page
+  links and animations playing.
+
+NOTE: {fh}'s *Movie Settings*, *Controller* toolbar and menu:Window[Movie] commands do not exist
+in {product}.  Their animation options moved to the Animation panel and the Export sheet; their
+testing role is taken by *Preview in Browser*.
+
+== Placing an SVG animation
+
+A placed SVG animation is an object: it has position, size, a stacking order, a name, notes and
+links like any other, and it can be transformed, grouped, clipped and put on any layer.  On the
+canvas it is a still picture -- the *poster frame* -- rendered from the animation at a time you
+choose.  A published web page and Preview in Browser play it.
+
+An SVG file with no animation in it is not placed: it is converted to editable paths, text and
+images as described on xref:import-formats.adoc[Import file formats].  {product} decides by
+looking for animation in the file (CSS `@keyframes` or transitions, SMIL `<animate>` elements,
+or scripts); the Import options sheet lets you override the choice with *Place as animation* or
+*Convert to objects*.  Converting an animated file keeps only its first frame.
+
+To place an SVG animation:
+
+. Choose menu:File[Import…] (kbd:[Cmd+R]) and choose an `.svg` or `.svgz` file that contains
+  animation, or drag the file from the Finder onto the page.
+. Click where the top-left corner should go, or drag to set the size (the animation keeps its
+  aspect ratio while you drag; hold kbd:[Shift] to free it).
+
+The file itself is stored with the document, so collaborators get it too.  Files over 50 MB are
+refused with a suggestion to simplify them first; most SVG animations are a few hundred
+kilobytes.
+
+=== SVG animation attributes in the Object panel
+
+With a placed SVG animation selected, the Object panel (xref:object-panel.adoc[The Object panel])
+shows an *SVG Animation* section:
+
+[cols="1,3"]
+|===
+|Attribute |Meaning
+
+|*X*, *Y*, *W*, *H*
+|Position and size in document units, as for any object.  *W* and *H* keep the aspect ratio
+unless the lock is opened.
+
+|*Scale X*, *Scale Y*
+|Size as a percentage of the file's natural size (its `viewBox`, or its `width` and `height`,
+at 72 pixels per inch).
+
+|*Poster frame*
+|The time (in seconds, or `mm:ss.ff`) of the frame shown on the canvas, in print, and as the
+still image wherever the animation cannot play.  Drag the small scrubber, or type a time.
+Default: the first frame.
+
+|*On the web*
+|How the animation behaves on a published page: *Play automatically* (default on), *Loop*
+(default: as the file says), *Play on hover* (starts when the pointer enters, for pages that
+should be still until touched).
+
+|*Duration*
+|The animation's length as declared in the file, or *Indefinite* for a looping file with no
+end.  Informational.
+
+|*Scripts*
+|Whether the file contains script.  Scripts never run inside {product}, and published pages
+strip them by default (see *On the web* > *Allow scripts* in the HTML setting), so an animation
+that depends on script is flagged here.
+
+|*File*
+|The file name, natural size and whether it is compressed (`.svgz`).  btn:[Replace…] swaps the
+file for another and keeps position, size and settings; btn:[Reveal] shows the file in the
+Finder if you still have the original; btn:[Save a Copy…] writes the stored file out;
+btn:[Edit With…] opens it in a text or SVG editor and updates the placed copy when the file is
+saved (xref:external-editors.adoc[Editing images in other applications]).
+|===
+
+// TODO screenshot: Object panel SVG Animation section with a placed animation selected
+
+=== SVG animations in output
+
+[cols="1,3"]
+|===
+|Output |What the placed animation becomes
+
+|Published HTML
+|The animation itself, embedded inline in the page's SVG or as an `<img>`/`<object>` of the
+file, positioned like any object, with the *On the web* settings applied
+(xref:publish-html.adoc[Publishing as HTML]).  With the *Poster only* setting, just the poster.
+
+|Preview in Browser
+|As published HTML.
+
+|SVG export
+|The animation itself, nested at the object's bounds, so an exported page keeps playing.
+
+|Animated SVG export of the document's own animation
+|The placed animation keeps playing inside every frame of the document animation.
+
+|PDF, bitmap exports, printing
+|The poster frame as an image, so the page prints and reads correctly.
+|===
+
+== Preview in Browser
+
+*Preview in Browser* is the quickest way to see a document as the web will see it.  It renders the
+current page (or every page) to a temporary folder using the HTML setting currently selected in
+the Publish sheet, and opens it in a browser.  Nothing is saved; the folder is discarded when you
+quit.
+
+To preview in a browser:
+
+* Choose menu:File[Preview in Browser] or press kbd:[Cmd+Return] to preview the current page.
+* Choose menu:File[Preview All Pages in Browser] (kbd:[Cmd+Shift+Return]) to preview the whole
+  document, so page links can be followed.
+
+The browser used is set by the *Preview browser* preference (default: your default browser;
+xref:preferences.adoc[Preferences]).  Choosing a page again while the browser window is open
+replaces its contents; most browsers reload automatically.
+
+If the document has animation settings, the preview plays them; placed SVG animations play.
+Links open.  Page links navigate.  Anything the HTML publisher would list in its output
+warnings is listed in the same way after the preview opens, unless *Show output warnings* is off
+in the Publish sheet.
+
+== Working with others
+
+A placed SVG animation is shared like an imported image: collaborators see a placeholder until
+the file finishes syncing to them, then the poster frame.  Two people changing the poster frame
+time at once end with the later choice.  Replacing the file is one change; if a collaborator is
+moving the animation at the same moment, the new file lands where they moved it.
+
+Preview in Browser is private to you and never touches the document.  If you preview while
+someone's latest changes are still on their way to you, they are not in the preview -- preview
+again once the sync indicator settles.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,2"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Import a Flash movie and place it on a page
+|Place an animated SVG file as a live object.
+|Adapted -- the movie format is discontinued and has no player; animated SVG is native to every browser and stays vector.
+
+|Set movie attributes in the Object panel: X, Y, W, H, X/Y Scale
+|Same fields for a placed SVG animation.
+|Faithful
+
+|Show Snapshot with a frame number
+|*Poster frame* time; always shown (there is no other way to draw the object when it cannot play).
+|Adapted -- time instead of frame number; SVG animation has no fixed frame rate.
+
+|Links dialog for movies
+|The imported-file management of xref:linking-embedding.adoc[Linking and embedding] applies; btn:[Replace…], btn:[Reveal], btn:[Save a Copy…], btn:[Edit With…].
+|Faithful
+
+|Edit a placed movie in Flash
+|btn:[Edit With…] opens the SVG in any editor and updates the placed copy on save.
+|Adapted -- any SVG or text editor, not one product.
+
+|Print a chosen frame of a movie
+|The poster frame prints.
+|Faithful
+
+|Export the document as a Flash movie (Movie Settings: Single/Multiple, Animate/Flatten layers, page range, Autoplay, Full Screen, fps, background, Allow Printing, Protect from Import, Size to Match Contents, optimization, path compression, dashed strokes, image compression, text options, Compress Movie)
+|Export as animated SVG (also GIF, APNG, MP4) from xref:animation.adoc[Animating objects and text]; Animate/Flatten and fps live in the Animation panel; page range and size live in the Export sheet.
+|Adapted -- animated SVG is the vector animation format; the player-specific options (Full Screen, Protect from Import, Compress Movie) have no meaning and are dropped.
+
+|Controller toolbar; Window > Movie: Test, Play, Stop, Step, Rewind, First/Last, Settings, Export
+|Animation panel transport (xref:animation.adoc[Animating objects and text]) and menu:File[Preview in Browser].
+|Adapted -- the playback window is replaced by the canvas and the browser.
+
+|Test Movie (Cmd+Return) in the playback window
+|menu:File[Preview in Browser] (kbd:[Cmd+Return]).
+|Adapted -- same key, same purpose, the browser is the player.
+
+|Anti-aliased preview of movie output
+|The browser preview shows exactly the SVG the publisher writes.
+|Faithful
+
+|Placed movies become movie clips on export
+|A placed SVG animation is nested in SVG and HTML output, a poster elsewhere.
+|Adapted
+|===
+
+=== Data model
+
+A new node kind, `SvgAnimationProps`, in the `NodeProps.kind` block reserved for the WEB epic.
+The file is a blob in the `assets` collection, as for images (the IMG epic's `AssetProps`); the
+node references the asset.
+
+[source,protobuf]
+----
+// node.proto -- NodeProps.kind case for a placed SVG animation (WEB block)
+message SvgAnimationProps {
+  // The asset node holding the SVG blob (assets collection).  Placeholder until the blob
+  // has downloaded; if the asset is deleted the node renders as a hatched placeholder.
+  NodeRef asset = 1 [(wt.crdt.field).on_dangling = REF_FALLBACK_PLACEHOLDER];
+  // Natural size from the viewBox (or width/height), read at import.  ATOMIC: width and
+  // height belong together.
+  Size natural_size = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Declared duration in milliseconds; 0 = indefinite.  Informational.
+  uint64 duration_ms = 3;
+  // Which animation mechanisms the file uses, for the Object panel and export warnings.
+  // Informational; recomputed on Replace.
+  SvgAnimationKinds kinds = 4;
+  // Poster frame time in milliseconds.
+  uint64 poster_time_ms = 5;
+  // The poster image blob (PNG, rendered at import or when the time changes) so every replica
+  // can draw the object before the SVG has downloaded, and so PDF/print never need to
+  // evaluate the animation.
+  NodeRef poster = 6 [(wt.crdt.field).on_dangling = REF_FALLBACK_PLACEHOLDER];
+  // Web playback settings.  STRUCT: each is independent.
+  SvgAnimationWebProps web = 7;
+  // Placement: CommonProps.transform (ATOMIC) maps natural_size points (at 72 px/in) to the
+  // pasteboard, as for bitmaps.
+}
+
+message SvgAnimationKinds {
+  bool css = 1;      // @keyframes / transitions
+  bool smil = 2;     // <animate>, <animateTransform>, <animateMotion>, <set>
+  bool script = 3;   // <script> or event attributes; never run in {product}
+}
+
+message SvgAnimationWebProps {
+  bool no_autoplay = 1;     // inverted so the default (false) plays automatically
+  LoopMode loop = 2;        // AS_FILE (default), LOOP, ONCE
+  bool play_on_hover = 3;
+}
+
+enum LoopMode { LOOP_MODE_AS_FILE = 0; LOOP_MODE_LOOP = 1; LOOP_MODE_ONCE = 2; }
+----
+
+The SVG blob is uploaded through `BlobService` like any asset; the poster blob is small and is
+uploaded first.  A 50 MB per-file limit is enforced by the client at import and by the server on
+upload (`document_blob` limits, IO/IMG epics).
+
+=== Merge semantics
+
+`poster_time_ms`, `poster`:: Written together by one change; each is an ATOMIC register.  Two
+concurrent poster changes: LWW on both registers, and since both writes come from the same
+change on each side, the greater change wins both (the OpIds of the two ops in one change are
+consecutive, and the comparison is by counter, so the two registers agree).  The poster blob of
+the losing write is an orphan until GC.
+`asset` (Replace…):: ATOMIC.  Replace writes `asset`, `natural_size`, `duration_ms`, `kinds`,
+`poster_time_ms` and `poster` in one change; the same consecutive-counter argument keeps them
+consistent under a concurrent replace.  A concurrent move (transform) is an independent register
+and survives.
+`web.*`:: Independent registers.
+Edit vs. delete:: Standard: edits to a deleted node apply and return with it.
+Blob not yet available:: Renders as a placeholder with a progress ring (the SYNC-008 lazy
+download notification).  The poster blob usually arrives first, and then the poster is drawn
+even though the SVG is still downloading.
+
+Read-time normalizations: `poster_time_ms` beyond a finite `duration_ms` reads as the last
+frame; `natural_size` of zero reads as 320 × 240 so the object is never invisible.
+
+=== Offline behavior
+
+* Placing an SVG animation works offline; the blob and its poster wait in `blobs_pending` and
+  upload on reconnect, poster first.
+* Preview in Browser works offline for everything already downloaded; animations still pending
+  show the poster only, and the warnings say so.
+* Web-link publishing is covered on xref:publish-html.adoc[Publishing as HTML].
+
+=== Server
+
+Nothing beyond storing and relaying changes and blobs.  The blob size limit is a configuration
+value (`wt.blob.max-size.svg-animation`, 50 MiB).
+
+=== Client
+
+* Import (`WTInterchange.SvgAnimationImporter`): accepts `public.svg-image` and `.svgz`; parses
+  with the SVG importer's front end (IMG-012) far enough to read `viewBox`/`width`/`height`,
+  detect animation (`@keyframes`, `transition`, SMIL elements, `<script>`, `on*` attributes) and
+  compute the declared duration (max of SMIL `dur`/`end` and CSS `animation-duration` ×
+  `iteration-count`; indefinite if any is infinite); renders the poster with an offscreen
+  `WKWebView` paused at the poster time (`document.getAnimations().forEach(a => a.currentTime
+  = t)` for CSS, `svg.setCurrentTime(t)` + `pauseAnimations()` for SMIL) into a PNG at 2× the
+  placed size, capped at 4,096 px.  Stores both blobs through the SYNC-008 cache and creates the
+  node in one change.  A file with no animation is handed to the SVG importer instead unless the
+  options sheet says otherwise.
+* Rendering (`WTRender`): draws the poster blob like a bitmap (IMG epic's image drawing path)
+  with a small play glyph overlay at the centre in the canvas only (never in exports or print);
+  placeholder states as for images.  The canvas never evaluates the animation.
+* Object panel *SVG Animation* section: SwiftUI editor registered for `SvgAnimationProps`
+  (APP-007) with a poster scrubber backed by `WKWebView` snapshots cached per 100 ms, debounced
+  writes on scrub end; *On the web* controls; file information and the *Scripts* flag;
+  btn:[Replace…] through the importer keeping `transform` and `web`; btn:[Edit With…] through the
+  IMG epic's round-trip (IMG-019) with change detection.
+* Export: the HTML publisher (WEB-008) inlines the SVG (scripts stripped unless *Allow
+  scripts*), applying the web props by injecting a wrapper `<svg>` with `animation-play-state`
+  and hover rules, or emits `<img src>` for files that need isolation; the SVG exporter (IO-019)
+  nests it with a `viewBox` mapping; the animated-SVG exporter (WEB-018) nests it inside every
+  frame; PDF, bitmap exporters and printing draw the poster.
+* Preview in Browser (`WTInterchange.BrowserPreview`): runs the HTML publisher for the current
+  page (or all pages) into `NSTemporaryDirectory()/wt-preview/<document>/` with the selected
+  HTML setting, and opens `index.html` with the *Preview browser* preference via `NSWorkspace`.
+  Re-running writes over the same folder so browsers that watch the file reload.  The folder is
+  removed at quit.
+* Undo: placing an animation is one step ("Place SVG animation"); every Object panel edit one
+  step.
+
+=== Build tasks
+
+[[WEB-024]]
+==== WEB-024 SVG animation node model
+[horizontal]
+Track:: client-model
+Depends on:: PROTO-003, CRDT-001, APP-011
+Size:: S
+Delivers:: `SvgAnimationProps`, `SvgAnimationKinds` and `SvgAnimationWebProps` in the WEB kind block, commands to create, set poster, set web props and replace the asset with inverses, read-time normalizations.
+Done when::
+* Creating, editing and replacing produce one change each with correct inverses.
+* Merge test: two replicas set different poster times concurrently and converge with `poster` and `poster_time_ms` from the same winning change; a concurrent move survives a replace.
+* Conformance vectors for every field, including a dangling `asset` reading as a placeholder.
+
+[[WEB-025]]
+==== WEB-025 Placing SVG animations
+[horizontal]
+Track:: import-export
+Depends on:: SYNC-008, WEB-024
+Size:: M
+Delivers:: `SvgAnimationImporter` (animation detection, natural size, duration, poster rendering through an offscreen `WKWebView`, size limit, hand-off to the static SVG importer), the *Place as animation / Convert to objects* import option, menu:File[Import…] and Finder drag-and-drop, click-to-place and drag-to-size with kbd:[Shift] free aspect.
+Done when::
+* A CSS-animated and a SMIL-animated fixture each place at their `viewBox` size with a poster within 500 ms; a static SVG goes to the object converter.
+* A file over the limit is refused with the message; blobs are queued poster-first.
+* The placement gesture matches the image placement gesture (IMG epic) in tests.
+
+[[WEB-026]]
+==== WEB-026 SVG animation rendering
+[horizontal]
+Track:: client-render
+Depends on:: REND-001, REND-004, WEB-024
+Size:: S
+Delivers:: Poster drawing for `SvgAnimationProps` through the image path, placeholder states, the canvas-only play glyph, invalidation on poster changes.
+Done when::
+* Poster renders on screen and in the PDF/bitmap render paths; the play glyph appears on screen only.
+* A remote poster change repaints only the object's tiles.
+
+[[WEB-027]]
+==== WEB-027 Object panel SVG Animation section
+[horizontal]
+Track:: client-ui
+Depends on:: APP-007, WEB-024, WEB-025
+Size:: S
+Delivers:: The *SVG Animation* editor in the Object panel: geometry fields shared with images, poster scrubber with snapshots, *On the web* controls, duration and scripts information, btn:[Replace…], btn:[Reveal], btn:[Save a Copy…], btn:[Edit With…].
+Done when::
+* Scrubbing writes one change on release; the snapshot strip is cached and does not stall the main actor.
+* Remote changes update the section without stealing focus; UI tests cover each control.
+
+[[WEB-028]]
+==== WEB-028 SVG animations in exports
+[horizontal]
+Track:: import-export
+Depends on:: WEB-008, WEB-024, WEB-026
+Size:: M
+Delivers:: Inline and `<img>` emission in the HTML publisher with the web props, script stripping and the *Poster only* setting; nesting in the SVG exporter and inside every frame of the animated-SVG exporter; poster as image in PDF and bitmap exports and printing; the script-dependent-animation warning.
+Done when::
+* A published page plays a CSS and a SMIL fixture in Safari, Chrome and Firefox with autoplay, loop and hover each honored; scripts are absent unless allowed.
+* Exported SVG keeps the placed animation playing at the object's bounds; PDF output contains the poster image and nothing else.
+
+[[WEB-029]]
+==== WEB-029 Preview in Browser
+[horizontal]
+Track:: import-export
+Depends on:: WEB-008, WEB-010, APP-005, APP-010
+Size:: S
+Delivers:: menu:File[Preview in Browser] (kbd:[Cmd+Return]) and menu:File[Preview All Pages in Browser] (kbd:[Cmd+Shift+Return]) rendering to the temporary folder with the selected HTML setting, the *Preview browser* preference, warnings display, cleanup at quit.
+Done when::
+* Preview of a page with links, a page link, a document animation and a placed SVG animation opens in the chosen browser within two seconds for a typical page and every feature works there.
+* Re-previewing writes over the same folder; quitting removes it.
+* Offline, preview works with downloaded assets and lists pending ones.
+endif::spec[]

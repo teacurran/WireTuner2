@@ -1,0 +1,320 @@
+A paragraph is everything between two kbd:[Return]s, and the settings on this page belong to
+paragraphs rather than characters: how lines align, how far apart paragraphs sit, whether
+words may be hyphenated, whether a rule is drawn beneath, and how a paragraph may be split
+between columns.  Set them for the paragraph holding the insertion point, for every paragraph
+in a Text tool selection, or for every paragraph in blocks selected with the Pointer tool.
+Most live in the *Paragraph* and *Spacing* sections of the Object panel
+(xref:type-tools.adoc[The type adjustment tools]); indents and tabs are on
+xref:tabs-indents.adoc[Tabs, indents and margins].
+
+== Alignment
+
+Each paragraph is aligned *left*, *center*, *right* or *justified* (both edges flush, the last
+line left).  Choose from menu:Text[Align], the four buttons in the Character section of the
+Object panel, or the Text toolbar; shortcuts are kbd:[Cmd+Shift+L], kbd:[Cmd+Shift+C],
+kbd:[Cmd+Shift+R] and kbd:[Cmd+Shift+J].
+
+Beside the buttons, btn:[Edit…] opens the *Edit Alignment* sheet with two fine controls:
+
+[cols="1,3"]
+|===
+|Control |Meaning
+
+|*Ragged width*
+|For non-justified paragraphs: the minimum fraction of the column width a line is allowed to
+fill, as a percentage.  100 lets lines run the full width; 90 keeps every line at least 10%
+short of the edge, which makes a softer rag.
+
+|*Flush zone*
+|For justified paragraphs: how long the last line must be, as a percentage of the column
+width, before it too is justified.  At 0 the last line is never justified; at 50 it is
+justified when it already reaches halfway.
+|===
+
+Justified text also obeys the word and letter spacing ranges below.
+
+== Paragraph spacing
+
+In the Paragraph section, *Space above* and *Space below* add space (in points) before and
+after the paragraph.  Between two paragraphs, the larger of the first's *below* and the
+second's *above* is used, not their sum.  Negative values pull paragraphs together.  Space
+above is ignored at the top of a column.
+
+== Hyphenation
+
+To hyphenate automatically:
+
+. Click in a paragraph, select paragraphs with the Text tool, or select blocks with the
+  Pointer tool (selecting a linked block applies to the whole chain).
+. In the Paragraph section, tick *Hyphenate*.
+. Click btn:[Edit…] beside it for the *Hyphenation* sheet:
+
+[cols="1,3"]
+|===
+|Option |Meaning
+
+|*Language*
+|The language whose hyphenation rules apply, for these paragraphs.  *Document language*
+follows the document's setting (xref:document-panel.adoc[Document panel]); any language macOS
+knows can be chosen.  The same setting drives spelling.
+
+|*Consecutive hyphens*
+|The most lines in a row that may end in a hyphen.
+
+|*Skip capitalized words*
+|Never hyphenate a word that starts with a capital.
+
+|*Inhibit hyphens in selection*
+|Turns hyphenation off for exactly the characters selected with the Text tool, leaving the
+paragraph's setting on.
+|===
+
+To turn hyphenation off, untick *Hyphenate*.  A discretionary hyphen typed into a word
+(kbd:[Cmd+-]) always allows a break there, hyphenation on or off
+(xref:editing-text.adoc[Editing text]).
+
+== Paragraph rules
+
+A rule is a line drawn with the paragraph, beneath it, that moves when the paragraph does.
+
+To add paragraph rules:
+
+. Select the paragraphs (Text tool) or blocks (Pointer tool).
+. In the Paragraph section, choose from the *Rules* pop-up:
+* *Centered* -- a rule centered in the column.
+* *Paragraph* -- a rule aligned as the paragraph is aligned.
+. Rules are drawn with the block's stroke, so select the *Text Block* row in the properties
+  list and click btn:[Add Stroke] if the block has none; set its weight, color and dash there
+  (xref:stroke-attributes.adoc[Stroke attributes]).
+. If you do not want the block's outline as well, untick *Display border* in the Text Block
+  section.  The rules stay.
+
+To set a rule's width, choose *Edit…* from the *Rules* pop-up.  In the *Paragraph Rule Width*
+sheet, type a percentage and choose what it is a percentage of: *Last line* (the length of the
+paragraph's last line) or *Column* (the column width).  A *Position* field sets the distance
+below the baseline of the last line, and *Above* draws the rule above the paragraph's first
+line instead.
+
+NOTE: {fh} drew rules only below paragraphs and only in the block's stroke.  {product} adds
+rules above, and a per-rule stroke override in the sheet, so a document can have a thin block
+border and heavy rules.
+
+== Word and letter spacing
+
+In the Spacing section, under *Spacing*, three fields each for *Word* and *Letter* set the
+*minimum*, *optimum* and *maximum* spacing as percentages.  Justified lines use the range to
+absorb the slack; other alignments use the optimum only.
+
+* Word spacing: 100 is the font's normal space; smaller closes words up, larger spreads them.
+* Letter spacing: 0 is normal; negative tightens, positive loosens, without touching word
+  spaces.
+
+Set all three the same to fix the spacing exactly.  Range kerning (xref:type-specifications.adoc[Setting
+type specifications]) is the character-level alternative, in ems.
+
+== Keeping lines and words together
+
+Also in the Spacing section:
+
+[cols="1,3"]
+|===
+|Control |Meaning
+
+|*Keep lines together*: N
+|The paragraph is never split so that fewer than N of its lines sit alone at the top or
+bottom of a column, block or page.  2 prevents widows and orphans.  0 turns it off.
+
+|*Keep with next*
+|The paragraph's last line stays in the same column as the next paragraph's first line --
+for headings.
+
+|*Selected words*
+|The words selected with the Text tool never break across lines; they move to the next line
+together.  A non-breaking space (kbd:[Option+Space]) does the same for a single pair.
+|===
+
+== Hanging punctuation
+
+Tick *Hang punctuation* in the Paragraph section and opening quotation marks, apostrophes,
+hyphens and dashes at the edge of a line sit outside the paragraph's indents, so the letters
+line up visually.  Only punctuation hangs; which characters is fixed.
+
+== Working with others
+
+* Every paragraph setting is separate from every other and from the text itself: one person
+  can justify a paragraph while another types in it, hyphenates it, or gives it a rule, and
+  every change stays.
+* If two people set the *same* setting on the same paragraph at once, the later one shows;
+  after offline work, the review sheet lists the paragraph with both values.
+* Pressing kbd:[Return] gives the new paragraph a copy of the old one's settings as they were
+  at that moment.  A collaborator changing the original paragraph at the same time changes
+  only the half that keeps the original ending.
+* Deleting a paragraph break merges two paragraphs and keeps the settings of the *second*;
+  settings someone else applied to the first at the same moment are lost and shown in the
+  review sheet if you were offline.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,1"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Left/center/right/justified alignment
+|Same.
+|Faithful
+
+|Edit Alignment: Ragged Width, Flush Zone
+|Same.
+|Faithful
+
+|Space Above / Space Below (negative allowed)
+|Same; larger-of rule between paragraphs stated.
+|Faithful
+
+|Hyphenate; Edit Hyphenation: language, consecutive hyphens, skip capitalized, inhibit in
+selection
+|Same, using Core Foundation hyphenation per language.
+|Faithful
+
+|Paragraph rules: Centered / Paragraph; width % of last line or column; stroke from the block;
+Display Border to hide the outline
+|Same, plus *Above*, *Position* and a per-rule stroke override.
+|Faithful (extended)
+
+|Word spacing min/opt/max (100 = normal); letter spacing (0 = normal)
+|Same.
+|Faithful
+
+|Keep Lines Together N; Selected Words
+|Same; *Keep with next* added.
+|Faithful (extended)
+
+|Hang Punctuation
+|Same fixed set of hanging characters.
+|Faithful
+
+|Selecting a linked block applies hyphenation to the whole chain
+|Same: the chain's text is one story on the head.
+|Faithful
+|===
+
+=== Data model
+
+All on `ParagraphProps` (xref:creating-text.adoc[Creating text]): `alignment`,
+`ragged_width`, `flush_zone`, `space_above`, `space_below`, `hyphenation`, `rule`,
+`hang_punctuation`, `keep_lines`, `keep_with_next`, `word_spacing`, `letter_spacing`.
+*Inhibit hyphens in selection* and *Selected words* are character marks
+(`TextMarkValue.no_hyphen` and `TextMarkValue.no_break`), because they apply to a range
+inside a paragraph rather than to the paragraph.
+
+[source,protobuf]
+----
+enum Alignment {
+  ALIGNMENT_LEFT = 0; ALIGNMENT_CENTER = 1; ALIGNMENT_RIGHT = 2; ALIGNMENT_JUSTIFIED = 3;
+}
+
+message Hyphenation {                // STRUCT
+  bool enabled = 1;
+  string language = 2;               // BCP 47; empty = document language
+  uint32 consecutive = 3;            // 0 = unlimited
+  bool skip_capitalized = 4;
+}
+
+message ParagraphRule {              // STRUCT
+  RuleMode mode = 1;                 // none, centered, paragraph
+  double width_percent = 2;          // default 100
+  RuleBasis basis = 3;               // last line or column
+  double position = 4;               // points below the last baseline (or above the first)
+  bool above = 5;
+  StrokeProps stroke = 6;            // optional override of the block's stroke (ATTR epic)
+}
+enum RuleMode { RULE_MODE_NONE = 0; RULE_MODE_CENTERED = 1; RULE_MODE_PARAGRAPH = 2; }
+enum RuleBasis { RULE_BASIS_LAST_LINE = 0; RULE_BASIS_COLUMN = 1; }
+
+// ATOMIC at the field: min ≤ opt ≤ max only makes sense as a triple.
+message SpacingRange { double min = 1; double opt = 2; double max = 3; }
+----
+
+=== Merge semantics
+
+Each field is its own register on the newline element; concurrent edits to different fields
+merge, the same field is LWW.  `word_spacing` and `letter_spacing` are ATOMIC triples so one
+user's minimum never pairs with another's maximum.  `rule.stroke`, when set, is STRUCT like
+any stroke.  Split, join and the review sheet's treatment are on
+xref:creating-text.adoc[Creating text].  `no_hyphen` and `no_break` marks do not expand at
+either end.
+
+Read-time normalizations::
+* `ragged_width` and `flush_zone` clamp to 0–100.
+* A `SpacingRange` with `min > opt` or `opt > max` is read as `(opt, opt, opt)`.
+* `keep_lines` larger than the paragraph's line count keeps the whole paragraph together.
+* `rule.mode` other than `NONE` with no block stroke and no override stroke draws nothing
+  (as in {fh}).
+
+=== Offline behavior
+
+Nothing beyond outbox coalescing.
+
+=== Server
+
+Nothing beyond storing and relaying changes.
+
+=== Client
+
+Layout:: `WTText` implements justification with the spacing ranges and flush zone itself
+(Core Text's justification has no min/max control), ragged-width fitting as a line-breaking
+constraint, hyphenation through `CFStringGetHyphenationLocationBeforeIndex` with the
+paragraph's locale, keep constraints in the column-filling pass, hanging punctuation by
+negative glyph origins for the fixed set, and rules as strokes drawn in the text pass.
+
+Undo grouping:: One step per field commit; the sheets commit on btn:[OK].
+
+=== Build tasks
+
+[[TYPE-026]]
+==== TYPE-026 Paragraph inspector section
+[horizontal]
+Track:: client-ui
+Depends on:: APP-007, TYPE-002, TYPE-010
+Size:: M
+Delivers:: The Paragraph section: space above/below, indents (fields shared with TYPE-024),
+Hyphenate with its sheet, hang punctuation, rules pop-up with the Paragraph Rule Width sheet
+(width, basis, position, above, stroke override); the Edit Alignment sheet from the Character
+section.
+Done when::
+* Each control writes only its register; mixed selections show mixed state.
+* Merge test: alignment from one replica and space above from another on the same paragraph
+  both apply.
+* Conformance vector for `Hyphenation` and `ParagraphRule` as STRUCT.
+
+[[TYPE-027]]
+==== TYPE-027 Spacing inspector section
+[horizontal]
+Track:: client-ui
+Depends on:: TYPE-026
+Size:: S
+Delivers:: The Spacing section: horizontal scale, word and letter spacing triples, keep lines
+together, keep with next, selected words (`no_break` mark), inhibit hyphens (`no_hyphen` mark).
+Done when::
+* Entering a min above the opt is refused in the UI; the triple is written atomically.
+* Merge test: concurrent word-spacing triples from two replicas converge to one whole triple.
+* Conformance vector for `SpacingRange` as ATOMIC.
+
+[[TYPE-028]]
+==== TYPE-028 Paragraph layout
+[horizontal]
+Track:: client-render
+Depends on:: TXT-001, TYPE-001
+Size:: L
+Delivers:: `WTText` justification with spacing ranges and flush zone, ragged width, paragraph
+spacing with the larger-of rule, hyphenation with language, consecutive limit, capitalized
+skip, discretionary hyphens and `no_hyphen` spans, keep lines / keep with next / `no_break`,
+hanging punctuation, paragraph rules with all options.
+Done when::
+* Reference renders for each feature match the corpus within tolerance.
+* Keep constraints never produce an empty column when the paragraph fits.
+* A 200,000-character justified flow lays out within the TXT-001 budget.
+endif::spec[]

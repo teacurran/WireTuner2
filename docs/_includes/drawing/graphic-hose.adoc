@@ -1,0 +1,265 @@
+The Graphic Hose sprays artwork along the path you drag: leaves along a branch, stars across a
+sky, a row of footprints.  A *hose* is a set of up to ten pieces of artwork -- paths, groups,
+bitmaps, blends, text, symbols -- and a set of options that decide the order, spacing, size
+and rotation of each copy as you spray.  {product} ships with a collection of hoses, and you
+can make your own from anything in a document.
+
+// TODO screenshot: Graphic Hose sheet with a leaf set and its options
+
+== Choosing a hose
+
+To choose a hose:
+
+. Double-click the Graphic Hose tool (it shares a slot with the Chart tool).
+. In the Graphic Hose sheet, click *Hose*.
+. Choose a set from the *Sets* pop-up.  The sheet lists the document's own hoses first, then
+  the ones in your library.
+. Use the *Contents* pop-up to preview each object in the set.
+
+== Spraying
+
+To spray with the Graphic Hose:
+
+. Choose the Graphic Hose tool.
+. Drag on the canvas.  Objects are placed along the drag, spaced by the set's options and by
+  how fast you move: faster spreads them out.
+. Click without dragging to place a single object.
+
+Keys while spraying::
+kbd:[Left] / kbd:[Right]:: Tightens or loosens the spacing from here on.
+kbd:[Up] / kbd:[Down]:: Shrinks or enlarges the objects from here on.
+
+Every object the hose places is an ordinary object on the current layer, selected as a set
+when you release.  Objects sprayed from a symbol are symbol instances, so editing the symbol
+updates all of them (xref:library.adoc[Library]).
+
+== Hose options
+
+To set a hose's options:
+
+. Double-click the Graphic Hose tool.
+. Click *Options* and set:
++
+Order:: *Loop* places the set's objects in order, over and over.  *Back and forth* runs
+forward then backward.  *Random* picks freely.
+Spacing:: *Grid* places objects on a grid with the cell size you enter, regardless of drag
+speed.  *Variable* spaces them from tight (0) to loose (200).  *Random* varies the spacing
+by up to the deviation you set, 0 to 200.
+Scale:: *Uniform* scales every object by the same amount, 1% to 200%.  *Random* scales each
+between 1% and the value you set.
+Rotation:: *Uniform* rotates every object to the angle you set.  *Incremental* adds the angle
+to each successive object.  *Random* rotates each freely.  Type the angle or drag the dial.
+. The options are saved with the set.
+
+== Making and editing hoses
+
+To create a hose:
+
+. Double-click the Graphic Hose tool and click *Hose*.
+. From the *Sets* pop-up choose *New…* to start empty, or *Duplicate…* to start from the
+  current set; *Rename…* renames it.
+. Name the set and choose whether to keep it *in this document* or *in my library*, then
+  click btn:[Save].
+. In the document, select the artwork for one object and choose menu:Edit[Copy].
+. In the sheet, click btn:[Paste In].  The artwork becomes *Object-1*, *Object-2* and so on
+  in the *Contents* pop-up.
+. Repeat for up to ten objects.  To remove one, choose it in *Contents* and click
+  btn:[Remove].
+
+Where hoses live::
+A hose kept *in this document* travels with the document: collaborators see it in their
+*Sets* pop-up and can spray with it and edit it.  A hose kept *in my library* is stored on
+your Mac (in `~/Library/Application Support/WireTuner/Graphic Hoses`) and appears in every
+document you open; when you spray with a library hose, {product} copies the set into the
+document so that everyone can see what was sprayed with what and edit it later.  The hoses
+{product} ships with are library hoses; *Restore default hoses* in the *Sets* pop-up puts back
+any you deleted.
+
+To delete a hose, choose it and pick *Delete…* from the *Sets* pop-up.
+
+To import a hose someone gives you, drop the `.wthose` file on the Graphic Hose sheet, or copy
+it into the library folder.  Only import hoses from people you trust; a hose can contain any
+artwork, including large bitmaps.
+
+NOTE: For {fh} users: hose files from {fh} (`.fh11` hose documents) are not readable; recreate
+them by pasting their contents into a new set.
+
+== Working with others
+
+Spraying places ordinary objects, so collaborators see them appear when you release the
+mouse and can edit them at once.  A hose kept in the document is shared like a small library:
+if a collaborator adds an object to the set while you are spraying with it, your next stroke
+includes it.  Two people changing the same option of one hose end up with the value set last.
+Library hoses are private to your Mac until you spray with them.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,1"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Graphic Hose dialog: Hose view with Sets and Contents pop-ups, preview
+|Same, as a sheet.
+|Faithful
+
+|Spray by dragging; speed affects spacing; arrow keys for spacing and scale; click places one
+|Same.
+|Faithful
+
+|Options: order (loop/back and forth/random), spacing (grid/variable/random), scale
+(uniform/random), rotation (uniform/incremental/random) with angle dial
+|Same.
+|Faithful
+
+|Sets: New, Rename, Duplicate; up to 10 objects; Paste In; symbols allowed
+|Same, plus btn:[Remove] and *Delete…*, which {fh} required file management for.
+|Adapted
+
+|Hoses stored as files in the user's Application Support folder; import by copying files;
+restore defaults from the CD
+|Library hoses stored as `.wthose` files in Application Support; import by drop or copy;
+defaults ship with the app and can be restored from the sheet.  Added: hoses can be kept in
+the document and shared.
+|Adapted
+
+|Predefined {fh} hose collection
+|A new collection of {product}-drawn hoses; the {fh} artwork is not reused.
+|Adapted
+|===
+
+=== Data model
+
+A document hose set is a `hose_set` node under the `symbols` collection (`0:7`), beside
+symbols, so the Library panel can list it and no new well-known collection is needed.  Its
+children are the hose's objects, in order: each child is an ordinary node (usually a `group`,
+or a `symbol_instance` for symbol members) that is never rendered on the pasteboard.
+
+[source,protobuf]
+----
+// doc/v1/hose.proto
+message HoseSetProps {
+  CommonProps common = 1;                     // name = the set's name
+  HoseOptions options = 2;                    // STRUCT: each option is a separate decision
+  // Children of the node are the objects, ordered by sibling position (at most 10 live).
+}
+message HoseOptions {
+  HoseOrder order = 1;                        // LOOP (default), BACK_AND_FORTH, RANDOM
+  HoseSpacing spacing = 2;                    // GRID, VARIABLE (default), RANDOM
+  double grid_size = 3 [(buf.validate.field).double.gt = 0];       // pt
+  double spacing_amount = 4 [(buf.validate.field).double = {gte: 0, lte: 200}];
+  HoseScale scale = 5;                        // UNIFORM (default), RANDOM
+  double scale_percent = 6 [(buf.validate.field).double = {gte: 1, lte: 200}];
+  HoseRotation rotation = 7;                  // UNIFORM (default), INCREMENTAL, RANDOM
+  double angle = 8;                           // radians
+}
+----
+
+Sprayed objects are ordinary nodes created under the current layer (`CreateNode` per object,
+deep-copied from the hose child with the spray transform composed into `common.transform`;
+a `symbol_instance` child yields a `symbol_instance`).  Nothing records that they came from a
+hose.
+
+A library hose (`.wthose`) is a serialized `hose_set` subtree (protobuf, the same messages) in
+a directory bundle with a preview PNG.  Spraying from one first copies it into the document as
+a `hose_set` node (one change) unless a set with the same library identity (a UUID in
+`CommonProps.note`, prefixed `wt-hose:`) already exists there.
+
+=== Merge semantics
+
+Spray vs. anything:: Creates nodes; never conflicts.  Two people spraying at once produce
+both sets of objects.  The random choices (order, spacing, scale, rotation) are made by the
+sprayer and written as concrete transforms, so every replica sees the same result.
+
+Set options:: STRUCT; concurrent edits of different options both hold; the same option is LWW,
+listed as same register.
+
+Add object vs. add object (11th):: Both inserts apply; the set reads with more than ten live
+children.  *Read normalization:* only the first ten in sibling order are used for spraying;
+the sheet shows the extras dimmed with a note.
+
+Remove object vs. spray with it:: The spray copied the object before the delete was seen;
+the sprayed nodes are unaffected (they are copies).  The hose child is deleted.
+
+Delete set vs. spray with it:: Sprayed nodes are unaffected; the set is gone.  Restoring it
+from the review sheet restores its children.
+
+Library vs. document copy:: The document copy is authoritative for that document.  Later
+changes to the library file do not propagate; the user duplicates into a new set if they want
+the new version.
+
+Read-time normalizations::
+* More than ten live children → first ten by position.
+* Zero live children → set is listed but spraying does nothing (the tool shows a hint).
+* `grid_size <= 0` → 36 pt.  `scale_percent` of 0 → 100.
+
+=== Offline behavior
+
+Works offline, including library hoses (they are local files).  A spray stroke is one change
+containing all its `CreateNode`s (subject to the 10,000-op limit; a stroke that would exceed
+it is split into consecutive changes with the same label).
+
+=== Server
+
+Nothing beyond storing and relaying changes.
+
+=== Client
+
+Tool:: `GraphicHoseTool`: samples the drag, advances a distance accumulator, and when it
+exceeds the current spacing (grid: snapped to the grid; variable: `spacing_amount` scaled by
+drag speed; random: variable plus a uniform deviation) emits one object with the next index
+per `order`, a scale per `scale`, and a rotation per `rotation`.  Arrow keys adjust the
+spacing and scale multipliers for the rest of the stroke.  All copies of a stroke are created
+in one change on mouse-up; a preview of each placed object is drawn in the overlay during the
+drag.
+
+Sheet:: SwiftUI sheet with *Hose* and *Options* views; *Sets* pop-up with document sets, a
+separator, library sets, then *New…*, *Duplicate…*, *Rename…*, *Delete…*, *Restore default
+hoses*; *Contents* pop-up; preview rendered through `WTRender`; btn:[Paste In] reads the
+pasteboard's `WTModel` subtree type; btn:[Remove]; file drop for `.wthose`.
+
+Library:: `HoseLibrary` actor: scans `~/Library/Application Support/WireTuner/Graphic Hoses`,
+watches it with a dispatch source, loads bundles lazily, writes new library sets, and copies
+the shipped defaults from the app bundle on first launch and on *Restore default hoses*.
+
+Undo:: One group per spray stroke ("Spray N objects"), per set edit.
+
+=== Build tasks
+
+[[DRAW-038]]
+==== DRAW-038 Hose set schema and library
+[horizontal]
+Track:: client-model
+Depends on:: DRAW-002, PROTO-003, CRDT-002
+Size:: M
+Delivers:: `doc/v1/hose.proto` and the `hose_set` kind (carried here; buf gates apply), `WTModel` commands (create set, rename, duplicate, delete, add object from a subtree, remove object, set options, copy library set into document), the read normalizations, the `.wthose` bundle format, and `HoseLibrary` with default hose installation.
+Done when::
+* Conformance vector: eleven concurrent child inserts read as ten; concurrent option edits converge.
+* Round-trip of a set through `.wthose` is lossless; library watcher picks up a dropped file within 1 s.
+* Merge test: delete set on one replica vs. add object on another yields a deleted set with the object inside it, restorable.
+
+[[DRAW-039]]
+==== DRAW-039 Graphic Hose tool
+[horizontal]
+Track:: client-ui
+Depends on:: DRAW-038, APP-003
+Size:: M
+Delivers:: `GraphicHoseTool` with all order, spacing, scale and rotation modes, speed-dependent spacing, arrow-key adjustments, click-to-place, symbol members as instances, overlay preview, and the one-change-per-stroke rule with splitting at the op limit.
+Done when::
+* A scripted drag with each option combination places objects whose count, order, transforms and node kinds match the documented rules (random modes checked for range).
+* Spraying from a library hose creates the document `hose_set` once and reuses it on later strokes.
+* Merge test: two replicas spray concurrently on one layer; both strokes' objects exist on both, stacking order deterministic.
+
+[[DRAW-040]]
+==== DRAW-040 Graphic Hose sheet
+[horizontal]
+Track:: client-ui
+Depends on:: DRAW-039, APP-004
+Size:: M
+Delivers:: The Graphic Hose sheet: Hose and Options views, Sets pop-up with document and library sections and the management items, Contents pop-up with preview, Paste In and Remove, in-document vs. library choice on save, `.wthose` drop import, Restore default hoses.
+Done when::
+* UI tests create, rename, duplicate and delete a set in both locations; paste in three objects and remove one; set every option and verify the registers.
+* A remote change to the current document set (new object, changed option) updates the sheet without closing it.
+endif::spec[]

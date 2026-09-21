@@ -1,0 +1,7 @@
+= Printing fonts
+include::_attributes.adoc[]
+:page-slug: print-fonts
+:page-group: Printing
+:page-fh: Chapter 14, "About printing fonts", "About printing PostScript fonts", "About printing TrueType fonts"
+
+include::_includes/printing/print-fonts.adoc[]

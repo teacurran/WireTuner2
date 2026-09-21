@@ -1,0 +1,7 @@
+= Attaching links to objects and text
+include::_attributes.adoc[]
+:page-slug: urls
+:page-group: Web and animation
+:page-fh: Chapter 11, "Attaching URLs to objects and text"
+
+include::_includes/web/urls.adoc[]

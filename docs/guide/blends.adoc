@@ -1,0 +1,7 @@
+= Working with blends
+include::_attributes.adoc[]
+:page-slug: blends
+:page-group: Effects
+:page-fh: Chapter 7, "Working with blends"
+
+include::_includes/effects/blends.adoc[]

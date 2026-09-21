@@ -1,0 +1,7 @@
+= Extensions
+include::_attributes.adoc[]
+:page-slug: extensions
+:page-group: Basics
+:page-fh: Chapter 1, "Using and managing Xtras"
+
+include::_includes/basics/extensions.adoc[]

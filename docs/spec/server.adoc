@@ -1,0 +1,194 @@
+= Server
+include::_attributes.adoc[]
+:page-slug: server
+
+The server is deliberately dumb about artwork.  It authenticates, authorises, sequences,
+stores, relays, snapshots and compacts.  It runs the Java merge engine only to build snapshots,
+to extract each document's search record from them, and to verify hashes; it never interprets
+a path, lays out text or renders a pixel (thumbnails come from the client).  That keeps every feature
+task a client task, and keeps the server generic enough that a schema addition needs no server
+change beyond regenerating the merge table.
+
+== Modules
+
+[listing]
+....
+server/
+├── pom.xml                  parent (Quarkus 3.36.x BOM, Java 25)
+├── wt-crdt/                 the Java merge engine: pure library, no Quarkus
+├── api/                     gRPC services, persistence, jobs, Keycloak integration
+│   └── src/main/proto -> ../../proto   (symlink; Quarkus generate-code reads it)
+└── conformance/             runs crdt-conformance vectors against wt-crdt
+....
+
+`wt-crdt` mirrors `WTCRDT` type for type: `Engine`, `NodeStore`, `Register`, `MoveLog`,
+`FugueText`, `MarkSet`, `FractionalIndex`, `Snapshot`, `StateHash`.  The generated merge table
+(`protoc-gen-wtcrdt`) is the only feature-specific input.
+
+== Services
+
+[cols="1,1,3"]
+|===
+|gRPC service |Class |Notes
+
+|`SyncService` |`SyncGrpcService` |`Subscribe` (server-streaming Mutiny `Multi`, back-pressure honoured), `PushChange` / `PushChangeBatch` / `UpdatePresence` / `Ack` (unary `Uni`), `PushChanges` (client-streaming), fetch (xref:sync-protocol.adoc[Sync protocol]).  No bidirectional RPC.
+|`DocumentService` |`DocumentGrpcService` |Library CRUD, fork, duplicate, search; spaces (personal / team).
+|`ShareService` |`ShareGrpcService` |Members, roles, links, invitations.
+|`BranchService` |`BranchGrpcService` |Fork points, merge by replay.
+|`VersionService` |`VersionGrpcService` |Named versions, restore-as-copy.
+|`BlobService` |`BlobGrpcService` |Content-addressed storage in R2/MinIO.
+|`AccountService`, `TeamService` |`AccountGrpcService`, `TeamGrpcService` |xref:security.adoc[Accounts, teams and security].
+|`grpc.health.v1.Health` |built-in |Liveness for compose and the load balancer.
+|===
+
+All services are `@Blocking`-free: Hibernate Reactive with the reactive PG client, as in
+dissipate-server.  Interceptors (in order): request id, OIDC token, principal resolution,
+protovalidate, rate limit, OpenTelemetry span.
+
+== Persistence
+
+Postgres holds the truth; object storage holds bulk.
+
+[cols="1,3"]
+|===
+|Table |Purpose
+
+|`document` |Identity, space (account XOR team), folder, feature level, `head_seq`, `stable_seq`, trash timestamp, document kind, `thumbnail_blob` (sha256 of the client-rendered thumbnail, nullable) and `thumbnail_at`.
+|`document_search` |`document_id` primary key, `server_seq` the record was extracted at, `names` (text: object names, swatch / style / symbol names, keywords, page names, one per line; trigram GIN index via `pg_trgm`), `body` (`tsvector` in the `simple` configuration: text block contents and notes; GIN index), `names_body` (a second `tsvector` over the names, so a name matches as a word as well as a substring).  Rewritten by the snapshotter; never read by sync.
+|`change_log` |`(document_id, server_seq)` primary key, replica, seq, `bytes` (the encoded `Change`), wall time, byte size.  Partitioned by document hash range.  Rows older than the newest snapshot minus a margin are moved to cold segments.
+|`replica` |`(document_id, replica_id)`, account, device, `last_seq`, `last_ack_seq`, `last_seen_at`, `retired_at`.
+|`snapshot` |`(document_id, server_seq)`, object key, `state_hash`, size, node count.
+|`cold_segment` |`(document_id, from_seq, to_seq)`, object key, compressed size.
+|`document_member`, `share_link` |Roles.
+|`branch` |Child document id, parent document id, fork `server_seq`, merged at.
+|`version` |`(document_id, server_seq)`, name, author, created.
+|`blob`, `document_blob` |sha256, size, media type, storage key; references per document.
+|`account`, `account_identity`, `device`, `team`, `team_member`, `team_invite`, `workspace`, `workspace_domain` |xref:security.adoc[Accounts, teams and security].
+|===
+
+Migrations are Flyway, applied by the `main-db-migrations` compose job before the API starts,
+exactly as dissipate-server does.
+
+== Ingest path
+
+. Interceptors resolve the principal and validate the request (`PushChange`, one change;
+  `PushChangeBatch`, up to 32; `PushChanges`, a stream of frames).
+. `ReplicaQueue`: pushes from one replica are handled in arrival order on this node, one at a
+  time, so pipelined unary calls keep their seq order without the client waiting for each
+  ack.  A batch or a bulk frame is fed through the same queue change by change.
+. `ChangeIngest.accept(document, change)`: one transaction — `SELECT ... FOR UPDATE` the
+  document row, check the replica's `last_seq`, allocate `head_seq + 1`, insert `change_log`,
+  update `replica`, commit.  A seq that is not `last_seq + 1` fails the call (`SEQ_GAP`) or,
+  in a batch, ends the accepted prefix.
+. Respond: the unary response carries the `server_seq`; a batch response the prefix of seqs and
+  the first rejection.
+. Publish `SequencedChange` on Valkey channel `doc:<id>`; every node with a subscription
+  subscribes per open document and fans out to its `Subscribe` streams.
+. The ingesting node also fans out locally without waiting for Valkey, so the caller's own
+  echo and any other subscriber on the same node see the change immediately.
+
+Throughput target: 2,000 accepted changes per second per document on a single node, 50,000
+per second across the cluster.  The per-document lock serialises only the sequence number; the
+transaction holds it for one insert.
+
+== Jobs
+
+[cols="1,1,3"]
+|===
+|Job |Schedule |Work
+
+|Snapshotter |every 2 min, per document with `head_seq - last_snapshot_seq > 2,000`, or age > 30 min, or whose last subscription closed with changes since the last snapshot |Load newest snapshot, replay the tail through `wt-crdt`, write a new snapshot to object storage, record its hash.  Then extract the document's *search record* from the same merged state and rewrite its `document_search` row (below).
+|Apple secret |every 30 days |Regenerate the Sign in with Apple client secret (a JWT signed with the team's `.p8` key, valid at most six months) and update the Keycloak identity provider through the admin API (xref:security.adoc[Accounts, teams and security]).
+|Compactor |hourly |Move `change_log` rows older than `newest_snapshot_seq - 10,000` into cold segments (zstd, 8 MiB each); delete the rows.
+|Stability |every 5 min |Compute `stable_seq = min(last_ack_seq over live replicas)`, publish it; retire replicas silent past the window.
+|Trash |daily |Delete documents trashed over 30 days ago and their orphaned blobs.
+|Invitations |daily |Expire stale invitations and share links.
+|Domains |hourly |Re-verify workspace DNS records.
+|===
+
+Jobs use `quarkus-scheduler` with a Postgres advisory lock per job so only one node runs each.
+
+== Search
+
+The one place the server reads artwork, and only through the generic node tree.  The search
+extractor walks the snapshot the snapshotter just built and collects, without interpreting
+geometry or layout: `CommonProps.name` and `note` of every live node, the plain text of every
+text block (the character sequence read out, marks ignored), swatch, style, symbol and brush
+names, the document's keywords and description (xref:file-info.adoc[Adding file information]) and page names.
+Names go into `names` as lines and into `names_body` as a `simple` tsvector; text and notes go
+into `body`.  The `simple` configuration is deliberate: documents mix languages and product
+names, and stemming in the wrong language hides matches.  Trigrams make a name match on any
+substring ("logo" finds "Logotype v3"); the tsvector makes text match by word.
+
+[source,protobuf]
+----
+// proto/wiretuner/docs/v1/document.proto (sketch, PROTO-007)
+rpc Search(SearchRequest) returns (SearchResponse);
+
+message SearchRequest {
+  string query = 1 [(buf.validate.field).string = { min_len: 1, max_len: 256 }];
+  // Personal space or one team; documents the caller cannot open are never returned.
+  string space_id = 2;
+  string cursor = 3;
+  uint32 page_size = 4 [(buf.validate.field).uint32.lte = 50];
+}
+message SearchHit {
+  string document_id = 1;
+  // Where it matched and the matching text with <b> markers from ts_headline / the
+  // trigram-matched line: the library shows it under the document's name.
+  repeated SearchMatch matches = 2;
+  float rank = 3;
+}
+message SearchMatch { SearchField field = 1; string highlighted = 2; }
+enum SearchField { SEARCH_FIELD_UNSPECIFIED = 0; DOCUMENT_NAME = 1; OBJECT_NAME = 2; TEXT = 3;
+                   NOTE = 4; SWATCH = 5; STYLE = 6; SYMBOL = 7; KEYWORD = 8; PAGE = 9; }
+message SearchResponse { repeated SearchHit hits = 1; string next_cursor = 2; }
+----
+
+`Search` runs one query: `document.name ILIKE` or `names % query` (trigram similarity) or
+`body @@ websearch_to_tsquery('simple', query)` or `names_body @@ ...`, joined to the caller's
+visible documents in the space, ordered by `ts_rank` then name similarity, cursor-paged by
+`(rank, document_id)`.  Highlights come from `ts_headline` on `body` and from the matching line
+of `names`; the field is recovered from a prefix each line carries (`o:`, `s:`, `p:` ...).  The
+index lags the log by the snapshotter's cadence (at most 2 minutes for a document being edited
+heavily, and one run after the last subscription closes), which the guide describes as "a few
+minutes".  Document *names* are also matched live from `document.name`, so a rename is
+searchable at once.  Nothing here is on the ingest path.
+
+== Scaling
+
+* Stateless API nodes behind an L4 load balancer with HTTP/2; subscriptions are long-lived
+  server streams, so drain on deploy is 60 s with a `DocumentEvent.RECONNECT` hint.  Unary
+  pushes need no affinity: a replica whose calls land on two nodes only risks a `SEQ_GAP`
+  round trip.  A Connect / gRPC-Web gateway, when one is deployed, sits between the balancer
+  and the nodes and speaks plain gRPC to them (xref:api-conventions.adoc[API conventions]).
+* Valkey is a single fan-out bus; at the design scale (10,000 open documents, 3 sessions each)
+  it is far from a bottleneck.  Sharding by document id is the escape hatch.
+* Postgres: `change_log` is the only hot table; partitioned and append-only, with the compactor
+  keeping it small.  Read replicas serve `FetchChanges`.
+* Object storage: R2 (no egress fees) in production, MinIO locally; presigned URLs are *not*
+  used for documents (all reads go through the API for authorisation); they are used for blob
+  uploads over 8 MiB.
+
+== Observability
+
+* Traces: every RPC, with `wt-request-id` as a span attribute; the ingest transaction and the
+  Valkey publish are child spans.
+* Metrics: `wt_changes_accepted_total{document}`, `wt_subscriptions_open`,
+  `wt_push_inflight{replica}`, `wt_seq_gap_total`, `wt_ingest_seconds`, `wt_backlog_bytes`
+  (from `PushChanges`), `wt_snapshot_seconds`, `wt_search_extract_seconds`, `wt_search_seconds`,
+  `wt_stable_lag_seq` (head − stable, the GC health signal), `wt_replica_retired_total`.
+* Logs: JSON, one line per accepted change at DEBUG, one per subscription at INFO.
+* Dashboard: `server/grafana/wiretuner.json` committed and loaded in compose.
+
+== Local development
+
+`docker compose up` brings up postgres (+ migrations, with `pg_trgm`), valkey, keycloak (realm
+file with a test user, a passkey-enabled browser flow, a stub Apple identity provider pointed at
+a local mock and a workspace IdP), minio (+ bucket init), jaeger, mailpit, and the API in
+`quarkus:dev` with debug on 5005.  `make seed` creates a team, three users and a sample document by
+replaying a conformance vector through `grpcurl`, as dissipate-server's seed jobs do.
+
+== Build tasks
+
+SRV-001 through SRV-014 and SEC-001 through SEC-003 in xref:backlog.adoc[Backlog].

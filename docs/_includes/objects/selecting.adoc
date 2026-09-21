@@ -1,0 +1,396 @@
+Before you can move, color or transform anything you select it.  {product} selects with three
+tools -- Pointer, Subselect and Lasso -- with the keyboard, and with the menu:Edit[Select]
+commands.  Selection is yours alone: it is never saved with the document, and what you have
+selected is visible to collaborators only as a colored outline with your name.
+
+// TODO screenshot: Pointer selection of a filled path, showing the selection outline and points
+
+== The selection tools
+
+[cols="1,1,3"]
+|===
+|Tool |Key |Selects
+
+|Pointer
+|kbd:[V] (kbd:[0] when the tool shortcut set is {fh}'s)
+|Whole objects.  Click an object, or drag a rectangular marquee.  Clicking a member of a
+group selects the group.
+
+|Subselect
+|kbd:[A]
+|Objects, paths and points *inside* groups, composite paths, blends, extrusions and
+clipping paths, without selecting the container.  Click or drag a marquee.
+
+|Lasso
+|kbd:[L]
+|Objects and points inside a free-form marquee that you draw by dragging.
+|===
+
+To select an object with the Pointer tool, do one of the following:
+
+* Click the object.  An object with no fill is selected by clicking its path.
+* With another tool active, hold kbd:[Cmd] to use the Pointer temporarily, then click.
+
+To select an object or point with the Subselect tool, do one of the following:
+
+* Click the object, path segment or point.  Only what you click is selected, even inside a
+  group.
+* With the Pointer active, hold kbd:[Option] and click.
+* With any other tool active, hold kbd:[Cmd+Option] and click.
+
+To select with the Lasso tool:
+
+. Choose the Lasso tool.
+. Drag a loop around the objects or points.  Releasing the mouse closes the loop.
+
+To add to or remove from a selection:
+
+* Hold kbd:[Shift] and click, or kbd:[Shift]-drag a marquee.  Clicking a selected object with
+  kbd:[Shift] removes it.
+
+On a Force Touch trackpad, pressing harder on a group member with the Pointer -- a Force
+click -- subselects it, the same as kbd:[Option]-click, so one hand can stay on the trackpad
+(xref:document-view.adoc[Setting the document view] lists every gesture).
+
+TIP: With an object selected, hold kbd:[Option] and point at another object to read the
+distance between them, or at empty page to read the distances to the page edges
+(xref:moving.adoc#smart-guides[Smart guides]).  Clicking with kbd:[Option] still subselects.
+
+=== Marquee behavior
+
+By default a marquee selects only what it completely encloses.  Each selection tool has a
+*Contact-sensitive selection* option that changes this so that touching any part of an
+object's edge selects it.  The Pointer and Subselect tools share one setting; the Lasso has
+its own.
+
+To set a selection tool's options:
+
+. Double-click the tool in the Tools panel.
+. Tick or untick *Contact-sensitive selection*.  Points inside the marquee are selected in
+  either mode.
+. Click btn:[OK].
+
+=== Pick distance
+
+The *Pick distance* preference (menu:WireTuner[Settings… > General], 1--5 pixels, default 3)
+sets how close to a path a click must land to select it.  It is measured on screen, so at high
+zoom you can click precisely and at low zoom you need not.
+
+== Selection commands
+
+[cols="2,1,3"]
+|===
+|Command |Shortcut |Selects
+
+|menu:Edit[Select > All]
+|kbd:[Cmd+A]
+|Every unlocked, visible object on the current page.  While editing text, selects all the
+text instead.
+
+|menu:Edit[Select > All in Document]
+|kbd:[Cmd+Shift+A]
+|Every unlocked, visible object on every page and on the pasteboard.
+
+|menu:Edit[Select > None]
+|kbd:[Tab]
+|Nothing.  kbd:[Tab] works whenever no text field has focus.
+
+|menu:Edit[Select > Invert Selection]
+|
+|Everything selectable on the current page that is not selected now, and nothing that is.
+
+|menu:Edit[Select > Superselect]
+|kbd:[~]
+|The container of the current subselection: the group, blend, composite path or clipping
+path.  Press again to climb another level.
+
+|menu:Edit[Select > Subselect All]
+|
+|Every member of the selected group (the same as double-clicking the *Contents* row in the
+Object panel).
+
+|menu:Edit[Clear]
+|kbd:[Delete]
+|Deletes the selection without putting it on the clipboard.
+|===
+
+Selecting objects by what they look like -- everything with a 2 pt stroke, every ellipse,
+everything in a color -- is the *Select* tab of the Find & Replace panel
+(xref:find-replace.adoc[Finding, replacing and selecting by attribute]).
+
+=== Select Similar
+
+For the common cases the Find & Replace panel is a detour.  With one object selected,
+menu:Edit[Select > Similar] offers:
+
+[cols="1,3"]
+|===
+|Command |Selects, on the current page
+
+|*Fill*
+|Every object whose fill is exactly the selected object's: the same color (or the same swatch),
+the same gradient, the same kind of fill.
+
+|*Stroke*
+|Every object with exactly the same stroke: color, width, dashes, caps and joins.
+
+|*Fill and Stroke*
+|Objects matching both.
+
+|*Shape*
+|Objects that look like the same kind of thing: circles with circles, rounded buttons with
+rounded buttons, arrows with arrows, letterforms with letterforms, whatever their size,
+rotation or color.  A small classifier on your Mac decides the kind, and it is a judgement,
+not a measurement, so treat the result as a starting point: the status bar reports how many
+were selected, and kbd:[Shift]-click removes any that do not belong.
+|===
+
+*Fill*, *Stroke* and *Fill and Stroke* are exact, and they are also in the Find & Replace
+panel as *Same as selection*, with a document-wide scope.  *Shape* is only here.  Hold
+kbd:[Shift] while choosing a command to add to the selection instead of replacing it.  Objects
+on locked or hidden layers, and hidden objects, are never selected.  The classifier runs on
+your Mac, works offline and never sends your artwork anywhere; if the version of {product}
+you have was built without it, *Shape* is not in the menu.
+
+== Selecting inside groups and other containers
+
+Members of a group, composite path, blend, extrusion or clipping path behave as one object
+under the Pointer.  To edit a member alone, subselect it.
+
+To subselect inside a container:
+
+. Choose the Subselect tool, or hold kbd:[Option] with the Pointer.
+. Click the member.  To pick a segment or point on it, click again on the segment or point.
+. kbd:[Shift]-click to add more members, segments or points.
+
+To subselect an object hidden behind another inside a container:
+
+. Choose the Subselect tool.
+. Hold kbd:[Control+Option] and click.  The topmost object under the pointer is selected;
+  each further click selects the next one down.  This is for stacks of filled objects; in a
+  stack of unfilled objects, click each object's stroke.
+
+To leave a subselection, press kbd:[Tab] or click outside the container.  To go back to the
+container, press kbd:[~] (Superselect).
+
+NOTE: An extrusion's own faces cannot be subselected; only the path it was extruded from can.
+Release the extrusion to edit the faces (xref:extrude.adoc[Extruding objects]).
+
+== Selecting through stacked objects
+
+Outside containers, the same kbd:[Control+Option]-click cycles the selection down through
+whatever lies under the pointer, one object per click.  The Info toolbar names the object
+under the pointer as you go.
+
+== What cannot be selected
+
+Locked objects can be selected but not changed (xref:arranging.adoc[Locking]).  Hidden
+objects (menu:View[Hide Selection]) cannot be selected until they are shown again.  Objects
+on locked or hidden layers are never selected by any command (xref:layers.adoc[Layers]).
+
+== Working with others
+
+Your selection is not part of the document: selecting something changes nothing for anyone
+else, and nobody can select on your behalf.  Everyone with the document open sees the others'
+selections as thin outlines in each person's color, labelled with their name.  This is
+advisory -- two people can select the same object at once, and both can edit it.
+
+If a collaborator deletes something you have selected, it simply leaves your selection.  If
+they move it, your selection follows it.  If they group it, your selection now points at the
+member inside the new group, so a subsequent nudge still moves what you had picked.
+
+After working offline, what you had selected is still selected once the document syncs,
+minus anything that was deleted in the meantime.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,2"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Pointer, Subselect, Lasso tools
+|Same tools and modifiers.
+|Faithful
+
+|Contact Sensitive tool option
+|Same; renamed *Contact-sensitive selection*.
+|Faithful
+
+|Pick Distance preference (1--5 px)
+|Same.
+|Faithful
+
+|Select All / All in Document / None / Invert Selection / Superselect
+|Same commands and shortcuts.
+|Faithful
+
+|Subselect all via double-clicking Contents
+|Same, plus a menu command menu:Edit[Select > Subselect All].
+|Faithful
+
+|Control+Option-click to cycle through stacked objects
+|Same, and works outside containers too.
+|Faithful
+
+|Windows Control+Alt-right-click
+|Not applicable.
+|Dropped -- Windows only.
+
+|Hidden objects reappear on reopen
+|Hidden state is per user and per session (below).
+|Faithful
+
+|(none)
+|menu:Edit[Select > Similar > Fill / Stroke / Fill and Stroke / Shape]; *Shape* through an
+optional on-device classifier.
+|Added -- a menu shortcut over the Select tab's *Same as selection*, plus shape class
+(xref:decisions.adoc[Decisions]: on-device ML only, no generative features in v1).
+|===
+
+=== Data model
+
+Selection is ephemeral and lives in `WTModel.Selection` (APP-006) and in presence frames
+(xref:sync-protocol.adoc[Sync protocol]); no document field is added by this page.
+
+Hidden objects are *view state*: a `hidden` set of node ids kept in the local store's
+`view` table (`local_only`), never sent.  This matches {fh}, where hidden objects reappear on
+reopen, and avoids the surprise of one person hiding an object for the whole team.
+
+[source,protobuf]
+----
+// Presence (ephemeral, not in the change log; see sync.proto).  Sketch of the selection part.
+message PresenceUpdate {
+  // Node ids currently selected by this user, whole objects only.
+  repeated OpId selected = 4;
+  // Sub-selection inside one node: element ids of points, or a text range.  Optional.
+  SubSelection sub = 5;
+}
+----
+
+=== Merge semantics
+
+Nothing merges: selection is not in the document.  The model does keep the local selection
+coherent across remote changes:
+
+* A selected node that becomes `deleted = true` is removed from the selection.
+* A selected node that is reparented (grouped, moved to another layer) stays selected; the
+  selection is a set of node ids, not paths.
+* A selected point element that is deleted is removed from the sub-selection.
+* Locking (`CommonProps.locked`) does not clear the selection; commands refuse to write to
+  locked nodes unless the *Edit locked objects* preference is on.
+
+=== Offline behavior
+
+Selection works offline; presence is simply not sent.  After reconnect, the selection is
+re-published.
+
+=== Server
+
+Relays presence (SRV-012).  Nothing else.
+
+=== Client
+
+* `WTApp/Tools/PointerTool`, `SubselectTool`, `LassoTool` on the APP-003 `Tool` protocol.
+  The Pointer and Subselect tools share one gesture recognizer with a `subselect` flag set by
+  the tool or by kbd:[Option].
+* Hit testing is REND-003: fill, stroke with *Pick distance* tolerance, points, segments;
+  the marquee query uses the R-tree with `enclosed` or `intersects` predicates according to
+  *Contact-sensitive selection*.  Lasso uses point-in-polygon on each candidate's bounds and
+  then on its outline for contact-sensitive mode.
+* Cycle-through (kbd:[Control+Option]-click) keeps a per-click stack of hits at the click
+  point; the stack is reset when the pointer moves more than the pick distance.
+* Force click: the canvas view forwards `pressureChange(with:)` reaching stage 2 as a
+  `CanvasEvent` with `forceClick = true` (BASIC-034); the Pointer treats it as a click with
+  the `subselect` flag set.  The kbd:[Option]-hover measurement overlay is OBJ-039 on
+  xref:moving.adoc#smart-guides[Smart guides]; it hit-tests through REND-003 and never
+  changes the selection.
+* Hit-test points are mapped through the inverse view transform, rotation included, so
+  selection works identically on a rotated canvas.
+* Remote selections are drawn by the presence overlay (SYNC-009): 1 px outline in the user's
+  color, name tag at the top-right of the bounds, never obscuring handles.
+* Preferences: *Contact-sensitive selection* (Pointer/Subselect: off; Lasso: off), *Pick
+  distance* (3 px).
+* *Select Similar* (OBJ-042): *Fill*, *Stroke* and *Fill and Stroke* run OBJ-022's
+  `AttributeQuery` with the *Same as selection* predicate scoped to the current page, exact
+  register equality (a swatch reference equals the same reference; a literal color equals the
+  same literal, not a swatch that resolves to it).  *Shape* (IMG-030) asks
+  `WTGeometry.ShapeClassifier` for the class of the selected object and of every candidate on
+  the page, and selects candidates of the same class: a small bundled Core ML model (under
+  2 MB, run through `MLModel` directly, no Vision) over a normalized feature vector per path
+  -- 64 resampled outline points after translation, scale and rotation normalization, plus
+  corner count, convexity, aspect and hole count -- with classes `circle`, `ellipse`,
+  `rectangle`, `rounded_rectangle`, `triangle`, `polygon`, `star`, `arrow`, `line`,
+  `letterform`, `blob`; groups and text blocks classify as `group` and `text` without the
+  model; images as `image`.  Classification is cached per node and per geometry register
+  version and runs off the main actor; a page of 5,000 paths classifies in under 300 ms on M1.
+  The classifier is an optional bundle resource: absent, the *Shape* item is not built into
+  the menu, and nothing else changes.  Nothing is written to the document and nothing leaves
+  the Mac.
+
+=== Build tasks
+
+[[OBJ-005]]
+==== OBJ-005 Pointer, Subselect and Lasso tools
+[horizontal]
+Track:: client-ui
+Depends on:: APP-003, APP-006, REND-003
+Size:: L
+Delivers:: The three selection tools with click, kbd:[Shift]-add/remove, marquee and lasso, the temporary-tool modifiers (kbd:[Cmd], kbd:[Option], kbd:[Cmd+Option]), the tool options sheet with *Contact-sensitive selection*, and the *Pick distance* preference wired into hit testing.
+Done when::
+* UI tests: click selects; click on unfilled interior does not; kbd:[Shift]-click toggles; enclosed vs. contact-sensitive marquee on a corpus; lasso selects points inside the loop.
+* kbd:[Option]-click with the Pointer selects a group member; plain click selects the group.
+* Changing *Pick distance* changes the stroke hit tolerance on screen, verified at two zoom levels.
+
+[[OBJ-006]]
+==== OBJ-006 Select menu commands
+[horizontal]
+Track:: client-model
+Depends on:: APP-005, APP-006
+Size:: S
+Delivers:: menu:Edit[Select > All / All in Document / None / Invert Selection / Superselect / Subselect All] and menu:Edit[Clear], with the page-vs-document scoping and the locked/hidden exclusions.
+Done when::
+* *All* selects objects whose bounds intersect the current page and skips locked, hidden and locked-layer objects; *All in Document* includes the pasteboard.
+* kbd:[Tab] deselects only when no text field has key focus.
+* *Superselect* climbs one container level per invocation and is disabled at the top.
+* *Clear* emits one change `Delete N objects` that sets `deleted` on each node; merge test: clear vs. concurrent remote edit leaves the node deleted with the edit retained.
+
+[[OBJ-007]]
+==== OBJ-007 Cycle-through selection and local hide
+[horizontal]
+Track:: client-ui
+Depends on:: OBJ-005
+Size:: S
+Delivers:: kbd:[Control+Option]-click cycling through stacked hits inside and outside containers, the Info toolbar name readout during cycling, and the local `hidden` set with menu:View[Hide Selection] and menu:View[Show All] persisted in the `view` table.
+Done when::
+* Cycling over a stack of five filled objects visits each in z-order and wraps.
+* Hidden objects are neither rendered, hit-tested nor selected by *All*; they reappear after *Show All* and after reopening the document on the same Mac; another Mac never sees them hidden.
+* A hidden node that is deleted remotely is dropped from the hidden set.
+
+[[OBJ-042]]
+==== OBJ-042 Select Similar commands
+[horizontal]
+Track:: client-model
+Depends on:: OBJ-006, OBJ-022
+Size:: S
+Delivers:: menu:Edit[Select > Similar > Fill / Stroke / Fill and Stroke] over `AttributeQuery` with exact register equality on the current page, the kbd:[Shift] add-to-selection variant, the status-bar count, the locked/hidden exclusions, and the menu slot for *Shape* (filled by IMG-030).
+Done when::
+* On a fixture page, *Fill* selects exactly the objects sharing the swatch reference and not the one with an equal literal color; *Stroke* distinguishes a 2 pt dashed stroke from a 2 pt solid one.
+* kbd:[Shift] adds to the selection; the commands are disabled with no or several objects selected.
+* Nothing is written to the document (the change log is unchanged after any sequence of commands).
+
+[[IMG-030]]
+==== IMG-030 Shape classifier for Select Similar
+[horizontal]
+Track:: client-render
+Depends on:: GEO-001, OBJ-042
+Size:: M
+Delivers:: `WTGeometry.ShapeClassifier` with the feature extraction above, the bundled Core ML model and its training set and evaluation script under `tools/shape-classifier/`, per-node caching, the off-main-actor batch API, the *Shape* menu item, and the model-absent build variant.
+Done when::
+* On a labelled fixture set of 2,000 paths drawn with the tools and imported from SVG the classifier reaches ≥ 92% accuracy, and every class in the list is represented in the set.
+* *Shape* on a circle selects every circle on a page of mixed primitives regardless of size, rotation and color, and no rectangles; the status bar reports the count.
+* A page of 5,000 paths classifies in under 300 ms on M1 with the result cached until a geometry register changes.
+* A build without the model resource has no *Shape* item and passes every other selecting test; the classifier makes no network calls (sandbox audit).
+endif::spec[]

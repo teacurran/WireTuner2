@@ -1,0 +1,7 @@
+= Changing default attributes
+include::_attributes.adoc[]
+:page-slug: default-attributes
+:page-group: Objects
+:page-fh: Chapter 4, "Changing default attributes"
+
+include::_includes/objects/default-attributes.adoc[]

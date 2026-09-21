@@ -1,0 +1,7 @@
+= Spirals and arcs
+include::_attributes.adoc[]
+:page-slug: spirals-arcs
+:page-group: Drawing
+:page-fh: Chapter 3, "Drawing spirals and arcs"
+
+include::_includes/drawing/spirals-arcs.adoc[]

@@ -1,0 +1,7 @@
+= Grouping objects
+include::_attributes.adoc[]
+:page-slug: grouping
+:page-group: Objects
+:page-fh: Chapter 4, "Grouping objects", "Working with nested objects"
+
+include::_includes/objects/grouping.adoc[]

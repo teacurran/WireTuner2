@@ -1,0 +1,7 @@
+= The workspace
+include::_attributes.adoc[]
+:page-slug: workspace
+:page-group: Basics
+:page-fh: Chapter 1, "The Macromedia Studio MX interface", "The Document window"
+
+include::_includes/basics/workspace.adoc[]

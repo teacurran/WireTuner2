@@ -1,0 +1,179 @@
+{product} draws a printed page the way it draws the canvas, so a document that is quick to
+redraw is quick to print, and a document that is slow on screen will be slow to spool.  The
+printer then has its own limits: memory, and the speed of its interpreter on a complex page.
+This page collects what to do about both, and describes the progress panel that lets a long
+job be watched or cancelled.
+
+== Drawing for fast output
+
+Most of these also make the document lighter to edit and to sync.
+
+Keep only what prints::
+Delete objects that are hidden behind others, empty text blocks and unused colors;
+menu:Extensions[Cleanup] has commands for the last two.  Everything on a printing layer is
+processed even when it is covered.  Move reference material to a background layer, which never
+prints (xref:layers.adoc[Layers]).
+
+Use fewer points::
+A path drawn with the Pencil or produced by tracing can carry ten times the points it needs.
+menu:Modify[Alter Path > Simplify] reduces them (xref:editing-paths.adoc[Editing paths]).
+Shape curves with handles rather than extra points; use straight segments where a curve is not
+needed.
+
+Raise flatness::
+*Flatness* in the Print dialog's *Imaging* group lets the printer approximate curves with
+fewer straight pieces.  1 to 3 is invisible at normal viewing distance on a 600 dpi printer;
+per-path flatness in the Object panel targets only the paths that need it.
+
+Go easy on effects::
+Transparency, raster effects, lens fills and blends with many steps are rasterized at print
+time at the document's raster effect resolution (xref:raster-effects.adoc[Raster effects]).
+Lower that resolution for proofs and raise it for the final run.  Gradients themselves are
+cheap -- they print as smooth shadings -- but a dozen stacked multi-color radial fills are not.
+
+Prepare images before placing them::
+Crop, scale and rotate bitmaps in an image editor so the printed job carries only the pixels
+that show (xref:cropping-bitmaps.adoc[Cropping bitmaps], xref:bitmaps.adoc[Bitmaps]).  A
+placed image prints at its native resolution, however small it appears on the page.
+
+Simplify clipping paths::
+A clipping path is applied to everything inside it; a complex clip over complex contents
+multiplies the work.
+
+Text::
+Text on a path and the Zoom text effect are the slow ones; use them where they earn their
+place.  Fewer typefaces mean fewer fonts to embed.  Object screens from the Halftones panel
+add a rendering pass each when screening in {product}.
+
+== Options for difficult printers
+
+Two options in the *{product}* pane trade quality or file size for reliability:
+
+[cols="1,3"]
+|===
+|Option |Use it when
+
+|*Rasterize output* (with a resolution)
+|The printer runs out of memory, prints blank pages, or drops objects on a complex document.
+The whole sheet becomes one image at the resolution you choose; 300 dpi is enough for a
+proof, 600 for line art on a laser printer.  Marks and labels stay sharp.
+
+|*Print text as outlines*
+|One font prints wrongly on one printer (xref:print-fonts.adoc[Printing fonts]).
+|===
+
+Both affect this job only.  Neither changes the document.
+
+== Watching and cancelling a job
+
+Once you click btn:[Print], {product} draws the sheets in the background while you keep
+working.  A progress panel shows the sheet being drawn (`Drawing sheet 3 of 8, Magenta`), a
+bar, and btn:[Cancel].  Cancelling stops the job before anything reaches the printer; sheets
+already spooled by macOS appear in the printer's queue, where they can be cancelled from the
+Dock.  The document stays editable throughout; the job prints the document as it was when you
+clicked btn:[Print], so later edits do not leak into it.
+
+== Working with others
+
+Printing never slows a collaborator down: a job is drawn from a snapshot on your Mac, and
+nothing about it travels to them.  The cleanup steps above do change the shared document --
+deleting hidden objects deletes them for everyone -- so mention it, or do them on a branch
+(xref:branches.adoc[Branches]).
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,2"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Guidelines: complexity, points, flatness, subpaths, effects, simplify, clipping, halftones,
+imported graphics
+|Same advice adapted to the renderer; the PostScript-specific items (binary vs. ASCII images,
+subpath counts) dropped.
+|Adapted -- PostScript-era items removed.
+
+|Paper size no larger than the illustration to save printer memory
+|Not applicable; memory is the Mac's.
+|Dropped -- no longer a constraint.
+
+|Text guidelines (text on a path, typefaces, Zoom effect, downloadable fonts)
+|Same minus font downloading.
+|Adapted
+
+|Fonts downloaded only for printed pages
+|Subsetting has the same effect.
+|Faithful
+
+|Print progress and cancel (system dialog)
+|{product}'s own progress panel with sheet names, background drawing, cancellation.
+|Adapted -- addition.
+|===
+
+=== Data model
+
+`PrintSettings.rasterize_dpi`, `flatness` and `text_as_outlines` on
+xref:printing.adoc[Printing].  Nothing new.
+
+=== Merge semantics
+
+As on xref:printing.adoc[Printing].  A print job reads an immutable snapshot of the model
+(`WTModel` value semantics at the moment of btn:[Print]); remote changes arriving during the
+job do not affect it and are not blocked by it.
+
+=== Offline behavior
+
+Fully offline.
+
+=== Server
+
+Nothing.
+
+=== Client
+
+* `NSPrintOperation.canSpawnSeparateThread = true`; `PrintPlanView` holds a snapshot of the
+  document value and a display list built from it, so drawing runs off the main actor without
+  touching the live model.
+* Progress: `showsProgressPanel = false` for the system panel; {product} shows its own sheet
+  attached to the document window, fed by `PrintPlanView` reporting `(sheetIndex, sheetName)`
+  from `rectForPage(_:)`.  Cancel calls `NSPrintOperation.current?.destroyContext()` after the
+  current sheet and marks the plan cancelled so no further `draw` runs; the screener and
+  rasterizer check `Task.isCancelled` between tiles.
+* Rasterize output: render the sheet through `WTRender` into a `CGBitmapContext` at
+  `rasterize_dpi` (tiled in 4096-px bands to bound memory), then draw the image into the
+  print context; marks and labels drawn afterwards as vectors.
+* Raster effect resolution at print time is the document's setting (FX epic); the print path
+  passes the target dpi to the effect rasterizer instead of the screen scale.
+* A `WTInterchange/Print/Corpus` test target renders every corpus document through the
+  composite, separated, tiled and rasterized paths to PDF and compares rasterized pages with
+  the canvas renderer's output.
+
+=== Build tasks
+
+[[PRINT-013]]
+==== PRINT-013 Print progress, cancellation and rasterized output
+[horizontal]
+Track:: import-export
+Depends on:: PRINT-003, PRINT-006
+Size:: M
+Delivers:: Background printing from a model snapshot with the progress sheet (sheet name, bar, btn:[Cancel]) and cancellation propagated to the screener and rasterizer; *Rasterize output* at `rasterize_dpi` with banded rendering; the print-time raster effect resolution hook.
+Done when::
+* A 200-sheet job keeps the document window responsive (UI test types during the job) and the job reflects none of the typed edits.
+* Cancel during sheet 3 sends nothing further to the queue and releases the snapshot within 1 s.
+* Rasterized output of the corpus at 300 dpi matches the vector output rasterized at 300 dpi within anti-aliasing tolerance; peak memory for a tabloid sheet at 1200 dpi stays under 512 MiB.
+* Marks remain vector in a rasterized job (PDF inspection).
+
+[[PRINT-015]]
+==== PRINT-015 Print output corpus and CI comparison
+[horizontal]
+Track:: test
+Depends on:: PRINT-005, PRINT-008, PRINT-009, PRINT-013
+Size:: M
+Delivers:: The `Corpus` test target: reference documents covering every print option (scale modes, offset, tiling, marks, bleed, negative/emulsion, plates with overprint and spot colors, object screens, outlines, rasterized), committed reference PDFs and rasterized checksums, and a CI job comparing fresh output to the references with a tolerance report.
+Done when::
+* Every option on the Printing, Output devices and Halftones pages has at least one corpus document exercising it.
+* CI fails with a named page and pixel-diff image when output drifts beyond tolerance.
+* The composite corpus pages are byte-for-byte reused from REND-001's screen/PDF identity corpus, proving the print path adds no rendering of its own.
+endif::spec[]

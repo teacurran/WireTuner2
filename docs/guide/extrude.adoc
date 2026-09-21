@@ -1,0 +1,7 @@
+= Extruding objects
+include::_attributes.adoc[]
+:page-slug: extrude
+:page-group: Effects
+:page-fh: Chapter 7, "Extruding objects"
+
+include::_includes/effects/extrude.adoc[]

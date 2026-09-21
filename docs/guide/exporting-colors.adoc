@@ -1,0 +1,7 @@
+= Exporting and sharing colors
+include::_attributes.adoc[]
+:page-slug: exporting-colors
+:page-group: Color
+:page-fh: Chapter 5, "Exporting colors"
+
+include::_includes/color/exporting-colors.adoc[]

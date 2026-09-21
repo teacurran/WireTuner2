@@ -1,0 +1,149 @@
+menu:Edit[Undo] takes back your last action; menu:Edit[Redo] puts it back.  The menu names
+the action (`Undo Rotate`, `Undo Paste 3 objects`) so you can see what you are about to
+undo.  Undo reaches back through everything you have done in the document -- across saves,
+which happen continuously, and across quitting and relaunching {product}.
+
+// TODO screenshot: Edit menu with Undo Move "Logo mark" and Redo items
+
+[cols="2,1,3"]
+|===
+|Command |Shortcut |Does
+
+|menu:Edit[Undo _action_]
+|kbd:[Cmd+Z]
+|Reverses your most recent action.  Dimmed when there is nothing of yours to undo.
+
+|menu:Edit[Redo _action_]
+|kbd:[Cmd+Shift+Z]
+|Re-applies what you last undid.  Doing something new clears the redo list.
+|===
+
+What counts as one action: one drag, one paste, one panel edit, one run of arrow-key nudges,
+one typed word in a text block, one replace-all.  The history panel lists the same steps
+(xref:history.adoc[History]).
+
+To set how many actions are kept:
+
+. Choose menu:WireTuner[Settings… > General].
+. Enter *Undo levels* (1--1,000; default 100).  The change applies to documents opened
+  afterwards.
+
+NOTE: {fh} had menu:File[Revert] to go back to the last saved copy.  {product} saves every
+change as it happens, so there is no unsaved state to revert to; to go back further than
+undo reaches, restore an earlier version from the document's history
+(xref:history.adoc[History]).
+
+== Undo in a shared document
+
+Undo is personal.  It undoes *your* actions, never anyone else's, and it never rewinds the
+document for other people: an undo is simply another change, which they see arrive like any
+other.
+
+If someone has changed the very thing you are undoing since you changed it -- you moved an
+object, then they moved it again, then you press kbd:[Cmd+Z] -- your undo leaves their
+change alone.  The parts of your action they did not touch are still undone.  So an undo can
+be partial, and occasionally an undo does nothing visible at all; the menu item still works
+and the redo item appears.
+
+Undoing the creation of an object removes it; if a collaborator had meanwhile edited that
+object, their edit disappears with it, and they can bring the object back from their own
+history (xref:history.adoc[History]).  Undoing a deletion brings the object back with any
+edits people made to it in between.
+
+== Offline
+
+Everything you do offline can be undone the same way, and the undo list survives a relaunch.
+After you reconnect, undoing something that a collaborator also changed while you were
+apart follows the same rule: their change stays.
+
+ifdef::spec[]
+== Specification
+
+The mechanism is specified in xref:crdt-model.adoc[CRDT model] (Undo) and delivered by
+xref:backlog.adoc#APP-011[APP-011].  This page fixes the user-facing rules and the
+preference.
+
+=== FreeHand parity
+
+[cols="2,3,2"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Undo / Redo with the action named
+|Same.
+|Faithful
+
+|Undo levels preference (1--100, memory-bound)
+|1--1,000, default 100, persisted in the local store.
+|Faithful
+
+|Undo after saving, not after reopening
+|Undo survives reopening and relaunch.
+|Adapted -- the stack is in the local store; there is no reason to lose it.
+
+|Change takes effect after reopening the document
+|Same.
+|Faithful
+
+|File > Revert to last saved
+|No unsaved state exists; version history replaces it.
+|Dropped -- continuous save; xref:history.adoc[History] covers the need.
+|===
+
+=== Data model
+
+No document fields.  The undo stack is the local store's `undo` table
+(xref:offline.adoc[Offline]): per change, the inverse ops with the prior `(value, OpId)` of
+each register.
+
+=== Merge semantics
+
+* An undo emits a new change (label `Undo <label>`), restoring each register whose current
+  OpId is still the one this user wrote.  Registers since written by others are skipped;
+  the skipped set is not surfaced in the UI beyond the menu title (a partial undo is
+  silent), because listing them would interrupt the most common shortcut in the
+  application.
+* Undo of `CreateNode` is `SetDeleted(true)`; another user's concurrent edits to the node
+  stay on the tombstone and reappear if they restore it from history.
+* Undo of a `MoveNode` re-issues the prior parent and position, again only if the node's
+  current (parent, position) is still the one this user set.
+* Undo of an `ElementInsert` deletes the element ids; of a `TextInsert` deletes the
+  character ids; of a `TextDelete` re-inserts as fresh characters at the original anchors.
+* Redo is symmetric: re-apply where the register still holds the undone value.
+* Undo entries are capped at *Undo levels* changes; older inverses are dropped from the
+  `undo` table, not from history.
+
+=== Offline behavior
+
+The stack lives in the local store and is unaffected by connectivity or by outbox
+coalescing (inverses, not sent ops).  The cap is enforced on append.
+
+=== Server
+
+Nothing beyond storing and relaying changes.  An undo is indistinguishable from any other
+change on the wire except by its label.
+
+=== Client
+
+* `NSUndoManager` is not used for document changes (its model is a linear local stack that
+  cannot express "skip if changed"); `WTModel.UndoStack` provides the menu items and
+  validation through the APP-005 command registry.  `NSUndoManager` remains for text field
+  editing inside panels.
+* Menu titles from `Change.label`; `Undo` dimmed when the stack is empty.
+* Preference: *Undo levels* (100).
+
+=== Build tasks
+
+[[OBJ-036]]
+==== OBJ-036 Undo menu, levels preference and partial-undo rules
+[horizontal]
+Track:: client-model
+Depends on:: APP-011, APP-010, APP-005
+Size:: S
+Delivers:: Undo/Redo menu items with labels and validation, the *Undo levels* preference (1--1,000, default 100) applied at document open and enforced on append, and the user-facing rules above verified end to end for every op kind.
+Done when::
+* Undo titles match change labels; redo list clears on a new change.
+* Setting *Undo levels* to 5 keeps five inverses in the `undo` table after ten changes.
+* Merge test (multi-client, TEST-001): A moves, B moves, A undoes: B's matrix stands; A's redo restores A's value only if B has not written again.
+* Relaunch after ten changes: all ten remain undoable.
+endif::spec[]

@@ -1,0 +1,7 @@
+= Transforming objects
+include::_attributes.adoc[]
+:page-slug: transforming
+:page-group: Objects
+:page-fh: Chapter 4, "Transforming objects", "Using the transformation tools", "Using the Transform panel", "Transforming objects freely", "Power-duplicating"
+
+include::_includes/objects/transforming.adoc[]

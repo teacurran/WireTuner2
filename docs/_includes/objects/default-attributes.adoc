@@ -1,0 +1,146 @@
+Every new object is born with the document's *default attributes*: a stroke, a fill, and
+any effects, exactly as the Object panel shows them when nothing is selected.  Change those
+and every object you draw from then on gets the new look.  The defaults belong to the
+document, so a collaborator opening it -- or you, on another Mac -- draws with the same
+defaults.
+
+// TODO screenshot: Object panel with nothing selected, showing the document defaults
+
+== Changing the defaults
+
+To change the default attributes:
+
+. Deselect everything (menu:Edit[Select > None], or press kbd:[Tab]).
+. In the Object panel, edit the stroke, fill and effects as you would for an object: add,
+  remove, reorder, recolor.
+. Draw: the next object has the new attributes.
+
+The defaults are also what the *Normal* graphic style holds.  Choosing another style in the
+Styles panel with nothing selected makes that style's attributes the defaults until you
+choose again (xref:styles.adoc[Styles]).
+
+Editing an object does not change the defaults.  If you prefer it to -- so that the last
+look you gave anything is the look you draw with next -- turn on *Changing object changes
+defaults* in menu:WireTuner[Settings… > Object].  This is your own preference, but the
+defaults it writes are the document's.
+
+Text has its own defaults (font, size and the rest), set the same way with the Text tool
+active (xref:type-specifications.adoc[Type specifications]).
+
+== Working with others
+
+Because the defaults are part of the document, changing them changes what everyone draws
+next.  This is usually what a team wants -- a house stroke and fill for the file -- but it
+means a collaborator can change your defaults under you.  When it happens, the Object panel
+updates as soon as their change arrives, and the next object you draw uses the new defaults.
+Objects already drawn are not affected.
+
+If two people change the same default at the same moment, the later one stays.  Each part of
+the defaults is separate: one person changing the default stroke while another changes the
+default fill keeps both.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,2"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Defaults shown and edited in the Object panel with nothing selected
+|Same.
+|Faithful
+
+|Defaults defined by the selected style; changing the style changes them
+|Same.
+|Faithful
+
+|Changing Object Changes Defaults preference
+|Same; a per-user preference writing shared defaults.
+|Faithful
+
+|Defaults saved with the document
+|Same: shared document data under `settings`.
+|Faithful
+|===
+
+=== Data model
+
+Defaults are shared document data on the well-known `settings` node.
+
+[source,protobuf]
+----
+// proto/wiretuner/doc/v1/settings.proto (the OBJ part)
+message SettingsProps {
+  // What a newly drawn object receives.  STRUCT: the stroke, fill and text defaults are
+  // independent choices and merge independently.
+  Defaults defaults = 10;
+}
+message Defaults {
+  // The appearance stack copied onto every new drawable node (ATTR's message; its
+  // elements are a SEQUENCE, so adding a default fill while someone reorders keeps both).
+  AppearanceProps appearance = 1;
+  // The graphic style the defaults currently mirror; unset => "Normal".  Dangling => unset.
+  NodeRef style = 2 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
+  // Text defaults: font, size, leading, alignment... (TYPE's message).
+  TextDefaults text = 3;
+}
+----
+
+Why document, not user::
+The alternative -- defaults as a per-user preference -- was rejected: {fh} stores them in
+the file (as the Normal style), a template's whole point is to carry defaults
+(xref:templates.adoc[Templates]), and a document should draw the same on every Mac.  The
+cost -- a collaborator can change them -- is small because defaults affect only future
+objects, and the change is visible in the Object panel and in history.  The *current style*
+selection in the Styles panel, by contrast, is UI state.
+
+Drawing tools read `defaults.appearance` at creation and copy it onto the new node under
+fresh element ids; the new node holds no reference to the defaults.
+
+=== Merge semantics
+
+* Each register inside `defaults` merges independently (STRUCT over SEQUENCE); the nasty
+  cases are those of the attribute stack (xref:object-panel.adoc[Object panel]).
+* Two users changing the default fill color: LWW; the loser is retained, and the review
+  sheet lists it under the document settings entry as `same register`.
+* *Changing object changes defaults* writes the defaults in the *same change* as the
+  object edit (`Change fill (and defaults)`), so undoing the edit also undoes the default
+  change.
+* A dangling `style` reads as Normal.
+
+Read-time normalization: an empty `appearance` (a document created by an older client, or
+every element deleted) reads as the built-in defaults: 1 pt black basic stroke, no fill.
+
+=== Offline behavior
+
+Fully offline.
+
+=== Server
+
+Nothing beyond storing and relaying changes.
+
+=== Client
+
+* `WTModel.Document.defaults` observed by the Object panel's empty-selection mode and by
+  every creation command in DRAW/TYPE.
+* `SetDefaultsCommand` reuses the attribute stack commands (OBJ-004) against the `settings`
+  node's `defaults.appearance` path.
+* Preference: *Changing object changes defaults* (off).
+
+=== Build tasks
+
+[[OBJ-037]]
+==== OBJ-037 Document defaults
+[horizontal]
+Track:: client-model
+Depends on:: OBJ-004, OBJ-003, APP-010
+Size:: M
+Delivers:: `settings.proto` `Defaults`, the empty-selection mode of the Object panel editing `settings.defaults`, creation-time copying for drawing commands (a `DefaultsProvider` API for DRAW/TYPE), the style link, the *Changing object changes defaults* preference and its same-change write.
+Done when::
+* With nothing selected, adding a fill writes an `ElementInsert` on `settings.defaults.appearance.stack`; the next rectangle drawn carries a copy with fresh element ids and no reference.
+* Merge test: concurrent default-stroke edit and default-fill edit keep both; concurrent default-fill-color edits converge by OpId with the loser retained.
+* Conformance vector: `Defaults` with STRUCT fields and a SEQUENCE stack written from two replicas.
+* An empty `appearance` reads as the built-in defaults (test on a document without the field).
+endif::spec[]

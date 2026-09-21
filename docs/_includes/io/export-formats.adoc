@@ -1,0 +1,346 @@
+Exporting writes a copy of your artwork, a page, a selection or the text of a document in a
+format another program can open.  The document itself stays in the cloud; an export is a
+snapshot of it in someone else's language.  This page lists every format {product} writes and
+what each is good for.  The procedures are on xref:exporting.adoc[Exporting files], and the
+options per format on xref:export-vector.adoc[Exporting vector artwork],
+xref:export-bitmap.adoc[Exporting bitmap images], xref:export-pdf.adoc[Exporting PDF files]
+and xref:export-text.adoc[Exporting text].
+
+NOTE: For {fh} users: the {fh}-version, PICT, WMF/EMF, DCS and movie formats are gone, and the
+five kinds of EPS collapsed into one EPS with a *Preview* option.  SVG, WebP, HEIC, AVIF,
+PDF/X and DXF are new.  Editable EPS survives as an option on EPS and PDF export.
+
+== Formats
+
+[cols="2,1,4"]
+|===
+|Format |Extension |Use it for
+
+|PDF
+|`.pdf`
+|The general-purpose vector format: print handoff, proofs, placing in page-layout programs,
+e-mailing artwork that must look right anywhere.  Keeps text, transparency, spot colors and
+multiple pages.  Presets for PDF/X-1a and PDF/X-4 make print-ready files.
+
+|Adobe Illustrator
+|`.ai`
+|Opening the artwork in Illustrator.  A PDF that Illustrator opens with paths, text and
+layers editable, saved with the extension Illustrator expects.
+
+|EPS
+|`.eps`
+|Older print workflows and page-layout programs that still want PostScript.  One page per
+file, optional TIFF preview, optional embedded fonts.  Choose PDF unless something requires EPS.
+
+|SVG
+|`.svg`
+|Web pages, apps and design tools.  Resolution-independent, text stays text, object names
+become element ids, and effects that SVG can express stay live.
+
+|DXF
+|`.dxf`
+|Cutters, plotters, CNC and CAD.  Paths only, in real-world units.
+
+|PNG
+|`.png`
+|Screen graphics with sharp edges and transparency: icons, UI, diagrams.  Lossless.
+
+|JPEG
+|`.jpg`
+|Photographs and continuous tones where file size matters.  Lossy; no transparency.
+
+|WebP
+|`.webp`
+|Web images: smaller than PNG or JPEG at the same quality, with transparency, lossless or
+lossy.
+
+|HEIC
+|`.heic`
+|Images for Apple platforms: high quality, small, wide color, transparency.
+
+|AVIF
+|`.avif`
+|Web images with the best compression of the set; supported by current browsers.
+
+|GIF
+|`.gif`
+|Flat-color graphics for systems that need GIF.  256 colors, one-bit transparency.
+
+|TIFF
+|`.tif`
+|Print bitmaps and archives: lossless, CMYK with a profile, alpha channel, layers off.
+
+|Photoshop
+|`.psd`
+|Continuing in Photoshop: each {product} layer becomes a Photoshop layer.
+
+|BMP
+|`.bmp`
+|Windows software that reads nothing else.
+
+|Targa
+|`.tga`
+|Video and 3D tools that ask for it.  Alpha channel, optional compression.
+
+|Rich Text
+|`.rtf`
+|Text with formatting, for word processors and page-layout programs.
+
+|Plain Text
+|`.txt`
+|Text with no formatting.
+
+|{product} Package
+|`.wiretuner`
+|A complete, self-contained copy of the document (xref:saving.adoc[Saving]).  Not an export
+in the dialog sense: use menu:File[Export a Package…].
+|===
+
+URLs attached to objects and text export to PDF (as links) and SVG (as `<a>` elements); see
+xref:urls.adoc[Attaching URLs].  Publishing to the web as HTML is on
+xref:publish-html.adoc[Publishing as HTML].
+
+== Choosing a format
+
+The right format depends on where the file is going.
+
+[cols="2,3"]
+|===
+|Destination |Suggested format
+
+|A printer or print shop
+|PDF/X-4 (or PDF/X-1a if the shop asks for it).  EPS only if their workflow requires it.
+Embed fonts, keep CMYK and spot colors.
+
+|A page-layout or another illustration program
+|PDF.  Use *Adobe Illustrator* for Illustrator, or add *Embed {product} document* to get the
+original back later.
+
+|A website or an app
+|SVG for artwork that should scale and stay small.  PNG for pixel-exact graphics with
+transparency, WebP or AVIF for photographs and large images, JPEG when compatibility with old
+software matters.
+
+|Photoshop or another image editor
+|PSD with layers, or TIFF.
+
+|Video, games, 3D
+|PNG or Targa with an alpha channel, at the pixel size the tool needs.
+
+|A cutter, plotter, laser or CNC machine
+|DXF, or SVG if the machine's software reads it.  Convert text to paths first.
+
+|Word processing
+|RTF.
+|===
+
+== Web formats
+
+[cols="1,1,1,1,1,1"]
+|===
+|Feature |GIF |JPEG |PNG |WebP |AVIF
+
+|Colors
+|256
+|Millions
+|Millions
+|Millions
+|Millions, wide color
+
+|Compression
+|Lossless
+|Lossy
+|Lossless
+|Either
+|Either
+
+|Transparency
+|One color
+|None
+|Full alpha
+|Full alpha
+|Full alpha
+
+|Best for
+|Legacy systems
+|Photographs where compatibility matters
+|Sharp-edged graphics, screenshots
+|Any web image
+|Any web image; smallest files
+
+|Watch out for
+|Banding, dithered gradients
+|Halos around text, no transparency
+|Large photographs
+|Very old browsers
+|Older browsers and some apps
+|===
+
+When preparing web graphics, export at the pixel size you need (use the *2×* and *3×* scale
+options for Retina displays, xref:export-bitmap.adoc[Exporting bitmap images]) and look at
+the result in a browser before shipping it.
+
+== Working with others
+
+Formats do not care who else is in the document.  What you export is what you see: all of
+your changes and every change from others that has reached this Mac.  If you are offline, the
+Export dialog reminds you that changes from others made since you disconnected cannot be in
+the file.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,2"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Acrobat PDF
+|PDF 1.4 through 2.0, PDF/X-1a, PDF/X-4.
+|Faithful, extended.
+
+|Adobe Illustrator 1.1, 88, 3, 4, 5.x, 7.x
+|One *Adobe Illustrator* format: PDF 1.7 with the `.ai` extension and an AI-compatible
+structure (layers as optional content groups).  Illustrator 10 and later open it fully; the
+1990s versions cannot be targeted.
+|Adapted -- modern Illustrator files are PDF; the legacy PostScript-dialect versions have no
+readers left.
+
+|ASCII text, RTF
+|Plain Text (UTF-8) and RTF.
+|Faithful.
+
+|BMP, GIF, JPEG, PNG, TIFF, Targa
+|All written.
+|Faithful.
+
+|Photoshop 5 PSD with layers
+|PSD with layers, from the current PSD specification.
+|Faithful.
+
+|Generic EPS, Macintosh EPS (PICT preview), MS-DOS EPS (TIFF preview), EPS with TIFF preview,
+QuarkXPress EPS, CMYK EPS
+|One EPS format with a *Preview* option (None or TIFF) and a *Colors* option.  PICT previews
+are not written.
+|Adapted -- the variants differed only in preview and platform; PICT is unreadable on
+current macOS.
+
+|Photoshop 3 EPS, Photoshop 4/5 EPS
+|Plain EPS; Photoshop rasterizes it on open exactly as it did those.
+|Adapted -- no separate flavor needed.
+
+|DCS 2.0 EPS
+|Not written.
+|Dropped -- pre-separated EPS served OPI workflows that PDF/X-1a replaced twenty years ago.
+
+|Windows Metafile, Enhanced Metafile
+|Not written.
+|Dropped -- Windows-only vector formats; SVG and PDF cover the use.
+
+|PICT
+|Not written.
+|Dropped -- removed from macOS.
+
+|Macromedia Flash movie
+|Animated SVG (xref:animation.adoc[Animating objects and text]; also GIF, APNG, MP4).
+|Adapted -- animated SVG is the vector animation format; see xref:svg-animation.adoc[SVG animations and browser preview].
+
+|FreeHand 8, 9, 10 documents
+|Not written; the {product} package is the native exchange format
+(xref:saving.adoc[Saving]).
+|Dropped -- the {fh} file format is undocumented and has no consumers that {product} does not
+replace.  Reading FreeHand files is on xref:import-formats.adoc[Import formats].
+
+|Editable EPS
+|*Embed {product} document* option on EPS and PDF export; opening such a file imports the
+embedded package.
+|Adapted -- same intent (round trip through a print file), different carrier.
+
+|"Choosing an export format" output-device table
+|The *Choosing a format* table above, by destination rather than output device.
+|Adapted -- imagesetters and slide recorders are no longer a designer's daily targets.
+
+|Web formats comparison (GIF, JPEG, PNG)
+|Extended with WebP and AVIF.
+|Faithful, extended.
+
+|Hexachrome colors exported as CMYK process with an alert
+|Any spot color a format cannot carry is converted to process and the export sheet says so.
+|Adapted -- Hexachrome specifically is not a color model {product} offers
+(xref:spot-process.adoc[Spot and process colors]).
+
+|Launching Fireworks to optimize web images
+|Not supported; WebP/AVIF quality controls and a size readout in the options sheet instead.
+|Dropped -- Fireworks is discontinued.
+|===
+
+=== Data model
+
+None.  The exporter enum below is shared by the Export dialog, presets and drag export and
+lives in `WTInterchange`, not in the document.
+
+[source,protobuf]
+----
+// account/v1/preferences.proto (export presets are user preferences, see exporting.adoc)
+enum ExportFormat {
+  EXPORT_FORMAT_UNSPECIFIED = 0;
+  EXPORT_FORMAT_PDF = 1;
+  EXPORT_FORMAT_AI = 2;
+  EXPORT_FORMAT_EPS = 3;
+  EXPORT_FORMAT_SVG = 4;
+  EXPORT_FORMAT_DXF = 5;
+  EXPORT_FORMAT_PNG = 10;
+  EXPORT_FORMAT_JPEG = 11;
+  EXPORT_FORMAT_WEBP = 12;
+  EXPORT_FORMAT_HEIC = 13;
+  EXPORT_FORMAT_AVIF = 14;
+  EXPORT_FORMAT_GIF = 15;
+  EXPORT_FORMAT_TIFF = 16;
+  EXPORT_FORMAT_PSD = 17;
+  EXPORT_FORMAT_BMP = 18;
+  EXPORT_FORMAT_TARGA = 19;
+  EXPORT_FORMAT_RTF = 30;
+  EXPORT_FORMAT_TEXT = 31;
+}
+----
+
+=== Merge semantics
+
+Exports read the local merged state and write nothing.  The state read is the one at the
+instant the export starts (a copy of the display list, see xref:exporting.adoc[Exporting
+files]), so remote changes landing during a long export do not produce a torn file.
+
+=== Offline behavior
+
+Every format exports offline.  The dialog shows the sync state and, when offline, the note
+"Offline — changes from others since <time> can't be included".
+
+=== Server
+
+Nothing.  Exports never touch the server.
+
+=== Client
+
+`WTInterchange` defines one `Exporter` protocol (`format`, `optionsType`, `capabilities`
+such as multi-page, alpha, layers, text, metadata, and `export(scene:options:to:)`), and a
+registry the dialog, presets, drag export and scripting all consult.  Encoders: Core Graphics
+for PDF content streams (through the `WTRender` PDF backend), ImageIO (`CGImageDestination`)
+for PNG, JPEG, TIFF, GIF, BMP, HEIC and WebP where the running macOS provides the encoder,
+own writers for Targa, PSD, EPS, SVG, DXF, RTF, and a bundled `libavif` for AVIF (and
+`libwebp` on systems whose ImageIO lacks a WebP encoder).  Per-format detail is on the format
+pages.
+
+=== Build tasks
+
+[[IO-013]]
+==== IO-013 Exporter registry and capabilities
+[horizontal]
+Track:: import-export
+Depends on:: APP-001
+Size:: S
+Delivers:: `Exporter` protocol, `ExportFormat`, capability flags, the registry, UTI and extension mapping, and a stub exporter used by dialog tests.
+Done when::
+* Every format on this page is registered with correct extension, UTI and capabilities.
+* Requesting an unsupported combination (alpha on JPEG, pages on PNG without a naming pattern) is rejected with a typed error the dialog can show.
+endif::spec[]

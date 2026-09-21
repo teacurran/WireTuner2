@@ -1,0 +1,325 @@
+The grid and guides are non-printing alignment aids.  The grid is a regular lattice of dots
+behind the whole pasteboard; guides are horizontal and vertical lines you place on pages.  Objects
+can snap to either, and to the points of other objects.  Grid spacing and the guides themselves
+are part of the document and shared; whether *you* see them, and whether *your* dragging snaps,
+are personal settings.  Guides that appear on their own while you drag -- smart guides -- are a
+different thing, described with xref:moving.adoc#smart-guides[Moving objects].
+
+// TODO screenshot: a page with the grid showing and two guides, an object snapping to a guide
+
+== Colors
+
+The grid and guides have their own colors so they stand out from artwork.  To change them, choose
+menu:{product}[Settings… > Colors] (kbd:[Cmd+,]) and click the *Guide color* or *Grid color*
+well.  Guides are blue and the grid is light gray by default.  The colors are your preference and
+do not affect anyone else's view.  Smart guides have their own well, *Smart guide color*
+(magenta), so the two kinds of guide are never confused.
+
+== The grid
+
+The grid is drawn as dots at every intersection of its horizontal and vertical lines, spaced by
+the *grid size*.  With snapping on, dragged, drawn and resized objects settle onto the grid.
+
+To show or hide the grid::
+Choose menu:View[Grid > Show].  A check mark means the grid is visible.
+
+To turn grid snapping on or off::
+Choose menu:View[Grid > Snap to Grid].  A check mark means snapping is on.  Snapping works whether
+or not the grid is visible.
+
+To set the grid size and snapping style:
+
+. Choose menu:View[Grid > Edit…].
+. Type the *Grid size* in the document's units.
+. Choose how objects snap:
+* *Relative grid* selected: an object keeps its offset within a grid cell, so an object that
+  started 3 points right of a grid line lands 3 points right of a grid line.  Useful for moving
+  things by whole cells.
+* *Relative grid* off: the object's snapping point lands exactly on a grid intersection.
+. Click btn:[OK].
+
+The grid size and the *Relative grid* choice are document settings; showing and snapping are
+yours.
+
+== Guides
+
+Guides are lines on a page.  They can be dragged out of the rulers, placed precisely with the
+*Guides* sheet, moved, locked, and turned into ordinary paths.  Guides exist only on pages -- a
+guide dragged onto the pasteboard is removed -- and a guide on a master page shows on the master's
+children but is edited only on the master (xref:master-pages.adoc[Master pages]).
+
+To show or hide guides, do one of the following:
+
+* Choose menu:View[Guides > Show].
+* Click the visibility check mark beside the *Guides* layer in the Layers panel
+  (xref:layers.adoc[Layers]).
+
+=== Adding guides by dragging
+
+. If the rulers are hidden, choose menu:View[Page Rulers > Show].
+. Drag from the top ruler onto a page for a horizontal guide, or from the left ruler for a
+  vertical one.  The pointer shows the guide's position in the document's units while you drag.
+. Release over the page.  Releasing over the pasteboard cancels.
+
+Hold kbd:[Option] while dragging from a ruler to add a guide on every page the pointer crosses at
+the same position relative to each page.  Hold kbd:[Shift] to snap the guide to the grid.
+
+By default the window does not scroll when you drag a guide past its edge.  To make it scroll,
+turn on *Dragging a guide scrolls the window* in menu:{product}[Settings… > General].
+
+=== Moving and removing guides
+
+* To move a guide, drag it with the Pointer tool.  Guides must be unlocked (below).  The position
+  is shown while dragging; kbd:[Shift] snaps it to the grid.
+* To remove a guide, drag it off the page onto the pasteboard, or select it and press
+  kbd:[Delete].
+* To move a guide precisely, double-click it and type the position in the *Guides* sheet.
+
+=== Adding guides precisely
+
+. Choose menu:View[Guides > Edit…], or double-click an existing guide.  The *Guides* sheet lists
+  the guides on the active page with their axis and position.
+. Click btn:[Add].
+. Choose *Horizontal* or *Vertical*.
+. Choose how to place them:
+* *Count*: a number of guides evenly spaced between a first and last position.
+* *Increment*: guides every so many units between a first and last position.
+. Type the *First* and *Last* positions, measured from the page's zero point.
+. Set the *Pages* range the guides are added to (the active page by default).
+. Click btn:[Add]; repeat for more; then click btn:[OK].
+
+=== Editing, releasing and removing guides in the sheet
+
+. Choose menu:View[Guides > Edit…], or double-click a guide.
+. Select one or more guides in the list: kbd:[Cmd]-click for several, kbd:[Shift]-click for a
+  range.
+. Do one of the following:
+* Click btn:[Edit] and type a new position.
+* Click btn:[Release] to turn the guides into ordinary paths on the current layer.  The path is a
+  line across the page that you can style or edit like any other.
+* Click btn:[Delete] to remove them.
+. Click btn:[OK].
+
+To turn a path into a guide, move it to the *Guides* layer in the Layers panel
+(xref:layers.adoc[Layers]).  Such guide objects keep their shape -- a circle on the Guides layer
+is a circular guide -- and objects snap to their paths.
+
+=== Snapping to guides
+
+Choose menu:View[Guides > Snap to Guides] to turn snapping on or off; it is on by default.  As
+you drag an object near a guide, the pointer shows a small triangle -- horizontal or vertical --
+telling you the object will land on the guide if you release.  How close counts as "near" is the
+*Snap distance* preference (xref:selecting.adoc[Selecting objects]).
+
+=== Locking guides
+
+Locked guides cannot be dragged or deleted from the canvas; they can still be edited in the
+*Guides* sheet.  Locking is part of the document, so it protects the guides for everyone.
+
+* Choose menu:View[Guides > Lock] (a check mark means locked), or
+* click the padlock beside the *Guides* layer in the Layers panel.
+
+Guides are unlocked by default.
+
+== Snapping to points and objects
+
+menu:View[Snap to Point] snaps the point you are dragging to anchor points and handles of other
+objects; menu:View[Snap to Object] snaps to the nearest point along their paths.  Both are
+personal settings and combine with grid and guide snapping.  When several snaps compete within
+the snap distance, a point wins over a path, a path over a guide, a guide over a smart guide, and
+a smart guide over the grid (xref:moving.adoc#smart-guides[Smart guides]).  Hold kbd:[Control]
+while dragging to suspend all snapping for that drag.
+
+When you rotate the canvas (xref:document-view.adoc[Setting the document view]), the grid,
+the guides and the rulers turn with the pages: a horizontal guide stays parallel to the top of
+its page, whichever way the page is facing on screen.
+
+== Working with others
+
+Guides, the grid size and the guide lock are part of the document: a guide someone adds appears
+on your page as they drop it, and a change to the grid size re-spaces the dots in every window.
+Showing, hiding and snapping are your own; turning the grid on does not turn it on for anyone
+else.
+
+If two people drag the same guide, the later position stands.  If one person removes a guide
+another is dragging, the guide is removed; the dragger sees it vanish and, after offline work, the
+review sheet offers to restore it.  Guides added by two people at once are all kept.  If one
+person locks the guides while another is mid-drag, the drag finishes but nothing further can be
+moved until unlocked.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,1"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Guide and grid colors in Colors preferences
+|Same names, local preferences.
+|Faithful
+
+|View > Grid > Show, Snap to Grid, Edit (size, Relative grid)
+|Same; show and snap are per user, size and relative are shared.
+|Faithful
+
+|Guides drawn from rulers; release over pasteboard deletes
+|Same; kbd:[Option] adds to every crossed page, kbd:[Shift] snaps.
+|Faithful
+
+|Drag a guide off the page to delete
+|Same, plus kbd:[Delete].
+|Faithful
+
+|Guides dialog: Add by Count or Increment, first/last, page range; Edit position; Release; Remove
+|Same, as a sheet; multi-select with kbd:[Cmd] and kbd:[Shift].
+|Faithful
+
+|View > Guides > Snap to Guides with triangle pointer feedback
+|Same.
+|Faithful
+
+|View > Guides > Lock and the Guides layer padlock
+|Same; lock is shared document state.
+|Faithful
+
+|Guides only on pages, not on the pasteboard
+|Same.
+|Faithful
+
+|Master page guides editable only on the master
+|Same.
+|Faithful
+
+|Dragging a guide scrolls the window preference
+|Same name, under General.
+|Faithful
+
+|Convert paths to guides via the Guides layer
+|Same; delivered with the layers page.
+|Faithful
+
+|Snap distance preference
+|Same; on the selecting page.
+|Faithful
+|===
+
+=== Data model
+
+`Guide`, `PageProps.guides`, `MasterProps.guides`, `GridSettings` and
+`DocumentSettings.guides_locked` are on xref:document-panel.adoc[The Document panel].
+
+Guide positions are stored in points from the page's top-left corner (`axis = HORIZONTAL` →
+`position` is a y offset, `VERTICAL` → an x offset), *not* from the zero point, so moving the zero
+point does not move guides.  The Guides sheet converts to zero-point coordinates for display.
+
+Guide objects (paths on the Guides layer) are ordinary objects owned by the LIB epic's layer model;
+this page only consumes them for snapping.
+
+Local view state (`view` table): show grid, snap to grid, show guides, snap to guides, snap to
+point, snap to object.  Preferences: *Guide color*, *Grid color*, *Dragging a guide scrolls the
+window*, *Snap distance* (owned by the selecting page).
+
+Why `guides_locked` is shared:: The lock exists to keep a layout from being disturbed; a lock that
+only bound the person who set it would not do that.  {fh} saved it in the document.  Show and
+snap toggles are about how one person works and are local.
+
+=== Merge semantics
+
+`guides` (SEQUENCE)::
+* Add on both sides: both guides exist.  Adding "the same" guide (same axis and position) twice
+  yields two coincident guides; normalize on read: coincident guides on one page render and hit
+  as one, and the Guides sheet shows one row that edits both.
+* Move vs. move of one guide: `position` is a register, later wins; listed as same-register loss.
+* Delete vs. move: the element's `deleted` register wins; the review sheet lists edit-vs-delete
+  with *Restore*.
+* Release vs. move: release deletes the element and creates a path in one change; concurrent
+  move applies to the deleted element.  Review lists edit-vs-delete; *Restore* brings the guide
+  back beside the released path.
+* Guides added on a page that was removed concurrently: they stay on the (deleted) page, restored
+  with it.
+
+`grid.size`, `grid.relative`:: Independent registers; later wins each.
+
+`guides_locked`:: Register, later wins.  A guide `position` write from a replica that had the lock
+off, concurrent with a lock, still applies: the lock is a UI restraint, not a merge rule.
+
+Read-time normalizations:
+
+* A guide whose position lies outside the page (after a resize) is kept and drawn clipped to the
+  bleed rectangle; it is listed in the sheet.
+* A guide with `AXIS_UNSPECIFIED` reads as horizontal.
+
+=== Offline behavior
+
+Standard.  Guide drags coalesce.
+
+=== Server
+
+Nothing beyond storing and relaying changes.
+
+=== Client
+
+* Grid rendering (`WTRender`): dots at intersections, drawn as a tiled pattern layer below the
+  pages' content and above the page background; skipped when dots would be closer than 4 px on
+  screen (subdivision hidden, every k-th line kept so the visible lattice is at least 8 px).
+* Snapping (`WTGeometry`, GEO-005): candidates from grid (relative or absolute), page guides of
+  every page within the snap distance, guide objects (nearest point on path), object points, and
+  smart guides from OBJ-038; priority point > path > guide > smart guide > grid; kbd:[Control]
+  suspends.  The snap result carries which candidate won so the pointer can show the triangle,
+  point badge or smart-guide line.
+* Grid dots and guide hairlines are pasteboard-space geometry drawn through the view transform,
+  so canvas rotation (BASIC-034) rotates them with the pages at no extra cost; the grid's
+  zoom-dependent thinning uses the view scale only, never the angle.
+* Guides in the canvas (`WTApp`): drawn in the guide color as hairlines across the page (clipped to
+  the bleed rectangle); hit-tested with the snap distance; dragging a guide is a temporary tool
+  that writes `position` on mouse-up (coalesced), deletion by drop on the pasteboard.  Ruler drag
+  creates the element on mouse-up.  kbd:[Option] from a ruler creates elements on each page whose
+  rectangle the pointer crossed at the same relative offset.
+* Guides sheet: SwiftUI table over the active page's `guides`; *Add* computes positions from
+  count/increment and writes one `ElementInsert` per page in the range in one change; *Release*
+  creates a `PathNode` line spanning the page (bleed to bleed) with the default guide stroke of
+  none and a hairline preview, on the current layer.
+* Menu commands in the View menu from the command registry (APP-005): Grid > Show / Snap to Grid /
+  Edit…; Guides > Show / Snap to Guides / Lock / Edit…; Snap to Point; Snap to Object.
+* Undo: each guide add/move/delete is one change; sheet operations are one change per button
+  press.
+
+=== Build tasks
+
+[[DOC-016]]
+==== DOC-016 Grid rendering and snapping
+[horizontal]
+Track:: client-render
+Depends on:: REND-001, GEO-005, DOC-001
+Size:: M
+Delivers:: Grid dot rendering with zoom-dependent thinning, grid snap (absolute and relative), guide snap (page guides and guide objects), point and object snap candidates, the priority rule, kbd:[Control] suspension, and the snap-result kind for pointer feedback.
+Done when::
+* Property tests: a relative-grid move preserves the in-cell offset; an absolute snap lands on an intersection; priority holds for every pairwise combination within the snap distance.
+* Grid renders at 60 fps during pan at every zoom.
+
+[[DOC-017]]
+==== DOC-017 Guide commands
+[horizontal]
+Track:: client-model
+Depends on:: DOC-002, CRDT-004
+Size:: S
+Delivers:: `WTModel.GuideCommands`: add (single, by count, by increment, across a page range), move, delete, release to path, lock/unlock, and the coincident-guide and out-of-page normalizations.
+Done when::
+* Each command is one change with an inverse; release's undo removes the path and restores the guide.
+* Merge tests: move vs. move; delete vs. move (deleted, restorable); add vs. add (both kept); release vs. move.
+* Conformance vectors for `guides` sequence inserts across two replicas and the coincident read-out.
+
+[[DOC-018]]
+==== DOC-018 Guides and grid UI
+[horizontal]
+Track:: client-ui
+Depends on:: DOC-014, DOC-016, DOC-017, APP-010
+Size:: L
+Delivers:: Ruler drag-out with kbd:[Option] and kbd:[Shift], guide drag/delete on canvas, lock enforcement, the *Guides* sheet, the *Grid* sheet, all View menu toggles with local persistence, the *Guide color*, *Grid color* and *Dragging a guide scrolls the window* preferences, and the Layers panel hooks for the Guides layer's visibility and padlock.
+Done when::
+* UI tests: drag out, drag off, double-click to edit, add by count and by increment across a page range, release, delete, lock prevents drag.
+* Toggles persist per document per user and never produce a change.
+* A remote guide removal during a local drag ends the drag cleanly with a notice.
+endif::spec[]

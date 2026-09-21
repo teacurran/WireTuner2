@@ -1,0 +1,7 @@
+= Calibrating your display
+include::_attributes.adoc[]
+:page-slug: monitor-calibration
+:page-group: Color management
+:page-fh: Chapter 13, "Calibrating monitor colors visually"
+
+include::_includes/cms/monitor-calibration.adoc[]

@@ -1,0 +1,453 @@
+{product} animates the way {fh} did: frame by frame, with each frame drawn on its own layer or its
+own page.  There are no tweens and no timeline of keyframes; instead you build the frames as
+artwork -- often by blending two shapes and releasing the blend to layers -- and the document's
+*animation settings* say how to play them: which layers or pages are the frames, how fast, and
+whether to loop.  The *Animation* panel plays the result on the canvas, and menu:File[Export…]
+writes it as an animated SVG, a GIF, an APNG or an MP4 movie.
+
+NOTE: {fh} played and exported animation through Macromedia Flash.  {product} has no
+Flash: the same layer-and-page animation is previewed in the Animation panel and exported to
+formats browsers and video players read today.  menu:Xtras[Animate] is now menu:Extensions[Animate].
+
+== How frames are built
+
+A frame is a layer, a page, or a layer on a page:
+
+Layers::
+Each foreground layer in the Layers panel, bottom to top, is one frame.  Layers below the
+separator bar are the background: they appear in every frame.  Hidden layers are skipped.
+Pages::
+Each page, in page order, is one frame.  All layers of a page are drawn together.
+Pages and layers::
+Every page contributes one frame per foreground layer, page by page, so a four-page document
+with three foreground layers gives twelve frames.
+
+Design the motion to run upward through the Layers panel: the first frame is the lowest
+foreground layer.  The Layers panel (xref:layers.adoc[Layers]) can show a frame number beside
+each layer when the frame source is layers; choose *Show frame numbers* from the panel menu.
+
+Any layer can hold for longer than one frame (*Hold* in the Layers panel's context menu; a hold
+of 3 shows the frame for three frame periods) or be left out of the animation entirely (*Exclude
+from animation*).  Excluded layers still print and export as stills.
+
+== Releasing objects to layers
+
+*Release to Layers* takes a blend, a group, a text block, or objects attached to a path, takes
+it apart, and puts each piece on its own layer -- the fastest way to turn a blend of two shapes
+into the frames between them.
+
+To prepare a text block for animation:
+
+. Select the text block and put it where the motion should start.
+. Choose menu:Text[Convert to Paths] (xref:text-to-paths.adoc[Converting text to paths]).
+. With the result still selected, choose menu:Modify[Join] so the letters act as one path.
+. Choose menu:Edit[Clone] and drag the clone to where the motion should end.
+. kbd:[Shift]-click to select the original and the clone.
+. Choose menu:Extensions[Create > Blend], then release the blend to layers as below
+  (xref:blends.adoc[Blends]).
+
+To release objects to layers:
+
+. Select the objects.  A group counts as one object unless you choose *Sequence* below, which
+  takes the group apart; a nested group is always one object.
+. Choose menu:Window[Layers] so you can watch the layers appear.
+. Choose menu:Extensions[Animate > Release to Layers…].
+. Choose an *Animate* mode:
++
+[cols="1,3"]
+|===
+|Mode |Result
+
+|*Sequence*
+|Each piece goes to its own layer, one after another: frame 1 shows the first piece, frame 2
+the second, and so on.
+
+|*Build*
+|Pieces accumulate: frame 1 shows the first piece, frame 2 the first and second, frame 3 the
+first three.  Earlier pieces are copied onto later layers.
+
+|*Drop*
+|The opposite of Build: every frame shows all the pieces except one, dropping them one at a time
+in order.
+
+|*Trail*
+|Each piece appears on its own layer and on the next *Trail by* layers after it, so a moving
+piece leaves a fading trail of its recent positions.  Enter the trail length in *Trail by*.
+|===
+. Select *Reverse direction* to release the pieces in reverse order, so the motion runs the
+  other way.
+. Select *Use existing layers* to put the pieces on the layers already in the document, starting
+  with the current layer and moving up; the extension adds layers only if it runs out.  Leave it
+  unselected to create a new layer for every piece (`Frame 1`, `Frame 2`, …, or continuing the
+  numbering if frame layers exist).
+. If you chose *Use existing layers*, select *Send to back* to put the released pieces behind
+  whatever those layers already hold instead of in front.
+. Click btn:[OK].
+
+Releasing a text block converts each character to paths first and gives every character its own
+layer.  Releasing a blend puts each step of the blend on its own layer and leaves the blend's
+original ends where they were.  Releasing objects attached to a path detaches them.  The whole
+release is one undoable step.
+
+== Animation settings and preview
+
+Choose menu:Window[Animation] to open the Animation panel.  Its top half holds the document's
+animation settings; the bottom half is a transport bar for previewing.
+
+// TODO screenshot: Animation panel
+
+[cols="1,3"]
+|===
+|Setting |Meaning
+
+|*Frames from*
+|*Layers*, *Pages* or *Pages and layers*, as described above.  *None* means the document is not
+animated; exporters then offer only still formats.
+
+|*Frame rate*
+|Frames per second, 0.01 to 120 in steps of 0.01.  12 fps matches {fh}'s default and looks right
+for hand-built frames; use 24 or 30 for video output.
+
+|*Loop*
+|Whether playback restarts from the first frame after the last.  Exporters that cannot loop (MP4)
+ignore it.
+
+|*Autoplay*
+|Whether exported SVG and HTML start playing on load.  If off, the animation shows frame 1 until
+the viewer clicks it.
+
+|*Background*
+|The color behind every frame in exported files: *Page color* (from the Document panel), *White*,
+or *Transparent* where the format allows.
+|===
+
+The transport bar has btn:[First frame], btn:[Step backward], btn:[Play]/btn:[Stop],
+btn:[Step forward], btn:[Last frame], a frame counter (`7 / 24`) and a scrubber.  Playing shows
+the frames on the canvas itself, in the document window, at the current zoom; the Layers panel
+highlights the current frame's layer.  Stopping leaves the current frame visible until you click
+in the document, which restores the normal view.
+
+[cols="1,2"]
+|===
+|Key |Action (while the Animation panel or the document window is active)
+
+|kbd:[Cmd+Option+Return] |Play or stop
+|kbd:[Cmd+Option+Right] |Step forward one frame
+|kbd:[Cmd+Option+Left] |Step backward one frame
+|kbd:[Cmd+Option+Home] / kbd:[Cmd+Option+End] |First / last frame
+|===
+
+To see the animation as a browser will show it, choose menu:File[Preview in Browser]
+(kbd:[Cmd+Return]); see xref:svg-animation.adoc[SVG animations and browser preview].
+
+== Exporting an animation
+
+To export an animation:
+
+. Choose menu:File[Export…].
+. Choose a format from the *Format* pop-up menu:
++
+[cols="1,3"]
+|===
+|Format |Use it for
+
+|*Animated SVG*
+|Web pages.  Vector, sharp at any size, small, no scripts; plays in every browser.  Text and
+links stay live.
+
+|*GIF (animated)*
+|Chat tools and anywhere that only accepts GIF.  256 colors per frame, 1-bit transparency.
+
+|*APNG*
+|Like GIF but full color with real transparency.  Supported by every current browser and by
+Messages.
+
+|*MP4 (H.264)* / *MP4 (HEVC)*
+|Video: presentations, social media, anything with a play button.  Rasterized at the size you
+choose; no transparency; does not loop by itself.
+|===
+. Click btn:[Options…] and set the format's options: *Size* (points × scale, or an explicit
+  pixel size), *Frame rate* (defaults to the document's), *Loop* (count, or forever), *Quality*
+  for MP4, *Colors* and *Dither* for GIF, *Pages* to export.
+. Click btn:[Export].
+
+Animated SVG exports one file per page in *Layers* mode and a single file in *Pages* and *Pages
+and layers* modes.  The HTML publisher (xref:publish-html.adoc[Publishing as HTML]) writes the same
+animated SVG into its pages when *Animation* is set to *Include*.
+
+== Working with others
+
+Animation settings belong to the document, so a change to the frame rate reaches everyone at
+once; the Animation panel updates while it is open.  If two people change the same setting in
+the same moment, the later change stands.  Previewing is yours alone: playing the animation on
+your canvas does not move anyone else's view, and collaborators see the ordinary document while
+you watch it play.
+
+Releasing to layers moves and copies objects, so it behaves like any other rearrangement: if a
+collaborator is editing one of the pieces at that moment, their edit lands on the piece wherever
+it ended up.  If two people release the same group at the same time, each gets a set of new
+layers; the original pieces end up in one set and the other set holds only the copies its mode
+made, which the merge review points out so one set can be deleted.
+
+After working offline, changed animation settings merge field by field, and the review shows any
+setting both of you changed.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,2"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Xtras > Animate > Release to Layers: Sequence, Build, Drop, Trail (Trail By)
+|menu:Extensions[Animate > Release to Layers…], same four modes.
+|Faithful
+
+|Reverse Direction, Use Existing Layers, Send to Back
+|Same.
+|Faithful
+
+|Releasing text converts letters to paths, one per layer
+|Same.
+|Faithful
+
+|Background layer objects appear in every frame
+|Layers below the separator are the background of every frame.
+|Faithful
+
+|Animate Pages / Animate Pages and Layers on movie export
+|*Frames from* setting: Layers, Pages, Pages and layers.
+|Adapted -- a document setting instead of an export option, so preview and every exporter agree.
+
+|Movie Settings: frame rate 0.01--120 fps, Autoplay, Background color
+|Same, in the Animation panel.
+|Faithful
+
+|Movie Settings: Full Screen Playback, Allow Printing, Protect from Import, Size to Match Contents, Optimize, Path Compression, Trace Dashed Strokes, Image Compression, Text options, Compress Movie
+|Dropped.  Size and quality options exist per export format instead.
+|Dropped -- player-specific; animated SVG has no player settings.
+
+|Controller toolbar and Window > Movie: Test, Play, Stop, Step, Rewind, First/Last
+|Animation panel transport bar and kbd:[Cmd+Option] shortcuts; playback on the canvas.
+|Adapted -- no Flash Playback window; the canvas plays the frames.
+
+|Preview in the Flash Player (Cmd+Return)
+|menu:File[Preview in Browser] (kbd:[Cmd+Return]).
+|Adapted -- see xref:svg-animation.adoc[SVG animations and browser preview].
+
+|Export a movie via Controller or Window > Movie > Export
+|menu:File[Export…] with Animated SVG, GIF, APNG, MP4.
+|Adapted -- animated SVG is the vector animation format.
+
+|--
+|Per-layer *Hold* and *Exclude from animation*.
+|Addition -- the smallest control that makes hand-built frames practical without duplicating layers.
+
+|--
+|Lottie export
+|Dropped -- Lottie's value is tweened properties; a frame-flip animation gains nothing and the JSON is larger than the SVG.  Revisit if tweening is ever added.
+|===
+
+=== Data model
+
+[source,protobuf]
+----
+// settings.proto -- extension of the well-known settings node (0:1)
+message SettingsProps {
+  // ... other settings
+  // Document animation settings.  STRUCT: each is an independent choice.
+  AnimationSettings animation = 70;
+}
+
+enum FrameSource {
+  FRAME_SOURCE_UNSPECIFIED = 0;   // reads as NONE
+  FRAME_SOURCE_NONE = 1;          // not animated
+  FRAME_SOURCE_LAYERS = 2;
+  FRAME_SOURCE_PAGES = 3;
+  FRAME_SOURCE_PAGES_AND_LAYERS = 4;
+}
+
+enum AnimationBackground {
+  ANIMATION_BACKGROUND_UNSPECIFIED = 0;   // reads as PAGE_COLOR
+  ANIMATION_BACKGROUND_PAGE_COLOR = 1;
+  ANIMATION_BACKGROUND_WHITE = 2;
+  ANIMATION_BACKGROUND_TRANSPARENT = 3;
+}
+
+message AnimationSettings {
+  FrameSource source = 1;
+  // Frames per second.  Validated 0.01..120; 0 reads as 12.
+  double fps = 2 [(buf.validate.field).double = {gte: 0, lte: 120}];
+  bool loop = 3;                 // default true (see read-time rule below)
+  bool no_autoplay = 4;          // inverted so the proto default (false) means autoplay
+  AnimationBackground background = 5;
+}
+
+// layer.proto -- extension of LayerProps (Layers pages)
+message LayerProps {
+  // ... existing fields
+  // Frame metadata.  STRUCT.
+  LayerFrameProps frame = 20;
+}
+message LayerFrameProps {
+  // Number of frame periods this layer stays on screen.  0 reads as 1.
+  uint32 hold = 1 [(buf.validate.field).uint32.lte = 10000];
+  // Leave this layer out of the animation (still prints and exports as a still).
+  bool excluded = 2;
+}
+----
+
+`loop` defaults to true at read time when the `animation` message has never been written
+(`source` unset); once any field is written the stored value is authoritative.  This keeps a
+never-touched document animating as {fh} would while letting the proto default be false.
+
+Release to Layers writes ordinary nodes: `CreateNode` for new layers (parent `layers`, position
+above the current layer), `MoveNode` for the released pieces, `CreateNode` for the copies that
+Build, Drop and Trail make, and `SetDeleted` for the taken-apart container (blend, group, text
+block).  No new node kind.
+
+=== Merge semantics
+
+`animation.*`:: Independent ATOMIC registers under STRUCT.  Concurrent `fps` writes: LWW; the
+review sheet shows "Frame rate: mine 12 / theirs 24".  A concurrent `source` change and `fps`
+change both apply.
+`frame.hold`, `frame.excluded`:: ATOMIC per layer.
+Release to Layers:: One change.  Concurrently:
+* Another user edits a piece (fill, points): the edit applies to the moved node; nothing is
+  lost.
+* Another user deletes the container: the release already created the pieces' moves and the
+  container's `deleted = true`; the pieces are alive on their new layers.  The review sheet
+  lists nothing unless the same registers were written.
+* Two users release the same container: both produce moves of the same pieces (LWW per piece,
+  so the pieces are split between the two layer sets by OpId) and both create their own copies
+  and layers.  The document is consistent but doubled.  The review sheet lists it as "move vs.
+  move" on each piece; the guide tells the user to delete one set.  No automatic cleanup.
+* Another user renames a layer the release is adding pieces to: independent registers, fine.
+Frame order:: Derived from layer order (sibling positions under `layers`) or page order; never
+stored, so it cannot conflict.
+
+Read-time normalizations: `fps` of 0 reads as 12; `hold` of 0 reads as 1; a document whose
+`source` is `LAYERS` but has no foreground layers has zero frames and exporters offer only stills.
+
+=== Offline behavior
+
+Everything on this page works offline.  Settings edits coalesce in the outbox like any register.
+
+=== Server
+
+Nothing beyond storing and relaying changes.
+
+=== Client
+
+* `WTModel.ReleaseToLayers` computes the piece list (blend steps via the FX epic's blend
+  evaluator, group members, characters via the TYPE epic's convert-to-paths, path-attached
+  objects), the per-mode layer assignment matrix (Sequence, Build, Drop, Trail-by-n, reversed),
+  then emits one change.  Layer naming: `Frame N` continuing from the highest existing
+  `Frame N`.
+* `WTRender.FrameComposer` (client-render) produces the frame list from the model: for each
+  frame, the set of visible node ids (background + frame layer(s), on the frame's page), the
+  page rect, and the hold count.  Preview renders a frame by asking the display list to draw only
+  those nodes -- the same mechanism as layer visibility, without writing visibility to the
+  document.  Playback is a `CVDisplayLink`-driven timer at the document fps, dropping frames
+  rather than slowing down; hold counts multiply the period.
+* The Animation panel is a SwiftUI body in the docked panel system; the transport state
+  (current frame, playing) is per window and not in the document.  Clicking the canvas ends
+  preview mode.
+* Exporters (`WTInterchange`):
+** Animated SVG: all frames' content in one SVG, each frame a `<g class="f" id="f3">`; the
+   background in a `<g>` outside the frames; a CSS `@keyframes` block with `steps()` timing
+   toggling `visibility` per frame (hold counts stretch the frame's percentage), `animation-
+   iteration-count` from loop, and `animation-play-state: paused` plus a `:hover`/`:active`
+   toggle for non-autoplay.  No SMIL, no scripts.  Shared nodes (background) are emitted once.
+** GIF and APNG: frames rasterized by the frame composer at the export size through `WTRender`
+   into `CGImage`s, written with `CGImageDestination` (`kCGImagePropertyGIFDictionary` /
+   `kCGImagePropertyPNGDictionary`: delay time, loop count); GIF palette via ImageIO's
+   quantizer with optional dither.
+** MP4: `AVAssetWriter` with `AVAssetWriterInputPixelBufferAdaptor`, H.264 or HEVC, frames
+   pushed at fps with hold repeats, background composited (no alpha), size rounded to even
+   pixels.  Runs off the main actor with progress.
+* Undo: Release to Layers is one step, "Release to Layers"; setting edits are one step each.
+
+=== Build tasks
+
+[[WEB-014]]
+==== WEB-014 Animation settings and layer frame fields
+[horizontal]
+Track:: client-model
+Depends on:: PROTO-003, CRDT-001, APP-011
+Size:: S
+Delivers:: `AnimationSettings` on `SettingsProps`, `LayerFrameProps` on `LayerProps`, read-time defaults (loop, fps, hold), commands with inverses, a `FrameList` query (frame → visible node ids, page, hold) derived from the model.
+Done when::
+* Frame lists match hand-computed expectations for Layers, Pages and Pages-and-layers fixtures including hidden, excluded, held and background layers.
+* Merge test: concurrent `fps` and `source` writes both survive; concurrent `fps` writes converge on the greater OpId.
+* Conformance vectors for every field, including an untouched document reading `loop = true`.
+
+[[WEB-015]]
+==== WEB-015 Release to Layers
+[horizontal]
+Track:: client-model
+Depends on:: WEB-014, CRDT-002, CRDT-003
+Size:: M
+Delivers:: The Release to Layers command with Sequence, Build, Drop and Trail modes, Reverse direction, Use existing layers, Send to back; piece extraction for groups, blends, text blocks and path-attached objects; layer creation and naming; the options sheet under menu:Extensions[Animate > Release to Layers…].
+Done when::
+* Fixtures for each mode produce the documented layer contents (Drop on three pieces yields layers {2,3}, {1,3}, {1,2}, per the guide's definition) and one change each.
+* Undo restores the container and removes the layers in one step.
+* Merge test: two replicas release the same group concurrently; both converge and every original piece exists exactly once.
+
+[[WEB-016]]
+==== WEB-016 Frame composer and canvas playback
+[horizontal]
+Track:: client-render
+Depends on:: REND-001, REND-005, WEB-014
+Size:: M
+Delivers:: `FrameComposer` producing per-frame node sets and rasterizing frames at a requested size; canvas preview mode showing one frame without touching layer visibility; `CVDisplayLink` playback at the document fps with hold counts and loop.
+Done when::
+* Playing a 100-frame, 2,000-object document holds the frame rate at 30 fps on an M1 without rebuilding the display list.
+* Preview mode does not emit any change; a remote change during playback is reflected in the next frame.
+
+[[WEB-017]]
+==== WEB-017 Animation panel
+[horizontal]
+Track:: client-ui
+Depends on:: APP-004, APP-005, WEB-014, WEB-016
+Size:: M
+Delivers:: menu:Window[Animation] with the settings section bound to `AnimationSettings`, the transport bar, frame counter and scrubber, the kbd:[Cmd+Option] shortcuts, *Show frame numbers*, *Hold* and *Exclude from animation* in the Layers panel context menu, layer highlight during playback.
+Done when::
+* Every setting round-trips to the model; remote setting changes update the open panel.
+* UI tests: play/stop, step, scrub, hold editing.
+
+[[WEB-018]]
+==== WEB-018 Animated SVG export
+[horizontal]
+Track:: import-export
+Depends on:: WEB-014, WEB-005
+Size:: M
+Delivers:: The animated SVG writer (per-frame groups, CSS keyframes with `steps()`, hold, loop, autoplay/paused, background, transparent background), the *Animated SVG* format in the Export sheet with its options, and the hook the HTML publisher uses.
+Done when::
+* A headless WebKit run of exported fixtures shows the expected frame at sampled times (t = 0, 1/fps, hold boundaries, after loop).
+* Output for a 24-frame page with a shared background emits the background once and validates as SVG 1.1 + CSS.
+* Links inside frames remain clickable.
+
+[[WEB-019]]
+==== WEB-019 GIF and APNG export
+[horizontal]
+Track:: import-export
+Depends on:: WEB-016
+Size:: S
+Delivers:: Animated GIF and APNG writers via ImageIO with delay, loop count, size and scale, GIF colors and dither, transparent background for APNG; the formats in the Export sheet.
+Done when::
+* Exported files play in Preview and Safari with correct timing; frame delays honor holds; loop count honors the setting.
+
+[[WEB-020]]
+==== WEB-020 MP4 export
+[horizontal]
+Track:: import-export
+Depends on:: WEB-016
+Size:: M
+Delivers:: `AVAssetWriter`-based H.264 and HEVC export with size, fps, quality, background composite, hold repeats, progress and cancellation; the formats in the Export sheet.
+Done when::
+* A 300-frame export at 1920 × 1080 completes off the main actor with progress and plays in QuickTime Player with the expected duration.
+* Cancelling removes the partial file.
+endif::spec[]

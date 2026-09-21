@@ -1,0 +1,7 @@
+= Applying color to objects
+include::_attributes.adoc[]
+:page-slug: applying-color
+:page-group: Color
+:page-fh: Chapter 5, "Applying color to objects"
+
+include::_includes/color/applying-color.adoc[]

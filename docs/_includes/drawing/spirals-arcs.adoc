@@ -1,0 +1,193 @@
+The Spiral and Arc tools draw two shapes that are tedious to build by hand: a spiral with
+evenly spaced or steadily widening turns, and a quarter-circle arc, open or closed into a
+wedge.  Both tools share the Tools panel slot with the Polygon tool.  Unlike rectangles and
+polygons, a spiral or arc is an ordinary path as soon as you release the mouse: every point is
+yours to edit, and the tool settings only decide how it is generated.
+
+== Spirals
+
+To set the Spiral tool options:
+
+. Double-click the Spiral tool in the Tools panel.
+. In the Spiral sheet, set the options below.
+. Click btn:[OK].
+
+[cols="1,3"]
+|===
+|Option |Meaning
+
+|Spiral type
+|*Concentric*: every turn is the same distance from the previous one.  *Expanding*: each turn
+is wider than the one before, by the *Expansion* rate (1 to 100%) you set in the field or
+slider.
+
+|Draw by
+|*Rotations*: the spiral always has the number of turns you set in *Number of rotations*,
+whatever its size.  *Increments*: the spiral gains turns as you drag further, each turn
+*Increment width* apart; for an expanding spiral, *Starting radius* sets the size of the
+innermost turn.
+
+|Draw from
+|*Center*: press at the center and drag to the outer end.  *Edge*: press at the outer end and
+drag to the center.  *Corner*: press at one end and drag to the other, as if drawing the
+spiral's bounding box.
+
+|Direction
+|Clockwise or counterclockwise winding, seen from the center outward.  This is only the
+winding; the path's direction (beginning to end) always runs from the center outward.
+|===
+
+// TODO screenshot: Spiral sheet showing concentric and expanding previews
+
+To draw a spiral:
+
+. Choose the Spiral tool.
+. Drag on the canvas.  Where you start and stop depends on the *Draw from* option.
+. Release.
+
+Modifier keys while dragging::
+kbd:[Shift]:: Constrains the outer end point to the constrain angle and every 45° from it.
+kbd:[Option]:: Draws from the center whatever the *Draw from* setting.
+kbd:[Space]:: Repositions the spiral while you keep dragging.
+
+A spiral is an open path whose points are curve points, one every quarter turn.  Reversing
+its direction (xref:editing-paths.adoc[Editing paths]) is how to make an arrowhead point
+outward instead of inward.
+
+== Arcs
+
+To set the Arc tool options:
+
+. Double-click the Arc tool in the Tools panel.
+. In the Arc sheet, select any of:
++
+Create open arc:: Draws only the curve.  Off, the arc is closed into a quarter-pie wedge with
+two straight sides meeting at the corner.
+Create flipped arc:: Mirrors the curve so it bulges the other way across the drag.
+Create concave arc:: Bends the curve toward the corner instead of away from it, so a closed
+arc becomes a square with a bite taken out.
+. Click btn:[OK].
+
+To draw an arc:
+
+. Choose the Arc tool.
+. Drag across the area the arc should fill; the drag is the arc's bounding box.
+. Release.
+
+Modifier keys while dragging::
+kbd:[Shift]:: Constrains the arc to a quarter circle (equal width and height).
+kbd:[Option]:: Draws a flipped arc, regardless of the setting.
+kbd:[Cmd]:: Draws a closed arc, regardless of the setting.
+kbd:[Control]:: Draws a concave arc, regardless of the setting.
+
+Keys can be pressed and released in any combination after you begin the drag; the arc updates
+as you do.  An arc is a path of two points (open) or three (closed), with its curve on
+curve-or-corner points you can edit at once.
+
+// TODO screenshot: open, flipped, concave and closed arcs
+
+== Working with others
+
+Because a spiral or arc is an ordinary path the moment it exists, collaboration works as for
+any path: others see it appear when you release, and from then on point-by-point edits
+merge as described in xref:vector-basics.adoc[Vector basics].  Tool settings live on your
+Mac, not in the document, so changing your spiral options never affects anyone else.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,1"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Spiral dialog: type (concentric/expanding with expansion rate), draw by rotations or
+increments (number, increment width, starting radius), draw from center/edge/corner, direction
+|Same, as a sheet.
+|Faithful
+
+|Spiral drag with kbd:[Shift] constrain, kbd:[Option] from center
+|Same.
+|Faithful
+
+|Arc dialog: open, flipped, concave
+|Same.
+|Faithful
+
+|Arc modifiers: kbd:[Shift], kbd:[Option] flipped, kbd:[Cmd] closed, kbd:[Control] concave;
+Windows Control + right button for concave
+|Mac keys kept; the Windows right-button variant dropped.
+|Adapted
+|===
+
+=== Data model
+
+None.  Spirals and arcs are `PathProps` nodes (xref:vector-basics.adoc[Vector basics]).  The
+two sheets' settings are tool preferences on the Mac.
+
+=== Merge semantics
+
+As for any path.  The only tool-specific note: the tool writes the whole path in one
+`CreateNode` on mouse-up, so a collaborator never sees a half-drawn spiral; a concurrent
+edit before that is impossible.
+
+=== Offline behavior
+
+Works offline.
+
+=== Server
+
+Nothing beyond storing and relaying changes.
+
+=== Client
+
+Geometry:: `WTGeometry.spiralPath(options:, center:, outer:)` generates an Archimedean
+(concentric) or logarithmic (expanding) spiral sampled at quarter turns with curve points
+whose handles approximate each quarter-turn arc (a four-segment-per-turn cubic fit with error
+under 0.1% of the local radius).  `arcPath(rect:, open:, flipped:, concave:)` returns the
+quarter-ellipse as one cubic with kappa 0.5523, plus two straight sides when closed.
+
+Tools:: `SpiralTool` and `ArcTool` in `WTApp`.  Both draw a preview in the tool overlay
+during the drag and create the node on mouse-up.  Modifier changes mid-drag re-evaluate the
+option set for the preview.  The spiral's *Draw from* option maps the press/drag points to
+`(center, outer)` before generation.
+
+Undo:: One group per drawn shape.
+
+=== Build tasks
+
+[[DRAW-013]]
+==== DRAW-013 Spiral and arc geometry
+[horizontal]
+Track:: client-render
+Depends on:: GEO-001
+Size:: S
+Delivers:: `spiralPath` (concentric and expanding, by rotations and by increments, both windings) and `arcPath` (open/closed, flipped, concave) in `WTGeometry`.
+Done when::
+* Property tests: spiral radius at each quarter turn matches the analytic value within 0.1%; arc endpoints and tangents match the quarter-ellipse.
+* Generated point counts are documented and stable (a 3-rotation spiral has 13 points).
+
+[[DRAW-014]]
+==== DRAW-014 Spiral tool and sheet
+[horizontal]
+Track:: client-ui
+Depends on:: DRAW-013, DRAW-002, DRAW-011
+Size:: M
+Delivers:: The Spiral tool with overlay preview, kbd:[Shift]/kbd:[Option]/kbd:[Space] handling, and the Spiral sheet with type, expansion, draw-by, draw-from and direction, persisted as preferences.
+Done when::
+* UI tests draw each draw-from mode with and without kbd:[Option] and verify the resulting path's first point is the center.
+* Merge test: two replicas draw spirals concurrently; both exist on both replicas.
+* The path is created in one change labelled "Draw spiral".
+
+[[DRAW-015]]
+==== DRAW-015 Arc tool and sheet
+[horizontal]
+Track:: client-ui
+Depends on:: DRAW-013, DRAW-002, DRAW-011
+Size:: S
+Delivers:: The Arc tool with all four modifiers applied live during the drag, and the Arc sheet with the three options.
+Done when::
+* UI tests cover the eight combinations of open/flipped/concave from the sheet and from modifiers, and verify point counts (2 open, 3 closed) and closed flag.
+* Merge test as for DRAW-014.
+endif::spec[]

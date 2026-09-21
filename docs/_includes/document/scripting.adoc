@@ -1,0 +1,205 @@
+{product} can be driven from outside: by AppleScript through Script Editor, and by Shortcuts and
+Automator-style workflows through App Intents.  Both expose the same things -- documents, pages,
+master pages, layers, the objects on them and their properties, export and printing -- and both
+produce ordinary document changes that sync and are undoable like anything done by hand.  The
+scripting surface in version 1 is deliberately small; it grows with the features that ship.
+
+// TODO screenshot: Script Editor showing the WireTuner dictionary's Document suite
+
+== AppleScript
+
+{product} publishes a scripting dictionary.  To read it, open Script Editor (in
+`/Applications/Utilities`), choose menu:File[Open Dictionary…] and pick {product}.  The
+dictionary has three suites:
+
+[cols="1,3"]
+|===
+|Suite |Contents
+
+|Standard
+|`open`, `close`, `quit`, `count`, `exists`, `get`, `set`, `make`, `delete`, `duplicate`, `print`.
+
+|{product}
+|Classes `document`, `page`, `master page`, `layer`, `graphic` (with subclasses `path`, `group`,
+`text block`, `image`, `symbol instance`), `swatch`, `style`; commands `export`, `find and
+replace text`, `go to page`, `add page`, `release child page`, `apply master page`, `share link`.
+
+|Text
+|`text`, `paragraph`, `word`, `character` of a `text block`, with `font`, `size`, `leading`,
+`color` properties.
+|===
+
+Documents are addressed by name or by library id; pages by index in page order or by name.  A
+script line like `set page size of page 2 of document "Brochure" to {595, 842}` is one change,
+labelled "Script: set page size" in the history, and one undo step for the person who ran it.
+
+To run a script:
+
+. Write it in Script Editor and click btn:[Run], or
+. save it as an application, or drop it in `~/Library/Scripts/Applications/{product}/` to have it
+  appear in the system Script menu.
+
+A script runs as *you*: it can only open documents you can open and edit those you can edit.  A
+script that edits a document someone else is in behaves exactly as if you were typing -- they see
+the changes arrive.
+
+=== What scripts can do in version 1
+
+* Open, create (from a template), rename, close and export documents; list a library folder.
+* Add, duplicate, remove, reorder, resize and go to pages; apply, create and release master
+  pages; add and remove guides; set grid size and units.
+* Read every object's kind, name, notes, bounds, layer, fill and stroke summary, and text; set
+  name, notes, position, size, visibility, lock, layer and simple fill and stroke colors; delete
+  and duplicate objects; make rectangles, ellipses, lines and text blocks.
+* Find and replace text, with the same options as the Find Text panel
+  (xref:find-replace.adoc[Find and replace]).
+* Export a document or page in any export format with its options
+  (xref:exporting.adoc[Exporting]).
+* Print with a named print preset (xref:printing.adoc[Printing]).
+* Generate a document report (xref:file-info.adoc[File info]).
+
+Not in version 1: editing path points, effects, gradients, symbols, styles, blends and other
+attribute detail.  Reading them returns a summary; setting them fails with a clear error.
+
+== Shortcuts and App Intents
+
+The same capabilities are App Intents, so they appear in Shortcuts, Spotlight and the Actions
+menu.  The intents shipped in version 1:
+
+[cols="1,3"]
+|===
+|Intent |Parameters
+
+|Create Document
+|template (optional), name, folder
+
+|Open Document
+|document (library entity, searchable)
+
+|Add Pages
+|document, count, size, orientation, master (optional)
+
+|Export Document
+|document, format, pages, options, destination
+
+|Print Document
+|document, print preset
+
+|Find and Replace Text
+|document, find, replace with, options
+
+|Share Link
+|document, role, expiry; returns the link
+
+|Get Document Report
+|document; returns a file
+|===
+
+Shortcuts can chain these with any other app.  A shortcut runs under your account and follows the
+same permissions as the scripting dictionary.
+
+== Working with others
+
+Scripts and shortcuts change documents on your behalf, and to everyone else those changes look
+like yours.  A long-running script that touches many objects sends its work as it goes, so
+collaborators see it progress; its history entries are labelled "Script: …" so anyone can tell
+what a run did.  A script cannot lock a document or stop others from editing while it runs; if it
+needs a quiet document, run it on a branch (xref:branches.adoc[Branches]).
+
+A script that runs while you are offline works on the local copy and its changes sync afterwards
+like any others.  Intents that need the server -- *Share Link*, opening a document not cached on
+this Mac -- fail immediately with an *offline* error rather than waiting.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,1"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|AppleScript automation of document manipulation, printing, report generation, find and replace
+|Same areas through an sdef-based dictionary; larger object model but attribute detail deferred.
+|Adapted -- modern `sdef` + `NSScriptCommand` instead of the FreeHand MX dictionary; v1 surface limited.
+
+|Scripts run from Script Editor or saved as applications
+|Same, plus the system Script menu folder.
+|Faithful
+
+|AppleScript Read Me documentation
+|The dictionary is self-documenting; this page lists the v1 scope.
+|Adapted
+
+|Sending mail (Windows, MAPI): File > Send with the active or all open documents attached
+|No mail attachment; use menu:File[Share…] to invite people or copy a link, or export and share the file with the system share sheet.
+|Dropped -- Windows-only, and a cloud document is shared by link; the intent is covered by the COLLAB epic's Share sheet (recorded in decisions).
+|===
+
+=== Data model
+
+No document fields.  Every mutating script command maps onto an existing `WTModel` command and
+therefore onto ordinary changes; the change label is prefixed `Script: ` (AppleScript) or
+`Shortcut: ` (App Intents) followed by the command name.
+
+=== Merge semantics
+
+Script changes are user changes; every rule on the feature's own page applies unchanged.  One
+consideration is specific to scripts: a script that iterates over "every page" or "every graphic"
+evaluates the collection once per command, so an object created by a collaborator mid-run is
+simply not visited.  A script writing to an object a collaborator deletes mid-run gets no error
+(the edit applies to the deleted node) and the ordinary edit-vs-delete review entry.
+
+=== Offline behavior
+
+Local commands work offline.  `share link`, opening uncached documents and library listing beyond
+the cache return `errOfflineRequired` (AppleScript error 1001; App Intents `.offline` failure with
+a localized reason).
+
+=== Server
+
+Nothing beyond storing and relaying changes.  `Share Link` uses `ShareService` (SRV-010).
+
+=== Client
+
+* `WTApp/Scripting/WireTuner.sdef` with the three suites; `NSScriptCommand` subclasses per verb;
+  scriptable object wrappers over `WTModel` nodes keyed by node id (`id` property is the node id
+  as a string, stable across runs) using `NSUniqueIDSpecifier`.
+* Undo: one script command = one change = one undo step; a `tell` block with many commands is
+  many steps.  The scripting bridge batches nothing across commands, deliberately, so a killed
+  script leaves a consistent, partially-applied document rather than a half-batch.
+* Rate: a script emitting more than 20 changes per second is throttled by the outbox (changes
+  are queued, never dropped).
+* App Intents: `AppIntent` types in `WTApp/Intents` with `AppEntity` for documents (queryable
+  through the library cache), `AppEnum` for formats and orientations; results as `IntentFile`
+  where a file is produced.
+* Errors follow Apple's scripting error codes with human-readable messages; permission errors
+  name the role required.
+
+=== Build tasks
+
+[[DOC-026]]
+==== DOC-026 Scripting dictionary
+[horizontal]
+Track:: client-ui
+Depends on:: APP-005, DOC-006, DOC-010, DOC-017
+Size:: L
+Delivers:: The `sdef`, scriptable wrappers for document, page, master page, layer, graphic subclasses, swatch, style and text elements; commands listed for v1; error mapping; the `Script:` change label prefix; the system Script menu folder.
+Done when::
+* `osascript` tests cover every v1 command and property, including `make new page`, `set page size`, `apply master page`, `export`, `find and replace text`.
+* Each command is one change and one undo step; labels appear in history.
+* A script editing a document open on a second client is visible there within a second in the multi-client test.
+* Unsupported property sets return the documented error, never a silent no-op.
+
+[[DOC-027]]
+==== DOC-027 App Intents
+[horizontal]
+Track:: client-ui
+Depends on:: DOC-026, APP-009
+Size:: M
+Delivers:: The eight v1 intents with entities, enums, parameter summaries and localized failures; `Shortcut:` change labels; offline failures.
+Done when::
+* Each intent runs from Shortcuts against a test document and produces the expected result or file.
+* *Open Document* finds documents by name through the library cache offline.
+* Export intent output is byte-identical to the equivalent menu export.
+endif::spec[]

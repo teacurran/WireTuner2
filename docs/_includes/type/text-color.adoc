@@ -1,0 +1,194 @@
+Text has two things you can color: the characters and the block that holds them.  Characters
+take a fill (the glyph itself) and, if you like, a stroke (an outline around each glyph).  The
+block takes a stroke and a fill of its own, drawn as a rectangle behind the text.  Both are
+set in the Object panel, and both accept a color dragged straight from the Swatches panel or
+the Color Mixer.  Everything about choosing and mixing color is on
+xref:applying-color.adoc[Applying color]; this page is what is specific to text.
+
+== Coloring characters
+
+To fill a range of text with a color:
+
+. Select the characters with the Text tool (or a block with the Pointer tool to color all of
+  its text).
+. Select the *Text* row in the Object panel's properties list.  Its *Fill* sub-row shows the
+  current glyph color.
+. Drag a color from the Swatches panel or Color Mixer onto the *Fill* color well, or click the
+  well and choose.
+
+To outline a range of text:
+
+. Select the characters.
+. With the *Text* row selected, click btn:[Add Stroke].  A *Stroke* sub-row appears under the
+  Text row with the block's default stroke settings.
+. Set its weight, join and dash as for any stroke (xref:stroke-attributes.adoc[Stroke
+  attributes]), and drop a color on its well.
+
+To remove a glyph fill or stroke, select the sub-row and click btn:[Delete] (a text with no
+fill and no stroke is invisible but still there and still editable).
+
+Text fill can be a swatch, a tint, or a plain color.  Gradients and pattern fills on
+characters are not offered; convert the text to paths for those
+(xref:text-to-paths.adoc[Converting text to paths]).  A text effect's colors (highlight,
+shadow, inline) are set in the effect's own sheet
+(xref:text-effects.adoc[Text effects, inline graphics and text wrap]).
+
+== Coloring the block
+
+To give a block a background or border:
+
+. Select the block with the Pointer tool.
+. In the Object panel, with the block's root row selected, click btn:[Add Fill] or
+  btn:[Add Stroke].  The new row appears in the properties list above the Text row.
+. Choose the fill or stroke type and options in the lower half of the panel
+  (xref:fill-attributes.adoc[Fill attributes], xref:stroke-attributes.adoc[Stroke
+  attributes]).
+. Drop a color on the row's well -- or drop it directly on the block's border (for the
+  stroke) or interior (for the fill) on the canvas.
+
+The block's stroke is also what draws paragraph rules and column rules
+(xref:paragraphs.adoc[Paragraphs], xref:columns-tables.adoc[Columns, rows and tables]).
+
+*Display border*, in the *Text Block* section, shows or hides the block's stroke and fill
+without removing them.  It turns itself on when you add the first stroke or fill.
+
+If text vanishes after you fill the block, the fill row is above the Text row: drag the Text
+row above it in the properties list.
+
+== Dropping color on text
+
+Dragging a color from the Swatches panel or Color Mixer onto a text block on the canvas
+applies it to the *text* if the Text tool is active with a selection in that block, and to the
+*block* otherwise.  The *Swatches apply color to* preference (menu:{product}[Settings… >
+Colors]) decides what the Swatches panel's fill and stroke selectors act on when a text block
+is selected with the Pointer tool: *Text* (the characters) or *Text block* (the container).
+The preference also decides which color the Swatches panel highlights for such a selection.
+
+NOTE: {fh} called this preference *Color List Shows*, with the choices *Container Color* and
+*Text Color*.
+
+== Working with others
+
+* Character color is part of the text's formatting, so it follows the same rules as bold: it
+  stays on the characters it was applied to as others type around them, and characters typed
+  inside a colored range take the color.
+* The block's own fill and stroke are separate from the text; one person can recolor the
+  border while another recolors the words.
+* If two people drop different colors on the same characters at once, the later drop shows and
+  the review sheet lists the paragraph after offline work.
+* Deleting a swatch someone else has used on text does not change the text's appearance: the
+  text keeps the color it had, as a plain color.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,1"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Text Fill and Text Stroke color wells under the Text property; Add Stroke
+|Same rows under the Text row.
+|Faithful
+
+|Block stroke and fill via Add Stroke / Add Fill; drop on border or interior
+|Same.
+|Faithful
+
+|Display Border shows/hides block stroke and fill
+|Same, auto-enabled on first stroke/fill.
+|Faithful
+
+|Delete button removes a text fill or stroke
+|Same.
+|Faithful
+
+|Properties list order can hide text under a fill
+|Same behavior; the guide tells the user to reorder.
+|Faithful
+
+|Preference Color List Shows: Container Color / Text Color
+|*Swatches apply color to*: *Text* / *Text block*.
+|Faithful (renamed)
+
+|Gradient or pattern fill on characters
+|Not offered on text; available after Convert to Paths.
+|Faithful ({fh} did not offer them on live text either)
+|===
+
+=== Data model
+
+`TextMarkValue.fill` (`ColorRef`) and `TextMarkValue.stroke` (`StrokeProps`) on
+xref:creating-text.adoc[Creating text]; `TextProps.block_appearance` for the block, using the
+ATTR epic's `AppearanceProps` sequence of strokes, fills and effects exactly as on a path.
+`ColorRef` is the COLOR epic's message: a swatch `NodeRef` with `on_dangling =
+REF_FALLBACK_CACHED` carrying the color value, or a literal color.  `TextBlockProps.display_border`
+toggles rendering of `block_appearance`.
+
+=== Merge semantics
+
+Character fill and stroke are marks (expanding at the end).  `stroke` is a `StrokeProps`
+inside a mark: the whole mark value is one register (a mark is written whole), so two people
+editing the weight and the color of the same glyph stroke concurrently resolve to one mark by
+OpId -- the review sheet shows both.  This is the one place where text formatting is coarser
+than a path's STRUCT stroke; it is acceptable because glyph strokes are rare and short-lived.
+
+Block appearance merges as the ATTR epic specifies (SEQUENCE of STRUCT).  A swatch deleted
+concurrently with being applied resolves through `REF_FALLBACK_CACHED` to the cached color.
+
+Read-time normalizations::
+* A `fill` mark whose `ColorRef` dangles with no cache renders black.
+* `display_border` true with an empty `block_appearance` draws nothing.
+
+=== Offline behavior
+
+Nothing beyond outbox coalescing.
+
+=== Server
+
+Nothing beyond storing and relaying changes.
+
+=== Client
+
+The Text row's Fill and Stroke sub-rows are inspector sections registered with APP-007 for
+text ranges; block rows reuse the ATTR epic's stroke and fill editors on the text node's
+`block_appearance`.  Canvas drop targets (REND-003) distinguish border, interior and text
+selection.  Rendering: glyph fills and strokes are drawn per run by `WTText`; the block
+appearance is drawn by `WTRender` as a rectangle path behind the text (or the container path
+for text inside a path).  Undo: one step per drop or field commit.
+
+=== Build tasks
+
+[[TYPE-029]]
+==== TYPE-029 Text and block color
+[horizontal]
+Track:: client-model
+Depends on:: TYPE-002, TYPE-020
+Size:: M
+Delivers:: Fill and Stroke sub-rows under the Text row (add, edit, delete) writing `fill` and
+`stroke` marks; block Add Fill / Add Stroke on `block_appearance`; *Display border*
+auto-enable; rendering of glyph strokes and block appearance; paragraph and column rules
+drawing from the block stroke.
+Done when::
+* Reference renders for filled, stroked, and filled-and-stroked text match the corpus.
+* Deleting a swatch used by a text fill leaves the rendered color unchanged (cached).
+* Merge test: text fill from one replica and block fill from another on the same node both
+  apply.
+
+[[TYPE-030]]
+==== TYPE-030 Color drop targets and the Swatches preference
+[horizontal]
+Track:: client-ui
+Depends on:: TYPE-029
+Size:: S
+Delivers:: Canvas drops of colors on text selections, block borders and interiors; the
+*Swatches apply color to* preference and its effect on the Swatches panel's selectors and
+highlight (needs the Swatches panel from the COLOR epic).
+Done when::
+* UI tests drop a color in each of the three places and verify the target register.
+* Switching the preference changes what the Swatches selectors write for a Pointer-selected
+  block.
+* Merge test: two replicas drop different colors on the same word; both converge to the later
+  OpId's color.
+endif::spec[]

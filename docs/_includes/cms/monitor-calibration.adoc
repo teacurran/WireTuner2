@@ -1,0 +1,125 @@
+Your display is the one device in the color workflow that belongs to your Mac rather than to
+the document.  {product} does not calibrate it; macOS does.  Every display attached to a Mac
+has a ColorSync profile -- a factory one for Apple displays, a generic or manufacturer one for
+others, or a custom one made with a measuring device -- and {product} draws every window through
+the profile of the screen it is on.  Your job is to make sure that profile is a good one.
+
+NOTE: {fh} offered *Adjust Display Colors*, a dialog in which you tuned a set of on-screen
+patches by eye against a printed swatch book.  {product} does not reproduce it.  macOS provides
+the *Display Calibrator Assistant* for visual calibration and accepts profiles from hardware
+calibrators, both of which produce a real ICC profile that every application on the Mac then
+shares.
+
+== Seeing which profile is in use
+
+To see the display profile {product} is using:
+
+. Choose menu:{product}[Settings…] and click *Colors*.
+. Read the *Monitor profile* row.  It names the profile of the display the frontmost document
+  window is on and updates when you move the window to another screen or macOS changes the
+  profile.
+. Click btn:[Open Display Settings…] to jump to menu:System Settings[Displays].
+
+// TODO screenshot: the Colors settings pane with the Monitor profile row
+
+== Calibrating with the Display Calibrator Assistant
+
+macOS's own visual calibration is the counterpart of {fh}'s Adjust Display Colors.  It asks you
+to match patches by eye and writes a profile.
+
+To calibrate a display visually:
+
+. Let the display warm up for half an hour and dim the room to the light you normally work in.
+. Choose menu:System Settings[Displays], select the display, open the *Color profile* menu and
+  choose *Customize…*, then click the Add button to start the Display Calibrator Assistant.
+  Holding kbd:[Option] while clicking Add exposes the expert options (target gamma and white
+  point).
+. Follow the steps: native response, target gamma (2.2 is standard), target white point (D65
+  for screen work; D50 if you match printed proofs under a viewing booth).
+. Name and save the profile.  macOS assigns it to the display; {product} re-renders open
+  windows as soon as the profile changes.
+
+== Calibrating with a measuring device
+
+For print work a colorimeter or spectrophotometer with its vendor's software gives a far
+better profile than eye-matching.  Install the profile the software produces (it usually does
+so itself); {product} picks it up through macOS like any other.
+
+== Matching printed samples
+
+If you want to compare the screen to printed samples, as {fh}'s procedure suggested, do it
+with proofing rather than by bending the display profile:
+
+. Print a sheet of swatches on the target printer.
+. In {product}, set the proof target to that printer's profile and turn on
+  menu:View[Proof Colors] (xref:color-management.adoc[Color management]).
+. Hold the print next to the screen under the light you print for.  Adjust the *Simulate
+  paper white* option rather than the display; the display profile should stay true.
+
+== Working with others
+
+Nothing on this page is shared.  Each collaborator's display profile is their own, and the
+document does not record it.  Two people looking at the same document on two calibrated
+displays see the same colors to within the displays' ability; on an uncalibrated display the
+difference is that person's alone, and nothing they do to their display changes what others
+see.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,2"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Adjust Display Colors (Display Color Setup dialog with clickable patches)
+|macOS Display Calibrator Assistant via System Settings; link from the Colors settings pane.
+|Dropped: macOS calibration produces a system-wide ICC profile; a private in-app adjustment
+would apply to one application only and conflict with the system's, which the {fh} manual
+itself warned about.
+
+|Calibrate button opening the system color picker per patch
+|--
+|Dropped with the above.
+
+|Windows Color dialog
+|--
+|Dropped: no Windows client.
+
+|Comparing screen to printed samples
+|Proofing with the printer's profile and *Simulate paper white*.
+|Adapted: same goal through the proof path instead of altering the display.
+|===
+
+=== Data model
+
+Nothing in the document.  The display profile is read from the screen.
+
+=== Merge semantics
+
+Nothing to merge.
+
+=== Offline behavior
+
+Fully local.
+
+=== Server
+
+Nothing.
+
+=== Client
+
+* `NSScreen.colorSpace` of the window's screen is the target space for window-backed contexts;
+  `WTRender` re-tags tile contexts and drops cached converted colors on
+  `NSWindow.didChangeScreenProfileNotification` and `NSWindow.didChangeScreenNotification`
+  (CMS-006).
+* The Colors settings pane reads the profile description through `ColorSyncProfileCopyDescriptionString`
+  and observes the same notifications to update the row.  btn:[Open Display Settings…] opens
+  `x-apple.systempreferences:com.apple.Displays-Settings.extension`.
+* The pane is delivered by CMS-005; the notification handling by CMS-006.
+
+=== Build tasks
+
+No tasks beyond those on xref:color-management.adoc[Color management] (CMS-005, CMS-006).
+endif::spec[]

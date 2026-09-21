@@ -1,0 +1,7 @@
+= Using layers
+include::_attributes.adoc[]
+:page-slug: layers
+:page-group: Layers, symbols and styles
+:page-fh: Chapter 9, "Using layers", "Using the Layers panel", "Creating layers", "Selecting layers", "Moving objects and reordering layers", "Merging layers", "Removing layers", "Viewing layers and layered artwork", "Locking and unlocking layers", "Using the Guides layer and guide paths", "Using layer highlight colors"
+
+include::_includes/library/layers.adoc[]

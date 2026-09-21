@@ -1,0 +1,513 @@
+A fill colors the inside of a path.  {product} offers seven kinds of fill, chosen from the
+*Fill type* pop-up at the top of the fill editor in the Object panel: *Basic* (a solid color),
+*Gradient* (a blend of colors, on its own page: xref:gradients.adoc[Gradients]), *Lens* (a
+window that alters whatever lies beneath the object), *Custom* (a repeating ornamental
+pattern), *Pattern* (an editable bitmap), *Textured* (a printed-texture look) and *Tiled*
+(artwork of your own repeated across the interior).  Select the fill in the Attributes list
+(xref:attribute-stack.adoc[Strokes, fills and the Attributes list]) and the editor below shows
+the options for its kind.  Colors are chosen as described in xref:applying-color.adoc[Applying
+color].
+
+An open path is filled as if a straight line joined its two endpoints; only the fill treats it
+as closed.  Where a path crosses itself or has several contours, the path's *fill rule*
+(even-odd or non-zero winding, set in xref:editing-paths.adoc[Editing paths]) decides which
+regions are inside, and every fill in the object's list obeys the same rule.
+
+NOTE: {fh} users: {fh}'s eighth fill type, *PostScript*, is not offered, for the reason given
+on the xref:stroke-attributes.adoc[Strokes] page.  Custom and Textured fills, print-only in
+{fh}, are drawn on screen here.
+
+== Basic fills
+
+To apply a Basic fill to the selected fill:
+
+. Choose *Basic* from the *Fill type* pop-up.
+. Choose a color: pick from the color pop-up in the editor, drag a swatch from the Swatches
+  panel onto the fill's row, drag a color from the Eyedropper tool onto the color box, or use
+  the fill well in the Tools panel.
+
+Check *Overprint* to print the fill on top of the colors beneath it rather than knocking them
+out (xref:printing.adoc[Printing]).  A Basic fill whose color is *None* paints nothing; the
+object can then only be selected by its stroke.
+
+== Custom fills
+
+A Custom fill repeats one of ten ornamental patterns across the interior.  The pattern is drawn
+at a fixed size on the page and does not scale when you scale the object.  Four patterns are
+*opaque* -- Black & White Noise, Bricks, Noise and Tiger Teeth hide whatever is behind the
+object -- and six are *transparent*, drawing only their marks: Circles, Hatch, Random Grass,
+Random Leaves, Squares and Top Noise.
+
+// TODO screenshot: the ten custom fills in a row of squares
+
+To apply a Custom fill to the selected fill:
+
+. Choose *Custom* from the *Fill type* pop-up.
+. Choose a pattern from the pattern pop-up and set its options:
+
+[cols="1,3"]
+|===
+|Pattern |Options
+
+|Black & White Noise
+|None.  Opaque black-and-white noise.
+
+|Bricks
+|*Color* of the bricks, *Mortar* color, brick *Width* and *Height* in document units, and
+*Angle* (positive rotates clockwise, negative counterclockwise).
+
+|Circles
+|*Color*, *Radius*, *Spacing* between circle centers (more than twice the radius keeps circles
+apart), *Angle*.
+
+|Hatch
+|*Color*, *Angle 1* and *Angle 2* for the two sets of parallel lines, *Spacing* between lines,
+line *Width*.
+
+|Noise
+|*Whiteness* from 0% (black) to 100% (white); higher values are noisier.
+
+|Random Grass
+|*Count* of blades, 1 to 32,000.
+
+|Random Leaves
+|*Count* of leaves, 1 to 32,000.
+
+|Squares
+|*Color*, *Side length*, *Spacing* between centers (more than the side keeps squares apart),
+*Angle*, outline *Width*.
+
+|Tiger Teeth
+|*Color* of the teeth, *Background* color, *Count* of teeth from 1 to 700, *Angle*.
+
+|Top Noise
+|*Gray* from 0% (black) to 100% (white).
+|===
+
+Random Grass and Random Leaves place their marks once per fill, so the picture is stable: it
+looks the same every time it is drawn and on every collaborator's screen.
+
+== Lens fills
+
+A Lens fill turns the object into a window that changes the appearance of everything beneath
+it.  Six lenses are available.  Lenses cannot be applied to placed EPS artwork, to clipping
+paths, or to text that has not been converted to paths; a lens-filled object can itself be
+pasted inside another object.
+
+TIP: Stacking many lenses on top of one another makes every object beneath them expensive to
+draw and print.  Use the *Snapshot* option to freeze a lens once it looks right.
+
+To apply a Lens fill to the selected fill:
+
+. Choose *Lens* from the *Fill type* pop-up.
+. Choose a lens:
++
+[horizontal]
+Transparency:: Shows objects beneath through a tint of the chosen color, from 0 (fully
+transparent) to 100 (fully opaque).
+Magnify:: Enlarges objects beneath by a factor from 1 to 20.
+Invert:: Replaces every color beneath with its CMYK complement, like a negative.
+Lighten:: Lightens objects beneath; 0 does nothing, 100 is solid white.
+Darken:: Darkens objects beneath; 0 does nothing, 100 is solid black.
+Monochrome:: Shows objects beneath as tints of the chosen color, the tint set by each
+original color's lightness.
+. For Transparency and Monochrome, choose a color.
+. For Magnify, enter a magnification or drag the slider; for Transparency, Lighten and Darken,
+  enter an amount from 0 to 100 or drag the slider.
+. Set any of the three lens options:
++
+[horizontal]
+Centerpoint:: Shows a handle at the lens's center.  Drag it with the Pointer tool to move the
+center of magnification or the point the lens looks from; kbd:[Shift]-click it to return it to
+the object's center.  The handle is visible only while the object is selected.
+Objects only:: Applies the lens to objects beneath it only, leaving empty page areas untouched
+(so an Invert lens over blank paper stays white instead of turning black).
+Snapshot:: Captures what the lens currently shows and keeps showing it wherever the object is
+moved.  Turning Snapshot off returns the lens to live.
+
+Choosing a different lens clears Centerpoint, Objects only and Snapshot.  Spot colors seen
+through a lens are output as process color; the Eyedropper can pick up the colors a lens
+produces.
+
+// TODO screenshot: the six lenses over the same artwork
+
+== Pattern fills
+
+A Pattern fill repeats an 8-by-8 pixel bitmap in the fill's color across the interior.  It
+uses the same editor and 64 built-in patterns as Pattern strokes
+(xref:stroke-attributes.adoc[Strokes]); each pixel is a quarter point on the page and the
+pattern does not scale with the object.
+
+To apply a Pattern fill to the selected fill:
+
+. Choose *Pattern* from the *Fill type* pop-up.
+. Choose a color.
+. Click a pattern in the palette at the lower right; drag the slider to scroll through the
+  patterns.
+
+To edit the pattern, click or drag pixels in the editing grid at the lower left, and use
+btn:[Clear] and btn:[Invert] as for strokes.  Edits belong to this fill only.
+
+== Textured fills
+
+A Textured fill covers the interior with a fixed texture in one color.  Textures are not
+editable and, like Custom fills, are drawn at one size on the page regardless of the object's
+size.
+
+To apply a Textured fill to the selected fill:
+
+. Choose *Textured* from the *Fill type* pop-up.
+. Choose a texture from the texture pop-up: Burlap, Denim, Gravel, Marble, Mesh, Oak, Sand
+  or Stucco.
+. Choose a color.
+
+// TODO screenshot: the textured fills
+
+== Tiled fills
+
+A Tiled fill repeats a piece of your own artwork -- any graphics or text you copy -- across the
+interior.  The tile cannot be a placed EPS file, a bitmap image, another tiled-filled object or
+a lens-filled object.
+
+To create a Tiled fill for the selected fill:
+
+. Select the artwork to use as the tile and choose menu:Edit[Copy].
+. Select the object to fill.
+. In the Object panel, select the fill to change, or click btn:[Add Fill].
+. Choose *Tiled* from the *Fill type* pop-up.
+. Click btn:[Paste In].  The tile appears in the preview and the fill is drawn.
+. Set the tile's *Angle* by typing a value or dragging the dial.
+. Set *Scale* x and y percentages to resize the tile.
+. Set *Offset* x and y to shift the pattern within the object.  Positive x moves it right,
+  negative left; positive y moves it up, negative down.
+
+btn:[Copy Out] puts the tile artwork on the clipboard, so you can edit it and paste it back in
+or use it in another fill.  A tile is a copy: editing the original objects on the page does not
+change the fill.
+
+To move an object without moving its tiled fill, turn off *Fills* in the Transform panel
+(menu:Window[Transform]) before dragging; turn it back on to have the fill travel with the
+object again (xref:transforming.adoc[Transforming objects]).
+
+== Working with others
+
+Fill settings are shared as you change them.  Two people can adjust different settings of one
+fill -- one the color of a Hatch pattern, the other its angle -- and both changes stand.  When
+both change the same setting, the later change stands and the review sheet lists both values
+after an offline session.
+
+A tile, a lens snapshot and an edited pattern bitmap are each a single picture: if two people
+paste in different tiles at the same moment, one tile wins and the other person sees the fill
+change under them.  Lens fills always show what is beneath the object *on your screen*, so a
+collaborator moving objects under your lens changes what you see through it straight away; a
+Snapshot freezes the picture you captured, on every screen.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,1a"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Eight fill types
+|Seven; PostScript is not offered.  On import a PostScript fill becomes a Basic fill of the
+displayed color with the code kept in the object's note.
+|Dropped -- no PostScript interpreter; see Strokes.
+
+|Fill of an open path bounded by the closing line
+|Same.
+|Faithful
+
+|Basic fill with color and Overprint
+|Same.
+|Faithful
+
+|Ten Custom fills with per-pattern options, print-only, fixed size
+|Same ten with the same options, rendered on screen and in every export, fixed page size.
+|Adapted -- native procedural rendering replaces PostScript.
+
+|Six lenses with amount/magnification, color
+|Same.
+|Faithful
+
+|Centerpoint, Objects only, Snapshot; reset on lens change
+|Same.  Snapshot stores a vector copy of the captured objects inside the fill.
+|Faithful
+
+|Lens not allowed on EPS, clipping paths, live text
+|Same restrictions.
+|Faithful
+
+|64 Pattern fills with editor, print at device resolution
+|Same editor; pixel fixed at 0.25 pt.
+|Adapted -- device-independent size.
+
+|Textured fills, print-only, fixed size
+|Same textures, rendered on screen as procedural textures at fixed page size.
+|Adapted -- native rendering replaces PostScript.
+
+|Tiled fills with Paste In / Copy Out, angle, scale, offset
+|Same; the tile is an embedded copy stored with the fill.
+|Faithful
+
+|Transform panel *Fills* option moving tiles with the object
+|Same.
+|Faithful
+
+|PostScript fill code
+|Not offered.
+|Dropped -- see above.
+|===
+
+=== Data model
+
+[source,protobuf]
+----
+// proto/wiretuner/doc/v1/fill.proto (sketch)
+
+message BasicFill {
+  ColorRef color = 1;                  // ATOMIC; None paints nothing
+  bool overprint = 2;
+}
+
+message CustomFill {
+  CustomFillPattern pattern = 1;
+  ColorRef color = 2;                  // Bricks, Circles, Hatch, Squares, Tiger Teeth
+  ColorRef color2 = 3;                 // Bricks mortar; Tiger Teeth background
+  double width = 4;                    // Bricks width; Hatch line width; Squares outline width
+  double height = 5;                   // Bricks
+  double radius = 6;                   // Circles
+  double side = 7;                     // Squares
+  double spacing = 8;                  // Circles, Hatch, Squares
+  double angle = 9;                    // degrees, clockwise positive
+  double angle2 = 10;                  // Hatch second set
+  double whiteness = 11;               // Noise, Top Noise: 0 .. 100
+  uint32 count = 12;                   // Grass/Leaves 1 .. 32000; Tiger Teeth 1 .. 700
+  fixed64 seed = 13;                   // Random Grass / Leaves placement; fixed at creation
+  bool overprint = 14;
+}
+enum CustomFillPattern {
+  CUSTOM_FILL_PATTERN_UNSPECIFIED = 0; BLACK_WHITE_NOISE = 1; BRICKS = 2; CIRCLES = 3;
+  HATCH = 4; NOISE = 5; RANDOM_GRASS = 6; RANDOM_LEAVES = 7; SQUARES = 8; TIGER_TEETH = 9;
+  TOP_NOISE = 10;
+}
+
+message LensFill {
+  LensType type = 1;
+  ColorRef color = 2;                  // Transparency, Monochrome
+  double amount = 3;                   // Transparency opacity, Lighten, Darken: 0 .. 100
+  double magnification = 4;            // Magnify: 1 .. 20
+  bool centerpoint_shown = 5;
+  // Object-local coordinates; unset = the object's bounds center.  A point is one value.
+  Point centerpoint = 6 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  bool objects_only = 7;
+  bool snapshot = 8;
+  // The captured contents as an embedded subtree, in object-local coordinates.  One picture.
+  Subtree snapshot_contents = 9 [(wt.crdt.field).merge = MERGE_ATOMIC];
+}
+enum LensType { LENS_TYPE_UNSPECIFIED = 0; TRANSPARENCY = 1; MAGNIFY = 2; INVERT = 3;
+  LIGHTEN = 4; DARKEN = 5; MONOCHROME = 6; }
+
+message PatternFill {
+  ColorRef color = 1;
+  PatternBitmap bitmap = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];  // stroke.proto
+  bool overprint = 3;
+}
+
+message TexturedFill {
+  Texture texture = 1;
+  ColorRef color = 2;
+  bool overprint = 3;
+}
+enum Texture { TEXTURE_UNSPECIFIED = 0; BURLAP = 1; DENIM = 2; GRAVEL = 3; MARBLE = 4;
+  MESH = 5; OAK = 6; SAND = 7; STUCCO = 8; }
+
+message TiledFill {
+  // The tile artwork, embedded.  Not a node reference: FreeHand's tile is a private copy that
+  // is edited by Copy Out / Paste In, and a symbol would clutter the Library and let an edit
+  // elsewhere silently change fills.  One picture, so ATOMIC.
+  Subtree tile = 1 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  double angle = 2;                    // degrees
+  double scale_x = 3;                  // percent; unset reads 100
+  double scale_y = 4;
+  // Shift of the pattern in object-local points; dragged as one value by the Transform
+  // panel's Fills-off move.
+  Point offset = 5 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  bool overprint = 6;
+}
+
+// A detached copy of nodes, used for tiles and lens snapshots.  Node ids are stripped;
+// `parent` indexes into `nodes` (0-based) or is -1 for a root.  Bounded so a change stays
+// within the 4 MiB limit.
+message Subtree {
+  repeated SubtreeNode nodes = 1 [(buf.validate.field).repeated.max_items = 20000];
+}
+message SubtreeNode {
+  int32 parent = 1;
+  NodeProps props = 2;
+}
+----
+
+=== Merge semantics
+
+Scalar options::
+Every scalar in `CustomFill`, `LensFill`, `TexturedFill` and `TiledFill` is its own register;
+concurrent edits of different options both apply, same option later wins.  `centerpoint`,
+`offset`, `bitmap`, `tile` and `snapshot_contents` are ATOMIC.
+
+Lens type change vs. option toggle::
+The command that sets `type` also writes `centerpoint_shown`, `objects_only` and `snapshot`
+false in the same change.  A concurrent toggle by another user of one of those flags applies
+on top (later OpId), which yields the new lens with that option on -- acceptable and visible.
+
+Snapshot::
+Taking a snapshot writes `snapshot = true` and `snapshot_contents` in one change.  Two
+concurrent snapshots: later wins, both are complete pictures.  A snapshot whose subtree exceeds
+20,000 nodes or 2 MiB encoded is refused with an explanation ("too much artwork under this
+lens to freeze"), never truncated.
+
+Tile::
+Paste In writes `tile` atomically.  Copy Out reads only.  The tile's node props may reference
+swatches and symbols by `NodeRef`; those resolve at render time with their own fallbacks, so
+deleting a swatch used inside a tile recolors the tile through the cached value like any
+other object.
+
+Read-time normalizations::
+* Amounts clamp to their ranges; `magnification` below 1 reads 1; `scale_x`/`scale_y` of 0
+  read 100.
+* A `LensFill` with `snapshot = true` but no `snapshot_contents` renders live.
+* A `TiledFill` with no tile renders as None.
+* A `Subtree` whose parent indexes form a cycle or point out of range is rendered as far as the
+  well-formed prefix; the remainder is ignored.
+* A lens fill on a node that may not carry one (an image, a clipping path, live text) renders
+  as a Basic fill of `color` at `amount` percent tint; the command layer never writes such a
+  state.
+* An unknown `CustomFillPattern` or `Texture` renders as a Basic fill of `color`.
+
+=== Offline behavior
+
+Nothing beyond the general rules.  Lens snapshots and tiles are ordinary registers; no blob
+upload is involved.
+
+=== Server
+
+Nothing beyond storing and relaying changes.
+
+=== Client
+
+Rendering (`WTRender`)::
+* Basic: fill with the path's rule.
+* Custom and Textured: procedural generators produce a display list or a `CGPattern` per
+  pattern at fixed page size, clipped to the path.  Grass and Leaves place marks from a PCG
+  generator seeded with `seed`.  Noise patterns use a hashed page-coordinate noise so they are
+  stable across redraws and zoom.
+* Pattern: as for strokes (ATTR-014), clipped to the path.
+* Lens: the display list is rendered in two passes.  Objects below the lens object (in the
+  same canvas, by stacking order) are drawn into an offscreen backdrop for the lens's bounds;
+  the lens then composites: Transparency = color at `amount` alpha over backdrop; Magnify =
+  backdrop sampled scaled about `centerpoint`; Invert = per-channel CMYK complement; Lighten and
+  Darken = white or black at `amount` alpha; Monochrome = backdrop luminance mapped to tints of
+  `color`.  `objects_only` masks the effect to the union of the objects' painted coverage.  A
+  Snapshot renders `snapshot_contents` instead of the backdrop.  Nested lenses recurse with a
+  depth cap of 8, beyond which the inner lens renders as Basic.
+* Tiled: the tile subtree's display list is rendered into a `CGPattern` cell sized to the
+  tile's bounds × scale, rotated by `angle`, phased by `offset`, in object-local space so the
+  fill follows the object's transform when *Fills* is on.
+
+Hit testing:: Lens and Custom transparent fills hit anywhere inside the path, as {fh} does.
+
+Object panel editors:: SwiftUI forms per `FillKind`; the custom-fill form shows only the
+options the chosen pattern uses (table above); lens form with sliders and the three checkboxes;
+tiled form with preview, btn:[Paste In], btn:[Copy Out], an angle dial (`NSSlider` circular),
+scale and offset fields.  Paste In validates the pasteboard contents against the exclusions
+and explains refusals.
+
+Canvas:: The lens centerpoint handle is drawn by the Pointer tool's overlay when a selected
+object has a lens fill with `centerpoint_shown`; dragging writes `centerpoint`, kbd:[Shift]-click
+clears it.
+
+Undo:: Paste In, Copy Out (no change), Snapshot and every option edit are single steps.
+
+=== Build tasks
+
+[[ATTR-016]]
+==== ATTR-016 Fill kind schemas
+[horizontal]
+Track:: proto
+Depends on:: ATTR-001, ATTR-005
+Size:: M
+Delivers:: `fill.proto`: `BasicFill`, `CustomFill`, `LensFill`, `PatternFill`, `TexturedFill`, `TiledFill`, `Subtree`, `SubtreeNode` and enums with validation rules.
+Done when::
+* `buf lint` passes with every field commented; `Subtree` size limits enforced by protovalidate.
+* Conformance vectors: concurrent option edits on one custom fill; concurrent tile pastes; lens type change vs. concurrent objects-only toggle; snapshot vs. concurrent snapshot.
+
+[[ATTR-017]]
+==== ATTR-017 Fill editors in the Object panel
+[horizontal]
+Track:: client-ui
+Depends on:: ATTR-003, ATTR-016, ATTR-013
+Size:: L
+Delivers:: The Basic, Custom (per-pattern option forms), Lens, Pattern, Textured and Tiled editors including sliders, the angle dial, btn:[Paste In] / btn:[Copy Out] with pasteboard validation, and Overprint.
+Done when::
+* UI tests set every option of every kind and verify the model.
+* Paste In of a bitmap, EPS, tiled-filled or lens-filled object is refused with a message.
+* Kind switching preserves the other kinds' settings.
+
+[[ATTR-018]]
+==== ATTR-018 Custom and textured fill rendering
+[horizontal]
+Track:: client-render
+Depends on:: REND-002, ATTR-016
+Size:: L
+Delivers:: Procedural generators for the ten custom fills with all options, seeded grass and leaves, stable noise, and the eight textures, at fixed page size, clipped to the path.
+Done when::
+* Reference renders for each pattern and texture at two zoom levels match {fh} print samples within tolerance and are identical on two machines.
+* Opaque patterns fully cover; transparent ones paint only their marks.
+
+[[ATTR-019]]
+==== ATTR-019 Lens fill rendering
+[horizontal]
+Track:: client-render
+Depends on:: REND-002, REND-004, ATTR-016
+Size:: L
+Delivers:: Backdrop capture for lens bounds, the six lens composites, centerpoint, objects-only masking, snapshot rendering, nesting cap, invalidation of a lens when objects beneath it change.
+Done when::
+* Reference renders for each lens over the corpus match; moving an object under a lens repaints the lens tile within one frame.
+* Eight nested lenses render; a ninth renders as Basic with a log entry.
+
+[[ATTR-020]]
+==== ATTR-020 Tile and snapshot capture
+[horizontal]
+Track:: client-model
+Depends on:: ATTR-002, ATTR-016
+Size:: M
+Delivers:: `Subtree` capture from a set of nodes (ids stripped, coordinates made object-local, exclusions enforced) and expansion back to nodes for Copy Out; the Paste In, Copy Out, Snapshot and lens-type-change commands.
+Done when::
+* Capture then expand round-trips the corpus losslessly.
+* Merge test: two replicas paste different tiles into one fill concurrently; both converge and the review shows both.
+* Conformance vector for the snapshot change.
+
+[[ATTR-021]]
+==== ATTR-021 Tiled fill rendering
+[horizontal]
+Track:: client-render
+Depends on:: REND-002, ATTR-016, ATTR-020
+Size:: M
+Delivers:: `CGPattern` rendering of the tile display list with angle, scale and offset in object-local space, seam-free tiling, hit testing.
+Done when::
+* Reference renders for rotated, scaled and offset tiles match; the Transform panel's *Fills* off/on moves the pattern as specified.
+* A 1,000-node tile renders a full-page fill under 16 ms on M1.
+
+[[ATTR-022]]
+==== ATTR-022 Lens centerpoint handle
+[horizontal]
+Track:: client-ui
+Depends on:: APP-003, ATTR-017
+Size:: S
+Delivers:: The Pointer tool overlay handle for a selected lens-filled object, drag to move, kbd:[Shift]-click to reset, hidden on deselect.
+Done when::
+* UI test drags the handle and verifies `centerpoint`; kbd:[Shift]-click clears it; the drag is one undo step.
+* Merge test: two replicas drag the handle concurrently; the later position wins on both.
+endif::spec[]

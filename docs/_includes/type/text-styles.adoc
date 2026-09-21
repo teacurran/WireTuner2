@@ -1,0 +1,333 @@
+A text style is a named set of type settings -- font, size, leading, alignment, indents, tabs,
+rules, effects, color, variable-font axes and OpenType features -- that you apply to
+paragraphs with one click and change everywhere at once by editing the style.  Styles live in the Styles panel (menu:Window[Styles]) alongside the
+graphic styles for paths; this page covers the text side.  The panel itself, importing and
+exporting styles, and graphic styles are on xref:styles.adoc[Styles].
+
+{product} has two kinds of text style:
+
+Paragraph style::
+Applies to whole paragraphs and can set every character and paragraph setting.  This is
+{fh}'s text style.  Every document has a *Normal Text* paragraph style that new text uses.
+
+Character style::
+Applies to a range of characters and sets character settings only -- for a run of emphasis or
+a product name that must always be in a particular face.  Character styles sit on top of the
+paragraph style.
+
+NOTE: {fh} had paragraph styles only.  Character styles are new in {product}; if you never
+create one, nothing changes.
+
+== Creating a text style
+
+To create a style from text you have already formatted:
+
+. Select a block with the Pointer tool or a paragraph with the Text tool.
+. In the Styles panel, choose menu:Options[New Paragraph Style] (or *New Character Style*
+  with a Text tool selection).
+. The style appears as *Style-1*, *Style-2*, …; double-click its name to rename it.
+
+To create a style based on another:
+
+. Select the parent style in the Styles panel, with nothing selected in the document.
+. Choose menu:Options[New Paragraph Style].  The new style is a *child* of the selected one:
+  it starts with the parent's settings and, for any setting you do not change, follows the
+  parent when the parent changes (xref:styles.adoc[Styles] describes parents and children).
+
+The *Build text styles based on* preference decides what a style created from a multi-paragraph
+selection contains: *First paragraph* (its settings exactly) or *Shared attributes* (only the
+settings every selected paragraph agrees on; the rest are left unset).
+
+== Editing a style
+
+. Select the style in the Styles panel with nothing selected in the document.
+. In the Object panel, the *Text* row shows the style's settings.  Change them.
+
+Text using the style updates immediately, everywhere in the document, except where a
+paragraph has an override of that particular setting (below).  New text created while the
+style is selected uses it.
+
+To redefine a style from text:
+
+. Select a block or paragraph whose formatting you want the style to have.
+. Choose menu:Options[Redefine…] in the Styles panel, pick the style, and click btn:[OK].
+  The style takes the selection's settings (per the *Build text styles based on* preference).
+
+== Style behavior
+
+Not every style needs to set everything.  A style that sets only size and leading can be
+applied to text of any font without changing the font.  Choose menu:Options[Style Behavior…]
+with the style selected:
+
+[cols="1,3"]
+|===
+|To leave this alone when the style is applied… |Do this in the sheet
+
+|Font, face, leading, text effect, rules
+|Choose *No selection* in that pop-up.  (*None* for rules and *No effect* for effect are real
+values that remove rules and effects.)
+
+|Alignment
+|Click the blank alignment button.
+
+|Text color
+|Untick *Style affects text color*.
+
+|Hanging punctuation
+|Click the checkbox until it shows the mixed (–) state.
+
+|Size, paragraph spacing, spacing percentages, range kerning, baseline shift, horizontal scale
+|Clear the field.
+
+|Tabs and indents
+|Choose *No selection* on the sheet's text ruler.
+
+|Variable font axes, OpenType features
+|Choose *No selection* in the *Axes* pop-up; click a feature checkbox until it shows the mixed
+(–) state (xref:type-specifications.adoc[Setting type specifications]).
+|===
+
+The *Global settings* pop-up at the bottom offers *No settings* (unset everything), *Restore
+original values* (undo your edits in this sheet) and *Restore program defaults* (the settings
+of Normal Text).
+
+*Next style* chooses the style the paragraph after this one gets when you press kbd:[Return]:
+a heading style whose *Next* is the body style saves a click on every heading.
+
+== Applying a style
+
+To apply a paragraph style, do one of the following:
+
+* Select a block (Pointer tool) or click in a paragraph or select several (Text tool), then
+  click the style in the Styles panel.
+* Drag the style's preview from the Styles panel onto a paragraph.  By default this affects
+  that paragraph only; the *Dragging a text style changes* preference can make it the whole
+  block (*Entire text block*).
+* Choose the style from the *Style* pop-up in the Character section of the Object panel.
+
+To apply a character style, select a range with the Text tool and click the style, or choose
+it from the *Character style* pop-up beside the paragraph one.
+
+Copying and pasting attributes also carries the style reference
+(xref:copying-type.adoc[Copying type attributes]).
+
+== Overrides
+
+Change any setting on styled text and the style's name shows a *+* in the Styles panel and the
+Object panel: the text has an *override*.  The override sticks even when the style is edited.
+To remove overrides and return to the style, select the text and click the style's name again.
+Pasting an inline graphic into a styled paragraph also counts as an override
+(xref:text-effects.adoc[Text effects, inline graphics and text wrap]).
+
+== Removing a style
+
+Choose menu:Options[Remove] with the style selected.  Text that used it keeps looking the same
+-- its settings become plain formatting -- and shows *Normal Text +*.  Children of the removed
+style are re-parented to its parent.  Undo restores the style and its links.
+
+== Working with others
+
+* Styles are shared: when someone edits a style, every paragraph using it changes on your
+  screen at once, and text you are typing keeps following it.
+* Two people editing the same style at once change different settings without conflict; the
+  same setting takes the later value and, after offline work, appears in the review sheet.
+* If a collaborator removes a style you just applied, your text keeps its look, exactly as if
+  you had removed the style yourself.
+* Two people creating a style with the same name at once end up with two styles of that name;
+  rename one.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,1"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Text styles in the Styles panel and the Object panel's Style pop-up
+|Same, as paragraph styles.
+|Faithful
+
+|New style from selection or from selected style (child)
+|Same.
+|Faithful
+
+|Edit a style through the Object panel with the style selected
+|Same.
+|Faithful
+
+|Style Behavior: No Selection per attribute, blank alignment, Style Affects Text Color, mixed
+Hang Punctuation, cleared fields, No Selection on the ruler, Global Settings, Next
+|Same sheet, same controls.
+|Faithful
+
+|Rename (not Normal Text)
+|Same.
+|Faithful
+
+|Apply by click, drag (preference Single Paragraph / Entire Text Container), Object panel
+|Same; preference renamed *Dragging a text style changes* with *Entire text block*.
+|Faithful
+
+|Overrides marked with +, removed by re-clicking the style
+|Same.
+|Faithful
+
+|Redefine from selection; preference Build Text Styles Based On (First Paragraph / Shared
+Attributes)
+|Same.
+|Faithful
+
+|Character styles
+|Added.
+|Adapted -- a standard feature of every later layout application; costs one mark field.
+
+|Remove style
+|Text keeps its appearance via cached values.
+|Faithful
+|===
+
+=== Data model
+
+A style is a node of kind `text_style` under `styles (0:6)`.  Paragraphs reference it through
+`ParagraphProps.style`, characters through `TextMarkValue.style`, both with
+`on_dangling = REF_FALLBACK_CACHED`: the `NodeRef.cached` bytes hold a `TextStyleProps`
+snapshot of the resolved settings at apply time, so a dangling reference renders unchanged.
+
+[source,protobuf]
+----
+// NodeProps.kind case `text_style`.
+message TextStyleProps {
+  string name = 1 [(buf.validate.field).string.max_len = 256];
+  StyleKind kind = 2;                          // paragraph or character; immutable
+  NodeRef based_on = 3 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
+  NodeRef next = 4 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
+  // Character settings.  Each is optional: unset = "no selection" (leave the text alone,
+  // or inherit from based_on).  STRUCT.
+  CharacterSettings character = 5;
+  // Paragraph settings, same optionality.  STRUCT.  Absent for character styles.
+  ParagraphSettings paragraph = 6;
+  bool affects_color = 7;                      // "Style affects text color"
+}
+enum StyleKind { STYLE_KIND_PARAGRAPH = 0; STYLE_KIND_CHARACTER = 1; }
+
+message CharacterSettings {
+  optional string font_family = 1;  optional string font_style = 2;  optional double size = 3;
+  Leading leading = 4 [(wt.crdt.field).merge = MERGE_ATOMIC];       // unset = no selection
+  optional double range_kerning = 5;  optional double baseline_shift = 6;
+  optional double horizontal_scale = 7;
+  ColorRef fill = 8;  StrokeProps stroke = 9;  TextEffect effect = 10;
+  optional CaseStyle case = 11;  optional string language = 12;  optional bool overprint = 13;
+  FontVariation axes = 14 [(wt.crdt.field).merge = MERGE_ATOMIC];  // unset = no selection
+  FeatureSettings features = 15;    // STRUCT: one tri-state register per feature (creating-text)
+}
+message ParagraphSettings {
+  optional Alignment alignment = 1;  optional double ragged_width = 2;  optional double flush_zone = 3;
+  optional double left_indent = 4;  optional double right_indent = 5;  optional double first_line_indent = 6;
+  optional double space_above = 7;  optional double space_below = 8;
+  repeated TabStop tabs = 9 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  bool tabs_set = 10;                          // false = "no selection" for tabs and indents
+  Hyphenation hyphenation = 11;  ParagraphRule rule = 12;
+  optional bool hang_punctuation = 13;  optional uint32 keep_lines = 14;  optional bool keep_with_next = 15;
+  SpacingRange word_spacing = 16 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  SpacingRange letter_spacing = 17 [(wt.crdt.field).merge = MERGE_ATOMIC];
+}
+----
+
+Resolution order for a character: document defaults → paragraph style chain (root to leaf,
+each set field overriding) → paragraph's own registers → character style chain → character
+marks.  An *override* is any paragraph register or character mark whose value differs from
+what the style chain resolves to.  Applying a style writes the `style` reference *and clears*
+the paragraph's own registers and the character marks it governs (so re-clicking the style
+removes overrides); marks and registers the style leaves as "no selection" are kept.
+
+`Normal Text` is a well-known style node (replica 0, a counter reserved by the LIB epic).
+
+=== Merge semantics
+
+Style edits:: `TextStyleProps` is STRUCT; two people editing different settings merge, the
+same setting is LWW and reviewed as *same register* on the style node.  A style edit is one
+change ("Edit style Heading") and, since text references the style, every paragraph updates
+on read with no ops to the text.
+
+Apply vs. edit text:: Applying a style to a paragraph writes `style`, writes each governed
+paragraph register to the style's value, and -- since marks are never removed -- writes one
+covering mark per governed character attribute carrying the style's value over the whole
+paragraph.  Concurrent formatting by another user ("they bolded a word while I applied the
+style") is simply another mark or register write, ordered against the apply by OpId: the
+later one shows on the overlap, the rest of each side's change stands, and the review sheet
+lists the paragraph after offline work.  Neither user's change is silently dropped in the
+live case; it is the ordinary LWW outcome.
+
+Delete vs. apply:: A style deleted while someone applies it: the reference dangles and
+resolves through the cache; the paragraph looks as intended and shows *Normal Text +* once
+the deletion is seen.  Restoring the style (undo, or the review's *Restore*) re-links it.
+
+Rename vs. rename:: LWW on `name`; both shown in the review.  Duplicate names are allowed by
+the model; the panel disambiguates with the node id suffix until one is renamed.
+
+`based_on` cycles:: Normalize on read as for flows: the `based_on` of the cycle member with the
+smallest node id is treated as unset.
+
+Next style:: `next` is consulted only at split time by the client; it is never written into
+text.
+
+Read-time normalizations::
+* A `style` reference to a `text_style` of the wrong `kind` (character style on a paragraph)
+  reads as unset with the cache applied.
+* `based_on` dangling: the style behaves as a root.
+
+=== Offline behavior
+
+Nothing beyond outbox coalescing.  Style edits made offline apply to paragraphs edited online
+in the meantime on merge, as they would live.
+
+=== Server
+
+Nothing beyond storing and relaying changes.
+
+=== Client
+
+`WTModel` resolves styles into a `ResolvedTextAttributes` cache keyed by style node and
+invalidated by changes to any node in the chain.  The Styles panel (LIB epic) hosts the text
+style rows and the options menu; the Style Behavior sheet and the Object panel's style editing
+mode are TYPE tasks.  Undo: one step per style edit, apply, redefine, rename or remove
+("Remove style" is one change deleting the node and rewriting children's `based_on`).
+
+=== Build tasks
+
+[[TYPE-034]]
+==== TYPE-034 Text style nodes and resolution
+[horizontal]
+Track:: client-model
+Depends on:: TYPE-001, TYPE-002
+Size:: M
+Delivers:: `text_style` node wrapper, resolution chain with cache, override detection, apply
+(reference + covering marks + register clears), remove with re-parenting and cached fallback,
+`next` at split, cycle normalization, Normal Text well-known node.
+Done when::
+* Editing a style updates 10,000 paragraphs' resolved attributes under 20 ms.
+* Removing a style leaves every affected paragraph rendering identically.
+* Merge test: apply style vs. concurrent bold on the same paragraph converges; the later OpId
+  shows on the overlap.
+* Merge test: delete style vs. apply style converges with the cached appearance.
+* Conformance vectors for `TextStyleProps` STRUCT and the CACHED fallback.
+
+[[TYPE-035]]
+==== TYPE-035 Styles panel text operations
+[horizontal]
+Track:: client-ui
+Depends on:: TYPE-034, TYPE-020
+Size:: M
+Delivers:: New Paragraph/Character Style, from selection and from selected style, Redefine…
+sheet, Style Behavior sheet with every control and Global settings, rename, remove, drag to
+apply with its preference, the Style and Character style pop-ups in the Character section,
+the *Build text styles based on* preference, the + override marker.  Needs the Styles panel
+framework from the LIB epic.
+Done when::
+* UI tests exercise every Style Behavior control and verify the resulting optional fields.
+* *Shared attributes* from a three-paragraph selection leaves disagreeing fields unset.
+* Merge test: two replicas rename the same style; both converge and the panel shows the
+  winner.
+endif::spec[]

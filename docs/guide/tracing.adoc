@@ -1,0 +1,7 @@
+= Tracing images
+include::_attributes.adoc[]
+:page-slug: tracing
+:page-group: Imported artwork
+:page-fh: Chapter 10, "Tracing bitmaps"
+
+include::_includes/imported/tracing.adoc[]

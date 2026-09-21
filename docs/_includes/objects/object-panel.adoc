@@ -1,0 +1,342 @@
+The Object panel is {product}'s inspector.  Whatever is selected -- a path, a text block, a
+group, a bitmap, twelve objects of mixed kinds, or nothing at all -- the panel shows what it is
+and lets you change it.  Almost every drawing task passes through it: strokes and fills are
+added here, effects are stacked here, a rectangle's corner radius and a blend's step count are
+typed here.  The panel is docked in the Properties group by default; show or hide it with
+menu:Window[Object] (kbd:[Cmd+F3]).
+
+// TODO screenshot: Object panel with a path selected showing the properties list and a stroke's attributes
+
+== Layout
+
+The panel has two halves.
+
+Properties list::
+The upper half.  A hierarchical list with the selected object at its root and, beneath it, the
+properties applied to it: every stroke, every fill, every effect, in the order they are drawn
+(top of the list is drawn last, so it is on top).  Groups show a *Contents* row; clipping
+paths show *Clip path* and *Contents*; text blocks show their text properties as
+xref:type-specifications.adoc[Type specifications] describes.
+
+Attributes::
+The lower half.  Shows the editable attributes of whichever row is selected in the properties
+list: the object's own attributes when the root row is selected (position, size, corner
+radius, name, note...), or the attributes of one stroke, fill or effect when that row is
+selected.
+
+Above the properties list sit three buttons and a menu:
+
+[cols="1,3"]
+|===
+|Control |Does
+
+|btn:[Add Stroke]
+|Adds a basic stroke above the currently selected row.  An object may carry any number of
+strokes.
+
+|btn:[Add Fill]
+|Adds a basic fill above the currently selected row.  An object may carry any number of fills.
+
+|btn:[Add Effect]
+|A menu of live and raster effects (xref:live-effects.adoc[Live effects]).  The chosen effect
+is added above the selected row.
+
+|btn:[Remove] (the minus button, or kbd:[Delete] with a row selected)
+|Removes the selected stroke, fill or effect.
+
+|btn:[Duplicate] (the action menu)
+|Duplicates the selected stroke, fill or effect directly above itself, so you can vary a copy
+rather than build one from scratch.
+|===
+
+To reorder strokes, fills and effects, drag rows in the properties list.  The order is the
+order they are applied: a stroke above a fill is drawn over it.  Details of the stack are on
+xref:attribute-stack.adoc[The attribute stack].
+
+== Editing values
+
+Most edits apply as you make them: choosing a color, ticking a checkbox, dragging a slider.
+Text fields apply when you press kbd:[Return] or kbd:[Tab], or click elsewhere; pressing
+kbd:[Esc] in a field discards what you typed.
+
+Numeric fields understand units and arithmetic:
+
+* Type a value with a unit suffix -- `12pt`, `3 mm`, `0.5in`, `2p6` (picas and points) -- and
+  it is converted to the document's unit.  A bare number is in the document's unit
+  (xref:document-panel.adoc[Document panel]).
+* Type an expression: `10+4`, `100/3`, `72*1.5`, `50%` (of the current value).  The field
+  shows the result after you commit.
+* Press kbd:[Up] or kbd:[Down] to step a value by one unit; kbd:[Shift+Up] or kbd:[Shift+Down]
+  steps by ten.
+
+The root row of every drawable object shows these attributes:
+
+[cols="1,3"]
+|===
+|Attribute |Meaning
+
+|*X*, *Y*
+|The position of the object's bounding box relative to the ruler zero point, in document
+units.  Typing new values moves the object (xref:moving.adoc[Moving objects]).
+
+|*W*, *H*
+|The size of the bounding box.  Typing a new size scales the object about its top-left corner;
+click the lock icon to keep the proportions.
+
+|*Name*, *Note*
+|A name and a free-text note for the object (xref:names-notes.adoc[Names and notes]).
+
+|*Locked*
+|Whether the object can be changed (xref:arranging.adoc[Arranging]).
+|===
+
+== Properties by kind
+
+Selecting the root row of an object shows the attributes for its kind.  The drawing pages
+document each in full; this table is the index.
+
+[cols="1,3,2"]
+|===
+|Kind |Root attributes |Page
+
+|Rectangle
+|Position, size, corner radius (uniform, or per corner with the expander), corner style.
+|xref:rectangles-ellipses-lines.adoc[Rectangles, ellipses and lines]
+
+|Ellipse
+|Position, size, start and end angle for an arc, closed or open.
+|xref:rectangles-ellipses-lines.adoc[Rectangles, ellipses and lines]
+
+|Polygon and star
+|Sides, star or polygon, inner radius, automatic or manual point angle.
+|xref:polygons-stars.adoc[Polygons and stars]
+
+|Path
+|Point count, closed or open, even/odd fill, flatness; with points selected, the selected
+point's kind (corner, curve, connector), coordinates and handle coordinates.
+|xref:editing-paths.adoc[Editing paths]
+
+|Text block
+|Type attributes: font, size, leading, alignment and the rest; block inset, columns and rows.
+|xref:text-blocks.adoc[Text blocks]
+
+|Group
+|Position and size of the group, *Transform as unit*, a *Contents* row that subselects every
+member when double-clicked.
+|xref:grouping.adoc[Grouping objects]
+
+|Clipping path
+|The clip path's own attributes, plus a *Contents* row.
+|xref:clipping-paths.adoc[Clipping paths]
+
+|Blend
+|Steps, range (percentages of the path where the blend starts and ends).
+|xref:blends.adoc[Blends]
+
+|Image
+|Position, size, resolution, transparent (for 1-bit images), link status.
+|xref:bitmaps.adoc[Bitmap images]
+
+|Symbol instance
+|The symbol's name and a *Release Instance* button.
+|xref:library.adoc[Library and symbols]
+
+|Connector line
+|Start and end objects, offsets.
+|xref:connectors.adoc[Connector lines]
+|===
+
+== Mixed selections
+
+When several objects are selected, the properties list's root row reads _N objects_ and the
+attributes half shows what they have in common.
+
+* A field whose value is the same on every object shows that value.  Editing it writes the new
+  value to every object.
+* A field whose values differ shows a dash and a placeholder (`Mixed`).  Typing a value writes
+  it to every object; leaving the field alone leaves them different.
+* A stroke, fill or effect row appears under the root when *every* selected object carries a
+  matching row at the same position in its stack, and edits to it apply to each object's
+  corresponding row.  When the stacks differ, the list shows only the root and the buttons add
+  to every object at once.
+* Objects of different kinds show only the common attributes (position, size, name, note,
+  locked).
+
+== With nothing selected
+
+With nothing selected the panel shows the document's default attributes -- the stroke, fill
+and effects a newly drawn object receives.  Editing them changes the defaults for everyone
+working in the document (xref:default-attributes.adoc[Changing default attributes]).
+
+== Working with others
+
+The Object panel always shows the current state of the document.  If a collaborator changes
+the fill of an object you have selected, the swatch in your panel changes at the same moment
+the object changes on the canvas.  Their selection outline, drawn in their color with their
+name, shows you they are working there before their change lands
+(xref:presence.adoc[Presence]).
+
+A field you are in the middle of typing into is yours until you commit it.  If someone changes
+that same attribute while you type, the field keeps your keystrokes and the object on the
+canvas shows their value; when you press kbd:[Return] your value wins, because it is the later
+change.  If you press kbd:[Esc], the field reverts to whatever the document holds now -- their
+value.
+
+If you and a collaborator commit different values for the same attribute of the same object
+at nearly the same moment, the later one is kept.  If you were offline when it happened and
+your value lost, the review that opens when you reconnect lists the attribute with both values
+and lets you re-apply yours (xref:collaboration.adoc[Working together]).
+
+ifdef::spec[]
+== Specification
+
+The panel framework -- host, property list, attribute stack rows, kind-editor registration,
+live remote updates without stealing focus -- is xref:backlog.adoc#APP-007[APP-007].  This page
+specifies what OBJ adds to it and how the panel's editors turn into changes.
+
+=== FreeHand parity
+
+[cols="2,3,2"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Properties list and attributes halves
+|Same layout, same context sensitivity.
+|Faithful
+
+|Add Stroke, Add Fill, Add Effect above the selected row
+|Same.
+|Faithful
+
+|Drag rows to reorder
+|Same.
+|Faithful
+
+|Some attributes apply on Return only
+|Every text field applies on commit (Return, Tab, focus loss); every non-text control applies
+immediately.  The rule is uniform rather than per attribute.
+|Adapted -- one rule is learnable; per-attribute exceptions were an artifact of {fh}'s
+implementation.
+
+|Default attributes shown with nothing selected
+|Same; the defaults are shared document data (xref:default-attributes.adoc[Defaults]).
+|Faithful
+
+|Duplicate a stroke/fill/effect row
+|Added (action menu).  {fh} had no direct equivalent.
+|Adapted -- addition.
+
+|Numeric entry with units and arithmetic
+|Same, plus `%` of the current value.
+|Faithful
+|===
+
+=== Data model
+
+The panel adds no document fields.  It edits `CommonProps` (name, note, locked, transform),
+the kind-specific props of each node (`RectProps`, `PathProps`, ... owned by the drawing
+pages) and the appearance stack (`AppearanceProps.stack`, a `MERGE_SEQUENCE` owned by
+xref:attribute-stack.adoc[ATTR]).
+
+Position and size are *derived*: `X`/`Y`/`W`/`H` are computed from the node's geometry and
+its `CommonProps.transform`, and editing them writes the `transform` register
+(xref:transforming.adoc[Transforming]).  Corner radius on a rectangle or step count on a blend
+are ordinary registers on the node.
+
+=== Merge semantics
+
+* Every edit the panel makes is one `SetFields` per affected node, all inside one change, with
+  a label naming the attribute (`Change stroke width`, `Change corner radius of 3 objects`).
+* Each attribute is its own register, so two people editing *different* attributes of one
+  object both keep their edits.  Two people editing the *same* attribute: last writer wins;
+  the loser's value is retained in the change log and surfaced by the review sheet as a
+  `same register` conflict when the loss happened offline.
+* Adding a stroke or fill is an `ElementInsert` into the stack sequence; reordering is an
+  `ElementMove`; removing is an `ElementDelete`.  Concurrent reorder and recolor of the same
+  row keep both (sequence elements are independent registers).  Concurrent removal and
+  recolor: the row is gone, the color edit is retained on the tombstone and comes back if the
+  row is restored.
+* A field being edited is not overwritten by a remote change (APP-007).  The editor holds
+  `(draft, baseValue)`; when a remote write lands, the canvas updates and the editor keeps the
+  draft.  Commit writes the draft as a fresh op -- greater OpId, so it wins.  Escape discards
+  the draft and re-reads the register.
+* Mixed selection edits write N registers in one change; each merges independently.  Undo of
+  the change reverts each register that still holds the panel's value.
+
+Read-time normalization: a `Mixed` display is a pure read; no normalization is needed.
+
+=== Offline behavior
+
+Works offline.  Consecutive edits to one register from the same replica coalesce in the
+outbox (a user dragging a slider for a while produces one op).  Change boundaries -- and thus
+undo steps -- are preserved.
+
+=== Server
+
+Nothing beyond storing and relaying changes.
+
+=== Client
+
+* `WTApp/Inspector`: SwiftUI editors hosted in the APP-007 panel.  Each editor conforms to
+  `PropertyEditor` (`bind(selection:)`, `commit(value:)`, `draftIsDirty`) so the framework can
+  apply the focus-preservation rule uniformly.
+* Numeric parsing lives in `WTModel.Measure`: a small recursive-descent parser for
+  `<expr> := term (('+'|'-') term)*`, with unit suffixes `pt`, `p`, `pc`, `in`, `mm`, `cm`,
+  `px`, the pica-point form `2p6`, and a trailing `%` meaning "of the current value".
+  Results are rounded to 1/1000 pt before writing.
+* `NSStepper`-style arrow handling in fields: kbd:[Up]/kbd:[Down] step by one document unit,
+  kbd:[Shift] by ten.
+* Undo grouping: one change per commit; slider drags group under one label for the duration
+  of the drag (mouse down to mouse up).
+
+=== Build tasks
+
+[[OBJ-001]]
+==== OBJ-001 Measurement parser for numeric fields
+[horizontal]
+Track:: client-model
+Depends on:: APP-001
+Size:: S
+Delivers:: `WTModel.Measure`: parsing of numbers with unit suffixes, pica-point form, arithmetic and percent-of-current, conversion to points, formatting back in the document unit.
+Done when::
+* Unit tests cover every unit, `2p6`, `10+4`, `100/3`, `50%`, whitespace, negative values, and rejection of malformed input with the caret position of the error.
+* Rounding to 1/1000 pt is applied before any value reaches a register.
+
+[[OBJ-002]]
+==== OBJ-002 Common attributes editor (X, Y, W, H, name, note, locked)
+[horizontal]
+Track:: client-ui
+Depends on:: APP-007, GEO-005, OBJ-001
+Size:: M
+Delivers:: The root-row editor for every drawable node: derived position and size from geometry plus `transform`, edits written as a `transform` register write (position, size with the proportion lock), plus the name, note and locked fields.
+Done when::
+* Typing an X value moves the object by writing exactly one `SetFields` on `CommonProps.transform` with label `Move`.
+* Typing W with the proportion lock on scales uniformly about the top-left corner.
+* Merge test: a remote rotation and a local X edit committed concurrently leave the object with one whole matrix (the later OpId), never a mixed one.
+* Editing a field while a remote write lands on the same node keeps the keystrokes and commits them on Return (UI test).
+
+[[OBJ-003]]
+==== OBJ-003 Mixed-selection editing
+[horizontal]
+Track:: client-ui
+Depends on:: APP-007, OBJ-002
+Size:: M
+Delivers:: The `Mixed` display rule for fields and stack rows, common-attributes reduction across kinds, and fan-out of one edit to N nodes in one labelled change.
+Done when::
+* Three rectangles with different corner radii show `Mixed`; typing 4 writes three registers in one change labelled `Change corner radius of 3 objects`.
+* Objects with differing stacks show only the root row; btn:[Add Fill] adds a fill to each.
+* Merge test: fan-out to N nodes concurrent with a remote edit of one of them yields per-node LWW and never partially applied fan-out from this replica.
+* Undo reverts every register still holding the fanned-out value.
+
+[[OBJ-004]]
+==== OBJ-004 Attribute stack commands
+[horizontal]
+Track:: client-model
+Depends on:: CRDT-004, APP-011
+Size:: M
+Delivers:: `AddStroke`, `AddFill`, `AddEffect`, `RemoveAppearance`, `MoveAppearance`, `DuplicateAppearance` commands over `AppearanceProps.stack`, with insert positions relative to the selected row, and their inverses.
+Done when::
+* Each command is one change with a label; duplicate copies every register of the element under fresh element ids.
+* Merge test: concurrent reorder (A) and recolor (B) of the same row keep both; concurrent remove (A) and recolor (B) leaves the row deleted and the color retained on the tombstone.
+* Conformance vector: stack with three elements, concurrent insert-at-same-gap from two replicas, deterministic order by element id.
+endif::spec[]

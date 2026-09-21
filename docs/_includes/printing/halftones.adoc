@@ -1,0 +1,172 @@
+A halftone screen is how a printing press or imagesetter renders a tint: a pattern of dots (or
+lines, or ellipses) whose size varies with the ink coverage, laid at an angle and a frequency.
+The Print dialog sets the screen for each plate of the whole document
+(xref:printing.adoc[Printing]).  The Halftones panel lets you give particular objects a screen
+of their own -- a coarse line screen on a background tint for effect, a finer screen on a
+detailed logo -- that overrides the document's screen wherever those objects print.
+
+Screens only matter on output that is actually halftoned: separations going to a platesetter
+or imagesetter, or any printer when *Screen in {product}* is on.  On a desktop printer with the
+option off, the panel's settings have no visible effect, and on screen the object looks the
+same either way.
+
+// TODO screenshot: the Halftones panel with a Line screen at 45 degrees and 40 lpi applied to a selected rectangle
+
+== Applying a halftone screen to objects
+
+To apply a screen to selected objects:
+
+. Select one or more objects.
+. Choose menu:Window[Halftones].
+. From the *Screen* menu, choose a dot shape, or *Default* to use the document's shape from the
+  Print dialog.
+. Set *Angle* by typing a value in degrees or dragging the dial.
+. Set *Frequency* by typing a value in lines per inch or dragging the slider.
+
+Every change applies immediately to the selection.  With several objects selected, a value that
+differs among them shows as *Mixed*; choosing a value writes it to all of them.
+
+[cols="1,3"]
+|===
+|Control |Meaning
+
+|*Screen*
+|*Default* (inherit the document's shape), *Round*, *Ellipse*, *Line*, *Diamond*, *Square* or
+*Cross*.
+
+|*Angle*
+|0°--360°.  For an object printed on several plates, this one angle is used on every plate it
+appears on -- which is the reason to use object screens mostly on single-ink objects, or
+deliberately for a moiré-free special effect.
+
+|*Frequency*
+|Lines per inch, 1--600.  Lower is coarser.
+|===
+
+To remove an object's screen, choose *Default* for *Screen* and click btn:[Use document
+settings], which clears the angle and frequency as well.  The object then prints with the
+document's screen for whichever plate it lands on.
+
+Object screens are part of the object's attributes: they copy and paste with it, survive
+grouping, are saved in graphic styles (xref:styles.adoc[Styles]), and can be searched for with
+Find and Replace (xref:find-replace.adoc[Find and replace]).  A group's screen applies to every
+member that has no screen of its own.
+
+== Overriding object screens at print time
+
+In the Print dialog, with *Separations* chosen, the *Halftone screen* group has an
+*Ignore object screens* checkbox.  Select it to print every object with the plate's screen,
+without touching the objects.  It is the fastest way to get a clean set of plates from a
+document whose object screens were set for a different press.
+
+== Overprint
+
+Overprint -- letting an ink print on top of another instead of knocking it out -- is a property
+of a fill or a stroke, not of the halftone, and is set in the Object panel on that fill or
+stroke (xref:fill-attributes.adoc[Fill attributes], xref:stroke-attributes.adoc[Stroke
+attributes]).  Separations honor it; menu:View[Overprint Preview] shows it on screen.
+
+== Working with others
+
+An object's screen is an attribute like its fill: change it and collaborators see the panel
+update for that object; two people setting a screen on the same object at once end up with the
+later one, as a whole -- never one person's angle with the other's frequency.  If you were
+offline and your screen lost, the merge review lists *Halftone* among the object's changed
+properties with both values.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,2"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Halftones panel: Screen (Default + shapes), Angle dial, Frequency slider
+|Same.
+|Faithful
+
+|Object screens honored on PostScript printers
+|Honored on separations and whenever *Screen in {product}* is on; on a desktop printer with
+in-app screening off, no effect (the print path carries no halftone dictionaries).
+|Adapted -- the PDF print path does not transmit screens; in-app screening restores the
+capability on every device.
+
+|Override object-level screens in Print Setup
+|*Ignore object screens* in the Print dialog.
+|Faithful
+
+|Screen inherited through groups
+|Same.
+|Faithful
+|===
+
+=== Data model
+
+One field on `CommonProps`, added by xref:printing.adoc#PRINT-001[PRINT-001]:
+
+[source,protobuf]
+----
+// Excerpt of doc/v1/common.proto
+message CommonProps {
+  // ...
+  // Object-level halftone screen; unset = document default.  ATOMIC because shape, angle
+  // and frequency describe one screen (see doc/v1/print.proto).
+  Halftone halftone = 8 [(wt.crdt.field).merge = MERGE_ATOMIC];
+}
+----
+
+`CommonProps` rather than the appearance stack because {fh} applied the screen to the object,
+not to one fill; a fill-level screen would be a new capability with no parity.  And
+`PrintSettings.ignore_object_halftones` (a bool, STRUCT sibling of the fields on
+xref:printing.adoc[Printing]).
+
+=== Merge semantics
+
+* The panel writes `CommonProps.halftone` on each selected node in one change labelled
+  `Change halftone of N objects`; btn:[Use document settings] writes it unset.
+* ATOMIC LWW: concurrent angle and frequency edits on one object yield the later whole
+  screen.  The review sheet lists a lost write as a `same register` property conflict named
+  *Halftone*, with both screens shown as `Line 45° 40 lpi` strings.
+* Edit vs delete follows the node rule: the screen is retained on the deleted node.
+* Read-time: `frequency` outside 1..600 reads as inherit (0); `angle` is reduced modulo 360.
+  A group's screen applies to members whose own field is unset (resolution walks up the
+  parent chain at render time; nothing is written).
+
+=== Offline behavior
+
+Works offline.
+
+=== Server
+
+Nothing beyond storing and relaying changes.
+
+=== Client
+
+* `WTApp/Panels/HalftonesPanel`: SwiftUI panel body hosted by APP-004, registered in
+  menu:Window[Halftones].  Bound to the selection through the APP-007 `PropertyEditor`
+  protocol so the focus-preservation and `Mixed` rules apply.  The angle dial is a custom
+  `NSControl` (drag around the centre; kbd:[Shift] snaps to 15°); the frequency slider is
+  logarithmic from 1 to 600.
+* Resolution for output: `WTRender`'s plate mode (PRINT-007) asks each object for its
+  effective `Halftone` -- own, else nearest ancestor's, else the plate's -- and the in-app
+  screener (PRINT-009) uses it per object.  With `ignore_object_halftones` the lookup stops at
+  the plate.
+* Undo: one change per panel commit; dial and slider drags group from mouse down to mouse up.
+
+=== Build tasks
+
+[[PRINT-010]]
+==== PRINT-010 Halftones panel
+[horizontal]
+Track:: client-ui
+Depends on:: PRINT-001, APP-004, APP-006, APP-007
+Size:: M
+Delivers:: The Halftones panel (Screen menu, angle dial, frequency slider, btn:[Use document settings]), writing `CommonProps.halftone` for the selection with `Mixed` handling; the *Ignore object screens* checkbox in the print pane; effective-screen resolution through groups for the renderer.
+Done when::
+* Applying a Line screen at 45°/40 lpi to three objects writes three ATOMIC registers in one labelled change; btn:[Use document settings] unsets them.
+* A group's screen resolves to members without their own; a member's own screen wins (unit tests on the resolver).
+* Merge test: concurrent angle (A) and frequency (B) edits on one object converge to one whole screen on both replicas; the loser's value is retained in the log.
+* Conformance vector: `CommonProps.halftone` set, unset and set again out of order across two replicas.
+endif::spec[]

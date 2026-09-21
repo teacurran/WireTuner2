@@ -1,0 +1,390 @@
+Toolbars put commands and tools where the pointer already is.  {product} has seven: the Main
+toolbar across the top of the document window, the Tools panel down its left edge, and five
+smaller toolbars -- Text, Info, Envelope, Extension Tools and Extension Operations -- that you
+show when you need them.  Any toolbar can float or dock; all of them can be customized
+(xref:customizing.adoc[Customizing your environment]).  This page describes each toolbar and
+lists every tool in the Tools panel with its shortcut and the page that documents it.
+
+// TODO screenshot: the Tools panel, vertical, with every flyout expanded beside it.
+
+== Showing, hiding, docking
+
+To show or hide one toolbar::
+Choose its name from menu:Window[Toolbars].  A check mark marks the visible ones.
+
+To show or hide the Tools panel::
+Choose menu:Window[Tools].
+
+To show or hide every visible toolbar at once::
+Choose menu:View[Toolbars].  Choosing it again brings back the same set.
+
+To dock or undock a toolbar::
+Drag it by the textured handle at its left (or top) end.  A highlight shows where it will
+land: the strip under the Main toolbar, the left or right edge, or the bottom above the status
+bar.  Drop it on the pasteboard to make it a floating, resizable palette.  The Tools panel
+docks vertically at a side edge or horizontally at the top or bottom.
+
+To see what a button does::
+Pause the pointer over it.  The tooltip shows the name and the shortcut.  Turn tooltips off in
+the *Panels* preferences (xref:preferences.adoc[Preferences]).
+
+== The Main toolbar
+
+The Main toolbar is the document window's own toolbar, under the title bar.  It carries the
+commands you use at the start of a job and buttons that open the most-used panels.  The
+default set, left to right:
+
+[cols="1,3"]
+|===
+|Button |Does
+
+|New |Creates a document from the default template (xref:creating-opening.adoc[Creating and opening]).
+|Open |Opens the library window.
+|Save Version |Names the current state as a version you can return to (xref:history.adoc[History]).  {fh}'s Save button has no equivalent job; every change is already kept.
+|Import |menu:File[Import…].
+|Print |menu:File[Print…].
+|Lock |Locks the selected objects (xref:selecting.adoc[Selecting]).
+|Unlock |Unlocks them.
+|Find & Replace |Opens the Find & Replace Graphics panel.
+|Align |Opens the Align panel.
+|Transform |Opens the Transform panel.
+|Library |Opens the Library panel.
+|Object |Opens the Object panel.
+|Color Mixer |Opens the Color Mixer panel.
+|Swatches |Opens the Swatches panel.
+|Layers |Opens the Layers panel.
+|Share |Opens the sharing sheet (xref:sharing.adoc[Sharing]).
+|===
+
+Choose menu:View[Customize Toolbar…] to add, remove or rearrange its buttons with the
+standard macOS toolbar sheet; the sheet offers every command in the application.
+
+== The Tools panel
+
+The Tools panel holds the tools you draw, select, edit and color with.  It has four sections:
+*Tools*, *View*, *Colors* and *Snap*.  A tool with a small triangle in its corner hides a
+*flyout* of related tools.
+
+To select a tool::
+Click it, or press its shortcut key.  Shortcut letters work whenever the canvas has focus and
+no text is being edited; when you are typing in a text block, use the Tools panel.
+
+To select a tool from a flyout::
+Press and hold on the tool that shows the triangle, then choose from the menu that appears.
+The chosen tool takes that slot until you choose another.  Pressing a flyout tool's shortcut
+selects it directly.  Pressing the *visible* tool's shortcut again cycles through the flyout.
+
+To set a tool's options::
+Double-click the tool.  Tools with options (Pointer, Subselect, Lasso, Polygon, Spiral, Arc,
+Pencil, Variable Stroke Pen, Calligraphic Pen, Freeform, Knife, Eraser, Trace, Graphic Hose,
+Chart, the path-effect tools and the transformation tools) open a small sheet; the page for
+each tool lists its options.
+
+To use the previous tool for one action::
+Hold kbd:[Cmd] to get the Pointer while any drawing tool is active, kbd:[Space] to get the
+Hand, kbd:[Cmd+Space] to get the Zoom tool and kbd:[Cmd+Option+Space] to zoom out.  Release
+the key to return to the tool you were using.
+
+=== Tools section
+
+Shortcuts are the *{fh} MX* preset, which is {product}'s default; the *Illustrator* preset
+and your own changes are described on xref:customizing.adoc[Customizing your environment].
+Where {fh} offered both a letter and a digit, both work.
+
+[cols="1,1,3,2"]
+|===
+|Tool |Shortcut |Purpose |Documented on
+
+4+h|Selection
+|Pointer |kbd:[V], kbd:[0] |Select and move objects, points and handles. |xref:selecting.adoc[Selecting]
+|Subselect |kbd:[A], kbd:[1] |Select inside groups and clipping paths without ungrouping. |xref:selecting.adoc[Selecting]
+|Lasso |kbd:[L] |Select by drawing a freeform marquee. |xref:selecting.adoc[Selecting]
+|Page |kbd:[D] |Select, move, duplicate and resize pages on the pasteboard. |xref:pages.adoc[Pages]
+
+4+h|Text
+|Text |kbd:[T] |Create and edit text blocks. |xref:creating-text.adoc[Creating text]
+
+4+h|Pen flyout
+|Pen |kbd:[P], kbd:[6] |Place corner and curve points by clicking and dragging. |xref:pen-bezigon.adoc[Pen and Bezigon]
+|Bezigon |kbd:[B], kbd:[5] |Place points whose curves are fitted automatically. |xref:pen-bezigon.adoc[Pen and Bezigon]
+
+4+h|Pencil flyout
+|Pencil |kbd:[Y], kbd:[9] |Draw freehand paths. |xref:freeform.adoc[Freeform drawing]
+|Variable Stroke Pen |-- |Draw pressure-sensitive strokes of varying width. |xref:freeform.adoc[Freeform drawing]
+|Calligraphic Pen |-- |Draw strokes shaped like a broad-nib pen. |xref:freeform.adoc[Freeform drawing]
+
+4+h|Line
+|Line |kbd:[N], kbd:[4] |Draw straight segments. |xref:rectangles-ellipses-lines.adoc[Rectangles, ellipses and lines]
+
+4+h|Rectangle flyout
+|Rectangle |kbd:[R], kbd:[2] |Draw rectangles and rounded rectangles. |xref:rectangles-ellipses-lines.adoc[Rectangles, ellipses and lines]
+|Polygon |kbd:[G] |Draw polygons and stars. |xref:polygons-stars.adoc[Polygons and stars]
+
+4+h|Ellipse flyout
+|Ellipse |kbd:[O], kbd:[3] |Draw ellipses and circles. |xref:rectangles-ellipses-lines.adoc[Rectangles, ellipses and lines]
+|Spiral |-- |Draw spirals. |xref:spirals-arcs.adoc[Spirals and arcs]
+|Arc |-- |Draw arcs. |xref:spirals-arcs.adoc[Spirals and arcs]
+
+4+h|Freeform flyout
+|Freeform |kbd:[F] |Push, pull and reshape paths by dragging. |xref:editing-paths.adoc[Editing paths]
+|Roughen |-- |Add jitter to a path. |xref:path-effects.adoc[Path effects]
+|Bend |-- |Bend a path inward or outward. |xref:path-effects.adoc[Path effects]
+|Fisheye Lens |-- |Distort through a lens. |xref:path-effects.adoc[Path effects]
+|Smudge |-- |Fade a copy of the object into a smear. |xref:path-effects.adoc[Path effects]
+|Shadow |-- |Add a hard, soft or zoom shadow. |xref:path-effects.adoc[Path effects]
+|Mirror |-- |Draw reflected copies. |xref:path-effects.adoc[Path effects]
+|3D Rotation |-- |Rotate a flat object in simulated 3D. |xref:path-effects.adoc[Path effects]
+
+4+h|Knife flyout
+|Knife |kbd:[K], kbd:[7] |Cut paths. |xref:editing-paths.adoc[Editing paths]
+|Eraser |kbd:[E] |Erase parts of paths. |xref:editing-paths.adoc[Editing paths]
+
+4+h|Trace and color
+|Trace |kbd:[8] |Convert bitmaps to paths. |xref:tracing.adoc[Tracing]
+|Eyedropper |kbd:[I] |Pick up a color and drop it on an object or a color well. |xref:applying-color.adoc[Applying color]
+
+4+h|Effects flyouts
+|Extrude |kbd:[X] |Give an object depth. |xref:extrude.adoc[Extrude]
+|Blend |kbd:[W] |Blend two objects by dragging between them. |xref:blends.adoc[Blends]
+|Perspective |-- |Attach objects to the perspective grid. |xref:perspective.adoc[Perspective]
+
+4+h|Objects that link and repeat
+|Graphic Hose |kbd:[Shift+H] |Spray objects from a set. |xref:graphic-hose.adoc[Graphic Hose]
+|Chart |-- |Create charts from data. |xref:charts.adoc[Charts]
+|Connector |-- |Draw connector lines that follow the objects they join. |xref:connectors.adoc[Connectors]
+|Action |-- |Assign an interaction (link, show, hide, go to page) to an object for web export. |xref:interactivity.adoc[Interactivity]
+|Output Area |-- |Mark a region of the pasteboard to print or export. |xref:output-area.adoc[Output area]
+
+4+h|Transform flyout
+|Rotate |-- |Rotate around a point you choose. |xref:transforming.adoc[Transforming]
+|Scale |-- |Scale from a point you choose. |xref:transforming.adoc[Transforming]
+|Skew |-- |Slant along an axis. |xref:transforming.adoc[Transforming]
+|Reflect |-- |Flip across an axis. |xref:transforming.adoc[Transforming]
+|===
+
+NOTE: The *Action* tool in {fh} assigned Flash actions.  {product} keeps the tool and the
+name; it assigns interactions that survive HTML and SVG export
+(xref:interactivity.adoc[Interactivity]).  Tools that {fh} kept on the Xtra Tools toolbar
+(Mirror, Roughen, Bend, Fisheye Lens, Smudge, Shadow, 3D Rotation, Graphic Hose, Chart) are
+built in and appear in the Tools panel flyouts; the Extension Tools toolbar shows the same
+tools in one row for people who prefer it.
+
+=== View section
+
+[cols="1,1,3,2"]
+|===
+|Control |Shortcut |Purpose |Documented on
+
+|Zoom |kbd:[Z] |Click to zoom in, kbd:[Option]-click to zoom out, drag to zoom to an area, kbd:[Shift]-drag to define a named view. |xref:document-view.adoc[Setting the document view]
+|Hand |kbd:[H] |Drag to scroll the pasteboard. |xref:document-view.adoc[Setting the document view]
+|Keyline |kbd:[Cmd+K] |Toggles Keyline and Preview. |xref:document-view.adoc[Setting the document view]
+|Fast Mode |kbd:[Cmd+Shift+K] |Toggles the fast drawing modes. |xref:document-view.adoc[Setting the document view]
+|===
+
+=== Colors section
+
+[cols="1,1,3,2"]
+|===
+|Control |Shortcut |Purpose |Documented on
+
+|Stroke well |-- |The stroke color of the selection; click for a color pop-up. |xref:applying-color.adoc[Applying color]
+|Fill well |-- |The fill color of the selection. |xref:applying-color.adoc[Applying color]
+|Swap |kbd:[Shift+X] |Swaps stroke and fill colors. |xref:applying-color.adoc[Applying color]
+|None |kbd:[/] |Sets the active well to no color. |xref:applying-color.adoc[Applying color]
+|Default |kbd:[Shift+D] |Restores the default black stroke and white fill. |xref:default-attributes.adoc[Default attributes]
+|===
+
+=== Snap section
+
+[cols="1,1,3,2"]
+|===
+|Control |Shortcut |Purpose |Documented on
+
+|Snap to Point |kbd:[Cmd+'] |Points snap to other points. |xref:moving.adoc[Moving]
+|Snap to Object |kbd:[Cmd+Shift+'] |Points snap to paths. |xref:moving.adoc[Moving]
+|Snap to Grid |kbd:[Cmd+Option+G] |Snap to the document grid. |xref:grid-guides.adoc[Grid and guides]
+|Snap to Guides |kbd:[Cmd+Option+;] |Snap to guides. |xref:grid-guides.adoc[Grid and guides]
+|===
+
+== The Text toolbar
+
+Font family, style and size; leading; alignment; and buttons for attach to path, flow inside
+path, run around selection, convert to paths, the Text Editor and spelling.  Fully described
+on xref:type-tools.adoc[Type tools].  Docks under the Main toolbar by default when shown.
+
+== The Info toolbar
+
+A read-only readout that follows the pointer and the current tool: pointer position, and while
+dragging, the change in position, the angle, the center of rotation, the radius or the number
+of sides -- whatever the tool can report.  It also names the kind of object under the pointer.
+Units follow the document.  Shown with menu:Window[Toolbars > Info].
+
+== The Envelope toolbar
+
+Create, Show Map, Copy as Path, Release and Remove for envelopes, plus the envelope preset
+pop-up (xref:perspective.adoc[Perspective and envelopes]).
+
+== The Extension Tools and Extension Operations toolbars
+
+NOTE: {fh} called these *Xtra Tools* and *Xtra Operations*; {product} calls extensions
+*Extensions* throughout (xref:extensions.adoc[Extensions]).
+
+*Extension Tools* holds the tools listed above under Freeform, Effects and "Objects that link
+and repeat" in one row.  *Extension Operations* holds one-click path operations: Union,
+Divide, Intersect, Punch, Crop, Transparency, Expand Stroke, Inset Path, Add Points, Correct
+Direction, Reverse Direction, Remove Overlap, Simplify, Blend, Emboss, Fractalize, Trap
+(xref:combining-paths.adoc[Combining paths], xref:expand-stroke.adoc[Expand stroke],
+xref:inset-path.adoc[Inset path], xref:path-effects.adoc[Path effects]).
+
+== Working with others
+
+Toolbars and tools are yours.  Which tool you hold, which toolbars you show and where they
+sit never affects anyone else.  What the tools *do* -- draw, move, color -- writes into the
+shared document and reaches collaborators as you work; each tool's page explains what happens
+when two people use it on the same object at once.
+
+Collaborators can see which tool you are using: the Presence page explains the cursor labels
+(xref:presence.adoc[Presence]).  Nothing changes offline; every tool works, and your work
+syncs later.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,1"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Toolbars: Tools, Main, Text, Envelope, Info, Status, Xtra Tools, Xtra Operations
+|Same set; Status is the fixed status bar (xref:workspace.adoc[The workspace]); Xtra → Extension.
+|Faithful
+
+|Dock toolbars top/left/bottom or float; drag to move
+|Same, with the Main toolbar as the window's `NSToolbar`.
+|Faithful
+
+|Main toolbar default buttons incl. Save
+|Save becomes Save Version; Share added.
+|Adapted -- no save; versions are the nearest concept.
+
+|Tools panel: four sections, flyouts, add/remove buttons via Customize
+|Same sections and flyouts; customization through the Customize Toolbars window.
+|Faithful
+
+|Cmd-drag a tool off the Tools panel to remove it
+|Same; menu:Window[Toolbars > Reset Toolbars] brings it back without the Customize window.
+|Faithful (with a reset command)
+
+|Tool shortcuts (letters and digits)
+|The FreeHand MX Mac preset is the default set.
+|Faithful
+
+|Xtra Tools as a separate plug-in toolbar
+|Those tools are built in and also live in Tools panel flyouts.
+|Adapted -- no plug-in loading in v1 (xref:extensions.adoc[Extensions]).
+
+|Status toolbar Cancel button (Windows)
+|kbd:[Esc] and sheet cancel buttons.
+|Adapted
+
+|Action tool assigning Flash actions
+|Action tool assigning web-export interactions.
+|Adapted -- Flash is gone; the interaction model is kept for HTML/SVG.
+|===
+
+=== Data model
+
+None.  Toolbar contents and positions are application state in the layout file
+(xref:panels.adoc[Using panels]); tool state is transient.  The stroke and fill wells read and
+write the selection's appearance registers, specified on xref:applying-color.adoc[Applying
+color].  The snap buttons write four booleans that are `local_only` view state
+(`ViewState.snap_*`, xref:document-view.adoc[Setting the document view]).
+
+=== Merge semantics
+
+None on this page.
+
+=== Offline behavior
+
+Nothing needs the network.
+
+=== Server
+
+Nothing beyond storing and relaying changes.
+
+=== Client
+
+* `WTApp/Tools`.  `ToolRegistry` holds `ToolDescriptor { id, title, icon, shortcut:
+  [KeyEquivalent], group: FlyoutGroup?, section: .tools|.view, options: (() ->
+  NSViewController)?, helpSlug, make: () -> any Tool }`.  The `Tool` protocol is APP-003's.
+  Every tool in the table above is registered at startup; until its epic delivers it, the
+  registration points at `UnimplementedTool`, which shows a "coming soon" HUD on mouse down
+  and never writes a change, so the panel is complete from day one and each epic replaces one
+  `make` closure.
+* Flyouts are `NSMenu`s shown after a 250 ms press-and-hold or on drag; the slot remembers the
+  last chosen member per layout.  Shortcut cycling: pressing the visible tool's key advances
+  to the next member of its group.
+* Temporary tools (kbd:[Cmd], kbd:[Space], kbd:[Cmd+Space], kbd:[Cmd+Option+Space]) are
+  APP-003's `ToolManager.pushTemporary`, restored on key-up even mid-drag.
+* The Main toolbar is an `NSToolbar` with `allowsUserCustomization = true`; items are built
+  from the command registry (APP-005) so the standard customization sheet lists every
+  command.  The other toolbars are `ToolbarView`s: `NSStackView` rows of `NSButton`s in a
+  `ToolbarHost` that supports dock strips (top, left, right, bottom) and floating `NSPanel`s,
+  sharing the drag code with panels.
+* Tool option sheets: `NSViewController`s hosting SwiftUI forms, presented as sheets on
+  double-click; options persist in `NSUserDefaults` per tool id (they are preferences, not
+  document data, as in {fh}).
+* The Info toolbar observes `ToolManager.infoPublisher` (a struct of optional readouts) and
+  renders only the fields the current tool sets.
+* Accessibility identifiers follow `tool.<id>` and `toolbar.<name>.<command>` (TEST-002).
+
+=== Build tasks
+
+[[BASIC-008]]
+==== BASIC-008 Tool registry with every tool stubbed
+[horizontal]
+Track:: client-ui
+Depends on:: APP-003
+Size:: M
+Delivers:: `ToolRegistry`, `ToolDescriptor`, `FlyoutGroup`, `UnimplementedTool`, and registrations for all 43 tools and controls in the tables above with ids, titles, SF Symbol placeholders, sections, groups, help slugs and FreeHand MX default shortcuts.
+Done when::
+* Every tool in the tables can be selected by click, flyout and shortcut; the unimplemented ones show the HUD and write nothing (asserted by an outbox-empty check).
+* Shortcut cycling within a flyout and temporary-tool push/pop are covered by UI tests.
+* A registry snapshot test fails if a tool is added without a help slug or shortcut decision.
+
+[[BASIC-009]]
+==== BASIC-009 Tools panel view
+[horizontal]
+Track:: client-ui
+Depends on:: APP-003, APP-004, BASIC-008
+Size:: M
+Delivers:: The Tools panel as a dockable toolbar: two-column vertical and single-row horizontal layouts, section separators, flyout triangles and menus, stroke/fill wells with Swap/None/Default, the four snap toggles bound to `ViewState`, and double-click options-sheet presentation.
+Done when::
+* Docks left, right, top and bottom and floats; layout persists through relaunch.
+* Wells reflect the selection's appearance within one frame of a remote change (harness).
+* Snap toggles change `ViewState` only; no change is produced (outbox-empty check).
+
+[[BASIC-010]]
+==== BASIC-010 Main toolbar from the command registry
+[horizontal]
+Track:: client-ui
+Depends on:: APP-002, APP-005
+Size:: S
+Delivers:: `NSToolbar` with the default item set, identifiers generated from the command registry, validation bound to command availability, and the standard customization sheet.
+Done when::
+* Each default button invokes its command; Lock/Unlock disable with no selection.
+* Customizing and relaunching preserves the item set; menu:View[Customize Toolbar…] appears in the View menu.
+
+[[BASIC-011]]
+==== BASIC-011 Dockable toolbars: Text, Info, Envelope, Extension Tools, Extension Operations
+[horizontal]
+Track:: client-ui
+Depends on:: APP-004, APP-005, BASIC-008
+Size:: M
+Delivers:: `ToolbarHost` dock strips and floating panels, the five toolbars with their default buttons from the command and tool registries, menu:Window[Toolbars] check-mark items, menu:View[Toolbars] show-all/hide-all, the Info toolbar readout binding, and tooltips honoring the *Show tooltips* preference.
+Done when::
+* Each toolbar docks at all four strips and floats; dragging by the handle shows the drop highlight.
+* Info toolbar shows position for the Pointer, angle and center for Rotate, sides for Polygon, using the stub tools' published readouts.
+* Hiding all toolbars and showing them again restores the same visible set.
+endif::spec[]

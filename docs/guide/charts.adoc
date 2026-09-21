@@ -1,0 +1,7 @@
+= Charts and pictographs
+include::_attributes.adoc[]
+:page-slug: charts
+:page-group: Drawing
+:page-fh: Chapter 3, "Creating charts and pictographs"
+
+include::_includes/drawing/charts.adoc[]

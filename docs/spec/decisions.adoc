@@ -1,0 +1,518 @@
+= Decisions
+include::_attributes.adoc[]
+:page-slug: decisions
+
+Every choice that could have gone another way, with the reason it went this way.  Feature pages
+record their own `Adapted` and `Dropped` verdicts in their parity tables; the ones with
+consequences beyond one page are collected here.  Open questions are at the end.
+
+== Architecture
+
+[[D-001]]
+=== D-001 Custom op-based CRDT in Swift and Java, not Automerge / Yjs / Loro
+
+No existing CRDT library has production-grade bindings for *both* Swift and the JVM
+(automerge-swift is usable but automerge-java is 0.0.x; loro-swift is experimental and Loro has
+no JVM binding; yrs bindings for both are early).  Each would also put an FFI layer and an
+opaque binary blob between our protobuf schema and the merge logic, and none understands a
+vector document's semantics (tree moves, z-order, appearance stacks).  We implement published
+algorithms directly against one generated schema and prove the two engines equal with a shared
+conformance suite (xref:crdt-model.adoc[CRDT model], xref:testing.adoc[Testing]).  Cost: we own
+the hard parts (tree move, tombstone GC, text).  Mitigation: the algorithms are well specified
+and small; the fuzzer runs nightly.
+
+[[D-002]]
+=== D-002 Server as hub; no peer-to-peer
+
+Causality becomes a single integer per replica, access control applies to every op, and
+"how far behind am I" is trivial.  Peer sync (AirDrop-style) is not planned.
+
+[[D-003]]
+=== D-003 Merge policies as protobuf field options
+
+The schema is the merge contract; the engines contain no per-feature code.  Adding a field is a
+schema change plus vectors, never an engine change.
+
+[[D-004]]
+=== D-004 macOS 15 minimum
+
+`CGPath` boolean and offset operations, Swift 6 strict concurrency, current
+SwiftUI/AppKit interop.  Revisited every September.
+
+[[D-005]]
+=== D-005 AppKit for the document window, SwiftUI for panel bodies
+
+{fh}'s interaction model (modifier keys mid-drag, precise tracking, docked tabbed panel groups)
+is an AppKit model; SwiftUI is faster for the many form-like panels.
+
+[[D-006]]
+=== D-006 Metal on screen, Core Graphics as the truth
+
+One renderer-agnostic display list, two renderers.  Metal (tile atlas, stencil-then-cover
+fills, glyph atlas, Core Image into textures) draws the screen and must hold 120 Hz while
+zooming, panning and rotating.  Core Graphics draws PDF, print, export, golden images and the
+fallback canvas; it is the reference, and the Metal output is tested against it per tile with a
+stated tolerance (REND-007).  Stencil-then-cover over Loop-Blinn: no interior triangulation,
+exact winding rules and self-intersections, and coverage that matches CG's scan converter
+(xref:modernizations.adoc#M-02[M-02]).
+
+[[D-007]]
+=== D-007 Last-writer-wins by Lamport order, never by wall clock
+
+Clocks on laptops drift and can be set backwards; a Lamport counter with replica id tie-break
+is total, deterministic and cheap.  Wall time is stored for history display only.
+
+[[D-008]]
+=== D-008 `Transform` is ATOMIC
+
+Merging matrix components from two users produces a shear nobody drew.  One transform wins;
+the review sheet shows the other.
+
+[[D-009]]
+=== D-009 Undo is local and never rewinds shared state
+
+Undo writes a new change that re-asserts prior values only where the register still holds the
+user's own write.  Other people's work is never undone by someone else.
+
+[[D-010]]
+=== D-010 Normalize on read, never repair on merge
+
+Every client would write the same repair at once, producing a storm of identical changes.
+Readers interpret odd states deterministically instead.
+
+[[D-011]]
+=== D-011 Deleted nodes stay in the tree with a flag
+
+Edits to deleted nodes still apply, so restore is exact and the review can show "edited
+something that was deleted".  Compaction after 30 days keeps snapshots small.
+
+[[D-012]]
+=== D-012 Reconcile thresholds: silent under 500 ops with no overlap; ask on overlap
+
+From Ink & Switch's local-first work and Figma's branch review: merge what does not overlap,
+show what does, let the person choose, including "keep both".  Thresholds are preferences.
+
+[[D-013]]
+=== D-013 Replica retirement after 90 days of silence
+
+Causal stability needs every replica's ack; a device that vanished cannot block garbage
+collection forever.  Salvage on return rebases unsent changes rather than discarding them.
+
+[[D-014]]
+=== D-014 grpc-swift 2 via buf; validators generated instead of protovalidate on the client
+
+protovalidate has no Swift runtime (no Swift CEL interpreter).  `protoc-gen-wtcrdt` emits
+validators for the standard rules; CEL rules stay server-only and are listed by the generator.
+PROTO-004 verifies the BSR `buf.build/grpc/swift` plugin emits v2 stubs and records the
+outcome here.
+
+[[D-015]]
+=== D-015 No Save; Cmd-S names a version
+
+Every change is saved locally at once and synced when online.  A Save command that talked to
+the network would lie about the state of the document.  Cmd-S becomes "name this version",
+which is what designers use Save for in a cloud document (xref:saving.adoc[Saving]).
+
+[[D-016]]
+=== D-016 Personal accounts, unlimited team memberships, optional company workspaces
+
+A person has one account, joins any number of teams, and a team can be bound to verified
+domains and SSO.  Documents belong to exactly one space (xref:security.adoc[Accounts, teams
+and security]).
+
+[[D-017]]
+=== D-017 Typeface documents model glyphs as pages
+
+A glyph is a canvas like a page, so every drawing tool, layer and guide works unchanged; font
+properties are extra attributes on the glyph and the document
+(xref:typeface-documents.adoc[Typeface documents]).
+
+[[D-018]]
+=== D-018 Flash is gone; the intent stays
+
+Animation, interactivity and movie import/export are adapted to SVG animations, PDF and HTML
+(xref:animation.adoc[Animation], xref:interactivity.adoc[Interactivity],
+xref:svg-animation.adoc[SVG animations]).
+
+[[D-019]]
+=== D-019 Third-party plug-ins (Xtras) out of scope for v1
+
+All {fh} Xtras that matter are built in as *Extensions*; an SDK is an open question
+(xref:extensions.adoc[Extensions]).
+
+== Decisions from the feature chapters
+
+Recorded by the chapter authors; the full reasoning is on the page named.
+
+[[D-020]]
+=== D-020 Registers can be cleared, and `MERGE_VARIANT` exists
+A `SetFields` that lists a path without a value writes *unset* with a fresh OpId, so removing
+a style override or a link competes with concurrent writes like any value.  Messages users
+toggle between kinds (fills, strokes, effects) use an enum discriminator with one STRUCT per
+case rather than a protobuf `oneof`, so a concurrent kind switch never discards the other
+user's settings (xref:crdt-model.adoc[CRDT model], xref:attribute-stack.adoc[Attributes],
+xref:live-effects.adoc[Live effects]).
+
+[[D-021]]
+=== D-021 Fills, strokes and effects share one position space
+The three sequences on an appearance are ordered by one fractional index, preserving {fh}'s
+free interleaving (a fill above a stroke) with no engine change (xref:attribute-stack.adoc[]).
+
+[[D-022]]
+=== D-022 Randomness is seeded
+Brush variation, Ragged and Sketch effects and random fills store a seed so every Mac, every
+print and every export renders the same pixels; a *Reseed* button gives a new look
+(xref:stroke-attributes.adoc[], xref:live-effects.adoc[]).
+
+[[D-023]]
+=== D-023 PostScript strokes, fills and imports are dropped
+There is no PostScript interpreter on macOS, and user-supplied printer code is a security
+liability.  Custom and Pattern strokes and Textured fills are rendered natively instead; EPS
+files are placed with their preview and passed through to PostScript printers only
+(xref:stroke-attributes.adoc[], xref:fill-attributes.adoc[], xref:import-formats.adoc[]).
+
+[[D-024]]
+=== D-024 Everything imported lives in the document
+No link-by-path mode: a local path means nothing to a collaborator.  A link is only a source
+for *Update from source* (xref:importing.adoc[], xref:linking-embedding.adoc[]).
+
+[[D-025]]
+=== D-025 Background layers are a per-layer flag; locks are advisory
+A separator *position* gives random results under concurrent reorders; a `printing` flag ends
+up with whoever last touched that layer, which the review can show.  A lock is respected by
+every client's own tools and never enforced against a remote change, because refusing an
+offline editor's work would lose it (xref:layers.adoc[], xref:collaboration.adoc[]).
+
+[[D-026]]
+=== D-026 Styles resolve on read; objects store only explicit overrides
+Redefining a style is one node write and never collides with an override on the same
+register.  Deleting a style bakes the resolved look into its users first
+(xref:styles.adoc[], xref:text-styles.adoc[]).
+
+[[D-027]]
+=== D-027 Deleting an in-use color is never refused
+A refusal cannot close the race with an offline user.  Safety is the cached fallback on every
+reference, undo, *Restore Deleted Colors* for 30 days, and a review-sheet row
+(xref:swatches.adoc[]).
+
+[[D-028]]
+=== D-028 Shapes, extrusions, blends, envelopes and perspective are node kinds with derived geometry
+Rectangles, ellipses and polygons keep their parameters; extrusion, envelope and perspective
+attachment are wrapper nodes with one child; blends and charts regenerate their intermediate
+objects on read.  Nothing derived is ever stored or synced (xref:vector-basics.adoc[],
+xref:extrude.adoc[], xref:blends.adoc[], xref:charts.adoc[]).
+
+[[D-029]]
+=== D-029 Join and Split copy points into new identities
+There is no cross-node element move.  A concurrent edit to a copied point surfaces as
+edit-vs-delete with *Restore*; this is the one documented merge loss in path editing
+(xref:editing-paths.adoc[]).
+
+[[D-030]]
+=== D-030 Linked text lives on the chain head
+The chain is defined by `next_link` only; loops are cut at the smallest node id; deleting a
+middle block splices its neighbours (xref:text-blocks.adoc[]).
+
+[[D-031]]
+=== D-031 Text on a path owns its path; inline graphics are child nodes
+The path is a child of the text node, so both move together and a dangling reference cannot
+occur (xref:text-on-path.adoc[], xref:text-effects.adoc[]).
+
+[[D-032]]
+=== D-032 Shared vs. per-user document settings
+Shared: ruler zero point, guide lock, grid size, page order, print settings, color settings,
+HTML and animation settings, document defaults, named custom views.  Per user (`local_only`):
+zoom and scroll, show/snap toggles, grid and guide colors, hidden objects, proof-colors
+toggle, current colors, printer and paper, the Preview-in-Browser browser
+(xref:grid-guides.adoc[], xref:document-view.adoc[], xref:arranging.adoc[],
+xref:printing.adoc[], xref:color-management.adoc[]).
+
+[[D-033]]
+=== D-033 Review-sheet exceptions
+Always listed, whatever the counts: a change to the document's color settings or to
+font-level metrics of a typeface.  Never listed: print settings and the output area (low
+stakes, cheap to redo).  These amend the rules in xref:reconcile.adoc[Reconciling]
+(xref:color-management.adoc[], xref:printing.adoc[], xref:font-info.adoc[]).
+
+[[D-034]]
+=== D-034 Every share link requires sign-in
+No anonymous access: every collaborator has a name, a color and a place in blame
+(xref:sharing.adoc[]).
+
+[[D-035]]
+=== D-035 Team libraries copy on use
+Symbols, styles and colors taken from a team library are copied with provenance and updated
+by an explicit command; no live cross-document references in v1 (xref:library.adoc[],
+xref:exporting-colors.adoc[], xref:sharing.adoc[]).
+
+[[D-036]]
+=== D-036 Branches do not nest and do not hold back garbage collection
+Merging is a server-side replay with a client-reviewed exclusion list; a branch whose parent
+compacted a node loses only the ops on that node, and lists them (xref:branches.adoc[]).
+
+[[D-037]]
+=== D-037 Restore is a change, never a rewind
+Restoring a version or an object's history writes ops that re-assert the old state on top
+of everyone's current work (xref:history.adoc[]).
+
+[[D-038]]
+=== D-038 The `.wiretuner` package
+A zip with a manifest, a zstd snapshot, blobs, a thumbnail and a page-1 PDF preview for Quick Look; importing one re-issues its
+state as fresh ops from the importing replica, so the server never accepts a client-built
+snapshot (xref:saving.adoc[]).
+
+[[D-039]]
+=== D-039 Own PDF writer
+`CGPDFContext` cannot emit separation color spaces, overprint, output intents, PDF/X,
+optional content groups or embedded files, all of which a print-oriented tool needs
+(xref:export-pdf.adoc[]).
+
+[[D-040]]
+=== D-040 Separations and halftones are rendered on the client
+Plates are drawn by the renderer into a PDF; halftone screens are honored only through the
+in-app screener because the macOS print path carries no halftone dictionaries
+(xref:output-devices.adoc[], xref:halftones.adoc[]).
+
+[[D-041]]
+=== D-041 ColorSync is the only CMM; color settings are document data
+Kodak Digital Science is gone; the working profiles and proof setup travel in the document so
+every collaborator sees the same intent, while the monitor profile is per Mac
+(xref:color-management.adoc[]).
+
+[[D-042]]
+=== D-042 Preferences are a map with per-key newest-wins
+Feature epics add preference ids without schema churn; synced categories resolve per key on
+the server, local categories never leave the Mac (xref:preferences.adoc[]).
+
+[[D-043]]
+=== D-043 Uploads outlive the window, not the app
+Closing a document keeps uploading while the app runs; quitting with pending changes offers
+*Quit When Uploaded*; the next launch drains pending stores before opening windows.  No
+separate agent process (xref:saving.adoc[]).
+
+[[D-044]]
+=== D-044 No bidirectional streams: one subscription plus unary commands
+`SyncService.Session` (bidi) became server-streaming `Subscribe` plus unary `PushChange`,
+`UpdatePresence` and `Ack`, with `PushChangeBatch` as the unary fallback for `PushChanges`.
+gRPC-Web and Connect cannot do bidi from a browser and HTTP/1.1 balancers mishandle duplex
+streams; causality is unchanged because the ack is the response.  Quarkus 3.36 serves HTTP/2
+gRPC only, so a browser client means an Envoy or Vanguard gateway, not a schema change
+(xref:sync-protocol.adoc[], xref:api-conventions.adoc[], xref:modernizations.adoc#M-01[M-01]).
+
+[[D-045]]
+=== D-045 Server-side search index from snapshots; thumbnails rendered by the client
+The snapshotter extracts a per-document search record (names, text, notes, keywords, page
+names) into Postgres (`pg_trgm` + `simple` tsvector) so the library searches content without
+the server interpreting artwork; lag is the snapshot cadence.  Thumbnails are a client render
+uploaded as a tagged blob and referenced from the document row -- the server never renders
+(xref:server.adoc[], xref:creating-opening.adoc[], xref:modernizations.adoc#M-04[M-04]).
+
+[[D-046]]
+=== D-046 Passkeys first, Sign in with Apple, linking by verified email
+The realm offers passkeys as the preferred credential, Sign in with Apple (App Store
+guideline 4.8), email+password as fallback and workspace SSO; identities link to one account
+by provider-verified email, Apple relay addresses link but never match a workspace domain, and
+the device list shows the method (xref:security.adoc[], xref:modernizations.adoc#M-06[M-06]).
+
+[[D-047]]
+=== D-047 Smart guides and Option measurements, client-only
+Edge, centre, equal-spacing and size-match guides plus kbd:[Option]-hover measurements are
+computed per gesture from the REND-003 spatial index within the viewport and write nothing --
+not even view state.  Priority sits between ruler guides and the grid (GEO-005).  Toggle is the
+synced preference *Smart guides* on kbd:[Cmd+U], the Illustrator binding, which {product} freed
+by moving Preferences to kbd:[Cmd+,] (xref:moving.adoc[], xref:modernizations.adoc#M-07[M-07]).
+
+[[D-048]]
+=== D-048 Command palette on the command registry
+A fuzzy-searched palette over APP-005's registry (plus panels, pages, layers, named views and
+recent documents as registered sources) runs exactly what the menu item runs.  Ranking is
+recent-first from a local history file; nothing syncs.  kbd:[Cmd+K] (Keyline) and
+kbd:[Cmd+Shift+P] are taken in the {fh} MX set, so the default is kbd:[Cmd+/]; APP-005's
+conflict report is final (xref:customizing.adoc[], xref:modernizations.adoc#M-08[M-08]).
+
+[[D-049]]
+=== D-049 Canvas rotation is view state
+`ViewState.rotation_degrees` (`local_only`) turns the whole canvas; rulers, grid, guides and
+smart guides are pasteboard geometry drawn through the view transform.  Tiles are rendered in
+rotated view space and keyed by angle, so a settled angle is never resampled.  Named views do
+not record rotation (xref:document-view.adoc[], xref:modernizations.adoc#M-16[M-16]).
+
+[[D-050]]
+=== D-050 Comments in v1, as document data under a well-known collection
+Comment threads are `comment_thread` nodes under `comments (0:12)`, not server rows: they sync,
+work offline, fork with branches and merge back as threads with no extra machinery.  The cost is
+that the server must read op content for the first time -- mention notifications, unread
+counters and the commenter role check all inspect ops under `0:12` -- which is confined to the
+existing ingest parse.  Read state and notifications stay in Postgres, never in the document.
+The `commenter` role stops being reserved (xref:comments.adoc[],
+xref:modernizations.adoc#M-05[M-05]).
+
+[[D-051]]
+=== D-051 Inspect mode as a client-only presentation mode
+A read-only mode with measurements, a properties panel and copy-as-SVG/CSS/Swift/PNG needs no
+document or server data: snippets are a client library over the SVG writer and rasterizer,
+colors convert through ColorSync, and the only server touch is resolving a
+`wiretuner://doc/<id>/node/<id>` link.  Viewers open in it by default, which makes "read-only"
+a useful mode rather than a disabled one (xref:inspect.adoc[], xref:modernizations.adoc#M-12[M-12]).
+
+[[D-052]]
+=== D-052 Colors carry their space; Display P3 and OKLab are first-class
+Every `Color` carries a `ColorSpace` tag (sRGB default, Display P3, CIELAB D50, OKLab) beside
+CMYK; the tag is inside the ATOMIC register, so a space change is a value change and merges
+like a recolor.  Working RGB becomes the document's RGB *output* space rather than the meaning
+of artwork colors.  Display and print convert from each color's own space through ColorSync;
+sRGB↔P3 and the Lab spaces use deterministic formulas and CSS Color 4 gamut mapping.  Exports
+carry the Display P3 profile or CSS Color 4 values with sRGB fallbacks when the document needs
+them; a display that cannot show a color clips it and the Mixer says so, never the document.
+An unknown tag from a newer client reads as sRGB with components as-is and is preserved
+(xref:spot-process.adoc[], xref:color-mixer.adoc[], xref:modernizations.adoc#M-03[M-03]).
+
+[[D-053]]
+=== D-053 Accessibility metadata lives on the object
+`CommonProps.alt` and `CommonProps.decorative` beside name and note, plus an optional per-page
+`reading_order` sequence defaulting to stacking order; SVG, tagged PDF (PDF/UA-1) and HTML
+output derive from them.  Link alt text (Navigation panel) describes the destination, object
+alt text the picture; both are exported (xref:names-notes.adoc[],
+xref:modernizations.adoc#M-13[M-13]).
+
+[[D-054]]
+=== D-054 Native macOS integration without iCloud
+Quick Look and thumbnail extensions read `preview.pdf` and `thumbnail.png` from the package;
+Core Spotlight indexes local documents and packages; Handoff carries only a document id, page
+and zoom and opens the cloud document on the other Mac.  iCloud is not used for documents
+(xref:saving.adoc[], xref:exporting.adoc[], xref:modernizations.adoc#M-14[M-14]).
+
+[[D-055]]
+=== D-055 On-device machine learning only; no generative features in v1
+Remove Background, Select Subject, the Photo tracer and Select Similar's shape class run on
+Vision or a small bundled Core ML model, need no network, and produce ordinary changes (a new
+image blob, paths, a selection).  No generative drawing, text-to-vector or cloud AI in v1;
+models are optional bundle resources and every feature degrades without them
+(xref:bitmaps.adoc[], xref:tracing.adoc[], xref:selecting.adoc[],
+xref:modernizations.adoc#M-15[M-15]).
+
+[[D-056]]
+=== D-056 Live Corners and Combine effects
+Corner rounding and boolean combination are live vector effects (`CornersEffect`,
+`CombineEffect`) beside the destructive commands.  Corners takes a `MERGE_SET` of point ids
+(add-wins; a deleted point drops out on read) and supersedes a rectangle's own radius while
+present; Combine is a boolean over a group in stacking order, members still editable, and
+*Expand* bakes it (xref:live-effects.adoc[], xref:modernizations.adoc#M-09[M-09]).
+
+[[D-057]]
+=== D-057 Symbol instance overrides as a sequence keyed by master node
+Instances may override text, fill and stroke color, visibility and image per master node, so
+overrides survive symbol edits and are set aside on swap.  A SEQUENCE of `Override` elements
+rather than a map: a map would need a new keyed-collection policy in both engines and has no
+defined removal for a text register; the sequence reduces every case to existing rules
+(xref:library.adoc[], xref:modernizations.adoc#M-10[M-10]).
+
+[[D-058]]
+=== D-058 Variable font axes and OpenType features
+`axes` is one ATOMIC `FontVariation` per mark (a named instance is one choice).  Features are
+one tri-state mark per tag, identity `(feature, tag)`, chosen over a set of signed tags (which
+would keep `+liga` and `-liga` together) and over a single struct mark (which collides across
+features).  PDF export instances `glyf`/`gvar` fonts with an own instancer; CFF2 fonts are
+outlined and listed (xref:type-specifications.adoc[], xref:modernizations.adoc#M-11[M-11]).
+
+== Open questions
+
+[[Q-001]]
+=== Q-001 Comments
+The `commenter` role is reserved but comments are not in v1.  A multiplayer design tool without
+comments is unusual; decide before beta.
+
+[[Q-002]]
+=== Q-002 Trademark color libraries
+PANTONE and similar libraries need licences.  Ship none in v1; allow import of ASE/ACO files.
+
+[[Q-003]]
+=== Q-003 FreeHand file import
+The FH11 format is undocumented.  Options: reverse-engineer, or import via PDF/EPS/AI exported
+from a surviving FreeHand install.  Decide by user demand.
+
+[[Q-004]]
+=== Q-004 Plug-in SDK
+See D-019.
+
+[[Q-005]]
+=== Q-005 Text CRDT performance at scale
+If 200,000-character flows with long histories become slow, adopt the Eg-walker approach
+(xref:crdt-model.adoc[CRDT model]).
+
+[[Q-006]]
+=== Q-006 FreeHand file import licensing
+The converter assumes knowledge from the libfreehand reverse-engineering effort (MPL-2.0);
+whether that code can be linked, ported or only read needs a decision
+(xref:import-formats.adoc[]).
+
+[[Q-007]]
+=== Q-007 PostScript for placed EPS
+Ghostscript is AGPL; a limited own interpreter is a project; the current choice is placed
+with preview only (xref:import-formats.adoc[]).
+
+[[Q-008]]
+=== Q-008 Bundled ICC press profiles and spot libraries
+Which press profiles (SWOP, GRACoL, FOGRA) and spot libraries may ship needs a licence check;
+a bit-exact CMM (Little CMS) vs. ColorSync is open (xref:color-profiles.adoc[],
+xref:color-tables.adoc[]).
+
+[[Q-009]]
+=== Q-009 Field numbers across epics
+Chapter authors sketched field numbers on shared messages (`CommonProps`, `SettingsProps`,
+`PageProps`, `LayerProps`, `TextMarkValue`, `Preferences`).  PROTO-003 assigns the blocks and
+each `.proto` task reconciles its page's sketch against them.
+
+[[Q-010]]
+=== Q-010 Feature-specific overlap kinds in the review
+Master-page release and objects created on a deleted page need the divergence measurement to
+recognise cases beyond the generic kinds; the DOC pages use a change-label tag, a structured
+field on `Change` may be better (xref:master-pages.adoc[], xref:pages.adoc[]).
+
+[[Q-011]]
+=== Q-011 Shortcut preset verification
+Tool letters and menu keys were written from memory of the {fh} MX Mac preset; APP-005 loads
+the real preset and reconciles every page's `kbd:[]` macros.
+
+[[Q-012]]
+=== Q-012 Envelopes as their own page
+Chapter 7 gives envelopes nine procedures; they share xref:path-effects.adoc[] today.
+
+[[Q-013]]
+=== Q-013 Per-user layer visibility
+Layer visibility is shared as in {fh}; a "hide for me" view is requested and planned.
+
+[[Q-014]]
+=== Q-014 Presence between a branch and its parent
+Whether viewers of the parent see branch participants, or editors only.
+
+[[Q-015]]
+=== Q-015 Name of the merge table in `Welcome`
+The sync page sketches `Welcome.merge_table` (bytes); the CRDT model calls it `Welcome.schema`.
+PROTO-006 picks one.
+
+[[Q-016]]
+=== Q-016 Sign in with Apple provider in Keycloak
+Generic OIDC identity provider with a rotated client secret (the *Apple secret* job) versus the
+community Apple extension; SEC-004 decides and records it.
+
+[[Q-017]]
+=== Q-017 Home of the color module
+Spot-process places `WTColor` in `WTModel`, color-management in `WTRender`; gamut mapping
+(COLOR-024) assumes `WTRender`.  Settle before COLOR-002.
+
+[[Q-018]]
+=== Q-018 Licences for bundled ML models
+The photo tracer's segmentation model and the Select Similar shape classifier need a licence
+and training-data check before shipping (IMG-029, IMG-030), as Q-008 does for profiles.
+
+[[Q-019]]
+=== Q-019 "Same as selection" matching
+OBJ-022's attribute query matches strokes *or* fills loosely; OBJ-042's Select Similar requires
+exact register equality.  The find-replace page should say which the panel exposes.
+
+[[Q-020]]
+=== Q-020 Generic keyed mark identity
+The `(feature, tag)` identity is the only text mark whose identity includes part of its value;
+a `wt.crdt` `mark_key` option would let `protoc-gen-wtcrdt` emit it generically instead of the
+CRDT-006 special case.

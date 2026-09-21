@@ -1,0 +1,7 @@
+= Graphic Hose
+include::_attributes.adoc[]
+:page-slug: graphic-hose
+:page-group: Drawing
+:page-fh: Chapter 3, "Drawing with the Graphic Hose tool"
+
+include::_includes/drawing/graphic-hose.adoc[]

@@ -1,0 +1,7 @@
+= Version history
+include::_attributes.adoc[]
+:page-slug: history
+:page-group: Collaboration
+:page-fh: None -- addition (no FreeHand equivalent)
+
+include::_includes/collaboration/history.adoc[]

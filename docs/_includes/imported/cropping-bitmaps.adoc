@@ -1,0 +1,155 @@
+Cropping hides the parts of an image you do not want without throwing them away.  {product}
+offers two ways: the *Crop tool*, which trims an image to a rectangle and can be adjusted or
+undone at any time, and *Paste Inside*, which clips an image (or anything else) to any shape
+you draw.
+
+== Cropping with the Crop tool
+
+The Crop tool is in the Tools panel, grouped with the Pointer tools; press kbd:[Shift+C] to select
+it.  It works on one image at a time.
+
+To crop an image:
+
+. Select the image with the Pointer tool, then press kbd:[Shift+C] -- or select the Crop tool and
+  click the image.  Eight crop handles appear on the image's edges and corners, and the
+  hidden parts of the image, if any, show dimmed beyond them.
+. Drag a handle inward to hide part of the image, or outward to reveal a hidden part.  You can
+  never drag beyond the image's own edge.
+* Hold kbd:[Shift] while dragging a corner to keep the crop's proportions.
+* Hold kbd:[Option] to move the opposite edge the same amount, cropping symmetrically.
+. Drag inside the crop to slide the image behind it, choosing which part shows.
+. Press kbd:[Return] or kbd:[Esc], or switch tools, to finish.  The crop is already applied
+  with every drag, so there is nothing to confirm; Undo removes each step.
+
+To remove a crop, select the image and choose menu:Modify[Remove Crop], or click btn:[Reset]
+beside *Crop* in the Object panel.
+
+The Object panel shows the crop for a selected image as its left, top, width and height in
+pixels of the original picture, and you can type exact values there.  Cropping never changes
+the image's pixels or its stored resolution: a cropped image still contains the whole picture,
+and exporting the document exports only the visible part.  To discard the hidden pixels for
+good and shrink the file, use xref:external-editors.adoc[Optimize Image] after cropping and
+turn on its *Trim to crop* checkbox, which appears when the selection is cropped.
+
+// TODO screenshot: an image with the Crop tool's handles, hidden area dimmed outside
+
+Transforming a cropped image (moving, scaling, rotating) transforms the crop with it: the crop
+is part of the image, not a separate object.  The image's selection handles and bounding box
+are those of the visible part.
+
+== Cropping to a shape with Paste Inside
+
+To crop an image to any shape -- an ellipse, a rounded rectangle, lettering, a traced outline
+-- draw the shape, cut the image, select the shape and choose menu:Edit[Paste Inside].  The
+image becomes the contents of a clipping path and can be moved inside it.  The full procedure,
+including how to move and release the contents, is on xref:clipping-paths.adoc[Clipping
+paths].  Paste Inside and the Crop tool combine: a rectangular crop stays in effect on an image
+pasted inside a shape.
+
+The Trace tool's *Outer edge* mode produces a path around the outside of an image's subject,
+which makes a good clipping path for it (xref:tracing.adoc[Tracing images]).
+
+== Working with others
+
+A crop is one setting on the image, so two people cropping the same image at the same moment
+keep the later crop, and the merge review lists the image with both crops shown.  Cropping
+combines freely with anything else someone does to the same image at the same time -- moving,
+tinting, replacing its pixels in an external editor -- because those are separate settings; a
+crop applied while someone else replaces the pixels shows the same proportion of the new
+picture.
+
+If someone deletes the image while you are cropping it, your crop lands on the deleted image
+and the merge review offers to restore it, cropped.  Cropping works offline like every other
+edit.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,2"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Crop tool hides parts of a bitmap non-destructively; hidden parts retrievable
+|Same: a crop rectangle stored on the image node.
+|Faithful
+
+|Crop tool absent from toolbars by default; added through Customize; hot key kbd:[C]
+|In the Tools panel under the Pointer group; kbd:[Shift+C] (kbd:[C] is the Comment tool).
+|Adapted -- no reason to hide a tool that has a hot key; toolbars remain customizable
+(xref:toolbars.adoc[Toolbars]).
+
+|Drag crop handles; kbd:[Shift] constrains
+|Same; kbd:[Option] for symmetric cropping and drag-inside to slide the image are additions.
+|Faithful
+
+|Paste Inside to crop bitmaps
+|Same, via xref:clipping-paths.adoc[Clipping paths].
+|Faithful
+
+|(none)
+|Object panel crop fields, menu:Modify[Remove Crop], *Trim to crop* in Optimize Image.
+|Added -- exact values and a way to discard hidden pixels when the file size matters.
+|===
+
+=== Data model
+
+`ImageProps.crop` (xref:importing.adoc[Importing artwork]): a `Rect` in unit image space
+(x, y, width, height each in 0..1 of the natural size, y down), ATOMIC, unset when uncropped.
+Unit space rather than pixels so that the crop survives a pixel replacement with different
+dimensions and so that it needs no rewriting when the stored resolution changes.  The Object
+panel converts to and from pixels of the current `PixelSource` for display.
+
+=== Merge semantics
+
+* `crop` vs. `crop`: ATOMIC LWW; the review sheet lists *same register* with both crops
+  previewed.  *Keep both copies* duplicates the image with the local crop.
+* `crop` vs. `transform`: independent; both apply.  Since the crop is in image space, a
+  concurrent scale does not change which pixels are visible.
+* `crop` vs. `pixels`: independent; the proportion applies to the new picture.
+* `crop` vs. delete: edit vs delete; *Restore*.
+* Read-time normalizations: any edge outside 0..1 is clamped; a clamped or written rect with
+  zero or negative area reads as unset.  A crop on a `placed_file` node is not a field and
+  cannot occur.
+
+=== Offline behavior
+
+Nothing beyond the ordinary outbox; consecutive crop drags coalesce to the final rect.
+
+=== Server
+
+Nothing beyond storing and relaying changes.
+
+=== Client
+
+* The Crop tool is a `Tool` (APP-003) that draws handles on the visible rect and the dimmed
+  full image outside it (the full image is drawn at 30% opacity as an overlay, clipped to the
+  page area, so the user sees what can be revealed).  Handle drags edit `crop` in unit space
+  through IMG-003, converting the pointer delta through the inverse of `transform` and the
+  natural size; dragging inside translates `crop` within 0..1 bounds.
+* Rendering and hit testing use the crop from IMG-004: the drawn image is
+  `CGImage.cropping(to:)` on the chosen pyramid level, and bounds are the cropped natural rect
+  under the transform.
+* Undo: one change per handle drag or inside drag, coalesced during the drag (APP-011);
+  labels "Crop _name_" and "Remove Crop".
+* *Trim to crop* in Optimize Image (IMG-020) re-encodes the visible pixels, resets `crop` and
+  rewrites `transform` so the visible part does not move; it is one change.
+
+=== Build tasks
+
+[[IMG-025]]
+==== IMG-025 Crop tool
+[horizontal]
+Track:: client-ui
+Depends on:: APP-003, IMG-003, IMG-004
+Size:: M
+Delivers:: The Crop tool with handles, kbd:[Shift] proportional, kbd:[Option] symmetric, drag-inside sliding, dimmed hidden area, kbd:[Return]/kbd:[Esc]/tool switch to finish; menu:Modify[Remove Crop]; Object panel crop fields in pixels with btn:[Reset]; *Trim to crop* in Optimize Image.
+Done when::
+* UI tests: each handle, each modifier, slide, Remove Crop, typed values, Trim to crop leaves
+  the visible pixels in place on the page within 0.5 pt.
+* A crop set on a placeholder is applied when the blob arrives.
+* Merge test: A crops while B replaces pixels with a larger image; both clients show B's
+  picture with A's proportional crop.  A crops while B crops; the later wins and appears in
+  A's review with both previews.
+endif::spec[]

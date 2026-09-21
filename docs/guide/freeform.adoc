@@ -1,0 +1,7 @@
+= Drawing freeform paths
+include::_attributes.adoc[]
+:page-slug: freeform
+:page-group: Drawing
+:page-fh: Chapter 3, "Drawing freeform paths"
+
+include::_includes/drawing/freeform.adoc[]

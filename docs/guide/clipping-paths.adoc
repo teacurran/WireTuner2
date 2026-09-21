@@ -1,0 +1,7 @@
+= Clipping paths
+include::_attributes.adoc[]
+:page-slug: clipping-paths
+:page-group: Objects
+:page-fh: Chapter 4, "Working with clipping paths"
+
+include::_includes/objects/clipping-paths.adoc[]

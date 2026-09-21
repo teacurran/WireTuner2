@@ -1,0 +1,7 @@
+= Generating and exchanging fonts
+include::_attributes.adoc[]
+:page-slug: font-export
+:page-group: Typeface documents
+:page-fh: None (addition); reference: FontForge, "Generate Fonts dialog", "Validate"
+
+include::_includes/typeface/font-export.adoc[]

@@ -1,0 +1,755 @@
+= Backlog
+include::_attributes.adoc[]
+:page-slug: backlog
+
+Every task in this book is sized for one agent working alone (xref:authoring.adoc[Authoring]).
+Feature tasks live on their feature pages; this page holds the *foundation* tasks that feature
+work depends on, and orders everything into waves that can run in parallel.
+
+== Epics
+
+[cols="1,1,3"]
+|===
+|Prefix |Track |Epic
+
+|`PROTO` |proto |Schemas, buf, code generation
+|`CRDT` |crdt |Merge engines (Swift + Java) and conformance
+|`SRV` |server |Quarkus server
+|`SYNC` |client-sync |Local store, outbox, session, reconcile
+|`APP` |client-ui |Application shell: windows, tools, panels, menus
+|`REND` |client-render |Rendering and hit testing
+|`GEO` |client-render |Geometry kernels
+|`TXT` |client-render |Text layout
+|`TEST` |test |Test infrastructure
+|`BASIC` |client-ui |Chapter 1: interface, panels, toolbars, preferences, view
+|`DOC` |client-model |Chapter 2: document setup, pages, masters, rulers, grid, guides
+|`DRAW` |client-ui |Chapter 3: drawing tools
+|`OBJ` |client-model |Chapter 4: objects, selection, transforms, combining
+|`COLOR` |client-model |Chapter 5: color, swatches, mixer, tints
+|`ATTR` |client-model |Chapter 6: strokes and fills
+|`FX` |client-render |Chapter 7: live effects, extrude, blends, perspective
+|`TYPE` |client-ui |Chapter 8: type
+|`LIB` |client-model |Chapter 9: layers, symbols, styles
+|`IMG` |import-export |Chapter 10: imported artwork
+|`WEB` |import-export |Chapter 11: web graphics and animation
+|`IO` |import-export |Chapter 12: saving, exporting, file formats
+|`CMS` |client-render |Chapter 13: color management
+|`PRINT` |import-export |Chapter 14: printing
+|`COLLAB` |client-ui |Presence, sharing, comments, inspect, branches, history -- the multiplayer surface
+|`SEC` |server |Accounts, teams, workspaces (xref:security.adoc[Accounts, teams and security])
+|`FONT` |client-model |Typeface documents: glyphs as pages, metrics, kerning, font generation (an addition)
+|===
+
+== Foundation tasks
+
+=== PROTO
+
+[[PROTO-001]]
+==== PROTO-001 buf workspace and CI gate
+[horizontal]
+Track:: proto
+Depends on:: --
+Size:: S
+Delivers:: `proto/`, `buf.yaml`, `buf.gen.yaml`, a GitHub Actions job running format, lint, breaking (against main) and generate, failing on drift of committed Swift.
+Done when::
+* `buf lint` and `buf breaking` pass on an empty module with `wt/crdt/options.proto` in place.
+* The workflow runs on the `ci` pool and uploads the protoc-gen-doc reference as an artifact.
+
+[[PROTO-002]]
+==== PROTO-002 wt.crdt field options
+[horizontal]
+Track:: proto
+Depends on:: PROTO-001
+Size:: S
+Delivers:: `proto/wt/crdt/options.proto` exactly as in xref:crdt-model.adoc#options[CRDT model].
+Done when:: Options compile; a sample message using every option round-trips in Swift and Java.
+
+[[PROTO-003]]
+==== PROTO-003 Document core schema
+[horizontal]
+Track:: proto
+Depends on:: PROTO-002
+Size:: M
+Delivers:: `doc/v1/common.proto` (`OpId`, `ElementId`, `NodeRef`, `Point`, `Rect`, `Transform`, `Color`, `CommonProps`, `FieldPath`), `doc/v1/node.proto` (`Node`, `NodeProps` with the kind `oneof` and its block allocation comment), `doc/v1/ops.proto`, `doc/v1/change.proto`, `doc/v1/snapshot.proto`.
+Done when::
+* Every field commented; `buf lint` with `COMMENTS` passes.
+* `NodeProps.kind` has reserved number blocks per feature epic documented at the top of the file.
+* Well-known node ids (replica 0, counters 0--15) are constants in a `WellKnown` enum.
+
+[[PROTO-004]]
+==== PROTO-004 Swift code generation
+[horizontal]
+Track:: proto
+Depends on:: PROTO-003
+Size:: S
+Delivers:: `buf generate` producing swift-protobuf messages and grpc-swift 2 client stubs into `client/Packages/WTProto`.
+Done when::
+* Verified whether `buf.build/grpc/swift` emits grpc-swift 2 async stubs; if not, a local `protoc-gen-grpc-swift-2` plugin is wired and pinned, and the decision is recorded in xref:decisions.adoc[Decisions].
+* `WTProto` builds with `swift build` on macOS 15 and the generated files are committed.
+
+[[PROTO-005]]
+==== PROTO-005 protoc-gen-wtcrdt plugin
+[horizontal]
+Track:: proto
+Depends on:: PROTO-002, PROTO-003
+Size:: L
+Delivers:: A buf plugin (Go) that reads `wt.crdt` and `buf.validate` options and emits (a) the merge table as Swift and Java source, (b) the serialized merge table for `Welcome`, (c) Swift validators for the standard protovalidate rules, with a report of CEL rules skipped.
+Done when::
+* Output is deterministic and committed for Swift; Java output is generated in the Maven build.
+* Adding a field with `MERGE_SEQUENCE` whose element type lacks `ElementId id = 1` fails generation with a clear message.
+* Unit tests for each policy and each validator rule.
+
+[[PROTO-006]]
+==== PROTO-006 sync.v1 service
+[horizontal]
+Track:: proto
+Depends on:: PROTO-003
+Size:: M
+Delivers:: `sync/v1/sync.proto` per xref:sync-protocol.adoc[Sync protocol]: server-streaming `Subscribe` with `ServerFrame`, unary `PushChange`, `PushChangeBatch` (≤ 32), `UpdatePresence`, `Ack`, client-streaming `PushChanges`, `FetchChanges`, `FetchSnapshot`, `Welcome` with `last_accepted_seq`, `ChangeRejected` as a response member, protovalidate constraints and the error reasons enum; a buf lint plugin rule that fails on any RPC streaming in both directions.
+Done when:: Lints clean, including the no-bidi rule (a test proto with a bidi RPC fails it); frame and batch sizes constrained; every RPC and field commented.
+
+[[PROTO-007]]
+==== PROTO-007 docs.v1 services
+[horizontal]
+Track:: proto
+Depends on:: PROTO-003
+Size:: M
+Delivers:: `DocumentService` (create, list, get, rename, move to folder, trash, restore, fork, duplicate, search with `SearchRequest`/`SearchHit`/`SearchField` as sketched on xref:server.adoc[Server]; `Document.thumbnail_blob` and `thumbnail_at`), `BranchService` (create, list, merge, delete), `VersionService` (list named versions, name, restore-as-copy), `ShareService` (invite, set role, links, list members).
+Done when:: Lints clean; pagination uses opaque cursors; roles enum shared with `account.v1`.
+
+[[PROTO-008]]
+==== PROTO-008 blob.v1 service
+[horizontal]
+Track:: proto
+Depends on:: PROTO-001
+Size:: S
+Delivers:: `BlobService` (`Stat`, `Upload` client-streaming, `Download` server-streaming) keyed by sha256, with size limits, and an `UploadRequest.tag` enum (`BLOB_TAG_UNSPECIFIED`, `THUMBNAIL`) with a 256 KiB size constraint when tagged.
+Done when:: Lints clean and documented.
+
+[[PROTO-009]]
+==== PROTO-009 account.v1 service
+[horizontal]
+Track:: proto
+Depends on:: PROTO-001
+Size:: S
+Delivers:: `AccountService` (me, devices, revoke device, preferences get/set as a `Preferences` message) and `TeamService` per xref:security.adoc[Accounts, teams and security]: personal accounts, membership in any number of teams, team roles, invitations, company-workspace binding (verified domains, SSO).
+Done when:: Lints clean and documented.
+
+=== CRDT
+
+Each CRDT task changes both engines (`client/Packages/WTCRDT`, `server/wt-crdt`) and adds
+conformance vectors under `crdt-conformance/`.
+
+[[CRDT-001]]
+==== CRDT-001 Engine skeleton, OpId order and registers
+[horizontal]
+Track:: crdt
+Depends on:: PROTO-003, PROTO-005
+Size:: M
+Delivers:: Lamport counter management, `OpId` total order, register storage `(value, OpId)` keyed by field path, `SetFields` apply with ATOMIC and STRUCT policies from the generated merge table, retention of losing writes in the log.
+Done when::
+* Vectors: concurrent writes to one register, to sibling STRUCT fields, ATOMIC message replacement, out-of-order arrival.
+* Both engines produce identical `state_hash` for every vector.
+
+[[CRDT-002]]
+==== CRDT-002 Node tree and move operation
+[horizontal]
+Track:: crdt
+Depends on:: CRDT-001
+Size:: L
+Delivers:: `CreateNode`, `MoveNode`, `SetDeleted` with Kleppmann et al.'s undo-do-redo move algorithm, cycle rejection, well-known nodes, and the unstable move log.
+Done when::
+* Vectors: concurrent moves of a node into two parents; moving A under B while B moves under A; delete vs. edit; reparent across layers; 10,000 random moves fuzzed against a sequential oracle.
+* Applying a late move to a 50,000-node tree takes under 1 ms.
+
+[[CRDT-003]]
+==== CRDT-003 Fractional positions
+[horizontal]
+Track:: crdt
+Depends on:: CRDT-001
+Size:: S
+Delivers:: Byte-string fractional index generation between neighbors with random suffix, comparison, and the child ordering rule (position, then node id).
+Done when:: Vectors for insert at start/end/between, concurrent inserts at the same gap, 1,000 sequential appends stay under 40 bytes.
+
+[[CRDT-004]]
+==== CRDT-004 Sequences
+[horizontal]
+Track:: crdt
+Depends on:: CRDT-003
+Size:: M
+Delivers:: `ElementInsert`, `ElementMove`, `ElementDelete` for `MERGE_SEQUENCE` fields, element registers, nested field paths through elements.
+Done when:: Vectors: concurrent reorder vs. edit, delete vs. edit, insert-many id allocation, nested sequence (contour → points).
+
+[[CRDT-005]]
+==== CRDT-005 Text sequence (Fugue)
+[horizontal]
+Track:: crdt
+Depends on:: CRDT-001
+Size:: L
+Delivers:: `TextInsert`/`TextDelete` over a Fugue tree per `MERGE_TEXT` field; plain-string read-out; character id ↔ offset mapping for the layout engine.
+Done when:: Vectors from the Fugue paper's interleaving cases; 200,000-character document inserts under 50 µs; identical hashes.
+
+[[CRDT-006]]
+==== CRDT-006 Formatting marks (Peritext)
+[horizontal]
+Track:: crdt
+Depends on:: CRDT-005
+Size:: L
+Delivers:: `TextMark` with before/after anchors, mark expansion rules, mark resolution to attributed runs (marks of the same `TextMarkValue` case supersede by OpId; the `feature` case is keyed by its `tag` as well, so different tags stack), paragraph property registers on newline elements.
+Done when:: Vectors: bold vs. concurrent typing inside/at edges; overlapping marks; concurrent paragraph split vs. paragraph style change.
+
+[[CRDT-007]]
+==== CRDT-007 Sets
+[horizontal]
+Track:: crdt
+Depends on:: CRDT-001
+Size:: S
+Delivers:: `SetAdd`/`SetRemove` add-wins observed-remove semantics for `MERGE_SET`.
+Done when:: Vectors for concurrent add/remove and remove-then-readd, for scalar and `ElementId` members.
+
+[[CRDT-008]]
+==== CRDT-008 Changes, log and inverses
+[horizontal]
+Track:: crdt
+Depends on:: CRDT-002, CRDT-004
+Size:: M
+Delivers:: `Change` application as a unit, the retained change log with losing writes, inverse recording (prior values) for the model's undo, `Noop`, and the per-replica seq bookkeeping.
+Done when:: Vectors replaying whole changes out of order; inverse of every op kind verified by apply-then-invert equals identity where uncontested.
+
+[[CRDT-009]]
+==== CRDT-009 Snapshots and state hash
+[horizontal]
+Track:: crdt
+Depends on:: CRDT-008, CRDT-006
+Size:: M
+Delivers:: `DocumentSnapshot` encode/decode, canonical encoding, SHA-256 `state_hash`, zstd chunking.
+Done when:: Round-trip is lossless; hash identical across engines for every conformance vector; design-point document loads in under 1.5 s on M1.
+
+[[CRDT-010]]
+==== CRDT-010 Causal stability and garbage collection
+[horizontal]
+Track:: crdt
+Depends on:: CRDT-009
+Size:: M
+Delivers:: Stable-point computation from replica acks, tombstone and move-log pruning, deleted-node compaction after 30 days, and the guarantee that a late op referencing a collected tombstone is a deterministic no-op.
+Done when:: Vectors: prune then late delete; prune then late insert with a collected origin; hash unaffected by prune timing.
+
+[[CRDT-011]]
+==== CRDT-011 Conformance runner
+[horizontal]
+Track:: crdt
+Depends on:: CRDT-001
+Size:: M
+Delivers:: Vector format (textproto: initial changes, per-replica delivery orders, expected hash and expected read-outs), runners for both engines, CI job that fails on any divergence.
+Done when:: Runs in under 60 s in CI; a divergence report names the vector and the first differing node.
+
+[[CRDT-012]]
+==== CRDT-012 Cross-engine fuzzer
+[horizontal]
+Track:: crdt
+Depends on:: CRDT-011, CRDT-010
+Size:: M
+Delivers:: Random op generation over N replicas with random partitions and delivery orders, run against both engines, minimizing failures into new vectors.
+Done when:: One million random ops run nightly with no divergence.
+
+=== SRV
+
+[[SRV-001]]
+==== SRV-001 Quarkus skeleton and compose
+[horizontal]
+Track:: server
+Depends on:: PROTO-001
+Size:: M
+Delivers:: `server/` Maven multi-module (api, wt-crdt, jobs) on Quarkus 3.36.x / Java 25 mirroring dissipate-server's layout, `docker-compose.yml` with postgres, valkey, keycloak (realm import), minio + init, jaeger, mailpit, migrations job; health endpoints; OTel and Prometheus wired.
+Done when:: `docker compose up` yields a healthy API answering `grpc.health.v1`.
+
+[[SRV-002]]
+==== SRV-002 Authentication and roles
+[horizontal]
+Track:: server
+Depends on:: SRV-001
+Size:: M
+Delivers:: `quarkus-oidc` bearer validation for gRPC, a `Principal` with user id, device and `wt_auth_method` (passkey / apple / password / sso:<alias>) read from the token, recording of the method on the `device` row on first sight, `account_identity` upkeep when a token carries a not-yet-seen identity, role lookup per document (owner, editor, commenter, viewer), interceptors producing the error reasons in xref:api-conventions.adoc[API conventions].
+Done when:: Tests for each role against each RPC class; a device row shows the method of the token that created it; a token without the claim is treated as `password` and logged.
+
+[[SRV-003]]
+==== SRV-003 Schema and migrations
+[horizontal]
+Track:: server
+Depends on:: SRV-001
+Size:: M
+Delivers:: Flyway migrations: `account`, `device`, `team`, `team_member`, `team_invite`, `workspace`, `workspace_domain` (xref:security.adoc[Accounts, teams and security]), `document` (id, owner account XOR team, folder, feature level, head_seq, trashed_at), `document_member`, `share_link`, `replica` (document, id, user, device, last_seq, last_ack, retired_at), `change_log` (document, server_seq, replica, seq, bytes, wall_time), `snapshot`, `branch`, `version`, `blob`, `document_blob`.
+Done when:: Entities and Panache repositories exist; migrations apply cleanly from empty on postgres 17.
+
+[[SRV-004]]
+==== SRV-004 Change ingest
+[horizontal]
+Track:: server
+Depends on:: SRV-002, SRV-003, PROTO-005, PROTO-006
+Size:: L
+Delivers:: The acceptance rules in xref:sync-protocol.adoc[Sync protocol]: replica binding, seq check, idempotent replay, protovalidate on every op, merge-table path check, limits, `server_seq` allocation under a per-document lock, transactional write, Valkey publish.
+Done when:: Load test: 2,000 changes/s on one document with correct dense `server_seq`; every rejection reason has a test.
+
+[[SRV-005]]
+==== SRV-005 Subscription and unary push
+[horizontal]
+Track:: server
+Depends on:: SRV-004
+Size:: L
+Delivers:: `SyncService.Subscribe` (Welcome with merge table, `last_accepted_seq` and snapshot hint; replay from `after_server_seq`; live fan-out from Valkey; presence and document events; `Pong` heartbeat; back-pressure on the Mutiny `Multi`), `PushChange` and `PushChangeBatch` through a per-replica `ReplicaQueue` in front of `ChangeIngest` with the ack in the response and prefix semantics for batches, `UpdatePresence`, `Ack`, and presence expiry on stream close.
+Done when:: Three clients on two server nodes see each other's changes within 100 ms locally; 32 pipelined pushes on one connection are accepted in order without `SEQ_GAP`; a deliberately reordered push gets `SEQ_GAP` and the resend is accepted; a dropped stream resubscribes with no gap or duplicate and `Welcome.last_accepted_seq` is exact; a batch with a bad third change acks two.
+
+[[SRV-006]]
+==== SRV-006 Catch-up and bulk push
+[horizontal]
+Track:: server
+Depends on:: SRV-004
+Size:: M
+Delivers:: `FetchChanges` from hot log and cold segments, `FetchSnapshot` chunked from object storage, `PushChanges` with range acks and resumption.
+Done when:: A 50 MiB backlog uploads across three forced disconnects without loss or duplication.
+
+[[SRV-007]]
+==== SRV-007 Snapshotter and compactor
+[horizontal]
+Track:: server
+Depends on:: SRV-004, CRDT-009, CRDT-010
+Size:: L
+Delivers:: A scheduled job that runs `wt-crdt` over the log to produce snapshots every N changes, M minutes, or one run after a document's last subscription closes with changes; moves older changes into cold segments in R2/MinIO; computes and stores `state_hash`; prunes per the stable point; and, from the same merged state, extracts the document's search record (names, text, notes, swatch/style/symbol/brush names, keywords, page names) into `document_search` (`pg_trgm` + `simple` tsvector) as specified on xref:server.adoc[Server].
+Done when:: Snapshot hash equals a client's hash at the same seq for the conformance documents; the hot log stays under 10,000 rows per document; the search record for a conformance document contains every text block's plain text and every named node, and is rewritten within one run of a close.
+
+[[SRV-008]]
+==== SRV-008 Blob service
+[horizontal]
+Track:: server
+Depends on:: SRV-002, SRV-003, PROTO-008
+Size:: M
+Delivers:: Upload to R2/MinIO via the S3 async client, sha256 verification, `Stat`, `Download`, per-document association, retention tied to history.
+Done when:: 200 MiB upload succeeds and is deduplicated on re-upload.
+
+[[SRV-009]]
+==== SRV-009 Document service
+[horizontal]
+Track:: server
+Depends on:: SRV-002, SRV-003, PROTO-007
+Size:: M
+Delivers:: Create (client-supplied UUIDv7), list with folders and cursors (each `Document` carrying `thumbnail_blob` and `thumbnail_at`), rename, trash/restore, duplicate, fork from snapshot + changes, and `Search` (query, space, cursor) over `document_search` plus live `document.name`, returning document ids with per-field highlighted matches; the `thumbnail_blob` column set by `THUMBNAIL`-tagged uploads (SRV-008).
+Done when:: Tests per RPC and per role; a search never returns a document the caller cannot open; a query matching a text block, an object name and a keyword returns each with the right `SearchField` and a highlight; a substring of a name matches by trigram.
+
+[[SRV-010]]
+==== SRV-010 Sharing
+[horizontal]
+Track:: server
+Depends on:: SRV-009
+Size:: M
+Delivers:: `ShareService`: invite by email (Qute mail through Mailpit locally), role changes, share links with role and optional expiry, member list, document events on the session.
+Done when:: Role downgrade takes effect on the next change from that user.
+
+[[SRV-011]]
+==== SRV-011 Branches and versions
+[horizontal]
+Track:: server
+Depends on:: SRV-009, SRV-007
+Size:: M
+Delivers:: `BranchService` (fork at head, list, merge = replay branch changes into parent, delete) and `VersionService` (named versions as `server_seq` bookmarks, restore-as-copy).
+Done when:: A branch with 10,000 changes merges into a parent that advanced 10,000 changes and both hashes agree with a client's.
+
+[[SRV-012]]
+==== SRV-012 Presence
+[horizontal]
+Track:: server
+Depends on:: SRV-005
+Size:: S
+Delivers:: `UpdatePresence` unary calls fanned out through Valkey as `PresenceUpdate` frames on `Subscribe`, 15 s expiry, 20 Hz rate limit, `PresenceSnapshot` after replay on join.
+Done when:: A crashed client disappears within 15 s for others.
+
+[[SRV-013]]
+==== SRV-013 Retention and replica retirement
+[horizontal]
+Track:: server
+Depends on:: SRV-007
+Size:: S
+Delivers:: Scheduled jobs: retire replicas silent past the window, expire trashed documents after 30 days, expire share links, publish the stable point.
+Done when:: A retired replica's reconnect gets `REPLICA_EXPIRED`; stable point advances past it.
+
+[[SRV-014]]
+==== SRV-014 Observability and limits
+[horizontal]
+Track:: server
+Depends on:: SRV-005
+Size:: S
+Delivers:: Metrics per RPC and per document (changes/s, session count, backlog size), trace ids echoed from `wt-request-id`, rate limiting with `RetryInfo`.
+Done when:: A Grafana dashboard JSON is committed and populated in compose.
+
+=== SYNC
+
+[[SYNC-001]]
+==== SYNC-001 Local store
+[horizontal]
+Track:: client-sync
+Depends on:: CRDT-009, PROTO-004
+Size:: M
+Delivers:: The GRDB schema in xref:offline.adoc[Offline], open/close with snapshot + replay, periodic snapshot rewrite, store-to-hardware binding for replica rotation.
+Done when:: Kill -9 during a change never loses an applied change; opening the design-point document takes under 2 s.
+
+[[SYNC-002]]
+==== SYNC-002 Outbox and coalescing
+[horizontal]
+Track:: client-sync
+Depends on:: SYNC-001, CRDT-008
+Size:: M
+Delivers:: Append-in-same-transaction outbox, the coalescing rules, `Noop` slot preservation, ack handling.
+Done when:: A minute of dragging coalesces to one op; hashes before and after coalescing are identical.
+
+[[SYNC-003]]
+==== SYNC-003 Sync client: subscription and pipelined pushes
+[horizontal]
+Track:: client-sync
+Depends on:: SYNC-002, PROTO-006
+Size:: L
+Delivers:: grpc-swift 2 `SyncClient` actor: `Subscribe` with `after_server_seq`, Welcome handling, remote apply in order with own-echo reconciliation, up to 32 pipelined `PushChange` calls on one connection with `SEQ_GAP` drain-and-resend, `PushChangeBatch` mode behind a flag (gateway simulation), `Ack` every 2 s, `UpdatePresence` at 20 Hz, heartbeat timeout (45 s) and reconnect with backoff, token refresh, rejection handling, sync state published to the UI.
+Done when:: Simulator test (TEST-001) with packet loss and reordering shows no gaps or duplicates in either mode; in-flight pushes across a stream drop are resolved from `Welcome.last_accepted_seq` without resending accepted changes; sync state transitions are logged and tested.
+
+[[SYNC-004]]
+==== SYNC-004 Bootstrap and catch-up
+[horizontal]
+Track:: client-sync
+Depends on:: SYNC-003
+Size:: M
+Delivers:: `FetchSnapshot` + `FetchChanges` path with the snapshot hint, progress reporting, cancellation.
+Done when:: Opening a never-seen design-point document on a 50 Mbit link completes in under 5 s.
+
+[[SYNC-005]]
+==== SYNC-005 Bulk upload
+[horizontal]
+Track:: client-sync
+Depends on:: SYNC-003
+Size:: M
+Delivers:: `PushChanges` client with 1 MiB frames, range acks, resume from last ack, progress in the title bar.
+Done when:: 20,000-op backlog uploads through three forced disconnects.
+
+[[SYNC-006]]
+==== SYNC-006 Divergence measurement
+[horizontal]
+Track:: client-sync
+Depends on:: SYNC-004, SYNC-002
+Size:: M
+Delivers:: Local/remote/overlap sets and overlap kinds per xref:reconcile.adoc[Reconciling], the decision rules with preferences, hold of the outbox while a review is pending.
+Done when:: Unit tests for each rule row; measurement of the design-point document under 200 ms.
+
+[[SYNC-007]]
+==== SYNC-007 Review sheet
+[horizontal]
+Track:: client-ui
+Depends on:: SYNC-006, APP-002, APP-007
+Size:: L
+Delivers:: The review sheet: list, Mine/Theirs/Merged/Overlay preview, per-property choices, keep-both duplication, edit-vs-delete restore, text paragraph diff, whole-document copy/branch actions, menu:File[Review Merge…].
+Done when:: UI tests for each conflict kind; every choice undoable; screenshots added to this book.
+
+[[SYNC-008]]
+==== SYNC-008 Blob queue
+[horizontal]
+Track:: client-sync
+Depends on:: SYNC-003, PROTO-008
+Size:: M
+Delivers:: Content-addressed local blob cache, pending-upload queue with retry, lazy download with placeholder notification to the renderer.
+Done when:: Placing a 100 MiB image offline and reconnecting uploads it without blocking edits.
+
+[[SYNC-009]]
+==== SYNC-009 Presence client
+[horizontal]
+Track:: client-sync
+Depends on:: SYNC-003
+Size:: S
+Delivers:: Outgoing `UpdatePresence` calls coalesced at 20 Hz; incoming `PresenceUpdate` frames from the subscription into a presence model observed by the canvas and panels.
+Done when:: Remote cursors and selections render within 100 ms locally.
+
+[[SYNC-010]]
+==== SYNC-010 Replica rotation and salvage
+[horizontal]
+Track:: client-sync
+Depends on:: SYNC-006
+Size:: M
+Delivers:: Rotation on `REPLICA_CONFLICT`/`REPLICA_EXPIRED`, rebase of unsent changes onto fresh ids, dropped-op listing into the review sheet.
+Done when:: A store copied to a second Mac recovers with no duplicate ids; salvage after pruning drops only ops that reference collected tombstones.
+
+=== APP
+
+[[APP-001]]
+==== APP-001 Xcode project and packages
+[horizontal]
+Track:: client-ui
+Depends on:: PROTO-004
+Size:: M
+Delivers:: `client/WireTuner.xcodeproj`, the Swift packages listed in xref:stack.adoc[Stack], Swift 6 strict concurrency, signing and notarization configuration, Sparkle, CI job on a macOS runner running unit and UI tests.
+Done when:: An empty app launches, CI is green, and `swift test` runs every package.
+
+[[APP-002]]
+==== APP-002 Document window and canvas
+[horizontal]
+Track:: client-ui
+Depends on:: APP-001, REND-001
+Size:: L
+Delivers:: `NSDocument`-less document controller bound to `WTModel`, the document window with canvas view, scroll/zoom (magnification 6%--25,600%), pasteboard, rulers host, status bar with page selector and view mode, window state persistence.
+Done when:: Panning a 50,000-object document stays at 60 fps on M1; zoom to selection/fit/page work.
+
+[[APP-003]]
+==== APP-003 Tool framework
+[horizontal]
+Track:: client-ui
+Depends on:: APP-002
+Size:: M
+Delivers:: `Tool` protocol (activate, mouse down/drag/up, key, modifier change mid-drag, cursor, overlay drawing), tool manager with temporary tools (Space for pan, Cmd for pointer), Tools panel host, keyboard shortcut binding.
+Done when:: A sample rectangle tool round-trips a change; modifier changes during drag are delivered; UI test harness (TEST-002) drives it.
+
+[[APP-004]]
+==== APP-004 Panel framework
+[horizontal]
+Track:: client-ui
+Depends on:: APP-001
+Size:: L
+Delivers:: Docked panel groups at the window edge, tabbed grouping, drag to regroup or float, collapse, panel visibility in the Window menu, layout persistence and reset, SwiftUI hosting for panel bodies.
+Done when:: Layouts survive relaunch; every panel a later task registers appears in Window.
+
+[[APP-005]]
+==== APP-005 Menus and shortcuts
+[horizontal]
+Track:: client-ui
+Depends on:: APP-001
+Size:: M
+Delivers:: Main menu built from a declarative command registry (id, title, default key, validation), customizable shortcuts with a preferences UI and export, context menus from the same registry.
+Done when:: {fh}'s default Mac shortcut set is loaded as a preset; conflicts are reported.
+
+[[APP-006]]
+==== APP-006 Selection model
+[horizontal]
+Track:: client-model
+Depends on:: APP-002, REND-003
+Size:: M
+Delivers:: Selection as an ordered set of node ids plus sub-selection (points, segments, text ranges), selection publication to panels, remote selection overlay, selection preserved across remote changes and deletions.
+Done when:: Selecting an object someone else deletes clears it gracefully; marquee, shift-add, contact-sensitive selection.
+
+[[APP-007]]
+==== APP-007 Object panel framework
+[horizontal]
+Track:: client-ui
+Depends on:: APP-004, APP-006
+Size:: L
+Delivers:: The inspector host: property list of the selection (mixed values), attribute stack (strokes, fills, effects) with add/remove/reorder, kind-specific editor registration, live remote updates without stealing focus.
+Done when:: Editing a value while a remote change lands to the same object never loses keystrokes.
+
+[[APP-008]]
+==== APP-008 Sign-in and account
+[horizontal]
+Track:: client-ui
+Depends on:: APP-001, PROTO-009
+Size:: M
+Delivers:: `ASWebAuthenticationSession` + PKCE against Keycloak with the realm's passkey-first page (platform authenticator through the session), Sign in with Apple and workspace-SSO entry points, Keychain token storage, silent refresh, account menu, an account page with the linked-identities list (add/remove) and the device list showing each device's sign-in method, sign-out that keeps local stores.
+Done when:: Token expiry mid-session refreshes without dropping the document; UI tests sign in with a passkey, with Apple (mock) and with a workspace account in the compose realm and land in the same account when emails match; the device list shows the method.
+
+[[APP-009]]
+==== APP-009 Library window
+[horizontal]
+Track:: client-ui
+Depends on:: APP-008, SRV-009
+Size:: L
+Delivers:: The document library: folders, recents, shared with me, offline-available badges, thumbnail grid fed by `Document.thumbnail_blob` through the blob cache, a search field that filters cached names locally and calls `DocumentService.Search` (debounced) online with result rows showing the highlighted matching text and its field, new/duplicate/trash, open-in-tabs.
+Done when:: Works offline against the local cache list with the "names only" hint; online, a content match shows its highlighted snippet under the document name (UI test); thumbnails update on the next list refresh after an upload.
+
+[[APP-010]]
+==== APP-010 Preferences
+[horizontal]
+Track:: client-ui
+Depends on:: APP-004
+Size:: M
+Delivers:: Preferences window with the categories in xref:preferences.adoc[Preferences], local storage, optional sync through `AccountService`.
+Done when:: Every preference a feature page cites has a home and a default.
+
+[[APP-011]]
+==== APP-011 Undo integration
+[horizontal]
+Track:: client-model
+Depends on:: CRDT-008, SYNC-001
+Size:: M
+Delivers:: `WTModel` command → change → inverse pipeline, undo/redo menu titles from change labels, undo grouping during drags, the "skip if someone else changed it" rule, persistent stack.
+Done when:: Vectors: undo after a remote overwrite leaves the remote value; redo after undo restores the local value.
+
+=== REND / GEO / TXT
+
+[[REND-001]]
+==== REND-001 Render protocol, display list and Core Graphics reference renderer
+[horizontal]
+Track:: client-render
+Depends on:: APP-001
+Size:: L
+Delivers:: The `WTRender` protocol; the renderer-agnostic display list built from `WTModel` (resolved transforms and styles, stroked outlines from `WTGeometry`, glyph runs from `WTText`); the view transform `T(scroll) · R(rotation) · S(zoom)` with `Viewport.pasteboardToView`/`viewToPasteboard`; 256 px tile keys `(canvas, zoom step, rotation, column, row)` and the shared curve-flattening tolerance; the Core Graphics renderer drawing that display list into PDF contexts, bitmap contexts and, as the first on-screen path and the permanent fallback, tiled `CALayer` stores off the main actor.
+Done when:: Pixel-identical output between the bitmap and PDF renders of a test corpus; the CG tile canvas pans and zooms under 16 ms per frame at the design point; rotating the view by 15° changes only tile keys, not the display list.
+
+[[REND-002]]
+==== REND-002 Path rendering
+[horizontal]
+Track:: client-render
+Depends on:: REND-001, GEO-001
+Size:: M
+Delivers:: Fill rules, stroke caps/joins/miter, dashes, arrowheads host, multiple fills and strokes in stack order, overprint preview hook.
+Done when:: Reference renders match {fh}'s output for the corpus within anti-aliasing tolerance.
+
+[[REND-003]]
+==== REND-003 Hit testing
+[horizontal]
+Track:: client-render
+Depends on:: GEO-001, REND-001
+Size:: M
+Delivers:: Hit tests for fill, stroke (with tolerance), points, handles, segments, text, groups vs. contents, with the `Pick` preference distances and a spatial index (R-tree) maintained from changes.
+Done when:: Hit testing 50,000 objects stays under 2 ms.
+
+[[REND-004]]
+==== REND-004 Invalidation from changes
+[horizontal]
+Track:: client-render
+Depends on:: REND-001, CRDT-008
+Size:: M
+Delivers:: Mapping applied changes (local and remote) to dirty rects, including effects' expanded bounds, with batching of remote bursts.
+Done when:: A remote change to one object repaints only its tiles.
+
+[[REND-005]]
+==== REND-005 View modes
+[horizontal]
+Track:: client-render
+Depends on:: REND-002
+Size:: S
+Delivers:: Preview, Fast Preview, Keyline and Fast Keyline modes; flash player preview host hook.
+Done when:: Modes switch without rebuilding the display list.
+
+[[REND-006]]
+==== REND-006 Metal tile renderer
+[horizontal]
+Track:: client-render
+Depends on:: REND-001
+Size:: L
+Delivers:: The primary on-screen renderer over the REND-001 display list: `WTCanvasView` as an `MTKView`/`CAMetalLayer` drawing on demand at the display's maximum refresh; tile atlas textures keyed by REND-001's tile keys and rendered in rotated view space; GPU path filling by stencil-then-cover with 4× MSAA over paths flattened at the shared tolerance; a Core Text glyph atlas with the path route for large, effected and on-path glyphs; Core Image raster effects executed into `MTLTexture`s through `CIContext(mtlDevice:)`; gesture-time drawing of existing tiles through the changing transform with re-rasterisation on settle or every 250 ms; automatic fallback to the Core Graphics tile canvas when no Metal device is available or command buffers fail.  Change-driven invalidation is wired when REND-004 lands; until then whole-canvas invalidation.
+Done when:: No frame over 8.3 ms during a 10 s scripted pan, zoom and rotate of the design-point document on a 120 Hz display (xref:testing.adoc[Testing] gate); pan touches no rasterisation until uncached tiles enter the viewport; the fallback engages and logs when the device is nil in a test harness; every REND-007 parity tile passes.
+
+[[REND-007]]
+==== REND-007 Metal/CG parity tests
+[horizontal]
+Track:: test
+Depends on:: REND-001, REND-006
+Size:: M
+Delivers:: A harness rendering every golden-corpus document through both renderers over identical tile keys at 1×, 2× and 4×, at 0°, 15° and 90° rotation, in Preview and Keyline, comparing tile by tile with the tolerance in xref:testing.adoc[Testing] (interior 2/255, edge 40/255, at most 0.1% failing pixels), writing CG/Metal/difference triptychs for failures, and the CI wiring that marks a GPU-less run incomplete instead of green.
+Done when:: The harness runs in CI on the macOS runner; a deliberately mis-set fill rule in the Metal path fails exactly the affected tiles; the 120 Hz frame-time gate and the parity gate both appear in the performance baseline.
+
+[[GEO-001]]
+==== GEO-001 Bézier primitives
+[horizontal]
+Track:: client-render
+Depends on:: APP-001
+Size:: M
+Delivers:: `WTGeometry`: cubic evaluation, splitting, bounds, nearest point, length, arc-length parametrization, curvature, intersection (curve–curve, curve–line), contour winding.
+Done when:: Property tests against numeric references; no allocation in hot paths.
+
+[[GEO-002]]
+==== GEO-002 Boolean operations
+[horizontal]
+Track:: client-render
+Depends on:: GEO-001
+Size:: L
+Delivers:: Union, intersect, punch, divide, crop, transparency (as in {fh}'s Combine) on multi-contour paths with even-odd and non-zero fills; `CGPath` operations where available, own implementation for the rest.
+Done when:: Corpus of 200 cases including tangencies and self-intersections passes; degenerate input never crashes.
+
+[[GEO-003]]
+==== GEO-003 Offsetting
+[horizontal]
+Track:: client-render
+Depends on:: GEO-002
+Size:: M
+Delivers:: Expand stroke and inset path with joins and miter limits, producing clean outlines.
+Done when:: Expand of a stroked path equals its rendered stroke within tolerance.
+
+[[GEO-004]]
+==== GEO-004 Fitting and simplification
+[horizontal]
+Track:: client-render
+Depends on:: GEO-001
+Size:: M
+Delivers:: Schneider curve fitting for freehand input, Douglas–Peucker + curve simplify, smoothing.
+Done when:: Freehand tool output matches {fh}'s precision settings behavior on recorded strokes.
+
+[[GEO-005]]
+==== GEO-005 Transforms and constraints
+[horizontal]
+Track:: client-render
+Depends on:: GEO-001
+Size:: S
+Delivers:: Affine transform utilities, constrain angles, snap-to-point/grid/guide resolution with priorities.
+Done when:: Unit tests for every snap priority combination.
+
+[[TXT-001]]
+==== TXT-001 Text layout engine
+[horizontal]
+Track:: client-render
+Depends on:: CRDT-006, REND-001
+Size:: L
+Delivers:: Core Text layout over `RichText` attributed runs: paragraphs, columns, rows, inset, linked-flow, text on a path, vertical, with character id ↔ glyph position mapping for carets and remote carets.
+Done when:: Layout of a 200,000-character flow under 100 ms incremental; carets survive remote edits.
+
+[[TXT-002]]
+==== TXT-002 Font management
+[horizontal]
+Track:: client-render
+Depends on:: TXT-001, SYNC-008
+Size:: M
+Delivers:: Font lookup, missing-font substitution table with user overrides, document-embedded font blobs (where licensed), team font library sync.
+Done when:: Opening a document with a missing font shows the substitution dialog and renders with the substitute.
+
+=== TEST
+
+[[TEST-001]]
+==== TEST-001 Multi-client simulator
+[horizontal]
+Track:: test
+Depends on:: SYNC-003, SRV-005
+Size:: L
+Delivers:: A Swift harness running N in-process clients against a compose server with scripted partitions, latency, packet loss, reordering of pipelined unary pushes, stream drops mid-window, gateway mode (`PushChangeBatch`, one call in flight) and offline periods; asserts hash convergence, `SEQ_GAP` recovery and sync-state transitions.
+Done when:: The scenarios in xref:testing.adoc[Testing] run in CI in under 10 minutes, in native and gateway modes.
+
+[[TEST-002]]
+==== TEST-002 UI test harness
+[horizontal]
+Track:: test
+Depends on:: APP-003
+Size:: M
+Delivers:: XCUITest helpers for tools (drag with modifiers), panels, menus; screenshot capture into `docs/images`; accessibility identifiers convention; a sandbox audit helper asserting a process opened no sockets during a test (used by the on-device ML and scripting tasks).
+Done when:: A sample tool test runs on the CI macOS runner.
+
+== Waves
+
+Agents work in waves; a wave's tasks depend only on earlier waves.
+
+[cols="1,4"]
+|===
+|Wave |Tasks
+
+|0
+|PROTO-001, PROTO-002, PROTO-008, PROTO-009, SRV-001, APP-001, GEO-001
+
+|1
+|PROTO-003, SRV-002, SRV-003, REND-001, APP-004, APP-005, GEO-002, GEO-004, GEO-005, TEST-002 (after APP-003)
+
+|2
+|PROTO-004..007, CRDT-001, CRDT-003, CRDT-005, CRDT-007, CRDT-011, APP-002, APP-008, APP-010, REND-002, REND-003, REND-006, REND-007, GEO-003
+
+|3
+|CRDT-002, CRDT-004, CRDT-006, SRV-004, SRV-008, SRV-009, APP-003, APP-006, REND-005, and every *feature* task whose dependencies are met -- most `DRAW`, `DOC`, `COLOR`, `ATTR` tasks start here
+
+|4
+|CRDT-008..010, SRV-005..007, SRV-010, SYNC-001..003, APP-007, APP-009, APP-011, REND-004, TXT-001, CRDT-012
+
+|5
+|SRV-011..014, SYNC-004..010, TXT-002, TEST-001, SEC-001..003, `TYPE`, `FX`, `LIB`, `COLLAB`
+
+|6
+|`IMG`, `WEB`, `IO`, `CMS`, `PRINT`, `FONT`, polish, parity audit
+|===
+
+Feature epics list their own tasks on their pages; the parity page
+(xref:parity.adoc[FreeHand parity]) is the index of every feature page.

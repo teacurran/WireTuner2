@@ -1,0 +1,240 @@
+A clipping path is a closed path that shows only what lies inside it.  Paste artwork, text
+or a bitmap into a path and everything beyond the path's edge is hidden -- not cut away.  The
+contents stay whole, and you can edit, move and transform them inside the clip at any time.
+{fh} users know this as *Paste Inside*.
+
+// TODO screenshot: a photograph pasted inside a star, with the contents handle visible
+
+== Creating a clipping path
+
+To paste objects inside a path:
+
+. Select the objects that will be the contents and arrange them where they should appear.
+. Choose menu:Edit[Cut] (kbd:[Cmd+X]).
+. Select a closed path.  It can already be a clipping path, in which case the new contents
+  are added on top of the existing ones.  A composite path works as a clipping path if it
+  was joined before you paste into it.
+. Choose menu:Edit[Paste Contents] (kbd:[Cmd+Shift+V]).
+
+The path becomes a clipping path.  Its own stroke and fill still draw: the fill behind the
+contents, the stroke on top.  Contents cannot be pasted inside an open path, a text block
+or a bitmap.
+
+== The Object panel
+
+A selected clipping path shows these rows:
+
+[cols="1,3"]
+|===
+|Row |Meaning
+
+|Clipping path (root)
+|Position, size, name, note, locked, and the path attributes (points, even/odd fill).
+
+|Clip path
+|Selecting it edits the clipping shape's own strokes, fills and effects.
+
+|Contents
+|How many objects are inside.  Double-click to subselect them all.
+|===
+
+== Editing the contents
+
+To move the contents without moving the clip:
+
+. Select the clipping path.
+. Click the *Contents* row in the Object panel.  A contents handle -- a small circle -- appears
+  at the center of the contents on the canvas.
+. Drag the handle.  The contents slide behind the clipping shape.
+
+To edit one object inside:
+
+. Subselect it with the Subselect tool or kbd:[Option]-click.  Double-click the contents
+  handle or the *Contents* row to subselect everything inside.
+. Edit it as usual: reshape, recolor, transform, delete.  Press kbd:[~] to return to the
+  clipping path.
+
+To add more contents, cut objects and Paste Contents again with the clipping path selected,
+or cut an object, subselect a content object, and Paste In Front or Paste Behind.
+
+To take the contents out:
+
+. Select the clipping path.
+. Choose menu:Edit[Cut Contents] (kbd:[Cmd+Shift+X]).  The contents go to the clipboard
+  and the path becomes an ordinary path again.  Paste them to put them back on the canvas
+  unclipped.
+
+To release everything at once without the clipboard, subselect all contents, cut them, and
+paste in front of the path.
+
+== Transforming a clipping path
+
+When you rotate, scale, skew or reflect a clipping path, the *Contents* checkbox on the
+Transform panel decides whether the contents come along (on, the default) or the clipping
+shape moves over stationary contents (off).  Moving always moves both; drag the contents
+handle to move contents alone.  See xref:transforming.adoc[Transforming].
+
+== Working with others
+
+A clipping path is a container, like a group.  When a collaborator pastes contents into a
+path you can see, the path becomes a clipping path for you at the same moment.  If you were
+editing the path's points, your edits continue to apply -- to the clipping shape.
+
+If someone cuts the contents out of a clipping path while you are editing one of the
+contents, your edit lands on the object, which is now on their clipboard: it is gone from
+the document, and comes back with their paste (without your edit).  After an offline
+period the review lists it as an edit to something that was deleted, with *Restore*.
+
+If the clipping shape itself is deleted -- someone subselects it and presses Delete -- the
+contents show unclipped until a new clipping shape is chosen.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,2"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Paste Contents into a closed path; add more by repeating
+|Same.
+|Faithful
+
+|Contents handle to move contents
+|Same.
+|Faithful
+
+|Subselect contents; double-click handle or Contents row selects all
+|Same.
+|Faithful
+
+|Cut Contents
+|Same.
+|Faithful
+
+|Transform panel *Contents* option
+|Same.
+|Faithful
+
+|Composite path as clip only if joined first
+|Same restriction, and it is natural: Paste Contents takes one path node.
+|Faithful
+
+|Paste Inside naming
+|Menu commands are *Paste Contents* / *Cut Contents* as in {fh} MX; the object is called a
+clipping path.
+|Faithful
+|===
+
+=== Data model
+
+A clipping path is a *clip group*: a `GroupProps` node with `kind = GROUP_KIND_CLIP`
+(xref:grouping.adoc[Grouping]).  Its children, bottom first, are the clip path node followed
+by the contents.  `GroupProps.clip_path` names the clip path child; the first-child position
+is a convention the commands maintain, and the reference is what the renderer trusts.
+
+[listing]
+....
+layer
+└── group (kind = CLIP, clip_path → P)      ← what the user calls "the clipping path"
+    ├── P   path (the clipping shape; its own strokes and fills)
+    ├── A   contents…
+    └── B
+....
+
+`Paste Contents` on a plain path `P` (one change, label `Paste contents`):
+. `CreateNode(G, parent = P.parent, position = P.position-adjacent, GroupProps{kind: CLIP,
+  clip_path: P})`, `G.transform` = identity.
+. `MoveNode(P, parent = G, position = first)`.
+. `CreateNode` per content node under `G`, after `P`, in stacking order, from the clipboard
+  payload, at their original pasteboard positions.
+
+On an existing clip group, step 3 only.
+
+`Cut Contents` (label `Cut contents`): copy the contents to the clipboard; `MoveNode(P,
+parent = G.parent, position = G.position-adjacent)`; `SetFields(P.transform = G.transform ×
+P.transform)`; `SetDeleted(G)`; `SetDeleted` each content node.
+
+The contents handle drag writes `transform` on every content node (a multi-object move).
+
+=== Merge semantics
+
+* *Paste Contents vs. edit of P*: P's registers are edited; P is moved under G.  Both apply.
+* *Paste Contents vs. Paste Contents on the same P*: two clip groups are created; P ends
+  under one of them (later `MoveNode`); the other group's `clip_path` dangles → its contents
+  render unclipped (read-time normalization from xref:crdt-model.adoc[CRDT model]).  The
+  review sheet lists P as `move vs move` (parent).  Rare: needs two people pasting into one
+  path concurrently.
+* *Cut Contents vs. edit of a content*: the content is deleted with the edit retained;
+  `edit vs delete`, *Restore*.
+* *Delete P (subselected)*: `clip_path` dangles; contents render unclipped; the Object panel
+  shows *No clip path* on the root row and offers *Choose clip path…* which sets `clip_path`
+  to a selected child path (one register write).
+* *Reparent a content out via Paste In Front elsewhere*: ordinary move.
+* *Something lands before P in sibling order* (a merge of concurrent Paste Behind at the
+  bottom): harmless -- `clip_path` decides what clips, and the renderer draws children in
+  order skipping the clip path itself.  Commands re-establish P as first child on the next
+  local Arrange inside the group.
+* *Transform with Contents off*: writes `P.transform` only; with Contents on, writes
+  `G.transform`.  Both are single registers; concurrent use of both is two registers and
+  both apply.
+
+Read-time normalizations:
+
+* `clip_path` unset or dangling, or pointing at a node that is not a live child path of the
+  group: contents render unclipped, and the group's bounds are the contents' bounds.
+* A clip group with no live children besides the clip path renders as a plain path (P's own
+  stroke and fill); it is still a clip group until Cut Contents or an ungroup-like release
+  (menu:Modify[Ungroup] on a clip group releases it: moves P and contents to the parent,
+  bakes transforms, deletes G).
+
+=== Offline behavior
+
+Fully offline.  Bitmaps pasted as contents queue their blobs (SYNC-008).
+
+=== Server
+
+Nothing beyond storing and relaying changes.
+
+=== Client
+
+* `PasteContentsCommand`, `CutContentsCommand`, `ChooseClipPathCommand` in
+  `WTModel/Commands/Clipping.swift`.
+* `WTRender`: for a CLIP group, resolve `clip_path`; draw its fills; `CGContext.clip(to:)`
+  with the clip path transformed by `G.transform × P.transform`; draw the other children in
+  order; then draw the clip path's strokes and effects unclipped.  With a dangling
+  reference, skip the clip.
+* Hit testing (REND-003): inside a clip group, contents hit only within the clip region;
+  the clip path's stroke hits as usual.
+* Contents handle: an overlay drawn by the Pointer tool when the *Contents* row is
+  selected; dragging it runs `MoveCommand` on the content nodes.
+* Undo: each command one step.
+
+=== Build tasks
+
+[[OBJ-027]]
+==== OBJ-027 Clip group commands
+[horizontal]
+Track:: client-model
+Depends on:: OBJ-016, OBJ-010
+Size:: M
+Delivers:: `PasteContentsCommand`, `CutContentsCommand`, `ChooseClipPathCommand`, release via Ungroup, validation of what may be a clip path (closed path, composite path), menu items and shortcuts.
+Done when::
+* Paste Contents on a plain path produces the tree above; on a clip group it appends contents; Cut Contents restores a plain path at the group's slot with the baked transform.
+* Merge test: two replicas Paste Contents into the same path concurrently; P ends under one group, the other group's `clip_path` dangles, hashes agree.
+* Merge test: Cut Contents concurrent with a remote edit of a content converges to deleted-with-edit-retained.
+* Conformance vector: `GroupProps.clip_path` set, then the target deleted remotely, read-out reports unclipped.
+
+[[OBJ-028]]
+==== OBJ-028 Clip rendering, hit testing and contents handle
+[horizontal]
+Track:: client-render
+Depends on:: OBJ-027, REND-002, REND-003, OBJ-008
+Size:: M
+Delivers:: Clip-group rendering order (fills, clipped contents, strokes and effects), dangling-clip normalization, hit testing within the clip region, the contents handle overlay and drag, the *Clip path* and *Contents* rows in the Object panel with double-click subselect-all and the *Choose clip path…* affordance.
+Done when::
+* Reference renders of clipped vector, text and bitmap contents match expectations; a deleted clip path renders contents unclipped.
+* Clicking contents outside the clip region does not select them; clicking the clip stroke selects the clip group.
+* Dragging the contents handle moves every content node in one change `Move contents` and leaves P in place.
+endif::spec[]

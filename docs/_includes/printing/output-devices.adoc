@@ -1,0 +1,237 @@
+Where a document is going to be printed decides how to print it.  A desktop inkjet or laser
+printer wants a composite job through its own driver, color-managed by ColorSync, and gets it
+with no settings at all.  A commercial press wants separated, marked, bled plates -- or, more
+often today, a PDF the shop's prepress system will separate itself.  This page explains what
+{product} sends to each kind of device, which options matter for which, and how to get a job
+to a service provider.
+
+NOTE: {fh} users: there is no PPD to choose and no PostScript file to write.  macOS talks to
+every printer through its queue; {product} draws every job as PDF.  Separations, which
+{fh} left to the printer's PostScript interpreter, are produced by {product} itself, so they
+work on any device -- including a PDF file.
+
+== Desktop printers and proofs
+
+For a proof or a black-and-white check, any printer on your Mac will do:
+
+. Choose menu:File[Print…] and pick the printer.
+. Leave *Composite* selected in the *{product}* pane.
+. Set *Fit on paper* if the page is larger than the paper.
+. Click btn:[Print].
+
+Colors go to the printer as the document defines them and ColorSync converts them with the
+printer's profile chosen in the *Color Matching* pane (xref:color-management.adoc[Color
+management]).  Spot colors print as their closest process or RGB equivalent.  Overprinting
+objects print as they look with menu:View[Overprint Preview] on.
+
+If a complex document prints slowly or not at all, select *Rasterize output* in the *Imaging*
+group and choose a resolution: the whole sheet is sent as one image, which every printer can
+handle (xref:print-performance.adoc[Faster printing]).
+
+== High-resolution output and separations
+
+A platesetter, an imagesetter making film, or a proofing system driven by a prepress RIP
+usually wants one of two things: a composite PDF the RIP separates and screens, or finished
+separations.  Ask the shop which.
+
+To produce a composite PDF for a prepress RIP, use xref:export-pdf.adoc[Exporting PDF] with a
+PDF/X preset; it embeds profiles, keeps spot colors as spot, and writes trim and bleed boxes
+the RIP reads.  The Print dialog's *Save as PDF* also works but writes a plain PDF.
+
+To produce separations yourself:
+
+. Choose menu:File[Print…] and open the *{product}* pane.
+. Under *Output*, select *Separations*.
+. In the ink list, clear *Print* for any plate you do not want.  Select *Print spot colors as
+  process* if the job is four-color only.
+. Set the screen *Angle* and *Frequency* per plate if the shop gave you values, and choose the
+  dot shape under *Halftone screen*.
+. Turn on the *Crop marks*, *Registration marks* and *Separation names* the shop asked for, and
+  set the *Bleed*.
+. Under *Imaging*, set *Emulsion* and *Positive* or *Negative* as instructed for film.
+. Decide who screens the plates (below).
+. Click btn:[Print], or choose *Save as PDF* to hand the shop a file.
+
+Each plate is a grayscale sheet: black where the ink prints, at the ink's percentage.
+Registration marks and labels appear on every plate.  RGB colors and images are converted to
+process inks through the document's CMYK working space; spot colors stay on their own plate
+unless converted.
+
+=== Who screens the plates
+
+A halftone screen has to be applied by someone.  Two choices:
+
+*Screen in {product}* off (the default)::
+Plates are sent as continuous-tone grayscale.  The printer or RIP applies its own screen,
+usually the one configured for the press, and the angles and frequencies in the ink list are
+informational -- they are printed in the plate labels so the shop can match them.  This is the
+right choice for any RIP-driven device.
+
+*Screen in {product}* on::
+{product} halftones each plate itself at the printer's resolution and sends one-bit plates.
+The angles, frequencies and shapes in the ink list, and every object screen from the Halftones
+panel (xref:halftones.adoc[Halftones]), are applied exactly.  Use it for a device with no
+screening of its own, for effect screens that must survive intact, or to proof screening on a
+desktop printer.  Jobs are large -- a letter-size plate at 2400 dpi is a 30-megapixel bitmap --
+and take longer to spool.
+
+Resolution comes from the printer queue; for *Save as PDF* it is the *Rasterize resolution*
+value under *Imaging*, whether or not rasterizing is on.
+
+== Working with a service provider
+
+Send the shop what it asked for: a PDF/X export for a RIP, or the separated PDF from the Print
+dialog, or the {product} document itself if the shop uses {product} (share it, rather than
+sending a copy, so they always see the current version -- xref:sharing.adoc[Sharing]).  Send
+along a document report (xref:file-info.adoc[Document info]) listing fonts, colors and placed
+images, and check the fonts page for anything that will not embed
+(xref:print-fonts.adoc[Printing fonts]).
+
+Budget time for the round trip: proofs, corrections, and the shop's own schedule.
+
+== Working with others
+
+Output settings are shared with the document, so once one person has set the plates, marks
+and bleed for a job, everyone prints it that way; a preset saved in the Print dialog records
+the paper and printer choices that stay on each Mac.  Printing itself is always done by one
+person on one Mac, with that Mac's fonts and printers.
+
+ifdef::spec[]
+== Specification
+
+The one addition to {fh}'s model is that separation is done by the renderer rather than by a
+PostScript interpreter.  Everything below specifies that renderer mode and the in-app screener.
+
+=== FreeHand parity
+
+[cols="2,3,2"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Desktop printer composite output
+|Composite through the print queue, ColorSync-managed.
+|Faithful
+
+|Separations on a PostScript device (in-RIP)
+|Separations rendered by {product}: one grayscale sheet per plate in the job PDF.  Works on
+any device and in *Save as PDF*.
+|Adapted -- client-side separation replaces in-RIP separation; capability kept and widened.
+
+|PPD selection for device capabilities (paper, resolution, screens)
+|Dropped.  Paper and resolution from the queue; screens from the ink list.
+|Dropped -- no PPD layer.
+
+|Output to a PostScript file for the service bureau
+|*Save as PDF* (marks, separations) or PDF/X export.
+|Adapted -- PDF replaces PostScript.
+
+|Halftone screens honored by the device
+|Honored by the in-app screener when *Screen in {product}* is on; otherwise left to the RIP.
+|Adapted -- see xref:halftones.adoc[Halftones].
+
+|Print as image / printer's built-in rasterizer
+|*Rasterize output* at a chosen resolution.
+|Faithful
+
+|Document report for the service bureau
+|xref:file-info.adoc[Document info] (IO epic).
+|Faithful -- documented elsewhere.
+|===
+
+=== Data model
+
+No fields beyond those on xref:printing.adoc[Printing]: `separations`, `plates`,
+`spot_as_process`, `default_halftone`, `screen_in_app`, `rasterize_dpi`, `negative`,
+`emulsion_down`.
+
+=== Merge semantics
+
+As on xref:printing.adoc[Printing].  Nothing here writes the document at print time.
+
+=== Offline behavior
+
+Fully offline.  Color conversion for separations uses the document's CMYK working space profile,
+which is stored with the document or bundled with the app (CMS epic); no profile is fetched at
+print time.
+
+=== Server
+
+Nothing.
+
+=== Client
+
+Plate mode in `WTRender`::
+The display list is rendered once per plate with a `PlateContext` that maps every color
+before it reaches Core Graphics:
+* Each `Color` resolves to ink coverages `(c, m, y, k, spot[i])` -- process colors directly,
+  spot colors as 100% of their own ink (tints as their percentage), RGB and Lab through the
+  CMYK working space (CMS epic's conversion service).  With `spot_as_process` a spot resolves
+  to its process alternate instead.
+* On plate _P_ an object paints gray `1 - coverage(P)` in a `DeviceGray` context.  Coverage 0
+  paints *white* (knockout) unless the fill or stroke is overprinting, in which case it paints
+  nothing.  Blend mode is normal; the sheet starts white.
+* Gradients map each stop; smooth shadings are emitted with mapped stops, so a C→M gradient on
+  the cyan plate is a 0%→100% gray ramp.
+* Images: CMYK images contribute their channel; RGB and gray images are converted through the
+  working space per pixel (cached per image per plate); 1-bit images and masks are unchanged.
+* Regions that the composite renderer rasterizes (transparency, raster effects, lens fills)
+  are rasterized in CMYK through the working space and the plate channel extracted; overprint
+  is not preserved inside such regions (documented limitation).
+* Registration color (marks, labels) paints black on every plate.
+* `negative` inverts the sheet with a final `difference` fill; `emulsion_down` flips the sheet
+  transform horizontally.
+
+In-app screener::
+`WTInterchange/Print/Screener` rasterizes a plate at device resolution to 8-bit gray (tiled,
+off the main actor), then thresholds per pixel against a spot function -- round, ellipse,
+line, diamond, square, cross -- evaluated at the plate's angle and frequency, producing a 1-bit
+`CGImage` drawn onto the sheet.  Objects with their own screen are rendered to separate gray
+layers (one per distinct screen, in stacking order, each masked by its objects' coverage) and
+thresholded with their screen before compositing; `ignore_object_halftones` collapses them.
+Resolution: the queue's `NSPrintInfo` resolution, else `rasterize_dpi`.
+
+Rasterize output::
+The composite (or each plate) is rendered to an RGB (or gray) bitmap at `rasterize_dpi` and
+drawn as one image per sheet.  Marks and labels remain vector.
+
+=== Build tasks
+
+[[PRINT-007]]
+==== PRINT-007 Plate mapping in the renderer
+[horizontal]
+Track:: client-render
+Depends on:: PRINT-001, REND-002
+Size:: L
+Delivers:: `PlateContext` in `WTRender`: color-to-coverage resolution for process, spot, tint, RGB and Lab colors (through the CMS conversion service, stubbed with a fixed profile until CMS lands); knockout vs. overprint painting; gradient stop mapping; CMYK and RGB image channel extraction; rasterized-region handling; registration color.
+Done when::
+* A test document with a 100% cyan square over a 50% magenta square renders four plates: cyan shows the square black, magenta shows 50% gray with a white knockout where the cyan square sits; with overprint on the cyan fill the magenta plate is uninterrupted.
+* Gradients and images produce per-plate ramps matching a reference within 1/255 per pixel.
+* Rendering a plate reuses the composite display list without rebuilding it.
+* Reference plates for the corpus are committed and compared in CI.
+
+[[PRINT-008]]
+==== PRINT-008 Separations in the print plan
+[horizontal]
+Track:: import-export
+Depends on:: PRINT-006, PRINT-007
+Size:: M
+Delivers:: Plate sheets in `PrintPlan` (order C, M, Y, K, spots; skipped plates omitted; `spot_as_process` collapse), grayscale sheet contexts, per-plate separation-name labels with angle and frequency, negative and emulsion-down per sheet, and *Save as PDF* producing one PDF page per plate.
+Done when::
+* A two-spot document prints six sheets; clearing *Print* on yellow prints five; *Print spot colors as process* prints four.
+* Every plate carries registration marks and labels in the same device position (overlay test: marks coincide pixel-for-pixel across plates).
+* Negative inverts labels and marks too; emulsion down mirrors all sheets consistently.
+* Merge test: a remote change turning off a plate while the dialog is open updates the ink list and the sheet count before printing.
+
+[[PRINT-009]]
+==== PRINT-009 In-app halftone screener
+[horizontal]
+Track:: client-render
+Depends on:: PRINT-007
+Size:: L
+Delivers:: `Screener`: device-resolution gray rasterization of a plate, spot functions for the six shapes, angle/frequency thresholding, per-object screen layers with `ignore_object_halftones`, 1-bit output onto the sheet; `screen_in_app` wiring in `PrintPlan`.
+Done when::
+* A 50% black tint at 45°/60 lpi at 1200 dpi produces a dot pattern whose measured coverage is 50% ± 1% and whose period is 20 device pixels along the screen axis.
+* Each spot function matches its reference tile; a Line screen produces lines, not dots.
+* An object with a 15° screen inside a 45° document plate shows both patterns with a clean boundary at the object's edge.
+* A letter-size plate at 2400 dpi screens in under 4 s on M1, off the main actor, cancellable.
+endif::spec[]

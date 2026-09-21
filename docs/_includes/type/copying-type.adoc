@@ -1,0 +1,139 @@
+When one piece of text looks right, you can give other text the same look without retyping
+every setting.  *Copy Attributes* and *Paste Attributes* carry a complete set of type settings
+from one selection to another; the Eyedropper tool does the same with one click.  Text styles
+are the durable version of this -- a named look you apply repeatedly and can change everywhere
+at once (xref:text-styles.adoc[Text styles]).
+
+== Copy and paste attributes
+
+To copy type attributes from one selection to another:
+
+. Select the source: a block with the Pointer tool, or a range with the Text tool.
+. Choose menu:Edit[Special > Copy Attributes] (kbd:[Cmd+Option+C]).
+. Select the target text or blocks.
+. Choose menu:Edit[Special > Paste Attributes] (kbd:[Cmd+Option+V]).
+
+What travels:
+
+[cols="1,3"]
+|===
+|Group |Attributes
+
+|Character
+|Font, face, size, leading, range kerning, baseline shift, horizontal scale, text effect,
+text fill and stroke colors, small caps, language.
+
+|Paragraph
+|Alignment, ragged width and flush zone, space above and below, left, right and first-line
+indents, tabs and leaders, hyphenation settings, rules, hanging punctuation, keep options,
+word and letter spacing, paragraph style.
+
+|Not copied
+|The text itself, pair kerning, links, inline graphics, the block's size, inset, columns, and
+its own stroke and fill.
+|===
+
+With a *range* as the source, the character attributes come from the first character of the
+range and the paragraph attributes from its first paragraph.  With a *block* as the source, the
+same rule applies to the block's first character and paragraph.
+
+With a *range* as the target, character attributes apply to the selected characters and
+paragraph attributes to every paragraph the range touches.  With *blocks* as the target,
+everything applies to all of their text.
+
+Copied attributes stay on the attribute clipboard, separate from the ordinary clipboard, until
+you copy attributes again, so you can paste them onto many targets.  The same commands copy
+graphic attributes between paths (xref:copying.adoc[Copying objects]); when the source is a
+text block selected with the Pointer tool, both its text attributes and its block appearance
+are copied, and pasting onto a path applies the block appearance only.
+
+== The Eyedropper on text
+
+The Eyedropper tool (kbd:[I]) samples and applies with a click:
+
+. Choose the Eyedropper.
+. Click text or a block to pick up its attributes (the same set as Copy Attributes, sampled at
+  the character under the pointer).
+. kbd:[Option]-click other text or blocks to apply them.
+
+Hold kbd:[Shift] while kbd:[Option]-clicking to apply character attributes only; hold
+kbd:[Cmd] to apply paragraph attributes only.  The tool's options popover has the same two
+toggles for repeated use.
+
+== Working with others
+
+Pasting attributes is one change to the target; the source is untouched.  Characters a
+collaborator types inside your target range while you paste take the pasted look, exactly as
+if you had pasted before they typed.  If a collaborator changes one of the same settings on
+the same text at the same time, the later change shows for that setting and the rest of your
+paste stays.  Your attribute clipboard is yours alone and works offline.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,1"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Edit > Special > Copy Attributes / Paste Attributes for text
+|Same commands and shortcuts; the attribute set is enumerated above.
+|Faithful
+
+|Copies Character, Paragraph, Spacing options, tabs, indents, margins, text fill and stroke
+|Same.  "Margins" in {fh}'s list is read as indents; block insets are not copied.
+|Faithful
+
+|Eyedropper applies text attributes
+|Same; kbd:[Shift]/kbd:[Cmd] filters added.
+|Faithful (extended)
+|===
+
+=== Data model
+
+No new fields.  The attribute clipboard is client state: a resolved `TextMarkValue` set and a
+`ParagraphProps` value captured from the source.
+
+=== Merge semantics
+
+Paste Attributes emits one change ("Paste attributes"): one `TextMark` per copied character
+attribute over the target span (each mark is a separate register, so a concurrent remote
+change to one attribute only overrides that one), and one `SetFields` per target paragraph
+writing the copied `ParagraphProps` fields (each its own register; `tabs` is rewritten as a
+replacement of the sequence: delete existing elements, insert copies).  A concurrent tab edit
+by another replica on a target paragraph lands on a deleted element or beside the new ones;
+the review sheet lists the paragraph.  The paragraph `style` reference is copied as-is with
+its cache.
+
+=== Offline behavior
+
+Nothing beyond outbox coalescing.
+
+=== Server
+
+Nothing beyond storing and relaying changes.
+
+=== Client
+
+`WTModel` exposes `TextAttributeSet.capture(from:)` and `apply(to:)`; the Eyedropper tool
+(DRAW or OBJ epic's tool) calls the same API with the filters.  Undo: one step per paste or
+kbd:[Option]-click.
+
+=== Build tasks
+
+[[TYPE-031]]
+==== TYPE-031 Copy and paste text attributes
+[horizontal]
+Track:: client-model
+Depends on:: TYPE-020, TYPE-026
+Size:: S
+Delivers:: `TextAttributeSet` capture and apply, the attribute clipboard, menu:Edit[Special >
+Copy Attributes] / *Paste Attributes* for text sources and targets, the Eyedropper hooks with
+character/paragraph filters.
+Done when::
+* Capturing from a range and pasting onto a block reproduces every attribute in the table.
+* Pasting onto a path applies only block appearance.
+* Merge test: paste onto a paragraph while a remote replica adds a tab stop; the paragraph
+  converges and the review lists it.
+endif::spec[]

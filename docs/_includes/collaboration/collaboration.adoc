@@ -1,0 +1,425 @@
+A {product} document is never "checked out".  Everyone who has access to it can open it at the
+same time, and everyone edits the same document: the shape you drag, the color your colleague
+picks and the headline a third person retypes all land in one place, and each of you sees the
+others' work within a moment of it happening.  There is no Save button that sends work to the
+cloud -- every edit is saved and shared as you make it (xref:saving.adoc[Saving]) -- and there
+are no locks to wait for.  This page is the overview: what you see when other people are in
+the document, what happens when two of you touch the same thing, and how {product} handles the
+work you did while you were offline.  The details are on their own pages:
+xref:presence.adoc[Presence], xref:comments.adoc[Comments], xref:sharing.adoc[Sharing],
+xref:branches.adoc[Branches], xref:history.adoc[Version history] and
+xref:inspect.adoc[Inspect mode].
+
+NOTE: {fh} had no equivalent of anything in this chapter.  Its documents were files on one
+Mac, edited by one person at a time.  If you are arriving from {fh}, the one habit to unlearn
+is kbd:[Cmd+S]: in {product} it names a version rather than saving (xref:history.adoc[Version
+history]).
+
+// TODO screenshot: document window with three collaborators' avatars in the toolbar, two remote cursors and one remote selection outline on the canvas
+
+== What multiplayer means here
+
+* *Everyone edits at once.*  There is no "someone else has this open" dialog and no
+  read-only copy for the second person in.  Every editor works in the live document.
+* *Changes appear within a moment.*  A collaborator's edit shows on your canvas within a
+  fraction of a second on a normal connection.  Your own edits appear instantly for you; you
+  never wait for the network.
+* *There are no locks.*  Nobody can reserve an object, a layer or a page.  Locking an object
+  (xref:arranging.adoc[Arranging]) is a shared hint that every copy of {product} respects, but
+  it is not a fence: see <<locking,Locked objects>> below.
+* *Edits merge; they do not collide.*  Two people changing different things -- or even
+  different attributes of one object -- both keep their work.  When two people change the very
+  same attribute of the same object, the later change is kept and {product} shows you that it
+  happened.  Nothing is ever silently discarded: xref:history.adoc[Version history] keeps every
+  change, and the review that follows an offline session lets you take your value back.
+
+== Who is here
+
+Everyone with the document open appears as an avatar at the right end of the document window's
+toolbar, in the order they arrived.  Your own avatar is at the far right.  Each person has a
+color, which stays the same for that person in that document, and everything of theirs that
+you see on the canvas -- cursor, selection, text caret -- is drawn in it.
+
+Hover an avatar to see the person's name and what they are doing ("Editing Logo mark",
+"Viewing page 3", "Idle").  Click an avatar to follow that person: your view goes where theirs
+goes until you scroll or zoom on your own.  The full set of presence features -- colors,
+following, asking others to follow you, hiding cursors -- is on xref:presence.adoc[Presence].
+In xref:inspect.adoc[Inspect mode] you can also read a collaborator's selection -- its size,
+colors and type settings -- in the Inspect panel, and keep following them while you do.
+
+Talking about the work happens in the document too: a comment pinned to an object, with
+replies and mentions, is on xref:comments.adoc[Comments].
+
+== Seeing others work
+
+[cols="1,3"]
+|===
+|You see |Meaning
+
+|A colored arrow with a name
+|A collaborator's pointer.  It moves as theirs does.  When they are using a tool, its icon
+appears beside the name.
+
+|A colored outline around an object, with a name tag
+|The object is in that person's selection.  It is a hint, not a lock: you can still select and
+edit the object, and so can they.  If you do, you will both see the result.
+
+|A colored text caret with a name flag
+|Someone is editing that text block, at that position.  Their typing appears character by
+character.  You can edit the same block; your caret and theirs stay where each of you put
+them, even as the other types.
+
+|_Priya is editing this object_ under the object's name in the Object panel
+|The selected object is in a collaborator's selection right now.  Consider waiting a moment,
+or picking a different attribute -- both of you editing the same one at once means one of you
+will see the other's value win.
+
+|A brief colored pulse on an object
+|A collaborator just changed it (see <<same-thing,When two people change the same thing>>).
+|===
+
+You can turn each of these off in menu:View[Collaborators] or in Preferences
+(xref:presence.adoc[Presence]).
+
+== When someone deletes what you have selected
+
+If a collaborator deletes an object you have selected, it leaves your selection quietly: the
+object disappears, the Object panel shows whatever remains selected, and the status bar reads
+"Header bar deleted by Priya" for a few seconds.  Nothing else changes.  If you were in the
+middle of dragging it, the drag ends where the object vanished.
+
+The object is not gone for good.  A deleted object stays in xref:history.adoc[Version history]
+for 30 days, and the person who deleted it can undo.  If they moved on, you can restore it from
+the History panel yourself.
+
+[[same-thing]]
+== When two people change the same thing
+
+Live collisions are rare -- two people rarely change the same attribute of the same object in
+the same second -- and when they happen the rule is simple: *for each attribute, the later
+change wins*.
+
+* You set the fill of the star to red; at the same moment Tom sets it to blue.  The star ends
+  up blue if Tom's change was later, red if yours was.  The star's stroke, position and
+  everything else are untouched, because they are separate attributes.
+* You drag an object to the left; Tom drags the same object up.  While you both drag, the
+  object jumps between the two positions.  When you both let go, it sits where the later
+  release put it.  (Watch for the colored outline before dragging something someone else has
+  selected.)
+* You retype a headline while Tom fixes a typo in it.  Both edits land, character for
+  character, because text merges by character rather than as a whole.
+* You move an object to another layer while Tom deletes it.  It is deleted -- and, if it is
+  later restored, it is on the layer you moved it to.
+
+Whenever a collaborator changes an object, the object pulses briefly in their color with a
+small label ("Priya · Fill") so a change under your nose is never a mystery.  The Object panel
+also shows, for whatever is selected, who changed it last and when
+(xref:history.adoc[Version history]).  The pulse is the *Flash changes by others* preference,
+on by default.
+
+If a collaborator changes the attribute you are typing into, your field keeps what you have
+typed; the canvas shows their value; and when you press kbd:[Return] yours wins because it is
+the later change.  Press kbd:[Esc] instead to accept theirs (xref:object-panel.adoc[Object
+panel]).
+
+[[locking]]
+== Locked objects
+
+Locking an object in the Object panel or the Layers panel (xref:arranging.adoc[Arranging],
+xref:layers.adoc[Layers]) is shared: when you lock an object, it is locked for everyone with
+the document open, and their copy of {product} refuses to select or move it exactly as yours
+does.  Anyone with edit access can unlock it again.
+
+Locking protects against accidents, not against people.  Two cases are worth knowing:
+
+* Someone who was *offline* when you locked the object may have edited it in the meantime.
+  Their edits arrive when they reconnect, and they are kept: the object is locked *and* it
+  has their changes.  Their review (below) will show them what happened.
+* Locking and editing at the same moment both apply.  If Tom moves the object in the same
+  second that you lock it, the object is locked in its new position.
+
+If you need to stop others from changing part of a document, use access instead of locks:
+give them the viewer role, or work on a xref:branches.adoc[branch].
+
+== Working offline
+
+Everything about drawing works without a network.  Open the document (it must have been
+opened on this Mac at least once), work as long as you like, and your changes queue up
+locally; the title bar shows "Offline -- changes will sync" (xref:saving.adoc[Saving]).  On
+the plane you cannot share, create branches on the server, or browse history beyond what your
+Mac already holds (xref:sharing.adoc[Sharing], xref:history.adoc[Version history]); each of
+those buttons says why.
+
+When you reconnect, {product} first downloads what everyone else did, merges it with your
+queued changes, and then sends yours.  Three things can happen:
+
+Nothing overlapped and neither side did much::
+Your changes go up, theirs are already on your canvas, and a short toast says "Merged 214
+changes from Priya and Tom".  Done.
+
+Nothing overlapped, but a lot changed on one side or a long time passed::
+The same silent merge, but the toast offers *Review what changed*, which opens the Review
+Changes sheet (below) so you can look around before you carry on.  Your changes are already
+sent.
+
+You and someone else changed the same objects::
+Your changes are *held back* and the Review Changes sheet opens with the objects you both
+touched.  Nothing leaves your Mac until you decide.  You can keep working in the meantime.
+
+Whichever happens, no work of yours is lost, even if a value of yours lost to a later change:
+the review can put it back.
+
+[[review]]
+== The Review Changes sheet
+
+The sheet appears over the document window when a merge needs your judgment, and you can
+open it yourself at any time with menu:File[Review Merge…] while the merge is still recent
+(30 days).  It can be resized and dismissed; dismissing it accepts the merged result and sends
+your changes.
+
+// TODO screenshot: Review Changes sheet with the Conflicts filter selected and an object in Overlay preview
+
+.The header
+It tells you the size of what happened: how many changes you made offline and for how long,
+how many each collaborator made, and how many objects both you and someone else changed.
+
+.Filters
+[horizontal]
+Everything:: Every object that changed on either side.
+Conflicts:: Only the objects both you and someone else changed.  Selected by default when
+there are any.
+Mine:: Objects only you changed.
+Theirs:: Objects only others changed, grouped by person.
+
+.The list
+Each row is one object, named as in the Object panel, with the kind of overlap in plain words:
+
+[cols="1,3"]
+|===
+|Kind |Meaning
+
+|Both edited
+|You and someone else changed different attributes of the object.  Both sets of changes are
+kept; the row is here so you can check the combination looks right.
+
+|Same attribute
+|You and someone else changed the *same* attribute.  One value won.  If yours lost, the row
+is always listed, whatever the size of the merge.
+
+|Edited and deleted
+|One of you edited the object and the other deleted it.  It is currently deleted, with the
+edits kept on it.
+
+|Both moved
+|You and someone else moved or transformed the object.  The later move won.
+
+|Same text
+|You both edited the same paragraph of a text block.  The result is a character-by-character
+merge, shown as a diff.
+|===
+
+Select a row to see it in the preview.
+
+.The preview
+The object drawn in place, zoomed to fit, with everything else dimmed.  Four buttons above it:
+
+[horizontal]
+btn:[Mine]:: The object as it was when you went offline plus your changes.
+btn:[Theirs]:: The object as your collaborators left it.
+btn:[Merged]:: The object as it is now, after merging.  The default.
+btn:[Overlay]:: Mine and Theirs drawn on top of each other at half strength, the way designers
+compare two revisions.  Click again to turn it off.
+
+Under the preview, each attribute that differs is listed with both values and a mark on the
+one the merge kept.
+
+.Choices for one object
+[horizontal]
+btn:[Use mine]:: Re-applies your value for every differing attribute.  This is a new change
+of yours, made now, so it wins -- and it is undoable like any change.
+btn:[Use theirs]:: Keeps what is there and marks the row reviewed.  Nothing is written.
+btn:[Keep both copies]:: Leaves the merged object as it is and adds a copy with your version
+next to it, offset by the *Keep both offset* preference, with a note in the Object panel
+("Copy from Priya's offline edits, 14 March").  Offered for _Same attribute_, _Both edited_
+and _Both moved_ rows.
+btn:[Restore]:: For _Edited and deleted_ rows: brings the object back, with the edits.
+Paragraph choices:: For _Same text_ rows the same three choices -- mine, theirs, both -- are
+offered per paragraph, under the diff.
+
+You can make a choice, look at another row, and come back; choices apply as you make them and
+each is one undo step.
+
+.Choices for the whole document
+[horizontal]
+btn:[Keep the merged result]:: The default.  Sends your changes with whatever per-object
+choices you made.
+btn:[Save my version as a copy…]:: Creates a *new document* holding your version -- the
+document as it was when you went offline plus all your offline changes -- and sends nothing
+to the shared document, which goes back to what your collaborators left.  Nobody's work is
+lost; you now have two documents.
+btn:[Keep my changes on a branch]:: Like the copy, but as a xref:branches.adoc[branch] of the
+shared document, so it can be merged later with this same review.
+btn:[Done]:: Closes the sheet and sends.
+
+While the sheet is open you can keep editing the document; anything you do joins the changes
+that are sent when you press btn:[Done].
+
+== Roles at a glance
+
+Who may do what is set per document in the Share sheet (xref:sharing.adoc[Sharing]).
+
+[cols="1,3"]
+|===
+|Role |May
+
+|Viewer
+|Open the document (in xref:inspect.adoc[Inspect mode] by default), follow collaborators,
+read comments, view history, export and print.  Cannot change anything, not even locally.
+
+|Commenter
+|Everything above, plus comment: start threads, reply, mention people, react, and resolve
+their own threads (xref:comments.adoc[Comments]).  Cannot change the artwork.
+
+|Editor
+|Everything above, plus edit, resolve any thread, name versions, create and merge branches,
+and invite others at their own role or below.
+
+|Owner
+|Everything above, plus remove people, change or revoke share links, transfer ownership, move
+the document to another space, and delete it.
+|===
+
+ifdef::spec[]
+== Specification
+
+This page owns the user-facing description of the multiplayer surface and three cross-cutting
+pieces: change attribution ("changed by X just now"), the *compare mode* of the review sheet
+that xref:branches.adoc[Branches] and xref:history.adoc[Version history] reuse, and the
+collaboration scenarios in the multi-client simulator.  The review sheet itself is
+xref:backlog.adoc#SYNC-007[SYNC-007]; the rules that decide when it opens are
+xref:reconcile.adoc[Reconciling offline edits] and xref:backlog.adoc#SYNC-006[SYNC-006].  The
+guide text above is normative for the sheet's vocabulary: every control named there exists
+with that title.
+
+=== FreeHand parity
+
+[cols="2,3,2"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|--
+|Simultaneous multi-user editing, presence, live merge, offline reconcile.
+|Added -- no FreeHand equivalent
+
+|Locked objects (Modify > Lock)
+|Same user-facing control (owned by xref:arranging.adoc[Arranging]); here it becomes a shared
+register that every client's UI respects but the server does not enforce.
+|Adapted -- a lock cannot be enforced against an offline editor without losing their work;
+advisory locking plus roles and branches gives the same protection.
+|===
+
+=== Data model
+
+Nothing in the document.  Attribution reads the retained change log: each applied change
+carries `Change.replica` and `wall_time_ms`; the client maps replica to person through the
+`author` the server attaches when it sequences a change (xref:presence.adoc[Presence] adds
+`SequencedChange.author`, COLLAB-004).  The 30-day window for menu:File[Review Merge…] is the
+local `changes` table (xref:offline.adoc[Offline]), which keeps the merged-from head.
+
+=== Merge semantics
+
+The guide's rules restated in engine terms (xref:crdt-model.adoc[CRDT model]):
+
+* "Later change wins per attribute" is LWW by `OpId` on each register.  Same-second live
+  collisions are decided by Lamport counter, then replica id; wall time is never consulted.
+* Drag vs. drag on one object is repeated `SetFields` on `CommonProps.transform` (ATOMIC) from
+  two replicas; the canvas shows the current register value, which alternates until both stop.
+  The outbox coalesces each side's drag into one op (xref:offline.adoc[Offline]) only while
+  offline; live drags stream at the presence rate so both see motion.
+* Selection of a node that a remote change deletes: `APP-006` drops the id from the selection
+  when `deleted` becomes true and posts the status-bar notice with the change's author.  A
+  drag in progress on that node ends; its `SetFields` is still applied (edits to deleted nodes
+  apply) and comes back on restore.
+* Locked: `CommonProps.locked` is an ordinary register.  Client commands refuse to target a
+  node whose `locked` reads true; the engine and server apply any op regardless.  Concurrent
+  lock and edit both apply.  The review sheet lists an object edited offline while locked
+  remotely as `Both edited` with `Locked` among the differing attributes.
+* Attribution flash: on applying a remote change, the client posts `(node ids, author,
+  register names)` to the overlay; the flash lasts 1.5 s and never repaints the tiles under it
+  (it is drawn on the presence overlay layer, xref:presence.adoc[Presence]).
+
+What the review sheet shows is specified on xref:reconcile.adoc[Reconciling offline edits];
+the mapping from overlap kinds to the guide's words is: `both edited` → _Both edited_,
+`same register` → _Same attribute_, `edit vs delete` → _Edited and deleted_,
+`move vs move` → _Both moved_, `same text` → _Same text_.
+
+*Compare mode* (COLLAB-002) generalizes the sheet to any two document states A and B plus an
+optional current state C: a branch against its parent (A = parent head, B = branch head,
+C = parent head), two versions (A, B; no C; read-only), a version against now (A = version,
+B = C = current).  The list is the set of nodes whose registers, parent, position, deleted
+flag, sequence elements or text differ between A and B; the *Mine/Theirs/Merged/Overlay*
+buttons are retitled by the caller (`Main/Branch/Merged`, `Older/Newer`), and the per-object
+choices are enabled only when the caller supplies a write target.
+
+Read-time normalization: none on this page.
+
+=== Offline behavior
+
+The guide's three outcomes are the decision rules of xref:reconcile.adoc[Reconciling offline
+edits].  Attribution for changes made offline shows the author's name as soon as the change is
+sequenced; until then the flash is suppressed (the local user's own changes never flash).
+
+=== Server
+
+Nothing beyond storing and relaying changes.  The server attaches `author` to every
+`SequencedChange` (COLLAB-004, COLLAB-005) so clients need no replica-to-user lookup.
+
+=== Client
+
+* `WTApp/Collaboration`: `AttributionFlashController` (observes applied remote changes from
+  `WTSync`, drives the overlay), `ReviewSheet` compare-mode host (SwiftUI over the SYNC-007
+  sheet), `CollaborationStatus` (status-bar notices: deleted-by, merged-from toast).
+* Overlay drawing lives on the presence overlay `CALayer` above the tiled canvas, so flashes
+  and cursors never invalidate document tiles.
+* Undo grouping: every review-sheet choice is one change with a label (`Use my fill for Logo
+  mark`, `Keep both copies of Star badge`, `Restore Header bar`).
+
+=== Build tasks
+
+[[COLLAB-001]]
+==== COLLAB-001 Change attribution flash and status notices
+[horizontal]
+Track:: client-ui
+Depends on:: REND-004, SYNC-003, APP-006
+Size:: M
+Delivers:: The "changed by X just now" pulse on nodes touched by remote changes (author, register names, 1.5 s, collaborator color, drawn on the overlay layer), the *Flash changes by others* preference, the status-bar notice when a selected node is deleted remotely, and the "Merged N changes from A, B" toast with *Review what changed*.
+Done when::
+* A remote `SetFields` on a visible node pulses it once with the author's name and the attribute name within one frame of application; the pulse repaints no document tiles (verified by tile invalidation counters).
+* A burst of 1,000 remote changes coalesces into at most one pulse per node per 1.5 s window.
+* Deleting a node another client has selected removes it from that client's selection and shows the notice with the author; a drag in progress ends cleanly (UI test through TEST-001 + TEST-002).
+* Merge test: two clients drag one node concurrently; both end with the same `transform` register and the loser sees the pulse.
+
+[[COLLAB-002]]
+==== COLLAB-002 Review sheet compare mode
+[horizontal]
+Track:: client-ui
+Depends on:: SYNC-007, CRDT-009
+Size:: M
+Delivers:: A `DocumentComparison(a:b:current:)` model over two `DocumentSnapshot`s plus an optional live state, computing the changed-node list with overlap kinds, and the review sheet hosted in compare mode with retitlable state buttons, read-only operation when no write target is supplied, and per-object choices when one is.
+Done when::
+* Comparing the design-point document against a copy with 1,000 changed nodes lists them in under 300 ms.
+* Overlay renders A and B at 50% in the preview for paths, text and images.
+* Per-object *Use mine* in compare mode emits a change re-asserting A's registers on the write target; *Use theirs* writes nothing.
+* Merge test: re-assertions from compare mode concurrent with a live edit of the same node resolve by OpId and both replicas converge (hash equality).
+
+[[COLLAB-003]]
+==== COLLAB-003 Collaboration scenarios in the simulator and UI tests
+[horizontal]
+Track:: test
+Depends on:: TEST-001, TEST-002, COLLAB-001, COLLAB-002
+Size:: M
+Delivers:: Scripted scenarios for the guide's cases: same-attribute collision, drag vs. drag, delete vs. move, lock vs. offline edit, text co-editing, each of the three reconnect outcomes, and every review-sheet choice; run against two server nodes with packet loss.
+Done when::
+* Every scenario asserts hash convergence on all clients and the exact review-sheet rows shown (kind and attribute names).
+* Screenshots of the review sheet and the presence overlay are captured into `docs/images` for this chapter.
+endif::spec[]

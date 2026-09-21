@@ -1,0 +1,270 @@
+A profile is a small file that describes a device's color behavior: which colors it can
+reproduce and how its numeric values map to colors the eye can see.  Profiles follow the
+International Color Consortium (ICC) standard; {product} reads ICC version 2 and version 4
+profiles.  Manufacturers ship profiles for their displays, printers and paper stocks; standards
+bodies publish profiles for common press conditions; and calibration software builds custom
+profiles by measuring a device.  A custom profile measured on your own device is always more
+accurate than a generic one.
+
+{product} draws its profiles from three places:
+
+Bundled::
+Profiles shipped inside the app so every collaborator has them: sRGB, Display P3, a generic
+gray, *Default CMYK* (a standard coated press condition), and the freely redistributable
+press standards.  These are the defaults and the safe choice when you do not know the
+output device.
+
+Installed on this Mac::
+The ICC profiles macOS knows about: `/Library/ColorSync/Profiles`,
+`~/Library/ColorSync/Profiles`, the system's own, and any a printer driver or calibrator
+installed.  Choosing one copies it into the document, so it travels with the artwork.
+
+Loaded from a file::
+Any `.icc` or `.icm` file, through *Other…* in a profile menu.  It too is copied into the
+document.
+
+NOTE: {fh} named its two printer profiles *Separations Printer* and *Composite Printer* and
+kept them in Preferences.  In {product} the Separations Printer is the document's *Working
+CMYK* profile and the Composite Printer is chosen in the document's proof setup, both in
+menu:File[Color Settings…].  {fh}'s rules about `.icm` extensions and 27-character names do
+not apply on macOS.
+
+== Which profile goes where
+
+[cols="1,3"]
+|===
+|Menu |Choose
+
+|Working RGB
+|An RGB profile: the space the document *outputs* RGB in -- the target of *Convert to RGB*,
+the space of RGB bitmap exports, and the profile assumed for RGB images with none.  sRGB for
+screen and web work; Display P3 or Adobe RGB when your images come from a wide-gamut camera
+or you print through a wide-gamut RGB workflow.  The colors you mix are not affected: each
+carries its own space (xref:spot-process.adoc[Spot and process colors]), and an export that
+holds Display P3 colors is written in Display P3 even when this is sRGB
+(<<output,Profiles on export and print>>).
+
+|Working CMYK
+|The CMYK profile of the press or the paper standard the job will be printed to -- your
+printer will name one.  *Default CMYK* gives acceptable results on most presses when you do
+not have that information.  Separations are computed for this profile
+(xref:printing.adoc[Printing]).
+
+|Composite Printer
+|A CMYK or RGB profile for the composite proofer used for proofs; usually the one the
+proofer's vendor or RIP supplies.
+
+|Default RGB image source
+|The RGB profile assumed for images that carry none.  Leave it at the working RGB profile
+unless most of your images come from a known device such as a scanner with its own profile
+(xref:image-color.adoc[Managing image color]).
+|===
+
+== Choosing a profile
+
+To choose a working or proof profile:
+
+. Choose menu:File[Color Settings…].
+. Open the menu for the slot you want (Working RGB, Working CMYK, Composite Printer, Default
+  RGB image source).  Each menu shows only profiles of the right kind: RGB slots list RGB
+  profiles, the CMYK slot lists CMYK profiles, and the Composite Printer slot lists both.
+. Pick a profile from the *Bundled*, *In this document* or *Installed* groups, or choose
+  *Other…* and select an `.icc` file.
+. Click btn:[OK].
+
+// TODO screenshot: the Working CMYK menu open, showing the three groups and Other…
+
+*In this document* lists every profile already carried by the document -- ones chosen earlier
+and ones that arrived embedded in images -- so you can, for example, set the working RGB space
+to the profile a batch of photographs came with.
+
+== Managing the document's profiles
+
+Profiles that were copied into the document stay in it as long as something refers to them.
+The Color Settings sheet's btn:[Profiles…] button lists them with their size and what uses
+them (working space, proof, or the names of images), and lets you export one to a file for a
+colleague who works in another application.  A profile nothing refers to any more is dropped
+from the document automatically.
+
+[[output]]
+== Profiles on export and print
+
+When you export to a format that can carry a profile -- PDF, TIFF, PNG, JPEG, WebP, HEIC,
+AVIF, PSD -- the export options offer *Embed color profile* (default: on), which writes the
+profile of the exported color model into the file, and for PDF/X output the working CMYK
+profile becomes the output intent (xref:export-formats.adoc[Export formats],
+xref:export-pdf.adoc[Exporting PDF]).  Printing separations uses the working CMYK profile;
+printing to a composite device with *Composite simulates separations* on converts through the
+working CMYK profile first (xref:printing.adoc[Printing]).  Those pages document the options;
+this page is where the profiles they use are chosen.
+
+Wide-gamut colors::
+An RGB export is normally written in the Working RGB profile.  When the artwork holds colors
+outside sRGB -- Display P3, Lab or OKLab colors that sRGB cannot show -- and Working RGB is
+narrower than Display P3, {product} writes the export in Display P3 with the profile embedded
+instead, so the colors arrive intact (xref:export-bitmap.adoc[Exporting bitmaps]).  With
+*Embed color profile* off, such a file would be read as sRGB by everything that opens it, so
+the colors are pulled into sRGB and the export summary says so.  PDF keeps Display P3 colors
+tagged with their profile and adds an output intent naming it (xref:export-pdf.adoc[Exporting
+PDF]); HTML and SVG write them the way browsers read them, with an sRGB version beside each
+(xref:publish-html.adoc[Publishing as HTML]).  Separations and *Convert to CMYK* convert from
+each color's own space through the working CMYK profile, so a Display P3 color separates as
+faithfully as the press allows.
+
+== Working with others
+
+Any profile you choose or load is part of the document and reaches your collaborators with
+your next synced change.  Loaded profile files are small and are sent ahead of images, so the
+wait is short; until a collaborator has received one, their canvas uses the nearest bundled
+profile and their status bar shows *profile pending*.  Two people choosing different profiles
+for the same slot at the same time is resolved in favor of the later choice, and the earlier
+one is offered back in the review sheet (xref:color-management.adoc[Color management]).
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,2"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Reads ICC v2 profiles from vendor and custom sources
+|Reads ICC v2 and v4 through ColorSync.
+|Faithful.
+
+|Profile naming conventions (`.icm`, 27 characters, no special characters)
+|Any name macOS accepts; the document stores the profile's description tag and hash.
+|Dropped: cross-platform file naming; no Windows client.
+
+|Profile folder locations (FreeHand ICM folder, ColorSync folders)
+|Installed profiles enumerated from the standard macOS ColorSync locations; chosen profiles
+are copied into the document.
+|Adapted: the document, not a folder, is the unit shared between collaborators.
+
+|Separations Printer profile: Default (CMYK) or an ICC CMYK profile
+|Working CMYK: *Default CMYK* bundled profile or any CMYK profile.
+|Faithful (renamed).
+
+|Separations Printer: Hexachrome profile (six-color output)
+|Not offered.
+|Dropped: six-color separation is outside the PRINT epic's scope and Core Graphics has no
+N-color output path; recorded in xref:decisions.adoc[Decisions].
+
+|Composite Printer profile (CMYK and RGB profiles)
+|Composite Printer in proof setup, CMYK or RGB.
+|Faithful.
+
+|Monitor profile chosen in the setup dialog
+|Taken from the display.
+|Adapted: see xref:monitor-calibration.adoc[Calibrating your display].
+
+|--
+|Wide-gamut output: RGB exports written in Display P3 when the artwork needs it, PDF objects
+tagged with the Display P3 profile, CSS Color 4 values with sRGB fallbacks for the web.
+|Added: {fh}'s outputs predate wide-gamut displays and CSS Color 4.
+|===
+
+=== Data model
+
+The `ProfileRef` message is defined on xref:color-management.adoc[Color management].  A
+custom profile's bytes are a blob; the document records the reference in an asset node so
+that retention, the *Profiles…* list and garbage collection are uniform with images and fonts.
+
+[source,protobuf]
+----
+// One custom ICC profile carried by the document, under the `assets` node (0:9).
+// Created when a non-bundled profile is first chosen or extracted from an image; a node is
+// created per distinct sha256 (a client that finds an existing node reuses it).
+message ProfileAssetProps {
+  // The profile this asset holds.  ATOMIC and written once at creation.
+  ProfileRef profile = 1 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Size of the ICC data in bytes, for the Profiles… list without fetching the blob.
+  uint64 size = 2;
+}
+----
+
+Fields elsewhere (`ColorSettings.*_profile`, `ImageColorSettings.source_profile`) hold a
+`ProfileRef` directly, not a `NodeRef` to the asset, so that a dangling asset never affects
+rendering: the hash alone is enough to find the blob.
+
+=== Merge semantics
+
+* `ProfileAssetProps.profile` is written once; concurrent creation of two asset nodes for the
+  same hash by two replicas is harmless -- both exist, both name the same blob, and the
+  *Profiles…* list de-duplicates by hash.  Read-time normalization: assets with equal hashes
+  are presented as one.
+* Deleting a profile asset never happens by user action.  A client that observes no reference
+  to a hash anywhere in the merged state after the deleted-node compaction window marks the
+  asset `deleted`; if a concurrent edit re-references the hash, the reference still renders
+  (it needs only the hash and the blob, which retention keeps while any retained change names it).
+* Choosing a profile is a `SetFields` on the referencing register; see
+  xref:color-management.adoc[Color management] for the working-space cases and review rule.
+
+=== Offline behavior
+
+Choosing an installed or file profile offline creates the asset node and queues the blob;
+the change carries the hash immediately.  Exporting a profile to a file needs only the local
+blob cache, which holds every profile the document has referenced since it was opened here.
+
+=== Server
+
+Stores profile blobs through `BlobService` like any other blob.  Nothing else.
+
+=== Client
+
+* Profile menus are `NSPopUpButton`s built from `ProfileRegistry` (CMS-002): sections
+  *Bundled*, *In this document* (asset nodes), *Installed* (ColorSync enumeration filtered
+  by `ProfileSpace`), then *Other…* (`NSOpenPanel` with UTType `com.apple.colorsync-profile`).
+* *Profiles…* is a sheet with an `NSTableView` (name, space, size, used by) and btn:[Export…]
+  writing the blob bytes to a file.
+* Export and print integration is an API, not UI: `WTColor.OutputContext` gives
+  `WTInterchange` the working profiles' ICC data and the resolved intent, so the IO and PRINT
+  epics need no knowledge of profile storage.  For wide-gamut output (CMS-015) it also
+  answers `widestSpaceUsed` (sRGB, Display P3, or beyond P3, scanned over every resolved
+  `Color` in the document: fills, strokes, gradient stops, text marks, swatches, guides),
+  `rgbExportSpace` (Working RGB, or Display P3 when `widestSpaceUsed` exceeds sRGB and Working
+  RGB is not wider than P3), the bundled Display P3 ICC bytes for embedding, a `CGColorSpace`
+  or ICC stream for each `ColorSpace` value, and a CSS Color 4 serializer that pairs every
+  wide-gamut value with its sRGB fallback (gamut-mapped by COLOR-024).
+
+=== Build tasks
+
+[[CMS-010]]
+==== CMS-010 Profile asset nodes and Profiles… sheet
+[horizontal]
+Track:: client-model
+Depends on:: CMS-004, CMS-008
+Size:: M
+Delivers:: `ProfileAssetProps`, creation-or-reuse of the asset node when a non-bundled profile is chosen or extracted from an image, the reference scan that marks unreferenced assets deleted after the compaction window, and the *Profiles…* sheet with export.
+Done when::
+* Choosing the same installed profile on two Macs concurrently produces two asset nodes that the *Profiles…* list shows as one; conformance vector committed.
+* Merge test: A removes the last reference while B adds a new one; the profile remains available and rendering on both sides is unaffected.
+* Exported profile bytes hash to the asset's `sha256`.
+
+[[CMS-011]]
+==== CMS-011 Output color context for export and print
+[horizontal]
+Track:: import-export
+Depends on:: CMS-003, CMS-008
+Size:: M
+Delivers:: `WTColor.OutputContext` in `WTInterchange`: resolved working profiles with ICC bytes, document intent, per-image source profiles, the proof chain for *Composite simulates separations*, a `CGColorSpace` and ICC stream for every `ColorSpace` value a `Color` can carry (sRGB, Display P3, Lab D50; OKLab resolves to Display P3 for output), conversion of a tagged `Color` from its own space to any output profile through CMS-003, and helpers to embed a profile in TIFF/PNG/JPEG/PSD metadata and to produce a PDF output intent dictionary from any profile.  The IO and PRINT epics consume it from their own tasks; CMS-015 adds the wide-gamut rules on top.
+Done when::
+* An exported TIFF's embedded profile hashes to the document's working profile of the image's model.
+* A PDF/X export's output intent names the working CMYK profile; a PDF viewer's proof of the file matches {product}'s soft proof within 2/255.
+* Printing a CMYK fill to a composite RGB device with *Composite simulates separations* on passes through the CMYK profile before the device profile (unit test on the transform chain).
+* A Display P3 fill and an OKLab fill separate to Working CMYK through their own spaces; the result for a P3 red differs from the same components read as sRGB (unit test on the chain), and the OKLab route through Lab matches the P3 route within 1/255.
+
+[[CMS-015]]
+==== CMS-015 Wide-gamut output
+[horizontal]
+Track:: import-export
+Depends on:: CMS-011
+Size:: M
+Delivers:: On `WTColor.OutputContext`: `widestSpaceUsed` (the document gamut scan over every resolved `Color`, cached and invalidated by the swatch-dependents index), `rgbExportSpace` (Working RGB, or Display P3 when the scan finds colors outside sRGB and Working RGB is not wider than P3), the bundled Display P3 ICC bytes for embedding, PDF helpers (an `/ICCBased` Display P3 color-space object shared by every P3 object in the file, `/Lab` with the D50 white point, a Display P3 output intent for PDFs without a PDF/X standard, and the PDF 1.7 gate below which P3 objects are converted to the destination RGB profile and listed in the fix report), the CSS Color 4 serializer with sRGB fallback (`#rrggbb` gamut-mapped through COLOR-024, followed by `color(display-p3 r g b)`, `oklch(l c h)` or `lab(l a b)`), and the export warning "N colors outside sRGB were clipped" for RGB output that carries no profile.  IO-021, IO-024, IO-025 and WEB-008 consume these from their own tasks.
+Done when::
+* A document with one P3 fill exports PNG, TIFF, WebP, HEIC and AVIF tagged Display P3 and the pixel of that fill decodes to the same P3 value within 1/255; the same document after *Convert to sRGB* on that swatch exports tagged with Working RGB.
+* A PDF 1.7 export of the corpus keeps P3 fills as `/ICCBased` objects that Preview and Acrobat show as P3 (screen difference against the app under 2/255 on a P3 display) with a Display P3 output intent; a PDF 1.4 export converts them and lists them in the fix report; PDF/X-4 keeps them tagged with the CMYK output intent and PDF/X-1a converts them.
+* The serializer's output for the WPT `css-color-4` serialization vectors matches; every emitted wide-gamut value is preceded by an sRGB fallback, and a headless WebKit run with CSS Color 4 disabled renders the fallback.
+* With *Embed color profile* off, the warning names the count and the export is sRGB with COLOR-024's mapping, byte-identical across Macs.
+endif::spec[]

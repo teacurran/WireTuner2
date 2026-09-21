@@ -1,0 +1,7 @@
+= Importing text
+include::_attributes.adoc[]
+:page-slug: importing-text
+:page-group: Type
+:page-fh: Chapter 8, "Importing text"
+
+include::_includes/type/importing-text.adoc[]

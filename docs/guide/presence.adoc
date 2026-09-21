@@ -1,0 +1,7 @@
+= Presence: who is here and what they are doing
+include::_attributes.adoc[]
+:page-slug: presence
+:page-group: Collaboration
+:page-fh: None -- addition (no FreeHand equivalent)
+
+include::_includes/collaboration/presence.adoc[]

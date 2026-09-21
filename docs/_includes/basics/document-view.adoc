@@ -1,0 +1,632 @@
+How you look at a document is separate from what is in it.  You can zoom from 6% to 25,600%,
+scroll anywhere on the pasteboard, turn the whole canvas to the angle your hand prefers,
+switch between drawing modes that trade fidelity for speed, open the same document in several
+windows, and save views by name so you can return to a detail with one click.  Everything on
+this page except named views is private to your Mac; named views are part of the document and
+are shared with your collaborators.
+
+// TODO screenshot: the View menu, fully expanded, with the Magnification and Custom submenus.
+
+== The View menu
+
+[cols="1,1,3"]
+|===
+|Command |Shortcut |What it does
+
+|Fit Selection |kbd:[Cmd+Option+0] |Zooms so the selected objects fill the window.
+|Fit to Page |kbd:[Cmd+Shift+W] |Fits the current page in the window.
+|Fit All |kbd:[Cmd+Option+Shift+W] |Fits every page in the window.
+|Magnification ▸ |see below |Preset zoom levels from 25% to 800%.
+|Zoom In / Zoom Out |kbd:[Cmd+=] / kbd:[Cmd+-] |Steps to the next preset level, keeping the window center.
+|Custom ▸ |-- |New…, Edit…, Previous, and the named views of this document.
+|Rotate Canvas ▸ |-- |Rotate Clockwise and Rotate Counter-clockwise in 15° steps, and Reset (below).
+|Preview in Browser |kbd:[Cmd+Return] |Opens the current page in your web browser (below).
+|Keyline |kbd:[Cmd+K] |Toggles Keyline and Preview modes.
+|Fast Mode |kbd:[Cmd+Shift+K] |Toggles the fast drawing modes.
+|Panels |-- |Shows or hides all panels (xref:panels.adoc[Using panels]).
+|Toolbars |-- |Shows or hides all toolbars (xref:toolbars.adoc[Toolbars]).
+|Show Tab Bar |-- |Shows the document tab bar even with one document (xref:workspace.adoc[The workspace]).
+|Page Rulers ▸, Text Rulers |-- |xref:rulers.adoc[Rulers].
+|Grid ▸, Guides ▸ |-- |xref:grid-guides.adoc[Grid and guides].
+|Snap to Point, Snap to Object |-- |xref:moving.adoc[Moving].
+|Smart Guides |kbd:[Cmd+U] |Alignment guides that appear while you drag (xref:moving.adoc#smart-guides[Moving]).
+|Perspective Grid ▸ |-- |xref:perspective.adoc[Perspective].
+|Show All / Hide Selection |kbd:[Cmd+Shift+Option+H] / kbd:[Cmd+Shift+H] |xref:selecting.adoc[Selecting].
+|===
+
+NOTE: {fh}'s menu:View[Portfolio Info] is gone; document keywords live in
+xref:file-info.adoc[File info].
+
+== Zooming
+
+To zoom with the Zoom tool::
+. Select the Zoom tool (kbd:[Z]), or hold kbd:[Cmd+Space] to use it without leaving your
+  current tool.
+. Do one of the following:
+* Click to zoom in one step, centered on the click.
+* Drag a rectangle to zoom so that area fills the window.
+* kbd:[Option]-click to zoom out one step, or kbd:[Option]-drag to fit the window's current
+  view into the dragged rectangle.
+* kbd:[Control]-click to jump to the maximum magnification; kbd:[Control+Option]-click to jump
+  to the minimum.
+* kbd:[Shift]-drag to define a named view of the dragged area (below).
+
+To zoom with the magnification field::
+Click the magnification field in the status bar, type a percentage or a multiplier (`6`,
+`400%`, `12x`; up to `256x`), and press kbd:[Return]; or open its pop-up and choose a preset,
+a Fit command or a named view.
+
+To zoom with the menu::
+Choose menu:View[Magnification] and a level: 25% kbd:[Cmd+Shift+5], 50% kbd:[Cmd+5], 100%
+kbd:[Cmd+1], 200% kbd:[Cmd+2], 400% kbd:[Cmd+4], 800% kbd:[Cmd+8].
+
+To zoom with a trackpad or mouse::
+Pinch on a trackpad, or hold kbd:[Option] and scroll.  Zooming centers on the pointer.  Pinch
+zoom is continuous rather than stepped.  Double-tap with two fingers on a trackpad, or with
+one finger on a Magic Mouse, to *smart zoom*: the view zooms to fit the object under the
+pointer, or to the page if there is none; double-tap again to go back.
+
+To zoom with a context menu::
+kbd:[Control]-click an empty area of the pasteboard and choose a level from the *View*
+submenu (xref:context-menus.adoc[Context menus]).
+
+== Scrolling
+
+* Scroll with the trackpad or mouse wheel in any direction; kbd:[Shift]-scroll moves
+  horizontally on a mouse wheel.
+* Hold kbd:[Space] and drag to pan with the Hand tool (kbd:[H]), whatever tool is active.
+  While typing in a text block, use the Hand tool from the Tools panel instead.
+* The scroll bars appear on hover in the macOS style; the pasteboard's edge is the limit.
+* Dragging an object or a guide to the window's edge scrolls the view automatically; turn off
+  the guide behavior with *Dragging a guide scrolls the window* in *General* preferences.
+
+== Rotating the canvas
+
+Illustrators turn the paper.  {product} lets you turn the canvas -- pages, artwork, rulers,
+grid and guides together -- to any angle, so that a stroke you find awkward becomes a
+comfortable one.  Rotation changes only how the document is shown on your screen: nothing in
+the document turns, nothing prints differently, and collaborators see no change.
+
+// TODO screenshot: a page rotated about 20° counter-clockwise, with rulers and guides turned
+// with it and the compass in the status bar showing 20°.
+
+To rotate the canvas::
+Do one of the following:
+
+* On a trackpad, place two fingers on it and turn them, as you would rotate a photo.  The
+  canvas turns about the point between your fingers.  Hold kbd:[Shift] to snap to 15° steps.
+* Choose menu:View[Rotate Canvas > Rotate Clockwise] or menu:View[Rotate Canvas > Rotate
+  Counter-clockwise].  Each turns the canvas 15° about the middle of the window.
+* On a Wacom tablet, set the Touch Ring to *Rotate* in the tablet's settings; turning the
+  ring turns the canvas.  ExpressKeys can be assigned the menu commands.
+
+To straighten the canvas::
+Choose menu:View[Rotate Canvas > Reset], or click the *compass* in the status bar.  The
+compass is a small needle beside the magnification field that shows which way the top of the
+page is pointing and the angle in degrees; it is hidden while the canvas is straight.
+
+While the canvas is turned:
+
+* Rulers, the grid, ruler guides and smart guides turn with the page, so a horizontal guide is
+  still parallel to the top of the page.
+* kbd:[Shift] constraints, the *Constrain angle* and the arrow keys are measured on the page,
+  not the screen: a kbd:[Shift]-constrained drag stays parallel to the page edges, and
+  kbd:[Right] nudges toward the page's right edge.
+* The Info toolbar and the Object panel report page coordinates, as always.
+* Text is drawn turned, and you can still edit it in place.
+* Zooming, scrolling, drawing modes and named views work as usual.  A named view does not
+  record the rotation; recalling one leaves the canvas at its current angle.
+
+To turn the trackpad rotate gesture off, so that an accidental twist never turns the canvas,
+untick *Rotate canvas with trackpad* in menu:WireTuner[Settings… > General].  The menu
+commands and the compass still work.
+
+== Trackpad, mouse and tablet gestures
+
+{product} uses the full macOS gesture vocabulary on the canvas.  Every gesture has a menu or
+keyboard equivalent, so nothing depends on the device you own.
+
+[cols="1,2,2"]
+|===
+|Gesture |Trackpad |Magic Mouse
+
+|Pan
+|Two-finger scroll in any direction.
+|One-finger scroll in any direction; kbd:[Shift]-scroll on a wheel mouse moves horizontally.
+
+|Zoom
+|Pinch open or closed, centered on the pointer.
+|kbd:[Option]-scroll.  (The mouse has no pinch.)
+
+|Smart zoom
+|Two-finger double-tap: fit the object under the pointer, or the page; again to return.
+|One-finger double-tap.
+
+|Rotate the canvas
+|Two-finger rotate; kbd:[Shift] snaps to 15° steps.
+|Not available; use menu:View[Rotate Canvas] or the compass.
+
+|Subselect
+|Force click (press harder) on a member of a group with the Pointer -- the same as
+kbd:[Option]-click (xref:selecting.adoc[Selecting]).
+|Not available; kbd:[Option]-click.
+
+|Secondary click
+|Two-finger click or tap for the context menu (xref:context-menus.adoc[Context menus]).
+|Right side click.
+|===
+
+A Wacom or similar tablet drives the pen tools with pressure and tilt
+(xref:freeform.adoc[Freeform drawing]); its Touch Ring rotates the canvas
+when set to *Rotate*, and its keys can be assigned any command from the Keyboard Shortcuts
+window (xref:customizing.adoc[Customizing your environment]).
+
+== Drawing modes
+
+The drawing mode changes only what you see, never the document or its printed output.
+
+[cols="1,3"]
+|===
+|Mode |Shows
+
+|Preview
+|The artwork as it prints: strokes, fills, effects, images, text.  Custom, PostScript and
+textured fills draw as a gray placeholder pattern, as in {fh}.
+
+|Fast Preview
+|Preview with blends reduced to ten steps and text at 50 points and below drawn as gray bars
+(greeked).  Use it on a heavy document while you arrange things.
+
+|Keyline
+|Only the paths, as black hairlines, with no fills; images and imported EPS as crossed boxes.
+Best for selecting points and seeing structure.
+
+|Fast Keyline
+|Keyline with the same blend and text shortcuts as Fast Preview.
+|===
+
+To choose a drawing mode::
+Choose it from the *View mode* pop-up in the status bar, or:
+
+* menu:View[Keyline] (kbd:[Cmd+K]) toggles between the Keyline pair and the Preview pair.  A
+  check mark means you are in a Keyline mode.
+* menu:View[Fast Mode] (kbd:[Cmd+Shift+K]) toggles between the fast pair and the full pair.  A
+  check mark means you are in a fast mode.
+
+Both toggles are also buttons in the Tools panel's *View* section.
+
+=== Redraw preferences
+
+The *Redraw* category (xref:preferences.adoc[Preferences]) holds the settings that affect the
+canvas:
+
+* *Preview drag*: the number of objects drawn live while you drag.  Above it, only the
+  outlines move, as in Keyline mode.  Default 200.
+* *Display text effects*: turn off to draw text without effects on screen for speed.
+* *Greek type below*: text smaller than this on screen is drawn as gray bars (default 8 px).
+  Selected text always draws as characters.
+* *On-screen image resolution*: Full, Half or Quarter resolution for imported bitmaps on
+  screen.
+
+Anti-aliasing is always on: every Mac {product} runs on draws vector art smoothly at any zoom,
+and the screen matches the PDF and print output.
+
+To preview objects while dragging::
+Drag them.  Up to the *Preview drag* count, objects draw fully while they move.  Hold
+kbd:[Option] while dragging to force a full preview of the dragged objects regardless of the
+count -- but only when *Option-drag copies paths* is off in *Object* preferences, because
+kbd:[Option]-drag otherwise makes a copy.
+
+== Multiple views of one document
+
+To open another view::
+Choose menu:Window[New Window].  The document opens in a new tab with its own magnification,
+scroll position and drawing mode; up to eight views of one document can be open.  Drag the tab
+out to put the view in its own window, on another display if you like.
+
+To close views::
+Close the tab (kbd:[Cmd+W]).  kbd:[Option]-click a tab's close button to close every view of
+that document.
+
+Edits made in any view appear in all of them immediately; they are the same document.
+
+== Named views
+
+A named view records a magnification, a drawing mode and a scroll position under a name.
+Named views are part of the document, so a view you name for "Logo detail" is there for
+everyone who opens the document.
+
+To create a named view::
+. Set the magnification, drawing mode and scroll position you want.
+. Choose menu:View[Custom > New…].
+. Type a name and click btn:[OK].
+
+To create a named view with the Zoom tool::
+. Select the Zoom tool.
+. kbd:[Shift]-drag around the area.  The view zooms to it and the New View sheet appears.
+. Name the view and click btn:[OK].
+
+To recall a named view::
+Choose it from menu:View[Custom], or from the magnification pop-up in the status bar.
+
+To redefine, rename or delete named views::
+. Choose menu:View[Custom > Edit…].
+. In the Edit Views sheet, select a view.  Click btn:[Redefine] to give it the current
+  magnification, mode and scroll position; double-click its name to rename it; click
+  btn:[Delete] to remove it.
+. Click btn:[OK].
+
+To return to the previous view::
+Choose menu:View[Custom > Previous].  It swaps between the two most recently recalled named
+views, so it needs at least two.
+
+== Preview in Browser
+
+{fh} could open the document in a Flash Player window to test it.  {product} opens the current
+page -- or the whole document as a multi-page SVG set with its interactions -- in your default
+web browser, from a temporary export.
+
+To preview in the browser::
+Choose menu:View[Preview in Browser] or press kbd:[Cmd+Return].  Interactions assigned with
+the Action tool and animation frames from layers play in the browser
+(xref:interactivity.adoc[Interactivity], xref:animation.adoc[Animation]).  The temporary
+files are removed when you quit; to keep them, export
+(xref:export-vector.adoc[Exporting vector formats]).
+
+NOTE: The *Navigation* panel is not about navigating the view.  It assigns names, notes and
+links to objects (xref:names-notes.adoc[Names and notes], xref:urls.adoc[URLs]).  To move
+between pages, use the page selector in the status bar or the Document panel's thumbnails.
+
+== Working with others
+
+Your zoom, your scroll position, your canvas rotation and your drawing mode are yours; nobody
+sees the document move or turn when you scroll or rotate, and you never see it move when they
+do.  If you want to look where a
+collaborator is looking, click their avatar in the status bar
+(xref:presence.adoc[Presence]) -- that is a one-time jump, after which the view is yours
+again.
+
+Named views are shared.  When someone creates one, it appears in your menu:View[Custom]
+submenu and magnification pop-up within moments.  If two people redefine the same named view
+at the same time, the later change is the one that sticks; if one person deletes a view while
+another redefines it, the redefinition restores it.  Recalling a view is never shared: it only
+moves your window.
+
+After being offline, any named views you created or edited merge with the others'.  Two
+people creating a view with the same name while apart produces two views with the same name;
+rename one in the Edit Views sheet.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,1"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Zoom tool: click, drag, Option-click, Option-drag, Control-click max, Control+Option-click min, Shift-drag new view
+|Same.
+|Faithful
+
+|Magnification 6%--6400% from the field, up to 256x typed
+|6%--25,600% everywhere (256x); the field and pinch zoom reach every value.
+|Faithful (upper limit unified)
+
+|View > Magnification presets 25%--800%
+|Same, plus Zoom In/Out step commands and pinch zoom.
+|Faithful (with additions)
+
+|Fit to Page, Fit Selection, Fit All
+|Same.
+|Faithful
+
+|Preview, Fast Preview, Keyline, Fast Keyline; View > Keyline and View > Fast Mode toggles
+|Same, from REND-005.
+|Faithful
+
+|Enable Anti-Aliasing preference
+|Always on.
+|Dropped -- no benefit on any supported Mac; screen/print parity matters more.
+
+|Redraw While Scrolling preference
+|Always redraws live (tiled renderer).
+|Dropped -- the Metal tile canvas pans at the display's refresh rate (120 Hz on ProMotion);
+the option exists to work around slow redraw.
+
+|Better (but Slower) Display preference
+|Removed.
+|Dropped -- addressed 8-bit displays.
+
+|Preview Drag count, Option-drag full preview
+|Same.
+|Faithful
+
+|Display Text Effects, Greek Type Below, image screen resolution
+|Same, in the Redraw category.
+|Faithful
+
+|Window > New Window, up to eight views; Option-click close box closes all
+|Same, as tabs; Option-click a tab's close button.
+|Faithful
+
+|Custom views: New, Edit (Redefine/rename/Delete), Previous; in the magnification pop-up
+|Same; views are shared document data.
+|Faithful (shared)
+
+|Flash Player test window (Window > Movie > Test)
+|Preview in Browser through a temporary SVG/HTML export.
+|Adapted -- no Flash Player; the browser is the target for web output.
+
+|Right mouse button magnification (Windows)
+|Not offered.
+|Dropped -- macOS uses kbd:[Cmd+Space] and pinch; the option also disabled context menus.
+
+|Restore View When Opening Document
+|Same, from the local view state (rotation included).
+|Faithful
+
+|--
+|Canvas rotation: two-finger rotate, menu:View[Rotate Canvas] in 15° steps, kbd:[Shift]
+snapping, status-bar compass, rulers/grid/guides turning with the page; view state only.
+|Added -- what a paper-and-pen illustrator does by turning the sheet; every modern raster and
+vector tool has it.
+
+|--
+|Trackpad and mouse vocabulary: pinch, two-finger pan, smart zoom, Force click subselect;
+tablet ring rotation.
+|Added -- macOS input conventions that did not exist in {fh}'s day.
+|===
+
+=== Data model
+
+Two things: the per-document *view state*, which never leaves this Mac, and *named views*,
+which are document nodes.
+
+[source,protobuf]
+----
+// proto/wiretuner/doc/v1/view.proto
+
+// Local view state.  Held in the local store's `view` table and attached to the document's
+// well-known `settings` node as one local_only field so WTModel exposes it through the same
+// observation API as everything else.  Never sent; the outbox filter drops any op whose
+// field path enters a local_only field.
+//
+//   message SettingsProps {
+//     ...
+//     ViewState view = 40 [(wt.crdt.field).local_only = true];  // BASIC block
+//   }
+message ViewState {
+  double magnification = 1;        // 0.06 .. 256.0 (1.0 = 100%)
+  Point scroll_origin = 2;         // pasteboard point at the window's top-left
+  DrawingMode mode = 3;            // PREVIEW, FAST_PREVIEW, KEYLINE, FAST_KEYLINE
+  OpId current_page = 4;           // page node; unset = first page
+  bool snap_to_point = 5;          // Tools panel Snap section
+  bool snap_to_object = 6;
+  bool snap_to_grid = 7;
+  bool snap_to_guides = 8;
+  bool page_rulers = 9;            // View > Page Rulers > Show
+  bool text_rulers = 10;
+  bool grid_visible = 11;
+  bool guides_visible = 12;
+  OpId previous_view = 13;         // last named view recalled, for Custom > Previous
+  OpId previous_view_2 = 14;       // the one before it
+  // Canvas rotation in degrees, counter-clockwise, -180 < r <= 180; 0 = straight.  View
+  // state like magnification: never document data, never shared, not part of a named view.
+  double rotation_degrees = 15;
+}
+
+enum DrawingMode {
+  DRAWING_MODE_UNSPECIFIED = 0;
+  DRAWING_MODE_PREVIEW = 1;
+  DRAWING_MODE_FAST_PREVIEW = 2;
+  DRAWING_MODE_KEYLINE = 3;
+  DRAWING_MODE_FAST_KEYLINE = 4;
+}
+
+// A named view.  Node kind `custom_view`, child of the well-known `settings` node (0:1);
+// sibling order is the order in View > Custom.  Shared: it is the one piece of "view" that
+// is a document fact.
+message CustomViewProps {
+  string name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 64}];
+  // Magnification, mode and scroll position are one register: a view redefined by two
+  // people concurrently must not end up with one person's zoom and the other's scroll.
+  ViewTarget target = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];
+}
+
+message ViewTarget {
+  double magnification = 1 [(buf.validate.field).double = {gte: 0.06, lte: 256.0}];
+  Point scroll_origin = 2;
+  DrawingMode mode = 3;
+}
+----
+
+`Preview in Browser` writes nothing.  `Restore view when opening document`, `Remember
+window size and location` and `Rotate canvas with trackpad` are preferences
+(xref:preferences.adoc[Preferences]).  `ViewTarget` deliberately has no rotation field: a
+named view is a place in the document, and the angle someone else holds their trackpad at is
+not.
+
+=== Merge semantics
+
+`ViewState`:: No merge; the field is `local_only`, so no op carrying it ever reaches the
+outbox, and two Macs of the same user each hold their own.  `current_page` and
+`previous_view*` are `OpId` references read with `REF_FALLBACK_UNSET`: a deleted page falls
+back to the nearest page by pasteboard distance at read time (a normalization in `WTModel`),
+a deleted named view simply drops out of the Previous pair.
+
+`custom_view` nodes:: `name` is an ATOMIC string register (LWW); `target` is one ATOMIC
+register; position among siblings is the tree position.  Cases:
+
+* *Redefine vs. redefine*: LWW on `target`; the loser's window does not move (recall is
+  local), and the loser's value is retained in the log.  The review sheet lists it only if
+  the local write lost and the user was offline (the "same register, local lost" rule),
+  under "Views", with *Use mine* re-asserting the target.
+* *Rename vs. redefine*: independent registers; both survive.
+* *Delete vs. redefine*: the redefinition applies to the deleted node; the review sheet shows
+  "edited something that was deleted" with *Restore*.  Online, the deletion wins visibly
+  (the view disappears from the menu) -- no restore is offered, matching object deletion.
+* *Create vs. create with the same name*: two nodes; the menu lists both; no normalization.
+  Uniqueness is not enforced because a name is a label, not a key.
+* *Reorder*: `View > Custom > Edit…` allows drag-reordering, which is a `MoveNode` with a
+  fractional position; concurrent reorders interleave harmlessly.
+
+Read-time normalizations:: A `custom_view` whose `target.magnification` is outside the range
+(possible only from a buggy client) is clamped on read.  A view under any parent other than
+`settings` (impossible by construction, kept for totality) is ignored.
+
+=== Offline behavior
+
+Everything works offline.  Named-view ops are ordinary `CreateNode`/`SetFields`/`SetDeleted`
+and coalesce like any other (redefining a view ten times offline sends one `SetFields`).
+`Preview in Browser` needs no network: the export is local and the browser opens a file URL.
+
+=== Server
+
+Nothing beyond storing and relaying changes.
+
+=== Client
+
+* `WTApp/View`.  `CanvasViewController` owns the `NSScrollView` with a custom
+  `NSClipView` for the pasteboard bounds and the REND-001 tiled canvas (the Metal
+  `WTCanvasView` from REND-006 once it lands) as the document view.  Magnification is applied
+  as the scroll view's `magnification` for display and to the renderer as the rasterization
+  scale; `allowsMagnification = true` provides pinch, with `minMagnification = 0.06`,
+  `maxMagnification = 256`.
+* View transform.  The renderer's view transform is `T(scroll) · R(rotation_degrees) ·
+  S(magnification)` about the viewport centre; `Viewport` exposes `pasteboardToView` and
+  `viewToPasteboard` and every tool, ruler, overlay and hit test goes through them, so
+  rotation is invisible to feature code.  The scroll view scrolls the *rotated* pasteboard's
+  bounding rectangle (recomputed on each angle change) so the scroll limits still clamp at the
+  222 × 222 in edge.
+* Rotation gestures (BASIC-034).  `rotate(with:)` on the canvas view accumulates the
+  gesture's rotation about its centroid while *Rotate canvas with trackpad* is on; kbd:[Shift]
+  rounds the accumulated angle to 15°; `magnify(with:)` drives pinch; `smartMagnify(with:)`
+  fits the REND-003 hit at the pointer or the page under it and toggles back on the next
+  smart zoom; `pressureChange(with:)` at stage 2 is delivered to the active tool as a Force
+  click (xref:selecting.adoc[Selecting]).  Menu commands write `rotation_degrees ± 15` and
+  `0`, animated over 150 ms about the viewport centre; the status bar compass (BASIC-002's
+  strip) shows the angle from `ViewState` and resets on click.  Tablet ring rotation arrives as
+  the same `rotate(with:)` events from the Wacom driver and needs no code of its own.
+* Tile caching under rotation.  Tiles are rendered in rotated view space and keyed by
+  `(canvas, zoom step, rotation, column, row)` (REND-001's tile key gains the angle; REND-006
+  keeps the atlas slots), so a settled angle is drawn once at full quality with no
+  resampling.  During a gesture the existing tiles are drawn through the changing transform
+  and the settled angle is re-rasterised on gesture end or every 250 ms, whichever comes
+  first; the menu's 15° steps settle immediately.  Invalidation (REND-004) is angle-agnostic:
+  a dirty pasteboard rectangle maps to dirty tile keys through the current transform.
+* Hit testing transforms the pointer through `viewToPasteboard` (rotation inverted) before
+  querying REND-003; pick and snap distances stay in view pixels and are converted with the
+  scale only.  Rulers (DOC's rulers task) draw along the current page's top and left edges in
+  pasteboard space while the canvas is rotated, returning to the window edges at 0°; the grid
+  and guides are pasteboard geometry already (xref:grid-guides.adoc[Grid and guides]).
+  kbd:[Shift] constraints, *Constrain angle* and arrow nudges are computed in pasteboard
+  space, which is where GEO-005 already works.
+* Zoom steps: the preset ladder is 6, 12, 25, 50, 100, 200, 400, 800, 1600, 3200, 6400,
+  12800 and 25600 percent.  Zoom In/Out and Zoom-tool clicks move to the next ladder value
+  above/below the current value.
+* Zoom tool gestures are a `Tool` from BASIC-008: click/Option-click/drag/Option-drag with a
+  marquee overlay; kbd:[Control] modifier read on mouse-up; kbd:[Shift]-drag ends in the New
+  View sheet with the target already computed.
+* Drawing modes call REND-005; the status bar pop-up, the View menu toggles and the Tools
+  panel buttons all bind to `ViewState.mode`.  Mode changes never rebuild the display list.
+* Named views are `WTModel` commands: `CreateCustomView(name, target)`, `RedefineCustomView`,
+  `RenameCustomView`, `DeleteCustomView`, `MoveCustomView`; each is one change labelled
+  "New View", "Redefine View", "Rename View", "Delete View", "Reorder Views".  Recall sets
+  `ViewState` only, animated over 150 ms (`NSAnimationContext`), and pushes the Previous pair.
+* The Edit Views sheet is a SwiftUI `Table` with inline rename; the Custom submenu and the
+  magnification pop-up are rebuilt from the `settings` node's `custom_view` children on
+  change notifications.
+* Multiple views: `DocumentWindowController` instances share one `WTModel`; each owns a
+  `ViewState`.  The first view's state is what persists to the local store; additional views
+  start as copies and are restored with the window (BASIC-001).
+* Preview in Browser: writes to `NSTemporaryDirectory()/WireTuner/Preview/<doc>/` through
+  `WTInterchange`'s SVG/HTML exporter (IO epic; until it lands, the command is disabled with
+  a tooltip), then `NSWorkspace.shared.open`.
+* Undo grouping: named-view commands are single undo steps; view state changes, rotation
+  included, are not undoable.
+
+=== Build tasks
+
+[[BASIC-012]]
+==== BASIC-012 View state and zoom commands
+[horizontal]
+Track:: client-ui
+Depends on:: APP-002, APP-003, BASIC-002
+Size:: M
+Delivers:: `ViewState` (local_only) bound to the canvas, the zoom ladder, Zoom In/Out, Fit Selection/Page/All, the Magnification submenu with shortcuts, pinch and Option-scroll zoom, the Zoom tool with all modifiers, Hand tool and Space pan, and auto-scroll at the window edge.
+Done when::
+* Every command lands on the documented magnification, centered as documented, in a UI test at 100% and 3200%.
+* Zoom tool: click, Option-click, drag, Option-drag, Control-click, Control+Option-click each verified; kbd:[Shift]-drag opens the New View sheet (stubbed until BASIC-014).
+* No change reaches the outbox from any command on this task (outbox-empty check).
+
+[[BASIC-013]]
+==== BASIC-013 Drawing modes wiring and Redraw preferences
+[horizontal]
+Track:: client-ui
+Depends on:: REND-005, APP-010, BASIC-002, BASIC-012
+Size:: S
+Delivers:: The Keyline and Fast Mode toggles (menu, shortcuts, Tools panel buttons, status bar pop-up) bound to `ViewState.mode`, and the Redraw preferences (*Preview drag*, *Display text effects*, *Greek type below*, *On-screen image resolution*) delivered to the renderer.
+Done when::
+* Toggling from Fast Keyline with menu:View[Keyline] yields Fast Preview; check marks are correct in all four states.
+* Dragging more than *Preview drag* objects draws outlines only; kbd:[Option]-drag with copy-on-drag off draws them fully.
+
+[[BASIC-014]]
+==== BASIC-014 Custom views schema
+[horizontal]
+Track:: proto
+Depends on:: PROTO-003, PROTO-005
+Size:: S
+Delivers:: `doc/v1/view.proto` with `ViewState`, `DrawingMode`, `CustomViewProps`, `ViewTarget`, the `SettingsProps.view` field marked `local_only`, and the `custom_view` kind in `NodeProps` within the BASIC block.
+Done when::
+* `buf lint` clean with comments; the generated merge table marks `target` ATOMIC and every `ViewState` path local_only.
+* Conformance vectors: concurrent redefine (LWW), rename vs. redefine (both kept), delete vs. redefine (edits retained on the deleted node), and a vector asserting a `SetFields` on a local_only path is a deterministic no-op in both engines.
+
+[[BASIC-015]]
+==== BASIC-015 Named views commands and UI
+[horizontal]
+Track:: client-model
+Depends on:: CRDT-002, APP-011, BASIC-012, BASIC-014
+Size:: M
+Delivers:: `WTModel` commands for create, redefine, rename, delete and reorder of `custom_view` nodes with inverses; the New View and Edit Views sheets; menu:View[Custom] and magnification pop-up population; Previous; the Zoom tool's kbd:[Shift]-drag path.
+Done when::
+* Merge test in the simulator: A redefines while B renames the same view; both converge with B's name and A's target.  A deletes while B redefines; B's next open shows the view gone online, and the review sheet offers Restore in the offline variant.
+* Undo of a redefine restores the previous target only if nobody else redefined it since (APP-011 rule), verified in the simulator.
+* Previous swaps between the last two recalled views and is disabled with fewer than two.
+
+[[BASIC-016]]
+==== BASIC-016 Multiple views and view-state persistence
+[horizontal]
+Track:: client-ui
+Depends on:: SYNC-001, BASIC-001, BASIC-012
+Size:: S
+Delivers:: menu:Window[New Window] creating additional views (max eight) sharing one `WTModel`, kbd:[Option]-click close-all, persistence of the primary view's `ViewState` in the local store's `view` table, and restore on open honoring *Restore view when opening document*.
+Done when::
+* Eight views open; the ninth request is refused with a beep; an edit in one appears in all within a frame.
+* Reopening restores zoom, scroll, mode and current page; with the preference off, the document opens at Fit to Page on page 1.
+* A restored `current_page` that was deleted remotely falls back to the nearest page.
+
+[[BASIC-017]]
+==== BASIC-017 Preview in Browser
+[horizontal]
+Track:: client-ui
+Depends on:: APP-005, BASIC-012
+Size:: S
+Delivers:: menu:View[Preview in Browser] (kbd:[Cmd+Return]) exporting the current page, or the document when it has interactions, to a temporary folder through the interchange export API and opening it with the default browser; cleanup at quit.  Needs the SVG/HTML exporter from the IO epic; until then the command is disabled with an explanatory tooltip.
+Done when::
+* With the exporter present, a two-page document opens in the browser with working page links; the temporary folder is removed at quit.
+* Works with the network off.
+
+[[BASIC-034]]
+==== BASIC-034 Canvas rotation and trackpad gestures
+[horizontal]
+Track:: client-ui
+Depends on:: APP-002, APP-003, REND-001, BASIC-002, BASIC-012, BASIC-014
+Size:: M
+Delivers:: `ViewState.rotation_degrees` bound to the view transform (`T · R · S`, `pasteboardToView`/`viewToPasteboard` on `Viewport`), the two-finger rotate gesture with kbd:[Shift] 15° snapping gated by *Rotate canvas with trackpad*, menu:View[Rotate Canvas > Rotate Clockwise / Rotate Counter-clockwise / Reset], the status bar compass with click-to-reset, smart zoom, Force click delivery to tools, the rotated scroll extent, the angle in the tile key, and persistence and restore of the angle with the rest of the view state.
+Done when::
+* UI tests: a 30° rotate gesture followed by Reset leaves the pasteboard where it was; kbd:[Shift] during the gesture lands on a multiple of 15°; Rotate Clockwise three times reads 45° on the compass; the gesture does nothing with the preference off while the menu still works.
+* At 45° a click on an object selects it and a kbd:[Shift]-constrained drag moves parallel to the page edge (hit-test and constraint tests through the transform).
+* Golden-image tests at 0°, 15° and 90° match the Core Graphics renderer per tile (REND-007's harness) and pan/zoom/rotate never miss the frame budget at the design point.
+* No change reaches the outbox from any command on this task; `rotation_degrees` never appears in a `CustomViewProps` write; reopening restores the angle when *Restore view when opening document* is on.
+endif::spec[]

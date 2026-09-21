@@ -1,0 +1,7 @@
+= Paragraphs
+include::_attributes.adoc[]
+:page-slug: paragraphs
+:page-group: Type
+:page-fh: Chapter 8, "Aligning paragraphs and adding paragraph rules", "Hyphenating text", "Spacing characters and words precisely"
+
+include::_includes/type/paragraphs.adoc[]

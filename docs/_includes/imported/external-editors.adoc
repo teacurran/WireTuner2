@@ -1,0 +1,255 @@
+{product} places, arranges, crops and tints images but does not edit their pixels.  For
+retouching, you hand an image to an image editor -- Photoshop, Pixelmator Pro, Affinity Photo,
+Acorn, or simply Preview -- and {product} takes the result back the moment you save.  For the
+common housekeeping tasks that used to need an external editor (changing the file format,
+reducing the file size, resampling to a sensible resolution, converting to grayscale) {product}
+has its own *Optimize Image* sheet.
+
+NOTE: {fh} had a dedicated *Edit in Fireworks* button and *Optimize in Fireworks* command, plus
+a general *External Editor* preference per file format.  Fireworks no longer exists.  {product}
+replaces all three with *Edit With…*, which lists every application on your Mac that can edit
+the image's format, and with the in-app *Optimize Image* sheet.
+
+== Editing an image in another application
+
+To edit an image's pixels:
+
+. Select the image.
+. Choose menu:Edit[Edit With] and pick an application from the submenu, or click btn:[Edit
+  With…] in the Object panel and choose there.  The submenu lists the applications on your Mac
+  registered for the image's format, with your *Default image editor* first.  kbd:[Option]-
+  double-click an image to open it in the default editor directly.
+. If *Confirm before opening an external editor* is on (the default), confirm.  {product}
+  writes the image to a temporary file, opens it in the application, and shows an *Editing in
+  _application_* panel at the bottom of the document window with the image's name.
+. Edit and save in the other application.  Each time you save, {product} reads the file back
+  and replaces the image's pixels on the page; you can keep working in {product} meanwhile.
+. When you are finished, click btn:[Done] in the panel (or close the file in the editor).
+  {product} stops watching the temporary file and removes it.  btn:[Cancel] in the panel
+  restores the pixels the image had before you started, even if you have saved several times.
+
+Several images can be out for editing at once; the panel lists each.  The editing session
+belongs to this Mac only: if you quit {product} while an image is out, the session ends and
+whatever you had saved so far stays in the document.
+
+What comes back::
+* The image's *placed size* on the page is kept.  If you changed the pixel dimensions, the
+  effective resolution changes instead; if you changed the proportions, the width is kept and
+  the height follows the new proportions.
+* A crop (xref:cropping-bitmaps.adoc[Cropping bitmap images]) is kept as a proportion of the
+  image, so it still shows the same region of a resized picture and roughly the same region of
+  a retouched one.
+* Tint, *Transparent* and the gray ramp are kept if the returned image is still bilevel or
+  grayscale; if the editor saved it in color, they no longer apply and the Object panel says
+  so.
+* The format {product} stores is the format the editor saved.  Saving a JPEG as TIFF in the
+  editor makes the stored image a TIFF.
+
+Which format the editor sees::
+{product} sends the image in the format it is stored in, so a PSD goes to Photoshop as a PSD
+with its layers, and a JPEG goes as a JPEG.  If an application cannot open that format it is
+not listed in the submenu.
+
+=== Preferences
+
+[cols="1,3"]
+|===
+|Preference |Effect
+
+|*Default image editor*
+|The application used by kbd:[Option]-double-click and listed first in *Edit With*.  Default
+*System default*, which is whatever macOS opens the format with.  Set it to a specific
+application to use it for every format it can open.
+
+|*Confirm before opening an external editor*
+|Shows a confirmation before the editor launches.  On by default.
+|===
+
+// TODO screenshot: the Editing in Pixelmator Pro panel at the bottom of the document window
+
+== Optimizing an image
+
+*Optimize Image* re-encodes an image inside {product}: to shrink a 40 MB TIFF to a PNG, to
+bring a 6000-pixel photograph down to the 300 ppi its printed size needs, or to convert a
+color scan of line art to grayscale so it can be tinted.  It replaces the image's pixels; the
+image stays where it is at the size it is.
+
+To optimize an image:
+
+. Select one or more images.
+. Choose menu:Modify[Optimize Image…].
+. Set the options.  The sheet shows the current and resulting pixel size, effective resolution
+  and stored size, and a before/after preview at 100%.
+. Click btn:[Optimize].
+
+[cols="1,3"]
+|===
+|Option |Effect
+
+|*Format*
+|*Keep* (the current format), *PNG*, *JPEG*, *TIFF*, *WebP*, *HEIC*.  Formats without alpha are
+dimmed for images whose alpha channel is displayed.
+
+|*Quality*
+|For JPEG, WebP and HEIC: 1–100, default 85.  The size estimate updates as you drag.
+
+|*Resample*
+|*None*; *To effective resolution* with a ppi value (default 300), which resamples so the image
+has exactly that resolution at its current placed size; or *To pixel size* with a longest-edge
+value.  Only downsampling is offered: {product} never invents pixels.
+
+|*Color mode*
+|*Keep*, *Grayscale*, or *RGB*.  Grayscale enables tinting and *Transparent* afterwards.
+
+|*Strip metadata*
+|Removes EXIF, XMP and thumbnails from the stored file.  Off by default; the embedded color
+profile is always kept.
+|===
+
+Optimizing is undoable, and the previous pixels stay in the document's history, so nothing is
+lost until the history is trimmed.  With several images selected the same settings apply to
+each; *To effective resolution* computes each image's own target.
+
+== Working with others
+
+While you have an image out for editing, collaborators see and use the image as it is; there
+is no lock.  Each save in the editor replaces the pixels for everyone, with the usual
+*Uploading* badge while the new pixels reach the cloud.  If a collaborator crops, tints or
+transforms the image in the meantime, their change and your new pixels both apply.
+
+If two people replace the same image's pixels at the same moment -- both editing it
+externally, or one optimizing while the other edits -- the later replacement wins for everyone
+and the merge review lists the image with both pictures so the other can be brought back.
+Someone deleting the image while you are editing it externally does not interrupt your
+session; your saves land on the deleted image, and *Restore* in the merge review brings it back
+with your edits.
+
+Editing and optimizing work offline.  The new pixels wait to upload until you reconnect, and
+collaborators see a placeholder for the image (with its name) until they arrive.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,2"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|*Edit in Fireworks* button; *Edit Source in Fireworks* context menu
+|*Edit With* submenu and Object panel button listing registered applications.
+|Adapted -- Fireworks is gone; any editor registered with Launch Services serves.
+
+|Fireworks source PNG options (Always / Never / Ask); Link Info source field
+|Not provided.  The image itself is what is sent and returned.
+|Dropped -- Fireworks-specific.  Photoshop users get the same effect because the stored PSD
+keeps its layers.
+
+|*Optimize in Fireworks* (Options / File / Animation tabs)
+|In-app *Optimize Image* sheet: format, quality, resample, color mode, metadata.  Animation
+settings are on xref:animation.adoc[Animation].
+|Adapted -- no external application needed; animation belongs elsewhere.
+
+|External editor per file format (PICT, BMP, GIF, JPEG, Photoshop, PNG, Targa, TIFF, xRes LRG)
+|One *Default image editor* preference plus the per-format list from Launch Services.
+|Adapted -- macOS already knows which applications open each format.
+
+|*Warn before launch and edit*
+|*Confirm before opening an external editor*, default on.
+|Faithful
+
+|menu:Edit[Edit in External Editor]; kbd:[Option]-double-click
+|menu:Edit[Edit With]; kbd:[Option]-double-click opens the default editor.
+|Faithful
+
+|*Editing in Progress* dialog with btn:[Done]
+|*Editing in _application_* panel with btn:[Done] and btn:[Cancel]; updates on every save
+rather than only on Done.
+|Adapted -- live updates are the modern expectation (Illustrator, Sketch, Figma plugins
+behave this way); btn:[Cancel] is an addition.
+
+|Plug-ins convert linked JPEG to embedded TIFF
+|Not applicable; see xref:raster-effects.adoc[Raster effects].
+|Dropped -- no pixel plug-ins.
+|===
+
+=== Data model
+
+No new fields.  Both features write `ImageProps.pixels` (and `dpi_x`/`dpi_y` when the pixel
+dimensions change, so the placed size is preserved) as one `SetFields` op.  Optimize with
+*Color mode: Grayscale* leaves `tint`, `transparent_background` and `ramp` untouched; an edit
+that returns a color image likewise leaves them, and the read-time rule ignores them.  The
+editing session (temporary file path, original hash for btn:[Cancel]) is local state in
+`WTSync`'s store, never in the document.
+
+=== Merge semantics
+
+* Two concurrent `pixels` writes: ATOMIC LWW; the loser is retained and the review sheet shows
+  both pictures (the losing blob is in the local cache of the replica that wrote it and
+  downloadable by everyone else, since the change referencing it was accepted).
+* `pixels` vs. `crop`, `tint`, `transform`: independent registers; both apply.
+* btn:[Cancel] writes the original hash as a *new* op; if someone else replaced the pixels in
+  the meantime, Cancel wins by Lamport order, which is what the user asked for and is listed
+  in review for the other person.
+* Edit vs. delete: as on xref:importing.adoc[Importing artwork].
+
+=== Offline behavior
+
+Fully offline.  Each save enqueues a blob upload; consecutive saves while offline replace the
+pending upload for the superseded hash if no change other than this replica's references it
+(the coalescing rule for a node created and deleted applies to blobs whose only referencing op
+was coalesced away).  The final state uploads once.
+
+=== Server
+
+Nothing beyond storing and relaying changes and blobs.
+
+=== Client
+
+* `WTApp.ExternalEditSession`: writes the blob to
+  `~/Library/Application Support/WireTuner/EditSessions/<document>/<node>-<short hash>.<ext>`,
+  opens it with `NSWorkspace.shared.open([url], withApplicationAt:configuration:)`, watches it
+  with a `DispatchSource` file-system object source (rename-safe: re-arms on the parent
+  directory, since many editors save by atomic rename), debounces 300 ms, verifies the file
+  decodes before replacing, and re-imports through IMG-002.
+* The *Edit With* submenu is built from `NSWorkspace.shared.urlsForApplications(toOpen:)` for
+  the blob's UTI, default editor first, Preview last.
+* The panel is an `NSTitlebarAccessoryViewController`-style bottom bar; sessions persist across
+  document window close until btn:[Done]; app quit ends sessions and deletes temporary files.
+* *Optimize Image* re-encodes with ImageIO (`CGImageDestination`) with `kCGImageDestinationLossyCompressionQuality`,
+  resamples with `CGContext` at high interpolation (Lanczos via `CIImage` for downsampling more
+  than 2×), converts color mode with Core Image, and keeps the ICC profile.  Size estimates
+  encode to memory on a background task and are cancelled when options change.
+* Undo: one change per returned save and per optimize, labelled "Edit _name_ in _app_" /
+  "Optimize _name_".
+
+=== Build tasks
+
+[[IMG-019]]
+==== IMG-019 Edit With… round trip
+[horizontal]
+Track:: client-ui
+Depends on:: IMG-002, IMG-003, APP-005
+Size:: M
+Delivers:: menu:Edit[Edit With] submenu from Launch Services, the Object panel button, kbd:[Option]-double-click, the confirmation preference, `ExternalEditSession` with file watching, per-save replacement preserving placed size, the *Editing in* panel with Done and Cancel, temporary-file cleanup, the *Default image editor* preference.
+Done when::
+* UI test with a scripted editor (a test helper that rewrites the file): each save replaces
+  the pixels within 1 s; Cancel restores the original hash; Done removes the file.
+* An editor that saves by atomic rename is detected.
+* Merge test: A edits externally while B crops; both apply on both clients.
+* A returned image with different proportions keeps width and recomputes dpi and height.
+
+[[IMG-020]]
+==== IMG-020 Optimize Image sheet
+[horizontal]
+Track:: import-export
+Depends on:: IMG-002, IMG-003
+Size:: M
+Delivers:: menu:Modify[Optimize Image…] sheet with format, quality, resample (effective resolution or pixel size, downsampling only), color mode, strip metadata, live size estimate and before/after preview, multi-selection support.
+Done when::
+* Round-trip tests: TIFF → PNG lossless equality; JPEG quality changes the estimate
+  monotonically; resample to 300 ppi yields the computed pixel size within 1 px; grayscale
+  conversion enables tinting.
+* The ICC profile survives every path; alpha survives every alpha-capable path.
+* Undo restores the prior `pixels` register; merge test with a concurrent tint.
+endif::spec[]

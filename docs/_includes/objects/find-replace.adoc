@@ -1,0 +1,228 @@
+The Find & Replace Graphics panel makes changes across a whole drawing at once: recolor every
+object that uses a color, thicken every hairline, rotate every star about its own center,
+resample every blend.  Its second tab, *Select*, finds objects by the same attributes and
+selects them so you can do anything you like to them.
+
+Open it with menu:Edit[Find and Replace > Graphics] (kbd:[Cmd+Option+F]) or the *Graphics*
+button on the Main toolbar.  Objects on locked or hidden layers are never found; hidden
+objects are (xref:layers.adoc[Layers]).  Finding and replacing *text* is a different dialog
+(xref:editing-text.adoc[Editing text]); finding text *attributes* such as fonts is here.
+
+// TODO screenshot: Find & Replace panel, Find & Replace tab, Color attribute
+
+== Find & Replace tab
+
+To find and replace:
+
+. Under *Change in*, choose *Selection*, *Page* or *Document*.
+. Choose an attribute from the *Attribute* menu and fill in its *From* and *To* settings
+  (below).
+. Click btn:[Change].  The panel reports how many objects changed, and the change is one
+  step in the Undo menu.
+
+[cols="1,4"]
+|===
+|Attribute |Settings
+
+|Color
+|*From* and *To* colors, chosen from the menus or by dragging a swatch from the Swatches or
+Color Mixer panel onto the color wells.  *Include tints* also changes tints of the From color
+to the same tints of the To color.  Applies to strokes, fills, gradients and text color.
+
+|Stroke width
+|*Min* and *Max* widths to find (leave *Max* empty for an exact width); the new width, or a
+*Multiply by* factor.
+
+|Font
+|*From* font, style and size range; *To* font, style and size.  Leave a size blank to match
+any.
+
+|Remove
+|Removes what you choose: *Invisible objects* (no stroke, no fill), *Overprinting*, *Custom
+halftones* or *Contents* (empties clipping paths).
+
+|Path shape
+|Replaces every path with the same shape as a sample with another shape.  Copy the sample
+path, then click btn:[Paste In] beside *From*; copy the replacement and click btn:[Paste In]
+beside *To*.  The stroke and fill of the sample must match too.  *Transform to fit original*
+scales each replacement to the bounds of the path it replaces.
+
+|Simplify
+|Finds paths with more than *Points* points and simplifies them; *Allowable change* sets how
+far the simplified path may stray.
+
+|Rotate
+|Rotates each found object by *Angle* about its own center -- something the Rotate tool, which
+turns the whole selection about one point, cannot do.
+
+|Scale
+|Scales each object about its own center by *X* and *Y* percentages; equal values scale
+proportionally.  Ticking *Uniform* keeps them equal.
+
+|Blend steps
+|Finds blends with a number of steps and sets a new number, or *Resample at* the current
+printer resolution.
+|===
+
+Stroke width, simplify, rotate, scale and blend steps take arithmetic in their fields
+(`*2`, `+1`, `/3`), as the Object panel does.
+
+== Select tab
+
+The *Select* tab finds objects and selects them, adding to or replacing the current
+selection.
+
+To select by attribute:
+
+. Click the *Select* tab.
+. Under *Search in*, choose *Selection*, *Page* or *Document*.
+. Choose an attribute and its settings:
++
+[cols="1,3"]
+|===
+|Attribute |Finds objects…
+
+|Color |using a color (as stroke, fill, gradient stop or text color).
+|Style |with a given graphic or paragraph style.
+|Same as selection |whose strokes or fills match the selected object's.
+|Size |whose width and height fall in a range.
+|Fill type |with a given kind of fill (basic, gradient, pattern, tiled, lens...).
+|Stroke type |with a given kind of stroke.
+|Stroke width |within a width range.
+|Font |set in a font, style and size range.
+|Text effect |with any text effect or a specific one.
+|Object name |with a name (partial matches allowed).
+|Object type |of a kind: path, rectangle, ellipse, polygon, composite path, clipping path, group, blend, text block, bitmap, embedded file, envelope, extrusion, connector line, symbol instance.
+|Path shape |with the shape, stroke and fill of a pasted-in sample.
+|Halftone |with a custom halftone.
+|Overprint |with overprinting on.
+|===
+. Click btn:[Find].  Tick *Add to selection* first to keep what was selected.
+
+The found objects are selected; the panel says how many.  What you then do to them is
+ordinary editing.
+
+== Working with others
+
+A replace-all is one change, however many objects it touches, and it appears to everyone as
+one item in the history: `Replace color in 42 objects`.  Undo takes all of it back at once
+-- except any object whose changed attribute someone else has edited since, which keeps
+their value.
+
+If someone edits one of the objects while your replace is on its way, that object gets
+whichever edit was later on that attribute; the other objects are unaffected.  If a replace
+runs while you are offline, all of it is kept locally and sent when you reconnect; the
+review lists any objects that were changed by both sides.
+
+The Select tab changes nothing in the document; it only changes your selection.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,2"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Find & Replace panel with Color, Stroke Width, Font, Remove, Path Shape, Simplify, Rotate, Scale, Blend Steps
+|Same attributes.
+|Faithful
+
+|Change In: Page / Document / Selection
+|Same.
+|Faithful
+
+|Select panel with the fourteen attributes
+|Same.
+|Faithful
+
+|Hidden objects are found
+|Same; hidden is local, and the search runs over the document model.
+|Faithful
+
+|Main toolbar Graphics button
+|Same.
+|Faithful
+
+|Halftone and Overprint (printing attributes)
+|Same; the attributes are defined by xref:halftones.adoc[Halftones] and xref:stroke-attributes.adoc[Stroke attributes].
+|Faithful
+|===
+
+=== Data model
+
+No fields.  The panel is a query over `WTModel` plus commands from other pages: color
+replacement writes `Color` registers and swatch references (COLOR), stroke width writes
+`StrokeProps.width` (ATTR), rotate and scale write `CommonProps.transform`, simplify writes
+contours (GEO-004), blend steps writes `BlendProps.steps` (FX), remove writes
+`SetDeleted`/stack elements.
+
+=== Merge semantics
+
+* A replace-all is *one change* with one `SetFields` per affected register, label `Replace
+  <attribute> in N objects`.  Each register merges independently by LWW; there is no
+  transactional "all or nothing" across objects, because a concurrent edit of one object must
+  not undo forty-one others.
+* *Replace vs. concurrent edit of one object*: that register is LWW; the review sheet lists
+  the object as `same register`.  The other objects are unaffected.
+* *Replace vs. delete*: the replaced value lands on the deleted node and returns with it if
+  restored.
+* *Undo of a replace* reverts each register that still holds the replaced value; registers
+  since edited by others are skipped (xref:undo.adoc[Undo]).
+* *Rotate/Scale about own center* compose onto each node's `transform`: a move, merge-wise.
+* *Path shape* replacement creates new path nodes and deletes the matches: the combining
+  rules apply (xref:combining-paths.adoc[Combining paths]).
+* Select tab: nothing merges.
+
+No read-time normalization.
+
+=== Offline behavior
+
+Fully offline.  A replace of 10,000 objects is one change of 10,000 ops, within the change
+limit; larger matches are split into changes of 10,000 ops with the same label and a `(2/3)`
+suffix, still one undo step.
+
+=== Server
+
+Nothing beyond storing and relaying changes.  Ingest limits apply (10,000 ops per change).
+
+=== Client
+
+* `WTModel.AttributeQuery`: a predicate over nodes built from the attribute settings, walking
+  the appearance stack and text runs; results are node ids.  Runs on the model actor; the
+  design-point document is queried in under 100 ms.
+* `ReplaceCommand(query:, edit:)` maps each match to register writes through the owning
+  feature's command (recolor, set width, transform, simplify...) and merges them into one
+  change; splitting at 10,000 ops.
+* Panel: SwiftUI body in the APP-004 framework; color wells accept swatch drags from the
+  Swatches and Color Mixer panels; *Paste In* reads the native pasteboard type.
+* Undo: one step per btn:[Change], grouped across split changes.
+
+=== Build tasks
+
+[[OBJ-022]]
+==== OBJ-022 Attribute query engine
+[horizontal]
+Track:: client-model
+Depends on:: APP-006, CRDT-004
+Size:: M
+Delivers:: `AttributeQuery` with every Select-tab attribute, scope (selection/page/document), locked/hidden-layer exclusion, name substring matching, path-shape matching (same point count and normalized geometry within tolerance, same stroke and fill), and the Select tab wired to it.
+Done when::
+* Unit tests per attribute on a fixture document; page scope uses bounds intersection.
+* Design-point document queried in under 100 ms.
+* Path shape matches a scaled and rotated copy of the sample with *Transform to fit original* semantics documented in the test.
+
+[[OBJ-023]]
+==== OBJ-023 Find & Replace panel and ReplaceCommand
+[horizontal]
+Track:: client-ui
+Depends on:: OBJ-022, OBJ-001, APP-011
+Size:: L
+Delivers:: The Find & Replace tab with every attribute editor, btn:[Change] running `ReplaceCommand`, one labelled change (split at 10,000 ops), result count, arithmetic in numeric fields, swatch drag targets, *Paste In* wells, and the Main toolbar button.
+Done when::
+* Replacing a color across 500 objects yields one change labelled `Replace color in 500 objects` and one undo step.
+* Rotate rotates each object about its own bounds center (test with three objects at different positions).
+* Merge test: replace concurrent with a remote width edit on one matched object converges per register; the other objects carry the replacement; undo skips the remotely edited register.
+* 12,000 matches produce two changes and one undo step.
+endif::spec[]

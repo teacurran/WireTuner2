@@ -1,0 +1,506 @@
+Vector formats keep your artwork as paths, text and colors that the receiving program can
+scale, edit and print at any resolution.  {product} writes EPS, Adobe Illustrator, SVG and DXF
+as vector formats; PDF, the most capable of them, has its own page
+(xref:export-pdf.adoc[Exporting PDF files]).  This page describes the options of each, and
+then the rules that apply to all of them: what happens to effects, transparency, blends,
+gradients and overprint when a format cannot carry them as drawn.
+
+To export in a vector format:
+
+. Choose menu:File[Export…].
+. Choose *EPS*, *Adobe Illustrator*, *SVG* or *DXF* from the *Format* menu.
+. Choose what to export and, for multi-page documents, which pages
+  (xref:exporting.adoc[Exporting files]).  EPS, SVG and DXF write one file per page.
+. Click btn:[Options…] and set the options described below.
+. Click btn:[OK], then btn:[Export].
+
+== EPS options
+
+Encapsulated PostScript is a single page of PostScript with a bounding box, for page-layout
+and prepress software that predates PDF.  Prefer PDF whenever the recipient accepts it.
+
+// TODO screenshot: EPS options sheet
+
+[cols="1,3"]
+|===
+|Option |Effect
+
+|*PostScript level*
+|*Level 3* (default) writes smooth shading for gradients and supports more fonts.  *Level 2*
+turns gradients into stepped bands for old RIPs.
+
+|*Preview*
+|*None* writes bare PostScript; programs that cannot interpret PostScript show a gray box
+where the artwork goes.  *TIFF, 72 ppi* and *TIFF, 144 ppi* embed a color preview those
+programs display instead.  The preview is not used when the file prints.
+
+|*Fonts*
+|*Embed* includes every font used, as subsets, so the file prints correctly anywhere.  *Convert
+to outlines* turns text into paths: no fonts needed, but the text is no longer text.
+*Reference only* writes font names and expects the printer to have them.  Fonts whose
+license forbids embedding are converted to outlines automatically, and the export sheet
+names them (xref:print-fonts.adoc[Fonts and printing]).
+
+|*Colors*
+|*Keep document colors*, *Convert to CMYK* or *Convert to RGB*
+(xref:exporting.adoc[Exporting files]).  Spot colors are written as named separations.
+
+|*Overprint*
+|*Preserve* (default) keeps overprint settings on objects; *Discard* prints everything
+knock-out.
+
+|*Embed {product} document*
+|Attaches a complete package of the document inside the EPS, so that opening the EPS in
+{product} later gives you the editable original.  Roughly doubles the file size.  The
+package reflects the whole document, not only the exported page.
+
+|*Include document info*
+|Writes the Document Info fields as header comments (xref:file-info.adoc[Adding file
+information]).
+|===
+
+Transparency, live effects and raster effects are flattened for EPS, which has no
+transparency model; see <<flattening,How effects and transparency export>>.
+
+NOTE: For {fh} users: *Generic*, *Macintosh*, *MS-DOS*, *QuarkXPress*, *Photoshop* and *CMYK*
+EPS are all this one EPS.  Choose a TIFF preview for what used to be Macintosh or QuarkXPress
+EPS; leave the preview off for Generic.  *Include FreeHand Document* is *Embed {product}
+document*.  Photoshop opens the result exactly as it opened Photoshop EPS.
+
+== Adobe Illustrator options
+
+The Illustrator format is a PDF arranged so that Illustrator opens it with layers, paths and
+text intact.  Its options are the PDF options (xref:export-pdf.adoc[Exporting PDF files])
+with these fixed: compatibility PDF 1.7, fonts embedded, layers written, text kept editable.
+Illustrator 10 and later open it; Illustrator's own effects and appearance stacks are not
+produced, so a live effect arrives as its flattened result, and a {product} symbol arrives as
+plain artwork.
+
+Add *Embed {product} document* here too if the file may come back for editing in {product}.
+
+== SVG options
+
+SVG is the vector format of the web and of most current design tools.  {product} writes SVG
+1.1 with the widely supported parts of SVG 2, so files open in every browser and in
+Illustrator, Sketch, Figma, Affinity and Inkscape.
+
+// TODO screenshot: SVG options sheet
+
+[cols="1,3"]
+|===
+|Option |Effect
+
+|*Precision*
+|Decimal places for coordinates, 1 to 6 (default 3).  Fewer digits make smaller files;
+below 2 small artwork visibly distorts.
+
+|*Text*
+|*Keep as text* writes `<text>` elements with font names, so the SVG stays searchable and
+editable but depends on the viewer having the fonts.  *Convert to outlines* writes paths.
+*Keep as text, embed fonts* writes text plus the used font subsets as data URLs inside a
+`<style>` block, where licenses allow; fonts that forbid it are outlined.
+
+|*Element ids*
+|*From object names* uses the names from the Object panel (xref:names-notes.adoc[Names and
+notes]) as `id` attributes, made safe for XML and unique with numeric suffixes.  Layers get
+their layer names.  *None* writes no ids.  *Generated* writes short unique ids.
+
+|*Styling*
+|*Presentation attributes* (`fill="#…"` on each element) is the most portable.  *CSS classes*
+collects repeated styles into a `<style>` block, smaller for files with many similar objects.
+*Inline style* writes `style="…"` attributes.
+
+|*Size*
+|*Responsive* writes only a `viewBox`, so the SVG scales to its container.  *Fixed* adds
+`width` and `height` in the chosen unit (px, pt, mm, in).
+
+|*Images*
+|*Embed* writes placed images as data URLs inside the file.  *Link* writes them as separate
+files next to the SVG in a folder named after it, and references them.  *Link, keep
+originals* copies the original placed files (a JPEG stays a JPEG) instead of re-encoding.
+
+|*Raster resolution*
+|The resolution at which effects that SVG cannot express are rendered to embedded images.
+Defaults to the document's raster effects resolution (xref:raster-effects.adoc[Raster
+effects]).
+
+|*Page background*
+|Writes a rectangle in the page color behind the artwork.  Off by default.
+
+|*Symbols*
+|*As `<symbol>` and `<use>`* keeps symbol instances as references, small and editable.
+*Expand* writes each instance as plain artwork.
+
+|*Minify*
+|Removes whitespace and comments.  Off keeps the file readable.
+
+|*Include document info*
+|Writes Document Info as `<metadata>` (xref:file-info.adoc[Adding file information]).
+|===
+
+What SVG keeps live:
+
+* Basic fills and strokes, dashes, caps and joins, line and radial gradients, opacity and
+  blend modes, clipping paths, masks.
+* Layers as `<g>` groups with their names; groups as `<g>`.
+* Blur effects as `filter` elements; drop shadows and inner glows as filter chains.
+* Attached URLs as `<a>` links (xref:urls.adoc[Attaching URLs]).
+* Accessibility: the alt text and *Decorative* setting of every object
+  (xref:names-notes.adoc[Names, notes and alt text]).  A described object is written with
+  `role="img"`, a `<title>` holding its alt text and, when the text has several lines, a
+  `<desc>` holding the rest; a decorative object gets `aria-hidden="true"`; the `<svg>` root
+  gets `role="img"`, a `<title>` from the Document Info title (or the file name) and a
+  `<desc>` from its description, and `xml:lang` from its language.  A linked object carries
+  both descriptions: the link's alt text on the `<a>`, the object's own on the element inside
+  it.  Reading order in SVG is the order elements are painted, so a reading order you arranged
+  by hand applies to PDF and HTML output, not to SVG.
+
+What SVG receives as rendered images or expanded paths is listed under
+<<flattening,How effects and transparency export>>.
+
+== DXF options
+
+DXF carries paths for cutters, plotters, CNC and CAD.  It has no fills, no transparency and
+no gradients; only outlines matter.
+
+[cols="1,3"]
+|===
+|Option |Effect
+
+|*Version*
+|*AutoCAD 2018* (default), *2000* or *R12*.  R12 is the most widely read by cutter software
+and supports polylines only.
+
+|*Units*
+|Millimeters, inches, points or the document's units; one drawing unit equals one of these.
+
+|*Curves*
+|*Splines* writes Bézier curves as spline entities (2000 and later).  *Polylines* flattens
+curves into straight segments with the chosen *Tolerance* (default 0.1 mm).
+
+|*Layers*
+|*From document layers* writes each {product} layer as a DXF layer with its name.  *Single
+layer* puts everything on layer 0.
+
+|*Text*
+|Always converted to outlines; DXF text entities depend on fonts that cutters lack.
+
+|*Strokes*
+|*Centerline only* writes each path once (what a cutter wants).  *Outline strokes* writes the
+stroke's outline as a closed path (what a router wants).
+|===
+
+Fills, colors, effects and images are ignored.  Compound paths keep their holes as separate
+closed polylines.
+
+== How effects and transparency export [[flattening]]
+
+Every vector format draws opaque shapes on top of each other.  Anything {product} draws that
+is not an opaque shape has to become one on the way out.  The rules:
+
+[cols="1,2,2"]
+|===
+|Feature |Formats that keep it live |Everywhere else
+
+|Transparency and blend modes
+|PDF 1.4 and later, PDF/X-4, Illustrator, SVG
+|Flattened: where a transparent object overlaps others, the overlap is cut into opaque pieces
+with the blended color; where that is not possible (soft edges, blend modes over images) the
+region is rendered to an image at the document's raster resolution.  Text stays text unless
+transparency crosses it.
+
+|Live vector effects (bend, ragged, sketch, …)
+|None
+|Expanded to the paths they draw.  The result is what you see, as plain paths.
+
+|Raster effects (blur, shadow, glow, bevel, …)
+|SVG (blur, shadow, glow as filters)
+|Rendered to an image with an alpha channel at the raster effects resolution
+(xref:raster-effects.adoc[Raster effects]), placed exactly where the effect drew.  In EPS and
+PDF/X-1a the alpha is flattened against what lies beneath.
+
+|Blends
+|None
+|Written as their steps: every intermediate object as a path
+(xref:blends.adoc[Blends]).
+
+|Gradients: linear and radial
+|PDF, EPS Level 3, Illustrator, SVG
+|EPS Level 2 and DXF: stepped bands.  The number of steps follows the print settings'
+gradient steps.
+
+|Gradients: contour, cone and other shapes
+|PDF, EPS Level 3 (as shading types the format has)
+|SVG: rendered to an image.  EPS Level 2: steps.
+
+|Textured, pattern and PostScript fills and strokes
+|EPS (as the PostScript they are)
+|Rendered to images for PDF and SVG; ignored for DXF.
+
+|Overprint
+|PDF, EPS
+|SVG, DXF: dropped (there is no such thing).  In bitmap exports, overprint is simulated when
+*Simulate overprint* is on.
+
+|Spot colors
+|PDF, EPS, Illustrator
+|SVG, DXF: converted to RGB.
+
+|Text on a path, text in columns, tables
+|PDF, EPS, Illustrator (as positioned text)
+|SVG: text on a path as `<textPath>`, tables as positioned text; DXF: outlines.
+|===
+
+Images that were placed with transparency keep it in PDF, Illustrator and SVG; EPS flattens
+them.  Everything rendered to an image uses the document's raster effects resolution unless
+the format's options override it.
+
+== Working with others
+
+Exporting reads the document; it never changes it, so there is nothing for a colleague to
+notice.  What is in the file is what you see at the moment you click btn:[Export].  Fonts
+embedded in an export are the ones installed or synced on *your* Mac; a colleague exporting
+the same document with a substituted font gets the substitute
+(xref:font-substitution.adoc[Font substitution]).
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,2"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|EPS: pages to export, one file per page
+|Pages chosen in the Export sheet; one file per page.
+|Faithful.
+
+|EPS: Include FreeHand Document
+|*Embed {product} document* (package as a private data block).
+|Adapted -- same intent; the embedded data is the package format.
+
+|EPS: Include Fonts in EPS
+|*Fonts*: Embed (subset) / Convert to outlines / Reference only.
+|Faithful, extended (subsetting, license handling).
+
+|EPS: Convert Colors To CMYK / RGB / both
+|*Colors*: Convert to CMYK / Convert to RGB / Keep document colors.
+|Faithful (renamed).
+
+|EPS preview variants (PICT, TIFF, none)
+|*Preview*: None / TIFF 72 / TIFF 144.
+|Adapted -- PICT dropped.
+
+|Photoshop EPS: Include Invisible Layers via Output Options
+|*Include hidden layers* in Document Settings applies to all exports
+(xref:printing.adoc[Printing]).
+|Faithful.
+
+|Illustrator 1.1--7.x export
+|One Illustrator format as PDF 1.7.
+|Adapted -- see xref:export-formats.adoc[About export file formats].
+
+|EMF: Include FreeHand Document, Convert Type to Paths, Description
+|Not written.
+|Dropped -- Windows-only format.
+
+|--
+|SVG and DXF exporters with the options above.
+|Addition.
+
+|--
+|Overprint preserved in EPS and PDF (FreeHand turned it off in PDF).
+|Addition.
+
+|--
+|SVG accessibility: `<title>`/`<desc>` and `role="img"` from alt text, `aria-hidden` for
+decorative objects, document title, description and language on the root.
+|Added -- accessible SVG is what browsers and the web expect; the data is already on the
+objects (xref:names-notes.adoc[]).
+|===
+
+=== Data model
+
+Each format's options are a message, stored inside `ExportPreset.options` (xref:exporting.adoc[Exporting files]) and never in the document.
+
+[source,protobuf]
+----
+// interchange/v1/export_options.proto (client-only package; never merged, never sent)
+message ColorOptions {
+  enum Mode { KEEP = 0; CONVERT_TO_CMYK = 1; CONVERT_TO_RGB = 2; }
+  Mode mode = 1;
+}
+message FontOptions {
+  enum Mode { EMBED_SUBSET = 0; EMBED_FULL = 1; OUTLINES = 2; REFERENCE = 3; }
+  Mode mode = 1;
+}
+message EpsOptions {
+  uint32 postscript_level = 1;       // 2 or 3
+  enum Preview { NONE = 0; TIFF_72 = 1; TIFF_144 = 2; }
+  Preview preview = 2;
+  FontOptions fonts = 3;
+  ColorOptions colors = 4;
+  bool preserve_overprint = 5;       // default true
+  bool embed_package = 6;
+  bool include_document_info = 7;    // default true
+}
+message SvgOptions {
+  uint32 precision = 1;              // 1..6, default 3
+  enum Text { AS_TEXT = 0; OUTLINES = 1; AS_TEXT_EMBED_FONTS = 2; }
+  Text text = 2;
+  enum Ids { FROM_NAMES = 0; NONE = 1; GENERATED = 2; }
+  Ids ids = 3;
+  enum Styling { PRESENTATION_ATTRIBUTES = 0; CSS_CLASSES = 1; INLINE_STYLE = 2; }
+  Styling styling = 4;
+  bool responsive = 5;               // default true; false writes width/height
+  string size_unit = 6;              // "px", "pt", "mm", "in" when not responsive
+  enum Images { EMBED = 0; LINK = 1; LINK_ORIGINALS = 2; }
+  Images images = 7;
+  uint32 raster_ppi = 8;             // 0 = document raster effects resolution
+  bool page_background = 9;
+  bool expand_symbols = 10;
+  bool minify = 11;
+  bool include_document_info = 12;   // default true
+}
+message DxfOptions {
+  enum Version { V2018 = 0; V2000 = 1; R12 = 2; }
+  Version version = 1;
+  enum Units { DOCUMENT = 0; MM = 1; INCH = 2; POINT = 3; }
+  Units units = 2;
+  bool splines = 3;                  // false = polylines
+  double tolerance = 4;              // polyline flattening tolerance in output units, default 0.1 mm
+  bool layers_from_document = 5;     // default true
+  bool outline_strokes = 6;          // false = centerline
+}
+----
+
+=== Merge semantics
+
+None.  Exporters read a `SceneSnapshot` and write no registers.
+
+=== Offline behavior
+
+Works offline.  *Keep as text, embed fonts* and EPS font embedding need the font files on
+this Mac; a cloud font not yet cached is outlined and named in the export sheet's warning list.
+
+=== Server
+
+Nothing.
+
+=== Client
+
+* *Flattening* is one shared stage in `WTInterchange` (`Flattener`): it takes the
+  `SceneSnapshot` and a capability set (has transparency, has shading types, has filters,
+  keeps spot colors, …) and returns a scene containing only what the target can carry.  Steps
+  in order: expand live vector effects (FX epic's expansion API); expand blends to steps;
+  convert text to outlines where required; region analysis for transparency (planar map of
+  overlapping transparent objects via GEO-002 booleans, pieces colored by compositing in the
+  document's blending space); rasterize regions that cannot be planarized (soft masks, blend
+  modes over images, raster effects) at `raster_ppi` through `WTRender` into `CGImage`s with
+  alpha; for targets without alpha, composite each raster onto the underlying artwork's
+  rendering and clip to its bounds.
+* *EPS writer*: own DSC 3.0 writer; Level 3 shading dictionaries (types 2 and 3; contour and
+  cone gradients as type 4/6 meshes where they fit, otherwise steps), `setoverprint`, named
+  `Separation` color spaces for spots, Type 42 (TrueType) and CFF (Type 1C via `/FontFile3`)
+  font subsets from Core Text data, `%%BoundingBox` from the export bounds, TIFF preview
+  through the EPS binary header (Windows-style, the only preview format still read).  The
+  embedded package is a `%%BeginData … %%EndData` block after the trailer, base64, tagged
+  `%WireTunerPackage`.
+* *Illustrator*: the PDF writer (IO-025) with a fixed profile plus AI compatibility: layers
+  as optional content groups with `/Usage`, `/AIMetaData`-free (Illustrator private data is
+  not produced; Illustrator opens as PDF).
+* *SVG writer*: own XML writer (`XMLDocument` is too slow for 50,000 nodes); coordinates
+  formatted with the precision option and trailing zeros stripped; ids sanitized to
+  `[A-Za-z_][A-Za-z0-9_-]*`; gradients de-duplicated into `<defs>`; filters for blur (`feGaussianBlur`),
+  drop shadow (`feDropShadow`), glow (`feMorphology` + blur + `feFlood`); everything else via
+  `Flattener`.  Data URLs use PNG for images with alpha and the original JPEG bytes when the
+  placed image is a JPEG without effects.
+* *SVG accessibility*: for every node with `isReadable` (OBJ-040) the writer emits
+  `role="img"` and a `<title>` as the element's first child (the first line of `alt`), and a
+  `<desc>` with the remaining lines; the element's `aria-labelledby` points at the generated
+  `<title>`/`<desc>` ids so the description survives viewers that ignore `<title>` children.
+  A node with `decorative` gets `aria-hidden="true"` and no title; a group with `alt` is one
+  figure (its members get neither).  `text` nodes get no title (their text is read).  The
+  root `<svg>` gets `role="img"`, `<title>` and `<desc>` from `DocumentInfo` (IO-012) and
+  `xml:lang` from `DocumentInfo.language` when set.  Links (WEB-005) keep their own `<title>`
+  on the `<a>`; the object's `<title>` sits on the wrapped element, so both are read.
+  Rasterized effects are `<image>` elements that inherit the source node's title.  Nothing is
+  written when neither field is set anywhere, so files of undescribed documents are unchanged.
+* *DXF writer*: ASCII DXF with `HEADER`, `TABLES` (layers), `ENTITIES`; `LWPOLYLINE` for
+  polylines, `SPLINE` (degree 3, control points from the Béziers) for splines; `$INSUNITS`
+  set from the units option; y axis flipped to DXF's y-up.
+* Undo: none.
+
+=== Build tasks
+
+[[IO-017]]
+==== IO-017 Flattener
+[horizontal]
+Track:: import-export
+Depends on:: GEO-002, REND-002, IO-013
+Size:: L
+Delivers:: `Flattener` with capability-driven expansion of vector effects, blends, text outlining, transparency planarization, rasterization of unplanarizable regions and alpha compositing for opaque targets, plus a debug view that renders the flattened scene.
+Done when::
+* Corpus of 60 documents (transparency over images, blend modes, soft shadows, text under transparency, spot overprint) flattened for an opaque target renders within anti-aliasing tolerance of the live rendering.
+* Text that transparency does not touch remains text in the output scene.
+* Flattening the design-point document finishes in under 10 s on M1.
+
+[[IO-018]]
+==== IO-018 EPS exporter
+[horizontal]
+Track:: import-export
+Depends on:: IO-017, IO-012, TXT-002
+Size:: M
+Delivers:: The EPS writer with Level 2/3, preview, fonts (subsets, license check), colors, overprint, spot separations, document info comments and the embedded package block.
+Done when::
+* Output passes Ghostscript (`gs -dNOPAUSE -sDEVICE=png16m`) without errors for the corpus and renders within tolerance of the live rendering.
+* A file with `embed_package` reopens in {product} as the editable original (IO-028).
+* A font whose embedding bit forbids it is outlined and listed in the warning.
+
+[[IO-019]]
+==== IO-019 SVG exporter
+[horizontal]
+Track:: import-export
+Depends on:: IO-017, IO-012
+Size:: L
+Delivers:: The SVG writer with every option above, live filters for blur/shadow/glow, symbols as `<use>`, links, metadata, image embed/link modes, and a validator run in tests.
+Done when::
+* Output validates against the SVG 1.1 DTD plus the used SVG 2 features, renders identically in WebKit and Chromium (screenshot diff within tolerance) for the corpus.
+* Object names become ids; two objects named "Logo" become `Logo` and `Logo-2`.
+* Files re-imported by the IMG epic's SVG importer round-trip paths, gradients and text.
+
+[[IO-020]]
+==== IO-020 DXF exporter
+[horizontal]
+Track:: import-export
+Depends on:: IO-017
+Size:: M
+Delivers:: The DXF writer with version, units, spline/polyline, layer and stroke options.
+Done when::
+* Output opens in LibreCAD (R12) and in a 2018-version reader used in tests; dimensions match the document in millimeters to 0.01 mm.
+* A path with holes yields separate closed polylines; text arrives as outlines.
+
+[[IO-029]]
+==== IO-029 Illustrator export profile
+[horizontal]
+Track:: import-export
+Depends on:: IO-025
+Size:: S
+Delivers:: The `.ai` format as a fixed PDF profile with layers as optional content groups and the options sheet reduced to *Colors*, *Embed {product} document* and *Include document info*.
+Done when::
+* Illustrator 2024 opens the corpus files with layers named and text editable (manual acceptance test recorded with screenshots).
+* The file also opens in Preview as a PDF.
+
+[[IO-031]]
+==== IO-031 SVG accessibility output
+[horizontal]
+Track:: import-export
+Depends on:: IO-019, OBJ-040, IO-012
+Size:: S
+Delivers:: `<title>`, `<desc>`, `role="img"`, `aria-labelledby` and `aria-hidden` emission in the SVG writer per the Client rules; root title, description and `xml:lang` from `DocumentInfo`; the group-as-one-figure rule; titles carried onto rasterized `<image>` elements.
+Done when::
+* A fixture with a described path, a two-line description, a decorative object, a described group with described members, a linked described object and outlined text produces exactly the expected elements (XML assertion per case), and VoiceOver in Safari reads the description of each figure once.
+* Output still validates (IO-019 checks) and an undescribed document's SVG is byte-identical to before this task.
+* Ids generated for `aria-labelledby` never collide with *From object names* ids.
+endif::spec[]

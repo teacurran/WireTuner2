@@ -1,0 +1,7 @@
+= Toolbars and the Tools panel
+include::_attributes.adoc[]
+:page-slug: toolbars
+:page-group: Basics
+:page-fh: Chapter 1, "Using toolbars", "The Main toolbar", "Using the Tools panel", "The Status toolbar"
+
+include::_includes/basics/toolbars.adoc[]

@@ -1,0 +1,291 @@
+Images and other files you import into a document are either *embedded* -- stored with the
+document in the cloud, so everyone who opens it has them -- or *linked* -- kept as a reference to
+a file outside the document, so they can be updated from their source.  {product} embeds by
+default.  A linked file still carries a copy of its content in the document, so collaborators and
+other Macs always see the picture; the link is what lets you update it from the original.  The
+*Links* window lists every imported file and lets you relink, update, embed or extract each one.
+
+// TODO screenshot: the Links window with one broken link in italics
+
+== Embedded and linked files
+
+Embedded:: The file's content is uploaded with the document.  It has no connection to the file
+you imported it from; editing the original does nothing to the document.  Use this for artwork
+that is finished, and for anything collaborators need to print or export.
+
+Linked:: The document remembers where the file came from -- a path on your Mac, or a document in
+your library -- and keeps a copy of its content as of the last import or update.  When the source
+changes, *Update* brings the new version in.  A link's path is specific to the Mac that made it;
+on other Macs the link shows as *unavailable* and the last copy is used until someone with the
+file updates or relinks it.
+
+Linked files must be reachable to be updated; the document itself never needs them to display,
+print or export, because the last copy is always present.
+
+To choose the default when importing, set *Embed imported files* in menu:{product}[Settings… >
+Import]; when it is off, imported files are linked.  Importing itself is covered in
+xref:importing.adoc[Importing artwork].  EPS files that are converted to editable objects on
+import are neither embedded nor linked; they become artwork.
+
+NOTE: {fh} could link a DCS EPS only as a link.  {product} embeds a DCS 1.0 file as a
+placeholder preview plus its plates, so it prints correctly (xref:import-formats.adoc[Import
+formats]).
+
+== The Links window
+
+To open the Links window, do one of the following:
+
+* Choose menu:Edit[Links…].
+* Select an imported image and click btn:[Links…] in the Object panel.
+
+The window lists every imported file in the document:
+
+[cols="1,3"]
+|===
+|Column |Meaning
+
+|Name
+|The file name.  Italics mean the link is broken on this Mac: the file is not where it was.  A
+cloud icon means the file is linked to a library document rather than a path.
+
+|Kind
+|TIFF, PNG, JPEG, PDF, EPS, SVG animation, and so on, with color mode where it applies.
+
+|Size
+|The stored copy's size.
+
+|Page
+|The page whose bleed area contains the top-left corner of the image, or *Pasteboard*.
+
+|Status
+|*Embedded*, *Linked*, *Linked (modified)* when the source is newer than the copy, or
+*Unavailable* when the source cannot be found on this Mac.
+|===
+
+Selecting a row selects the object in the document and scrolls to it.
+
+=== Actions
+
+Info::
+Shows the file's name, source path or library location, last modified date, kind, size, color
+mode, resolution and a thumbnail.
+
+Change…::
+Relinks the selected file to another file you choose.  The new content replaces the copy and the
+link points at the new file.  Use it for a broken link after the file moved, or to swap one image
+for another with the same placement.
+
+Update::
+Re-reads a linked file from its source and replaces the copy.  Available when the source is
+reachable; *Update All* does it for every modified link.
+
+Embed::
+Breaks the link and keeps the copy.  The row becomes *Embedded*.
+
+Extract…::
+Writes the stored copy to a file you choose, and relinks the object to that file.  Use it to get
+an embedded image back out of a document, or to move a link to a new location.  If a file of that
+name exists, an alert offers to replace it or choose another name.
+
+== Broken links when opening
+
+A document opens even when some linked files cannot be found; the objects show the stored copies,
+and a badge in the Links window and on the Object panel marks each *Unavailable* link.  {product}
+looks for a missing file in the folder it was in, then in the document's *Search for missing links
+in* folder and up to ten levels of its subfolders (menu:{product}[Settings… > Document]).  A file
+found there is relinked without asking.  Otherwise, use *Change…* in the Links window to locate
+it.
+
+== Working with others
+
+The stored copy of every file is part of the document, so everyone sees the same images whether the
+originals are on their Mac or not.  When a collaborator updates or relinks a file, the new content
+appears for you when it has uploaded; large files show a progress ring in place until then.
+
+Links are remembered per Mac: an image Priya linked from her desktop shows as *Unavailable* in your
+Links window, with her name, and you can relink it to a copy of your own or ask her to update it.
+If two people update the same link at once, the later update stands and the other is told; the
+same goes for one person embedding a file while another relinks it -- the later action stands, and
+the other person can reapply theirs from the notice.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,1"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Embed or link on import, by preference
+|Same preference (*Embed imported files*), default on.
+|Faithful
+
+|Linked graphic displays a preview; printing/export requires the link
+|A full copy is always stored; printing and export never need the source.
+|Adapted -- a cloud document must render and print on every Mac; a copy is required anyway for collaborators.
+
+|Embedding increases document size and memory
+|Same; blobs are lazily downloaded and cached.
+|Faithful
+
+|DCS EPS 1.0 must not be embedded
+|Embedded as preview plus plates.
+|Adapted -- with blobs there is no reason to forbid it; handled on the import formats page.
+
+|Links dialog: list with Kind, Size, Page; italics for broken links
+|Same plus Status column and cloud-library links.
+|Faithful
+
+|Info, Change, Embed, Extract
+|Same; *Update* and *Update All* added because copies exist.
+|Faithful
+
+|Links button in the Object panel
+|Same.
+|Faithful
+
+|Locate File dialog when opening a document with broken links; Ignore / Ignore All; Search the current folder
+|No dialog on open; badges and automatic search instead.
+|Adapted -- a modal on open would block joining a shared document for links belonging to someone else's Mac.
+
+|Search for Missing Links preference with a chosen folder, 10 subfolders deep
+|Same name *Search for missing links in*, same depth.
+|Faithful
+
+|Collect for Output gathers linked graphics
+|Printing page; all content is already in the document.
+|Faithful
+
+|Guidance about linked images on network servers
+|Not applicable.
+|Dropped -- copies are stored with the document; there is no network file dependency.
+|===
+
+=== Data model
+
+Imported files are `asset` nodes under `assets` (0:9); the placed image object references the
+asset by `NodeRef`.  The image node itself belongs to the bitmaps pages; this page owns the link
+fields of the asset.
+
+[source,protobuf]
+----
+// proto/wiretuner/doc/v1/asset.proto (DOC epic sketch; the IMG epic adds image-specific fields)
+
+enum LinkKind {
+  LINK_KIND_UNSPECIFIED = 0;
+  LINK_KIND_EMBEDDED = 1;     // no source; the blob is the truth
+  LINK_KIND_LOCAL_FILE = 2;   // a path on the Mac named by `link.device`
+  LINK_KIND_LIBRARY = 3;      // a document in the cloud library (an image asset document)
+}
+
+// Where the content came from.  ATOMIC: kind, path, device and modification time describe one
+// source; mixing a path from one relink with a device from another names a file that never existed.
+message LinkSource {
+  LinkKind kind = 1;
+  string display_name = 2 [(buf.validate.field).string.max_len = 256];
+  string path = 3 [(buf.validate.field).string.max_len = 4096];   // POSIX path for LOCAL_FILE
+  string device = 4;          // wt-device id of the Mac that owns `path`, shown as the user's name
+  string library_document = 5;   // UUIDv7 of the library document for LINK_KIND_LIBRARY
+  int64 source_modified_ms = 6;  // mtime of the source when the blob was last read from it
+}
+
+message AssetProps {
+  bytes sha256 = 1 [(buf.validate.field).bytes.len = 32];   // current blob (content-addressed)
+  uint64 byte_size = 2;
+  string media_type = 3 [(buf.validate.field).string.max_len = 128];   // "image/tiff", "application/pdf", ...
+  LinkSource link = 4 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Security-scoped bookmark for `link.path`; only meaningful on the device that made it.
+  bytes bookmark = 5 [(wt.crdt.field).local_only = true];
+}
+----
+
+Command effects:
+
+Import (link or embed):: `CreateNode(asset)` with the blob hash (upload queued, SYNC-008) and
+`link` set to EMBEDDED or the source.
+Update:: `SetFields(sha256, byte_size, link)` with the new hash and `source_modified_ms`; the old
+blob stays referenced by history.
+Change… (relink):: `SetFields(sha256, byte_size, media_type, link)` in one change.
+Embed:: `SetFields(link = {kind: EMBEDDED})`.
+Extract…:: Writes the blob to disk locally, then `SetFields(link = LOCAL_FILE …)`.
+Auto-relink on open:: `SetFields(link.path, bookmark)` only when `device` is this Mac -- it repairs
+*this Mac's* link.  For another Mac's broken link nothing is written; the badge shows.
+
+=== Merge semantics
+
+* `sha256`/`byte_size`/`media_type` are separate registers but are always written together by one
+  change; concurrent updates from two Macs: later wins each, and because every update writes all
+  three from the same source, the winner's set is consistent.  Read-time normalization: if
+  `byte_size` disagrees with the blob's actual size (possible only when two changes interleave with
+  a later schema field), the blob's size is used.
+* `link` ATOMIC later-wins.  Embed vs. relink, or relink vs. relink: whichever is later; the
+  loser is a same-register loss of visible work and is listed in the review sheet (live: the
+  notice with *Reapply mine*).  A relink that loses to an embed leaves the relinker's blob
+  unreferenced but retained by history.
+* Delete the image object vs. update its asset: the asset is updated, the object stays deleted;
+  ordinary edit-vs-delete on the object.
+* Blob not yet uploaded (other Mac offline): renderer shows the placeholder progress ring
+  (SYNC-008 placeholder notification) and the Links window shows *Uploading from Priya's Mac*.
+
+=== Offline behavior
+
+* Update/relink offline queue the new blob; the change is sent first, the blob follows, so other
+  clients may briefly show the placeholder.
+* Auto-relink search runs offline (it is local).
+* Library links (`LINK_KIND_LIBRARY`) cannot be updated offline unless the library document is
+  cached; *Update* is disabled with a reason.
+
+=== Server
+
+Nothing beyond storing and relaying changes and blobs (SRV-008).  Blob retention follows history
+retention.
+
+=== Client
+
+* `WTModel.LinkCommands`: `update`, `updateAll`, `relink(to:)`, `embed`, `extract(to:)`,
+  `autoRelink(searchFolder:)` (runs on open, off the main actor, bounded to 10 directory levels
+  and 20,000 entries).
+* `WTInterchange` reads the source file for update/relink (same decoders as import) and produces
+  the blob and `media_type`.
+* Links window (`WTApp`): an `NSTableView` over the assets collection, sortable, live; row
+  selection drives the selection model; italics and badges from link status computed per Mac.
+* Object panel btn:[Links…] opens the window with the selected asset's row selected.
+* Undo: each action is one change; extract's file write is not undoable (the relink is).
+
+=== Build tasks
+
+[[DOC-021]]
+==== DOC-021 Asset link schema
+[horizontal]
+Track:: proto
+Depends on:: DOC-001
+Size:: S
+Delivers:: `doc/v1/asset.proto` with `AssetProps`, `LinkSource`, `LinkKind`, the `asset` case in `NodeProps.kind`, and validation.
+Done when::
+* Lints clean; `bookmark` is `local_only`; `link` is ATOMIC in the generated merge table.
+* Conformance vectors: concurrent `link` writes; `bookmark` never appears in a serialized change.
+
+[[DOC-022]]
+==== DOC-022 Link commands and missing-link search
+[horizontal]
+Track:: client-model
+Depends on:: DOC-021, SYNC-008
+Size:: M
+Delivers:: `WTModel.LinkCommands` as listed, link status computation per device, the auto-relink search on open with the *Search for missing links in* folder, and the embed-vs-relink review rule.
+Done when::
+* Update, relink, embed and extract each produce one change and queue the blob when needed.
+* Auto-relink finds a moved file ten levels deep and writes only `path` and `bookmark` for this device's links.
+* Merge tests: update vs. update (later wins, consistent triple); embed vs. relink (relink outcome per rule); object delete vs. asset update.
+
+[[DOC-023]]
+==== DOC-023 Links window
+[horizontal]
+Track:: client-ui
+Depends on:: DOC-022, APP-007
+Size:: M
+Delivers:: menu:Edit[Links…] window with the columns and actions above, the Object panel btn:[Links…] button, the *Embed imported files* and *Search for missing links in* preferences, unavailable and uploading badges.
+Done when::
+* UI tests: relink a broken link, update a modified link, embed, extract, Update All.
+* Selecting a row selects and scrolls to the object; a remote asset change updates the row without losing selection.
+endif::spec[]

@@ -1,0 +1,223 @@
+A connector line links two objects and stays linked: move either object and the line reroutes
+itself to keep them joined.  Connectors are the quick way to draw call-out lines, organization
+charts and flowcharts.  A connector is drawn with the current stroke, so its arrowheads,
+width and dashes come from the Object panel like any other stroke
+(xref:stroke-attributes.adoc[Stroke attributes]).
+
+// TODO screenshot: three boxes joined by connectors, one box being dragged
+
+== Drawing a connector
+
+To draw a connector between two objects:
+
+. Choose the Connector tool.
+. Move the pointer over the first object.  The pointer changes to show the object can be
+  connected, and as you move near its top, bottom, left or right edge, that side highlights.
+. Press on the side you want the line to leave from and drag.
+. Drag to a side of the second object and release.  The line is routed with right-angle
+  bends from the first side to the second.
+
+Release over empty canvas and the connector ends at a free point there; it then follows only
+the object it starts from.
+
+To move a connector's end:
+
+* With the Connector tool, drag an end point to another object (or another side of the same
+  object), or to empty canvas to free it.
+
+To reverse a connector:
+
+. Select it.
+. Choose menu:Modify[Alter Path > Reverse Direction].  Its arrowheads swap ends.
+
+To reshape a connector by hand:
+
+. With the Connector tool, click the connector.  A handle appears on each straight run of the
+  line.
+. Drag a handle to slide that run sideways.  The bends adjust to keep the line connected.  The
+  reshaped route is kept as the objects move; the line snaps back to automatic routing if the
+  objects move so far that a different number of bends is needed.
+
+A connector cannot be dragged on its own with the Pointer tool: move the objects it connects.
+It can be selected, styled, deleted, and included in a group with its objects.
+
+== Working with others
+
+When a collaborator moves an object, every connector attached to it reroutes on your screen
+at once, because a connector stores *which* objects it joins, not where they were.  Two people
+dragging the two ends of one connector to different objects keep both changes.  If someone
+deletes an object a connector is attached to, that end of the connector stays where the
+object was and becomes a free end; deleting the other object too leaves a plain line you can
+keep or discard.  Restoring the deleted object reconnects it.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,1"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Connector tool: hover to find a connectable object, choose a side, drag to a side of the
+target
+|Same.
+|Faithful
+
+|Drag an end to another object or to empty space
+|Same.
+|Faithful
+
+|Reverse Direction on a connector
+|Same.
+|Faithful
+
+|Reshape with handles on the connector tool
+|Same; kept as per-run offsets that reset when the route's shape changes.
+|Faithful
+
+|Connector stroke attributes (start/end symbols, etc.) from the Object panel
+|Same, through the attribute stack.
+|Faithful
+
+|Behavior when a connected object is deleted (unspecified in {fh})
+|The end becomes a free point at its last attachment position.
+|Adapted
+|===
+
+=== Data model
+
+`doc/v1/connector.proto`.  The geometry of a connector is *never stored*; it is derived on
+read from the two ends and the current bounds of the referenced nodes.
+
+[source,protobuf]
+----
+message ConnectorProps {
+  CommonProps common = 1;                     // transform is unused (identity); name, notes
+  // ATOMIC: node, side and point are always written together by an attach, and a merged end
+  // with one person's node and another's side would attach to a side nobody chose.
+  ConnectorEnd start = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  ConnectorEnd end = 3 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  Appearance appearance = 4;                  // strokes only; fills ignored
+  // Manual reshape: sideways offset of each intermediate straight run of the routed line, in
+  // pasteboard units, in route order.  ATOMIC: the list only makes sense as a whole for one
+  // route shape.  Read as automatic when its length differs from the current route's run
+  // count.
+  repeated double run_offsets = 5 [(wt.crdt.field).merge = MERGE_ATOMIC];
+}
+
+message ConnectorEnd {
+  // The object this end is attached to.  Dangling (deleted, unknown, or a kind without
+  // bounds) reads as unset, making this a free end at `point`.
+  NodeRef node = 1 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
+  Side side = 2;                              // TOP, BOTTOM, LEFT, RIGHT; ignored when free
+  // Free position, and the fallback when `node` dangles.  Written whenever the end is
+  // attached or moved (the attachment point at that moment), so a deleted object leaves the
+  // end where it was.
+  Point point = 3;
+}
+enum Side { SIDE_UNSPECIFIED = 0; SIDE_TOP = 1; SIDE_BOTTOM = 2; SIDE_LEFT = 3; SIDE_RIGHT = 4; }
+----
+
+The endpoint position for an attached end is the midpoint of the chosen side of the node's
+*rendered bounds* (after its transform, stroke widths included), computed at read time.
+
+=== Merge semantics
+
+Remote move of a connected object:: No connector op is involved.  The mover writes the
+object's `transform`; every replica re-derives the connector on read.  This is the key
+property: connectors cannot lag or conflict with the objects they follow.
+
+Two people re-attach the two ends:: `start` and `end` are separate registers; both survive.
+
+Two people re-attach the same end:: `ConnectorEnd` is ATOMIC, so the greater OpId's node,
+side and point win together; the review sheet lists the connector under *same register* with
+both attachments named by object.
+
+Delete the object vs. attach to it:: The attach applies; the ref dangles; the end reads as
+free at `point`.  Restoring the object reconnects it because the ref is intact.
+
+Reshape vs. object move:: `run_offsets` is kept if the route still has the same number of
+runs; otherwise it reads as automatic and stays in the register for the next matching route.
+
+Reverse Direction:: Swaps `start` and `end` (two STRUCT writes) and reverses `run_offsets`.
+Concurrent re-attach of one end may land on the "wrong" end after the swap; the review sheet
+lists the connector as *both edited*.
+
+Read-time normalizations::
+* Dangling `node` → free end at `point`.
+* Both ends free → a plain routed line between the two points (still a connector; the tool
+  can re-attach either end).
+* Both ends attached to the same node → drawn as a loop leaving one side and entering the
+  other; if the sides are equal, drawn as a short stub outside that side.
+* `run_offsets` length mismatch → automatic routing.
+* `common.transform` ignored.
+
+=== Offline behavior
+
+Works offline.  Dragging an end coalesces to one write per field.
+
+=== Server
+
+Nothing beyond storing and relaying changes.
+
+=== Client
+
+Routing:: `WTGeometry.routeConnector(startPoint:startSide:endPoint:endSide:) -> [Point]`, an
+orthogonal (Manhattan) router: leave each side by a 12 pt stub, then join the stubs with one
+or two bends chosen by the relative position of the ends (the classic flowchart elbow), no
+obstacle avoidance (as in {fh}).  `run_offsets` slide the intermediate runs.  Output is a
+`Path` with corner points; arrowheads and stroke come from REND-002.
+
+Dependency tracking:: `WTModel` keeps a reverse index node → connectors referencing it, built
+from the merged state and maintained on every applied change, so REND-004 can invalidate a
+connector's bounds when a referenced node's transform, size or stroke changes, locally or
+remotely.  Hit-testing uses the derived path.
+
+Tool:: `ConnectorTool`: hover highlights connectable nodes (any node with bounds except
+connectors and guides) and the nearest side; press-drag-release writes a `CreateNode`;
+dragging an end of an existing connector writes that `ConnectorEnd`; clicking a connector
+shows run handles; handle drags write `run_offsets`.
+
+Object panel:: The connector section shows the two ends (object name and side, or "free")
+and lets the user pick the side from a pop-up; the stroke section is the ordinary one.
+
+Undo:: One group per creation, per end drag, per handle drag.
+
+=== Build tasks
+
+[[DRAW-035]]
+==== DRAW-035 Connector schema and routing
+[horizontal]
+Track:: client-render
+Depends on:: DRAW-002, PROTO-003, GEO-001
+Size:: M
+Delivers:: `doc/v1/connector.proto` and the `connector` kind (carried with this task; buf gates apply), `routeConnector`, the run-offset rule, the reverse index in `WTModel`, the derived path view, and every read normalization above.
+Done when::
+* Routing unit tests for all 16 side combinations and for both-free ends; run offsets slide the correct run; length mismatch falls back.
+* Conformance vectors: same-end concurrent re-attach converges with all three fields from one writer; delete vs. attach leaves a free end at `point`.
+* Moving a node with 1,000 attached connectors invalidates and re-renders within one frame on M1.
+
+[[DRAW-036]]
+==== DRAW-036 Connector tool
+[horizontal]
+Track:: client-ui
+Depends on:: DRAW-035, APP-003, REND-003
+Size:: M
+Delivers:: `ConnectorTool` with hover and side highlighting, create by drag, end re-attachment and freeing, run handles, Reverse Direction for connectors, the Object panel connector section, and the rule that the Pointer cannot move a connector.
+Done when::
+* UI tests create connectors between two boxes on each side pair, drag an end to a third box, free an end, and drag a run handle, verifying the registers.
+* A remote move of a connected box reroutes the connector with no op emitted by the observer (outbox stays empty).
+* Merge test: two replicas re-attach the two ends of one connector concurrently; both attachments hold.
+
+[[DRAW-037]]
+==== DRAW-037 Connector rendering and invalidation
+[horizontal]
+Track:: client-render
+Depends on:: DRAW-035, REND-002, REND-004
+Size:: S
+Delivers:: Connector drawing through the stroke pipeline with arrowheads, selection outline, remote selection tint, and invalidation of connectors when referenced nodes change locally or remotely.
+Done when::
+* A remote transform change to a connected node repaints only the node's and the connector's tiles.
+* Deleting a connected node leaves the connector drawn to the fallback point; restoring the node reconnects it, with no ops from observers.
+endif::spec[]

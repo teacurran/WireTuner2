@@ -1,0 +1,408 @@
+menu:File[Export…] writes the document, some of its pages, an area of the pasteboard or just the
+selected objects to a file in one of the formats on xref:export-formats.adoc[About export file
+formats].  The same dialog serves every format; the *Options…* button opens the settings that
+belong to the format you picked.  Once you have exported, menu:File[Export Again] repeats the
+export to the same file, *Quick Export* skips the dialog altogether using a preset, dragging
+objects out of the window onto the Finder or into another app exports them on the spot, and
+the Share menu sends an export straight to another app or another person.
+
+// TODO screenshot: the Export sheet with PDF chosen, showing the What and Pages controls
+
+== Exporting a document
+
+To export:
+
+. Choose menu:File[Export…] (kbd:[Cmd+Shift+R]).
+. In the sheet, type a name and choose where the file goes.
+. Choose a format from the *Format* pop-up menu.  The extension changes to match.
+. Under *What*, choose what goes into the file:
++
+[cols="1,3"]
+|===
+|Choice |Exports
+
+|*Pages*
+|Whole pages: *Current page*, *All pages*, or a *Range* such as `1-3, 6`.  Every vector and
+text format accepts several pages; PDF puts them in one file, the others write one file per
+page (see <<naming,File names for several pages>>).
+
+|*Output area*
+|The rectangle drawn with the Output Area tool, which can span parts of several pages and the
+pasteboard between them (xref:output-area.adoc[Defining an output area]).  Available once an
+output area exists.
+
+|*Selected objects*
+|Only the selected objects, cropped to their bounds.  Available when something is selected.
+Objects on hidden layers are never included.
+|===
+. Select *Include page boundary* to make the page rectangle the edge of the exported
+  artwork even where the artwork is smaller than the page (or hangs off it).  Off, the file
+  is trimmed to the artwork's bounds.  Bitmap exports with the page boundary on also paint the
+  page background unless *Transparent background* is set in the format's options.
+. Click btn:[Options…] to set the format's own options.  These are described on the format
+  pages: xref:export-vector.adoc[Exporting vector artwork],
+  xref:export-bitmap.adoc[Exporting bitmap images], xref:export-pdf.adoc[Exporting PDF files],
+  xref:export-text.adoc[Exporting text].
+. Under *After export*, optionally choose *Open with* and an application, or *Reveal in
+  Finder*.  The application you pick is remembered per format.
+. Click btn:[Export].
+
+A progress bar appears for exports that take more than a second; you can keep working, and
+you can cancel.  The export captures the document as it was the instant you clicked
+btn:[Export]: changes you or anyone else make while the file is being written do not end up
+half in it.
+
+Colors:: Formats that carry color models (PDF, EPS, Illustrator, SVG, TIFF, PSD) have a
+*Colors* option in their options sheet: *Keep document colors* leaves RGB objects RGB and CMYK
+objects CMYK; *Convert to CMYK* and *Convert to RGB* convert everything using the document's
+color settings (xref:color-management.adoc[Color management]).  Converting on export gives
+more predictable results than letting the receiving application convert.  Spot colors survive
+in PDF, EPS and PSD; other formats convert them to process and the sheet says so.
+
+Hidden layers:: Objects on hidden layers are left out unless *Include hidden layers* is turned
+on in menu:File[Document Settings > Output Options] (xref:printing.adoc[Printing]).  Guides,
+the grid and non-printing layers never export.
+
+Effects and transparency:: Live effects, transparency and blends export at full fidelity to
+formats that can carry them and are flattened or rasterized for the rest.  The rules are on
+xref:export-vector.adoc[Exporting vector artwork].
+
+The sheet also shows the document's sync state.  If you are offline it reads "Offline —
+changes from others since 10:42 can't be included", because nobody can know what colleagues
+did until you reconnect.  Your own unsynced changes are always included.
+
+== File names for several pages [[naming]]
+
+When a format writes one file per page, or you export at several scale factors, {product}
+builds each name from a pattern.  The default pattern is `\{name}-\{page}`, so exporting
+"Catalog" as PNG gives `Catalog-1.png`, `Catalog-2.png` and so on.  Change the pattern in the
+Export sheet's *File names* field (it appears when more than one file will be written) or set
+your default in menu:{product}[Settings… > Export].
+
+[cols="1,3"]
+|===
+|Token |Becomes
+
+|`\{name}` |The name you typed in the sheet.
+|`\{page}` |The page number, `1`, `2`, ….
+|`\{page:2}` |The page number zero-padded to that many digits, `01`, `02`, ….
+|`\{pagename}` |The page's name from the Document panel, or its number if it has none.
+|`\{scale}` |`@2x`, `@3x` for scaled bitmap exports; nothing at 1×.
+|`\{date}` |Today's date as `2026-09-21`.
+|===
+
+A name that would be reused (two pages with the same name, or a token-less pattern) gets a
+numeric suffix rather than overwriting.
+
+== Exporting again
+
+menu:File[Export Again] (kbd:[Cmd+Option+Shift+R]) repeats the most recent export of this
+document: same file, same format, same options, same *What*.  If the file has been moved or
+you have never exported this document on this Mac, the Export sheet opens instead.  The most
+recent export is remembered per document, on this Mac.
+
+== Export presets
+
+A preset is a saved combination of format, options, *What* and naming pattern, with a name.
+Presets are yours: they are stored with your account and follow you to every Mac you sign
+in on, and they work in every document.
+
+To save a preset:
+
+. Set up the Export sheet and the format options the way you want.
+. From the *Preset* pop-up menu at the top of the sheet, choose *Save as Preset…* and name it.
+
+To use a preset, choose it from the *Preset* menu; every control fills in.  Changing any
+control afterwards shows the preset name in italics until you save it again.  *Manage
+Presets…* renames, reorders, duplicates and deletes presets, and imports or exports them as a
+file to share with a team.
+
+{product} ships with presets for the common cases: *PDF for print (PDF/X-4)*, *PDF for
+screen*, *SVG for web*, *PNG 1× 2× 3×*, *JPEG for web*, *Illustrator*.
+
+== Quick Export
+
+menu:File[Quick Export] (kbd:[Cmd+Option+E]) exports with the preset chosen as your *Quick
+Export preset* (menu:{product}[Settings… > Export], default *PNG 1× 2× 3×*) without showing the
+sheet.  The file goes next to the last place you exported to, or to the Desktop the first
+time, named after the document and the preset's pattern, and the Finder reveals it.  Hold
+kbd:[Option] while choosing the command to pick a different preset for this once.  A toolbar
+button (xref:toolbars.adoc[Toolbars]) does the same thing with one click.
+
+== Dragging artwork out
+
+Drag any selection out of the document window:
+
+* Onto the Finder (a folder, the Desktop) to write a file.  The format is your *Drag export
+  format* preference (menu:{product}[Settings… > Export], default PDF).  Hold kbd:[Option]
+  while dropping to choose the format from a menu.
+* Into another application to hand the artwork over in whatever it accepts: page-layout
+  programs take PDF, Photoshop takes a bitmap at the document's raster resolution, a text
+  editor takes text, a browser takes SVG.
+* Into another {product} window to copy the objects (xref:copying.adoc[Copying objects]),
+  not export them.
+
+Text dragged out of a text block goes as text (xref:export-text.adoc[Exporting text]).
+
+== The Share menu and Services
+
+menu:File[Share] (and the Share button in the toolbar) lists the destinations macOS offers --
+AirDrop, Mail, Messages, Notes, Freeform, and any app that accepts files -- and sends the
+export your *Quick Export preset* would write, so choosing *Mail* attaches the PNGs or the PDF
+without a trip through the Finder.  Hold kbd:[Option] while opening the menu to pick a
+different preset for this once.  With objects selected, only they are shared; otherwise the
+current page is.
+
+The traffic runs the other way too.  In the Share menu of Photos, Safari, Preview, the Finder
+and most other apps, *Add to {product} Document* places the shared image, PDF or SVG into the
+frontmost {product} document, at the center of its view, exactly as menu:File[Import…] would.
+When no document is open, or when you hold kbd:[Option] while choosing it, a small window lets
+you pick the document from your library first, or start a new one.  The same command appears
+under each app's Services menu when an image, a PDF or text is selected
+(xref:importing.adoc[Importing artwork]).  Services other apps provide for images, PDFs and
+text appear in menu:{product}[Services] when something is selected in {product}, and receive
+the selection in the formats the drag export writes.
+
+Dragging to the Finder and to other apps keeps working as above; the Share menu is for the
+cases where the destination is a person or an app rather than a place.
+
+== Working with others
+
+An export is a photograph of the document at one instant: everything you can see is in it,
+nothing that has not reached this Mac is.  Someone editing an object while you export does
+not tear the file; whichever of their changes arrived before you clicked btn:[Export] is in
+it and the rest are not.  If two people export "the final PDF" at the same time they get the
+same PDF only if nobody was mid-edit; when it matters, save a version first
+(xref:saving.adoc[Saving]) and export from that version's state, or use a named version's
+*Export…* button in the History panel.
+
+Presets are personal and never affect colleagues.  The remembered *Export Again* target is
+per Mac.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,2"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|menu:File[Export] with format pop-up, Setup button
+|menu:File[Export…] sheet on the document window (NSSavePanel with accessory view) with
+*Format* and btn:[Options…].
+|Faithful.
+
+|Area (export the output area), Page Boundary, Selected Objects Only
+|*What*: Pages / Output area / Selected objects; *Include page boundary*.
+|Faithful.
+
+|Pages to export chosen in the format's Setup (EPS) or the PDF dialog
+|Pages chosen once in the main sheet for every format.
+|Adapted -- one place for one decision.
+
+|Each page exports to a separate EPS file
+|One file per page for every format but PDF, named by the pattern.
+|Faithful, generalized.
+
+|Open in External Application, remembered per format
+|*After export: Open with*, remembered per format; *Reveal in Finder*.
+|Faithful.
+
+|Export Again
+|menu:File[Export Again], per document per Mac.
+|Faithful.
+
+|Export preferences: FreeHand File Preview format, size, quality
+|Not needed; packages always carry a thumbnail.
+|Dropped -- no {fh}-format file to attach a preview to.
+
+|Export preferences: EPS color previews / Bitmap PICT Previews
+|*Preview* option in EPS options (xref:export-vector.adoc[Exporting vector artwork]).
+|Adapted -- a per-export option rather than a global preference.
+
+|Include Portfolio Preview
+|Not supported.
+|Dropped -- Extensis Portfolio is discontinued.
+
+|Convert Colors To (CMYK / RGB / CMYK and RGB)
+|*Colors*: Keep document colors / Convert to CMYK / Convert to RGB.  "CMYK and RGB" is the
+keep option: each object stays in its own model.
+|Faithful (renamed).
+
+|Hexachrome alert
+|Spot-to-process conversion notice covers all spot systems.
+|Adapted (see xref:export-formats.adoc[About export file formats]).
+
+|Copy and paste or drag to export
+|Drag to Finder and to applications with the preference and kbd:[Option] menu; pasteboard
+flavors on Copy.
+|Faithful, extended.
+
+|--
+|Export presets, Quick Export, naming pattern tokens, 2×/3× scale, sync-state note.
+|Addition.
+
+|--
+|menu:File[Share] with the system share sheet; *Add to {product} Document* as a Share
+extension and Services item in other apps; Services in and out.
+|Added -- the macOS sharing model postdates {fh}; it reuses the Quick Export pipeline.
+|===
+
+=== Data model
+
+Presets are account preferences (`AccountService` `Preferences`), not document state, so a
+user's presets are the same in every document and on every Mac.  The document's `settings`
+node carries the per-Mac *Export Again* memory as `local_only` fields.
+
+[source,protobuf]
+----
+// account/v1/preferences.proto (excerpt)
+message ExportPreset {
+  string id = 1;                     // UUID, stable across renames
+  string name = 2 [(buf.validate.field).string.max_len = 64];
+  ExportFormat format = 3;
+  ExportWhat what = 4;               // PAGES_CURRENT, PAGES_ALL, PAGES_RANGE, OUTPUT_AREA, SELECTION
+  string page_range = 5;             // "1-3, 6"; only with PAGES_RANGE
+  bool include_page_boundary = 6;
+  string name_pattern = 7;           // token pattern, default "{name}-{page}"
+  repeated float scales = 8;         // bitmap formats only: 1, 2, 3
+  bytes options = 9;                 // the format's options message, serialized (see format pages)
+  string open_with_bundle_id = 10;   // "" = none
+  bool reveal_in_finder = 11;
+}
+
+message ExportPreferences {
+  repeated ExportPreset presets = 1; // ordered as the user arranged them
+  string quick_export_preset_id = 2;
+  ExportFormat drag_export_format = 3;
+  string default_name_pattern = 4;
+  map<string, string> open_with_by_format = 5;   // ExportFormat name → bundle id
+  BitmapExportDefaults bitmap_defaults = 6;      // see export-bitmap.adoc
+}
+
+// doc/v1/settings.proto (excerpt): per-Mac memory, never synced
+message SettingsProps {
+  // ... other epics' fields ...
+  ExportMemory last_export = 131 [(wt.crdt.field).local_only = true];
+}
+message ExportMemory {
+  bytes bookmark = 1;                // security-scoped bookmark of the exported file
+  ExportPreset settings = 2;         // everything needed to repeat it
+  int64 exported_at_ms = 3;
+}
+----
+
+=== Merge semantics
+
+Exporting writes no document registers.  `last_export` is `local_only`.  Presets live in
+account preferences, which are last-writer-wins per key on the server (APP-010); two Macs
+editing the preset list at once resolve by the later save, which is acceptable for a personal
+list.
+
+The scene an exporter reads is an immutable copy: `WTModel` produces a `SceneSnapshot` (the
+render display list plus the text layout results and asset references) on the main actor at
+export start, and the exporter runs on a background task over that snapshot.  Remote changes
+applied afterwards go to the live model only.
+
+=== Offline behavior
+
+Every export works offline.  Placed images whose blobs are not yet in the local cache render
+as their placeholder in the export; the sheet lists them under "Not yet downloaded" before
+export and offers *Wait for downloads* when online.  The sync-state note in the sheet is
+driven by `SyncState` (xref:saving.adoc[Saving]): `offline` shows the "changes from others
+since <last sync time>" note; `needsReview` shows "You have a merge to review; the export
+includes the merged result".
+
+Presets edited offline are stored locally and pushed to `AccountService` on reconnect.
+
+=== Server
+
+Nothing beyond storing account preferences.
+
+=== Client
+
+* The sheet is an `NSSavePanel` with a SwiftUI accessory view (`Format`, `Preset`, `What`,
+  page range field, `Include page boundary`, `File names` when applicable, `After export`, the
+  sync note, btn:[Options…]).  Choosing a format switches `allowedContentTypes`.
+  btn:[Options…] opens the format's options as a sheet over the panel.
+* Page ranges parse `1-3, 6`, `2-`, `-4`; invalid ranges disable btn:[Export] with the reason
+  inline.
+* Export runs on a `Task` with `Progress` reported to a window-attached progress bar;
+  cancellation deletes the partial file.  Multi-file exports write to a temporary directory
+  and move the set into place at the end so a cancelled export leaves nothing behind.
+* *Export Again* resolves the security-scoped bookmark; if it fails, the sheet opens prefilled.
+* Drag export uses `NSFilePromiseProvider` with one promised file per selected format (the
+  preference format, or the kbd:[Option] menu's choice) and, for application drops, pasteboard
+  types `com.adobe.pdf`, `public.svg-image`, `public.png`, `public.tiff`, `public.rtf`,
+  `public.utf8-plain-text` written lazily from the same `SceneSnapshot`.
+* Quick Export writes next to the previous export's directory (from `last_export`), then the
+  Desktop; it posts a toast with *Reveal*.
+* The toolbar button is registered with APP-005's command registry as `quickExport:`;
+  kbd:[Option] changes its title to "Quick Export As…".
+* menu:File[Share] is an `NSSharingServicePicker` (toolbar: `NSSharingServicePickerToolbarItem`)
+  whose items are `NSFilePromiseProvider`s written by the Quick Export pipeline from the
+  `SceneSnapshot` at menu-open time; the selection, else the current page, is the *What*.
+  kbd:[Option] swaps the preset through the same menu IO-015 uses.  Services *out* are the
+  standard `NSServicesMenuRequestor` path: `writeSelection(to:types:)` offers the drag-export
+  pasteboard types (IO-016) and `NSApp.registerServicesMenuSendTypes` lists them.
+* Services *in*: an `NSServices` entry *Add to {product} Document* accepting
+  `public.image`, `com.adobe.pdf`, `public.svg-image`, `public.rtf` and
+  `public.utf8-plain-text`, handled by the running app through `NSPasteboard` exactly like
+  paste (IMG-005), targeting the frontmost document or the chooser.  The Share extension
+  itself is IMG-026 on xref:importing.adoc[Importing artwork]; both routes end in the same
+  `WTModel` place command.
+* Undo: nothing to undo for sharing out; an item added through Services or the Share extension
+  is one ordinary import change in the receiving document.
+
+=== Build tasks
+
+[[IO-014]]
+==== IO-014 Export sheet and export pipeline
+[horizontal]
+Track:: client-ui
+Depends on:: APP-002, APP-005, APP-006, IO-013, IO-001
+Size:: L
+Delivers:: The Export sheet with every control above, page-range parsing, *Include page boundary*, `SceneSnapshot` capture, background export with progress and cancellation, per-page file naming with the token pattern, *After export* actions, the sync-state note, `last_export` memory and menu:File[Export Again].
+Done when::
+* UI tests: export current page, all pages, a range, the output area and a selection to the stub exporter; each produces the expected file set and names.
+* A remote change applied during a 5-second stub export is absent from the output and present in the model afterwards.
+* Cancelling a multi-page export leaves no files; a name collision gets a numeric suffix.
+* Export Again re-exports without a sheet; after moving the file, the sheet opens prefilled.
+
+[[IO-015]]
+==== IO-015 Export presets and Quick Export
+[horizontal]
+Track:: client-ui
+Depends on:: APP-010, IO-014
+Size:: M
+Delivers:: `ExportPreferences` storage and sync through account preferences, the *Preset* menu with save/manage, the shipped presets, *Quick Export* command, preference and toolbar button, kbd:[Option] variants, preset import/export as a file.
+Done when::
+* A preset saved on one Mac appears on another after preferences sync (simulator with two clients on one account).
+* Quick Export with *PNG 1× 2× 3×* writes three files with `@2x`/`@3x` suffixes and reveals them.
+* Editing a control after choosing a preset shows the modified state; re-saving overwrites the same preset id.
+
+[[IO-016]]
+==== IO-016 Drag-and-drop export and pasteboard flavors
+[horizontal]
+Track:: client-ui
+Depends on:: IO-014
+Size:: M
+Delivers:: `NSFilePromiseProvider`-based drag to Finder with the *Drag export format* preference and kbd:[Option] format menu; lazy pasteboard flavors (PDF, SVG, PNG, TIFF, RTF, plain text) for drops into applications and for menu:Edit[Copy].
+Done when::
+* UI test drags a selection to a temporary folder and verifies a PDF; with kbd:[Option] picks PNG.
+* Pasting into TextEdit yields RTF text for a text selection and a PDF image for artwork.
+* Promised files are written from the snapshot taken at drag start, not at drop.
+
+[[IO-037]]
+==== IO-037 Share menu and Services
+[horizontal]
+Track:: client-ui
+Depends on:: IO-015, IO-016, IMG-005
+Size:: S
+Delivers:: menu:File[Share] and the toolbar Share item over `NSSharingServicePicker` with Quick Export promised files, the kbd:[Option] preset choice, selection-else-page scoping; Services out through `NSServicesMenuRequestor`; the *Add to {product} Document* Services entry routed to the paste path with the frontmost-or-chooser rule.
+Done when::
+* UI test: Share > Mail (stubbed service) receives the three PNG files the *PNG 1× 2× 3×* preset writes for a selection; with nothing selected, the current page.
+* Selecting a PNG in Preview and choosing Services > Add to {product} Document places it in the frontmost document as one change; with no document open the chooser appears.
+* Services out: a text selection is offered to a text service and artwork to an image service; nothing is offered with no selection.
+endif::spec[]

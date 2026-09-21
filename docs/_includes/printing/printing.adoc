@@ -1,0 +1,623 @@
+Printing in {product} goes through the standard macOS Print dialog.  The dialog's own panes
+handle the printer, paper, copies and page range; a *{product}* pane added to it handles
+everything an illustration needs beyond that: which pages or which area to print, scaling and
+tiling, composite or separated output, printer's marks, bleed and the per-ink settings a
+prepress shop asks for.  Nothing in the print path leaves your Mac -- the same drawing code
+that paints the canvas paints the printed page, so what you see is what prints.
+
+NOTE: {fh} users: the separate *Print Setup* dialog (Separations, Imaging and Paper Setup
+tabs) and the *Print Setting* presets have become the *{product}* pane of the Print dialog
+and the Print dialog's *Presets* menu.  Everything the tabs held is still there.
+
+// TODO screenshot: the Print dialog with the WireTuner pane selected, showing the Pages, Scale and Output groups
+
+== The Print dialog
+
+To print a document:
+
+. Choose menu:File[Print…] (kbd:[Cmd+P]).
+. Choose a printer from the *Printer* menu.  If the dialog opens in its compact form, click
+  btn:[Show Details] to see every pane.
+. Set *Copies*, and select *Collate* to print each copy of the document in page order rather
+  than all copies of page one, then all of page two.
+. Under *Pages*, choose *All*, the current page, or a range.  Page numbers are the numbers the
+  Pages panel shows (xref:pages.adoc[Pages]).
+. Choose *{product}* from the pane menu (the pop-up that starts out reading *Layout*).
+. Set the options described in the sections below.  The preview on the left of the dialog
+  follows every change (xref:print-preview.adoc[Print preview]).
+. Click btn:[Print].
+
+Paper size and orientation come from menu:File[Page Setup…] (kbd:[Cmd+Shift+P]) or from the
+*Paper Size* and *Orientation* controls in the Print dialog.  Paper is what you print on; the
+document's page size is set in the Document panel (xref:document-panel.adoc[Document panel])
+and is not changed by printing.  When a document page is larger than the paper, scale it or
+tile it (below); when it is smaller, it is centred on the paper unless you offset it.
+
+To save a PDF instead of printing, choose *Save as PDF* from the btn:[PDF] menu at the bottom of
+the dialog.  The PDF contains exactly what the printer would have received -- marks, bleed,
+tiles and separations included -- which makes it the file to hand to a service bureau
+(xref:output-devices.adoc[Choosing an output device]).  For a press-ready PDF/X file with page
+boxes and embedded profiles, use xref:export-pdf.adoc[Exporting PDF] instead.
+
+=== What is remembered, and where
+
+Two kinds of settings meet in the Print dialog, and they are stored differently.
+
+[cols="1,2,2"]
+|===
+|Setting |Stored |Why
+
+|Printer, paper size, orientation, copies, collate, page range, printer-specific options
+|On your Mac, per document.  Never shared.
+|Your collaborator has a different printer.
+
+|Everything in the *{product}* pane: scale, tiling, composite or separations, marks, bleed,
+labels, imaging options, plate list, halftone defaults, flatness, output options
+|In the document.  Shared with everyone, synced like any other change.
+|These describe how the *artwork* is meant to be output, so the whole team prints it the same
+way.
+|===
+
+The Print dialog's *Presets* menu (btn:[Save Current Settings as Preset…]) captures both
+kinds at once, so a preset named after your press shop restores its marks, bleed and plate
+choices together with the paper size it needs.  Presets are stored on your Mac.
+
+== Choosing what to print
+
+The *Print* group at the top of the *{product}* pane decides what the job contains.
+
+[cols="1,3"]
+|===
+|Option |Prints
+
+|*Pages*
+|Each page in the dialog's page range, one page per sheet (or several sheets when tiling, or
+one sheet per ink when separating).
+
+|*Output area*
+|The rectangle defined with the Output Area tool, as one sheet, whether it covers part of one
+page or several pages and the pasteboard between them
+(xref:output-area.adoc[Defining an output area]).  Disabled when the document has no output
+area.  Select *Print page boundaries* to print the outlines of the pages inside the area;
+leave it clear to print only the objects.
+
+|*Selected objects only*
+|Only the objects selected when you opened the dialog, positioned as they are on their pages.
+Everything else on those pages is omitted.  Combine with *Pages* or *Output area* to limit the
+sheets.
+|===
+
+Two rules from the Layers panel apply to every job: objects on layers below the separator line
+(background layers) and on the Guides layer never print, and hidden layers print only when
+*Include hidden layers* is selected under *Options* (xref:layers.adoc[Layers]).
+
+== Scaling
+
+The *Scale* group scales the printed output without touching the document.
+
+[cols="1,3"]
+|===
+|Mode |Effect
+
+|*Uniform*
+|One percentage applies in both directions.  100% prints the page at its actual size.
+
+|*Variable*
+|Separate horizontal (*X*) and vertical (*Y*) percentages, for stretched proofs or to compensate
+for a printer that does not hold its aspect ratio.
+
+|*Fit on paper*
+|Each page is scaled down (or up) so it fits the paper's printable area, keeping its
+proportions.  Marks and bleed, when on, are included in what has to fit.
+|===
+
+Scaling applies to the artwork, the page outline and the bleed.  Printer's marks keep their
+size and line weight at every scale.
+
+To move the page on the paper, enter an *Offset* (*X* and *Y*, in document units) or click
+btn:[Center]; the preview shows the page moving on the paper.
+
+== Tiling
+
+Tiling prints a page that is larger than the paper on several sheets, or the reverse: several
+small pages on one large sheet, when the output area spans them.
+
+[cols="1,3"]
+|===
+|Mode |Effect
+
+|*None*
+|Each page prints on one sheet.  Anything beyond the paper's printable area is clipped.
+
+|*Automatic*
+|Each page is cut into a grid of paper-sized tiles, all of which print.  Enter an *Overlap* --
+the amount of artwork repeated along each shared edge, so the sheets can be aligned and
+glued.  Every tile carries its row and column (`Tile 2 of 6, row 1 column 2`) and tile marks at
+the overlap edges.
+
+|*Manual*
+|One tile prints: the paper-sized rectangle whose top-left corner is the rulers' zero point.
+Move the zero point (xref:rulers.adoc[Rulers]) and print again for the next tile.  Use it when
+only part of a large page is wanted.
+|===
+
+Tiling and scaling combine: with *Uniform* at 200% and *Automatic* tiling, a letter-size page
+prints as a two-by-two poster.  *Fit on paper* never tiles.
+
+== Composite or separations
+
+Under *Output*, choose *Composite* to print every color on one sheet -- the choice for desktop
+printers and proofs -- or *Separations* to print one sheet per ink, each in black, the way a
+platesetter or imagesetter needs them.  With *Separations* selected, the ink list beneath the
+choice becomes editable.
+
+// TODO screenshot: the Output group with Separations selected and the ink list showing C, M, Y, K and two spot inks
+
+The ink list has one row per process ink (cyan, magenta, yellow, black) and one row per spot
+color used in the document (xref:spot-process.adoc[Spot and process colors]).
+
+[cols="1,3"]
+|===
+|Column |Meaning
+
+|*Print* (checkbox)
+|Whether this plate is in the job.  Clear it to skip a plate, for instance to reprint only the
+black plate.
+
+|*Ink*
+|The ink's name, with its swatch.  Spot inks are listed in swatch order.
+
+|*Angle*
+|The halftone screen angle for this plate, in degrees.  Defaults are 15° cyan, 75° magenta, 0°
+yellow, 45° black, and 45° for every spot ink.
+
+|*Frequency*
+|The screen frequency in lines per inch.  Defaults to the document's default frequency (below).
+|===
+
+Options under the list:
+
+*Print spot colors as process*::
+Converts every spot ink to its process equivalent and prints only the four process plates.
+
+*Halftone screen*::
+The dot shape (*Round*, *Ellipse*, *Line*, *Diamond*, *Square*, *Cross*) and the default
+frequency every plate starts from.  Objects can override these with the Halftones panel
+(xref:halftones.adoc[Halftones]).
+
+*Screen in {product}*::
+When on, {product} halftones each plate itself and sends the printer finished one-bit plates
+at its resolution, so the angles, frequencies and shapes above -- and every per-object
+override -- are honored exactly.  When off, the printer or RIP does the screening with its own
+settings and these values are informational.  See xref:output-devices.adoc[Choosing an output
+device] for when to use which.
+
+Overprint is an attribute of a fill or stroke, set in the Object panel
+(xref:fill-attributes.adoc[Fill attributes], xref:stroke-attributes.adoc[Stroke attributes]);
+separations honor it, and composite output shows it when overprint preview is on.
+
+== Printer's marks, bleed and labels
+
+The *Marks and bleed* group adds what a print shop uses to trim and register the sheet.  All of
+it is drawn outside the page area, so the paper must be larger than the page (or the page
+scaled down) for the marks to appear; the preview shows whether they fit.
+
+[cols="1,3"]
+|===
+|Option |Adds
+
+|*Crop marks*
+|Short lines at each corner marking the page edge (or the output area's edge).
+
+|*Registration marks*
+|Crossed-circle targets centred on each side, printed on every plate so plates can be aligned.
+
+|*Separation names*
+|On each separation, the ink's name; on a composite, the word *Composite*.
+
+|*File name and date*
+|The document's name, the page number, and the date and time of printing.
+
+|*Bleed*
+|How far beyond the page edge artwork is printed, in document units.  0 clips at the page edge.
+Crop marks move outward to stay clear of the bleed.
+|===
+
+Marks and labels are drawn in registration color: they appear on every plate of a separated job.
+
+== Imaging options
+
+The *Imaging* group covers film output and a few options that affect every job.
+
+[cols="1,3"]
+|===
+|Option |Effect
+
+|*Emulsion*
+|*Up* (readable when the emulsion side faces you) or *Down* (mirrored).  Film for offset plates
+is usually emulsion down; ask the shop.
+
+|*Image*
+|*Positive* or *Negative*.  Negative inverts every plate, including marks and labels.
+
+|*Include hidden layers*
+|Prints layers that are hidden in the Layers panel.
+
+|*Flatness*
+|The largest distance, in device pixels, a printed curve may stray from the true curve.  Higher
+values print faster on slow printers at the cost of visibly polygonal curves at high
+magnification.  0 lets the printer decide.  A path's own flatness in the Object panel
+(xref:editing-paths.adoc[Editing paths]) overrides this for that path.
+
+|*Print text as outlines*
+|Converts every glyph to a path for this job.  Use it when a printer mangles a font that will
+not embed; the document's text is untouched (xref:print-fonts.adoc[Printing fonts]).
+
+|*Rasterize output*
+|Prints each sheet as one image at the given resolution instead of as vector artwork.  A
+fallback for printers that choke on complex artwork
+(xref:print-performance.adoc[Faster printing]).
+|===
+
+== Color management
+
+Which profile the output is converted through is chosen in the Print dialog's *Color Matching*
+pane (ColorSync, with the printer's own profile) or, for separations, by the document's CMYK
+working space (xref:color-management.adoc[Color management]).  RGB colors and images in a
+separated job are converted to process inks through that working space; in a composite job
+they go to the printer as they are and ColorSync converts them.
+
+== Working with others
+
+The settings in the *{product}* pane belong to the document, so when a collaborator changes,
+say, the bleed or turns a plate off, your copy of the document changes too.  If your Print
+dialog is open at the time, the field updates in front of you -- unless you are in the middle
+of typing into it, in which case your value stands once you commit it.  The job you print uses
+what the dialog shows at the moment you click btn:[Print].
+
+Your printer, paper and copies are yours alone; nobody else's choices touch them.
+
+If you and a collaborator change the same print setting while one of you is offline, the
+later change is kept when you reconnect.  Print settings are not listed in the merge review:
+they are re-checked in the dialog every time anyone prints, and nothing in the artwork is
+affected.
+
+ifdef::spec[]
+== Specification
+
+Printing is client-only.  The print path is `NSPrintOperation` driven by a view that draws
+output pages with `WTRender` into the print context; macOS spools the result as PDF.  There is
+no PostScript generation, no PPD parsing and no server involvement.
+
+=== FreeHand parity
+
+[cols="2,3,2"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Printer, copies, collate, page range in the system dialog
+|The same, through `NSPrintPanel`.
+|Faithful
+
+|Selected Objects Only
+|Same.
+|Faithful
+
+|Composite / Separations
+|Same, in the *{product}* pane.
+|Faithful
+
+|Scale: Uniform, Variable, Fit on Paper
+|Same.
+|Faithful
+
+|Tile: manual (zero point) and automatic with overlap
+|Same; the manual tile is anchored by its top-left corner at the ruler zero point ({fh}:
+bottom-left) because pasteboard coordinates are y-down.  Automatic tiles carry row/column
+labels and tile marks.
+|Adapted -- coordinate convention; labels added.
+
+|Print Setting presets (`.pst` files)
+|The Print dialog's *Presets* menu.  The pane's settings are written into the `NSPrintInfo`
+dictionary so a preset captures them together with paper and printer options.
+|Adapted -- native mechanism, same intent.
+
+|Use PPD / Select PPD
+|Dropped.  macOS has no PPD selection for the application; paper sizes, printable area and
+resolution come from the printer's queue.  A *Screen in {product}* option replaces the parts
+of the PPD (screens, resolution) that mattered to artwork.
+|Dropped -- no PPD layer on modern macOS.
+
+|Print Setup: Separations tab (ink list with print/overprint/angle/frequency, halftone screen,
+spot as process)
+|Ink list with *Print*, *Angle*, *Frequency* per plate; default screen shape and frequency;
+*Print spot colors as process*.  The per-ink *Overprint* column is not carried: overprint is
+per fill/stroke in the Object panel (ATTR).
+|Adapted -- per-ink overprint override dropped (a plate-wide overprint is not expressible in the
+PDF path and was rarely used).
+
+|Transfer function (Default / Normalize / Posterize)
+|Dropped.  Transfer curves are a RIP setting; the PDF print path carries none.
+|Dropped -- RIP-side.
+
+|Spread size (trapping)
+|Dropped.  Trapping is done in prepress.
+|Dropped -- prepress-side.
+
+|Print Setup: Imaging tab -- labels and marks, emulsion, positive/negative, include invisible
+layers, flatness
+|Same options.
+|Faithful
+
+|Split complex paths, Maximum color steps, Images ASCII/Binary/None
+|Dropped.  There is no PostScript path limit, gradients print as smooth shadings, images are
+always embedded as binary.
+|Dropped -- PostScript-era limits.
+
+|Print as: PostScript Level 1/2/3
+|Dropped; replaced by *Rasterize output* as the compatibility fallback.
+|Dropped -- no PostScript generation.
+
+|Unlimited downloadable fonts
+|Dropped; fonts are embedded once, subsetted, in the spooled PDF.
+|Dropped -- no font downloading.
+
+|Paper Setup tab: size, orientation, transverse, offset
+|Size and orientation from Page Setup; *Offset* in the pane; transverse dropped.
+|Adapted -- transverse is an imagesetter media setting made in the RIP.
+
+|Print to PostScript file
+|*Save as PDF* in the dialog; PDF/X via xref:export-pdf.adoc[Exporting PDF].
+|Adapted -- PDF is the interchange format shops accept today.
+
+|Color Management button
+|The dialog's *Color Matching* pane and the document's working spaces.
+|Adapted -- native ColorSync pane.
+|===
+
+=== Data model
+
+Print settings live on the well-known `settings` node.  `SettingsProps` (DOC epic) gains one
+`print` field; the messages below are `doc/v1/print.proto`.
+
+[source,protobuf]
+----
+// proto/wiretuner/doc/v1/print.proto
+
+// Document-wide print settings.  STRUCT by default: every field is an independent choice.
+message PrintSettings {
+  // false = composite, true = one plate per ink.
+  bool separations = 1;
+  enum ScaleMode { SCALE_MODE_UNSPECIFIED = 0; UNIFORM = 1; VARIABLE = 2; FIT = 3; }
+  ScaleMode scale_mode = 2;
+  // Percent.  UNIFORM reads scale_x only.  Range 1..2000 (buf.validate).
+  double scale_x = 3;
+  double scale_y = 4;
+  // Offset of the page on the paper, points.  ATOMIC: an offset is one point.
+  Point offset = 5 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  enum TileMode { TILE_MODE_UNSPECIFIED = 0; NONE = 1; AUTOMATIC = 2; MANUAL = 3; }
+  TileMode tile = 6;
+  // Overlap between automatic tiles, points, >= 0.
+  double tile_overlap = 7;
+  // When printing the output area: draw page outlines inside it.
+  bool print_page_boundary = 8;
+  Marks marks = 9;                       // STRUCT
+  // Bleed beyond the page edge, points, >= 0.
+  double bleed = 10;
+  bool emulsion_down = 11;
+  bool negative = 12;
+  bool include_hidden_layers = 13;
+  // Device pixels; 0 = printer default.
+  double flatness = 14;
+  bool text_as_outlines = 15;
+  // 0 = vector output; otherwise every sheet is rasterized at this dpi (72..2400).
+  double rasterize_dpi = 16;
+  bool spot_as_process = 17;
+  // Document default screen: shape and frequency every plate starts from.  Its angle is
+  // ignored (angles are per plate).  ATOMIC: see Halftone.
+  Halftone default_halftone = 18 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // One entry per ink the user has touched; inks without an entry use defaults.
+  repeated PlateSettings plates = 19 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  // Halftone plates in the app instead of leaving screening to the printer.
+  bool screen_in_app = 20;
+  // Print every object with its plate's screen, ignoring CommonProps.halftone.
+  bool ignore_object_halftones = 21;
+}
+
+message Marks {
+  bool crop = 1;
+  bool registration = 2;
+  bool separation_names = 3;
+  bool file_name_date = 4;
+}
+
+// A halftone screen.  ATOMIC: shape, angle and frequency describe one screen; a frequency
+// from one user with an angle from another is a screen nobody chose.
+message Halftone {
+  enum Shape {
+    SHAPE_UNSPECIFIED = 0;   // "Default": inherit (document default, or printer's)
+    ROUND = 1; ELLIPSE = 2; LINE = 3; DIAMOND = 4; SQUARE = 5; CROSS = 6;
+  }
+  Shape shape = 1;
+  double angle = 2;          // degrees, 0..360
+  double frequency = 3;      // lines per inch, > 0; 0 = inherit
+}
+
+// Per-plate choices.  A SEQUENCE element so plates can be added and removed independently.
+message PlateSettings {
+  ElementId id = 1;
+  // Which ink.  ATOMIC: the identity of the plate.
+  Ink ink = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  bool print = 3;            // written true when the entry is created
+  double angle = 4;          // degrees; NaN never written -- absence means default
+  double frequency = 5;      // lpi; 0 = document default
+}
+
+message Ink {
+  enum Process { PROCESS_UNSPECIFIED = 0; CYAN = 1; MAGENTA = 2; YELLOW = 3; BLACK = 4; }
+  oneof ink {
+    Process process = 1;
+    // A spot color swatch.  Dangling → the entry is ignored on read.
+    NodeRef spot = 2 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
+  }
+}
+----
+
+`SettingsProps.print` is a singular message field, therefore STRUCT: each register above
+merges on its own.  `Point`, `Halftone` and `Ink` are the ATOMIC exceptions, each with its
+reason in the comment.
+
+Local, never synced (`local_only`, kept in the local store's `view` table): the archived
+`NSPrintInfo` for the document (printer, paper, orientation, copies, collate, range, printer
+options), keyed by document id.
+
+=== Merge semantics
+
+* Every control in the pane commits one `SetFields` on the `settings` node with a label
+  (`Change bleed`, `Turn off Magenta plate`).  Consecutive edits to one register coalesce in
+  the outbox.
+* Scalar fields are LWW registers.  Two people setting different bleeds concurrently: the later
+  OpId wins, the loser's value stays in the log.
+* `offset` and `default_halftone` are ATOMIC, so a concurrent change of shape and of frequency
+  yields one of the two whole values, never a shape from one and a frequency from the other.
+* `plates` is a SEQUENCE.  An entry is created the first time a user touches a plate's row.
+  Two users touching the same untouched ink concurrently create two entries with the same
+  `ink`: *read-time normalization* -- among live entries with equal `ink`, the one with the
+  smallest element id is the plate's settings; the others are ignored (and removed by the next
+  local edit of that row, which deletes the duplicates in the same change).  Concurrent edits to
+  different fields of one entry both survive (element fields are STRUCT).
+* Deleting a spot swatch while someone edits its plate row: the entry dangles and is ignored
+  on read; restoring the swatch brings the row and its settings back.
+* Toggling `separations` concurrently with editing a plate row: independent registers, both
+  apply.
+* Review sheet: changes under `settings.print` are *not* listed as conflicts and never hold the
+  outbox, and a lost local write to them is not surfaced under the "always list a lost same
+  register write" rule.  They are shown only in the *Everything* listing.  Rationale: every
+  value is visible in the dialog at print time and none touches artwork.  This is an exception
+  to xref:reconcile.adoc[Reconciling] recorded in xref:decisions.adoc[Decisions].
+
+Read-time normalizations, in addition to the duplicate-plate rule: `scale_x`/`scale_y` outside
+1..2000 read as 100; `bleed`, `tile_overlap` below 0 read as 0; an `ink` entry whose swatch is
+not a spot color (the swatch was changed to process) is ignored; `tile = MANUAL` with
+`scale_mode = FIT` reads as `NONE`.
+
+=== Offline behavior
+
+Printing works fully offline: everything needed is local.  Print settings changes queue like
+any change.  Spot-color plate entries referencing swatches created offline resolve locally and
+are valid once the swatch change is uploaded (same change ordering per replica).  Nothing
+defers to the network.
+
+=== Server
+
+Nothing beyond storing and relaying changes.
+
+=== Client
+
+* `WTInterchange/Print`: `PrintPlan` -- a pure function of `(document, PrintSettings,
+  NSPrintInfo, selection, print-what choice)` producing an ordered list of `OutputSheet`s, each
+  `(source: page | outputArea, tile: row/col/rect, plate: composite | Ink, transform:
+  pasteboard→paper, marks, labels)`.  Sheets = pages × tiles × plates.  Sheet order: page,
+  then tile (row-major), then plate (C, M, Y, K, spots in swatch order) so a platesetter
+  receives each page's plates together.
+* `PrintPlanView: NSView` implements `knowsPageRange(_:)`, `rectForPage(_:)`, `draw(_:)`, and
+  `printJobTitle`.  `draw` renders one sheet: applies the sheet transform, clips to the page
+  plus bleed, draws the artwork through `WTRender` in Preview mode (never Keyline or Fast),
+  then draws marks and labels in device space so they are unaffected by scale.  The same
+  `WTRender` display list the canvas uses is reused; raster effects render at the printer's
+  resolution (from `NSPrintInfo`), images at native resolution.
+* `NSPrintOperation(view:printInfo:)` with `canSpawnSeparateThread = true`,
+  `showsPrintPanel = true`, `showsProgressPanel = true`.  `jobTitle` = document name.
+* `PrintAccessoryController: NSViewController, NSPrintPanelAccessorizing` hosts the SwiftUI
+  pane.  `keyPathsForValuesAffectingPreview` lists every setting, so the panel's preview
+  re-paginates on change.  Settings are mirrored into `printInfo.dictionary()` under
+  `WTPrint*` keys so presets capture them; on preset load the keys are read back and written
+  to the document as one change labelled `Apply print preset`.
+* Editing rule as in the Object panel: a control holds `(draft, baseValue)`; a remote write
+  updates the canvas-side value but not a focused control; commit writes a fresh op.
+* Flatness is applied with `CGContextSetFlatness` on the print context; per-path flatness
+  overrides it around that path's drawing.
+* Undo: each pane edit is one change; print settings edits appear in the Undo menu like other
+  document edits.  Printing itself is not undoable and writes nothing.
+* Page ranges and *Selected objects only* are job parameters, not document state: they live on
+  the `PrintPlan` input, not in `PrintSettings`.
+
+=== Build tasks
+
+[[PRINT-001]]
+==== PRINT-001 Print settings schema
+[horizontal]
+Track:: proto
+Depends on:: PROTO-003, PROTO-005
+Size:: S
+Delivers:: `doc/v1/print.proto` with `PrintSettings`, `Marks`, `Halftone`, `PlateSettings`, `Ink` exactly as sketched; `SettingsProps.print`; `SettingsProps.output_area` (a `Rect`, ATOMIC, see xref:output-area.adoc[Output area]); `CommonProps.halftone` (ATOMIC, see xref:halftones.adoc[Halftones]); protovalidate ranges on every numeric field.
+Done when::
+* `buf lint` with `COMMENTS` passes; every field carries the comment from the sketch.
+* The generated merge table marks `plates` SEQUENCE, `offset`/`default_halftone`/`ink`/`output_area`/`CommonProps.halftone` ATOMIC, everything else default.
+* Conformance vectors: concurrent writes to sibling `PrintSettings` fields both survive; concurrent `default_halftone` writes yield one whole value; two replicas inserting a `PlateSettings` for the same ink concurrently produce two live elements with deterministic order.
+
+[[PRINT-002]]
+==== PRINT-002 Print settings commands and local print info
+[horizontal]
+Track:: client-model
+Depends on:: PRINT-001, APP-011, SYNC-001
+Size:: S
+Delivers:: `WTModel` commands for every `PrintSettings` register and for plate entries (`SetPlate(ink, print:angle:frequency:)` creating the entry on first touch and deleting duplicates), read-time normalization of the plate list and ranges, and storage of the archived `NSPrintInfo` per document in the local store's `view` table.
+Done when::
+* Each command emits one labelled change; inverses restore prior registers.
+* Merge test: two replicas creating an entry for the same spot ink concurrently converge to one effective plate (smallest element id), and the next local edit deletes the duplicate.
+* Merge test: concurrent `frequency` and `print` edits on one plate entry both survive.
+* The `NSPrintInfo` archive round-trips across relaunch and is absent from every change on the wire.
+
+[[PRINT-003]]
+==== PRINT-003 Print plan and print view
+[horizontal]
+Track:: import-export
+Depends on:: PRINT-002, REND-001, REND-002, APP-002
+Size:: L
+Delivers:: `PrintPlan` (pages, output area, selected objects, uniform/variable/fit scaling, offset, sheet ordering) and `PrintPlanView` driving `NSPrintOperation` for composite output, with menu:File[Print…] and menu:File[Page Setup…] wired, layer printability rules (background, guides, hidden) applied, and *Save as PDF* producing the same sheets.
+Done when::
+* A three-page document prints three sheets; a page range of `2` prints one; *Selected objects only* omits every unselected object while keeping positions.
+* Fit on paper scales a tabloid page onto letter paper with proportions kept; Variable 50%/100% stretches accordingly.
+* The PDF written by *Save as PDF* rasterizes pixel-identical to the canvas render of the same page at the same scale (REND-001 corpus).
+* Background and Guides layers never print; hidden layers print only with `include_hidden_layers`.
+
+[[PRINT-004]]
+==== PRINT-004 Print dialog accessory pane
+[horizontal]
+Track:: client-ui
+Depends on:: PRINT-003, APP-005, APP-010
+Size:: L
+Delivers:: `PrintAccessoryController` with the *{product}* pane: Print (pages/output area/selected), Scale, Offset and btn:[Center], Tiling, Output (composite/separations, ink list, spot as process, halftone screen, screen in app), Marks and bleed, Imaging; live preview via `keyPathsForValuesAffectingPreview`; presets through the `NSPrintInfo` dictionary; the focused-control editing rule; remote updates reflected while the dialog is open.
+Done when::
+* Every control writes exactly one labelled change to `settings.print` on commit; UI tests cover each control.
+* Changing any setting updates the panel preview without closing the dialog.
+* Saving a preset and applying it in a fresh document restores every pane setting and the paper size.
+* Merge test: a remote bleed change while the local bleed field is focused leaves the keystrokes intact and the local value wins on Return.
+
+[[PRINT-005]]
+==== PRINT-005 Tiling
+[horizontal]
+Track:: import-export
+Depends on:: PRINT-003
+Size:: M
+Delivers:: Automatic tiling (grid computation from paper printable area, scale and overlap; row-major sheet order; tile labels and tile marks at overlap edges) and manual tiling anchored at the ruler zero point, for pages and for the output area.
+Done when::
+* A 24×36 in page on letter paper at 100% yields the expected tile grid; with 0.5 in overlap adjacent tiles share 0.5 in of artwork.
+* Manual tiling prints exactly one sheet whose top-left is the zero point, and moving the zero point moves the tile.
+* Fit on paper with tiling set reads as no tiling (normalization test).
+* Tile labels name row, column and count; the PDF corpus includes a tiled reference.
+
+[[PRINT-006]]
+==== PRINT-006 Marks, bleed, labels and imaging options
+[horizontal]
+Track:: import-export
+Depends on:: PRINT-003
+Size:: M
+Delivers:: Crop marks, registration marks, separation-name and file/date labels drawn in device space in registration color; bleed clipping and crop-mark offset; emulsion down (mirror) and negative (invert) applied per sheet; flatness via `CGContextSetFlatness` with per-path override; *Print text as outlines* and *Rasterize output* hooks (implemented in PRINT-014 and PRINT-013).
+Done when::
+* Marks keep 0.25 pt line weight and fixed size at 25% and 400% scale.
+* Bleed of 9 pt draws artwork 9 pt past the page edge and moves crop marks outward by 9 pt.
+* Emulsion down mirrors the sheet including labels; negative inverts every pixel of a rasterized reference.
+* Marks that fall outside the printable area are clipped and the preview reports it.
+endif::spec[]

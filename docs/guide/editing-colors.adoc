@@ -1,0 +1,7 @@
+= Editing colors
+include::_attributes.adoc[]
+:page-slug: editing-colors
+:page-group: Color
+:page-fh: Chapter 5, "Editing colors", "Brightening and dulling colors", "Controlling color values", "Creating grayscale effects", "Making global color changes"
+
+include::_includes/color/editing-colors.adoc[]

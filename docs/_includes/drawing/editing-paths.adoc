@@ -1,0 +1,472 @@
+Once a path exists you can move its points, change what kind of points they are, pull its
+handles, add and remove points, cut it apart, rub parts of it out, push its segments around
+with the Freeform tool, and thin it out with Simplify.  The Pointer and Subselect tools do
+the fine work; the Freeform, Knife and Eraser tools do the broad strokes; the Object panel
+gives every point a numeric address.
+
+== Selecting and moving points
+
+To select and move points:
+
+. Choose the Pointer tool for a path that stands on its own, or the Subselect tool for a
+  path inside a group.
+. Click the path, then click a point.  kbd:[Shift]-click to add more points, or drag a
+  marquee around several.
+. Drag any selected point.  All selected points move together.
+
+The arrow keys nudge selected points by the *Cursor distance* preference; kbd:[Shift]+arrow
+nudges ten times as far (xref:moving.adoc[Moving]).  kbd:[Option]-clicking a point with the
+Pointer toggles it between corner and curve; kbd:[Option]-dragging a retracted handle out of
+a point extends it.
+
+== Adjusting handles
+
+To adjust a point's handles:
+
+. With the Pointer or Subselect tool, select the path, then click a point.  Its handles
+  appear, along with the near handles of the two neighboring points.
+. Drag a handle.  Dragging away from the point deepens the curve; dragging onto the point
+  straightens the segment.
+
+How the handles respond depends on the point type (xref:vector-basics.adoc[Vector basics]):
+a curve point's handles pivot together, a corner point's move independently, and a connector
+point's handle only lengthens along its fixed line.  Dragging a corner point's handle across
+its point curves a straight segment; dragging a curve point's handle across its point turns
+the curve inside out.
+
+== Changing points in the Object panel
+
+Select one or more points and the Object panel adds a point section.
+
+[cols="1,3"]
+|===
+|Control |Meaning
+
+|Point type
+|Three buttons: corner, curve, connector.  Changing the type keeps the handles where they are
+if the new type allows, otherwise pulls them into line.
+
+|Handles
+|Two buttons that retract the point's incoming or outgoing handle.  To extend a retracted
+handle, kbd:[Option]-drag it out of the point on the canvas.
+
+|Automatic
+|Lets {product} choose the handles so the path flows as smoothly as possible through this
+point, and keeps choosing as the neighbors move.  Curve points get recomputed handles; corner
+and connector points are not given handles they did not have.  Dragging a handle by hand turns
+Automatic off for that point.
+
+|X, Y
+|The point's location in the document's unit from the page's zero point.  Hidden when more
+than one point is selected.
+|===
+
+== Adding and deleting points and segments
+
+To delete points or segments:
+
+. With the Subselect tool, click the path, then click a point or segment.  kbd:[Shift]-click
+  to select more.
+. Press kbd:[Delete].
+
+Deleting a point joins its neighbors with a new segment.  Deleting a segment opens the path
+there; deleting a segment from a path that is already open splits it into two paths.
+
+To add a point by hand:
+
+. Select the path.
+. Choose the Pen tool and click on a segment.  A corner point is placed at the click without
+  changing the curve's shape.
+
+To add points everywhere:
+
+* Choose menu:Extensions[Distort > Add Points], or click *Add Points* on the Extension
+  Operations toolbar.  One point is added halfway along every segment of the selected paths.
+
+NOTE: For {fh} users: the Xtras menu is *Extensions* in {product}, and the Xtra Operations
+toolbar is *Extension Operations* (xref:extensions.adoc[Extensions]).
+
+== Reshaping with the Freeform tool
+
+The Freeform tool reshapes a path by pushing or pulling its segments directly, adding,
+removing and retyping points as it goes.  It has two modes, chosen in its sheet.
+
+To set the Push/Pull options:
+
+. Double-click the Freeform tool.
+. Choose *Push/Pull* and set:
++
+Push size:: Diameter of the push pointer, 1 to 1000 pixels.
+Push precision:: 1 to 10; higher values follow the pointer more closely and add more points.
+Pull bend:: *By length* affects a stretch of path *Length* (1 to 1000 pixels) long around the
+grab point; *Between points* affects the whole segment between its two points, and marks the
+pointer with a small *s* while active.
+Pressure:: With a tablet, *Size* lets pen pressure vary the push size and *Length* lets it
+vary the pull length.
+. Click btn:[OK].
+
+To push or pull a selected path:
+
+* Press on the path and drag to *pull* it: the segment follows the pointer.  A small *s*
+  marks pull mode.
+* Press beside the path and drag into it to *push*: the circle pointer shoves the path ahead
+  of it, reshaping only what it touches.
+
+Keys in Push/Pull mode::
+kbd:[Shift]:: Constrains the pointer's movement.
+kbd:[Option] (before pressing):: Temporarily switches between *By length* and *Between
+points* for this pull.
+kbd:[Option] (after starting the drag):: Clones the path and reshapes the copy.
+kbd:[{startsb}] / kbd:[{endsb}]:: Shrinks or grows the push pointer.
+
+To set the Reshape options:
+
+. Double-click the Freeform tool.
+. Choose *Reshape area* and set:
++
+Size:: Pointer diameter, 1 to 1000 pixels.
+Strength:: 1 to 100%, how hard the pointer distorts what it touches.  The inner circle of the
+pointer shows it.
+Precision:: 1 to 10.
+Pressure:: *Size* and *Length* as above.
+. Click btn:[OK].
+
+To reshape a selected path:
+
+. With *Reshape area* chosen, press near the path.  The pointer becomes two concentric
+  circles.
+. Drag across the path.  The path bends with the pointer, strongly at the center and less
+  toward the outer circle, and the effect fades the further you drag -- good for tentacles,
+  branches and flames.
+
+Keys in Reshape mode::
+kbd:[Shift]:: Constrains the pointer's movement.
+kbd:[{startsb}] / kbd:[{endsb}]:: Shrinks or grows the pointer.
+kbd:[Up] / kbd:[Down]:: Lowers or raises the strength.
+
+// TODO screenshot: push, pull and reshape pointers on the same curve
+
+== Splitting paths
+
+To set the Knife tool options:
+
+. Double-click the Knife tool.
+. Set:
++
+Cut:: *Freehand* follows your drag; *Straight* cuts along a line from press to release.  In
+Freehand mode, hold kbd:[Option] to cut straight for part of the drag and kbd:[Shift] to
+constrain it.
+Width:: 0 to 72 points.  0 makes one hairline cut; larger values make two cuts that far apart,
+removing the strip between them.
+Close cut paths:: Closes each piece so it keeps the original's fill.  Off, the pieces are open
+and show only the stroke -- unless *Show fill for new open paths* is on, in which case they
+keep the fill anyway.
+Tight fit:: Makes a freehand cut follow your hand exactly instead of smoothing it.
+. Click btn:[OK].
+
+To cut a selected path with the Knife:
+
+* Drag the Knife across the path.  Every crossing becomes a cut.
+
+To split paths at points:
+
+. Select one or more paths and, on each, the points to split at.
+. Choose menu:Modify[Split].  Each selected point becomes the end of one piece and the start
+  of another.
+
+With the *Smoother editing* general preference off, the new points that a cut creates may
+not show until you reselect the path.
+
+== Erasing
+
+To set the Eraser options:
+
+. Double-click the Eraser tool.
+. Set *Min* and *Max* width, 0 to 72 points.
+. Click btn:[OK].
+
+To erase part of a selected path:
+
+. Choose the Eraser tool.
+. Drag across the path.  What the eraser covers is removed; what remains becomes one or more
+  paths.
+
+Keys while erasing::
+kbd:[{startsb}] / kbd:[{endsb}]:: Narrows or widens the eraser.
+Pen pressure:: With a tablet, sets the width between *Min* and *Max*.
+
+== Simplifying and cleaning up
+
+To simplify a selected path:
+
+. Choose menu:Modify[Alter Path > Simplify].
+. Set *Amount*: higher removes more points.
+. Click btn:[Apply] to preview; adjust and apply as often as you like.
+. Click btn:[OK] to keep the result or btn:[Cancel] to restore the original.
+
+Simplify is most useful on traced and Pencil-drawn paths.  To find heavy paths across a
+document, menu:Edit[Find and Replace > Graphics] can select paths with more than a given
+number of points (xref:find-replace.adoc[Find and replace]).  Flatness, in the Object panel,
+is the other lever for slow printing (xref:vector-basics.adoc[Vector basics]).
+
+== Reversing direction
+
+To reverse the direction of a selected path:
+
+* Choose menu:Modify[Alter Path > Reverse Direction].
+
+The start point becomes the end point, arrowheads swap ends, text on the path runs from the
+other end, and the path's role in a blend changes.  For a composite path whose overlapping
+contours fill wrongly, menu:Modify[Alter Path > Correct Direction] (also under
+menu:Extensions[Cleanup]) sets every contour's direction so that overlaps of opposite-running
+contours are hollow, the usual intent (xref:combining-paths.adoc[Combining paths]).
+
+== Working with others
+
+Point edits are the finest-grained thing {product} shares: two people can reshape different
+parts of one path at once without getting in each other's way, and you see their points and
+handles move live.  The tools on this page behave predictably when a collaborator is working
+on the same path:
+
+* Moving or retyping a point that someone else deletes at the same moment: the point is gone
+  and the path heals; your change is noted for the review sheet if you were offline.
+* A Knife cut or Split while someone else edits points: the piece that keeps the original
+  path's identity keeps their edits; edits to points that moved into a new piece are listed for
+  review after they reconnect.
+* Freeform pushes, Eraser strokes and Simplify rewrite stretches of a path wholesale, so a
+  collaborator's edit to a point inside that stretch will be listed for review rather than
+  merged.
+* Reversing direction never conflicts with anyone's point edits.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,1"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Select and move points with Pointer/Subselect; Shift-add; drag handles; neighbor handles shown
+|Same.
+|Faithful
+
+|Delete points and segments; Pen click adds a point; Xtras > Distort > Add Points
+|Same; menu is *Extensions*.
+|Faithful
+
+|Object panel point section: type buttons, retract handles, Automatic, X/Y
+|Same.
+|Faithful
+
+|Freeform tool Push/Pull (size, precision, bend by length/between points, pressure) and
+Reshape area (size, strength, precision, pressure) with all keys
+|Same.
+|Faithful
+
+|Knife tool: freehand/straight, width, close cut paths, tight fit; Modify > Split
+|Same.
+|Faithful
+
+|Eraser tool with min/max width, keys, pressure
+|Same.
+|Faithful
+
+|Left/Right arrow keys for width (Windows)
+|Dropped in favor of the bracket keys.
+|Dropped
+
+|Simplify with Apply preview; Reverse Direction; Correct Direction (three routes)
+|Same.
+|Faithful
+
+|Smoother editing preference
+|Kept as a General preference (it also controls handle display during drags).
+|Faithful
+
+|Constrained by other {fh} behavior: Freeform Option-drag clones the path
+|Same.
+|Faithful
+|===
+
+=== Data model
+
+None beyond `PathProps`.  Tool settings are preferences.
+
+=== Merge semantics
+
+All operations here are commands from DRAW-002 and merge as specified on
+xref:vector-basics.adoc[Vector basics].  How each tool maps to registers decides what
+survives a concurrent edit:
+
+[cols="1,2,2"]
+|===
+|Operation |Writes |Concurrent edit to the same path
+
+|Move points / nudge
+|`anchor` per selected point
+|Other points untouched; same point: LWW, review lists it.
+
+|Drag a handle
+|`in_handle` or `out_handle` (both for curve points)
+|See the curve-tandem case in Vector basics.
+
+|Change type / retract / Automatic
+|`kind`, handles, `automatic`
+|Independent registers; a `kind` change vs. a handle drag can leave a curve point with
+unlinked handles, rendered as stored.
+
+|Delete point
+|element `deleted`
+|Move of that point lost (edit vs delete); neighbors untouched.
+
+|Delete segment (open at k)
+|`closed = false`, `start`
+|Point edits untouched.  On an open path: split, below.
+
+|Add point on segment / Add Points
+|element insert + two neighbor handles
+|Concurrent handle drags LWW; shape approximately preserved.
+
+|Freeform push / pull / reshape
+|`anchor`, handles of the touched points; inserts and deletes of points inside the stretch
+|Edits to points outside the stretch survive; inside, register-by-register LWW and
+edit-vs-delete for removed points.  The tool writes once per drag event, coalesced offline.
+
+|Knife / Split
+|Retained piece: `closed`, `start`, deletes of the removed strip's points, inserts of the
+cut points.  New pieces: new `path` nodes with copied points.
+|Retained piece keeps concurrent edits; new pieces' points are new ids, so edits to the
+originals are edit vs delete.  The piece that keeps the original node is the one containing
+the original `start` (or the first stored point).
+
+|Eraser
+|As Knife, with width.
+|As Knife.
+
+|Simplify
+|Replaces the contour's points (delete all, insert new)
+|Every concurrent point edit is edit vs delete; the review sheet lists the path once with
+*Restore* re-inserting the edited point at its old position.  Simplify's btn:[Apply] preview
+is local until btn:[OK]; only the final result is written.
+
+|Reverse Direction
+|`reversed`
+|Never conflicts with point edits; two reversals collapse to one.
+
+|Correct Direction
+|`reversed` per contour
+|Same.
+|===
+
+Read-time normalizations: none beyond Vector basics.
+
+=== Offline behavior
+
+Works offline.  Freeform drags coalesce per register; Simplify and Knife produce one change
+each.
+
+=== Server
+
+Nothing beyond storing and relaying changes.
+
+=== Client
+
+Pointer and Subselect:: Point and handle dragging lives in `WTApp.PointEditing`, used by both
+tools (the difference is only what they select: the Pointer selects top-level objects, the
+Subselect reaches into groups, per xref:selecting.adoc[Selecting]).  A drag writes registers on
+every drag event, throttled to one change per 16 ms; the release writes the final value.
+
+Freeform:: `FreeformTool` samples the pointer, computes the affected parameter range on the
+contour (by length: arc-length window around the nearest point via GEO-001; between points: the
+whole segment), and refits that stretch with GEO-004 at the chosen precision after each event.
+Reshape uses a Gaussian falloff of `strength` over the pointer radius and decays with distance
+dragged.  Pressure options map `NSEvent.pressure` to size or length.  The push pointer is
+drawn in the overlay at the configured pixel size regardless of zoom.
+
+Knife and Eraser:: Both build a cutting shape (a hairline or a stroked strip of the given
+width, GEO-003) and intersect it with the selected paths (GEO-002), then apply the split rules
+above.  *Tight fit* skips the smoothing pass on the freehand cut.
+
+Simplify:: `SimplifySheet` with a slider and btn:[Apply]; the preview is rendered from a
+temporary path in the overlay, the document is written on btn:[OK].
+
+Object panel:: Point section registered with APP-007 (delivered by DRAW-004); this page
+wires the commands.
+
+Undo:: One group per drag, per key nudge burst (nudges within 500 ms group), per Delete, per
+Split, per Simplify OK, per Reverse.
+
+=== Build tasks
+
+[[DRAW-025]]
+==== DRAW-025 Point selection, moving and handle editing
+[horizontal]
+Track:: client-ui
+Depends on:: DRAW-003, DRAW-004, APP-006
+Size:: M
+Delivers:: `PointEditing`: point and segment selection (click, Shift-click, marquee), drag with throttled writes, arrow-key nudges, handle drags per point type, kbd:[Option]-click type toggle, kbd:[Option]-drag to extend a retracted handle, neighbor-handle display, and the *Smoother editing* preference.
+Done when::
+* UI tests for each gesture on each point type verify the registers written.
+* Merge tests: same-point drag on two replicas; delete vs. move; handle vs. anchor.
+* Dragging 500 selected points writes one change per event with 500 register writes and stays under 8 ms per event on M1.
+
+[[DRAW-026]]
+==== DRAW-026 Adding and deleting points and segments
+[horizontal]
+Track:: client-ui
+Depends on:: DRAW-025, DRAW-021
+Size:: S
+Delivers:: kbd:[Delete] on points and segments (open-at-segment on closed contours, split on open ones), Pen click-on-segment insertion with de Casteljau handle rewrite, and menu:Extensions[Distort > Add Points] with its toolbar button.
+Done when::
+* Deleting a segment of a closed path yields one open path with `start` set; of an open path yields two nodes.
+* Add Points doubles the point count without changing the outline beyond 0.01 pt.
+* Merge test: delete-segment vs. concurrent point move keeps the move.
+
+[[DRAW-027]]
+==== DRAW-027 Freeform tool
+[horizontal]
+Track:: client-ui
+Depends on:: DRAW-025, GEO-004
+Size:: L
+Delivers:: `FreeformTool` with Push/Pull and Reshape modes, the sheet with all options, pressure mapping, bracket and arrow keys, kbd:[Shift] constraint, kbd:[Option] bend toggle and clone, and the overlay pointers.
+Done when::
+* Recorded push, pull and reshape gestures on the corpus produce outlines within tolerance of reference results and the expected point counts per precision.
+* UI tests for each key; clone produces a new node and leaves the original unchanged.
+* Merge test: reshape on one replica vs. a point move outside the stretch on another keeps both; inside the stretch resolves per register.
+
+[[DRAW-028]]
+==== DRAW-028 Knife tool and Split command
+[horizontal]
+Track:: client-ui
+Depends on:: DRAW-026, GEO-002, GEO-003
+Size:: M
+Delivers:: `KnifeTool` (freehand/straight, width, close cut paths, tight fit, kbd:[Option] and kbd:[Shift]) and menu:Modify[Split] at selected points, with the retained-piece rule.
+Done when::
+* Cutting a closed path once yields two closed paths when *Close cut paths* is on and two open paths when off; width > 0 removes a strip.
+* Split at two points of a closed path yields two open paths; the node containing `start` keeps its id.
+* Merge test: cut vs. a concurrent edit on a retained point keeps the edit; on a moved point yields an *edit vs delete* entry.
+
+[[DRAW-029]]
+==== DRAW-029 Eraser tool
+[horizontal]
+Track:: client-ui
+Depends on:: DRAW-028, DRAW-020
+Size:: S
+Delivers:: `EraserTool` with min/max width, bracket keys, pressure, and the eraser strip builder.
+Done when::
+* Erasing through the middle of an open path yields two paths whose ends lie on the strip's edges within 0.1 pt.
+* UI test: bracket keys change the width mid-drag; pressure stream overrides them.
+
+[[DRAW-030]]
+==== DRAW-030 Simplify, Reverse Direction and Correct Direction
+[horizontal]
+Track:: client-model
+Depends on:: DRAW-002, GEO-004
+Size:: S
+Delivers:: The Simplify sheet with btn:[Apply] preview, the Simplify command (replace contour points), Reverse Direction and Correct Direction commands with their menu and Extension Operations toolbar entries.
+Done when::
+* Simplify at amount 0 is a no-op; at 100 a 1,000-point traced path drops below 100 points with outline error under the documented tolerance.
+* Reverse writes only `reversed`; Correct Direction sets the flag so that nested contours alternate winding.
+* Merge tests: reverse vs. insert; Simplify vs. point move (edit vs delete entry).
+endif::spec[]

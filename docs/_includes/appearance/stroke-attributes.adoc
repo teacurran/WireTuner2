@@ -1,0 +1,681 @@
+A stroke is a line drawn along an object's path.  {product} offers five kinds of stroke, chosen
+from the *Stroke type* pop-up at the top of the stroke editor in the Object panel: *Basic*
+(a plain line with caps, joins, dashes and arrowheads), *Brush* (symbols painted or sprayed
+along the path), *Calligraphic* (a pen nib dragged along the path), *Custom* (one of
+twenty-three repeating ornamental patterns) and *Pattern* (an editable bitmap pattern).  Select
+the stroke in the Attributes list (xref:attribute-stack.adoc[Strokes, fills and the Attributes
+list]) and the editor below shows the options for its kind.  Colors are chosen as described in
+xref:applying-color.adoc[Applying color].
+
+NOTE: {fh} users: {fh}'s sixth stroke type, *PostScript*, is not offered.  {product} draws with
+Core Graphics and prints and exports through PDF, so there is no PostScript interpreter to hand
+raw code to.  Custom and Pattern strokes, which {fh} showed only on a PostScript printer, are
+drawn on screen here.
+
+== Stroke width presets
+
+The width pop-up in the Basic, Custom and Pattern editors lists preset widths in points.  You
+can also type any width from 0 to 16,164 points; a width of 0 is a *hairline*, the thinnest line
+the screen or printer can draw.
+
+To change the preset list, open menu:{product}[Settings…], choose the *Object* category, and
+edit *Stroke width presets*: a list of point values separated by spaces.  The pop-up updates at
+once.
+
+== Basic strokes
+
+To apply a Basic stroke to the selected stroke:
+
+. In the Object panel, choose *Basic* from the *Stroke type* pop-up.
+. Choose a color: pick from the color pop-up in the editor, drag a swatch from the Swatches
+  panel onto the stroke's row, or use the stroke well in the Tools panel.
+. Choose a width from the width pop-up or type one and press kbd:[Return].
+. Choose a *Cap* for the ends of open paths:
++
+[horizontal]
+Butt:: Ends exactly at the path's endpoint.
+Round:: A half-circle extends past the endpoint by half the width.
+Square:: A half-square extends past the endpoint by half the width.
+. Choose a *Join* for the corners where segments meet:
++
+[horizontal]
+Miter:: Corners come to a point.
+Round:: Corners are rounded.
+Bevel:: Corners are cut off flat.
+. For a Miter join, set the *Miter limit* (1 to 57).  A pointed corner whose length, measured
+  in stroke widths, would exceed the limit is drawn beveled instead.  A limit of 2 on a 3-point
+  stroke bevels any corner whose point would be longer than 6 points.
+. Choose a dash from the *Dash* pop-up, or *No dash* for a solid line.
+. For an open path, choose arrowheads from the two *Arrowheads* pop-ups.  The left pop-up
+  applies to the path's start point, the right one to its end point; arrowheads point along the
+  path's direction.  (To reverse them, reverse the path's direction;
+  see xref:editing-paths.adoc[Editing paths].)
+
+// TODO screenshot: Basic stroke editor with cap, join, dash and arrowhead controls
+
+Check *Overprint* to print the stroke on top of the colors beneath it rather than knocking them
+out; see xref:printing.adoc[Printing].
+
+=== Dashes
+
+The Dash pop-up lists the built-in dashes plus any custom dashes used in the document or saved
+on this Mac.
+
+To create a custom dash:
+
+. kbd:[Option]-click the *Dash* pop-up, or choose *Edit Dash…* from it, to open the Dash Editor.
+. Enter up to four *On* lengths and four *Off* lengths, in points.  The pattern repeats along the
+  path; caps apply to every dash.
+. Click btn:[OK].  The dash is applied to the selected strokes and added to the pop-up.
+
+To remove a custom dash from the pop-up, choose *Manage Dashes…* and delete it there; strokes
+already using it are unaffected, because every stroke stores its own dash.
+
+=== Arrowheads
+
+To draw a new arrowhead:
+
+. Choose *New…* from either *Arrowheads* pop-up.  The Arrowhead Editor opens: a small drawing
+  window with the Pointer, Pen, Bezigon, Rectangle and Ellipse tools and a reference line
+  representing the stroke.
+. Draw the arrowhead.  The reference line's width is one stroke width; the arrowhead scales
+  with the stroke it is applied to.  The dashed marker shows where the path's endpoint sits.
+. Click btn:[New] to add it to both pop-ups, or btn:[Cancel].
+
+To make an arrowhead from an existing one, kbd:[Option]-click the arrowhead in either pop-up:
+the Arrowhead Editor opens with that arrowhead loaded; edit it and click btn:[New].  Existing
+strokes keep the original.
+
+*Manage Arrowheads…* lists custom arrowheads and lets you delete them from the pop-ups.
+
+// TODO screenshot: Arrowhead Editor window
+
+== Brush strokes
+
+A brush paints one or more symbols along a path.  In *Spray* mode the symbol repeats along the
+path at a chosen spacing; in *Paint* mode a chosen number of copies is stretched between the
+path's ends.  Brushes are shared by the whole document and appear in the brush pop-up; the
+symbols they use live in the Library (xref:library.adoc[The Library]).
+
+// TODO screenshot: the same path with a Spray brush and a Paint brush
+
+To apply a brush to the selected stroke:
+
+. Choose *Brush* from the *Stroke type* pop-up.
+. Choose a brush from the brush pop-up.
+. Enter a *Width* from 1% to 400% to scale the brush along the whole path.
+
+=== Creating a brush
+
+To create a brush from selected objects:
+
+. Choose menu:Modify[Brush > Create Brush…].
+. Choose how the selection becomes a symbol:
++
+[horizontal]
+Copy:: Adds a symbol to the Library and leaves the selected objects as they are.
+Convert:: Adds a symbol and replaces the selected objects with an instance of it.
+. The Edit Brush sheet opens.  Set the options below and click btn:[OK].
+
+To edit, duplicate, remove, import or export a brush, open the action menu next to the brush
+pop-up in the stroke editor:
+
+Edit…:: Opens the Edit Brush sheet for the chosen brush.  If the brush is in use, closing the
+sheet asks whether to *Change* every stroke that uses it or to *Create* a new brush ("Copy of
+<name>") for the selected strokes only.
+Duplicate:: Adds "Copy of <name>" to the pop-up.
+Remove…:: Asks what to do with strokes using the brush: *Release* turns each into a group of
+ordinary objects grouped with the original path, *Delete* removes the brush and the paths
+using it.
+Import…:: Opens a brush file (a {product} or {fh} document); pick the brushes to bring in with
+kbd:[Cmd]-click.  Their symbols are added to the Library and their colors to the Swatches panel.
+Export…:: Saves chosen brushes (kbd:[Shift]-click for several) as a brush file.
+
+Editing a symbol in the Library also changes every brush that uses it.
+
+=== The Edit Brush sheet
+
+[cols="1,3"]
+|===
+|Option |Effect
+
+|Brush name
+|The name shown in the brush pop-up.
+
+|Include symbols
+|The list of symbols the brush paints.  btn:[+] adds a symbol from the Library, btn:[-]
+removes the selected one, and the arrows move it up or down.  Copies are stacked on the path in
+list order, the first symbol at the bottom.
+
+|Paint / Spray
+|The mode.  For *Paint*, set *Count* (1 to 500), the number of copies stretched along the path.
+
+|Orient on path
+|Rotates each copy to follow the path's direction.  When off, a Paint brush stretches straight
+between the endpoints and a Spray brush keeps the symbol's original orientation.
+
+|Fold corners
+|Folds the brush at corner points instead of sweeping around them, as early {fh} versions did.
+
+|Spacing
+|Distance between copies, as a percentage of the symbol's size.  *Fixed* (1%--200%, with a
+slider), *Random* between *Min* and *Max*, or *Variable* changing smoothly from *Min* to *Max*
+along the path.
+
+|Angle
+|Rotation of each copy: *Fixed* (0°--359°), *Random* or *Variable* between *Min* and *Max*.
+
+|Offset
+|Distance from the path: *Fixed* (-200% to 200%), *Random*, *Variable*, or for Spray brushes
+*Flare*, which follows the scaling's Min and Max.
+
+|Scaling
+|Size of each copy: *Fixed* (1%--200%), *Random*, *Variable*, or for Paint brushes *Flare*,
+which spreads the brush from Min to Max along the path.
+
+|Preview
+|Shows the brush on a sample path as you edit.
+|===
+
+Random values are chosen once per stroke: the stroke looks the same each time it is drawn, on
+every collaborator's screen and in print.  Duplicating a stroke gives the copy its own random
+pattern.
+
+== Calligraphic strokes
+
+A calligraphic stroke is drawn by sliding a nib -- by default an ellipse -- along the path, so
+the line thickens and thins with direction.
+
+To apply a calligraphic stroke to the selected stroke:
+
+. Choose *Calligraphic* from the *Stroke type* pop-up.
+. Choose a color.
+. Set the nib's *Width*, *Height* and *Angle*.  The preview shows the nib.
+
+To use any single closed path as the nib:
+
+. Select the object and choose menu:Edit[Copy].
+. Select the stroke in the Attributes list and choose *Calligraphic*.
+. Click btn:[Paste In].  The nib is scaled by Width and Height and rotated by Angle.
+
+btn:[Copy Out] puts the current nib on the clipboard so you can paste it into the document or
+into another stroke.  To draw calligraphic lines whose width follows the speed or pressure of
+your hand, use the Calligraphic Pen tool (xref:freeform.adoc[Freeform and calligraphic
+drawing]); its output is an ordinary filled path.
+
+== Custom strokes
+
+A Custom stroke repeats one of twenty-three ornamental tiles along the path.  You set the
+stroke's width, the *Length* of each tile and the *Spacing* between tiles.  The patterns are:
+
+Arrow, Ball, Braid, Cartographer, Checker, Crepe, Diamond, Dot, Heart, Left Diagonal, Neon,
+Rectangle, Right Diagonal, Roman, Snowflake, Squiggle, Star, Swirl, Teeth, Three Waves, Two
+Waves, Wedge, ZigZag.
+
+// TODO screenshot: the twenty-three custom stroke patterns on a sample path
+
+To apply a Custom stroke to the selected stroke:
+
+. Choose *Custom* from the *Stroke type* pop-up.
+. Choose a pattern from the pattern pop-up; the preview shows a sample.
+. Choose a color.  *Neon* has its own colors and ignores this setting.
+. Set *Width*, *Length* and *Spacing* and press kbd:[Return].
+
+Transforming an object with a Custom stroke re-orients the tiles along the new path but keeps
+their length and spacing.
+
+== Pattern strokes
+
+A Pattern stroke fills the stroke's width with a repeating 8-by-8 pixel bitmap in the stroke's
+color; the 64 built-in patterns can be edited pixel by pixel.  Each pixel is a quarter point on
+the page whatever the zoom, so a pattern looks the same on screen as in print.
+
+To apply a Pattern stroke to the selected stroke:
+
+. Choose *Pattern* from the *Stroke type* pop-up.
+. Choose a color and a width.
+. Click a pattern in the palette at the lower right of the editor; drag the slider to scroll
+  through the 64 patterns.
+
+To edit the pattern:
+
+. Click or drag in the large editing grid at the lower left.  Clicking a pixel toggles it
+  between painted (the stroke color) and clear (transparent).  The preview on the right follows.
+. Click btn:[Clear] to empty the grid, or btn:[Invert] to swap painted and clear pixels.
+
+Edits belong to the stroke; the built-in palette is unchanged.
+
+== Working with others
+
+Stroke settings are shared the moment you change them.  Two people can edit one stroke at the
+same time without treading on each other as long as they change different settings -- one the
+width, the other the dash -- and each sees the other's change arrive live.  When both change
+the same setting, the later change stands and the other person's value is kept aside; after an
+offline session the review sheet lists such settings with both values.
+
+A brush is one shared definition: when a collaborator edits it and chooses *Change*, every path
+using it updates on your screen too.  If someone removes a brush you are using at that moment,
+your stroke falls back to a plain line in the brush's color and width until you pick another
+brush.  Custom dashes and arrowheads travel inside the strokes that use them, so a collaborator
+always sees exactly the dash or arrowhead you chose, even if they never installed it.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,1a"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Six stroke types: Basic, Brush, Calligraphic, Custom, Pattern, PostScript
+|Five; PostScript is not offered.  On import, a {fh} PostScript stroke becomes a Basic stroke
+of the same width and color with the code preserved in the object's note.
+|Dropped -- no PostScript interpreter in a Core Graphics/PDF pipeline; user-supplied printer
+code is also a security liability.
+
+|Default stroke attributes with nothing selected
+|Same, via the settings node.
+|Faithful
+
+|Preset stroke widths, edited in Object preferences, relaunch required
+|*Stroke width presets* preference, applied immediately.
+|Adapted -- no relaunch.
+
+|Width 0--16,164 pt (Mac), 0 = hairline
+|Same range; hairline renders one device pixel wide.
+|Faithful
+
+|Cap, join, miter limit 1--57
+|Same.
+|Faithful
+
+|Dash pop-up; Option-select opens Dash Editor; up to 255 dashes; cannot remove
+|Same editor; dashes stored inline in the stroke; the pop-up is unlimited and custom dashes
+can be removed with *Manage Dashes…*.
+|Adapted -- inline storage makes documents self-contained across collaborators.
+
+|Arrowhead pop-ups, Arrowhead Editor with a subset of tools, Option-select to edit a copy, 255 limit, no removal
+|Same editor and gestures; arrowheads stored inline; no limit; *Manage Arrowheads…* removes.
+|Adapted -- as for dashes.
+
+|Brush strokes: Paint and Spray, width 1--400%
+|Same.
+|Faithful
+
+|Create Brush (Copy/Convert), Edit Brush sheet with every option, Change/Create on edit of a used brush
+|Same.
+|Faithful
+
+|Brush Import/Export/Duplicate/Remove (Release/Delete)
+|Same; brush files are {product} or {fh} documents.
+|Faithful
+
+|Random spacing/angle/offset/scaling
+|Same, seeded per stroke so every replica and print renders identically.
+|Adapted -- determinism required for collaboration.
+
+|Calligraphic stroke with width/height/angle and Paste In / Copy Out nib
+|Same.
+|Faithful
+
+|23 Custom strokes, print-only
+|Same 23, rendered on screen and in every export.
+|Adapted -- native procedural rendering replaces PostScript.
+
+|Custom strokes do not print with raster effects
+|No restriction.
+|Adapted -- limitation removed.
+
+|64 Pattern strokes with pixel editor, print at device resolution
+|Same editor; pixel size fixed at 0.25 pt.
+|Adapted -- device-independent size so screen, PDF and print agree.
+
+|PostScript stroke code (255 characters)
+|Not offered.
+|Dropped -- see above.
+|===
+
+=== Data model
+
+[source,protobuf]
+----
+// proto/wiretuner/doc/v1/stroke.proto (sketch).  All widths and lengths in points.
+
+message BasicStroke {
+  ColorRef color = 1;                  // ATOMIC (applying-color.adoc); None paints nothing
+  double width = 2;                    // 0 (hairline) .. 16164
+  LineCap cap = 3;                     // BUTT (default), ROUND, SQUARE
+  LineJoin join = 4;                   // MITER (default), ROUND, BEVEL
+  double miter_limit = 5;              // 1 .. 57; unset reads as 4
+  // The dash is one value: its on/off lengths only mean something together.
+  DashPattern dash = 6 [(wt.crdt.field).merge = MERGE_ATOMIC];   // unset = solid
+  Arrowhead start_arrowhead = 7 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  Arrowhead end_arrowhead = 8 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  bool overprint = 9;
+}
+
+enum LineCap  { LINE_CAP_UNSPECIFIED = 0; LINE_CAP_BUTT = 1; LINE_CAP_ROUND = 2; LINE_CAP_SQUARE = 3; }
+enum LineJoin { LINE_JOIN_UNSPECIFIED = 0; LINE_JOIN_MITER = 1; LINE_JOIN_ROUND = 2; LINE_JOIN_BEVEL = 3; }
+
+message DashPattern {
+  string name = 1;                     // preset name, informational
+  repeated double lengths = 2 [(buf.validate.field).repeated.max_items = 8];  // on, off, on, off ...
+}
+
+// Stored inline: a document is self-contained and every replica draws the same head.
+message Arrowhead {
+  string name = 1;                     // preset or user name, informational
+  // Outline in arrowhead units: 1 unit = the stroke width; origin at the path endpoint,
+  // +x pointing beyond the end of the path.  Contour is the path schema's contour message
+  // (vector-basics.adoc).
+  repeated Contour contours = 2;
+  bool filled = 3;                     // filled with the stroke color; else stroked at width 1
+  double path_trim = 4;                // how far (units) the path is shortened under the head
+}
+
+message BrushStroke {
+  // The brush node in the `brushes` collection.  `cached` holds a BasicStroke to draw when
+  // the brush is gone, so a stroke never disappears when someone removes a brush.
+  NodeRef brush = 1 [(wt.crdt.field).on_dangling = REF_FALLBACK_CACHED];
+  double width_percent = 2;            // 1 .. 400
+  ColorRef color = 3;                  // fallback color; brushes paint their symbols' colors
+  // Seed for Random/Variable variation; chosen at creation, new value on duplicate.
+  fixed64 seed = 4;
+}
+
+// Node kind in the `brushes` collection.
+message BrushProps {
+  CommonProps common = 1;              // name = brush name
+  BrushMode mode = 2;                  // PAINT or SPRAY
+  uint32 count = 3;                    // PAINT: 1 .. 500 copies
+  // Symbols painted, bottom first.  Element order is the stacking order.
+  repeated BrushSymbol symbols = 4 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  bool orient_on_path = 5;
+  bool fold_corners = 6;
+  // Each variation is one choice (mode + values); merging mode from one user with
+  // min/max from another would produce a brush nobody designed.
+  BrushVariation spacing = 7 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  BrushVariation angle = 8 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  BrushVariation offset = 9 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  BrushVariation scaling = 10 [(wt.crdt.field).merge = MERGE_ATOMIC];
+}
+enum BrushMode { BRUSH_MODE_UNSPECIFIED = 0; BRUSH_MODE_SPRAY = 1; BRUSH_MODE_PAINT = 2; }
+message BrushSymbol {
+  ElementId id = 1;
+  NodeRef symbol = 2 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];  // skipped if gone
+}
+message BrushVariation {
+  VariationMode mode = 1;              // FIXED, RANDOM, VARIABLE, FLARE
+  double value = 2;                    // FIXED
+  double min = 3;                      // RANDOM, VARIABLE, FLARE
+  double max = 4;
+}
+enum VariationMode { VARIATION_MODE_UNSPECIFIED = 0; VARIATION_MODE_FIXED = 1;
+  VARIATION_MODE_RANDOM = 2; VARIATION_MODE_VARIABLE = 3; VARIATION_MODE_FLARE = 4; }
+
+message CalligraphicStroke {
+  ColorRef color = 1;
+  double width = 2;                    // nib width
+  double height = 3;                   // nib height
+  double angle = 4;                    // degrees
+  // Custom nib: one closed contour in nib units (1 = width/height before scaling).
+  // Unset = ellipse.  One value: half a nib is meaningless.
+  repeated Contour nib = 5 [(wt.crdt.field).merge = MERGE_ATOMIC];
+}
+
+message CustomStroke {
+  CustomStrokePattern pattern = 1;     // the 23 named patterns
+  ColorRef color = 2;                  // ignored by NEON
+  double width = 3;
+  double length = 4;                   // one tile along the path
+  double spacing = 5;                  // gap between tiles
+}
+enum CustomStrokePattern {
+  CUSTOM_STROKE_PATTERN_UNSPECIFIED = 0; ARROW = 1; BALL = 2; BRAID = 3; CARTOGRAPHER = 4;
+  CHECKER = 5; CREPE = 6; DIAMOND = 7; DOT = 8; HEART = 9; LEFT_DIAGONAL = 10; NEON = 11;
+  RECTANGLE = 12; RIGHT_DIAGONAL = 13; ROMAN = 14; SNOWFLAKE = 15; SQUIGGLE = 16; STAR = 17;
+  SWIRL = 18; TEETH = 19; THREE_WAVES = 20; TWO_WAVES = 21; WEDGE = 22; ZIGZAG = 23;
+}
+
+// Shared with PatternFill (fill-attributes.adoc).
+message PatternBitmap {
+  bytes rows = 1 [(buf.validate.field).bytes.len = 8];  // 8 rows, MSB = left pixel, 1 = painted
+}
+message PatternStroke {
+  ColorRef color = 1;
+  double width = 2;
+  PatternBitmap bitmap = 3 [(wt.crdt.field).merge = MERGE_ATOMIC];  // a pattern is one picture
+}
+----
+
+The 64 built-in pattern bitmaps and the built-in dash and arrowhead presets are application
+resources, not document data; a stroke copies the chosen preset into its own field.  Custom
+dashes and arrowheads saved "on this Mac" live in
+`~/Library/Application Support/WireTuner/Presets/`.
+
+=== Merge semantics
+
+Basic stroke fields::
+`width`, `cap`, `join`, `miter_limit`, `overprint` are independent registers: A's width and B's
+join both apply.  `dash` and the two arrowheads are ATOMIC: two people choosing different dashes
+at once, the later wins and the review lists both names.
+
+Brush reference::
+`brush` is an ATOMIC `NodeRef`.  Remove (Delete) sets `deleted` on the brush node; strokes that
+reference it read the `cached` `BasicStroke` (color and 100%-of-width line) until re-pointed.
+Remove (Release) is a compound change: expand each using stroke into a group, then delete the
+brush; a stroke whose object was edited concurrently by someone else is still released because
+the expansion writes new nodes rather than touching the old registers.  *Change* on edit writes
+the brush node's registers; *Create* creates a new brush node and writes `brush` on the selected
+strokes only.
+
+Brush node fields::
+`mode`, `count`, `orient_on_path`, `fold_corners` are registers; `symbols` is a SEQUENCE
+(concurrent add and reorder both apply); each variation is ATOMIC.
+
+Brush import::
+Creates brush nodes, symbol nodes and swatches in one change; a concurrent import of the same
+file by two users yields two sets with distinct ids, which is correct (they were never the same
+brush).
+
+Calligraphic nib::
+ATOMIC; Paste In from two users: later wins.  Width, height and angle are separate registers.
+
+Pattern bitmap::
+ATOMIC.  Two people editing pixels of the same pattern at once: the later whole bitmap wins.
+This is deliberate -- merging pixels would produce a picture nobody drew -- and the editor
+rewrites the bitmap on each click, so the loser sees their picture replaced live and can
+click again.  The review sheet shows both bitmaps as thumbnails.
+
+Read-time normalizations::
+* `width` outside 0..16,164 clamps; `miter_limit` outside 1..57 clamps; `width_percent`
+  outside 1..400 clamps; a `DashPattern` with an odd count of lengths repeats its cycle
+  (PDF semantics); all-zero lengths read as solid.
+* A `BrushSymbol` whose symbol is deleted is skipped; a brush with no live symbols renders its
+  strokes as the cached basic stroke.
+* A `nib` that is not a single closed contour reads as the default ellipse.
+* An unknown `CustomStrokePattern` (newer client) renders as a Basic stroke of the same width.
+
+=== Offline behavior
+
+Brush import and export are local file operations and work offline; the imported nodes go out
+with the next sync.  Nothing else is network-dependent.
+
+=== Server
+
+Nothing beyond storing and relaying changes.
+
+=== Client
+
+Rendering (`WTRender`)::
+* Basic: `CGContext` stroke with cap, join, miter limit and dash; hairline = one device pixel
+  at any zoom.  Arrowheads: the path is trimmed by `path_trim × width` at each headed end
+  (GEO-001 arc-length split), the head outline is transformed by (width, endpoint, tangent) and
+  filled or stroked.
+* Brush: the path is parametrized by arc length; Spray places copies at cumulative spacing,
+  Paint divides the length by `count`; each copy is the symbol's display list transformed by
+  position, tangent (if `orient_on_path`), scaling, offset along the normal and angle.  Random
+  and Variable draw from a PCG generator seeded with `seed`, advanced once per copy, so every
+  replica draws the same stroke.  `fold_corners` splits the path at corner points and lays out
+  each segment separately.  Brush strokes have no hit-test tolerance of their own: hit testing
+  uses the symbol's bounds along the path.
+* Calligraphic: the nib polygon is swept along the path (GEO-003 offsetting of the two envelope
+  curves per segment, joined by nib outlines at corners) and the union is filled.
+* Custom: each of the 23 patterns is a procedural tile generator producing a display list for
+  one `length` at width 1, repeated every `length + spacing` along the arc-length parametrized
+  path and bent to it.  Neon is a stack of strokes with decreasing width and increasing
+  lightness.
+* Pattern: a `CGPattern` with a 2 × 2 pt cell (8 × 0.25 pt) in page space, masked by the
+  stroke's outline (GEO-003 expand stroke).  The cell's phase is anchored to the page origin so
+  adjacent objects tile seamlessly.
+
+Object panel editors:: SwiftUI forms registered per `StrokeKind`: pop-ups, a width combo box,
+segmented cap and join controls, a miter-limit field, dash and arrowhead pop-ups with editor
+items, the brush pop-up with its action menu, the nib preview with btn:[Paste In] and
+btn:[Copy Out], the pattern grid (`NSView` with per-pixel hit testing) and palette.
+
+Sheets and windows:: The Dash Editor and Edit Brush are sheets on the document window.  The
+Arrowhead Editor is a separate window hosting a miniature canvas and a restricted tool set
+through the tool framework (APP-003).
+
+Undo:: Each committed field edit is one step; a pixel drag in the pattern editor is one step
+per mouse-up; Create Brush and Remove Brush are one step each including their side effects.
+
+=== Build tasks
+
+[[ATTR-005]]
+==== ATTR-005 Stroke kind schemas
+[horizontal]
+Track:: proto
+Depends on:: ATTR-001
+Size:: M
+Delivers:: `stroke.proto`: `BasicStroke`, `DashPattern`, `Arrowhead`, `BrushStroke`, `CalligraphicStroke`, `CustomStroke`, `PatternBitmap`, `PatternStroke`, the enums, and the `BrushProps` node kind with `BrushSymbol` and `BrushVariation`, with validation rules.
+Done when::
+* `buf lint` passes with every field commented; `brushes` well-known node accepts `BrushProps` children.
+* Conformance vectors: concurrent width and join edits; concurrent dash choices; concurrent nib pastes; concurrent bitmap edits; brush symbol reorder vs. add; brush node deleted while a stroke references it (cached fallback read-out).
+
+[[ATTR-006]]
+==== ATTR-006 Basic stroke editor
+[horizontal]
+Track:: client-ui
+Depends on:: ATTR-003, ATTR-005, APP-010
+Size:: M
+Delivers:: The Basic stroke editor: color, width combo box fed by the *Stroke width presets* preference (default `0 0.5 1 2 4 8 12 24`, 0 shown as "Hairline"), cap, join, miter limit, dash pop-up with Dash Editor sheet (kbd:[Option]-click and *Edit Dash…*), *Manage Dashes…*, the two arrowhead pop-ups with *New…*, kbd:[Option]-click and *Manage Arrowheads…* entries (the editor window itself is ATTR-030), and Overprint.
+Done when::
+* UI tests set every control and verify the model; typing a width above the maximum clamps with a beep.
+* Preset dashes and arrowheads are copied into the stroke; the pop-ups list custom values found in the open document.
+* Merge test: two simulated replicas edit width and dash of one stroke concurrently and the editor shows the merged result.
+
+[[ATTR-007]]
+==== ATTR-007 Dash and arrowhead rendering
+[horizontal]
+Track:: client-render
+Depends on:: REND-002, GEO-001, ATTR-005
+Size:: M
+Delivers:: Dash phase and cap handling, hairline rendering, path trimming under arrowheads, arrowhead placement and scaling at both ends, hit-test inclusion of arrowheads.
+Done when::
+* Reference renders for every built-in dash and arrowhead at three widths match the corpus.
+* An arrowhead on a closed path is ignored; on a one-segment path both heads render without overlapping the trimmed path.
+
+[[ATTR-008]]
+==== ATTR-008 Brush model commands
+[horizontal]
+Track:: client-model
+Depends on:: ATTR-002, ATTR-005, CRDT-002
+Size:: M
+Delivers:: Commands: create brush from selection (Copy/Convert, needs the Library's symbol creation from the LIB epic), edit with Change/Create, duplicate, remove with Release (expand strokes to groups) and Delete, import from a document file, export to a document file; `BrushStroke` application with cached fallback and seed assignment.
+Done when::
+* Every command is one undoable change; Release produces groups equal to the rendered geometry within tolerance.
+* Merge test: replica A removes a brush while replica B applies it to a new path; B's stroke renders as the cached basic stroke on both.
+* Conformance vector for `seed` allocation on duplicate.
+
+[[ATTR-009]]
+==== ATTR-009 Brush editor sheet and brush menu
+[horizontal]
+Track:: client-ui
+Depends on:: ATTR-008, ATTR-003
+Size:: M
+Delivers:: The brush pop-up and action menu in the stroke editor, the Edit Brush sheet with every option in the table above and a live preview, the Change/Create prompt, the Release/Delete prompt, import and export panels, menu:Modify[Brush > Create Brush…].
+Done when::
+* UI tests create, edit (both prompts), duplicate, remove (both choices), import and export a brush.
+* The preview updates within one frame of a slider change.
+
+[[ATTR-010]]
+==== ATTR-010 Brush stroke rendering
+[horizontal]
+Track:: client-render
+Depends on:: REND-002, GEO-001, ATTR-005
+Size:: L
+Delivers:: Spray and Paint layout along arc length, orientation, fold corners, the four variations with Flare, deterministic PCG randomness from `seed`, symbol display-list instancing, bounds and hit testing.
+Done when::
+* Reference renders for each variation mode in each brush mode match {fh} output for the corpus within tolerance.
+* Two renders of one stroke on two machines are pixel-identical; a duplicate with a new seed differs.
+* A 2,000-copy spray renders under 8 ms on M1.
+
+[[ATTR-011]]
+==== ATTR-011 Calligraphic stroke rendering
+[horizontal]
+Track:: client-render
+Depends on:: GEO-003, ATTR-005
+Size:: M
+Delivers:: Nib sweep along the path with the default ellipse and custom nibs, union of the envelope, hit testing on the swept outline.
+Done when::
+* Swept outline of a straight segment equals the analytic parallelogram/ellipse hull within tolerance; corners and cusps produce no gaps or spikes.
+* Reference renders for three nibs on the corpus match.
+
+[[ATTR-012]]
+==== ATTR-012 Custom stroke rendering
+[horizontal]
+Track:: client-render
+Depends on:: REND-002, GEO-001, ATTR-005
+Size:: L
+Delivers:: Procedural tile generators for all 23 custom stroke patterns, tile repetition and bending along the path, Neon's fixed multi-stroke rendering, length/spacing handling.
+Done when::
+* Each pattern has a reference render on a straight, a curved and a closed path compared with a {fh} print sample within tolerance.
+* Rendering scales to width and zoom without rasterization artifacts.
+
+[[ATTR-013]]
+==== ATTR-013 Pattern editor
+[horizontal]
+Track:: client-ui
+Depends on:: ATTR-003, ATTR-005
+Size:: S
+Delivers:: The shared pattern editor view: 8 × 8 editing grid with click and drag toggling, live preview, btn:[Clear], btn:[Invert], the scrolling palette of 64 presets loaded from application resources, used by the Pattern stroke editor and the Pattern fill editor.
+Done when::
+* UI tests toggle pixels, clear, invert and pick a preset, verifying `bitmap`.
+* A remote bitmap change while dragging replaces the grid at mouse-up without losing the drag.
+
+[[ATTR-014]]
+==== ATTR-014 Pattern rendering
+[horizontal]
+Track:: client-render
+Depends on:: REND-002, GEO-003, ATTR-005
+Size:: S
+Delivers:: `CGPattern` rendering of `PatternBitmap` at 0.25 pt per pixel anchored to the page origin, masked by the stroke outline (strokes) or the path (fills).
+Done when::
+* Adjacent pattern-filled rectangles tile without seams at every zoom level.
+* PDF export and screen agree pixel-for-pixel on the corpus.
+
+[[ATTR-015]]
+==== ATTR-015 Calligraphic, Custom and Pattern stroke editors
+[horizontal]
+Track:: client-ui
+Depends on:: ATTR-003, ATTR-005, ATTR-013
+Size:: M
+Delivers:: The three editors: calligraphic width/height/angle, nib preview, btn:[Paste In] / btn:[Copy Out] through the pasteboard; custom pattern pop-up with sample preview, color, width, length, spacing; pattern stroke color and width plus the shared pattern editor.
+Done when::
+* UI tests for every control; Paste In refuses anything but a single closed path with an explanation.
+* Kind switching preserves the other kinds' settings in the model and the editors show them again on switching back.
+
+[[ATTR-030]]
+==== ATTR-030 Arrowhead Editor window
+[horizontal]
+Track:: client-ui
+Depends on:: ATTR-006, APP-003, TEST-002
+Size:: L
+Delivers:: A window hosting a miniature canvas with the Pointer, Pen, Bezigon, Rectangle and Ellipse tools, the reference stroke and endpoint marker, `path_trim` marker, btn:[New] producing an `Arrowhead` into the stroke and the local preset store, kbd:[Option]-click loading of an existing head.
+Done when::
+* UI tests draw a head, save it and verify it renders on a stroke at two widths.
+* The window's tools share the tool framework; no drawing code is duplicated.
+endif::spec[]

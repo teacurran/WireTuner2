@@ -1,0 +1,414 @@
+Transforming is moving, rotating, scaling, skewing and reflecting.  {product} offers three
+ways to do each: the transformation tools, for dragging about a point you choose; the
+Transform panel, for exact numbers and for making transformed copies; and the transform
+handles, which appear around a double-clicked object and let you do all five without
+changing tools.  Whichever you use, the object stays what it was -- a rotated rectangle is
+still a rectangle with a corner radius you can edit.
+
+// TODO screenshot: transform handles around a selection, with the rotate cursor outside a corner handle
+
+Transformations can also be applied as live effects that stay editable
+(xref:live-effects.adoc[Live effects]); extrusions rotate in their own way
+(xref:extrude.adoc[Extruding objects]).
+
+== The transformation tools
+
+The Tools panel holds Rotate, Scale, Skew and Reflect under one slot; press and hold the
+slot, or press its key, to choose.
+
+[cols="1,1,3"]
+|===
+|Tool |Key |Does
+
+|Rotate |kbd:[R] |Turns the selection about the point you press.
+|Scale |kbd:[S] |Enlarges or reduces the selection about the point you press.
+|Skew |kbd:[K] |Slants the selection along an axis through the point you press.
+|Reflect |kbd:[F] |Flips the selection across a line through the point you press.
+|===
+
+To transform with a tool:
+
+. Choose the tool.
+. Press where the center of the transformation should be -- on the object or anywhere
+  else.
+. Drag.  The farther from the center you drag, the finer the control.  A dashed outline
+  previews the result; release to apply.
+
+[cols="1,3"]
+|===
+|Key while dragging |Effect
+
+|kbd:[Shift]
+|Constrains: rotation and reflection to 45° steps from the *Constrain angle*; scaling to
+proportional; skewing to horizontal or vertical.
+
+|kbd:[Option]
+|Leaves the original and transforms a copy.  Press before releasing.
+
+|kbd:[Esc]
+|Cancels.
+|===
+
+Double-clicking a transformation tool opens the Transform panel on that tab.
+
+== The Transform panel
+
+The Transform panel (menu:Window[Transform], kbd:[Cmd+M]) has five tabs -- Move, Rotate,
+Scale, Skew, Reflect -- and shows, after any transformation, the values it used.  All but
+Move work about a *center*, whose coordinates are shown in the panel's *X* and *Y* center
+fields and can be typed.
+
+To transform with the panel:
+
+. Select the objects.
+. Open the panel on the tab you want (menu:Modify[Transform > Rotate], and so on, also
+  opens it).
+. Tick the options that apply:
++
+[cols="1,3"]
+|===
+|Option |Effect
+
+|Contents
+|The contents of a clipping path transform with it.  Off, only the clipping shape moves
+(xref:clipping-paths.adoc[Clipping paths]).
+
+|Fills
+|Gradient and tiled fills transform with the object.  Off, the fill stays put behind the
+moving shape.
+
+|Strokes (Scale only)
+|Stroke widths scale with the object.  Off, strokes keep their width.  For groups, this is
+governed by the group's *Transform as unit* setting instead
+(xref:grouping.adoc[Grouping]).
+|===
+. Enter the values:
++
+[cols="1,3"]
+|===
+|Tab |Fields
+
+|Move
+|*X* and *Y* distance; positive is right and up.
+
+|Rotate
+|*Angle*: positive turns counter-clockwise.
+
+|Scale
+|*X* and *Y* percentages, or one value with *Uniform* ticked.  Values under 100 reduce.
+
+|Skew
+|*H* (positive slants right) and *V* (positive slants up), in degrees.
+
+|Reflect
+|*Axis* angle: 0° flips across a horizontal line... that is, top-to-bottom; 90° flips
+left-to-right; anything between flips across a tilted line.
+|===
+. Enter *Copies*: `0` transforms the selection itself; a larger number leaves the original
+  and makes that many copies, each transformed one step further than the last (three copies
+  at 30° give 30°, 60° and 90°).  Reflect makes at most one useful copy.
+. Set the center by typing *X* and *Y*, or by clicking on the canvas with a transformation
+  tool while the panel is open, or by dragging the center point of the transform handles.
+. Click the tab's button (btn:[Rotate], btn:[Scale] ...).
+
+== Transform handles
+
+To transform freely:
+
+. With the Pointer tool, double-click an object or a multiple selection.  Eight handles
+  appear around it and a small circle marks the center.  (If nothing appears, turn on
+  *Double-click enables transform handles* in menu:WireTuner[Settings… > General].)
+. Move the pointer around the selection; it changes to show what a drag will do:
++
+[cols="1,3"]
+|===
+|Pointer over |Drag to
+
+|Inside the selection (not on the center) |Move.
+|The center circle |Move the center of rotation, scaling and skewing.  kbd:[Shift]-click the center to put it back.
+|A handle |Scale.  Corner handles and kbd:[Shift] scale proportionally.
+|Just outside a handle |Rotate.  kbd:[Shift] for 45° steps.
+|The dotted edge between handles |Skew.  kbd:[Shift] constrains to one axis.
+|===
+. Hold kbd:[Option] as you drag to leave the original and transform a copy; a plus sign
+  appears beside the pointer.
+. Double-click away from the selection, or press kbd:[Esc], to put the handles away.
+
+While you drag a handle, smart guides show when an edge or the centre of the selection lines
+up with a nearby object or the page, and a size badge appears when the width or height you
+are making matches a neighbour's; release on the guide to snap to it
+(xref:moving.adoc#smart-guides[Smart guides]).  Rotation and skew show no smart guides;
+kbd:[Shift] is the constraint there.
+
+To transform one member of a group or clipping path: double-click the container to show its
+handles, then kbd:[Option]-click the member -- the handles now belong to it.  Press kbd:[~] to
+go back up to the container without moving the center.
+
+To transform some points of a path: select the points and double-click one of them.  The
+handles surround the selected points and transform only them.  kbd:[~] switches the handles
+to the whole path.
+
+== Repeating a transformation
+
+menu:Modify[Transform > Transform Again] (kbd:[Cmd+Shift+T]) applies the last transformation
+once more to the current selection -- another object, or the same one.  Combined with
+menu:Edit[Duplicate] this is power-duplicating (xref:copying.adoc[Copying]).
+
+== Constrain angle
+
+The *Constrain angle* (menu:WireTuner[Settings… > General], default 0°) is the baseline
+from which kbd:[Shift] constraints are measured -- for transforming, for moving, and for
+drawing.  Set it to 30° to work on an isometric grid.
+
+== Other transformation tools
+
+The *3D Rotation* tool and the *Mirror* tool are extension tools on the Extensions toolbar
+(menu:Window[Toolbars > Extensions]).
+
+3D Rotation::
+Foreshortens a selection as though turned in space.  Double-click the tool to set *Easy* or
+*Expert* mode, the rotation point (mouse click, selection center, center of gravity, or the
+origin) and, in Expert mode, the *Distance* and projection point.  Drag on the canvas to
+rotate; the result is a flat, skewed-and-scaled copy of the shapes, editable like any path.
+
+Mirror::
+Reflects copies of a selection across one or more axes as you click.  Double-click the tool
+for *Horizontal*, *Vertical*, *Horizontal & Vertical* or *Multiple* mirroring, the number of
+copies, whether the axes are set by *Closed Path*, *Rotate* or *Reflect*, and *Auto
+Rotate*.
+
+NOTE: {fh} called these Xtra tools.  In {product} they are extensions; see
+xref:extensions.adoc[Extensions].
+
+== Working with others
+
+A transformation is one change per object, however you made it.  Collaborators see the
+object jump to its transformed state when your change arrives; while you are still dragging,
+they see only your selection outline.
+
+Each object remembers its position, rotation, scale and skew together, as one thing.  So if
+you rotate an object while someone else scales it, the two do not blend into a shape nobody
+intended: the later of the two is kept and the other is set aside, and after an offline
+period the review lists the object under *Position* with both states, offering *Use mine*,
+*Use theirs* and *Keep both copies*.  Reshaping and recoloring are separate from this: your
+rotation and their point edit both apply.
+
+Making copies with the Transform panel creates new objects, which never conflict with
+anything.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,2"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Rotate, Scale, Skew, Reflect tools with a chosen center; Shift constrain
+|Same; kbd:[Option]-copy added to the tools (it existed on handles).
+|Faithful
+
+|Transform panel: Move/Rotate/Scale/Skew/Reflect, Contents/Fills/Strokes, Copies, center X/Y
+|Same.
+|Faithful
+
+|Transform handles via double-click; preference to enable
+|Same.
+|Faithful
+
+|Option-subselect inside a group with handles; Tilde to superselect keeping the center
+|Same.
+|Faithful
+
+|Transform selected points
+|Same.
+|Faithful
+
+|Transform as Unit for groups
+|Same (xref:grouping.adoc[Grouping]).
+|Faithful
+
+|Constrain angle in Document Settings
+|A user preference.
+|Adapted -- like nudge distance, an input habit rather than document content; the DOC epic owns the Document Settings dialog and may mirror it there.
+
+|Power-duplicating
+|Same, plus an explicit *Transform Again* command.
+|Faithful
+
+|3D Rotation and Mirror Xtra tools
+|Extension tools.
+|Faithful
+
+|Transform as live effect
+|xref:live-effects.adoc[Live effects].
+|Faithful
+|===
+
+=== Data model
+
+Every drawable node carries `CommonProps.transform`, an ATOMIC 2×3 affine matrix mapping
+the node's own coordinate space into its parent's (xref:crdt-model.adoc[CRDT model]).  Paths
+keep their points in their own space; rectangles and ellipses keep their parametric
+description; text blocks keep their frame; groups compose.  *Every* transformation command
+composes a matrix onto this one register and writes it once:
+
+[source,protobuf]
+----
+// From common.proto (PROTO-003).  Restated here because this page depends on its policy.
+message Transform {
+  // Column-major affine: [a c tx; b d ty].  Points in points (1/72 in), y down.
+  double a = 1; double b = 2; double c = 3; double d = 4; double tx = 5; double ty = 6;
+}
+// CommonProps.transform = 4 [(wt.crdt.field).merge = MERGE_ATOMIC];
+----
+
+Why one ATOMIC register, and not baked geometry::
+* Merging a rotation from one user with a scale from another *per matrix component* would
+  produce a shear nobody drew; merging them by whole matrix produces one of the two intended
+  states.  That is the ATOMIC rationale from the CRDT model, and it holds for the whole
+  transform history of an object.
+* Baking a transformation into points would spread one gesture across N point registers.
+  A concurrent point edit by another user would then merge into a shape where some points
+  moved and some did not -- a torn outline.  With a transform register, a point edit and a
+  transformation are different registers and both apply, intact.
+* Rectangles, ellipses, polygons and text blocks stay their kind after transformation, as
+  in {fh}.
+* One op per object per gesture keeps changes small and coalescing effective.
+Consequences::
+* Hit testing, snapping, alignment and the Object panel's X/Y/W/H all go through the
+  transform chain (GEO-005).  Point editing inverse-maps mouse positions into node space.
+* Stroke widths are nominal and *not* scaled by the matrix unless the command bakes them
+  (leaf objects, *Strokes* ticked: each `StrokeProps.width` is multiplied by
+  `sqrt(|det|)`) or the group's *Transform as unit* says so at render time.  Fills and
+  effects are in node space and follow the matrix; *Fills* unticked makes the command write
+  a compensating inverse onto the fill's axis/origin registers (ATTR fields), so the fill
+  stays put.  This requires ATTR to define gradient axes and tile origins in node space.
+* A transformation of *selected points* is not a transform: it writes point registers.
+* Export flattens (bakes) at write time; the document never needs to.
+* Boolean and offset operations flatten inputs before computing (xref:combining-paths.adoc[Combining paths]).
+* Ungroup bakes the group's matrix into each member's register (one write per member).
+
+Copies (`Copies > 0`) are `CreateNode`s with `transform = Mᵏ × T` for `k = 1…n`, cloned from
+the source (all registers, fresh element ids), positioned above the source.
+
+The transformation center, the last transformation (for *Transform Again* and
+power-duplicating) and handle visibility are UI state, not document data.
+
+=== Merge semantics
+
+* Any two transformations of one node: LWW on `transform`, whole matrix.  The loser is
+  retained; the review sheet shows *Position* (`same register`) with both states rendered in
+  the Mine/Theirs preview.
+* Transformation vs. point edit, vs. attribute edit, vs. reparent: independent registers,
+  all apply.
+* Transformation vs. delete: applies to the deleted node; back on restore.
+* Transform panel with *Strokes* or *Fills* affecting other registers: those writes are in
+  the same change and merge independently.  A concurrent stroke-width edit by someone else
+  can therefore win over the bake while the matrix stands -- a slightly thicker or thinner
+  stroke than intended, never a broken shape; listed by the review sheet as `same register`
+  on the width.
+* Copies: creations; no conflicts.
+* Transforming a group vs. ungrouping it: see xref:grouping.adoc[Grouping].
+
+Read-time normalization: a non-invertible matrix (zero scale from a degenerate drag) renders
+the node with zero area and hit-tests by its transformed bounds so it can still be selected
+and fixed; commands never write one (scale is clamped to ±0.01%).
+
+=== Offline behavior
+
+Fully offline.  Successive transformations of the same objects coalesce to one op each
+(same register, same replica); the labels of the change boundaries are kept so history reads
+`Rotate`, `Scale`, `Rotate`.
+
+=== Server
+
+Nothing beyond storing and relaying changes.
+
+=== Client
+
+* `TransformCommand(nodes:, matrix:, about:, options:)` in `WTModel/Commands/Transform.swift`
+  composes `M_about = T(c) · M · T(-c)` in the parent space of each node onto its
+  `transform`; provisional application during drags; commit on release; one change per
+  gesture, label from the kind (`Rotate 3 objects`).  `MoveCommand` is the translation case.
+* `PointTransformCommand` for sub-selections writes point registers.
+* Tools: `RotateTool`, `ScaleTool`, `SkewTool`, `ReflectTool` on the APP-003 protocol; the
+  center is the mouse-down point; kbd:[Shift] and kbd:[Option] are read on every drag event
+  (modifier change mid-drag is delivered by APP-003).
+* Transform handles: an overlay mode of the Pointer tool (`HandlesOverlay`) with hit regions
+  in screen space (handles 8 px, rotate zone 12 px outside, skew zone along edges).  Scale
+  drags query the smart-guide engine (OBJ-038) for edge, centre and size-match guides through
+  `ToolContext.snapping`; the overlay for them is OBJ-039 (xref:moving.adoc#smart-guides[Smart
+  guides]).  On a rotated canvas the handles are drawn around the selection's pasteboard-space
+  bounds transformed to the view, so they turn with the artwork.
+* Transform panel: SwiftUI body with five tabs; the center fields bind to the overlay's
+  center; the *Fills*/*Strokes* toggles and *Contents* are persisted in `UserDefaults`.
+* `WTModel.LastTransform` records the matrix and options of the last committed
+  transformation for *Transform Again* and `DuplicateMemory`.
+* Extension tools (3D Rotation, Mirror) implement the extension tool protocol from
+  xref:extensions.adoc[Extensions] and emit ordinary `TransformCommand`/`CreateNode`
+  changes.
+* Preferences: *Double-click enables transform handles* (on), *Constrain angle* (0°).
+
+=== Build tasks
+
+[[OBJ-031]]
+==== OBJ-031 TransformCommand and matrix composition
+[horizontal]
+Track:: client-model
+Depends on:: OBJ-008, GEO-005, CRDT-008
+Size:: M
+Delivers:: `TransformCommand` with about-point composition in parent space, options *Contents*/*Fills*/*Strokes* (stroke-width bake with `sqrt(|det|)`, fill-axis compensation through ATTR's registers), `PointTransformCommand`, degenerate-matrix clamping, `LastTransform`, and *Transform Again*.
+Done when::
+* Rotating a rectangle 30° about an arbitrary point writes one `transform` register and leaves `RectProps` untouched; the Object panel still shows it as a rectangle.
+* Scaling 200% with *Strokes* on doubles every stroke width in the same change; off leaves them.
+* Merge test: concurrent rotate (A) and scale (B) converge to one whole matrix by OpId with the loser retained; concurrent rotate and point edit both apply.
+* Conformance vector: ATOMIC `Transform` written concurrently from two replicas plus a STRUCT stroke-width write.
+
+[[OBJ-032]]
+==== OBJ-032 Rotate, Scale, Skew and Reflect tools
+[horizontal]
+Track:: client-ui
+Depends on:: OBJ-031, APP-003
+Size:: M
+Delivers:: The four tools with mouse-down center, drag preview outline, kbd:[Shift] constraints from *Constrain angle*, kbd:[Option] copy, kbd:[Esc] cancel, tool slot and keys, double-click opening the panel tab.
+Done when::
+* UI tests per tool: drag produces the expected matrix within 1e-6; kbd:[Shift] snaps rotation to 45° from a 30° constrain angle; kbd:[Option] leaves the original.
+* A drag of 100 objects previews at 60 fps and commits one change.
+
+[[OBJ-033]]
+==== OBJ-033 Transform panel
+[horizontal]
+Track:: client-ui
+Depends on:: OBJ-031, OBJ-001, APP-004
+Size:: M
+Delivers:: The five-tab panel with numeric fields (units and arithmetic), *Uniform*, options, *Copies* producing progressively transformed clones, center X/Y fields synchronized with the handles overlay, readout of the last transformation.
+Done when::
+* Rotate 30° with 3 copies creates three nodes at 30°, 60°, 90° about the typed center, in one change `Rotate with 3 copies`.
+* Reflect with axis 90° flips left-to-right; 0° top-to-bottom.
+* Move X/Y positive moves right and up (y-down pasteboard handled).
+
+[[OBJ-034]]
+==== OBJ-034 Transform handles
+[horizontal]
+Track:: client-ui
+Depends on:: OBJ-031, OBJ-005
+Size:: L
+Delivers:: The double-click handles overlay: move, center drag and kbd:[Shift]-reset, scale (corner proportional, kbd:[Shift]), rotate zone, skew zone, kbd:[Option] copy with plus cursor, kbd:[Option]-subselect inside containers, kbd:[~] superselect keeping the center, point-subset handles, the *Double-click enables transform handles* preference.
+Done when::
+* UI tests for each zone produce the expected command kind and matrix.
+* Handles on a group member after kbd:[Option]-click transform only that member; kbd:[~] returns to the group with the center unchanged.
+* Handles on three selected points transform only those points (point registers written, `transform` untouched).
+
+[[OBJ-035]]
+==== OBJ-035 3D Rotation and Mirror extension tools
+[horizontal]
+Track:: client-ui
+Depends on:: OBJ-031, OBJ-012
+Size:: M
+Delivers:: The two extension tools with their option dialogs (Easy/Expert, rotation point, distance; mirror modes, copies, axis mode, auto rotate), emitting `TransformCommand` and clone creations.
+Done when::
+* 3D Rotation in Easy mode about the selection center produces a skew-and-scale matrix matching the projection formula in the test.
+* Mirror in *Multiple* mode with 6 copies creates six reflected clones about the clicked axes in one change.
+endif::spec[]

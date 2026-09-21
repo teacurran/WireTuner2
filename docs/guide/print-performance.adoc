@@ -1,0 +1,7 @@
+= Faster printing
+include::_attributes.adoc[]
+:page-slug: print-performance
+:page-group: Printing
+:page-fh: Chapter 14, "Guidelines for faster printing"
+
+include::_includes/printing/print-performance.adoc[]

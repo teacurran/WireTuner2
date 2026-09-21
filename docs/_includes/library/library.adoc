@@ -1,0 +1,904 @@
+The Library panel stores *symbols*: artwork you keep once and place many times.  Each placed
+copy is an *instance* that follows its symbol -- edit the symbol and every instance changes
+with it -- while keeping its own position, rotation, scale and URL.  Symbols keep repeated
+elements (logos, icons, map markers, brush tips) consistent and light.  The Library also lists
+the document's master pages (xref:master-pages.adoc[Working with master pages]) and, when your
+team has set them up, shared *team libraries* that any document can draw on.
+
+// TODO screenshot: the Library panel with preview, list, columns and the bottom buttons labelled
+
+== The Library panel
+
+To show the Library panel, do one of the following:
+
+* Choose menu:Window[Library].
+* Click the Library button in the Main toolbar.
+
+The panel has a preview area at the top, a list below it, and a row of buttons along the
+bottom.
+
+[cols="1,3"]
+|===
+|Part |What it does
+
+|Preview
+|Shows the selected symbol or master page.  Choose *Preview* in the options menu to hide or
+show it.
+
+|List
+|Symbols, folders and master pages.  Columns: *Name*, *Count* (how many instances the document
+holds), *Kind* (graphic, brush tip, hose element, master page) and *Date* (when the symbol was
+last changed, and by whom in the tooltip).  Click a column header to sort by it; click again to
+reverse.
+
+|btn:[New symbol]
+|Turns the selected objects into a symbol.
+
+|btn:[New folder]
+|Adds a folder to organize the list.
+
+|btn:[Swap]
+|Replaces the objects selected on the canvas with instances of the symbol selected in the list.
+
+|btn:[Remove]
+|Deletes the selected symbols or folders.
+|===
+
+The options menu holds *New Graphic*, *New Folder*, *Duplicate*, *Remove*, *Swap*, *Edit*,
+*Import…*, *Export…*, *Preview*, and a *Show* submenu for choosing which kinds are listed.
+
+NOTE: {fh} calls a library folder a *group*.  {product} calls it a *folder* so that it is not
+confused with grouped objects on the canvas.
+
+== Creating symbols
+
+A symbol can be made from any object, group, text block or selection of several objects.
+Making a symbol adds it to the Library at once.
+
+To create a symbol from the selection, do one of the following:
+
+* Choose menu:Modify[Symbol > Convert to Symbol] (kbd:[F8]).  The selection becomes an instance
+  of the new symbol.
+* Choose menu:Modify[Symbol > Copy to Symbol].  The selection stays an ordinary object; a copy
+  of it becomes the symbol.
+* Click btn:[New symbol] at the bottom of the Library panel (same as *Convert to Symbol*).
+* Drag the selection from the canvas into the Library list (same as *Convert to Symbol*).
+* Choose *New Graphic* from the options menu.
+
+The new symbol is named after the object's name in the Object panel, or "Symbol 1", "Symbol 2"
+and so on.  Double-click the name to rename it.
+
+To duplicate a symbol:
+
+. Select the symbol in the list.  kbd:[Shift]-click to select a range, kbd:[Cmd]-click to add
+  individual symbols.
+. Choose *Duplicate* from the options menu, or kbd:[Option]-drag the symbol within the list.
+
+The duplicate has no instances until you place some.
+
+To organize symbols into folders:
+
+. Click btn:[New folder], or choose *New Folder* from the options menu, and type a name.
+. Drag symbols into the folder.  Drag a folder into another folder to nest them.
+
+Folders only affect the list; instances do not care which folder their symbol sits in.
+
+== Placing and modifying instances
+
+An instance is a live link to its symbol.  You can move, scale, rotate, skew and reflect it
+with any transform tool or the Transform panel (xref:transforming.adoc[Transforming objects]),
+attach a URL to it (xref:urls.adoc[Attaching URLs]), give it a name and note, and put it on
+any layer.  Its artwork comes from the symbol.  A few things about that artwork -- a piece of
+text, a color, whether a part shows, which picture a part holds -- can be changed for one
+instance as *overrides* (below); everything else follows the symbol.
+
+To place an instance, do one of the following:
+
+* Drag a symbol from the Library list onto the canvas.
+* Select a symbol in the list and choose *Place* from the options menu; the instance lands in
+  the middle of the visible page.
+* Copy, paste, duplicate or clone an existing instance.
+
+To release an instance from its symbol:
+
+. Select the instance (or several).
+. Choose menu:Modify[Symbol > Release Instance].
+
+The instance becomes an ordinary group containing a copy of the symbol's artwork, with the
+instance's transform and any overrides applied.  It no longer follows the symbol.
+
+== Overriding parts of an instance
+
+An override changes one thing about one part of one instance -- a button's label, a badge's
+color -- while the rest of the instance keeps following its symbol, and the other instances
+are untouched.  Four kinds of override are possible:
+
+[cols="1,3"]
+|===
+|Override |What it changes
+
+|Text
+|The words of a text block in the artwork, with their formatting.
+
+|Fill color, Stroke color
+|The color of an object's plain fills or strokes.  Gradient, pattern and other special fills
+cannot be overridden.
+
+|Visible
+|Whether a part is drawn.  Untick it to hide a part of the artwork in this instance only.
+
+|Image
+|The picture inside an image frame in the artwork.
+|===
+
+To override a part from the Object panel:
+
+. Select the instance.
+. In the Object panel, open the *Overrides* section.  It lists every part of the symbol that
+  can be overridden, by the part's name (the name from its Object panel, or its kind and a
+  few words of its text: "Text: Buy now"), with the part's current value.
+. Change a value: type new text, pick a color, untick *Visible*, or click btn:[Choose…] beside
+  an image.  The instance updates, the value shows in bold, and a reset arrow appears beside it.
+
+To override text on the canvas:
+
+* With the Text tool, click into a text block inside the instance and type.  Only this
+  instance changes; the caret, selection and everything else about editing text work as in any
+  block (xref:editing-text.adoc[Editing text]).
+
+To reset an override:
+
+* Click the reset arrow beside the value in the *Overrides* section.  The part follows the
+  symbol again.
+* Click btn:[Reset All Overrides] at the bottom of the section to reset every override on the
+  selected instances.
+
+Overrides survive edits to the symbol: if the symbol's text is reworded, an instance whose
+text is overridden keeps its own words, while the other instances take the new ones.  If the
+overridden part is deleted from the symbol, the override goes away with it (and comes back if
+the deletion is undone).  Swapping the instance to a different symbol sets the overrides
+aside, since the new symbol has different parts; swap back and they return.
+
+To turn an instance into ordinary artwork with its overrides baked in, click btn:[Detach] in
+the *Overrides* section.  This is the same as menu:Modify[Symbol > Release Instance].
+
+// TODO screenshot: Object panel Overrides section for a button instance with its label overridden
+
+== Editing symbols
+
+Editing a symbol changes every instance of it in the document, wherever it is.
+
+To edit a symbol:
+
+. Double-click the symbol in the Library list or its preview, or select an instance on the
+  canvas and choose menu:Modify[Symbol > Edit Symbol].
+. A symbol editing window opens with the symbol's artwork on its own canvas, and every panel
+  works as usual.  Edits appear on the instances as you make them.
+. Close the window (kbd:[Cmd+W]) or click btn:[Done] when you are finished.
+
+NOTE: {fh}'s editing window has an *Auto-Update* checkbox and applies the edits when the window
+closes.  In {product} edits to a symbol are live, for you and for everyone else in the
+document, so there is nothing to apply and no checkbox.  If you want to try something without
+affecting the instances, edit a duplicate of the symbol and use btn:[Swap] when you are happy.
+
+To replace a symbol's artwork with an object from the canvas:
+
+. Drag the object from the canvas onto the symbol in the Library list.
+. In the sheet that appears, click btn:[Replace].  Every instance takes on the new artwork; the
+  object you dragged becomes an instance.
+
+To replace selected objects or instances with instances of a symbol:
+
+. On the canvas, select the objects or instances to replace.  kbd:[Shift]-click to select
+  several.
+. Select the replacement symbol in the Library list.
+. Click btn:[Swap], or choose *Swap* from the options menu.
+
+Each selected object is replaced by an instance of the chosen symbol at the object's position;
+an instance keeps its transform, an ordinary object is replaced by an instance centered on its
+bounds.
+
+== Removing symbols
+
+To remove a symbol:
+
+. Select the symbol (or several) in the Library list.
+. Click btn:[Remove], or choose *Remove* from the options menu, or press kbd:[Delete].
+. If the symbol has instances, a sheet asks what to do with them: btn:[Release Instances]
+  turns each into an ordinary group; btn:[Delete Instances] removes them from the canvas;
+  btn:[Cancel] keeps the symbol.
+
+Removing a folder removes the symbols in it the same way.  Removal is undoable and a removed
+symbol can be brought back from xref:history.adoc[History].
+
+== Brush and hose symbols
+
+Two other features keep their artwork in the Library:
+
+* A *brush* stroke (xref:stroke-attributes.adoc[Stroke attributes]) paints a symbol along a
+  path; the symbols it uses are listed with the kind *brush tip*.
+* The *Graphic Hose* (xref:graphic-hose.adoc[Using the Graphic Hose]) sprays symbols listed
+  with the kind *hose element*.
+
+They are ordinary symbols: edit one and every brush stroke or hose spray using it updates.
+Use the *Show* submenu to hide them from the list when you are working with graphic symbols
+only.
+
+== Importing and exporting symbols
+
+Symbols can move between documents in three ways.
+
+To copy symbols by pasting:
+
+. Copy an instance from one document and paste it into another.
+  The symbol comes along.  If the destination already has a symbol of the same name and the
+  same artwork, the pasted instance uses it; otherwise the symbol is added under its name,
+  with a number appended if the name is taken.
+
+To import symbols from another document:
+
+. Choose *Import…* from the Library panel's options menu.
+. Pick a document from your document library, or click btn:[Choose File…] for a {product}
+  document or symbol library file on disk (xref:import-formats.adoc[Import formats] lists what
+  is accepted, including {fh} symbol libraries).
+. In the Import Symbols sheet select the symbols you want, with kbd:[Shift]-click and
+  kbd:[Cmd]-click, and click btn:[Import].
+
+Imported symbols are copies.  If the source was a team library, the copy remembers where it
+came from so you can update it later (below).
+
+To export symbols:
+
+. Choose *Export…* from the options menu.
+. In the Export Symbols sheet select the symbols to export.
+. Choose btn:[To Team Library…] to add them to a shared library, or btn:[To File…] to write a
+  symbol library file you can send to someone.
+
+=== Team libraries
+
+A team library is a document that a team has marked as a library: its symbols, styles and
+master pages are offered to every document in the team.  Anyone with edit access to the
+library document can add to it; anyone in the team can use it.
+
+To use a team library:
+
+. Choose *Show > Team Libraries* from the Library panel's options menu.  Each team library
+  appears as a top-level folder in the list, with a cloud badge.
+. Drag a symbol from a team library onto the canvas.  A copy of the symbol is added to the
+  document's own library, tagged with the library it came from, and an instance is placed.
+
+To update symbols from a team library:
+
+* Select the symbol in your document's list and choose *Update from Library* from the options
+  menu.  {product} fetches the library's current artwork; every instance changes.  A symbol
+  whose library copy has changed shows an *update available* badge.
+
+To make a document a team library:
+
+* In the document library window, kbd:[Control]-click the document and choose *Use as Team
+  Library* (xref:sharing.adoc[Sharing documents]).  You need to own the document, and it must be
+  in a team folder.
+
+Team libraries need a connection to browse and update; symbols already in your document work
+offline like any other.
+
+== Working with others
+
+Symbols are shared with the document, so what you see in the Library panel is what everyone
+sees.
+
+* *Someone edits a symbol while you are placing or transforming its instances.*  No conflict:
+  the symbol's artwork changes under every instance, and your instance positions stay yours.
+* *Two people edit the same symbol's artwork at once.*  The symbol's objects merge exactly as
+  objects on the canvas do -- different objects or different attributes both survive; the same
+  attribute on the same object goes to the later edit and is listed in the sync review
+  (xref:collaboration.adoc[Working together]).  Both editing windows update live.
+* *Someone removes a symbol while you place an instance of it.*  Your instance appears as a
+  hatched placeholder carrying the symbol's name.  The sync review lists it and offers
+  *Restore symbol*, which brings the symbol back for everyone, or *Release*, which turns the
+  placeholder into the artwork as it was when the symbol was removed.
+* *Someone edits a symbol while you release an instance of it.*  The release makes a copy of
+  the artwork as you saw it.  Their later edit changes the symbol and its remaining instances,
+  not your released copy.
+* *Someone swaps or replaces a symbol while you edit it.*  A swap only changes which symbol
+  instances point at, so your edits continue.  A replace deletes the old artwork; your edits
+  land on the deleted artwork and the sync review offers *Restore* for each object you touched.
+* *Two people override the same text of the same instance.*  Both sets of typing end up in
+  the override, merged the way text always is (xref:creating-text.adoc[Creating text]).  Two
+  people picking a color for the same part: the later pick wins and the other is listed in the
+  sync review.
+* *Someone resets an override you are editing.*  Live, the override disappears and your edit
+  with it; after an offline session the review lists it and offers *Restore*, which brings the
+  override back with your edit.
+* *Someone deletes, from the symbol, a part you overrode.*  The override disappears with the
+  part on every screen.  Nothing is listed, because nothing was lost: undoing the deletion
+  brings the part and your override back.
+* *Offline.*  Everything above works offline.  Symbols you create offline appear for others
+  when you reconnect, and the review sheet only lists symbols both you and someone else
+  touched.  Team libraries are unavailable while offline; the panel says so instead of showing
+  an empty folder.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,2"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Library panel: preview, toggle sorting, list, New Symbol, New Group, Swap, Remove
+|Same panel with a *Kind* column and sortable column headers.
+|Faithful
+
+|"Group" (library folder)
+|Renamed *folder*; nested folders allowed.
+|Adapted -- avoids confusion with grouped objects.
+
+|Create symbol: Convert to Symbol, Copy to Symbol, New Symbol button, drag into list, New Graphic
+|Same five ways.
+|Faithful
+
+|Duplicate (menu or kbd:[Option]-drag)
+|Same.
+|Faithful
+
+|Preview toggle
+|Same.
+|Faithful
+
+|Import symbols from a {fh} document; Export to a symbol file
+|Import from a {product} document (cloud or file) and from {fh} symbol libraries via the IMG
+epic's importer; export to a team library or to a file.
+|Adapted -- cloud documents replace the file browser as the primary source; files remain.
+
+|Team libraries with *Update from Library*
+|New.
+|Adapted -- addition for shared teams; no {fh} equivalent.
+
+|Remove symbol with confirmation
+|Sheet offering Release Instances / Delete Instances.
+|Adapted -- {fh} deletes instances; offering release preserves work.
+
+|Instance: drag from panel, copy/paste/duplicate; transform; URL
+|Same, plus *Place* from the options menu.
+|Faithful
+
+|Release Instance
+|Same; result is a group with the instance's transform applied.
+|Faithful
+
+|Edit symbol in a separate window with Auto-Update, applied on close
+|Separate window; edits are live for everyone; no Auto-Update.
+|Adapted -- deferred apply is incompatible with live sharing; a duplicate serves as a sandbox.
+
+|Replace symbol by dragging an object onto it
+|Same, with a confirmation sheet.
+|Faithful
+
+|Swap selected objects for instances of a symbol
+|Same.
+|Faithful
+
+|Master pages listed in the Library
+|Same; content owned by xref:master-pages.adoc[master pages].
+|Faithful
+
+|Brush and hose symbols in the Library
+|Same, marked by kind, with a *Show* filter.
+|Faithful
+
+|Instance overrides (no {fh} counterpart; Sketch, Figma and Illustrator symbols)
+|Per-instance overrides of text, fill and stroke color, visibility and image source, listed in
+an *Overrides* section of the Object panel with reset arrows, *Reset All Overrides* and
+*Detach*; overrides survive symbol edits and are set aside on swap.
+|Added -- without overrides every button or card needs its own symbol; four overridable
+properties cover most of what teams vary per instance and cost one sequence field.
+|===
+
+=== Data model
+
+Symbols are children of the well-known `symbols` node; a symbol's children are its master
+artwork (ordinary object nodes, stacking order = position).  Folders are also children of
+`symbols` (or of another folder) and symbols move into them with `MoveNode`.  An instance is an
+object node on a layer.
+
+[source,protobuf]
+----
+// proto/wiretuner/doc/v1/symbol.proto (sketch)
+syntax = "proto3";
+package wiretuner.doc.v1;
+
+// How a symbol is used.  Informational: the Library panel filters and badges by it.  A brush
+// (brushes collection, ATTR epic) or a hose (DRAW epic) references symbols by NodeRef and
+// sets this when it creates them.
+enum SymbolUsage {
+  SYMBOL_USAGE_GRAPHIC = 0;
+  SYMBOL_USAGE_BRUSH_TIP = 1;
+  SYMBOL_USAGE_HOSE_ELEMENT = 2;
+}
+
+// Where an imported symbol came from, so "Update from Library" can fetch it again.
+// ATOMIC: the three fields identify one revision together.
+message LibrarySource {
+  string document_id = 1;     // the library document (UUIDv7)
+  OpId symbol = 2;            // the symbol node there
+  uint64 server_seq = 3;      // the library's server_seq when this copy was taken
+}
+
+// Properties of a node of kind `symbol`.  Name lives in CommonProps.name.
+// STRUCT: usage, source and origin are independent.
+message SymbolProps {
+  SymbolUsage usage = 1;
+  // Set on copies taken from a team library; unset for symbols made here.
+  LibrarySource source = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Local origin of the symbol's coordinate space: instances place this point at their
+  // transform's translation.  Convert to Symbol writes the selection's bounds center.
+  Point origin = 3;
+}
+
+// Properties of a node of kind `symbol_folder`.  Name lives in CommonProps.name.  No other
+// fields; children are symbols and folders.
+message SymbolFolderProps {}
+
+// Properties of a node of kind `instance`.  Transform, name, note, url, style and layer
+// (parent) come from CommonProps and the tree.
+message InstanceProps {
+  // The symbol this instance draws.  A deleted or unknown symbol renders as a hatched
+  // placeholder labelled with the symbol's name (read from the deleted node while it exists).
+  NodeRef symbol = 1 [(wt.crdt.field).on_dangling = REF_FALLBACK_PLACEHOLDER];
+  // Per-instance overrides of the symbol's artwork.  SEQUENCE (not a map keyed by
+  // (master_node, property) -- see Merge semantics): one element per overridden property,
+  // inserted when the user first changes it, deleted by the reset arrow.  Order is irrelevant
+  // and never edited.
+  repeated Override overrides = 2 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+}
+
+// One overridden property of one node in the symbol's artwork.  `master_node` and `property`
+// are written at creation and never again (like GroupProps.kind); the client only ever edits
+// the one value field `property` names.  Element fields merge as STRUCT.
+message Override {
+  ElementId id = 1;
+  // A node in the symbol's subtree, by node id.  Keyed by id, not position, so the override
+  // survives edits to the symbol.  Not a NodeRef: a dangling id is a read-time rule (below),
+  // not an on_dangling fallback, because the override must return when the node is restored.
+  OpId master_node = 2;
+  OverrideProperty property = 3;
+  RichText text = 4 [(wt.crdt.field).merge = MERGE_TEXT];   // TEXT: replaces the block's text
+  ColorRef fill = 5;                                          // FILL: color of the node's basic fills
+  ColorRef stroke = 6;                                        // STROKE: color of the node's basic strokes
+  bool hidden = 7;                                            // HIDDEN: true hides the node's subtree
+  NodeRef image = 8 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];  // IMAGE: an `assets` node
+}
+
+enum OverrideProperty {
+  OVERRIDE_PROPERTY_UNSPECIFIED = 0;   // reads as no override
+  OVERRIDE_PROPERTY_TEXT = 1;
+  OVERRIDE_PROPERTY_FILL = 2;
+  OVERRIDE_PROPERTY_STROKE = 3;
+  OVERRIDE_PROPERTY_HIDDEN = 4;
+  OVERRIDE_PROPERTY_IMAGE = 5;
+}
+----
+
+An override reaches one level: nodes anywhere in the symbol's own artwork, at any depth of
+grouping, but not the contents of an instance nested inside it.  A text override is a whole
+`RichText` of its own -- created by copying the master's characters and marks as fresh inserts
+-- so it is edited with the ordinary text commands and merges as text.
+
+The *Count* column is derived (a reverse index from symbol id to live instances, maintained by
+`WTModel` from changes).  The *Date* column is derived from the change log: the wall time and
+author of the newest change touching the symbol subtree.  Neither is stored.
+
+=== Merge semantics
+
+[cols="1,1,3"]
+|===
+|Field |Policy |Concurrent behavior
+
+|`name`, `usage`, `origin`
+|ATOMIC each
+|LWW; a lost rename is listed as *same register*.
+
+|`source`
+|ATOMIC message
+|Written by import and by *Update from Library*; LWW.
+
+|`InstanceProps.symbol`
+|ATOMIC ref, PLACEHOLDER on dangling
+|Two swaps of one instance: LWW, listed as *same register*.
+
+|Symbol artwork
+|Ordinary object merge
+|The symbol's children are objects; every rule on the object pages applies unchanged.  Nothing
+on this page is special about them.
+
+|Folder membership
+|Tree move
+|Moving a symbol into two folders at once: greater OpId wins.  Deleting a folder deletes its
+symbols individually (see below); a symbol moved into a folder that is deleted concurrently is
+displayed at the top level by read-time normalization.
+
+|`InstanceProps.overrides`
+|SEQUENCE of STRUCT elements; `text` MERGE_TEXT inside
+|Insert, delete and the value registers are independent.  Cases below.
+|===
+
+Why overrides are a sequence and not a map::
+A map keyed by `(master_node, property)` would make two people creating the same override
+converge into one element by construction, so their concurrent typing would merge as text from
+the first keystroke.  But the schema has no keyed-collection policy, and adding one for this
+feature means a new primitive in both engines, the plugin and the conformance runner.  Worse,
+removing a map entry that holds a `MERGE_TEXT` register has no defined result: "clear" is a
+register write and text is not a register.  With a SEQUENCE every case reduces to a rule that
+already exists -- element insert, element delete, register LWW, Fugue text, *edit vs delete*.
+The one cost is that two concurrent *creations* of the same override make two elements, which
+a read-time rule resolves and which is rare: live, the second person sees the first's override
+arrive before they type, and the client edits the existing element rather than adding one.
+
+Same override, two editors::
+Text: both `TextInsert` into the same element's `text`; Fugue merges them, and the paragraph is
+listed under *same text* after offline work exactly as for a block.  Color, visibility, image:
+LWW on the register, listed as *same register* ("Badge fill: mine red, theirs blue").
+
+Concurrent creation of the same override::
+Two elements with equal `(master_node, property)`.  On read the element with the greater
+element id wins; the other is retained.  The review lists "both overrode Label" with *Use
+mine* / *Use theirs*, which deletes the other element.  Nothing is rewritten by the read.
+
+Reset vs. edit::
+`ElementDelete` and a concurrent `SetFields` or `TextInsert` on the element both apply; the
+element stays deleted.  *Edit vs delete* with *Restore*, which re-inserts the element with the
+edit.  *Reset All Overrides* is one change deleting every element and reviews the same way.
+
+Symbol edit vs. override::
+Different nodes, different registers.  The override wins on read for its property; every other
+property of that master node, and every other node, follows the symbol.  A master node deleted
+while its override is edited: the override element is retained and reads as nothing until the
+node is restored, then reads again.  Not listed in the review: nothing was lost.
+
+Swap vs. override::
+`symbol` is LWW.  Overrides are keyed to the old symbol's node ids, so under the new symbol
+they read as nothing and return on a swap back.  The panel does not list them meanwhile.
+
+Release vs. override edit::
+Release copies the artwork *as resolved* (overrides applied) and deletes the instance; a
+concurrent override edit is *edit vs delete* on the instance, with *Restore* as for any
+release.
+
+Read-time normalizations (overrides)::
+* An override whose `master_node` is not a live node in the instance's current symbol subtree
+  (deleted, in another symbol, inside a nested instance) or whose kind does not fit the
+  property (`TEXT` on a non-text node, `IMAGE` on a non-image node) contributes nothing.
+* Two live overrides with the same `(master_node, property)`: the greater element id wins.
+* `property` unspecified → ignored.
+* A `FILL` or `STROKE` override recolors only basic fills or strokes of the node; other fill
+  kinds are left as the symbol has them.
+* `image` dangling → the master's image.
+
+Edit symbol versus transform instance::
+Different nodes, different registers.  Both apply; nothing to review.
+
+Delete symbol versus place instance::
+*Remove* is one change: for each instance the deleting client can see, either
+`deleted = true` (Delete Instances) or a release (below); then `deleted = true` on the symbol
+and on each of its artwork nodes.  An instance created concurrently references a deleted symbol
+and renders as the placeholder.  The review sheet lists it as "placed an instance of a removed
+symbol" with *Restore symbol* (`deleted = false` on the symbol and its artwork nodes) and
+*Release* (a release using the deleted node's artwork, which is still readable until
+compaction; after compaction the placeholder is all that is left and the row says so).
+
+Two people edit the same symbol's artwork::
+The children of a symbol are objects and merge as objects do: STRUCT appearance fields,
+SEQUENCE contours and fills, tree moves for stacking.  The review sheet lists the affected
+objects under the symbol's name ("Logo mark › ellipse").  This is the only place the behavior
+is described; the object pages do not repeat it.
+
+Release versus remote symbol edit::
+Release is one change: `CreateNode` for a group under the instance's layer at the instance's
+position, deep copies of the artwork as the releasing client sees it, transformed by the
+instance's transform, then `deleted = true` on the instance.  A remote edit to the artwork
+applies to the symbol's nodes and does not reach the copies.  A remote edit to the *instance*
+(a transform or URL) is *edit vs delete* on the instance; *Restore* brings the instance back
+beside the released group, and the user deletes one.
+
+Replace symbol artwork::
+One change: `deleted = true` on the existing artwork nodes, `MoveNode` of the dragged object's
+node(s) under the symbol (and a `CreateNode` of an instance where the object was).  Concurrent
+edits to the old artwork are *edit vs delete*.  A concurrent *Replace* by someone else: both
+sets of old nodes are deleted, both new sets are live, and the symbol shows both until one
+person removes the other's -- listed as *both edited* on the symbol.
+
+Swap::
+For instances, a `SetFields(symbol)`; for other objects, `deleted = true` plus a `CreateNode`
+of the instance at the object's bounds center.  Concurrent edit to a swapped-away object is
+*edit vs delete*.
+
+Duplicate::
+`CreateNode` of the symbol plus deep copies of its artwork, name suffixed " copy".
+Independent of anything concurrent.
+
+Read-time normalizations::
+* An instance whose symbol is deleted or unknown renders as a hatched placeholder the size of
+  the symbol's last known bounds (or 72 × 72 pt when unknown), labelled with the name.
+* An instance whose `symbol` resolves to a node that is not a symbol renders as the placeholder
+  with the label "not a symbol".
+* An instance placed *inside* a symbol's own artwork that references that symbol (a cycle
+  through nesting) renders as a placeholder at the second level; the cut is at the instance
+  with the smallest node id.  Instances of other symbols inside a symbol nest freely.
+* A symbol or folder whose parent folder is deleted is listed at the top level.
+
+What the review sheet shows::
+Instance rows show the symbol name and a preview of the instance; symbol artwork rows are
+nested under the symbol.  *Placed an instance of a removed symbol* has the two choices above.
+
+=== Offline behavior
+
+Creating, editing, placing, releasing, swapping and removing symbols all work offline.  Team
+libraries need the network: browsing, placing from a team library, *Update from Library*,
+*Export to Team Library* and *Use as Team Library* are disabled with an explanation while
+offline.  Symbols already copied into the document keep working, and *update available*
+badges are recomputed on reconnect.
+
+Importing from a document on disk works offline.  Importing from a cloud document that is
+cached locally works offline (the client reads that document's local store); otherwise it
+needs the network.
+
+Overrides work offline.  An image override chosen from disk creates an asset whose blob upload
+is deferred until online, as for a placed image; the override references the asset node at
+once.
+
+=== Server
+
+Team libraries need two small additions to `DocumentService`: a `library` flag on a document
+(settable by the owner when the document is in a team folder) and a `ListLibraries` call for a
+team.  Reading a library's symbols uses the ordinary `FetchSnapshot` with the reader's role on
+the library document.  Nothing else; the server does not know what a symbol is.
+
+=== Client
+
+Package:: `WTModel` owns `SymbolCommands` (convert, copy, duplicate, place, release, swap,
+replace, remove, folder operations, import, export, update from library) and the instance
+index (symbol → live instances).  `WTApp` owns the Library panel, the symbol editing window
+and the sheets.  `WTRender` renders instances; `WTSync` reads other documents' stores or
+snapshots for import.
+
+Rendering:: An instance is rendered by pushing its transform and drawing the symbol's children
+as if they were on the canvas.  The display list caches each symbol's sub-list keyed by the
+symbol's subtree version so a hundred instances cost one build.  Hit testing treats an
+instance as one object (its transformed artwork bounds and shapes), never its contents.
+Placeholders are a hatched rectangle with the name, hit-tested as a rectangle.
+
+Symbol editing window:: A second `NSWindow` on the same `WTModel` whose canvas root is the
+symbol node instead of the layers tree.  Tools, panels and undo work unchanged because the
+model is the same; the window title is "Symbol: <name>"; closing it is only a view change.
+Remote edits to the symbol appear live.  The instance count and *Date* column update from the
+model's indexes.
+
+Import:: Imported symbols are deep-copied into this document with fresh node ids; referenced
+swatches, styles and assets come along and are matched by name (swatches and styles) or hash
+(assets) so nothing is duplicated needlessly.  *Update from Library* fetches the library
+snapshot at head, re-copies the artwork (deleting the old children, creating new ones in one
+change) and writes `source` with the new `server_seq`.  The *update available* badge compares
+the library's head to `source.server_seq` when the panel is visible and online.
+
+Override resolution:: `WTModel` exposes `resolvedArtwork(of: instance)`: the symbol's
+subtree as a view with the live overrides applied -- text replaced, basic fill and stroke
+colors substituted, hidden subtrees skipped, image sources swapped -- after the read-time rules
+above.  Cached per instance, keyed by the symbol's subtree version and the overrides' state
+hash.  Instances with no live overrides share the symbol's cached sub-list from LIB-010;
+instances with overrides get their own sub-list built from the resolved view.  A text override
+is laid out by TXT-001 in the master block's geometry (block props, inset, columns come from
+the master node).  Hit testing is unchanged: an instance is one object.
+
+Overrides section:: Registered with APP-007 for `instance` nodes.  It walks the symbol's
+artwork depth-first in stacking order, stopping at nested instances, and lists one row per
+overridable property: text nodes (Text), nodes with basic fills (Fill) or strokes (Stroke),
+every node (Visible), image nodes (Image).  Rows are named from `CommonProps.name` or from the
+kind plus a text snippet.  A row's editor writes the element (creating it on the first change);
+a reset arrow appears when an element exists and deletes it.  btn:[Reset All Overrides] and
+btn:[Detach] (which invokes *Release Instance*) sit at the bottom.  With several instances of
+one symbol selected the rows show mixed values as "--" and write to every selected instance;
+with instances of different symbols the section is empty with an explanation.
+
+Text tool inside an instance:: A Text tool click hit-tests the resolved artwork's text nodes
+through the instance's transform.  If the block has no `TEXT` override, the first edit creates
+one by copying the master's characters and marks as fresh inserts into the element in the same
+change as the edit; afterwards the caret, selection and remote carets address
+`(instance, element, Anchor)` and every text command from TYPE-002 applies unchanged.
+
+Undo grouping:: Every command is one change and one undo step, including *Remove* with
+instance handling ("Remove symbol Star and 12 instances").  Edits inside the symbol editing
+window are ordinary object edits with their own undo steps.  Override commands are one change
+each: "Override text", "Override fill", "Hide Star", "Reset override", "Reset all overrides",
+"Detach instance"; typing into a text override groups as typing does.
+
+=== Build tasks
+
+[[LIB-008]]
+==== LIB-008 Symbol and instance schema
+[horizontal]
+Track:: proto
+Depends on:: PROTO-003
+Size:: S
+Delivers:: `doc/v1/symbol.proto` with `SymbolUsage`, `LibrarySource`, `SymbolProps`, `SymbolFolderProps`, `InstanceProps`, and the three `NodeProps.kind` cases.
+Done when::
+* `buf lint` with `COMMENTS` passes; the generated merge table shows `source` ATOMIC and `InstanceProps.symbol` with `REF_FALLBACK_PLACEHOLDER`.
+* Conformance vector: two replicas concurrently swap one instance to different symbols; both engines agree.
+
+[[LIB-009]]
+==== LIB-009 Symbol commands and instance index
+[horizontal]
+Track:: client-model
+Depends on:: CRDT-002, CRDT-004, APP-011, LIB-008
+Size:: L
+Delivers:: `SymbolCommands`: Convert to Symbol, Copy to Symbol, duplicate, place, release, swap (instances and objects), replace artwork, remove with Release/Delete instances, folder create/move/remove; the instance index; the read-time normalizations for placeholders, cycles and deleted folders.
+Done when::
+* Each command is one change with the label given in the Client section and undoes in one step.
+* Merge tests: remove symbol vs. concurrent place (placeholder, restore path re-renders); release vs. concurrent artwork edit (copy unaffected); replace vs. replace (both live, listed as both edited); swap vs. swap on one instance (LWW).
+* Conformance vectors for the cycle cut rule and for an instance whose ref points at a non-symbol node.
+
+[[LIB-010]]
+==== LIB-010 Instance rendering and hit testing
+[horizontal]
+Track:: client-render
+Depends on:: REND-002, REND-003, LIB-008
+Size:: M
+Delivers:: Instance rendering through cached symbol sub-lists, placeholder rendering, hit testing of instances as single objects, dirty-rect propagation from a symbol edit to every instance.
+Done when::
+* 1,000 instances of one symbol render in under 16 ms on M1 after the first build.
+* Editing one point in a symbol repaints only the tiles under its instances.
+* Reference renders for nested instances, placeholders and transformed instances match expected images.
+
+[[LIB-011]]
+==== LIB-011 Library panel
+[horizontal]
+Track:: client-ui
+Depends on:: APP-004, APP-005, APP-006, LIB-009, LIB-010
+Size:: L
+Delivers:: The Library panel: preview, sortable list with Name/Count/Kind/Date columns, folders as an outline, drag from canvas to create, drag to canvas to place, kbd:[Option]-drag to duplicate, drag object onto symbol to replace (with sheet), bottom buttons, options menu, *Show* filter, remove sheet with Release/Delete instances, rename in place.
+Done when::
+* UI tests for every gesture in the guide.
+* Remote symbol changes update the list, preview and counts without interrupting a rename in progress.
+* Master pages appear in the list and open the master page editor from xref:master-pages.adoc[master pages] (prose dependency on the DOC epic).
+
+[[LIB-012]]
+==== LIB-012 Symbol editing window
+[horizontal]
+Track:: client-ui
+Depends on:: APP-002, APP-003, LIB-011
+Size:: M
+Delivers:: A document window variant rooted at a symbol node: title, btn:[Done], all tools and panels functional, live remote updates, menu:Modify[Symbol > Edit Symbol] from a selected instance.
+Done when::
+* Drawing in the window updates instances in the main window within one frame.
+* Two windows on the same symbol (two users in the simulator) converge; UI test closes the window mid-drag without losing the change.
+
+[[LIB-013]]
+==== LIB-013 Import and export of symbols
+[horizontal]
+Track:: client-sync
+Depends on:: SYNC-004, LIB-009
+Size:: M
+Delivers:: Import from a cached or cloud {product} document (snapshot read, deep copy with swatch/style name matching and asset hash matching), import from a symbol library file, export to a symbol library file, cross-document paste of instances carrying their symbol.
+Done when::
+* Importing 200 symbols with shared swatches creates each swatch once.
+* Paste of an instance into a document that has an identical symbol of the same name reuses it; a different symbol of the same name is added as "Name 2".
+* Merge test: two people import the same symbol concurrently produce two symbols and no conflict rows.
+* {fh} `.fhl` symbol libraries route through the IMG epic's importer (prose dependency).
+
+[[LIB-014]]
+==== LIB-014 Team library service surface
+[horizontal]
+Track:: proto
+Depends on:: PROTO-007
+Size:: S
+Delivers:: `DocumentService.SetLibrary` (owner only, team folder only) and `ListLibraries` (per team) with protovalidate rules; a `library` field on the document summary message.
+Done when:: Lints clean; documented; `buf breaking` passes.
+
+[[LIB-015]]
+==== LIB-015 Team library flag and listing
+[horizontal]
+Track:: server
+Depends on:: SRV-009, LIB-014
+Size:: S
+Delivers:: The `library` column, migration, `SetLibrary` with the ownership and folder checks, `ListLibraries` with cursors, role tests.
+Done when:: Tests per role; a non-owner's `SetLibrary` is `PERMISSION_DENIED`.
+
+[[LIB-016]]
+==== LIB-016 Team libraries in the Library panel
+[horizontal]
+Track:: client-ui
+Depends on:: APP-009, LIB-013, LIB-015
+Size:: M
+Delivers:: *Show > Team Libraries*, library folders with cloud badges, place-from-library (copy with `source`), *Update from Library*, *update available* badges, *Export to Team Library…*, *Use as Team Library* in the document library window, offline disabling with explanations.
+Done when::
+* Placing from a library offline is disabled with the explanation; placing online writes `source`.
+* *Update from Library* replaces artwork in one undoable change and instances re-render.
+* Merge test: two people update the same symbol from the library concurrently converge to one artwork set plus a *both edited* row.
+
+[[LIB-024]]
+==== LIB-024 Instance override schema
+[horizontal]
+Track:: proto
+Depends on:: CRDT-004, CRDT-006, LIB-008
+Size:: S
+Delivers:: `InstanceProps.overrides` as `MERGE_SEQUENCE`, the `Override` message and
+`OverrideProperty` enum in `doc/v1/symbol.proto` as sketched, with `text` marked `MERGE_TEXT`
+and `image` with `REF_FALLBACK_UNSET`.
+Done when::
+* `buf lint` with `COMMENTS` and `buf breaking` pass; the merge table shows `overrides`
+  SEQUENCE, `Override.text` TEXT, the other value fields ATOMIC.
+* Conformance vectors: concurrent typing into one override's `text`; two `fill` writes on one
+  element; reset (element delete) vs. text insert; two concurrent creations of an override with
+  the same `(master_node, property)` -- identical hashes in both engines.
+
+[[LIB-025]]
+==== LIB-025 Override commands and resolution
+[horizontal]
+Track:: client-model
+Depends on:: LIB-009, LIB-024
+Size:: M
+Delivers:: `OverrideCommands` (set text, set fill or stroke color, set hidden, set image,
+reset one, reset all) creating or editing elements with the labels in the Client section;
+`resolvedArtwork(of:)` with its cache; the read-time rules (dangling or mismatched
+`master_node`, duplicate winner by element id, basic-fills-only recoloring, dangling image);
+Release and Swap updated to apply and to set aside overrides respectively.
+Done when::
+* Each command is one change with a correct inverse; the first text edit creates the element
+  and inserts the copied characters in the same change.
+* Resolution of an instance with ten overrides costs one cache build; a symbol edit
+  invalidates only the instances of that symbol.
+* Merge tests: reset vs. edit → element deleted, *Restore* brings the edit back; duplicate
+  creation → the greater id renders on both replicas; master node deleted vs. override edit →
+  nothing rendered, restore of the node renders the override; swap vs. override edit → set
+  aside, swap back restores.  (Prose dependency on TYPE-002 for the text commands.)
+
+[[LIB-026]]
+==== LIB-026 Override rendering
+[horizontal]
+Track:: client-render
+Depends on:: TXT-001, LIB-010, LIB-025
+Size:: S
+Delivers:: Per-instance display sub-lists built from the resolved view for instances carrying
+overrides, sharing the symbol's sub-list otherwise; text overrides laid out in the master
+block's geometry; dirty-rect propagation from an override edit to that instance only.
+Done when::
+* 1,000 instances of which 100 carry overrides render within the LIB-010 budget plus 100
+  sub-list builds.
+* Editing an override repaints only that instance's tiles; editing the symbol repaints all.
+* Reference renders for each override kind (text, fill, stroke, hidden, image) match expected
+  images, including a hidden subtree inside a nested group.
+
+[[LIB-027]]
+==== LIB-027 Overrides section and Text tool entry
+[horizontal]
+Track:: client-ui
+Depends on:: APP-007, LIB-011, LIB-026
+Size:: M
+Delivers:: The Object panel *Overrides* section (row discovery, naming, editors per kind, reset
+arrows, btn:[Reset All Overrides], btn:[Detach], mixed-selection behavior), and the Text tool's
+entry into an instance's text creating and editing a `TEXT` override with carets and remote
+carets.
+Done when::
+* UI tests: override each kind from the panel and verify the element; reset one and all; type
+  into an instance's text with the Text tool and verify a `TEXT` override with the copied
+  characters plus the typed ones.
+* A remote reset while a row is being edited removes the row without dropping keystrokes
+  elsewhere (APP-007 rule).
+* Merge test: two replicas type into the same text override; both replicas show the merged
+  text and the panel row reflects it.  (Prose dependency on TYPE-003 for the Text tool.)
+
+[[LIB-028]]
+==== LIB-028 Override conformance vectors and simulator scenarios
+[horizontal]
+Track:: crdt
+Depends on:: CRDT-011, LIB-024
+Size:: S
+Delivers:: Conformance vectors for every override case under *Merge semantics* -- same-text
+typing, same-color LWW, duplicate creation, reset vs. edit, reset all vs. edit, master node
+delete vs. edit, swap vs. edit, release vs. edit -- and multi-client simulator scenarios that
+assert the rendered outcome on each replica.
+Done when::
+* Both engines produce identical `state_hash` for every vector in every delivery order.
+* Each vector asserts the resolved artwork (text, color, visibility, image), not only the hash.
+endif::spec[]

@@ -1,0 +1,7 @@
+= Expanding a stroke
+include::_attributes.adoc[]
+:page-slug: expand-stroke
+:page-group: Objects
+:page-fh: Chapter 4, "Expanding a path"
+
+include::_includes/objects/expand-stroke.adoc[]

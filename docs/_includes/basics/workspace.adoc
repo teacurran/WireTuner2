@@ -1,0 +1,322 @@
+{product} is a vector drawing application: artwork is made of paths, text and images described
+mathematically, so it scales to any size and prints at any resolution without losing detail.
+Everything you do happens in one place -- the document window -- surrounded by panels, toolbars
+and the menu bar.  This page walks through that window: the pasteboard, the tab bar that holds
+several open documents, the status bar, and how the {fh} layout has been adapted to a Mac.
+
+// TODO screenshot: the document window with a two-page document, the Tools panel on the left,
+// docked panels on the right, the tab bar and the status bar, with callouts.
+
+== The document window
+
+Each document opens in a document window.  The window has, from top to bottom:
+
+* The *title bar*, showing the document's name and its sync state (xref:saving.adoc[Saving]).
+  There is no "unsaved" marker: every change is kept as soon as you make it.  When you are
+  offline, the title bar says so and shows how many of your changes are waiting to sync.
+* The *Main toolbar* (xref:toolbars.adoc[Toolbars]).
+* The *tab bar*, one tab per open document (below).  It is hidden while only one document is
+  open, unless you choose menu:View[Show Tab Bar].
+* The *canvas*: the pasteboard with your pages on it, with rulers along its edges when they are
+  shown (xref:rulers.adoc[Rulers]).
+* The *status bar* along the bottom edge (below).
+
+Panels dock at the right edge of the window, and the Tools panel docks at the left edge
+(xref:panels.adoc[Using panels]).  Any of them can float instead.
+
+NOTE: {fh} on the Mac could not dock panels into the document window; only the Windows edition
+had the "integrated workspace".  {product} docks panels and toolbars inside the window on
+macOS, so a single window holds the whole workspace, and a second display can hold floating
+panels if you prefer.
+
+=== The pasteboard
+
+The pasteboard is the large working area that holds your pages.  It measures 222 by 222 inches
+and can hold up to 520 letter-sized pages.  Objects can sit anywhere on it; objects on a page
+print with menu:File[Print], and objects outside every page print only through an output area
+(xref:output-area.adoc[Output area]).  Pages are added, moved and resized with the Document
+panel and the Page tool (xref:pages.adoc[Pages]).
+
+=== Tabs: several documents in one window
+
+Every document you open becomes a tab in the current window, so one window can hold a whole
+project.
+
+To open a document in a tab::
+Open it from the library window, from menu:File[Open Recent], or by dropping it on the Dock
+icon.  It appears as a new tab in the frontmost window.
+
+To switch tabs::
+Click a tab, or press kbd:[Control+Tab] and kbd:[Control+Shift+Tab] to cycle.  kbd:[Cmd+1]
+through kbd:[Cmd+9] are *not* tab switches -- {fh} uses them for magnification
+(xref:document-view.adoc[Setting the document view]).
+
+To move a tab into its own window::
+Drag the tab out of the tab bar, or choose menu:Window[Move Tab to New Window].
+
+To merge windows::
+Choose menu:Window[Merge All Windows].
+
+To reorder tabs::
+Drag them.
+
+To close a tab::
+Click its close button, or press kbd:[Cmd+W].  Closing never asks whether to save; there is
+nothing to save.  If you are offline with changes that have not synced, {product} keeps them
+and sends them the next time the document opens or the network returns.
+
+Each tab shows a small colored dot per collaborator who has that document open, so you can see
+which of your documents are busy without switching to them.
+
+=== The status bar
+
+The status bar runs along the bottom of the canvas.  It cannot be undocked (the same as {fh} on
+the Mac).  From left to right:
+
+[cols="1,3"]
+|===
+|Control |What it does
+
+|btn:[Add Page]
+|Adds a page after the current one, using the current page's size (xref:pages.adoc[Pages]).
+
+|Page selector
+|btn:[<] and btn:[>] step to the previous and next page; the field between them shows the
+current page number.  Click the field to type a page number, or open its pop-up to choose a
+page by name.
+
+|Magnification
+|The current zoom.  Type a percentage (6% to 25,600%), or a multiplier such as `4x`, and press
+kbd:[Return]; or open the pop-up for preset levels, *Fit Selection*, *Fit to Page*, *Fit All*,
+and your named views (xref:document-view.adoc[Setting the document view]).
+
+|View mode
+|Preview, Fast Preview, Keyline or Fast Keyline (xref:document-view.adoc[Setting the document
+view]).
+
+|Units
+|The document's unit of measure: points, picas, inches, decimal inches, millimeters, centimeters
+or pixels.  Changing it here changes the document for everyone who has it open
+(xref:document-panel.adoc[Document panel]).
+
+|Sync indicator
+|A cloud glyph: synced, syncing, offline (with the count of waiting changes), or a warning when
+a merge needs your review (xref:saving.adoc[Saving]).
+
+|Collaborators
+|Avatars of everyone who has the document open right now.  Click one to jump to where that
+person is working (xref:presence.adoc[Presence]).
+|===
+
+// TODO screenshot: the status bar with all controls labelled.
+
+The status bar also shows a short message about the operation in progress (for example "Drag
+to draw a rectangle; Shift constrains") -- the equivalent of the Windows-only messages in
+{fh}'s Status toolbar.
+
+=== The command palette
+
+The command palette is a search field that runs anything in the application.  Press
+kbd:[Cmd+/] (or choose menu:Help[Command Palette…]), start typing, and a list narrows to
+match: menu commands, tools, panels, the pages and layers of the open document, its named
+views, and the documents you opened recently.  Each command shows its keyboard shortcut, so the
+palette doubles as a way to learn them.
+
+To run something from the palette::
+. Press kbd:[Cmd+/].
+. Type part of the name.  Matching is forgiving: `rot cw` finds *Rotate Canvas > Rotate
+  Clockwise*, `lay` lists the document's layers, `swat` finds the Swatches panel.
+. Press kbd:[Up] and kbd:[Down] to choose, then kbd:[Return] to run it -- or click it.  A
+  command runs on the current selection exactly as its menu item would; a panel opens and
+  comes to the front; a page or named view scrolls the window there; a layer becomes the
+  current layer; a recent document opens in a new tab.
+. Press kbd:[Esc] to close without doing anything.
+
+The things you use most rise to the top: the palette remembers what you ran on this Mac and
+lists it first for the same search.  Commands that cannot run right now (nothing selected,
+wrong kind of object) are shown greyed with the reason, so you know what to select first.
+
+// TODO screenshot: the command palette open over the document window, "rot" typed,
+// Rotate Canvas commands and the Rotate tool listed with shortcuts.
+
+NOTE: {fh} had no equivalent; its Keyboard Shortcuts window was the only searchable list of
+commands.  The palette searches the same list and needs no setup.
+
+=== Magnification and the canvas
+
+Scrolling, zooming and the Hand tool are covered on xref:document-view.adoc[Setting the
+document view].  Two things belong here because they are properties of the window:
+
+* The magnification and scroll position are remembered per document, on this Mac, and restored
+  when you reopen the document if *Restore view when opening document* is on in Preferences
+  (xref:preferences.adoc[Preferences]).
+* A document can have several views open at once, each in its own tab or window
+  (menu:Window[New Window]).
+
+== Working with others
+
+The workspace itself -- which panels are open, where the window sits, which tab is in front,
+how far you are zoomed in -- is yours alone.  Nobody else's window changes when you rearrange
+yours, and yours does not change when they rearrange theirs.
+
+What everyone shares is the document: its pages, its units, its artwork.  If a collaborator
+changes the document's units in the status bar, your status bar changes too, and the rulers
+follow.  If someone adds a page, it appears on your pasteboard and in your page selector as
+soon as the change arrives.
+
+When you have been offline, reopening the document (or the network coming back) brings in the
+changes you missed.  Your zoom and scroll position stay where they were; if the page you were
+looking at has been deleted, {product} scrolls to the nearest remaining page.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,1"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Studio MX integrated workspace (Windows only); floating panels on Mac
+|Panels and toolbars dock inside the document window on macOS; floating remains available.
+|Adapted -- the integrated layout is the better one and AppKit supports it; the Mac limitation
+was historical.
+
+|Document window with pasteboard 222 × 222 in, 520 letter pages
+|Same limits; page rectangles validated against them.
+|Faithful
+
+|Asterisk in the title for unsaved changes
+|No unsaved state; title shows sync state and offline change count.
+|Adapted -- every change is kept locally at once; the meaningful state is "has it synced".
+
+|One window per document
+|Tabs (native `NSWindow` tabbing) with one document per tab; several windows still allowed.
+|Adapted -- requested for multi-document projects; matches macOS conventions.
+
+|Status toolbar: add page, page selector, magnification, view mode, units
+|Same controls plus a sync indicator and collaborator avatars.
+|Faithful (with additions)
+
+|Status toolbar messages (Windows only)
+|A status message area shows tool hints and operation progress.
+|Adapted -- brought to macOS because it costs nothing and helps new users.
+
+|Cancel button for operations in progress (Windows only)
+|kbd:[Esc] cancels an in-progress tool gesture; long operations (import, export, trace) show a
+sheet with btn:[Cancel].
+|Adapted -- macOS has no toolbar-cancel convention.
+
+|Restore view when opening / Remember window size and location
+|Both, stored locally per document.
+|Faithful
+
+|--
+|Command palette (kbd:[Cmd+/]): fuzzy search over commands, panels, pages, layers, named
+views and recent documents, with shortcuts shown and recent-first ranking.
+|Added -- a modern expectation; built on the command registry, specified on
+xref:customizing.adoc[Customizing your environment].
+|===
+
+=== Data model
+
+Nothing on this page is shared document data except the units field, which belongs to the
+`settings` node and is specified on xref:document-panel.adoc[Document panel].  Window and tab
+state is application state kept outside the document entirely; per-document view state is
+held in the local store's `view` table (xref:offline.adoc[Offline]) and specified on
+xref:document-view.adoc[Setting the document view].
+
+[source,protobuf]
+----
+// Local store only (GRDB `view` table); never a wire message.  Sketched here so the
+// fields have one home.  Every field is local_only by construction.
+message WindowState {
+  // Restored when the app relaunches with this document open.
+  string document_id = 1;        // UUIDv7 of the document
+  Rect frame = 2;                // window frame in screen points
+  string tab_group = 3;          // NSWindow tabbingIdentifier the tab belonged to
+  uint32 tab_index = 4;          // order within the tab group
+  bool key = 5;                  // was the key window at quit
+}
+----
+
+=== Merge semantics
+
+None.  No field on this page is a document register.  The units pop-up writes the
+`settings.units` register (ATOMIC, LWW) exactly as the Document panel does; concurrent unit
+changes by two users end with the later one, and the loser sees the status bar flip -- no
+review entry, because units are a display preference of the document, not artwork.
+
+=== Offline behavior
+
+Window and tab state is always available.  Opening a document that has no local store while
+offline is refused in the library window with an explanation (xref:offline.adoc[Offline]).
+
+=== Server
+
+Nothing beyond storing and relaying changes.  Collaborator avatars come from presence
+(xref:sync-protocol.adoc[Sync protocol]).
+
+=== Client
+
+* `WTApp`.  `DocumentWindowController` owns one `NSWindow` with `tabbingMode = .preferred`
+  and a `tabbingIdentifier` per app instance so any document can join any window.  Window
+  restoration uses `NSWindowRestoration` with the `WindowState` above as the restorable state,
+  keyed by document id, so an unavailable document (trashed, no local store) simply does not
+  reopen.
+* The status bar is an `NSView` strip below the canvas scroll view (not an `NSToolbar`, which
+  cannot sit at the bottom), height 24 pt, hosting AppKit controls: `NSButton` (add page),
+  `NSStepper`-style page buttons with an `NSComboBox` for the page number, an `NSComboBox`
+  for magnification (editable, accepts `%` and `x` suffixes), `NSPopUpButton` for view mode
+  and units, and SwiftUI-hosted sync indicator and avatar strip.
+* Tab decorations (collaborator dots) come from `NSWindowTab.accessoryView`, driven by the
+  presence model of each document.
+* Magnification field parsing: `"400"`, `"400%"`, `"4x"` all mean 400%; values are clamped to
+  6%--25,600% and rounded to two decimals; invalid input restores the previous value with an
+  `NSBeep`.
+* The command palette is a window-level `NSPanel` owned by `DocumentWindowController` (one
+  per window, shown over the key window); its search, ranking and sources are specified
+  on xref:customizing.adoc[Customizing your environment] (BASIC-033).  Running a command
+  through it is identical to choosing the menu item: same registry entry, same validation,
+  same undo label.
+* Undo grouping: nothing here is undoable except the units change, which is one change
+  labelled "Change Units".
+
+=== Build tasks
+
+[[BASIC-001]]
+==== BASIC-001 Document tab bar and window tabbing
+[horizontal]
+Track:: client-ui
+Depends on:: APP-002
+Size:: M
+Delivers:: Native window tabbing for document windows: open-in-tab, drag out, merge all, reorder, kbd:[Control+Tab] cycling, menu:View[Show Tab Bar], per-tab collaborator dots from the presence model, and `WindowState` restoration.
+Done when::
+* Opening three documents yields one window with three tabs; dragging a tab out and merging back restores the order.
+* Relaunching after a quit reopens the same tabs in the same windows with the same key window; a trashed document is skipped without an error.
+* UI tests cover cycle order, close-tab with unsynced changes (no prompt, changes retained), and tab dots appearing within 1 s of a presence update in the harness.
+
+[[BASIC-002]]
+==== BASIC-002 Status bar controls
+[horizontal]
+Track:: client-ui
+Depends on:: APP-002
+Size:: M
+Delivers:: The status bar strip: btn:[Add Page], page selector with typed and pop-up navigation, magnification combo box with `%`/`x` parsing and named-view entries, view mode pop-up, units pop-up bound to `settings.units`, the status message area, and hosts for the sync indicator and avatar strip.
+Done when::
+* Typing `4x` sets 400%; `0` and `99999` are clamped with a beep; the pop-up lists presets, Fit commands and named views in that order.
+* Changing units writes one change labelled "Change Units"; a remote units change updates the pop-up without stealing focus from a field being edited.
+* Merge test: two clients set different units concurrently; both converge and the status bar on each shows the winner.
+* Page selector reflects page additions and deletions arriving remotely; a deleted current page moves the selector to the nearest page.
+
+[[BASIC-003]]
+==== BASIC-003 Title bar state and pasteboard limits
+[horizontal]
+Track:: client-ui
+Depends on:: APP-002
+Size:: S
+Delivers:: Document title with sync-state suffix and offline change count bound to the `WTSync` state, and the pasteboard's fixed extent with scroll limits, background and page shadows drawn by the canvas.
+Done when::
+* The title reads "<name>", "<name> — Syncing", "<name> — Offline (12 changes waiting)" and "<name> — Review needed" as the sync state changes in the simulator.
+* The canvas cannot scroll beyond the 222 × 222 in pasteboard at any zoom; a page dragged past the edge is clamped (the drag itself belongs to the DOC epic).
+endif::spec[]

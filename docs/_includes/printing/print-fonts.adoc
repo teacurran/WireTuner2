@@ -1,0 +1,165 @@
+Text prints with the fonts it is set in.  On a modern Mac that is nearly the whole story: the
+fonts installed on your Mac -- OpenType, TrueType, and the older PostScript Type 1 where macOS
+still loads them -- are embedded in the print job automatically, so any printer receives the
+exact glyphs you see.  This page covers the cases that need attention: fonts the document uses
+but your Mac lacks, fonts whose license forbids embedding, and the option of turning text into
+outlines for a difficult printer.
+
+NOTE: {fh} users: there is no longer a choice to make between PostScript and TrueType fonts,
+no font downloading, and no *Unlimited downloadable fonts* option.  Every font is embedded once,
+subsetted, in the job.
+
+== How fonts reach the printer
+
+{product} draws each printed sheet with the same text layout the canvas uses, then macOS embeds
+a subset of every font used -- only the glyphs that appear -- in the job it sends to the printer
+or saves as PDF.  Kerning, OpenType features, vertical text and text on a path all print exactly
+as displayed, because the layout is done once, by {product}, before the printer sees anything.
+
+Fonts on the pasteboard but on no printed page are not embedded, which keeps jobs small.
+
+== Missing fonts
+
+When a document uses a font that is not installed on your Mac, the text is shown in a
+substitute (xref:font-substitution.adoc[Font substitution]).  Printing uses the same substitute,
+so the job prints -- but the line breaks and letterforms are the substitute's, not the
+designer's.
+
+Before printing, {product} checks the pages in the job and, if any text is set in a missing
+font, shows a warning at the top of the *{product}* pane naming the fonts (`2 missing fonts:
+Univers, Garamond`).  Click the warning to open the substitution sheet and choose better
+substitutes, install the font, or ask the collaborator who set it to embed it
+(xref:font-substitution.adoc[Font substitution]).  The warning is a *Preferences* choice --
+*Warn about missing fonts before printing*, on by default -- so a shop that always prints with
+substitutes can turn it off.
+
+If a font is available to a collaborator but not to you, the text still prints for them
+correctly; printing is done by whoever clicks btn:[Print], with their fonts.
+
+== Fonts that will not embed
+
+Some fonts carry a license flag that forbids embedding.  macOS still prints them to a printer
+attached to the same Mac, but a PDF saved from the Print dialog will substitute or omit the
+text on another machine.  For those fonts, and for any printer that mishandles a particular
+font, print the text as outlines instead.
+
+To print text as outlines for one job:
+
+. Choose menu:File[Print…] and open the *{product}* pane.
+. Under *Imaging*, select *Print text as outlines*.
+. Click btn:[Print].
+
+Every glyph in the job is converted to a filled path.  The document is not changed; the text is
+still text for editing.  Outlined text has no hinting, so very small sizes on low-resolution
+printers may look slightly heavier than the same text printed as a font.
+
+To convert text to paths permanently -- for artwork that will travel without its fonts -- use
+menu:Text[Convert to Paths] (xref:text-to-paths.adoc[Converting text to paths]).
+
+== Font formats on macOS
+
+[cols="1,3"]
+|===
+|Format |Notes for printing
+
+|OpenType (`.otf`, `.ttf`) and TrueType
+|The formats to use.  Embed everywhere, support every text effect and transformation.
+
+|PostScript Type 1
+|Deprecated by Apple and by Adobe.  Where the version of macOS you are running still loads a
+Type 1 font it prints like any other; where it does not, the font is treated as missing.  Ask
+the foundry for an OpenType version.
+
+|Bitmap and printer-resident fonts
+|Not used.  {product} never asks a printer to substitute its own fonts.
+|===
+
+== Working with others
+
+Fonts are the one part of a print job that depends on whose Mac is printing.  A document set in
+a font only one collaborator has installed prints correctly from their Mac and in a substitute
+from everyone else's.  The team's shared font library
+(xref:font-substitution.adoc[Font substitution]) is the fix: fonts placed there, where their
+license allows, follow the document to every Mac that opens it.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,2"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Choose PostScript or TrueType fonts for the output device
+|No choice: every font is embedded through Core Graphics.
+|Dropped -- the distinction has no effect on modern macOS printing.
+
+|ATM and screen/printer/metrics font components
+|Not applicable.
+|Dropped -- macOS handles font management.
+
+|Prompt to replace missing fonts on open
+|Same (TXT-002); plus a pre-print warning naming missing fonts on the printed pages.
+|Faithful -- warning added.
+
+|Download only the fonts needed for the printed pages; skip pasteboard-only fonts
+|Same effect: subsetting covers only glyphs on printed sheets.
+|Faithful
+
+|Unlimited downloadable fonts
+|Dropped.
+|Dropped -- no font downloading.
+
+|Print text as outlines (not in {fh}; from other tools)
+|Added as a per-job option.
+|Adapted -- addition, replaces the compatibility role of font-format choice.
+|===
+
+=== Data model
+
+`PrintSettings.text_as_outlines` (sketched on xref:printing.adoc[Printing]).  Nothing else.
+
+=== Merge semantics
+
+One LWW register, exempt from the review sheet like the other print settings.
+
+=== Offline behavior
+
+Works offline with installed and cached fonts.  Team library fonts not yet cached are missing
+until online (TXT-002); the pre-print warning says so.
+
+=== Server
+
+Nothing.
+
+=== Client
+
+* Missing-font check: `PrintPlan` collects the font descriptors of every text run on the
+  sheets in the job (`WTText`), asks TXT-002's font manager which resolved through
+  substitution, and publishes the list to the pane.  The check runs when the dialog opens and
+  again whenever the page range or the print-what choice changes.
+* *Print text as outlines*: `WTRender` gains a render option `glyphsAsPaths`; the text drawer
+  uses `CTFontCreatePathForGlyph` and fills paths instead of calling `CTLineDraw`.  Used only
+  in the print context.
+* Embedding is Core Graphics' job: drawing text into a PDF print context embeds subsets.  For
+  fonts with `fsType` = restricted, CG will still embed for direct printing but a saved PDF
+  may lack them; the pane shows a note under the warning when such fonts are on the printed
+  pages and suggests the outlines option.
+* Preference *Warn about missing fonts before printing* (default on), category Printing.
+
+=== Build tasks
+
+[[PRINT-014]]
+==== PRINT-014 Fonts at print time
+[horizontal]
+Track:: import-export
+Depends on:: PRINT-003, PRINT-004, TXT-002
+Size:: M
+Delivers:: The missing-font and restricted-font check over the job's sheets with the pane warning and the link to the substitution sheet; the `glyphsAsPaths` render option behind *Print text as outlines*; the *Warn about missing fonts before printing* preference.
+Done when::
+* A document with text in an uninstalled font shows the warning naming it; clicking opens the substitution sheet; the preference suppresses the warning.
+* Fonts used only on the pasteboard or on unprinted pages do not trigger the warning and are absent from the saved PDF's font list.
+* With outlines on, the saved PDF embeds no fonts and rasterizes within anti-aliasing tolerance of the font-based render at 300 dpi.
+* Merge test: toggling `text_as_outlines` concurrently with another print setting keeps both.
+endif::spec[]

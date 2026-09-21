@@ -1,0 +1,340 @@
+Inspect mode is the document with its ruler out.  Instead of drawing, you point: hover an
+object and its size appears; hover with something selected and the distances between the two
+appear; click and a panel lists everything about the object -- its colors in whatever notation
+you need, its stroke and fills, its type settings -- with a button beside each value that
+copies it.  A developer building the screen you designed gets the numbers without asking; a
+client reviewing the poster gets to look without the risk of nudging something; and a viewer
+can copy an object out as SVG, CSS, Swift or PNG without an export dialog.  Nothing you do in
+Inspect mode changes the document, so it is the mode {product} opens in for anyone whose role
+is viewer.
+
+// TODO screenshot: Inspect mode with a button hovered, red measurement lines to the selected text block, and the Inspect panel showing the button's colors, corner radius and CSS
+
+NOTE: {fh} had nothing like this; the closest was reading values off the Object panel one field
+at a time.  Editors keep the Object panel for changing things; Inspect mode is for reading
+them, and for handing them to someone else.
+
+== Entering and leaving Inspect mode
+
+Choose menu:View[Inspect Mode] or press kbd:[Cmd+Shift+I]; the toolbar's btn:[Inspect]
+button does the same and stays highlighted while you are in it.  The canvas takes a thin
+border, the Tools panel collapses to the Pointer, Hand and Zoom tools, and the Inspect panel
+opens.  Choose the command again to leave.
+
+If your role in the document is viewer, the document opens in Inspect mode and you can leave
+it to see the plain canvas; either way you cannot change anything.  Editors and commenters
+open in the ordinary mode and enter Inspect mode when they want to measure.
+
+Inspect mode is per window.  It is available in the read-only window of a version
+(xref:history.adoc[Version history]) and in a branch (xref:branches.adoc[Branches]).
+
+== Measuring by hovering
+
+Move the pointer over the drawing:
+
+* The object under the pointer gets a thin outline, and a label at its corner shows its width
+  and height.
+* With an object *selected*, hovering another object draws measurement lines between the two:
+  the horizontal and vertical gaps between their edges, each with its distance.  Objects that
+  overlap show the overlap instead.
+* With nothing selected, hovering an object draws its distances to the four edges of the page
+  it is on.  Hold kbd:[Option] to measure to the edges of the enclosing group or, for a
+  top-level object, to the pasteboard's rulers' origin.
+* Hover a point of a path (the Pointer's usual pick distance applies) to see its coordinates.
+
+Measurements are in the unit and at the scale chosen in the panel's header
+(<<units,Units and scale>>).  Hold kbd:[Shift] while hovering to keep the current measurement
+on screen while you move the pointer to read it.
+
+== The Inspect panel
+
+Click an object to select it; the panel fills.  Every value has a copy button that appears when
+you hover the row, and clicking the value itself copies it too.
+
+[cols="1,3"]
+|===
+|Section |Shows
+
+|*Layout*
+|Position (x, y of the top-left corner on the page), size, rotation, and opacity.  For a
+selection of several objects, the bounding box of all of them.
+
+|*Colors*
+|Every color the object uses -- fills, strokes, gradient stops, text color, effect colors --
+each with a swatch, its swatch name if it has one, and its value in the *notation* chosen in
+the header: hex (`#E63946`), `rgb()`, Display P3 (`color(display-p3 …)`), OKLCH (`oklch(…)`)
+or CMYK percentages.  Spot colors show their name and their process equivalent.
+
+|*Stroke*
+|Width, cap, join, miter limit, dash pattern, arrowheads, and the stroke's color.
+
+|*Fills*
+|Each fill in stack order: solid color; gradient with its type, angle and every stop; pattern
+or texture with its name.
+
+|*Effects*
+|Each live effect with its settings (blur radius, shadow offset and color, and so on).
+
+|*Typography*
+|For text: font family, style name (Bold, Condensed Italic…), size, leading, tracking, baseline
+shift, alignment, and the text style applied, if any.  Mixed runs list each run.
+
+|*Text*
+|The text itself, copyable as plain text.
+
+|*Code*
+|The selection as SVG, CSS or Swift, in a tab for each (<<code,Copying as code>>).
+
+|*Export*
+|btn:[PNG 1×], btn:[PNG 2×], btn:[PNG 3×]: copy the selection as a bitmap at that scale, or
+kbd:[Option]-click to save it (<<png,Copying as PNG>>).
+|===
+
+The panel is a normal panel: dock it, tab it with the Object panel, or float it
+(xref:panels.adoc[Panels]).  It is also available outside Inspect mode from
+menu:Window[Inspect], where it reads the current selection.
+
+[[units]]
+== Units and scale
+
+Two popups at the top of the panel decide how every measurement and every generated snippet
+reads:
+
+[cols="1,3"]
+|===
+|Popup |Choices
+
+|*Unit*
+|*Document units* (whatever the document's Units popup says, xref:document-panel.adoc[The
+Document panel]), *Points*, *Pixels*, *Millimeters*, *Centimeters*, *Inches*.
+
+|*Scale*
+|*1×*, *2×*, *3×*, or a custom factor.  Applies to pixel measurements and to PNG export: a
+100-point-wide object at 2× reads `200 px` and copies as a 200-pixel-wide PNG.
+|===
+
+Both are remembered on your Mac and do not affect anyone else.  They are in Preferences under
+*Sync and collaboration* as *Inspect unit* and *Inspect scale*.
+
+[[code]]
+== Copying as code
+
+The *Code* section renders the selection as a snippet you can paste into a project.  Click
+btn:[Copy] in the tab, or select part of the snippet and copy just that.
+
+SVG::
+The selection alone, as a standalone `<svg>` with a tight `viewBox`, using the same writer as
+menu:File[Export] with its default options (xref:export-vector.adoc[Exporting vector
+artwork]).  Names become ids; text stays text.
+
+CSS::
+Two blocks.  First, custom properties for every color the selection uses, named from the
+swatch where there is one (`--brand-red: #E63946;`), then declarations for the selected
+object: `width`, `height`, `background` (solid or `linear-gradient(...)`),
+`border`, `border-radius` for rounded rectangles, `box-shadow` from shadow effects,
+`opacity`, and for text `font-family`, `font-weight`, `font-style`, `font-size`,
+`line-height`, `letter-spacing` and `color`.  Lengths use the chosen unit and scale; colors
+use the chosen notation.
+
+Swift::
+SwiftUI.  A rectangle becomes `Rectangle()` or `RoundedRectangle(cornerRadius:)`, an ellipse
+`Ellipse()` or `Circle()`, any other path a `Path { }` with its segments, each with
+`.fill(...)` and `.stroke(..., lineWidth:)` modifiers; text becomes `Text("…")` with
+`.font(.custom("Family-Style", size:))`, `.kerning`, `.lineSpacing` and `.foregroundStyle`.
+Colors are `Color(red:green:blue:)` for sRGB and `Color(.displayP3, red:green:blue:)` when the
+P3 notation is chosen; with a swatch name, a `static let` in a `Color` extension is emitted
+first and used by name.
+
+Snippets describe *appearance*, not layout: no absolute positions, no `frame` unless the
+object has a fixed size.  What a snippet cannot express (a blend, a pattern fill, an extrude)
+is represented by its flattened SVG and a comment saying so.
+
+[[png]]
+== Copying as PNG
+
+btn:[PNG 1×], btn:[PNG 2×] and btn:[PNG 3×] rasterize the selection alone -- other objects
+hidden, background transparent, effects included -- at that multiple of the document's points,
+and put it on the clipboard.  kbd:[Option]-click a button to save the file instead; the file
+is named after the object with the scale appended (`Logo mark@2x.png`).  The custom *Scale*
+factor adds a fourth button.
+
+== Links to an object
+
+Any object can be pointed at with a link:
+
+. Select it (in any mode) and choose menu:Edit[Copy Link to Object], or right-click it and
+  choose *Copy Link*.
+. Paste the link anywhere: a message, a ticket, a comment (xref:comments.adoc[Comments]).
+
+Opening the link opens the document in {product}, goes to the object's page, scrolls it into
+view and selects it.  Viewers land in Inspect mode with the object in the panel; editors land in
+the ordinary mode.  Someone without access to the document sees the request-access page
+(xref:sharing.adoc[Sharing]).  A link to an object that has since been deleted opens the
+document and says so.
+
+== Working with others
+
+Inspect mode is a way of looking, and looking is visible: your pointer and your selection show
+on collaborators' canvases as always, so pointing at an object in Inspect mode is a fine way to
+say "this one" in a call.  Presence works as usual too: click an avatar to follow someone, and
+your view goes where theirs goes while you keep inspecting.  To read *their* selection rather
+than your own, choose menu:View[Collaborators > Inspect Selection] or click the name tag on
+their selection outline; the panel shows what they have selected, marked with their name, and
+follows their selection as it changes until you select something yourself
+(xref:presence.adoc[Presence]).
+
+Values in the panel are live.  If an editor changes the object you are inspecting, the panel
+updates within a moment and the changed row flashes in their color; a snippet you copy is the
+object as it is at that instant.
+
+Nothing in Inspect mode needs the network: measuring, the panel and every copy work offline on
+any document your Mac has.  Opening a link to a document you have never opened on this Mac
+needs a connection.
+
+ifdef::spec[]
+== Specification
+
+Inspect mode writes nothing and stores nothing in the document; it is a client presentation
+mode plus a snippet library.  The server's only involvement is resolving a deep link's document
+id through `DocumentService.Get`.
+
+=== FreeHand parity
+
+[cols="2,3,2"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|--
+|Read-only inspect mode with hover measurements, a properties panel with multi-notation colors,
+copy as SVG/CSS/Swift/PNG, and object deep links.
+|Added -- no FreeHand equivalent
+
+|Info toolbar (pointer coordinates, object size while dragging)
+|Kept (xref:toolbars.adoc[Toolbars]); Inspect mode adds between-object and to-page distances
+and the panel.
+|Faithful -- the Info toolbar is unchanged.
+|===
+
+=== Data model
+
+None.  Inspect mode reads `WTModel` and the merge state; snippets are generated from the same
+display list the renderer uses.  The two popups are local preferences (`inspect.unit`,
+`inspect.scale`, catalog category *Sync and collaboration*, `local`).  Deep links are URLs,
+not data:
+
+[listing]
+....
+wiretuner://doc/<document id>/node/<counter>-<replica>
+wiretuner://doc/<document id>/thread/<counter>-<replica>     (comments, COLLAB-029)
+wiretuner://doc/<document id>                                (document only)
+....
+
+`<counter>-<replica>` is the node's `OpId` in decimal; the app registers the `wiretuner`
+scheme in its `Info.plist` (`CFBundleURLTypes`).  A `https://<host>/d/<document id>/n/<id>`
+form served by the API is a redirect to the same `wiretuner://` URL for mail clients that
+refuse custom schemes (COLLAB-038); the server does no lookup for it.
+
+=== Merge semantics
+
+None: Inspect mode never emits a change.  The panel observes applied changes to the inspected
+nodes and re-derives its rows; the flash uses the attribution overlay of
+xref:collaboration.adoc[Working together] (COLLAB-001) with the panel row as a second target.
+Inspecting a collaborator's selection reads their `PresenceUpdate.selection`
+(xref:presence.adoc[Presence]) and re-derives when it changes; a selection naming a node not yet
+received shows *Waiting for object…* until it arrives.
+
+Read-time normalization: none of its own; everything the panel shows is the renderer's
+normalized view.
+
+=== Offline behavior
+
+Everything works offline on a cached store.  A deep link to a document with no local store
+needs `DocumentService.Get` and `FetchSnapshot`; offline it shows "Available when online"
+with the document's id.  A link to a deleted node opens the document and posts the status
+notice "That object was deleted"; a link to a node not yet received (the client is behind)
+waits for catch-up and then selects it.
+
+=== Server
+
+Nothing beyond `DocumentService.Get` for a deep link and the `https://<host>/d/…` redirect.
+Viewer role: Inspect mode never sends a change, so there is nothing to enforce; the copy-out
+of SVG, CSS, Swift and PNG is client-side rendering that a viewer is already permitted
+(viewers may export and copy objects out, xref:sharing.adoc[Sharing]).  A workspace that
+disallows package export does not restrict snippets; they are artwork the viewer can see.
+
+=== Client
+
+* `WTApp/Inspect`: `InspectModeController` (per-window flag; enters on open for `VIEWER`
+  effective role; collapses the Tools panel to Pointer, Hand and Zoom; disables every
+  document-mutating command through the command registry's validation so menus and shortcuts
+  are inert), `InspectPanel` (SwiftUI sections above; unit and scale popups; copy buttons;
+  Code tabs; PNG buttons), `RemoteSelectionInspection` (feeds a collaborator's selection into
+  the panel until local selection changes), the menu:View[Inspect Mode] and
+  menu:View[Collaborators > Inspect Selection] commands, menu:Edit[Copy Link to Object] and
+  the context-menu item, and the `wiretuner://` URL handler (open document, wait for the
+  node, go to page, scroll, select, enter Inspect mode for viewers).
+* `WTRender`: `InspectOverlayLayer` above the presence overlay: hover outline, size label,
+  gap measurements between the hovered and selected bounds (axis-aligned bounds of the
+  transformed geometry; overlap shown as the intersection), page-edge distances, point
+  coordinates, kbd:[Shift] freeze.  Uses `REND-003` hit testing with the Pointer's pick
+  distances; redraws on pointer move and never invalidates document tiles.
+* `WTInterchange.Snippets`: `SVGSnippet` (the IO-019 `SVGWriter` over a selection-only
+  display list with a tight `viewBox` and default options), `CSSSnippet`, `SwiftSnippet`,
+  `PNGSnippet` (the IO-021 rasterizer at `scale × device scale`, transparent background).
+  Colors convert through ColorSync from the document's working spaces (D-041) to sRGB (hex,
+  `rgb()`), Display P3, OKLCH (computed from linear sRGB) and CMYK (the document's CMYK
+  profile); a color already in CMYK reports its stored components.  Unit conversion is
+  points → chosen unit, with pixels = points × scale.  Deterministic output: the same
+  selection yields byte-identical snippets, which the tests snapshot.
+* Undo: none.  Copy actions do not enter the undo stack.
+
+=== Build tasks
+
+[[COLLAB-035]]
+==== COLLAB-035 Inspect mode and measurement overlay
+[horizontal]
+Track:: client-render
+Depends on:: REND-001, REND-003, APP-003, APP-005, APP-006
+Size:: M
+Delivers:: `InspectModeController` (enter/leave, viewer default, tool collapse, command validation making every mutating command inert), the toolbar button and menu:View[Inspect Mode] (kbd:[Cmd+Shift+I]), and `InspectOverlayLayer` with hover outline and size, gaps to the selected object, page-edge distances, kbd:[Option] group/pasteboard edges, point coordinates, kbd:[Shift] freeze, and unit/scale formatting.
+Done when::
+* In Inspect mode, scripted key and mouse input over every tool and menu produces an empty outbox (UI test); a viewer's window opens in Inspect mode.
+* Hovering redraws the overlay in under 2 ms per frame on M1 with the design-point document and invalidates no document tiles (tile counters).
+* Measurements match the geometry kernel's bounds to 0.01 pt for translated, rotated and scaled objects; overlap shows the intersection.
+
+[[COLLAB-036]]
+==== COLLAB-036 Snippet library
+[horizontal]
+Track:: import-export
+Depends on:: REND-002, TXT-001, GEO-001
+Size:: M
+Delivers:: `WTInterchange.Snippets`: `SVGSnippet` over the SVG writer (scheduled after IO-019, whose `SVGWriter` it reuses), `CSSSnippet` (custom properties plus declarations as listed in the guide), `SwiftSnippet` (SwiftUI shapes, paths, text and colors, swatch-named `Color` extension), `PNGSnippet` over the bitmap rasterizer (after IO-021), color conversion to hex, `rgb()`, Display P3, OKLCH and CMYK through ColorSync, unit and scale conversion, and the "cannot express" fallback comment.
+Done when::
+* Snapshot tests for a corpus of rectangles, rounded rectangles, ellipses, paths, gradients, shadows and text runs in every notation and unit; output is byte-identical across runs.
+* The SVG snippet of each corpus object re-imports and renders within tolerance of the original; the Swift snippet compiles in a test target and renders within tolerance at 2×.
+* Color values agree with ColorSync's conversion of the same color to 0.5/255; OKLCH round-trips to sRGB within 0.001.
+
+[[COLLAB-037]]
+==== COLLAB-037 Inspect panel
+[horizontal]
+Track:: client-ui
+Depends on:: APP-004, APP-007, SYNC-009, COLLAB-035, COLLAB-036
+Size:: L
+Delivers:: `InspectPanel` with the Layout, Colors, Stroke, Fills, Effects, Typography, Text, Code and Export sections, hover-and-click copy on every value, the notation, unit and scale popups backed by the `inspect.unit` and `inspect.scale` preferences, PNG copy and kbd:[Option]-save at 1×/2×/3×/custom, live updates with the attribution flash on changed rows, `RemoteSelectionInspection` from a collaborator's presence selection with menu:View[Collaborators > Inspect Selection] and the name-tag click, and menu:Window[Inspect] outside Inspect mode.
+Done when::
+* UI tests copy each value kind and each Code tab and compare the pasteboard to the snippet library's output; PNG at 2× has twice the pixel dimensions of 1×.
+* A remote change to an inspected object updates its row within one frame of application and flashes it; the panel never steals focus.
+* Inspecting a collaborator's selection follows their selection changes within 200 ms and stops on local selection (simulator test).
+
+[[COLLAB-038]]
+==== COLLAB-038 Deep links to objects
+[horizontal]
+Track:: client-ui
+Depends on:: APP-002, APP-005, APP-009, SYNC-004, COLLAB-035
+Size:: S
+Delivers:: menu:Edit[Copy Link to Object] and the context-menu item producing `wiretuner://doc/<id>/node/<id>` (and `thread/<id>` for the Comments panel's Copy Link), the `wiretuner` URL scheme handler (open or activate the document window, catch up if behind, go to page, scroll into view, select, Inspect mode for viewers, deleted-node and not-yet-received notices, request-access page for no access, "Available when online" for an uncached document offline), and the `https://<host>/d/…` redirect served by the API.
+Done when::
+* UI tests: a link opens a closed document and selects the node; a link to a deleted node posts the notice; a link opened by a viewer enters Inspect mode with the node in the panel; a link to a document without access shows the request page.
+* Opening a link while the document is 5,000 changes behind selects the node after catch-up, not before.
+* The redirect answers 302 to the `wiretuner://` form without touching the database.
+endif::spec[]

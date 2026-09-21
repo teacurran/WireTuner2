@@ -1,0 +1,439 @@
+A perspective grid is a non-printing scaffold of vanishing points, a horizon and gridded planes
+-- walls and a floor -- that lets you draw a scene in one-, two- or three-point perspective.
+Attach a flat object to the grid with the Perspective tool and it is redrawn as if lying on the
+chosen plane; slide it around the grid and it foreshortens correctly as it goes.  Objects keep
+their perspective when you take them off the grid, and text on the grid stays editable.
+
+// TODO screenshot: a two-point grid with a logo attached to the left wall and a tiled floor
+
+Each page has its own grid, and named grid definitions can be kept for reuse.  The grid is part
+of the document: everyone working on the page sees the same vanishing points, and moving one
+moves it for all.
+
+== Showing the grid
+
+To show or hide the perspective grid:
+
+* Choose menu:View[Perspective Grid > Show].  Choose it again to hide.  Whether the grid is
+  shown is your own view setting; collaborators choose for themselves.
+
+The default grid has two vanishing points on a horizon across the middle of the page.  See
+<<Defining grids>> to change it.
+
+== Attaching objects to the grid
+
+The Perspective tool shares a Tools panel slot with the other effect tools.  While you drag an
+object with it, the arrow keys choose which plane the object lands on.
+
+To attach an object to the grid:
+
+. Show the grid.
+. Select the Perspective tool from its pop-up in the Tools panel.
+. Press on the object and drag it toward the area of the grid where it belongs.  Keep the
+  mouse button down.
+. Press and release an arrow key to pick the plane:
+* One-point grid: kbd:[Left Arrow] or kbd:[Right Arrow] puts the object on the vertical
+  (wall) grid; kbd:[Up Arrow] or kbd:[Down Arrow] puts it on the horizontal (floor) grid.
+* Two- or three-point grid: kbd:[Left Arrow] puts it on the left wall, kbd:[Right Arrow] on
+  the right wall; kbd:[Up Arrow] on the floor aligned to the right vanishing point,
+  kbd:[Down Arrow] on the floor aligned to the left vanishing point.
+. Release the mouse button.  The object is redrawn in perspective on that plane.
+
+To move an object on the grid:
+
+. With the Perspective tool, drag the object.  It stays on its plane and re-foreshortens as it
+  moves.
+* kbd:[Shift]-drag to constrain the move to the grid lines.
+* kbd:[Option+Shift]-drag the *grid* to move the whole grid and leave copies of every attached
+  object at the new position.
+
+Moving an attached object with the Pointer tool or the arrow keys takes it *off* the grid,
+keeping its current perspective appearance.  With menu:View[Snap to Grid] on, objects moved
+with the Pointer tool snap to the perspective grid lines but do not gain perspective.
+
+To flip an object on the grid:
+
+. Press on the object with the Perspective tool and keep the button down.
+. Press kbd:[Space] to flip a wall object horizontally or a floor object vertically.
+. Release the mouse button.
+
+To resize an object on the grid:
+
+. Press on the object with the Perspective tool and keep the button down.
+. Press a number key, once per unit:
+* kbd:[1] shrinks width and height, kbd:[2] enlarges both.
+* kbd:[3] shrinks the width, kbd:[4] enlarges it.
+* kbd:[5] shrinks the height, kbd:[6] enlarges it.
+. Release the mouse button.
+
+To take an object off the grid:
+
+* menu:View[Perspective Grid > Remove Perspective] restores the object's flat, original
+  shape.
+* menu:View[Perspective Grid > Release with Perspective] keeps the perspective appearance and
+  makes the object an ordinary object.  Text released this way becomes paths.
+
+To edit text attached to the grid:
+
+. With the Perspective tool, kbd:[Cmd+Option]-double-click the text.
+. Edit in the Text Editor; click btn:[Apply] to see the change on the grid or btn:[OK] to
+  finish (xref:editing-text.adoc[Editing text]).
+
+== Defining grids
+
+The Define Grids sheet holds a document's named grids.  Choosing one makes it the page's grid;
+editing one changes every page that uses it.
+
+To create a grid:
+
+. Choose menu:View[Perspective Grid > Define Grids…].
+. Click btn:[New] for a fresh grid or btn:[Duplicate] to copy the selected one.
+. Double-click the name to rename it.  Names must be unique in the document.
+. Set the options:
+
+[cols="1,3"]
+|===
+|Option |What it does
+
+|*Vanishing points*
+|1, 2 or 3.  One point gives a wall and a floor facing you; two give a left and right wall and
+a floor; three add a vertical vanishing point above or below so tall objects taper.
+
+|*Cell size*
+|The grid spacing, in the document's units.
+
+|*Left grid*, *Right grid*, *Horizontal grid* colors
+|Click each swatch to color that plane's lines.
+|===
+
+. Click btn:[OK].
+
+To edit a grid:
+
+. Choose menu:View[Perspective Grid > Define Grids…], select the grid, change its settings and
+  click btn:[OK].
+
+To delete a grid:
+
+* Select it in Define Grids and click btn:[Delete].  Pages using it fall back to the default
+  grid.
+
+To reshape the grid on the canvas:
+
+. Select the Perspective tool.
+. Point at a grid line, a vanishing point or the horizon; a small arrow beside the pointer
+  shows the line is live.
+. Drag:
+* a *vanishing point* to move it (and its wall);
+* the *horizon line* up or down to change eye level;
+* a *wall's edge line* to change the wall's position and the grid's angle;
+* the *floor's front edge* to move the floor.
+. Double-click a vanishing point to hide or show its wall; a small arrow stays to mark the
+  point.  Double-click the horizon to hide or show the floor; the horizon line stays.
+
+To make a new grid by dragging:
+
+* kbd:[Option]-drag any grid line with the Perspective tool.  A copy of the grid, named in
+  sequence ("Grid 2"), becomes the page's grid, and the original is kept in Define Grids.
+
+// TODO screenshot: Perspective tool dragging a vanishing point with the pointer's arrow badge
+
+== Working with others
+
+* The grid is shared.  When someone moves a vanishing point or the horizon, every object
+  attached to the grid -- yours included -- is redrawn on every screen to match.  Objects
+  remember where they sit on their plane, not their old pixels, so they land in the right
+  place on the new grid.
+* Two people dragging the same vanishing point end with whoever released later; the other
+  position is listed in the merge review after an offline session.  Different vanishing points
+  or the horizon can be dragged by different people at once.
+* Attaching, moving on the grid, flipping and resizing are changes to the object, so you and
+  a collaborator can each work on different objects on the grid freely.  If you both move the
+  same object, the later move wins.
+* If someone edits the grid while you are offline and you also moved objects on it, the
+  merge simply puts your objects at their grid positions on their new grid; nothing needs
+  review unless the same grid setting was changed by both.
+* Whether the grid is *shown* is per person.  Which grid a page uses, and the grids' shapes,
+  are shared.
+* Deleting a grid that another person's page uses falls the page back to the default grid;
+  the merge review offers to restore the grid.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,1"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|menu:View[Perspective Grid > Show / Define Grids / Remove Perspective / Release with
+Perspective]
+|Same.
+|Faithful
+
+|Perspective tool: drag + arrow key to attach by plane; drag to move; Shift constrain;
+Option+Shift move grid and clone
+|Same.
+|Faithful
+
+|Spacebar flip; keys 1--6 shrink/enlarge
+|Same.
+|Faithful
+
+|Pointer tool or arrow keys detach the object keeping its appearance
+|Same.
+|Faithful
+
+|Text on the grid edited via the Text Editor with Cmd+Option double-click
+|Same.
+|Faithful
+
+|Define Grids: New, Duplicate, rename, Delete, vanishing points 1--3, cell size, three plane
+colors
+|Same.  Grids are per document; each page selects one.
+|Faithful
+
+|Gridline dragging; double-click vanishing point / horizon to hide a plane; Option-drag to
+create a grid
+|Same.
+|Faithful
+
+|Grid definitions stored in the document
+|Same, and shared live.
+|Faithful
+
+|Snap to Grid snaps Pointer moves to the perspective grid without perspective
+|Same.
+|Faithful
+|===
+
+=== Data model
+
+Grid definitions are a sequence on the document's settings node; each page names the grid it
+uses and carries its own visibility toggles.  An attached object is wrapped in a `perspective`
+node that records where the object sits on which plane; the object inside stays flat, and the
+perspective appearance is computed on read from the wrapper and the page's grid.
+
+[source,protobuf]
+----
+// proto/wiretuner/doc/v1/perspective.proto (sketch)
+
+// On DocumentSettings (DOC epic):  repeated PerspectiveGrid perspective_grids = …; (SEQUENCE)
+message PerspectiveGrid {
+  ElementId id = 1;
+  string name = 2 [(buf.validate.field).string.max_len = 64];   // unique per document (model enforces)
+  uint32 vanishing_points = 3 [(buf.validate.field).uint32 = {gte: 1, lte: 3}];
+  double cell_size = 4;          // document units
+  // Geometry in page coordinates (points from the page's bottom-left).  Each point ATOMIC.
+  double horizon_y = 5;
+  Point left_vp = 6 [(wt.crdt.field).merge = MERGE_ATOMIC];      // 1-point grids: the single vp
+  Point right_vp = 7 [(wt.crdt.field).merge = MERGE_ATOMIC];     // 2- and 3-point grids
+  Point vertical_vp = 8 [(wt.crdt.field).merge = MERGE_ATOMIC];  // 3-point grids
+  double left_wall_x = 9;        // x of the left wall's near edge
+  double right_wall_x = 10;      // x of the right wall's near edge
+  double floor_front_y = 11;     // y of the floor's near edge
+  ColorRef left_color = 12;
+  ColorRef right_color = 13;
+  ColorRef floor_color = 14;
+  bool left_hidden = 15;         // double-click a vanishing point
+  bool right_hidden = 16;
+  bool floor_hidden = 17;        // double-click the horizon
+}
+
+// On PageProps (DOC epic):
+//   ElementId perspective_grid = …;   // which grid; unset or dangling → the default grid
+//   bool perspective_grid_visible = … [(wt.crdt.field).local_only = true];
+
+// A NodeProps.kind case wrapping one child (the flat object).
+message PerspectiveProps {
+  CommonProps common = 1;
+  enum Plane {
+    PLANE_UNSPECIFIED = 0; PLANE_LEFT_WALL = 1; PLANE_RIGHT_WALL = 2;
+    PLANE_FLOOR_LEFT = 3;          // floor, aligned to the left vanishing point
+    PLANE_FLOOR_RIGHT = 4;         // floor, aligned to the right vanishing point
+    PLANE_WALL = 5;                // one-point grids
+    PLANE_FLOOR = 6;               // one-point grids
+  }
+  Plane plane = 2;
+  // Where the child's bounds sit on the plane, in grid cells (u along the plane's horizontal
+  // grid lines, v along its receding lines).  ATOMIC: one drag.
+  Point cell_position = 3 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  double cell_width = 4;         // size on the plane, in cells; keys 3/4
+  double cell_height = 5;        // keys 5/6
+  bool flipped = 6;              // Space
+  // The grid the object was attached to; normally the page's grid.  Dangling → page's grid.
+  ElementId grid = 7;
+}
+----
+
+=== Merge semantics
+
+Grid fields:: Each vanishing point is an ATOMIC `Point`; horizon, wall edges, colors, hidden
+flags and cell size are separate registers.  Two drags of the same vanishing point: LWW, listed
+in the review sheet under a *Perspective grid "<name>"* row with *Use mine* / *Use theirs*.
+Different vanishing points: both keep.
+
+Grid vs. attached objects:: Objects store plane-relative cell positions, never projected
+geometry, so a grid edit and an object move (`cell_position`) on different nodes always merge
+and re-project identically everywhere.  No review is needed for this combination; the sheet
+shows only same-register collisions.
+
+Grid deleted vs. page using it:: `PageProps.perspective_grid` dangling → the default grid
+(the sequence's first live element, or the built-in two-point default if none).  Review sheet:
+edit-vs-delete on the settings node's element, *Restore* re-inserts the grid.  `PerspectiveProps.grid`
+dangling likewise falls back to the page's grid, so the object stays attached.
+
+Attach vs. move:: Attaching wraps the object (`CreateNode(perspective)` + `MoveNode(child)`).
+A concurrent Pointer-tool move of the same object writes the child's transform; the model's
+projection ignores the child's translation once attached (position comes from
+`cell_position`), so the move has no visible effect until the object is released.  A concurrent
+move into another parent follows Kleppmann ordering.
+
+Release vs. edit:: *Remove Perspective* moves the child out and deletes the wrapper; a
+concurrent child edit lands on the freed child.  *Release with Perspective* creates a baked
+copy from the releasing replica's state (text → paths), deletes the wrapper with the child
+inside; a concurrent child edit is reviewed as edit-vs-delete with *Restore* (re-deletes the
+baked copy, restores the wrapper), as for blends and extrusions.
+
+Option+Shift grid clone:: One change: the grid's registers move and, for every attached
+object, a duplicate wrapper+child is created at the old grid position -- as new nodes, so
+concurrent edits to the originals are untouched.
+
+Read-time normalizations::
+* Wrapper with no live child: empty, selectable outline.
+* Wrapper with more than one live child: smallest node id is projected, others render flat.
+* `plane` unsuited to the grid's vanishing-point count (a `LEFT_WALL` object on a one-point
+  grid after the grid was edited): mapped to the nearest equivalent (`LEFT_WALL`/`RIGHT_WALL`
+  → `WALL`, floors → `FLOOR`, and back).
+* `cell_width`/`cell_height` ≤ 0: the child's flat bounds in cells.
+* Duplicate grid names after a merge: the later-created one displays with a numeric suffix.
+
+=== Offline behavior
+
+Nothing beyond the general rules.  Dragging a vanishing point coalesces to one op.
+
+=== Server
+
+Nothing beyond storing and relaying changes.
+
+=== Client
+
+Package:: `WTGeometry/Perspective/` (`PlaneProjector`), `WTRender` (`PerspectiveDrawable`,
+grid overlay), `WTApp/Tools/PerspectiveTool`, `WTApp/Sheets/DefineGrids`.
+
+Projection (on read, cached):: For a grid and plane, build the 2D homography from cell
+coordinates `(u, v)` to page coordinates using the plane's vanishing point(s), the horizon and
+the near edge (a one-point plane uses the single vp and parallel horizontals; two-point walls
+use their vp and the vertical direction, or the vertical vp on three-point grids; floors use
+both vps).  The child's flat outline is mapped from its bounds rectangle to the cell rectangle
+`(cell_position, cell_width, cell_height)` and then through the homography; Bézier segments are
+subdivided until the projected error is under 0.1 pt (perspective is not affine, so control
+points cannot simply be mapped).  Text is laid out flat and its glyph outlines projected, with
+the inverse homography used for caret hit testing so it remains editable.
+
+Cache:: Keyed by `(wrapper id, wrapper state hash, child subtree hash, grid state hash)`;
+REND-004 evicts on any change to those, and a grid change evicts every wrapper on pages using
+that grid.
+
+Grid overlay:: Drawn in the overlay layer when `perspective_grid_visible`: horizon, vanishing
+points, receding lines every `cell_size` for each unhidden plane in its color.  Hit regions for
+lines, points and the horizon have the `Pick` preference tolerance and show the arrow badge
+cursor.
+
+Tool:: `PerspectiveTool`: press on an unattached object begins a *pending attach* drag; arrow
+keys during the drag set the plane (mid-drag modifier delivery from APP-003); release with a
+plane writes wrap + `cell_position` in one change, release without a plane moves the object
+flat.  Press on an attached object: drag writes `cell_position` (kbd:[Shift] snaps to integer
+cells), kbd:[Space] toggles `flipped`, digits adjust `cell_width`/`cell_height` by one cell,
+all committed on release as one change.  kbd:[Option+Shift]-drag on a grid line: the clone
+change above.  kbd:[Option]-drag on a grid line: duplicate the grid element, point the page to
+it, then drag.  kbd:[Cmd+Option]-double-click on attached text opens the TYPE epic's Text
+Editor.
+
+Define Grids:: An `NSTableView` of grid names with New/Duplicate/Delete, inspector fields for
+the options, colors via the COLOR epic's well; selecting a row writes `PageProps.perspective_grid`
+on btn:[OK].
+
+Undo:: One change per drag, key press sequence or sheet OK ("Attach to perspective grid",
+"Move on grid", "Flip on grid", "Resize on grid", "Move vanishing point", "Define grid",
+"Remove perspective", "Release with perspective").
+
+Output:: Projected outlines are emitted as vector paths; the grid never prints.
+
+=== Build tasks
+
+[[FX-040]]
+==== FX-040 Perspective grid and perspective node messages
+[horizontal]
+Track:: proto
+Depends on:: PROTO-003
+Size:: S
+Delivers:: `PerspectiveGrid` (added to the settings message with the DOC epic), the two page
+fields, the `perspective` kind with `PerspectiveProps`.
+Done when::
+* Lints clean; vanishing points ATOMIC; `perspective_grid_visible` local-only.
+* Conformance vectors: two drags of one vp; vp drag vs. object cell move; grid deleted vs.
+  page referencing it; two children moved into one wrapper.
+
+[[FX-041]]
+==== FX-041 Perspective commands
+[horizontal]
+Track:: client-model
+Depends on:: APP-011, FX-040
+Size:: M
+Delivers:: `WTModel` commands: attach (wrap with plane and position), move on grid, flip,
+resize, remove perspective, release with perspective (bake via FX-042), define/duplicate/
+rename/delete grids with unique-name enforcement, set page grid, grid geometry edits, the
+Option+Shift clone, and the read-time normalizations.
+Done when::
+* Each command is one change with the documented label and inverse.
+* Merge tests: grid edit vs. object move (both keep, identical projection on both replicas);
+  release vs. child edit (reviewed, Restore works); grid delete vs. page use (falls back,
+  Restore re-attaches).
+
+[[FX-042]]
+==== FX-042 Plane projection and perspective rendering
+[horizontal]
+Track:: client-render
+Depends on:: GEO-001, TXT-001, REND-004, FX-040
+Size:: L
+Delivers:: `PlaneProjector` homographies for every plane on 1/2/3-point grids, subdivision
+mapping of outlines, glyph projection with inverse mapping for carets, `PerspectiveDrawable`
+with the documented cache, and vector output of projected outlines.
+Done when::
+* A unit square at cell (0,0) on the floor projects to the expected quadrilateral for the
+  default grid (numeric reference); moving the vp re-projects consistently.
+* Projected curves deviate under 0.1 pt from exact on the corpus.
+* A grid change repaints only tiles containing attached objects.
+
+[[FX-043]]
+==== FX-043 Grid overlay, View menu and Define Grids sheet
+[horizontal]
+Track:: client-ui
+Depends on:: APP-002, APP-005, FX-041
+Size:: M
+Delivers:: The grid overlay with plane colors and hidden flags, menu:View[Perspective Grid]
+submenu (Show, Define Grids…, Remove Perspective, Release with Perspective), the Define Grids
+sheet with every option, gridline/vp/horizon drag handles with the arrow badge cursor,
+double-click hide/show, kbd:[Option]-drag grid creation.
+Done when::
+* UI tests: each menu item; sheet creates, duplicates, renames (rejecting duplicates), deletes;
+  dragging each handle writes the right register.
+* Show/hide is not sent over the wire (local-only).
+
+[[FX-044]]
+==== FX-044 Perspective tool
+[horizontal]
+Track:: client-ui
+Depends on:: APP-003, FX-041, FX-042, FX-043
+Size:: M
+Delivers:: `PerspectiveTool` with attach-by-arrow-key, move with kbd:[Shift] constraint,
+kbd:[Space] flip, digit resizing, kbd:[Option+Shift] grid clone, kbd:[Cmd+Option] double-click
+text editing, and the Pointer-tool detach behavior with Snap to Grid.
+Done when::
+* UI tests for every arrow key on one- and two-point grids, Space, each digit, Shift and
+  Option+Shift drags; each gesture is one change.
+* Moving an attached object with the Pointer tool detaches it keeping its appearance
+  (release-with-perspective path).
+endif::spec[]

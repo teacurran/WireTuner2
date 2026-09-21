@@ -1,0 +1,7 @@
+= Font Info
+include::_attributes.adoc[]
+:page-slug: font-info
+:page-group: Typeface documents
+:page-fh: None (addition); reference: FontForge, "Font Info dialog"
+
+include::_includes/typeface/font-info.adoc[]

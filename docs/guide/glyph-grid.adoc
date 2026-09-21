@@ -1,0 +1,7 @@
+= The glyph grid
+include::_attributes.adoc[]
+:page-slug: glyph-grid
+:page-group: Typeface documents
+:page-fh: None (addition); reference: FontForge, "Font View" and "Encodings"
+
+include::_includes/typeface/glyph-grid.adoc[]

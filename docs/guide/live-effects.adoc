@@ -1,0 +1,7 @@
+= Live vector effects
+include::_attributes.adoc[]
+:page-slug: live-effects
+:page-group: Effects
+:page-fh: Chapter 7, "Adding live special effects to objects", "Applying live vector effects"
+
+include::_includes/effects/live-effects.adoc[]

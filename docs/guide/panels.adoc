@@ -1,0 +1,7 @@
+= Using panels
+include::_attributes.adoc[]
+:page-slug: panels
+:page-group: Basics
+:page-fh: Chapter 1, "Using panels", "Docking panels", "Grouping panels", "The Properties panel group", "The Answers panel"
+
+include::_includes/basics/panels.adoc[]

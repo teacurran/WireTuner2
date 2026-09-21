@@ -1,0 +1,7 @@
+= The Document panel
+include::_attributes.adoc[]
+:page-slug: document-panel
+:page-group: Document setup
+:page-fh: Chapter 2, "Using the Document panel", "Defining custom page sizes", "Setting units of measure"
+
+include::_includes/document/document-panel.adoc[]

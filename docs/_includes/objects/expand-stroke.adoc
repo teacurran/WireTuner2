@@ -1,0 +1,118 @@
+Expand Stroke turns the stroke of a path into a filled shape of its own.  A two-point line
+becomes a closed, four-point rectangle; a closed path becomes a composite path whose outer
+and inner contours trace the stroke's two edges.  Once expanded, the former stroke can take
+any fill -- a gradient, a lens, a tiled pattern -- and its outline can be edited point by
+point.
+
+// TODO screenshot: Expand Stroke sheet with width, cap, join and miter limit
+
+To expand the stroke of a selected path:
+
+. Choose menu:Modify[Alter Path > Expand Stroke], or click *Expand Stroke* on the Path
+  Operations toolbar.
+. In the sheet, set:
++
+[cols="1,3"]
+|===
+|Option |Meaning
+
+|Width
+|The width of the stroke to expand, typed or dragged on the slider.  It starts at the path's
+current stroke width.
+
+|Cap
+|Butt, round or square ends for open paths.
+
+|Join
+|Miter, round or bevel corners.
+
+|Miter limit
+|How far a mitered corner may extend before it is beveled, as a multiple of the width.
+|===
+. Click btn:[OK].
+
+The result is a closed path with the original's fill color as its fill and no stroke,
+replacing the original -- unless *Path operations consume original paths* is off, or you
+hold kbd:[Shift] while choosing the command, in which case the original stays underneath
+(xref:combining-paths.adoc[Combining paths]).
+
+Several selected paths are expanded one by one with the same settings.
+
+To keep a stroke editable as a stroke while still giving it a fill, use the *Expand Stroke*
+live effect instead, which does the same thing without changing the path
+(xref:path-effects.adoc[Path effects]).  Stroke attributes themselves are described on
+xref:stroke-attributes.adoc[Stroke attributes].
+
+== Working with others
+
+Expanding replaces the path with a new one.  Collaborators see the swap when your change
+arrives.  If someone edits the original at the same moment, their edit lands on the path
+that was replaced and is listed after an offline period as an edit to a deleted object, with
+*Restore* (see xref:combining-paths.adoc[Combining paths] for the full account).
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,2"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Expand Stroke dialog: Width, Cap, Join, Miter Limit
+|Same, as a sheet.
+|Faithful
+
+|Open path → closed filled path; closed path → composite path
+|Same.
+|Faithful
+
+|Menu, Xtras menu and Xtra Operations toolbar entry points
+|Modify > Alter Path and the Path Operations toolbar.
+|Adapted -- no Xtras menu for built-in operations.
+
+|Expand stroke as a live effect
+|Same, on xref:path-effects.adoc[Path effects].
+|Faithful
+|===
+
+=== Data model
+
+No fields.  The result is a new path node created with the outline geometry in pasteboard
+space and identity `transform`, with a basic fill of the original's stroke color, positioned
+at the original's slot; the original is `SetDeleted(true)` when consumed.
+
+=== Merge semantics
+
+Identical to a combine with one input (xref:combining-paths.adoc[Combining paths]): create
+result, delete input, `edit vs delete` on concurrent edits of the input, undo restores.
+
+=== Offline behavior
+
+Fully offline (GEO-003 runs locally).
+
+=== Server
+
+Nothing beyond storing and relaying changes.
+
+=== Client
+
+* `ExpandStrokeCommand(width:, cap:, join:, miterLimit:, keepOriginal:)` over
+  `WTGeometry.Offset.strokeOutline` (GEO-003).  Dashed strokes are expanded as their dashes.
+* The sheet is an `NSAlert`-style sheet on the document window with a slider (0.1--500 pt)
+  and the three stroke controls shared with the stroke inspector.
+
+=== Build tasks
+
+[[OBJ-029]]
+==== OBJ-029 Expand Stroke command and sheet
+[horizontal]
+Track:: client-model
+Depends on:: OBJ-025, GEO-003
+Size:: S
+Delivers:: The sheet, `ExpandStrokeCommand`, multi-selection handling, consume/keep rules, menu and toolbar entry points.
+Done when::
+* A two-point line expands to a four-point closed path; a closed path to a two-contour composite; the result's fill is the former stroke color and it has no stroke.
+* Expanded outline matches the rendered stroke within GEO-003's tolerance for every cap and join.
+* Merge test: expand concurrent with a remote edit of the original converges to deleted-with-edit-retained plus the result.
+endif::spec[]

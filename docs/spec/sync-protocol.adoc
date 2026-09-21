@@ -1,0 +1,246 @@
+= Sync protocol
+include::_attributes.adoc[]
+:page-slug: sync-protocol
+
+The server is a hub.  Every change a client makes goes to the server, the server assigns it a
+position in the document's log, and every other client with the document open receives it from
+that log.  Clients never talk to each other.  This keeps causality trivial (a client's knowledge
+of the world is a prefix of the server log plus its own unsent changes), lets the server
+enforce access control on every op, and makes "how far behind am I" a single integer.
+
+== Server log
+
+Each document has an append-only log of `Change` messages.  The server assigns each accepted
+change a `server_seq` (1, 2, 3 ... per document).  Order of arrival is the order of the log;
+the CRDT makes it irrelevant for correctness, so the server never reorders or waits.
+
+A change is accepted when:
+
+. the bearer token is valid and the user's role on the document allows writing;
+. the replica id is bound to this user and device (or unbound: first use binds it);
+. `seq` is exactly one more than the last accepted seq from this replica (else `SEQ_GAP`, or
+  a silent ack if it is an already-accepted seq with identical content, or `REPLICA_CONFLICT`
+  if the content differs);
+. every message passes protovalidate; every op names a field path the merge table knows;
+. the change is within limits: 10,000 ops, 4 MiB encoded.
+
+Accepted changes are written to Postgres in one transaction with the replica's new seq, then
+published on Valkey to every server node holding a subscription on the document.
+
+== Services
+
+Nothing in the protocol requires a bidirectional stream.  One server-streaming call carries
+everything the server has to say about a document; everything the client has to say is a unary
+call (or, for bulk upload, a client-streaming one with a unary fallback).
+
+[source,protobuf]
+----
+// proto/wiretuner/sync/v1/sync.proto (sketch)
+service SyncService {
+  // The one long-lived call: everything the server pushes about one document.
+  rpc Subscribe(SubscribeRequest) returns (stream ServerFrame);
+  // One local change; the ack (its server_seq) is the response.  Clients pipeline up to 32.
+  rpc PushChange(PushChangeRequest) returns (PushChangeResponse);
+  // Up to 32 consecutive changes in one call, acked as a prefix.  For clients behind a
+  // gateway that cannot keep pipelined calls in order; a native client never needs it.
+  rpc PushChangeBatch(PushChangeBatchRequest) returns (PushChangeBatchResponse);
+  // Bulk upload of a backlog (offline catch-up).  Client-streaming: not gateway-friendly
+  // either; a gateway client loops over PushChangeBatch instead.
+  rpc PushChanges(stream PushChangesRequest) returns (PushChangesResponse);
+  // Presence: current state, not a delta; at most 20 per second per subscription.
+  rpc UpdatePresence(UpdatePresenceRequest) returns (UpdatePresenceResponse);
+  // Highest server_seq applied locally (drives causal stability).
+  rpc Ack(AckRequest) returns (AckResponse);
+  // Catch-up download: changes after a server_seq, oldest first.
+  rpc FetchChanges(FetchChangesRequest) returns (stream FetchChangesResponse);
+  // Latest snapshot at or before a server_seq, chunked.
+  rpc FetchSnapshot(FetchSnapshotRequest) returns (stream FetchSnapshotResponse);
+}
+
+message SubscribeRequest {
+  string document_id = 1;
+  fixed64 replica = 2;
+  uint64 after_server_seq = 3;      // highest server_seq applied locally; 0 = bootstrap
+  PresenceUpdate presence = 4;      // optional initial presence, saves one round trip
+}
+message ServerFrame {
+  oneof frame {
+    Welcome welcome = 1;            // always the first frame
+    SequencedChange change = 2;     // someone's change with its server_seq (including the caller's own)
+    PresenceSnapshot presence = 3;  // everyone present, after Welcome and on request
+    PresenceUpdate presence_update = 4;
+    DocumentEvent event = 5;        // renamed, shared, role changed, deleted, branch merged, RECONNECT
+    Pong pong = 6;                  // server heartbeat; there is no Ping (the stream is one-way)
+  }
+}
+message Welcome {
+  wiretuner.account.v1.DocumentRole role = 1;
+  bytes merge_table = 2;            // xref:crdt-model.adoc#evolution[Schema evolution]
+  uint64 head_seq = 3;
+  uint64 last_accepted_seq = 4;     // this replica's last accepted seq: where pushes resume
+  bool snapshot_hint = 5;           // true: FetchSnapshot instead of waiting for replay
+  uint32 feature_level = 6;
+}
+
+message PushChangeRequest { string document_id = 1; wiretuner.doc.v1.Change change = 2; }
+message PushChangeResponse { uint64 server_seq = 1; }   // rejection = the call's status
+
+message PushChangeBatchRequest {
+  string document_id = 1;
+  repeated wiretuner.doc.v1.Change changes = 2 [(buf.validate.field).repeated = { min_items: 1, max_items: 32 }];
+}
+message PushChangeBatchResponse {
+  repeated uint64 server_seqs = 1;  // one per accepted change, a prefix of the batch
+  ChangeRejected rejected = 2;      // set when the prefix is shorter than the batch
+}
+message PushChangesRequest { string document_id = 1; repeated wiretuner.doc.v1.Change changes = 2; }  // frames ≤ 1 MiB
+message PushChangesResponse { uint64 last_accepted_seq = 1; ChangeRejected rejected = 2; }
+
+message ChangeRejected { fixed64 replica = 1; uint64 seq = 2; string reason = 3; google.rpc.Status status = 4; }
+
+message UpdatePresenceRequest { string document_id = 1; fixed64 replica = 2; PresenceUpdate presence = 3; }
+message UpdatePresenceResponse {}
+message AckRequest { string document_id = 1; fixed64 replica = 2; uint64 applied_server_seq = 3; }
+message AckResponse { uint64 stable_seq = 1; }
+----
+
+=== Why no bidirectional stream
+
+The first design had one bidirectional `Session` stream carrying both directions.  It was
+replaced, without changing what travels, because:
+
+* gRPC-Web and buf's Connect protocol have no bidirectional streaming from a browser: a
+  browser's `fetch` cannot start sending a request body before it has finished it.  Unary and
+  server-streaming calls work everywhere.
+* HTTP/1.1 load balancers and corporate proxies terminate long-lived duplex streams badly; a
+  server-streaming response is an ordinary chunked response to them.
+* A browser viewer (read-only, presence-visible) and an iPad client are plausible futures.  The
+  Mac client speaks native gRPC over HTTP/2; the schema should not stop the others.
+* One schema, two protocols: the Connect protocol serves the same `.proto` to browsers as
+  JSON-or-binary over HTTP/1.1 or HTTP/2, so a gateway can front the existing services without a
+  second API (xref:api-conventions.adoc[API conventions] says how the server is fronted).
+
+What does *not* change: causality.  A change's causal past is `base_server_seq` plus the
+replica's own earlier seqs, and the ack of a change is the `server_seq` in its response --
+exactly what the `SequencedChange` echo used to say, delivered to the caller sooner.  The server
+log remains the only order.
+
+=== In-flight window with unary pushes
+
+* The client sends its outbox in seq order as `PushChange` calls, up to 32 in flight, all on
+  one HTTP/2 connection.  Streams on one connection open in the order the client opens them,
+  and the server handles a replica's pushes in arrival order per node (a per-replica ingest
+  queue in front of `ChangeIngest`), so the acceptance rule `seq = last + 1` holds in the
+  common case without any waiting.
+* If the server nonetheless sees a gap -- a retry raced its predecessor, or two connections
+  were used -- it answers `ABORTED`/`SEQ_GAP` for that call, exactly as before.  The client
+  drains its in-flight calls, takes `last_accepted_seq` from the most recent successful response
+  (or from `Welcome`), and resends from there.  Retried duplicates are silently acked by the
+  idempotency rule.
+* Behind an HTTP/1.1 gateway, 32 concurrent calls can be reordered by the load balancer, so a
+  gateway client keeps at most one `PushChangeBatch` of up to 32 changes in flight.  The batch
+  is accepted as a prefix: `server_seqs` acks what got in, `rejected` names the first failure,
+  and the client resumes after the prefix.  Throughput is one round trip per 32 changes, which
+  is more than a viewer or a light editor needs.
+* Above the bulk threshold (200 changes or 512 KiB coalesced) a native client switches to
+  `PushChanges` (xref:offline.adoc[Offline]); its single response carries the last accepted
+  seq and the first rejection, and progress is read from the caller's own `SequencedChange`
+  echoes on the subscription.
+
+=== Lifecycle
+
+. `Subscribe` carries the document id, replica id, `after_server_seq` (the highest applied
+  locally) and, optionally, initial presence; `wt-client` and the bearer token travel as
+  metadata.
+. `Welcome` is the first frame: the caller's role, the merge table, the head `server_seq`, the
+  replica's `last_accepted_seq`, and a *snapshot hint*: if the gap between the client's seq
+  and head is larger than the newest snapshot's distance from head, the client should
+  `FetchSnapshot` rather than wait for replay.
+. Without the hint, the stream replays every change after `after_server_seq` (from Postgres,
+  then live), so the subscription doubles as catch-up for short gaps.  A `PresenceSnapshot`
+  follows the replay.
+. The client sends its outbox with `PushChange` (window of 32) from `last_accepted_seq + 1`.
+  Each response is the ack: the outbox entry is marked sent.  The same change also arrives on
+  the subscription as a `SequencedChange` carrying the caller's replica/seq; the client uses
+  it only to keep its applied `server_seq` contiguous (the ops are already applied).
+. `Ack` calls go up every 2 s while the client is applying remote changes, and on close.
+. Presence goes up as `UpdatePresence`, coalesced to 20 Hz; a final call with state `GONE` on
+  close.
+. The server sends `Pong` after 15 s of silence on the stream.  A client that sees nothing for
+  45 s cancels and resubscribes.  The server sends `DocumentEvent.RECONNECT` before draining a
+  node; clients resubscribe with backoff.
+. Either side may end the stream.  Reconnection is a new `Subscribe` from the client's current
+  `after_server_seq`; pushes that were in flight when the stream dropped are neither retried
+  nor forgotten until `Welcome.last_accepted_seq` says which of them got in.  The server keeps
+  no per-subscription state except presence.
+
+=== Presence
+
+Presence is ephemeral and never in the log: user, display color, cursor position in pasteboard
+coordinates, current page, current tool, selected node ids, and text caret (node + character
+id) when editing text.  It goes up as `UpdatePresence` (rate-limited to 20 Hz per replica,
+coalesced) and comes down as `PresenceUpdate` frames on every subscription to the document,
+fanned out through Valkey.  A presence entry is bound to the replica's subscription: it expires
+15 s after the last `UpdatePresence` and immediately when the subscription ends without a
+`GONE` update (the server notices the stream close).  Selections are visible to others as a
+colored outline with the user's name; they are advisory -- there are no locks
+(xref:collaboration.adoc[Working together]).
+
+=== Rejections
+
+A rejected `PushChange` is the call's status (code and `ErrorInfo.reason` as in
+xref:api-conventions.adoc[API conventions]); in a batch or bulk response the same information is
+the `rejected` message, which names the replica/seq.  On `SEQ_GAP` the client resends from the
+acked seq.  On `REPLICA_CONFLICT` or `REPLICA_EXPIRED` it goes through replica rotation or
+salvage (xref:offline.adoc[Offline]).  On `ROLE_INSUFFICIENT` (the role was downgraded while
+offline) the changes go to salvage and the document reopens read-only.  On a validation failure
+the client drops that change locally, reverts its effects with an inverse change, and reports a
+bug: a change that passed the client validators should never fail the server's.
+
+== Catch-up
+
+`FetchChanges` streams `SequencedChange`s in 1 MiB frames from any `server_seq`.  Hot changes
+come from Postgres; changes older than the newest snapshot come from cold segments in object
+storage (the server reads them; clients never touch storage directly).  `FetchSnapshot` streams
+the chunks of a snapshot, then the client replays `FetchChanges` from the snapshot's seq.
+
+A client bootstrapping a document it has never opened always takes the snapshot path.
+
+== Blobs
+
+Images, embedded fonts and other binaries are content-addressed (`sha256`).  A document op only
+ever references a blob by hash.  `BlobService.Upload` is client-streaming; the server stores to
+R2/MinIO and records the hash against the document.  `BlobService.Download` and
+`BlobService.Stat` complete it.  A change referencing a hash the server does not have is still
+accepted -- the blob may arrive later -- and other clients render a placeholder until it does.
+Blobs are retained while any change in retained history references them.
+
+An upload may carry a *tag*.  The only tag in v1 is `THUMBNAIL`: the client renders the
+document's first page at 512 px on the long edge when the window closes and at the local
+snapshot interval when the document changed, and uploads it tagged; the server sets the
+document row's `thumbnail_blob` to the hash (newest wins) and the library shows it
+(xref:creating-opening.adoc[Creating and opening documents]).  Tagged uploads are capped at
+256 KiB, are exempt from the storage quota, and are not referenced from the document, so the
+previous thumbnail becomes an orphan the trash job collects.  The server never renders artwork.
+
+A browser viewer needs only `Download` (server-streaming) and never uploads.
+
+== Sequencing guarantees
+
+* A client applies remote changes in `server_seq` order and its own changes immediately.
+  Because the CRDT is order-independent this is a performance choice (it makes causal stability
+  a single number per replica), not a correctness requirement.
+* Unary pushes do not weaken this: the log order is the server's acceptance order, each
+  response says where in the log a change landed, and a replica's changes are always accepted
+  in `seq` order because anything else is `SEQ_GAP`.
+* The server never modifies a change.  What was signed off by the client is what is stored,
+  which is what history and blame show.
+* Multiple server nodes may hold subscriptions on one document; Postgres serialises
+  `server_seq` with a per-document row lock, and Valkey pub/sub carries accepted changes
+  between nodes.  Node affinity by document id is an optimisation, not required for
+  correctness; a replica whose pushes land on two nodes can only lose a round trip to
+  `SEQ_GAP`, never order.
+
+== Build tasks
+
+See xref:backlog.adoc[Backlog]: PROTO-006, SRV-004 through SRV-006, SRV-012, SYNC-003, SYNC-009.

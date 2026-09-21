@@ -1,0 +1,241 @@
+The Polygon tool draws regular polygons -- triangles, pentagons, hexagons, anything up to 360
+sides -- and stars.  Like rectangles and ellipses, a polygon stays a live shape: its number of
+sides, its star points and its proportions can be changed after drawing, by dragging handles
+with the Subselect tool or by typing in the Object panel.  Every polygon is a closed path,
+drawn clockwise from its center.
+
+== Setting the Polygon tool options
+
+To set what the Polygon tool draws:
+
+. Double-click the Polygon tool in the Tools panel (it shares a slot with the Spiral and Arc
+  tools).
+. In the Polygon Tool sheet, set the options below.  The preview updates as you change them.
+. Click btn:[OK].  The settings apply to every polygon you draw from now on.
+
+[cols="1,3"]
+|===
+|Option |Meaning
+
+|Shape
+|*Polygon* draws a regular polygon.  *Star* draws a star with one point per side.
+
+|Number of sides
+|3 to 360, from the field or the slider.  Above about 20 sides a polygon is hard to tell
+from a circle.
+
+|Star points
+|For stars only.  *Automatic* picks the inner radius that makes a classic star for the number of
+sides (the star's edges align with alternate points).  *Manual* lets you set it with the
+*Acute*/*Obtuse* slider: acute stars have long, narrow points; obtuse stars are nearly flat.
+|===
+
+// TODO screenshot: Polygon Tool sheet with a five-point star in the preview
+
+== Drawing a polygon or star
+
+To draw a polygon or star:
+
+. Choose the Polygon tool.
+. Drag from where the center should be.  The distance you drag sets the radius, and the
+  direction sets the rotation: the first vertex points at your pointer.
+. Release.
+
+Modifier keys while dragging::
+kbd:[Shift]:: Constrains the rotation to the constrain angle and every 45° from it, so a
+square-ish polygon sits level.
+kbd:[Option]:: Draws from the center.  Polygons always draw from the center, so this changes
+nothing for them; it is listed because the same key matters for the other shape tools.
+kbd:[Space]:: Repositions the shape while you keep dragging.
+
+== Editing a polygon or star
+
+A selected polygon shows two kinds of handles with the Subselect tool: a diamond at one
+vertex (a *peak*) and, for stars, a circle at one inner point (a *valley*).
+
+To reshape a polygon or star by dragging:
+
+. Choose the Subselect tool and click the polygon.
+. Drag the diamond handle to move every vertex at once -- outward to enlarge, around the
+  center to rotate.
+. For a star, drag the circle handle to move every inner point: closer to the center for
+  sharper points, further out for blunter ones.  Dragging a valley past the peaks turns the
+  star inside out, which is allowed.
+. Hold kbd:[Shift] while dragging either handle to keep the vertex or valley on its original
+  angle, so you change only the radius.
+
+The Object panel shows the same things as numbers: *Sides*, *Star*, *Radius*, *Inner radius*
+(stars, with *Automatic* to let {product} choose it) and *Rotation*.  Changing the number of
+sides regenerates the shape around the same center.  To edit individual points, convert the
+polygon to a path with menu:Modify[Ungroup]; it cannot be turned back into a live polygon.
+
+// TODO screenshot: Subselect handles (diamond and circle) on a star
+
+== Working with others
+
+Polygons merge property by property.  A collaborator can change a star's number of points
+while you drag its valleys; you see the new points appear mid-drag and your inner radius
+applies to all of them.  If you both drag the same handle, the later release wins.  Converting
+a polygon to a path while someone else is editing it turns their edit into a review item after
+they reconnect, the same as for rectangles.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,1"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Polygon Tool dialog: Polygon/Star, 3--360 sides, Automatic/Manual star points with
+Acute/Obtuse slider and preview
+|Same, as a sheet.
+|Faithful
+
+|Drag from center; kbd:[Shift] constrains angle; kbd:[Option] from center
+|Same.
+|Faithful
+
+|Subselect handles: diamond (vertices) and circle (midpoints), kbd:[Shift] to keep the angle
+|Same.
+|Faithful
+
+|Polygons are grouped objects, ungrouped to paths
+|`polygon` node kind with derived geometry; menu:Modify[Ungroup] converts to a `path`.  Same
+reasoning as rectangles.
+|Adapted
+
+|Object panel numeric editing of sides, radii, rotation
+|Added: {fh} exposed only the handles; the panel fields make handle edits reproducible and give
+collaborators something to compare in the review sheet.
+|Adapted
+|===
+
+=== Data model
+
+`doc/v1/shape.proto` (shared with DRAW-006).  Local space: center at the origin, first vertex
+at angle 0 (pointing +x) before `rotation`; `CommonProps.transform` places the shape.
+
+[source,protobuf]
+----
+// A live regular polygon or star.
+message PolygonProps {
+  CommonProps common = 1;
+  uint32 sides = 2 [(buf.validate.field).uint32 = {gte: 3, lte: 360}];
+  bool star = 3;
+  // Outer radius (vertex distance from center), local units.
+  double radius = 4 [(buf.validate.field).double.gt = 0];
+  // Inner radius for stars.  Ignored when star is false or auto_inner is true.  May exceed
+  // radius (an inside-out star), which FreeHand also allows.
+  double inner_radius = 5 [(buf.validate.field).double.gte = 0];
+  bool auto_inner = 6;                        // "Automatic" star points
+  // Manual star sharpness, 0 (acute) .. 1 (obtuse); the Acute/Obtuse slider.  Only used to
+  // seed inner_radius when the tool draws; stored so the Object panel can show the slider.
+  double sharpness = 7 [(buf.validate.field).double = {gte: 0, lte: 1}];
+  // Rotation of the first vertex, radians, applied before common.transform.  Kept separate
+  // from the transform so a vertex-handle drag (radius + rotation) never collides with a
+  // Pointer-tool move (transform).
+  double rotation = 8;
+  // Angular offset of the valleys from their default (halfway between peaks), radians; set
+  // by dragging the circle handle without Shift.
+  double valley_offset = 9;
+  Appearance appearance = 10;
+}
+----
+
+=== Merge semantics
+
+Per field:: every field is its own register (STRUCT default).  There is no ATOMIC grouping
+because each field is a distinct user decision, and the handle drags write at most two fields
+(`radius` + `rotation`, or `inner_radius` + `valley_offset`).
+
+Sides changed vs. radius dragged:: Independent; the merged polygon has the new side count at
+the new radius.
+
+Diamond handle vs. circle handle:: Independent registers; both survive.
+
+Same handle from two people:: `radius` and `rotation` are each LWW, so a merged shape can take
+one person's radius and the other's rotation.  Both were dragging the same handle, so the
+review sheet lists the polygon under *same register* with both handle positions; the merged
+state is a legal polygon and renders.  We accept this rather than making `(radius, rotation)`
+ATOMIC because a kbd:[Shift]-drag writes only `radius`, and losing a concurrent free rotation
+to it would be worse.
+
+Star turned off vs. inner radius edited:: `star = false` hides the inner points; the
+`inner_radius` write is kept and reappears when `star` is turned back on.
+
+Convert to path vs. edit:: As for rectangles: the shape node is deleted, the edit is listed as
+*edit vs delete*.
+
+Read-time normalizations::
+* `sides` outside 3--360 (older client): clamped.
+* `auto_inner = true`: `inner_radius` reads as the automatic value for `sides`
+  (`radius * cos(2π/sides) / cos(π/sides)` for odd counts, the pentagram-style construction;
+  `radius * 0.5` for even counts, matching {fh}'s preset).
+* `radius <= 0`: renders nothing; selectable from the Layers panel.
+
+=== Offline behavior
+
+Works offline; nothing needs the server.
+
+=== Server
+
+Nothing beyond storing and relaying changes.
+
+=== Client
+
+Tool:: `PolygonTool` in `WTApp`.  Mouse-down creates the node at the pressed point with the
+current tool settings; each drag event writes `radius` and `rotation` (Shift-constrained
+rotation via GEO-005); kbd:[Space] moves `transform`.  A drag under 1 pt is undone locally.
+Tool settings (shape, sides, star mode, sharpness) are preferences.
+
+Geometry:: `WTGeometry.polygonPath(props:)` yields `sides` (or `2 × sides` for stars) corner
+points, clockwise starting at `rotation`.  The Polygon Tool sheet preview draws the same path
+into a small `NSView`.
+
+Handles:: Diamond at vertex 0, circle at valley 0, drawn in the overlay; drags convert the
+pointer position into polar coordinates around the local center.
+
+Object panel:: `polygon` section: Sides (stepper 3--360), Star, Radius, Inner radius with
+Automatic, Rotation (degrees in the UI, radians stored).
+
+Undo:: One group per drag or field commit.
+
+=== Build tasks
+
+[[DRAW-010]]
+==== DRAW-010 Polygon schema and geometry
+[horizontal]
+Track:: client-render
+Depends on:: DRAW-006, DRAW-003
+Size:: S
+Delivers:: `PolygonProps` added to `doc/v1/shape.proto` (this task carries the proto change with its geometry because it is a single message; `buf` gates apply), `polygonPath` in `WTGeometry`, the automatic inner-radius rule and clamps in `WTModel`'s path view.
+Done when::
+* Lints clean; conformance vector with concurrent `radius` and `rotation` writes converges in both engines.
+* Derived outlines for 3, 5, 6, 12 and 360 sides and for automatic 5- and 6-point stars match reference coordinates within 0.01 pt.
+
+[[DRAW-011]]
+==== DRAW-011 Polygon tool and sheet
+[horizontal]
+Track:: client-ui
+Depends on:: DRAW-010, DRAW-007
+Size:: M
+Delivers:: The Polygon tool (drag from center, kbd:[Shift], kbd:[Option], kbd:[Space], kbd:[Esc]), the Polygon Tool sheet with live preview, tool settings persisted as preferences, and the Polygon/Spiral/Arc tool group in the Tools panel.
+Done when::
+* UI tests draw a hexagon and a manual star with each modifier and verify the node's fields.
+* Sheet preview matches the drawn result for the same settings.
+* Merge test: two replicas concurrently change `sides` and `radius` of one polygon; both changes are present on both.
+
+[[DRAW-012]]
+==== DRAW-012 Polygon handles and Object panel section
+[horizontal]
+Track:: client-ui
+Depends on:: DRAW-011, DRAW-004
+Size:: M
+Delivers:: Subselect diamond and circle handles with kbd:[Shift] angle lock, the `polygon` Object panel section, and menu:Modify[Ungroup] conversion to a path.
+Done when::
+* UI tests: drag each handle with and without kbd:[Shift]; verify which registers changed.
+* Merge test: diamond drag on one replica vs. circle drag on another keeps both; ungroup vs. edit produces an *edit vs delete* review entry.
+* Undo of a handle drag restores both registers it wrote.
+endif::spec[]

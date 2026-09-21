@@ -1,0 +1,376 @@
+Panels are the small windows that show and change what is selected: the Object panel for an
+object's properties, Swatches for colors, Layers for stacking, and so on.  They live in
+*panel groups* -- tabbed sets that dock at an edge of the document window or float over it.
+This page explains the framework: opening, closing, grouping, docking, collapsing, and the
+Options menu every panel has.  What each panel *contains* is documented on that panel's own
+page; the table at the end links them.
+
+// TODO screenshot: the default panel layout on first launch, with the Properties group
+// expanded and the Assets group collapsed.
+
+== The default layout
+
+On first launch the panels sit docked at the right edge of the document window, the Tools
+panel at the left edge.  The groups are:
+
+[cols="1,2"]
+|===
+|Group |Panels
+
+|Properties |Object, Document
+|Assets |Swatches, Styles, Library
+|Mixer and Tints |Color Mixer, Tints
+|Align and Transform |Align, Transform
+|Find & Replace and Select |Find & Replace Graphics, Select
+|Layers |Layers
+|Help |Help
+|Navigation |Navigation
+|Halftones |Halftones
+|===
+
+Layers, Help and the Properties, Assets, and Mixer and Tints groups are open at first launch;
+some are collapsed to their title bars.  Halftones and Navigation are closed until you open
+them.  Groups with a single panel are named after it.  Except for Properties and Assets, a
+group made of several panels shows every panel's name in its title bar until you rename it.
+
+NOTE: {fh}'s *Answers* panel is the *Help* panel in {product}.  It searches this guide and
+opens the page for whatever panel or tool is under the pointer, instead of fetching articles
+from a website.
+
+== Opening, closing and activating panels
+
+To open a panel::
+Choose its name from the menu:Window[] menu.  The panel's group expands and that panel comes
+to the front.  If the panel is already open and in front, choosing it again closes a floating
+group or collapses a docked one.
+
+To open the Find & Replace Graphics or Select panel::
+These are also in menu:Edit[Find & Replace] and menu:Edit[Select], as in {fh}.
+
+To activate a panel in a group::
+Click its tab.  Tabs show an icon, a name, or both, depending on the *Label panel tabs with*
+preference (xref:preferences.adoc[Preferences]).
+
+To expand or collapse a group::
+Click the group's title, or the disclosure triangle beside it.  A collapsed group keeps its
+place in the dock and takes only its title bar's height.  Choosing a collapsed panel from the
+menu:Window[] menu expands it.
+
+To close a floating group::
+Click the close button at the top left of its title bar.  Docked groups are not closed
+individually; collapse them, or hide every panel with menu:View[Panels].
+
+To show or hide all panels::
+Choose menu:View[Panels].  The Tools panel and toolbars are separate: menu:Window[Tools] and
+menu:View[Toolbars] (xref:toolbars.adoc[Toolbars]).
+
+To show or hide the whole dock::
+Click the thin handle between the canvas and the docked panels, or drag it to resize the dock.
+Hiding the dock gives the canvas the full window; the panels come back with one click.
+
+To cycle through floating groups::
+Press kbd:[Cmd+`] (the standard macOS window cycle) while a floating group is in front.  The
+Windows-only kbd:[Control+Tab] cycles document tabs here (xref:workspace.adoc[The workspace]).
+
+== Docking and floating
+
+Every group has a *gripper* -- a textured area at the left of its title bar.  Dragging the
+gripper moves the group between the dock and the pasteboard; dragging the title bar itself
+moves a floating group without docking it.
+
+To dock a group::
+Drag it by its gripper toward the right or left edge of the window.  A blue insertion line
+shows where it will land between the groups already docked there.  Release to dock.
+
+To dock a group onto another group::
+Drag it by its gripper onto the other group's tab strip.  The strip highlights and the dragged
+panels join that group as tabs.
+
+To float a group::
+Drag it by its gripper out of the dock onto the pasteboard, or choose *Float Group* from its
+Options menu.  Floating groups stay above the document window and can be moved to a second
+display.
+
+To resize a floating group::
+Drag any edge.  Docked groups share the dock's width; drag the dock's edge to change it, and
+drag the divider between two docked groups to change how the height is shared.
+
+CAUTION: If you mean to move a floating group, drag the title bar, not the gripper -- dragging
+the gripper near the dock will dock it.
+
+== Grouping panels
+
+To add a panel to another group::
+Choose *Group <panel> With* from the panel's Options menu and pick the target group, or drag
+the panel's tab onto the other group's tab strip.
+
+To split a panel into its own group::
+Choose *Group <panel> With > New Panel Group*, or drag its tab out of the strip.
+
+To rename a group::
+Choose *Rename Panel Group* from the Options menu of any panel in the group, type the name and
+press kbd:[Return].  Click anywhere else to cancel.
+
+To reorder tabs within a group::
+Drag them.
+
+== The Options menu
+
+The button at the top right of every group opens the *Options menu* of the active panel.  The
+top of the menu is specific to the panel (for example *New Swatch* in Swatches, *Move Objects
+to Current Layer* in Layers) and is documented on that panel's page.  The bottom is the same
+for every panel:
+
+[cols="1,3"]
+|===
+|Item |What it does
+
+|Group <panel> With ▸
+|Moves this panel into another group, or into a new group.
+
+|Rename Panel Group…
+|Renames the group.
+
+|Float Group / Dock Group
+|Toggles between floating and docked.
+
+|Close Group
+|Closes a floating group (docked groups offer *Collapse Group*).
+
+|Help for <panel>
+|Opens this guide at the panel's page.
+|===
+
+== Panel layouts
+
+Your arrangement -- which groups exist, where they dock, their sizes, what is collapsed -- is
+saved automatically and restored when you relaunch.  You can also name layouts and switch
+between them, and reset to the factory layout.
+
+To reset the panels to their default positions::
+Choose menu:Window[Panel Layout > Reset to Default].  In {fh} this required quitting and
+deleting the preferences file; here it is a menu command and does not touch your other
+preferences.
+
+To save and recall layouts::
+See xref:customizing.adoc[Customizing your environment].
+
+== Panel appearance
+
+Two preferences in the *Panels* category control how panels look
+(xref:preferences.adoc[Preferences]):
+
+* *Label panel tabs with*: Text only, Icon only, or Text and icon.
+* *Show tooltips*: whether pausing over a tool or button shows its name and shortcut.
+
+== The panels
+
+Every panel {product} has, and where it is documented:
+
+[cols="1,1,3"]
+|===
+|Panel |Default group |Documented on
+
+|Object |Properties |xref:object-panel.adoc[Object panel]; also stroke, fill, effect and text pages
+|Document |Properties |xref:document-panel.adoc[Document panel]
+|Layers |Layers |xref:layers.adoc[Layers]
+|Swatches |Assets |xref:swatches.adoc[Swatches]
+|Styles |Assets |xref:styles.adoc[Styles]
+|Library |Assets |xref:library.adoc[Library]
+|Color Mixer |Mixer and Tints |xref:color-mixer.adoc[Color Mixer]
+|Tints |Mixer and Tints |xref:tints.adoc[Tints]
+|Align |Align and Transform |xref:arranging.adoc[Arranging]
+|Transform |Align and Transform |xref:transforming.adoc[Transforming]
+|Halftones |Halftones |xref:halftones.adoc[Halftones]
+|Navigation |Navigation |xref:names-notes.adoc[Names and notes], xref:urls.adoc[URLs]
+|Find & Replace Graphics |Find & Replace and Select |xref:find-replace.adoc[Find and replace]
+|Select |Find & Replace and Select |xref:selecting.adoc[Selecting]
+|Help |Help |This page
+|===
+
+Two panels contain nothing of the document but help you around it:
+
+The Properties group::
+Object shows the properties of the selection: the list of strokes, fills and effects at the
+top, and the editor for the chosen property at the bottom.  Document shows page thumbnails you
+can drag to rearrange pages, at three thumbnail sizes, with controls to add, duplicate and
+remove pages and to set size, orientation, bleed and output resolution.
+
+The Help panel::
+A search field over this guide, a *Contents* list, and a *What's here* section that follows
+the pointer: hover over a tool or panel and the panel names it, with a link to its page.  The
+btn:[What's New] button lists the features added in the current version.  It works offline;
+the guide ships inside the application.
+
+== Working with others
+
+Panels show the shared document, so what they list changes as collaborators work: a swatch
+someone adds appears in your Swatches panel, a layer they rename is renamed in yours, and the
+Object panel updates while you look at an object somebody else is editing.  Panel *layout* is
+never shared -- where your panels sit, which are open and how they are grouped is yours, on
+this Mac.
+
+If a value in a panel changes under you while you are typing into it, your typing is not
+interrupted: the field keeps your text until you press kbd:[Return] or leave it, and then your
+value is applied.  Fields that show a value someone else changed a moment ago briefly show
+that person's color at the edge (xref:presence.adoc[Presence]).
+
+After being offline, panels simply reflect the merged document when it arrives; nothing about
+your layout changes.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,1"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Panel groups with tabs, default grouping (Properties, Assets, Mixer and Tints, Align and Transform, Find & Replace and Select), standalone Layers, Answers, Navigation, Halftones
+|Same groups, same names; Answers becomes Help.
+|Faithful
+
+|Open/close/collapse from Window menu; Find & Replace and Select in Edit menu too
+|Same.
+|Faithful
+
+|Drag by gripper to dock, by title bar to move; highlight shows drop target
+|Same, plus a dock-edge handle to hide the dock and an Options-menu Float/Dock toggle.
+|Faithful
+
+|Dock to the application window (Windows only)
+|Dock to the document window on macOS, left or right edge.
+|Adapted -- see xref:workspace.adoc[The workspace].
+
+|Control+Tab cycles floating groups (Windows)
+|kbd:[Cmd+`] cycles floating groups; kbd:[Control+Tab] cycles document tabs.
+|Adapted -- macOS convention.
+
+|Group … With / New Panel Group / Rename Panel Group in the Options menu
+|Same, plus dragging tabs between groups.
+|Faithful
+
+|Reset panels by deleting the preferences file
+|menu:Window[Panel Layout > Reset to Default].
+|Adapted -- a menu command; the file dance is not acceptable UX.
+
+|Label Panel Tabs With (text/icon/both), Show ToolTips
+|Same preferences.
+|Faithful
+
+|Answers panel fetching macromedia.com content
+|Help panel: searchable in-app guide, hover help, What's New.
+|Adapted -- no vendor content service; the guide ships with the app.
+|===
+
+=== Data model
+
+None.  Panel layout is application state, stored as a JSON file per named layout under
+`~/Library/Application Support/WireTuner/Layouts/` and, for the current layout, in
+`NSUserDefaults`.  It is never in a document and never synced.  (A `Preferences` field to sync
+named layouts was considered and rejected: layouts depend on display geometry.)
+
+[source,json]
+----
+{
+  "version": 1,
+  "docks": {
+    "right": [ { "name": "Properties", "panels": ["object", "document"], "collapsed": false, "height": 420 } ],
+    "left":  [ { "name": "Tools", "panels": ["tools"], "collapsed": false } ]
+  },
+  "floating": [
+    { "name": "Layers", "panels": ["layers"], "frame": [1200, 300, 260, 480], "display": "<uuid>" }
+  ],
+  "dockWidth": { "right": 280, "left": 44 }
+}
+----
+
+=== Merge semantics
+
+None; no document registers are written by the framework.  Each panel's own writes are
+specified on its page.  The framework does guarantee one behavior every panel inherits: a
+remote change to a register bound to a field that has keyboard focus does not replace the
+field's text; the new value is shown as a placeholder hint and applied only if the user
+abandons the edit with kbd:[Esc] (APP-007).
+
+=== Offline behavior
+
+Nothing here needs the network.  The Help panel's content is bundled.
+
+=== Server
+
+Nothing beyond storing and relaying changes.
+
+=== Client
+
+* `WTApp/Panels`.  `PanelRegistry` holds `PanelDescriptor { id, title, icon, menuOrder,
+  defaultGroup, body: () -> NSView, optionsMenu: () -> NSMenu, helpSlug }`.  Registering a
+  descriptor is the only step a feature epic performs; the framework adds the Window menu item,
+  the tab, the Options menu tail and the Help link.
+* `PanelGroupController` is an `NSViewController` with an `NSTabView`-style tab strip
+  (custom, to support drag-reorder and drag-out), a title bar with gripper and collapse
+  triangle, and an `NSStackView` host.  Panel bodies are SwiftUI via `NSHostingView` for
+  form-like panels, AppKit for list-heavy ones (Layers, Swatches, Library).
+* `DockController` owns each edge: an `NSSplitView` (vertical) of group controllers, a
+  resizable width, and the hide handle.  Floating groups are `NSPanel`s with
+  `.utilityWindow` style, `hidesOnDeactivate = true`, that become child windows of the
+  document window so they follow it between Spaces.
+* Drag and drop uses `NSDraggingSession` with a private pasteboard type carrying the panel
+  id; drop targets are the tab strips and the dock edge; the insertion indicator is a
+  2 pt accent-colored line.
+* Layout persistence: debounce 500 ms after any layout change; a layout that references a
+  panel id no longer registered drops that panel silently; a floating group whose display is
+  absent is moved onto the main display.
+* Help panel: `WKWebView` over the bundled Help Book (this guide's HTML render), with a
+  search index built at packaging time; hover help uses `NSView.accessibilityIdentifier`
+  conventions from TEST-002 to map the view under the pointer to a `helpSlug`.
+
+=== Build tasks
+
+[[BASIC-004]]
+==== BASIC-004 Panel registry and default groups
+[horizontal]
+Track:: client-ui
+Depends on:: APP-004
+Size:: M
+Delivers:: `PanelRegistry` and `PanelDescriptor`, the fifteen panel ids with titles, icons, menu order and default groups, the default layout (open/collapsed state per group), and the Window menu section generated from the registry.
+Done when::
+* First launch shows exactly the default groups in the documented state; every panel id appears once in the Window menu in the documented order.
+* A feature package registering a stub panel at startup appears in Window, in the dock, and in the Help link without touching the framework.
+* Unit tests cover registry ordering and duplicate-id rejection.
+
+[[BASIC-005]]
+==== BASIC-005 Options menu tail, grouping and renaming
+[horizontal]
+Track:: client-ui
+Depends on:: APP-004, BASIC-004
+Size:: M
+Delivers:: The common Options-menu items (Group With, Rename, Float/Dock, Close/Collapse, Help), tab drag to reorder, drag-out to new group, drag-onto to join, and group naming rules (auto names from members; Properties and Assets keep their names).
+Done when::
+* UI tests: group Swatches with Layers via menu and via drag; split it out; rename; each round-trips through layout persistence.
+* Renaming to an empty string cancels; kbd:[Esc] cancels; kbd:[Return] commits.
+
+[[BASIC-006]]
+==== BASIC-006 Dock hide handle, panel appearance preferences and Reset Layout
+[horizontal]
+Track:: client-ui
+Depends on:: APP-004, APP-010, BASIC-004
+Size:: S
+Delivers:: The dock-edge hide/resize handle, *Label panel tabs with* and *Show tooltips* applied live to every group, and menu:Window[Panel Layout > Reset to Default].
+Done when::
+* Changing the label preference re-renders every tab strip without closing panels.
+* Reset restores the BASIC-004 default layout and leaves every other preference untouched (verified against a preferences snapshot).
+
+[[BASIC-007]]
+==== BASIC-007 Help panel
+[horizontal]
+Track:: client-ui
+Depends on:: APP-004, BASIC-004
+Size:: M
+Delivers:: The Help panel: bundled guide in a `WKWebView`, search over a packaged index, *What's here* hover mapping from accessibility identifiers to help slugs, btn:[What's New], and the *Help for <panel>* Options item.
+Done when::
+* Searching "bezigon" lists the Pen and Bezigon page first; clicking opens it in the panel.
+* Hovering the Pen tool for 1 s names it in the panel with a working link, fully offline.
+* Docs render job publishes the Help Book bundle consumed by the app build.
+endif::spec[]

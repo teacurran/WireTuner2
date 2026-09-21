@@ -1,0 +1,426 @@
+Every color in a {product} document is two things at once: a *value* in some color space
+(how much cyan, or how much red) and a *kind* of ink -- spot or process -- that only matters
+when the document is separated for a press.  This page explains both, how to convert between
+them, and the color libraries that supply ready-made, press-matched colors.
+
+== Spot and process colors
+
+Commercial printing lays down inks one plate at a time.
+
+Process colors::
+Built from the four process inks: cyan, magenta, yellow and black (CMYK).  A process color is
+separated onto four plates, and the press mixes it by overprinting halftone dots.  Almost any
+color can be approximated this way, which is why a document with many colors is usually
+printed in process.
+
+Spot colors::
+A single premixed ink, on its own plate.  A spot color prints exactly as the ink
+manufacturer mixed it -- no halftone rosette, no color shift -- and is the right choice for a
+brand color, a metallic, a fluorescent, or a two-color job.  Each spot color adds a plate, so
+each one costs money at the press.
+
+The Swatches panel shows the kind at a glance: process names are *italic*, spot names are
+upright.  The kind is a property of the *swatch*, not of the color value: a spot color can be
+defined in any color space, and converting it to process does not change how it looks on
+screen, only how it separates (xref:printing.adoc[Printing]).  Unnamed colors are always
+process.
+
+To convert a color between spot and process:
+
+. In the Swatches panel, select the swatch.
+. From the Options menu choose *Make Spot* or *Make Process*.
+
+Everything that uses the swatch follows.  The default *Black* is a spot swatch that prints on
+the process black plate, so it never separates into four; *Registration* prints on every
+plate.  Neither can be converted.
+
+== Color spaces
+
+A color space is the set of numbers that define a color, and the meaning of those numbers.
+Every color in a {product} document carries its space with it, so a color means the same
+thing on every Mac that opens the document, however that Mac's screen is made.  {product}
+stores colors in five spaces and lets you mix in seven ways.
+
+[cols="1,3"]
+|===
+|Space or mode |Use
+
+|*CMYK*
+|Cyan, magenta, yellow and black as percentages, 0--100 each.  The space of print.  A color
+mixed in CMYK is stored in CMYK.
+
+|*RGB* (sRGB)
+|Red, green and blue, 0--255 each (or a hex triplet such as `#E63946`).  The space of the web
+and of every screen made before wide-gamut displays: the safe choice when a color must look
+the same in a browser, a video or another application.  Stored as sRGB.
+
+|*Display P3*
+|Red, green and blue again, 0--255 each, in the wider space of every Mac display since 2016,
+of iPhones and of most current televisions: deeper reds, oranges and greens than sRGB can
+name.  Stored as Display P3.  A P3 color shows fully on a P3 display; on a display that
+cannot reach it, it is shown as the nearest color that display can make, and the Color Mixer
+tells you so (xref:color-mixer.adoc[Color Mixer]).  The color in the document is not touched.
+
+|*OKLCH*
+|Lightness (0--100%), chroma (how colorful, from gray upward) and hue (0°--360°): a way of
+*picking* a color in which equal slider moves look like equal changes.  Colors mixed in OKLCH
+are stored as OKLab, a space wide enough for anything a screen or a press can show.
+
+|*Lab*
+|The device-independent space that swatch books and color libraries are measured in
+(CIELAB).  You do not mix in Lab; Lab colors arrive from libraries and `.ase` files and are
+shown with a *Lab* badge.  Loading one into the Mixer shows it in OKLCH.
+
+|*HLS*
+|Hue (0°--360°), lightness and saturation (0--100%).  The classic way of finding related
+colors -- every hue at one saturation, say.  Colors mixed in HLS are stored in your default
+RGB space (sRGB or Display P3, below).
+
+|*System* (the macOS color picker)
+|Opens the standard macOS Colors panel with its wheel, sliders, crayons and pencil.  Whatever
+you pick is stored as Display P3 on a Mac that can show it, in your default RGB space
+otherwise.
+|===
+
+Which to choose: if the piece is going to press, mix in CMYK, and do not judge a process
+color by how it looks on your monitor unless your display is calibrated and color management
+is set up (xref:color-management.adoc[Color management]).  If it will be seen on Apple
+screens, in an app, or in a current browser, mix in Display P3 or OKLCH and use the wider
+range.  If it must match a color that was specified as sRGB -- a brand hex value, a style
+sheet you do not control -- mix in RGB or type the hex value.  Mixing in one space and
+outputting in another means a conversion somewhere -- at export or at the printer -- and
+conversions shift colors.
+
+The *Default color space for new colors* preference (xref:preferences.adoc[Preferences]),
+Display P3 unless you change it, decides the space a color gets when nothing else fixes it:
+the RGB mode the Color Mixer opens in, HLS results, the System picker's result, colors picked
+from images with the Eyedropper, and colors pasted from other applications.  Set it to sRGB
+when everything you make must stay inside sRGB.  Hex values are always sRGB; the CMYK,
+Display P3 and OKLCH modes always store what they say.
+
+To convert a named color to another space:
+
+. Press kbd:[Tab] to deselect everything.
+. In the Swatches panel, select the swatch.  Only named colors can be converted here; name an
+  unnamed color first (xref:swatches.adoc[Swatches]).
+. From the Options menu choose *Convert to > sRGB*, *Convert to > Display P3* or
+  *Convert to > CMYK*.
+
+The conversion picks the nearest value in the other space.  sRGB to Display P3 is exact:
+every sRGB color exists in P3, so the color looks the same and only its numbers change.
+Display P3 to sRGB keeps every color that sRGB can show and pulls the rest in -- such a color
+loses some vividness but keeps its hue and lightness -- so a document meant for the web can be
+made sRGB-safe in one pass.  To or from CMYK goes through the document's profiles
+(xref:color-management.adoc[Color management]) and is not reversible: RGB → CMYK → RGB does
+not return the original, though the color may look identical afterwards even though its
+numbers changed.  The space badge beside the swatch changes to show the result.
+
+== Color libraries
+
+A color library is a list of ready-made colors, usually from a color-matching system whose
+printed swatch books tell a printer exactly which ink to mix.  Importing a color from a
+library gives you its name (which the printer will recognise), its value, and its kind.
+
+{product} ships these libraries:
+
+[cols="1,1,3"]
+|===
+|Library |Kind |Contents
+
+|Crayon |Process, sRGB |The familiar crayon-box names.
+|Grays |Process, CMYK |Tints of black in 5% steps.
+|Web Safe |Process, sRGB |The 216 colors of the browser-safe cube, named by RGB and hex value.
+|Process |Process, CMYK |A grid of CMYK mixes in 10% steps, for quick swatch building.
+|===
+
+A library records the space of each of its colors, so a color you import arrives in the
+space its maker defined it in -- sRGB for the bundled screen libraries, Lab for measured
+swatch books, Display P3 for a library you export from a document that uses it.
+
+Libraries from color-matching systems -- PANTONE, Focoltone, Toyo, DIC, Munsell -- are
+trademarked and licensed by their owners.  {product} opens them when you have a library file
+from the vendor or from another application (see below); it does not bundle them.
+
+To add colors from a library:
+
+. Open the Swatches panel's Options menu and choose the library by name, or choose *Import…*
+  and pick a library file.
+. In the library sheet, select colors.  kbd:[Cmd]-click to add to the selection,
+  kbd:[Shift]-click for a range, or type in the search field to filter by name.
+. Click btn:[Add].
+
+// TODO screenshot: the color library sheet showing a grid of chips, the search field and a selected range
+
+Imported colors keep their library name and key, land in a group named after the library, and
+show the library name in the Object panel.  Colors already in the document are not added
+twice: if the swatch already exists (same library and key), the sheet shows it ticked and
+dimmed.
+
+Library files {product} reads:
+
+[cols="1,3"]
+|===
+|Format |From
+
+|`.wtcolors` |{product}'s own library, as written by *Export…* (xref:exporting-colors.adoc[Exporting and sharing colors]).
+|`.ase` |Adobe Swatch Exchange, written by Illustrator, Photoshop and most other tools.  Spot/process and CMYK/RGB/LAB are honoured: RGB entries are read as sRGB (the format has no space tag) and LAB entries as Lab colors.
+|`.act` |Photoshop color tables (sRGB only).
+|===
+
+Libraries you import from files are remembered: they appear in the Options menu under *My
+Libraries* on this Mac.  Libraries shared with your whole team live in the cloud; see
+xref:exporting-colors.adoc[Exporting and sharing colors].
+
+== Working with others
+
+Converting a swatch between spot and process, or between color spaces, is a change to that
+swatch and everyone sees it at once, with the badge and the italic name updating in their
+panel.  Two people converting the same swatch in opposite directions at the same moment
+cannot both win; the later choice stands.  Converting the space while someone else adjusts
+the value is the one case to watch: their adjustment and your conversion both set the value,
+so the later one stands and the other is offered back in the review after an offline
+session.
+
+Importing from a library adds swatches like any other addition.  If two of you import the
+same library color at the same time you get one swatch each; the second is marked as a
+duplicate in the panel and you can remove either.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,1"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Spot vs process colors; italic/upright names
+|Same; `SwatchProps.spot`.
+|Faithful
+
+|Make Spot / Make Process
+|Same.
+|Faithful
+
+|CMYK, RGB, HLS mixing; HLS stored as RGB
+|Same; HLS is stored in the default RGB space (sRGB or Display P3).
+|Faithful
+
+|System Color Picker (Windows, 48 colors)
+|Dropped; the Apple picker covers it.
+|Dropped: Windows-only.
+
+|Apple Color Picker (CMYK, RGB, HLS, HSV, Crayons, Web HTML)
+|`NSColorPanel` with all its modes; result stored as Display P3 on a P3 Mac, or in the
+default RGB space when that is sRGB.
+|Faithful
+
+|Make RGB / Make CMYK on named colors, with color-management-aware conversion
+|*Convert to > sRGB / Display P3 / CMYK*.  sRGB ↔ P3 by {product}'s own gamut mapping
+(hue and lightness preserved); to and from CMYK through the document's profiles (CMS epic),
+naive formulas only where no profile is available.
+|Faithful, extended
+
+|--
+|Display P3, CIELAB and OKLab as stored spaces beside sRGB and CMYK, every color tagged with
+its space; the OKLCH mixing mode; the *Default color space for new colors* preference.
+|Added: every Mac since 2016 has a Display P3 screen, and CSS Color 4 made P3 and OKLCH the
+web's vocabulary; a color that does not know its space cannot be shown on either honestly.
+
+|Hexachrome colors and libraries
+|Dropped.  Six-color Hexachrome was discontinued by PANTONE; no press supports it.
+|Dropped: discontinued process.
+
+|Bundled libraries: Crayon, Grays, Web Safe
+|Bundled as `.wtcolors` data files.
+|Faithful
+
+|Bundled PANTONE, Focoltone, Toyo, DIC, Munsell libraries
+|Not bundled; read from vendor or third-party files (`.ase`).  Licensing is an open question.
+|Adapted: trademark licensing.
+
+|Import a library stored outside the Colors folder
+|*Import…* from a file; remembered under *My Libraries*.
+|Faithful
+
+|Library dialog with Shift-click multiple selection
+|Sheet with kbd:[Cmd]/kbd:[Shift] selection and a search field.
+|Faithful
+
+|Custom color display of library name and reference
+|`library` and `library_key` shown in the Object panel.
+|Faithful
+|===
+
+=== Data model
+
+`Color`, `ColorSpace`, `Cmyk`, `Rgb`, `Lab` and `SwatchProps.spot`, `library`, `library_key`
+are defined on xref:swatches.adoc[Swatches].  The space of a swatch is the set case of
+`Color.components` together with the `Color.space` tag; both sit inside one ATOMIC register,
+so converting the space is one write of `value` and a space change is a value change.
+`LibraryColor.value` below is the same `Color`, so a library carries each color's space.
+
+Library files are not part of the document:
+
+[source,protobuf]
+----
+// proto/wiretuner/lib/v1/colorlib.proto -- a .wtcolors file (text protobuf), not a node
+message ColorLibrary {
+  string name = 1;                     // shown in the Options menu
+  string notes = 2;
+  uint32 rows = 3;                     // layout hint for the sheet, from FreeHand's export dialog
+  uint32 columns = 4;
+  repeated LibraryColor colors = 5;
+}
+message LibraryColor {
+  string key = 1;                      // stable identifier within the library ("PANTONE 300 C")
+  string name = 2;                     // display name; equals key when the vendor gives no other
+  Color value = 3;
+  bool spot = 4;
+  string group = 5;                    // optional sub-group (a book's page)
+}
+----
+
+=== Merge semantics
+
+[cols="1,1,3"]
+|===
+|Field |Policy |Concurrent case
+
+|`spot`
+|ATOMIC
+|Make Spot vs Make Process on one swatch: LWW.  Either vs a recolor: both keep.
+
+|`value` (space conversion)
+|ATOMIC
+|*Convert to* is a write of `value`; it races any concurrent recolor, or a concurrent
+conversion to another space, as an ordinary LWW on `value`.  The review sheet lists a *same
+register* loss with both values in their own spaces ("Mine: #E63946, Theirs: 0c 80m 90y 0k";
+"Mine: p3(1 0.2 0.1), Theirs: #FF3319").  There is no attempt to convert the winner into the
+loser's space; whichever wins is the color, in its space, and its badge follows.
+
+|`library`, `library_key`
+|ATOMIC each
+|Written together by import and by Update from Library; a concurrent recolor keeps the
+origin, which is the intended meaning ("this is PANTONE 300, adjusted").
+
+|Library import (creation)
+|--
+|Concurrent imports of the same library color create two swatches with the same name; the
+duplicate-name normalization on xref:swatches.adoc[Swatches] applies.  Import never writes
+to an existing swatch.
+|===
+
+Read-time normalizations::
+* `Color` with no case set (a malformed write) reads as CMYK 0/0/0/0 -- white -- so a
+  broken color is visible rather than a crash.
+* `Color.space` is read against the set case.  `cmyk` ignores the tag.  `rgb` tagged `LAB`
+  or `OKLAB` reads as sRGB with the components as-is; `lab` tagged `SRGB` or `DISPLAY_P3`
+  reads as CIELAB.
+* A `space` value this client does not know (written by a newer client for a space added
+  later) reads as sRGB with the components as-is for `rgb`, and as CIELAB for `lab`.  The
+  components are clamped to the space's range for display.  Nothing is written: the tag
+  stays in the state (the merge table from `Welcome` preserves it) so newer clients still
+  read the color as intended.
+* `Lab` components outside the range of their space (an OKLab `l` of 40, say) are clamped on
+  read.
+
+Tints of a color mix toward white in the color's own space: CMYK scales its inks toward
+zero, sRGB and Display P3 interpolate toward (1, 1, 1), CIELAB toward (100, 0, 0) and OKLab
+toward (1, 0, 0), all linearly by the tint percentage (xref:tints.adoc[Tints]).  A tint
+therefore carries its base's space and badge.
+* A `spot` swatch with `role = REGISTRATION` or `BLACK` is spot regardless of the register;
+  a `WHITE` one is process regardless.
+
+=== Offline behavior
+
+Conversions work offline.  Bundled libraries are in the app bundle; *My Libraries* are files
+on this Mac.  Team libraries need the network once, then are cached
+(xref:exporting-colors.adoc[Exporting and sharing colors]).
+
+=== Server
+
+Nothing beyond storing and relaying changes.
+
+=== Client
+
+* `WTModel` (`WTColor` module inside it): `Color` arithmetic -- CMYK↔RGB naive conversion
+  (the standard `R = (1−C)(1−K)` formulas and its inverse with K = min), sRGB↔Display P3
+  (transfer curve to linear, 3×3 matrices through XYZ D65, back), CIELAB↔XYZ D50 with a
+  Bradford adaptation to and from D65, OKLab↔XYZ (Ottosson's LMS matrices), the OKLCH polar
+  form, HLS↔RGB and HSV for the picker in either RGB space, in-gamut tests for sRGB and P3
+  (all linear components within 0..1 after conversion, with a 1/1024 tolerance), CSS Color 4
+  parsing and serialization (`#hex`, `rgb()`, `color(display-p3 …)`, the `p3(…)` shorthand,
+  `oklch()`, `oklab()`, `lab()`), tint scaling in each space as above
+  (xref:tints.adoc[Tints]), web-safe snapping, perceptual distance for "nearest" (ΔE in
+  OKLab -- Euclidean, which is what OKLab was designed for), and default-name formatting.
+  When the CMS epic is present, the naive CMYK↔RGB is replaced by profile conversion behind
+  the same protocol; sRGB↔P3 and the Lab spaces are exact formulas and never go through
+  ColorSync, so they are deterministic across Macs and macOS versions.  Gamut *mapping* (what
+  *Convert to sRGB* does to a color outside sRGB) is COLOR-024's, in `WTRender`.
+* Commands `SetSwatchSpot`, `ConvertSwatchSpace` (targets sRGB, Display P3, CMYK; a no-op
+  write is skipped when the swatch is already in the target space), `ImportLibraryColors`.
+* `WTInterchange`: readers for `.wtcolors` (the `Color` is written whole, space included),
+  `.ase` (the documented block format: RGB read as sRGB, CMYK, LAB read as CIELAB D50, Gray
+  as CMYK K; spot/process/global flag), `.act` (768 bytes of sRGB triples plus optional count
+  and transparency index); the library registry (`~/Library/Application
+  Support/WireTuner/Colors/`) for *My Libraries*.  The `.wtcolors` and `.ase` writers on
+  xref:exporting-colors.adoc[Exporting and sharing colors] write P3 colors to `.ase` as RGB
+  after gamut mapping to sRGB, since `.ase` cannot say P3, and report it.
+* `WTApp`: the library sheet (SwiftUI `LazyVGrid` of chips with names, search, multi-select,
+  already-present ticks).
+
+=== Build tasks
+
+[[COLOR-002]]
+==== COLOR-002 Color model and conversions
+[horizontal]
+Track:: client-model
+Depends on:: COLOR-001
+Size:: M
+Delivers:: The `WTColor` module: `Color` value type over the proto with its `space` tag, CMYK↔RGB, sRGB↔Display P3, CIELAB↔XYZ (D50, Bradford), OKLab↔XYZ and the OKLCH polar form, HLS↔RGB and HSV in either RGB space, in-gamut tests for sRGB and P3, CSS Color 4 parsing and serialization (`#hex`, `rgb()`, `color(display-p3 …)`, `p3(…)`, `oklch()`, `oklab()`, `lab()`), tint scaling as mixing toward white in each space, web-safe snap, perceptual nearest (OKLab ΔE), default-name formatting and parsing for every space, the read-time rules for a mismatched or unknown `space`, and the conversion protocol the CMS epic later implements with profiles for CMYK.
+Done when::
+* Unit tests against reference values for every conversion; the CSS Color 4 test vectors (WPT `css-color-4` conversion cases) for sRGB, P3, Lab and OKLab pass within 1/4096; round-trips within one 8-bit step where mathematically possible; sRGB → P3 → sRGB is exact to 1/65536.
+* Default names round-trip: parsing `0c 80m 90y 0k`, `230r 57g 70b`, `p3(0.90 0.22 0.27)`, `lab(54 63 32)` and `oklch(62% 0.22 25)` yields the color that formats back to the same string.
+* An `rgb` with an unknown `space` value reads as sRGB with its components as-is, and re-encodes with the unknown tag intact.
+* Conformance vector: the resolved color read-out of a swatch stored in each of the five spaces, and of a tint of each.
+
+[[COLOR-005]]
+==== COLOR-005 Spot/process and color-space conversion commands
+[horizontal]
+Track:: client-model
+Depends on:: COLOR-003
+Size:: S
+Delivers:: `SetSwatchSpot`, `ConvertSwatchSpace` with the targets sRGB, Display P3 and CMYK (P3 ↔ sRGB through COLOR-024's gamut mapping, CMYK through the conversion protocol), protection of the role swatches, and the *Convert to* submenu's validation (named colors only, deselect first, the current space disabled).
+Done when::
+* Each command is one labelled change (`Convert "Grape" to Display P3`); tints of a converted base need no write (they resolve through the base).
+* Merge tests: Make Spot vs Make Process converges; Convert to CMYK vs recolor converges and the loser is retained in the log; Convert to sRGB vs Convert to P3 on one swatch converges to one space on every replica.
+* Conformance vector for `spot` and for `value` space change in each direction.
+
+[[COLOR-013]]
+==== COLOR-013 Color libraries
+[horizontal]
+Track:: import-export
+Depends on:: COLOR-003
+Size:: M
+Delivers:: `colorlib.proto` and the `.wtcolors` reader/writer, `.ase` and `.act` readers, the four bundled libraries as data files, the *My Libraries* registry, `ImportLibraryColors` wiring, the library sheet, and *Import RGB Color Table…*.
+Done when::
+* Round-trip: export a library, import it into an empty document, export again -- byte-identical.
+* `.ase` files from Illustrator and Photoshop fixtures import with correct spot/process and spaces; RGB entries read as sRGB and LAB entries as CIELAB with the *Lab* badge.
+* A `.wtcolors` library holding a Display P3 and an OKLab color round-trips both with their spaces; exporting the same library to `.ase` writes the P3 color gamut-mapped to sRGB and reports it.
+* Importing a color already present (same library and key) adds nothing and shows it ticked.
+* Merge test: two clients import the same library color concurrently; both converge with two swatches and the duplicate marker.
+
+[[COLOR-024]]
+==== COLOR-024 Gamut mapping and indicators
+[horizontal]
+Track:: client-render
+Depends on:: COLOR-002, COLOR-006
+Size:: M
+Delivers:: `WTColor.Gamut` in `WTRender`: the CSS Color 4 gamut-mapping algorithm (OKLCH chroma reduction with the just-noticeable-difference stop, section 13 of the specification) as one deterministic function used by *Convert to sRGB* and *Convert to Display P3*, by the HTML and SVG sRGB fallbacks (CMS-015) and by the Color Mixer's indicator; the display-gamut query ("can the screen this window is on show this color", from the window's screen profile, refreshed with CMS-006's display-profile notifications) that the Mixer's warning reads; and the tagged-color render path -- every resolved `Color` becomes a `CGColor` in its own `CGColorSpace` (`sRGB`, `displayP3`, `genericLab` for CIELAB, and `extendedLinearSRGB` for OKLab after the matrix conversion), so the window server and the proof transform clip a color the display cannot show and the document is never altered.
+Done when::
+* Gamut mapping matches the CSS Color 4 reference results for the WPT `css-color-4` gamut-mapping vectors within 1/255 per channel and is byte-identical across runs and Macs (own code, no ColorSync).
+* A `p3(1 0 0)` fill renders on a P3 display as P3 red and on an sRGB display as the ColorSync-clipped red; the stored `Color` is identical on both, and screen and PDF output agree (REND-001).
+* The display-gamut query changes its answer within one frame when the window moves to a display with another profile.
+* Merge test: *Convert to sRGB* on replica A while B recolors the same swatch converges by OpId on both replicas with the loser retained; conformance vector for the mapped value of a reference P3 color.
+endif::spec[]

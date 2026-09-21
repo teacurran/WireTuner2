@@ -1,0 +1,29 @@
+// Shared attributes for every page, guide and spec alike.  The render sets base_dir to docs/, so
+// {docdir}-independent paths (includes, images) resolve from the docs root however deep a page sits.
+//
+// One source, two books (spec/authoring.adoc):
+//   * the guide render leaves `spec` unset, so every ifdef::spec[] block drops out and what is left
+//     is the user guide -- also shipped inside the app as its Help Book;
+//   * the spec render sets `spec`, so the same pages grow their Specification sections and the
+//     spec/ pages (architecture, protocol, backlog) render alongside them.
+:product: WireTuner
+:product-full: WireTuner for macOS
+:fh: FreeHand MX
+:icons: font
+:sectanchors:
+:sectlinks:
+:idprefix:
+:idseparator: -
+:experimental:
+:toc: left
+:toclevels: 3
+:imagesdir: images
+:data-uri:
+// Links between pages are inter-document xrefs (xref:slug.adoc[Title]); both renders emit every
+// page flat into one directory, so the same xref resolves in the guide and in the spec.
+ifdef::spec[]
+:book: Specification
+endif::[]
+ifndef::spec[]
+:book: User Guide
+endif::[]

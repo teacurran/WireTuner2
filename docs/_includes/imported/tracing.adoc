@@ -1,0 +1,362 @@
+The Trace tool turns pixels into paths.  Point it at a scanned logo, a hand-drawn sketch or a
+photograph and it produces filled or stroked paths that follow the shapes it finds, ready to
+edit with every path tool.  It can trace everything inside a marquee, or only an area of
+similar color you pick with its wand, and it traces anything on the page -- an imported image,
+but also {product} objects and text, which it treats as a picture of themselves.
+
+== Preparing an image to trace
+
+Tracing works best on a clean original.  Scan line art at 300 to 600 pixels per inch; more
+resolution produces more points than the drawing needs and slower traces.  Photographs trace
+into many overlapping shapes, so decide first whether you want a posterized rendering (a few
+colors, the *Loose* overlap) or a precise one (many colors, *Tight*).  If the image has stray
+specks, raise *Noise tolerance* rather than cleaning it by hand.
+
+== Setting the Trace tool options
+
+To set the options, double-click the Trace tool in the Tools panel.  {product} remembers the
+settings across documents and launches.
+
+[cols="1,3"]
+|===
+|Option |Effect
+
+|*Tracer*
+|*Classic* (default) traces regions of similar color, as {fh} did; it is exact and
+predictable and right for logos, lettering, scans and line art.  *Photo* first divides the
+picture into the things in it -- a face, a shirt, the sky, a car -- on your Mac, and traces
+each of those separately, so the shapes follow objects rather than bands of color.  See
+<<photo-tracer,Tracing photographs>>.
+
+|*Colors*
+|How many colors the result may use, 2 to 256.  Every pixel is assigned to the nearest of the
+chosen colors before tracing, so 2 gives a black-and-white result and 256 a poster-like one.
+With the *Photo* tracer this is the number of colors *per thing found*.
+
+|*Colors / Grays*
+|Whether the result's colors are the image's colors or gray levels.
+
+|*RGB / CMYK*
+|The color model of the result's fill and stroke colors.  Use CMYK for print work.
+
+|*Resolution*
+|*Low*, *Normal* or *High*.  The resolution the image is sampled at before tracing: *High* keeps
+every pixel and finds the most detail; *Low* samples at a quarter and is fastest.  *Normal*
+samples at half.
+
+|*Trace layers*
+|*All*, *Foreground* or *Background*: which layers' objects the tool looks at inside its
+selection.  Objects on other layers are ignored, so you can trace a scan on the *Background*
+layer without picking up the guides and paths you have already drawn on top.
+
+|*Path conversion*
+|How pixels become paths; see below.
+
+|*Trace conformity*
+|0 to 10.  How closely the paths follow the pixel edges.  Low values give smoother paths with
+fewer points; high values follow every bump.
+
+|*Noise tolerance*
+|0 to 20.  Specks smaller than this many pixels across are ignored.  0 keeps everything.
+
+|*Wand color tolerance*
+|0 to 255.  How different a neighboring pixel's color may be for the wand to include it in a
+selection.  0 selects only identical colors; 255 selects everything connected.
+|===
+
+=== Path conversion
+
+[cols="1,3"]
+|===
+|Mode |Result
+
+|*Outline*
+|Closed, filled paths around each region of color -- the choice for logos, lettering and
+solid artwork.  *Path overlap* sets how regions meet: *None* makes each region a separate
+shape that touches its neighbors edge to edge (best for line art and text); *Loose* lets
+lighter regions extend under darker ones so nothing shows through at the seams (best for
+continuous-tone images); *Tight* overlaps regions by the smallest amount that hides seams
+(more precise color, more points).
+
+|*Centerline*
+|Open, stroked paths along the middle of each line -- for drawings made of strokes with few
+filled areas, such as maps, diagrams and pen sketches.  With *Uniform* on, every path gets a
+1-point stroke; off, each path's stroke width follows the width of the line it traced.
+
+|*Centerline / Outline*
+|Both: thin features become centerline strokes, thick ones become filled outlines.  *Open
+paths below* (2 to 10 pixels) is the width at which a feature switches from a stroke to a
+filled shape.
+
+|*Outer edge*
+|One closed path around the outside of everything traced, ignoring holes and interior detail.
+This is the path to use as a clipping path: trace, then paste the original image inside it
+(xref:clipping-paths.adoc[Clipping paths]).
+|===
+
+// TODO screenshot: the Trace tool options sheet
+
+=== Tracing photographs [[photo-tracer]]
+
+The classic tracer sees only color, so a photograph traces into bands that cut across the
+things in it: a face becomes a stack of skin-colored puddles, a red car and a red sign become
+one shape.  The *Photo* tracer looks at the picture the way you do first.  It divides it into
+regions that belong together -- the subject, each distinct thing around it, the background --
+and then traces each region on its own with the classic tracer and your other options.  The
+result is the same kind of group of ordinary paths, with about as many objects, but the edges
+of the paths run along the edges of things.
+
+Use it for photographs and paintings.  For a logo, a scan or lettering it finds one region and
+does no better than *Classic*, only slower.  With *Colors* at 2 to 4 and *Path overlap* at
+*Loose* it produces a clean poster; with 16 or more and *Tight* a detailed illustration.
+
+The regions are found on your Mac, with nothing sent anywhere, and they are only a step on the
+way: nothing about them is kept once the paths exist.  See the note on
+xref:bitmaps.adoc[Working with bitmap images] for what {product} deliberately does not do
+with pictures.
+
+== Tracing an area
+
+To trace everything inside an area:
+
+. Select the Trace tool in the Tools panel.  The pointer becomes a wand.
+. Drag a marquee around what you want to trace.  Hold kbd:[Shift] to constrain the marquee to
+  a square; hold kbd:[Option] to drag it from its center.
+. Release.  {product} traces and places the result directly above the traced objects, on the
+  same layer, as a selected group named *Trace of _name_*.
+
+The original is not changed or removed; delete or hide it once you are happy with the trace.
+
+== Tracing an area of color
+
+The wand selects connected pixels of similar color, like a magic wand in an image editor, and
+traces only those.
+
+To trace by color:
+
+. Select the Trace tool.
+. Click a color in the image.  Connected pixels within the *Wand color tolerance* are selected
+  and shown with a marching outline.
+. Adjust the selection:
+* kbd:[Shift]-click another area to add it -- it can be a different color, so you can select a
+  rose and its stem.
+* kbd:[Shift]-click a selected area to remove it.
+* Press kbd:[Tab] to deselect everything.
+. Click inside a selected area.  The wand options popover appears:
+* *Trace selection* traces the selected pixels with the current Trace tool options.
+* *Convert selection edge* makes one closed path along the boundary of the selection, with no
+  fill and the default stroke -- a quick way to get a clipping path or a mask.
+. Click btn:[Trace].
+
+The result is placed directly above the image, selected, as a group named after the image.
+
+TIP: To add the colors of a traced result to the Swatches panel, select it and choose
+menu:Extensions[Colors > Name All Colors], or pick them with the Eyedropper tool
+(xref:swatches.adoc[Swatches]).
+
+== Working with others
+
+A trace adds new objects and changes nothing else, so it never collides with anyone.  If a
+collaborator moves, scales or even deletes the image while you are tracing it, your trace
+still appears where the image *was* when you started, since it is drawn from the pixels you
+saw.  Tracing an image someone else placed works as soon as its pixels have downloaded to your
+Mac; a placeholder cannot be traced, and the tool says so.
+
+Trace tool options are yours alone; collaborators keep their own.  Tracing works entirely on
+your Mac, so it works offline, and the result syncs like any drawing.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,2"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Trace tool in the Tools panel; double-click for options
+|Same.
+|Faithful
+
+|Colors 2–256, Colors/Grays, RGB/CMYK
+|Same.
+|Faithful
+
+|Resolution Low/Normal/High
+|Same; defined as sampling at 1/4, 1/2 and 1/1.
+|Faithful
+
+|Trace layers All/Foreground/Background
+|Same.
+|Faithful
+
+|Path conversion Outline (overlap None/Loose/Tight), Centerline (Uniform), Centerline/Outline
+(Open paths below 2–10), Outer edge
+|Same.
+|Faithful
+
+|Trace conformity 0–10, Noise tolerance 0–20, Wand color tolerance 0–255
+|Same.
+|Faithful
+
+|Marquee trace; kbd:[Shift] constrains to a square
+|Same; kbd:[Option] from center added.
+|Faithful
+
+|Wand: click, kbd:[Shift]-click add/subtract, kbd:[Tab] deselect, click selection for
+*Trace Selection* / *Convert Selection Edge*
+|Same; the options appear in a popover.
+|Faithful
+
+|Result placed directly above the traced object
+|Same, grouped and named.
+|Faithful
+
+|Low-memory fallback to the lowest resolution
+|Not needed; tracing streams tiles and never holds more than the sampled image.
+|Dropped -- a 2003 memory constraint.
+
+|Traces {fh} objects and text as well as bitmaps
+|Same: the selection area is rendered to pixels first.
+|Faithful
+
+|Settings saved to the Preferences file
+|Same: *Trace tool options* stored with the user's preferences.
+|Faithful
+
+|(none)
+|*Tracer: Photo* -- on-device segmentation into regions before classic tracing.
+|Added -- better shapes for photographs; the classic tracer is unchanged and remains the
+default (xref:decisions.adoc[Decisions]: on-device ML only).
+|===
+
+=== Data model
+
+Nothing new.  A trace writes one change: `CreateNode` for a group and its paths on the traced
+object's layer, positioned directly above the topmost traced node, with fills and strokes in
+the ATTR epic's messages and colors as literal `ColorRef`s (not swatches, until *Name All
+Colors*).  Trace options are a `Preferences` entry (`trace_tool`), not document state; the
+*Tracer* choice is one more key in that entry (`tracer: classic | photo`, default `classic`).
+The *Photo* tracer's regions are transient: nothing about them is written to the document.
+
+=== Merge semantics
+
+The trace is new nodes only, so there is nothing to merge.  If the source image is concurrently
+deleted the trace remains; if the source layer is concurrently deleted the trace's group lands
+on a deleted layer and the review sheet lists it as *edit vs delete* on the layer with
+*Restore*.  Placement uses a fractional position above the source node as it was at trace
+time; a concurrent restack does not matter.
+
+=== Offline behavior
+
+Fully offline.  Tracing requires the source blob to be in the local cache; a placeholder
+refuses with "Waiting for this image to download".
+
+=== Server
+
+Nothing beyond storing and relaying changes.
+
+=== Client
+
+* Tracing lives in `WTGeometry.Trace` and runs off the main actor with a progress sheet and
+  cancel for traces over 1 MP of sampled pixels.
+* Input: the selection rect (marquee or wand mask bounds) is rendered through `WTRender` to a
+  bitmap at the chosen sampling of the underlying image's pixel density (for a bitmap source:
+  its pixels; for vector sources: 300 ppi × the resolution factor) with only the *Trace layers*
+  visible.  Coordinates are kept as an affine map from bitmap space back to pasteboard space.
+* Quantization: median-cut to *Colors* palette entries (gray levels when *Grays*), then a
+  3 × 3 majority filter for *Noise tolerance* 1–5 and a connected-component area threshold for
+  larger values.
+* Outline: per palette entry, a binary mask → contour extraction with hole polarity (Potrace's
+  path decomposition: boundary following with turn policy "minority") → polygon
+  approximation → Schneider curve fitting (GEO-004) with the tolerance from *Trace conformity*
+  (`tolerance = 2.5 - 0.2 * conformity` pixels).  *Path overlap* *None* emits each mask as
+  traced; *Loose* dilates each lighter region by 2 px under darker ones (regions ordered by
+  luminance, painter's order); *Tight* dilates by 0.5 px.
+* Centerline: Zhang–Suen thinning of the foreground mask → skeleton graph extraction (junction
+  and end nodes, edge pixel chains) → per-chain curve fitting → stroke width from the distance
+  transform sampled along the chain (median for *Uniform* off; 1 pt for *Uniform* on).
+  *Centerline / Outline* classifies each connected component by its maximum distance-transform
+  value against *Open paths below* and routes it to one algorithm or the other.
+* *Outer edge*: outline of the union mask with holes removed.
+* Wand: flood fill in the quantized-free source pixels with Euclidean RGB distance ≤ tolerance,
+  8-connected; the mask is displayed as a marching-ants overlay by the canvas, and additive
+  selections are unions of masks.  *Convert selection edge* runs the outline stage on the mask
+  with no fill.
+* Performance budget: a 4 MP source at *Normal* with 16 colors and *Outline* traces in under
+  2 s on M1; centerline of a 4 MP line drawing in under 3 s.
+* *Photo* tracer (`WTGeometry.Trace.Segmenter`, IMG-029): the sampled bitmap is segmented
+  into regions before quantization.  Two sources are combined: Vision's
+  `VNGenerateForegroundInstanceMaskRequest` (IMG-027's kernel) for the subject instances,
+  and a small bundled Core ML semantic-segmentation model (a MobileNet-class DeepLab
+  variant, under 10 MB, compiled into the app, run through `VNCoreMLRequest`) whose class map
+  splits the remainder into regions; regions under *Noise tolerance*² pixels merge into their
+  largest neighbor, and region edges are snapped to the nearest strong color edge within 2
+  px so they do not float off the picture's own contours.  Each region is then quantized to
+  *Colors* entries and traced by the classic pipeline with the same options, in painter's
+  order from the largest region to the smallest, with *Path overlap* applied inside a region
+  only.  Output is one group per trace, as before, with a sub-group per region named after
+  the model's class label ("Person", "Sky", "Vehicle", …; "Region 3" when unlabelled).
+  A source with one region (a logo) degrades to the classic path with no visible difference.
+  The model is an optional resource: if it is absent from the bundle (a build without it) the
+  *Photo* tracer uses foreground instances only, splitting the picture into subject and
+  background, and the options sheet says so.  Nothing leaves the Mac.
+* Undo: one change per trace, labelled "Trace _name_".
+
+=== Build tasks
+
+[[IMG-021]]
+==== IMG-021 Trace kernel: quantization and outline tracing
+[horizontal]
+Track:: client-render
+Depends on:: GEO-001, GEO-004
+Size:: L
+Delivers:: `WTGeometry.Trace`: sampling from a rendered bitmap, median-cut quantization, noise filtering, contour extraction with holes, polygon approximation, curve fitting driven by conformity, overlap modes, outer edge, colors as RGB or CMYK, grays; a cancellable async API with progress.
+Done when::
+* Fixture corpus (line art, lettering, a photograph, a noisy scan) at each resolution and
+  overlap mode produces path counts and point counts within recorded bounds and renders back
+  over the source with under 2% pixel difference at *High*, conformity 10, overlap *None*.
+* 4 MP *Normal* 16-color outline under 2 s on M1; cancellation returns within 100 ms.
+* No allocation in the contour-following hot loop (measured).
+
+[[IMG-022]]
+==== IMG-022 Centerline tracing
+[horizontal]
+Track:: client-render
+Depends on:: IMG-021
+Size:: M
+Delivers:: Thinning, skeleton graph extraction, chain fitting, stroke width estimation, *Uniform*, and the *Centerline / Outline* classifier with *Open paths below*.
+Done when::
+* A fixture of drawn lines of known widths 1–12 px yields strokes within 0.5 px of the truth;
+  junctions produce connected endpoints within 1 px.
+* Classifier routes features under the threshold to strokes and over it to outlines on the
+  fixture.
+
+[[IMG-023]]
+==== IMG-023 Trace tool
+[horizontal]
+Track:: client-ui
+Depends on:: APP-003, IMG-004, IMG-021, IMG-022
+Size:: L
+Delivers:: The Trace tool: marquee with kbd:[Shift] and kbd:[Option], wand selection with add, subtract and kbd:[Tab], marching-ants overlay, the wand options popover, the options sheet on double-click with persistence in preferences, *Trace layers* rendering, progress sheet with cancel, result placement above the source as a named group, placeholder refusal.
+Done when::
+* UI tests: marquee trace of a fixture yields a group directly above the image with the
+  expected number of paths; wand add/subtract/Tab sequences select the expected pixel counts;
+  *Convert selection edge* yields one unfilled path.
+* Options survive relaunch.
+* Merge test: tracing on A while B deletes the image leaves the trace group present on both;
+  tracing while B deletes the layer is listed as edit vs delete on B's review.
+
+[[IMG-029]]
+==== IMG-029 Photo tracer: segmentation before tracing
+[horizontal]
+Track:: client-render
+Depends on:: IMG-021, IMG-027
+Size:: L
+Delivers:: `Trace.Segmenter` combining foreground instances with the bundled Core ML class map, small-region merging, edge snapping, per-region quantization and tracing in painter's order, region sub-groups with class names, the model-absent fallback, and the *Tracer* option in the options sheet and preferences.
+Done when::
+* On a fixture set (portrait, street scene, still life, a logo) the *Photo* tracer yields region counts within recorded bounds; on the logo its output equals *Classic*'s within curve-fitting tolerance.
+* The portrait's face region traces as paths whose union stays within 3 px of the reference mask edge along 95% of its length.
+* A 4 MP source at *Normal* with 16 colors traces in under 6 s on M1 including segmentation; cancellation returns within 100 ms.
+* A build without the Core ML resource passes the same tests with the subject/background fallback and shows the sheet's note; the trace makes no network calls (sandbox audit).
+endif::spec[]

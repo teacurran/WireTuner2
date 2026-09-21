@@ -1,0 +1,108 @@
+= Testing
+include::_attributes.adoc[]
+:page-slug: testing
+
+Two engines in two languages must agree byte for byte, and a document must survive any
+interleaving of edits from any number of people who may each be offline for days.  Tests here
+are the specification's teeth.
+
+== Conformance vectors
+
+`crdt-conformance/vectors/<area>/<name>.textproto`:
+
+[source,textproto]
+----
+name: "path/concurrent-point-drag"
+description: "Two replicas drag the same anchor; the greater OpId wins; both handles follow."
+setup { change { ... } }                  # applied to every replica first
+replica { id: 1 change { ... } }           # concurrent work per replica
+replica { id: 2 change { ... } }
+deliveries { order: [1, 2] }               # each order must converge to the same hash
+deliveries { order: [2, 1] }
+expect { state_hash: "…" node { id { counter: 9 replica: 1 } path { ... } } }
+----
+
+Every task that adds a field or a merge rule adds vectors.  Both engines run every vector in
+CI (CRDT-011); a divergence names the vector and the first differing node.  The vectors are
+also the seed corpus for the fuzzer (CRDT-012), which runs nightly over a million random ops and
+minimises any failure into a new vector.
+
+== Multi-client simulation
+
+`WTTestSupport.Simulation` (TEST-001) runs N in-process clients (real `WTSync` and `WTCRDT`)
+against the compose server through a proxy that scripts latency, loss, partitions and long
+offline periods.  Scenarios, each asserting hash convergence and the expected sync-state
+transitions:
+
+. Three users editing one path for ten minutes with 200 ms latency, with pipelined pushes
+  deliberately reordered, and once more in gateway (batch) mode.
+. One user offline for 48 simulated hours producing 30,000 ops while two others produce
+  5,000; reconnect; verify the review sheet's classification and, after "Keep the merged
+  result", convergence.
+. Same, with "Save my version as a copy": original converges to the remote state, copy holds
+  the local state.
+. Replica store copied to a second client: `REPLICA_CONFLICT`, rotation, no id collision.
+. Replica retired by the stability job, reconnect, salvage.
+. Server node restart mid-session; Valkey restart; Postgres failover to the replica.
+. A viewer's role downgraded mid-session.
+. Token expiry every minute for an hour.
+
+== Geometry and rendering
+
+* `WTGeometry`: property tests against numeric references; a corpus of 200 boolean cases
+  including tangencies; fuzzed random paths never crash or hang.
+* `WTRender`: golden-image tests for a corpus of documents (converted {fh} examples where
+  licensing allows, otherwise reconstructed), rendered by the Core Graphics reference renderer
+  and compared at 1× and 4× with a per-pixel tolerance; bitmap render vs. PDF render compared
+  pairwise.  The goldens are Core Graphics output: Core Graphics is the truth.
+* Metal/CG parity (REND-007): every corpus document is rendered by the Metal tile renderer
+  and by the Core Graphics renderer over the same tile keys, at 1×, 2× and 4× and at canvas
+  rotations of 0°, 15° and 90°, in Preview and Keyline, and compared tile by tile.  A tile
+  passes when every pixel more than one pixel away from an edge in the coverage mask matches
+  within 2/255 per channel, edge pixels match within 40/255 (MSAA against analytic coverage),
+  and no more than 0.1% of the tile's pixels fail either bound.  A failing tile is written out
+  as a triptych (CG, Metal, difference) named by document and tile key.  The test runs on the
+  CI Mac's GPU; a Mac without one skips it and CI marks the run incomplete rather than green.
+* `WTText`: layout goldens for the type chapter's features (columns, tabs, rules, on-path).
+
+== Import and export
+
+Round-trip corpus per format: export then import must reproduce geometry within tolerance and
+preserve names, layers, colors and text.  Third-party fixtures (SVG test suite, PDF samples,
+UFO reference fonts) are vendored with their licences.
+
+== UI
+
+XCUITest through the harness in TEST-002.  Each feature page's tasks name their UI tests.  The
+harness runs with a real compose server for collaboration tests (two app instances on the CI
+Mac, driven in one test).
+
+== Server
+
+Quarkus tests with Testcontainers (postgres, valkey, minio, keycloak), one test class per
+service, plus the ingest load test (`SRV-004`) and the conformance run against `wt-crdt`.
+
+== Performance gates
+
+CI fails when any of these regress by more than 20% against the stored baseline:
+
+[cols="2,1"]
+|===
+|Measure |Budget
+
+|Apply a 50-op remote change, 50,000-node document (M1) |1 ms
+|Bootstrap the design-point document from snapshot |1.5 s
+|Hit test at 50,000 nodes |2 ms
+|Pan/zoom frame time, Metal renderer on a 120 Hz display, design-point document |8.3 ms (no frame over budget in a 10 s scripted pan, zoom and rotate)
+|Pan/zoom frame time, Core Graphics fallback renderer |16 ms
+|Metal vs. Core Graphics tile parity, golden corpus |0 failing tiles
+|Coalesce and encode a 20,000-op outbox |500 ms
+|Divergence measurement, design-point document |200 ms
+|Server ingest, single document |2,000 changes/s
+|===
+
+== Documentation
+
+`make docs-check` renders both books with warnings as errors.  A CI step greps every
+`xref:` target against the page list and every `Depends on::` id against defined anchors, so a
+dangling task id fails the build.

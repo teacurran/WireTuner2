@@ -1,0 +1,185 @@
+When you open a document that uses fonts not installed on your Mac, {product} shows the *Missing
+Fonts* sheet and lets you choose what to display in their place.  You can *substitute* a font --
+a stand-in on your Mac only, leaving the document untouched -- or *replace* it, which changes the
+document for everyone.  If a team font library is available, fonts in it are fetched
+automatically and the sheet never appears for them.
+
+// TODO screenshot: the Missing Fonts sheet listing two fonts, one with a remembered substitute
+
+== What happens when a font is missing
+
+Text keeps its font name.  On your Mac it is drawn in a substitute -- the one you chose, or the
+default substitute, *Helvetica Neue* -- and the Text panel shows the missing font's name in
+brackets with a warning badge.  Line breaks are laid out with the substitute's metrics, so the
+text may reflow on your screen; the document itself is not changed, and the text prints and
+exports in the real font on any Mac that has it.
+
+{product} looks for a missing font in three places before asking:
+
+. The fonts installed on your Mac (including those Font Book has activated).
+. Fonts embedded in the document, where their license allows embedding
+  (xref:print-fonts.adoc[Fonts and printing]).
+. Your team's font library, if your team has one and you are online.  A matching font is
+  downloaded and activated for {product} only.
+
+== The Missing Fonts sheet
+
+The sheet opens when a document or an imported file uses a font that none of the sources above
+provide.  It lists each missing font with its style and the substitute currently in effect.
+
+To handle missing fonts:
+
+. Select one font in the list, or click btn:[Select All].
+. Do one of the following:
+* Click btn:[Substitute…] and choose a font and style.  It is used on your Mac for this document
+  and, with *Remember this substitution* on, for every document that uses the missing font.
+* Click btn:[Replace…] and choose a font and style.  The document's text is changed to the new
+  font, for everyone, as one undoable change.
+* Do nothing: the default substitute is used.
+. Click btn:[Open].  Or click btn:[Cancel] to close the document without applying replacements
+  (substitutions cost nothing and are always applied).
+
+*Keep original name* (on by default) means that a substituted font keeps reporting the missing
+font's name in the Text panel and in exports, so nothing is lost when the font shows up later.
+Turning it off for a font is the same as replacing.
+
+Replacing keeps manual kerning and tracking.  It does not resize anything; if the replacement is
+wider, text may reflow -- for everyone.
+
+== The substitution table
+
+Your substitutions are kept in menu:{product}[Settings… > Text > Font substitutions]: a table of
+missing font → substitute pairs.  Remove a row to be asked again next time; the *Default
+substitute* row sets the fallback used for fonts with no row.  The table is a preference: it is
+yours, is synced to your other Macs with your preferences, and never changes a document.
+
+== Team font library
+
+A team can upload licensed fonts to its font library (xref:sharing.adoc[Sharing]).  When you open
+a team document that uses one of them, the font is fetched and activated silently; the Missing
+Fonts sheet lists only fonts the library does not have.  While offline, fonts you have already
+fetched remain available; others are substituted until you reconnect, when the sheet's *Fetch
+from team library* button becomes available.
+
+== Working with others
+
+A missing font is missing on *your* Mac, not in the document.  Collaborators who have the font see
+the real thing; you see your substitute; the text is the same text.  Presence shows a small font
+badge on people who are viewing the document with substitutions, so a reviewer knows whose screen
+reflowed.
+
+Replacing a font is an edit like any other: everyone sees the new font.  If two people replace the
+same font with different fonts at the same time, the later replacement stands for every run both
+of them touched, and the other is told.  If someone replaces a font while you are typing in it,
+your new text takes the replacement too.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,1"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Missing Fonts dialog on open or import; Select All; Replace; OK / Cancel
+|Same, as a sheet, plus *Substitute…*.
+|Faithful
+
+|Unreplaced fonts display and print in the default font (Courier on Mac); the assignment is kept
+|Same intent; default substitute is Helvetica Neue and is a preference.
+|Adapted -- Courier is a poor stand-in for reflow; the default is user-settable.
+
+|Replacing strips manual kerning
+|Kerning is kept.
+|Adapted -- no reason to discard work; the kerning values still apply to the new font.
+
+|Temporary substitution when opening
+|The substitution table; remembered per user.
+|Faithful
+
+|Adobe Type Manager automatic substitution
+|None.
+|Dropped -- ATM no longer exists; {product}'s own substitution covers the case.
+
+|Fontographer cross-platform advice
+|Not applicable to a Mac-only product.
+|Dropped
+
+|Team font library
+|Fonts fetched from the team library before asking.
+|Adapted -- new capability from the cloud; delivered by TXT-002.
+|===
+
+=== Data model
+
+No document fields.  Font names live in text marks (TYPE epic); replacement writes `TextMark` ops
+with the new font for every run that carried the old one, in one change labelled "Replace font
+<old> with <new>".  Substitutions are in `Preferences.font_substitutions` (a repeated message of
+`missing`, `substitute`, `style`) in `AccountService`, plus a per-document, per-Mac cache of which
+fonts were substituted (the `view` table) so the badge and the reopen-without-asking behavior work.
+
+=== Merge semantics
+
+Replace vs. replace (same font, different targets):: Each run's font mark is a Peritext mark;
+concurrent marks over the same span resolve by OpId, so the later replacement wins per character
+range.  Runs only one side touched (text inserted between the two changes) keep that side's font.
+Review lists the same-text overlap per paragraph when both sides marked the same characters.
+
+Replace vs. typing in that font:: Typing inserts characters that inherit the surrounding mark; the
+replacement mark expands over them if they are inside its span (Peritext expansion), so the new
+text takes the replacement.  Typed text *after* the span's end, in a run the replacement did not
+cover, keeps the old font; normal Peritext behavior, no review entry.
+
+Substitution:: Never merged: it is not in the document.
+
+=== Offline behavior
+
+* The Missing Fonts sheet works offline; team-library fetching is disabled with the *Fetch from
+  team library* button greyed and explained.
+* Replacements made offline are ordinary changes.
+
+=== Server
+
+Nothing beyond storing and relaying changes.  The team font library itself is an `AccountService`
+feature specified with sharing.
+
+=== Client
+
+* `WTText.FontResolver` (TXT-002) resolves a font name through installed → embedded → team
+  library → substitution table → default substitute, and reports which step answered so the
+  badge and the sheet can show it.
+* Missing Fonts sheet (`WTApp`): SwiftUI sheet on the document window, presented before the first
+  render of the document if any font resolved through substitution and no remembered row covers
+  it.  btn:[Replace…] and btn:[Substitute…] use `NSFontPanel`-free pickers listing families and
+  styles.
+* `WTModel.replaceFont(old:new:)` walks every text node's marks and emits one change.
+* Preferences pane *Text > Font substitutions* table; *Default substitute* row; *Remember this
+  substitution* toggle in the sheet (on by default).
+
+=== Build tasks
+
+[[DOC-024]]
+==== DOC-024 Missing Fonts sheet and substitution table
+[horizontal]
+Track:: client-ui
+Depends on:: TXT-002, APP-010
+Size:: M
+Delivers:: The Missing Fonts sheet with Substitute…, Replace…, Select All, Keep original name, Remember this substitution, Fetch from team library; the *Font substitutions* preference table with *Default substitute*; the substitution badge in the Text panel and in presence.
+Done when::
+* Opening a document with a missing font that has a remembered substitution shows no sheet and renders with the substitute.
+* Cancel closes the document without writing anything; Open with a replacement writes exactly one change.
+* UI tests for substitute, replace, remember, and team-library fetch (simulated).
+
+[[DOC-025]]
+==== DOC-025 Replace font command
+[horizontal]
+Track:: client-model
+Depends on:: CRDT-006, DOC-002
+Size:: S
+Delivers:: `WTModel.replaceFont(old:new:)` over every text node's marks, keeping kerning and tracking, as one labelled change with an inverse.
+Done when::
+* Every run of the old font in a 200,000-character document is replaced in under 200 ms.
+* Merge tests: replace vs. replace of the same font (later wins per span); replace vs. concurrent typing inside a span (new text takes the replacement).
+* Undo restores the old font on every run this user changed and leaves runs others changed since.
+endif::spec[]

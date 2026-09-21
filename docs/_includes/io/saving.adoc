@@ -1,0 +1,776 @@
+{product} has no Save command that talks to the network.  Every change you make is written to
+this Mac the instant you make it, and sent to the cloud as soon as there is a connection.  You
+never lose work to a crash, a dead battery or a closed lid, and you never have to remember to
+save.  What the File menu offers instead is a set of commands about *versions* and *copies*:
+bookmarking a moment in the document's history, duplicating the document, exporting a
+self-contained package for backup or exchange, and restoring an earlier version.
+
+NOTE: For {fh} users: menu:File[Save] became menu:File[Save Version…] and marks a named point in
+the document's history rather than writing a file.  menu:File[Save As…] became
+menu:File[Duplicate] and menu:File[Export a Package…].  menu:File[Revert] became
+menu:File[Restore a Version…].  There is no asterisk in the title bar: the sync indicator
+described below replaces it.
+
+== The sync indicator
+
+Every document window shows its sync state under the title, and in the toolbar as a cloud
+icon.  The state answers one question: has everything I did here reached the cloud?
+
+// TODO screenshot: document window title bar showing "Saved to cloud" and the cloud toolbar item
+
+[cols="1,3"]
+|===
+|State |Meaning
+
+|*Opening…*
+|The document is being downloaded, or brought up to date with what happened while it was
+closed.  You can start working as soon as the artwork appears.
+
+|*Saved to cloud*
+|Every change made on this Mac is in the cloud.  Closing the window, quitting or losing the
+network now loses nothing anywhere.
+
+|*Syncing 3 changes*
+|You are connected and your most recent changes are on their way.  This normally lasts under a
+second.
+
+|*Uploading 2 images*
+|Your changes are in the cloud, but images you placed are still uploading.  Other people see a
+placeholder where the image goes until the upload finishes.
+
+|*Offline*
+|There is no connection.  Everything you do is kept on this Mac.  With changes waiting the
+state reads *Offline — 412 changes waiting*.
+
+|*Uploading backlog 42%*
+|You have reconnected after working offline and the changes you made are being sent in bulk.
+You can keep working; the percentage counts the backlog only.
+
+|*Needs review*
+|While you were offline, someone else changed some of the same objects you did.  {product} has
+merged the two sets of changes and is waiting for you to look at the result before it sends
+yours (xref:collaboration.adoc[Working together]).  Click the indicator, or choose
+menu:File[Review Merge…].
+
+|*View only*
+|You can look but not edit: your role on this document is viewer or commenter, or the document
+uses features newer than this version of {product}.  The indicator's popover says which.
+
+|*Sign in to sync*
+|Your session with the cloud expired and could not be renewed silently.  Work continues on
+this Mac; click to sign in again.
+
+|*Storage full — 2 images waiting*
+|Your team's storage is full.  Changes still sync; new images wait until space is freed or
+the plan is raised (see <<storage,Storage>>).
+
+|*Can't sync*
+|Something is wrong that {product} cannot fix by retrying.  The popover explains and offers
+*Export a Package…* so your work can be kept outside the cloud while the problem is sorted out.
+|===
+
+Clicking the indicator opens a popover with the details behind the state: when the document
+was last fully synced, how many changes and images are waiting, who else has the document open,
+and the actions that make sense in the current state (*Retry now*, *Review Merge…*, *Sign In…*,
+*Export a Package…*).
+
+The indicator describes *this Mac's* changes.  It cannot tell you about changes other people
+made while you were offline, because nobody can know those until you reconnect.
+
+== Saving a version
+
+A *version* is a named bookmark in the document's history (xref:history.adoc[History]).  It
+does not copy anything; it marks the state of the document at that moment so you can find it
+again, compare against it, or restore it.  Versions are shared: everyone with access to the
+document sees the same list.
+
+To save a version:
+
+. Choose menu:File[Save Version…] or press kbd:[Cmd+S].
+. In the sheet, type a name.  The field is prefilled with the date and time, so pressing
+  kbd:[Return] straight away is fine.
+. Optionally add a note describing what the version captures.
+. Click btn:[Save Version].
+
+The version appears in the History panel with your name and the time.  If you save a version
+while offline, it is marked *pending* in the panel and takes its place in the shared history
+when your changes upload.
+
+If you would rather kbd:[Cmd+S] work silently, as a reflex, turn off *Ask for a version name
+when saving* in menu:{product}[Settings… > Documents].  Each press then creates a version named
+with the date and time and shows a brief confirmation.
+
+== Duplicating a document
+
+menu:File[Duplicate] (kbd:[Cmd+Shift+S]) creates a new, separate document with the same
+content, in the same folder, named "<name> copy", and opens it in a new window.  The duplicate
+starts with no history and no collaborators: it is yours, and you share it like any other
+document (xref:sharing.adoc[Sharing]).  Duplicate works offline; the copy is created in the
+cloud when you next connect.
+
+To make a copy of the document at an *earlier* point, restore that version as a copy instead
+(below).
+
+== Restoring a version
+
+menu:File[Restore a Version…] opens the History panel scrolled to the named versions.  From
+there you can:
+
+Restore as a copy:: Creates a new document holding the document as it was at that version.
+The current document is untouched.  This is the safe choice when other people are working.
+
+Restore in place:: Rewinds the current document to that version for everyone.  Nothing is
+lost -- the changes being undone stay in history, and the restore itself is a change that can
+be undone with kbd:[Cmd+Z] or by restoring a later version.  A sheet confirms and names the
+people who have made changes since.
+
+See xref:history.adoc[History] for browsing, comparing and naming versions.
+
+== Packages: a document as a file
+
+A *package* is a single file with the extension `.wiretuner` holding a complete copy of a
+document: every object, every page, every placed image and embedded font, plus a thumbnail
+and a preview of the first page for the Finder.  It is the way to keep a backup outside the
+cloud, archive a finished job, hand a document to someone who is not on your team, or move a
+document between accounts.
+
+To export a package:
+
+. Choose menu:File[Export a Package…].
+. Choose a name and location and click btn:[Export].
+
+If some of your changes have not reached the cloud yet (the indicator shows *Offline* or
+*Syncing*), they are included -- the package is what you see on screen.  The Finder's preview
+of such a package notes that it contains changes that had not been synced when it was made.
+If a placed image has not finished downloading to this Mac, the export warns that it could not
+be included and names it.
+
+To open a package:
+
+. Choose menu:File[Open Package…], or double-click the package in the Finder.
+. Choose which team or folder the imported document should live in.
+
+Opening a package always creates a *new* document in the cloud; it never overwrites the
+document it was exported from, even if that document still exists.  If you want objects from a
+package back in the original, open both and copy them across.  The new document has no history
+before the import.
+
+TIP: A package is also a good way to send a document to support, or to keep a snapshot of a
+milestone that you want to be able to open even if the team's account is closed.
+
+== Keeping a copy on this Mac
+
+Every document you have opened on this Mac stays on it, fully readable and editable offline,
+until you remove it.  In the library window, documents available offline carry a badge, and
+menu:File[Remove Local Copy] frees the space once the document is fully synced.  Documents you
+have never opened on this Mac cannot be opened without a connection
+(xref:creating-opening.adoc[Creating and opening documents]).
+
+{product} writes a compact copy of the whole document to disk at the *Snapshot interval*
+(menu:{product}[Settings… > Documents], default every 5 minutes) and when the window closes.
+This is not a save in the {fh} sense -- every change is already on disk the moment it is made
+-- it only makes reopening faster.  At the same moments, if the document changed, {product}
+refreshes the document's picture in the library window (xref:creating-opening.adoc[Creating
+and opening documents]).  There is nothing to configure about backups: the cloud holds the
+document's whole history, and a package is the way to take a copy elsewhere.
+
+NOTE: For {fh} users: there is no autosave, backup or "save reminder" preference because there
+is nothing to remind you about.  The *Snapshot interval* is the one setting that survived.
+
+== Quick Look and Spotlight
+
+A package behaves like any document file in the Finder.  Its icon is a thumbnail of the
+first page; select it and press kbd:[Space] and Quick Look shows the first page at full size,
+with the document's title, its page count and, when the package was exported with changes that
+had not reached the cloud, a note saying so.  Packages made by older versions of {product}
+without a preview show the thumbnail in its place.
+
+Spotlight finds your documents whether or not they are open.  Every document you have opened
+on this Mac (see <<keeping-a-copy-on-this-mac,Keeping a copy on this Mac>>) is indexed by
+its name, the text in it, and the title, description and keywords from Document Info
+(xref:file-info.adoc[Adding file information]); type a word from any of them into Spotlight and
+the document is listed under *{product} Documents*.  Choosing it opens the document.  Packages
+on disk are indexed the same way, by the same fields, and open as packages do
+(<<packages-a-document-as-a-file,Packages>>).  menu:File[Remove Local Copy] takes a document
+out of the index along with its copy; deleting a package removes it like any file.
+
+== The same document on two of your Macs
+
+Open the document on a MacBook and an iMac signed in to the same account and both windows are
+live.  Each shows the other in the collaborator list as you, with the Mac's name, and edits
+flow between them like anyone else's.  There is nothing to unlock and no "already open"
+warning.  If one of them goes offline, it keeps its own changes and merges them when it
+reconnects, exactly as a colleague's would.
+
+=== Handing a document off to another Mac
+
+With a document open on one Mac, its icon appears at the end of the Dock on your other Macs
+-- the same Handoff macOS uses for Safari and Mail.  Click it and the document opens there, on
+the same page, at the same zoom, scrolled to the same place.  Handoff needs both Macs signed
+in to the same Apple Account with Handoff turned on (System Settings > General > AirDrop &
+Handoff) and to the same {product} account.  Only a pointer travels between the Macs: the
+document itself comes from the cloud, or from the copy already on the second Mac, and nothing
+about it is stored in iCloud.  If the second Mac is offline and has no copy, it shows the
+Library window with a note instead.
+
+== Closing and quitting with changes waiting
+
+Closing a window while its state is *Syncing* or *Uploading* is fine: the upload continues in
+the background as long as {product} is running, and the Window menu's *Sync Activity* item
+shows what is still in flight.
+
+Quitting while changes are waiting shows a sheet:
+
+[listing]
+....
+ 3 documents have changes that haven't reached the cloud yet.
+ They are safe on this Mac and will upload the next time WireTuner opens.
+
+   Logo refresh          412 changes waiting (offline)
+   Spring catalog        Uploading backlog 61%
+   Business cards        2 images uploading
+
+ [ Quit Now ]   [ Quit When Uploaded ]   [ Cancel ]
+....
+
+*Quit When Uploaded* keeps the app running only as long as it takes, then quits on its own.
+*Quit Now* is always safe: nothing is lost, and the next launch resumes the uploads for those
+documents in the background before you even open them.  Turn the sheet off with *Warn when
+quitting with changes waiting* in menu:{product}[Settings… > Documents].
+
+== Storage [[storage]]
+
+Storage on your team's plan counts placed images, embedded fonts and document history.  Drawing
+never counts against it in any meaningful way: a year of vector work is smaller than one
+photograph.
+
+* At 90% of the plan, the sync popover and the library window show *Storage almost full*.
+* When the plan is full, drawing continues and changes keep syncing.  Placing images still
+  works on this Mac, but their upload waits and the indicator reads *Storage full — N images
+  waiting*.  Collaborators see placeholders for those images until space is freed.
+* Emptying the trash, deleting documents, or a plan change frees space; waiting uploads resume
+  on their own.
+
+== Working with others
+
+You never have to coordinate saving with anyone.  Everyone's changes flow into the same
+document as they are made; the sync indicator tells you whether *yours* have arrived, and the
+collaborator list (xref:presence.adoc[Presence]) tells you who else is here.
+
+After you have been offline, reconnecting does three things in order: you receive what
+others did, {product} merges it with what you did, and then your changes go up.  If the two
+sets touched different objects the merge is silent and a small message names what arrived.  If
+they overlap, the state becomes *Needs review* and a sheet shows each object both sides
+changed, with your version, theirs and the merged result, so you can decide -- including
+keeping both.  Nothing is sent until you have looked, and nothing is lost either way.
+
+Named versions are shared: a colleague's kbd:[Cmd+S] shows up in your History panel.  Two
+people saving a version at the same instant get two versions.  A package you export includes
+everything you can see, which is everything that had reached this Mac when you exported it.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,2"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|menu:File[Save] writes the document file
+|Every change is persisted locally as it is made and synced when online; kbd:[Cmd+S] creates a
+named version (a `server_seq` bookmark).
+|Adapted -- cloud document with no file; the reflex is preserved and given a useful meaning.
+
+|Save as FreeHand Document / Template / Editable EPS
+|Duplicate; templates are documents flagged as templates (xref:templates.adoc[Templates]);
+Editable EPS becomes the *Embed {product} document* option on EPS and PDF export
+(xref:export-vector.adoc[Exporting vector artwork]).
+|Adapted -- no native file format to save into; the package is the exchange format.
+
+|menu:File[Save As] to a new name or location
+|menu:File[Duplicate] (cloud copy) and menu:File[Export a Package…] (local file).
+|Adapted -- two commands because the two intents differ.
+
+|Asterisk in the title bar for unsaved changes
+|Sync state in the window subtitle and toolbar.
+|Adapted -- "unsaved" is never true; "unsynced" is what matters.
+
+|menu:File[Revert]
+|menu:File[Restore a Version…] (in place or as a copy).
+|Adapted -- history replaces the on-disk copy as the thing to revert to.
+
+|FreeHand File Preview (thumbnail in saved file)
+|Every package carries `thumbnail.png`; no preference.
+|Faithful.
+
+|Extensis Portfolio preview
+|Not supported.
+|Dropped -- Extensis Portfolio is discontinued; keywords live in Document Info
+(xref:file-info.adoc[Adding file information]).
+
+|--
+|Quick Look preview and thumbnail extensions for packages (`preview.pdf`, `thumbnail.png`).
+|Added -- what every document type on macOS is expected to provide.
+
+|--
+|Spotlight indexing of local documents and of packages: name, text, Document Info.
+|Added -- the Portfolio keywords' modern home is the system search.
+
+|--
+|Handoff of an open document to the account's other Macs (page, zoom, scroll).
+|Added -- the cloud document makes it free; iCloud is not involved.
+|===
+
+=== Data model
+
+Named versions, duplicates and packages do not add fields to the document.  The document's
+`settings` node (0:1) gains one `local_only` field so a store remembers its snapshot cadence
+override; everything else lives in the local store and in the package format.
+
+[source,protobuf]
+----
+// doc/v1/settings.proto (excerpt owned by IO)
+message SettingsProps {
+  // ... other epics' fields ...
+
+  // Per-Mac override of the "Snapshot interval" preference for this document, in seconds.
+  // 0 = use the preference.  Never leaves the device.
+  uint32 snapshot_interval_override_s = 120 [(wt.crdt.field).local_only = true];
+}
+----
+
+Local store additions (GRDB, xref:offline.adoc[Offline]):
+
+[cols="1,3"]
+|===
+|Table |Holds
+
+|`pending_versions`
+|Versions created offline: `name`, `note`, `created_at`, and the local `seq` of the last
+change they include.  Sent to `VersionService.Name` with the `server_seq` that seq was
+assigned, then deleted.
+
+|`sync_state`
+|The last published sync state and its timestamp, so the library window can show per-document
+state for documents that are not open.
+
+|`spotlight_index`
+|Per local document: the `server_seq` (or local `seq`) the Core Spotlight item was last built
+from and the time, so reindexing happens only when the document changed.
+|===
+
+The package format is a zip archive (deflate, no encryption) with the extension `.wiretuner`,
+UTI `com.villagecompute.wiretuner.package` conforming to `public.zip-archive`:
+
+[listing]
+....
+manifest.json          PackageManifest in protobuf JSON encoding (below)
+snapshot.pb.zst        DocumentSnapshot, zstd, exactly the format of FetchSnapshot chunks concatenated
+blobs/<sha256>         every blob referenced from the snapshot's assets node that was in the local cache
+thumbnail.png          the first page rendered at 1024 px on the long edge, sRGB, with alpha
+preview.pdf            the first page as a one-page PDF (Screen preset, fonts embedded, no tags, no
+                       package attachment), for Quick Look; optional for readers, always written
+....
+
+[source,protobuf]
+----
+// docs/v1/package.proto -- never merged; a package is a file, not document state.
+message PackageManifest {
+  string format = 1;               // always "wiretuner-package"
+  uint32 format_version = 2;       // 1
+  string origin_document_id = 3;   // UUIDv7 of the document this was exported from
+  string title = 4;                // document title at export time
+  string exported_by = 5;          // user id; display name goes in exported_by_name
+  string exported_by_name = 6;
+  int64 exported_at_ms = 7;        // wall time, informational
+  string app_version = 8;          // wt-client value
+  uint32 feature_level = 9;        // the document's feature level; importers below it refuse
+  uint32 merge_table_version = 10; // version of the merge table the snapshot was written with
+  uint64 head_server_seq = 11;     // last server_seq applied on the exporting replica
+  uint32 unsynced_changes = 12;    // local changes not yet acked when exported; 0 = clean
+  bytes state_hash = 13;           // SHA-256 of the snapshot (crdt-model.adoc#snapshots)
+  repeated PackageBlob blobs = 14;
+  repeated PackageBlob missing_blobs = 15; // referenced but not in the local cache at export
+}
+message PackageBlob {
+  bytes sha256 = 1;
+  uint64 size = 2;
+  string media_type = 3;           // "image/png", "font/otf", ...
+  string name = 4;                 // the asset node's display name, informational
+}
+----
+
+The zip is written with `snapshot.pb.zst` stored (already compressed) and the rest deflated;
+entries are written in the order listed so a reader can stream the manifest before the rest.
+`preview.pdf` is additive: `format_version` stays 1, and a reader (including the Quick Look
+extension) that finds no `preview.pdf` uses `thumbnail.png`.
+
+Handoff carries no document data.  The `NSUserActivity` user info is
+`{document_id, page_index, zoom, scroll_x, scroll_y}`; everything else is fetched on the
+receiving Mac.
+
+=== Merge semantics
+
+Nothing on this page writes document registers except *Restore in place*, which is specified
+on xref:history.adoc[History]: it is one change containing, for every register that differs
+between the current state and the version, a write of the version's value.  Concurrent edits
+to the same registers therefore resolve by ordinary LWW and show in the review sheet as
+`same register` with the restore as one side.
+
+`snapshot_interval_override_s` is `local_only` and never merged.
+
+Package import never merges: the imported state becomes a new document by re-issuing every
+node as fresh ops from the importing replica (see *Client*), so the original's OpIds do not
+enter the new document and two imports of the same package are two unrelated documents.
+
+=== Offline behavior
+
+* Sync states and their transitions are the *state machine* below; every transition is
+  published by `WTSync` and consumed by the UI, never inferred by the UI from network state.
+* kbd:[Cmd+S] offline writes `pending_versions`; the History panel shows the version as
+  pending.  On upload, once the change with that `seq` is acked, the client calls
+  `VersionService.Name` with the assigned `server_seq`.  If the replica goes through rotation
+  or salvage (xref:offline.adoc#expiry[Offline]), the pending version is re-anchored to the
+  rebased change with the same label.
+* *Duplicate* offline: the client generates a UUIDv7, creates a local store from the current
+  in-memory state via package-style re-issue, and queues `DocumentService.Create` followed by a
+  `PushChanges` of the re-issued changes.  The library window lists the copy immediately with
+  state *Offline*.
+* *Restore as a copy* offline: only if the version's `server_seq` is inside the local log;
+  otherwise the command is disabled with "Connect to restore versions older than what's on
+  this Mac".
+* *Export a Package* works offline from the local merged state; `unsynced_changes` counts the
+  outbox, `missing_blobs` lists referenced hashes absent from the cache.
+* *Thumbnail*: the local snapshot write (on close and at the snapshot interval) also captures
+  the library thumbnail when the document changed since the last capture (DOC-032 on
+  xref:creating-opening.adoc[Creating and opening documents]).  It is queued in
+  `blobs_pending` with `tag = THUMBNAIL` and deferred with every other blob; a newer capture
+  replaces a pending one, so a day offline uploads one thumbnail, not a hundred.  It is not
+  counted in *Uploading N images* (the user placed no image) and it uploads first when the
+  queue resumes.
+* *Open Package* offline creates the new document exactly as Duplicate does, with the same
+  deferred creation.
+* Spotlight indexing is local and needs no connection; the index follows the local store.
+* Handoff continuation on a Mac that is offline opens the document from its local copy if it
+  has one (the activity's page and zoom still apply); with no copy it opens the Library window
+  with "Connect to open <title>".
+* Background upload: on launch, before any window opens, `WTSync` opens every local store
+  whose outbox or `blobs_pending` is non-empty (headless, no `WTModel`), runs the reconnect
+  sequence, and closes it when drained -- unless that document is opened by the user, in which
+  case the window takes over the session.  A store whose reconnect requires a review
+  (`needsReview`) stays parked with that state visible in the library window until opened.
+
+==== Sync state machine
+
+[cols="1,2,3"]
+|===
+|State |Published as |Entered when
+
+|`opening`
+|*Opening…*
+|Window opened; bootstrap or catch-up (SYNC-004) running.
+
+|`saved`
+|*Saved to cloud*
+|Subscription up, outbox empty, in-flight window empty, `blobs_pending` empty (a pending thumbnail does not count), no review pending.
+
+|`syncing(n)`
+|*Syncing N changes*
+|Subscription up and outbox non-empty, sending as pipelined `PushChange` calls (outbox under
+the bulk threshold: 200 changes or 512 KiB coalesced).
+
+|`uploadingBlobs(n)`
+|*Uploading N images*
+|Outbox empty, `blobs_pending` non-empty.  A sub-state of `saved` for the popover; the
+subtitle shows it because collaborators see placeholders until it clears.
+
+|`offline(n)`
+|*Offline* / *Offline — N changes waiting*
+|No subscription (no route, connect failed, or backoff waiting).  `n` is the outbox count.
+
+|`uploadingBacklog(pct)`
+|*Uploading backlog P%*
+|Subscription up after `offline`, outbox at or over the bulk threshold, `PushChanges` running.
+`pct` is acked bytes over total coalesced bytes.
+
+|`needsReview`
+|*Needs review*
+|Divergence measurement (SYNC-006) said "ask"; outbox held.
+
+|`readOnly(reason)`
+|*View only*
+|Role is viewer or commenter, or `CLIENT_TOO_OLD`, or `ROLE_INSUFFICIENT` arrived on push.
+
+|`needsSignIn`
+|*Sign in to sync*
+|Token refresh failed with a non-transient error.
+
+|`storageFull(n)`
+|*Storage full — N images waiting*
+|Blob upload answered `RESOURCE_EXHAUSTED` with reason `STORAGE_QUOTA`; outbox still flows.
+
+|`error(detail)`
+|*Can't sync*
+|A change was rejected for a reason the client cannot recover from (validation failure
+already reverted locally and reported; repeated `REPLICA_CONFLICT` after rotation), or the
+state hash check failed and re-bootstrap also failed.
+|===
+
+Transitions (the UI state is a pure function of these; every arrow is logged with its cause):
+
+[listing]
+....
+opening ──bootstrap done, connected──▶ saved | syncing(n)
+opening ──no network─────────────────▶ offline(n)
+saved ──local change─────────────────▶ syncing(1)
+saved ──blob placed──────────────────▶ uploadingBlobs(1)
+syncing(n) ──all acked, no blobs─────▶ saved
+syncing(n) ──all acked, blobs left───▶ uploadingBlobs(m)
+uploadingBlobs(m) ──drained──────────▶ saved
+{saved,syncing,uploadingBlobs} ──subscription lost──▶ offline(n)
+offline(n) ──session up, tail applied, divergence measured:
+             ├─ ask ────────────────▶ needsReview
+             ├─ n ≥ bulk threshold ─▶ uploadingBacklog(0)
+             └─ otherwise ──────────▶ syncing(n) | saved
+needsReview ──review done or dismissed──▶ uploadingBacklog(0) | syncing(n)
+uploadingBacklog(p) ──all acked──────▶ syncing(k) (changes made meanwhile) | uploadingBlobs | saved
+uploadingBacklog(p) ──subscription lost──▶ offline(n)   (resumes from last acked seq)
+any ──ROLE_INSUFFICIENT | CLIENT_TOO_OLD──▶ readOnly
+any ──TOKEN_EXPIRED unrecoverable────▶ needsSignIn ──signed in──▶ offline(n) (then reconnect)
+{syncing,uploadingBlobs,uploadingBacklog} ──STORAGE_QUOTA──▶ storageFull(n) ──space freed (Stat ok)──▶ uploadingBlobs
+any ──unrecoverable rejection────────▶ error
+....
+
+The library window shows the last published state per document from `sync_state`; a document
+that is not open and has an empty outbox shows *Saved to cloud* without opening a session.
+
+=== Server
+
+* `VersionService.Name` accepts a `server_seq` at or before head and a name; versions are rows
+  in `version` (SRV-011).  Nothing else.
+* `DocumentService.Create` with a client-supplied UUIDv7 followed by `PushChanges` is how
+  Duplicate and Open Package materialize; no "create from snapshot" RPC exists, so the server
+  never accepts a client-authored snapshot (which it could not verify).
+* Blob quota: `BlobService.Upload` answers `RESOURCE_EXHAUSTED` with `ErrorInfo.reason =
+  STORAGE_QUOTA` and `metadata.used_bytes` / `metadata.limit_bytes` when the team's blob
+  storage is at its limit.  Change ingest is never quota-limited.  `AccountService.Me` reports
+  usage so the library window can show *Storage almost full* without a failed upload first.
+  (`STORAGE_QUOTA` is a new reason to add to xref:api-conventions.adoc[API conventions].)
+* Quick Look, Spotlight and Handoff involve the server not at all: the first two are local,
+  and Handoff travels Mac to Mac through Apple's continuity channel, carrying only ids.
+  Uploads tagged `THUMBNAIL` (at most 256 KiB) are exempt from the quota, so a full plan
+  never leaves the library showing stale pictures.
+
+=== Client
+
+* `WTSync.SyncState` is an `enum` with the cases above, published as an `AsyncStream` per
+  document and mirrored into `WTApp` through an `@Observable` document controller property.
+  The subtitle uses `NSWindow.subtitle`; the toolbar item is an `NSToolbarItem` with an SF
+  Symbol per state (`checkmark.icloud`, `arrow.up.icloud`, `icloud.slash`,
+  `exclamationmark.icloud`, `lock.icloud`, `person.icloud`) and a popover (`NSPopover`) hosting
+  a SwiftUI detail view.
+* The percentage and counts update at most 4 times a second; the subtitle text is announced to
+  VoiceOver only on state change, not on count change.
+* kbd:[Cmd+S] is `saveVersion:`; the sheet is `NSAlert`-free SwiftUI in a sheet with name and
+  note fields.  Silent mode posts an `NSUserNotification`-style in-window toast.
+* Package export and import live in `WTInterchange` (`PackageWriter`, `PackageReader`).
+  Import re-issues the snapshot as changes: nodes in tree order (parents before children,
+  siblings in position order with fresh fractional positions), each node one `CreateNode`
+  with its full props, sequences via `ElementInsert`, text via `TextInsert` of the read-out
+  string followed by `TextMark`s for each run, sets via `SetAdd`.  Changes are cut at 5,000 ops
+  or 2 MiB, whichever first, labelled "Import package".  Blobs are copied into the local cache
+  and queued in `blobs_pending`; `missing_blobs` produce placeholder assets whose nodes keep
+  the hash so a later "Relink" can resolve them.
+* Zip through `Compression`/`libarchive` is not needed: the writer uses a minimal streaming
+  zip encoder in `WTInterchange` (stored and deflate via `Compression.framework`); the reader
+  tolerates any conforming zip.
+* Quit sheet: `NSApplication.delegate.applicationShouldTerminate(_:)` returns
+  `.terminateLater` while *Quit When Uploaded* waits; the wait shows a progress window and can
+  be cancelled.
+* `preview.pdf` is rendered by `PackageWriter` through the PDF writer (IO-025) with the
+  *Screen* preset, page 1 only, fonts embedded, no package attachment; it is skipped (and the
+  manifest unchanged) only when the PDF writer fails, which the export sheet reports.
+* Quick Look: two app extensions in the app bundle.  `WireTunerThumbnail`
+  (`QLThumbnailProvider`) reads `thumbnail.png` from the zip's central directory without
+  inflating anything else and draws it with the *Offline changes* badge when
+  `unsynced_changes > 0`.  `WireTunerPreview` (`QLPreviewingController` with
+  `preparePreviewOfFile`) streams `manifest.json` and `preview.pdf`, shows the PDF in a
+  `PDFView` with a header (title, page count from the manifest's snapshot page count field,
+  exported-by name and date, the unsynced note); with no `preview.pdf` it shows the thumbnail.
+  Both extensions link `WTInterchange`'s zip reader only, never `WTModel`, and use no network.
+* Spotlight, local documents: `WTSync` maintains a `CSSearchableItem` per local store in the
+  app's default `CSSearchableIndex`, `uniqueIdentifier` = document id, domain
+  `com.villagecompute.wiretuner.document`, attribute set: `title` (document name),
+  `contentDescription` (`DocumentInfo.description`), `keywords` (`DocumentInfo.keywords`),
+  `textContent` (plain read-out of every `text` node in tree order, capped at 1 MiB),
+  `thumbnailData` (the library thumbnail), `contentModificationDate`.  Rebuilt when a
+  window closes or a snapshot is written and the head seq differs from `spotlight_index`;
+  deleted by *Remove Local Copy* and when a document is trashed.  Opening from Spotlight
+  arrives in `application(_:continue:restorationHandler:)` with `CSSearchableItemActionType`
+  and routes to the Library window's open-by-id.
+* Spotlight, packages: a `CSImportExtension` (`WireTunerSpotlightImporter`) registered for
+  the package UTI reads `manifest.json` and the snapshot's text nodes to fill the same
+  attributes (`title`, `contentDescription`, `keywords`, `textContent`) plus
+  `kMDItemPageCount`; it decodes the snapshot with the same zstd + protobuf reader the app
+  uses and gives up cleanly (title only) above 64 MiB.
+* Handoff: the document window owns an `NSUserActivity` of type
+  `com.villagecompute.wiretuner.document` (declared in `NSUserActivityTypes`),
+  `isEligibleForHandoff = true`, `isEligibleForSearch = false` (Core Spotlight already indexes
+  the document), `isEligibleForPrediction = false`, `webpageURL` unset (no web fallback).  The
+  window marks `needsSave` on page change, zoom change and scroll idle (500 ms) and fills
+  `userInfo` in `updateUserActivityState(_:)`.  The receiving Mac's
+  `application(_:continue:restorationHandler:)` opens the document by id through the Library
+  window (APP-009) -- cached copy first, else `DocumentService` -- then applies page, zoom and
+  scroll once the bootstrap finishes.  Two windows of the same document publish two
+  activities; the most recently active window's wins, as AppKit does.  No CloudKit, no iCloud
+  Drive, no `NSUserActivity.persistentIdentifier` storage.
+* Undo: none of these commands write undoable changes except *Restore in place*, which is one
+  change with the label "Restore version <name>".
+
+=== Build tasks
+
+[[IO-001]]
+==== IO-001 Sync state model and publication
+[horizontal]
+Track:: client-sync
+Depends on:: SYNC-003, SYNC-005, SYNC-006, SYNC-008
+Size:: M
+Delivers:: `SyncState` enum with the cases and transition rules above, computed inside `WTSync` from session, outbox, blob queue and reconcile events; `sync_state` table; per-document `AsyncStream`.
+Done when::
+* Every arrow in the transition listing has a simulator test (TEST-001) that drives it and asserts the published state and its cause.
+* Counts and percentage are throttled to 4 Hz; the state never regresses to `opening` after a document is open.
+* A store copied to another Mac (replica rotation) passes through `offline` to `syncing` without an `error`.
+
+[[IO-002]]
+==== IO-002 Title bar indicator and sync popover
+[horizontal]
+Track:: client-ui
+Depends on:: APP-002, APP-004, IO-001
+Size:: M
+Delivers:: Window subtitle and toolbar item bound to `SyncState`, the popover with details and state-appropriate actions, the *Sync Activity* window listing in-flight uploads across documents, library-window state badges.
+Done when::
+* UI test walks every state (injected through a test hook) and checks subtitle text, symbol and available popover actions.
+* VoiceOver announces state changes once per change.
+* Screenshots of *Saved to cloud*, *Offline — N changes waiting* and *Needs review* are added to this book.
+
+[[IO-003]]
+==== IO-003 Save Version command
+[horizontal]
+Track:: client-ui
+Depends on:: APP-005, SRV-011, IO-001
+Size:: S
+Delivers:: menu:File[Save Version…] (kbd:[Cmd+S]) sheet with name and note, the *Ask for a version name when saving* preference and silent mode toast, `pending_versions` handling with re-anchoring after replica rotation.
+Done when::
+* A version saved online appears in the History panel within one round trip; one saved offline is marked pending and resolves on upload with the correct `server_seq`.
+* Two clients saving a version concurrently produce two versions with distinct ids (simulator test).
+* Pending versions survive relaunch and replica rotation.
+
+[[IO-004]]
+==== IO-004 Duplicate and deferred document creation
+[horizontal]
+Track:: client-sync
+Depends on:: SYNC-005, SRV-009, IO-001
+Size:: M
+Delivers:: Re-issue of an in-memory state into a fresh local store as changes from a new replica (shared with package import), queued `DocumentService.Create` + `PushChanges`, library listing of not-yet-created documents.
+Done when::
+* Duplicating the design-point document offline completes in under 3 s and the copy opens immediately.
+* After reconnect the copy exists on the server and its `state_hash` equals the original's at the duplication point (ignoring OpIds, compared through a canonical read-out).
+* Merge test: the original continues to receive remote changes during duplication and the copy contains none of them.
+
+[[IO-005]]
+==== IO-005 Package writer
+[horizontal]
+Track:: import-export
+Depends on:: CRDT-009, SYNC-008, IO-001
+Size:: M
+Delivers:: `PackageWriter` producing the zip layout above with `PackageManifest`, blob collection from the local cache, `missing_blobs`, `unsynced_changes`, thumbnail rendering and `preview.pdf` rendering through the PDF writer; menu:File[Export a Package…]; UTI registration.  (The Quick Look extensions are IO-034.)
+Done when::
+* A package of the design-point document writes in under 5 s and its `state_hash` matches the live state.
+* Exporting while offline with unacked changes sets `unsynced_changes` correctly.
+* A referenced blob absent from the cache is listed in `missing_blobs` and the export sheet names it.
+* `preview.pdf` is a valid one-page PDF of page 1 (`qpdf --check`) and its absence is tolerated by `PackageReader`.
+
+[[IO-006]]
+==== IO-006 Package reader and Open Package
+[horizontal]
+Track:: import-export
+Depends on:: IO-004, IO-005
+Size:: M
+Delivers:: `PackageReader`, manifest validation (format, feature level, merge table), import through the re-issue path into a new document, blob restoration, placeholder assets for missing blobs, menu:File[Open Package…] and Finder double-click handling.
+Done when::
+* Round trip export → import of the conformance documents yields a canonical read-out identical to the source.
+* A package with `feature_level` above the client's is refused with an update prompt; a corrupt zip is refused without creating a document.
+* Importing the same package twice creates two unrelated documents (different ids, no shared OpIds).
+* Merge test: importing while another window of a different document syncs does not interleave changes between stores.
+
+[[IO-007]]
+==== IO-007 Quit and close with pending uploads
+[horizontal]
+Track:: client-ui
+Depends on:: IO-001, IO-002
+Size:: S
+Delivers:: Background continuation of uploads after window close, the quit sheet with *Quit Now* / *Quit When Uploaded* / *Cancel*, the *Warn when quitting with changes waiting* preference, and headless resume of pending stores on launch.
+Done when::
+* Closing a window mid-upload completes the upload; quitting with *Quit When Uploaded* quits within 2 s of the last ack.
+* Killing the app mid-upload and relaunching resumes and drains the outbox before any window opens, without duplicating changes (server-side `(replica, seq)` idempotency verified).
+* A parked `needsReview` store is not uploaded headlessly and shows *Needs review* in the library.
+
+[[IO-008]]
+==== IO-008 Storage quota on blob upload
+[horizontal]
+Track:: server
+Depends on:: SRV-008, SRV-002
+Size:: S
+Delivers:: Per-team blob usage accounting, the `STORAGE_QUOTA` rejection on `BlobService.Upload` with used/limit metadata, usage in `AccountService.Me`, and recomputation when documents are trashed-expired.
+Done when::
+* An upload that would exceed the limit is rejected before bytes are stored; one that fits is accepted; usage is exact after dedup.
+* Change ingest is unaffected at 100% usage (test); a `THUMBNAIL`-tagged upload under 256 KiB is accepted at 100% usage and one over the cap is rejected with `INVALID_ARGUMENT`.
+
+[[IO-009]]
+==== IO-009 Storage quota messaging
+[horizontal]
+Track:: client-ui
+Depends on:: IO-002, IO-008
+Size:: S
+Delivers:: `storageFull` handling in the blob queue (pause, periodic `Stat`-based retry), *Storage almost full* at 90% in the popover and library window, and the *Storage full — N images waiting* state.
+Done when::
+* Simulator test: quota hit mid-upload pauses blobs, changes keep syncing, freeing space resumes uploads without user action.
+
+[[IO-034]]
+==== IO-034 Quick Look preview and thumbnail extensions
+[horizontal]
+Track:: client-ui
+Depends on:: IO-005
+Size:: M
+Delivers:: The `WireTunerThumbnail` (`QLThumbnailProvider`) and `WireTunerPreview` (`QLPreviewingController`) app extensions reading `thumbnail.png`, `manifest.json` and `preview.pdf` through the streaming zip reader; the unsynced badge and header; the thumbnail fallback; extension entitlements and the sandbox profile with no network.
+Done when::
+* `qlmanage -t` and `qlmanage -p` on the conformance packages produce the thumbnail and the page-1 preview; a package without `preview.pdf` previews its thumbnail.
+* A package exported with `unsynced_changes > 0` shows the badge and the note; the extensions read under 2 MiB of a 500 MiB package to do it.
+* The extensions launch and render a 4-page package in under 500 ms on M1.
+
+[[IO-035]]
+==== IO-035 Core Spotlight indexing and package importer
+[horizontal]
+Track:: client-sync
+Depends on:: IO-005, IO-010, APP-009
+Size:: M
+Delivers:: `CSSearchableItem` maintenance per local store with the attribute set above, the `spotlight_index` table, reindex on close and snapshot, removal on *Remove Local Copy* and trash; the `WireTunerSpotlightImporter` `CSImportExtension` for packages; opening from a Spotlight result through the Library window.
+Done when::
+* After opening a document containing the word "quokka" in a text block and closing it, `mdfind quokka` (Core Spotlight query in a test) lists it; *Remove Local Copy* removes it.
+* Editing a keyword in Document Info and closing the window reindexes once; closing without changes does not.
+* `mdimport -t -d2` on a conformance package reports title, keywords, description, text content and page count; a 100 MiB package indexes in under 3 s.
+* Choosing a result opens the document; a result for a trashed document opens the Library window with a message.
+
+[[IO-036]]
+==== IO-036 Handoff between the account's Macs
+[horizontal]
+Track:: client-ui
+Depends on:: APP-002, APP-009, IO-001
+Size:: S
+Delivers:: The document window's `NSUserActivity` with the user info above, `needsSave` on page, zoom and scroll idle, `NSUserActivityTypes` registration, continuation in the app delegate opening by id through the Library window and restoring page, zoom and scroll after bootstrap, and the offline-without-copy message.
+Done when::
+* Two Macs on one Apple Account and one {product} account: opening a document, going to page 3 at 200% on Mac A shows the icon in Mac B's Dock; clicking it opens page 3 at 200% with the same scroll within 1 pt (manual acceptance, recorded).
+* Unit tests: the activity's user info updates once per idle scroll, page and zoom change; continuation with an unknown id shows the Library window and no error dialog.
+* No entitlement for iCloud is added to the app; the activity carries no document content (assert on `userInfo` size under 256 bytes).
+endif::spec[]

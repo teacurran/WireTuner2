@@ -1,0 +1,496 @@
+A glyph opens as a tab in the typeface window with its own canvas.  The canvas is the ordinary
+{product} drawing canvas -- every tool in the Tools panel works, every panel applies -- with three
+differences: it is measured in font units, it shows the font's metric lines and the glyph's own
+width handles, and it can contain *components* (other glyphs placed by reference) and *anchors*
+(named points where accents attach).  Below the artwork a preview strip sets the glyph in a line
+of text so you can judge it in context while you draw.
+
+// TODO screenshot: the glyph canvas for "a" with metric lines, side-bearing handles and the preview strip
+
+== The glyph canvas
+
+=== Font units and the rulers
+
+One font unit is 1/UPM of the em (xref:font-info.adoc[Font Info]).  The rulers count font units
+from the *glyph origin* -- the point where the baseline meets the left edge of the advance width --
+with values increasing upward on the vertical ruler, as in every font format.  The Object panel,
+the Transform panel and every numeric field show font units with the same convention; a point
+`700` above the baseline is at y = 700.  The Units pop-up shows *Font units* and cannot be
+changed.  The grid is 10 units by default (menu:View[Grid > Edit Grid…]); menu:View[Snap to
+Grid] and the arrow keys nudge by whole units.
+
+Zoom, scrolling, keyline and preview modes, and everything in xref:document-view.adoc[Viewing
+documents] work as usual; menu:View[Fit Glyph] (kbd:[Cmd+0]) fits the em box in the window.
+
+=== Metric lines
+
+The canvas draws horizontal lines at the *baseline*, *x-height*, *cap height*, *ascender* and
+*descender*, and any extra lines defined in Font Info, each labelled at its right end with its name
+and value.  The *em box* -- from the descender to the ascender, across the advance width -- is
+filled faintly, like a page.  Which lines show and their colors are set in Font Info's Guides
+pane for the whole font.
+
+Metric lines behave as guides: points and objects snap to them when menu:View[Guides > Snap to
+Guides] is on (the *Snap to metric lines* preference, on by default, controls this separately from
+ruler guides), and they cannot be selected, moved or deleted from the canvas; edit their values in
+Font Info.
+
+Ruler guides of your own work as on a page: drag them out of the rulers
+(xref:grid-guides.adoc[Grid and guides]).  They belong to the glyph, not the font.
+
+=== Side bearings and advance width
+
+Two vertical lines bracket the glyph:
+
+* The *left side bearing line* is at x = 0, the glyph origin.  Dragging it moves the artwork:
+  the distance from the origin to the leftmost point of the outline is the left side bearing
+  (LSB).
+* The *advance width line* is at x = advance width, with a handle at the baseline.  Dragging it
+  changes the advance width; the artwork stays.  The distance from the rightmost point of the
+  outline to this line is the right side bearing (RSB).
+
+While you drag either, a readout shows LSB, RSB and width.  Hold kbd:[Shift] to move in steps of
+10 units; hold kbd:[Option] while dragging the advance width line to move the artwork with it,
+keeping the RSB.  The same values are editable as numbers in the *Glyph* section of the Object
+panel: *Width*, *LSB*, *RSB*.  Typing an LSB moves the artwork; typing an RSB changes the width.
+
+For an italic font the side bearing lines are slanted by the italic angle, and the bearings are
+measured along the slant.
+
+A glyph with no outline has an LSB of 0 and an RSB equal to its width.  Space glyphs are just that:
+a width and nothing else.
+
+=== Drawing
+
+Draw with the tools you know: the Pen and Bezigon tools (xref:pen-bezigon.adoc[Drawing with the
+Pen and Bezigon tools]), rectangles and ellipses, the Freeform tool, path editing
+(xref:editing-paths.adoc[Editing paths]), menu:Modify[Combine] booleans
+(xref:combining-paths.adoc[Combining paths]), menu:Modify[Alter Path > Expand Stroke]
+(xref:expand-stroke.adoc[Expanding strokes]), transformations, alignment.  A few rules of thumb
+particular to fonts:
+
+* Only *shape* matters.  Any closed path with a fill is part of the glyph; any path with a stroke
+  contributes its expanded stroke; colors, gradients, effects and transparency are for your own
+  eyes and are ignored in the font.  Draw in whatever color helps you see.
+* Overlaps are fine while drawing.  Overlapping shapes are merged into one outline when the font
+  is generated.  Counters (the hole in `o`) work because the inner contour runs the other way, and
+  {product} sets directions for you at generate time.
+* Open paths are ignored in the font, with a warning.  Close them, or give them a stroke to be
+  expanded.
+* Keep points on whole units.  Fonts store integer coordinates; menu:Glyph[Round to Units] snaps
+  every point and handle in the selection (or the glyph) to the nearest unit, and the generator
+  rounds anything left.
+* Points at extremes -- the topmost, bottommost, leftmost and rightmost points of each curve --
+  help renderers.  menu:Glyph[Add Extrema] inserts them; the generator adds them anyway.
+
+Text pasted into a glyph is converted to paths; images, symbols and live text cannot be placed
+on a glyph canvas.
+
+=== Layers within a glyph
+
+The Layers panel (xref:layers.adoc[Using layers]) is shared by every glyph, as it is by every
+page: a layer is a drawer that exists across the whole document, and each glyph canvas shows what
+is on it for that glyph.  Use them like FontForge's layers:
+
+* Layers *above* the separator (printing layers) are *foreground*: their artwork becomes the
+  glyph outline.  Most fonts need only one, but you can keep, say, *Serifs* and *Stems* separate.
+* Layers *below* the separator (non-printing) are *background*: sketches, scanned letters
+  (imported as bitmaps -- the one place an image is allowed, and only on a background layer),
+  reference outlines of another design.  They show on the canvas at reduced opacity and never
+  reach the font.
+* The *Guides* layer holds ruler guides, as always.
+
+Locking a layer, hiding it and its highlight color all work per layer for every glyph.
+
+== Components
+
+A *component* places another glyph's outline inside this glyph, by reference: `é` is `e` plus
+`acute`; `Ä` is `A` plus `dieresis`.  When the referenced glyph changes, every glyph using it
+changes too.  Components can nest (a glyph made of components can itself be a component), but a
+glyph cannot contain itself, directly or through a chain.
+
+To add a component:
+
+. Choose menu:Glyph[Add Component…] (kbd:[Cmd+Shift+R]), or copy a glyph in the grid and choose
+  menu:Edit[Paste as Component] on the glyph canvas.
+. Type the glyph's name or character; the sheet shows it.  Click btn:[Add].  The component appears
+  at the origin, drawn in a distinct outline color with a small link badge.
+. Drag it with the Pointer tool to position it.  Components can be moved, and scaled or flipped
+  with the transform tools, but their points cannot be edited: double-click a component to open
+  its source glyph in a new tab.
+
+Component positioning by anchors: if this glyph has a base anchor (say `top`) and the component
+glyph has the matching mark anchor (`_top`), the component snaps to it when added and whenever you
+choose menu:Glyph[Snap Components to Anchors].  This is how *Build Accented Glyphs* in the grid
+works.
+
+To decompose a component into editable paths, select it and choose menu:Glyph[Decompose]
+(kbd:[Cmd+Shift+D]); to decompose every component in the glyph, choose it with nothing selected.
+Decomposing copies the current outline; later changes to the source glyph no longer follow.
+
+The Object panel's *Component* section shows the source glyph name (click to open it), its
+position, scale and rotation, and a btn:[Decompose] button.  A component whose source glyph has
+been removed draws as a hatched placeholder with the glyph's last name; decompose it (which uses
+the placeholder's remembered outline, if any), remove it, or restore the glyph.
+
+A glyph that mixes components and drawn paths is allowed; the generator decomposes components in
+such glyphs, because font formats do not mix them well.  The validation report notes it.
+
+== Anchors
+
+An *anchor* is a named point used to attach marks to bases: a base glyph `a` has an anchor `top`
+at the place an accent should sit; a mark glyph `acute` has an anchor `_top` at the point that
+should land there.  From these pairs {product} generates the font's mark-attachment feature
+automatically (xref:opentype-features.adoc[OpenType features]) and positions components.
+
+To add an anchor:
+
+. Choose menu:Glyph[Add Anchor…] (kbd:[Cmd+Shift+A]), or kbd:[Control]-click the canvas and
+  choose *Add Anchor Here*.
+. Type a name.  Conventional names are `top`, `bottom`, `ogonek`, `topright`; a name beginning
+  with an underscore (`_top`) makes it a *mark* anchor, otherwise it is a *base* anchor -- or set
+  *Role* explicitly in the sheet.  A glyph may have one anchor per name.
+. Click btn:[Add].  The anchor appears as a small diamond with its name.
+
+Anchors are selected and dragged with the Pointer tool like points, snap to the grid and metric
+lines, and show their position in the Object panel's *Anchor* section (X, Y, Name, Role) where
+you can also type values.  kbd:[Delete] removes a selected anchor.
+
+To see how marks will attach, choose menu:View[Show Mark Attachment].  On a base glyph, every
+mark glyph in the font whose mark anchor matches one of this glyph's base anchors is drawn faintly
+in place; on a mark glyph, the mark is shown on a sample base (`a`, `A` or the first base with a
+matching anchor).  Dragging the anchor updates the preview live.
+
+== Checking a glyph
+
+The canvas warns about problems that would spoil the font, as a triangle badge in the tab and in
+the grid cell, and lists them in menu:Glyph[Find Problems…] (kbd:[Cmd+Shift+P]), a panel that
+checks the current glyph or the whole font:
+
+[cols="1,3"]
+|===
+|Problem |Meaning and fix
+
+|Open contour
+|A path on a foreground layer is not closed and has no stroke; it contributes nothing.  Close it
+or stroke it.
+
+|Wrong direction
+|Outer and inner contours run the same way, so a counter would fill.  Informational: the generator
+corrects directions.  *Correct Directions* fixes it in the artwork.
+
+|Overlapping contours
+|Shapes overlap or a contour crosses itself.  Informational: merged at generate.  *Remove
+Overlaps* fixes it in the artwork.
+
+|Points off the unit grid
+|Coordinates that are not whole units.  *Round to Units* fixes it; the generator rounds anyway.
+
+|Missing extrema
+|A curve with no point at its extreme.  *Add Extrema* fixes it; the generator adds them anyway.
+
+|Dangling component
+|The component's glyph was removed.
+
+|Component loop
+|A chain of components leads back to this glyph.  The offending component is drawn as a
+placeholder; remove it.
+
+|Mixed components and paths
+|Allowed; the generator will decompose.
+
+|Duplicate anchor name, mark anchor on a base, base anchor without any mark using it
+|Anchor housekeeping; the last is informational.
+
+|Zero width, negative side bearing
+|Informational.
+
+|Too many points
+|More than 1,500 points after flattening; some renderers reject it.
+
+|Name or character collision, invalid name
+|See xref:glyph-grid.adoc[The glyph grid].
+|===
+
+The same list is what menu:File[Generate Fonts…] shows before generating
+(xref:font-export.adoc[Generating and exchanging fonts]).
+
+== The preview strip
+
+The strip along the bottom of the glyph canvas sets a line of text with the font as it currently
+is -- every glyph's live artwork, flattened the way the generator would, with kerning applied.
+The current glyph is highlighted in it.  Type in the field at the left to change the text (the
+*Font preview text* preference sets the default, `Hamburgefonstiv`); the pop-up at the right sets
+the size, and the *Kern* checkbox toggles kerning.  Characters without a glyph show as a hollow
+box.  Click a glyph in the strip to switch the tab to it.  The strip updates as you draw, with a
+short delay; drag its top edge to resize or hide it, or use menu:View[Preview Strip].
+
+== Working with others
+
+Drawing in a glyph together is exactly like drawing on a page together: you see each other's
+pointers, selections, and points moving as they are dragged.  When two of you move the same
+point or handle, the later move stands, and if yours lost you are told
+(xref:vector-basics.adoc[Vector basics] describes every case for paths).
+
+Things particular to glyphs:
+
+* *Two people drag the advance width* -- the later drag stands, the other person is told.
+* *One person drags the left side bearing (moving the artwork) while another edits points* --
+  both apply: the artwork moves, and the edited points move with it.
+* *Two people move the same anchor* -- later wins, the other is told.  Two anchors added with the
+  same name by two people: the older one keeps the name, the newer shows a badge and a `.dup`
+  suffix; rename one.
+* *Someone changes a glyph you use as a component* -- your glyph updates live, as it should.
+* *Someone decomposes a component while you move it* -- the decomposed paths win (the component
+  is gone); your move is offered back in the review sheet with *Restore*, which brings the
+  component back beside the paths.
+* *Someone removes a glyph that you use as a component* -- your glyph shows a placeholder; the
+  review sheet offers *Restore glyph*.
+
+After being offline, glyphs you both drew on are listed in the review sheet with *Mine* /
+*Theirs* / *Merged* previews rendered as glyph outlines, and for each conflicting value -- a
+point, an anchor, a width -- you can keep yours or theirs (xref:collaboration.adoc[Working
+together]).
+
+ifdef::spec[]
+== Specification
+
+=== FontForge parity
+
+[cols="2,3,1"]
+|===
+|FontForge capability |{product} behavior |Verdict
+
+|Outline glyph view with its own tool palette (pointer, pen, spiro, shapes, transforms, ruler)
+|The document canvas with {product}'s Tools panel; no spiro.
+|Adapted -- one tool set for illustration and glyphs.
+
+|Guide layer with ascent, descent, baseline, x=0 lines; optional x-height, cap-height
+|Metric lines from Font Info: baseline, x-height, cap height, ascender, descender, side bearings,
+em box, extra named lines; snap; labels.
+|Faithful
+
+|Background layers with images and splines; multiple foreground layers
+|Layers panel: printing layers are foreground, non-printing are background; bitmaps allowed on
+background layers only.
+|Faithful
+
+|Drag the advance width line to change width; arrow keys move selections in em-units, Meta ×10
+|Same; kbd:[Option]-drag keeps the RSB; kbd:[Shift] steps of 10; LSB line drags the artwork.
+|Faithful
+
+|Point types: corner, curve, tangent; extrema marked; contour start marked with direction
+|Corner, curve, connector from the Drawing chapter; direction and extrema shown by Find Problems.
+|Adapted -- point types map one to one (tangent = connector); no start-point arrow.
+
+|References: drag from the font view; select by outline; Meta to move; unlink references
+|Add Component sheet / Paste as Component; move with the Pointer, transform; Decompose.
+|Faithful
+
+|Anchor points with anchor classes (mark, base, ligature, cursive) and Anchor Control dialog
+|Anchors with base and mark roles by name convention; Show Mark Attachment preview; no ligature or
+cursive anchors, no device tables.
+|Adapted -- basic mark attachment only; ligature and cursive attachment recorded in Decisions.
+
+|Build accented/composite glyph from Unicode decomposition
+|Build Accented Glyphs using anchors; falls back to centering the mark over the base when no
+anchor pair exists.
+|Faithful
+
+|Find Problems (points, paths, refs, hints, ATT, Unicode) and Validate
+|Find Problems panel with the checks in the table above; hint checks dropped.
+|Adapted -- no hinting.
+
+|Info bar with coordinates, distance, angle, zoom, layer
+|The document window's status bar in font units.
+|Faithful
+
+|Correct Direction, Remove Overlap, Add Extrema, Round to Int, Simplify as edits
+|Same as Glyph menu commands (Simplify from the Drawing chapter).
+|Faithful
+
+|Preview of the glyph in a text string
+|The preview strip with kerning.
+|Faithful
+
+|Spiro curves, TrueType instruction debugger, bitmap glyph view
+|Not present.
+|Dropped -- outside the fundamentals.
+|===
+
+=== Data model
+
+`GlyphProps.components`, `anchors` and `guides` (xref:typeface-documents.adoc[Typeface documents]).
+This page defines how the commands write them:
+
+LSB drag / Set LSB:: `SetFields(CommonProps.transform)` on every top-level object of the glyph
+(translation by *dx*) and on every component's `transform` and anchor `position`; one change,
+coalescing during the drag.  `advance_width` is also written when kbd:[Option] keeps the RSB.
+Advance width drag:: `SetFields(advance_width)`, coalescing.
+Add component:: `ElementInsert(components)` with the anchor-derived transform if a base/mark pair
+matches: translation = base anchor position − mark anchor position (canvas space).
+Move / transform component:: `SetFields(components[e].transform)`.
+Decompose:: `ElementDelete(components[e])` plus `CreateNode` of one path per flattened contour of
+the component (with `canvas` = this glyph, transform composed), one change.  Nested components
+flatten fully.
+Add anchor:: `ElementInsert(anchors)` with `name`, `position`, `role` (from the underscore
+convention unless overridden).
+Move anchor:: `SetFields(anchors[e].position)`, coalescing.
+Rename anchor / set role:: `SetFields(anchors[e].name | role)`.
+Remove anchor:: `ElementDelete`.
+Guides:: As on pages.
+Round to Units / Add Extrema / Correct Directions / Remove Overlaps:: Path rewrites via the Drawing
+chapter's commands (point writes; or delete-and-create for the topology-changing ones).
+
+=== Merge semantics
+
+Advance width:: ATOMIC scalar; two drags → later wins; same-register loss listed.
+
+LSB drag vs. point edit:: The drag writes transforms; the edit writes points in object space.
+Both apply; the point ends up translated, which is what both users intended.
+
+LSB drag vs. LSB drag:: Every object's transform is written by both; the later change's OpIds are
+all greater (consecutive counters per change), so one drag wins entirely and the artwork is
+consistent.  Listed as same-register on each object; the review sheet groups them as one glyph
+entry ("both moved the artwork of *a*").
+
+LSB drag vs. object creation:: The new object was not translated.  Same detection as the UPM
+scale ("drawn while the artwork was moved"), but since a bearing change is small and local, it is
+*not* always-listed: it falls under the ordinary overlap rules (the new object is on the same
+canvas; canvas is the overlap unit for glyphs, see below).
+
+Overlap unit:: For glyph canvases the divergence measurement treats *the glyph* as the object of
+overlap in addition to individual nodes: two sides touching any objects of the same glyph is a
+`both edited` overlap on the glyph, so the review sheet can show Mine/Theirs/Merged as rendered
+glyph outlines rather than object by object.  Per-object rows remain under the glyph entry.
+
+Components::
+* `components` is a SEQUENCE; two adds keep both (a duplicate component of the same glyph at the
+  same transform is harmless and flagged by Find Problems).
+* Move vs. move of a component: `transform` is ATOMIC; later wins; listed.
+* Decompose vs. move: the element is deleted; the move is edit vs. delete with *Restore*
+  (re-inserts the component beside the decomposed paths).
+* Source glyph deleted vs. use: placeholder as specified; `NodeRef.cached` carries the source's
+  flattened outline at add time (bytes, compact path encoding) so the placeholder and *Decompose*
+  can still produce geometry.
+* *Loops*: a component chain that reaches the containing glyph (A uses B, B concurrently made to
+  use A) is cut on read at the component element with the smallest element id along the cycle;
+  that component renders as a placeholder labelled "loop".  Nothing is written.  Find Problems and
+  the validation report list it.
+* Nesting deeper than 8 levels reads as a placeholder at level 8 (matches font format limits).
+
+Anchors::
+* SEQUENCE.  Move vs. move: `position` ATOMIC, later wins, listed.  Rename vs. move: both apply.
+* Two anchors with the same name on one glyph (concurrent adds, or a rename collision): the
+  element with the smaller element id keeps the name; others read as `<name>.dup<counter>` and are
+  badged; the review lists them.  The generator ignores `.dup` anchors and the validation report
+  warns.
+* Remove vs. move: element deleted; listed as edit vs. delete with *Restore*.
+* `role` unset reads from the underscore convention; explicit role wins over the convention.
+
+Read-time normalizations (complete list)::
+* Component loop → cut at the smallest element id in the cycle.
+* Component depth > 8 → placeholder.
+* Dangling component → placeholder with cached outline.
+* Anchor name collision → `.dup` suffix on all but the smallest element id.
+* Anchor `position` non-finite → (0, 0).
+* A guide outside ±32,767 units → not drawn.
+
+=== Offline behavior
+
+Standard.  A day of drawing in one glyph coalesces to the final register values; the preview strip
+and mark attachment preview run entirely locally.
+
+=== Server
+
+Nothing beyond storing and relaying changes; validates anchor names and transform finiteness.
+
+=== Client
+
+* Metric lines and the em box are rendered by `WTRender` as a canvas decoration layer below the
+  artwork (like page rectangles), from `WTModel.Font` and `WTModel.CanvasSpace`; labels are drawn
+  in screen space at the right edge of the visible rect.  Snap targets for metric lines are added
+  to GEO-005's guide snapping with the *Snap to metric lines* preference.
+* Side bearing and advance width handles: an overlay in the canvas tool layer; hit zone 6 pt wide
+  in screen space; the Pointer tool defers to them before object hit-testing when the pointer is
+  within the zone and no object is hit.  Drag readout in a floating label.  Italic angle slants the
+  lines and the drag axis.
+* Components render through the flattener (FONT-015) in a distinct outline color with the badge;
+  hit-testing treats a component as one object (REND-003 group behavior); double-click opens the
+  source glyph's tab.  Placeholders are hatched rectangles of the cached outline's bounds.
+* Anchors are overlay glyphs (diamond, 7 pt, name label) with their own hit priority between points
+  and objects; selectable with the Pointer, draggable, arrow-key nudgeable.
+* Show Mark Attachment renders matching marks or bases at 30% opacity from the flattener, positioned
+  by anchor arithmetic; recomputed on any anchor or outline change with a 100 ms debounce.
+* Find Problems is a panel (APP-004) listing problems for the current glyph or the font, each row
+  selecting the offending object when clicked, with the fix buttons calling the Glyph menu
+  commands.  Checks run incrementally off the main actor after each change to a glyph.
+* The preview strip is an `NSView` under the canvas rendering flattened outlines from FONT-015 with
+  kerning from `WTModel.Kerning` (xref:kerning-metrics.adoc[Kerning and metrics]); it does not use
+  the compiled font, so it works without a feature compile.  Debounced at 150 ms.
+* Undo: each drag is one step; add/decompose/remove are one step each; Find Problems fixes are one
+  step per fix over the selection.
+* Preferences: *Snap to metric lines* (on), *Font preview text* (`Hamburgefonstiv`), under
+  Settings > Typeface.
+
+=== Build tasks
+
+[[FONT-011]]
+==== FONT-011 Metric lines and bearing handles
+[horizontal]
+Track:: client-ui
+Depends on:: FONT-004, FONT-005, APP-003, REND-001, GEO-005
+Size:: M
+Delivers:: Metric line and em box rendering with labels and colors from Font Info, snapping to metric lines with its preference, the LSB and advance width handles with kbd:[Shift] and kbd:[Option] behaviors and readout, italic slant, menu:View[Fit Glyph], and the Width/LSB/RSB fields of the Glyph section.
+Done when::
+* UI tests: drag the advance width line by 40 units (one change, `advance_width` +40); drag the LSB line (objects translated, one change); kbd:[Option]-drag keeps RSB; typing LSB in the panel moves artwork.
+* Metric lines stay one pixel wide at every zoom and their labels stay legible.
+* Merge test: LSB drag on one replica vs. a point edit on another converge with the point translated.
+
+[[FONT-012]]
+==== FONT-012 Components
+[horizontal]
+Track:: client-model
+Depends on:: FONT-008, FONT-011, REND-003
+Size:: M
+Delivers:: Component commands (add with anchor snapping, move, transform, decompose, decompose all, snap to anchors), loop and depth normalization, cached-outline placeholders, the Add Component sheet, Paste as Component, the Component section of the Object panel, component rendering and hit-testing, double-click to open source.
+Done when::
+* Each command is one change with an inverse.
+* Merge tests: move vs. move (later wins); decompose vs. move (restore re-inserts); source glyph deleted (placeholder from cache); loop created concurrently (cut at smallest element id; both replicas render identically).
+* Conformance vectors for loop, depth and dangling normalizations.
+
+[[FONT-013]]
+==== FONT-013 Anchors and mark attachment preview
+[horizontal]
+Track:: client-model
+Depends on:: FONT-008, FONT-011, FONT-012
+Size:: M
+Delivers:: Anchor commands (add, move, rename, set role, remove), name collision normalization, anchor overlay and hit-testing, the Add Anchor sheet and context menu item, the Anchor section of the Object panel, menu:View[Show Mark Attachment], and Build Accented Glyphs' anchor arithmetic used by FONT-008.
+Done when::
+* Each command is one change with an inverse; anchors snap to grid and metric lines.
+* Merge tests: move vs. move; add same name on two replicas (`.dup` on the larger element id); remove vs. move (restore).
+* UI test: with `a` (`top`) and `acute` (`_top`), Show Mark Attachment draws the acute at base − mark offset and follows an anchor drag live.
+
+[[FONT-014]]
+==== FONT-014 Find Problems and glyph checks
+[horizontal]
+Track:: client-render
+Depends on:: GEO-002, FONT-012, FONT-013
+Size:: M
+Delivers:: The incremental glyph checker (open contour, direction, overlap, off-grid, missing extrema, dangling and looping components, mixed content, anchor housekeeping, zero width, negative bearing, point count, name and codepoint collisions), badges in the tab and grid, the Find Problems panel with fixes, and the check list consumed by the validation report (FONT-026).
+Done when::
+* Each check has a positive and a negative fixture; the checker runs under 5 ms per glyph after a change.
+* Fix buttons produce the same result as the corresponding Glyph menu command.
+* The Glyphs with Problems selection in the grid matches the panel.
+
+[[FONT-017]]
+==== FONT-017 Preview strip
+[horizontal]
+Track:: client-ui
+Depends on:: FONT-015, FONT-016, FONT-011
+Size:: S
+Delivers:: The preview strip under the glyph canvas: text field, size pop-up, Kern checkbox, current glyph highlight, click to switch tab, resize and hide, the *Font preview text* preference.
+Done when::
+* Strip updates within 200 ms of a point drag ending; missing glyphs show as boxes.
+* Kerning applied in the strip equals the Metrics window's for the same string.
+endif::spec[]

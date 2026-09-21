@@ -1,0 +1,440 @@
+Every change anyone makes to a document is kept, with who made it and when.  Version history
+is where you look at that record: to see what happened while you were away, to find out who
+moved the logo, to name the state you are about to send to the printer, and to get back to
+how things were on Tuesday -- without stopping anyone else from working.  There is no Save;
+history is written as you draw (xref:saving.adoc[Saving]).
+
+// TODO screenshot: History panel showing a day grouped by person, a named version, and the hover row with Restore and View
+
+== The History panel
+
+Open it with menu:Window[History] or menu:File[Show History].  The panel is a timeline of the
+document, newest at the top:
+
+* *Named versions* stand out as bold rows with their name, who named them and when.
+* Between them, *changes* are grouped into sessions: one row per person per stretch of work,
+  such as "Priya · 14:02–15:40 · 312 changes".  Expand a session to see its individual
+  changes by label -- "Move 3 objects", "Change fill of Logo mark", "Type in Tagline".
+* Changes that arrived from a merged xref:branches.adoc[branch] are grouped under the branch's
+  name with the person who merged it.
+* Your own changes made offline and not yet sent are at the top under *Not yet synced*, in
+  italics.
+* Comments (xref:comments.adoc[Comments]) are changes too, and appear by label -- "Comment on
+  Logo mark", "Resolve thread 14" -- inside their author's session.  A *Hide comments* switch
+  in the panel's toolbar keeps them out of the timeline.
+
+Hover a row for its actions: btn:[View], btn:[Restore], btn:[Compare].  Right-click a named
+version for *Rename* and *Delete*.
+
+The panel searches: type a name, a label or an object name in its search field to filter the
+timeline to matching rows.
+
+== Naming a version
+
+A named version is a bookmark on the timeline: "Sent to printer", "Client review 2".  Naming
+does not copy anything or stop anything; it makes a moment easy to find and keeps it beyond
+the ordinary retention (<<retention,How long history is kept>>).
+
+To name the current state:
+
+. Press kbd:[Cmd+S], or choose menu:File[Name This Version…].
+. Type a name and, optionally, a note.  Click btn:[Name].
+. The version appears at the top of the History panel.  Everyone with the document open sees
+  it.
+
+NOTE: For {fh} users: kbd:[Cmd+S] does not save.  The document is always saved.  It names a
+version, which is the nearest thing to the moment you used to save for.
+
+To rename or delete a named version, right-click it in the History panel.  Deleting the name
+does not delete the changes; it only removes the bookmark (and, once the changes are older
+than the retention window, the ability to view that exact state).
+
+== Viewing a version
+
+To look at the document as it was at any row in the timeline:
+
+. Hover the row and click btn:[View], or double-click it.
+. A read-only window opens, titled "Catalogue — 'Client review 2' (read-only)", with a bar
+  above the canvas offering btn:[Restore], btn:[Restore as Copy…] and btn:[Compare with
+  Current].
+. Browse, select, zoom, copy objects out.  Nothing you do here changes anything.  The window
+  supports xref:inspect.adoc[Inspect mode], so you can measure the old state and copy its
+  colors and code just as you can in the live document.
+
+Viewing a version is private: collaborators do not see you looking, and the live document
+is unaffected.
+
+== Restoring a version
+
+There are two ways back.  Both leave everyone else's work intact.
+
+Restore as the current state::
+Makes the live document look like the version again.  {product} works out what differs
+between the version and the document as it is now, and applies those differences *as a new
+change* by you, labelled "Restore 'Client review 2'".  Nothing is rewound: every change made
+since is still in history, the restore itself is in history, and anyone working in the
+document at that moment sees the objects change with your name on them, just as for any
+edit.  Objects they are editing right then merge with the restore attribute by attribute --
+if Tom is dragging the logo while you restore, the logo ends up wherever the later of the two
+changes put it.  Restore is undoable like any change.  Comments are left alone: restoring
+does not remove threads written since the version or bring back deleted comments.
+
+Restore as a copy::
+Creates a *new document* in your space holding the version's state, and leaves the live
+document alone.  Use it when you want the old state next to the new one, or when a client
+wants "the version from last week" as its own file.
+
+To restore:
+
+. In the History panel, hover the row and click btn:[Restore]; or in a version's read-only
+  window, click btn:[Restore] or btn:[Restore as Copy…] in the bar.
+. For a restore to current, a summary appears: "This will change 41 objects, delete 3
+  objects added since, and bring back 2 deleted objects."  Click btn:[Restore].
+. For a copy, name the new document.  It opens in a new window.
+
+You need the editor role to restore to current; anyone can restore as a copy.
+
+== Comparing two versions
+
+To see what changed between any two rows:
+
+. Select a row in the History panel, then kbd:[Cmd]-click a second row.
+. Click btn:[Compare] in the panel's toolbar (or choose *Compare with Current* on a single
+  row).
+. The Review Changes sheet opens in compare mode (xref:collaboration.adoc#review[The Review
+  Changes sheet]): every object that differs between the two, with btn:[Older], btn:[Newer]
+  and btn:[Overlay] previews and the attribute-by-attribute list.  It is read-only; close it
+  when done.
+
+== Who changed this object
+
+Select any object and look at the top of the Object panel (xref:object-panel.adoc[Object
+panel]): under its name is a line such as _Changed by Priya, 5 minutes ago_.  Click it for a
+popover listing the object's own history -- each change to it, by whom, when, and what was
+changed ("Fill", "Position", "Text") -- with btn:[View] on each row to open the document as it
+was just before that change.  This is the quickest answer to "who moved this and when".
+
+== Undo, history and other people
+
+Undo (xref:undo.adoc[Undoing actions]) is yours alone: it steps back through *your* changes
+in this window and never touches anyone else's.  History is everyone's: it holds every
+change from every person, in the order they arrived.  If you need to take back something a
+collaborator did, do it from history -- view the state before their change and restore, or
+use the object's history popover -- rather than expecting undo to reach it.
+
+[[retention]]
+== How long history is kept
+
+* Every change is kept for *30 days*.  Within that window you can view, compare and restore
+  any moment and see every row in the timeline.
+* *Named versions are kept until you delete them.*  A named version older than 30 days can
+  still be viewed, compared, and restored, but the individual changes leading up to it are
+  summarized ("Priya · 14 March · 312 changes") rather than listed.
+* Deleted objects can be brought back for 30 days from the History panel; after that they
+  survive only inside named versions.
+* Teams can lengthen the 30-day window in team settings (xref:security.adoc[Accounts, teams
+  and security]).
+
+== Working with others
+
+The History panel is live: a collaborator's changes appear at the top as they happen, and a
+version they name appears for you at once.  Two people naming a version in the same second
+get two named versions, one each.
+
+When you restore a version while others are working, they see it as a change by you -- the
+affected objects pulse with your name -- and their own in-progress edits merge with it
+attribute by attribute.  Nobody is interrupted and nobody's work disappears; if the restore
+overrode something they had just done, it is in history and they can restore it in turn.
+
+After being offline, the timeline shows your changes under *Not yet synced* until they are
+sent; versions you named offline are marked the same way and become ordinary named versions
+when you reconnect.  You can view and restore versions your Mac already knows about while
+offline; older history downloads when you are back online.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,2"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Save (kbd:[Cmd+S])
+|Names a version.  Saving is continuous.
+|Adapted -- there is no file to save; the shortcut keeps its meaning of "mark this moment".
+
+|Save As / Save a Copy
+|Restore as Copy at any point in history; Duplicate in the library window for the current
+state.
+|Adapted -- same intent through history rather than the file system.
+
+|Revert
+|View or restore any earlier state.
+|Adapted -- superset.
+
+|--
+|Timeline, blame, compare, restore-as-change.
+|Added -- no FreeHand equivalent
+|===
+
+=== Data model
+
+The history *is* the change log (xref:crdt-model.adoc[CRDT model],
+xref:sync-protocol.adoc[Sync protocol]): hot rows in Postgres, cold segments in object
+storage, with `Change.label`, `wall_time_ms` and the server-attached author.  Named versions
+are server rows (`version`: document, `server_seq`, name, note, creator, timestamps, plus a
+materialized snapshot reference).  Nothing new enters the document schema; a *restore* is an
+ordinary `Change`.
+
+[source,protobuf]
+----
+// proto/wiretuner/docs/v1/version.proto (sketch)
+service VersionService {
+  // The timeline: change summaries newest first, already grouped into sessions by the server
+  // (same author, gaps under 10 min), interleaved with named versions.
+  rpc ListHistory(ListHistoryRequest) returns (ListHistoryResponse);
+  // Every change that touched one node (blame), newest first.
+  rpc ListNodeHistory(ListNodeHistoryRequest) returns (ListNodeHistoryResponse);
+  rpc ListVersions(ListVersionsRequest) returns (ListVersionsResponse);
+  rpc NameVersion(NameVersionRequest) returns (NameVersionResponse);
+  rpc UpdateVersion(UpdateVersionRequest) returns (UpdateVersionResponse);   // rename, note
+  rpc DeleteVersion(DeleteVersionRequest) returns (DeleteVersionResponse);
+  // A new document from the state at a server_seq (DocumentService.Fork with no changes).
+  rpc RestoreAsCopy(RestoreAsCopyRequest) returns (RestoreAsCopyResponse);
+}
+
+message ListHistoryRequest {
+  string document_id = 1;
+  // Page backwards from here (0 = head).  Opaque cursor in the response continues.
+  uint64 before_server_seq = 2;
+  string cursor = 3;
+  uint32 limit = 4 [(buf.validate.field).uint32.lte = 500];
+  string query = 5;   // label / author / object-name filter, server-side
+}
+message ListHistoryResponse {
+  repeated HistoryRow rows = 1;
+  string next_cursor = 2;
+  // Below this seq only named versions are viewable (retention window).
+  uint64 retained_from_seq = 3;
+}
+message HistoryRow {
+  oneof row {
+    Session session = 1;
+    Version version = 2;
+  }
+}
+// A stretch of one person's work.  Individual changes are fetched by expanding the session.
+message Session {
+  wiretuner.sync.v1.Participant author = 1;
+  uint64 first_server_seq = 2;
+  uint64 last_server_seq = 3;
+  google.protobuf.Timestamp started_at = 4;
+  google.protobuf.Timestamp ended_at = 5;
+  uint32 change_count = 6;
+  uint32 node_count = 7;                 // distinct nodes touched
+  string merged_from_branch_id = 8;      // set when the session is a branch merge
+  string merged_from_branch_name = 9;
+  // Present when the session is small or expanded: labels for the rows.
+  repeated ChangeSummary changes = 10;
+}
+message ChangeSummary {
+  uint64 server_seq = 1;
+  string label = 2;
+  google.protobuf.Timestamp wall_time = 3;
+  uint32 op_count = 4;
+  // Up to 8 touched nodes with their Object-panel names at the time, for the row text.
+  repeated NamedNode nodes = 5;
+  // Register names written, for blame ("Fill", "Position"): derived from field paths through
+  // the merge table's display names.
+  repeated string attributes = 6;
+}
+message NamedNode { wiretuner.doc.v1.OpId id = 1; string name = 2; }
+
+message ListNodeHistoryRequest {
+  string document_id = 1;
+  wiretuner.doc.v1.OpId node = 2;
+  string cursor = 3;
+  uint32 limit = 4 [(buf.validate.field).uint32.lte = 200];
+}
+message ListNodeHistoryResponse {
+  repeated ChangeSummary changes = 1;    // each with `author` via the session it belongs to
+  repeated wiretuner.sync.v1.Participant authors = 2;   // indexed by ChangeSummary order
+  string next_cursor = 3;
+}
+
+message Version {
+  string id = 1;
+  string document_id = 2;
+  uint64 server_seq = 3;                 // the state "at" this seq, inclusive
+  string name = 4 [(buf.validate.field).string.max_len = 256];
+  string note = 5 [(buf.validate.field).string.max_len = 8192];
+  wiretuner.sync.v1.Participant created_by = 6;
+  google.protobuf.Timestamp created_at = 7;
+  // True once the server has materialized a snapshot at exactly `server_seq`, which makes
+  // the version viewable after its changes leave the retention window.
+  bool pinned = 8;
+}
+message ListVersionsRequest { string document_id = 1; string cursor = 2; }
+message ListVersionsResponse { repeated Version versions = 1; string next_cursor = 2; }
+message NameVersionRequest {
+  string document_id = 1;
+  string version_id = 2;                 // client UUIDv7 (idempotent; also the offline key)
+  // The head the client had applied when the user named it.  For a version named offline
+  // this is the last remote head plus the client's own changes: the server records the seq
+  // at which the last of those changes was sequenced, so the version means "my state then".
+  uint64 server_seq = 3;
+  wiretuner.doc.v1.OpId through_local_change = 4;   // last local change included (offline case)
+  string name = 5;
+  string note = 6;
+}
+message NameVersionResponse { Version version = 1; }
+message UpdateVersionRequest { string version_id = 1; optional string name = 2; optional string note = 3; }
+message UpdateVersionResponse { Version version = 1; }
+message DeleteVersionRequest { string version_id = 1; }
+message DeleteVersionResponse {}
+message RestoreAsCopyRequest {
+  string document_id = 1;
+  uint64 server_seq = 2;
+  string new_document_id = 3;            // client UUIDv7
+  string name = 4;
+}
+message RestoreAsCopyResponse { string new_document_id = 1; }
+----
+
+=== Merge semantics
+
+Restore to current::
+The client builds the state at the version's seq (`FetchSnapshot` at or before it, then
+`FetchChanges` to exactly it, replayed in `WTCRDT` into a scratch document; or from the local
+log when the seq is within it) and diffs it against the current state.  The diff becomes one
+`Change` labelled `Restore '<name>'`, containing, per node:
++
+* present in the version, `deleted` now → `SetDeleted(false)`;
+* created after the version (absent from it) → `SetDeleted(true)`;
+* any register whose value differs → `SetFields` with the version's value (one op per node,
+  all paths);
+* parent or position differ → `MoveNode` to the version's parent and position;
+* sequence elements present in the version but deleted now → `ElementInsert` of new elements
+  with the old values at the old position (fresh element ids: tombstones are not resurrected);
+  elements added since → `ElementDelete`; elements whose registers differ → `SetFields`
+  through the element path;
+* text differing → `TextDelete` of the characters not in the version and `TextInsert` of the
+  version's characters that are missing, anchored by the surviving neighbours, then
+  `TextMark` ops for formatting that differs.
++
+The diff skips the `comments (0:12)` collection entirely (xref:comments.adoc[Comments],
+COLLAB-032): threads are conversation, not state to roll back.
++
+Because every op is an ordinary op from the restoring user's replica, it merges with
+concurrent edits register by register: the restore wins where its OpId is greater (it is
+newest at the moment it is made), and a collaborator's *later* edit wins over it in turn.  The
+restore is one undo step.  A restore never references collected tombstones, so it is safe
+against garbage collection by construction.
+
+Version naming::
+Server rows; two concurrent names are two versions.  A version named offline carries
+`through_local_change`; the server resolves it to the seq at which that change landed, which
+may be interleaved with others' changes -- the version then means "the state including
+everything up to and including my change", which is the closest faithful meaning.
+
+Blame::
+`ListNodeHistory` reads the retained log by node id (the server indexes `change_log` by
+touched node ids, COLLAB-020).  Losing writes appear too, marked, since the log retains them.
+
+Read-time normalization: none.
+
+=== Offline behavior
+
+The local `changes` table is the history the panel shows offline: remote changes since the
+local snapshot plus the outbox, marked *Not yet synced*.  Older history is fetched
+on demand when online and cached per session, not persisted.  Naming a version offline
+queues a `NameVersion` in a small `pending_calls` table (COLLAB-024) keyed by `version_id`;
+it is sent after the outbox drains so `through_local_change` has been sequenced.  Viewing and
+restoring work offline for any seq the local log can rebuild (the local snapshot's seq and
+later); older rows show *Available when online*.  Restore as Copy needs the network.
+
+=== Server
+
+SRV-011 delivers named versions as bookmarks and restore-as-copy.  COLLAB-020 adds:
+`ListHistory` with server-side session grouping and search, a touched-node index on
+`change_log` for `ListNodeHistory`, `attributes` derivation from field paths, offline
+`NameVersion` resolution through `through_local_change`, snapshot materialization for named
+versions (`pinned`) before their changes age out, the 30-day change retention job with the
+team setting, and the rule that blobs referenced by a pinned version are retained.
+
+=== Client
+
+* `WTApp/History`: `HistoryPanel` (SwiftUI list with session rows, expansion, search, multi-
+  select for compare), `VersionWindow` (read-only document window over a scratch `WTModel`
+  built from a snapshot, with the restore bar), `NameVersionSheet`, the `BlameLine` and
+  `NodeHistoryPopover` in the Object panel.
+* `WTModel.RestoreCommand` computes the diff-as-change above on a background actor and
+  reports the summary counts before committing.
+* `WTSync.HistoryCache`: pages of `ListHistory` and `ListNodeHistory` keyed by seq range,
+  invalidated by incoming `SequencedChange`s (which are appended locally without a fetch).
+* Undo grouping: a restore is one change; naming a version is not undoable (it is a server
+  call; delete instead).
+
+=== Build tasks
+
+[[COLLAB-020]]
+==== COLLAB-020 History listing, node history and version pinning
+[horizontal]
+Track:: server
+Depends on:: SRV-007, SRV-011, SRV-013
+Size:: M
+Delivers:: `ListHistory` with session grouping, search and `retained_from_seq`; touched-node index on `change_log` and `ListNodeHistory`; `attributes` from field paths; `NameVersion` with `through_local_change`; snapshot materialization for named versions; retention job honoring the team window; blob retention for pinned versions.
+Done when::
+* Listing the head of a document with 1,000,000 changes returns the first page in under 200 ms; node history for a node touched 10,000 times pages correctly.
+* A version named offline with `through_local_change` resolves to the seq of that change once pushed.
+* After the retention job, a pinned version older than the window is still fetchable as a snapshot and its blobs still download; unpinned changes are gone from `ListHistory` and cold storage.
+
+[[COLLAB-021]]
+==== COLLAB-021 Restore as a change
+[horizontal]
+Track:: client-model
+Depends on:: CRDT-008, CRDT-009, SYNC-004, APP-011
+Size:: M
+Delivers:: `RestoreCommand`: build the target state (local log or fetched snapshot + tail), diff against current, emit one labelled change per the op mapping above, summary counts, background execution.
+Done when::
+* Restoring the design-point document to a version 10,000 changes back produces a state whose hash equals the version's snapshot hash when no concurrent edits occur.
+* Merge test: a concurrent remote edit to a restored register resolves by OpId; both replicas converge; undo of the restore reverts only registers still holding restored values.
+* The change never references a tombstone absent from the current state (fuzzed against pruned documents).
+* Conformance vector: restore of a node with sequence elements re-inserted under fresh ids.
+
+[[COLLAB-022]]
+==== COLLAB-022 History panel, version window and Name This Version
+[horizontal]
+Track:: client-ui
+Depends on:: APP-004, APP-005, SYNC-004, COLLAB-002, COLLAB-020, COLLAB-021
+Size:: L
+Delivers:: The History panel (timeline with sessions, named versions, expansion, search, Not yet synced group, branch-merge grouping, the *Hide comments* switch filtering changes whose ops target `0:12`, row actions), the read-only version window with its bar and Inspect mode support, the Name This Version sheet on kbd:[Cmd+S] and menu:File[Name This Version…], rename/delete, Restore with summary confirmation, Restore as Copy, Compare of two rows through compare mode (Older/Newer/Overlay).
+Done when::
+* UI tests for naming, renaming, deleting, viewing, restoring (both ways) and comparing; a collaborator's new version appears in the panel within 1 s.
+* The version window cannot emit a change (asserted by an empty outbox after scripted edits).
+* Rows below `retained_from_seq` show the summarized form and only named versions are actionable.
+
+[[COLLAB-023]]
+==== COLLAB-023 Blame line and node history popover
+[horizontal]
+Track:: client-ui
+Depends on:: APP-007, COLLAB-020
+Size:: S
+Delivers:: The _Changed by X, N ago_ line in the Object panel from the local log (falling back to `ListNodeHistory`), the popover with per-change rows, attributes and btn:[View] opening the version window at the seq before the change.
+Done when::
+* For a locally known change the line updates within one frame of application; for older ones it fills from the server without blocking the panel.
+* Losing writes are shown with a "did not apply" mark.
+
+[[COLLAB-024]]
+==== COLLAB-024 Offline history and queued version names
+[horizontal]
+Track:: client-sync
+Depends on:: SYNC-002, SYNC-003, COLLAB-022
+Size:: S
+Delivers:: The *Not yet synced* group sourced from the outbox, `pending_calls` for `NameVersion` sent after the outbox drains, *Available when online* rows, and the `HistoryCache` invalidation from live changes.
+Done when::
+* A version named offline appears in the panel immediately as pending and becomes a server version after reconnect with the correct seq (simulator test).
+* Killing the app with a pending name does not lose it.
+* Merge test: the outbox order is unaffected by the queued call (hash equality after reconnect).
+endif::spec[]

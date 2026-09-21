@@ -1,0 +1,206 @@
+= Authoring the guide and the spec
+include::_attributes.adoc[]
+:page-slug: authoring
+
+{product}'s user guide and its specification come from one source.  The page that tells a user
+how to draw with the Pen tool also tells a builder what the Pen tool writes into the document,
+how that behaves when two people draw at once, and which tasks deliver it.  The two books cannot
+drift apart because they are not two books.
+
+== Layout
+
+[cols="1,3"]
+|===
+|Path |Holds
+
+|`docs/_attributes.adoc`
+|Attributes shared by every page.  Every page includes it on its second line, as
+`include::_attributes.adoc[]` -- include paths in a page resolve from the docs root (the render
+sets `base_dir` to `docs/`), so a page in `guide/` and one in `spec/` write the same path.
+
+|`docs/guide/<slug>.adoc`
+|One thin page per feature: title, `include::` of the attributes, page metadata, then
+`include::` of its content.  This is the file both renders see.
+
+|`docs/_includes/<area>/<slug>.adoc`
+|The content of a feature page: user-guide prose with `ifdef::spec[]` blocks for the
+specification.  Split out from the page so a long chapter can be assembled from several
+includes without the page file growing.
+
+|`docs/spec/<slug>.adoc`
+|Specification-only pages: architecture, protocol, CRDT model, backlog.  Rendered only in the
+spec build.
+
+|`docs/images/`
+|Screenshots and diagrams.  Referenced as `image::name.png[]`; a reference that does not resolve
+fails the build, so do not add one until the image exists.
+
+|`docs/inspo/`
+|The {fh} manual we are matching.  Reference material only -- never quoted.
+|===
+
+Slugs are lowercase, hyphenated, and unique across `guide/` *and* `spec/`, because both renders
+write every page flat into the same output directory.
+
+== A feature page
+
+.`docs/guide/pen-bezigon.adoc`
+[source,asciidoc]
+----
+\= Drawing with the Pen and Bezigon tools
+\include::_attributes.adoc[]
+:page-slug: pen-bezigon
+:page-group: Drawing
+:page-fh: Chapter 3, "Drawing with the Pen tool and Bezigon tool"
+
+\include::_includes/drawing/pen-bezigon.adoc[]
+----
+
+`page-fh` names the {fh} section the page covers, so parity can be audited section by section
+(xref:parity.adoc[FreeHand parity]).
+
+== Content: guide first, spec inside
+
+The include reads, top to bottom, as the user guide.  Write it for a designer who has never seen
+{fh}: what the feature is for, the procedures to use it, every option, every modifier key, and
+what the user sees when collaborators are working at the same time.
+
+Specification material goes in `ifdef::spec[]` blocks.  Most pages carry one block at the end;
+a page may also put a short block right after the guide section it qualifies, when the spec
+note only makes sense next to that procedure.
+
+[source,asciidoc]
+----
+Guide prose...
+
+\== Working with others
+
+What a user sees when someone else edits the same objects.  This section is guide content: it is
+part of the user guide, not the spec.
+
+\ifdef::spec[]
+\== Specification
+
+\=== FreeHand parity
+\=== Data model
+\=== Merge semantics
+\=== Offline behavior
+\=== Server
+\=== Client
+\=== Build tasks
+\endif::spec[]
+----
+
+=== Guide conventions
+
+* Procedures are introduced with a lead-in ending in a colon (`To draw a star:`) followed by an
+  ordered list, one action per step, as {fh}'s manual does.  Options go in a table or a
+  labelled list after the procedure.
+* Menus are written `menu:Modify[Transform > Rotate]`, keys as `kbd:[Cmd+Shift+G]`, buttons as
+  `btn:[Apply]`, all from the `experimental` attribute.  The client is macOS-only: use
+  kbd:[Cmd], kbd:[Option], kbd:[Control], kbd:[Shift], never Windows names.
+* Name panels, tools and menus exactly as the app does.  Where {product} renames something
+  from {fh} (the *Answers* panel became *Help*, *Xtras* became *Extensions*), say so once, in a
+  `NOTE:`, for users arriving from FreeHand.
+* Write original prose.  The {fh} manual defines *what* the feature does; it is copyrighted and is
+  never pasted, paraphrased sentence by sentence, or quoted.
+* A guide page never mentions CRDTs, gRPC, operations or replicas.  A user hears about
+  "your changes", "saving", "syncing" and "offline".
+
+=== Spec conventions
+
+Every Specification section uses these subsections, in this order, and leaves out any that
+genuinely has nothing to say.  "Nothing to say" is rare for *Merge semantics* and *Offline
+behavior*: every feature that changes the document has a concurrent case.
+
+FreeHand parity::
+A table: each {fh} capability in the section, what {product} does, and a parity verdict --
+`Faithful` (same behavior), `Adapted` (same intent, different mechanism, reason given),
+`Dropped` (reason given, and recorded in xref:decisions.adoc[Decisions]) or `Added` (no {fh}
+counterpart: a capability the cloud, multiplayer or modern macOS made necessary or cheap).
+
+Data model::
+The protobuf messages the feature adds or extends, sketched in a `[source,protobuf]` block,
+with a `wt.crdt` merge option on every field whose default policy is not the one you mean
+(xref:crdt-model.adoc#options[CRDT model]).  Say in a comment why a message is ATOMIC.  Sketches are
+normative for field meaning and merge policy; field numbers are assigned when the `.proto` is
+written.
+
+Merge semantics::
+What happens when two people change the same thing concurrently.  Name the merge policy per
+field and walk through the nasty cases (edit vs. delete, move vs. move, two people dragging one
+handle).  Say what the conflict review (xref:reconcile.adoc[Reconciling offline edits]) shows.
+
+Offline behavior::
+Anything beyond "works offline, syncs later": features needing the server (sharing, cloud
+fonts, publishing), outbox coalescing rules, blob uploads deferred until online.
+
+Server::
+What the server does beyond storing and relaying changes.  Usually "nothing": most features
+are client-only because the server treats the document generically.  Say so explicitly.
+
+Client::
+Swift module, rendering and hit-testing notes, geometry algorithms, AppKit controls, undo
+grouping.
+
+Build tasks::
+The tasks that deliver the page (below).
+
+== Build tasks
+
+A task is sized for one agent working alone: it names its inputs, touches one track, and ends
+in something testable.  Tasks live on the page of the feature they deliver.  The
+xref:backlog.adoc[Backlog] lists the foundation tasks and orders the epics into waves.
+
+[source,asciidoc]
+----
+\[[DRAW-012]]
+\==== DRAW-012 Pen tool: click, drag and close gestures
+[horizontal]
+Track:: client-ui
+Depends on:: APP-003, GEO-001, DRAW-002
+Size:: M
+Delivers:: The Pen tool's gesture state machine creating and extending `PathNode` contours.
+Done when::
+* Clicking places corner points, dragging places curve points with symmetric handles, and
+  clicking the start point closes the path.
+* kbd:[Option]-drag breaks handle symmetry; kbd:[Shift] constrains to 45° increments.
+* Each completed segment is one undo step; the whole path is one change on the wire.
+* UI tests cover open, closed and cancelled (kbd:[Esc]) paths.
+----
+
+Task ids are `<EPIC>-<NNN>`.  Each epic owns a prefix and numbers in steps of one; nobody reuses
+an id, even for a deleted task (mark it `Withdrawn` instead).  The id is also the anchor, so a
+task can be linked as `xref:pen-bezigon.adoc#DRAW-012[DRAW-012]`.
+
+Tracks:: One per task.  An agent picks a track it is set up for.
++
+[cols="1,3"]
+|===
+|Track |Scope
+
+|`proto` |`.proto` files under `proto/`, buf lint and breaking checks, codegen configuration.
+|`crdt` |The merge engine: `WTCRDT` (Swift) and `wt-crdt` (Java) together, plus conformance vectors.  A crdt task changes both engines or neither.
+|`server` |Quarkus services, persistence, Flyway migrations, jobs.
+|`client-model` |`WTModel`: typed document model, commands that emit changes, undo.
+|`client-sync` |`WTSync`: local store, outbox, gRPC session, reconnect, reconcile.
+|`client-render` |`WTRender`, `WTGeometry`, `WTText`: drawing, hit-testing, geometry kernels, text layout.
+|`client-ui` |`WTApp`: AppKit windows, tools, panels, menus, dialogs.
+|`import-export` |`WTInterchange`: file formats in and out, printing.
+|`test` |Cross-cutting test infrastructure: multi-client simulators, fuzzers, UI test harness.
+|`docs` |This documentation.
+|===
+
+Depends on:: Task ids only.  A dependency is a *hard* one: the task cannot start without it.
+Soft ordering ("nicer after") goes in the prose, not here.
+
+Size:: `S` (up to a day), `M` (up to three days), `L` (up to two weeks).  A task that would be
+larger is split.
+
+Done when:: Checkable statements.  Every task that changes the document includes a merge test;
+every task that adds a field includes a conformance vector (xref:testing.adoc[Testing]).
+
+== Rendering
+
+`make docs-check` renders both books with the Ruby `asciidoctor` CLI and fails on any warning.
+`make docs` is the Maven render CI runs.  Both put their output under `docs/target/`.

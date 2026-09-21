@@ -1,0 +1,7 @@
+= Strokes, fills and the Attributes list
+include::_attributes.adoc[]
+:page-slug: attribute-stack
+:page-group: Strokes and fills
+:page-fh: Chapter 6, "Adding strokes and fills to objects"
+
+include::_includes/appearance/attribute-stack.adoc[]

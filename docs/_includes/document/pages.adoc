@@ -1,0 +1,369 @@
+A {product} document has one or more pages laid out on a single large pasteboard.  Pages can be
+any size, can differ from one another, and can sit anywhere on the pasteboard; objects can be
+placed on a page, on the pasteboard between pages, or across a page edge.  You add, duplicate,
+remove, resize and move pages with the Page tool on the canvas or with the Document panel
+(xref:document-panel.adoc[The Document panel]).  Every page change is part of the document and
+syncs to everyone.
+
+// TODO screenshot: three pages on the pasteboard, one selected with the Page tool showing handles
+
+== Adding pages
+
+To add one page:
+
+* Click the btn:[Add Page] button at the bottom of the document window.  The new page takes the
+  selected page's size, orientation, bleed and master, and is placed to the right of the rightmost
+  page, immediately after the selected page in page order.
+
+To add several pages with specific settings:
+
+. Open the Document panel's Options menu and choose *Add Pages…*.
+. In the *Add Pages* sheet, type the number of pages.
+. Choose a size (standard or custom), orientation and bleed.
+. To make the new pages children of a master page, select *Make child of master page* and choose
+  the master.
+. Click btn:[Add].
+
+To add a page by duplicating on the canvas:
+
+. Select the Page tool in the Tools panel.
+. Hold kbd:[Option] and drag a page to an empty area of the pasteboard.  The copy, with all the
+  page's objects, is created where you release; it follows the original in page order.
+
+== Selecting pages
+
+The *active page* is the page that page settings, the ruler zero point and *Go to Page* refer to.
+To select a page, do one of the following:
+
+* With the Page tool, click a page on the pasteboard.  kbd:[Shift]-click adds pages to the
+  selection; kbd:[Shift]-drag a marquee to select several.
+* In the Document panel, click a page thumbnail.
+* Use the *page selector* at the bottom of the document window: the btn:[<] and btn:[>] buttons
+  go to the previous and next page, the pop-up lists every page by number, and the field takes a
+  page number.  kbd:[Option]-click the buttons for the first and last page.
+* Click a page with any tool, if the *Using tools sets the active page* preference is on.
+
+=== Preferences that choose the active page
+
+Both are in menu:{product}[Settings… > Document] (kbd:[Cmd+,]):
+
+Changing view sets the active page::
+When on, scrolling the document window so that a different page fills most of the view makes that
+page active.  The page number at the bottom of the window and the highlight in the Document panel
+follow.  Off by default.
+
+Using tools sets the active page::
+When on, clicking on a page with any tool makes it the active page.  Off by default; with it off,
+only the Page tool and the page selector change the active page.
+
+== Duplicating, removing and moving pages
+
+To duplicate a page:
+
+. Select the page.
+. Do one of the following:
+* Open the Document panel's Options menu and choose *Duplicate*.
+* With the Page tool, kbd:[Option]-drag the page to an empty spot on the pasteboard.
+
+To remove a page:
+
+. Do one of the following:
+* Select the page in the Document panel, then choose *Remove* from its Options menu.
+* With the Page tool, select the page on the pasteboard and press kbd:[Delete].
+. If the page has objects on it, confirm in the alert.  The objects are removed with the page.
+  Objects that also extend onto another page or onto the pasteboard are kept.
+
+A document must keep at least one page; *Remove* is disabled on the only page.  Removing a page is
+undoable, and the page and its objects stay recoverable from the document history
+(xref:history.adoc[History]).
+
+To move a page and its contents:
+
+* With the Page tool, drag the page to a new place on the pasteboard, or
+* in the Document panel, drag its thumbnail.
+
+To move a page without its contents:
+
+. With the Page tool, start dragging the page.
+. While dragging, hold kbd:[Cmd] and continue.  The page frame moves; the objects stay.
+
+Pages snap to the grid while dragging if menu:View[Grid > Snap to Grid] is on, and to guides on
+other pages if menu:View[Guides > Snap to Guides] is on.  Hold kbd:[Shift] to constrain the drag
+to horizontal or vertical.
+
+== Page order
+
+Pages are numbered in *page order*, which is independent of where they sit on the pasteboard.  New
+pages go after the selected page; duplicates follow their original.  To change the order, drag a
+page in the *page list* -- the list view of the Document panel's pasteboard view, shown by clicking
+the list button next to the magnification buttons -- or choose *Move Page…* from the panel's
+Options menu and enter a new number.  Page order decides printing and export sequence and the
+numbering everywhere in the interface.
+
+NOTE: {fh} numbered pages in the order they were created and had no command to reorder them.
+{product} adds the page list and *Move Page…*.
+
+== Modifying, resizing and rotating pages
+
+To change a page's settings in a sheet:
+
+. With the Page tool, kbd:[Option]-double-click the page.  The *Modify Page* sheet opens.
+. Do any of the following:
+* Choose a size from the *Page Size* pop-up, or choose *Custom* and type the width and height.
+* Choose an orientation.
+* Type a bleed.
+* If the document has master pages, choose one from *Make child of master page*, or *None*.
+. Click btn:[OK].
+
+To resize a page by dragging:
+
+. With the Page tool, click the page to show its eight handles.
+. Drag a corner, top, bottom or side handle.  Hold kbd:[Shift] to keep the proportions.  Hold
+  kbd:[Option] to resize around the page's center instead of the opposite edge.
+. The page's preset becomes *Custom*.  Objects do not move.
+
+Page edges snap to the grid while resizing when menu:View[Grid > Snap to Grid] is on.
+
+To rotate a page:
+
+. With the Page tool, click the page to show its handles.
+. Move the pointer just outside the page near a handle until it becomes the rotate pointer.
+. Drag.  The page snaps between portrait and landscape as you pass 45°; objects on the page do
+  not rotate.
+
+A child of a master page cannot be resized, re-oriented or rotated: edit the master page instead
+(xref:master-pages.adoc[Master pages]).  Its handles are shown dimmed and the Modify Page sheet
+shows the master's values disabled.
+
+== Working with others
+
+Pages are shared like everything else.  When a collaborator adds a page, it appears on your
+pasteboard and in the Document panel; when they move a page, it slides to its new place, objects
+included.  Page numbers renumber for everyone when a page is added, removed or reordered.  Each
+collaborator's current page is marked in the Document panel with a dot in their color.
+
+Two people editing the same page at once:
+
+* *Both resize it* -- the later resize stands.  The other person is told and can reapply theirs.
+* *One removes it while the other is drawing on it* -- the page disappears for both, but the
+  objects the other person was drawing are not lost: they remain on the pasteboard exactly where
+  the page was.  {product} points this out to the person who drew them ("Page 3 was removed by
+  Tom; your 4 objects are on the pasteboard") with a *Restore page* button.
+* *Both drag it* -- the later drag wins and the objects follow; the other person's drag is undone
+  for both.
+* *Both reorder pages* -- both reorders apply; if both moved the same page, the later one wins.
+
+After working offline, all of this happens at once when you reconnect, and anything that collided
+on the same page is listed in the review sheet, where you can keep yours, keep theirs, or restore a
+removed page (xref:collaboration.adoc[Working together]).
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,1"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Add Page button at the bottom of the window
+|Same.
+|Faithful
+
+|Add Pages dialog (count, size, orientation, bleed, make child of master)
+|Same, as a sheet.
+|Faithful
+
+|Page tool: click to select, Option-drag to duplicate, Delete to remove
+|Same; Shift-click and marquee add multi-select.
+|Faithful
+
+|Select a page via Document panel thumbnail, Go to Page pop-up, page selector buttons
+|Same; Option-click on the buttons jumps to first/last.
+|Faithful
+
+|Preferences: Changing view sets the active page; Using tools sets the active page
+|Same names and behavior; live under Settings > Document.
+|Faithful
+
+|Remove page prompts if it has objects; at least one page must remain
+|Same; objects straddling other pages or the pasteboard survive.
+|Faithful
+
+|Drag page moves contents; Cmd during drag moves frame only
+|Same.
+|Faithful
+
+|Option-double-click for Modify Page dialog
+|Same, as a sheet.
+|Faithful
+
+|Resize by handles, Shift proportional, snap to grid
+|Same; Option resizes about the center.
+|Faithful
+
+|Rotate a page by dragging near a handle; objects do not rotate
+|Same; only the two orientations exist.
+|Faithful
+
+|Page numbering by creation order, no reordering
+|Page order is an explicit, editable order (page list drag, Move Page…).
+|Adapted -- a multiplayer document needs an order that survives concurrent adds; the sibling position provides it for free.
+
+|Child pages cannot be modified, resized or rotated
+|Same.
+|Faithful
+|===
+
+=== Data model
+
+`PageProps` is on xref:document-panel.adoc[The Document panel].  This page adds no fields; it
+defines how the commands write them:
+
+Add:: `CreateNode` under `pages` (0:2) with `position` generated after the selected page's
+position, `origin` right of the rightmost page's bleed rectangle plus one inch, `geometry`,
+`bleed` and `master` copied from the selected page (or from the sheet).
+Duplicate:: The add above, plus a `CreateNode` for every object on the page (objects-on-page
+query, deep copy of each subtree, `origin` translated), in the same change.
+Remove:: `SetDeleted(page, true)` plus `SetDeleted(object, true)` for every object whose bounds are
+entirely inside the page's bleed rectangle, in one change labelled "Remove page N".
+Move with contents:: `SetFields(page.origin)` plus a `SetFields(CommonProps.transform)` on every
+top-level object on the page, one change.  Coalesces during the drag.
+Move frame only:: `SetFields(page.origin)` alone.
+Reorder:: `MoveNode(page, parent = pages, position)`.
+Resize / orientation / rotate:: `SetFields(page.geometry)` (ATOMIC).
+Modify Page sheet:: One change writing whichever of `geometry`, `bleed`, `master` changed.
+
+=== Merge semantics
+
+The nasty cases, by name:
+
+Two people resize one page::
+`geometry` is ATOMIC; the later OpId wins whole.  Objects are untouched by both.  The losing
+write is listed in the review (same-register loss of visible work).  Live: notice with *Reapply
+mine*.
+
+Delete a page vs. add objects on it::
+The page's `deleted` register becomes true; the concurrent object creations are not part of the
+remover's change, so they apply and the objects live on the main canvas at their coordinates.
+Objects are never children of pages, so nothing is orphaned; the objects-on-page query simply
+answers "pasteboard".  The review sheet (and the live notice) lists "objects created on a page
+that was removed" -- detected by `WTSync` as an overlap between a `SetDeleted(page)` change and
+creations whose bounds fell in that page's rectangle -- with *Restore page*, which writes
+`deleted = false` on the page.  Objects the remover deleted with the page and the other user
+*edited* concurrently are ordinary edit-vs-delete entries with *Restore*.
+
+Delete a page vs. move it::
+The move applies to a deleted page; restoring the page shows it at the moved position.  No review
+entry beyond the delete itself.
+
+Two people move the same page::
+`origin` later-wins, and each mover's change also transformed the page's objects.  Both object
+transforms are ATOMIC registers on each object, so the later change's transforms win object by
+object.  Because both changes are causally concurrent and translated the *same* objects, the
+result is consistent (all objects follow the later drag) except for objects one user had added or
+removed from the page meanwhile, which follow only the drag that included them.  The review sheet
+lists the page as `move vs move`; *Use mine* re-translates page and objects together.
+
+Concurrent reordering::
+Fractional positions: both moves apply.  Moving the same page from two sides is a same-register
+write on its position; later wins.  Adding pages "after page 2" from two sides gives two new pages
+after page 2, ordered by their random suffix then node id; the interleaving is harmless.
+
+Add pages while the other side removes the only other page::
+Fine: the document always ends with at least one non-deleted page here.  The one way to reach zero
+pages is both users removing different pages of a two-page document concurrently; each was legal
+locally.  Read-time normalization: a document with no live page reads as one Letter page at the
+origin, and the first command that touches pages writes it (`CreateNode`) with a review entry
+"all pages were removed; a page was added" so both users learn what happened.
+
+Duplicate vs. edit of the original::
+Independent nodes; the duplicate holds the original's state as the duplicator saw it.
+
+Presence:: The active page is presence, not document state.
+
+=== Offline behavior
+
+Standard.  A day's worth of page drags coalesces to one `origin` write per page.  Presence page
+dots are absent offline.
+
+=== Server
+
+Nothing beyond storing and relaying changes.
+
+=== Client
+
+* `WTModel.PageCommands`: `addPages(count:geometry:bleed:master:after:)`, `duplicate`, `remove`
+  (with the straddle rule), `move(withContents:)`, `reorder(to:)`, `setGeometry`, `rotate`.  Each
+  is one change; drags coalesce through the standard outbox rules and group into one undo step
+  (APP-011).
+* Page tool in `WTApp`: `Tool` conformance with hit testing on page rectangles (a page hit only
+  when no object is hit, unless the tool is the Page tool), eight handles at the standard handle
+  size, rotate cursor zone 12 pt outside the handles, kbd:[Cmd] sampled on every drag event to
+  switch between with-contents and frame-only (the objects already translated are put back when
+  kbd:[Cmd] goes down mid-drag).
+* Rendering (`WTRender`): page rectangles filled white with a hairline, bleed rectangle as a
+  dotted line, the pasteboard in the *Pasteboard color* preference; the active page's outline is
+  emphasized; collaborators' active pages show a dot in their presence color at the top-left
+  corner.
+* Page selector and Add Page button are in the window's bottom bar (APP-002).
+
+=== Build tasks
+
+[[DOC-006]]
+==== DOC-006 Page commands
+[horizontal]
+Track:: client-model
+Depends on:: DOC-002, CRDT-003
+Size:: M
+Delivers:: `WTModel.PageCommands` as listed in the Client section, the straddle rule for removal, the zero-pages normalization, and change labels.
+Done when::
+* Each command is one change with an inverse; undo of a removal restores the page and its objects.
+* Merge tests: resize vs. resize (later wins whole); remove vs. create-on-page (objects survive on the pasteboard); move vs. move (objects follow the later drag); reorder vs. reorder; both pages of a two-page document removed on two replicas (normalized to one page, next command writes it).
+* Conformance vectors for the zero-pages read-out.
+
+[[DOC-007]]
+==== DOC-007 Page tool
+[horizontal]
+Track:: client-ui
+Depends on:: APP-003, GEO-005, DOC-006
+Size:: L
+Delivers:: The Page tool: select, Shift-add, marquee, drag with and without contents, kbd:[Cmd] mid-drag switch, kbd:[Option]-drag duplicate, resize handles with kbd:[Shift] and kbd:[Option], rotate zone, kbd:[Delete], kbd:[Option]-double-click *Modify Page* sheet, snapping to grid and guides, dimmed handles on child pages.
+Done when::
+* UI tests for every gesture and modifier, including modifier changes mid-drag.
+* A drag produces one change and one undo step.
+* Child pages refuse resize and rotate with the dimmed-handle affordance.
+
+[[DOC-008]]
+==== DOC-008 Page navigation and preferences
+[horizontal]
+Track:: client-ui
+Depends on:: APP-002, APP-010, DOC-006
+Size:: M
+Delivers:: btn:[Add Page] and the page selector in the bottom bar; *Go to Page* pop-up and field; the two active-page preferences; the *Add Pages* sheet; the page list and *Move Page…*; live notices for lost resizes and removed pages with *Reapply mine* / *Restore page*.
+Done when::
+* Scrolling with *Changing view sets the active page* on tracks the page covering most of the view, debounced to 200 ms.
+* UI tests: add pages via the sheet with a master; reorder via the list; notice appears when a remote removal hits a page with local new objects and *Restore page* brings it back.
+
+[[DOC-009]]
+==== DOC-009 Page rendering
+[horizontal]
+Track:: client-render
+Depends on:: REND-001, DOC-001
+Size:: S
+Delivers:: Page and bleed rectangles, pasteboard fill, active page emphasis, presence dots on pages, in `WTRender`'s display list below the layers.
+Done when::
+* Pages render identically at every zoom; the bleed line stays a hairline.
+* Screen and PDF render of the page rectangle agree (the page background prints white, the outline does not print).
+
+[[DOC-031]]
+==== DOC-031 Document setup multi-client scenarios
+[horizontal]
+Track:: test
+Depends on:: TEST-001, DOC-006, DOC-010, DOC-017
+Size:: M
+Delivers:: Simulator scenarios for this chapter: resize race, remove-vs-draw, move-vs-move, reorder race, zero pages, master edit vs. child release, guide drag race, guide delete vs. move, offline day of page edits on two clients.
+Done when::
+* All scenarios converge to identical hashes on every client and the expected review entries are produced.
+* Runs inside the TEST-001 CI budget.
+endif::spec[]

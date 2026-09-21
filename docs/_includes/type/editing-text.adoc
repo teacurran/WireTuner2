@@ -1,0 +1,562 @@
+Editing text means selecting some of it and changing it: retyping, deleting, inserting special
+characters, fixing spelling, or finding and replacing across the document.  You do it directly
+on the page with the Text tool, or in the Text Editor window when the text is hard to reach --
+tiny, pale, rotated, or full of invisible characters.  Formatting is the subject of
+xref:type-specifications.adoc[Setting type specifications] and the pages after it.
+
+== Selecting text
+
+Everything starts with a selection made with the Text tool (kbd:[T]).  Clicking inside a block
+places the insertion point and shows the text ruler above the block.
+
+To select text:
+
+. Choose the Text tool.
+. Do one of the following:
+* Drag across characters, words or paragraphs.
+* Double-click a word to select it; keep the button down and drag to extend by whole words.
+* Triple-click to select a paragraph; drag to extend by paragraphs.
+* Click at one end of the range, then kbd:[Shift]-click at the other.
+* Choose menu:Edit[Select > All] (kbd:[Cmd+A]) to select every character in the block and its
+  linked chain.
+
+.Keyboard selection and movement
+[cols="1,2"]
+|===
+|Keys |Moves or selects
+
+|kbd:[←] kbd:[→] kbd:[↑] kbd:[↓]
+|One character or line.
+
+|kbd:[Option+←] kbd:[Option+→]
+|One word.
+
+|kbd:[Cmd+←] kbd:[Cmd+→]
+|To the start or end of the line.
+
+|kbd:[Option+↑] kbd:[Option+↓]
+|To the start or end of the paragraph.
+
+|kbd:[Cmd+↑] kbd:[Cmd+↓]
+|To the start or end of the text.
+
+|kbd:[Shift] with any of the above
+|Extends the selection instead of moving.
+
+|kbd:[Esc]
+|Ends editing; the block stays selected with the Pointer tool.
+|===
+
+The text ruler is shown with menu:View[Text Rulers].  When it is hidden, the block's handles
+still appear while you edit, unless you turn off the *Show text handles when ruler is off*
+preference.
+
+== Editing on the page
+
+Type to replace a selection or insert at the insertion point; kbd:[Delete] removes the
+selection or the character before the insertion point, kbd:[Fn+Delete] the character after,
+kbd:[Option+Delete] the word before.  Cut, copy and paste work on selections
+(xref:importing-text.adoc[Importing text] covers pasting rich text).
+
+== The Text Editor window
+
+The Text Editor shows a block's text in a plain window where every character is easy to see
+and select.  It is the best place to work on text that is transformed, very small, set in a
+light color, or dense with tabs and special characters.
+
+To edit in the Text Editor:
+
+. Do one of the following:
+* Select the block with the Pointer tool and choose menu:Text[Editor…] (kbd:[Cmd+Shift+E]).
+* kbd:[Option]-double-click a block with the Pointer tool.
+* kbd:[Option]-click a block with the Text tool.
+* kbd:[Option]-click on empty page with the Text tool to create a block already open in the
+  editor (xref:creating-text.adoc[Creating text]).
+. Edit.  Every change you make appears on the page as you type, and the text stays selected in
+  both places.
+. Close the window (kbd:[Cmd+W]) when done.
+
+[cols="1,3"]
+|===
+|Option |Does
+
+|*12 point black*
+|Shows the text in 12-point black type in the window regardless of its real formatting.  Only
+the window changes; the document does not.
+
+|*Show invisibles*
+|Marks spaces, tabs, paragraph ends, end-of-line and end-of-column characters, and
+discretionary hyphens with visible symbols.
+
+|*Wrap to window*
+|Wraps long lines in the window (on by default) rather than scrolling horizontally.
+|===
+
+Inline graphics appear in the editor as a small placeholder box.  Text on a path and text in
+linked chains edit as one continuous story.
+
+To always edit in the Text Editor, turn on the *Always use Text Editor* preference; the Text
+tool then opens the window whenever you click into a block.
+
+NOTE: {fh}'s Text Editor had btn:[OK], btn:[Cancel] and btn:[Apply] buttons and held your edits
+until you committed them.  {product}'s editor is live: what you type is in the document
+immediately, so a collaborator editing the same block sees it as you go.  To abandon an edit,
+use Undo.
+
+== Special characters
+
+Some characters shape a layout without printing anything.  Insert them with the Text tool at
+the insertion point, or in the Text Editor, from menu:Text[Special Characters]:
+
+[cols="1,1,3"]
+|===
+|Character |Shortcut |Effect
+
+|End of column
+|kbd:[Cmd+Return]
+|Ends the column here; following text starts at the top of the next column, row or linked block
+(xref:columns-tables.adoc[Columns, rows and tables]).
+
+|End of line
+|kbd:[Shift+Return]
+|Breaks the line without starting a new paragraph.
+
+|Non-breaking space
+|kbd:[Option+Space]
+|A space that never falls at a line break.
+
+|Em space
+|kbd:[Cmd+Shift+M]
+|A space one em (the type size) wide.
+
+|En space
+|kbd:[Cmd+Shift+N]
+|Half an em.
+
+|Thin space
+|kbd:[Cmd+Shift+T]
+|A tenth of an em.
+
+|Em dash
+|kbd:[Shift+Option+-]
+|A dash one em wide.
+
+|En dash
+|kbd:[Option+-]
+|A dash half an em wide.
+
+|Discretionary hyphen
+|kbd:[Cmd+-]
+|A hyphen that appears only if the line breaks there.
+|===
+
+Any other character comes from the Character Viewer (kbd:[Control+Cmd+Space]).
+
+== Smart quotes
+
+With the *Smart quotes* preference on (the default), typing `'` or `"` produces the curly or
+angled quotation marks of the chosen set; the opening or closing form is picked from what
+precedes it.  Six sets are offered in the preference's pop-up: the English/Dutch/Italian/
+Spanish curly pair, the Scandinavian double-right pair, the two low-high pairs used in Czech,
+German, Hungarian and Polish, chevrons (guillemets), and reversed chevrons.  Only one set is
+active at a time; to mix sets in one document, change the preference between typing them.
+
+To type a straight quote while smart quotes are on -- for feet and inches, say -- hold
+kbd:[Control] while pressing the quote key.  Smart quotes apply while typing only; pasted and
+imported text is left as it is.
+
+== Checking spelling
+
+{product} uses the macOS spelling system, so the languages, dictionaries and learned words you
+have in every other Mac application apply here.
+
+To check spelling:
+
+. Select a block with the Pointer tool, a range with the Text tool, or nothing to check the
+  whole document.
+. Choose menu:Text[Spelling…] (kbd:[Cmd+;]).  The Spelling and Grammar window opens at the
+  first questionable word, which is highlighted on the page.
+. For each word: click btn:[Change] to accept the suggestion (or a word you type), btn:[Ignore]
+  for this document, or btn:[Learn] to add it to your dictionary.  btn:[Find Next] skips it.
+
+Misspelled words are also underlined in red while you type when *Check spelling while typing*
+is on in the Spelling preferences; kbd:[Control]-click a word for suggestions.
+
+.Spelling preferences (menu:{product}[Settings… > Spelling])
+[cols="2,1,3"]
+|===
+|Preference |Default |Does
+
+|Check spelling while typing
+|On
+|Red underlines and the context-menu suggestions.
+
+|Find duplicate words
+|On
+|Flags "the the".
+
+|Find capitalization errors
+|On
+|Flags a lowercase sentence start.
+
+|Ignore words with numbers
+|On
+|Skips "B2B", "3D".
+
+|Ignore internet and file addresses
+|On
+|Skips URLs, e-mail addresses and paths.
+
+|Ignore words in uppercase
+|Off
+|Skips "NASA"-style words.
+
+|Add words to dictionary
+|Exactly as typed
+|Or *All lowercase*, which learns the word in lowercase.
+
+|Spelling language
+|Automatic by language
+|Or a specific language; a paragraph's own language (xref:paragraphs.adoc[Paragraphs]) takes
+precedence when set.
+|===
+
+Learned words live in your macOS user dictionary; edit them in System Settings, or with
+btn:[Unlearn] in the Spelling window.
+
+NOTE: {fh} kept its own dictionaries and a personal `.tlx` file.  {product} uses the system
+spelling service instead, so there is no dictionary file to locate.
+
+== Finding and replacing text
+
+To find and replace text:
+
+. Select the blocks to search with the Pointer tool, a range with the Text tool, or nothing to
+  search the whole document.
+. Choose menu:Edit[Find and Replace > Text…] (kbd:[Cmd+F]).
+. Type in *Find* and, optionally, *Replace with*.  Leave *Replace with* empty to delete what is
+  found.  The *Special* pop-up beside each field inserts a special character (tab, paragraph
+  end, end of line, non-breaking space, em and en dashes, discretionary hyphen, and so on), so
+  you can turn every double hyphen into an em dash.
+. Set the options:
+* *Whole word* -- match only complete words.
+* *Match case* -- distinguish upper from lower case.
+* *Search in* -- *Selection* or *Document*.
+. Click btn:[Find Next], btn:[Replace] (replaces the current match and finds the next),
+  btn:[Replace All], or btn:[Replace & Find].
+
+Matches are found across linked blocks and text on paths.  A search string can be up to 255
+characters.  Finding text by its *formatting* (font, size, effect) is the Find & Replace
+panel's job, on xref:type-specifications.adoc[Setting type specifications].
+
+== Converting case
+
+To convert the case of selected text, choose menu:Text[Convert Case] and one of:
+
+[cols="1,3"]
+|===
+|Command |Result
+
+|Uppercase |EVERY LETTER CAPITAL.
+|Lowercase |every letter small.
+|Small Caps |Lowercase letters set as smaller capitals; a formatting attribute, not a rewrite.
+|Title |The First Letter Of Each Word Capital.
+|Sentence |The first letter of each sentence capital.
+|===
+
+menu:Text[Convert Case > Settings…] opens a sheet with the *Small caps size* (75% of the type
+size by default) and an *Exceptions* list: words that keep their spelling under the conversions
+you tick (for example "iPhone" under Title).  Both are saved with the document.
+
+Uppercase, Lowercase, Title and Sentence retype the affected letters; Small Caps only changes
+how they are drawn, and choosing it again removes it.
+
+== Working with others
+
+* Everyone editing a block sees each other's carets, labelled with names, and selections as
+  tinted highlights.  Carets keep their place in the text as others type around them.
+* Two people typing in the same word each see the other's letters arrive.  Runs typed at the
+  same spot stay whole rather than shuffling together.
+* Find and Replace All by one person and typing by another in the same words: the replacement
+  happens, and letters the other person typed inside a replaced word survive next to it.  If
+  you replaced "colour" with "color" while someone appended an "s", the result is "colors";
+  if they typed in the middle, their letters end up after the replacement, and the review
+  sheet points at the paragraph if you were offline.
+* Spelling corrections behave like a small replace: only the corrected word changes.
+* Convert Case rewrites only the letters that change, so a collaborator's edits in the same
+  sentence are untouched.
+* The Text Editor is live, so two people can have the same block open in two editors.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,1"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Click/drag, double-click word, triple-click paragraph, Select All
+|Same, plus kbd:[Shift]-click and the standard macOS keyboard selection set.
+|Faithful
+
+|View > Text Rulers; Show Text Handles When Ruler Is Off
+|Same menu item and preference.
+|Faithful
+
+|Text Editor with OK/Cancel/Apply, 12 Point Black, Show Invisibles
+|Live window; options kept; *Wrap to window* added.
+|Adapted -- a buffered editor whose OK replaces the block's text would overwrite concurrent
+edits; live editing composes with them.
+
+|Always Use Text Editor preference
+|Same.
+|Faithful
+
+|Option-click / Option-double-click opens the editor
+|Same.
+|Faithful
+
+|Special Characters submenu (nine characters)
+|Same nine, with keyboard shortcuts.
+|Faithful
+
+|Smart Quotes with six sets and Control override
+|Same.
+|Faithful
+
+|Spelling checker with own dictionaries, personal TLX dictionary, five options, add-as-typed
+or lowercase, dictionary chooser
+|macOS `NSSpellChecker`; the five options are honoured (duplicate words and capitalization by
+{product}'s own pass, the three ignore rules as filters); learned words go to the system user
+dictionary.
+|Adapted -- system dictionaries cover more languages, stay updated, and are shared with every
+app; a private TLX file has no equivalent.
+
+|Find Text dialog: Find/Change To with Special pop-ups, Whole Word, Match Case, Show Selection,
+Find Next / Change / Change All
+|Same, as a floating window; *Show Selection* becomes *Search in*; *Replace & Find* added.
+|Faithful
+
+|Convert Case: Uppercase, Lowercase, Small Caps, Title, Sentence; Settings with small caps size
+and exceptions
+|Same; Small Caps is a `case` mark rather than a character rewrite.
+|Faithful
+|===
+
+=== Data model
+
+Fields on xref:creating-text.adoc[Creating text]: `TextMarkValue.case`,
+`TextMarkValue.language`.  Special characters are ordinary code points:
+
+[cols="1,1"]
+|===
+|Character |Code point
+
+|End of column |U+000C (form feed)
+|End of line |U+2028
+|Non-breaking space |U+00A0
+|Em space |U+2003
+|En space |U+2002
+|Thin space |U+2009
+|Em dash |U+2014
+|En dash |U+2013
+|Discretionary hyphen |U+00AD
+|Paragraph end |U+000A
+|===
+
+Document-level case settings live in the document's settings node:
+
+[source,protobuf]
+----
+// Added to the settings node's props (DOC epic owns the container message).
+message TextSettings {
+  double small_caps_percent = 1;                 // default 75
+  repeated CaseException case_exceptions = 2 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+}
+message CaseException {
+  ElementId id = 1;
+  string word = 2;
+  bool uppercase = 3; bool lowercase = 4; bool small_caps = 5; bool title = 6; bool sentence = 7;
+}
+----
+
+Presence (not in the document) carries the caret as `(node id, Anchor)` and a selection as two
+anchors, per xref:sync-protocol.adoc[Sync protocol].
+
+=== Merge semantics
+
+Caret model:: A local caret is an `Anchor` (before/after a character id), never an offset.
+When the anchored character is deleted, the caret moves to *after the nearest surviving
+predecessor* (or before the first character if none).  Remote carets are received as anchors
+and resolved the same way on every frame, so they survive every edit; carets in a deleted node
+are hidden.
+
+Replace All:: One change labelled "Replace all 'x' with 'y' (N)".  For each match, one
+`TextDelete` of the matched character ids and one `TextInsert` of the replacement with
+`left_origin` = the character before the match and `right_origin` = the match's first
+character.  The replacement therefore sorts *before* the tombstoned match.  Concurrent inserts
+by another replica inside or after the match keep their own origins inside the tombstones and
+come out after the replacement ("colour" + concurrent "s" at end, replaced with "color" →
+"colors"; a concurrent "x" typed after "col" → "colorx").  Nothing typed concurrently is lost.
+Single *Replace* is the same with N = 1.  Offline, a replaced paragraph that the other side
+also edited appears in the review sheet's *same text* rows.
+
+Spelling corrections:: Each btn:[Change] is one change ("Correct spelling") using the same
+delete-then-insert.  btn:[Learn] writes nothing to the document.
+
+Convert Case:: Uppercase, Lowercase, Title and Sentence emit, per maximal run of characters
+whose case actually changes, one `TextDelete` and one `TextInsert` (same origins rule), in one
+change ("Convert case").  Existing marks covering the run still cover the replacement because
+their anchors are on surrounding characters or expand over the inserted ids; a mark anchored
+entirely within the run is re-applied over the new ids by the command.  Small Caps is a
+`case` mark and merges like any mark.
+
+Text Editor:: The editor is another view of the same node; its edits are ordinary commands.
+Two editors on one block are the same case as two Text tools.
+
+Smart quotes:: Applied at keystroke time on the client; the document only ever sees the final
+character.
+
+Read-time normalizations::
+* U+000C outside a multi-column, multi-row or linked container behaves as U+2028.
+* A `case` mark of `SMALL_CAPS` over characters with no lowercase form renders them unchanged.
+
+=== Offline behavior
+
+Spelling works offline with the system dictionaries.  Replace All offline is one change and
+coalesces no further.
+
+=== Server
+
+Nothing beyond storing and relaying changes.
+
+=== Client
+
+Selection:: `WTApp`'s text editing session holds `(node, Anchor, Anchor)` and renders through
+TXT-001's id-to-glyph map.  Selection is published to presence at 20 Hz (SYNC-009).
+
+Text Editor:: An `NSTextView` bound bidirectionally to the node: local edits become commands;
+remote changes are applied to the view's storage with the local selection remapped through
+anchors.  *12 point black* swaps the view's rendering attributes only.
+
+Spelling:: `NSSpellChecker` with `WTText`'s paragraph iteration; duplicate-word and
+capitalization passes are {product} code; ignore rules filter results before display.
+
+Find:: A document-wide iterator over `text` nodes in layer order, chains walked from heads,
+matching on the merged plain string with a map back to character ids.
+
+Undo grouping:: Replace All, Convert Case and each spelling change are one step; typing
+follows the rule on xref:creating-text.adoc[Creating text].
+
+=== Build tasks
+
+[[TYPE-010]]
+==== TYPE-010 Text selection and navigation
+[horizontal]
+Track:: client-ui
+Depends on:: TYPE-003, APP-006
+Size:: M
+Delivers:: Click, drag, double, triple, kbd:[Shift]-click selection; the keyboard movement and
+extension set; Select All across chains; text ruler visibility (menu:View[Text Rulers]) and
+the *Show text handles when ruler is off* preference; selection publication as anchors.
+Done when::
+* UI tests for each gesture assert the anchor pair.
+* Deleting the character under a local caret (by a remote change) leaves the caret after the
+  nearest predecessor and typing continues correctly.
+* Merge test: a selection published as anchors resolves to the same characters on a second
+  replica after concurrent inserts.
+
+[[TYPE-011]]
+==== TYPE-011 Text Editor window
+[horizontal]
+Track:: client-ui
+Depends on:: TYPE-010
+Size:: M
+Delivers:: The live Text Editor window (`NSTextView` bound to a text node), *12 point black*,
+*Show invisibles*, *Wrap to window*, the four ways to open it, the *Always use Text Editor*
+preference, inline graphic placeholders, chain and path text as one story.
+Done when::
+* Typing in the editor and on the canvas at once (two replicas) converges; the editor's
+  selection survives remote edits.
+* *12 point black* changes no document register.
+* UI test opens the editor by each route.
+
+[[TYPE-012]]
+==== TYPE-012 Special characters and smart quotes
+[horizontal]
+Track:: client-ui
+Depends on:: TYPE-003
+Size:: S
+Delivers:: menu:Text[Special Characters] with the nine characters and shortcuts, the
+*Smart quotes* preference with six sets and kbd:[Control] override, invisibles rendering in
+the editor and on the canvas when *Show invisibles* is on.
+Done when::
+* Each menu item inserts the documented code point.
+* Smart quotes choose opening/closing correctly after a space, an opening bracket, a letter and
+  a digit; kbd:[Control] yields the straight character.
+* Merge test: an end-of-column inserted concurrently with typing in the next column keeps both.
+
+[[TYPE-013]]
+==== TYPE-013 Find and Replace Text
+[horizontal]
+Track:: client-ui
+Depends on:: TYPE-002, TYPE-010
+Size:: M
+Delivers:: The Find and Replace Text window with Special pop-ups, Whole word, Match case,
+Search in, Find Next / Replace / Replace All / Replace & Find, matching across chains and
+paths, highlight of the current match on the canvas.
+Done when::
+* Replace All is one change with the documented label and op pattern.
+* Merge test: Replace All "colour"→"color" concurrent with a remote "s" appended yields
+  "colors" on both engines; a remote insert mid-word lands after the replacement.
+* Search of 200,000 characters completes under 100 ms.
+
+[[TYPE-014]]
+==== TYPE-014 Spelling
+[horizontal]
+Track:: client-ui
+Depends on:: TYPE-010, APP-010
+Size:: M
+Delivers:: menu:Text[Spelling…] using `NSSpellChecker`, check-while-typing underlines and
+context menu suggestions, duplicate-word and capitalization passes, the ignore filters, the
+*Add words to dictionary* and *Spelling language* preferences, per-paragraph language
+precedence.
+Done when::
+* Each preference changes results in a unit test over a fixture document.
+* Merge test: a correction concurrent with typing in the same word keeps the typed characters.
+* Learned words never produce document ops.
+
+[[TYPE-015]]
+==== TYPE-015 Convert Case
+[horizontal]
+Track:: client-model
+Depends on:: TYPE-002
+Size:: S
+Delivers:: The five Convert Case commands, the Settings sheet (small caps size, exceptions
+list) stored in `TextSettings`, run-minimal rewrite for the four rewriting commands, `case`
+mark for Small Caps, mark re-application over rewritten runs.
+Done when::
+* Title case over "the iPhone" with "iPhone" excepted yields "The iPhone".
+* A bold mark covering exactly the converted word still covers it afterwards.
+* Merge test: Uppercase from one replica and an insert inside the word from another converge
+  with the inserted characters present.
+* Conformance vector for `TextSettings.case_exceptions` as a SEQUENCE.
+
+[[TYPE-016]]
+==== TYPE-016 Remote carets and selections
+[horizontal]
+Track:: client-ui
+Depends on:: SYNC-009, TXT-001, TYPE-010
+Size:: M
+Delivers:: Rendering of collaborators' carets (colored, name-labelled) and selections (tinted)
+from presence anchors through the id-to-glyph map, on the canvas, on text on a path and in the
+Text Editor; resolution of anchors on deleted characters to the nearest predecessor; hiding
+carets in deleted nodes; the *Restore* notice when the node under the local caret is deleted.
+Done when::
+* A remote caret stays on its character while the local user types before it, deletes around
+  it, and reflows the block.
+* Presence frames at 20 Hz for ten collaborators render without dropping canvas frame rate.
+* Merge test: the notice appears when a remote `deleted = true` arrives for the edited node,
+  and *Restore* writes `deleted = false` as one undoable change.
+endif::spec[]

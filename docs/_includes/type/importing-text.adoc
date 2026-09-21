@@ -1,0 +1,184 @@
+Text written elsewhere comes into {product} three ways: importing a file, pasting, or dragging
+text from another application onto the page.  Rich Text (RTF) files arrive with their
+formatting; plain text arrives in the current default text attributes.  Fonts the file names
+but your Mac does not have go through font substitution
+(xref:font-substitution.adoc[Font substitution]).  Exporting text back out is on
+xref:export-text.adoc[Exporting text].
+
+== Importing a text file
+
+To import a text file:
+
+. Choose menu:File[Import…] (kbd:[Cmd+R]).
+. Pick an `.rtf`, `.txt`, `.md` or `.rtfd` file and click btn:[Open].  The pointer becomes the
+  import cursor.
+. Place the text:
+* Click to create an auto-expanding block at that point, sized by the text.
+* Drag to create a fixed-size block of that size; the text wraps inside it and overflows if it
+  does not fit (xref:text-blocks.adoc[Working with text blocks]).
+
+You can also drag a text file from the Finder onto the page; it is placed as if you had
+clicked at the drop point.
+
+.What each format brings with it
+[cols="1,3"]
+|===
+|Format |Carried over
+
+|RTF, RTFD
+|Fonts, sizes, styles, colors, alignment, indents, tabs and tab leaders, paragraph spacing,
+underline and strikethrough (as text effects), superscript and subscript (as baseline shift
+plus a smaller size), small caps, paragraph style names (created as text styles if not
+present).  Images inside an RTFD become inline graphics.
+
+|Plain text (UTF-8, UTF-16 with BOM, or the legacy Mac and Windows encodings when detected)
+|Characters and paragraph breaks only.  Everything takes the current default text attributes.
+
+|Markdown
+|Treated as plain text; the markup characters are kept.
+|===
+
+Custom tab leaders, custom underline geometry and outline text from RTF are approximated by
+the nearest {product} text effect and noted in the import summary that appears in the Object
+panel notes of the new block.
+
+== Pasting
+
+Copy text in any application and choose menu:Edit[Paste] (kbd:[Cmd+V]):
+
+* With the Text tool active and an insertion point in a block, the text is inserted there.
+  Rich text keeps its formatting; hold kbd:[Shift+Option] (menu:Edit[Paste and Match Style])
+  to strip it and match the surrounding text instead.
+* With nothing being edited, a new auto-expanding block is created at the center of the view
+  (or at the pointer if it is over the page) holding the text.
+
+Copying text from one {product} block and pasting it into another keeps every attribute,
+including text effects, inline graphics and paragraph styles.
+
+== Dragging text in
+
+Select text in another application and drag it onto the {product} page.  Dropping on empty
+page space makes a new auto-expanding block; dropping into an existing block inserts at the
+drop point, shown by a caret that follows the pointer while you drag.  Hold kbd:[Option] while
+dropping to paste as plain text.
+
+== Encoding and scripts
+
+Files are read as UTF-8 unless they carry a byte-order mark or their bytes are clearly a
+legacy encoding, in which case {product} guesses (Mac Roman, Windows-1252, Shift-JIS, and the
+other encodings Foundation recognizes) and shows the guess in the import summary.  If the guess
+is wrong, undo and re-import with the encoding chosen from the *Encoding* pop-up in the Import
+dialog's options.  Every script macOS renders is set as-is; there is no separate handling for
+double-byte text.
+
+== Working with others
+
+An import is one action to everyone else: the block appears fully formed, and collaborators can
+start editing it at once.  Pasting into a block someone else is editing inserts your text at
+your insertion point without disturbing theirs.  Imports done offline arrive when you
+reconnect exactly as they would have live.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,1"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Import RTF with formatting, ASCII plain text
+|RTF, RTFD, plain text (any Foundation-detected encoding), Markdown as plain.
+|Faithful (formats extended)
+
+|Missing Fonts dialog on import
+|Font substitution sheet from TXT-002 (xref:font-substitution.adoc[Font substitution]).
+|Faithful
+
+|Custom tab leaders / strikethrough / underline effects change on import
+|Approximated to the nearest effect and listed in the import summary note.
+|Faithful
+
+|Outline, subscript, superscript imported but not exported
+|Superscript/subscript map to baseline shift + size; outline maps to a glyph stroke with no
+fill; all three round-trip on export.
+|Adapted -- expressed with existing attributes so nothing is one-way.
+
+|Click to place at original size, drag to size the block
+|Same, plus Finder drag-and-drop.
+|Faithful
+
+|Drag or paste text from another application
+|Same, plus *Paste and Match Style* and kbd:[Option]-drop for plain text.
+|Faithful
+
+|English edition: double-byte text rotated to simulate vertical
+|Unicode; vertical writing is a block property (xref:text-effects.adoc[Text effects]).
+|Adapted -- see creating-text.
+|===
+
+=== Data model
+
+No new fields.  An import produces one `CreateNode` (kind `text`) plus `TextInsert` and
+`TextMark` ops building the `RichText` on xref:creating-text.adoc[Creating text], plus
+`CreateNode` for each `text_style` the RTF names that the document lacks and for each inline
+graphic's child node.
+
+=== Merge semantics
+
+An import or paste is one change.  Pasting into a block is a `TextInsert` at the caret's
+anchor with the pasted characters (chunked at 64 KiB per op, same change), followed by
+`TextMark` ops over the new ids; concurrent edits elsewhere in the paragraph are unaffected.
+Styles created by import are new nodes; if a collaborator imported the same RTF at the same
+time, two same-named styles exist and the LIB epic's styles page governs duplicate names.
+
+=== Offline behavior
+
+Fully offline.  Fonts named by an RTF that are neither installed nor cached go through
+substitution immediately; the team font library (TXT-002) fills in when online.
+
+=== Server
+
+Nothing beyond storing and relaying changes.  The 64 KiB per-op and 10,000 ops per change
+limits bound a single import; larger files are split into consecutive changes by the client.
+
+=== Client
+
+Package:: `WTInterchange` for file parsing (via `NSAttributedString` document readers for RTF
+and RTFD, Foundation's encoding detection for plain text); `WTApp` for the import cursor,
+drop targets and paste handling.  The mapping from `NSAttributedString` attributes to
+`TextMarkValue` and `ParagraphProps` is a single table shared with export.
+
+Undo:: One step, "Import text" / "Paste".
+
+=== Build tasks
+
+[[TYPE-008]]
+==== TYPE-008 Text file import
+[horizontal]
+Track:: import-export
+Depends on:: TXT-002, TYPE-002
+Size:: M
+Delivers:: RTF/RTFD/plain/Markdown readers producing text nodes, the attribute mapping table,
+encoding detection and the Encoding option, style creation, inline graphics from RTFD, the
+import summary note, Finder drag-and-drop.
+Done when::
+* A corpus of RTF files round-trips through import and export with attribute equality on the
+  mapped set.
+* A Windows-1252 file with no BOM imports with the right characters.
+* Merge test: two replicas import different files concurrently; both blocks exist with all
+  characters and marks.
+
+[[TYPE-009]]
+==== TYPE-009 Paste and drag text
+[horizontal]
+Track:: client-ui
+Depends on:: TYPE-003, TYPE-008
+Size:: S
+Delivers:: Pasteboard reading (rich and plain), *Paste and Match Style*, paste into a caret vs.
+paste as a new block, drag-in with a following caret, kbd:[Option]-drop as plain text, and
+{product}-internal text copy preserving every attribute.
+Done when::
+* UI tests paste rich text into a caret and as a new block and verify marks.
+* Merge test: paste into a paragraph while another replica types elsewhere in it; both survive.
+endif::spec[]

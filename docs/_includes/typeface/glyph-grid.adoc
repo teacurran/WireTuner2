@@ -1,0 +1,400 @@
+The *glyph grid* is the main view of a typeface document: one cell per glyph, showing its
+outline, its name and the character it encodes.  It is where you add and remove glyphs, rename
+and re-encode them, select several to act on at once, and open one for drawing.  It takes the
+place of the page thumbnails of an illustration document.
+
+NOTE: FontForge calls this the *Font View* and shows one cell per *encoding slot*, whether or not
+a glyph exists there.  {product}'s grid shows glyphs -- things you have made -- and can optionally
+show the empty slots of an encoding as faint placeholders.
+
+// TODO screenshot: the glyph grid in Unicode order with a few empty Latin-1 slots visible
+
+== Reading the grid
+
+Each cell shows:
+
+* The glyph's outline, drawn from its artwork as it will be in the font (strokes expanded,
+  overlaps merged), scaled so the em fits the cell.
+* A label below: the glyph name, or the character, or the codepoint, according to
+  menu:View[Glyph Labels].
+* Badges in the corners: a small square in the glyph's *mark color* (a tag you assign for
+  organization), a chain-link if the glyph has components, an anchor if it has anchors, a warning
+  triangle if validation found a problem, and a collaborator's colored dot if someone has the glyph
+  open.
+* A hatched background if the glyph is not exported.
+
+Cell size is chosen with menu:View[Cell Size > Small / Medium / Large] (48, 72 and 96 points) or
+the *Glyph cell size* preference for new windows.  menu:View[Show Metrics in Cells] draws each
+cell's baseline and advance width lines.
+
+== Ordering and encodings
+
+menu:View[Sort Glyphs] chooses the order:
+
+[cols="1,3"]
+|===
+|Order |Meaning
+
+|Unicode
+|By codepoint, unencoded glyphs after the encoded ones, alphabetically.  The default.
+
+|Custom
+|The order you arrange by dragging cells (below).  New glyphs go after the selected glyph.
+
+|Name
+|Alphabetically by glyph name.
+|===
+
+menu:View[Encoding] chooses which empty slots to show as placeholders: *None* (the default),
+*ASCII*, *Latin-1*, *Mac Roman*, or any Unicode block (*Greek*, *Cyrillic*, *General
+Punctuation*, …; several may be on at once).  A placeholder is a faint cell with the character and
+its codepoint; double-clicking one creates the glyph and opens it.  Placeholders make it easy to see
+which characters of a range are still missing.
+
+== Adding glyphs
+
+To add one glyph:
+
+. Choose menu:Glyph[Add Glyph…] (kbd:[Cmd+Shift+N]), or double-click an encoding placeholder.
+. Type any of: a character (`é`), a codepoint (`U+00E9` or `00E9`), or a glyph name (`eacute`,
+  `uni00E9`, `f_i`).  The sheet shows what it understood: name, codepoint and the Unicode
+  character name.  A name that is already in use is shown in red.
+. Choose a *Kind*: *Base* (a normal glyph, the default), *Mark* (a combining accent), *Ligature*
+  (replaces a sequence; a name of the form `f_i` fills in the sequence automatically), or
+  *Component* (an unencoded piece only used inside other glyphs).
+. Click btn:[Add], or btn:[Add and Open] to open the glyph as well.
+
+To add a range or a preset set:
+
+. Choose menu:Glyph[Add Glyphs from Range…].
+. Choose a *Preset* (*Basic Latin*, *Latin-1 Supplement*, *Latin Extended-A*, *Greek*, *Cyrillic*,
+  *Punctuation*, *Currency*, *Digits*), or type a range of codepoints (`U+0100–U+017F`).
+. Choose whether to *Build accented glyphs from components* where the base letter and mark
+  glyphs exist (Latin-1 `é` becomes `e` plus `acute`; see xref:glyph-editing.adoc[Editing glyphs]).
+. Click btn:[Add].  Glyphs that already exist are skipped and counted in the sheet.
+
+To add glyphs by pasting: copy glyphs in another typeface document's grid, then menu:Edit[Paste]
+here.  Glyphs whose names or codepoints already exist are pasted as new glyphs with `.1` appended
+to the name and no codepoint, so nothing is silently overwritten.
+
+Names follow the Adobe Glyph List: a character with an AGL name gets it (`A`, `eacute`,
+`ampersand`); any other codepoint gets `uniXXXX` (`uni0416`), or `uXXXXX` beyond the Basic
+Multilingual Plane.  Ligatures are named after their parts joined by underscores (`f_f_i`).
+Variants use a suffix (`a.sc`, `one.tf`).  You can type any name that uses letters, digits,
+periods and underscores and does not start with a digit.
+
+== Selecting glyphs
+
+* Click a cell to select it; kbd:[Shift]-click extends the selection as a range in the current
+  order; kbd:[Cmd]-click adds or removes single cells.
+* Drag a marquee across cells.  kbd:[Cmd+A] selects all.
+* Arrow keys move the selection; with kbd:[Shift] they extend it.  kbd:[Tab] and kbd:[Shift+Tab]
+  move to the next and previous glyph that has an outline.
+* Type a character to jump to its glyph.
+* The search field in the toolbar (kbd:[Cmd+F]) filters the grid live by name, character, codepoint
+  or Unicode character name (`acute` finds `acute`, `eacute`, `Aacute`, …).  kbd:[Esc] clears it.
+* menu:Glyph[Select] has *Glyphs with Outlines*, *Empty Glyphs*, *Encoded*, *Unencoded*,
+  *Glyphs with Problems*, *Glyphs Using Selected as Component*, and *Same Mark Color*.
+
+== Opening, renaming and removing glyphs
+
+To open a glyph for drawing, double-click its cell or press kbd:[Return]; it opens in a tab
+(xref:glyph-editing.adoc[Editing glyphs]).
+
+To rename a glyph, select it and press kbd:[Return] with the label, or edit *Name* in the Glyph
+section of the Object panel.  A name in use by another glyph is refused with the other glyph
+shown.  Renaming a glyph never breaks components, kerning or anchors that refer to it: those
+refer to the glyph itself, not its name.  Ligature names (`f_i`) do drive the automatic `liga`
+feature, so renaming a ligature changes what it substitutes.
+
+To change a glyph's codepoints, edit *Unicode* in the Glyph section: a list of codepoints; btn:[+]
+adds one (accepting a character, a codepoint or a Unicode name), btn:[−] removes.  A codepoint
+already claimed by another glyph is refused with that glyph shown.
+
+To remove glyphs, select them and press kbd:[Delete] or choose menu:Glyph[Remove Glyphs].  If any
+has artwork, an alert asks you to confirm.  If another glyph uses one of them as a component, the
+alert says so; the component becomes a hatched placeholder in that glyph until you decompose or
+remove it.  Removal is undoable and the glyphs stay in the document's history.
+
+To reorder glyphs in *Custom* order, drag cells to a new place.  In the other orders dragging is
+disabled.
+
+== Acting on several glyphs
+
+Every command in the menu:Glyph[] menu and the Glyph section of the Object panel applies to every
+selected glyph:
+
+[cols="1,3"]
+|===
+|Command |What it does
+
+|menu:Glyph[Set Advance Width…]
+|A sheet with *Set to*, *Add* and *Scale by*; applies to each selected glyph.
+
+|menu:Glyph[Set Left Side Bearing…], menu:Glyph[Set Right Side Bearing…]
+|The same sheet.  Left side bearing moves the artwork; right side bearing changes the width.
+
+|menu:Glyph[Center in Width], menu:Glyph[Thirds in Width]
+|Moves the artwork so the bearings are equal, or so the right bearing is twice the left.
+
+|menu:Modify[Transform > …]
+|Scale, rotate, skew or move every selected glyph's artwork about its origin
+(xref:transforming.adoc[Transforming objects]).  Scaling asks whether to scale the advance width
+too.
+
+|menu:Glyph[Set Kind], menu:Glyph[Set Mark Color], menu:Glyph[Export Glyph]
+|Set the kind, the tag color, or the export checkbox of every selected glyph.
+
+|menu:Edit[Copy], menu:Edit[Paste]
+|Copy copies the selected glyphs -- artwork, metrics, components, anchors.  Paste into a
+selection of the same count *replaces* those glyphs' artwork and metrics (after confirmation) and
+keeps their names and codepoints; paste with nothing selected adds new glyphs.
+
+|menu:Edit[Paste as Component]
+|Adds each copied glyph as a component of each selected glyph, at the origin.
+
+|menu:Glyph[Build Accented Glyphs]
+|For each selected glyph whose name decomposes into a base and marks with matching anchors,
+replaces its artwork with components of the base and marks, positioned by anchors.
+
+|menu:Glyph[Decompose Components]
+|Replaces every component with a copy of its artwork (xref:glyph-editing.adoc[Editing glyphs]).
+
+|menu:Glyph[Remove Overlaps], menu:Glyph[Correct Directions], menu:Glyph[Add Extrema]
+|Apply the outline clean-ups the generator would apply, permanently, to the artwork.
+|===
+
+Each command is one undoable step for the whole selection.
+
+== Working with others
+
+The grid is live: glyphs collaborators add appear, glyphs they remove fade out, renames and
+re-encodings update the labels, and a cell redraws as soon as someone changes the artwork inside
+it.  A colored dot on a cell shows who has that glyph open.
+
+Two things can only collide at the grid level, and {product} resolves both the same way rather
+than asking anyone in the middle of their work:
+
+Two glyphs with the same name::
+If you rename a glyph to `eacute` while a collaborator offline does the same to a different
+glyph, both renames apply, and the font would have two `eacute` glyphs.  The glyph that existed
+*first* keeps the name; the other is shown with a `.dup…` suffix and a warning badge, and the
+review sheet lists the pair with *Rename…*.  Nothing is lost; the font simply will not generate
+until the badge is cleared.
+
+Two glyphs encoding the same character::
+Likewise, the older glyph keeps the character; the newer one shows as unencoded with a badge and
+the review sheet lists it.  Choose which glyph should own the character, or give the other a
+different one.
+
+Removing a glyph someone is drawing in, adding glyphs while offline, and reordering are handled
+like pages: the removal wins but the other person's drawings are kept and offered back with
+*Restore glyph*; added glyphs merge into the grid; concurrent reorders both apply.
+
+ifdef::spec[]
+== Specification
+
+=== FontForge parity
+
+[cols="2,3,1"]
+|===
+|FontForge capability |{product} behavior |Verdict
+
+|Font View: a cell per encoding slot, empty slots with a red X
+|A cell per glyph; encoding placeholders optional via View > Encoding.
+|Adapted -- glyphs are nodes; slots are a view.  Keeps the "what is missing" affordance.
+
+|Cell sizes 24/36/48/72/96 px, anti-aliased
+|Small/Medium/Large (48/72/96 pt), always anti-aliased; preference *Glyph cell size*.
+|Adapted -- fewer sizes.
+
+|Labels: glyph image, name, Unicode, encoding
+|Name, character, codepoint.
+|Faithful
+
+|Show H Metrics / V Metrics in cells
+|Show Metrics in Cells (horizontal only).
+|Adapted -- no vertical metrics.
+
+|Encodings: ISO 8859 family, Windows and Mac code pages, Unicode planes, custom encodings
+|ASCII, Latin-1, Mac Roman and Unicode blocks as placeholder sets; the stored encoding is always
+Unicode via `codepoints`; a "custom encoding" is the Custom sort order.
+|Adapted -- legacy 8-bit encodings only matter for legacy formats {product} does not write.
+
+|Selection: click, shift-click, drag, arrow keys, Tab to next glyph with outline, type to jump,
+find by name/encoding/Unicode
+|Same set with macOS modifiers, plus the live search field and Select submenu.
+|Faithful
+
+|Multi-glyph operations: transform, expand stroke, simplify, build accents, autohint, metrics
+|Transform, set width/bearings, center/thirds, build accents, decompose, remove overlaps, correct
+directions, add extrema, kind, color, export.  No hinting, no simplify.
+|Adapted -- hinting out of scope; Simplify is available per path (Drawing chapter).
+
+|Cut/paste merges or replaces glyph data; paste of references
+|Copy/paste with replace-on-same-count and add-otherwise; Paste as Component.
+|Faithful
+
+|Glyph Info: name, Unicode, alternate Unicodes, comment, color, class
+|Glyph section of the Object panel: name, codepoints (many), kind, mark color, export, note.
+|Faithful
+
+|CID-keyed and Multiple Master fonts
+|Not supported.
+|Dropped -- outside the fundamentals.
+
+|Glyph names may be derived from encoding or vice versa
+|AGL and uniXXXX naming applied at creation; names are otherwise free.
+|Faithful
+|===
+
+=== Data model
+
+No fields beyond `GlyphProps` on xref:typeface-documents.adoc[Typeface documents].  This page
+defines how the commands write them:
+
+Add glyph:: `CreateNode` under `glyphs` (0:11), `position` after the selected glyph (or at the end),
+`name`, `codepoints` (SetAdd), `advance_width` (the *Default advance width* from the New Typeface
+template, 500 units by default, scaled by UPM/1000), `kind`.  From a range: one `CreateNode` per
+missing codepoint in one change labelled "Add N glyphs".  Build accented: a `CreateNode` plus
+`ElementInsert(components)` per component, with transforms from anchor arithmetic
+(xref:glyph-editing.adoc[Editing glyphs]).
+Rename:: `SetFields(name)`.  Refused locally when the name is live on another glyph.
+Set codepoints:: `SetAdd` / `SetRemove` on `codepoints`.  Refused locally when live elsewhere.
+Remove:: `SetDeleted(glyph, true)` plus `SetDeleted(object, true)` for every object on its canvas
+(objects-on-glyph query), one change labelled "Remove glyph *name*".
+Reorder:: `MoveNode(glyph, parent = glyphs, position)`.
+Set width / bearings / center:: `SetFields(advance_width)` and, where the artwork moves,
+`SetFields(CommonProps.transform)` on every top-level object of the glyph, one change.
+Transform:: `SetFields(CommonProps.transform)` on every top-level object of each glyph, optionally
+`advance_width`.
+Copy:: The pasteboard carries the `GlyphProps` (minus `codepoints` and `name` for paste-as-new
+collision handling) and deep copies of the objects.  Paste-replace: `SetDeleted` on the target's
+objects, `CreateNode` for the copies with `canvas` = target, `SetFields` of `advance_width`,
+`components`, `anchors` (element inserts).  Paste-new: `CreateNode(glyph)` with the name made
+unique and no codepoints if taken.
+Paste as component:: `ElementInsert(components)` with an identity transform.
+Decompose / remove overlaps / correct directions / add extrema:: Object-level rewrites: the
+flattened contours replace the artwork (`SetDeleted` old objects, `CreateNode` new path per
+contour) -- the same commands the Drawing chapter's Combine and Expand Stroke use.
+
+=== Merge semantics
+
+`name`:: ATOMIC, later wins.  Two renames of one glyph: later wins, listed as same-register.
+*Name collision* (two live glyphs with equal `name`, from concurrent renames or concurrent adds of
+the same name): read-time normalization -- the glyph with the *smaller node id* keeps the name; every
+other reads as `<name>.dup<counter>_<replica hex>` (its node id, so the derived name is itself
+unique and stable across replicas).  Nothing is written.  The grid badges the renamed glyph, the
+review sheet lists "two glyphs named *eacute*" with *Rename…* for either, and the validation
+report refuses to generate while any `.dup` name is live.  The rule chooses the *older* glyph
+because a name is a slot claim, not a value, and the older claim is the one every other reference
+(features text, collaborators' memory) was made against.
+
+`codepoints`:: SET, add-wins.  Concurrent add and remove of the same codepoint on one glyph keeps
+it.  *Codepoint collision* (two live glyphs both containing U+0041): the glyph with the smaller
+node id keeps it; it reads as absent from the others.  Same rationale, same review entry ("two
+glyphs encode U+0041 'A'") with *Move to this glyph* (SetRemove on the keeper, SetAdd on the
+other -- one change) or *Remove from other*.  Live, the loser sees the badge appear and a notice.
+Encoding placeholders treat a collided codepoint as present (the keeper has it).
+
+`advance_width`:: ATOMIC scalar; later wins; a lost local write is listed (same-register rule).
+
+`kind`, `mark_color`, `skip_export`, `note`:: ATOMIC; later wins.
+
+Grid order:: Sibling positions; concurrent adds "after the same glyph" both land after it, ordered
+by random suffix then node id, as pages.  Concurrent reorders of the same glyph: later wins.
+
+Remove vs. draw:: As on xref:typeface-documents.adoc[Typeface documents]: objects survive on the
+Sketches pasteboard; *Restore glyph* re-attaches them.
+
+Remove vs. use as component:: The component's `glyph` ref dangles → `REF_FALLBACK_PLACEHOLDER`: a
+hatched box labelled with the glyph's last name at the component's transform.  Listed as edit vs.
+delete on the using glyph with *Restore*.  The validation report refuses to generate with a
+dangling component.
+
+Paste-replace vs. concurrent edit:: The old objects are deleted; the concurrent edit is edit vs.
+delete with *Restore* (which brings back the old path beside the pasted artwork).  Same as the
+Join case for paths.
+
+Add from range on two replicas:: Both sides create `eacute` with U+00E9.  Name and codepoint
+collision rules apply: the smaller node id wins both; the other reads as `eacute.dup…`, unencoded,
+badged and listed with a one-click *Remove duplicate* when the duplicate has no artwork (the common
+case: both came from the same preset a minute apart).  The review sheet offers this automatically
+for every empty duplicate.
+
+Read-time normalizations (complete list)::
+* Name collision → `.dup` suffix on all but the smallest node id.
+* Codepoint collision → present only on the smallest node id.
+* `name` empty or invalid (older client) → `glyph<counter>_<replica hex>`.
+* `kind` unset → BASE.
+* `advance_width` NaN/infinite → 0.
+* A `LIGATURE` whose name has no underscore, or whose parts are not live glyph names, is still a
+  glyph; it just contributes no `liga` rule (xref:opentype-features.adoc[OpenType features]).
+
+=== Offline behavior
+
+Standard.  A day of grid work (adds, renames, widths) uploads as a small backlog; grid thumbnails
+render from the local state.  Presence dots are absent offline.
+
+=== Server
+
+Nothing beyond storing and relaying changes.  The server validates the name pattern and codepoint
+range per op.
+
+=== Client
+
+* `WTModel.GlyphCommands` as listed under Data model; `WTModel.GlyphIndex` maintains name → node
+  and codepoint → node maps with the collision normalization, rebuilt incrementally from changes.
+  `WTModel.GlyphNaming`: AGL table (bundled), `uniXXXX`/`uXXXXX` rules, ligature decomposition,
+  suffix parsing, Unicode character names (from `ICU` via Foundation).
+* `WTApp.GlyphGridView`: an `NSCollectionView` with a custom layout for the three cell sizes,
+  cells backed by cached thumbnails from FONT-009, diffable data source updated from model changes
+  with animated insert/remove; drag-to-reorder in Custom order via `NSCollectionView` drag
+  sessions; placeholders as a second item type; type-to-jump and the search field through
+  `NSSearchToolbarItem`.
+* The *Glyph* section of the Object panel (APP-007) for a glyph selection: Name, Unicode list,
+  Kind, Advance width, LSB and RSB (derived; editing them moves artwork or changes width), Mark
+  color, Export, Note; mixed-value display for many glyphs.
+* Undo: each command over a selection is one step labelled with the count ("Set width of 12
+  glyphs").
+* Preference *Glyph cell size* (Medium) under Settings > Typeface.
+
+=== Build tasks
+
+[[FONT-008]]
+==== FONT-008 Glyph commands and naming
+[horizontal]
+Track:: client-model
+Depends on:: FONT-002
+Size:: L
+Delivers:: `GlyphCommands` (add by codepoint/name/range with presets, rename, set codepoints, remove, reorder, set width/bearings/center/thirds, transform, kind, color, export, note, copy/paste-replace/paste-new, paste as component, decompose, remove overlaps, correct directions, add extrema), `GlyphIndex` with name and codepoint collision normalization, `GlyphNaming` with the AGL table.
+Done when::
+* Each command is one change with an inverse; undo of remove restores the glyph and its objects.
+* Naming tests: 200 AGL samples, `uni`/`u` forms, ligature decomposition, suffixes, invalid names rejected.
+* Merge tests: rename collision (smaller id keeps, other reads `.dup`); codepoint collision (smaller id keeps); add-from-range on two replicas (duplicates detected, empty duplicate removable); remove vs. use as component (placeholder); paste-replace vs. edit (restore).
+* Conformance vectors for every read-time normalization above.
+
+[[FONT-010]]
+==== FONT-010 Glyph grid view
+[horizontal]
+Track:: client-ui
+Depends on:: FONT-003, FONT-008, FONT-009, APP-007
+Size:: L
+Delivers:: `GlyphGridView` with cell sizes, labels, badges, presence dots, sort orders, encoding placeholders, selection gestures, search, Select submenu, drag reorder, the Add Glyph and Add Glyphs from Range sheets, the Glyph menu, the Glyph section of the Object panel, the Set Width/Bearing sheet, the collision notices.
+Done when::
+* UI tests: add `é` by character, by codepoint and by name; add Latin-1 with accent building; rename to a taken name is refused; delete with artwork confirms; reorder in Custom order; search filters live.
+* 3,000-glyph grid scrolls at 60 fps on M1 with thumbnails cached.
+* A remote rename, re-encode, add and remove each update the grid within 200 ms without losing the local selection.
+
+[[FONT-009]]
+==== FONT-009 Glyph thumbnails
+[horizontal]
+Track:: client-render
+Depends on:: REND-004, GEO-002, GEO-003, FONT-002
+Size:: M
+Delivers:: Thumbnail rendering of a glyph's flattened outline (components resolved, strokes expanded, overlaps unioned) at the three cell sizes, a per-glyph cache keyed by the glyph's and its components' change counters, invalidation from changes to any object on the canvas or to a component's source glyph.
+Done when::
+* A change to one glyph re-renders only that glyph and the glyphs using it as a component.
+* Rendering 3,000 empty-to-medium glyphs cold takes under 2 s off the main actor.
+* Thumbnails match the Generate output's outlines (same flattener, FONT-015) once that lands; until then, a fill-only union is acceptable and noted.
+endif::spec[]

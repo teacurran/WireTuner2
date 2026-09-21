@@ -1,0 +1,173 @@
+Extensions are the commands and tools that {fh} shipped as add-on modules -- path operations,
+color utilities, distortion tools, chart pictographs, animation helpers.  In {product} they
+are all built in, organized under the *Extensions* menu and on two toolbars, and can be
+switched off individually if you never use them.
+
+NOTE: {fh} called these *Xtras*, the menu *Xtras* and the toolbars *Xtra Tools* and *Xtra
+Operations*.  {product} says *Extensions* everywhere.  Every Xtra that shipped with {fh} MX
+is here; third-party Xtras are not, and {product} does not load plug-ins in this version.
+
+// TODO screenshot: the Extensions menu with the Path Operations submenu open.
+
+== Using extensions
+
+To use an extension, do one of the following:
+
+* Choose it from the menu:Extensions[] menu.  Extensions with related jobs are grouped in
+  submenus.
+* Choose menu:Window[Toolbars > Extension Tools] and click a tool.
+* Choose menu:Window[Toolbars > Extension Operations] and click an operation.
+
+Operations act on the selection and are disabled when nothing suitable is selected.  Tools
+stay active until you choose another tool, like any tool in the Tools panel; each tool
+extension also lives in a Tools panel flyout (xref:toolbars.adoc[Toolbars]).
+
+To repeat the last extension::
+Choose menu:Extensions[Repeat <name>] or press kbd:[Cmd+Shift+=].  It applies the last
+operation you used, with the same settings, to the current selection.  Tools are not
+repeated.
+
+To double-click a tool extension for its options::
+Double-click it in the Extension Tools toolbar or the Tools panel, as for any tool.
+
+== The Extensions menu
+
+[cols="1,2,2"]
+|===
+|Submenu |Items |Documented on
+
+|Repeat <name> |The last operation. |This page
+|Animate |Release to Layers |xref:animation.adoc[Animation]
+|Chart |Pictograph…, Remove Pictograph |xref:charts.adoc[Charts]
+|Cleanup |Correct Direction, Remove Overlap, Reverse Direction, Simplify… |xref:editing-paths.adoc[Editing paths]
+|Colors |Color Control…, Convert to Grayscale, Darken Colors, Desaturate Colors, Import RGB Color Table…, Lighten Colors, Name All Colors, Randomize Named Colors, Saturate Colors, Sort Color List by Name |xref:editing-colors.adoc[Editing colors], xref:color-tables.adoc[Color tables]
+|Create |Blend, Emboss…, Fractalize, Trap… |xref:blends.adoc[Blends], xref:path-effects.adoc[Path effects], xref:printing.adoc[Printing]
+|Delete |Empty Text Blocks, Unused Named Colors |xref:editing-text.adoc[Editing text], xref:swatches.adoc[Swatches]
+|Distort |Add Points, Bend…, Fisheye Lens…, Roughen…, Smudge…, 3D Rotation… |xref:path-effects.adoc[Path effects]
+|Path Operations |Union, Divide, Intersect, Punch, Crop, Transparency…, Expand Stroke…, Inset Path… |xref:combining-paths.adoc[Combining paths], xref:expand-stroke.adoc[Expand stroke], xref:inset-path.adoc[Inset path]
+|Other |File Info…, Manage Extensions… |xref:file-info.adoc[File info], this page
+|===
+
+== The Extension Tools toolbar
+
+Mirror, Roughen, Bend, Fisheye Lens, Smudge, Shadow, 3D Rotation, Graphic Hose, Chart,
+Spiral, Arc, Eyedropper, Extrude, Blend, Perspective, Connector, Action, Output Area,
+Eraser.  Each is described on its tool's page (xref:toolbars.adoc[Toolbars] maps them).
+
+== The Extension Operations toolbar
+
+Union, Divide, Intersect, Punch, Crop, Transparency, Expand Stroke, Inset Path, Add Points,
+Correct Direction, Reverse Direction, Remove Overlap, Simplify, Blend, Emboss, Fractalize,
+Trap, Release to Layers.
+
+== Managing extensions
+
+To turn extensions off or on::
+. Choose menu:Extensions[Other > Manage Extensions…].
+. Uncheck an extension to remove it from the menu and the toolbars; check it to bring it
+  back.  Categories can be toggled as a whole.
+. Click btn:[Done].  Changes apply at once; no restart.
+
+Turning an extension off hides it; artwork made with it is unaffected, and a document that
+uses a hidden extension's tool (a chart, a connector) still opens and edits normally.  The
+list is per Mac.
+
+{fh} installed Xtras by dropping files in a folder and restarting.  There is nothing to
+install in {product}: everything listed here ships with the application.
+
+== Working with others
+
+Extensions change the document the same way any command does, so their results reach
+collaborators as you apply them: a Union someone performs replaces the source paths in your
+view too; a chart they build appears as they build it.  Which extensions you have turned on
+is your own setting and does not affect what you see of other people's work.  Each
+operation's page describes the case of two people applying it to one object at the same
+time; the general rule is that both operations happen and the later one's result is what
+remains.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,1"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Xtras menu with submenus (Animate, Chart, Cleanup, Colors, Create, Delete, Distort, Path Operations, Other)
+|Extensions menu, same submenus and items.
+|Faithful (renamed)
+
+|Xtra Tools and Xtra Operations toolbars
+|Extension Tools and Extension Operations toolbars.
+|Faithful (renamed)
+
+|Repeat Xtra (Cmd+Shift+=)
+|Repeat Extension, same key.
+|Faithful
+
+|Install Xtras by copying files; third-party Xtras; Xtra Manager
+|All extensions built in; Manage Extensions turns them on/off; no plug-in loading.
+|Adapted -- no plug-in API in v1 (recorded in xref:decisions.adoc[Decisions]).  A future plug-in mechanism, if any, will be App Extensions or scripting (xref:scripting.adoc[Scripting]), not loaded code.
+
+|Shortcuts only for Repeat Xtra
+|Same; tool extensions get tool shortcuts.
+|Faithful
+|===
+
+=== Data model
+
+None.  The enabled/disabled list is local (`wt.extensions.disabled`, a string set in
+`NSUserDefaults`).  What each extension writes into the document is specified on its page.
+
+=== Merge semantics
+
+None on this page.  An operation extension is an ordinary `WTModel` command producing one
+change (for example Union: create the result node, set `deleted` on the sources when *Path
+operations consume original paths* is on); concurrency is covered on the operation's page.
+
+=== Offline behavior
+
+Everything works offline.
+
+=== Server
+
+Nothing beyond storing and relaying changes.
+
+=== Client
+
+* `WTApp/Extensions`.  `ExtensionRegistry` holds `ExtensionDescriptor { id, title, category,
+  kind: .operation(commandId) | .tool(toolId), toolbar: Set<.tools|.operations>, helpSlug }`.
+  The menu, both toolbars, the Manage Extensions sheet and Repeat are generated from it;
+  feature epics register their operations and tools here in addition to the command and tool
+  registries.
+* Repeat records the last executed operation's command id and its parameters (the sheet
+  values) in `ExtensionRepeatState`; the menu title updates via `validateMenuItem`.
+* Manage Extensions is a SwiftUI outline of categories with checkboxes, writing the disabled
+  set; menus and toolbars observe it.
+* Disabled extensions remain registered so documents referencing them render and edit; only
+  the UI entry points hide.
+
+=== Build tasks
+
+[[BASIC-031]]
+==== BASIC-031 Extension registry, menu and toolbars
+[horizontal]
+Track:: client-ui
+Depends on:: APP-005, BASIC-008, BASIC-011
+Size:: M
+Delivers:: `ExtensionRegistry` with every item on this page registered (operations as stub commands that are disabled until their epic lands, tools pointing at BASIC-008 registrations), the Extensions menu built from it, the two toolbars' default sets, and Repeat Extension with parameter capture.
+Done when::
+* The menu matches this page's table exactly (snapshot test); a stub operation is disabled with a "coming soon" tooltip.
+* Repeat re-runs a sample operation with captured parameters on a new selection and is disabled after a tool.
+
+[[BASIC-032]]
+==== BASIC-032 Manage Extensions sheet
+[horizontal]
+Track:: client-ui
+Depends on:: BASIC-031, BASIC-021
+Size:: S
+Delivers:: menu:Extensions[Other > Manage Extensions…] with per-item and per-category toggles, immediate menu/toolbar update, and persistence in the local disabled set.
+Done when::
+* Disabling Path Operations hides the submenu and its toolbar buttons without relaunch; a document with a chart still opens and edits with Chart disabled.
+endif::spec[]

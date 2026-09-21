@@ -1,0 +1,525 @@
+Artwork made elsewhere -- a photograph, a logo drawn in another application, a PDF page, a
+scanned sketch -- comes into a {product} document through the *Import* command, by dragging a
+file in from the Finder, or by pasting.  Whatever the route, the artwork ends up as ordinary
+objects on the current layer: vector files become paths and groups you can edit with every tool
+in the book, and bitmap files become *image* objects that you can move, scale, crop, tint and
+trace.  This page covers the ways to bring a file in and what happens to it once it arrives;
+xref:import-formats.adoc[Import file formats] lists every format and its options, and
+xref:bitmaps.adoc[Working with bitmap images] covers what you can do with an image afterwards.
+
+== What happens to imported artwork
+
+{product} treats an imported file in one of three ways, chosen by its format:
+
+Vector files (PDF, Illustrator, SVG, DXF, {fh}) ::
+  The file's drawing is converted into native paths, text blocks and groups, wrapped in one
+  group named after the file, and placed on the current layer.  Nothing remains of the original
+  file format: the objects are as editable as if you had drawn them.  Details that {product}
+  cannot represent are approximated or left out, and each format's page says which.
+
+Bitmap files (TIFF, JPEG, PNG, PSD, GIF, BMP, Targa, HEIC, WebP, AVIF) ::
+  The pixels are stored in the document and shown as one image object.  The image keeps its
+  pixel dimensions, resolution, color mode and alpha channel.  You cannot edit individual pixels
+  in {product}; for that, use xref:external-editors.adoc[an external editor].
+
+Placed files (EPS, SVG animations) ::
+  The file is kept as-is inside the document and shown through its preview.  You can position
+  and scale it but not edit its contents.  See xref:import-formats.adoc[Import file formats] for
+  EPS and xref:svg-animation.adoc[SVG animations and browser preview] for animations.
+
+Text files (RTF, plain text) become text blocks; see xref:importing-text.adoc[Importing text].
+
+NOTE: {fh} *linked* bitmap and EPS files to the document by default, reading them from disk each
+time.  Because a {product} document lives in the cloud and is opened by other people on other
+Macs, every imported file is stored *in* the document.  The Links panel still remembers where a
+file came from so you can update the artwork when the original changes; see
+xref:linking-embedding.adoc[Linking and embedding].
+
+== Importing with the Import command
+
+To import a file into the open document:
+
+. Choose menu:File[Import…] (kbd:[Cmd+R]).
+. Select one or more files in the sheet.  A preview of the selected file appears in the sheet
+  beside the file list, with its format, pixel size and color mode where the format provides
+  them.
+. If the format has import options (PDF, Illustrator, DXF, SVG, {fh}), click btn:[Options…] to
+  set them.  Options are remembered per format until you change them.
+. Click btn:[Import].  The sheet closes and the pointer becomes the *import pointer*, a corner
+  bracket showing where the artwork's top-left corner will land.
+. Place the artwork:
+* Click to place it at its natural size.  For a bitmap, the natural size is its pixel
+  dimensions divided by its resolution, so a 1500 × 1000 pixel photograph at 300 ppi is placed
+  5 × 3.33 inches; a file with no resolution is treated as 72 ppi.  For a vector file, the
+  natural size is the file's own page or bounding box.
+* Drag to draw a marquee and the artwork is scaled to fit inside it, keeping its proportions.
+  Hold kbd:[Shift] while dragging to scale it to fill the marquee's width exactly.  Hold
+  kbd:[Option] to draw the marquee from its center.
+* Press kbd:[Esc] to cancel the import.
+
+The placed artwork is selected when you release the mouse, so you can move or transform it
+immediately.  A bitmap placed by dragging is scaled, not resampled: its pixels are untouched and
+its effective resolution changes instead (xref:bitmaps.adoc[Working with bitmap images]).
+
+// TODO screenshot: the Import sheet with a file selected and its preview and Options… button
+
+=== Importing several files at once
+
+When you select more than one file, {product} places them one after another.  The import
+pointer shows a small counter (for example `2 of 5`) and the name of the next file.  Each click
+or drag places one file; press kbd:[Esc] to stop placing the remaining files.  To place all
+remaining files at their natural size at once, press kbd:[Return]: they are stacked from the
+pointer position, each offset down and right by the *Keep both offset* preference so none is
+hidden behind another.
+
+=== Where the artwork goes
+
+Imported artwork goes onto the *current layer* -- the layer highlighted in the Layers panel --
+at the top of that layer's stacking order.  If the current layer is locked or hidden, {product}
+places the artwork on the nearest layer above it that is visible and unlocked, makes that layer
+current, and says so in the status bar.  It never imports onto a layer you cannot see or edit.
+
+Every imported object gets its file name as its name in the Object panel (a vector import names
+the enclosing group), so you can find it later with xref:find-replace.adoc[Find and Replace] or
+in the Layers panel.
+
+== Dragging files from the Finder
+
+To import by dragging:
+
+. Drag one or more files from the Finder (or from any application that provides files, such as
+  Photos or Mail) onto the document window.
+. Drop where you want the artwork's top-left corner.
+
+Each file is placed at its natural size, using that format's remembered import options.  Files
+that {product} cannot import are refused with an explanation; the ones it can are still placed.
+Dropping several files places them stacked at the drop point with the *Keep both offset*
+between them.
+
+Dragging a file onto the {product} icon in the Dock, or double-clicking a file {product} owns,
+opens it as a new document instead (xref:creating-opening.adoc[Creating and opening documents]).
+
+NOTE: {fh} shipped a separate *FreeHand MX File Viewer* application for browsing and dragging
+{fh} files into a document.  {product} relies on the Finder: {product} documents and {fh} files
+show previews in Quick Look, and any file can be dragged in from a Finder window.
+
+== Pasting
+
+Anything the clipboard holds that {product} can import can also be pasted with menu:Edit[Paste]
+(kbd:[Cmd+V]):
+
+* Image data (copied from a browser, Photos, Preview, a screenshot) becomes an image object.
+* PDF data (copied from most Mac drawing applications) is converted to paths and groups, exactly
+  as a PDF import would be, using the remembered PDF options.
+* Styled or plain text becomes a text block (xref:importing-text.adoc[Importing text]).
+
+Pasted artwork lands in the center of the view, or at the pointer with menu:Edit[Paste at
+Pointer]; see xref:copying.adoc[Copying objects].  When the clipboard holds several
+representations, {product} prefers the most editable one: {product} objects, then PDF, then
+image.
+
+== From another app's Share menu
+
+A picture in Photos, a PDF in Preview, an SVG in Safari, a file in the Finder: choose *Add to
+{product} Document* from that app's Share menu and it is placed in the frontmost {product}
+document at the center of the view, as if you had imported it.  When no document is open, or
+when you hold kbd:[Option] while choosing the command, you pick the document from your
+library first, or start a new one.  The same command sits in each app's Services menu when an
+image, a PDF or text is selected.  Details and the outbound Share menu are on
+xref:exporting.adoc[Exporting files].
+
+== Watching an image upload
+
+An imported bitmap is available to you the moment it is placed.  It becomes available to the
+other people in the document once its pixels have reached the cloud, which happens in the
+background while you keep working.  Until then a small badge sits in the corner of the image:
+
+[cols="1,3"]
+|===
+|Badge |Meaning
+
+|*Uploading* with a progress ring
+|The pixels are on their way.  Large images take a while on slow connections; everything else
+you do syncs normally in the meantime.
+
+|*Waiting for network*
+|You are offline.  The image is safe in the document on this Mac and uploads as soon as you
+reconnect.
+
+|(no badge)
+|Everyone can see the image.
+|===
+
+Other people see a placeholder in the image's place -- a hatched rectangle of the right size
+with the file's name and "uploading from _your name_" -- until the upload completes, at which
+point the picture appears for them.  They can already move, scale, crop and stack the
+placeholder; their changes apply to the image once it arrives.
+
+An image file may be at most 200 MiB.  Larger files are refused at import with the file's
+size shown.  Very large *pictures* are usually more than a print needs: the preference
+*Downsample images larger than* (default 50 megapixels; also 20, 100, or Off) resamples an
+image to that many pixels as it is imported, keeping its printed size, and tells you it did so.
+Set it to Off to always keep every pixel.
+
+== Working with others
+
+When someone else imports artwork, it appears in your view where they placed it, on the layer
+they chose.  A vector import appears all at once as a selectable group.  A bitmap appears as a
+placeholder with its name until its pixels have uploaded from their Mac and downloaded to yours;
+a downloading placeholder shows a progress ring.  You can select, move, scale and stack a
+placeholder just as you can the finished image.
+
+Two people importing at the same moment, even onto the same layer, never interfere: both files
+arrive, one above the other in the order they were placed.  If you and a collaborator both
+replace the same image's pixels (through an external editor, say) at the same time, the later
+replacement wins for everyone; the earlier one is listed in the merge review so it can be
+brought back (xref:reconcile.adoc[Reconciling offline edits]).
+
+Importing works fully offline.  Vector imports sync like any other change when you reconnect.
+Bitmaps show the *Waiting for network* badge and upload in the background after your other
+changes; until then, collaborators see the placeholder.  Images that collaborators imported
+while you were away appear as placeholders until their pixels have downloaded, which happens
+automatically once you are back online.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,2"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|menu:File[Import…] with format-specific *Setup* dialog
+|menu:File[Import…] (kbd:[Cmd+R]) sheet with preview accessory and btn:[Options…] per format.
+|Faithful
+
+|Import pointer: click to place at default size, drag a marquee to size
+|Same; kbd:[Shift] fills the marquee's width, kbd:[Option] draws from the center, kbd:[Esc]
+cancels.  Marquee placement keeps proportions.
+|Faithful
+
+|Import several files
+|Multi-selection in the sheet; sequential placement with a counter, kbd:[Return] places the
+rest stacked.
+|Adapted -- {fh} placed multiple files without a counter or a place-all gesture; the counter
+and kbd:[Return] are additions.
+
+|Drag and drop from the Finder
+|Same; each file placed at natural size at the drop point.
+|Faithful
+
+|Paste imports clipboard images and vector data
+|Same; PDF and image pasteboard types, {product}'s own type preferred.
+|Faithful
+
+|Bitmaps linked by default, embedded when pasted; *Embed* preference
+|Every imported file is stored in the document as a content-addressed blob.  Source path kept
+for *Update from source* in the Links panel.
+|Adapted -- a linked path on one Mac is meaningless to collaborators and to the cloud copy.
+Recorded as a decision; the Links panel is specified in xref:linking-embedding.adoc[Linking and
+embedding].
+
+|Modified source file updates all references on next open
+|The Links panel offers *Update from source* and can watch a source file while the document is
+open (xref:linking-embedding.adoc[Linking and embedding]).
+|Adapted -- explicit rather than automatic, because automatic replacement would push a new blob
+to everyone without anyone asking.
+
+|Imported vector graphics converted to {fh} objects in the document
+|Same: native nodes under one group.
+|Faithful
+
+|Illustrator live blends imported as groups; gradient meshes as 50% black
+|Same treatment in the AI/PDF converter (xref:import-formats.adoc[Import file formats]).
+|Faithful
+
+|Imports go onto the current layer
+|Same, with the fallback to the nearest editable layer when the current one is locked or
+hidden.
+|Adapted -- {fh} refused; the fallback avoids a dead end.
+
+|HPGL/CGM/DXF cannot be saved back to their format
+|True of every format: {product} saves only {product} documents and exports the formats on
+xref:export-formats.adoc[Export file formats].
+|Faithful
+
+|{fh} MX File Viewer (Macintosh)
+|Not provided.  Finder + Quick Look previews and drag-and-drop cover it.
+|Dropped -- a separate browser application has no role on modern macOS.
+
+|--
+|*Add to {product} Document* in other apps' Share menus (Share extension) and Services menus.
+|Added -- the macOS sharing model; lands in the same place command as paste.
+|===
+
+=== Data model
+
+An imported bitmap is one node of kind `image`.  Its pixels live in a content-addressed blob
+(xref:sync-protocol.adoc[Sync protocol]); the node references the blob by hash and carries the
+facts the renderer needs before the blob is available (dimensions, mode) so a placeholder is the
+right size on every replica.  The message is defined here and used unchanged by every other page
+in this group.
+
+[source,protobuf]
+----
+// proto/wiretuner/doc/v1/image.proto (sketch)
+
+enum ColorMode {
+  COLOR_MODE_UNSPECIFIED = 0;
+  COLOR_MODE_BILEVEL = 1;      // 1 bit per pixel
+  COLOR_MODE_GRAYSCALE = 2;
+  COLOR_MODE_INDEXED = 3;      // palette (GIF, 8-bit PNG); tints and Transparent are not offered
+  COLOR_MODE_RGB = 4;
+  COLOR_MODE_CMYK = 5;
+}
+
+// The pixel source.  ATOMIC: dimensions, mode and depth describe *this* blob, so a
+// replacement writes all of them in one register; merging width from one replacement with
+// the hash of another would describe a picture nobody has.
+message PixelSource {
+  bytes blob_sha256 = 1 [(buf.validate.field).bytes.len = 32]; // content hash of the encoded file
+  string format = 2;            // UTI of the stored encoding: public.png, public.tiff, public.jpeg ...
+  int32 pixel_width = 3 [(buf.validate.field).int32.gt = 0];
+  int32 pixel_height = 4 [(buf.validate.field).int32.gt = 0];
+  ColorMode mode = 5;
+  int32 bits_per_channel = 6;   // 1, 8 or 16
+  bool has_alpha = 7;           // the encoded file carries an alpha channel
+}
+
+// A grayscale ramp remaps the gray levels of a bilevel or grayscale image (Object panel).
+// ATOMIC: the three values describe one curve.
+message GrayRamp {
+  GrayRampPreset preset = 1;    // NORMAL, INVERTED, LIGHTEN, DARKEN; CUSTOM when edited by hand
+  int32 lightness = 2 [(buf.validate.field).int32 = {gte: -100, lte: 100}];
+  int32 contrast = 3 [(buf.validate.field).int32 = {gte: -100, lte: 100}];
+}
+
+message ImageProps {
+  PixelSource pixels = 1 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // File name at import; shown in the Object panel and on placeholders.
+  string source_name = 2 [(buf.validate.field).string.max_len = 256];
+  // Resolution in pixels per inch.  Together with the pixel dimensions this fixes the
+  // image's natural size in points; CommonProps.transform scales, rotates and skews it.
+  double dpi_x = 3 [(buf.validate.field).double.gt = 0];
+  double dpi_y = 4 [(buf.validate.field).double.gt = 0];
+  // Object panel "Display alpha channel".  Ignored when pixels.has_alpha is false.
+  bool display_alpha = 5;
+  // Object panel "Transparent": white pixels of a bilevel or grayscale image are clear.
+  bool transparent_background = 6;
+  // Object panel "Edit grayscale ramp".  Unset means NORMAL.
+  GrayRamp ramp = 7 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Fill color applied to a bilevel or grayscale image colors its dark pixels.  ColorRef is
+  // the COLOR epic's swatch-or-literal color reference; cached so a deleted swatch keeps
+  // the last color.
+  ColorRef tint = 8 [(wt.crdt.field).merge = MERGE_ATOMIC,
+                     (wt.crdt.field).on_dangling = REF_FALLBACK_CACHED];
+  // Non-destructive crop in unit image space (0..1 of the natural size, y down).  ATOMIC: a
+  // rectangle's edges are one gesture.  Unset means uncropped.  See cropping-bitmaps.adoc.
+  Rect crop = 9 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Color management: source profile and rendering intent.  Reserved for the CMS epic;
+  // see image-color.adoc.
+  ImageColorSettings color = 10;
+  // Link record (source path, modification date) kept under the `assets` collection by the
+  // Links panel; unset for pasted and generated images.  See linking-embedding.adoc.
+  NodeRef source = 11 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
+}
+----
+
+A vector import writes no new message types: the converter emits `CreateNode` ops for paths,
+text blocks and groups exactly as the drawing tools do, all inside one change labelled
+"Import _file_".  A placed EPS uses the `placed_file` kind defined on
+xref:import-formats.adoc[Import file formats].
+
+Nothing about upload state is in the document.  Whether a blob has reached the server is a fact
+about this replica's `blobs_pending` table (xref:offline.adoc[Offline]); whether a blob has been
+downloaded is a fact about the local cache.
+
+=== Merge semantics
+
+`pixels`:: ATOMIC LWW.  Two concurrent replacements (two external edits, an external edit
+against a re-import) keep the later one everywhere; the losing hash is retained in the log and
+the review sheet lists the node under *same register* with both pictures in the preview, since
+the losing blob is still cached or downloadable.
+
+`dpi_x`, `dpi_y`, `display_alpha`, `transparent_background`, `ramp`, `tint`, `crop`, `source`::
+Independent registers.  One person cropping while another edits the pixels externally keeps
+both: the crop is in unit space, so it still applies to the replaced picture.  One person
+setting *Transparent* while another applies a tint keeps both.
+
+Import vs. anything:: An import only creates nodes, so it never conflicts.  Two imports onto
+the same layer at once produce two children with distinct fractional positions.
+
+Delete vs. edit:: Someone deletes an image while another person crops or tints it: the edits
+land on the deleted node; the review sheet lists *edit vs delete* and *Restore* brings the image
+back with the crop applied.
+
+Read-time normalizations::
+* `crop` with any edge outside 0..1, or with zero or negative area, reads as unset.
+* `tint`, `transparent_background` and `ramp` on an RGB, CMYK or indexed image are ignored.
+* `dpi_x` or `dpi_y` of 0 (a client older than the field) reads as 72.
+* A `pixels` register whose blob is not available renders as the placeholder with
+  `source_name` at the node's natural size; every other field is honored (a placeholder can be
+  cropped, transformed and stacked).
+* An `image` node with an unset `pixels` register (an op that failed validation on an old
+  client) renders as an empty placeholder and is skipped by export.
+
+=== Offline behavior
+
+* Placing an image offline creates the node immediately and appends the encoded file to the
+  local blob cache and `blobs_pending`.  The change referencing the hash is sent before the
+  blob; the server accepts it (xref:sync-protocol.adoc[Sync protocol]) and other clients show
+  the placeholder until `BlobService.Download` succeeds.
+* Uploads run on the background queue from SYNC-008, largest last, with retry; the badge on
+  the image reflects the queue state.  Quitting with uploads pending is allowed; they resume at
+  next launch.
+* Two replicas importing the same file produce the same hash; the second upload is a no-op
+  (`BlobService.Stat` first).
+* Import coalescing: an image placed and deleted while offline drops both ops and the pending
+  upload.
+
+=== Server
+
+`BlobService` stores and serves blobs and enforces the 200 MiB limit and per-document
+association (SRV-008).  A change referencing an unknown hash is accepted.  The server never
+decodes an image.
+
+=== Client
+
+* `WTInterchange.ImageImporter` decodes with ImageIO (`CGImageSource`) to obtain
+  `PixelSource` facts without decoding pixels (`kCGImageSourceShouldCache = false`), keeps
+  the original encoded bytes as the blob, and applies the *Downsample images larger than*
+  preference by re-encoding to PNG (lossless sources) or JPEG at quality 0.92 (lossy sources)
+  at the reduced size, adjusting `dpi` so the natural size is unchanged.
+* The import pointer is a `Tool` (APP-003) pushed temporarily; it draws the marquee overlay and
+  the counter, and restores the previous tool after the last file.
+* Drag and drop: `NSFilePromiseReceiver` and file URLs through the canvas view's
+  `NSDraggingDestination`; pasteboard reading order `com.villagecompute.wiretuner.objects`,
+  `com.adobe.pdf`, then any UTI conforming to `public.image`.
+* Placement writes one change per file: `CreateNode` of the image (or of the converted
+  subtree) with `CommonProps.name = source_name`, `transform` from the click or marquee.
+  Undo removes the node; the blob stays cached.
+* The upload badge is an overlay drawn by the canvas from `WTSync`'s blob queue state, not by
+  the renderer, so it never appears in exports.
+* Share extension: `WireTunerShare`, an `NSExtension` of point `com.apple.share-services`
+  accepting `public.image`, `com.adobe.pdf`, `public.svg-image` and file URLs of those types
+  (`NSExtensionActivationRule`, at most 20 items).  The extension writes the items into the
+  app group container (`group.com.villagecompute.wiretuner`, `Inbox/<uuid>/`), then opens
+  the app with a `wiretuner-share://inbox/<uuid>` URL (custom scheme, app-internal only) and
+  completes; it never links `WTModel` or `WTSync`.  The app drains the inbox through
+  `ImageImporter`/the PDF and SVG converters into the frontmost document via the IMG-005
+  place path (view center, natural size, one change per item, label "Add from <app>"), or
+  shows the chooser (Library window in picker mode, APP-009) when no document is open or the
+  extension's kbd:[Option] flag is set.  Inbox directories are deleted after placement, and
+  stale ones on launch.  The Services entry on xref:exporting.adoc[Exporting files] (IO-037)
+  feeds the same drain.
+
+=== Build tasks
+
+[[IMG-001]]
+==== IMG-001 Image node schema
+[horizontal]
+Track:: proto
+Depends on:: PROTO-003, PROTO-005
+Size:: S
+Delivers:: `doc/v1/image.proto` with `ColorMode`, `PixelSource`, `GrayRamp`, `ImageProps` as sketched above, the `image` kind in `NodeProps`, and its number block.
+Done when::
+* `buf lint` with `COMMENTS` passes; every field carries the merge option shown here.
+* Conformance vectors: concurrent `pixels` replacement (ATOMIC), concurrent `crop` vs `pixels`
+  (independent), concurrent `tint` vs `transparent_background`.
+* The generated merge table marks `pixels`, `ramp`, `tint` and `crop` ATOMIC.
+
+[[IMG-002]]
+==== IMG-002 Image decoding and blob placement
+[horizontal]
+Track:: import-export
+Depends on:: IMG-001, SYNC-008
+Size:: M
+Delivers:: `WTInterchange.ImageImporter`: file or data in, `PixelSource` + `dpi` + local blob out; ImageIO probing without pixel decode; the 200 MiB refusal; *Downsample images larger than*; the pasteboard reader for image and PDF types.
+Done when::
+* TIFF, JPEG (RGB, CMYK, grayscale), PNG (8- and 16-bit, palette), GIF (first frame), BMP,
+  Targa, PSD (flattened composite with alpha), HEIC, WebP and AVIF each yield correct
+  dimensions, mode, depth and alpha in unit tests against a fixture corpus.
+* A 201 MiB file is refused with the size in the error; a 60 MP file with the preference at
+  50 MP is downsampled with unchanged natural size.
+* The same file imported twice produces one blob and one pending upload.
+
+[[IMG-003]]
+==== IMG-003 Image node commands
+[horizontal]
+Track:: client-model
+Depends on:: IMG-001, APP-011
+Size:: M
+Delivers:: `WTModel` commands: place image (create node with props and transform), replace pixels, set resolution, set display alpha / transparent / ramp / tint / crop; inverses for undo; validators from the schema.
+Done when::
+* Each command emits one change with a readable label and undoes to the prior state.
+* Merge test in the two-client harness: replace pixels on A while cropping on B converges to
+  B's crop over A's pixels on both.
+* Replace pixels keeps the placed bounds when pixel dimensions change (dpi recomputed).
+
+[[IMG-004]]
+==== IMG-004 Image rendering
+[horizontal]
+Track:: client-render
+Depends on:: REND-001, REND-004, IMG-001, SYNC-008
+Size:: L
+Delivers:: Rendering of `image` nodes in `WTRender`: natural rect from dimensions and dpi, `CommonProps.transform`, crop, alpha on and off, transparent background and tint for bilevel/grayscale, gray ramp, placeholder for missing blobs with name and progress, decode off the main actor, a mip pyramid per blob chosen by on-screen scale, and invalidation when a blob arrives.
+Done when::
+* Reference renders for each `ColorMode` × alpha × transparent × tint combination match
+  fixtures within anti-aliasing tolerance; PDF export of the same document is pixel-identical
+  in content.
+* A 100 MP image pans at 60 fps at any zoom on M1 after the pyramid is built; first paint of
+  the placeholder is immediate.
+* Hit testing an image respects the crop (REND-003 integration test).
+
+[[IMG-005]]
+==== IMG-005 Import command, import pointer, drag and drop, paste
+[horizontal]
+Track:: client-ui
+Depends on:: APP-003, APP-005, IMG-002, IMG-003
+Size:: L
+Delivers:: menu:File[Import…] with the preview accessory and per-format btn:[Options…] registry; the import pointer tool with click, drag, kbd:[Shift], kbd:[Option], kbd:[Esc], multi-file counter and kbd:[Return]; Finder drag and drop; pasteboard import; the current-layer fallback rule; naming from the file name.
+Done when::
+* UI tests: click placement at natural size, marquee placement keeping proportions, three
+  files placed in sequence, kbd:[Esc] after the second, kbd:[Return] stacking with the offset,
+  drop of two files, paste of a screenshot and of PDF data.
+* Import onto a locked layer lands on the nearest editable layer above and reports it.
+* Merge test: two clients importing onto one layer at once end with both images in placement
+  order on both clients.
+
+[[IMG-006]]
+==== IMG-006 Upload badge and remote placeholder
+[horizontal]
+Track:: client-ui
+Depends on:: IMG-004, IMG-005
+Size:: S
+Delivers:: The *Uploading* / *Waiting for network* badge overlay driven by the blob queue; placeholder text "uploading from _user_" resolved from presence or history for remote images; download progress on placeholders.
+Done when::
+* Simulator test (TEST-001): client A places a 50 MiB image offline; B sees a placeholder with
+  the name; A reconnects; B sees the picture without reopening.
+* Badges never appear in exports or prints.
+
+[[IMG-007]]
+==== IMG-007 Import limits and downsampling preference
+[horizontal]
+Track:: client-ui
+Depends on:: IMG-002, APP-010
+Size:: S
+Delivers:: The *Downsample images larger than* preference (Off, 20, 50, 100 megapixels; default 50) in Preferences > Import, the "downsampled to N MP" notice after import, and the over-limit refusal alert.
+Done when::
+* Preference round-trips through `AccountService` preferences sync.
+* UI test: importing a 60 MP fixture at each setting yields the expected pixel dimensions.
+
+[[IMG-026]]
+==== IMG-026 Share extension
+[horizontal]
+Track:: client-ui
+Depends on:: IMG-005, APP-009
+Size:: M
+Delivers:: The `WireTunerShare` extension target with its activation rule, the app group inbox, the `wiretuner-share://` hand-off, the inbox drain into the frontmost document or the chooser (with kbd:[Option]), the "Add from <app>" change label, inbox cleanup, and the extension's sandbox profile with no network.
+Done when::
+* Sharing a JPEG from Photos, a PDF from Preview and an SVG from Safari each place one object in the open document (UI test through a stub host, plus a manual run recorded); a multi-item share places all items stacked with the *Keep both offset*.
+* With no document open the chooser appears; choosing *New Document* creates one and places the item.
+* The extension process never opens a socket (sandbox audit) and exits within 200 ms of handing off.
+* Merge test: two Macs sharing into one document at once end with both objects on both.
+endif::spec[]

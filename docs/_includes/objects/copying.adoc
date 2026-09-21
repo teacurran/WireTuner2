@@ -1,0 +1,466 @@
+{product} copies objects through the clipboard, by dragging, and with two shortcuts that skip
+the clipboard entirely: *Clone*, which drops a copy exactly on top of the original, and
+*Duplicate*, which drops one a little to the side and can repeat a transformation as it goes.
+Copies go between documents and to and from other applications in the formats those
+applications understand.
+
+A copy is a new object.  It has no memory of where it came from: editing the original later
+does not touch the copy, and the copy can be edited, moved or deleted by anyone without
+affecting the original.  (For copies that *do* follow their source, use symbols:
+xref:library.adoc[Library and symbols].)
+
+// TODO screenshot: Edit > Special submenu
+
+== Copy, Cut and Paste
+
+[cols="2,1,3"]
+|===
+|Command |Shortcut |Does
+
+|menu:Edit[Cut]
+|kbd:[Cmd+X]
+|Removes the selection and puts it on the clipboard.
+
+|menu:Edit[Copy]
+|kbd:[Cmd+C]
+|Puts the selection on the clipboard in every enabled clipboard format.
+
+|menu:Edit[Paste]
+|kbd:[Cmd+V]
+|Pastes the clipboard using the richest format it holds.  Pasted objects land at the center of
+the visible area, on the active layer, on top of everything else on that layer.
+
+|menu:Edit[Special > Paste In Front]
+|kbd:[Cmd+Option+V]
+|Pastes directly above the selected object in the stacking order, on its layer -- inside its
+group or clipping path if it is in one -- and at the copied objects' original position, not
+the screen center.
+
+|menu:Edit[Special > Paste Behind]
+|kbd:[Cmd+Option+Shift+V]
+|The same, directly below the selected object.
+
+|menu:Edit[Special > Copy Special…]
+|
+|Copies in one format you choose.
+
+|menu:Edit[Special > Paste Special…]
+|
+|Pastes from one format you choose among those on the clipboard.
+
+|menu:Edit[Special > Copy Attributes]
+|
+|Copies only the strokes, fills, effects and text attributes of the selected object.
+
+|menu:Edit[Special > Paste Attributes]
+|
+|Applies copied attributes to the selection, replacing its attribute stack.
+
+|menu:Edit[Clear]
+|kbd:[Delete]
+|Removes the selection without touching the clipboard.
+|===
+
+To paste in front of or behind an object:
+
+. Select what you want to paste, and choose menu:Edit[Cut] or menu:Edit[Copy].
+. Select the object that the pasted objects should sit in front of or behind.
+. Choose menu:Edit[Special > Paste In Front] or menu:Edit[Special > Paste Behind].
+
+Paste In Front and Paste Behind are the quick way to move an object into a group or a
+clipping path: cut it, select a member, paste in front.  They are also a precise way to
+change stacking order (xref:arranging.adoc[Arranging]).
+
+=== Clipboard formats
+
+Copying puts the selection on the clipboard in several formats at once, so whichever
+application you paste into can take the one it prefers.  Pasting into {product} takes the
+richest format present.
+
+[cols="1,3,1,1"]
+|===
+|Format |Carries |Copy |Paste
+
+|{product}
+|Everything: objects with all attributes, effects, names, notes, text with formatting, and
+their layer names.
+|yes
+|yes
+
+|PDF
+|Vector artwork with fills, strokes and text as vectors or fonts.  What Preview, Pages,
+Keynote and most Mac applications take.
+|yes
+|yes
+
+|SVG
+|Vector artwork for web tools and browsers.
+|yes
+|yes
+
+|Image (TIFF and PNG)
+|A rasterized picture of the selection at the *Clipboard image resolution*.
+|yes
+|yes (as a bitmap object)
+
+|Rich text (RTF)
+|Text with formatting, when text is selected.
+|yes
+|yes (into a text block)
+
+|Plain text
+|Text alone.
+|yes
+|yes
+|===
+
+To choose which formats are placed on the clipboard when you copy:
+
+. Choose menu:WireTuner[Settings… > Export].
+. Under *Clipboard formats*, tick the formats to include.  The {product} format is always
+  included.
+. Under *Convert colors to*, choose *CMYK*, *RGB* or *CMYK and RGB* for the PDF and SVG
+  copies.
+
+NOTE: {fh}'s Macintosh clipboard offered Adobe Illustrator, ASCII and PICT.  Those are
+replaced by PDF, plain text and TIFF/PNG, which are what current macOS applications exchange.
+Windows-only formats (EMF, Metafile, DIB, LRG) are not offered.
+
+To copy or paste in one format:
+
+. Choose menu:Edit[Special > Copy Special…] or menu:Edit[Special > Paste Special…].
+. Pick the format in the sheet and click btn:[OK].  Paste Special lists only formats
+  currently on the clipboard.
+
+== Clone and Duplicate
+
+[cols="2,1,3"]
+|===
+|Command |Shortcut |Does
+
+|menu:Edit[Clone]
+|kbd:[Cmd+Shift+D]
+|Makes a copy exactly on top of the original, directly above it in the stacking order, and
+selects the copy.  The clipboard is untouched.
+
+|menu:Edit[Duplicate]
+|kbd:[Cmd+Option+D]
+|Makes a copy offset 10 pt right and 10 pt down from the original, directly above it, and
+selects the copy.  If the original was itself a duplicate that you then transformed,
+Duplicate repeats that transformation instead (below).
+|===
+
+=== Power duplicating
+
+Duplicate remembers what you did to the previous duplicate.  Move it, and the next Duplicate
+moves the new copy the same distance; rotate it, and the next one rotates the same amount --
+and both at once, if you did both.  This is the quickest way to make a row, a ring or a
+spiral of copies.
+
+To power-duplicate:
+
+. Select an object and choose menu:Edit[Duplicate].
+. Transform the duplicate: move it, rotate it, scale it, skew it or reflect it, with the
+  tools, the Transform panel or the transform handles.  You can combine moving with any one
+  of the others, and moving, scaling and rotating together; scaling and skewing cannot be
+  combined.
+. Without deselecting, choose menu:Edit[Duplicate] again.  The new copy receives the same
+  transformation relative to the one before.
+. Repeat step 3 for each further copy.
+
+Selecting anything else, or editing the duplicate in another way, resets the remembered
+transformation.
+
+== Copying by dragging
+
+To copy by dragging within a document:
+
+. With the Pointer tool, press on the selection and wait a moment for the pointer to change.
+. Hold kbd:[Option] and drag.  A plus sign beside the pointer shows a copy is being made.
+. Release.  The copy is selected; the original stays put.
+
+The *Option-drag copies* preference (menu:WireTuner[Settings… > Object], on by default) can
+turn this off, in which case kbd:[Option]-drag is a plain move.
+
+To copy by dragging between documents:
+
+. Open both documents and arrange the windows so you can see both.
+. Drag the selection from one window and drop it in the other.  The original stays in the
+  source document.
+
+You can also drag artwork out to another application that accepts drops, and drag artwork
+or files in (xref:importing.adoc[Importing artwork]).
+
+== Copying between documents
+
+Pasting into another document brings the objects with every attribute they had.  Colors they
+use are added to the destination's Swatches panel if not already present
+(xref:swatches.adoc[Swatches]); styles come along by name.
+
+Which layer the copy lands on depends on the *Remember layer info* preference
+(menu:WireTuner[Settings… > General]):
+
+* Off (default): the copy goes to the active layer.
+* On: each object goes to the layer with the same name as the one it came from, created if
+  necessary.  If the destination has the same layer names in a different order, the copies
+  stack in the destination's order.
+
+== Copying attributes
+
+To copy the look of one object to others:
+
+. Select the object whose strokes, fills, effects (and, for text, type attributes) you want.
+. Choose menu:Edit[Special > Copy Attributes].
+. Select the objects to change and choose menu:Edit[Special > Paste Attributes].
+
+Paste Attributes replaces the whole attribute stack of each target.  Objects that cannot take
+some attribute (a bitmap given a stroke) ignore that part.  The Eyedropper tool does the same
+job interactively (xref:applying-color.adoc[Applying color]).
+
+== Working with others
+
+Pasted, cloned and duplicated objects appear for collaborators the moment your change
+arrives, exactly where you put them.  Because a copy is a brand-new object, nothing anyone
+does to the original reaches the copy, and nothing done to the copy reaches the original.
+
+If you cut an object and someone else edits it before you paste, the paste brings back what
+you cut -- their edit is not in your clipboard.  Their edit lands on the object you cut,
+which is gone; after an offline stretch the review lists it as an edit to something that was
+deleted and offers to restore it.
+
+Paste In Front and Paste Behind put the copy next to the object you selected.  If that object
+is moved to another layer or group at the same moment, the copy follows it there.  If it is
+deleted at the same moment, the copy still lands where it was -- on top of the surrounding
+objects.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,2"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Cut, Copy, Paste, Clear
+|Same.
+|Faithful
+
+|Paste In Front / Paste Behind
+|Same, including pasting into groups and clipping paths.
+|Faithful
+
+|Copy Special / Paste Special
+|Same, over the macOS format set.
+|Faithful
+
+|Clipboard Output Formats preference (FreeHand, RTF, Adobe Illustrator, ASCII, PICT)
+|PDF, SVG, TIFF/PNG, RTF, plain text; native always on.
+|Adapted -- AI/PICT are dead on macOS; PDF is the universal vector clipboard type.
+
+|Windows paste formats preference (LRG, EMF, Metafile, DIB)
+|Not offered.
+|Dropped -- Windows only.
+
+|Convert Colors To (CMYK / RGB / both; Photoshop 4/5 options)
+|CMYK / RGB / both for PDF and SVG.  Photoshop 4/5 options dropped.
+|Adapted -- Photoshop 4/5 are obsolete.
+
+|Clone (copy on top)
+|Same.
+|Faithful
+
+|Duplicate (offset copy) and power-duplicating
+|Same, including combining move with rotate/scale, and the scale+skew restriction.
+|Faithful
+
+|Option-drag copies, and its preference
+|Same.
+|Faithful
+
+|Drag between documents; Remember Layer Info
+|Same.
+|Faithful
+
+|Drag to/from other applications
+|Same via `NSDraggingSession` and file promises.
+|Faithful
+
+|Copy/Paste Attributes
+|Same.
+|Faithful
+|===
+
+=== Data model
+
+Pasting creates nodes.  Every pasted node gets a *new* node id (the `CreateNode` op's id);
+nothing in the document links it to its source.  A `ClipboardPayload` is the native pasteboard
+type and is not part of the document schema, but it is a protobuf so both documents agree on
+its contents:
+
+[source,protobuf]
+----
+// proto/wiretuner/clipboard/v1/clipboard.proto
+// Native pasteboard type "com.wiretuner.objects".  Never stored in a document.
+message ClipboardPayload {
+  // Subtrees, in stacking order (bottom first).  Each carries its full NodeProps,
+  // with the register values current at copy time and no OpIds.
+  repeated ClipboardNode nodes = 1;
+  // Name of the source layer of each top-level node, for "Remember layer info".
+  repeated string layer_names = 2;
+  // Swatches, styles, symbols and brushes the nodes reference, by their source id,
+  // so the paste can resolve references into the destination (matched by name,
+  // created if missing).
+  repeated ClipboardAsset assets = 3;
+  // Bounds of the copied selection in source pasteboard coordinates, for Paste In Front's
+  // "original position" and for cross-document placement.
+  Rect bounds = 4;
+  // Source document id; a paste into the same document may reuse swatch refs directly.
+  string source_document = 5;
+}
+message ClipboardNode {
+  NodeProps props = 1;              // kind and all registers, denormalized
+  repeated ClipboardNode children = 2;
+  OpId source_id = 3;               // for resolving connector/blend references within the payload
+}
+message ClipboardAsset {
+  OpId source_id = 1;
+  NodeProps props = 2;              // swatch / style / symbol / brush props
+}
+----
+
+Paste writes one `CreateNode` per node (children after parents), with `NodeRef`s rewritten:
+refs inside the payload map to the new ids; refs to assets map to the destination's matching
+asset by name or to a freshly created one.  A `NodeRef` to something not in the payload
+(a connector's endpoint left behind) is written unset.
+
+Copy Attributes uses the same payload with a single `ClipboardNode` whose props carry only the
+appearance stack and text defaults; Paste Attributes rewrites the target's
+`AppearanceProps.stack` (an `ElementDelete` of every element then `ElementInsert` of the
+copies, in one change).
+
+=== Merge semantics
+
+* *Paste* is pure creation: it can never conflict.  Concurrent pastes by two people simply
+  both appear.
+* *Cut* is `SetDeleted(true)` on the source nodes.  A concurrent remote edit lands on the
+  deleted node and is retained; the review sheet lists `edit vs delete` and offers *Restore*.
+  The pasted copy does not carry the remote edit -- the payload was captured at cut time.
+* *Paste In Front/Behind* creates nodes under the anchor's current parent with a position
+  generated between the anchor and its neighbor.  If the anchor was concurrently moved to
+  another parent, the move algorithm's order decides where the anchor is when the create
+  applies; since `CreateNode` carries an explicit parent, the copy lands in the parent the
+  paster saw.  This is the correct outcome for "paste into a group": the copy stays in the
+  group even if the anchor left it.  If the anchor was deleted, the copy still lands at its
+  position (deleted nodes keep their position).
+* *Clone / Duplicate* are creations with positions directly above the source: same rules.
+* *Paste Attributes* writes the target's stack sequence.  Concurrent recolor of a stack
+  element by someone else edits an element that is now a tombstone; retained, and restorable
+  by undoing the paste.
+* *Remember layer info* may create a layer: `CreateNode` under `layers` with the source's
+  name.  Two people pasting concurrently with the same missing layer name create two layers
+  with one name; read-time normalization does *not* merge them (renaming is the user's job,
+  and the Layers panel shows both).
+
+=== Offline behavior
+
+Copy and paste are local.  The system pasteboard is per Mac, so cross-document copies are
+between documents open on the same Mac.  Pasting bitmaps creates blob references that queue
+for upload (SYNC-008).
+
+=== Server
+
+Nothing beyond storing and relaying changes.
+
+=== Client
+
+* `WTModel.Clipboard`: `copy(selection) -> ClipboardPayload`, `paste(payload, into:parent,
+  at:position, placement:)`.  `WTInterchange` provides the PDF, SVG, image and RTF writers and
+  readers for the other pasteboard types (shared with export and import:
+  xref:export-formats.adoc[Export formats]).
+* `NSPasteboard` types: `com.wiretuner.objects`, `com.adobe.pdf`, `public.svg-image`,
+  `public.tiff`, `public.png`, `public.rtf`, `public.utf8-plain-text`.  Copy writes lazily
+  via `NSPasteboardItemDataProvider` for the expensive formats.
+* Power-duplicate state: `WTModel.DuplicateMemory { sourceIds, matrix }` set by Duplicate,
+  updated by any transform command applied to exactly that selection, cleared by any other
+  command or selection change.
+* Undo: a paste is one change `Paste N objects`; undo sets the created nodes deleted.
+* Preferences: *Clipboard formats* (all on), *Convert colors to* (CMYK and RGB),
+  *Clipboard image resolution* (144 ppi), *Option-drag copies* (on), *Remember layer info*
+  (off).
+
+=== Build tasks
+
+[[OBJ-010]]
+==== OBJ-010 Clipboard payload and native copy/paste
+[horizontal]
+Track:: client-model
+Depends on:: CRDT-008, APP-006, APP-011
+Size:: L
+Delivers:: `clipboard.proto`, `WTModel.Clipboard` copy/cut/paste/clear with reference rewriting, asset resolution by name, screen-center placement, *Remember layer info*, and cross-document paste.
+Done when::
+* Round trip of every node kind in the test corpus through copy/paste is lossless except ids.
+* Pasted nodes have fresh ids; editing the source afterwards leaves the copy untouched (test).
+* Merge test: cut concurrent with a remote edit of the cut node converges to deleted-with-edit-retained; the paste contains the pre-edit state.
+* Pasting into a second document with a missing swatch creates the swatch by name once.
+
+[[OBJ-011]]
+==== OBJ-011 Paste In Front, Paste Behind, Copy Special, Paste Special
+[horizontal]
+Track:: client-ui
+Depends on:: OBJ-010, CRDT-003
+Size:: M
+Delivers:: The menu:Edit[Special] commands: positioned paste relative to the selected anchor (including into groups and clip groups), the format-choice sheets.
+Done when::
+* Paste In Front of a group member lands inside the group directly above it; Paste Behind of the bottom member lands below it and, in a clip group, never below the clip path.
+* Merge test: anchor moved to another parent concurrently -- the copy stays in the parent the paster targeted.
+* Paste Special lists only formats present on the pasteboard.
+
+[[OBJ-012]]
+==== OBJ-012 Clone, Duplicate and power-duplicate
+[horizontal]
+Track:: client-model
+Depends on:: OBJ-010
+Size:: M
+Delivers:: `CloneCommand`, `DuplicateCommand` with the 10 pt offset, `DuplicateMemory` capturing transforms applied to the previous duplicate, and the reset rules.
+Done when::
+* Duplicate → move 20 pt → Duplicate places the third copy 20 pt from the second.
+* Duplicate → rotate 30° about a point → Duplicate produces the next copy rotated 60° about the same point.
+* Scale followed by skew resets the memory to the skew alone (documented restriction).
+* Each command is one change; undo removes the copy and restores the selection.
+
+[[OBJ-013]]
+==== OBJ-013 Option-drag copy and drag between documents
+[horizontal]
+Track:: client-ui
+Depends on:: OBJ-008, OBJ-010
+Size:: M
+Delivers:: kbd:[Option]-drag copying (with the *Option-drag copies* preference), the plus-sign cursor, `NSDraggingSession` sources and destinations for the native type between document windows, and drag-out as PDF/file promise.
+Done when::
+* kbd:[Option] pressed after the drag begins still produces a copy; released before drop produces a move.
+* Dropping into another document window pastes at the drop point on the active layer.
+* Dropping into Finder produces a PDF file.
+
+[[OBJ-014]]
+==== OBJ-014 Copy Attributes and Paste Attributes
+[horizontal]
+Track:: client-model
+Depends on:: OBJ-010, OBJ-004
+Size:: S
+Delivers:: Attribute-only payloads and `PasteAttributesCommand` replacing the appearance stack (and text defaults) of each target.
+Done when::
+* Pasting onto three objects of different kinds writes each one's stack in one change labelled `Paste attributes to 3 objects`.
+* Merge test: concurrent remote color edit on a replaced element is retained on the tombstone and reappears on undo of the paste.
+
+[[OBJ-015]]
+==== OBJ-015 Interchange clipboard formats
+[horizontal]
+Track:: import-export
+Depends on:: OBJ-010
+Size:: M
+Delivers:: PDF, SVG, TIFF/PNG, RTF and plain-text pasteboard writers and readers wired to `WTInterchange`, the *Clipboard formats*, *Convert colors to* and *Clipboard image resolution* preferences, lazy data providers.
+Done when::
+* Pasting {product} artwork into Preview, Keynote and a browser produces vector output.
+* Pasting a PDF from another application produces editable paths; a PNG produces a bitmap object.
+* Disabling a format removes it from the pasteboard.
+endif::spec[]

@@ -1,0 +1,241 @@
+A context menu is the short menu that appears where you click, listing the commands that make
+sense for what is under the pointer.  {fh} offered them only on Windows; {product} has them
+everywhere on macOS -- on objects, on empty pasteboard, on pages, and inside panels.
+
+// TODO screenshot: a context menu on a selected path, with the Path submenu open.
+
+== Opening a context menu
+
+Do any of the following:
+
+* Hold kbd:[Control] and click.
+* Click with the right (secondary) mouse button.
+* Tap with two fingers on a trackpad, or click the corner you have set as the secondary click
+  in System Settings.
+
+The menu is for the item under the pointer.  If that item is part of the current selection,
+the commands apply to the whole selection; if it is not, clicking selects it first (as the
+Pointer tool would) and the commands apply to it alone.  kbd:[Control]-clicking empty
+pasteboard opens the pasteboard menu without changing the selection.
+
+NOTE: {fh} for Windows had a preference to make the right mouse button zoom instead of
+opening menus.  {product} has no such option -- use kbd:[Cmd+Space] or pinch to zoom
+(xref:document-view.adoc[Setting the document view]).
+
+Every command in a context menu is also somewhere in the menu bar, with the same shortcut,
+so nothing is reachable only by context menu.
+
+== Canvas menus
+
+=== A single object
+
+The first items depend on the kind of object; the rest are common.
+
+[cols="1,3"]
+|===
+|Object |Kind-specific items
+
+|Path
+|Path ▸ (Close / Open, Reverse Direction, Join, Split), Remove Overlap, Simplify, Expand Stroke…, Inset Path…, Attach to Path (if text is also selected)
+
+|Text block
+|Editor…, Font ▸, Size ▸, Style ▸, Align ▸, Attach to Path / Detach from Path, Flow Inside Path, Convert to Paths, Spelling…
+
+|Bitmap image
+|Edit in External Editor, Trace…, Crop, Links… (xref:bitmaps.adoc[Bitmaps])
+
+|Imported EPS or PDF
+|Links…, Convert to Editable (when possible)
+
+|Group
+|Ungroup, Group Transforms as Unit (toggle), Enter Group
+
+|Blend
+|Blend Steps…, Attach to Path, Release
+
+|Clipping group
+|Release Contents, Edit Contents
+
+|Connector
+|Reroute, Detach Ends
+
+|Symbol instance
+|Release Instance, Edit Symbol, Show in Library
+
+|Chart
+|Edit Data…, Chart Type…
+
+|Envelope
+|Show Map, Copy as Path, Release, Remove
+|===
+
+Common items, on every object:
+
+Cut, Copy, Paste, Clear, Duplicate, Clone; Group, Ungroup; Lock / Unlock; Arrange ▸ (Bring to
+Front, Bring Forward, Send Backward, Send to Back); Align ▸; Transform ▸ (Rotate…, Scale…,
+Skew…, Reflect…, Move…); Hide Selection; Add to Library…; Name…; Note…; Link…; Select ▸ (All,
+None, Invert Selection, Superselect, Subselect); Object Panel.
+
+=== A multiple selection
+
+The common items only, plus Combine ▸ (Union, Divide, Intersect, Punch, Crop, Transparency,
+Blend, Join) and Align ▸.  Kind-specific items appear when every selected object is the same
+kind.
+
+=== Empty pasteboard or page
+
+View ▸ (magnification levels from 6% to 25,600%, Fit to Page, Fit All), Paste, Paste Behind,
+Select All, Show All, Page ▸ (Add Page, Duplicate Page, Remove Page, Page Setup… -- the last
+three only when over a page), Rulers, Grid, Guides, Document Panel.
+
+=== A guide
+
+Lock Guide / Unlock Guide, Release Guide (to a path), Edit Guides…, Delete Guide
+(xref:grid-guides.adoc[Grid and guides]).
+
+=== A collaborator's cursor or selection outline
+
+Follow <name>, Go to <name>'s Page, Hide <name>'s Cursor (xref:presence.adoc[Presence]).
+
+== Panel menus
+
+[cols="1,3"]
+|===
+|Where |Items
+
+|Document panel, a page thumbnail
+|Add Page, Duplicate Page, Remove Page, Page Setup…, Go to Page
+
+|Swatches panel, a swatch
+|Edit…, Duplicate, Delete, Rename, Make Spot / Make Process, Export…, Apply to Stroke, Apply to Fill, Select Objects Using This Color
+
+|Swatches panel, empty area
+|New Swatch…, Import…, Sort by Name, Hide Names
+
+|Color Mixer or Tints panel, the color box
+|Add to Swatches (adds without the naming sheet, using the automatic name)
+
+|Layers panel, a layer
+|New Layer, Duplicate Layer, Remove Layer, Rename, Move Selection to This Layer, Lock / Unlock, Hide / Show, Print / Non-printing, All Layers Visible, Merge Selected Layers
+
+|Styles panel, a style
+|Edit…, Duplicate, Remove, Redefine, Apply, Select Objects Using Style, Style Behavior…
+
+|Library panel, a symbol
+|Edit Symbol, Duplicate, Delete, Rename, Export…, Select Instances
+
+|Tints panel, a tint
+|Add to Swatches, Apply to Stroke, Apply to Fill
+
+|Tab bar, a document tab
+|Close Tab, Close Other Tabs, Move Tab to New Window, Rename Document…, Share…, Show in Library
+
+|Any panel tab
+|Group <panel> With ▸, Rename Panel Group…, Float Group / Dock Group, Help for <panel>
+|===
+
+== Text context menu
+
+With the Text tool active and the pointer in a text block, the context menu is the text menu:
+Cut, Copy, Paste, Font ▸, Size ▸, Style ▸, Leading ▸, Alignment ▸, Special Characters ▸,
+Spelling ▸, Editor…, Convert Case ▸, Attach to Path, Run Around Selection…, Convert to Paths.
+It applies to the selected characters, or to the whole block when nothing is selected.  {fh}
+offered this menu on Windows only.
+
+== Working with others
+
+Context menus act on what you have selected; the result reaches your collaborators the same
+way as the menu-bar command would.  If someone else is editing the object you kbd:[Control]-
+click, the menu still opens -- there are no locks -- and their selection outline stays
+visible beneath yours so you know you are both there.  The commands themselves are described
+on each feature's page, along with what happens when two people apply them to one object at
+once.
+
+The *Follow* and *Go to page* items on a collaborator's cursor change only your view.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,1"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Right-click context menus on objects, selections, pages, colors, styles, layers (Windows only)
+|Control-click, secondary click and two-finger tap on macOS, on the same targets and more.
+|Adapted -- brought to macOS; the Windows-only limitation was a port artifact.
+
+|Right Mouse Button Magnification preference
+|Not offered.
+|Dropped -- disabled context menus; macOS has better zoom gestures.
+
+|Text context menu (Windows only)
+|Available on macOS.
+|Adapted -- same content, now on the only platform.
+
+|Add to Swatches from the Mixer's color box context menu (bypasses the name sheet)
+|Same.
+|Faithful
+|===
+
+=== Data model
+
+None.  Context menus are views over the command registry.
+
+=== Merge semantics
+
+None.  Every command's merge behavior is specified where the command is.
+
+=== Offline behavior
+
+Nothing here needs the network.  Items that require it (Share…, Follow when the collaborator
+is no longer connected) are disabled with a tooltip explanation.
+
+=== Server
+
+Nothing beyond storing and relaying changes.
+
+=== Client
+
+* `WTApp/Menus`.  APP-005's command registry gains a `contexts: Set<MenuContext>` on each
+  command (`.path`, `.text`, `.bitmap`, `.group`, `.blend`, `.clip`, `.connector`,
+  `.symbolInstance`, `.chart`, `.envelope`, `.multiple`, `.pasteboard`, `.page`, `.guide`,
+  `.presence`, `.swatch`, `.layer`, `.style`, `.symbol`, `.tint`, `.pageThumbnail`, `.tab`,
+  `.panelTab`, `.textEditing`).  `ContextMenuBuilder.menu(for: HitTarget)` filters the
+  registry by the target's contexts and the command's validation, keeping the menu-bar
+  order and the same key equivalents so the menu shows shortcuts.
+* Hit target resolution reuses REND-003: `canvas.hitTest(point)` returns the topmost object,
+  a guide, a page, a presence marker, or nothing.  The selection change on click of an
+  unselected object goes through the selection model (APP-006) before the menu opens.
+* Panels present menus through `NSTableView`/`NSCollectionView` `menu(for:)` overrides that
+  call the same builder with the panel's row model as the target.
+* Text context menus are built while `TextEditingSession` is active and apply to the session's
+  selection range.
+* Every menu item carries the accessibility identifier `menu.<commandId>` (TEST-002).
+
+=== Build tasks
+
+[[BASIC-018]]
+==== BASIC-018 Context menu builder and canvas menus
+[horizontal]
+Track:: client-ui
+Depends on:: APP-005, APP-006, REND-003
+Size:: M
+Delivers:: `MenuContext` on registry commands, `ContextMenuBuilder`, hit-target resolution for the canvas (object kinds, multiple selection, pasteboard, page, guide, presence marker), the select-before-menu rule, and the View submenu with magnification levels.
+Done when::
+* UI tests open the menu on each object kind from stub objects and assert the documented item set and order.
+* Control-clicking an unselected object selects it first; Control-clicking pasteboard leaves the selection alone.
+* Every item's key equivalent equals the menu-bar item's.
+
+[[BASIC-019]]
+==== BASIC-019 Panel, tab bar and text context menus
+[horizontal]
+Track:: client-ui
+Depends on:: BASIC-004, BASIC-001, BASIC-018
+Size:: S
+Delivers:: `menu(for:)` integration for the Document, Swatches, Color Mixer, Tints, Layers, Styles, Library panels' rows and empty areas, the tab bar menu, the panel-tab menu, and the text-editing menu hook that feature panels populate through their registered commands.
+Done when::
+* Each documented panel menu appears with the documented items when the owning panel registers its commands (stubs in the test).
+* The tab menu's Close Other Tabs and Move Tab to New Window behave as BASIC-001 specifies.
+endif::spec[]

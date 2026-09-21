@@ -1,0 +1,7 @@
+= OpenType features
+include::_attributes.adoc[]
+:page-slug: opentype-features
+:page-group: Typeface documents
+:page-fh: None (addition); reference: FontForge, "Lookups" (GSUB/GPOS), feature files
+
+include::_includes/typeface/opentype-features.adoc[]

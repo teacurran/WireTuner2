@@ -1,0 +1,7 @@
+= Editing images in other applications
+include::_attributes.adoc[]
+:page-slug: external-editors
+:page-group: Imported artwork
+:page-fh: Chapter 10, "Launching Fireworks to edit imported bitmap images", "Launching Fireworks to optimize bitmap images", "Changing PNG source file information", "Editing bitmap images using other external editors"
+
+include::_includes/imported/external-editors.adoc[]

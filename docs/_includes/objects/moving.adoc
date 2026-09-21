@@ -1,0 +1,395 @@
+You can move a selection by dragging it, by nudging it with the arrow keys, or by typing
+where it should go.  While you drag, the Info toolbar reads out the distance moved and the
+pointer's position, and the selection snaps to points, guides, smart guides and the grid when
+snapping is on.
+
+// TODO screenshot: dragging a selection with the Info toolbar showing dx/dy
+
+== Dragging
+
+To move a selection by dragging:
+
+. With the Pointer tool, press on a selected object -- on its fill, or on its path if it has
+  no fill -- and drag.  With another tool active, hold kbd:[Cmd] first to use the Pointer.
+. Release where you want it.
+
+Modifiers while dragging:
+
+[cols="1,3"]
+|===
+|Key |Effect
+
+|kbd:[Shift]
+|Constrains the move to horizontal, vertical or 45° from the start point, measured from the
+*Constrain angle* (xref:transforming.adoc[Transforming]).
+
+|kbd:[Option]
+|Drags a copy and leaves the original (xref:copying.adoc[Copying]).  Can be disabled with the
+*Option-drag copies* preference.
+
+|kbd:[Cmd] (held before pressing)
+|Uses the Pointer temporarily while another tool is active.
+
+|kbd:[Esc]
+|Cancels the drag and puts the selection back.
+|===
+
+Pausing briefly before you start to drag shows the object's outline as it moves; dragging
+immediately shows only its bounding box until you pause.  Either way, the move applies when
+you release.
+
+== Nudging with the arrow keys
+
+Press kbd:[Left], kbd:[Right], kbd:[Up] or kbd:[Down] to move the selection by the *Arrow key
+distance*; hold kbd:[Shift] to move by the *Shift-arrow key distance*.  Holding a key
+repeats.  A run of nudges in one direction is one step in the Undo menu.
+
+To set the nudge distances:
+
+. Choose menu:WireTuner[Settings… > General].
+. Enter *Arrow key distance* (default 1 pt) and *Shift-arrow key distance* (default 10 pt),
+  1--864 pt, in the document's unit.
+
+NOTE: {fh} kept these under menu:File[Document Settings > Cursor Distance] as a property of
+the document.  In {product} they are your own preference, so a shared document does not change
+how everyone's arrow keys behave.
+
+== Moving numerically
+
+To move a selection by a distance:
+
+. Choose menu:Modify[Transform > Move], or open the Transform panel (menu:Window[Transform])
+  and click btn:[Move].
+. Enter the horizontal distance in *X* (positive moves right) and the vertical distance in
+  *Y* (positive moves up).
+. Click btn:[Move].  Enter a number in *Copies* to leave the original and make that many
+  moved copies instead (xref:transforming.adoc[Transforming]).
+
+To move a selection to a position:
+
+. Open the Object panel (menu:Window[Object]) and select the object's root row.
+. Enter the new *X* and *Y* -- the position of the bounding box's bottom-left corner relative
+  to the ruler zero point (xref:rulers.adoc[Rulers]).  Press kbd:[Return].
+
+Both fields accept units and arithmetic (xref:object-panel.adoc[Object panel]).
+
+== Snapping
+
+While you drag, the selection can snap to other objects' points, to paths, to guides and to
+the grid.  The *Snap distance* preference (menu:WireTuner[Settings… > General], default 3
+pixels) sets how close you must come before a snap takes hold; the pointer changes shape when
+it does.
+
+[cols="2,1,3"]
+|===
+|Snap |Toggle |Snaps the dragged point to
+
+|Snap to Point
+|menu:View[Snap to Point], or the Tools panel button
+|Anchor points of other objects.  The point that snaps is the one you grabbed, or the
+selection's nearest point to the target when you grabbed a fill.
+
+|Snap to Object
+|menu:View[Snap to Object], or the Tools panel button
+|Any position along another object's path.
+
+|Snap to Guides
+|menu:View[Snap to Guides]
+|Ruler guides (xref:grid-guides.adoc[Grid and guides]).
+
+|Snap to Grid
+|menu:View[Snap to Grid]
+|Grid intersections.
+|===
+
+When several snaps are within range, points win over paths, paths over guides, guides over
+smart guides (below), and smart guides over the grid.  All four are toggles: choosing an
+enabled one turns it off.  Hold kbd:[Control] while dragging to suspend every kind of snapping
+for that drag.
+
+To snap a selection to a point:
+
+. Turn on Snap to Point.
+. Drag the selection until the pointer changes near the target point.
+. Release.
+
+[[smart-guides]]
+== Smart guides
+
+Smart guides are alignment lines that appear only while you are dragging, resizing or drawing
+and vanish when you let go.  They show you, without any setup, when what you are moving lines
+up with something nearby, and they let you snap to it.  They are drawn in magenta so they are
+never mistaken for the ruler guides you place yourself
+(xref:grid-guides.adoc[Grid and guides]).
+
+// TODO screenshot: a rectangle being dragged with a magenta centre line to a neighbouring
+// object and an equal-spacing hint between three objects
+
+[cols="1,3"]
+|===
+|Guide |Appears when
+
+|Edge
+|The left, right, top or bottom edge of what you are moving lines up with an edge of a nearby
+object, or with a page edge.  The line runs from your object to the one it matches.
+
+|Center
+|Your object's horizontal or vertical centre lines up with a nearby object's centre or the
+page's centre.
+
+|Equal spacing
+|Your object would be the same distance from a neighbour as that neighbour is from the next
+object along, in either direction.  Small arrows mark each equal gap, with the distance beside
+them.  With two objects already in a row, the hint shows the position that makes a third.
+
+|Size match
+|While resizing or drawing, the width or height you are making matches a nearby object's.  A
+small badge beside the pointer shows the matched size.
+|===
+
+"Nearby" means objects within the part of the pasteboard you can see.  Locked objects and the
+pages themselves count; hidden objects and objects on hidden layers do not.
+
+To turn smart guides on or off::
+Choose menu:View[Smart Guides] (kbd:[Cmd+U]).  A check mark means they are on; they are on
+by default.  This is your own setting and applies to every document you open.  The same
+switch is *Smart guides* in menu:WireTuner[Settings… > General].
+
+To snap to a smart guide::
+Drag until the guide appears and release.  Within the *Snap distance*, a smart guide pulls the
+object exactly onto the alignment.  Smart guides take part in the usual snap order: a point,
+path or ruler guide within reach wins over a smart guide, and a smart guide wins over the grid.
+Hold kbd:[Control] to suspend snapping, smart guides included, for one drag.
+
+To change the guide colour::
+Choose menu:WireTuner[Settings… > Colors] and click the *Smart guide color* well.  Magenta is
+the default.
+
+=== Measuring distances
+
+To see distances without dragging anything:
+
+. Select an object.
+. Hold kbd:[Option] and move the pointer over another object.  Dimension lines show the gap
+  between your selection and that object on each side that faces it, in the document's unit.
+. Move the pointer over an empty part of the page instead to see the distances from the
+  selection to the four page edges.
+. Release kbd:[Option] to clear the measurements.  The pointer's kbd:[Option]-click still
+  subselects as usual; measuring is a hover, not a click.
+
+Turn this off with *Show measurements while holding Option* in
+menu:WireTuner[Settings… > General] if you prefer kbd:[Option] to do nothing until you click.
+
+== The Info toolbar
+
+The Info toolbar (menu:Window[Toolbars > Info]) shows the pointer's position, the horizontal
+and vertical distance moved since the drag began, the total distance and the angle, and the
+name of the object under the pointer.  Values are in the document's unit.
+
+== Moving between documents
+
+Dragging a selection from one document window into another copies it there
+(xref:copying.adoc[Copying]).  The original stays where it was.
+
+== Working with others
+
+When a collaborator moves an object, you see it slide to its new position as soon as their
+change arrives; while they are still dragging, you see their selection outline, not the
+motion.  If you are dragging an object at the same moment they move it, both moves are made,
+but one position must win: the later one is kept, and the other person's move is set aside.
+If yours was set aside you see the object jump to their position when you release.
+
+Moving an object never conflicts with someone else changing its shape, color or text: their
+edit lands on the object at its new position.
+
+Smart guides and measurements are drawn for you alone, from the objects as you currently see
+them.  If a collaborator moves an object while you are lining up against it, the guide follows
+the object's new position as soon as the change arrives.
+
+Offline, every move you make is kept locally and sent when you reconnect.  If someone moved
+the same object while you were away, the review that opens lists it under *Position* with
+both places and offers *Use mine*, *Use theirs* or *Keep both copies*.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,2"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Drag to move, kbd:[Cmd] for temporary Pointer
+|Same.
+|Faithful
+
+|Arrow keys and kbd:[Shift]-arrow nudge with configurable distance
+|Same; the distances are user preferences rather than document settings.
+|Adapted -- a nudge distance is a hand habit, and sharing it in a multiplayer document would let one user change everyone's keyboard.
+
+|Transform panel Move with X/Y
+|Same.
+|Faithful
+
+|Object panel X/Y position
+|Same.
+|Faithful
+
+|Snap to Point, Snap to Object, Snap distance
+|Same, plus Snap to Guides and Snap to Grid from the same menu.
+|Faithful
+
+|Pointer changes when snapping
+|Same.
+|Faithful
+
+|Drag between document windows
+|Same.
+|Faithful
+
+|--
+|Smart guides: edge, centre, equal-spacing and size-match hints while dragging, resizing and
+drawing, snapping with the existing priorities; kbd:[Option]-hover measurements.
+|Added -- every current design tool has them; the alignment work {fh} sent to the Align panel
+happens during the drag instead.
+|===
+
+=== Data model
+
+A move writes the node's `CommonProps.transform` register (ATOMIC, defined in
+xref:crdt-model.adoc[CRDT model]).  Nothing else changes: point coordinates are in the
+object's own space and are untouched by moving.  For a *sub-selection* of points, a move
+writes the point registers instead (`PathProps.contours[i].points[j].anchor` and handles),
+which is a point edit, not a transform (xref:editing-paths.adoc[Editing paths]).
+
+No fields are added by this page.  Smart guides and measurements are purely client state:
+they are computed from the display list for the duration of a gesture and write nothing, not
+even `local_only` view state.  The *Smart guides* toggle is the preference
+`general.smart_guides` (xref:preferences.adoc[Preferences]), not a per-document field.
+
+=== Merge semantics
+
+* *Move vs. move* of one object: same register, LWW by OpId.  The losing matrix is retained in
+  the log; the review sheet shows a *Position* row (`move vs move`) with both positions and
+  offers *Keep both copies*.
+* *Move vs. shape edit*: different registers (`transform` vs. point elements); both apply.
+* *Move vs. delete*: the move applies to the deleted node; if it is restored, it is at the
+  moved position.
+* *Move vs. group*: the move writes the node's `transform`; grouping reparents the node under
+  a group whose `transform` is identity at creation, so the node's matrix is still correct
+  relative to the group.  Both apply cleanly.
+* *Nudge runs*: consecutive arrow presses write the same register repeatedly; the outbox
+  coalesces them to one op, and undo grouping makes them one step.
+
+No read-time normalization.
+
+=== Offline behavior
+
+Fully offline.  A drag produces one op after coalescing; a day of moving the same object is
+one op per change boundary.
+
+=== Server
+
+Nothing beyond storing and relaying changes.
+
+=== Client
+
+* `MoveCommand(nodes:, delta:)` in `WTModel` composes a translation onto each node's current
+  `transform` and emits one change labelled `Move` / `Move N objects`.  During a drag the
+  command is applied *provisionally* on each mouse-move (so the canvas renders the motion)
+  and committed once on mouse-up; APP-011 groups the drag into one undo step.
+* Snapping resolution is GEO-005 with priorities point > path > guide > smart guide > grid;
+  the snap candidate query uses the REND-003 R-tree within *Snap distance* converted to
+  pasteboard units at the current zoom.  The smart-guide kind sits between ruler guides and
+  the grid because it is derived from real object geometry that the user can see, while a
+  grid line is not; kbd:[Control] suspends all kinds.
+* Smart guides (`WTRender/SmartGuides`, OBJ-038): `SmartGuideEngine` is built when a gesture
+  starts and rebuilt when the viewport or the display list changes during it.  Its candidate
+  set is a REND-003 R-tree query for the viewport rectangle on the current canvas, minus the
+  nodes in the gesture, hidden nodes and nodes on hidden layers, capped at the 500 candidates
+  nearest the gesture's start point; plus every page whose rectangle intersects the viewport.
+  From each candidate it takes the transformed bounds' four edges and two centre lines in
+  pasteboard coordinates, sorted per axis, so a query during a drag is a binary search per
+  edge of the moving bounds.  Equal spacing scans the sorted edges on each axis for a pair of
+  neighbours whose gap equals the moving object's gap to the nearer of them within the snap
+  distance; size match compares the in-progress width and height with candidate widths and
+  heights.  The engine returns `[SmartGuide]` (axis, position, span, kind, participating node
+  ids, label value) and feeds GEO-005 a `smartGuide` snap candidate per guide.  Budget: under
+  0.2 ms per mouse move at 500 candidates, so it never touches the frame budget.  Smart guides
+  are pasteboard-axis lines, so on a rotated canvas they are drawn through the view transform
+  and turn with the artwork.
+* Smart-guide overlay (`WTApp/Canvas/SmartGuideOverlay`, OBJ-039): draws the engine's result
+  into the tool overlay layer in *Smart guide color* -- 1 px lines, spacing arrows with the
+  gap value, size badges -- and clears on mouse-up or kbd:[Esc].  Measurements: on
+  `flagsChanged` with kbd:[Option] down and no mouse button, `mouseMoved` hit-tests the
+  hovered node (REND-003); the overlay draws dimension lines between the selection's bounds
+  and the hovered node's bounds on each facing side, or to the four edges of the page under
+  the pointer when nothing is hit, labelled in the document's unit; kbd:[Option] up or a
+  mouse-down clears it.  Drawing and transform tools reach the engine through
+  `ToolContext.snapping`; each tool adopts it in its own task (the Pointer's move and the
+  transform handles here and on xref:transforming.adoc[Transforming]; the drawing tools in the
+  DRAW epic).
+* Preferences: *Arrow key distance* (1 pt), *Shift-arrow key distance* (10 pt), *Snap
+  distance* (3 px), *Smart guides* (on), *Show measurements while holding Option* (on),
+  *Smart guide color* (magenta, local).
+* Nudge: `NSResponder.moveLeft(_:)` etc. on the canvas view; key repeat produces successive
+  provisional moves grouped into one undo step until 500 ms without a key event.
+* Drag-and-drop between windows uses `NSDraggingSession` with the native pasteboard type
+  (xref:copying.adoc[Copying]); dropping inside the same window is a move, not a copy.
+* Info toolbar: `WTApp/Toolbars/InfoToolbar` observes the active tool's drag state.
+* Preferences: *Arrow key distance* (1 pt), *Shift-arrow key distance* (10 pt), *Snap
+  distance* (3 px).
+
+=== Build tasks
+
+[[OBJ-008]]
+==== OBJ-008 Move command and drag gesture
+[horizontal]
+Track:: client-model
+Depends on:: APP-003, APP-006, APP-011, GEO-005
+Size:: M
+Delivers:: `MoveCommand` writing `transform` per node, provisional application during drag, commit on release, kbd:[Shift] constraint, kbd:[Esc] cancel, snapping to point/object/guide/grid with priorities, and the Info toolbar readout.
+Done when::
+* A drag of 50 objects produces one change with 50 `SetFields` ops, labelled `Move 50 objects`, and one undo step.
+* Merge test: two replicas move the same object concurrently; both converge on the greater OpId's matrix and the losing matrix is retained in the log.
+* Merge test: a move concurrent with a remote point edit applies both.
+* Snap priority tests from GEO-005 pass through the tool at three zoom levels.
+
+[[OBJ-009]]
+==== OBJ-009 Arrow-key nudge
+[horizontal]
+Track:: client-ui
+Depends on:: OBJ-008, APP-010
+Size:: S
+Delivers:: Arrow and kbd:[Shift]-arrow nudging using the *Arrow key distance* and *Shift-arrow key distance* preferences, with key-repeat grouping into one undo step.
+Done when::
+* Ten repeated presses produce one undo step and, after coalescing, one op per node.
+* Nudging a sub-selection of points writes point registers, not `transform`.
+* The preferences appear under General with their defaults and ranges (1--864 pt).
+
+[[OBJ-038]]
+==== OBJ-038 Smart guide engine
+[horizontal]
+Track:: client-render
+Depends on:: REND-003, GEO-005, APP-006
+Size:: M
+Delivers:: `SmartGuideEngine` in `WTRender`: viewport-scoped candidate set from the R-tree with the exclusion rules and the 500-candidate cap, page edges and centres, per-axis sorted edge and centre features, edge, centre, equal-spacing and size-match detection, the `[SmartGuide]` result type, and the `smartGuide` snap candidate kind registered with GEO-005 between guide and grid.
+Done when::
+* Property tests: a moving rectangle whose left edge is within the snap distance of a candidate's right edge yields an edge guide spanning both; centred objects yield a centre guide; three equally spaced rectangles yield spacing hints on the axis of spacing only.
+* Priority tests from GEO-005 extended with the smart-guide kind pass for every pairwise combination.
+* A 50,000-node document with 500 visible candidates answers a move query in under 0.2 ms on an M1; the candidate set excludes the dragged nodes, hidden nodes and hidden layers.
+* Nothing on this task writes to the document or the local store (outbox-empty and view-table-unchanged checks).
+
+[[OBJ-039]]
+==== OBJ-039 Smart guides and measurement overlay
+[horizontal]
+Track:: client-ui
+Depends on:: OBJ-008, OBJ-034, OBJ-038, APP-005, APP-010
+Size:: M
+Delivers:: menu:View[Smart Guides] (kbd:[Cmd+U]) bound to the *Smart guides* preference, the `SmartGuideOverlay` drawing edge, centre, spacing and size guides in *Smart guide color* during Pointer moves and transform-handle drags, snapping to smart guides through the move and transform commands, the kbd:[Option]-hover measurement overlay to a hovered object and to page edges, and the three preferences on xref:preferences.adoc[Preferences].
+Done when::
+* UI tests: dragging a rectangle beside another shows and snaps to the edge and centre guides at 100% and 800%; kbd:[Control] suppresses the snap; the toggle removes the guides; a spacing hint appears for the third of three objects.
+* Resizing with a corner handle shows a size badge when the width matches a neighbour's within the snap distance and snaps to it.
+* kbd:[Option]-hover over an object shows the facing-side distances in the document's unit; over empty page it shows the four page-edge distances; kbd:[Option]-click still subselects.
+* Nothing on this task produces a change (outbox-empty check); the overlay redraws only on events and never drops a Metal frame in the pan/zoom gate.
+endif::spec[]

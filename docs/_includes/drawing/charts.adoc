@@ -1,0 +1,455 @@
+The Chart tool turns a small table of numbers into a column, line, pie, area or scatter
+chart drawn with ordinary {product} objects.  The chart remembers its data: reopen the Chart
+sheet at any time to change the numbers or the chart type and the drawing updates.  You can
+recolor and restyle the bars, lines and wedges, replace columns with pictures
+(*pictographs*), and, when you want to take the drawing apart by hand, ungroup the chart into
+plain paths and text.  Charts are drawn in grays; color them afterwards with the usual tools.
+
+// TODO screenshot: the Chart sheet with data on the left and a grouped column preview
+
+== Creating a chart
+
+To create a chart:
+
+. Choose the Chart tool from its slot in the Tools panel.
+. Drag on the canvas to set the chart's initial size.  The Chart sheet opens on its *Data* tab
+  with the top-left cell active.
+. Enter data.  Click a cell or move with the arrow keys, then type in the entry field above
+  the grid; press kbd:[Return] to commit.  btn:[Undo] in the sheet reverts your last entry.
+  btn:[Import…] reads a tab-delimited text file, such as one exported from Numbers or Excel,
+  into the grid starting at the active cell.
+. To label the chart, leave the top-left cell empty, put the legend names across the first
+  row and the category labels down the first column.  Labels run along the bottom of the
+  chart and the legend sits at its right.  To use a number as a label, type it in quotation
+  marks.
+. btn:[Transpose] swaps rows and columns.  Drag the small triangles above the column dividers
+  to widen or narrow columns in the grid (this only affects the sheet).
+. Set *Decimal precision* (how many decimals values are rounded to) and *Thousands separator*.
+. Click btn:[Apply] to draw the chart and keep the sheet open, or btn:[OK] to draw it and
+  close.  Empty cells plot as 0.
+. Click the *Type* tab to choose the chart type and its options (below).
+
+To edit a chart's data:
+
+. Select the chart.
+. Double-click the Chart tool.  The Chart sheet opens with the chart's data.
+. Click a cell, or drag across several.  btn:[Cut], btn:[Copy] and btn:[Paste] work on the
+  selected cells; paste fills from the active cell.
+. btn:[Transpose] swaps rows and columns; for a scatter chart, btn:[Switch XY] swaps the axes.
+. Click btn:[Apply] or btn:[OK].
+
+== Chart types and options
+
+To choose a chart type:
+
+. In the Chart sheet, click the *Type* tab.
+. Click one of the six types and set its options.
+. Click btn:[Apply] to preview or btn:[OK] to finish.
+
+[cols="1,3"]
+|===
+|Type |What it plots
+
+|Grouped column
+|One bar per cell, grouped by row.
+
+|Stacked column
+|One bar per row, divided into its cells.
+
+|Line
+|One line per column, one vertex per row.
+
+|Pie
+|One pie per row, one wedge per cell.
+
+|Area
+|One filled band per column, each stacked on the previous column's total.
+
+|Scatter
+|One point per row, taking its x from the first cell and its y from the second.
+|===
+
+[cols="1,3"]
+|===
+|Option |Applies to
+
+|Column width (%)
+|Grouped and stacked columns.  Over 100 makes columns overlap.
+
+|Cluster width (%)
+|Grouped columns: the space each group takes.  Over 100 makes groups overlap.
+
+|Separation
+|Pie: gap between wedges, 0 to 50.
+
+|Data markers
+|Line and scatter: none, square, diamond, triangle or circle at each value.
+
+|Data numbers in chart
+|Prints each value beside its bar, point or wedge.  Not for area charts.
+
+|Drop shadow
+|A gray shadow behind and to the right.  Not for line or scatter charts.
+
+|Legends across top
+|Puts the legend above the chart instead of at its right.
+
+|Axis display
+|Vertical axis at the left, the right, or both.  Not for pies.
+
+|Gridlines
+|*X axis* draws horizontal lines across the chart, *Y axis* vertical ones; both make a grid.
+Not for pies.
+|===
+
+To set axis values and tick marks:
+
+. On the *Type* tab, click btn:[X Axis…] or btn:[Y Axis…].  Buttons are dimmed for an axis
+  without numeric values, and for pies.
+. Choose how values are chosen:
++
+Calculate from data:: {product} picks a range and steps that fit the data.
+Manual:: You set *Minimum*, *Maximum* and *Between*, the step between labeled values.  A
+negative *Between* runs the axis from high to low.
+. Set tick marks: *Major* marks at each labeled value, drawn *none*, *across*, *inside* or
+  *outside* the axis; *Minor* marks between them, with *Count* per interval and the same
+  placement choices.
+. Add a *Prefix* or *Suffix* to every value label, such as `$` or `%`.
+. Click btn:[OK], then btn:[Apply] on the sheet.
+
+== Styling chart elements
+
+To restyle part of a chart:
+
+. Choose the Subselect tool and click a bar, line, wedge, label or legend swatch.
+. To take the whole series with it, choose menu:Edit[Select > Superselect] or press kbd:[~].
+. Apply strokes, fills, colors and transformations as to any object.
+
+Your styling is remembered per series and per element, so re-applying the data or changing
+the chart type keeps it wherever the element still exists.  Perspective can be applied to a
+whole chart but not to single elements (xref:perspective.adoc[Perspective]).
+menu:Edit[Find and Replace > Graphics] can recolor a chart in one pass.
+
+== Pictographs
+
+To replace columns with a picture:
+
+. Draw or select the artwork and choose menu:Edit[Copy].
+. With the Subselect tool, select a column of the series to change.
+. Choose menu:Extensions[Chart > Pictograph].
+. Click btn:[Paste In] to load the copied artwork into the preview; btn:[Copy Out] copies the
+  preview's artwork back to the clipboard.
+. Choose how columns are filled:
++
+Repeating:: Stacks copies of the artwork to the column's height, using a partial copy for the
+remainder.
+Off:: Stretches one copy to the column's height.
+. Click btn:[OK].
+
+To remove a pictograph, select a column of the series and choose menu:Extensions[Chart >
+Remove Pictograph].
+
+== Ungrouping a chart
+
+Choose menu:Modify[Ungroup] on a chart to turn it into a plain group of paths and text.  You
+can then edit everything freely, but the data is gone: the Chart sheet no longer opens for it,
+even if you regroup it.
+
+== Working with others
+
+A chart is shared as its data plus your styling choices, and every collaborator's copy draws
+the chart from those.  When someone changes a value, adds a row or switches the chart type,
+you see the chart redraw; when you recolor a series at the same time, both changes hold.  Two
+people editing the *same cell* end up with the value entered last; the other value is offered
+in the review sheet after an offline session.  Importing a file replaces the whole table, so
+cells someone else edited during your offline period are listed for review.  Ungrouping a
+chart while a collaborator edits its data leaves them with a plain drawing and a review
+entry.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,1"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Chart tool: drag to size, Chart dialog with data grid, entry field, Undo, Import
+tab-delimited, labels/legend convention, quoted numeric labels, Transpose, column width
+triangles, decimal precision, thousands separator, Apply/OK
+|Same, as a sheet with *Data* and *Type* tabs.
+|Faithful
+
+|Edit data: Cut/Copy/Paste, Transpose, Switch XY
+|Same.
+|Faithful
+
+|Six chart types with their options, gridlines, axis display, axis values, tick marks,
+prefix/suffix
+|Same.
+|Faithful
+
+|Subselect and Superselect chart elements; style them as objects
+|Same in effect; stored as per-series/per-element style overrides rather than as edits to
+stored objects (see Data model).  Transformations of a single element are limited to those the
+override can express (any affine transform).
+|Adapted
+
+|Pictographs (Paste In, Copy Out, Repeating, Remove Pictograph)
+|Same.  Pictograph artwork is stored as real nodes under the chart.
+|Faithful
+
+|Charts drawn in grayscale
+|Same.
+|Faithful
+
+|Ungroup makes the chart a plain graphic
+|Same: creates a group of ordinary nodes and deletes the chart node.
+|Faithful
+|===
+
+=== Data model
+
+The choice: store the generated bars, labels and axes as real child nodes, or regenerate them
+on read from the data?
+
+*Stored children* make every element an ordinary object (styling and transforms need no
+special model) but make the chart itself a merge hazard: every btn:[Apply] deletes and
+re-creates dozens of nodes, so a concurrent recolor of a bar is always *edit vs delete*, two
+concurrent Applies produce two sets of children, and a stale replica that re-applies with old
+data resurrects a whole chart.
+
+*Regenerate on read* keeps the document small and makes data edits and style edits
+orthogonal: a cell write and a series recolor are different registers.  Its cost is that
+styling must be modeled explicitly, keyed by something stable across regenerations.
+
+We regenerate on read.  A chart is a `chart` node whose only real children are pictograph
+sources; everything visible is derived by `WTModel` from `ChartProps`.  Styling is a sequence
+of overrides keyed by *(series, index)*, which is stable as long as the row or column that an
+element belongs to still exists.
+
+[source,protobuf]
+----
+// doc/v1/chart.proto
+message ChartProps {
+  CommonProps common = 1;                     // transform places the chart; name, notes
+  Size size = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];   // plot area, local units
+  // The data table.  Columns give identity and order to cells across rows.
+  repeated ChartColumn columns = 3 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  repeated ChartRow rows = 4 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  bool transposed = 5;                        // Transpose: a view flag, never rewrites cells
+  bool switch_xy = 6;                         // scatter only
+  uint32 decimal_precision = 7 [(buf.validate.field).uint32.lte = 10];
+  bool thousands_separator = 8;
+  ChartType type = 9;
+  ChartOptions options = 10;                  // STRUCT
+  AxisOptions x_axis = 11;                    // STRUCT
+  AxisOptions y_axis = 12;                    // STRUCT
+  // Styling and pictographs per series or element.  SEQUENCE so concurrent overrides of
+  // different elements never collide.
+  repeated ChartOverride overrides = 13 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+}
+
+message ChartColumn { ElementId id = 1; }     // identity + order only
+message ChartRow {
+  ElementId id = 1;
+  // One cell per column, keyed by column id.  SEQUENCE for identity; order is irrelevant
+  // (the column sequence orders them on read).  Missing cell = empty = 0.
+  repeated ChartCell cells = 2 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+}
+message ChartCell {
+  ElementId id = 1;
+  ElementId column = 2;                       // which column; ATOMIC scalar pair
+  string text = 3;                            // as typed: "12.5", "Q1", "\"2024\""
+}
+
+enum ChartType {
+  CHART_TYPE_UNSPECIFIED = 0;                 // reads as GROUPED_COLUMN
+  CHART_TYPE_GROUPED_COLUMN = 1; CHART_TYPE_STACKED_COLUMN = 2; CHART_TYPE_LINE = 3;
+  CHART_TYPE_PIE = 4; CHART_TYPE_AREA = 5; CHART_TYPE_SCATTER = 6;
+}
+message ChartOptions {
+  double column_width = 1;                    // percent; 0 reads as 80
+  double cluster_width = 2;                   // percent; 0 reads as 80
+  double pie_separation = 3 [(buf.validate.field).double = {gte: 0, lte: 50}];
+  Marker markers = 4;                         // NONE, SQUARE, DIAMOND, TRIANGLE, CIRCLE
+  bool data_numbers = 5;
+  bool drop_shadow = 6;
+  bool legends_across_top = 7;
+  AxisDisplay axis_display = 8;               // LEFT (default), RIGHT, BOTH
+  bool gridlines_x = 9;
+  bool gridlines_y = 10;
+}
+message AxisOptions {
+  bool manual = 1;                            // false = calculate from data
+  double minimum = 2; double maximum = 3; double between = 4;
+  TickStyle major = 5;                        // NONE, ACROSS, INSIDE, OUTSIDE
+  TickStyle minor = 6;
+  uint32 minor_count = 7;
+  string prefix = 8 [(buf.validate.field).string.max_len = 16];
+  string suffix = 9 [(buf.validate.field).string.max_len = 16];
+}
+
+// Styling or a pictograph for one series (index unset) or one element of it.
+message ChartOverride {
+  ElementId id = 1;
+  ElementId series = 2;                       // a column id, or a row id for pies/stacked
+  ElementId index = 3;                        // a row id (or column id); unset = whole series
+  Appearance appearance = 4;                  // strokes/fills/effects; unset = chart default
+  Transform transform = 5 [(wt.crdt.field).merge = MERGE_ATOMIC];  // extra transform
+  // Pictograph: a child node of the chart (a group) used in place of the column.
+  NodeRef pictograph = 6 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
+  bool repeating = 7;
+}
+----
+
+Series identity uses element ids of columns or rows, so a series keeps its style through
+transposition (which only flips which sequence is "series") and through row/column inserts
+elsewhere.
+
+=== Merge semantics
+
+Cell edit vs. cell edit (same cell):: `text` LWW; review lists it.  Live, the sheet shows the
+remote value arrive in the grid without disturbing the cell being typed in (the entry field
+holds the draft until kbd:[Return]).
+
+Two people create the same cell:: A cell is created when a column-row slot is typed into for
+the first time; two replicas may each insert a `ChartCell` for the same `(row, column)`.
+*Read normalization:* when a row holds several live cells for one column, the one with the
+greatest cell element id wins; the others are ignored, not deleted.
+
+Add a column vs. add a row:: Independent inserts; the new row has no cell in the new column,
+which reads as empty.  Column identity means concurrent column inserts by two people never
+scramble across rows (the reason columns are first-class).
+
+Delete a column vs. type in it:: The cell write applies; the column is deleted, so the cell is
+not read.  Review: *edit vs delete* on the chart node.
+
+Transpose vs. anything:: A single flag; never conflicts with cell edits.  Two concurrent
+transposes both write `true` (or both `false`) and collapse to one, listed as same register.
+
+Import vs. edit:: Import deletes every row and column and inserts new ones in one change.
+Concurrent cell edits become edit-vs-delete entries; *Restore* re-inserts the row with the
+edited cell.
+
+Type/options vs. data:: Independent registers.
+
+Style override vs. data change:: An override keyed by a series that was deleted dangles and
+is ignored on read (kept in the log).  Two overrides for the same key from two people: both
+are live elements; read rule: greatest element id wins, so the later creator's style shows
+and the review sheet lists the chart as *both edited*.  An override edited by two people
+(same element, same field) is ordinary register LWW.
+
+Pictograph vs. Remove Pictograph:: `pictograph` ref set vs. cleared: LWW.  The source node,
+a child of the chart, is deleted by Remove; a concurrent set that points to it dangles and
+reads as no pictograph.
+
+Ungroup vs. edit:: Ungroup creates a `group` node with materialized children (paths and text
+from the derived drawing, including the overrides) and deletes the chart node.  Concurrent
+data or style edits land on the deleted chart: *edit vs delete*, *Restore* brings the chart
+back beside the group.
+
+Read-time normalizations (complete list)::
+* Missing cell → empty → 0 (labels: empty string).
+* Duplicate cells per (row, column) → greatest id.
+* Duplicate overrides per (series, index) → greatest id.
+* Override with dangling series/index → ignored.
+* `column_width`/`cluster_width` of 0 → 80.
+* Scatter with fewer than two columns → no points drawn, axes still drawn.
+* Non-numeric cell in a numeric position → 0 (quoted text is a label wherever it sits).
+* `size` non-positive → chart renders nothing; selectable from Layers.
+
+=== Offline behavior
+
+Works offline.  Each cell commit is one change; btn:[Apply] writes only registers that
+changed (type, options), so a large data session is many small changes that coalesce per
+register.  Importing writes one change that can be large (up to the 10,000-op limit; larger
+tables are refused with a message naming the limit).
+
+=== Server
+
+Nothing beyond storing and relaying changes.  The server validates the per-field bounds and
+the op limit.
+
+=== Client
+
+Layout engine:: `WTRender.ChartLayout` (pure function `ChartProps → [ChartElement]`) computes
+axes, ticks, labels, legend, series geometry and drop shadow in local units, applying
+`decimal_precision`, prefix/suffix and separators to labels, and produces `Path` and `Text`
+values with stable synthetic ids `(chartNodeId, series, index, role)`.  The display list
+treats these like child nodes (rendering, hit-testing, selection glyphs) but they are never in
+the tree.  Grayscale ramp per series: 90% black for the first, lightening in equal steps.
+
+Selection:: APP-006's selection can hold synthetic chart element ids; presence broadcasts them
+and other clients resolve them through their own layout, which is deterministic.  Superselect
+(kbd:[~]) expands a synthetic id to every element of its series.  Applying an appearance or a
+transform to a synthetic selection writes a `ChartOverride` (creating one for the key if
+none exists) instead of touching the element.
+
+Chart sheet:: SwiftUI sheet with a grid (`NSTableView`-backed for keyboard navigation), entry
+field with draft state, Undo (local to the sheet's draft), Import via `NSOpenPanel` parsing
+tab-delimited UTF-8, Transpose, column-width triangles (view state), *Type* tab with the type
+buttons and options, and the two Axis sheets.  btn:[Apply] commits pending registers; btn:[OK]
+commits and closes; btn:[Cancel] discards uncommitted drafts (already-committed cells stay,
+as in {fh}, where Apply is not undone by Cancel).
+
+Pictograph:: The pasted artwork becomes a `group` child of the chart node (real nodes, hidden
+from the Layers panel except under the chart's disclosure); the layout engine instantiates it
+per column with repeat or stretch.  btn:[Copy Out] serializes that subtree to the pasteboard.
+
+Ungroup:: Materializes the layout's elements as nodes under a new `group` at the chart's
+transform; text elements become text blocks; pictograph instances become groups.
+
+Undo:: One group per cell commit, per Apply, per override write, per pictograph change, per
+ungroup.
+
+=== Build tasks
+
+[[DRAW-031]]
+==== DRAW-031 Chart schema
+[horizontal]
+Track:: proto
+Depends on:: PROTO-003, PROTO-005
+Size:: M
+Delivers:: `doc/v1/chart.proto` as in the Data model, the `chart` kind in `NodeProps`, validation rules, comments.
+Done when::
+* Lints clean; merge table: `columns`, `rows`, `cells`, `overrides` SEQUENCE; `size` and `transform` ATOMIC.
+* Conformance vectors: concurrent cell creation for one slot; column insert vs. row insert; import (delete all + insert) vs. cell edit; converge with identical hashes.
+
+[[DRAW-032]]
+==== DRAW-032 Chart model and layout engine
+[horizontal]
+Track:: client-render
+Depends on:: DRAW-031, DRAW-002, TXT-001
+Size:: L
+Delivers:: `WTModel.Chart` with the read normalizations (cell/override dedup, transposition, missing cells, dangling overrides), commands (set cell, insert/delete row and column, transpose, switch XY, import, set type/options/axis, set override, set pictograph, ungroup), and `ChartLayout` producing synthetic elements for all six types with every option, gridlines, axes, ticks, labels, legend, data numbers, drop shadow and pictograph instancing.
+Done when::
+* Reference renders for each type and option combination in the corpus match {fh} output within tolerance; layout of a 100×20 table runs under 5 ms.
+* Merge tests for the eight cases under Merge semantics.
+* Inverse tests for every command; ungroup produces nodes whose render is pixel-identical to the chart.
+
+[[DRAW-033]]
+==== DRAW-033 Chart tool and Chart sheet
+[horizontal]
+Track:: client-ui
+Depends on:: DRAW-032, APP-003, APP-004
+Size:: L
+Delivers:: The Chart tool (drag to size, opens the sheet), the Chart sheet (*Data* tab: grid, entry field, Undo, Import, labels, Transpose, column widths, precision, separator, Cut/Copy/Paste, Switch XY; *Type* tab: six types, options, gridlines, axis display, X/Y Axis sheets), Apply/OK/Cancel semantics, and double-click-to-edit on a selected chart.
+Done when::
+* UI tests enter a table, import a file, transpose, change type and axis options, and verify the registers.
+* A remote cell change during editing updates the grid without disturbing the draft in the entry field.
+* Merge test: two replicas type in the same cell concurrently; both converge and the review sheet lists it after an offline run.
+
+[[DRAW-034]]
+==== DRAW-034 Chart element selection, styling, pictographs and ungroup
+[horizontal]
+Track:: client-ui
+Depends on:: DRAW-033, APP-006, APP-007
+Size:: M
+Delivers:: Synthetic element selection with Subselect and Superselect (kbd:[~]), appearance and transform application as overrides through the Object panel and color tools, the Pictograph sheet (Paste In, Copy Out, Repeating) and Remove Pictograph under menu:Extensions[Chart], and menu:Modify[Ungroup] for charts.
+Done when::
+* Recoloring one bar writes one override; Superselect + recolor writes one series override; changing data afterwards keeps the style.
+* Pictograph with Repeating on stacks copies with a clipped partial; off stretches one copy.
+* Merge tests: override vs. data change on another replica keeps both; ungroup vs. cell edit yields an *edit vs delete* entry with a working *Restore*.
+endif::spec[]

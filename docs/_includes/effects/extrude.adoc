@@ -1,0 +1,493 @@
+The Extrude tool turns a flat shape into a solid: it sweeps the shape away from you toward a
+vanishing point and draws the sides, shaded as if lit.  The original 2D shape stays inside the
+extrusion, fully editable -- change its points, its fill or its stroke and the solid follows.
+You can rotate the solid in three dimensions, give its sides a profile so it becomes a bevelled
+plaque or a turned spindle, twist it, choose flat, shaded or wireframe sides, and place lights.
+Several extruded objects can share one vanishing point so a scene reads as a single
+perspective.
+
+// TODO screenshot: a star, the same star extruded toward a vanishing point, and the star rotated in 3D
+
+NOTE: In {product} an extrusion wraps the shape the way a group wraps its members.  Select the
+extruded object with the Pointer tool to edit the extrusion; kbd:[Option]-click or use the
+Subselect tool to reach the flat shape inside it.  {fh} users will find every command in the
+same place: menu:Modify[Extrude].
+
+== Extruding
+
+The Extrude tool shares a Tools panel slot with the other 3D and distortion tools
+(xref:toolbars.adoc[The Tools panel]).  It applies to paths, groups of paths and text blocks;
+text is extruded as its glyph outlines while remaining editable text.
+
+To extrude an object:
+
+. Select the Extrude tool from its pop-up in the Tools panel.
+. Drag from the object toward where the vanishing point should be.  As you drag, the solid
+  previews; releasing sets the vanishing point and a default depth.
+
+To remove an extrusion:
+
+* Select the extruded object and choose menu:Modify[Extrude > Remove].  The flat shape is
+  restored exactly as it was.
+
+To turn an extrusion into ordinary flat shapes:
+
+* Select it and choose menu:Modify[Extrude > Release].  The result is a group of paths -- one
+  per visible face -- filled and stroked as they were drawn.  Use it to hand-edit a face or to
+  export to a format without the extrusion.
+
+To reset an extrusion to its defaults:
+
+* Choose menu:Modify[Extrude > Reset].  Rotation returns to zero, the profile to *None*, the
+  surface to *Shaded*; the vanishing point and depth stay.
+
+To share one vanishing point among several extrusions:
+
+. With the Pointer tool, select two or more extruded objects.
+. Choose menu:Modify[Extrude > Share Vanishing Points].
+. Click on the canvas where the shared vanishing point should be.  Every selected extrusion now
+  points there.  Each keeps its own copy: moving one object's vanishing point afterwards does
+  not move the others.
+
+== Editing on the canvas
+
+With the Extrude tool, an extruded object shows its controls: the object's *centre point*, a
+*depth control* at the end of a line along the extrusion's axis, and the *vanishing point*.
+
+// TODO screenshot: extruded object with centre point, depth control on the z axis, and vanishing point labelled
+
+To edit position, depth or vanishing point:
+
+. Select the Extrude tool.
+. Click the extruded object.
+. Do any of the following:
+* Drag the centre point to move the object; the vanishing point stays where it is, so the
+  perspective changes.
+* Drag the depth control along the axis to lengthen or shorten the solid.
+* Drag the vanishing point anywhere on the canvas.
+* Hold kbd:[Shift] while dragging the vanishing point to keep it level with, or directly above,
+  the object's centre.
+
+To rotate an extrusion in 3D:
+
+. Select the Extrude tool.
+. Double-click the extruded object.  A *rotation circle* appears around it with a z-axis
+  marker.
+. Drag inside the circle to tumble the object about its x and y axes; drag outside the circle
+  to spin it about the z axis (in the plane of the page).  Hold kbd:[Shift] to constrain the
+  rotation to 15° steps.
+. Finish by clicking the Pointer tool, pressing kbd:[Tab], or double-clicking the object
+  again.
+
+Transforming an extruded object with the transformation tools or the Pointer tool transforms
+the flat shape inside it, and the solid is rebuilt from the result.  {fh} permanently locked
+the extrusion in that case; {product} does not.
+
+== Editing in the Object panel
+
+Select the extruded object with the Pointer or Extrude tool and the Object panel shows the
+extrusion's three pages of settings behind three buttons: btn:[Extrude], btn:[Surface] and
+btn:[Profile].  The flat shape's own strokes, fills and effects are listed under it as usual.
+
+=== Extrude
+
+[cols="1,3"]
+|===
+|Option |What it does
+
+|*Length*
+|The depth of the solid along its axis, in points, up to 32,000.
+
+|*Vanishing point X, Y*
+|Where the sides converge, relative to the active page.
+
+|*Position X, Y, Z*
+|The object's centre relative to the page.  Z moves the object toward (negative) or away from
+(positive) the viewer along the extrusion axis.
+
+|*Rotation X, Y, Z*
+|Rotation angles in degrees about the object's 3D centre.
+|===
+
+=== Surface
+
+[cols="1,3"]
+|===
+|Option |What it does
+
+|*Surface*
+|*Flat* draws the sides in the object's basic fill color, unshaded.  *Shaded* lights the sides
+smoothly.  *Wireframe* draws only the edges of the sides, stroked, with no fills.  *Mesh* draws
+the sides as stroked, unfilled polygons.  *Hidden Mesh* draws them as stroked, filled polygons,
+so nearer polygons hide those behind.
+
+|*Steps*
+|How many polygons approximate each curved part of the outline, 1--100.  Higher is smoother
+and slower.  Use a low value while working and raise it before printing.
+
+|*Ambient*
+|0--100: the overall brightness of the shaded sides.
+
+|*Light 1*, *Light 2 Direction*
+|Where each light comes from: *None*, *Top Left*, *Top*, *Top Right*, *Left*, *Front*,
+*Right*, *Bottom Left*, *Bottom*, *Bottom Right*.
+
+|*Light 1*, *Light 2 Intensity*
+|0--100: how strong each light is.  Lights apply only to the *Shaded* surface.
+|===
+
+=== Profile
+
+By default the sides run straight toward the vanishing point.  A *profile* is an open path that
+the sides follow instead, so the extrusion can be bevelled, stepped or bulged.  The *Profile
+preview* box shows the current profile.
+
+To use a path as a profile:
+
+. Draw an open path -- an angled line for a chamfer, a quarter circle for a rounded edge, a
+  wave for a moulding.  Paths that do not double back on themselves extrude most cleanly.
+. Select it and choose menu:Edit[Copy].
+. Select the extruded object and click btn:[Profile] in the Object panel.
+. Choose *Bevel* or *Static* from the *Profile* pop-up.
+. Click btn:[Paste In].  The profile appears in the preview box and the extrusion is rebuilt.
+
+[cols="1,3"]
+|===
+|Option |What it does
+
+|*Profile*
+|*None* for straight sides.  *Bevel* sweeps the profile around the outline, turning it to
+follow each corner's angle, as a router bit follows an edge.  *Static* sweeps it while keeping
+the profile at one fixed angle, for a directional, lit-from-one-side look.
+
+|*Angle*
+|*Static* only: the angle at which the profile is held, in degrees.
+
+|*Steps*
+|How many slices approximate the profile from front to back, 1--100.
+
+|*Twist*
+|Degrees of clockwise rotation applied to the rear face, distributed along the depth.  360
+gives one full turn.
+|===
+
+// TODO screenshot: Profile page with a chamfer profile pasted in, and the resulting bevelled extrusion
+
+== Working with others
+
+* An extrusion is one object made of two parts -- the extrusion settings and the flat shape
+  inside -- and collaborators can work on both at the same time.  If you change the depth while
+  someone else edits the shape's points, both changes apply and the solid rebuilds for
+  everyone.
+* Two of you dragging the same vanishing point, or the same rotation, ends with whoever's drag
+  arrived later; the other position is offered back in the merge review after an offline
+  session.  Depth, rotation, position and vanishing point are separate settings, so changing
+  different ones at once keeps them all.
+* If someone removes or releases an extrusion you are editing, your edits to the flat shape
+  survive on the released shape; edits to the extrusion itself have nothing to land on and are
+  listed in the merge review as changes to something that was removed, with an option to
+  restore the extrusion.
+* *Share Vanishing Points* gives each object its own copy of the point, so it does not link
+  the objects for collaborators either.
+* Pasting a profile stores a copy of the path in the extrusion; the original path can be
+  deleted or edited by anyone without affecting the extrusion.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,1"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Extrude tool: drag to set vanishing point
+|Same.
+|Faithful
+
+|menu:Modify[Extrude > Remove / Release / Reset / Share Vanishing Points]
+|Same commands.
+|Faithful
+
+|Canvas controls: centre point, depth control, vanishing point; rotation circle on double-click
+with inside/outside drag; exit with Pointer, kbd:[Tab], double-click
+|Same, plus kbd:[Shift] constraints.
+|Faithful
+
+|Object panel: Length, Vanishing Point, Position x/y/z, Rotation x/y/z
+|Same.
+|Faithful
+
+|Surface: Flat, Shaded, Wireframe, Mesh, Hidden Mesh; Steps, Ambient, two lights with
+direction and intensity
+|Same.
+|Faithful
+
+|Profile: None, Bevel, Static (+Angle), Steps, Twist, Paste In from the clipboard
+|Same.
+|Faithful
+
+|Transforming with the Pointer tool "locks" the extrusion
+|The flat shape is transformed and the extrusion rebuilt; nothing locks.
+|Adapted -- {product} recomputes the solid on read, so there is no state to lock.
+
+|Extruding text
+|Text blocks extrude as glyph outlines and remain editable text inside the extrusion.
+|Adapted -- {fh} required conversion to paths; the read-time model makes it unnecessary.
+|===
+
+=== Data model
+
+An extrusion is a node of kind `extrude` with exactly one child: the flat shape (a path,
+group or text node).  This mirrors `blend`, `clip` and `envelope` groups and keeps the source
+object's own kind and props intact.  A wrapper node, rather than props on the source object,
+was chosen because: the source keeps its own kind (text stays text); Remove and Release are the
+same tree moves as ungrouping; and extrusion edits and source edits are on different nodes, so
+they never compete for registers.
+
+[source,protobuf]
+----
+// proto/wiretuner/doc/v1/extrude.proto (sketch); ExtrudeProps is a NodeProps.kind case
+message ExtrudeProps {
+  CommonProps common = 1;
+  double length = 2 [(buf.validate.field).double = {gte: 0, lte: 32000}];   // depth, points
+  // Pasteboard coordinates; the panel shows them relative to the active page.  ATOMIC: one drag.
+  Point vanishing_point = 3 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  double z = 4;                  // Position Z; X and Y are the child's own position
+  // Euler angles in degrees, applied X then Y then Z about the 3D centre.  ATOMIC: a rotation
+  // drag writes all three and a merge of components is a rotation nobody made.
+  Rotation3 rotation = 5 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  Surface surface = 6;           // STRUCT
+  Profile profile = 7;           // STRUCT
+}
+
+message Rotation3 { double x = 1; double y = 2; double z = 3; }
+
+message Surface {
+  enum Kind { KIND_UNSPECIFIED = 0; KIND_FLAT = 1; KIND_SHADED = 2; KIND_WIREFRAME = 3; KIND_MESH = 4; KIND_HIDDEN_MESH = 5; }
+  Kind kind = 1;                 // default SHADED on create
+  uint32 steps = 2 [(buf.validate.field).uint32 = {gte: 1, lte: 100}];   // curvature subdivision
+  uint32 ambient = 3 [(buf.validate.field).uint32.lte = 100];
+  Light light1 = 4;              // STRUCT
+  Light light2 = 5;
+}
+
+message Light {
+  enum Direction {
+    DIRECTION_NONE = 0; DIRECTION_TOP_LEFT = 1; DIRECTION_TOP = 2; DIRECTION_TOP_RIGHT = 3;
+    DIRECTION_LEFT = 4; DIRECTION_FRONT = 5; DIRECTION_RIGHT = 6;
+    DIRECTION_BOTTOM_LEFT = 7; DIRECTION_BOTTOM = 8; DIRECTION_BOTTOM_RIGHT = 9;
+  }
+  Direction direction = 1;
+  uint32 intensity = 2 [(buf.validate.field).uint32.lte = 100];
+}
+
+message Profile {
+  enum Kind { KIND_NONE = 0; KIND_BEVEL = 1; KIND_STATIC = 2; }
+  Kind kind = 1;
+  // A copy of the pasted open path's geometry (the DRAW epic's Contour message, one contour).
+  // ATOMIC: Paste In replaces it whole; nobody edits its points in place.
+  Contour path = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  double angle = 3;              // STATIC only, degrees
+  uint32 steps = 4 [(buf.validate.field).uint32 = {gte: 1, lte: 100}];   // front-to-back slices
+  double twist = 5;              // degrees, clockwise, applied to the rear face
+}
+----
+
+The `extrude` node's `deleted` flag and its child's parent link are the ordinary tree
+registers.  Its stacking position is the position among the layer's children, as for any
+object.
+
+=== Merge semantics
+
+Settings vs. source:: Extrusion registers live on the `extrude` node, the shape's on the child.
+Any concurrent combination of "edit the solid" and "edit the shape" keeps both, and every
+replica rebuilds the same solid on read.
+
+Same register:: `vanishing_point`, `rotation`, `length`, `z` and the surface/profile fields are
+LWW individually.  The review sheet shows the losing value beside the winner for each
+("Vanishing point: mine (412, 88), theirs (390, 91)") and offers *Use mine* / *Use theirs* /
+*Keep both copies* (which duplicates the extrude node with its child).
+
+Remove vs. edit:: *Remove* moves the child to the extrude node's parent at the extrude node's
+position and sets the extrude node `deleted`.  A concurrent `SetFields` on the extrude node
+applies to the deleted node; reviewed as edit-vs-delete with *Restore* (which un-deletes the
+node and moves the child back in -- the model's restore command, not a raw register write).  A
+concurrent edit of the child simply lands on the now-freed child.
+
+Release vs. edit:: *Release* creates a new `group` of face paths computed from the state the
+releasing replica saw, moves it to the extrude node's place, and deletes the extrude node
+*with* its child still inside (so Restore can bring the live extrusion back).  A concurrent
+edit to the child applies to the deleted child and is invisible in the released group.  The
+review sheet lists it as edit-vs-delete on the child, and *Restore* here restores the extrude
+node and its child (the released group stays too; the user deletes one).
+
+Share Vanishing Points:: Writes each selected extrude node's `vanishing_point` in one change.
+No shared node, no reference; concurrency is per object.
+
+Delete vs. move:: As for any node.  Moving an `extrude` node into another `extrude` node is
+rejected by the model (no nested extrusions); a merged state that contains one renders the
+inner as flat (read-time normalization).
+
+Read-time normalizations::
+* An `extrude` node with no live child renders nothing and is selectable as an empty
+  placeholder outline, listed in the Object panel as "Empty extrusion".
+* More than one live child (a concurrent move into the node): the child with the smallest node
+  id is extruded, the others render flat above it.
+* Nested extrusion: inner extrude renders as its child only.
+* `profile.kind` BEVEL or STATIC with an empty `path`: renders as NONE.
+* Out-of-range `length` clamps.
+
+=== Offline behavior
+
+Nothing beyond the general rules.  A rotation drag coalesces to one op.
+
+=== Server
+
+Nothing beyond storing and relaying changes.
+
+=== Client
+
+Package:: `WTGeometry/Extrude/` (`ExtrudeSolver`, `ProfileSweep`, `Shading`), `WTRender`
+(`ExtrudeDrawable`, cache), `WTApp/Tools/ExtrudeTool`, `WTApp/Inspector/Extrude`.
+
+Geometry (computed on read, cached)::
+. Flatten the child's outline (effects applied, text as glyph outlines) into polylines with
+  `surface.steps` subdivisions per curve segment (GEO-001 arc-length sampling).
+. Build the front face at `z`, the rear face at `z + length` (scaled toward
+  `vanishing_point` by the one-point perspective ratio), or, with a profile, `profile.steps`
+  intermediate rings from sweeping the profile path along the outline: *Bevel* orients the
+  profile's normal along each outline vertex's bisector; *Static* keeps it at `profile.angle`.
+  `twist` rotates ring `i` by `twist × i / steps` about the axis.
+. Apply `rotation` about the 3D centre, then project each vertex with the vanishing-point
+  perspective.
+. Side polygons are quads between consecutive rings; back-face culling and painter's-order
+  depth sort (`Hidden Mesh`, `Shaded`, `Flat`) or all edges (`Wireframe`, `Mesh`).
+. Shading: Lambert with two directional lights (direction enum → unit vector) and `ambient`;
+  the side color is the child's basic fill color scaled by the lit intensity.  Non-basic fills
+  (gradient, pattern) shade using their average color; the front face draws with the child's
+  real appearance.
+
+Cache:: Keyed by `(extrude node id, extrude state hash, child subtree state hash)`; evicted by
+REND-004 on any change under the node.  Faces are stored as a display-list fragment so
+zooming does not rebuild.
+
+Hit testing:: The front face hit-tests as the child; the sides hit-test as filled polygons
+belonging to the extrude node.  Handles (centre, depth control, vanishing point, rotation
+circle) are tool overlays.
+
+Tool:: `ExtrudeTool` state machine: *create* (drag from object → `CreateNode(extrude)` +
+`MoveNode(child)` + initial length/vanishing point, one change), *edit* (click → handles;
+drags write `length`, child transform, or `vanishing_point`), *rotate* (double-click →
+rotation circle; inside drag uses a virtual trackball for X/Y, outside drag sets Z; kbd:[Shift]
+snaps 15°).  kbd:[Tab], Pointer tool or double-click leaves rotate mode.
+
+Object panel:: Three `NSSegmentedControl`-switched pages.  Profile preview is a small canvas
+view; btn:[Paste In] reads a single open path from the pasteboard (the DRAW epic's pasteboard
+type) and writes `profile.path`.
+
+Undo:: Each drag one group; menu commands one change each ("Extrude", "Remove extrusion",
+"Release extrusion", "Reset extrusion", "Share vanishing points").
+
+Output:: Extrusions print and export as vector faces (the same polygons as rendered, with
+their shaded fill colors), so a released extrusion and a live one produce identical output.
+
+=== Build tasks
+
+[[FX-016]]
+==== FX-016 Extrude node kind and ExtrudeProps
+[horizontal]
+Track:: proto
+Depends on:: PROTO-003
+Size:: S
+Delivers:: `extrude` kind in `NodeProps` with `ExtrudeProps`, `Rotation3`, `Surface`, `Light`,
+`Profile` as sketched.
+Done when::
+* Lints clean; ATOMIC options on `vanishing_point`, `rotation`, `profile.path`.
+* Conformance vectors: concurrent vanishing-point drags; rotation vs. length; remove vs. edit;
+  two children moved in concurrently.
+
+[[FX-017]]
+==== FX-017 Extrude commands
+[horizontal]
+Track:: client-model
+Depends on:: APP-011, FX-016
+Size:: M
+Delivers:: `WTModel` commands: extrude (wrap), remove (unwrap), release (bake faces via
+FX-018 into a group), reset, share vanishing points, set any property, paste profile; nesting
+rejection; the read-time normalizations for empty, multi-child and nested extrusions.
+Done when::
+* Each command is one change with the documented label and a correct inverse; undo of Release
+  restores the live extrusion and removes the group.
+* Merge tests: remove vs. child edit (edit survives on freed child); release vs. child edit
+  (reviewed as edit-vs-delete, Restore works); concurrent extrude of the same path by two
+  replicas (two wrappers, normalized to one extrusion + flat copy, deterministic).
+
+[[FX-018]]
+==== FX-018 Extrusion solver: faces, perspective and depth ordering
+[horizontal]
+Track:: client-render
+Depends on:: GEO-001, GEO-005, FX-016
+Size:: L
+Delivers:: `ExtrudeSolver`: outline flattening with steps, front/rear rings, rotation,
+vanishing-point projection, side quads, culling and painter's-order sort, the five surface
+kinds, and the face list consumed by rendering and by Release.
+Done when::
+* Property tests: zero length gives the front face only; rotation (0,0,0) with the vanishing
+  point at infinity gives an orthographic box; faces never self-intersect for convex outlines.
+* Reference renders of the manual's examples match visually (screenshots committed).
+* Solving a 500-point outline at 20 steps takes under 5 ms on M1.
+
+[[FX-019]]
+==== FX-019 Profiles, twist and shading
+[horizontal]
+Track:: client-render
+Depends on:: FX-018
+Size:: M
+Delivers:: `ProfileSweep` (Bevel and Static modes, angle, steps, twist) and `Shading`
+(Lambert with two directional lights, ambient, average color for non-basic fills).
+Done when::
+* A chamfer profile on a square yields the expected eight side facets; twist 360 on a circle
+  yields a visually continuous helix.
+* Light direction unit vectors are unit-tested; ambient 100 with no lights equals Flat.
+
+[[FX-020]]
+==== FX-020 Extrude tool
+[horizontal]
+Track:: client-ui
+Depends on:: APP-003, FX-017, FX-018
+Size:: M
+Delivers:: `ExtrudeTool` create/edit/rotate modes with all handles, previews, kbd:[Shift]
+constraints, kbd:[Tab]/double-click/Pointer exits, and the menu:Modify[Extrude] submenu
+commands.
+Done when::
+* UI tests: drag-to-extrude, drag each handle, rotate inside/outside the circle, exit by each
+  route, each menu command.
+* Every drag is one undo step and one change on the wire.
+
+[[FX-021]]
+==== FX-021 Extrude pages in the Object panel
+[horizontal]
+Track:: client-ui
+Depends on:: APP-007, FX-017
+Size:: M
+Delivers:: The Extrude, Surface and Profile pages with every option, the profile preview
+canvas and btn:[Paste In], live updates from remote changes.
+Done when::
+* Every option round-trips; light fields disable unless *Shaded*; Angle enables only for
+  *Static*.
+* Paste In with a closed or multi-contour path is refused with an explanation.
+
+[[FX-022]]
+==== FX-022 Extrusion rendering, caching, hit testing and output
+[horizontal]
+Track:: client-render
+Depends on:: REND-002, REND-003, REND-004, FX-019
+Size:: M
+Delivers:: `ExtrudeDrawable` in the display list, the face cache with the documented key,
+side-polygon hit testing, and vector face output to `WTInterchange`.
+Done when::
+* A remote edit to the child repaints only the extrusion's tiles and re-solves once.
+* Clicking a side selects the extrusion; kbd:[Option]-clicking the front face selects the child.
+* PDF output of a live extrusion equals that of its released group.
+endif::spec[]

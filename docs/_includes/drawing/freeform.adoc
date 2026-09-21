@@ -1,0 +1,282 @@
+The three tools in the Pencil group draw paths that follow your hand: the Pencil draws a plain
+line, the Variable Stroke Pen draws a filled shape whose width swells and thins like a brush,
+and the Calligraphic Pen draws a filled shape whose width depends on the direction of the
+stroke, like a broad-nib pen.  All three turn the motion of the pointer into a smooth path
+with as few points as the precision you choose allows, and all three read pressure from a
+pen tablet or an Apple Pencil.
+
+// TODO screenshot: the same scribble drawn with the three tools
+
+== Pencil
+
+To set the Pencil tool options:
+
+. Double-click the Pencil tool in the Tools panel.
+. In the Pencil Tool sheet, set:
++
+Precision:: 1 to 10.  High values follow every wobble of your hand and place many points; low
+values smooth the stroke and place few.
+Draw dotted line:: Shows the stroke as a dotted trail while you draw instead of a solid
+preview, which keeps drawing responsive on very large documents.  The finished path is always
+solid.
+. Click btn:[OK].
+. Set the stroke and fill for new paths with the color wells at the bottom of the Tools panel
+  (xref:applying-color.adoc[Applying color]).
+
+To draw with the Pencil:
+
+. Choose the Pencil tool.
+. Drag on the canvas.  The path is fitted when you release.
+
+Modifier keys while dragging::
+kbd:[Option]:: Draws a straight segment from the point where you pressed kbd:[Option] to
+where you release it, then continues freehand.
+kbd:[Shift]:: With kbd:[Option], constrains the straight segment to the constrain angle and
+every 45° from it.
+
+To continue a path with the Pencil:
+
+. Select the path.
+. Move the Pencil over one of its end points.  A small *+* beside the pointer shows that
+  drawing will extend the path.
+. Drag.  The new stroke is fitted and joined to the existing path.
+
+== Variable Stroke Pen
+
+The Variable Stroke Pen produces a closed, filled shape -- the outline of a brush stroke --
+whose width varies between a minimum and a maximum.  With a tablet, pressure sets the width;
+with a mouse, keys do.
+
+To set the Variable Stroke Pen options:
+
+. Double-click the Variable Stroke Pen tool.
+. In the Variable Stroke Pen sheet, set:
++
+Precision:: 1 to 10, as for the Pencil.
+Draw dotted line:: As for the Pencil.
+Auto remove overlap:: After each stroke, removes the parts of the outline that overlap
+themselves (where the stroke crosses or doubles back), producing a clean composite path.  This
+takes a moment on long strokes; you can also do it later with menu:Modify[Alter Path > Remove
+Overlap] (xref:combining-paths.adoc[Combining paths]).
+Width:: *Min* and *Max* stroke widths, 1 to 72 points, measured across the whole stroke.
+. Click btn:[OK].
+. Set stroke and fill with the color wells.  A fill and no stroke gives the most brush-like
+  result.
+
+To draw with the Variable Stroke Pen:
+
+. Choose the tool.
+. Drag on the canvas.
+
+Keys while dragging::
+kbd:[Option]:: Draws a straight segment.
+kbd:[{startsb}]:: Narrows the stroke from here on (mouse users).
+kbd:[{endsb}]:: Widens the stroke from here on.
+Pen pressure:: With a tablet, pressure maps to the width between *Min* and *Max* and the
+bracket keys are ignored while the pen is in contact.
+
+== Calligraphic Pen
+
+The Calligraphic Pen produces a closed, filled shape like a stroke from a flat nib held at a
+fixed angle: wide when you draw across the nib, thin when you draw along it.
+
+To set the Calligraphic Pen options:
+
+. Double-click the Calligraphic Pen tool.
+. In the Calligraphic Pen sheet, set:
++
+Precision:: 1 to 10.
+Draw dotted line:: As for the Pencil.
+Auto remove overlap:: As for the Variable Stroke Pen.
+Width:: *Fixed* for a constant nib width, or *Variable* with *Min* and *Max* (1 to 72 points)
+for a nib whose width follows pressure or the bracket keys.
+Angle:: The nib's angle, 0° to 359°, typed or set with the dial.  At 45° strokes drawn from
+lower-left to upper-right are thin and those from upper-left to lower-right are wide.
+. Click btn:[OK].
+. Set stroke and fill.  Choose no stroke and a basic fill for the most pen-like result.
+
+To draw with the Calligraphic Pen:
+
+. Choose the tool.
+. Drag on the canvas.
+
+Keys while dragging::
+kbd:[Option]:: Draws a straight segment.
+kbd:[{startsb}] / kbd:[{endsb}]:: Narrows or widens the stroke (Variable width only).
+Pen pressure:: Sets the width between *Min* and *Max* (Variable width only).
+
+To continue a path with the Calligraphic Pen, select it and start dragging from one of its
+end points, as with the Pencil.
+
+== Drawing with a pen tablet
+
+{product} reads pressure from any tablet macOS supports (Wacom and compatible tablets, and an
+iPad with Apple Pencil connected through Sidecar).  Nothing needs to be enabled: when a pen
+is in contact, pressure drives the Variable Stroke Pen and the Calligraphic Pen in *Variable*
+mode, and the Freeform and Eraser tools' pressure options (xref:editing-paths.adoc[Editing
+paths]).  With the pen lifted, or with a mouse or trackpad, width is set by the bracket keys
+and stays at the value you last set until you change it.
+
+== Working with others
+
+A collaborator sees your stroke appear when you release the mouse, as one finished path; they
+never see the half-drawn trail.  From then on the path is shared point by point like any other
+(xref:vector-basics.adoc[Vector basics]).  Continuing a path that a collaborator is editing
+appends your new points to it while keeping their edits.  If someone deletes the path you were
+about to continue, your stroke is drawn as a new path instead.  Tool settings -- precision,
+widths, nib angle -- are yours alone and never travel with the document.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,1"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Pencil: precision 1--10, Draw dotted line, kbd:[Option] straight segment, continue from an
+end point with the + cursor
+|Same, as a sheet.
+|Faithful
+
+|Variable Stroke Pen: precision, dotted line, Auto remove overlap, Min/Max width 1--72,
+bracket keys, tablet pressure
+|Same.  Output is a closed filled path (the stroke outline), as in {fh}.
+|Faithful
+
+|Calligraphic Pen: Fixed/Variable width, angle dial 0--359°, bracket keys, pressure
+|Same.
+|Faithful
+
+|Left/Right arrow keys for width (Windows)
+|Dropped; the Mac bracket keys are the documented ones.
+|Dropped
+
+|Pressure-sensitive tablet support
+|Any tablet macOS reports pressure for, plus Apple Pencil via Sidecar.
+|Faithful
+
+|Auto remove overlap slows redraw (note in manual)
+|Runs off the main actor after mouse-up; the un-cleaned path is written first and replaced
+by the cleaned one in the same undo group.
+|Adapted
+|===
+
+=== Data model
+
+None beyond `PathProps`.  The Variable Stroke and Calligraphic pens store only the fitted
+outline; the width profile and nib angle are not kept, so a stroke cannot be re-fitted after
+the fact.  Tool settings are preferences.
+
+=== Merge semantics
+
+As for any path.  Specific cases:
+
+Continue a path vs. concurrent edit:: The continuation is an element insert after the end
+point's element (or before the start point's, if the stroke began there) plus a handle write
+on that end point to smooth the join.  Concurrent edits to other points are untouched.  If the
+end point was deleted concurrently, the inserted points still sit after its tombstone, so the
+continuation attaches to the new end.
+
+Continue a path vs. delete of the path:: The inserts land on a deleted node and are listed as
+*edit vs delete*.  Live, the tool checks the node is still live at mouse-up and, if not,
+creates a new path instead (the guide's promise); the race window is the fitting time.
+
+Auto remove overlap vs. concurrent edit:: The cleaned result replaces the contour's points
+(delete all, insert new), so a concurrent edit to an original point is *edit vs delete*.
+Because the cleanup runs within a second of mouse-up, this is only reachable offline.
+
+=== Offline behavior
+
+Works offline.  A stroke is one `CreateNode`, or one change of inserts when continuing.
+
+=== Server
+
+Nothing beyond storing and relaying changes.
+
+=== Client
+
+Input pipeline:: `WTApp.StrokeCapture` collects `NSEvent` samples (position, `pressure`,
+`timestamp`, and `tabletPoint` data when present) at the event rate, drawing the preview trail
+(solid or dotted per the setting) in the tool overlay.  On mouse-up the samples go to GEO-004's
+Schneider fit with an error tolerance derived from precision (`tolerance = 12 / precision` pt
+at 100% zoom, scaled by the inverse zoom so precision is in screen terms as in {fh}).
+
+Pencil:: The fitted centerline becomes an open contour of curve points; kbd:[Option] spans
+are emitted as straight segments with corner points at both ends.
+
+Variable Stroke Pen:: Width per sample: pressure mapped linearly to `[min, max]` when a pen is
+in contact, otherwise the bracket-key width.  The outline is built by offsetting the fitted
+centerline by half the (interpolated) width on each side and capping the ends with semicircles
+(GEO-003), then, if *Auto remove overlap* is on, unioned with itself (GEO-002).
+
+Calligraphic Pen:: Width per sample: `w = base * |sin(θ_stroke − θ_nib)|` clamped to at
+least 0.5 pt, where `base` is the fixed width or the pressure-mapped width.  Outline built as
+above but with flat, angled caps.
+
+Tablet:: `NSEvent.pressure` is 0 for mice; `event.subtype == .tabletPoint` marks pen samples.
+Sidecar delivers Apple Pencil as tablet events, so no special casing.  Bracket keys are read
+through the tool's `keyDown` while a drag is active and update the width from the next sample.
+
+Undo:: One group per stroke, including the overlap cleanup.
+
+=== Build tasks
+
+[[DRAW-016]]
+==== DRAW-016 Stroke capture and fitting
+[horizontal]
+Track:: client-ui
+Depends on:: DRAW-002, APP-003, GEO-004
+Size:: M
+Delivers:: `StrokeCapture` (sampling, pressure, tablet detection, dotted/solid preview overlay, kbd:[Option] straight spans with kbd:[Shift] constraint), the precision-to-tolerance mapping, and the end-point "+" continuation detection shared by the three pencil tools.
+Done when::
+* Recorded strokes from the GEO-004 corpus fit to the same point counts at each precision as {fh}'s recorded results, within 10%.
+* A stroke on a 1600% zoomed view uses a tolerance 16× smaller in pasteboard units.
+* Continuation from either end of a selected path inserts at the correct side; merge test: continuation vs. a concurrent point move elsewhere keeps both.
+
+[[DRAW-017]]
+==== DRAW-017 Pencil tool and sheet
+[horizontal]
+Track:: client-ui
+Depends on:: DRAW-016
+Size:: S
+Delivers:: The Pencil tool on `StrokeCapture`, its sheet (precision, Draw dotted line), preference persistence, and the Pencil tool group in the Tools panel.
+Done when::
+* UI tests draw a freehand stroke, a stroke with an kbd:[Option] span, and a continuation, and verify the resulting contours.
+* Merge test: continuing a path on one replica while another deletes it yields a deleted path plus an *edit vs delete* entry (offline) or a new path (online, live check).
+
+[[DRAW-018]]
+==== DRAW-018 Variable Stroke Pen
+[horizontal]
+Track:: client-ui
+Depends on:: DRAW-016, GEO-003, GEO-002
+Size:: M
+Delivers:: Width profile from pressure and bracket keys, the outline builder, *Auto remove overlap* on a background task, and the sheet (precision, dotted line, overlap, Min/Max).
+Done when::
+* A constant-pressure stroke produces an outline whose width equals the mapped value within 0.1 pt along its length.
+* A self-crossing stroke with overlap removal on yields a single composite path without interior overlaps; the two-step write is one undo group.
+* Merge test: overlap cleanup on one replica vs. a concurrent point edit on another produces an *edit vs delete* entry and no crash.
+
+[[DRAW-019]]
+==== DRAW-019 Calligraphic Pen
+[horizontal]
+Track:: client-ui
+Depends on:: DRAW-018
+Size:: S
+Delivers:: The nib-angle width model, fixed and variable modes, the angle dial control (shared with the rotation dials elsewhere in the app), and the sheet.
+Done when::
+* A straight stroke along the nib angle produces the minimum width and one across it the full width, within 0.1 pt.
+* UI test: bracket keys change width mid-stroke in Variable mode and do nothing in Fixed mode.
+
+[[DRAW-020]]
+==== DRAW-020 Tablet and Apple Pencil input
+[horizontal]
+Track:: client-ui
+Depends on:: DRAW-016
+Size:: S
+Delivers:: Pressure and proximity handling in `StrokeCapture`: pen-in-contact detection, pressure curve preference hook, Sidecar verification, and the rule that bracket keys are ignored while a pen is in contact.
+Done when::
+* A synthetic tablet event stream drives width in the Variable Stroke Pen; a mouse stream leaves it at the key-set width.
+* Manual test protocol for a Wacom tablet and for Sidecar is written into xref:testing.adoc[Testing] and executed once.
+endif::spec[]

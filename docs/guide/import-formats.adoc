@@ -1,0 +1,7 @@
+= Import file formats
+include::_attributes.adoc[]
+:page-slug: import-formats
+:page-group: Imported artwork
+:page-fh: Chapter 10, "Import file formats", "Importing PNG files", "Importing GIF files", "Importing DXF files", "Importing EPS and DCS EPS files", "Importing PDF files", "Importing PICT files", "Other file formats FreeHand can import"
+
+include::_includes/imported/import-formats.adoc[]

@@ -1,0 +1,651 @@
+A style is a named set of attributes you apply in one click and change in one place.
+*Graphic styles* carry strokes, fills, live effects and halftone settings for objects;
+*text styles* carry type and paragraph settings for text.  Both live in the Styles panel.
+Change a style and every object using it changes; give an object its own attributes on top of
+a style and it keeps them, marked as an override.  Styles can be based on other styles, copied
+between documents, and shared through team libraries.
+
+This page covers the Styles panel and graphic styles.  What a text style contains, and how it
+applies to paragraphs and text blocks, is on xref:text-styles.adoc[Using text styles].
+
+// TODO screenshot: the Styles panel in compact list view with Normal, Normal Text and a few graphic styles
+
+== The Styles panel
+
+To show the Styles panel:
+
+* Choose menu:Window[Styles].
+
+Every document starts with two styles: *Normal*, the graphic style new objects get, and
+*Normal Text*, the text style new text gets.  Neither can be removed or based on another style,
+but both can be redefined.
+
+Selecting a style in the panel with nothing selected on the canvas makes that style the
+*default attributes* for new objects (xref:default-attributes.adoc[Changing default
+attributes]).  Selecting a style while objects are selected applies it to them.
+
+To change how the panel lists styles, choose from the options menu:
+
+[cols="1,3"]
+|===
+|View |Shows
+
+|*Compact List View*
+|Style names with small previews.  The default.
+
+|*Large List View*
+|Style names with large previews.
+
+|*Previews Only*
+|Large previews with no names; hover for the name.
+|===
+
+The options menu also holds *New*, *New from Normal*, *Duplicate*, *Remove*, *Remove Unused*,
+*Redefine…*, *Style Behavior…*, *Import…* and *Export…*.
+
+== Applying styles
+
+To apply a style, do one of the following:
+
+* Select the objects, then click the style in the Styles panel.
+* Drag the style's preview from the Styles panel onto an object on the canvas.
+* Drag the style preview at the top of the Object panel's Properties list onto an object.
+
+Applying a style replaces the object's attributes in every category the style governs (see
+Style behavior below) and removes any overrides in those categories.  Attributes in categories
+the style does not govern are left alone.
+
+To copy attributes from one object to another without a style:
+
+. Select the source object and choose menu:Edit[Special > Copy Attributes].
+. Select the target object and choose menu:Edit[Special > Paste Attributes].
+
+The target keeps its style and gains the pasted attributes as overrides.
+
+=== Auto-applying new styles
+
+The *Auto-apply new styles to selection* preference (in the *Object* category of Preferences)
+decides what happens to selected objects when you create a style from them: on (the default),
+the objects are switched to the new style; off, they keep whatever style they had and the new
+style is merely added to the panel.
+
+=== Style behavior
+
+A graphic style can govern all attribute categories or only some.  A "stroke only" style, for
+instance, sets line weights across a drawing without touching anyone's fills.
+
+To choose which attributes a style affects:
+
+. Deselect everything (kbd:[Tab]).
+. Select the style in the Styles panel.
+. Choose *Style Behavior…* from the options menu.
+. In the sheet, check the categories the style should govern -- *Fills*, *Strokes*, *Effects*,
+  *Halftone* -- and choose a *Parent* style if you want one (see Basing one style on another).
+  At least one category stays checked.
+. Click btn:[OK].
+
+For text styles, the same sheet offers the options described on
+xref:text-styles.adoc[Using text styles].
+
+== Adding, duplicating and removing styles
+
+To create a style from the Normal style:
+
+* Choose *New from Normal* from the options menu.  The new style is a child of Normal with no
+  attributes of its own; edit it in the Object panel and redefine.
+
+To create a style from a selected object, do one of the following:
+
+* Select the object and choose *New* from the options menu.
+* Drag the object from the canvas into an empty part of the Styles panel.
+* Drag the object's preview swatch from the top of the Object panel's Properties list into an
+  empty part of the Styles panel.
+
+The new style takes the object's current attributes, including any overrides, and is named
+"Style 1", "Style 2" and so on.  With *Auto-apply new styles to selection* on, the object is
+switched to it.
+
+To create a style based on an existing style:
+
+. Deselect everything (kbd:[Tab]).
+. Select the style to build on in the Styles panel.  It becomes the default attributes.
+. Do one of the following:
+* Choose *New* from the options menu.
+* Drag the style preview from the Object panel's Properties list into an empty part of the
+  Styles panel.
+
+The new style is a child of the selected style: it starts identical and changes with its parent
+until you give it attributes of its own.
+
+To create a style from attributes set in the Object panel:
+
+. Deselect everything (kbd:[Tab]).
+. Set fills, strokes and effects in the Object panel.  You are editing the default attributes.
+. Choose *New* from the options menu, or drag the style preview from the Object panel into an
+  empty part of the Styles panel.
+
+To duplicate a style:
+
+. Deselect everything and select the style in the Styles panel.
+. Choose *Duplicate* from the options menu.  The copy is named after the original with " copy"
+  added and has the same parent and behavior.
+
+To remove a style:
+
+. Deselect everything and select the style.
+. Choose *Remove* from the options menu, or press kbd:[Delete].
+
+Objects that used the style keep their appearance and are switched to the removed style's
+parent (or Normal), with the attributes they had as overrides.
+
+To remove every style no object uses:
+
+* Choose *Remove Unused* from the options menu.  A sheet lists the styles about to go.
+
+To rename a style:
+
+. Choose a view that shows names (Compact or Large List View).
+. Double-click the style name, type the new name and press kbd:[Return].
+
+== Modifying and redefining styles
+
+Editing a style happens in the Object panel.  With nothing selected, click a style: the Object
+panel shows its attributes as the document's default attributes.  Changing them there changes
+what new objects get, but not the style itself -- the panel marks the style with a plus sign
+(+) to show the defaults now differ from the style.  Redefining the style commits those
+attributes to the style and to every object using it.
+
+To modify the default attributes from a style:
+
+. Deselect everything (kbd:[Tab]).
+. Click the style in the Styles panel.
+. In the Object panel (menu:Window[Object]) select an attribute in the Properties list and
+  change it.  A plus sign appears beside the style in the Styles panel.
+
+To redefine a style:
+
+. Deselect everything and click the style in the Styles panel.
+. Change attributes in the Object panel.
+. Do one of the following:
+* In the Object panel select the style row at the top of the Properties list and click
+  btn:[Redefine].
+* Choose *Redefine…* from the options menu, confirm the style in the sheet and click btn:[OK].
+* Drag the style preview from the Object panel onto the style in the Styles panel and click
+  btn:[Redefine] in the sheet.
+
+To redefine a style from an object:
+
+. Drag the object from the canvas, or its preview swatch from the Object panel, onto the style
+  in the Styles panel.
+. Click btn:[Redefine] in the sheet.
+
+To redefine a style from another style:
+
+. In the Styles panel drag the style whose attributes you want onto the style to redefine.
+. Click btn:[Redefine] in the sheet.
+
+Redefining changes every object that uses the style, except where an object has its own
+override for that attribute.
+
+=== Overrides
+
+Changing an attribute of an object that has a style gives it an *override*: the object shows
+that attribute instead of the style's.  Overrides survive redefinitions of the style.  When an
+object with overrides is selected, its style is highlighted in the Styles panel with a plus
+sign (+) beside it, and the overridden rows in the Object panel show a small dot.
+
+To override an object's style:
+
+. Select the object (or the paragraph or text block, for text styles).
+. Change any stroke, fill, effect or text attribute in the Object panel.
+
+To remove the overrides from an object:
+
+. Select the object.
+. Click its style in the Styles panel to reapply it.  Every override in the categories the
+  style governs goes away.
+
+To turn an object's overrides into a redefinition of its style:
+
+* Drag the object onto its own style in the Styles panel and click btn:[Redefine].
+
+== Basing one style on another
+
+A style can have a *parent*.  A child style inherits every attribute it does not set itself,
+so a family of styles can share a fill and differ only in stroke weight: change the parent's
+fill and every child follows; a child's own stroke stays as set.  Removing a child style moves
+its objects to the parent while keeping their look as overrides.
+
+To base a style on another:
+
+. Deselect everything (kbd:[Tab]).
+. Select the style that is to become the child.
+. Choose *Style Behavior…* from the options menu.
+. Choose the parent from the *Parent* pop-up menu and click btn:[OK].  A style cannot be its
+  own ancestor; the menu leaves out styles that would form a loop.
+
+To detach a style from its parent:
+
+* In *Style Behavior…* choose *None* from the *Parent* pop-up.  The style keeps its inherited
+  attributes as its own.
+
+== Copying styles between documents
+
+To copy a style with an object:
+
+. Select an object that uses the style and choose menu:Edit[Copy] or menu:Edit[Cut].
+. In the destination document choose menu:Edit[Paste].
+
+The object arrives with its style.  If the destination already has a style of that name, the
+existing style is left as it is and the pasted object gets overrides so it looks exactly as it
+did; otherwise the style is added to the panel.
+
+To import styles:
+
+. Choose *Import…* from the options menu.
+. Pick a document from your document library, a team library, or click btn:[Choose File…] for
+  a {product} document or {fh} style library on disk.
+. In the Import Styles sheet select the styles (kbd:[Shift]-click, kbd:[Cmd]-click) and click
+  btn:[Import].
+
+An imported style whose name is already in use is added as "Name 2"; check *Replace styles
+with the same name* in the sheet to redefine the existing ones instead.  Parents are imported
+along with children.
+
+To export styles:
+
+. Choose *Export…* from the options menu.
+. Select the styles and click btn:[Export].
+. Choose btn:[To Team Library…] to add them to a shared library, or btn:[To File…] for a style
+  library file.
+
+Team libraries are described on xref:library.adoc[Using the Library and symbols]; they hold
+styles as well as symbols.
+
+== Working with others
+
+Styles are part of the document, so the Styles panel is the same for everyone with it open.
+
+* *Someone redefines a style you are using.*  The objects on your screen update, except for
+  attributes you overrode on individual objects, which stay yours.  If you were adjusting the
+  default attributes from that style, the plus sign stays and your working values are kept;
+  redefine when you are ready.
+* *Two people redefine the same style at once.*  Attributes only one of you changed come from
+  that person; an attribute both changed goes to the later edit, and the sync review lists the
+  style with both values.  If both of you replaced the whole fill or stroke stack, the style
+  may briefly show both sets of fills; the review shows it and either of you can tidy it.
+* *Someone removes a style you are applying to new objects.*  The objects keep their look.
+  The sync review lists them as "uses a removed style" and offers *Restore style*, which
+  brings it back for everyone, or *Keep look*, which turns the look into overrides on the
+  parent style.
+* *Someone changes a style's parent or behavior while you edit it.*  Both changes apply; they
+  are independent settings.
+* *Offline.*  Everything works offline.  Styles you create offline appear for others on
+  reconnect; the review sheet lists only styles both you and a collaborator changed
+  (xref:collaboration.adoc[Working together]).
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,2"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Styles panel with graphic and text styles; Compact, Large, Previews Only views
+|Same.
+|Faithful
+
+|Normal and Normal Text default styles
+|Same, with fixed roles; cannot be removed or given a parent.
+|Faithful
+
+|Selecting a style with nothing selected sets default attributes
+|Same.
+|Faithful
+
+|Apply by click, drag from panel, drag from Object panel
+|Same.
+|Faithful
+
+|Copy Attributes / Paste Attributes
+|Same; the paste is recorded as overrides.
+|Faithful
+
+|Auto-Apply to Selection (Object preference)
+|*Auto-apply new styles to selection*, default on.
+|Faithful
+
+|Style Behavior: Both Fill + Stroke / Fill / Stroke
+|Four independent categories: Fills, Strokes, Effects, Halftone.
+|Adapted -- {fh} MX styles carry effects and halftones but the behavior menu cannot exclude
+them; checkboxes cover every category the style holds.
+
+|New, New from Normal, Duplicate, Remove, Remove Unused, rename
+|Same.
+|Faithful
+
+|Modify defaults in the Object panel; plus sign; Redefine via button, menu, drag
+|Same.
+|Faithful
+
+|Override an object's style; plus sign on selection; reapply to clear
+|Same, plus a dot on overridden rows in the Object panel.
+|Faithful
+
+|Parent styles: inheritance, child removal moves objects to parent
+|Same; loops prevented in the UI and cut on read.
+|Faithful
+
+|Paste between documents keeps the destination's same-named style and overrides the object
+|Same.
+|Faithful
+
+|Import/Export styles from documents or style library files
+|Import from cloud documents, team libraries and files; export to team library or file.
+|Adapted -- cloud sources added; files remain.
+|===
+
+=== Data model
+
+Styles are children of the well-known `styles` node.  Objects reference a style through
+`CommonProps.style` (defined in `common.proto`, `on_dangling = REF_FALLBACK_UNSET`).
+
+[source,protobuf]
+----
+// proto/wiretuner/doc/v1/style.proto (sketch)
+syntax = "proto3";
+package wiretuner.doc.v1;
+
+// Fixed roles.  The document template creates one NORMAL and one NORMAL_TEXT style; clients
+// never delete them or give them a parent.
+enum StyleRole {
+  STYLE_ROLE_ORDINARY = 0;
+  STYLE_ROLE_NORMAL = 1;        // default graphic style
+  STYLE_ROLE_NORMAL_TEXT = 2;   // default text style
+}
+
+enum StyleKind {
+  STYLE_KIND_GRAPHIC = 0;
+  STYLE_KIND_TEXT = 1;
+}
+
+// Which attribute categories a graphic style governs.  STRUCT (the default): each category
+// is an independent choice, so two people toggling different boxes keep both.  Create writes
+// all four explicitly (proto3 bools default to false).  Readers treat all-false as all-true.
+message StyleBehavior {
+  bool fills = 1;
+  bool strokes = 2;
+  bool effects = 3;
+  bool halftone = 4;
+}
+
+// Properties of a node of kind `style`.  Name lives in CommonProps.name.
+message StyleProps {
+  StyleRole role = 1;             // fixed at creation
+  StyleKind kind = 2;             // fixed at creation
+  // Parent style.  Unset = no parent (Normal is not implicitly the parent: an ordinary style
+  // with no parent falls back to the document defaults for anything it does not set).
+  NodeRef based_on = 3 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
+  StyleBehavior behavior = 4;     // graphic styles only
+  // The style's own attributes: fills, strokes, effects and halftone as the ATTR epic defines
+  // them on objects (see the attribute-stack page).  Fields the style does not set are inherited
+  // from based_on.  Merges per the ATTR epic's policies: the stacks are SEQUENCEs, colors
+  // ATOMIC, and so on.
+  AppearanceProps appearance = 5;
+  // Text attributes for text styles; message and policies owned by the TYPE epic
+  // (see the text-styles page).
+  TextStyleAttrs text = 6;
+}
+----
+
+Resolution (read-time)::
+An object's effective appearance is computed, never stored:
+
+. Start from the document defaults (the `settings` node).
+. Walk the `based_on` chain from the root ancestor down to the object's style, applying each
+  style's set registers in the categories its `behavior` governs.  A style register that is
+  unset is inherited.  Chains are cut at the link with the smallest node id if they loop, and
+  a dangling `based_on` is treated as unset.
+. Apply the object's own set appearance registers (its overrides).
+
+Override model::
+The object stores *only* its explicit overrides.  Applying a style writes `CommonProps.style`
+and clears every override register in the categories the new style governs.  Clearing is a
+`SetFields` that lists the path with no value in `values`, which writes the register to
+*unset* with a fresh OpId (so the clear participates in LWW like any write).  An object with
+no style ref and no overrides renders as the defaults.  The plus sign is derived: any set
+override register in a governed category.
+
+Why not bake the resolved appearance onto every object::
+Baking makes *Redefine* a fan-out write to every object using the style (thousands of ops for
+a large document, and a change per 10,000-op limit), makes a concurrent override and a
+redefine collide on the *same register* (so LWW could silently discard a designer's override),
+and doubles storage.  Resolve-on-read keeps redefine a write to one node, keeps overrides on
+different registers from redefinitions -- so an override always wins, as in {fh} -- and costs
+one cached resolution per style per subtree version in `WTModel`.  The price is the dangling
+case, handled below.
+
+Cross-document paste::
+The pasteboard payload carries the source style (name, parent chain, appearance) and the
+object's resolved appearance.  On paste, a same-named style in the destination is left alone
+and the object gets overrides for every attribute where the resolved look differs from what
+the destination style would give; a missing style is created (parents first) in the same
+change.
+
+=== Merge semantics
+
+[cols="1,1,3"]
+|===
+|Field |Policy |Concurrent behavior
+
+|`name`, `role`, `kind`
+|ATOMIC
+|LWW; a lost rename is listed as *same register*.
+
+|`based_on`
+|ATOMIC ref
+|Two people setting different parents: LWW, listed.  A concurrent parent change that creates
+a loop (A → B while B → A) is cut on read at the smaller node id; the review sheet lists both
+styles as *both edited* with the note "these styles now refer to each other".
+
+|`behavior`
+|STRUCT of ATOMIC bools
+|Toggling different categories keeps both.  All-false reads as all-true.
+
+|`appearance`
+|Per the ATTR epic: STRUCT fields, SEQUENCE stacks
+|A redefine that changes a fill's color and one that changes the stroke width both apply.
+Two redefines that each *replace* a stack (delete the elements they saw, insert their own)
+leave both inserted sets: the merged style has two fills.  Normalization: none (it is a valid
+style).  Mitigation: the redefine command diffs the new appearance against the current one
+and edits elements in place where kinds match, inserting or deleting only what changed, so
+the whole-stack replacement is rare.  The review sheet lists the style as *both edited* with
+Mine/Theirs previews.
+
+|`CommonProps.style` on objects
+|ATOMIC ref, UNSET on dangling
+|Two people applying different styles to one object: LWW, listed.
+|===
+
+Redefine versus concurrent override::
+Different nodes.  The redefine writes style registers; the override writes object registers.
+The object shows its override; every other object shows the redefinition.  Nothing to review.
+
+Apply style versus concurrent override::
+Apply clears override registers; the override writes one.  Same register: LWW.  If the apply
+wins, the override is gone and the reviewer sees *same register* with the override value
+offered back.  If the override wins, the object has the new style plus that one override --
+what the user who overrode expects.
+
+Delete style in use::
+*Remove* is one change: for every object the deleting client sees using the style, write the
+object's resolved appearance (in the style's governed categories) as overrides, set
+`CommonProps.style` to the style's parent (or Normal, or unset for a text style with no
+parent), then `deleted = true` on the style.  The look of every object the deleter knew about
+is preserved.  An object a collaborator applied the style to concurrently now dangles:
+`REF_FALLBACK_UNSET` would render it with only its overrides -- probably none, since apply
+clears them.  Read-time normalization: a style ref whose target is *deleted but still present*
+resolves through the deleted node's registers (deleted nodes keep their properties); only a
+compacted, unknown node reads as unset.  So the look survives for the 30 days a deleted node
+is retained, during which the review sheet lists the object as "uses a removed style" with
+*Restore style* (`deleted = false`) and *Keep look* (bake overrides and re-point to the parent,
+the same operation *Remove* performs).  A dismissed review leaves the state as is; after
+compaction such an object falls back to its overrides, which is the documented consequence of
+ignoring the review.
+
+Remove child style::
+Objects move to the parent with their attributes as overrides (above), which is the {fh}
+behavior.
+
+Remove Unused::
+Computed from the style-to-objects index at the moment of the command.  A concurrent apply of
+a style being removed is the dangling case above.
+
+Duplicate, New, New from Normal::
+`CreateNode` with copied registers; independent of concurrent work.
+
+Import with *Replace styles with the same name*::
+A redefine per existing style, subject to the redefine rules.
+
+Read-time normalizations::
+* `based_on` loops cut at the smallest node id in the cycle.
+* All-false `behavior` reads as all categories.
+* A style ref to a deleted-but-present style resolves through the deleted node.
+* A style ref to a node that is not a style, or to a text style from a graphic object (or the
+  reverse), reads as unset.
+* More than one style with `STYLE_ROLE_NORMAL` (or `NORMAL_TEXT`): the smallest node id is
+  Normal; the rest read as ORDINARY.  A deleted Normal reads as live.
+
+What the review sheet shows::
+Style rows carry a preview swatch rendered from each side's resolution; per-attribute rows use
+the ATTR epic's value formatting.  Object rows for the dangling case carry the two choices
+above.
+
+=== Offline behavior
+
+Everything works offline.  Coalescing turns a session of Object-panel tweaks to the default
+attributes into nothing on the wire (defaults are `local_only` view state until redefined) and
+repeated redefinitions into the last.  Team library import and export need the network, as on
+xref:library.adoc[the Library page].
+
+=== Server
+
+Nothing beyond storing and relaying changes.  Team library listing is delivered by the Library
+page's tasks.
+
+=== Client
+
+Package:: `WTModel` owns `StyleResolver` (chain walk, behavior masks, override merge, cached
+per style subtree version), the style-to-objects index, and `StyleCommands` (new, new from
+Normal, duplicate, remove, remove unused, rename, apply, redefine with in-place diff, set
+parent, set behavior, copy/paste attributes, import, export).  `WTApp` owns the Styles panel,
+the Style Behavior sheet, the Redefine sheets and the Object panel's style row.  Text style
+content and application are the TYPE epic's, using the same resolver.
+
+Default attributes:: The working copy of the defaults is `local_only` view state held on the
+`settings` node (xref:default-attributes.adoc[Changing default attributes]); selecting a style
+copies its resolved appearance into it and records which style it came from, so the plus sign
+can be computed and *Redefine* knows its target.
+
+Styles panel:: An `NSCollectionView` with three layouts (compact list, large list, previews
+only), drop targets for objects, Object-panel previews and other styles (empty area = new,
+onto a style = redefine sheet), in-place renaming, kbd:[Delete] to remove.  Previews are
+rendered by `WTRender` from a fixed sample path (a rounded rectangle for graphic styles, "Aa"
+for text styles) through the resolver.  Remote changes update previews in place.
+
+Object panel integration:: The Properties list's top row is the style (name, preview,
+btn:[Redefine], a pop-up to change style); overridden rows show a dot; the row's context menu
+offers *Clear Override*.  The APP-007 host supplies the list; this epic supplies the row.
+
+Undo grouping:: Every command is one change and one undo step; *Remove* with baking is one
+change ("Remove style Callout"); *Redefine* is one change ("Redefine style Callout").
+
+Preferences:: *Auto-apply new styles to selection* (Object, default on).
+
+=== Build tasks
+
+[[LIB-017]]
+==== LIB-017 Style schema
+[horizontal]
+Track:: proto
+Depends on:: PROTO-003
+Size:: S
+Delivers:: `doc/v1/style.proto` with `StyleRole`, `StyleKind`, `StyleBehavior`, `StyleProps` (importing `AppearanceProps` from the ATTR epic's `appearance.proto` and `TextStyleAttrs` from the TYPE epic's `text.proto`; stubs if they do not exist yet), and the `style` case in `NodeProps.kind`.
+Done when::
+* `buf lint` with `COMMENTS` passes; merge table shows `based_on` with `REF_FALLBACK_UNSET` and `behavior` STRUCT.
+* Conformance vector: concurrent writes to `behavior.fills` and `behavior.strokes` keep both; concurrent `based_on` writes resolve LWW.
+
+[[LIB-018]]
+==== LIB-018 Style resolution
+[horizontal]
+Track:: client-model
+Depends on:: CRDT-001, CRDT-004, LIB-017
+Size:: M
+Delivers:: `StyleResolver`: chain walk with loop cut, behavior masks, override merge, unset-register semantics, the deleted-but-present rule, the wrong-kind rule, the duplicate-role rule, per-style caching keyed by subtree version, and the style-to-objects index.
+Done when::
+* Unit tests for every normalization in the Merge semantics section.
+* Resolving 50,000 objects across 200 styles after one redefine takes under 20 ms on M1.
+* Conformance vectors (read-outs) for a `based_on` loop and for a ref to a deleted style.
+
+[[LIB-019]]
+==== LIB-019 Style commands
+[horizontal]
+Track:: client-model
+Depends on:: APP-011, LIB-018
+Size:: L
+Delivers:: `StyleCommands`: new (from selection, from Normal, from style, from defaults), duplicate, rename, apply (with override clearing), redefine (in-place diff), remove (bake and re-point), remove unused, set parent (loop refusal), set behavior, Copy/Paste Attributes.
+Done when::
+* Each command is one change with the labels in the Client section and undoes in one step.
+* Merge tests: redefine vs. concurrent override keeps the override; apply vs. concurrent override is LWW with the loser retained; remove vs. concurrent apply leaves the look intact via the deleted-node rule; two in-place redefines of different fields keep both.
+* Conformance vector for the clear-to-unset `SetFields` form (a listed path with no value).
+
+[[LIB-020]]
+==== LIB-020 Styles panel
+[horizontal]
+Track:: client-ui
+Depends on:: APP-004, APP-005, APP-006, LIB-019
+Size:: L
+Delivers:: The Styles panel: three views, previews rendered through the resolver, click to apply or to set defaults, drag to canvas, drops for new and redefine with sheets, in-place rename, plus-sign markers for modified defaults and for overridden selections, the options menu, the Style Behavior sheet with the Parent pop-up excluding loop candidates, the Remove Unused sheet.
+Done when::
+* UI tests for every procedure in the guide.
+* Remote redefinitions update previews and the canvas without interrupting a rename.
+* Text styles appear and apply through the TYPE epic's hooks (prose dependency).
+
+[[LIB-021]]
+==== LIB-021 Object panel style row and overrides
+[horizontal]
+Track:: client-ui
+Depends on:: APP-007, LIB-019, LIB-020
+Size:: M
+Delivers:: The style row at the top of the Properties list (name, preview, btn:[Redefine], style pop-up), override dots on rows, *Clear Override* context command, dragging the preview to the Styles panel or onto objects, and the defaults editing flow with the plus sign.
+Done when::
+* Editing a governed attribute on a styled object shows the dot and the plus sign within one frame.
+* btn:[Redefine] writes one change and clears the plus sign for every client.
+* A remote change to the selected object's style does not steal focus from a field being edited.
+
+[[LIB-022]]
+==== LIB-022 Style import, export and cross-document paste
+[horizontal]
+Track:: client-sync
+Depends on:: LIB-013, LIB-019
+Size:: M
+Delivers:: Import from cached or cloud documents, team libraries and style library files with name conflict handling and the *Replace styles with the same name* option; export to team library or file; pasteboard payload with style chains and resolved looks; paste matching by name with override baking.
+Done when::
+* Pasting a styled object into a document with a different same-named style looks identical and shows the plus sign.
+* Importing a child style imports its parents once.
+* Merge test: two people import the same style concurrently yield "Name" and "Name 2" and no conflict rows.
+* {fh} style libraries route through the IMG epic's importer (prose dependency).
+
+[[LIB-023]]
+==== LIB-023 Multi-client scenarios for layers, symbols and styles
+[horizontal]
+Track:: test
+Depends on:: TEST-001, LIB-003, LIB-009, LIB-019
+Size:: M
+Delivers:: Simulator scenarios: remove layer vs. draw on it; overlapping layer merges; lock vs. in-progress drag; remove symbol vs. place instance; two editors in one symbol; release vs. symbol edit; redefine vs. override; remove style vs. apply; each with an offline variant that reconnects after 12 hours of simulated time.
+Done when::
+* Every scenario converges to one state hash across three clients and the server.
+* Each scenario asserts the review-sheet rows named on its page, and their absence where the page says nothing is listed.
+endif::spec[]

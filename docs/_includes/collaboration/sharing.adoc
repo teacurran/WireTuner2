@@ -1,0 +1,611 @@
+A document lives in one *space*: your personal space, or a team you belong to.  Who can open
+it, and what they may do with it, is decided by the roles you give people and links in the
+Share sheet, and -- for a team document -- by the team's default.  This page covers the Share
+sheet, roles, links, teams and team libraries, and what happens to someone whose access
+changes while they are working.  Accounts and teams themselves (signing in, creating a team,
+company workspaces) are described briefly here and in full in
+xref:security.adoc[Accounts, teams and security].
+
+// TODO screenshot: Share sheet for a team document with three people, a link row and the team access popup
+
+== Signing in
+
+{product} asks you to sign in once per Mac.  The sign-in page offers a *passkey* first -- the
+quickest and safest way: your Mac confirms it is you with Touch ID and there is nothing to
+type or remember, and a passkey made on one Mac is ready on your others through iCloud
+Keychain.  You can also *Sign in with Apple*, or use an email address and password; and if
+your company has set up a workspace, choose *Sign in with your work account* and use the
+company's own sign-in.  Whichever you pick, it is the same account: if you sign in with Apple
+today and with a passkey tomorrow, using the same email address, you land in the same library.
+If you hid your email address from Apple, add your work address on the account page before
+joining a company workspace, so the workspace can recognise you.
+
+The account page lists the Macs you are signed in on and how each one signed in, and lets you
+add or remove sign-in methods; signing out of a Mac keeps the documents cached on it.
+
+== Spaces: Personal and teams
+
+You have one personal account and can belong to any number of teams at once.  The library
+window's sidebar lists *Personal* and then each team; select one to see its documents.  A
+document belongs to exactly one space:
+
+* A *personal* document is owned by you.  Only people you invite, or who use a link you
+  made, can open it.
+* A *team* document is owned by the team.  Every member of the team may have access to it
+  automatically, according to the team's default (<<team-access,Access for the whole team>>),
+  and you can still invite individuals and make links.
+
+To move a document from one space to another, choose menu:File[Move to…] in the library
+window, or drag the document onto a space in the sidebar.  You must be the document's owner,
+and moving into a team makes the team the owner; the team's default access then applies.
+Moving a document out of a team needs a team admin.
+
+NOTE: Creating a team, inviting people to it, team roles (owner, admin, member, guest),
+leaving a team and binding a team to a company workspace are on
+xref:security.adoc[Accounts, teams and security].  In short: members see and use team
+documents; guests see only what is shared with them explicitly; admins manage people and
+settings; and a team bound to a verified email domain can admit everyone who signs in with an
+address on it.
+
+== Roles
+
+[cols="1,4"]
+|===
+|Role |May
+
+|Viewer
+|Open the document, see collaborators, follow them, browse history, export and print, and copy
+objects out to another document.  Cannot change anything.
+
+|Commenter
+|Reserved.  There are no comments in this version; a commenter is treated exactly as a viewer,
+and the role exists so that granting it now means something later.
+
+|Editor
+|Everything a viewer may, plus edit the document, name versions, create and merge branches,
+restore versions, and invite other people at editor or below.
+
+|Owner
+|Everything an editor may, plus remove anyone, change anyone's role, change or revoke share
+links made by anyone, set the team's access to this document, transfer ownership, move the
+document to another space, and delete it.  A personal document has one owner: you.  A team
+document is owned by the team; its owners and admins act as the document's owner, and the
+person who created it is listed as the *creator*.
+|===
+
+Your effective role is the highest of: the role you were given by name, the team default (if
+you are a team member and the document is in that team), and the role of any link you opened
+the document with.  A role given by name can also *lower* what a team default would grant --
+see <<team-access,Access for the whole team>>.
+
+== The Share sheet
+
+To open it, click btn:[Share] in the toolbar or choose menu:File[Share…].  It needs the
+network: offline, the button explains that sharing will be available when you reconnect.
+
+The sheet has three parts.
+
+.People
+A list of everyone with access by name, with their role in a popup beside each.  Owners can
+change any role; editors can see the list but only change roles they granted themselves.
+The person who opened the sheet is marked _you_.  Members of the team who have access only
+through the team default are shown as one row, "Everyone in Marketing", rather than
+individually.
+
+.Invite
+A field that accepts email addresses or the names of people in your teams, a role popup, and
+an optional message.  Press kbd:[Return] or click btn:[Invite].  Each person gets an email
+with a link; the document appears in their library under *Shared with me* (or in the team's
+list) the moment they open the link, and in the People list right away.
+
+.Links
+Zero or more share links.  Each link has a role, an optional expiry, and optionally a
+password.  Copy a link with btn:[Copy Link].
+
+To invite someone:
+
+. Open the Share sheet.
+. Type their email address or start typing their name; pick from the suggestions if they are
+  in one of your teams.
+. Choose a role.  You cannot grant a role above your own.
+. Optionally add a message, then click btn:[Invite].
+
+To change or remove someone's access:
+
+. Open the Share sheet.
+. Use the role popup beside their name.  Choose *Remove* at the bottom of the popup to remove
+  them.
+. Removed people lose access at once (<<mid-session,When your access changes mid-session>>).
+
+You can always remove yourself from a document you were invited to, from the same popup;
+the document leaves your library and your local copy is deleted.
+
+[[links]]
+== Share links
+
+A link grants its role to anyone who signs in and opens it.  Links are unguessable, and they
+can be limited:
+
+[cols="1,3"]
+|===
+|Option |Effect
+
+|*Role*
+|Viewer, Commenter or Editor.  A link never grants Owner.
+
+|*Expires*
+|Never, or a date.  After the date the link stops working; people who already opened it keep
+the access they have.  Owners can set *Revoke access from this link on expiry* to remove that
+too.
+
+|*Password*
+|A phrase the person must type the first time they open the link.  Passwords are never sent
+in the link and are not shown again after you set one.
+
+|*Restrict to team members*
+|For a team document: only signed-in members of the team can use the link.  Teams with a
+company workspace can require this for every link.
+|===
+
+To make a link:
+
+. Open the Share sheet and click btn:[New Link].
+. Choose the role, and set an expiry and a password if you want them.
+. Click btn:[Copy Link] and paste it wherever you like.
+
+To revoke a link, click btn:[Revoke] in its row.  People who opened it lose the access it
+granted (unless they also have a role by name or through the team).
+
+There are no anonymous readers: everyone who opens a link signs in, so every collaborator in
+the document has a name and a color, and history records who did what.
+
+[[team-access]]
+== Access for the whole team
+
+A team has a *default document role* -- None, Viewer, Commenter or Editor -- that every
+member (not guest) receives on every document in the team.  Admins set it in the team's
+settings.  A document's owner can override the default for that one document in the Share
+sheet with the *Everyone in <team>* popup, up or down.  A person's named role, if any, wins
+over both when it is higher; when the named role is *lower* than the team's access, the named
+role wins as well -- that is how you give a specific member view-only access to a document
+the rest of the team edits.
+
+== Requesting access
+
+Someone who opens a link to a document they cannot see -- an expired link, a team document
+they are a guest in, a personal document they were never invited to -- sees a page with the
+document's name and a btn:[Request Access] button.  They may add a message.
+
+Every owner of the document receives the request in the app (a badge on btn:[Share] and a
+row at the top of the Share sheet's People list) and by email, and grants a role or declines
+from there.  The requester is told either way.
+
+== Transferring ownership
+
+The owner of a personal document can hand it to another person:
+
+. Open the Share sheet and choose menu:Actions[Transfer Ownership…].
+. Pick the new owner from the people who already have access.
+. Confirm.  You keep the document with the editor role; the new owner may remove you.
+
+Team documents are owned by the team, so there is nothing to transfer; use menu:File[Move
+to…] to move the document to a different space.
+
+[[mid-session]]
+== When your access changes mid-session
+
+If your role is lowered, or your access is removed, while you have the document open:
+
+* *Lowered to viewer or commenter*: the document becomes read-only at once.  A bar under the
+  toolbar says "You can no longer edit this document".  Any changes of yours that had not yet
+  been sent are offered as btn:[Save as a Copy…], which creates a document of your own with
+  them, or btn:[Discard].  They are never sent to the shared document.
+* *Removed*: the same bar with "You no longer have access", the same offer for your unsent
+  changes, and the window closes when you have decided.  The document disappears from your
+  library and your local copy is deleted after the offer.
+* *Raised*: the document becomes editable without reopening it.
+
+The same applies when you reconnect after being offline and learn that your role changed
+while you were away: your offline changes are offered as a copy rather than being sent.
+
+Your own presence -- cursor, selection -- continues to be visible to others as a viewer.
+
+== Team libraries
+
+A team can mark any of its documents as a *library*.  A library document's swatches, styles
+and symbols (xref:swatches.adoc[Swatches], xref:styles.adoc[Styles],
+xref:library.adoc[Library]) are then offered inside every other document in the team, under a
+*Team libraries* section in those panels.
+
+To publish a document as a team library:
+
+. As a team admin, select the document in the library window and choose menu:File[Use as
+  Team Library].
+. Give the library a name (the document's name by default).
+
+To use something from a team library:
+
+. In the Swatches, Styles or Library panel, expand *Team libraries* and the library you want.
+. Drag a swatch, style or symbol into your document, or double-click it.
+
+What you take is *copied* into your document.  It becomes an ordinary swatch, style or symbol
+of your document that anyone with edit access can change, and it remembers where it came
+from: the Object panel and the panels show a small library badge, and hovering it names the
+library.  If the library's version changes later, the item in your document does not change
+by itself; choose menu:Actions[Update from Library] on the item to copy the current version
+over it, or menu:Actions[Detach from Library] to forget the origin.  A library you have never
+opened on this Mac is unavailable offline; ones you have used are cached.
+
+NOTE: Team libraries are an addition.  {fh}'s Library panel held a single document's symbols;
+{product} keeps that panel (xref:library.adoc[Library]) and adds shared libraries above it.
+
+== Working with others
+
+Sharing does not touch the document's contents, so there is nothing to merge: the People list
+is what the server holds right now, and two owners editing it at the same time each see the
+other's changes appear within a moment.  If two people change one person's role at once, the
+later change stands.
+
+After being offline, the Share sheet simply shows the current state.  Invitations you tried
+to send offline were never queued -- the sheet does not open without a connection -- so there
+is nothing to catch up.  Team library items you copied while offline (from a cached library)
+are ordinary objects in your document and sync like any other change.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,2"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|--
+|Spaces, roles, invitations, links, access requests, ownership transfer, mid-session role
+changes.
+|Added -- no FreeHand equivalent
+
+|Library panel (per-document symbols)
+|Kept (xref:library.adoc[Library]); team libraries added on top as copy-on-use with
+provenance.
+|Added -- shared libraries on top of the unchanged per-document panel.
+|===
+
+=== Data model
+
+Everything here except library provenance is *server state*, not document state: the SRV-003
+tables `document` (with `owner_account_id XOR team_id`), `document_member`, `share_link`,
+plus `access_request` and `library` added by COLLAB-011 and COLLAB-012.  The shapes below
+are the `docs.v1` request/response sketches that PROTO-007 and COLLAB-010 implement.
+
+[source,protobuf]
+----
+// proto/wiretuner/account/v1/roles.proto (sketch; shared by docs.v1 and sync.v1)
+enum DocumentRole {
+  DOCUMENT_ROLE_UNSPECIFIED = 0;
+  DOCUMENT_ROLE_NONE = 1;        // a member row that only holds a presence color
+  DOCUMENT_ROLE_VIEWER = 2;
+  DOCUMENT_ROLE_COMMENTER = 3;   // reserved: behaves as VIEWER in v1
+  DOCUMENT_ROLE_EDITOR = 4;
+  DOCUMENT_ROLE_OWNER = 5;
+}
+
+// proto/wiretuner/docs/v1/share.proto (sketch)
+service ShareService {
+  rpc ListMembers(ListMembersRequest) returns (ListMembersResponse);
+  rpc Invite(InviteRequest) returns (InviteResponse);              // by email or account id
+  rpc SetRole(SetRoleRequest) returns (SetRoleResponse);           // also removes (role NONE)
+  rpc SetTeamAccess(SetTeamAccessRequest) returns (SetTeamAccessResponse);
+  rpc CreateLink(CreateLinkRequest) returns (CreateLinkResponse);
+  rpc UpdateLink(UpdateLinkRequest) returns (UpdateLinkResponse);  // role, expiry, password, restrict
+  rpc RevokeLink(RevokeLinkRequest) returns (RevokeLinkResponse);
+  rpc ListLinks(ListLinksRequest) returns (ListLinksResponse);
+  rpc OpenLink(OpenLinkRequest) returns (OpenLinkResponse);        // token (+ password) → document + role
+  rpc RequestAccess(RequestAccessRequest) returns (RequestAccessResponse);
+  rpc ListAccessRequests(ListAccessRequestsRequest) returns (ListAccessRequestsResponse);
+  rpc ResolveAccessRequest(ResolveAccessRequestRequest) returns (ResolveAccessRequestResponse);
+  rpc TransferOwnership(TransferOwnershipRequest) returns (TransferOwnershipResponse);
+}
+
+message Member {
+  string account_id = 1;
+  string display_name = 2;
+  string email = 3;                          // only shown to owners
+  wiretuner.account.v1.DocumentRole role = 4;  // the named role; NONE if only via team/link
+  // How the effective role arises, for the People list: NAMED, TEAM_DEFAULT, LINK.
+  repeated AccessSource sources = 5;
+  wiretuner.account.v1.DocumentRole effective_role = 6;
+  uint32 color_index = 7;                    // presence color (xref:presence.adoc[Presence])
+  bool is_creator = 8;                       // team documents: who created it
+}
+
+message ListMembersRequest { string document_id = 1; string cursor = 2; }
+message ListMembersResponse {
+  repeated Member members = 1;
+  // Team access row, when the document is in a team.
+  TeamAccess team_access = 2;
+  string next_cursor = 3;
+}
+
+message TeamAccess {
+  string team_id = 1;
+  string team_name = 2;
+  // The team's default document role; what members get unless overridden below.
+  wiretuner.account.v1.DocumentRole team_default = 3;
+  // Per-document override set by an owner; UNSPECIFIED means "use the team default".
+  wiretuner.account.v1.DocumentRole override = 4;
+}
+
+message InviteRequest {
+  string document_id = 1;
+  // Exactly one of the two.  Emails are validated; unknown addresses get an invitation mail
+  // and a pending member row that binds on first sign-in.
+  string email = 2 [(buf.validate.field).string.email = true];
+  string account_id = 3;
+  wiretuner.account.v1.DocumentRole role = 4;   // never OWNER; never above the caller's role
+  string message = 5 [(buf.validate.field).string.max_len = 2000];
+}
+message InviteResponse { Member member = 1; }
+
+message SetRoleRequest {
+  string document_id = 1;
+  string account_id = 2;
+  // NONE removes the named role (the person may retain access through team or link).
+  wiretuner.account.v1.DocumentRole role = 3;
+}
+message SetRoleResponse { Member member = 1; }
+
+message SetTeamAccessRequest {
+  string document_id = 1;
+  wiretuner.account.v1.DocumentRole override = 2;   // UNSPECIFIED clears the override
+}
+message SetTeamAccessResponse { TeamAccess team_access = 1; }
+
+message ShareLink {
+  string id = 1;
+  // Opaque 128-bit token; the URL is https://<host>/l/<token>.  Returned only at creation.
+  string token = 2;
+  wiretuner.account.v1.DocumentRole role = 3;         // VIEWER, COMMENTER or EDITOR
+  google.protobuf.Timestamp expires_at = 4;           // unset = never
+  bool revoke_on_expiry = 5;                          // also drop access granted by it
+  bool has_password = 6;                              // the password itself is never returned
+  bool team_members_only = 7;
+  string created_by = 8;
+  google.protobuf.Timestamp created_at = 9;
+  uint32 uses = 10;
+}
+message CreateLinkRequest {
+  string document_id = 1;
+  wiretuner.account.v1.DocumentRole role = 2;
+  google.protobuf.Timestamp expires_at = 3;
+  bool revoke_on_expiry = 4;
+  string password = 5 [(buf.validate.field).string.max_len = 128];   // stored as argon2id hash
+  bool team_members_only = 6;
+}
+message CreateLinkResponse { ShareLink link = 1; }
+message UpdateLinkRequest {
+  string link_id = 1;
+  optional wiretuner.account.v1.DocumentRole role = 2;
+  optional google.protobuf.Timestamp expires_at = 3;
+  optional bool revoke_on_expiry = 4;
+  optional string password = 5;          // empty string clears the password
+  optional bool team_members_only = 6;
+}
+message UpdateLinkResponse { ShareLink link = 1; }
+message RevokeLinkRequest { string link_id = 1; }
+message RevokeLinkResponse {}
+message ListLinksRequest { string document_id = 1; }
+message ListLinksResponse { repeated ShareLink links = 1; }
+
+// Opening a link.  The caller is signed in.  Success records the link as one of the
+// caller's access sources.  A wrong or missing password is PERMISSION_DENIED with reason
+// LINK_PASSWORD_REQUIRED; an expired or revoked link is NOT_FOUND (LINK_INVALID), and the
+// response carries `can_request_access` so the client can show the request page.
+message OpenLinkRequest { string token = 1; string password = 2; }
+message OpenLinkResponse {
+  string document_id = 1;
+  string document_name = 2;
+  wiretuner.account.v1.DocumentRole effective_role = 3;
+}
+
+message RequestAccessRequest {
+  string document_id = 1;
+  string message = 2 [(buf.validate.field).string.max_len = 2000];
+}
+message RequestAccessResponse { string request_id = 1; }
+message AccessRequest {
+  string id = 1; string document_id = 2; string account_id = 3; string display_name = 4;
+  string email = 5; string message = 6; google.protobuf.Timestamp created_at = 7;
+}
+message ListAccessRequestsRequest { string document_id = 1; }   // owners only
+message ListAccessRequestsResponse { repeated AccessRequest requests = 1; }
+message ResolveAccessRequestRequest {
+  string request_id = 1;
+  wiretuner.account.v1.DocumentRole grant = 2;   // NONE declines
+}
+message ResolveAccessRequestResponse {}
+
+message TransferOwnershipRequest { string document_id = 1; string new_owner_account_id = 2; }
+message TransferOwnershipResponse {}
+
+// Session-side notification (sync.v1 DocumentEvent, PROTO-006) for the mid-session cases.
+message DocumentEvent {
+  oneof event {
+    RoleChanged role_changed = 1;      // new effective role for the caller
+    AccessRemoved access_removed = 2;
+    Renamed renamed = 3;
+    Moved moved = 4;                   // to another space
+    Trashed trashed = 5;
+    BranchEvent branch = 6;            // xref:branches.adoc[Branches]
+  }
+}
+----
+
+Team libraries add one thing to the *document* schema: provenance on a copied node.
+
+[source,protobuf]
+----
+// proto/wiretuner/doc/v1/common.proto (addition, COLLAB-010)
+
+// Where a swatch, style or symbol was copied from.  Set once by the copy command and only
+// rewritten by "Update from Library" (which copies again) or cleared by "Detach".  ATOMIC:
+// the three fields describe one source and are meaningless apart.
+message LibraryProvenance {
+  string library_document_id = 1;      // the team library document
+  OpId source_node = 2;                // the node copied
+  uint64 source_server_seq = 3;        // the library's head when copied; "Update" compares it
+}
+
+message CommonProps {
+  // ... existing fields ...
+  LibraryProvenance library = 8 [(wt.crdt.field).merge = MERGE_ATOMIC];
+}
+----
+
+`docs.v1` also gains `LibraryService` (COLLAB-010, COLLAB-012):
+
+[source,protobuf]
+----
+service LibraryService {
+  rpc SetLibrary(SetLibraryRequest) returns (SetLibraryResponse);       // publish / unpublish a team document
+  rpc ListLibraries(ListLibrariesRequest) returns (ListLibrariesResponse); // libraries visible to the caller, per team
+}
+message Library { string document_id = 1; string team_id = 2; string name = 3; uint64 head_seq = 4; }
+----
+
+The library's *contents* are read by opening the library document read-only through the
+ordinary `FetchSnapshot`/`FetchChanges` path (members get at least viewer on a library by
+construction: publishing a library sets its team access override to at least VIEWER).
+
+=== Merge semantics
+
+Membership, links and requests are server rows with last-write-wins by server time; they are
+not CRDT state and never conflict with document changes.  The document-side cases:
+
+* *Copy from library* is a `CreateNode` (or a subtree of them for a symbol) under
+  `swatches`, `styles` or `symbols` with `library` set.  Two people copying the same item
+  concurrently produce two nodes; the panels show both, and either can be deleted.  There
+  is no read-time deduplication (both are legitimate nodes).
+* *Update from Library* writes the current library values into the existing node's registers
+  and bumps `library.source_server_seq`; concurrent local edits of the same registers resolve
+  by OpId like any edit.  *Detach* writes `library` unset.
+* Objects that reference a copied swatch or style reference the *copy* (`NodeRef` to the
+  local node), so the library going away, being unpublished, or the team being left changes
+  nothing in documents that used it.
+
+Role changes interact with the outbox, not the merge: on `RoleChanged` below editor or
+`AccessRemoved`, `WTSync` freezes the outbox; unsent changes are moved to a new personal
+document by `DocumentService.Fork` (snapshot at the last applied head plus the unsent
+changes -- the same call as *Save my version as a copy*) or discarded.  The server would
+reject them with `ROLE_INSUFFICIENT` anyway; the client never sends them.
+
+Read-time normalization: a `library` whose `library_document_id` the caller cannot see is
+shown as "from a library you can't access"; the badge still renders.
+
+=== Offline behavior
+
+The Share sheet, invitations, links, access requests, ownership transfer, publishing a
+library and *Update from Library* need the network and are disabled with an explanation.
+Copying from a team library works offline if the library's store is cached on this Mac (it
+is cached the first time it is opened, read-only, like any document).  Role changes learned
+on reconnect (`ROLE_INSUFFICIENT` on the first push, or `RoleChanged` in `Welcome`) take the
+mid-session path above before any upload.
+
+=== Server
+
+SRV-010 delivers invitations, roles, links with expiry, and document events.  COLLAB-011
+adds access requests, ownership transfer, link passwords, `team_members_only`,
+`revoke_on_expiry`, the per-document team access override and space moves;
+`SEC-001`/`SEC-002` (xref:security.adoc[Accounts, teams and security]) own teams, team
+roles and workspace restrictions, which `ShareService` consults for `restrict_sharing`.
+COLLAB-012 adds `LibraryService` and the read-access rule for libraries.  Effective role is
+recomputed per RPC and pushed as `RoleChanged` to open sessions whenever a member row, link,
+team membership or team default changes.
+
+=== Client
+
+* `WTApp/Sharing`: `ShareSheet` (SwiftUI sheet: People, Invite, Links, Actions menu),
+  `AccessRequestPage` (the page shown by `OpenLink` failures), `MoveToSpaceSheet`.  The
+  space switcher and team settings are `SEC-003`.
+* `WTSync`: `AccessController` handling `RoleChanged`/`AccessRemoved`/`ROLE_INSUFFICIENT`:
+  read-only flag on the document controller, outbox freeze, fork-or-discard sheet, store
+  deletion on removal.
+* `WTModel`: `CopyFromLibrary`, `UpdateFromLibrary`, `DetachFromLibrary` commands; a
+  `LibraryCatalog` that opens cached library stores read-only and lists their swatches,
+  styles and symbols for the panels.
+* Undo: each library command is one change (`Add swatch "Brand red" from Marketing
+  library`).  Sharing actions are not undoable (they are server calls); the sheet confirms
+  destructive ones.
+
+=== Build tasks
+
+[[COLLAB-010]]
+==== COLLAB-010 docs.v1 sharing, links, requests and library schemas
+[horizontal]
+Track:: proto
+Depends on:: PROTO-007, PROTO-009
+Size:: M
+Delivers:: `ShareService` and `LibraryService` as sketched, `DocumentEvent` cases, `DocumentRole` in `account/v1/roles.proto`, `LibraryProvenance` on `CommonProps`, error reasons `LINK_PASSWORD_REQUIRED` and `LINK_INVALID`.
+Done when::
+* Lints clean with `COMMENTS`; every request validated; cursors opaque.
+* Conformance vector: a node with `library` set merges ATOMIC under concurrent Update and Detach (one whole value wins) in both engines.
+
+[[COLLAB-011]]
+==== COLLAB-011 Access requests, transfer, link options, team access override, space moves
+[horizontal]
+Track:: server
+Depends on:: SRV-009, SRV-010, COLLAB-010
+Size:: M
+Delivers:: `access_request` table and RPCs with owner mail, `TransferOwnership`, link passwords (argon2id), `team_members_only`, `revoke_on_expiry` in the expiry job, `SetTeamAccess` override and its use in effective-role evaluation, `DocumentService.Move` between spaces with the ownership rules in the guide, `RoleChanged`/`AccessRemoved` push to open sessions.
+Done when::
+* Tests per RPC and per role; a link with a password refuses `OpenLink` without it; expiry with `revoke_on_expiry` removes link-sourced access within one job run.
+* A named VIEWER role on a document whose team default is EDITOR yields effective VIEWER.
+* Lowering a role pushes `RoleChanged` to that user's open sessions within 1 s and rejects their next change with `ROLE_INSUFFICIENT`.
+
+[[COLLAB-012]]
+==== COLLAB-012 Team libraries service
+[horizontal]
+Track:: server
+Depends on:: SRV-009, COLLAB-010
+Size:: S
+Delivers:: `library` table, `SetLibrary` (admins; sets the team access override to at least VIEWER), `ListLibraries` per team for the caller, and `head_seq` for update checks.
+Done when::
+* A member sees the team's libraries and can fetch a library snapshot; a guest cannot; unpublishing removes it from the list without touching documents that copied from it.
+
+[[COLLAB-013]]
+==== COLLAB-013 Share sheet and access request page
+[horizontal]
+Track:: client-ui
+Depends on:: APP-005, APP-008, APP-009, COLLAB-010
+Size:: L
+Delivers:: The Share sheet (People with role popups and the team access row, Invite with team-member suggestions, Links with role/expiry/password/restrict, Actions menu with Transfer Ownership and Move to…), the btn:[Share] toolbar button with the request badge, the request page reached from a failed link open, and offline disabling with explanations.
+Done when::
+* UI tests: invite by email and by name; change and remove a role; create, edit, copy and revoke a link with each option; resolve a request; transfer ownership.
+* Role popups never offer a role above the caller's; owners-only controls are hidden for editors.
+* Offline, the button opens a popover explaining that sharing needs a connection (UI test).
+
+[[COLLAB-014]]
+==== COLLAB-014 Role changes during a session
+[horizontal]
+Track:: client-sync
+Depends on:: SYNC-003, SYNC-005, SYNC-010
+Size:: M
+Delivers:: `AccessController`: `RoleChanged`, `AccessRemoved` and `ROLE_INSUFFICIENT` handling; read-only mode with the bar; outbox freeze; *Save as a Copy* through `DocumentService.Fork` with the unsent changes; *Discard*; store deletion on removal; re-enable on raise.
+Done when::
+* Simulator test: lowering a user with 500 unsent changes to viewer freezes the outbox, sends nothing, and Save as a Copy yields a document whose hash equals the local pre-freeze state.
+* Raising back to editor re-enables editing without reopening.
+* Merge test: a remote change arriving while read-only is applied and rendered; no local change enters the outbox until the role is raised again, after which a new local change uploads and both replicas converge.
+
+[[COLLAB-015]]
+==== COLLAB-015 Team library catalog and copy-with-provenance commands
+[horizontal]
+Track:: client-model
+Depends on:: CRDT-002, SYNC-004, APP-011, COLLAB-010
+Size:: M
+Delivers:: `LibraryCatalog` (opens cached library stores read-only, lists swatches/styles/symbols, exposes a *Team libraries* section to the panels), `CopyFromLibrary` (subtree copy with fresh ids and `library` set), `UpdateFromLibrary`, `DetachFromLibrary`, and the library badge data for the panels.
+Done when::
+* Copying a symbol with 200 nodes produces one change with fresh ids and correct parent links; objects referencing the copied swatch reference the local node.
+* Merge test: two replicas copy the same library swatch concurrently; both nodes survive on both replicas; deleting one leaves the other.
+* Update from Library after the library changed rewrites only registers that differ and bumps `source_server_seq`; Detach clears `library`.
+* Conformance vector: `CommonProps.library` concurrent Update vs. local register edit.
+endif::spec[]

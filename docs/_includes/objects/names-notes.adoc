@@ -1,0 +1,336 @@
+Any object can carry a name and a note.  Names make objects findable -- in the Find &
+Replace panel, in the Layers panel, in the Info toolbar as you point at things -- and notes
+hold whatever you want to say about an object to yourself or to the people you share the
+document with.  Both can be exported as annotations in PDF.  Next to them sits a third
+field, *Alt text*, and a *Decorative* checkbox: together they describe the object for people
+who cannot see it, and they go into every SVG, PDF and web page {product} writes
+(<<accessibility,Describing objects for accessibility>>).
+
+NOTE: {fh} kept names and notes in the Navigation panel.  {product} puts them in the Object
+panel, on the object's root row, next to the URL (xref:urls.adoc[Attaching URLs]).
+
+// TODO screenshot: Object panel root row with Name, Note and Alt text fields filled in
+
+== Naming an object
+
+To name a selected object or add a note:
+
+. Open the Object panel (menu:Window[Object]) and select the root row.
+. Type in *Name*.  Names can be up to 256 characters; anything is allowed, and names need
+  not be unique.
+. Type in *Note*.  Notes can be up to 8,000 characters and may span several lines.
+
+Names and notes apply as you type; there is nothing to confirm.  Both fields work on a
+multiple selection: typing a name gives it to every selected object.
+
+Where a name shows up:
+
+* The Layers panel lists named objects by name rather than by kind
+  (xref:layers.adoc[Layers]).
+* The Info toolbar shows the name of the object under the pointer.
+* menu:Edit[Find and Replace > Graphics] finds objects by name
+  (xref:find-replace.adoc[Find and replace]).
+* PDF export can write names and notes as annotations (xref:export-pdf.adoc[Exporting PDF]).
+* The Undo menu and the document history name changes by object name when there is one
+  (`Move "Logo mark"`).
+
+== Notes written by {product}
+
+Some features write into the note themselves, and never overwrite what you wrote -- they
+append a line:
+
+* When you keep both copies of an object during a merge review, the copy's note gains a
+  line such as `Copy from Priya's offline edits, 14 Mar 2026`, so you can find and clean up
+  afterwards (xref:collaboration.adoc[Working together]).
+* Tracing and importing may record the source file in the note
+  (xref:tracing.adoc[Tracing]).
+
+== Describing objects for accessibility [[accessibility]]
+
+A screen reader cannot see your artwork.  What it can read is the *alt text* you give an
+object: a short description of what the picture shows or means, the same thing you would
+write for an image on a web page.  Text objects need none -- their text is read as it is.
+Images, traced drawings, logos and illustrations do.
+
+To describe a selected object:
+
+. Open the Object panel (menu:Window[Object]) and select the root row.
+. Type in *Alt text*.  Up to 512 characters; a sentence or two is plenty.  Describe what the
+  object conveys ("Bar chart: revenue by quarter, rising from 2.1 to 3.4 million"), not what it
+  is made of ("blue rectangle with a gradient").
+. Or tick *Decorative* for an object that carries no meaning -- a rule, a background tint, a
+  flourish.  A decorative object is skipped by screen readers entirely.  Ticking it clears
+  nothing: the alt text stays in the field, greyed, in case you change your mind.
+
+Alt text and *Decorative* apply as you type, and work on a multiple selection like the name.
+
+A group can be described as one thing: give the group alt text and its members are read as
+part of that one figure, whatever their own alt text says.  Leave the group's field empty and
+each member is read on its own.
+
+Where alt text and *Decorative* go:
+
+* SVG export writes each described object with a `<title>` (and a longer `<desc>` when the
+  text has more than one line) and marks decorative objects hidden from assistive technology
+  (xref:export-vector.adoc[Exporting vector artwork]).
+* PDF export writes a tagged PDF: described objects become figures with alternate text,
+  decorative ones become artifacts, and the reading order below becomes the order a screen
+  reader follows (xref:export-pdf.adoc[Exporting PDF files]).
+* Published web pages carry the alt text on images and image-map areas
+  (xref:publish-html.adoc[Publishing as HTML]).
+
+An object with a link has *two* descriptions.  Its alt text, here, says what the picture is;
+the link's *Alt text* in the Navigation panel says where the link goes.  Both are exported,
+each in its place (xref:urls.adoc[Attaching links]).
+
+=== Reading order
+
+A screen reader reads a page's objects in an order.  By default that order is the stacking
+order: the bottom layer first, the top layer last, and within a layer from the back to the
+front -- which for most documents is the order things were drawn, and is usually right.  When
+it is not, set the order for that page by hand.
+
+To arrange the reading order of a page:
+
+. Choose menu:Object[Reading Order…].  Every object on the page that is not decorative shows
+  a numbered badge, and the sheet lists them in the current order with their names and alt
+  text.
+. Drag rows in the list, or click objects on the page in the order you want them read.
+  kbd:[Shift]-click a badge to move that object to the end.
+. Click btn:[Done].
+
+Objects you add to the page later come after the ones you arranged, in stacking order.
+btn:[Use Stacking Order] in the sheet discards the arrangement.  Reading order is shared with
+everyone in the document, like a name.
+
+=== Checking a document for accessibility
+
+Choose menu:File[Check Accessibility…] before exporting.  The sheet lists, page by page:
+
+Missing descriptions:: Images, placed files, traced artwork and text that has been converted
+to paths (text a reader can no longer read) without alt text and not marked decorative.
+Click a row to select the object; type in the row to describe it there and then.
+Low contrast:: Text whose color against what lies beneath it falls below a contrast ratio of
+4.5:1 (3:1 for text 18 pt and up, or 14 pt bold), the level web and PDF accessibility
+guidelines ask for.  The row shows the ratio measured.
+Reading order:: A preview of the order for each page, drawn as numbered badges on the canvas
+while the sheet is open, with a button to arrange it.
+Document language:: A warning when Document Info has no language set
+(xref:file-info.adoc[Adding file information]); tagged PDF needs one.
+
+The check reads the document and changes nothing.  Fixing rows in the sheet writes ordinary
+changes, one per row, that undo one at a time.
+
+== Working with others
+
+Names and notes are part of the document: what you type is what everyone sees.  If two people
+type a name for the same object at the same moment, the later one is kept and the other is
+listed in the review after an offline period.  A name and a note are separate: one person
+naming while another writes a note keeps both.  Alt text and *Decorative* behave the same
+way: each is its own field, and the later of two concurrent edits to one of them stands.
+
+Two people arranging the reading order of the same page at once both get their way as far as
+possible: each move is kept, and where they moved the same object the later move wins.  An
+object one person arranges while another deletes it simply drops out of the order.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,2"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Name (26 characters) and Note (254 characters) in the Navigation panel
+|Name (256) and Note (8,192) in the Object panel root row.
+|Adapted -- one inspector instead of two panels; the limits are the schema's.
+
+|Applied as typed
+|Same (committed per keystroke burst, see below).
+|Faithful
+
+|Exported as PDF annotations
+|Same.
+|Faithful
+
+|--
+|*Alt text* and *Decorative* on every object, exported to SVG, tagged PDF and HTML.
+|Added -- accessible output is expected of every current design tool; the fields are two
+registers beside the name.
+
+|--
+|Per-page reading order override, defaulting to stacking order.
+|Added -- needed for PDF/UA and for image maps; cheap as one sequence per page.
+
+|--
+|menu:File[Check Accessibility…] sheet: missing alt, contrast, reading order, language.
+|Added -- no {fh} counterpart.
+|===
+
+=== Data model
+
+`CommonProps.name` and `CommonProps.note` (ATOMIC strings, xref:crdt-model.adoc[CRDT
+model]).  The note is a plain string, not `RichText`: it is short, rarely edited
+concurrently, and does not need character-level merging.
+
+This page adds two registers to `CommonProps` and one sequence to `PageProps`
+(xref:document-panel.adoc[The Document panel] owns the rest of `PageProps`).  Field numbers
+are sketches; PROTO-003 assigns them (xref:decisions.adoc#Q-009[Q-009]).
+
+[source,protobuf]
+----
+// common.proto -- extension of CommonProps
+message CommonProps {
+  // ... fields 1-8 as on crdt-model.adoc and urls.adoc ...
+  // Accessible description of the object itself (SVG <title>/<desc>, PDF /Alt, HTML alt).
+  // Distinct from NavigationProps.alt, which describes the link's destination.  ATOMIC
+  // string: a sentence is edited as a whole.
+  string alt = 9 [(buf.validate.field).string.max_len = 512];
+  // Skipped by assistive technology: SVG aria-hidden, PDF artifact, no HTML alt.  Independent
+  // of `alt` so ticking and unticking never loses the text.
+  bool decorative = 10;
+}
+
+// page.proto -- extension of PageProps
+message PageProps {
+  // ... fields 1-6 on document-panel.adoc ...
+  // Reading order override.  Empty (the default) means stacking order: layers bottom to top,
+  // each layer's children back to front, groups read as one figure when they carry `alt`.
+  // Listed nodes are read first, in sequence order; every other readable node on the page
+  // follows in stacking order.
+  repeated ReadingOrderEntry reading_order = 7 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+}
+message ReadingOrderEntry {
+  ElementId id = 1;
+  // A top-level object (a child of a layer) whose bounds intersect this page.  A deleted,
+  // unknown, decorative or off-page node reads as skipped.
+  NodeRef node = 2 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
+}
+----
+
+The reading order of a page is a derived list, never stored whole: `WTModel.Page.readingOrder`
+walks `reading_order`, drops skipped entries and duplicates (first occurrence wins), then
+appends the remaining readable top-level nodes in stacking order.  Members of a group with
+`alt` are not listed separately; members of a group without `alt` are read in the group's
+place, in the group's own stacking order.
+
+The accessibility check stores nothing.  Its contrast measurement is computed from the
+rendered scene at check time.
+
+=== Merge semantics
+
+* `name`, `note`, `alt` and `decorative` are independent LWW registers.
+* Two people editing the note (or the alt text) at once: the later string wins whole; the
+  loser is retained and shown by the review sheet as `same register` with both texts.
+  Deliberately not TEXT-merged.
+* Appending by a feature (keep-both tagging) reads the current note and writes
+  `note + "\n" + line`; a concurrent user edit collides as above.
+* Editing the name, alt text or `decorative` of a deleted node is retained on the tombstone.
+* `reading_order` is a SEQUENCE: concurrent inserts and moves of different entries keep both;
+  two moves of the same entry resolve on its position register (later wins); an entry whose
+  node is concurrently deleted stays in the sequence and is skipped on read.  btn:[Use
+  Stacking Order] deletes every element; a concurrent insert survives it, so the page keeps
+  that one entry -- harmless, and the sheet shows it.
+* Two replicas both adding the same node to the override (from an empty list) produce two
+  entries naming one node; read-time normalization keeps the first.
+
+Read-time normalizations: duplicate `reading_order` entries collapse to the first; entries
+whose node is deleted, decorative, not top-level, or not on the page are skipped.  Nothing is
+written.
+
+=== Offline behavior
+
+Typing in the Name, Note or Alt text field writes the register on each keystroke burst
+(200 ms idle); the outbox coalesces bursts into one op per change boundary.  Undo groups a
+burst into one step.  Arranging the reading order writes one change per drop or click in the
+sheet; consecutive moves of one entry coalesce.  The accessibility check runs entirely on this
+Mac.
+
+=== Server
+
+Nothing beyond storing and relaying changes.
+
+=== Client
+
+* Editors in the OBJ-002 root-row inspector: `NSTextField` for the name, `NSTextView` for the
+  note and for the alt text (two lines, growing to six), an `NSButton` checkbox for
+  *Decorative*, all applying on idle with the APP-007 focus-preservation rule.  The alt field
+  is disabled but not cleared while *Decorative* is on; for `text` nodes the field shows the
+  placeholder "Read as its text" and is enabled only for a group.
+* `WTModel.Node.displayName`: the name if set, else the kind's localized name (`Path`,
+  `Rectangle`, `Group`), used by the Layers panel, Info toolbar and change labels.
+  `WTModel.Node.accessibleDescription`: `alt` if set; for a `text` node its plain text; else
+  nil.  `isReadable`: not decorative and has a description or is a group containing a readable
+  node.  Both feed the exporters and VoiceOver's canvas description (xref:client.adoc[]).
+* Validators from PROTO-005 enforce the length limits before the change enters the outbox;
+  the fields refuse further input at the limit.
+* menu:Object[Reading Order…] is a sheet with an `NSTableView` (drag reorder) over
+  `Page.readingOrder`; the canvas overlay draws numbered badges at each readable node's
+  top-left while the sheet is open, and clicks on the canvas are routed to the sheet.  Each
+  reorder writes `ElementInsert`/`ElementMove`/`ElementDelete` on `reading_order`.
+* menu:File[Check Accessibility…] (`AccessibilityChecker` in `WTApp`, read-only over a
+  `SceneSnapshot`): missing-description rows from `isReadable` over `image`, `placed_file`,
+  trace groups (name prefix from IMG-023) and groups produced by TYPE-044 *Convert to Paths*;
+  contrast rows by rasterizing the flattened scene under each text line's bounds at 2× and
+  comparing the text color's relative luminance (WCAG 2.1 formula) with the 10th and 90th
+  percentile luminance of the backdrop, reporting the worse ratio against 4.5:1 or 3:1
+  (large text: ≥ 18 pt, or ≥ 14 pt with weight ≥ 700); a language row when
+  `DocumentInfo.language` is empty.  Rows have inline fixes that call the ordinary
+  commands (`setAlt`, `setDecorative`).
+* Undo: one change per field edit, per reorder gesture, per inline fix.
+
+=== Build tasks
+
+[[OBJ-021]]
+==== OBJ-021 Name and note editing and display
+[horizontal]
+Track:: client-ui
+Depends on:: OBJ-002, APP-011
+Size:: S
+Delivers:: Name and Note fields on the root row with idle commit and undo grouping, `displayName`, the Info toolbar and change-label use of names, and the append helper used by keep-both tagging.
+Done when::
+* Typing a 30-character name produces one change after idle, one undo step, and one op after coalescing.
+* Names appear in the Info toolbar and in `Move "name"` undo titles.
+* Merge test: concurrent name and note edits on one node keep both; concurrent note edits converge on the greater OpId with the loser retained.
+* Input stops at 256 / 8,192 characters.
+
+[[OBJ-040]]
+==== OBJ-040 Alt text and Decorative fields
+[horizontal]
+Track:: client-ui
+Depends on:: OBJ-021, PROTO-003
+Size:: S
+Delivers:: `CommonProps.alt` and `CommonProps.decorative` in the schema with their validators and conformance vectors; `WTModel` commands `setAlt`, `setDecorative` with inverses; `accessibleDescription` and `isReadable`; the *Alt text* field and *Decorative* checkbox on the root row with the text-node placeholder and the greyed-not-cleared rule; VoiceOver's canvas description reading `accessibleDescription`.
+Done when::
+* Typing alt text produces one change after idle and one undo step; ticking *Decorative* keeps the text in the register.
+* A group with alt text reports one `isReadable` node; the same group without alt reports its readable members.
+* Merge test: concurrent alt and decorative edits on one node keep both; concurrent alt edits converge on the greater OpId with the loser retained.
+* Conformance vectors for `alt` and `decorative` added; input stops at 512 characters.
+
+[[OBJ-041]]
+==== OBJ-041 Reading order
+[horizontal]
+Track:: client-ui
+Depends on:: OBJ-040, APP-004
+Size:: M
+Delivers:: `PageProps.reading_order` and `ReadingOrderEntry` in the schema; `Page.readingOrder` derivation with the skip and duplicate rules; menu:Object[Reading Order…] sheet with drag reorder, click-to-order on the canvas, kbd:[Shift]-click to end, btn:[Use Stacking Order]; the numbered-badge overlay.
+Done when::
+* A page with no override reads layers bottom to top and children back to front; adding an object after arranging appends it.
+* Reordering by drag and by canvas clicks each write one change per gesture and undo one at a time.
+* Merge test: two replicas move different entries and converge with both moves; both move the same entry and converge on the greater OpId; one deletes a node the other ordered and the derived order skips it on both.
+* Conformance vectors for `reading_order` insert, move, delete and dangling node.
+
+[[IO-033]]
+==== IO-033 Accessibility checker sheet
+[horizontal]
+Track:: client-ui
+Depends on:: OBJ-040, OBJ-041, IO-017, IO-010
+Size:: M
+Delivers:: menu:File[Check Accessibility…]: the `AccessibilityChecker` over a `SceneSnapshot` with missing-description, low-contrast, reading-order and language sections, row selection, inline alt text and decorative fixes, the reading-order preview and its btn:[Arrange…] hand-off to OBJ-041's sheet, and the contrast measurement above.
+Done when::
+* A fixture with an undescribed image, a decorative image, a traced group, outlined text and a described group lists exactly the first, third and fourth.
+* Contrast fixtures at ratios 3.0, 4.4, 4.6 and 7.0 on flat and gradient backdrops are classified correctly for normal and large text; a gradient backdrop reports the worse end.
+* Fixing a row writes one change with the label `Describe "name"` and undoes on its own.
+* The check of the design-point document completes in under 5 s on M1 and writes nothing.
+endif::spec[]

@@ -1,0 +1,7 @@
+= Adding interactivity
+include::_attributes.adoc[]
+:page-slug: interactivity
+:page-group: Web and animation
+:page-fh: Chapter 11, "Assigning Flash actions", "Using the Action tool"
+
+include::_includes/web/interactivity.adoc[]

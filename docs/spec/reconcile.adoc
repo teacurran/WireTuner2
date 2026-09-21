@@ -1,0 +1,155 @@
+= Reconciling offline edits
+include::_attributes.adoc[]
+:page-slug: reconcile
+
+The CRDT guarantees every replica ends with the same document.  It does not guarantee the
+document is the one anyone wanted.  Two people who each spent a day on the same logo, offline,
+will get a mechanically merged logo: her curves with his colors, his layer order with her
+deletions.  That is sometimes right and sometimes a mess, and no algorithm can tell which.
+
+The literature agrees on the answer (Ink & Switch's
+https://www.inkandswitch.com/local-first/[Local-first software] and
+https://www.inkandswitch.com/upwelling/[Upwelling]; Schiefer, Litt and Jackson,
+https://groups.csail.mit.edu/sdg/pubs/2022/Merge_What_You_Can_PaPoC_2022.pdf["Merge what you
+can, fork what you can't"]; Figma's
+https://help.figma.com/hc/en-us/articles/5693123873687-Review-branch-changes[branch review]):
+merge what does not overlap, show what does, and let a person choose -- including the choice to
+keep both.  This page specifies that.
+
+== Divergence measurement
+
+On reconnect, after downloading the remote tail and before uploading, `WTSync` computes:
+
+Local set:: Nodes touched by unsent local changes (created, moved, deleted, any register or
+element written), and for text nodes, the paragraphs touched.
+Remote set:: Nodes touched by remote changes sequenced after the client's previous head.
+Overlap:: Nodes in both sets.  For each, the *kind* of overlap: `same register` (both wrote the
+same field path), `edit vs delete`, `move vs move`, `both edited` (different fields), `same
+text` (same paragraph).
+Volume:: Count of unsent ops, count of remote ops, time since the previous sync.
+
+== Decision rules
+
+[cols="1,2,2"]
+|===
+|Condition |Behavior |Why
+
+|No overlap, either side under 500 ops
+|Silent merge.  Upload.  A brief "Merged N changes from A, B" toast.
+|Nothing to decide.
+
+|No overlap, but either side is 500+ ops or the gap is over 12 hours
+|Silent merge, upload, and offer *Review what changed* in the toast, which opens the review
+sheet in read-only mode.
+|A large merge is worth a look even when nothing collided.
+
+|Overlap on 1--20 nodes
+|Merge, do *not* upload yet, open the review sheet with the conflicting nodes listed.  The
+user resolves or accepts the merge and then uploads.
+|Small enough to look at each one.
+
+|Overlap over 20 nodes, or overlap on more than 25% of either set
+|Merge into a preview, open the review sheet in *whole-document* mode with three primary
+choices (below).
+|Per-object review would be tedious; the user needs a document-level decision.
+
+|Same register on the same node from both sides and the local write lost
+|Always listed, whatever the counts: the user's own visible work changed under them.
+|A silent LWW loss is the one outcome users never forgive.
+
+|A remote change to the document's color settings, or to a typeface's font-level metrics or
+document kind
+|Always listed ("Color settings changed by Priya"), and a font-metric change counts as
+overlapping every glyph the local side touched.
+|Document-wide effects that are invisible per object (xref:color-management.adoc[],
+xref:font-info.adoc[]).
+
+|Print settings and the output area
+|Never listed, and never hold the outbox.
+|Low stakes and cheap to redo (xref:printing.adoc[]).
+
+|Comment threads (`comments (0:12)`)
+|Never listed, and never hold the outbox.  A commented object deleted remotely is listed as
+`edit vs delete` on the artwork node.
+|Conversation merges trivially; the anchored object is what needs a decision
+(xref:comments.adoc[Comments]).
+|===
+
+The thresholds are preferences with these defaults, and a team can raise the ask threshold to
+"always ask when anything overlaps" (xref:preferences.adoc[Preferences]).
+
+== The review sheet
+
+A sheet over the document window, resizable, that the user can dismiss and reopen from
+menu:File[Review Merge…] until they choose.  While it is open the document is editable but the
+outbox is held.
+
+[listing]
+....
+ ┌─ Review changes ──────────────────────────────────────────────────────────────┐
+ │ You made 2,314 changes offline (14 h). Meanwhile Priya made 811 and Tom 40.    │
+ │ 17 objects were changed by both you and someone else.                          │
+ │                                                                                │
+ │  ○ Everything   ● Conflicts (17)   ○ Mine (412 objects)   ○ Theirs (96)        │
+ │ ┌────────────────────────┐ ┌─────────────────────────────────────────────────┐ │
+ │ │ ▸ Logo mark      edit/edit│ │  [ Mine ] [ Theirs ] [ Merged ✓ ]  ▢ Overlay    │ │
+ │ │ ▸ Tagline text  same text│ │                                                 │ │
+ │ │ ▸ Header bar   edit/delete│ │        (canvas preview of the object,           │ │
+ │ │ ▸ Star badge   move/move │ │         zoomed to fit, other objects dimmed)     │ │
+ │ │   …                       │ │                                                 │ │
+ │ └────────────────────────┘ │  Fill color   Mine: C=0 M=80 Y=90 K=0 (yours)    │ │
+ │                            │               Theirs: #E63946  ← current           │ │
+ │                            │  Position     both moved: keep theirs (later)     │ │
+ │                            │  [Use mine] [Use theirs] [Keep both copies]       │ │
+ │                            └─────────────────────────────────────────────────┘ │
+ │  Keep the merged result                                                        │
+ │  [Save my version as a copy…]   [Keep my changes on a branch]   [Done]         │
+ └────────────────────────────────────────────────────────────────────────────────┘
+....
+
+Per object::
+* *Mine / Theirs / Merged* switch the preview between the three states; *Overlay* draws mine
+  and theirs on top of each other at 50%, the standard way designers compare revisions.
+* Each conflicting property lists both values and which one the merge kept.  *Use mine* writes a
+  new change re-asserting the local value (a fresh op, so it wins by Lamport order); *Use
+  theirs* does nothing but marks the row reviewed.  *Keep both copies* duplicates the object
+  with the local state, offset by the *Keep both offset* preference, and tags it in the Object
+  panel notes with "Copy from <user>'s offline edits, <date>".
+* *Edit vs delete* offers *Restore* (writes `deleted = false`; the edits are already on the node).
+* *Same text* shows a character-level diff of the paragraph and offers the three choices at
+  paragraph granularity.
+* *Move vs move* shows both positions; *Keep both copies* is offered here too.
+
+Whole document::
+* *Keep the merged result* -- the default, uploads as is.
+* *Save my version as a copy…* -- creates a new document from the local pre-merge state
+  (snapshot at the previous head plus the unsent changes), uploads *nothing* to the original,
+  and reverts the original locally to the remote state.  Nobody's work is lost; the user has two
+  documents.
+* *Keep my changes on a branch* -- the same thing as a branch of the original
+  (xref:branches.adoc[Branches]), so it can be merged later with the same review.
+* *Done* with per-object choices made uploads the merged result and the re-assertions.
+
+Every choice is a normal change and is undoable.  The sheet is optional: dismissing it uploads
+the merge, and *Review Merge…* remains available while the merged-from state is in the local
+log (30 days).
+
+== Branches
+
+Branches exist for two reasons: the choice above, and deliberate long-form work ("try a new
+palette for a week, then merge").  A branch is a document whose log starts as a fork point in
+the parent's log.  Merging a branch replays the branch's changes into the parent as ops from the
+branch's replicas (their ids are unique, so this is just applying changes), then runs exactly
+the review above with the branch as "mine".  Figma's branch review is the model, including
+per-object compare; unlike Figma, partial merges are allowed by *Use theirs* on an object,
+which excludes that object's re-assertion.  See xref:branches.adoc[Branches] for the UI.
+
+== Server involvement
+
+None beyond storing changes and, for *Save my version as a copy* and branches,
+`DocumentService.Fork` which creates a document from a snapshot plus a set of changes.  The
+review runs entirely on the client from its own log.
+
+== Build tasks
+
+See xref:backlog.adoc[Backlog]: SYNC-006, SYNC-007, SRV-011, and the branches page.

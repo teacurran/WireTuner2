@@ -1,0 +1,210 @@
+= Client
+include::_attributes.adoc[]
+:page-slug: client
+
+The Mac app is where {fh} lives again.  Everything a designer touches is native AppKit; the
+document is a typed Swift model over the merge engine; rendering is one display list drawn by
+Metal on screen and by Core Graphics for PDF and print, and the two are tested against each
+other so that the screen, the PDF and the printer agree.
+
+== Packages
+
+[cols="1,3"]
+|===
+|Package |Contents
+
+|`WTProto` |Generated swift-protobuf messages and grpc-swift 2 stubs.  No hand-written code.
+|`WTCRDT` |The merge engine: `Engine` actor, node store, registers, move log, Fugue text, marks, fractional index, snapshot codec, state hash.  Generated merge table in `WTCRDTSchema`.
+|`WTModel` |The typed document: `Document`, `Node` wrappers per kind (`PathNode`, `TextNode`, `GroupNode`, ...), `Command`s that produce `Change`s with labels and inverses, selection, normalize-on-read views, validators.
+|`WTSync` |Local store (GRDB), outbox and coalescing, sync client actor, bootstrap, bulk push, divergence measurement, replica rotation, blob queue, presence.
+|`WTGeometry` |Bézier math, booleans, offsetting, fitting, intersections, transforms, snapping.
+|`WTRender` |Display list, the Metal tile renderer, the Core Graphics reference renderer, tile cache and view transform, hit testing with an R-tree, invalidation, view modes, glyph atlas, Core Image bridge for raster effects, smart-guide candidate engine.
+|`WTText` |Core Text layout over `RichText`, fonts, substitution, text on a path, vertical text.
+|`WTInterchange` |Importers and exporters (SVG, PDF, EPS, AI, PSD, images, RTF, UFO/OTF...), the `.wiretuner` package, printing.
+|`WTTestSupport` |Simulated clients, vector loaders, screenshot helpers.
+|`WTApp` (app target) |AppKit: windows, canvas view, tools, panels (SwiftUI bodies), menus, preferences, sign-in, library, review sheet.
+|===
+
+Dependency direction is strictly downward in the table: `WTApp` may import everything;
+`WTCRDT` imports only `WTProto`.
+
+== Concurrency
+
+* `Engine` and `SyncClient` are actors.  `Document` is a `@MainActor` observable façade over the
+  engine's state, updated by applying changes on the main actor after the engine has merged
+  them on its own executor.  UI code never touches the engine directly.
+* Rendering runs on a render executor; the display list is a value type built from the
+  document, so a render in flight never observes a half-applied change.
+* Every change, local or remote, produces a `ChangeSummary` (touched nodes, touched fields,
+  dirty rect) that the renderer, the panels and the presence overlay subscribe to.
+
+== The document window
+
+[listing]
+....
+ ┌ tab bar: open documents ───────────────────────────────── avatars ▪▪▪ · sync ● ┐
+ │ Main toolbar (customizable)                                                    │
+ │┌─ Tools ─┐┌──────────────── canvas (NSScrollView + WTCanvasView) ──┐┌ panels ┐│
+ ││ ▸ ◇ ✎  ││ rulers                                                  ││ Object ││
+ ││ ▭ ○ ✂  ││   pasteboard, pages, guides, artwork, presence overlay  ││ Layers ││
+ ││ T  A    ││                                                         ││ Swatch ││
+ ││ …       ││                                                         ││ …      ││
+ │└─────────┘└─────────────────────────────────────────────────────────┘└────────┘│
+ │ status bar: page ◂ 3 ▸ · 150% · Preview ▾ · units · x,y readout · hints          │
+ └────────────────────────────────────────────────────────────────────────────────┘
+....
+
+`WTCanvasView` is an `MTKView` (its layer a `CAMetalLayer`) that composites the tile atlas, with
+a transparent Core Graphics overlay layer above it for handles, tool previews, smart guides,
+measurements and presence; it owns the tracking loop and forwards events -- mouse, pinch,
+two-finger rotate, smart zoom, Force click -- to the active `Tool`.  The pasteboard is
+222 × 222 inches; pages sit on it.
+
+== Tools
+
+A tool conforms to `Tool`:
+
+[source,swift]
+----
+protocol Tool: AnyObject {
+    static var id: ToolID { get }
+    var cursor: NSCursor { get }
+    func activate(in context: ToolContext)
+    func deactivate()
+    func mouseDown(_ e: CanvasEvent)
+    func mouseDragged(_ e: CanvasEvent)
+    func mouseUp(_ e: CanvasEvent)
+    func flagsChanged(_ e: CanvasEvent)     // modifier change mid-drag (FreeHand relies on it)
+    func keyDown(_ e: NSEvent) -> Bool
+    func drawOverlay(in ctx: CGContext, viewport: Viewport)  // handles, previews
+    func cancel()                            // Esc
+}
+----
+
+`ToolContext` gives a tool the document, selection, snapping (including the smart-guide
+engine, xref:moving.adoc#smart-guides[Smart guides]), the view transform (zoom, scroll and
+canvas rotation), tablet pressure, and a `CommandSink` for emitting changes.  `drawOverlay`
+draws into the Core Graphics overlay layer above the Metal canvas; it is redrawn per event, not
+per frame, so it never competes with tile rendering for the frame budget.  Tools *preview* during a drag by drawing an
+overlay and emit exactly one change on mouse-up (or one per segment for the Pen), so a drag is
+one undo step and one change on the wire.  Tools that must show live remote-visible feedback
+(text typing) emit as they go.
+
+== Panels
+
+Panels are `NSViewController`s registered with the panel framework (APP-004) by id, title,
+default group and a SwiftUI body.  A panel body observes the `Document` and the selection; it
+never caches document state.  Editing controls follow one rule: a field being edited holds its
+text until commit, then writes a command; a remote change to the same field while editing is
+shown as a subtle highlight, not applied into the field.
+
+== Rendering
+
+Rendering is split at the display list.  Above it, one pipeline turns the document into
+resolved drawing primitives; below it, two renderers turn primitives into pixels: Metal for the
+screen and Core Graphics for everything that must be exactly right (xref:decisions.adoc#D-006[D-006]).
+
+=== The display list
+
+* The display list is built per canvas (pasteboard or master page) from the layer order;
+  invisible layers, deleted nodes and `local_only` state are skipped.  It is a value type of
+  *resolved* primitives -- flattened transform chains, style references resolved to values,
+  strokes already expanded to outlines by `WTGeometry` (GEO-003), text as positioned glyph runs
+  from `WTText`, raster effects as node ids into the effect cache -- and it knows nothing about
+  Metal or Core Graphics.
+* Both renderers implement `WTRender` over it.  Everything that can be shared is shared: the
+  display list; the view transform (`T(scroll) · R(rotation) · S(zoom)`, rotation being view
+  state from xref:document-view.adoc[Setting the document view]); tile geometry (256 px tiles
+  keyed by canvas, zoom-ladder step, rotation angle, column and row); the invalidation pipeline
+  (REND-004: `ChangeSummary` → dirty rects → dirty tile keys); hit testing (REND-003, which runs
+  on the display-list geometry, never on pixels); view modes (REND-005); the per-node effect
+  cache; and the curve-flattening tolerance, a function of the view scale that both renderers
+  call.
+* What differs is only how a dirty tile becomes pixels, and the two answers are held to
+  agreement by REND-007's per-tile comparison (xref:testing.adoc[Testing]).
+
+=== Metal tile renderer (primary on screen)
+
+* `WTCanvasView` is an `MTKView` with `isPaused = true` and `enableSetNeedsDisplay = true`: a
+  frame is drawn only when the view transform changed or a tile became ready, at the display's
+  maximum refresh (`preferredFramesPerSecond` = 120 on ProMotion).  The frame budget is 8.3 ms
+  and a frame never waits for rasterisation: it composites the tiles that exist, substituting
+  the nearest zoom-ladder neighbour scaled, and blank tiles draw the pasteboard colour.
+* *Tile atlas*: tiles are 256 × 256 device-pixel cells of a few 4096² `MTLTexture` atlases per
+  document view, in the display's pixel format; a tile key maps to an atlas slot.  Tiles are
+  rendered in the *rotated view space*: the tile's own axes are the screen's, so a rotated
+  canvas is drawn once at the settled angle and never resampled for display.  While a rotate or
+  pinch gesture is in progress the existing tiles are drawn through the changing transform
+  (one textured quad each); the angle or zoom step is re-rasterised when the gesture settles or
+  every 250 ms during it, whichever comes first.  Pan is a lookup: no rasterisation at all
+  until the viewport reaches tiles that do not exist.
+* *Path filling* is stencil-then-cover.  A path's curves are flattened to line segments at the
+  shared tolerance and drawn as a triangle fan from any anchor into the stencil buffer with
+  increment/decrement (non-zero) or invert (even-odd); the fill is then drawn once over the
+  path's bounds with the stencil test, which is where the fragment shader evaluates solid
+  colours, gradients and tiled fills.  Chosen over Loop-Blinn because it needs no triangulation
+  of the interior: self-intersecting and multi-contour paths, both winding rules and any edit
+  to any point are handled exactly and without CPU work per path per frame, and it computes the
+  same coverage as Core Graphics' scan converter, which is what the parity test needs.
+  Loop-Blinn's resolution-independent curves are not worth its per-path triangulation (which
+  must be redone on every point drag and breaks on self-intersections) when tiles are
+  re-rasterised per zoom step anyway.  Edges are anti-aliased with 4× MSAA on the tile render
+  target, resolved into the atlas.
+* *Strokes* are filled outlines: the display list carries the stroked outline from
+  `WTGeometry` (caps, joins, miter limit, dashes, arrowheads), so both renderers fill the same
+  polygon and cannot disagree about a join.  Hairlines and strokes thinner than a device pixel
+  are widened to one pixel at reduced alpha, the same rule Core Graphics applies on screen.
+* *Text*: `WTText` lays out with Core Text; the renderer holds a glyph atlas texture (glyph
+  bitmaps rasterised by Core Text per font, size bucket and quarter-pixel offset, evicted
+  least-recently used) and draws glyph runs as textured quads.  Glyphs larger than 256 px,
+  text with effects, and text on a path are drawn as paths from `CTFontCreatePathForGlyph`
+  through the fill route, so zoomed type stays sharp.
+* *Effects*: vector effects are applied to the display path before the list is built; raster
+  effects render the node to a `CIImage` at the document raster resolution and the Core Image
+  graph is executed by a `CIContext(mtlDevice:)` straight into an `MTLTexture`, composited in
+  the tile pass with no CPU round trip.  Results are cached per node and invalidated by
+  `ChangeSummary`.
+* *Images* are `MTLTexture`s uploaded once per asset at the on-screen resolution the Redraw
+  preferences ask for.
+* *Fallback*: if `MTLCreateSystemDefaultDevice()` returns nil or a command buffer fails three
+  times in a row, the view switches to the Core Graphics renderer for the same tile keys
+  (rasterised on the render executor into `CALayer` contents, as REND-001 delivers first) and
+  logs the reason.  The fallback is also the on-screen renderer until REND-006 lands.
+
+=== Core Graphics reference renderer
+
+* The same display list drawn into a `CGContext`: a PDF context for print and export, bitmap
+  contexts for golden images and the parity test, and layer contents for the fallback canvas.
+  Print and PDF export therefore give pixel-identical results to the golden images, and the
+  screen is held to them within tolerance.
+* Rules that keep the two renderers in agreement are enforced above the seam: one flattening
+  tolerance, one stroked outline, one glyph layout, one Core Image graph (Core Graphics receives
+  a `CGImage` from the same `CIImage`), one colour pipeline (both draw in the document's working
+  space and convert for the display through ColorSync; the CMS epic owns the profiles).
+* Hit testing uses the same geometry as both renderers: fills by winding, strokes by distance
+  to the stroked outline, points and handles by view-space distance, with the pointer mapped
+  through the inverse view transform (rotation included).
+
+== Undo
+
+`Command` execution returns a `Change` and its inverse.  The `UndoManager` is per document and
+holds pairs; undo emits the inverse *filtered* by the rule in xref:crdt-model.adoc[CRDT model].
+Menu titles come from the change label ("Undo Move 3 Objects").  Drags register one entry;
+typing coalesces per word and per 1 s pause.
+
+== Help
+
+The guide render of this book ships in the app bundle as an Apple Help Book; menu:Help[] opens
+it, and every panel's help button opens its page by slug.
+
+== Accessibility and localisation
+
+* Every control has an accessibility label and identifier (also used by UI tests).
+* Strings are in `Localizable.xcstrings`; the guide is English-only in v1.
+* Full keyboard access to panels; VoiceOver describes the selection and the canvas objects by
+  name and kind.
+
+== Build tasks
+
+APP-001 through APP-011, REND-001 through REND-007, GEO-001 through GEO-005, TXT-001 and
+TXT-002 in xref:backlog.adoc[Backlog].

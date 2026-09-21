@@ -1,0 +1,377 @@
+Every object in {product} carries a list of *attributes*: the strokes that outline it, the fills
+that color its interior, and the effects that alter how those look.  An object can have several
+of each, in any order, and the order is part of the design: a narrow white stroke above a wide
+black one makes a keyline; a translucent gradient above a solid fill makes a sheen.  The Object
+panel is where you build and rearrange that list.  This page covers the list itself; the pages
+that follow cover what each stroke, fill and effect can be
+(xref:stroke-attributes.adoc[Strokes], xref:fill-attributes.adoc[Fills],
+xref:gradients.adoc[Gradients], xref:live-effects.adoc[Live effects]).
+
+NOTE: {fh} users: the upper part of the Object panel that {fh} called the *Properties list* is
+the *Attributes list* in {product}.  It works the same way, plus a visibility toggle and a
+Duplicate command.
+
+== The Attributes list
+
+Open the Object panel with menu:Window[Object] (kbd:[Cmd+F3]).  With an object selected, the
+upper part of the panel lists its attributes; the lower part edits whichever attribute is
+selected in the list.  Select the object's own row at the top of the list to edit the object
+itself (its dimensions, name and so on; see xref:object-panel.adoc[The Object panel]).
+
+// TODO screenshot: Object panel with a path selected showing a stroke above two fills and one effect
+
+The list is painted from the bottom up.  The bottom-most attribute is drawn first and every
+attribute above it is drawn over it, so the item at the top of the list is the one you see in
+front.  A newly drawn object gets one fill with one stroke above it.  Where an effect sits in the
+list matters too; the effects pages explain what an effect applies to.
+
+Each row shows an icon for its kind (stroke, fill or effect), a short description ("Basic, 2 pt",
+"Gradient, Linear", "Lens, Transparency"), and a visibility checkbox.
+
+=== Adding a stroke or a fill
+
+To add a stroke to the selected objects, do one of the following:
+
+. Click btn:[Add Stroke] at the bottom of the Object panel.
+. Choose *Add Stroke* from the panel's action menu (the gear button).
+
+To add a fill:
+
+. Click btn:[Add Fill].
+. Choose *Add Fill* from the panel's action menu.
+
+A new stroke or fill is inserted directly above the attribute selected in the list, or at the
+top of the list when nothing is selected, and becomes the selected attribute so you can set it
+up immediately.  It starts as a Basic stroke or Basic fill using the current default color and
+width (see xref:default-attributes.adoc[Default attributes]).
+
+Effects are added the same way with btn:[Add Effect]; see xref:live-effects.adoc[Live effects].
+
+=== Removing, duplicating and hiding
+
+To remove an attribute:
+
+. Select it in the Attributes list.
+. Click btn:[Remove Item], press kbd:[Delete], or choose *Remove* from the action menu.
+
+To duplicate an attribute:
+
+. Select it in the Attributes list.
+. Choose *Duplicate* from the action menu, or kbd:[Option]-drag the row to a new position.
+
+The copy is inserted directly above the original with identical settings.
+
+To hide an attribute without removing it, clear its visibility checkbox.  A hidden attribute is
+skipped when the object is drawn, printed or exported, but keeps all of its settings and comes
+back when you check the box again.  Hidden attributes are shown dimmed in the list.
+
+=== Reordering
+
+To change the painting order, drag a row up or down within the list.  A horizontal insertion
+line shows where it will land.  Strokes, fills and effects can be interleaved freely; nothing
+forces strokes to stay above fills.
+
+=== Working on several objects
+
+When more than one object is selected, the list shows the attributes the objects have in common
+by position and kind, and "Mixed" wherever they differ.  Adding, removing, reordering or editing
+an attribute applies to each selected object separately.  Selecting a group edits the group's
+own attributes if it has any; to edit the objects inside, subselect them
+(xref:grouping.adoc[Grouping]).
+
+== Applying color
+
+Color reaches a stroke or fill by several routes, all described in
+xref:applying-color.adoc[Applying color]; in brief:
+
+* Select the stroke or fill in the Attributes list and pick a color in its editor.
+* Drag a swatch from the Swatches panel onto a row in the Attributes list.
+* Drag a swatch onto an object on the canvas: dropping on the interior colors the top-most
+  visible fill, dropping on the outline colors the top-most visible stroke.  Holding
+  kbd:[Control], kbd:[Option] or kbd:[Cmd+Option] while dropping makes a gradient instead
+  (xref:gradients.adoc[Gradients]).
+* Use the stroke and fill wells at the bottom of the Tools panel.  Each well shows the color of
+  the top-most visible stroke or fill of the selection and opens a color pop-up.  Clicking a
+  well's *None* swatch sets that attribute's color to None; clicking the swap arrow exchanges the
+  two colors.
+
+// TODO screenshot: Tools panel stroke and fill wells with the pop-up palette open
+
+The wells and the swatch-drop targets always act on the top-most visible attribute of their
+kind.  To color a lower one, select it in the Attributes list.
+
+== Default attributes
+
+With nothing selected, the Object panel shows the document's default attributes: the list a
+newly drawn object will receive.  Edit it exactly as you would an object's list -- add a second
+stroke, change the default width, pick a fill color -- and every object you draw from then on
+starts that way.  Defaults are part of the document and are shared with collaborators; see
+xref:default-attributes.adoc[Default attributes].
+
+== Working with others
+
+Attributes are shared like everything else in the document.  When someone else adds a stroke to
+an object you have selected, the row appears in your Attributes list at once, with their
+presence color on its edge for a moment.  You can keep editing your own attribute while they
+edit theirs: two people changing different attributes of one object, or different settings of
+the same attribute, both get what they asked for.
+
+If you and a collaborator reorder the same list at the same time, both moves happen; the result
+is the same on every screen, and the list simply reflects where each dragged item ended up.  If
+someone removes an attribute you are in the middle of editing, the row disappears from your
+list; your edit is not lost silently -- it is recorded, and if the removal turns out to have been
+a mistake, the attribute can be restored with your edit in it.
+
+After working offline, your attribute changes merge in when you reconnect.  Where you and
+someone else changed the same setting of the same attribute, the later change stands and the
+review sheet lists the setting with both values so you can pick
+(xref:collaboration.adoc[Collaboration]).
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,1a"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Properties list showing strokes, fills and effects per object
+|Attributes list in the Object panel; same content and painting order.
+|Faithful
+
+|Add Stroke / Add Fill buttons and Options-menu commands
+|btn:[Add Stroke], btn:[Add Fill], btn:[Add Effect] and the same commands in the action menu.
+|Faithful
+
+|Remove Item button
+|btn:[Remove Item], kbd:[Delete], action menu *Remove*.
+|Faithful
+
+|Drag to reorder items; order affects appearance
+|Same, with free interleaving of strokes, fills and effects.
+|Faithful
+
+|Duplicating an item
+|*Duplicate* in the action menu and kbd:[Option]-drag.  {fh} had no direct duplicate.
+|Adapted -- added convenience; no data-model cost.
+
+|Hiding an item
+|Visibility checkbox per row.  {fh} required removing the item.
+|Adapted -- lets collaborators leave alternatives in place without deleting each other's work.
+
+|Multiple objects selected
+|Common rows edited together, "Mixed" where they differ.
+|Faithful
+
+|Applying color by dragging swatches, Tools-panel color pop-ups, Eyedropper
+|Same routes; the Tools panel wells act on the top-most visible attribute.
+|Faithful
+
+|Default stroke and fill set with nothing selected
+|Same; stored in the document's settings node.
+|Faithful
+|===
+
+=== Data model
+
+Every drawable node kind (path, rectangle, ellipse, text block, group, symbol instance, image)
+carries an `AppearanceProps`.  It is also the type of the document's default attributes on the
+settings node (xref:default-attributes.adoc[Default attributes]).
+
+[source,protobuf]
+----
+// proto/wiretuner/doc/v1/appearance.proto (sketch)
+
+// The attribute stack.  Three sequences, one order: the positions of all three share one
+// fractional-index space, so the stack the user sees is every live element of `fills`,
+// `strokes` and `effects` sorted by position (bytewise), then element id.  A fill can
+// therefore sit above a stroke.  Painting order is ascending position: bottom first.
+message AppearanceProps {
+  repeated Fill fills = 1 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  repeated Stroke strokes = 2 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  // Owned by the FX epic; reserved here so every consumer sees one stack.
+  repeated Effect effects = 3 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+}
+
+// One fill in the stack.  The active kind is an enum register and every kind's settings
+// are sibling STRUCT messages rather than a `oneof`: a `oneof` has no defined merge for
+// its discriminator and would discard the other cases' values, whereas here switching
+// Basic -> Gradient -> Basic gets the old basic color back, and a concurrent kind change
+// and a concurrent edit of the old kind's settings both survive (see Merge semantics).
+message Fill {
+  ElementId id = 1;                 // required first field for MERGE_SEQUENCE
+  bool hidden = 2;                  // skipped when painting; settings kept
+  FillKind kind = 3;                // which sibling message is live
+  BasicFill basic = 4;              // fill-attributes.adoc
+  GradientFill gradient = 5;        // gradients.adoc
+  LensFill lens = 6;                // fill-attributes.adoc
+  CustomFill custom = 7;            // fill-attributes.adoc
+  PatternFill pattern = 8;          // fill-attributes.adoc
+  TexturedFill textured = 9;        // fill-attributes.adoc
+  TiledFill tiled = 10;             // fill-attributes.adoc
+}
+
+enum FillKind {
+  FILL_KIND_UNSPECIFIED = 0;        // read as BASIC
+  FILL_KIND_BASIC = 1;
+  FILL_KIND_GRADIENT = 2;
+  FILL_KIND_LENS = 3;
+  FILL_KIND_CUSTOM = 4;
+  FILL_KIND_PATTERN = 5;
+  FILL_KIND_TEXTURED = 6;
+  FILL_KIND_TILED = 7;
+}
+
+// One stroke in the stack; same shape as Fill.
+message Stroke {
+  ElementId id = 1;
+  bool hidden = 2;
+  StrokeKind kind = 3;
+  BasicStroke basic = 4;            // stroke-attributes.adoc
+  BrushStroke brush = 5;            // stroke-attributes.adoc
+  CalligraphicStroke calligraphic = 6;
+  CustomStroke custom = 7;
+  PatternStroke pattern = 8;
+}
+
+enum StrokeKind {
+  STROKE_KIND_UNSPECIFIED = 0;      // read as BASIC
+  STROKE_KIND_BASIC = 1;
+  STROKE_KIND_BRUSH = 2;
+  STROKE_KIND_CALLIGRAPHIC = 3;
+  STROKE_KIND_CUSTOM = 4;
+  STROKE_KIND_PATTERN = 5;
+}
+
+// Effect is specified in live-effects.adoc.  Its first two fields are the same:
+//   ElementId id = 1;  bool hidden = 2;
+----
+
+Colors inside every kind message are `ColorRef` (xref:applying-color.adoc[Applying color]): an
+ATOMIC register holding either a `NodeRef` to a swatch (with the swatch's value cached) or an
+inline `Color`, or the well-known *None*.
+
+=== Merge semantics
+
+Stack elements::
+Insert, move and delete of an element are independent registers (`MERGE_SEQUENCE`), so
+reordering by one user and editing by another both apply.  Two concurrent moves of the same
+element: the later position wins.  Two concurrent inserts "above the same row", possibly in
+different sequences (a fill and a stroke): their positions are generated in the same gap and
+almost never collide; when they do, element id order decides.  Because positions are shared
+across `fills`, `strokes` and `effects`, the merged order is well defined without any engine
+knowledge of the three-way split.
+
+`hidden`::
+ATOMIC boolean.  Concurrent hide and show: later wins; the review sheet lists it as a same-register
+conflict only if the local write lost.
+
+`kind` and the kind messages::
+`kind` is an ATOMIC enum; each kind message is STRUCT.  A changes a fill from Basic to Gradient
+while B changes the basic color: both registers apply; the fill renders as a gradient, and B's
+color is stored in `basic` and shows again if anyone switches back.  The review sheet shows B
+"Fill type changed to Gradient by A; your color change is kept but not visible" and offers *Use
+mine* (which re-asserts `kind = BASIC`).
+
+Edit of a removed element::
+A removes a fill while B edits it.  The element is a tombstone with B's write applied.  The
+review lists "edited a fill that was removed" and offers *Restore*, which re-inserts the element
+(a fresh id, since sequence deletes are not reversible) at the same position with the merged
+settings.
+
+Multi-object edits::
+A command over several objects writes one change with one `SetFields` per object, so a
+collaborator sees them land together and undo removes them together.
+
+Read-time normalizations::
+* `kind` unset or unknown (a newer client's value) reads as BASIC for fills and strokes; the
+  unknown kind's registers are preserved for other clients.
+* An element whose live kind message has never been written (possible when a client sets `kind`
+  without settings) reads with that kind's defaults.
+* Positions from the three sequences that compare equal are ordered by element id, fills before
+  strokes before effects only when ids are also equal, which cannot happen.
+
+=== Offline behavior
+
+Nothing beyond the general rules.  Consecutive edits to one register (dragging a width slider)
+coalesce in the outbox.
+
+=== Server
+
+Nothing beyond storing and relaying changes.  The server never interprets an appearance.
+
+=== Client
+
+Model:: `WTModel` exposes `Appearance` as a value type with a computed `stack: [Attribute]`
+(the interleaved, position-sorted view) and commands `addFill`, `addStroke`, `addEffect`,
+`removeAttribute`, `duplicateAttribute`, `moveAttribute(to:)`, `setHidden`, `setFillKind`,
+`setStrokeKind`.  Each command produces one change labelled for the Undo menu ("Add Fill",
+"Reorder Attributes").  Position generation for a move uses the merged neighbors' positions,
+whatever sequences they belong to.
+
+Rendering:: `WTRender` (REND-002) paints the stack in ascending position: for each visible
+element, a fill paints the path's interior (an open contour is closed by a straight line for
+filling only), a stroke paints along the contour, an effect is applied per the effects pages.
+Hidden elements are skipped at display-list build time so they cost nothing.
+
+Hit testing:: The interior hits if any visible fill paints there (a fill whose color is None
+does not); the outline hits if any visible stroke covers the point, using the widest visible
+stroke's half width plus the pick tolerance (REND-003).
+
+Object panel:: The Attributes list is an `NSOutlineView` subclass hosted in the inspector
+framework (APP-007), one row per stack element, with drag-and-drop reordering, an
+`NSButton` checkbox for visibility, and the kind editors registered per `FillKind` /
+`StrokeKind`.  Remote changes update rows in place without disturbing an editor that has
+keyboard focus.
+
+Undo:: One command, one undo step.  A drag reorder is a single step at drop time.
+
+=== Build tasks
+
+[[ATTR-001]]
+==== ATTR-001 Appearance schema
+[horizontal]
+Track:: proto
+Depends on:: PROTO-003, PROTO-005
+Size:: S
+Delivers:: `appearance.proto` with `AppearanceProps`, `Fill`, `Stroke`, `FillKind`, `StrokeKind`, the reserved `effects` field, and `AppearanceProps` added to every drawable kind's props and to the settings node's default attributes.
+Done when::
+* `buf lint` passes with every field commented; the sequence element types begin with `ElementId id = 1` and the generator accepts them.
+* Conformance vectors: insert a fill and a stroke at the same gap from two replicas; concurrent `hidden` writes; concurrent `kind` change and sibling-message edit.
+
+[[ATTR-002]]
+==== ATTR-002 Attribute stack commands
+[horizontal]
+Track:: client-model
+Depends on:: ATTR-001, CRDT-004
+Size:: M
+Delivers:: `Appearance` value type with the interleaved `stack` read-out and the commands listed under Client, including multi-object application and undo labels.
+Done when::
+* Adding, removing, duplicating, hiding and moving attributes round-trip through the engine and read back in the expected order.
+* Merge test: reorder on replica A while replica B edits and a third replica C removes the same element; A, B and C converge and the tombstone carries B's edit.
+* Undo of a reorder after a remote reorder of another element leaves the remote element where it went.
+
+[[ATTR-003]]
+==== ATTR-003 Attributes list in the Object panel
+[horizontal]
+Track:: client-ui
+Depends on:: APP-007, ATTR-002
+Size:: M
+Delivers:: The Attributes list view: rows with kind icon, description and visibility checkbox; btn:[Add Stroke], btn:[Add Fill], btn:[Add Effect], btn:[Remove Item]; the action menu (Add, Remove, Duplicate); drag reorder and kbd:[Option]-drag duplicate; swatch drop onto rows; "Mixed" display for multi-selection; the default-attributes mode when nothing is selected.
+Done when::
+* UI tests add, reorder, hide, duplicate and remove attributes and verify the model stack.
+* A remote insert while a row's editor has focus does not steal focus or lose keystrokes.
+* Dropping a swatch on a row recolors that element only.
+
+[[ATTR-004]]
+==== ATTR-004 Stack painting and hit testing
+[horizontal]
+Track:: client-render
+Depends on:: REND-002, REND-003, ATTR-002
+Size:: S
+Delivers:: Display-list construction from the interleaved stack: bottom-first painting, hidden elements skipped, open contours closed for filling, hit-test rules for None fills and widest-stroke tolerance.
+Done when::
+* Reference renders: fill above stroke, stroke above fill, hidden middle element, three strokes of decreasing width.
+* Hit tests: a None-filled path hits only on its stroke; a hidden stroke does not hit.
+endif::spec[]

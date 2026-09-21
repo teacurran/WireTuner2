@@ -1,0 +1,7 @@
+= Templates and starting points
+include::_attributes.adoc[]
+:page-slug: templates
+:page-group: Document setup
+:page-fh: Chapter 2, "Using templates", "Creating a new default template", "Working with wizards (Windows)"
+
+include::_includes/document/templates.adoc[]

@@ -1,0 +1,7 @@
+= Vector basics
+include::_attributes.adoc[]
+:page-slug: vector-basics
+:page-group: Drawing
+:page-fh: Chapter 3, "About vector graphics; Path and point characteristics; Setting path and point display preferences"
+
+include::_includes/drawing/vector-basics.adoc[]

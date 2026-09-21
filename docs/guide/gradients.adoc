@@ -1,0 +1,7 @@
+= Gradients
+include::_attributes.adoc[]
+:page-slug: gradients
+:page-group: Strokes and fills
+:page-fh: Chapter 6, "Using gradient fill attributes"
+
+include::_includes/appearance/gradients.adoc[]

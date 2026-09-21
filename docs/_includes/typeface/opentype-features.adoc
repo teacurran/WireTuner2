@@ -1,0 +1,300 @@
+OpenType *features* are the rules inside a font that go beyond one character, one glyph:
+kerning, accents that attach to letters, `f` and `i` becoming a ligature, small capitals,
+alternate figures.  {product} generates the common features for you from what you have already
+drawn -- kerning from the Metrics window, mark attachment from anchors, ligatures from glyph names
+-- and gives you a *Features editor* for anything else, written in the standard feature-file
+syntax that every font tool understands.
+
+NOTE: FontForge builds features through *lookups* edited in dialogs.  {product} uses the Adobe
+feature file syntax (`.fea`) instead, the format FontForge, Glyphs and the AFDKO tools all read
+and write.  If you have a feature file from another editor, paste it in.
+
+// TODO screenshot: the Features editor with a liga feature and the Generated pane collapsed
+
+== Features generated automatically
+
+These are produced every time the font is generated or previewed, from the document, and need no
+editing:
+
+[cols="1,3"]
+|===
+|Feature |Source
+
+|`kern`
+|Every kerning pair and every class cell (xref:kerning-metrics.adoc[Kerning and metrics]).
+Classes become named glyph classes (`@kern1.O`, `@kern2.a`); pair kerns are written before class
+kerns so they win.
+
+|`mark`
+|For every base anchor name (`top`, `bottom`, …): the base glyphs that have it and the mark
+glyphs that have the matching `_top` anchor, as a mark-to-base rule.  Marks are the glyphs whose
+*Kind* is Mark.
+
+|`mkmk`
+|For marks that carry both a `_top` and a `top` anchor (stacking accents): a mark-to-mark rule.
+
+|`liga`
+|Every glyph whose *Kind* is Ligature and whose name is parts joined by underscores (`f_i`,
+`f_f_l`) where every part is a glyph in the font: `sub f i by f_i;`.  Longer ligatures are written
+first so they take precedence.  A name with a suffix (`f_i.alt`) contributes nothing to `liga`;
+use it in a feature of your own.
+
+|Glyph classes for kinds
+|The `GDEF` table's classification (base, ligature, mark, component) from each glyph's Kind.
+|===
+
+Each generated feature can be turned off in Font Info's *Features* pane (*Generate kern*,
+*Generate mark and mkmk*, *Generate liga*), for example when your feature file defines `kern` by
+hand.  If your file defines a feature with the same tag as a generated one and the generated one
+is still on, the two are combined: yours first, then the generated rules.
+
+== The Features editor
+
+Open it with menu:Window[Features] (kbd:[Cmd+Option+E]).  It is a text editor for one file: the
+font's feature file.  Its contents are stored in the document and shared, like everything else.
+
+The editor:
+
+* Colors the syntax (keywords, glyph names, classes, comments), shows line numbers, and matches
+  braces.
+* Underlines a glyph name that is not in the font in red as you type, with the nearest match in a
+  tooltip.  Typing kbd:[Control+Space] after a `sub` or `pos` completes glyph names and class names.
+* Shows the *Generated* pane at the bottom -- read-only text of the automatic features -- so you
+  can see what is already there and copy from it.  Toggle it with the *Show generated features*
+  preference or the disclosure triangle.
+* Validates on demand with btn:[Check] (kbd:[Cmd+K]) and always before generating.  Errors list in
+  a strip under the editor; clicking one selects the line.
+
+A short primer on what to write, in the syntax the editor accepts:
+
+[source]
+----
+# Glyph classes: names beginning with @
+@figures = [zero one two three four five six seven eight nine];
+@figures.tf = [zero.tf one.tf two.tf three.tf four.tf five.tf six.tf seven.tf eight.tf nine.tf];
+
+# A class substitution: tabular figures
+feature tnum {
+    sub @figures by @figures.tf;
+} tnum;
+
+# Small capitals from a suffix
+feature smcp {
+    sub [a b c d e f g h i j k l m n o p q r s t u v w x y z]
+     by [a.sc b.sc c.sc d.sc e.sc f.sc g.sc h.sc i.sc j.sc k.sc l.sc m.sc
+         n.sc o.sc p.sc q.sc r.sc s.sc t.sc u.sc v.sc w.sc x.sc y.sc z.sc];
+} smcp;
+
+# A discretionary ligature the automatic liga feature would not make
+feature dlig {
+    sub c t by c_t;
+} dlig;
+
+# A contextual rule: a swash cap only at the start of a word (before a lowercase letter)
+feature swsh {
+    sub A' [a b c d e f g h i j k l m n o p q r s t u v w x y z] by A.swash;
+} swsh;
+----
+
+The whole syntax is documented in Adobe's *OpenType Feature File Specification*; the editor
+supports single, multiple, alternate, ligature and chaining contextual substitutions, single and
+pair positioning, glyph classes, `languagesystem` statements, and lookups.  Features from the file
+appear in the Metrics window's *Features* pop-up for preview once they check clean
+(xref:kerning-metrics.adoc[Kerning and metrics]).
+
+To use a suffix convention in classes without listing every glyph, the editor offers
+menu:Edit[Insert Class from Suffix…]: type `.sc` and it inserts `@sc_from = [a b c …]` and
+`@sc_to = [a.sc b.sc c.sc …]` for every glyph in the font that has a `.sc` variant.
+
+== Previewing substitutions
+
+In the Metrics window, turn a feature on in the *Features* pop-up and type text that triggers it.
+The window compiles the font quietly in the background each time the file or the glyphs change;
+if the file does not check clean, the pop-up shows a warning and only the automatic features can
+be previewed until it does.  The preview uses the Mac's own text shaping, so what you see is what
+applications will do.
+
+== Working with others
+
+The feature file is shared text, edited together the way a text block is
+(xref:editing-text.adoc[Editing text]): you see collaborators' cursors, and their typing appears
+as they type.  Two people editing different features never conflict.  Two people typing in the
+same line get both edits, character by character, in a sensible order; the result may not parse
+until one of you tidies it, and the error strip says so.
+
+After being offline, both sides' edits are merged the same way.  If you both changed the same
+paragraph -- the same feature block -- the review sheet shows a line-by-line comparison and lets
+you keep yours, theirs or the merged text for that block.  Whatever you choose, btn:[Check] tells
+you whether the file compiles; generating a font is blocked until it does, never silently.
+
+Turning a generated feature off in Font Info while a collaborator adds kerning simply means their
+kerning is in the document and not in the next generated font; the validation report before
+generate points it out.
+
+ifdef::spec[]
+== Specification
+
+=== FontForge parity
+
+[cols="2,3,1"]
+|===
+|FontForge capability |{product} behavior |Verdict
+
+|Lookups pane: GSUB/GPOS lookups, subtables, feature tags, scripts and languages, edited in dialogs
+|A feature file in the Features editor; lookups are written in text.
+|Adapted -- the file is the interchange format all tools share and merges as text.
+
+|Ligature substitutions defined in Glyph Info
+|`liga` generated from Ligature-kind glyphs named `a_b`; others written in the file.
+|Adapted -- naming convention replaces per-glyph dialogs.
+
+|Kerning as a GPOS pair lookup with classes
+|Generated `kern` from pairs and classes.
+|Faithful
+
+|Mark-to-base, mark-to-mark from anchor classes
+|Generated `mark` and `mkmk` from anchors by name.
+|Faithful
+
+|Mark-to-ligature, cursive attachment
+|Not generated; can be written in the file by hand.
+|Dropped -- basic attachment only.
+
+|Import and export of AFDKO feature files (File > Merge Feature Info)
+|The file *is* the model; UFO exchange carries it as `features.fea`.
+|Faithful
+
+|Contextual and chaining substitutions via the lookup dialogs
+|Written in the file.
+|Adapted
+
+|Apple AAT (`morx`) features
+|Not supported.
+|Dropped -- OpenType layout only.
+
+|Feature preview in the Metrics View
+|Same, via quick compile and Core Text.
+|Faithful
+|===
+
+=== Data model
+
+`FontProps.features` (`RichText`, `MERGE_TEXT`) and the three `omit_generated_*` flags, on
+xref:font-info.adoc[Font Info].  The text is plain: the editor never writes formatting marks, and
+marks that arrive from an older or foreign client are ignored on read.  Paragraph properties on
+newline elements are unused.
+
+Generated feature text is never stored; it is produced by `WTInterchange.FeatureGenerator` from the
+model at compile time and concatenated after the user's text:
+
+[listing]
+....
+languagesystem DFLT dflt;      # only if the user's text has no languagesystem
+<user text>
+# ---- generated by WireTuner: do not edit (regenerated on every build) ----
+@kern1.O = [O C G Q Ograve ...];
+...
+feature kern { ... } kern;
+feature mark { ... } mark;
+feature mkmk { ... } mkmk;
+feature liga { ... } liga;
+....
+
+Class names in generated text use a `kern1.` / `kern2.` prefix (the UFO convention) so they cannot
+collide with user classes unless the user chose that prefix, which the checker flags.  Two live
+classes with the same name (a merge outcome, xref:kerning-metrics.adoc[Kerning and metrics]) are
+written as `O` and `O_2` in element-id order.
+
+=== Merge semantics
+
+Text:: Fugue character sequence: concurrent insertions at different places both survive;
+concurrent typing at the same spot is ordered without interleaving inside each side's run.
+Deleted characters are tombstones.  Two people editing the same feature block produce a merged
+block that may not parse; nothing normalizes it -- the checker reports it and generate is blocked
+until a person fixes it.
+
+Same paragraph:: The review sheet's *same text* entry (a paragraph is a line here) shows a
+character-level diff and offers Mine/Theirs/Merged per paragraph, as for text blocks.
+
+Flags:: `omit_generated_*` are ATOMIC booleans; later wins; listed if both wrote.
+
+Feature text vs. glyph rename:: The text is not updated by a rename (it is the user's text).  The
+checker underlines the stale name; the rename command's confirmation sheet warns "used in the
+feature file, 3 places" with *Rename in feature file* which writes a `TextDelete`/`TextInsert` per
+occurrence in the same change.  A concurrent edit to one of those occurrences merges at the
+character level and may leave a half-renamed token; the checker catches it.
+
+Feature text vs. glyph deletion:: The stale name is reported by the checker; the validation
+report lists it.  Nothing normalized.
+
+Read-time normalizations::
+* Formatting marks on `features` are ignored.
+* A `features` text containing NUL or other C0 controls except tab and newline reads with them
+  stripped.
+
+=== Offline behavior
+
+Standard; the editor and checker are local.  The quick compile for preview is local (the compiler
+is bundled).
+
+=== Server
+
+Nothing beyond storing and relaying changes.
+
+=== Client
+
+* `WTApp.FeaturesEditorWindowController`: an `NSTextView` bound to the `RichText` field through
+  the same text binding text blocks use (character id ↔ offset mapping from CRDT-005), with
+  remote carets, syntax coloring by a small tokenizer (keywords, `@classes`, glyph names, numbers,
+  comments), brace matching, name completion from `GlyphIndex`, red underlines from the checker,
+  the Generated pane (read-only `NSTextView`), the error strip, Insert Class from Suffix.  It does
+  not use `WTText`'s layout engine; the field is a plain-text editor.
+* `WTInterchange.FeatureChecker`: a parser for the supported subset of the feature file grammar,
+  producing errors with line and column, unknown glyph and class names, duplicate feature
+  definitions against generated ones, and a list of feature tags for the Metrics window.  It runs
+  incrementally 300 ms after the last keystroke.
+* `WTInterchange.FeatureGenerator`: kern, mark, mkmk, liga, GDEF classes, deterministic ordering
+  (glyphs in grid order, classes in element id order) so two clients generate byte-identical text.
+* Full compilation of the file is done by the font compiler (FONT-018); its errors are mapped back
+  to lines of the user's text (lines in the generated part are reported as generator bugs).
+* Undo: text editing groups by the text rules (a typed word, a paste); flags are one step each.
+* Preference: *Show generated features* (on), under Settings > Typeface.
+
+=== Build tasks
+
+[[FONT-015]]
+==== FONT-015 Glyph flattener
+[horizontal]
+Track:: client-render
+Depends on:: GEO-002, GEO-003, FONT-012
+Size:: L
+Delivers:: `WTRender.GlyphFlattener`: objects on a glyph canvas in stacking order → outline contours: components resolved recursively with transforms (loop and depth rules), text-free (asserts no text nodes), strokes expanded (GEO-003), filled closed contours collected, open unstroked contours dropped with a report, non-zero union of everything (GEO-002), direction correction (outer contours one way, inner the other; the caller chooses which for CFF vs. TrueType), extrema insertion, rounding to integer units, and optional cubic→quadratic conversion (max error 0.5 units, matching the widely used cu2qu tolerance) for TrueType.  Y negation is the caller's.
+Done when::
+* Corpus of 100 glyph fixtures (overlaps, counters, strokes, nested components, tangencies) produces outlines equal to reference UFOs within 0.5 units.
+* Quadratic conversion error is under 0.5 units on the corpus; point counts stay within 1.5× of the cubic count.
+* Flattening a 3,000-glyph font takes under 3 s on M1 off the main actor; results are cached per glyph by change counter (shared with FONT-009).
+
+[[FONT-019]]
+==== FONT-019 Automatic features
+[horizontal]
+Track:: import-export
+Depends on:: FONT-016, FONT-013
+Size:: M
+Delivers:: `FeatureGenerator` (kern with classes and exceptions, mark, mkmk, liga from names, GDEF classes, languagesystem default, deterministic ordering, `O`/`O_2` naming) and `FeatureChecker` (grammar subset, unknown names, duplicate features, feature tag list), plus the *Rename in feature file* change.
+Done when::
+* Generated text for the kerning fixture compiles with the font compiler and yields the same pair values through Core Text as the model lookup for 1,000 random pairs.
+* Checker reports line/column for each of 30 malformed fixtures and accepts the AFDKO examples in this page.
+* Merge test: concurrent edits in two different feature blocks both survive and check clean; concurrent edits in one line merge and are flagged by the checker.
+
+[[FONT-022]]
+==== FONT-022 Features editor
+[horizontal]
+Track:: client-ui
+Depends on:: CRDT-005, FONT-019, FONT-005, APP-004
+Size:: M
+Delivers:: The Features editor window with syntax coloring, completion, live underlines, Generated pane, error strip, Check, Insert Class from Suffix, remote carets, the Features pane of Font Info with the three generate flags, and the *Show generated features* preference.
+Done when::
+* UI tests: typing `sub f i by f_i;` inside a feature checks clean; an unknown glyph underlines within 300 ms; a compile error selects the right line.
+* Two clients typing in different features converge with both edits and both see the other's caret.
+* Every text edit is undoable in word-sized groups.
+endif::spec[]

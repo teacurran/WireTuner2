@@ -1,0 +1,7 @@
+= Polygons and stars
+include::_attributes.adoc[]
+:page-slug: polygons-stars
+:page-group: Drawing
+:page-fh: Chapter 3, "Drawing polygons and stars"
+
+include::_includes/drawing/polygons-stars.adoc[]

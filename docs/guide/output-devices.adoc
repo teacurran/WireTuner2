@@ -1,0 +1,7 @@
+= Choosing an output device
+include::_attributes.adoc[]
+:page-slug: output-devices
+:page-group: Printing
+:page-fh: Chapter 14, "About choosing an output device"
+
+include::_includes/printing/output-devices.adoc[]

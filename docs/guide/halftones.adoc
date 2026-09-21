@@ -1,0 +1,7 @@
+= Halftones
+include::_attributes.adoc[]
+:page-slug: halftones
+:page-group: Printing
+:page-fh: Chapter 14, "Applying halftone settings to selected objects"
+
+include::_includes/printing/halftones.adoc[]

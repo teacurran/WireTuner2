@@ -1,0 +1,260 @@
+New shapes come from combining old ones.  *Join* fuses paths into one composite path whose
+sub-paths cut holes in one another; *Union*, *Divide*, *Intersect*, *Punch*, *Crop* and
+*Transparency* build new paths from the way selected paths overlap.  All of them replace the
+paths you started with, unless you ask to keep them.
+
+// TODO screenshot: Modify > Combine submenu
+
+The commands live in menu:Modify[Combine] and, as buttons, on the Path Operations toolbar
+(menu:Window[Toolbars > Path Operations]).  *Blend* is on the same menu and has its own page
+(xref:blends.adoc[Blends]).
+
+NOTE: {fh} listed these under *Xtras > Path Operations* and on the *Xtra Operations*
+toolbar.  In {product} they are ordinary commands under menu:Modify[Combine] and the toolbar is
+*Path Operations*.
+
+TIP: For a version that stays editable, use the *Combine* live effect instead: group the paths
+and add the effect (xref:live-effects.adoc[Live vector effects]).  The group draws as the
+union, difference, intersection or exclusion of its members while every member remains an
+ordinary path you can move and reshape, and btn:[Expand] on the effect produces the same
+result these commands do whenever you are ready to commit.
+
+== Keeping the originals
+
+By default a combine command consumes the paths it was given.  To keep them:
+
+* Hold kbd:[Shift] while choosing the command, for this one time; or
+* turn off *Path operations consume original paths* in menu:WireTuner[Settings… > Object],
+  for every time.  Holding kbd:[Shift] then consumes them for this one time.
+
+Kept originals stay exactly where they were, under the new path.
+
+== Join
+
+Join makes two or more paths into a composite path: one object with several sub-paths.
+Where closed sub-paths overlap, the overlap is a hole (or not, depending on fill direction).
+The composite takes the stroke and fill of the backmost path.
+
+To join:
+
+. Select two or more paths.
+. Choose menu:Modify[Join] (kbd:[Cmd+J]).
+
+Two *open* paths are joined end to end into one open path if their ends touch.  With *Join
+non-touching paths* on (menu:WireTuner[Settings… > Object]), ends within the *Snap distance*
+are joined too; off, they must touch.  menu:Modify[Split] (kbd:[Cmd+Shift+J]) takes a
+composite apart again.
+
+The composite's holes are governed by its *Even/odd fill* setting in the Object panel and by
+each sub-path's direction; menu:Modify[Alter Path > Correct Direction] and *Reverse
+Direction* fix a hole that came out filled (xref:editing-paths.adoc[Editing paths]).
+
+== Union
+
+Union merges closed paths into one path covering everything any of them covered.  Paths that
+do not touch the others become sub-paths of a composite.  The result takes the attributes of
+the backmost path.
+
+To apply Union: select the paths and choose menu:Modify[Combine > Union], or click *Union*
+on the Path Operations toolbar.
+
+== Divide
+
+Divide cuts the selection into pieces along every overlap.  Open and closed paths may be
+mixed.  Each region that was inside several paths becomes its own path with the attributes
+of the frontmost of them; the pieces are grouped.
+
+To apply Divide: select the paths and choose menu:Modify[Combine > Divide].
+
+== Intersect
+
+Intersect keeps only the area common to *all* the selected closed paths, as one path with
+the backmost path's attributes.  If the paths share no common area, the selection is deleted
+(unless originals are kept), because there is nothing to keep.
+
+To apply Intersect: select the paths and choose menu:Modify[Combine > Intersect].
+
+== Punch
+
+Punch uses the frontmost closed path as a cutter: its shape is removed from every closed path
+below it, and the cutter itself is discarded.  A hole entirely inside a path makes that path
+a composite.  The punched paths keep their attributes.
+
+To apply Punch: select the paths, with the cutter on top, and choose menu:Modify[Combine >
+Punch].
+
+== Crop
+
+Crop is the opposite of Punch: the frontmost path is a cookie cutter, and everything below it
+is trimmed to its outline.  The cutter is discarded; the trimmed paths keep their attributes.
+Crop works on vector objects only -- to crop a bitmap, use the Crop tool
+(xref:cropping-bitmaps.adoc[Cropping bitmaps]).
+
+To apply Crop: select the paths, with the cutter on top, and choose menu:Modify[Combine >
+Crop].
+
+== Transparency
+
+Transparency creates a new path in the overlap of two closed paths, filled with a mix of
+their two fill colors, so the top one appears to be see-through.  It is a drawing trick, not
+real transparency; for that, see xref:transparency.adoc[Transparency].
+
+To apply Transparency:
+
+. Select two overlapping filled paths.
+. Choose menu:Modify[Combine > Transparency].
+. In the sheet, set how much of the top color shows in the overlap (0--100%) and click
+  btn:[OK].
+
+== Working with others
+
+A combine command replaces the paths it used with new ones.  Collaborators see the originals
+vanish and the result appear in the same instant.
+
+If someone was editing one of those originals at the same moment -- reshaping it, recoloring
+it -- their edit lands on a path that no longer exists, so it has no visible effect.  Nothing
+is lost: after an offline period, the review lists it as an edit to something that was
+deleted and offers *Restore*, which brings back the original with their edit, alongside your
+result.  When both of you are online, the vanished path is simply gone, and their next look
+at the canvas shows your result; an undo on their side does nothing to it.
+
+If two people combine overlapping selections at the same moment, both results appear and all
+originals are consumed.  The two results may overlap; undo either.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,2"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Join / Split, Join Non-Touching Paths preference
+|Same.
+|Faithful
+
+|Union, Divide, Intersect, Punch, Crop
+|Same semantics via GEO-002.
+|Faithful
+
+|Transparency (Xtra)
+|Same, as a Combine command.
+|Faithful
+
+|Path Operations Consume Original Paths preference; Shift inverts
+|Same.
+|Faithful
+
+|Xtras > Path Operations menu and Xtra Operations toolbar
+|Commands under Modify > Combine; toolbar renamed Path Operations.
+|Adapted -- Xtras are Extensions in {product}; built-in operations are not extensions.
+
+|Composite path attributes from the backmost path
+|Same.
+|Faithful
+
+|Even/Odd Fill, Correct/Reverse Direction, Remove Overlap
+|Same; specified on xref:editing-paths.adoc[Editing paths].
+|Faithful
+|===
+
+=== Data model
+
+No fields.  A composite path is a `PathProps` with several `contours` (a SEQUENCE); every
+combine result is a fresh path node (or, for Divide, a fresh group of fresh path nodes)
+created with `CreateNode`.  The inputs are `SetDeleted(true)` when consumed.  Results carry
+copies of the attribute stack they inherit (backmost or frontmost input) under fresh element
+ids.
+
+The result of a combine has a new node id and no reference to its inputs.  We do not model
+a combine as an edit of the backmost input (moving contours into it) because the merge
+semantics of "the input survived but changed shape completely" would be worse than
+"the input was deleted": a concurrent point edit would then land on a contour that no
+longer means what it meant.
+
+=== Merge semantics
+
+* A combine is one change `Union 3 paths` (etc.): `CreateNode` for each result (children
+  after parents for Divide's group), positioned where the frontmost input was, then
+  `SetDeleted(true)` per consumed input.
+* *Combine vs. edit of an input*: the edit lands on the deleted input; retained.  The review
+  sheet lists `edit vs delete` with *Restore*.  Restoring brings back the input with the
+  edit, next to the result; the user then decides.
+* *Combine vs. move of an input*: as above -- the result was computed from the pre-move
+  geometry.
+* *Combine vs. combine (overlapping inputs)*: both results are created, every input is
+  deleted by whichever change deletes it; nothing conflicts at the register level.  The
+  review sheet shows nothing (no shared registers), which is right: both results are
+  present and either can be undone.
+* *Combine vs. delete of an input*: the input is deleted twice; converges.
+* *Undo of a combine* sets the results deleted and restores the inputs (`deleted = false`),
+  unless someone else has since deleted them again.
+* *Kept originals*: no deletion, pure creation.
+
+Read-time normalization: none for this page.  (A composite path is an ordinary path.)
+
+=== Offline behavior
+
+Fully offline.  Boolean operations are computed locally (GEO-002).
+
+=== Server
+
+Nothing beyond storing and relaying changes.
+
+=== Client
+
+* `CombineCommand(operation:, keepOriginals:)` in `WTModel/Commands/Combine.swift` over
+  `WTGeometry.Boolean` (GEO-002): `union`, `divide`, `intersect`, `punch`, `crop`,
+  `transparency`.  Inputs are flattened to pasteboard space through their transform chains
+  before the operation; results are created with identity `transform` and pasteboard-space
+  contours, positioned at the frontmost input's slot under its parent.
+* Join: contour concatenation with the open-path end-matching rule (touching, or within
+  *Snap distance* when *Join non-touching paths* is on); Split: one path per contour.
+* Transparency color mix: linear interpolation of the two fills' colors in the document's
+  working space, by the sheet's percentage; non-basic fills are converted to their average
+  color first.
+* Menu items validate on selection: at least two paths (Join), all closed (Union, Intersect,
+  Punch, Crop), exactly two filled (Transparency).  kbd:[Shift] modifies the menu item's
+  title (`Union (keep originals)`).
+* Preferences: *Path operations consume original paths* (on), *Join non-touching paths*
+  (off).
+
+=== Build tasks
+
+[[OBJ-024]]
+==== OBJ-024 Join and Split
+[horizontal]
+Track:: client-model
+Depends on:: CRDT-004, APP-011, GEO-001
+Size:: M
+Delivers:: `JoinCommand` producing a composite path node from closed paths or an open path from end-touching open paths, `SplitCommand`, the *Join non-touching paths* preference, attribute inheritance from the backmost path, menu items.
+Done when::
+* Joining three circles produces one node with three contours and the backmost's stack; Split returns three nodes.
+* Open paths join only when ends touch, or are within snap distance with the preference on.
+* Merge test: join concurrent with a remote point edit on an input converges to deleted-input-with-edit-retained and one result.
+
+[[OBJ-025]]
+==== OBJ-025 Union, Divide, Intersect, Punch, Crop
+[horizontal]
+Track:: client-model
+Depends on:: OBJ-024, GEO-002, CRDT-002
+Size:: M
+Delivers:: `CombineCommand` for the five boolean operations with flattening through transforms, attribute inheritance rules, Divide's group result, empty-intersection deletion, *Path operations consume original paths* and the kbd:[Shift] inversion, the menu:Modify[Combine] menu and Path Operations toolbar.
+Done when::
+* Reference corpus (GEO-002's 200 cases) run through the commands matches expected node counts, contours and attributes.
+* Union of a rotated rectangle and an ellipse yields identity-transform pasteboard-space geometry pixel-identical to the inputs' rendering.
+* Merge test: two replicas combine overlapping selections concurrently; both results exist, all inputs deleted, hashes agree.
+* Undo restores inputs and deletes results; undo after a remote re-deletion of an input leaves it deleted.
+
+[[OBJ-026]]
+==== OBJ-026 Transparency command
+[horizontal]
+Track:: client-model
+Depends on:: OBJ-025
+Size:: S
+Delivers:: menu:Modify[Combine > Transparency] with its percentage sheet, creating the overlap path with the mixed fill.
+Done when::
+* Two overlapping filled paths at 50% produce a third path with the interpolated color on top; inputs are kept (this command never consumes).
+* Non-basic fills fall back to their average color (test with a gradient).
+endif::spec[]

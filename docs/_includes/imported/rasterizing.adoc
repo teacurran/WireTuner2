@@ -1,0 +1,174 @@
+Rasterizing turns vector objects into a bitmap image inside the document.  You might do it to
+flatten a complex effect that prints slowly, to make a pixel version of a logo for an image
+editor, to freeze the look of something so nobody can nudge it, or simply because a screen
+graphic only needs pixels.  The result is an ordinary image object that behaves like an
+imported one (xref:bitmaps.adoc[Working with bitmap images]).
+
+NOTE: {fh} called this command *Convert to Image*.  In {product} it is menu:Modify[Rasterize…].
+
+== Rasterizing selected objects
+
+To rasterize:
+
+. Select one or more objects.  Anything can be rasterized: paths, text, groups, blends,
+  images, objects with live effects.
+. Choose menu:Modify[Rasterize…].
+. Set the options and click btn:[Rasterize].
+
+[cols="1,3"]
+|===
+|Option |Effect
+
+|*Resolution*
+|*72 ppi* for screen and web work, *144 ppi* for proofs, *300 ppi* for print, or *Custom* with
+any value from 36 to 2400.  This is the resolution at the objects' current size on the page:
+a 2-inch-wide selection at 300 ppi becomes a 600-pixel-wide image.
+
+|*Anti-aliasing*
+|*None*, *Low*, *Medium* (default) or *High*.  Smooths edges and thin lines by rendering at
+1, 2, 3 or 4 times the resolution and averaging.  *None* gives hard pixel edges, which is what
+a 1-bit or pixel-art result wants.
+
+|*Background*
+|*Transparent* (default): the image has an alpha channel and shows the page through where
+nothing was drawn.  *White*: the image is opaque.
+
+|*Color mode*
+|*RGB* (default), *CMYK* or *Grayscale*.  Grayscale produces an image that can be tinted and
+made transparent with the Object panel.
+
+|*Keep originals*
+|Leaves the selected objects in place and puts the image directly above them.  Off by default,
+in which case the objects are replaced by the image at exactly their position.
+|===
+
+The image is placed at the selection's bounding box, including the extra space live effects
+and strokes take, with the resolution you chose as its stored resolution, so its natural size
+is the selection's size.  Its name in the Object panel is *Rasterized* followed by the name of
+the first selected object.
+
+What the result keeps::
+Everything you see: fills, strokes, gradients, transparency, live effects, text rendered with
+its fonts, images with their transforms and crops.  What it loses is everything you cannot see:
+paths, text as text, effects as adjustable settings.  There is no way back except Undo, so
+rasterize a copy if you might want the objects again (turn on *Keep originals*, or
+xref:copying.adoc[copy] first).
+
+Very large results::
+The result's pixel count is shown in the sheet as you change options.  A result over the
+*Downsample images larger than* preference is not downsampled -- you asked for that resolution
+-- but a warning shows the size, and a result over 200 MiB cannot be created; lower the
+resolution or rasterize in pieces.
+
+== Working with others
+
+Rasterizing replaces objects with an image.  If a collaborator is editing one of those objects
+at the same moment, their edit lands on the now-removed object; the merge review lists it as an
+edit of something deleted and offers to restore the object, which then sits beside the
+rasterized image.  Collaborators see the new image as a placeholder with its name until its
+pixels have uploaded from your Mac, exactly as for an imported image, and can move and crop it
+meanwhile.
+
+Rasterizing works offline.  The image is created immediately; its pixels upload when you
+reconnect.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,2"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|menu:Modify[Convert to Image]
+|menu:Modify[Rasterize…].
+|Adapted -- renamed to the term every current application uses; a NOTE tells {fh} users.
+
+|Resolution 72 / 144 / 300 dpi
+|Same presets plus *Custom* 36–2400.
+|Faithful
+
+|Anti-aliasing value
+|*None* / *Low* / *Medium* / *High* (1×–4× supersampling).
+|Faithful
+
+|Result is an embedded TIFF
+|Result is a PNG blob (lossless, alpha) stored like an import; TIFF when *CMYK* is chosen,
+since PNG has no CMYK.
+|Adapted -- PNG is smaller and universally decodable; the user never sees the container.
+
+|Replaces the original; copy first to keep it
+|Same by default; *Keep originals* option added.
+|Adapted -- a checkbox instead of a manual copy.
+
+|Error when too large or complex; export instead
+|No complexity limit; the 200 MiB blob limit is the only refusal, with the size shown.
+|Adapted -- the renderer is the same one that draws the screen and can render anything the
+document shows.
+
+|(none)
+|*Background* and *Color mode* options.
+|Added -- transparent results and grayscale results (for tinting) were requested workflows
+{fh} lacked.
+|===
+
+=== Data model
+
+Nothing new: the result is an `image` node (`ImageProps` on
+xref:importing.adoc[Importing artwork]) with `source_name = "Rasterized <name>"`,
+`dpi_x = dpi_y = resolution`, `pixels.has_alpha` per *Background*, and
+`CommonProps.transform` a translation to the selection's bounds.  One change: `CreateNode` for
+the image, then `SetDeleted` for each original unless *Keep originals*.
+
+=== Merge semantics
+
+* Rasterize vs. concurrent edit of an original: the edit applies to the deleted node; review
+  lists *edit vs delete*, *Restore* brings the original back beside the image.
+* Rasterize vs. concurrent delete of an original: both delete; nothing to show.
+* Two people rasterizing the same selection at once: two images, both originals deleted; the
+  review lists nothing (no register collided) but the large-merge rule may show the summary.
+  Acceptable; the second image is one Undo away.
+* Read-time: none beyond the image rules.
+
+=== Offline behavior
+
+Fully offline; the result blob queues for upload like an import.  If the change is later
+coalesced away (image created and deleted offline), the pending upload is dropped.
+
+=== Server
+
+Nothing beyond storing and relaying changes and blobs.
+
+=== Client
+
+* `WTRender` draws the selection into a `CGBitmapContext` sized from the union of the
+  selection's rendered bounds (including effect expansion from REND-004's bounds) at
+  `resolution × supersample`, with only the selected nodes visible, then box-downsamples by
+  the supersample factor.  Colors are rendered in the document's working RGB space; *CMYK*
+  converts through the document's CMYK profile (CMS epic) and encodes as TIFF; *Grayscale*
+  converts with Core Image and encodes as 8-bit gray PNG.
+* Rendering runs off the main actor with a progress sheet above 16 MP; the resulting blob
+  goes through IMG-002's placement path so dimensions, mode and alpha are computed once.
+* Undo: one change, labelled "Rasterize _n_ objects"; undo restores the originals and deletes
+  the image; the blob stays cached.
+
+=== Build tasks
+
+[[IMG-024]]
+==== IMG-024 Rasterize command
+[horizontal]
+Track:: import-export
+Depends on:: IMG-002, IMG-003, REND-001, REND-004
+Size:: M
+Delivers:: menu:Modify[Rasterize…] sheet with resolution presets and custom, anti-aliasing levels, background, color mode, keep originals, pixel-count readout and the size refusal; off-main rendering with progress; the single-change create-and-delete.
+Done when::
+* Rasterizing a fixture with strokes, a gradient, transparency and a live effect at 300 ppi
+  matches the screen render of the same objects at that scale within anti-aliasing tolerance;
+  the image's bounds equal the selection's rendered bounds.
+* Transparent background yields alpha; White yields none; CMYK yields a TIFF; Grayscale
+  enables tinting.
+* Undo restores the originals with their ids (not copies) and removes the image.
+* Merge test: A rasterizes while B edits one original; B's review lists edit vs delete and
+  Restore brings the original back on both clients.
+endif::spec[]

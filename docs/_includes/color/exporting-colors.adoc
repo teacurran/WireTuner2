@@ -1,0 +1,251 @@
+A palette you have built is worth keeping.  {product} lets you export named colors as a color
+library file for other documents and other applications, copy colors directly between open
+documents, and -- new in {product} -- keep a *team color library* in the cloud that every
+document on your team can draw from.
+
+== Exporting a color library
+
+To export colors as a library:
+
+. Open the Swatches panel's Options menu and choose *Export…*.
+. In the sheet, tick the colors to export.  Tints are exported with their base; the defaults
+  None, White, Black and Registration are never exported.
+. Type a library name, and optionally the number of rows and columns the library sheet should
+  lay the colors out in, and notes.
+. Choose the format: *{product} color library* (`.wtcolors`) or *Adobe Swatch Exchange*
+  (`.ase`) for other applications.
+. Click btn:[Save] and choose where to put the file.
+
+A `.wtcolors` file saved into the *My Libraries* folder (`~/Library/Application
+Support/WireTuner/Colors/`) appears in the Swatches Options menu under *My Libraries* on this
+Mac.  Any library file can be brought into a document with *Import…*
+(xref:spot-process.adoc[Spot and process colors]).
+
+Colors are also converted on export of *artwork* -- to RGB or CMYK, depending on the format
+-- which is described on xref:saving.adoc[Saving] and xref:export-formats.adoc[Export
+formats].
+
+== Sharing colors between documents
+
+To copy a color from one open document to another:
+
+* Drag a swatch from one document's Swatches panel and drop it below the list in the other's
+  (or on its btn:[Add] arrow).  Dragging a base color brings its named tints along.
+* Copy and paste objects: named colors used by the pasted objects are added to the
+  destination's list.  A color with the same name but a different value is renamed to its mix
+  values on arrival; one with the same name and value is reused.
+* Choose *Import from Document…* in the Swatches Options menu, pick another open document,
+  and tick the colors you want.
+
+Colors copied this way are *copies*.  Editing the swatch in one document does not change it in
+the other; for a color that stays in step across documents, use a team library.
+
+== Team color libraries
+
+A team color library is a color list kept in the cloud and available to every document on
+your team.  It is itself a {product} document -- open it, edit its Swatches panel, and the
+changes are the library's new version -- so it is edited, shared and versioned like any other
+document.
+
+To make a document a team library:
+
+. Open the document.
+. Choose menu:File[Make Team Color Library…].
+. Name the library and choose which team can use it.  Click btn:[Make Library].
+
+The document keeps its artwork; only its named colors are published.  It appears in the
+document library under *Team Libraries*, and in every team document's Swatches Options menu
+under *Team Libraries*.
+
+To use colors from a team library:
+
+. In the Swatches Options menu choose the library under *Team Libraries*.
+. Tick the colors you want and click btn:[Add].
+
+The colors are added to the document as swatches that remember where they came from.  When
+the library changes, documents that use its colors show a dot beside *Team Libraries* in the
+Options menu; choose *Update from Library…* to see which of your swatches differ from the
+library and bring them up to date.  Colors you have renamed or edited locally are listed
+separately so you can decide.
+
+Team libraries need the network the first time you open one; after that the last version you
+saw is kept on your Mac and works offline.
+
+// TODO screenshot: the Team Libraries submenu with an update dot, and the Update from Library sheet
+
+NOTE: The `.ase` format has no Display P3 or OKLab: exporting a library gamut-maps such colors
+to sRGB (or keeps CIELAB as Lab) and lists the mapped colors in the export summary.  The
+`.wtcolors` format keeps every color in its own space (xref:spot-process.adoc[]).
+
+== Working with others
+
+Exporting is local: nobody else sees a file you save.  Dragging colors between documents adds
+swatches to the destination like any other addition, visible to everyone with that document
+open.
+
+A team library is a shared document, so editing it is collaborative in the usual way: the
+list is one list, later edits to one swatch stand, renames and recolors both survive.
+Publishing the library does not push changes into anyone's document; each document's editor
+chooses when to update, and *Update from Library…* is a normal change in that document that
+everyone sees.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,1"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Export selected colors as a custom color library with name, filename, rows, columns, notes
+|Same, as `.wtcolors`; `.ase` also offered.
+|Faithful
+
+|Libraries in the Colors settings folder appear in the Options menu
+|`~/Library/Application Support/WireTuner/Colors/` as *My Libraries*.
+|Faithful
+
+|Convert colors on artwork export
+|xref:export-formats.adoc[Export formats].
+|--
+
+|Drag colors between documents
+|Same, plus *Import from Document…* and paste carrying named colors.
+|Faithful
+
+|Team color libraries
+|Not in {fh}: a team document whose swatches are published.
+|Adapted: addition for multiplayer teams.
+|===
+
+=== Data model
+
+`SwatchProps.library` and `library_key` (xref:swatches.adoc[Swatches]) record a swatch's
+origin.  For a team library the `library` value is `team:<library document id>` and the key is
+the source swatch's node id, so *Update from Library…* can match swatches after renames on
+either side.
+
+Server-side, a team library is a flag on the document plus a published snapshot pointer:
+
+[source,protobuf]
+----
+// proto/wiretuner/docs/v1/library.proto (sketch)
+message ColorLibraryInfo {
+  string document_id = 1;       // the library document
+  string team_id = 2;
+  string name = 3;
+  uint64 published_seq = 4;     // server_seq of the version consumers see
+  int64 updated_ms = 5;
+}
+service ColorLibraryService {
+  rpc Publish(PublishColorLibraryRequest) returns (PublishColorLibraryResponse);     // make / update
+  rpc Unpublish(UnpublishColorLibraryRequest) returns (UnpublishColorLibraryResponse);
+  rpc List(ListColorLibrariesRequest) returns (ListColorLibrariesResponse);         // per team
+  rpc Fetch(FetchColorLibraryRequest) returns (FetchColorLibraryResponse);          // the swatches at published_seq as a ColorLibrary
+}
+----
+
+`Fetch` returns a `ColorLibrary` (xref:spot-process.adoc[Spot and process colors]) computed
+by the server's `wt-crdt` engine from the library document's snapshot at `published_seq` --
+the one place on this page the server reads document content.  Consumers never open a live
+session on the library document to use it.  Publishing happens on every change to the library
+document by default (the library "is" the document); a team can switch a library to manual
+publishing, in which case menu:File[Publish Library Version] sets `published_seq`.
+
+The `.wtcolors` file and `.ase` writer are on xref:spot-process.adoc[Spot and process colors].
+
+=== Merge semantics
+
+Export reads; it writes nothing.  Cross-document drags and *Import from Document…* create
+swatch nodes in the destination (xref:swatches.adoc[Swatches]); node ids are the destination
+replica's, never the source's, so documents never share ids.  Paste carrying named colors
+creates missing swatches in the same change as the pasted objects, with references cached.
+
+*Update from Library…* is one change in the consuming document: `SetFields value` (and
+`name`, `spot` when the user ticked those) per selected swatch.  LWW per register against
+concurrent edits.  Two people updating from the same library version at once write identical
+values, so the merge is the same whoever wins.
+
+Editing the library document is ordinary swatch editing.  Nothing in a consuming document
+references a node of the library document; there are no cross-document references, so
+offline consumers, deleted libraries and team membership changes never leave a dangling
+reference.
+
+=== Offline behavior
+
+Export, cross-document copy and *Import from Document…* work offline.  *Team Libraries*
+lists libraries from the last `List` seen on this Mac, and each library's last fetched
+`ColorLibrary` is cached under `~/Library/Application Support/WireTuner/Colors/team/`;
+adding from a cached library works offline, and the update dot is only shown when a `List`
+succeeded.  Making a document a team library needs the network and is disabled offline with
+an explanation.
+
+=== Server
+
+Beyond storing and relaying: the `ColorLibraryService` above, a `color_library` table
+(document, team, name, published_seq), and `Fetch` computing the swatch list from a snapshot
+with the Java engine.  Access: `List`/`Fetch` for team members; `Publish`/`Unpublish` for the
+document's owner.  Unpublishing or deleting the library document leaves consumers' swatches
+intact (they are copies).
+
+=== Client
+
+* `WTInterchange`: `.wtcolors` and `.ase` writers; export sheet.
+* `WTApp`: cross-document drag through the `ColorRef` pasteboard type carrying an encoded
+  `LibraryColor` list (tints included); *Import from Document…* sheet listing open documents;
+  *Team Libraries* submenu built from the cached `List`; *Update from Library…* sheet with a
+  three-way listing (unchanged, library changed, edited locally).
+* `WTSync`: a small `ColorLibraryClient` actor (List with cache, Fetch with cache, update
+  dot from `updated_ms` comparison).
+* `WTModel`: `UpdateSwatchesFromLibrary` command.
+
+=== Build tasks
+
+[[COLOR-018]]
+==== COLOR-018 Export color library
+[horizontal]
+Track:: import-export
+Depends on:: COLOR-013
+Size:: S
+Delivers:: The Export sheet (selection with tints, name, rows, columns, notes, format), `.wtcolors` and `.ase` writers, saving into *My Libraries*.
+Done when::
+* A library exported as `.ase` opens in Illustrator's Swatches panel with spot/process and spaces intact (fixture check by hash of a known-good file).
+* Exported tints re-import as tints of their exported base.
+* Defaults are never exported.
+
+[[COLOR-019]]
+==== COLOR-019 Sharing colors between documents
+[horizontal]
+Track:: client-ui
+Depends on:: COLOR-007, COLOR-018
+Size:: M
+Delivers:: Cross-document swatch drag (with tints), *Import from Document…* sheet, and paste-carries-named-colors with the clash rule.
+Done when::
+* UI tests: drag a base with two tints between windows yields three swatches in the destination with fresh node ids; paste of an object using "Grape" into a document with a different "Grape" yields a swatch renamed to mix values and the object referencing it.
+* Merge test: two clients import the same color into one document concurrently; converges with the duplicate marker.
+
+[[COLOR-020]]
+==== COLOR-020 Team color libraries: server
+[horizontal]
+Track:: server
+Depends on:: SRV-009, SRV-007
+Size:: M
+Delivers:: `library.proto`, the `color_library` table and migration, `ColorLibraryService` with role checks, `Fetch` computing a `ColorLibrary` from the snapshot at `published_seq` via `wt-crdt`, auto-publish on change and manual mode.
+Done when::
+* Tests per RPC and role; `Fetch` on a 5,000-swatch library under 200 ms; unpublish leaves the document itself untouched.
+* Deleting the library document unpublishes it and `List` no longer returns it.
+
+[[COLOR-021]]
+==== COLOR-021 Team color libraries: client
+[horizontal]
+Track:: client-ui
+Depends on:: COLOR-020, COLOR-019, APP-009, SYNC-003
+Size:: M
+Delivers:: menu:File[Make Team Color Library…] and menu:File[Publish Library Version], the *Team Libraries* submenu with cache and update dot, adding from a team library (origin recorded as `team:<id>`), the *Update from Library…* sheet and `UpdateSwatchesFromLibrary`.
+Done when::
+* Offline: the submenu and adding from a cached library work; making a library is disabled with an explanation.
+* Update sheet classifies swatches correctly after a library recolor, a local rename, and a local recolor (fixture document).
+* Merge test: two clients run Update from Library concurrently; identical values, converged hash.
+* Conformance vector for the origin fields written by a team-library add.
+endif::spec[]

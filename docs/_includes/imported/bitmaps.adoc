@@ -1,0 +1,471 @@
+A bitmap image in a {product} document is an object like any other: it has a position, a size,
+a rotation, a name, and a place in a layer's stacking order.  What makes it different is that
+it is made of pixels rather than paths, so its quality depends on how many pixels it has for
+the size it is printed at.  This page covers what the Object panel shows and lets you change
+for an image, how scaling affects its resolution, how transparency, alpha channels and tinting
+work, and how {product} displays large images.  Cropping is on
+xref:cropping-bitmaps.adoc[Cropping bitmap images], and editing pixels is on
+xref:external-editors.adoc[Editing images in other applications].
+
+== Image properties in the Object panel
+
+Select an image and the Object panel (xref:object-panel.adoc[The Object panel]) lists it as
+*Image* followed by its color mode, for example *Image (Grayscale)* or *Image (RGB)*.  Below
+the usual name, notes and transform fields it shows:
+
+[cols="1,3"]
+|===
+|Property |Meaning
+
+|*File*
+|The name of the file the image came from, or *Pasted* / *Rasterized* / *Traced*.  The
+btn:[Links…] button beside it opens the Links panel for this image
+(xref:linking-embedding.adoc[Linking and embedding]).
+
+|*Pixels*
+|Width × height in pixels, and the bit depth (for example *1500 × 1000, 8-bit*).  Read-only;
+to change the pixel count, use xref:external-editors.adoc[Optimize Image].
+
+|*Resolution*
+|Two values.  *Stored* is the resolution recorded in the image (pixels per inch); editing it
+changes the image's natural size without touching its pixels, the way a scanner's ppi setting
+does.  *Effective* is the resolution at the size the image is currently placed: stored
+resolution divided by the object's scale.  The effective value is what matters for print.
+
+|*Scale*
+|The image's current size as a percentage of its natural size, and its width and height in
+document units.  Type a value and press kbd:[Return] to resize.  The lock button keeps width
+and height proportional.
+
+|*Color mode*
+|Bilevel, Grayscale, Indexed, RGB or CMYK, with *alpha* when the image carries an alpha
+channel.
+
+|*Display alpha channel*
+|Shown for images with an alpha channel.  On by default: transparent areas of the image show
+what is behind them.  Turn it off to see the image as an opaque rectangle.
+
+|*Transparent*
+|Shown for bilevel and grayscale images only.  When on, white pixels are clear and show what is
+behind the image; black stays black.  Use it for scanned line art placed over a colored
+background.
+
+|btn:[Edit ramp…]
+|Shown for bilevel and grayscale images only.  Opens the gray ramp sheet (below).
+
+|*Color settings*
+|The image's color profile and rendering intent (xref:image-color.adoc[Image color settings]).
+
+|btn:[Edit With…]
+|Opens the image in another application (xref:external-editors.adoc[Editing images in other
+applications]).
+|===
+
+// TODO screenshot: Object panel showing a grayscale image with Transparent and Edit ramp…
+
+=== Image information
+
+To see everything {product} knows about an image, choose menu:Object[Image Info…] or click the
+information button in the Object panel.  The popover lists the file name, format, pixel size,
+stored and effective resolution, color mode and depth, alpha, embedded color profile, the
+stored file size, and who placed the image and when (from the document's history).
+
+== Resizing, rotating and skewing images
+
+An image is transformed with the same tools and panel fields as any object
+(xref:transforming.adoc[Transforming objects]).  Its pixels are never resampled by a transform:
+scaling changes the effective resolution and rotation keeps every pixel, so you can scale an
+image up and down repeatedly without loss.
+
+To resize an image:
+
+* Drag a corner handle with the Pointer tool.
+* Hold kbd:[Shift] while dragging to keep the image's proportions.
+* Hold kbd:[Option] while dragging to resize in steps that keep the effective resolution a
+  whole-number fraction of the document's printer resolution (set in the Document panel;
+  xref:document-panel.adoc[The Document panel]).  A 300 ppi image on a 600 dpi document snaps
+  to 100%, 50%, 33%, 25% and so on, which avoids the moiré and softness of an uneven scale
+  factor on halftoned output.
+* In the Object panel, type a scale percentage or a width or height, and press kbd:[Return].
+
+Rotating and skewing use the Rotate and Skew tools or the Transform panel; the image is drawn
+with its pixels rotated, and its bounding box follows.  A transformed image exports and prints
+exactly as it appears on screen.
+
+=== Resolution and print quality
+
+Print needs roughly 300 effective ppi for photographs and 600 or more for line art; the screen
+and the web need 72 to 144.  When an image's effective resolution falls below the preference
+*Warn when image resolution is below* (default 150 ppi) the *Effective* value in the Object
+panel turns amber and a caution symbol appears with the value.  The warning is advice, not a
+block: nothing stops you scaling an image as far as you like.  The print preview shows the same
+warning for every affected image on the page (xref:print-preview.adoc[Print preview]).
+
+== Alpha channels and transparency
+
+An image with an alpha channel (TIFF, PNG, PSD, Targa, WebP, HEIC, AVIF, and GIF with a
+transparent color) shows through wherever the channel says so, and *Display alpha channel* in
+the Object panel switches that on and off without changing the pixels.  The alpha channel is
+kept when you export: formats that carry alpha get it, formats that do not get the image
+composited over the page.
+
+To give an image transparency it does not have -- to knock out a background, or to feather its
+edges -- use the transparency features on xref:transparency.adoc[Transparency] and
+xref:raster-effects.adoc[Raster effects], or crop it to a shape with Paste Inside
+(xref:cropping-bitmaps.adoc[Cropping bitmap images]).
+
+NOTE: {fh} displayed an imported alpha channel but discarded it on export unless you applied one
+of its own.  {product} keeps the imported channel throughout.
+
+== Bilevel and grayscale images
+
+Images with no color -- scanned line art, one-bit logos, grayscale photographs -- can be
+recolored in place.
+
+Transparent:: Select the image and turn on *Transparent* in the Object panel.  White pixels
+become clear; gray pixels become partly clear in proportion to their lightness.  Turn it off to
+restore the white background.
+
+Tinting with a fill color:: Apply a fill color to the image as you would to a path -- from the
+Swatches panel, the Color Mixer, or the fill in the Object panel's attribute stack
+(xref:applying-color.adoc[Applying color]).  Black pixels take the fill color, white pixels stay
+white (or clear, with *Transparent* on), and grays become tints of the color.  Remove the fill
+to return to black.  A fill applied to an RGB, CMYK or indexed image has no effect and the
+attribute stack says so.
+
+Gray ramp:: To adjust the lightness and contrast of a bilevel or grayscale image, or to invert
+it, select it and click btn:[Edit ramp…] in the Object panel.  The sheet shows the image with
+the ramp applied.  Choose one of the presets -- *Normal*, *Inverted*, *Lighten*, *Darken* -- or
+adjust *Lightness* and *Contrast* by hand (each from −100 to 100).  btn:[Reset] returns to
+*Normal*, btn:[Apply] previews on the page without closing the sheet, and btn:[OK] keeps the
+change.  The ramp never alters the pixels; it is a setting on the object, and *Reset* restores
+the original at any time.
+
+Whether a file counts as grayscale is decided by its pixels, not its appearance: an RGB file
+containing only gray values is an RGB image and offers none of these options.  Convert it in
+xref:external-editors.adoc[Optimize Image] with *Color mode: Grayscale* first.
+
+== Removing a background
+
+A photograph of a product, a person or a pet usually wants to sit on the page without its
+background.  {product} can find the subject of a photograph on your Mac -- nothing is sent
+anywhere -- and either cut the background away or draw a path around the subject that you can
+edit like any other.
+
+To remove the background of a selected image:
+
+. Choose menu:Object[Image > Remove Background…].  A sheet shows the image with the background
+  faded and the subject outlined; this takes a second or two for a large photograph.
+. If the wrong thing was found, click another subject in the preview, or kbd:[Shift]-click to
+  add several (a person and the dog beside them).  *Soften edge* (0 to 10 pixels) feathers the
+  cut; 1 is right for most photographs.
+. Choose what to make:
++
+[cols="1,3"]
+|===
+|Result |What you get
+
+|*Transparent image*
+|A new image with the background turned into transparency, replacing the original's pixels.
+The image keeps its size, position and every setting; it exports with its alpha channel like
+any image with transparency.  The original pixels are gone from this object (undo brings them
+back), so duplicate the image first if you want both.
+
+|*Clipping path*
+|The original image, untouched, pasted inside a path traced around the subject
+(xref:clipping-paths.adoc[Clipping paths]).  Nothing is lost, the edge is a path you can
+adjust point by point, and you can pull the image back out of the path at any time.
+|===
+. Click btn:[Remove Background].
+
+To get only the outline, choose menu:Object[Image > Select Subject]: the subject becomes a
+wand selection for the Trace tool, marching outline and all, and the tool's popover offers
+*Trace selection* and *Convert selection edge* as it does for a color pick
+(xref:tracing.adoc[Tracing images]).  It is the quickest way to get a clipping path or a mask
+for a photograph without clicking colors.
+
+Both commands work on RGB, CMYK and grayscale images with their pixels on this Mac; a
+placeholder that has not finished downloading is refused, and the sheet says so.  They find
+*subjects* -- people, animals, products, plants, vehicles, things that stand apart from what
+is behind them -- and do nothing useful on a flat logo or a scan of line art; use the Trace
+tool's wand for those.
+
+NOTE: What {product} does not do in this version: it does not draw for you, turn a sentence
+into artwork, restyle your work, or send anything to a service to do any of that.  Every
+feature that finds or classifies something in a picture runs on your Mac, works with no
+connection, and produces ordinary objects -- an image, a path, a selection -- that you edit
+as you would anything else.
+
+== Displaying images
+
+Large images are the heaviest thing a document can contain, and the *Image display* preference
+trades detail for speed on slow Macs:
+
+[cols="1,3"]
+|===
+|Setting |Effect
+
+|*High resolution* (default)
+|Images are drawn from their full pixels at every zoom.  {product} prepares reduced copies in
+the background so that panning and zooming stay smooth even with hundreds of megapixels on the
+page.
+
+|*Proxy*
+|Images are drawn from a reduced copy no larger than the screen needs at 100% zoom; zooming in
+shows them soft.  Faster on Intel Macs with many large images.
+
+|*Gray boxes*
+|Images are drawn as gray rectangles with their names.  For laying out a document whose
+pictures are in the way.
+|===
+
+The setting affects only the screen; exports and prints always use the full pixels.  The
+Preview and Keyline view modes (xref:document-view.adoc[Viewing the document]) draw images as
+this preference says; Fast Preview and Fast Keyline always draw them as gray boxes.  JPEG images
+are always drawn from their full pixels in *Proxy* mode, since they decode quickly.
+
+== Working with others
+
+Images behave like any object when several people work at once: two people moving the same
+image keep the later move, and a scale from one person and a rotation from another keep the
+later of the two, since both are one transform.  The image settings on this page are
+independent of one another and of the transform: one person turning on *Transparent* while
+another tints the image, or one adjusting the ramp while another scales it, keeps everything.
+If two people adjust the gray ramp at the same moment the later adjustment wins, and the merge
+review lists it.
+
+If someone replaces an image's pixels (through an external editor) while you are adjusting its
+settings, your settings apply to the new picture.  If someone deletes an image while you are
+adjusting it, your adjustments are kept on the deleted image and *Restore* in the merge review
+brings it back with them.
+
+All of this works offline; image settings are small and sync in an instant when you reconnect.
+An image someone else placed while you were offline shows as a placeholder until its pixels
+have downloaded, and you can already set its properties.
+
+Removing a background as a *Transparent image* replaces the image's pixels, so it behaves
+like an external edit: if someone else replaces the same image's pixels at the same moment,
+the later replacement wins and the other is listed in the merge review.  The *Clipping path*
+result only adds objects, so it never collides with anyone; if the image is deleted while you
+are working, the sheet closes with a message.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,2"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Bitmap formats behave alike; TIFF as the model
+|One `image` kind for every format.
+|Faithful
+
+|Embed, extract and change links in the Links dialog
+|Links panel with *Update from source*, *Save a copy…* (extract) per
+xref:linking-embedding.adoc[Linking and embedding].
+|Adapted -- always embedded; extraction is "save a copy".
+
+|Display alpha channel (on by default); alpha not kept on export
+|Same control; alpha kept on export.
+|Adapted -- keeping the channel is strictly better and costs nothing with modern formats.
+
+|*Transparent* for grayscale and bilevel images
+|Same, with partial transparency for grays.
+|Faithful
+
+|Edit grayscale ramp: four presets, Lightness/Contrast, Reset/Apply/OK
+|Same in a sheet, live preview.
+|Faithful
+
+|Fill color tints grayscale and bilevel images
+|Same; `tint` register, applied through the ordinary fill UI.
+|Faithful
+
+|Plug-ins (Xtras) on bitmaps convert them to embedded TIFF
+|Raster effects are live and non-destructive (xref:raster-effects.adoc[Raster effects]); pixel
+plug-ins are not supported.
+|Adapted -- covered by the FX epic; nothing converts an image in place.
+
+|*Set on-screen image resolution* (Full / proxy) redraw preference; image RAM cache
+|*Image display*: High resolution, Proxy, Gray boxes.  Cache is automatic.
+|Adapted -- renamed and given a gray-box option; no manual cache size.
+
+|JPEG always displayed at full resolution
+|Same in Proxy mode.
+|Faithful
+
+|Resize by handles; kbd:[Shift] proportional; kbd:[Option] in printer-resolution steps; Object
+panel scale and dimensions
+|Same.
+|Faithful
+
+|Object panel Properties list prefixes grayscale images with "Grayscale"
+|Kind label *Image (mode)*.
+|Faithful
+
+|(none)
+|*Image Info…* popover; *Warn when image resolution is below*; stored vs. effective resolution
+shown.
+|Added -- the information {fh} users had to compute by hand.
+
+|(none)
+|menu:Object[Image > Remove Background…] (transparent image or clipping path) and
+menu:Object[Image > Select Subject], on-device subject segmentation.
+|Added -- macOS provides the segmentation; the results are ordinary pixels and paths
+(xref:decisions.adoc[Decisions]: on-device ML only, no generative features in v1).
+|===
+
+=== Data model
+
+All fields are in `ImageProps` on xref:importing.adoc[Importing artwork].  This page edits
+`dpi_x`, `dpi_y` (*Stored* resolution), `display_alpha`, `transparent_background`, `ramp` and
+`tint`; *Scale* edits `CommonProps.transform`.  The tint is applied through the ordinary fill
+UI, but it is stored in `tint` rather than in the attribute stack: an image has no fill
+stack, and the Object panel presents `tint` as a single fill row for images of the eligible
+modes.  The *Image display* preference and the resolution warning threshold are preferences,
+not document state.
+
+*Remove Background* adds no fields.  *Transparent image* writes `pixels` (a new PNG blob with
+alpha, `has_alpha = true`, same dimensions, `display_alpha = true`) and sets
+`source_name` to the original name with " (background removed)"; *Clipping path* creates the
+OBJ-027 clipping group with a traced `path` node and moves the image inside it, exactly as
+Paste Inside does.  *Select Subject* writes nothing: it seeds the Trace tool's wand mask.  No
+model output is stored; nothing records that segmentation was used beyond the name suffix.
+
+=== Merge semantics
+
+* `transform` is ATOMIC (xref:crdt-model.adoc[CRDT model]): scale vs. rotate from two people
+  keeps the later, listed in review as *same register*.
+* `dpi_x`/`dpi_y` are separate registers, so one person editing the stored resolution and
+  another scaling the object keep both, and the effective resolution shown afterwards reflects
+  both.  Editing *Stored* writes both values in one op when the lock is on.
+* `display_alpha`, `transparent_background`, `tint`, `ramp`: independent LWW registers; only
+  same-register concurrency is listed in review.
+* Placeholder editing: every field can be set on a node whose blob is not yet local; the
+  renderer applies them when the blob arrives.
+* Read-time normalizations: as listed on xref:importing.adoc[Importing artwork] (mode-gated
+  fields ignored on color images; dpi 0 → 72).  Additionally, `ramp` with `preset = CUSTOM` and
+  both values 0 reads as NORMAL.
+* *Transparent image* is a `pixels` replacement: ATOMIC LWW against any concurrent replacement
+  (external edit, re-import, another background removal), loser retained and shown in the
+  review with both pictures.  Every other register (crop, tint, transform) is untouched and
+  merges independently.  *Clipping path* is new nodes plus one `MoveNode` of the image into
+  the group; a concurrent delete of the image lands as *edit vs delete* with *Restore*.
+
+=== Offline behavior
+
+Nothing beyond the blob download rule: an image whose blob is not cached shows the placeholder
+until online.  The *Image display* preference is local.  Segmentation runs on this Mac and
+needs no connection; the new blob a *Transparent image* produces uploads like any placed
+image.
+
+=== Server
+
+Nothing beyond storing and relaying changes and blobs.
+
+=== Client
+
+* Rendering (IMG-004): the natural rect is
+  `(0, 0, pixel_width / dpi_x * 72, pixel_height / dpi_y * 72)` in the node's local space,
+  drawn under `CommonProps.transform` with `CGContext.draw(_:in:)`, interpolation *high* below
+  100% and *none* above 400% of the pyramid level's scale so pixels stay crisp when zoomed
+  far in.
+* Bilevel/grayscale treatment is done as one `CIImage` pipeline per image: ramp as a
+  `CIColorCurves`-equivalent LUT, tint as a multiply against the resolved `ColorRef`,
+  *Transparent* as luminance-to-alpha (`CIMaskToAlpha` for bilevel; a lightness ramp for
+  grayscale).  The resulting `CGImage` is cached per (blob, ramp, tint, transparent, level).
+* Mip pyramid: for blobs over 4 MP, `CGImageSourceCreateThumbnailAtIndex` at powers of two
+  down to 512 px, generated off the main actor on first display and cached in the blob cache
+  directory beside the blob (invalidated by hash).  The level drawn is the smallest whose
+  scale exceeds the on-screen scale.  Above 64 MP decode is tiled by drawing the source through
+  `CGImageSourceCreateImageAtIndex` with `kCGImageSourceSubsampleFactor` for the pyramid and a
+  tiled decode for the full level, so peak memory stays under 1.5× the on-screen tiles.
+* Hit testing (REND-003): the cropped natural rect transformed; with *Transparent* or alpha,
+  a hit inside the rect on a fully transparent pixel still selects (as {fh}), so pointer
+  behavior does not depend on decoding.
+* Undo: each Object panel edit is one change; kbd:[Option]-drag resizing is one change per
+  drag with the coalescing rule from APP-011.
+* `Image Info…` is an `NSPopover` with a SwiftUI form; history attribution comes from the
+  local change log's `wall_time_ms` and replica → user mapping (COLLAB epic's history page).
+* Subject segmentation is `WTRender.SubjectMask` (IMG-027): the decoded image (downsampled to
+  at most 4 MP on the long edge for the request) goes through Vision's
+  `VNGenerateForegroundInstanceMaskRequest`; `allInstances` gives the candidates, the sheet's
+  click picks instances by hit-testing the instance mask, and
+  `generateScaledMaskForImage(forInstances:from:)` returns a full-resolution soft mask.  The
+  mask is feathered by *Soften edge* (Gaussian, σ = value / 2 px) and applied as alpha with
+  `CIBlendWithMask` to produce the PNG blob for *Transparent image*.  For *Clipping path* and
+  *Select Subject* the mask is thresholded at 0.5 and handed to the Trace kernel's outline
+  stage (IMG-021, conformity 6, no fill, holes kept) to produce the path, in the image's
+  local space so it follows `CommonProps.transform`.  Runs off the main actor with a
+  cancellable progress; the sheet previews the mask as a 50% overlay over the faded image.
+  No Core ML model ships for this feature; Vision's is on every supported macOS.  The request
+  is refused (menu items disabled) on a placeholder and on bilevel and indexed images.
+* Undo: *Transparent image* is one change "Remove background from _name_" that undoes to the
+  prior `pixels` register; *Clipping path* one change "Clip _name_ to subject".
+
+[[IMG-016]]
+==== IMG-016 Object panel image editor
+[horizontal]
+Track:: client-ui
+Depends on:: APP-007, IMG-003, IMG-004
+Size:: M
+Delivers:: The image section of the Object panel: kind label with mode, File with btn:[Links…], Pixels, Stored/Effective resolution with lock and warning, Scale with lock, Color mode, Display alpha channel, Transparent, btn:[Edit ramp…] sheet with presets, Lightness, Contrast, Reset, Apply, OK, tint through the fill row, Color settings hook, btn:[Edit With…], and the *Image Info…* popover.
+Done when::
+* UI tests toggle each control and verify the emitted change and the undo title.
+* Controls are hidden or disabled by mode exactly as the table above says.
+* Merge test: Transparent from A and tint from B converge with both applied.
+* The Effective value updates live while another user scales the image.
+
+[[IMG-017]]
+==== IMG-017 Image display preference and resolution snapping
+[horizontal]
+Track:: client-ui
+Depends on:: IMG-004, APP-010, GEO-005
+Size:: S
+Delivers:: The *Image display* preference (High resolution, Proxy, Gray boxes; default High resolution), its effect in each view mode, the *Warn when image resolution is below* preference (default 150 ppi) and the amber warning, and kbd:[Option]-drag resizing in printer-resolution steps.
+Done when::
+* UI test: each setting produces the documented rendering in Preview and Fast Preview.
+* kbd:[Option]-drag of a 300 ppi image on a 600 dpi document snaps to 100/50/33.3/25%.
+
+[[IMG-018]]
+==== IMG-018 Large image performance
+[horizontal]
+Track:: client-render
+Depends on:: IMG-004
+Size:: M
+Delivers:: The on-disk mip pyramid cache, tiled decode above 64 MP, memory budget accounting, eviction, and the `CIImage` treatment cache for bilevel/grayscale settings.
+Done when::
+* A document with twenty 50 MP images opens and pans at 60 fps on M1 with under 1 GiB
+  resident.
+* Pyramid generation for a 200 MP TIFF completes in under 4 s off the main actor with the
+  placeholder visible meanwhile.
+* Cache survives relaunch and is invalidated by blob hash.
+
+[[IMG-027]]
+==== IMG-027 Subject mask kernel
+[horizontal]
+Track:: client-render
+Depends on:: IMG-004, IMG-021
+Size:: M
+Delivers:: `WTRender.SubjectMask`: Vision foreground-instance segmentation over a downsampled decode, instance hit-testing, full-resolution scaled soft mask, feathering, mask-to-alpha PNG encoding, and mask-to-path through the Trace outline stage in image-local space; cancellable async API with progress.
+Done when::
+* A fixture set (portrait, product on white, pet on grass, two people, a flat logo) yields masks whose IoU against hand-made references is ≥ 0.9 for the four photographs; the logo returns "no subject found" rather than a mask.
+* A 24 MP photograph segments and produces the alpha PNG in under 3 s on M1 and never holds more than two full-resolution buffers.
+* The traced path of the portrait fixture renders back over the mask with under 1.5% pixel difference.
+* The kernel makes no network calls (sandbox audit) and is deterministic for a given image and instance choice.
+
+[[IMG-028]]
+==== IMG-028 Remove Background and Select Subject commands
+[horizontal]
+Track:: client-ui
+Depends on:: IMG-027, IMG-016, OBJ-027, IMG-023
+Size:: M
+Delivers:: menu:Object[Image > Remove Background…] sheet with faded preview, instance click and kbd:[Shift]-click, *Soften edge*, the two results, and menu:Object[Image > Select Subject] seeding the Trace tool's wand mask; placeholder and mode refusals; change labels and undo.
+Done when::
+* UI test: *Transparent image* on the portrait fixture replaces `pixels` with an alpha PNG of the same dimensions in one change; undo restores the original hash.
+* *Clipping path* produces a clipping group containing the untouched image and one path; *Select Subject* leaves the Trace tool active with a marching-ants selection whose pixel count matches the mask.
+* Merge test: A removes the background as a transparent image while B crops the same image; both converge on B's crop over A's new pixels.
+* Menu items are disabled for placeholders, bilevel and indexed images, and with more than one image selected.
+endif::spec[]

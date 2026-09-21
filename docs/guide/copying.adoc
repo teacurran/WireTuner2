@@ -1,0 +1,7 @@
+= Copying, cloning and duplicating
+include::_attributes.adoc[]
+:page-slug: copying
+:page-group: Objects
+:page-fh: Chapter 4, "Copying objects", "Copying objects within a FreeHand document", "Copying objects between FreeHand documents", "Copying objects between applications"
+
+include::_includes/objects/copying.adoc[]

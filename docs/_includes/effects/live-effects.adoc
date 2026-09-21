@@ -1,0 +1,1010 @@
+A live effect changes how an object looks without touching the object itself.  The path you
+drew stays exactly as you drew it; the effect is an attribute stacked on top of it, next to its
+strokes and fills, and you can adjust it, reorder it or remove it at any time.  {product} has
+two families of live effects.  *Vector effects* -- Bend, Combine, Corners, Duet, Expand Path,
+Ragged, Sketch and Transform -- produce new vector outlines, so they stay crisp at any zoom and
+on any printer.  *Raster effects* -- bevels, blurs, shadows, glows and sharpening -- produce
+pixels and are covered in xref:raster-effects.adoc[Live raster effects]; the Transparency
+effect has its own page, xref:transparency.adoc[Transparency].  This page covers where effects
+live, how you manage them, and every option of the eight vector effects.
+
+The tools and commands that reshape a path permanently (Roughen, Fisheye Lens, the Bend tool,
+Smudge, Emboss and their relatives) are on xref:path-effects.adoc[Path-shaping tools and
+operations].  Where a live effect and a destructive tool do the same thing -- Bend, Expand Path,
+Ragged versus Roughen -- prefer the effect when you may want to change your mind later, and the
+tool when you need the resulting points to edit by hand.
+
+== Effects in the Object panel
+
+Effects are attributes of an object, like its strokes and fills.  The Object panel
+(menu:Window[Object], kbd:[Cmd+3]) shows the selected object's *appearance list* in its upper
+half: the object itself at the top, then each stroke, fill and effect in the order they are
+applied.  Selecting an item in the list shows its settings in the lower half of the panel.  The
+appearance list is described in full in xref:attribute-stack.adoc[The attribute stack];
+xref:object-panel.adoc[The Object panel] describes the panel itself.
+
+// TODO screenshot: Object panel with an object carrying a fill, a stroke and a Ragged effect selected
+
+An effect can be attached at three levels:
+
+The object:: The effect applies to the object as a whole -- to the combined result of all its
+strokes and fills.  A Ragged effect on the object roughens every stroke and fill together.
+A fill:: The effect applies to that fill only.  A Transform effect on a fill lets you offset or
+scale the fill while the stroke stays put, a Bend on a fill bends the fill under an unbent
+stroke.
+A stroke:: Likewise for a single stroke.
+
+Order matters.  Effects are applied from the top of the list downward, each working on the
+result of the one above it: a Bend followed by a Ragged roughens the bent shape, whereas a
+Ragged followed by a Bend bends the roughened one.  Drag an effect up or down the list to change
+the order.  Effects attached to a fill or stroke sit indented under it and only reorder among
+that fill's or stroke's effects.
+
+To add a live effect:
+
+. Select the object on the canvas, or select a fill or stroke in the Object panel's appearance
+  list to attach the effect to that attribute alone.
+. Click btn:[Add Effect] at the top of the Object panel and choose an effect from the menu.
+  Vector effects are listed first, then the raster effects in their submenus, then
+  Transparency.
+. Adjust the effect's settings in the lower half of the panel.  Every change previews on the
+  canvas as you make it.
+
+To change which effect an item is:
+
+. Select the effect in the appearance list.
+. Choose a different effect from the *Effect* pop-up menu at the top of the settings area.  The
+  new effect starts with its default settings.
+
+To remove a live effect:
+
+. Select the effect in the appearance list.
+. Click btn:[Remove Item] (the minus button), or press kbd:[Delete].
+
+To reorder effects:
+
+* Drag the effect up or down in the appearance list.  A horizontal line shows where it will
+  land; dropping it onto a fill or stroke attaches it to that attribute.
+
+To hide an effect without removing it:
+
+* Click the eye icon beside the effect in the appearance list.  A hidden effect keeps its
+  settings and is skipped when the object is drawn, printed or exported.  Click again to show
+  it.
+
+TIP: Effects are copied with the object, are part of graphic styles
+(xref:styles.adoc[Styles]), and can be pasted onto other objects with
+menu:Edit[Paste Attributes] (xref:default-attributes.adoc[Default attributes]).
+
+=== Effects and the rest of the object
+
+* Hit testing uses the effected outline: with an Expand Path effect, clicking anywhere in the
+  widened band selects the path.  The object's own points and handles are still where you
+  drew them, and that is where the Pointer and Subselect tools show them.
+* Bounds shown in the Object panel and used for alignment are the object's own, not the
+  effected result.  Choose menu:View[Show Effect Bounds] to see the effected bounds instead.
+* Transforming an object with the transformation tools transforms its effects with it: a Bend's
+  centre point rotates along with the object, an Expand Path width scales with a uniform scale.
+* Text can carry effects as a text block; a paragraph or a run cannot.  The effect is applied
+  to the laid-out glyph outlines (xref:text-effects.adoc[Text effects]).
+* Effects on a group apply to the group as one shape.  Ungrouping drops group-level effects
+  after a confirmation.  The Combine effect (below) only makes sense on a group and is the
+  one effect that changes how the group's members are drawn.
+* Keyline view (menu:View[Keyline]) draws the object's own outline, not its effects.
+
+== Bend
+
+Bend pulls every point of the outline toward or away from a centre point, which bloats the
+shape into a cushion or pinches it into a star.  It is the live counterpart of the Bend tool.
+
+To apply a Bend effect:
+
+. Add the effect, or select an existing effect and choose *Bend* from the Effect pop-up menu.
+. Set its options:
+
+[cols="1,3"]
+|===
+|Option |What it does
+
+|*Size*
+|How far the outline moves, in points.  Positive values push the outline away from the centre
+(bloat); negative values pull it toward the centre (pinch).  `0` leaves the shape unchanged.
+
+|*Center X*, *Center Y*
+|The centre of the distortion, in the document's units, relative to the object's own centre.
+You can also drag the centre handle on the canvas while the effect is selected in the Object
+panel.
+|===
+
+// TODO screenshot: positive and negative Bend on a square, with the centre handle visible
+
+== Combine
+
+Combine turns a group into one shape by adding, subtracting, intersecting or excluding the
+outlines of its members -- the same operations as menu:Modify[Combine] on
+xref:combining-paths.adoc[Combining paths], but live.  The members stay separate, editable
+objects inside the group: move a circle and the union follows it; reshape a point and the hole
+changes shape.  The group draws with its *own* fills and strokes, as if it were a single path,
+and the members' fills and strokes are not drawn while the effect is on.  Add the effect to a
+group; on a single object it does nothing.
+
+To combine a group live:
+
+. Select the group, or select the objects and group them (menu:Modify[Group], kbd:[Cmd+G]).
+. Add the effect, or choose *Combine* from the Effect pop-up menu.
+. Give the group a fill and a stroke in the Object panel.  They apply to the combined shape.
+. Choose the operation:
+
+[cols="1,3"]
+|===
+|Option |What it does
+
+|*Union*
+|Everything any member covers, as one outline.
+
+|*Subtract*
+|The bottom member with every member above it cut away.  Stacking order decides which member is
+the base; reorder in the Layers panel or with menu:Modify[Arrange].
+
+|*Intersect*
+|Only the area every member covers.
+
+|*Exclude*
+|The areas covered by an odd number of members: where two members overlap becomes a hole.
+
+|btn:[Expand]
+|Replaces the group with an ordinary path of the combined outline, keeping the group's fills,
+strokes and other effects.  This is what menu:Modify[Combine] would have produced; afterwards
+the members are gone and the shape is edited point by point.  Undo brings the group back.
+|===
+
+Members can be paths, rectangles and ellipses, text (its glyph outlines are used), symbol
+instances and nested groups; a nested group with its own Combine effect is combined first, then
+takes part as one shape.  Open paths and members with no closed outline contribute nothing.
+Other effects on the group apply to the combined shape, so a Combine followed by a Ragged
+roughens one outline, not each member.
+
+// TODO screenshot: a group of three circles with Combine set to Union, Subtract, Intersect and Exclude
+
+== Corners
+
+Corners rounds, scoops or bevels the corners of any path -- a star, a polygon, a hand-drawn
+shape, a rectangle -- without adding or moving points.  The path keeps its corner points where
+they are; the effect draws each corner as an arc or a cut of the radius you choose.  You can
+treat every corner of the path or only the points you select, and adjust corners by dragging
+on the canvas as well as from the Object panel.
+
+To round corners by dragging:
+
+. Choose the Subselect tool and click the path.  A small round widget appears just inside each
+  corner point -- each point where two segments meet at an angle.  Curve points have no widget.
+. Drag any widget toward the inside of the shape.  With no points selected, every corner
+  follows; with some points selected, only those change.  The first drag adds a Corners effect
+  to the object; later drags adjust it.
+. kbd:[Option]-click a widget to cycle its style, or double-click it to show the effect in the
+  Object panel.
+
+Choose menu:View[Show Corner Widgets] to hide or show the widgets.
+
+To set corners in the Object panel:
+
+. Add the effect, or choose *Corners* from the Effect pop-up menu.
+. Set its options:
+
+[cols="1,3"]
+|===
+|Option |What it does
+
+|*Radius*
+|The corner radius in points.  A radius too large for a corner -- one whose rounding would
+reach past the middle of either neighboring segment -- is reduced for that corner only, so
+corners never overlap.
+
+|*Style*
+|*Round* draws a convex arc; *Inverted round* scoops the corner out with a concave arc;
+*Chamfer* cuts it off with a straight line.
+
+|*Corners*
+|*All* treats every corner of the path.  *Selected points* treats only the points you had
+selected with the Subselect tool when you chose it; btn:[Add Selection] and btn:[Remove
+Selection] change that set later, and dragging a widget while points are selected does the same.
+|===
+
+// TODO screenshot: a star with Round, Inverted round and Chamfer corners side by side, widgets visible
+
+Rectangles drawn with the Rectangle tool have their own corner radius
+(xref:rectangles-ellipses-lines.adoc[Rectangles, ellipses and lines]), and that field stays the
+quickest way to round a rectangle.  Add a Corners effect to a rectangle when you want inverted
+or chamfered corners, or want the rounding to be one of several effects.  While a rectangle
+carries a Corners effect the effect takes over: the rectangle's own radius is ignored, its
+*Radius* field in the Object panel is dimmed with a note saying so, and the corner handles drag
+the effect's radius instead.  Remove the effect and the rectangle's own radius comes back.
+
+== Duet
+
+Duet clones the shape one or more times, rotated around or reflected across a centre point, and
+draws the original and its clones as one compound shape.  It is the fastest way to turn a single
+motif into a rosette or a symmetrical emblem while keeping only one path to edit.
+
+To apply a Duet effect:
+
+. Add the effect, or choose *Duet* from the Effect pop-up menu.
+. Set its options:
+
+[cols="1,3"]
+|===
+|Option |What it does
+
+|*Reflect*
+|Draws one mirror image of the shape.  The mirror axis passes through the centre point; drag
+the centre handle or edit *Center X*/*Center Y* to move the axis, and rotate it by dragging the
+handle's arm.
+
+|*Rotate*
+|Draws *Copies* duplicates evenly rotated around the centre point.  Two copies give a 180°
+pair, six copies a hexagonal rosette.
+
+|*Center X*, *Center Y*
+|The centre of rotation or the point the mirror axis passes through, relative to the object's
+centre.
+
+|*Copies*
+|Number of clones for *Rotate*, 1--100.  Ignored for *Reflect*, which always makes one.
+
+|*Joined*
+|Connects the original and its clones into one continuous path instead of leaving them as
+separate contours.  Use it when a stroke should run unbroken from one copy to the next.
+
+|*Closed*
+|With *Joined* off, closes each clone.  With *Joined* on, closes the single combined path.
+
+|*Even/Odd fill*
+|Where clones overlap, alternate filled and unfilled areas instead of filling the union.
+|===
+
+// TODO screenshot: a leaf shape with Reflect (left) and with Rotate, six copies (right)
+
+== Expand Path
+
+Expand Path draws the outline a stroke *would* have if the path were stroked at a given width,
+and treats that outline as the object's shape -- so a two-point line becomes a long closed
+rectangle you can fill with a gradient, and a closed shape grows a band around it.  The path
+itself keeps its points.  Compare menu:Modify[Alter Path > Expand Stroke]
+(xref:expand-stroke.adoc[Expanding a stroke]), which replaces the path with the outline.
+
+To apply an Expand Path effect:
+
+. Add the effect, or choose *Expand Path* from the Effect pop-up menu.
+. Set its options:
+
+[cols="1,3"]
+|===
+|Option |What it does
+
+|*Direction*
+|*Inside* expands only into a closed shape, *Outside* only outward, *Both* on both sides of
+the path (the way a stroke sits).  Open paths always expand on both sides.
+
+|*Width*
+|The total width of the band, 0--50 points.
+
+|*Cap*
+|How an open path's ends are finished: *Butt* stops at the end point, *Round* adds a
+semicircle, *Square* extends past the end by half the width.
+
+|*Join*
+|How corners are drawn: *Miter* (sharp), *Round*, or *Bevel* (cut off).
+
+|*Miter limit*
+|1--57.  A mitered corner sharper than this ratio of miter length to width is drawn beveled
+instead, so acute corners do not spike.
+|===
+
+== Ragged
+
+Ragged adds points along the outline and moves them in and out by a random amount, for a torn,
+hand-cut or wobbly look.  Unlike the Roughen tool the randomness is *stable*: the effect looks
+the same every time the document is opened, on every Mac, and the same on the printed page.
+
+To apply a Ragged effect:
+
+. Add the effect, or choose *Ragged* from the Effect pop-up menu.
+. Set its options:
+
+[cols="1,3"]
+|===
+|Option |What it does
+
+|*Size*
+|The furthest an added point may stray from the original outline, in points.
+
+|*Frequency*
+|How many points are added per inch of outline.  Higher values give finer, busier edges.
+
+|*Copies*
+|How many additional randomized outlines are drawn on top of the original, 0--10.  Several
+copies of a thin stroke give a scribbled look.
+
+|*Rough*
+|Added points are corner points: a jagged, torn edge.
+
+|*Smooth*
+|Added points are curve points: a wavy, hand-drawn edge.
+
+|*Uniform*
+|Every added point moves by exactly *Size*, alternating in and out, instead of by a random
+amount.  Produces a regular zigzag or scallop.
+
+|*Reseed*
+|Picks a new random pattern.  The pattern is stored with the effect, so everyone sees the same
+one until you click this again.
+|===
+
+// TODO screenshot: Ragged with Rough (left) and Smooth (right) on the same circle
+
+== Sketch
+
+Sketch redraws the outline as if with a pencil: several slightly wrong copies of the outline,
+each offset by a random amount, drawn with the object's stroke.  Like Ragged, the randomness is
+stored so the drawing is stable.
+
+To apply a Sketch effect:
+
+. Add the effect, or choose *Sketch* from the Effect pop-up menu.
+. Set its options:
+
+[cols="1,3"]
+|===
+|Option |What it does
+
+|*Amount*
+|How far the sketched strokes may wander from the outline, in points.  Larger values look
+looser.
+
+|*Copies*
+|How many pencil strokes are drawn, 1--20.
+
+|*Closed*
+|Joins the ends of each sketched stroke so it forms a closed loop; off, each stroke starts and
+ends a little short, like a real pencil pass.
+
+|*Reseed*
+|Picks a new random pattern.
+|===
+
+== Transform
+
+Transform scales, skews, rotates and moves the object's appearance, optionally repeated as a
+chain of copies, without changing the object's actual geometry.  The transformation tools on
+xref:transforming.adoc[Transforming objects] do the same things to the object itself; use the
+effect when you want the original to stay put -- for example to give a fill a nudged, scaled
+duplicate as a fake shadow, or to build a spiral of copies from one shape.
+
+To apply a Transform effect:
+
+. Add the effect, or choose *Transform* from the Effect pop-up menu.
+. Set its options.  They are applied in this order: scale, skew, rotate, move, all about the
+  centre point:
+
+[cols="1,3"]
+|===
+|Option |What it does
+
+|*Scale X*, *Scale Y*
+|Percentages; 100 is unchanged.  *Uniform* locks Y to X.
+
+|*Skew H*, *Skew V*
+|Skew angles in degrees.  Positive horizontal skew leans the top to the right; positive
+vertical skew raises the right side.
+
+|*Rotate*
+|Degrees; positive is counterclockwise.
+
+|*Move X*, *Move Y*
+|Offset in the document's units.  Positive X moves right, positive Y moves up.
+
+|*Center X*, *Center Y*
+|The centre of scaling, skewing and rotation, relative to the object's centre.  Positive X and
+Y move the centre right and up.  A centre handle on the canvas can be dragged instead.
+
+|*Copies*
+|`1` transforms the original only.  Higher values draw that many copies, each transformed once
+more than the one before it -- with *Rotate* 30° and *Copies* 12 you get a full ring, with
+*Scale* 90% and *Move* you get a receding trail.
+|===
+
+NOTE: Scale, skew and rotate compose in the fixed order above, so two people adjusting
+different fields of the same Transform effect at once get a predictable result (see below).
+
+== Working with others
+
+Live effects are attributes of the object, so collaborating on them works the way collaborating
+on strokes and fills does.
+
+* When someone else adds, removes, reorders or adjusts an effect on an object you are looking
+  at, the canvas and the Object panel update within a moment.  If the Object panel is showing
+  that object, the list refreshes in place; a field you are typing into keeps your keystrokes.
+* If two of you add effects to the same object at the same time, both effects end up on the
+  object, one above the other.  Whoever's arrived later at the server sits lower in the list;
+  drag to reorder if that is not what you wanted.
+* If you both change the same setting of the same effect -- two Bend sizes -- the later change
+  wins and the other is offered back in the merge review after a long offline stretch.  Changes
+  to *different* settings of the same effect both survive: your Size and their Center both
+  apply.
+* If someone removes an effect you are adjusting, your adjustment lands on the removed effect
+  and the effect disappears.  After an offline session the merge review lists it as an edit of
+  something that was deleted and offers to restore it.
+* Reseeding a Ragged or Sketch effect changes what everyone sees, because the random pattern is
+  part of the document.
+* Corners: if you and a collaborator each add different points to a Corners effect's *Selected
+  points*, both sets are kept.  If you both change its radius, the later change wins.  If
+  someone deletes a point you had rounded, that corner simply goes with the point; the rest of
+  the effect is unchanged, and undoing the deletion brings the rounded corner back.
+* Combine: the members are ordinary objects, so someone can reshape a member while you switch
+  the operation, and both changes show.  If someone clicks btn:[Expand] while you are editing
+  a member, your edit lands on the group that was just replaced by a path; live, it disappears
+  with the group, and after an offline session the merge review lists it with *Restore*.
+
+After being offline, all of this is merged automatically; nothing about effects needs the
+network.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,1"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Add Effect button, effect type pop-up, Remove Item, drag to reorder in the Properties list
+|Same, in the appearance list of the Object panel.  Effects can also be hidden with an eye
+toggle.
+|Faithful
+
+|Effects attach to the object, a fill or a stroke
+|Same.  `Effect.attached_to` names the fill or stroke element.
+|Faithful
+
+|Bend: Size, centre x/y
+|Same; centre also draggable on canvas.
+|Faithful
+
+|Duet: Reflect/Rotate, centre, Copies, Joined, Closed, Even/Odd fill
+|Same.
+|Faithful
+
+|Expand Path: Direction, Width 0--50, Cap, Join, Miter limit 1--57
+|Same.
+|Faithful
+
+|Ragged: Size, Frequency, Copies, Rough/Smooth, Uniform
+|Same, plus a stored seed and a *Reseed* button so every replica renders the same random
+outline.
+|Adapted -- a random effect that differs per machine would differ per collaborator and per
+print.
+
+|Sketch: Amount, Copies, Closed
+|Same, plus stored seed and *Reseed*.
+|Adapted -- same reason.
+
+|Transform: Scale (Uniform), Skew, Rotate, Move, Center, Copies
+|Same.
+|Faithful
+
+|Effects included in graphic styles and Paste Attributes
+|Same.
+|Faithful
+
+|Effect bounds
+|menu:View[Show Effect Bounds] toggles between own and effected bounds for the selection
+outline.
+|Adapted -- {fh} always showed own bounds; the toggle adds a way to align effected results.
+
+|Corners (no {fh} counterpart; Illustrator's Live Corners)
+|Live *Corners* vector effect: round, inverted round or chamfer on any corner of any path, per
+point or whole path, with on-canvas widgets under the Subselect tool.  On a rectangle it
+supersedes the rectangle's own radius.
+|Added -- {fh}'s radius covered rectangles only; a live, per-point radius on any path is
+expected of a modern drawing tool and costs one effect message.
+
+|Combine (no {fh} counterpart; Illustrator's compound shapes, Sketch's boolean groups)
+|Live *Combine* effect on a group: union, subtract, intersect, exclude in stacking order, members
+editable, group appearance on the result, btn:[Expand] to bake.
+|Added -- {fh}'s Combine commands consume their inputs; a live boolean keeps the decision
+reversible and composes with the other effects.
+|===
+
+=== Data model
+
+The appearance stack (xref:attribute-stack.adoc[The attribute stack]) reserves
+`repeated Effect effects = …` with `MERGE_SEQUENCE`.  This page defines `Effect` and the vector
+effect messages; xref:raster-effects.adoc[Live raster effects] and
+xref:transparency.adoc[Transparency] define the rest.
+
+[source,protobuf]
+----
+// proto/wiretuner/doc/v1/effects.proto (sketch)
+
+// One entry in Appearance.effects (MERGE_SEQUENCE: inserted, moved, deleted individually;
+// order = fractional position).  Kind-specific settings are plain STRUCT fields rather than a
+// oneof: `kind` selects which one renders, the others are retained.  A oneof would turn
+// "change this effect's type" into a write that discards every concurrent edit to the old
+// settings, and would need a rule for two replicas setting different cases.
+message Effect {
+  ElementId id = 1;              // required by MERGE_SEQUENCE
+  bool hidden = 2;               // eye toggle: kept but not rendered/printed/exported
+  // Fill or stroke element (in the same Appearance) this effect applies to.  Unset: the whole
+  // object.  ATOMIC by default.  Reads as unset when the element is deleted (see Merge).
+  ElementId attached_to = 3;
+  EffectKind kind = 4;           // which settings message is live
+  BendEffect bend = 10;
+  DuetEffect duet = 11;
+  ExpandPathEffect expand_path = 12;
+  RaggedEffect ragged = 13;
+  SketchEffect sketch = 14;
+  TransformEffect transform = 15;
+  CornersEffect corners = 16;
+  CombineEffect combine = 17;
+  BevelEmbossEffect bevel_emboss = 20;   // raster-effects.adoc
+  BlurEffect blur = 21;
+  ShadowEffect shadow = 22;
+  SharpenEffect sharpen = 23;
+  TransparencyEffect transparency = 24;  // transparency.adoc
+}
+
+enum EffectKind {
+  EFFECT_KIND_UNSPECIFIED = 0;   // renders as no effect
+  EFFECT_KIND_BEND = 1;
+  EFFECT_KIND_DUET = 2;
+  EFFECT_KIND_EXPAND_PATH = 3;
+  EFFECT_KIND_RAGGED = 4;
+  EFFECT_KIND_SKETCH = 5;
+  EFFECT_KIND_TRANSFORM = 6;
+  EFFECT_KIND_BEVEL_EMBOSS = 7;
+  EFFECT_KIND_BLUR = 8;
+  EFFECT_KIND_SHADOW = 9;
+  EFFECT_KIND_SHARPEN = 10;
+  EFFECT_KIND_TRANSPARENCY = 11;
+  EFFECT_KIND_CORNERS = 12;
+  EFFECT_KIND_COMBINE = 13;
+}
+
+message BendEffect {
+  double size = 1;               // points; >0 bloat, <0 pinch
+  // Centre relative to the object's bounds centre.  ATOMIC: x and y are one drag.
+  Point center = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];
+}
+
+message DuetEffect {
+  enum Mode { MODE_UNSPECIFIED = 0; MODE_REFLECT = 1; MODE_ROTATE = 2; }
+  Mode mode = 1;
+  Point center = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];   // relative to bounds centre
+  double axis_angle = 3;         // degrees; mirror axis direction for REFLECT
+  uint32 copies = 4 [(buf.validate.field).uint32 = {gte: 1, lte: 100}];  // ROTATE only
+  bool joined = 5;               // one continuous path through original and clones
+  bool closed = 6;               // close each clone (joined=false) or the joined path
+  bool even_odd = 7;             // alternate filled/unfilled where clones overlap
+}
+
+message ExpandPathEffect {
+  enum Direction { DIRECTION_UNSPECIFIED = 0; DIRECTION_BOTH = 1; DIRECTION_INSIDE = 2; DIRECTION_OUTSIDE = 3; }
+  Direction direction = 1;
+  double width = 2 [(buf.validate.field).double = {gte: 0, lte: 50}];   // points
+  LineCap cap = 3;               // BUTT / ROUND / SQUARE, shared with StrokeProps (ATTR)
+  LineJoin join = 4;             // MITER / ROUND / BEVEL
+  double miter_limit = 5 [(buf.validate.field).double = {gte: 1, lte: 57}];
+}
+
+message RaggedEffect {
+  double size = 1;               // points, max displacement
+  double frequency = 2;          // added points per inch
+  uint32 copies = 3 [(buf.validate.field).uint32.lte = 10];
+  bool smooth = 4;               // false = Rough (corner points), true = Smooth (curve points)
+  bool uniform = 5;              // alternate ±size instead of random
+  fixed64 seed = 6;              // PRNG seed; Reseed writes a new one.  Never 0 once created.
+}
+
+message SketchEffect {
+  double amount = 1;             // points
+  uint32 copies = 2 [(buf.validate.field).uint32 = {gte: 1, lte: 20}];
+  bool closed = 3;
+  fixed64 seed = 4;
+}
+
+// STRUCT, unlike CommonProps.transform: these are independent user-facing parameters composed
+// in a fixed order (scale, skew, rotate, move about center), so merging one user's rotate with
+// another's scale produces exactly what both asked for.
+message TransformEffect {
+  double scale_x = 1;            // percent, 100 = unchanged
+  double scale_y = 2;
+  bool uniform = 3;              // UI lock only; when true scale_y is written equal to scale_x
+  double skew_h = 4;             // degrees
+  double skew_v = 5;
+  double rotate = 6;             // degrees, counterclockwise positive
+  Point move = 7 [(wt.crdt.field).merge = MERGE_ATOMIC];     // document units, y up
+  Point center = 8 [(wt.crdt.field).merge = MERGE_ATOMIC];   // relative to bounds centre
+  uint32 copies = 9 [(buf.validate.field).uint32 = {gte: 1, lte: 1000}];
+}
+
+// Rounds, scoops or chamfers corner points of the effected outline without changing them.
+message CornersEffect {
+  double radius = 1 [(buf.validate.field).double.gte = 0];   // points; clamped per corner on read
+  CornerStyle style = 2;
+  // The PathPoint element ids this effect treats.  SET (add-wins): two people choosing
+  // different points both keep theirs.  Empty = every eligible corner of the path.  A member
+  // whose point is deleted, is a curve point, or belongs to another node drops out on read;
+  // the set is never rewritten for it, so restoring the point restores the corner.  On a
+  // `rect` node the set is ignored: a rectangle's corners have no element ids and all four
+  // are treated.  (MERGE_SET over ElementId members, compared by value -- crdt-model.)
+  repeated ElementId points = 3 [(wt.crdt.field).merge = MERGE_SET];
+}
+
+enum CornerStyle {
+  CORNER_STYLE_ROUND = 0;            // convex arc
+  CORNER_STYLE_INVERTED_ROUND = 1;   // concave scoop
+  CORNER_STYLE_CHAMFER = 2;          // straight cut
+}
+
+// A live boolean over a group's members.  Meaningful only at the object level of a `group`
+// node; anywhere else it renders as no effect (see Merge).  Operand order = stacking order,
+// bottom member first.
+message CombineEffect {
+  BooleanOp op = 1;
+}
+
+enum BooleanOp {
+  BOOLEAN_OP_UNION = 0;
+  BOOLEAN_OP_SUBTRACT = 1;           // bottom member minus every member above it
+  BOOLEAN_OP_INTERSECT = 2;
+  BOOLEAN_OP_EXCLUDE = 3;            // regions covered an odd number of times
+}
+----
+
+`LineCap` and `LineJoin` are the enums xref:stroke-attributes.adoc[Stroke attributes] defines;
+`Point` is from `common.proto`.  `CornersEffect` and `CombineEffect` are part of the initial
+effect vocabulary, not a later kind, so they do not bump the feature level.
+
+Adding a *new effect kind* later bumps the document's feature level
+(xref:crdt-model.adoc#evolution[Schema evolution]): an older client that meets an unknown
+`EffectKind` renders the object without that effect and opens read-only.
+
+=== Merge semantics
+
+Sequence:: `Appearance.effects` is a SEQUENCE, so adding, removing, hiding, reordering and
+editing effects are independent registers.  Two concurrent *Add Effect* calls on one object
+produce two elements; their relative order is their fractional positions (both appended after
+the same last element, so the tie is broken by element id -- deterministic, and shown to the
+user as "later arrival lower").  Concurrent reorder and edit both keep.
+
+`kind` vs. settings:: A change of `kind` (ATOMIC enum) concurrent with an edit of the old
+kind's settings keeps both: the object renders the new kind, and the old settings are retained
+invisibly in their own STRUCT.  Switching back later shows the concurrent edit.  Nothing is
+lost, nothing is flagged.
+
+`attached_to`:: ATOMIC.  If the fill or stroke element it names is deleted, or is an element of
+a different sequence, the effect *reads as unset*: no, it does not jump to the object level --
+an effect attached to a deleted fill is skipped exactly as the fill is.  (`ElementId` is not a
+`NodeRef`, so this is a read-time normalization declared here, not an `on_dangling` option.)
+Dropping an effect onto a fill in the Object panel writes `attached_to` and moves the element's
+position to the fill's group; a concurrent reorder within the old group is overridden by the
+later write of `position`, and the effect always renders under whichever `attached_to` reads.
+
+Same setting, two writers:: Plain LWW per field.  The review sheet lists the object with the
+losing value beside the winning one ("Bend size: mine 12 pt, theirs 18 pt") and offers *Use
+mine* / *Use theirs*; *Keep both copies* duplicates the whole object.
+
+Edit vs. remove:: An `ElementDelete` and a concurrent `SetFields` on the same element both
+apply; the element stays deleted.  Reviewed as "edited something that was deleted" with
+*Restore*, which re-inserts the element (it is a tombstone with its registers intact).
+
+Seeds:: `seed` is a register like any other.  Two concurrent reseeds: later wins; the losing
+seed is not worth reviewing and is filtered out of the review sheet (it is listed under
+"Reviewed automatically" only).
+
+Corners:: `radius` and `style` are LWW registers (*same register* in the review when both
+sides wrote one).  `points` is a SET: concurrent adds of different points keep both; a
+concurrent add and remove of the same point keeps it, which is what the person adding expects
+to see.  A point deleted from the contour concurrently -- or at any later time -- drops out of
+the set on read and returns if the point is restored; nothing is rewritten, so the outcome does
+not depend on who saw what.  A Corners effect on a `rect` takes precedence over
+`RectProps.corners` on read: the derived path is built with zero radii and the kernel treats
+all four corners.  The rectangle's own registers are untouched and read again when the effect
+is removed or hidden (xref:rectangles-ellipses-lines.adoc[Rectangles, ellipses and lines]
+lists the same rule from its side).
+
+Combine:: `op` is LWW.  The members are ordinary children of the group and merge as objects
+do; the effect reads whatever the group holds after the merge, so a member added concurrently
+joins the boolean and a member deleted leaves it.  *Expand* is one change: `CreateNode` of a
+`path` at the group's slot under its parent, carrying the combined outline in pasteboard space
+with identity transform and a copy of the group's appearance stack minus the Combine element,
+then `SetDeleted(true)` on the group.  Concurrent edits to members land under a deleted node:
+*edit vs delete* in the review, with *Restore* bringing the live group back beside the path --
+the same rule as xref:combining-paths.adoc[Combining paths].  Two concurrent Expands: two paths,
+the group deleted twice, nothing at the register level; either can be undone.
+
+Read-time normalizations::
+* `kind` unspecified or unknown → the element renders as no effect and the Object panel shows
+  it as "Unsupported effect (update {product})".
+* `attached_to` dangling → skipped (above).
+* Out-of-range values (a `width` of 80 from a hand-built change) are clamped to the documented
+  range when rendering; the panel shows the stored value in red.
+* A `seed` of 0 renders with seed 1 so that a document built by an older writer is stable.
+* `CornersEffect.points` members that are dangling, curve points, or elements of another node
+  are ignored; a `radius` whose tangent length would pass the midpoint of either adjoining
+  segment is reduced for that corner only.
+* A `CombineEffect` on a node that is not a `group`, or attached to a fill or stroke, renders
+  as no effect; the Object panel shows "Combine applies to groups".
+
+=== Offline behavior
+
+Nothing beyond the general rules.  Dragging a Bend centre for a minute coalesces to one op
+(same register, same replica).  A Reseed while offline is one op.
+
+=== Server
+
+Nothing beyond storing and relaying changes.
+
+=== Client
+
+Package:: Effect rendering lives in `WTRender` (`EffectPipeline`), the vector kernels in
+`WTGeometry` (`Effects/` directory: `BendKernel`, `CombineKernel`, `CornersKernel`,
+`DuetKernel`, `ExpandKernel`, `RaggedKernel`, `SketchKernel`, `TransformKernel`).  The Object
+panel editors live in `WTApp/Inspector/Effects`.
+
+Pipeline:: For each object, the display list builder resolves the appearance into a list of
+*drawables* (fill or stroke plus its attached effects), then applies object-level effects to the
+union.  A vector effect is a function `(outline geometry, settings) → outline geometry`; a
+chain of vector effects is composed lazily and cached per `(node id, appearance state hash)`
+in the same cache that REND-004 invalidates.  Raster effects in the chain break it into
+vector-before / raster / vector-after stages; see xref:raster-effects.adoc[Live raster effects]
+for the raster stage.  Hidden effects are skipped without breaking the chain.
+
+Kernels::
+* *Bend*: for each point at distance `d` from the centre, displace along the radial by
+  `size × (1 − d/d_max)` where `d_max` is the farthest point; control handles are displaced
+  with their anchors and re-scaled so the curve stays smooth.  Same kernel as the Bend tool
+  with the drag distance replacing `size`.
+* *Duet*: builds clones with `WTGeometry` affine transforms, optionally joins contours end to
+  start (`joined`) and closes; `even_odd` sets the fill rule of the resulting multi-contour
+  path.
+* *Expand Path*: GEO-003 offsetting; *Inside* uses the negative offset of a closed contour,
+  *Outside* the positive, *Both* the stroke outline.
+* *Ragged*: samples the outline by arc length at `1/frequency` inch intervals, displaces each
+  sample by a `SplitMix64` stream seeded with `seed` (identical in every replica and on the
+  Java side, which never renders but is documented so the seed contract is unambiguous), and
+  rebuilds corner or curve points.
+* *Sketch*: `copies` traversals of the outline with per-copy seeded noise, drawn as open (or
+  closed) strokes with the object's stroke attributes.
+* *Transform*: matrix chain per copy, `copies` drawables appended.
+* *Corners*: for each eligible point (a corner or connector point whose adjoining segments are
+  not collinear, filtered by `points`), the tangent length is `t = radius / tan(θ/2)` for
+  straight neighbors and the same distance measured by arc length along a curved neighbor,
+  where the neighbor is split with GEO-001's de Casteljau split; `t` is capped at half the
+  neighbor's length.  *Round* replaces the corner with a circular arc through the two tangent
+  points (one cubic per ≤ 90° of sweep, kappa as in `rectPath`); *Inverted round* uses the
+  arc with its centre on the far side of the corner; *Chamfer* joins the tangent points with
+  a line.  A `rect` node enters the kernel as its zero-radius derived path.
+* *Combine*: members are flattened to pasteboard space through their transform chains
+  (as OBJ-025 does for the command), each member's *effected* outline is taken (nested Combine
+  groups first, text as laid-out glyph outlines, instances as their artwork, open contours
+  dropped), and the operands are folded in stacking order with GEO-002: `union`, `punch` for
+  Subtract, `intersect`, and Exclude as union minus intersection.  The result carries the
+  group's fill rule.
+
+Combine in the pipeline:: When the display-list builder meets a `group` whose object-level
+effects include a live, unhidden Combine, it emits no member drawables; it emits the group's
+own fills, strokes and remaining effects over the combined outline, cached per
+`(group node id, subtree version, effect state hash)` so a member drag recomputes one boolean,
+not the members' own lists.  Hit testing treats the group as one shape via the combined
+outline; the Subselect tool still reaches members through the group as usual.
+
+Hit testing:: REND-003 tests against the effected outline for fill/stroke hits and against the
+raw path for point and segment hits.  Bounds reported to the spatial index are the effected
+bounds, which are also what REND-004 dirties.
+
+Controls:: Effect settings are SwiftUI forms in the Object panel host with `NSStepper`-style
+numeric fields; the Bend, Duet and Transform centre handles and the Duet axis arm are canvas
+overlays drawn by the tool layer while the effect is selected in the panel.
+
+Corner widgets:: Drawn by the Subselect tool for the selected path's eligible corners, on each
+corner's bisector at the current arc midpoint (a fixed 8 px inset when the radius is 0), and
+hit-tested after points and handles.  A drag maps distance along the bisector to `radius`; with
+no points selected it writes `radius` (and `points` to empty if the effect is new), with points
+selected it adds the selection to `points`.  kbd:[Option]-click cycles `style`, double-click
+selects the effect in the Object panel.  On a `rect` carrying a Corners effect, DRAW-009's
+radius handles drive the effect's `radius` instead of `RectProps.corners`.  menu:View[Show
+Corner Widgets] is a view option (REND-005), on by default.
+
+Undo:: Each field commit is one change; a canvas drag of a centre handle or a corner widget is
+one undo group (APP-011).  Add, remove, reorder and kind change are single changes labelled
+"Add Bend effect", "Remove effect", "Reorder effects", "Change effect to Ragged"; btn:[Expand]
+is one change labelled "Expand Combine".
+
+=== Build tasks
+
+[[FX-001]]
+==== FX-001 Effect element and vector effect messages
+[horizontal]
+Track:: proto
+Depends on:: PROTO-003, PROTO-005
+Size:: S
+Delivers:: `doc/v1/effects.proto` with `Effect`, `EffectKind`, `BendEffect`, `DuetEffect`,
+`ExpandPathEffect`, `RaggedEffect`, `SketchEffect`, `TransformEffect` exactly as sketched, wired
+into the `Appearance.effects` sequence reserved by the ATTR epic.
+Done when::
+* `buf lint` and `buf breaking` pass; every field commented; validation ranges as documented.
+* The merge table marks `effects` as SEQUENCE, `center`/`move` as ATOMIC, everything else
+  default.
+* Conformance vectors: concurrent insert of two effects on one object; kind change vs. settings
+  edit; reorder vs. edit; delete vs. edit; two centre drags.
+
+[[FX-002]]
+==== FX-002 Effect stack commands
+[horizontal]
+Track:: client-model
+Depends on:: APP-011, FX-001
+Size:: M
+Delivers:: `WTModel` commands: add effect (object, fill or stroke level, with per-kind
+defaults), remove, reorder within and across attachment groups, hide/show, change kind, set any
+setting, reseed; inclusion of effects in the appearance copy/paste and graphic-style
+application paths the ATTR and LIB epics provide.
+Done when::
+* Each command emits one change with the documented label and a correct inverse.
+* Merge tests: two replicas add effects concurrently → both present in deterministic order;
+  remove vs. edit → element deleted, restore brings the edit back; kind change vs. edit → both
+  retained.
+* Conformance vectors from FX-001 pass through the model layer's read-out (`attached_to`
+  dangling reads as skipped).
+
+[[FX-003]]
+==== FX-003 Effect editors in the Object panel
+[horizontal]
+Track:: client-ui
+Depends on:: APP-007, FX-002
+Size:: M
+Delivers:: btn:[Add Effect] menu, the Effect pop-up, eye toggle, btn:[Remove Item], drag
+reorder and drop-onto-attribute in the appearance list; the six vector effect forms with every
+option in this page's tables; canvas handles for Bend/Duet/Transform centres and the Duet axis.
+Done when::
+* Every option on this page is reachable and round-trips to the document.
+* A remote change to the effect being edited updates the form without dropping keystrokes
+  (APP-007 rule).
+* UI tests: add each kind, reorder by drag, attach to a fill by drop, remove with kbd:[Delete].
+
+[[FX-004]]
+==== FX-004 Vector effect kernels: Bend, Duet, Transform
+[horizontal]
+Track:: client-render
+Depends on:: GEO-001, GEO-005, FX-001
+Size:: M
+Delivers:: `WTGeometry` kernels for Bend, Duet (reflect, rotate, joined, closed, even-odd) and
+Transform (ordered composition, copies).
+Done when::
+* Property tests: Bend with size 0 is identity; Duet reflect twice is identity; Transform with
+  defaults is identity; copies produce `copies` drawables.
+* Reference renders of the manual's examples match within anti-aliasing tolerance.
+
+[[FX-005]]
+==== FX-005 Vector effect kernels: Expand Path, Ragged, Sketch
+[horizontal]
+Track:: client-render
+Depends on:: GEO-003, FX-004
+Size:: M
+Delivers:: Expand Path over GEO-003 with direction, caps, joins and miter limit; Ragged and
+Sketch with the `SplitMix64` seeded sampler, rough/smooth/uniform modes and copies.
+Done when::
+* The same seed produces byte-identical outlines across runs and across Intel/Apple silicon
+  (no `Float80`, no fused-multiply-add differences: integer-domain PRNG, deterministic
+  rounding).
+* Expand Path *Both* on an open path equals the stroke outline from GEO-003 within tolerance.
+* Ragged frequency 0 and Sketch copies 1 with amount 0 are identity.
+
+[[FX-006]]
+==== FX-006 Effect pipeline, caching and hit testing
+[horizontal]
+Track:: client-render
+Depends on:: REND-002, REND-003, REND-004, FX-005
+Size:: L
+Delivers:: `EffectPipeline` in `WTRender`: drawable resolution with attachment levels and
+order, lazy composition of vector chains, per-node effected-geometry cache invalidated by
+REND-004, effected bounds for the spatial index, hit testing against effected outlines, hidden
+effects skipped, unknown kinds rendered as no effect, the *Show Effect Bounds* view option.
+Done when::
+* A remote change to one effect setting repaints only that object's tiles and recomputes only
+  that object's chain.
+* Rendering the design-point document with 5,000 effected objects stays within the REND-001
+  frame budget after warm-up.
+* Hit tests inside an Expand Path band select the path; point hits use the raw path.
+* Print and PDF output (via the IO epic's paths) receive the effected vector geometry, not the
+  raw path.
+
+[[FX-045]]
+==== FX-045 Corners and Combine effect messages
+[horizontal]
+Track:: proto
+Depends on:: FX-001, CRDT-007
+Size:: S
+Delivers:: `CornersEffect`, `CornerStyle`, `CombineEffect` and `BooleanOp` in
+`doc/v1/effects.proto` as sketched, the `corners` and `combine` fields on `Effect`, and the two
+new `EffectKind` cases; `points` declared `MERGE_SET` over `ElementId` members.
+Done when::
+* `buf lint` and `buf breaking` pass; every field commented; `radius` validated `>= 0`.
+* The merge table marks `CornersEffect.points` as SET and everything else default.
+* Conformance vectors: concurrent adds of different points; add vs. remove of one point
+  (kept); two radius writes (LWW); two `op` writes; a point element deleted concurrently with
+  its add (member retained in state, hashes agree).
+
+[[FX-046]]
+==== FX-046 Corners kernel and rectangle precedence
+[horizontal]
+Track:: client-render
+Depends on:: GEO-001, FX-004, FX-045
+Size:: M
+Delivers:: `CornersKernel` in `WTGeometry` with the three styles, per-corner tangent capping,
+curved-neighbor splitting and the `points` filter (dangling, curve-point and foreign members
+ignored); the `rect` precedence rule in `WTModel`'s path view (zero-radius derived path when a
+live Corners effect is present); registration in `EffectPipeline`.
+Done when::
+* Radius 0 is identity; Round on a square with radius `r` matches `rectPath` with uniform
+  radius `r` within 0.01 pt; Chamfer tangent points lie on the original segments.
+* A radius larger than the shape is capped per corner and adjacent corners never overlap
+  (property test over random polygons).
+* A `rect` with `corners.top_left = 20` and a Corners effect of radius 5 renders with 5 pt
+  corners; removing the effect renders 20 pt again.  (Prose dependency on DRAW-008.)
+* Merge test: a point deleted on one replica while another adds it to `points` converges to
+  the same outline on both replicas; restoring the point rounds it again.
+
+[[FX-047]]
+==== FX-047 Corner widgets and Corners editor
+[horizontal]
+Track:: client-ui
+Depends on:: APP-003, FX-003, FX-046
+Size:: M
+Delivers:: The Subselect tool's corner widgets (placement, drag to radius, selection-aware
+`points` writes, kbd:[Option]-click style cycling, double-click to the panel), the Corners form
+in the Object panel with *All* / *Selected points*, btn:[Add Selection] and btn:[Remove
+Selection], the dimmed *Radius* note and handle redirection on rectangles, and menu:View[Show
+Corner Widgets].
+Done when::
+* UI tests: drag a widget with nothing selected (all corners), with two points selected
+  (only those), kbd:[Option]-click cycles the three styles, double-click selects the effect.
+* A drag is one undo step and coalesces to one change in the outbox.
+* Merge test: two replicas add different points by widget drag concurrently; both sets present
+  on both replicas and the panel lists the union.
+
+[[FX-048]]
+==== FX-048 Combine effect
+[horizontal]
+Track:: client-render
+Depends on:: GEO-002, FX-006, FX-045
+Size:: M
+Delivers:: `CombineKernel` folding members' effected outlines in stacking order for the four
+operations, the pipeline rule that suppresses member drawables under a live Combine, the
+per-group boolean cache and its invalidation from member changes, hit testing on the combined
+outline, and the "Combine applies to groups" normalization.
+Done when::
+* Union, Subtract, Intersect and Exclude of the GEO-002 corpus pairs, grouped, render
+  pixel-identical to the corresponding menu:Modify[Combine] results.
+* A nested Combine group and a text member take part as single outlines; an open path
+  contributes nothing.
+* Dragging one member of a 50-member group recomputes only that group's boolean and repaints
+  only its tiles.
+* Merge test: `op` changed on one replica while another moves a member; both replicas render
+  the moved member under the new operation.
+
+[[FX-049]]
+==== FX-049 Expand command for Combine
+[horizontal]
+Track:: client-model
+Depends on:: FX-002, FX-048
+Size:: S
+Delivers:: `ExpandCombineCommand`: one change creating a `path` node at the group's slot with
+the combined outline in pasteboard space and the group's appearance minus the Combine element,
+then deleting the group; btn:[Expand] wired in the Combine form; label "Expand Combine".
+Done when::
+* The resulting path renders identically to the live group before expanding.
+* Undo restores the group (`deleted = false`) and deletes the path.
+* Merge test: expand on one replica while another edits a member yields the path plus an
+  *edit vs delete* row whose *Restore* brings the live group back beside it.
+endif::spec[]

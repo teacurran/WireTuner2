@@ -1,0 +1,7 @@
+= Print preview
+include::_attributes.adoc[]
+:page-slug: print-preview
+:page-group: Printing
+:page-fh: Chapter 14, "Using print preview"
+
+include::_includes/printing/print-preview.adoc[]

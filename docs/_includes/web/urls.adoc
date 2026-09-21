@@ -1,0 +1,374 @@
+Any object or run of text in a {product} document can carry a web link.  Links do nothing on
+the canvas -- clicking a linked object selects it, as always -- but they survive export: in a
+PDF the object becomes a clickable region, in an SVG it becomes an anchor, and on a published
+web page it becomes part of an image map.  Links are attached and inspected in the *Navigation*
+panel, which also lists every link already used in the document, finds the objects that use one,
+and rewrites a link everywhere it appears.  The same panel holds the page-to-page links described
+in xref:interactivity.adoc[Adding interactivity].
+
+NOTE: {fh} calls this attaching a URL.  {product} uses *link* in the interface and *URL* only
+for the address itself.  The panel keeps its {fh} name, *Navigation*.
+
+== The Navigation panel
+
+Open it with menu:Window[Navigation].  It shows the navigation properties of the current
+selection; with several objects selected, a field whose values differ shows *Mixed*, and typing
+into it sets every selected object.
+
+// TODO screenshot: Navigation panel with a linked object selected
+
+[cols="1,3"]
+|===
+|Field |Meaning
+
+|*Name*
+|The object's name, the same one the Object panel shows (xref:names-notes.adoc[Naming objects
+and adding notes]).  It becomes the `id` of the element in SVG output and the accessible name of
+the region in PDF output.
+
+|*Alt text*
+|A short description of where the link *goes* or what it does ("Order form", "Company
+home page"), used where the artwork cannot be seen: the `alt` of an image-map area, the
+`<title>` of an SVG anchor, the contents entry of a PDF link.  This is not the description of
+the picture itself -- that is the object's own *Alt text* in the Object panel
+(xref:names-notes.adoc[Names, notes and alt text]) -- and both are exported, each in its place.
+Leave it empty when the linked words already say where the link goes; an image-map area with
+no link alt text falls back to the object's alt text.
+
+|*Link*
+|The URL.  Type one, or choose one from the pop-up menu at the right of the field, which lists
+every distinct link in the document.  The btn:[Find] button beside the field selects every object
+that uses the link shown.
+
+|*Text*
+|Read-only.  When the selection is a range of characters inside a text block, this shows the
+linked words; when a whole text block is selected it shows the block's own link.
+
+|*Opens in*
+|*Same window* or *New tab*.  Only HTML and SVG output can honor it; PDF viewers decide for
+themselves.
+
+|*On click*
+|The page-to-page link, described in xref:interactivity.adoc[Adding interactivity].
+|===
+
+== Attaching a link
+
+A link can be attached to a whole object -- a path, a group, an imported image, a text block --
+or to a run of characters inside a text block.  Which one you get depends on what is selected.
+
+To attach a link to an object:
+
+. Select the object with the Pointer tool.  With a group selected, the link belongs to the group,
+  not to each member; kbd:[Option]-click into the group to link a member on its own.
+. Choose menu:Window[Navigation].
+. In the *Link* field, type the URL or pick one from the pop-up menu, then press kbd:[Return].
+
+To attach a link to words inside a text block:
+
+. With the Text tool, select the characters to link.
+. In the Navigation panel's *Link* field, type or pick the URL and press kbd:[Return].
+  The selected words appear in the *Text* field.
+
+Links are ordinary text formatting from then on: they travel with the characters when the text
+is edited, split when the text is split, and are copied with the text.  Choosing menu:Text[Convert
+to Paths] keeps a text-range link on the resulting group.
+
+To remove a link:
+
+. Select the object, or the linked characters.
+. Clear the *Link* field and press kbd:[Return].
+
+A URL is stored exactly as typed.  `https://` is added on export when a link has no scheme and
+looks like a host name; `mailto:` and relative links (`page-2.html`, `#top`) are passed through
+unchanged.  A link that cannot be turned into a valid address is listed by the output warnings
+when you publish (xref:publish-html.adoc[Publishing as HTML]).
+
+[TIP]
+====
+A path with a stroke and no fill is only clickable on its stroke in HTML image maps, because the
+map follows the shape.  In PDF and SVG the whole bounding box is clickable.  Give a button an
+invisible fill (a fill of *None* is not a fill; use white at 0% opacity) if the entire area should
+respond in every format.
+====
+
+== Finding and updating links
+
+The *Link* pop-up menu doubles as the document's link list: it is built from every object and
+text range in the document, so a link disappears from the menu when its last user is removed.
+
+To find every object that uses a link:
+
+. Deselect everything (kbd:[Cmd+Shift+A]) so the panel shows no selection.
+. Pick the link from the *Link* pop-up menu, or type it.
+. Click btn:[Find].  Every object and text range on any page using that link is selected, and
+  the view scrolls to the first one.  The status bar reports how many were found.
+
+To change a link everywhere it is used:
+
+. Find the link as above.
+. With the found objects still selected, edit the *Link* field and press kbd:[Return].
+  The new URL replaces the old one on every selected object and text range, as one undoable
+  change.
+
+menu:Edit[Find and Replace > Graphics] can also search by link (xref:find-replace.adoc[Finding and
+replacing]).
+
+== Seeing which objects are linked
+
+Choose menu:View[Show Links] to tint every linked object and underline every linked run of text
+on the canvas, with the link shown in a tooltip on hover.  The setting is per window and does not
+print or export.  A small link badge also sits at the lower right of an object that has a
+page-to-page link (xref:interactivity.adoc[Adding interactivity]).
+
+== How links survive export
+
+[cols="1,3"]
+|===
+|Format |What a link becomes
+
+|PDF
+|A link annotation over the object's bounding box with a URI action; text-range links get one
+annotation per line of the range.  The link's alt text becomes the annotation's contents
+string; in a tagged PDF the object's own alt text stays on the figure underneath
+(xref:export-pdf.adoc[Exporting PDF]).
+
+|SVG
+|An `<a href>` element wrapping the object's element, with `target="_blank"` for *New tab* and a
+`<title>` child carrying the link's alt text; the wrapped element keeps its own `<title>` from
+the object's alt text.  Text-range links wrap the `<tspan>`s of the range
+(xref:export-vector.adoc[Exporting vector formats]).
+
+|Published HTML
+|Inside SVG pages, as above.  With pages published as PNG, a `<map>` whose `<area>` polygons
+follow the object's outline, each with `alt` from the link's alt text (or the object's when the
+link has none), listed in the page's reading order (xref:publish-html.adoc[Publishing as
+HTML]).
+
+|Bitmap formats, EPS, print
+|Dropped silently; the artwork is unaffected.
+|===
+
+== Working with others
+
+Links are properties of an object, like its name or its notes, so two people rarely collide on
+them.  If you and a collaborator give the same object different links at the same moment, the
+later one stands and the panel updates under your fingers -- there is no prompt while you are
+both online.  Changing a link everywhere it is used touches many objects at once; a collaborator
+who is meanwhile attaching the *old* link to a fresh object keeps that old link on their new
+object, because your change only rewrote the objects that existed when you clicked btn:[Find].
+
+After working offline, links you changed are merged like any other property.  If someone else
+changed the same object's link while you were away, the merge review lists it as a conflict with
+both addresses side by side and lets you keep either.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,2"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Navigation panel: Name, Alt, Link, Substring
+|Same fields; *Substring* is shown as *Text*.  Adds *Opens in*.
+|Faithful
+
+|Assign a URL to an object
+|`CommonProps.url` on the node.
+|Faithful
+
+|Assign a URL to a substring of text
+|A `link` formatting mark on the character range.
+|Faithful
+
+|Link pop-up lists the document's URLs
+|Derived from the document at read time; not stored.
+|Faithful
+
+|Find objects linked to a URL
+|Same, across all pages; selection plus count in the status bar.
+|Faithful
+
+|Update a URL for all objects linked to it
+|Same, as one change.
+|Faithful
+
+|Links honored in movie export
+|Links are honored in PDF, SVG (including animated SVG) and published HTML.
+|Adapted -- SVG carries links natively.
+
+|HTML image map follows the shape (stroke-only objects hit only on the stroke)
+|Same in image maps; in PDF the bounding box is used because link annotations are rectangles.
+|Adapted -- PDF limitation, documented in the guide.
+
+|Actions area of the Navigation panel
+|See xref:interactivity.adoc[Adding interactivity].
+|Adapted
+|===
+
+=== Data model
+
+`CommonProps.url` already exists (xref:crdt-model.adoc[CRDT model]).  This page adds a
+`NavigationProps` message to `CommonProps` and a `link` mark to `TextMarkValue`.
+
+[source,protobuf]
+----
+// common.proto -- extension of CommonProps
+message CommonProps {
+  // ... fields 1-7 as in crdt-model.adoc; url = 6 is the object-level link (ATOMIC string).
+  // Navigation panel fields other than the link itself.  STRUCT: alt text, target and the
+  // page link are independent choices.
+  NavigationProps navigation = 8;
+}
+
+enum LinkTarget {
+  LINK_TARGET_UNSPECIFIED = 0;   // reads as SAME_WINDOW
+  LINK_TARGET_SAME_WINDOW = 1;
+  LINK_TARGET_NEW_TAB = 2;
+}
+
+message NavigationProps {
+  // Alternative text for the link region (HTML area alt, SVG <a> <title>, PDF /Contents):
+  // describes the destination.  The object's own description is CommonProps.alt
+  // (names-notes.adoc); exporters write both.
+  string alt = 1 [(buf.validate.field).string.max_len = 1024];
+  // Where the URL opens in HTML/SVG output.  Ignored by PDF.
+  LinkTarget target = 2;
+  // Page-to-page link (interactivity.adoc).  Unset when the page is deleted; readers then
+  // treat the object as having no page link.
+  NodeRef go_to_page = 3 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
+}
+
+// text marks (Type pages) -- one new mark value
+message TextMarkValue {
+  // ... existing font, size, color, style marks
+  // A text-range link.  Empty string removes the link from the range.
+  string link = 40 [(buf.validate.field).string.max_len = 2048];
+}
+----
+
+`CommonProps.url` is validated at `max_len = 2048`; longer strings are rejected by the client
+before a change is made, and by the server on ingest.
+
+=== Merge semantics
+
+`url`:: ATOMIC register.  Concurrent different links on one object: the greater OpId wins; the
+losing write is retained in the log.
+`navigation.alt`, `navigation.target`:: Independent ATOMIC registers under a STRUCT, so one
+person's alt text and another's target both stand.
+Text-range `link` marks:: Peritext marks.  Two concurrent links on overlapping ranges resolve by
+the mark rules: in the overlap the later mark's value wins, outside it each range keeps its own.
+A link mark on a range that someone concurrently deleted vanishes with the characters; a link on a
+range someone concurrently typed inside grows to cover the typed characters (marks expand at the
+end, not at the start, per the Type pages).
+Update everywhere:: One `Change` with one `SetFields` (or `TextMark`) per found node.  It is not
+transactional across nodes: an object linked to the old URL concurrently by someone else keeps the
+old URL, as the guide says.  No normalization is attempted.
+Edit vs. delete:: A link written to a node someone else deleted applies to the deleted node and is
+restored with it; the review sheet lists it under "edited something that was deleted".
+
+The review sheet shows a link conflict as a *Link* row with the two URLs and *Use mine* / *Use
+theirs*.  *Keep both copies* is not offered for links alone (a duplicate object for a URL
+difference is never what the user wants); it remains available when the same node has other
+conflicts.
+
+Read-time normalization: a `go_to_page` referencing a deleted page reads as unset.  A `url` that
+is empty after trimming whitespace reads as unset.  Both are applied by `WTModel` without
+writing.
+
+=== Offline behavior
+
+Nothing beyond the ordinary outbox rules.  Consecutive edits of one object's link coalesce into
+the final value.
+
+=== Server
+
+Nothing beyond storing and relaying changes.
+
+=== Client
+
+Package `WTApp` for the panel and the view overlay, `WTModel` for the commands,
+`WTInterchange` for export.
+
+* The Navigation panel is a SwiftUI body hosted in the docked panel system (APP-004), bound to
+  the selection (APP-006) with the same mixed-value editing as the inspector (APP-007).  When the
+  Text tool has a range selected, the panel reads the `link` mark of the range and writes with
+  `TextMark`; otherwise it reads and writes `CommonProps`.
+* The link list is a query over the model (`WTModel.DocumentIndex.links`), kept incrementally
+  from applied changes: a dictionary URL → set of node ids (and text ranges).  It also drives
+  btn:[Find] and the menu:Edit[Find and Replace] link criterion.
+* menu:View[Show Links] is window state (not in the document).  The overlay is drawn in the
+  canvas's overlay layer from the same index; tooltips use `NSView.addToolTip(_:owner:userData:)`
+  over the linked objects' bounds, refreshed on scroll and zoom.
+* Undo: editing one field in the panel is one change; *Update everywhere* is one change labelled
+  "Change link on N objects".
+* Export: the PDF exporter (IO epic) exposes an annotation hook per rendered node; `WTInterchange`
+  attaches `/Link` annotations with `/URI` actions (`/A << /S /URI /URI (…) >>`) over the
+  node's page-space bounds, one per text line for ranges.  The SVG writer wraps nodes in `<a>`;
+  text ranges are split into `<tspan>`s at mark boundaries by the text layout (TXT-001).
+
+=== Build tasks
+
+[[WEB-001]]
+==== WEB-001 Navigation properties and text-range links in the model
+[horizontal]
+Track:: client-model
+Depends on:: PROTO-003, CRDT-001, CRDT-006, APP-011
+Size:: S
+Delivers:: `NavigationProps` on `CommonProps` and the `link` text mark in `TextMarkValue`; `WTModel` commands `setLink(nodes:url:)`, `setLink(range:url:)`, `setAlt`, `setTarget`, with inverses; the link index (`DocumentIndex.links`) maintained from applied changes.
+Done when::
+* Setting, changing and clearing a link on an object and on a text range each produce one change with a correct inverse; undo restores the prior value only where the register is still this user's write.
+* Merge test: two replicas set different URLs on one object concurrently and converge on the greater OpId; two replicas link overlapping text ranges and converge per the mark rules.
+* Conformance vectors added for `navigation.alt`, `navigation.target`, `navigation.go_to_page` (dangling) and the `link` mark.
+* The link index equals a full-document scan after any sequence of local and remote changes (property test).
+
+[[WEB-002]]
+==== WEB-002 Navigation panel
+[horizontal]
+Track:: client-ui
+Depends on:: APP-004, APP-006, APP-007, WEB-001
+Size:: M
+Delivers:: The Navigation panel (menu:Window[Navigation]) with Name, Alt text, Link (with pop-up list and btn:[Find]), Text, Opens in and the On click section's host slot; mixed-value display; text-range mode when the Text tool has a selection.
+Done when::
+* Typing a URL and pressing kbd:[Return] with an object selected writes `url`; with a text range selected writes a `link` mark and shows the range's words in *Text*.
+* The pop-up lists every distinct link in the document and updates when a remote change adds or removes one, without stealing focus from a field being edited.
+* A remote change to the selected object's link updates the field unless it has unsaved keystrokes, in which case the field shows a "changed by <name>" hint until the user commits or reverts.
+* UI tests cover object link, text-range link, mixed selection and clearing.
+
+[[WEB-003]]
+==== WEB-003 Find by link and update everywhere
+[horizontal]
+Track:: client-ui
+Depends on:: WEB-002
+Size:: S
+Delivers:: btn:[Find] selecting every node and text range that uses the chosen link across pages, status-bar count, scroll to first hit; editing the field afterwards rewriting all found uses as one change labelled "Change link on N objects"; the link criterion in menu:Edit[Find and Replace > Graphics].
+Done when::
+* Find selects objects on every page and text ranges inside blocks; the count matches the index.
+* The rewrite is one change; undo restores every rewritten link in one step.
+* Merge test: a concurrent attach of the old link to a new object on another replica keeps the old link there.
+
+[[WEB-004]]
+==== WEB-004 Show Links overlay
+[horizontal]
+Track:: client-render
+Depends on:: REND-001, REND-004, WEB-001
+Size:: S
+Delivers:: menu:View[Show Links] drawing a tint over linked objects and an underline under linked text ranges in the overlay layer, with hover tooltips showing the URL; per-window state.
+Done when::
+* Toggling the overlay does not rebuild the display list; a remote link change repaints only the affected object's tiles.
+* The overlay is absent from print and every export.
+
+[[WEB-005]]
+==== WEB-005 Links in PDF and SVG output
+[horizontal]
+Track:: import-export
+Depends on:: WEB-001, TXT-001
+Size:: M
+Delivers:: URI link annotations in the PDF exporter (bounding box per object, one per line for text ranges, contents from alt text) and `<a href>` wrapping in the SVG writer with `target` and `<title>`; scheme completion rules; invalid-link warnings surfaced to the exporter's warning list.
+Done when::
+* A corpus of documents with object links, text-range links, links on groups and links on stroke-only paths exports to PDF and SVG, and every link is found by a PDF and SVG parser at the expected bounds.
+* A `mailto:`, a relative link and a bare host name export unchanged, unchanged and with `https://` respectively.
+* The exporters depend only on the model, so the PDF and SVG exporters from the IO epic can adopt the hook without changes to their page pipeline.
+endif::spec[]

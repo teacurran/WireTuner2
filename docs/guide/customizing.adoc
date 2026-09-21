@@ -1,0 +1,7 @@
+= Customizing your environment
+include::_attributes.adoc[]
+:page-slug: customizing
+:page-group: Basics
+:page-fh: Chapter 1, "Printing a shortcut quick-reference card", "Customizing your environment", "Customizing shortcuts", "Customizing toolbars"
+
+include::_includes/basics/customizing.adoc[]

@@ -1,0 +1,358 @@
+Color reaches an object in one of four ways: you drag it there from a panel, you pick it in
+the Tools panel's color wells, you choose it in the Object panel for a particular fill or
+stroke, or you lift it off another object with the Eyedropper.  All four write the same
+thing -- a fill color or a stroke color -- so use whichever is under your hand.  Colors come
+from the xref:color-mixer.adoc[Color Mixer], the xref:tints.adoc[Tints] panel and the
+xref:swatches.adoc[Swatches] panel; the difference between a color you applied from the Mixer
+and one you applied from the Swatches list is that the second is *named* and follows the
+swatch when the swatch is edited.
+
+// TODO screenshot: Tools panel with the stroke (upper) and fill (lower) color wells and the pop-up palette open
+
+== The color wells
+
+The Tools panel has two color wells: the stroke well above, the fill well below.  With an
+object selected they show its stroke and fill colors (a diagonal red line means *None*; a
+question mark means the selection has mixed colors).  With nothing selected they show your
+*current colors*: what the next object you draw will get.
+
+Clicking a well opens a pop-up palette.  Choose *Swatches* or *Color Cubes* from the
+palette's own options button:
+
+[cols="1,3"]
+|===
+|View |Shows
+
+|*Swatches*
+|The document's color list, tints included, in its current order, with *None* first.
+Pointing at a chip shows its name.
+
+|*Color Cubes*
+|The 216 web-safe colors as a grid, plus a hex field.  Picking here applies an unnamed sRGB
+color: the web-safe values are sRGB by definition, and so is a hex value.
+|===
+
+The swatches panel's own Fill / Stroke / Both wells behave the same way and additionally
+accept drops (xref:swatches.adoc[Swatches]).
+
+== Applying color to selected objects
+
+To apply a color to the selected objects, do one of the following:
+
+* In the Swatches panel, press *Fill*, *Stroke* or *Both* and click a swatch.
+* In the Swatches panel, drag a swatch onto the *Fill*, *Stroke* or *Both* well.
+* In the Object panel, select the fill or stroke row you want to color, then click a swatch
+  in the Swatches panel, or use the row's color well and pop-up (below).
+* Click the stroke or fill well in the Tools panel and pick from the pop-up palette.
+* Drag a color from any panel's color well onto the Tools panel's stroke or fill well.
+
+An object with several fills or strokes (xref:attribute-stack.adoc[The attribute stack])
+takes the color on the *topmost* basic fill or stroke unless you selected a specific row in
+the Object panel.  Gradient and pattern fills are not recolored this way; their own controls
+are on xref:gradients.adoc[Gradients].
+
+=== The Object panel's color controls
+
+Select a fill or stroke row in the Object panel and its attributes show a color well with a
+pop-up menu beside it.
+
+[cols="1,3"]
+|===
+|Control |Does
+
+|Color well
+|Shows the current color.  Click to open the same pop-up palette as the Tools panel wells.
+Drag it to another object, a panel, or the Swatches panel's Add arrow.
+
+|Pop-up menu
+|Lists *None*, every swatch by name (tints indented), and at the bottom *Add to Swatches…*
+(names the current unnamed color) and, when the color came from a swatch that has since been
+removed, *Restore "<name>"*.
+
+|Value field
+|For an unnamed color, its components in its own space (`0c 80m 90y 0k`, `#E63946`,
+`p3(0.90 0.22 0.27)`, `oklch(62% 0.22 25)`); editing them here mixes in place, and any form
+the Color Mixer's field accepts can be typed, including one from another space.  For a named
+color, the swatch's name, read-only -- edit the swatch instead, or choose *Detach* from the
+pop-up to turn it into an unnamed copy you can edit alone.
+|===
+
+== Applying color to unselected objects
+
+You can color an object without selecting it: drag a color onto it.
+
+To apply a color to an unselected object:
+
+. Drag the color well of the Color Mixer, Tints or Swatches panel (or a swatch in the list)
+  over the object.  The object highlights as you pass over its fill or its stroke.
+. Release over the fill to color the fill, or over the stroke to color the stroke.
+
+To decide what gets colored regardless of where you drop:
+
+. Drag the color over the object.
+. Before releasing, hold a modifier:
+* kbd:[Shift] -- color only the fill.
+* kbd:[Cmd] -- color only the stroke.
+
+Dropping on empty pasteboard does nothing.  Dropping on a text block colors the text; the
+details, including coloring a range of characters, are on xref:text-color.adoc[Applying color
+to text].  Dropping on a group colors every object in it; hold kbd:[Option] while dropping to
+color only the object under the pointer.
+
+== The Eyedropper tool
+
+The Eyedropper lifts a color from anything on the canvas -- a fill, a stroke, text, a gradient
+stop, a pixel in a bitmap -- and drops it somewhere else.  If the color under the pointer is a
+named color, the Eyedropper carries the *swatch*, so what you drop stays linked to it.
+
+To apply a color with the Eyedropper:
+
+. Choose the Eyedropper tool in the Tools panel (kbd:[I]).
+. Press on the color you want.  The cursor shows a chip of what it picked up.
+. Drag to the object, panel well, or Swatches panel you want to color, and release.  The same
+  kbd:[Shift] and kbd:[Cmd] rules as above choose fill or stroke on a drop.
+
+A plain click with the Eyedropper (no drag) sets the current colors and the Color Mixer to the
+picked color, so you can adjust it before applying.  kbd:[Option]-click picks the stroke
+instead of the fill when both are under the pointer.  A color lifted from a fill, stroke or
+text keeps that color's space; a pixel lifted from a bitmap is read through the image's own
+profile into your default color space (xref:spot-process.adoc[Spot and process colors]).
+
+== None
+
+*None* is a color: applying it removes a fill's or stroke's color rather than the fill or
+stroke itself.  Apply it from the Swatches panel, the pop-up palettes, or by choosing *None*
+in an Object panel pop-up.  An object whose fill and stroke are both None is invisible in
+Preview and visible in Keyline; select it by its outline or with a marquee.
+
+== Working with others
+
+Applying a color is a change to the object, and everyone sees it as soon as it syncs.  Two
+people coloring the same fill at the same moment cannot both win; the later choice stands and
+both of you see it.  Coloring different objects, or one of you coloring the fill while the
+other colors the stroke, keeps both.
+
+Your *current colors* -- what an empty selection shows in the Tools panel wells -- are yours
+alone.  A collaborator choosing green for their next shape does not change what your next
+shape gets.  The document's *default* fill and stroke, which new documents and new users start
+from, are shared and set on xref:default-attributes.adoc[Default attributes].
+
+If the swatch you applied is removed by someone else, your object keeps the color.  After an
+offline session the reconnect review lists any object whose color was changed by both you and
+someone else, showing both colors so you can choose.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,1"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Drag a swatch from Mixer / Tints / Swatches onto an object's fill or stroke
+|Same, with fill/stroke highlight during the drag.
+|Faithful
+
+|Shift on release = fill only; Ctrl-Shift (Win) / Cmd (Mac) on release = stroke only
+|kbd:[Shift] and kbd:[Cmd]; modifier read at drop time as in {fh}.
+|Faithful
+
+|Swatches panel Fill / Stroke / Both selectors: drag onto or click then choose
+|Same.
+|Faithful
+
+|Object panel: select the stroke or fill, then choose a color
+|Same, plus a value field, *Detach* and *Restore* items.
+|Faithful
+
+|Tools panel color boxes with a pop-up palette; Swatches or Color Cubes view
+|Same.  Color Cubes adds a hex field.
+|Faithful
+
+|Eyedropper: drag a color from one object to another
+|Same, and the Eyedropper carries the swatch reference when the source color is named.
+Click sets current colors; Option-click picks the stroke.
+|Faithful
+
+|Applying color to text
+|See xref:text-color.adoc[Applying color to text].
+|--
+
+|Current colors for new objects follow the color boxes when nothing is selected
+|Per user, per Mac (`local_only`), seeded from the document's default attributes.
+|Adapted: in a shared document one person's "next color" must not flip another's.
+
+|Drop on a group colors the group's objects
+|Same; kbd:[Option] limits the drop to the object under the pointer.
+|Adapted: addition of the Option modifier.
+|===
+
+=== Data model
+
+A fill, stroke, text run, guide or anything else that carries a color holds a `ColorRef`.
+The ATTR epic's `BasicFill.color`, `StrokeProps.color` and the TYPE epic's text marks use it.
+
+[source,protobuf]
+----
+// proto/wiretuner/doc/v1/color.proto (continued)
+
+// Where an object gets its color from.  ATOMIC: the oneof is one register, so a concurrent
+// "make it a swatch reference" and "make it inline" cannot leave a half-set case, and a
+// tint's base and percent never come from two different writers.
+message ColorRef {
+  oneof ref {
+    // No color.  A fill with `none` is drawn as nothing.
+    bool none = 1;
+    // A named color or named tint: a swatch node.  `cached` is the swatch's resolved Color
+    // (a tint's computed color) at the time the reference was written, so the object keeps
+    // its look if the swatch is later deleted.
+    NodeRef swatch = 2 [(wt.crdt.field).on_dangling = REF_FALLBACK_CACHED];
+    // An unnamed color, owned by this object alone.
+    Color inline = 3;
+    // An unnamed tint of a named color (the Tints panel's Apply Color without adding).
+    InlineTint tint = 4;
+  }
+}
+
+message InlineTint {
+  NodeRef base = 1 [(wt.crdt.field).on_dangling = REF_FALLBACK_CACHED];  // cached = base Color
+  double percent = 2 [(buf.validate.field).double = {gte: 1, lte: 100}];
+}
+
+// Local view state (BASIC epic's view message); never leaves this Mac.
+message CurrentColors {
+  ColorRef fill = 1 [(wt.crdt.field).local_only = true];
+  ColorRef stroke = 2 [(wt.crdt.field).local_only = true];
+  // SWATCHES or COLOR_CUBES for the Tools panel pop-up palettes.
+  PaletteView palette = 3 [(wt.crdt.field).local_only = true];
+}
+enum PaletteView { PALETTE_VIEW_UNSPECIFIED = 0; PALETTE_VIEW_SWATCHES = 1; PALETTE_VIEW_COLOR_CUBES = 2; }
+----
+
+Resolution of a `ColorRef` to a `Color` on read:
+
+. `none` → no paint.
+. `inline` → the color.
+. `swatch` → if the node exists, is a swatch and is not deleted: its resolved color (a
+  tint's computed color, see xref:tints.adoc[Tints]); otherwise the `cached` Color.  If
+  `cached` is empty too (a reference written by a client that predates the cache rule) →
+  black, and the object is listed by *Name All Colors* as unnamed.
+. `tint` → the base's resolved color (same fallback) scaled by `percent`.
+
+The cache is written by every command that sets a `ColorRef` and is never updated afterwards:
+while the swatch lives, readers ignore it; once the swatch is gone, the object shows the color
+the user saw when they applied it.
+
+=== Merge semantics
+
+[cols="1,1,3"]
+|===
+|Field |Policy |Concurrent case
+
+|`ColorRef` (any owner)
+|ATOMIC, LWW
+|Two people color the same fill: greater OpId wins; the loser is retained and, after an
+offline session, listed as a *same register* overlap with both colors and *Use mine*
+(the reconcile mock-up's "Fill color: Mine / Theirs" row is exactly this).  Fill vs stroke:
+different registers, both keep.  Color vs. any other attribute of the fill (a gradient's
+angle): both keep.
+
+|`ColorRef.swatch` vs swatch deletion
+|reference fallback
+|The reference dangles; readers use `cached`; the Object panel shows an unnamed color with
+*Restore "<name>"*; review sheet lists "used a color that was deleted"
+(xref:swatches.adoc[Swatches]).
+
+|`ColorRef.swatch` vs swatch recolor
+|--
+|Not a conflict: the object shows the new color everywhere, which is the point of named
+colors.
+
+|`CurrentColors`
+|local_only
+|Never merged; never sent.
+|===
+
+Read-time normalizations::
+* A `swatch` reference to a node that is not a swatch (a malformed change) reads as its
+  `cached` color, or black.
+* A `tint` whose base is a tint swatch resolves through the chain (percentages multiply) with
+  the loop rule from xref:tints.adoc[Tints].
+
+Undo::
+Coloring N selected objects is one change (`Apply "Grape" to 12 objects`).  A drag over the
+canvas produces no change until the drop.  Editing an unnamed color's value field in the
+Object panel is one change per field commit; slider drags in the Mixer bound to a selected
+object coalesce into one change per drag.
+
+=== Offline behavior
+
+Works offline entirely.  Repeated recoloring of one fill coalesces to one write in the
+outbox.  Nothing on this page needs the server.
+
+=== Server
+
+Nothing beyond storing and relaying changes.
+
+=== Client
+
+* `WTModel`: `ColorRef` resolution (`ColorResolver`) with the fallback ladder above, and a
+  `SwatchDependents` index (swatch id → set of (node, field path)) maintained from applied
+  changes, used by *Name All Colors*, *Delete Unused* and the renderer's invalidation.
+* `WTRender`: a swatch recolor invalidates every dependent's tiles through REND-004; a
+  document with 50,000 objects on one swatch must repaint within one frame budget at the
+  design point by batching the dirty rects.  The paint cache keys on resolved `Color`, so
+  unchanged objects are untouched.
+* `WTApp`: `NSColorWell`-styled wells (custom views: they show None and mixed states, which
+  `NSColorWell` cannot), a popover palette (SwiftUI grid) with the Swatches / Color Cubes
+  switch, the `ColorRef` pasteboard type defined with the Mixer (COLOR-008) extended for
+  cross-application drops (Illustrator's and Sketch's color UTIs are read; the `NSColor`
+  pasteboard type is written for other apps).  An incoming `NSColor` is stored in its own
+  space when that is sRGB or Display P3 and otherwise converted into the *Default color space
+  for new colors*; the value field's parser is COLOR-002's CSS Color 4 parser.  Canvas drop
+  targets use REND-003 hit testing with fill/stroke discrimination.  The Eyedropper is a
+  `Tool` (APP-003) that samples through the display list (the resolved `Color`, space
+  included) and, for bitmaps, the decoded pixel converted through the image's source profile
+  (CMS-003) into the default color space.
+* Undo grouping: drops and palette picks are single changes; Mixer-bound edits group per
+  slider drag.
+
+=== Build tasks
+
+[[COLOR-006]]
+==== COLOR-006 Color reference resolution and invalidation
+[horizontal]
+Track:: client-render
+Depends on:: COLOR-001, COLOR-002, REND-002, REND-004
+Size:: M
+Delivers:: `ColorResolver` (the fallback ladder, tint chains), `SwatchDependents` index, swatch-change → dependent invalidation batched through REND-004, and resolved-color paint caching.
+Done when::
+* Recoloring a swatch used by 50,000 objects repaints within 16 ms of the change on M1.
+* Vectors: dangling swatch reads cached; missing cache reads black; tint of a deleted base reads cached base scaled; chain of three tints; loop cut deterministically.
+* Merge test: delete swatch on A while B applies it; B's object renders the same color before and after merge on both replicas.
+
+[[COLOR-011]]
+==== COLOR-011 Applying color: wells, palettes, drops, Object panel controls
+[horizontal]
+Track:: client-ui
+Depends on:: APP-003, APP-007, COLOR-006, COLOR-007, COLOR-008
+Size:: L
+Delivers:: Tools panel stroke/fill wells (None and mixed states, current colors in `local_only` view state seeded from the document defaults), the pop-up palette with Swatches / Color Cubes and hex, cross-application pasteboard support, canvas drop targets with fill/stroke highlight and the kbd:[Shift] / kbd:[Cmd] / kbd:[Option] rules, drops on the Tools panel and Swatches panel wells, and the Object panel color well, pop-up (None, swatches, Add to Swatches…, Detach, Restore) and value field.
+Done when::
+* UI tests: each apply route on a selected object; drop on an unselected object's fill and stroke; each modifier; drop on a group with and without kbd:[Option]; palette view switch persists across relaunch.
+* The value field shows an unnamed color in its own space's form and accepts every form the Mixer's field accepts; a Color Cubes pick stores sRGB; a pasted P3 `NSColor` stores `DISPLAY_P3`.
+* Coloring 12 objects is one change with the label `Apply "<name>" to 12 objects`; undo reverts all.
+* Merge test: two clients color the same fill; both converge; the loser's Object panel updates without stealing focus from a field being edited.
+
+[[COLOR-012]]
+==== COLOR-012 Eyedropper tool
+[horizontal]
+Track:: client-ui
+Depends on:: APP-003, REND-003, COLOR-011
+Size:: M
+Delivers:: The Eyedropper tool: sampling fills, strokes, text color, gradient stops and bitmap pixels; carrying the swatch reference for named colors; drag-to-drop with the fill/stroke modifiers; click sets current colors and the Mixer; kbd:[Option]-click samples the stroke; the chip cursor.
+Done when::
+* UI tests: sample a named fill and drop on another object yields a `swatch` reference, not an inline copy; sample a P3 fill yields an inline P3 color; sample a bitmap pixel yields an inline RGB in the default color space, converted through the image's profile; kbd:[Option]-click picks the stroke.
+* Sampling never writes a change; only the drop does, as one change.
+endif::spec[]

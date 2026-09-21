@@ -1,0 +1,486 @@
+A *typeface document* is a {product} document whose pages are glyphs.  Everything you know from
+illustration documents still applies -- the Pen tool, paths, layers, guides, booleans, expanded
+strokes, copy and paste -- but each glyph is its own small canvas measured in font units, with a
+baseline, an x-height and an advance width instead of a paper size, and the document window shows a
+grid of glyphs instead of page thumbnails.  From the same document you generate installable OTF,
+TTF and WOFF2 fonts, or exchange a UFO package with other font editors.
+
+NOTE: {fh} has no typeface mode; this is a {product} addition.  The reference for its behavior is
+FontForge, an open-source font editor, and the parity tables on these pages compare against
+FontForge rather than {fh}.  Typeface documents cover the fundamentals of font design; they are not a
+replacement for a dedicated font editor.
+
+// TODO screenshot: a typeface document window showing the glyph grid with a Basic Latin set
+
+== Document kinds
+
+Every document has a *kind*, chosen when it is created and shown in the library and in the window's
+title bar:
+
+[cols="1,3"]
+|===
+|Kind |What it is
+
+|Single-page illustration
+|One page on the pasteboard.  The page controls (btn:[Add Page], the page selector, the Page tool,
+the Document panel's page commands) are hidden.  Otherwise identical to a multi-page document.
+
+|Multi-page illustration
+|Any number of pages on one pasteboard (xref:pages.adoc[Working with pages]).  This is the {fh}
+document.
+
+|Typeface
+|A set of glyphs, font-level settings (names, metrics, kerning, OpenType features) and, in a
+*Sketches* view, an ordinary pasteboard with pages for specimen art and rough work.
+|===
+
+The kind is part of the document and is the same for everyone editing it.  It decides which window
+layout opens, which units the rulers use and which commands the menus offer; it never changes
+what is stored, so converting between kinds loses nothing.
+
+=== Converting a document to another kind
+
+To convert a document:
+
+. Choose menu:File[Convert Document To] and then the kind you want.
+. Read the sheet, which says what will happen, and click btn:[Convert].
+
+[cols="1,3"]
+|===
+|Conversion |Rule
+
+|Single-page ↔ multi-page illustration
+|Always allowed in either direction.  Converting to single-page requires that the document has
+exactly one page; if it has more, the sheet says so and offers to open the Document panel instead.
+
+|Illustration → typeface
+|Allowed.  The pages stay, and become the *Sketches* view.  The glyph grid starts empty unless you
+select *Add the Basic Latin glyph set* in the sheet.  Font settings get their defaults (a 1000-unit
+em, see xref:font-info.adoc[Font Info]).
+
+|Typeface → illustration
+|Allowed.  Glyphs are kept in the document (hidden) so that converting back restores them; the
+sheet's *Copy every glyph to its own page* option also lays the glyph artwork out as pages, one em
+square per page, so you can use the drawings as illustration.
+|===
+
+Converting is one undoable change and is listed for collaborators in the review sheet if they were
+working while you did it (see <<_working_with_others,Working with others>>).
+
+== Creating a typeface document
+
+To create a typeface document:
+
+. In the library window, click btn:[New] and choose *Typeface*, or choose
+  menu:File[New Typeface…] (kbd:[Cmd+Option+N]).
+. In the *New Typeface* sheet, type a *Family name* and a *Style name* (for example `Marlowe` and
+  `Regular`).  You can change both later in xref:font-info.adoc[Font Info].
+. Choose a *Starting set*:
+* *Empty* -- no glyphs.  Add them from the glyph grid.
+* *Basic Latin* -- the 95 printable ASCII characters (space through tilde) plus `.notdef`, each an
+  empty glyph with a default advance width.
+* *Latin-1* -- Basic Latin plus the Latin-1 Supplement block (accented letters, punctuation and
+  symbols), with the accented letters built as components of their base letter and mark
+  (xref:glyph-editing.adoc[Editing glyphs]).
+* *From a font file…* -- import an existing OTF, TTF or UFO as the starting point
+  (xref:font-export.adoc[Generating and exchanging fonts]).
+. Choose the *Units per em* (1000 by default; 2048 is the TrueType tradition) or leave it.
+. Click btn:[Create].
+
+The starting sets are templates in the same sense as illustration templates
+(xref:templates.adoc[Templates]); a team can save its own typeface template with house metrics and a
+custom glyph set.
+
+== How a typeface document differs
+
+[cols="1,2,2"]
+|===
+| |Illustration document |Typeface document
+
+|Main view
+|The pasteboard with pages
+|The *glyph grid* (xref:glyph-grid.adoc[The glyph grid]); a *Sketches* tab shows the pasteboard
+
+|Opening a page or glyph
+|Scroll to it, or Go to Page
+|Double-click a glyph cell; the glyph opens in a tab in the same window with its own canvas
+
+|Canvas coordinates
+|Points, picas, inches… chosen in the Units pop-up; origin at the page's top-left
+|*Font units* (1/UPM of an em), fixed; origin at the glyph's origin on the baseline, with y growing
+upward as in every font format.  The Units pop-up shows *Font units* and is disabled.
+
+|Rulers and grid
+|Document units, zero point movable per page
+|Font units, zero point fixed at the glyph origin; the grid defaults to 10 units.  See
+xref:glyph-editing.adoc[Editing glyphs].
+
+|Guides
+|Ruler guides you drag out
+|The same, plus *metric lines* (baseline, x-height, cap height, ascender, descender, left and
+right side bearings) drawn from the font's metrics on every glyph canvas
+
+|Layers
+|The Layers panel, printing and non-printing layers
+|The same panel.  Non-printing layers (below the separator) act as sketch layers: they show on the
+canvas but never reach the generated font.
+
+|Object appearance
+|Fills, strokes, effects render as drawn
+|Render as drawn while you work; in the font, every closed shape is a solid glyph outline and every
+stroke is expanded, as described in xref:font-export.adoc[Generating and exchanging fonts]
+
+|Panels
+|Object, Document, Layers, …
+|The same, plus the *Glyph* section of the Object panel, the *Metrics* window and the *Features*
+editor.  The Document panel's page controls act on the Sketches pages.
+
+|Output
+|Export to graphic formats, print
+|menu:File[Generate Fonts…]; export and printing still work on the Sketches pages
+|===
+
+== Bringing artwork into a glyph
+
+There are three ways to turn a drawing into a glyph.
+
+To copy artwork from any document into a glyph:
+
+. Select the objects in the source document and choose menu:Edit[Copy].
+. In the typeface document, open the glyph and choose menu:Edit[Paste].  One point in the source
+  becomes one font unit; the artwork lands at the same coordinates relative to the glyph origin
+  that it had relative to the page's top-left corner, flipped so that up stays up.
+. Scale and position it with the Pointer tool or menu:Modify[Transform]
+  (xref:transforming.adoc[Transforming objects]).
+
+To convert a Sketches page into a glyph:
+
+. In the Sketches view, select the page with the Page tool.
+. Choose menu:Glyph[Convert Page to Glyph…].
+. Type a glyph name or a character and choose how to scale:
+* *Page height is the em* -- the page is scaled so its height equals the em; the baseline sits at
+  the descender distance above the page's bottom edge.
+* *One point per unit* -- no scaling; the page's bottom-left corner becomes the glyph origin.
+. Choose whether to *Move* the objects (the page is left empty) or *Copy* them.
+. Click btn:[Convert].  The glyph opens.
+
+To convert a glyph into a page, select it in the grid and choose menu:Glyph[Copy Glyph to Page];
+a new page one em square appears in Sketches with a copy of the glyph's artwork.
+
+Text objects pasted into a glyph are converted to paths on the way in
+(xref:text-to-paths.adoc[Converting text to paths]); a glyph cannot contain live text, images or
+symbol instances.
+
+== The workflow in one page
+
+. *Create* the typeface document with a starting set.
+. *Set the metrics* in menu:Font[Font Info…]: units per em, ascender, descender, x-height, cap
+  height.  Metric lines appear on every glyph canvas.
+. *Draw* each glyph with the ordinary tools in its tab; set its advance width by dragging the
+  right side bearing handle.
+. *Compose* accented glyphs from components and anchors instead of redrawing.
+. *Space and kern* in the Metrics window, typing sample words and dragging.
+. *Add features* -- ligatures and class substitutions -- in the Features editor; kerning and mark
+  attachment are generated for you.
+. *Validate and generate* with menu:File[Generate Fonts…]; *Install for Testing* puts the font
+  in your Mac's font list for use in any application.
+. *Exchange* a UFO with collaborators who use other font editors.
+
+== Working with others
+
+A typeface document is shared like any other.  Everyone sees the same glyph grid; a collaborator's
+colored dot appears on the glyph they have open, and their pointer and selection show inside a
+glyph you both have open.  Because each glyph is its own canvas, two people drawing different
+glyphs never interfere with each other at all.  Two people drawing the same glyph see each other's
+paths and handles move live, exactly as on a shared page.
+
+Font-level settings -- names, metrics, units per em, kerning, features -- belong to the whole
+font, so a change to them reaches every glyph and every collaborator.  {product} treats these with
+extra care:
+
+* When someone changes a metric (say, the x-height) while you are drawing, the metric line moves
+  on your canvas and a brief notice tells you who changed it.
+* When someone changes the units per em *with scaling*, every glyph is rescaled.  Anything you
+  drew at that moment is listed afterwards in the review sheet with a *Rescale mine* button, so
+  nothing you drew is left at the wrong size without you knowing.
+* Converting the document's kind while others are editing is always listed in the review sheet for
+  everyone.
+
+After working offline, your glyph edits merge with everyone else's when you reconnect.  Glyphs that
+only you touched simply arrive; glyphs that you and someone else both drew on are listed in the
+review sheet with *Mine* / *Theirs* / *Merged* previews, like any shared object
+(xref:collaboration.adoc[Working together]).  Collisions particular to fonts -- two glyphs given the
+same name or the same character -- are described on xref:glyph-grid.adoc[The glyph grid].
+
+ifdef::spec[]
+== Specification
+
+=== FontForge parity
+
+[cols="2,3,1"]
+|===
+|FontForge capability |{product} behavior |Verdict
+
+|A font is its own file type (SFD) with no illustration mode
+|A typeface is a document kind sharing the illustration document's node tree, tools and sync; glyphs
+are canvases like master pages.
+|Adapted -- the whole point of the addition is one drawing engine for both.
+
+|New font starts empty (or from an encoding's slot set)
+|New Typeface sheet with Empty, Basic Latin, Latin-1 and From a font file starting sets, plus team
+templates.
+|Adapted -- starting sets create glyph nodes; FontForge's encoding slots are a view
+(xref:glyph-grid.adoc[The glyph grid]).
+
+|Import of outlines from SVG/EPS into a glyph (File > Import)
+|Paste from any {product} document, or Convert Page to Glyph.  SVG/EPS go through the illustration
+importer first (xref:importing.adoc[Importing artwork]).
+|Adapted -- same result, one importer.
+
+|Em size in Font Info, 1000 or 2048 conventions
+|Same; chosen at creation, changeable with scaling in Font Info.
+|Faithful
+
+|Font view opens glyphs in separate windows
+|Glyphs open as tabs in the typeface window.
+|Adapted -- macOS tabbed windows; separate windows via drag-out of a tab.
+|===
+
+=== Data model
+
+The kind lives on `settings` (0:1); glyphs are children of a new well-known node.  This page
+proposes the reserved counter `11` for it:
+
+[listing]
+....
+document (0:0)
+├── settings (0:1)   DocumentSettings.document_kind, DocumentSettings.font (FontProps)
+├── pages    (0:2)   the Sketches pages of a typeface document
+├── layers   (0:4)   objects; a glyph's artwork carries CommonProps.canvas = the glyph node
+└── glyphs   (0:11)  ── glyph … (order = custom grid order)
+....
+
+[source,protobuf]
+----
+// proto/wiretuner/doc/v1/font.proto (FONT epic sketch) -- the kind and the glyph node.
+// FontProps, kerning and features are sketched on the pages that own them.
+
+enum DocumentKind {
+  DOCUMENT_KIND_UNSPECIFIED = 0;          // reads as ILLUSTRATION_MULTI_PAGE (every pre-FONT document)
+  DOCUMENT_KIND_ILLUSTRATION_SINGLE_PAGE = 1;
+  DOCUMENT_KIND_ILLUSTRATION_MULTI_PAGE = 2;
+  DOCUMENT_KIND_TYPEFACE = 3;
+}
+
+// Added to DocumentSettings (document-panel page).  ATOMIC scalar: later wins.
+//   DocumentKind document_kind = 20;
+//   FontProps font = 21;               // STRUCT; see font-info
+
+enum GlyphKind {
+  GLYPH_KIND_UNSPECIFIED = 0;             // reads as BASE
+  GLYPH_KIND_BASE = 1;                    // an ordinary spacing glyph
+  GLYPH_KIND_MARK = 2;                    // a combining mark; zero advance by convention, attaches via anchors
+  GLYPH_KIND_LIGATURE = 3;                // replaces a sequence; name a_b names the sequence (opentype-features)
+  GLYPH_KIND_COMPONENT = 4;               // unencoded piece used only through components; never a cmap entry
+}
+
+// A reference to another glyph's outline, placed with a transform.  Element of a SEQUENCE.
+message Component {
+  ElementId id = 1;
+  NodeRef glyph = 2 [(wt.crdt.field).on_dangling = REF_FALLBACK_PLACEHOLDER];   // a glyph node under 0:11
+  Transform transform = 3 [(wt.crdt.field).merge = MERGE_ATOMIC];                // font units, glyph-canvas space
+}
+
+enum AnchorRole {
+  ANCHOR_ROLE_UNSPECIFIED = 0;            // reads as BASE
+  ANCHOR_ROLE_BASE = 1;                   // where a mark attaches to this glyph ("top")
+  ANCHOR_ROLE_MARK = 2;                   // where this mark attaches to a base ("_top")
+}
+
+// A named attachment point.  Element of a SEQUENCE.
+message Anchor {
+  ElementId id = 1;
+  string name = 2 [(buf.validate.field).string = {min_len: 1, max_len: 63, pattern: "^[A-Za-z0-9._]+$"}];
+  Point position = 3 [(wt.crdt.field).merge = MERGE_ATOMIC];   // glyph-canvas space (font units, y down; see Client)
+  AnchorRole role = 4;
+}
+
+message GlyphProps {
+  // PostScript glyph name: AGL name, uniXXXX, or a_b for ligatures.  Unique in the font after
+  // read-time normalization (glyph-grid).  ATOMIC: later rename wins.
+  string name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 63, pattern: "^[A-Za-z_.][A-Za-z0-9_.]*$"}];
+  // Unicode scalar values this glyph encodes.  SET: add-wins; a codepoint claimed by two glyphs is
+  // resolved on read (glyph-grid).  Empty for unencoded glyphs.
+  repeated uint32 codepoints = 2 [(wt.crdt.field).merge = MERGE_SET, (buf.validate.field).repeated.items.uint32.lte = 0x10FFFF];
+  // Horizontal advance in font units.  ATOMIC scalar.  Side bearings are derived from the
+  // flattened outline's bounds and never stored.
+  double advance_width = 3 [(buf.validate.field).double = {gte: 0, lte: 32767}];
+  GlyphKind kind = 4;
+  repeated Component components = 5 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  repeated Anchor anchors = 6 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  // proto3 booleans default to false, and a new glyph must export, so the flag is inverted.
+  bool skip_export = 7;
+  string note = 8 [(buf.validate.field).string.max_len = 8192];
+  // Ruler guides on this glyph's canvas, as on pages (Guide from document.proto; font units).
+  repeated Guide guides = 9 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  // Colour tag shown on the grid cell, 0 = none.  Organisational only.
+  uint32 mark_color = 10 [(buf.validate.field).uint32.lte = 12];
+}
+----
+
+The glyph's artwork is not in `GlyphProps`: it is the set of top-level objects under `layers`
+(0:4) whose `CommonProps.canvas` is the glyph's node id, exactly as a master page's contents.  A
+glyph's *outline* is derived from that artwork by the flattening pipeline
+(xref:font-export.adoc[Generating and exchanging fonts]).
+
+Glyph-canvas space:: A glyph canvas is measured in font units, one unit = 1/UPM em.  Stored
+coordinates keep the pasteboard convention -- y grows downward -- so every tool, geometry kernel,
+merge policy and conformance vector applies unchanged.  The glyph origin is (0, 0); the baseline is
+the line y = 0; the ascender is at stored y = −`ascender`.  The UI presents *font y* = −stored y
+everywhere a number is shown (rulers, Object panel, anchor and metric fields), and the compiler
+negates y once on generate.  Nothing in the stored document is y-up.
+
+Derived, never stored::
+* *Left side bearing* = min x of the flattened outline bounds; *right side bearing* = `advance_width`
+  − max x.  A glyph with no outline has LSB = 0 and RSB = advance width.
+* *Grid order* is the 1-based index among non-deleted children of `glyphs` in sibling order; the
+  grid's Unicode and Name sorts are views over it.
+* *Objects on a glyph* is the canvas query (`CommonProps.canvas == glyph id`), the same query master
+  pages use.
+
+Conversion commands::
+* *Convert to single-page*: `SetFields(settings.document_kind)`; refused locally when more than one
+  live page exists (no write).
+* *Convert to typeface*: `SetFields(document_kind)` plus `SetFields(settings.font)` with defaults
+  where `font` was never written, plus, with the option, the glyph creations of the Basic Latin set,
+  in one change labelled "Convert to typeface".
+* *Convert to illustration*: `SetFields(document_kind)`; with *Copy every glyph to its own page*,
+  one `CreateNode` per page plus deep copies of each glyph's objects, `canvas` unset, transform
+  composed with the em-to-page mapping (one unit = one point, y negated about the page's baseline
+  line).  Glyph nodes are neither deleted nor moved.
+* *Convert Page to Glyph*: `CreateNode(glyph)` plus, for *Move*, `SetFields(CommonProps.canvas,
+  CommonProps.transform)` on every object on the page (objects-on-page query), or for *Copy*, deep
+  copies with `canvas` set.
+* *Copy Glyph to Page*: the reverse, always a copy.
+
+=== Merge semantics
+
+`document_kind`:: ATOMIC, later wins.  Two concurrent conversions to different kinds: later wins;
+the review sheet lists the register for both ("kind changed by both").  The loser's local UI
+re-lays out the window when the winning value arrives (a window-mode switch, no data loss, since
+every kind reads the same tree).  *Always-list rule*: a `document_kind` write is listed in the
+review sheet for every replica that made any change concurrently, whatever the counts, because the
+window layout changed under them.
+
+Convert to typeface vs. concurrent drawing:: The drawer's objects are on pages (`canvas` unset);
+they simply become Sketches content.  Nothing collides.
+
+Convert Page to Glyph (Move) vs. edit of an object on that page:: The move writes `canvas` and
+`transform`; the concurrent point edit writes points.  Different registers; the edited path lands in
+the glyph.  A concurrent `transform` write (someone dragged the object) loses or wins whole
+(ATOMIC) -- if the drag wins, the object stays on the page in pasteboard coordinates but with
+`canvas` = glyph, i.e. it is on the glyph canvas at page-sized coordinates.  Read normalization:
+none needed (it is a valid state); the review sheet lists it as *move vs move* with *Use mine*.
+
+Glyph deleted vs. objects drawn on it:: `SetDeleted(glyph)` plus `SetDeleted` on its objects, as
+for pages.  Objects created concurrently on the glyph carry `canvas` → a deleted node, which reads
+as unset (`REF_FALLBACK_UNSET`): they appear on the Sketches pasteboard at font-unit coordinates.
+The review sheet and the live notice say "objects drawn on glyph *A* which Tom removed" with
+*Restore glyph* (`deleted = false`, which also re-attaches them, because `canvas` still holds the
+glyph id).
+
+Two people paste into the same empty glyph:: Two sets of objects, both on the canvas.  No register
+collision; the glyph shows both drawings, and the review lists nothing unless the same object was
+touched.  This is the same outcome as two pastes on one page.
+
+Read-time normalizations::
+* `document_kind` unset reads as `ILLUSTRATION_MULTI_PAGE`.
+* `DocumentKind == ILLUSTRATION_SINGLE_PAGE` with more than one live page reads as multi-page for
+  window layout (the next conversion command writes the truth); the document is never refused.
+* A typeface document with no live glyph is valid (empty grid).
+* Objects with `canvas` naming a glyph in a document whose kind is not `TYPEFACE`: not rendered on
+  the pasteboard (they are hidden with their glyph).
+
+=== Offline behavior
+
+Everything on this page works offline, including creating a typeface document (the library creates
+it locally with a client-supplied id, as for any document).  Templates from the team library need
+to have been cached.
+
+=== Server
+
+Nothing beyond storing and relaying changes.  The server validates the `GlyphProps` ranges and
+patterns on ingest and does not know what a glyph is.
+
+=== Client
+
+* `WTModel.DocumentKind`, `WTModel.Glyph` (typed view over a `glyph` node), `WTModel.CanvasSpace`
+  (`.pasteboard(units)` or `.glyph(upm)`, with `displayY(_:)`, `storedY(_:)` and the unit label),
+  consulted by rulers, the Object panel, the Transform panel and snapping.  Points, transforms and
+  bounds in `WTGeometry` never see the flip.
+* `WTModel.KindCommands`: `convert(to:options:)`; `WTModel.GlyphCommands`: `convertPageToGlyph`,
+  `copyGlyphToPage`, and the glyph commands specified on xref:glyph-grid.adoc[The glyph grid].
+* `WTApp.TypefaceWindowController`: the typeface window layout -- a segmented control *Glyphs* /
+  *Sketches* in the toolbar, the glyph grid as the primary view, glyph canvases as tabs
+  (`NSWindow.tabbingMode` = preferred, tab title = glyph name, drag a tab out for a separate window),
+  a glyph strip in the tab's top bar with kbd:[Cmd+Option+Left] / kbd:[Cmd+Option+Right] for the
+  previous and next glyph in grid order.  The document window (APP-002) hosts each glyph canvas with
+  its canvas id set to the glyph node, as it does for a master page.
+* Paste into a glyph canvas: the pasteboard's objects are transformed by (1, 0, 0, 1, 0, 0) -- one
+  point becomes one stored unit -- and text blocks are converted to paths first.  Because stored
+  space is y-down in both kinds, "up stays up" needs no flip; the pasted artwork simply appears
+  above the baseline when its source y was above the page's baseline line, which is how the
+  Convert Page to Glyph sheet describes it.
+* Undo: each conversion is one change; Convert Page to Glyph with *Move* is one undo step that
+  returns the objects to the page.
+
+=== Build tasks
+
+[[FONT-001]]
+==== FONT-001 Typeface schema
+[horizontal]
+Track:: proto
+Depends on:: PROTO-003, PROTO-005
+Size:: M
+Delivers:: `doc/v1/font.proto` with `DocumentKind`, `GlyphKind`, `Component`, `AnchorRole`, `Anchor`, `GlyphProps` as sketched here, `FontProps` and its sub-messages from xref:font-info.adoc[Font Info], `KernPair`, `KernClass`, `ClassKern` from xref:kerning-metrics.adoc[Kerning and metrics], the `features` field from xref:opentype-features.adoc[OpenType features]; the `glyph` case in `NodeProps.kind` in a FONT block; `document_kind` and `font` on `DocumentSettings`; the `GLYPHS = 11` well-known constant.
+Done when::
+* `buf lint` and `buf breaking` pass; every field commented with its unit.
+* The wtcrdt merge table lists `codepoints` as SET; `components`, `anchors`, `guides`, `pairs`, `classes`, `class_kerns` as SEQUENCE; `Component.transform`, `Anchor.position` as ATOMIC; `features` as TEXT.
+* Conformance vectors: a glyph with two components and two anchors round-trips both engines; concurrent `codepoints` add and remove keeps the add.
+
+[[FONT-002]]
+==== FONT-002 Document kind and glyph canvas model
+[horizontal]
+Track:: client-model
+Depends on:: FONT-001, CRDT-002, CRDT-004, CRDT-007, CRDT-008
+Size:: L
+Delivers:: `WTModel.DocumentKind`, `Glyph`, `CanvasSpace`, the objects-on-glyph query, derived side bearings, the four conversion commands and Convert Page to Glyph / Copy Glyph to Page, the read-time normalizations on this page, change labels and inverses.
+Done when::
+* Every command is one change with an inverse; undo of Convert Page to Glyph (Move) returns objects to the page with their original transforms.
+* Merge tests: kind vs. kind (later wins, both listed); Convert Page to Glyph (Move) vs. concurrent point edit (edit lands in the glyph); glyph delete vs. concurrent draw (objects read on the pasteboard; restore re-attaches them).
+* Conformance vectors: `document_kind` unset read-out; single-page kind with two pages; objects on a glyph in an illustration document are hidden.
+
+[[FONT-003]]
+==== FONT-003 Typeface window and creation
+[horizontal]
+Track:: client-ui
+Depends on:: APP-002, APP-009, APP-005, FONT-002
+Size:: L
+Delivers:: The New Typeface sheet (library and menu:File[New Typeface…]) with the four starting sets and team templates; `TypefaceWindowController` with the Glyphs/Sketches switch, glyph tabs, glyph strip and shortcuts; menu:File[Convert Document To] and its sheet; the hidden page controls of a single-page document; the disabled *Font units* Units pop-up.
+Done when::
+* UI tests: create with Basic Latin (96 glyphs including `.notdef`), open a glyph in a tab, step glyphs with kbd:[Cmd+Option+Right], convert to illustration with page copies and back.
+* A single-page document shows no page controls; adding a second page through the Document panel is impossible in that kind.
+* Two windows on one document (one in the grid, one in a glyph tab) stay consistent when the kind changes remotely.
+
+[[FONT-004]]
+==== FONT-004 Font-unit canvas presentation
+[horizontal]
+Track:: client-ui
+Depends on:: APP-002, APP-007, GEO-005, FONT-002
+Size:: M
+Delivers:: Rulers in font units with the zero at the glyph origin and y increasing upward; the Object panel, Transform panel, and every numeric field showing font y = −stored y on glyph canvases; grid at 10 units by default; snapping to the grid and to metric lines; paste into a glyph canvas with text-to-paths conversion.  The metric lines themselves are FONT-011.
+Done when::
+* Typing y = 700 in the Object panel for an object on a glyph canvas stores −700; the ruler at that height reads 700.
+* Nudging with the arrow keys moves by whole font units.
+* UI test: paste three objects from an illustration document into a glyph; they arrive at one unit per point, and a text block arrives as paths.
+endif::spec[]

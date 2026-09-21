@@ -1,0 +1,374 @@
+{product} lets you make the application yours: change any keyboard shortcut or switch to the
+shortcuts of another application, put the buttons you use on any toolbar, and save the
+arrangement of panels you like so you can come back to it.  Shortcut sets follow your account
+between Macs; toolbars and panel layouts stay with the Mac.
+
+// TODO screenshot: the Keyboard Shortcuts window with the Commands list expanded to
+// View > Magnification and a conflict shown.
+
+== Keyboard shortcuts
+
+Every menu command, tool and many commands that have no menu (the Tools/Commands category)
+can have shortcuts.  Shortcuts are grouped in *sets*; you can switch sets, copy one and edit
+the copy, and share a set with someone else.
+
+=== Shortcut sets
+
+To choose a set::
+. Choose menu:Edit[Keyboard Shortcuts…].
+. Choose a set from the *Shortcut set* pop-up at the top of the window.
+
+The built-in sets are:
+
+[cols="1,3"]
+|===
+|Set |What it is
+
+|{fh} MX (default) |{fh}'s Mac shortcuts.  Every shortcut in this guide is from this set.
+|{fh} 9 |The older set, for people whose hands learned it.
+|Illustrator |Adobe Illustrator's Mac shortcuts where a command corresponds; {fh} MX shortcuts for the rest.
+|QuarkXPress |Likewise.
+|Photoshop |Likewise, for the commands the two share (zoom, hand, selection, transforms).
+|===
+
+Built-in sets cannot be edited.  Assigning a shortcut while a built-in set is chosen offers
+to make a copy first.
+
+To make your own set::
+. Click btn:[+] beside the pop-up.
+. Name the set.  It starts as a copy of the current set.
+
+To rename, duplicate or delete a set::
+Use the btn:[⋯] menu beside the pop-up.  Deleting the active set switches to {fh} MX.
+
+Your sets sync with your account, so they are on every Mac you sign in on.  To give a set to
+someone else, choose *Export Set…* from the btn:[⋯] menu; they choose *Import Set…*.  The
+file is a small text file you can also keep in version control.
+
+NOTE: In {fh} you copied the Shortcuts file between computers by hand.  {product} syncs sets
+automatically; Export and Import exist for sharing with other people.
+
+=== Assigning a shortcut
+
+To assign a shortcut::
+. Choose menu:Edit[Keyboard Shortcuts…] and choose an editable set.
+. In the *Commands* list, expand a category.  Categories mirror the menu bar; commands with
+  no menu item are under *Tools/Commands*.  Or type in the search field to filter.
+. Select the command.  Its description appears below the list; *Current shortcuts* lists what
+  it already has.  A command can have several shortcuts; the first one shows in the menu.
+. Click in the *Press new shortcut* field and press the keys.
+. If the shortcut is already used, *Currently assigned to* names the other command.  With
+  *Go to conflict on assign* checked, clicking btn:[Assign] selects that command in the list
+  so you can give it something else; otherwise btn:[Assign] just takes the shortcut away from
+  it.
+. Click btn:[Assign].
+
+Changes apply at once; there is no OK.  btn:[Revert] undoes every change made since the
+window opened.
+
+To remove a shortcut::
+. Select the command.
+. Select the shortcut under *Current shortcuts*.
+. Click btn:[Remove].
+
+Shortcuts reserved by macOS (kbd:[Cmd+Tab], kbd:[Cmd+Space], kbd:[Cmd+Q], kbd:[Cmd+H],
+kbd:[Cmd+,] and the others listed in System Settings) cannot be assigned; the field shows why.
+Single letters and digits without modifiers are allowed and are what tools use; they are
+ignored while you type in a text block or a field.
+
+NOTE: Extensions cannot be given shortcuts individually, as in {fh}; *Repeat Extension*
+(kbd:[Cmd+Shift+=]) can.  Extensions that are also tools (Roughen, Mirror and the rest) take
+shortcuts as tools.
+
+=== Finding a command without its shortcut
+
+The command palette (kbd:[Cmd+/]) searches the same list of commands the Keyboard Shortcuts
+window does and runs the one you pick, showing its shortcut beside it
+(xref:workspace.adoc[The workspace]).  It is the quickest way to reach a command you have not
+bound yet, and the results list is a good place to notice which shortcut you keep forgetting.
+The palette's own shortcut can be changed like any other, under *Help* in the Commands list.
+
+=== Printing or exporting a quick-reference card
+
+To print a card of the current set::
+. Choose menu:Edit[Keyboard Shortcuts…].
+. Click btn:[Print…].  A preview sheet shows the card, grouped by menu, with the option to
+  include commands that have no shortcut.
+. Click btn:[Print] for the system print dialog, or btn:[Save as PDF] to write it to a file.
+
+To export the set as text::
+Choose *Export as Text…* from the btn:[⋯] menu.  The file is comma-separated -- command,
+shortcut, description -- ready for a spreadsheet or word processor where you can reorder and
+format your own card.
+
+== Customizing toolbars
+
+The Main toolbar is customized the macOS way; the other toolbars and the Tools panel share
+one Customize Toolbars window.
+
+To customize the Main toolbar::
+Choose menu:View[Customize Toolbar…], then drag items between the sheet and the toolbar.
+Drag the default set back in to reset it.
+
+To add a button to another toolbar or the Tools panel::
+. Choose menu:Window[Toolbars > Customize…].
+. In the *Commands* list, expand a category, or search.  Selecting a command highlights its
+  button on every toolbar that has it; clicking a button on a toolbar selects its command in
+  the list.
+. Drag the command's button from the window onto a toolbar.  The other buttons make room.
+
+To remove a button::
+Drag it off the toolbar while the Customize Toolbars window is open, or kbd:[Cmd]-drag it off
+at any time.  Disabled buttons cannot be dragged.  Removing a button cannot be undone, but
+you can drag it back from the Customize window, or choose menu:Window[Toolbars > Reset
+Toolbars] to restore every toolbar's default set.
+
+To move a button between toolbars::
+kbd:[Cmd]-drag it to the other toolbar.
+
+To put the same button on two toolbars::
+kbd:[Cmd+Option]-drag it.
+
+To move a toolbar::
+Drag its handle (xref:toolbars.adoc[Toolbars]).
+
+Toolbar contents are local to this Mac.
+
+== Panel layouts
+
+To save the current arrangement of panels::
+Choose menu:Window[Panel Layout > Save Layout…] and name it.  The layout records which groups
+exist, which panels are in them, where they dock or float, their sizes and which are
+collapsed.
+
+To switch layouts::
+Choose a layout from menu:Window[Panel Layout].  The current arrangement is always kept as
+*Current*, so switching away and back loses nothing.
+
+To update a saved layout::
+Arrange the panels, then choose menu:Window[Panel Layout > Save Layout…] and pick the
+existing name.
+
+To delete a layout::
+Choose menu:Window[Panel Layout > Manage Layouts…].
+
+To return to the factory arrangement::
+Choose menu:Window[Panel Layout > Reset to Default].
+
+Layouts are local to this Mac: they depend on your displays.
+
+== Working with others
+
+Nothing on this page touches the document.  Your shortcuts, toolbars and layouts are invisible
+to collaborators, and theirs to you.  Shortcut sets travel between your own Macs through your
+account; if you edit a set on two Macs while one is offline, the later edit wins when both
+have synced.  A set you export and send to a colleague is a copy; changing yours afterward
+does not change theirs.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,1"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Keyboard Shortcuts dialog: Commands list mirroring menus plus Tools/Commands, Current Shortcut Keys, Press New Shortcut Key, Currently Assigned To, Go to Conflict on Assign, Assign, Remove, Reset, Close
+|Same window and workflow; Revert instead of Reset+Close (immediate apply).
+|Faithful
+
+|Shortcut groups: FreeHand MX, FreeHand 8, FreeHand 9, Illustrator, QuarkXPress, PageMaker, Photoshop, Director
+|FreeHand MX, FreeHand 9, Illustrator, QuarkXPress, Photoshop.
+|Adapted -- FreeHand 8, PageMaker and Director dropped: no users to serve; Illustrator/Quark/Photoshop kept.
+
+|Custom groups saved as files; copy between computers by hand
+|Sets sync with the account; Export/Import for sharing.
+|Adapted
+
+|Shortcuts assignable to Repeat Xtra only, not other Xtras
+|Same rule; tool extensions take shortcuts as tools.
+|Faithful
+
+|Print quick-reference card; Save As text file
+|Print with preview and Save as PDF; Export as Text (CSV).
+|Faithful (PDF added)
+
+|Customize dialog for toolbars: drag buttons on/off, Cmd-drag move, Cmd+Option-drag duplicate; disabled buttons immovable; removal not undoable
+|Same for the dockable toolbars and Tools panel; the Main toolbar uses the macOS sheet; Reset Toolbars added.
+|Adapted (Main toolbar) / Faithful (others)
+
+|Reset panels by deleting the preferences file
+|Named layouts, Save/Manage/Reset commands.
+|Adapted -- see xref:panels.adoc[Using panels].
+
+|--
+|Command palette over the command registry: fuzzy search, shortcuts shown, recent-first
+ranking, panels, pages, layers, named views and recent documents as sources.
+|Added -- cheap once the registry exists; expected of a modern Mac application.
+|===
+
+=== Data model
+
+Shortcut sets are account data, stored beside preferences (xref:preferences.adoc[Preferences]).
+Toolbars and layouts are local files.  The command palette's usage history is a local file
+too (`~/Library/Application Support/WireTuner/palette-recents.json`: up to 500 entries of
+`{query_prefix, item_id, count, last_used_ms}`), never synced and never document data.
+
+[source,protobuf]
+----
+// proto/wiretuner/account/v1/preferences.proto (continued sketch)
+message ShortcutSets {
+  repeated ShortcutSet sets = 1 [(buf.validate.field).repeated.max_items = 32];
+  string active_set_id = 2;            // built-in ids are "builtin.freehand-mx" etc.
+}
+
+message ShortcutSet {
+  string id = 1;                       // UUID for user sets
+  string name = 2 [(buf.validate.field).string = {min_len: 1, max_len: 64}];
+  string based_on = 3;                 // built-in id the set was copied from
+  // Whole set replaced on write: a set is edited in one window on one Mac at a time;
+  // field-level merging of key bindings would produce sets nobody composed.
+  repeated Binding bindings = 4 [(buf.validate.field).repeated.max_items = 2000];
+  int64 updated_at_ms = 5;
+}
+
+message Binding {
+  string command_id = 1;               // registry id, e.g. "view.zoomIn", "tool.pen"
+  repeated string keys = 2;            // canonical form "cmd+shift+k", "p", "6"; first is shown in menus
+}
+----
+
+Export format is the same message as JSON (`.wtkeys`), with a header comment.  Built-in sets
+are JSON resources in the app bundle, validated at build time against the command registry.
+
+=== Merge semantics
+
+Not document data.  `ShortcutSets` is one entry in the preferences map (`sync.shortcut_sets`)
+and follows the newest-wins rule per set id: the client sends changed sets only, the server
+keeps the newer `updated_at_ms` per set, deletions are tombstoned for 30 days so a Mac that
+was offline does not resurrect a deleted set.  Toolbar contents and panel layouts never
+merge.
+
+=== Offline behavior
+
+Everything on this page works offline; set changes queue with preferences.  Export and
+Import are local files.
+
+=== Server
+
+Stores `ShortcutSets` inside the account preferences JSONB; the per-set newest-wins rule
+runs server-side in `SetPreferences` (BASIC-023).
+
+=== Client
+
+* `WTApp/Shortcuts`.  APP-005's `CommandRegistry` is the source of the Commands list;
+  `ShortcutResolver` maps the active set's bindings onto `NSMenuItem.keyEquivalent` and
+  `keyEquivalentModifierMask`, and onto the tool shortcut table (BASIC-008).  Unmodified
+  single keys are handled in `CanvasView.keyDown` when no field or text session has focus.
+* Conflict detection is a dictionary from canonical key string to command ids; macOS-reserved
+  keys are a fixed list plus whatever `NSEvent` reports as consumed by the system
+  (`performKeyEquivalent` returning false is not enough -- the list is explicit).
+* The window is an `NSWindow` with an `NSOutlineView` for commands (search via
+  `NSSearchField` filtering the outline), a SwiftUI detail form, and a key-capture field that
+  records the next `NSEvent` (`keyDown` with `charactersIgnoringModifiers` + modifier flags).
+* Printing: an `NSView` laid out per menu with `NSPrintOperation`; *Save as PDF* uses the
+  same view with `dataWithPDF(inside:)`.  Export as Text writes RFC 4180 CSV.
+* Customize Toolbars: `ToolbarHost` (BASIC-011) enters edit mode while the window is open;
+  drag sources are command ids; `NSToolbar` handles the Main toolbar natively.
+* Panel layouts: files under `~/Library/Application Support/WireTuner/Layouts/<name>.json`
+  (format in xref:panels.adoc[Using panels]); the menu is rebuilt from the directory.
+* Command palette (`WTApp/Palette`, BASIC-033).  Sources conform to `PaletteSource` and
+  return `[PaletteItem]` (id, title, subtitle, kind, icon, shortcut, `isEnabled` with a
+  reason, `run`).  Built-in sources: every APP-005 registry command including tools (subtitle
+  is the menu path; shortcut from the active set through `ShortcutResolver`); panels from the
+  APP-004 registry ("Show Swatches"); the open document's pages ("Go to Page 3 Cover"),
+  layers ("Select Layer Background"), named views ("Recall View Logo detail") and the recent
+  documents list ("Open Poster.wiretuner").  Sources register with the palette from their own
+  epics; the palette does not import their models.
+* Search is a subsequence fuzzy match (Sublime-style: bonus for word starts, consecutive
+  runs and shorter titles, over title then subtitle, case- and diacritic-insensitive), over at
+  most a few thousand items, so it runs synchronously on the main actor per keystroke.
+  Ranking is `recentScore × 4 + matchScore`: `recentScore` comes from the local history file
+  (matches on the typed prefix, decayed by age, capped at 500 entries), so the item last
+  chosen for the same prefix lists first.  Disabled commands are listed last, greyed, with the
+  registry's validation reason as subtitle.
+* Shortcut: kbd:[Cmd+K] is *Keyline* in the {fh} MX set and kbd:[Cmd+Shift+P] is *Convert to
+  Paths* and *Page Setup…*, so neither is free.  The default set binds the palette to
+  kbd:[Cmd+/], which no built-in set uses; APP-005's conflict report is the final word, and
+  the command (`help.commandPalette`) is rebindable like any other.  The built-in presets all
+  bind it to kbd:[Cmd+/]: none of the applications they mirror has a palette shortcut to
+  match, and none of them uses kbd:[Cmd+/].
+* The window is an `NSPanel` (non-activating, `HUD`-free, vibrancy) hosting a SwiftUI search
+  field and list, positioned at the top third of the key document window; kbd:[Esc] closes,
+  focus returns to the previous responder.  It is accessible: the list is an
+  `NSAccessibilityList`, each row labelled with title, shortcut and enabled state.
+
+=== Build tasks
+
+[[BASIC-026]]
+==== BASIC-026 Shortcut sets: model, built-ins and resolver
+[horizontal]
+Track:: client-ui
+Depends on:: APP-005, BASIC-008
+Size:: M
+Delivers:: `ShortcutSet` model, the five built-in sets as validated JSON resources, `ShortcutResolver` applying a set to menus and tools, reserved-key list, conflict index, and the `.wtkeys` export/import format.
+Done when::
+* Every command in the registry appears in each built-in set's validation report (bound or explicitly unbound); the build fails on an unknown command id.
+* Switching sets rebinds every menu item and tool without relaunch; a UI test verifies kbd:[Cmd+U] means *Smart Guides* in every set (it is Illustrator's own binding) and kbd:[Cmd+K] means Preferences in the Illustrator set only.
+* Import of a hand-edited file with a bad key string reports the line and imports the rest.
+
+[[BASIC-027]]
+==== BASIC-027 Keyboard Shortcuts window and quick-reference card
+[horizontal]
+Track:: client-ui
+Depends on:: BASIC-026
+Size:: M
+Delivers:: menu:Edit[Keyboard Shortcuts…]: set pop-up with +/⋯ menu, searchable Commands outline, detail form, key capture, conflict display, Go to conflict on assign, Assign/Remove/Revert, copy-on-edit for built-ins, Print with preview and Save as PDF, Export as Text.
+Done when::
+* UI tests assign, conflict-resolve, remove and revert; the menu bar reflects each step immediately.
+* The printed card for the default set matches a golden PDF within layout tolerance; the CSV has one row per binding.
+
+[[BASIC-028]]
+==== BASIC-028 Shortcut set sync
+[horizontal]
+Track:: client-sync
+Depends on:: BASIC-023, BASIC-026
+Size:: S
+Delivers:: `ShortcutSets` as the `sync.shortcut_sets` preference entry with per-set newest-wins and deletion tombstones, sent on change and applied on fetch.
+Done when::
+* Simulator: a set edited on device A and deleted on device B while apart ends deleted if B's change is newer, restored otherwise, on both devices.
+
+[[BASIC-029]]
+==== BASIC-029 Customize Toolbars window
+[horizontal]
+Track:: client-ui
+Depends on:: BASIC-009, BASIC-011
+Size:: M
+Delivers:: menu:Window[Toolbars > Customize…] with the searchable Commands list, two-way highlighting between list and buttons, drag on/off, kbd:[Cmd]-drag move and kbd:[Cmd+Option]-drag duplicate outside the window, disabled-button immobility, persistence per toolbar, and menu:Window[Toolbars > Reset Toolbars].
+Done when::
+* UI tests add a command to the Text toolbar, move it to Extension Operations, duplicate it to the Tools panel, remove it, and reset; each state survives relaunch.
+
+[[BASIC-030]]
+==== BASIC-030 Named panel layouts
+[horizontal]
+Track:: client-ui
+Depends on:: BASIC-004, BASIC-006
+Size:: S
+Delivers:: menu:Window[Panel Layout] with Save Layout…, the layout list, Manage Layouts…, the implicit *Current* layout, and file persistence.
+Done when::
+* Saving, switching, updating and deleting layouts round-trip; a layout referencing a missing display restores onto the main display.
+
+[[BASIC-033]]
+==== BASIC-033 Command palette
+[horizontal]
+Track:: client-ui
+Depends on:: APP-004, APP-005, BASIC-026
+Size:: M
+Delivers:: The command palette panel (kbd:[Cmd+/], menu:Help[Command Palette…]): `PaletteSource`/`PaletteItem`, the command and panel sources, fuzzy matching, recent-first ranking with the local history file, shortcut display from the active set, disabled-with-reason rows, keyboard navigation, and the registration API the page, layer, named-view and recent-document sources use from their own epics.
+Done when::
+* UI tests: typing `zoom in` and pressing kbd:[Return] performs *Zoom In* exactly as the menu does (same registry entry, same undo label where applicable); a disabled command is listed greyed with its reason and kbd:[Return] does nothing.
+* Ranking test: after choosing *Rotate Clockwise* for `rot` twice, it lists first for `rot` on relaunch; the history file never exceeds 500 entries.
+* Matching test: `swat` finds the Swatches panel, `lay bg` matches a layer named "Background" through a stub source, and results appear within 16 ms of a keystroke for 5,000 items.
+* Every row has an accessibility label containing the title and shortcut; VoiceOver reads the enabled state.
+endif::spec[]

@@ -1,0 +1,7 @@
+= Editing paths
+include::_attributes.adoc[]
+:page-slug: editing-paths
+:page-group: Drawing
+:page-fh: Chapter 3, "Editing paths; Changing a path's direction"
+
+include::_includes/drawing/editing-paths.adoc[]

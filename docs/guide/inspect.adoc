@@ -1,0 +1,7 @@
+= Inspect mode
+include::_attributes.adoc[]
+:page-slug: inspect
+:page-group: Collaboration
+:page-fh: None -- addition (no FreeHand equivalent)
+
+include::_includes/collaboration/inspect.adoc[]

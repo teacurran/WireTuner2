@@ -1,0 +1,195 @@
+An output area is a rectangle you draw over the pasteboard to say "print or export this".  It
+can cover part of one page, several whole pages and the pasteboard between them, or objects
+parked beside a page.  A document has one output area at a time; it is saved with the
+document, shared with everyone working in it, and used by the Print dialog's *Output area*
+choice and by the export dialogs.  Its typical uses are ganging several small pages -- business
+cards, labels -- onto one sheet, and cutting a proof down to the corner that matters.
+
+// TODO screenshot: an output area spanning two small pages with its handles, and the Object panel showing its X, Y, W, H
+
+== Defining an output area
+
+To define an output area:
+
+. Select the Output Area tool in the Tools panel.  Over the pasteboard the pointer becomes the
+  output-area pointer.
+. Zoom out until everything you want to include is visible (kbd:[Cmd+-], or
+  menu:View[Fit All]).
+. Drag a rectangle over the pages and pasteboard to include.  Hold kbd:[Shift] to constrain it
+  to a square; hold kbd:[Option] to drag from the centre.
+. Release.  The area is drawn as a dashed rectangle with eight handles, and the Object panel
+  shows its position and size.
+
+Dragging again anywhere outside the area replaces it: there is only ever one.
+
+== Adjusting an output area
+
+With the Output Area tool selected:
+
+To resize::
+Drag a corner handle to change both dimensions, or a side handle to change one.  kbd:[Shift]
+keeps the proportions; kbd:[Option] resizes about the centre.
+
+To move::
+Drag the dashed boundary (anywhere except a handle); the pointer becomes a hand.  Or press the
+arrow keys to nudge the area by one document unit, kbd:[Shift] plus an arrow key for ten.
+
+To set it numerically::
+Type *X*, *Y*, *W* and *H* in the Object panel while the Output Area tool is active.  The
+fields take units and arithmetic as every numeric field does
+(xref:object-panel.adoc[Object panel]).
+
+To remove it, do one of the following::
+* Click outside the area with the Output Area tool.
+* Press kbd:[Delete] while the Output Area tool is active.
+* Choose menu:View[Output Area > Remove].
+
+The area stays visible whatever tool is active, drawn in the same dashed style, so you can see
+what will print while you work.  To hide it without removing it, turn off
+menu:View[Output Area > Show].
+
+== Printing and exporting the area
+
+To print the output area:
+
+. Choose menu:File[Print…].
+. In the *{product}* pane, under *Print*, choose *Output area*.
+. Select *Print page boundaries* to include the outlines of any pages inside the area, or
+  clear it to print only the objects.
+. Click btn:[Print].
+
+The area prints as one sheet.  If it is larger than the paper, use *Fit on paper* or tiling
+exactly as for a page (xref:printing.adoc[Printing]).
+
+Export dialogs offer the same choice: an *Area* option beside *Pages* limits a bitmap or
+vector export to the output area (xref:exporting.adoc[Exporting]).
+
+== Working with others
+
+There is one output area per document, and everyone sees it.  When a collaborator drags it,
+you see it move; when they remove it, it disappears from your window and the *Output area*
+choice in your Print dialog is disabled.  If two of you drag it at the same moment, the later
+drag wins and the other's rectangle snaps to it -- the area is one rectangle, and half of one
+person's drag with half of another's would be a rectangle nobody drew.
+
+After working offline, the output area is whichever was set most recently by anyone.  It is
+not listed in the merge review.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,2"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Output Area tool: drag to define, one per document, saved with the document
+|Same; shared document data.
+|Faithful
+
+|Resize by handles, move by dragging the boundary or arrow keys
+|Same, plus kbd:[Shift] and kbd:[Option] modifiers matching the drawing tools.
+|Faithful
+
+|Dimensions shown in the Object panel
+|Shown and editable.
+|Faithful -- editing added.
+
+|Delete: click outside, Delete key, or drag a new one
+|Same, plus a menu command.
+|Faithful
+
+|Print > Area, with Print Page Boundary
+|*Output area* under *Print* in the pane, with *Print page boundaries*.
+|Faithful
+
+|Use in export
+|Export dialogs offer *Area* (IO epic).
+|Faithful
+|===
+
+=== Data model
+
+One field on `SettingsProps` (the well-known `settings` node), added by
+xref:printing.adoc#PRINT-001[PRINT-001]:
+
+[source,protobuf]
+----
+// Excerpt of doc/v1/settings.proto (DOC epic owns the message)
+message SettingsProps {
+  // ...
+  // The document's single output area in pasteboard coordinates; unset = none.
+  // ATOMIC: a rectangle is one thing -- merging one user's left edge with another's
+  // width produces a box nobody drew.
+  Rect output_area = 30 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Whether printing the output area draws page outlines inside it: PrintSettings.print_page_boundary.
+}
+----
+
+Stored on `settings` rather than on a page because the area is independent of pages -- it
+may span several or lie on bare pasteboard -- and {fh} allowed exactly one per document.
+Whether it is shown is view state: `show_output_area` is `local_only` in the local store.
+
+=== Merge semantics
+
+* Define, move, resize and remove each write the one `output_area` register (remove writes it
+  unset).  A drag is one change (`Move output area`) coalesced from mouse down to mouse up.
+* Concurrent moves or resizes: the later OpId wins whole.  Concurrent remove and move: whichever
+  is later; a later move resurrects the area at the moved position, which is what the mover
+  expects.
+* Review sheet: exempt, like the rest of the print settings (see xref:printing.adoc[Printing]).
+* Read-time normalization: a rectangle with zero or negative width or height reads as unset; a
+  rectangle entirely outside the pasteboard limits is clamped to them.
+
+=== Offline behavior
+
+Works offline.
+
+=== Server
+
+Nothing beyond storing and relaying changes.
+
+=== Client
+
+* `WTApp/Tools/OutputAreaTool` conforms to `Tool` (APP-003).  States: idle, defining (drag
+  from anchor with kbd:[Shift]/kbd:[Option] handled mid-drag), moving, resizing (handle index).
+  Handle hit testing uses the `Pick` distances from REND-003.  Snapping to guides, grid and
+  page edges uses GEO-005 so an area can be snapped to page corners.
+* The area is drawn as a canvas overlay (not a node) in every tool: 1 px dashed line in the
+  accent color, handles only while the tool is active.  Hidden when the local
+  `show_output_area` is false.
+* Object panel: when the tool is active with an area defined, the inspector shows an
+  `OutputAreaEditor` (X, Y, W, H) in place of the selection; commits write the register.
+* Undo: define/move/resize/remove are single changes.
+* Print: `PrintPlan` accepts `source = .outputArea(rect, pageBoundaries:)`; `PrintPlanView`
+  clips to the rect, draws page outlines (0.25 pt, black) when asked, and treats the rect as
+  the page for marks, bleed and tiling.
+
+=== Build tasks
+
+[[PRINT-011]]
+==== PRINT-011 Output Area tool
+[horizontal]
+Track:: client-ui
+Depends on:: PRINT-001, APP-003, APP-005, GEO-005, REND-003
+Size:: M
+Delivers:: The Output Area tool (define, resize by handles, move by boundary drag and arrow keys, remove by click-outside/Delete/menu) writing `SettingsProps.output_area`; the persistent canvas overlay; menu:View[Output Area > Show / Remove]; the local `show_output_area` flag.
+Done when::
+* Drag, kbd:[Shift]-drag and kbd:[Option]-drag produce the expected rectangles (UI tests); arrow keys nudge by 1 and 10 units.
+* A drag from mouse down to mouse up is one change labelled `Move output area` / `Resize output area`; removal writes the register unset.
+* Merge test: concurrent move (A) and resize (B) leave one whole rectangle (the later OpId) on both replicas; concurrent remove and move converge to the later op.
+* Conformance vector: `output_area` written, unset and re-written across two replicas out of order.
+
+[[PRINT-012]]
+==== PRINT-012 Output area in the Object panel and in output
+[horizontal]
+Track:: client-ui
+Depends on:: PRINT-011, PRINT-003, APP-007
+Size:: S
+Delivers:: The `OutputAreaEditor` in the Object panel (X, Y, W, H with units and arithmetic), the *Output area* choice and *Print page boundaries* in the print pane, and the `.outputArea` source in `PrintPlan` with clipping, page outlines and marks around the area.
+Done when::
+* Typing `W` = `3.5in` resizes the area and the canvas overlay follows; the field shows `Mixed`-free single values.
+* Printing the area yields one sheet clipped to the rectangle; page outlines appear only with the checkbox on; crop marks sit at the area's corners.
+* The choice is disabled when `output_area` is unset and re-enabled live when a collaborator defines one.
+endif::spec[]

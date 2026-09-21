@@ -1,0 +1,546 @@
+Raster effects give a vector object the kinds of treatment a photo editor gives a picture: a
+beveled or embossed edge, a blur, a drop shadow or glow, a sharpened edge.  They are live
+effects like the vector ones on xref:live-effects.adoc[Live vector effects] -- attributes in the
+Object panel's appearance list that never alter the path -- but their result is made of
+pixels.  {product} draws them at a *raster effects resolution* you set for the document (or for
+one object), so they look right on the device they are meant for and print at that resolution.
+This page covers the resolution settings, the preview quality preference, each raster effect
+and every one of its options, and what happens to raster effects on the way to a printer or an
+exported file.  Transparency is a raster-family effect with its own page,
+xref:transparency.adoc[Transparency].
+
+NOTE: {fh} used the Fireworks raster engine for these effects.  {product} draws them with Core
+Image; the options, ranges and names are the same, the pixels are close but not identical.
+
+== Resolution
+
+A raster effect is drawn into a bitmap that covers the object plus the effect's spread, at the
+raster effects resolution, then composited into the artwork.  Higher resolutions give smoother
+results and larger files; lower ones draw faster.  A common approach: draw at 72 ppi, set the
+document to the output device's resolution (300 ppi for offset printing) before you print or
+export.
+
+To set the raster effects resolution for the document:
+
+. Choose menu:File[Document Settings > Raster Effects…].  The Raster Effects sheet opens.
+. Enter a *Resolution* in pixels per inch that matches the device the drawing is for: 72 for
+  screen, 150--300 for print.
+. Select *Optimal CMYK rendering* to draw the effects in CMYK, bypassing the document's color
+  management (xref:color-management.adoc[Color management]).  Use it only when every color in
+  the document is a CMYK color.
+. Click btn:[OK].
+
+The document setting is part of the document and applies to everyone who opens it.  The same
+settings appear on the Document panel (xref:document-panel.adoc[The Document panel]).
+
+To give one object its own resolution:
+
+. Select the object.
+. From the Object panel's options menu (the gear at the top right), choose *Raster Effect
+  Settings…*.
+. Deselect *Use document raster effects resolution* and enter a *Resolution*.
+. Click btn:[OK].  The object draws at its own resolution from then on, whatever the document
+  setting.
+
+=== Preview quality
+
+Drawing every raster effect at 300 ppi while you sketch would make the canvas sluggish, so the
+on-screen preview can use a lower resolution than the one that prints.  The *Raster effect
+preview* preference (menu:{product}[Settings… > Redraw]) chooses:
+
+[cols="1,3"]
+|===
+|Setting |Effect
+
+|*Screen resolution* (default)
+|Effects are drawn on screen at the screen's pixel density at the current zoom, capped at the
+document resolution.  Fast, and what you see is what the screen can show anyway.
+
+|*Document resolution*
+|Effects are drawn on screen at the document (or object) resolution and scaled.  Slower,
+exact.
+
+|*Draft*
+|Effects are drawn at half the screen resolution.  For very large documents.
+
+|*Off*
+|Raster effects are not drawn on screen; the object shows without them and a small badge marks
+it.  Printing and export are unaffected.
+|===
+
+This preference is yours alone; it does not change the document or what collaborators see.
+Fast Preview and Keyline view modes (xref:document-view.adoc[Viewing the document]) also skip
+raster effects.
+
+== Bevel and Emboss
+
+A bevel gives the object a raised, sloped rim, lit from a direction you choose.  An emboss
+makes the object look pressed into or raised out of the page, keeping the page's own color.
+
+To apply a bevel:
+
+. Click btn:[Add Effect] in the Object panel and choose menu:Bevel and Emboss[Outer Bevel] or
+  menu:Bevel and Emboss[Inner Bevel].  An outer bevel builds the rim outside the shape, an
+  inner bevel inside its edge.
+. Set its options:
+
+[cols="1,3"]
+|===
+|Option |What it does
+
+|*Bevel color*
+|Outer bevel only: the color of the rim, from the pop-up color palette (drag a swatch onto it
+or click it).  An inner bevel uses the object's own fill.
+
+|*Width*
+|The width of the rim, in points.
+
+|*Contrast*
+|0--100: how strong the highlight and shadow sides of the rim are.
+
+|*Softness*
+|0--10: how blurred the transition across the rim is, without changing its width.
+
+|*Angle*
+|Direction of the light, 0--360°.  Type a value or drag the dial.
+
+|*Edge shape*
+|The cross-section of the rim: *Flat*, *Smooth*, *Sloped*, *Frame 1*, *Frame 2*, *Ring* or
+*Ruffle*.
+
+|*Button preset*
+|A lighting preset for button-like artwork: *Raised*, *Highlighted*, *Inset* or *Inverted*.
+Presets change the highlight and shadow tones only; the other options stay as set.
+|===
+
+To apply an emboss:
+
+. Click btn:[Add Effect] and choose menu:Bevel and Emboss[Raised Emboss] or
+  menu:Bevel and Emboss[Inset Emboss].  The object's own fill and stroke disappear; what
+  remains is the page (or whatever lies behind) shaded into a relief.
+. Set *Width* (the depth of the relief), *Contrast*, *Softness* and *Angle* as for a bevel.
+
+// TODO screenshot: inner bevel, original, raised emboss on the same rounded rectangle
+
+TIP: For a relief made of real, editable paths -- for instance to fill each facet
+separately -- use the Emboss operation on xref:path-effects.adoc[Path-shaping tools and
+operations] instead.
+
+== Blur
+
+Blur softens the object.  *Basic* is a box blur: an out-of-focus look.  *Gaussian* weights
+nearby pixels more, giving a hazy, frosted-glass look at the same radius.
+
+To apply a blur:
+
+. Click btn:[Add Effect] and choose menu:Blur[Basic] or menu:Blur[Gaussian Blur].
+. Set *Radius*, 0--250 pixels at the raster effects resolution.  Larger radii spread further
+  and take longer to draw.
+
+Blurring a fill only (attach the effect to the fill in the appearance list) keeps the stroke
+crisp above the softened interior.
+
+== Shadow and Glow
+
+A drop shadow makes the object float above the page; an inner shadow makes it a hole cut into
+the page.  A glow is a halo of one color around the outside, an inner glow a halo inside the
+edge.
+
+To apply a shadow or glow:
+
+. Click btn:[Add Effect] and choose menu:Shadow and Glow[Drop Shadow], menu:Shadow and
+  Glow[Inner Shadow], menu:Shadow and Glow[Glow] or menu:Shadow and Glow[Inner Glow].
+. Set its options:
+
+[cols="1,3"]
+|===
+|Option |What it does
+
+|*Color*
+|The shadow or glow color, from the pop-up color palette.  Shadows default to black, glows to
+the object's fill color.
+
+|*Offset*
+|Shadows: how far the shadow is displaced from the object, in points, in the direction set by
+*Angle*.  Glows: the width of the halo.
+
+|*Opacity*
+|0--100.  Lower values are more see-through.
+
+|*Softness*
+|0--30: how blurred the shadow's or glow's edge is, without changing its distance or width.
+
+|*Angle*
+|Shadows only: the direction the shadow falls, 0--360°, by value or dial.  A drop shadow at
+315° falls down and to the right.
+|===
+
+// TODO screenshot: drop shadow, inner shadow, glow and inner glow on a star
+
+TIP: The Shadow tool on xref:path-effects.adoc[Path-shaping tools and operations] makes a
+shadow out of a real copy of the object -- editable, but not live.  Text can take a Drop Shadow
+effect directly, whereas the Shadow tool needs the text converted to paths first.
+
+== Sharpen
+
+Sharpening increases the contrast between neighboring pixels.  *Basic* sharpens the whole
+object evenly; *Unsharp Mask* finds edges and sharpens only those, which is the better choice
+for placed photographs (xref:bitmaps.adoc[Working with bitmaps]).
+
+To apply a sharpen effect:
+
+. Click btn:[Add Effect] and choose menu:Sharpen[Basic] or menu:Sharpen[Unsharp Mask].
+. Set its options:
+
+[cols="1,3"]
+|===
+|Option |What it does
+
+|*Amount*
+|0--500 (percent): the strength of the effect.
+
+|*Pixel radius*
+|Unsharp Mask only, 0.1--250: how far around each pixel the effect looks for an edge.  Larger
+radii sharpen broader features.
+
+|*Threshold*
+|Unsharp Mask only, 0--255: how different two neighboring pixels must be before they count as
+an edge.  `0` sharpens everything; `255` sharpens almost nothing.
+|===
+
+== Raster effects and color
+
+* Raster effects are computed in RGB and displayed through the document's color management.
+  Spot colors inside a raster effect are converted to their process equivalents for the
+  effect's pixels; the object's own vector fills and strokes keep their spot colors.  A blurred
+  spot-color shape therefore prints as a process-color bitmap on the CMYK plates, not on the
+  spot plate (xref:spot-process.adoc[Spot and process color]).
+* *Optimal CMYK rendering* computes the effect directly in CMYK, which keeps pure blacks and
+  avoids gamut shifts when everything in the document is already CMYK.
+* Custom PostScript fills (xref:fill-attributes.adoc[Fill attributes]) cannot be rasterized on
+  the Mac and are drawn as their preview color inside a raster effect.
+
+== Printing and exporting raster effects
+
+When you print or export, each object with a raster effect is rendered to a bitmap at the
+document's raster effects resolution (or the object's own), in the document's color space, and
+placed in the output in the object's position:
+
+* PDF and PostScript output embed the bitmap with the object's vector outline as a clip where
+  the effect is inside the shape (inner bevel, inner shadow, inner glow, sharpen, blur of a
+  fill); drop shadows and glows extend beyond the outline and carry their own alpha.
+* Bitmap exports (PNG, TIFF, JPEG, GIF) simply include the effect in the rendered image at the
+  export resolution, resampling if it differs from the raster effects resolution
+  (xref:export-bitmap.adoc[Exporting bitmaps]).
+* SVG and other vector-only formats receive a bitmap for the effected object, or, where the
+  format cannot embed one, the object without its raster effects and a warning in the export
+  report (xref:export-vector.adoc[Exporting vector formats]).
+* Vector effects on the same object are applied before the raster stage and remain vector in
+  the output.
+
+Print resolution higher than the raster effects resolution does not sharpen the effect; set the
+document resolution before the final print.  See xref:printing.adoc[Printing].
+
+== Working with others
+
+* Raster effects merge exactly as vector effects do (xref:live-effects.adoc[Live vector
+  effects]): concurrent additions both stay, concurrent edits to different options both
+  apply, the same option edited twice keeps the later value and shows the other in the merge
+  review.
+* The document raster effects resolution is one shared setting.  If two of you change it at
+  once the later value wins for everyone, and the other value is listed in the merge review
+  after an offline session.  A change by someone else redraws every raster effect on your
+  screen; on a large document you will notice a moment of redraw.
+* An object's own resolution override is part of the object and travels with copies of it.
+* Your *Raster effect preview* preference is not shared.  If a collaborator's screen looks
+  crisper or blurrier than yours, compare that setting before comparing documents.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,1"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|menu:File[Document Settings > Raster Effects Settings]: Resolution, Optimal CMYK Rendering
+|Same sheet, same two settings, stored in the document's settings node.
+|Faithful
+
+|Per-object Raster Effect Settings from the Object panel options menu
+|Same.  `Appearance.raster_dpi`, 0 = use document.
+|Faithful
+
+|Bevel and Emboss: Outer/Inner Bevel, Raised/Inset Emboss; color, width, contrast, softness,
+angle, edge shape, button preset
+|Same options.  Edge shapes and button presets carry the Fireworks names.
+|Faithful
+
+|Blur: Basic, Gaussian; radius
+|Same.  Core Image `CIBoxBlur` / `CIGaussianBlur`.
+|Faithful
+
+|Shadow and Glow: Drop, Inner, Glow, Inner Glow; color, offset, opacity, softness, angle
+|Same.
+|Faithful
+
+|Sharpen: Basic, Unsharp Mask; amount, pixel radius, threshold
+|Same.  `CISharpenLuminance` / `CIUnsharpMask`.
+|Faithful
+
+|Spot colors converted to RGB on screen, CMYK for print inside raster effects
+|Same rule.
+|Faithful
+
+|PostScript fills do not print correctly with raster effects
+|PostScript fills draw as their preview color inside a raster effect; documented, not an
+error.
+|Adapted -- macOS has no PostScript interpreter; the preview color is the only rendition the
+client has.
+
+|Fireworks raster engine
+|Core Image.  Same options, pixels differ slightly.
+|Adapted -- the Fireworks engine is unavailable; Core Image is native, GPU-backed and
+color-managed.
+
+|Redraw preferences for raster effects (none in {fh}: effects always drew at document
+resolution)
+|*Raster effect preview* preference with four levels.
+|Adapted -- keeps a 300 ppi document interactive.
+|===
+
+=== Data model
+
+[source,protobuf]
+----
+// Additions to proto/wiretuner/doc/v1/effects.proto
+
+// Document-level settings, a field of the settings node's DocumentSettings (DOC epic):
+//   RasterEffectSettings raster_effects = …;   // STRUCT
+message RasterEffectSettings {
+  uint32 resolution_ppi = 1 [(buf.validate.field).uint32 = {gte: 1, lte: 2400}];  // default 72
+  bool optimal_cmyk = 2;         // render effects in CMYK, bypassing color management
+}
+
+// Per-object override, a field of Appearance (ATTR epic):
+//   uint32 raster_dpi = …;      // 0 = use document setting; else 1..2400
+
+message BevelEmbossEffect {
+  enum Style {
+    STYLE_UNSPECIFIED = 0; STYLE_OUTER_BEVEL = 1; STYLE_INNER_BEVEL = 2;
+    STYLE_RAISED_EMBOSS = 3; STYLE_INSET_EMBOSS = 4;
+  }
+  enum EdgeShape {
+    EDGE_SHAPE_UNSPECIFIED = 0; EDGE_SHAPE_FLAT = 1; EDGE_SHAPE_SMOOTH = 2; EDGE_SHAPE_SLOPED = 3;
+    EDGE_SHAPE_FRAME_1 = 4; EDGE_SHAPE_FRAME_2 = 5; EDGE_SHAPE_RING = 6; EDGE_SHAPE_RUFFLE = 7;
+  }
+  enum ButtonPreset {
+    BUTTON_PRESET_UNSPECIFIED = 0; BUTTON_PRESET_RAISED = 1; BUTTON_PRESET_HIGHLIGHTED = 2;
+    BUTTON_PRESET_INSET = 3; BUTTON_PRESET_INVERTED = 4;
+  }
+  Style style = 1;
+  ColorRef color = 2;            // outer bevel rim color; ATOMIC (ColorRef is a swatch ref or literal, COLOR epic)
+  double width = 3;              // points
+  uint32 contrast = 4 [(buf.validate.field).uint32.lte = 100];
+  uint32 softness = 5 [(buf.validate.field).uint32.lte = 10];
+  double angle = 6;              // degrees 0..360
+  EdgeShape edge_shape = 7;      // bevels only
+  ButtonPreset button_preset = 8; // bevels only
+}
+
+message BlurEffect {
+  enum Style { STYLE_UNSPECIFIED = 0; STYLE_BASIC = 1; STYLE_GAUSSIAN = 2; }
+  Style style = 1;
+  double radius = 2 [(buf.validate.field).double = {gte: 0, lte: 250}];  // pixels at raster ppi
+}
+
+message ShadowEffect {
+  enum Style {
+    STYLE_UNSPECIFIED = 0; STYLE_DROP_SHADOW = 1; STYLE_INNER_SHADOW = 2;
+    STYLE_GLOW = 3; STYLE_INNER_GLOW = 4;
+  }
+  Style style = 1;
+  ColorRef color = 2;
+  double offset = 3;             // points; shadows: distance along angle; glows: halo width
+  uint32 opacity = 4 [(buf.validate.field).uint32.lte = 100];
+  uint32 softness = 5 [(buf.validate.field).uint32.lte = 30];
+  double angle = 6;              // degrees; shadows only
+}
+
+message SharpenEffect {
+  enum Style { STYLE_UNSPECIFIED = 0; STYLE_BASIC = 1; STYLE_UNSHARP_MASK = 2; }
+  Style style = 1;
+  double amount = 2 [(buf.validate.field).double = {gte: 0, lte: 500}];    // percent
+  double pixel_radius = 3 [(buf.validate.field).double = {gte: 0.1, lte: 250}];  // unsharp only
+  uint32 threshold = 4 [(buf.validate.field).uint32.lte = 255];              // unsharp only
+}
+----
+
+`ColorRef` is the COLOR epic's color value (a swatch `NodeRef` with cached value, or a literal
+color); it is ATOMIC as a whole.  A shadow whose swatch is deleted reads the cached color
+(`REF_FALLBACK_CACHED`), as fills do.
+
+=== Merge semantics
+
+Effects:: As on xref:live-effects.adoc[Live vector effects]: sequence elements, STRUCT
+settings, LWW per field, `style` changes concurrent with option edits keep both.
+
+Document resolution:: `RasterEffectSettings.resolution_ppi` and `optimal_cmyk` are two
+registers on the settings node.  Concurrent writes: later wins.  Because a lost write here is
+"the user's visible work changed under them" only in a weak sense (the artwork is the same, the
+pixels differ), the review sheet lists it under a *Document settings* row rather than as an
+object conflict, with *Use mine* re-asserting the value.
+
+Object override:: `raster_dpi` is a register on the appearance; nothing special.
+
+Read-time normalizations::
+* `resolution_ppi` of 0 (never written) reads as 72.
+* An out-of-range `radius`, `offset` or `width` clamps to its documented range for rendering.
+* `style` unspecified renders as no effect, panel shows "Unsupported effect".
+
+=== Offline behavior
+
+Nothing beyond the general rules.  Raster effect bitmaps are never stored in the document or
+uploaded; every client renders its own.
+
+=== Server
+
+Nothing beyond storing and relaying changes.  The server never rasterizes.
+
+=== Client
+
+Package:: `WTRender/Raster/`: `RasterEffectStage`, one `CIFilter` graph builder per effect
+kind, `RasterEffectCache`.  Document sheet and Object panel options item in `WTApp`.
+
+Raster stage:: The effect pipeline (FX-006) splits a chain at each raster effect.  The stage:
+
+. Takes the vector result so far (geometry plus fills and strokes) and the effect's *spread*
+  (blur radius, shadow offset + softness, bevel width, glow width) and computes the bitmap
+  rect: object bounds expanded by the spread, in pasteboard points.
+. Renders the vector result into a `CGContext` at `ppi = raster_dpi ?? document ppi`, scaled by
+  the preview preference for on-screen rendering (`min(screen ppi × zoom, document ppi)` for
+  *Screen resolution*; document ppi for *Document resolution*; half screen for *Draft*).
+  Printing and export always use the document/object ppi.
+. Applies the `CIFilter` graph: bevels and embosses are a height-field from the alpha channel
+  (distance transform, `width`) lit with `CIShadedMaterial`-style shading at `angle` with
+  `contrast`, blurred by `softness`, shaped by the edge-shape curve and tinted by preset;
+  blur is `CIBoxBlur` / `CIGaussianBlur`; shadows are alpha extraction → offset along `angle`
+  → gaussian by `softness` → tint → composite under (drop) or clipped inside (inner);
+  glows are the same with a dilation of `offset` and no displacement; sharpen is
+  `CISharpenLuminance` / `CIUnsharpMask`.
+. With `optimal_cmyk`, the working color space is the document's CMYK profile and the CI
+  context is created with that working space; otherwise the document RGB working space.
+. Hands the bitmap plus remaining vector chain back to the pipeline.  Vector effects after the
+  raster stage operate on the object's outline for geometry and the bitmap is transformed
+  with them (a Transform effect after a Blur moves the blurred pixels).
+
+Cache:: Keyed by `(node id, appearance state hash, ppi, color settings hash)`.  REND-004's dirty
+mapping evicts the entry for any change to the node's appearance, transform or geometry, and
+*all* entries when `RasterEffectSettings` or the preview preference changes.  Entries are
+`CIImage`s backed by Metal textures; memory is capped (256 MiB default) with LRU eviction.
+
+Rendering off-thread:: Core Image work runs on the render queue (REND-001), never the main
+actor; a tile whose raster stage is pending draws the vector result with a "rendering" badge and
+is repainted when the bitmap is ready.
+
+Output:: `WTInterchange` receives, per effected object, the final bitmap at document ppi and
+its placement rect plus a clip path where the effect is interior; PDF output embeds it as an
+image XObject with SMask.  Spot colors in the bitmap are converted through the document
+profile; the object's vector parts keep their spot separations.
+
+Undo:: Same grouping as vector effects; the document resolution sheet's btn:[OK] is one change
+labelled "Change raster effects resolution".
+
+=== Build tasks
+
+[[FX-007]]
+==== FX-007 Raster effect messages and resolution settings
+[horizontal]
+Track:: proto
+Depends on:: FX-001
+Size:: S
+Delivers:: `BevelEmbossEffect`, `BlurEffect`, `ShadowEffect`, `SharpenEffect`,
+`RasterEffectSettings` (added to the settings node's message, coordinated with the DOC epic)
+and `Appearance.raster_dpi` (coordinated with the ATTR epic).
+Done when::
+* Lints clean; ranges validated; every field commented.
+* Conformance vectors: concurrent resolution writes; style change vs. option edit on a shadow;
+  shadow color swatch deleted concurrently with color edit (reads cached).
+
+[[FX-008]]
+==== FX-008 Raster effect settings UI and editors
+[horizontal]
+Track:: client-ui
+Depends on:: APP-007, APP-010, FX-003, FX-007
+Size:: M
+Delivers:: The menu:File[Document Settings > Raster Effects…] sheet, the Object panel options
+item *Raster Effect Settings…*, the *Raster effect preview* preference, and the four raster
+effect forms with every option (color wells bound to the COLOR epic's pop-up palette, angle
+dials).
+Done when::
+* Every option on this page round-trips; the angle dial and field stay in sync.
+* Changing the document resolution while another user edits an effect keeps both (merge test).
+* UI tests for each submenu item of btn:[Add Effect].
+
+[[FX-009]]
+==== FX-009 Raster stage, cache and invalidation
+[horizontal]
+Track:: client-render
+Depends on:: REND-004, FX-006, FX-007
+Size:: L
+Delivers:: `RasterEffectStage` splitting effect chains, bitmap rect computation from spread,
+off-main-actor Core Image rendering at the resolved ppi with preview scaling, `RasterEffectCache`
+with the documented key and eviction, the "rendering" badge, the *Off* preview mode.
+Done when::
+* A remote edit to one shadow re-renders only that object's bitmap and repaints its tiles.
+* Changing the document resolution evicts every entry and re-renders progressively without
+  blocking input.
+* Memory stays under the cap with 2,000 effected objects on screen; eviction measured.
+* Screen output at *Document resolution* equals export output for the corpus, pixel for pixel.
+
+[[FX-010]]
+==== FX-010 Bevel, emboss, shadow and glow filters
+[horizontal]
+Track:: client-render
+Depends on:: FX-009
+Size:: M
+Delivers:: The Core Image graphs for outer/inner bevel with the seven edge shapes and four
+button presets, raised/inset emboss, drop/inner shadow, glow/inner glow, including
+`optimal_cmyk` working-space selection.
+Done when::
+* Reference renders of the manual's examples are visually equivalent (reviewed screenshots
+  committed under `docs/images`).
+* Edge shape curves and preset tone tables are unit-tested as pure functions.
+* Angle 0/90/180/270 place highlight and shadow on the expected sides.
+
+[[FX-011]]
+==== FX-011 Blur and sharpen filters
+[horizontal]
+Track:: client-render
+Depends on:: FX-009
+Size:: S
+Delivers:: Basic and Gaussian blur, Basic sharpen and Unsharp Mask graphs with the documented
+parameter mapping and spread computation.
+Done when::
+* Radius 0 and amount 0 are identity; spread equals 3σ for gaussian; unsharp threshold 255
+  leaves a flat image unchanged.
+* Unsharp Mask on a placed bitmap matches Fireworks output within a documented tolerance.
+
+[[FX-012]]
+==== FX-012 Raster effects in print and export
+[horizontal]
+Track:: import-export
+Depends on:: FX-009
+Size:: M
+Delivers:: The `WTInterchange` hook that receives effected objects as bitmap + placement +
+clip, PDF/PostScript image embedding with soft masks, bitmap export resampling, the
+vector-only-format fallback with export-report warning, and spot-to-process conversion inside
+bitmaps.  Uses the IO and PRINT epics' output pipelines.
+Done when::
+* A drop shadow prints from Preview.app's PDF identically to the on-screen *Document
+  resolution* render.
+* A spot-color object with a blur separates onto process plates for the bitmap and the spot
+  plate for its vector stroke.
+* Exporting to a vector-only format lists the affected objects in the report.
+endif::spec[]

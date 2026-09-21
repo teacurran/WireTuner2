@@ -1,0 +1,236 @@
+A bitmap image is a grid of numbers, and the numbers mean nothing until a profile says which
+device produced them.  A photograph from a camera, a scan, and a screenshot may all say
+"R=200 G=30 B=40" and mean three slightly different reds.  {product} lets you tell it, image
+by image, which profile the pixels should be read through -- its *source profile* -- and which
+rendering intent to use when the image is proofed or printed.  Assigning a source profile
+never changes the pixels; it changes how they are shown and how they will be converted for
+output.
+
+Most of the time you do nothing: images that carry an embedded profile are read through it,
+and images without one are read through the document's *Default RGB image source*
+(xref:color-management.adoc[Color management]).  This page is for the exceptions.
+
+== Assigning versus converting
+
+*Assigning* a profile keeps every pixel value and changes its interpretation.  It is
+reversible and costs nothing.  *Converting* rewrites the pixel values so that they mean the
+same color in a different space; it is what happens to the image on its way to a proof, a PDF
+or a press.
+
+{product} only ever *assigns*.  Conversion is done at output time, from the original pixels
+and the assigned profile, through the working spaces and the document's intent, so the image
+data in the document stays exactly what you imported and can be re-targeted to another press
+later without loss.  If you want a converted copy of the file itself, do that in your image
+editor (xref:external-editors.adoc[External editors]).
+
+== Setting an image's source profile
+
+To assign a source profile to a selected image:
+
+. Select the image (or several) and open the Object panel (menu:Window[Object]).
+. In the *Image* section, read the *Type* row: RGB, CMYK or Grayscale, and whether the
+  file carries an embedded profile.
+. Choose from the *Source profile* menu:
++
+[horizontal]
+Embedded: <name>:: Read the pixels through the profile inside the file.  Available only when
+the file has one; it is the default in that case.
+Document default:: Read the pixels through the document's Default RGB image source (RGB
+images), the working CMYK profile (CMYK images) or the bundled generic gray profile
+(grayscale images).  This is the default for images without an embedded profile.
+A named profile:: Any bundled, document or installed profile of the image's color model, or
+*Other…* to load an `.icc` file (xref:color-profiles.adoc[Choosing color profiles]).
+. Optionally choose an *Intent* for this image.  *Document* (the default) uses the intent in
+  Color Settings; a photograph in an illustration-oriented document is often better at
+  *Perceptual*.
+
+// TODO screenshot: the Object panel Image section with the Source profile menu open
+
+The assignment is one undo step per image.  With several images selected the menu shows
+*Mixed* until you choose, and then applies to all of them.
+
+NOTE: {fh} called this menu *Image Source* and offered it for RGB images only.  {product}
+offers it for RGB, CMYK and grayscale images.  As in {fh}, the *Changing object changes
+defaults* preference does not apply to it: assigning a profile to one image never changes the
+default for the next.
+
+== Embedded profiles on import
+
+Many formats -- TIFF, PNG, JPEG, PSD -- can carry a profile.  What {product} does with one is
+set by the *Embedded image profiles* preference in menu:{product}[Settings… > Colors]:
+
+[horizontal]
+Use embedded:: (Default.)  The image is read through its own profile, and the profile is
+stored in the document so that every collaborator has it.
+Ask:: A sheet names the embedded profile and the document default and asks which to use for
+this import.  Choosing applies to every image in the same import.
+Ignore:: The embedded profile is recorded but not used; the image is read through the
+document default.  You can switch to the embedded profile later from the Object panel.
+
+The preference is yours; it decides only what the import *writes* into the document.  Once
+imported, the image's source profile is part of the document and the same for everyone.
+
+== Missing profiles
+
+Because a profile assigned to an image is copied into the document rather than looked up on
+each Mac, there is no *Missing Image Sources* situation when the document is opened somewhere
+else: the profile is either bundled, or in the document.  The only time a profile is
+unavailable is briefly, when a collaborator assigned a custom profile and its data has not
+finished syncing to you.  The image is then shown through the document default and the
+status bar shows *profile pending*; it corrects itself when the data arrives.
+
+== Working with others
+
+Assigning a profile to an image is an ordinary change to that image: collaborators see the
+image re-render as soon as it syncs.  If someone else assigns a different profile to the same
+image at the same moment, the later choice stands and the earlier is offered back in the
+review sheet.  Assigning a profile and, say, cropping or moving the same image concurrently
+keep both changes.  If someone deletes an image you assigned a profile to while you were
+offline, the review sheet shows "edited something that was deleted" with a *Restore* button.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,2"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Image Source menu in the Object panel for RGB images
+|*Source profile* menu for RGB, CMYK and grayscale images.
+|Faithful (extended to other models; the RGB behavior is identical).
+
+|Per-image profile does not change the default RGB image profile
+|Same; *Changing object changes defaults* excludes it.
+|Faithful.
+
+|Embedded profile used by default when the CMS is active
+|*Embedded image profiles* preference, default *Use embedded*, with *Ask* and *Ignore*.
+|Faithful (with two additional choices).
+
+|Missing Image Sources dialog when profiles are absent on another computer
+|Profiles travel in the document; a not-yet-synced profile shows *profile pending* and falls
+back to the document default without a dialog.
+|Adapted: the document carries its profiles, so absence is transient rather than a setup
+problem.
+
+|Temporary assignment of the default profile when the original is missing
+|Read-time fallback to the document default; nothing is written.
+|Adapted: same visible result, no write, so the assignment survives once the data arrives.
+
+|Per-image rendering intent
+|*Intent* menu per image.
+|Addition: the ICC workflow the manual describes assumed one intent; per-image intent is what
+Core Graphics offers and what photographs in illustrations need.
+|===
+
+=== Data model
+
+`ImageColorSettings` is the message behind the field the IMG epic reserved as
+`ImageProps.color`.  It is defined in `color_management.proto` (CMS-001) and referenced from
+the image node's props (xref:bitmaps.adoc[Bitmaps]).
+
+[source,protobuf]
+----
+// Per-image color interpretation.  STRUCT: the choices are independent.
+message ImageColorSettings {
+  // Profile the pixels are interpreted through when use_embedded is false.  Unset reads as
+  // the document default for the image's model (Default RGB image source / Working CMYK /
+  // bundled generic gray).  ATOMIC.
+  ProfileRef source_profile = 1 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Intent for this image when converting to proof or output.  UNSPECIFIED reads as the
+  // document intent.
+  RenderingIntent intent = 2;
+  // True: interpret through embedded_profile, ignoring source_profile.  Reads as false when
+  // embedded_profile is unset, whatever was written.
+  bool use_embedded = 3;
+  // The profile found inside the file at import, if any.  Written once by the importer,
+  // never by the Object panel; kept so the user can return to it and so the exporter can
+  // re-embed the original.  ATOMIC.
+  ProfileRef embedded_profile = 4 [(wt.crdt.field).merge = MERGE_ATOMIC];
+}
+----
+
+=== Merge semantics
+
+Per field::
+* `source_profile` and `intent` are separate registers: one person assigning a profile while
+  another changes the intent keeps both.
+* `use_embedded` is its own register, so "switch back to embedded" from one user and "assign
+  profile X" from another converge to `use_embedded = true` with `source_profile = X` retained
+  for whoever later turns the flag off.  The Object panel shows the effective interpretation,
+  so the state is never confusing.
+* `embedded_profile` is written once at import; concurrent imports are different nodes.
+
+Nasty cases::
+* *Assign vs. delete*: the assignment applies to the deleted node; the review sheet offers
+  *Restore* (xref:crdt-model.adoc[CRDT model]).
+* *Assign vs. replace image data*: the IMG epic's "relink" writes the blob reference and,
+  because the new file may carry a different embedded profile, writes `embedded_profile` too.
+  This is the one case where `embedded_profile` is written after creation; it merges as any
+  ATOMIC register.  A concurrent assignment survives as `source_profile`.
+* *Custom profile assigned, blob pending*: read-time fallback to the document default with
+  the `pending` flag; no write.
+
+Review sheet::
+An image's color settings appear in the review sheet under the image as properties
+("Source profile: Mine sRGB / Theirs Camera RGB") with the usual per-property choices; no
+always-list rule, unlike document color settings.
+
+Read-time normalizations::
+* `use_embedded == true` with `embedded_profile` unset reads as `false`.
+* A `source_profile` whose `space` does not match the image's model reads as unset.
+* An unavailable blob reads as the document default with `pending`.
+
+=== Offline behavior
+
+Importing with *Use embedded* offline queues the profile blob (usually a few KiB) ahead of the
+image blob.  The *Ask* sheet is fully local.  Nothing needs the server.
+
+=== Server
+
+Nothing beyond storing and relaying changes and blobs.
+
+=== Client
+
+* Rendering (CMS-006): each image asset's `CGImage` is created with the `CGColorSpace` of
+  its effective source profile, cached by `(blob hash, profile hash)`, so Core Graphics matches
+  it into the destination context; under soft proof (CMS-007) the per-tile conversion uses the
+  image's effective intent.
+* Import (CMS-012): `CGImageSource` properties yield the embedded ICC data
+  (`kCGImagePropertyProfileName` plus the color space's `copyICCData()`); the importer hashes
+  it, recognizes bundled profiles by hash, otherwise creates the profile asset (CMS-010) and
+  the blob, and writes `embedded_profile` and `use_embedded` according to the preference.
+* Object panel (CMS-013): an `NSPopUpButton` per the guide, filtered by `ProfileSpace` to
+  the image's model, an intent `NSPopUpButton`, and *Mixed* handling for multi-selection via
+  the APP-007 mixed-value support.
+* Undo: one change per menu choice, labelled "Assign Image Profile" or "Change Image Intent".
+
+=== Build tasks
+
+[[CMS-012]]
+==== CMS-012 Embedded profiles at import
+[horizontal]
+Track:: import-export
+Depends on:: CMS-010, CMS-002, APP-010
+Size:: M
+Delivers:: Extraction of embedded ICC data during image import for TIFF, PNG, JPEG and PSD; bundled-profile recognition by hash; profile asset and blob creation for others; the *Embedded image profiles* preference (Use embedded / Ask / Ignore) and its *Ask* sheet; `embedded_profile` and `use_embedded` written on the new image node.  Integrates with the IMG epic's import pipeline (the importer calls this before creating the node).
+Done when::
+* Importing a JPEG with an Adobe RGB profile under each of the three preference values writes the documented fields; unit tests per format.
+* One hundred sRGB images produce no profile asset (hash recognized as bundled).
+* Conformance vector: an image node with `use_embedded = true` and no `embedded_profile` reads as document default in both engines.
+* Merge test: two replicas import different images concurrently; both nodes and both assets exist after merge.
+
+[[CMS-013]]
+==== CMS-013 Image color settings in the Object panel
+[horizontal]
+Track:: client-ui
+Depends on:: CMS-005, APP-007, CMS-006
+Size:: M
+Delivers:: The *Image* section rows *Type*, *Source profile* and *Intent* in the Object panel; multi-selection with *Mixed*; the *Other…* file choice creating a profile asset; canvas re-render on change.  Needs the image node kind from the IMG epic.
+Done when::
+* Every menu choice in the guide is available and is one undo step per image.
+* Merge test: A assigns profile X while B sets intent Perceptual on the same image; both converge with both values; A sets `use_embedded` while B assigns Y; the effective profile is the embedded one and Y is retained.
+* UI test: a remote assignment to the selected image updates the panel without stealing focus from a text field being edited.
+endif::spec[]

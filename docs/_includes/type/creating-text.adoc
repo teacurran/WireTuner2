@@ -1,0 +1,575 @@
+Every piece of text in a {product} document lives in a *text block*: an object you create with
+the Text tool and then type into.  A text block behaves like any other object -- you can move
+it, color it, transform it, stack it on a layer -- and inside it the text has its own world of
+fonts, paragraphs, tabs and styles.  This page covers the moment of creation: choosing between
+a block that grows as you type and one with a fixed size, typing the first characters, and what
+happens to that text when several people are in the document at once.  What you can do with the
+block afterwards is on xref:text-blocks.adoc[Working with text blocks]; formatting is on
+xref:type-specifications.adoc[Setting type specifications] and the pages that follow it.
+
+Text you type takes the default text attributes shown in the Object panel when nothing is
+selected, or the text style currently chosen in the Styles panel
+(xref:text-styles.adoc[Text styles], xref:default-attributes.adoc[Default attributes]).
+
+== Two kinds of text block
+
+Auto-expanding::
+Grows to fit whatever you type.  Lines never wrap on their own; the block gets wider with each
+character and taller with each kbd:[Return].  This is what a *click* with the Text tool creates.
+Use it for labels, headings, callouts -- anything where you want to decide the line breaks
+yourself.
+
+Fixed-size::
+Has a width and height you set.  Text wraps at the right edge and, when there is more text than
+fits, the extra is hidden and the block shows an overflow mark in its link box (see
+xref:text-blocks.adoc[Working with text blocks] for overflow and linking).  This is what a
+*drag* with the Text tool creates.  Use it for body copy and anything that must stay inside a
+layout.
+
+A block can be fixed in one dimension and auto-expanding in the other, and you can convert
+between the kinds at any time (xref:text-blocks.adoc[Working with text blocks]).
+
+// TODO screenshot: an auto-expanding block (hollow side handles) next to a fixed-size block (solid handles) with the same text
+
+== Creating a text block
+
+To create text:
+
+. Choose the Text tool in the Tools panel (kbd:[T]).
+. Do one of the following:
+* Click on the page to create an auto-expanding block, then type.  Press kbd:[Return] to start a
+  new line (a new paragraph).
+* Drag on the page to create a fixed-size block of that width and height, then type.  Lines wrap
+  at the block's right edge; kbd:[Return] starts a new paragraph.
+* kbd:[Option]-click to create a block and open it straight away in the Text Editor window
+  (xref:editing-text.adoc[Editing text]).
+* Click inside an existing text block to place the insertion point there and continue typing.
+. To finish, click outside the block, press kbd:[Esc], or choose another tool.
+
+While you type, the text ruler appears above the block showing its width, tabs and indents
+(xref:tabs-indents.adoc[Tabs, indents and margins]).  Hide it with menu:View[Text Rulers].
+
+A click that creates a block and is followed by no typing leaves nothing behind: an empty
+auto-expanding block is discarded the moment you deselect it.
+
+.Modifier keys while creating
+[cols="1,3"]
+|===
+|Key |Effect
+
+|kbd:[Shift] while dragging
+|Constrains the new fixed-size block to a square.
+
+|kbd:[Option] while dragging
+|Draws the block from its center instead of from a corner.
+
+|kbd:[Option]-click
+|Creates the block and opens the Text Editor window for it.
+
+|kbd:[Esc]
+|Ends editing and returns to the Pointer tool with the block selected.
+|===
+
+=== What the Text tool does after you finish
+
+By default the Text tool hands over to the Pointer tool as soon as you click away from a new
+block, so that your next click selects and moves rather than starting another block.  If you are
+placing many labels in a row, turn off the *Text tool reverts to Pointer* preference
+(menu:{product}[Settings… > Text]) and the tool stays active until you choose another.
+
+A second preference, *New text blocks auto-expand* (on by default), decides what a click
+creates.  Turn it off and a click makes a fixed-size block of a default size instead; drag
+always makes a fixed-size block.
+
+== Typing
+
+Text in {product} is Unicode throughout.  Anything macOS can type, {product} can set: accented
+characters via the press-and-hold accent popover, emoji and symbols from the Character Viewer
+(kbd:[Control+Cmd+Space]), right-to-left scripts, and CJK input through the system input
+methods.  Text you are composing with an input method (the underlined "marked" text) is yours
+alone until you commit it; collaborators see it appear when you press kbd:[Return] or the
+composition ends.
+
+NOTE: {fh} could not set double-byte text in its English edition.  {product} has no such limit:
+one document can mix any scripts your fonts support.
+
+Typing at the insertion point inserts before the character to its right and takes the
+formatting of the character to its left (or of the one to the right at the start of a
+paragraph).  How formatting spreads when you type at the edge of bold or colored text is
+described on xref:type-specifications.adoc[Setting type specifications].
+
+kbd:[Return] ends a paragraph.  The new paragraph inherits the alignment, indents, tabs and
+style of the one you split (xref:paragraphs.adoc[Paragraphs]).  For a line break without a new
+paragraph, insert an *End of line* character (kbd:[Shift+Return], or
+menu:Text[Special Characters > End of Line]).  The other special characters are on
+xref:editing-text.adoc[Editing text].
+
+== Working with others
+
+Text is the part of a document people most often edit at the same time, so {product} treats a
+text block as something several people can be inside at once.
+
+* Every collaborator editing a block shows a colored caret with their name, and their selection
+  as a tinted highlight.  Their caret stays on the right character as you type around it, and
+  yours does the same on their screen.
+* Two people typing in the same paragraph each see the other's characters appear where they
+  were typed.  If you both type at the very same spot, each person's run of characters stays
+  together -- the words do not interleave letter by letter.
+* If someone deletes a block you are typing in, the block disappears from your canvas and a
+  notice appears with a *Restore* button.  Nothing you typed is lost: restoring brings the block
+  back with both your text and theirs.
+* Creating a block is yours alone until you finish; no one can select it before your first
+  character exists, and an empty block you abandon never reaches anyone.
+
+After working offline, your typing merges into whatever others typed in the meantime,
+paragraph by paragraph.  Where both of you changed the same paragraph, the review sheet shows
+that paragraph with both versions and lets you keep yours, theirs or the merge
+(xref:reconcile.adoc[Reconciling offline edits]).
+
+ifdef::spec[]
+== Specification
+
+This page is the canonical home of the text data model.  Every other page in the *Type* group
+extends or refers to the messages sketched here.
+
+=== FreeHand parity
+
+[cols="2,3,1"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Click with the Text tool creates an auto-expanding block
+|Same; governed by the *New text blocks auto-expand* preference.
+|Faithful
+
+|Drag with the Text tool creates a fixed-size block
+|Same, with kbd:[Shift] (square) and kbd:[Option] (from center) modifiers added for consistency
+with the shape tools.
+|Faithful
+
+|Option-click opens the Text Editor for the new block
+|Same.
+|Faithful
+
+|Text tool reverts to the Pointer tool after a block (preference)
+|Same preference, same default.
+|Faithful
+
+|Return creates a new paragraph; text wraps in fixed-size blocks
+|Same; kbd:[Shift+Return] added as a shortcut for the End of Line character.
+|Faithful
+
+|New text takes the Object panel defaults or the selected text style
+|Same.
+|Faithful
+
+|English edition cannot set double-byte text; imported CJK text is rotated to fake vertical
+|Unicode throughout; every script macOS can render.  Vertical writing is a text block property
+(xref:text-effects.adoc[Text effects]).
+|Adapted -- the limit was an artifact of {fh}'s era, and Core Text has none.
+
+|PostScript / TrueType font requirement
+|Any font macOS can load (OpenType, TrueType, PostScript-flavored OpenType, variable fonts).
+|Adapted -- Type 1 fonts are no longer supported by macOS.
+|===
+
+=== Data model
+
+A text block is a node of kind `text`.  The same kind is used for text attached to a path and
+text flowed inside a path (xref:text-on-path.adoc[Text on a path]); those set `on_path` and
+carry the path as a child node.
+
+[source,protobuf]
+----
+// proto/wiretuner/doc/v1/text.proto (sketch; normative for meaning and merge policy)
+package wiretuner.doc.v1;
+
+// NodeProps.kind case `text`.
+message TextProps {
+  // The characters and their formatting marks.  Paragraph properties ride on newline
+  // elements inside this field (see ParagraphProps).  Fugue + Peritext, see crdt-model.
+  RichText text = 1 [(wt.crdt.field).merge = MERGE_TEXT];
+
+  // Geometry and container settings.  STRUCT: width, inset and column count are
+  // independent choices and merge independently.
+  TextBlockProps block = 2;
+
+  // Linked flow.  The whole flow's text lives on the chain's head; members other than
+  // the head keep their own `text` dormant while linked.  Both links are ATOMIC registers;
+  // a dangling link reads as unset and ends the chain (see text-blocks).
+  NodeRef next_link = 3 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
+  NodeRef prev_link = 4 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
+
+  // Set when the text is attached to, or flowed inside, a path (text-on-path).  The path
+  // is this node's child of kind `path`.  Unset for an ordinary block.
+  TextOnPathProps on_path = 5;
+
+  // Fill and stroke drawn on the *block* (its rectangle), not on the glyphs.  Same
+  // AppearanceProps sequence the ATTR epic defines for paths; text-color describes it.
+  AppearanceProps block_appearance = 6;
+
+  // Paragraph properties of the final paragraph, which has no terminating newline element
+  // to carry them.  STRUCT.
+  ParagraphProps tail_paragraph = 7;
+}
+
+message TextBlockProps {
+  bool auto_width = 1;          // hollow side handles: grows with the longest line
+  bool auto_height = 2;         // hollow bottom handle: grows with the line count
+  double width = 3;             // points; the value shown while auto_width is false
+  double height = 4;            // points; the value shown while auto_height is false
+  // Inset of the text from the block's rectangle.  STRUCT: the four sides are edited
+  // independently in the Object panel.
+  Inset inset = 5;
+  // Show the block's stroke and fill.  Off hides them without deleting them.
+  bool display_border = 6;
+  // Columns, rows, rules and flow order (columns-tables).
+  ColumnsRows columns = 7;
+  // Balance, modify-leading, copyfit and first-line leading (columns-tables).
+  AdjustColumns adjust = 8;
+  // Horizontal (default) or vertical writing (text-effects).
+  WritingDirection direction = 9;
+}
+
+message Inset { double left = 1; double right = 2; double top = 3; double bottom = 4; }
+
+enum WritingDirection {
+  WRITING_DIRECTION_HORIZONTAL = 0;   // lines run left to right, stack downward
+  WRITING_DIRECTION_VERTICAL = 1;     // lines run top to bottom, stack right to left
+}
+----
+
+`RichText` is not a message the client edits field by field; it is the engine's `MERGE_TEXT`
+state, read out as an attributed string.  Its wire form is only needed in snapshots:
+
+[source,protobuf]
+----
+// The snapshot encoding of a MERGE_TEXT field.  Clients read it through the engine.
+message RichText {
+  repeated TextChar chars = 1;      // Fugue order; includes unstable tombstones
+  repeated TextMark marks = 2;      // Peritext marks anchored to character ids
+}
+
+message TextChar {
+  ElementId id = 1;                 // the TextInsert op counter that created it
+  uint32 codepoint = 2;             // one Unicode scalar; U+000A ends a paragraph,
+                                    // U+FFFC is an inline graphic (see marks)
+  bool deleted = 3;
+  ElementId left_origin = 4;        // Fugue tree position; needed to place late inserts
+  ElementId right_origin = 5;
+  // Present only on U+000A: the paragraph this newline terminates.  Each field is its own
+  // register; the ParagraphProps message is STRUCT.
+  ParagraphProps paragraph = 6;
+}
+
+// One formatting mark.  A mark's value is one attribute; a bold red word carries two
+// marks.  Later marks of the same attribute win where they overlap (by OpId).
+message TextMark {
+  OpId id = 1;
+  Anchor start = 2;                 // before/after a character id
+  Anchor end = 3;
+  TextMarkValue value = 4;
+}
+
+message Anchor {
+  ElementId char = 1;               // zero id = start (for `before`) or end (for `after`)
+  bool before = 2;                  // false = after the character
+}
+----
+
+`TextMarkValue` is the vocabulary of character formatting.  Exactly one field is set per mark.
+Each field's page documents its meaning; they are gathered here so that one `TextMark` op
+covers all of them.
+
+[source,protobuf]
+----
+message TextMarkValue {
+  oneof value {
+    string font_family = 1;         // PostScript family name; see font-substitution
+    string font_style = 2;          // face name within the family ("Bold Italic")
+    double size = 3;                // points
+    Leading leading = 4 [(wt.crdt.field).merge = MERGE_ATOMIC];
+                                    // mode + value (type-specifications)
+    double kerning = 5;             // % of an em between this char and the next; span = 1
+    double range_kerning = 6;       // % of an em applied across the span
+    double baseline_shift = 7;      // points, positive raises
+    double horizontal_scale = 8;    // percent, 100 = normal
+    ColorRef fill = 9;              // glyph fill; a swatch reference or literal (COLOR epic)
+    StrokeProps stroke = 10;        // glyph stroke, from the ATTR epic; unset = none
+    TextEffect effect = 11;         // highlight, inline, shadow, strikethrough, underline, zoom
+    NodeRef style = 12 [(wt.crdt.field).on_dangling = REF_FALLBACK_CACHED];
+                                    // character style (text-styles); cached = resolved attrs
+    string url = 13;                // attached link (WEB epic)
+    string language = 14;           // BCP 47; spelling and hyphenation (editing-text)
+    bool no_break = 15;             // "Selected words": never break a line inside the span
+    CaseStyle case = 16;            // small caps rendering (editing-text, Convert Case)
+    NodeRef inline_graphic = 17 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
+                                    // the child node drawn in place of U+FFFC (text-effects)
+    bool overprint = 18;            // print-time overprint of the glyph fill (PRINT epic)
+    bool no_hyphen = 19;            // "Inhibit hyphens in selection" (paragraphs)
+    FontVariation axes = 20 [(wt.crdt.field).merge = MERGE_ATOMIC];
+                                    // variable-font axis values (type-specifications)
+    FeatureSetting feature = 21;    // one OpenType feature's state; identity = (feature, tag)
+  }
+}
+// A mark's value is written whole and is one register (marks are never edited in place;
+// a new mark supersedes by OpId), so a plain `oneof` is correct here and MERGE_VARIANT is
+// not needed.  The same holds for TextEffect (text-effects).
+
+// A point in a variable font's design space.  ATOMIC as a mark value: a named instance is
+// one choice, and a slider drag rewrites the whole list.  Tags the font lacks are ignored on
+// read and values are clamped to the axis range (type-specifications).
+message FontVariation {
+  repeated Axis axes = 1;
+}
+message Axis {
+  string tag = 1 [(buf.validate.field).string = {len: 4}];   // "wght", "wdth", "slnt", "opsz", custom
+  double value = 2;
+}
+
+// One OpenType feature as a tri-state.  A mark carries one tag; marks with different tags
+// stack, and overlapping marks of the same tag resolve by OpId like any attribute -- the
+// attribute identity is (feature, tag), the only mark whose identity includes part of its
+// value.  DEFAULT is a value: writing it returns the span to the font's own default and
+// competes with concurrent ON/OFF writes by OpId instead of vanishing.
+message FeatureSetting {
+  string tag = 1 [(buf.validate.field).string = {len: 4}];   // "liga", "smcp", "ss01", ...
+  FeatureState state = 2;
+}
+enum FeatureState {
+  FEATURE_STATE_DEFAULT = 0;        // the font's own default for this feature
+  FEATURE_STATE_ON = 1;
+  FEATURE_STATE_OFF = 2;
+}
+
+// The same tri-states on a text style, where they are STRUCT registers rather than marks
+// (text-styles).  One optional field per feature the Character section offers; an absent
+// field is "no selection" (leave the text alone), DEFAULT forces the font's default.
+message FeatureSettings {
+  optional FeatureState liga = 1;   optional FeatureState dlig = 2;
+  optional FeatureState smcp = 3;   optional FeatureState c2sc = 4;
+  optional FeatureState onum = 5;   optional FeatureState lnum = 6;
+  optional FeatureState tnum = 7;   optional FeatureState pnum = 8;
+  optional FeatureState frac = 9;   optional FeatureState swsh = 10;
+  optional FeatureState calt = 11;
+  optional FeatureState ss01 = 21;  // ... through ss20 = 40, one field per stylistic set
+}
+
+// Leading is a mode plus a number.  Always ATOMIC at the field: the number is meaningless
+// without the mode.
+message Leading {
+  LeadingMode mode = 1;
+  double value = 2;
+}
+enum LeadingMode {
+  LEADING_MODE_EXTRA = 0;           // "+": size + value points   (value 0 = solid)
+  LEADING_MODE_FIXED = 1;           // "=": exactly value points
+  LEADING_MODE_PERCENT = 2;         // "%": size × value / 100    (auto = 120)
+}
+enum CaseStyle { CASE_STYLE_NONE = 0; CASE_STYLE_SMALL_CAPS = 1; }
+----
+
+`ParagraphProps` registers on a paragraph's terminating newline (`TextChar.paragraph`) and,
+for the last paragraph, on `TextProps.tail_paragraph`.  The message is STRUCT; its fields are
+documented on xref:paragraphs.adoc[Paragraphs], xref:tabs-indents.adoc[Tabs, indents and
+margins] and xref:text-styles.adoc[Text styles].
+
+[source,protobuf]
+----
+message ParagraphProps {
+  Alignment alignment = 1;
+  double ragged_width = 2;          // % of column width non-justified lines may spread to
+  double flush_zone = 3;            // % of column width the last line must reach to justify
+  double left_indent = 4;           // points; negative hangs outside the column
+  double right_indent = 5;
+  double first_line_indent = 6;     // relative to left_indent
+  double space_above = 7;
+  double space_below = 8;
+  repeated TabStop tabs = 9 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  Hyphenation hyphenation = 10;     // STRUCT (paragraphs)
+  ParagraphRule rule = 11;          // STRUCT (paragraphs)
+  bool hang_punctuation = 12;
+  uint32 keep_lines = 13;           // 0 = off; 2+ prevents widows/orphans
+  bool keep_with_next = 14;
+  SpacingRange word_spacing = 15 [(wt.crdt.field).merge = MERGE_ATOMIC];   // min/opt/max
+  SpacingRange letter_spacing = 16 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  NodeRef style = 17 [(wt.crdt.field).on_dangling = REF_FALLBACK_CACHED];
+                                    // paragraph style; cached = the style's attrs at apply time
+}
+----
+
+Character formatting applied to a selection becomes marks; character formatting applied with
+no selection (the "insertion point" case, or with nothing selected at all) becomes either the
+*pending format* for the next typed characters (client state, not written) or the document's
+default text attributes (xref:default-attributes.adoc[Default attributes]).
+
+=== Merge semantics
+
+Characters:: `TextInsert` places characters in the Fugue tree between `left_origin` and
+`right_origin` (CRDT-005).  Two people typing at the same position produce two contiguous runs
+in a deterministic order (by the first character's OpId), never interleaved letters.  A
+deletion removes character ids; a concurrent insert next to a deleted character still lands
+where its origins say, so typing into a word someone else is deleting leaves the typed letters
+standing alone at that spot.  Both outcomes are what a user expects and neither is reviewed as
+a conflict unless the same paragraph was touched offline by both sides.
+
+Marks:: A `TextMark` is a span between two anchors with an `OpId` (CRDT-006).  Marks of the
+same attribute resolve by OpId where they overlap; marks of different attributes stack.
+Expansion rules per attribute:
++
+[cols="2,1,3"]
+|===
+|Attribute |End anchors |Effect on typing at the edges
+
+|`font_family`, `font_style`, `size`, `leading`, `range_kerning`, `baseline_shift`,
+`horizontal_scale`, `fill`, `stroke`, `effect`, `style`, `language`, `case`, `overprint`,
+`axes`, `feature`
+|start `before`, end `before` the next char
+|Typing at the end of the span extends it (bold stays bold); typing at the start does not.
+
+|`url`, `no_break`, `no_hyphen`, `inline_graphic`, `kerning`
+|start `before`, end `after` the last char
+|Neither edge grows: a link and a kerning pair cover exactly their characters.
+|===
++
+Concurrent bold vs. typing inside the span: the typed characters are inside the anchors and
+come out bold.  Concurrent bold vs. typing just after the span's last character: the anchor
+`before next` is on a character that the new text was inserted before, so the new text is
+inside the span and bold -- the same result as sequential typing.  Two people applying
+different fonts to overlapping ranges: each character shows the font from the mark with the
+greater OpId that covers it; the review sheet's paragraph diff lists both.  For `feature`
+marks "the same attribute" means the same `tag`: a `liga` mark and an `ss01` mark stack, two
+`liga` marks resolve by OpId (xref:type-specifications.adoc[Setting type specifications]).
+
+Paragraphs:: Each paragraph's properties live on its terminating newline element.  Splitting a
+paragraph (typing kbd:[Return]) inserts a newline whose `paragraph` registers are an explicit
+copy of the terminator's values as the typist saw them.  Concurrently changing the paragraph's
+alignment writes the *original* terminator, so after the merge the second half has the new
+alignment and the first half keeps the copy.  Joining paragraphs (deleting a newline) keeps the
+surviving terminator's properties; a concurrent property change on the deleted newline lands on
+a tombstone and is lost -- the review sheet lists it under *same text* with the lost values.
+Alternative considered: no copy on split, with a newline inheriting from the next terminator
+until written -- rejected because it makes a paragraph's look depend on its neighbor after
+every edit.
+
+Text vs. block deletion:: A block deleted (`deleted = true`) while someone types into it keeps
+receiving their characters; the live client shows a *Restore* notice
+(xref:text-blocks.adoc[Working with text blocks]).  Offline, the review sheet lists the block
+under *edit vs delete* with *Restore*.
+
+Creation:: The node is created by the first typed character's change (`CreateNode` + the first
+`TextInsert` in one change, labelled "Type"), not by the click.  Presence shows the creator's
+caret in a block other clients cannot see yet; that is acceptable for the second or so involved.
+
+Read-time normalizations::
+* A `text` whose `chars` contain no U+000A has a single paragraph governed by `tail_paragraph`.
+* A `size` mark of 0 or below, or above 10,000 pt, renders as the default size (validators reject
+  the op on ingest, but the engine never assumes it).
+* A mark whose start anchor sorts after its end anchor (possible after concurrent deletions
+  collapsed the span) covers nothing.
+* Two U+FFFC characters referring to the same `inline_graphic` node draw it once, at the first.
+
+=== Offline behavior
+
+Typing offline coalesces adjacent `TextInsert` ops in the outbox (xref:offline.adoc[Offline]);
+change boundaries follow the undo grouping rule below, so history shows words, not keystrokes.
+Nothing on this page needs the server.
+
+=== Server
+
+Nothing beyond storing and relaying changes.  The server validates `TextInsert.chars` for
+well-formed UTF-8 and a 64 KiB per-op limit; longer pastes are split by the client.
+
+=== Client
+
+Package:: `WTText` (layout, Core Text), `WTModel` (commands), `WTApp` (Text tool, `TextView`).
+
+Layout:: TXT-001 lays out an attributed string built from the merged `RichText`.  Every glyph
+run keeps the character ids it came from, so a caret is a `(node, Anchor)` and hit testing
+returns an `Anchor`, never an integer offset.  Auto-expanding blocks are laid out with an
+unbounded width (or height) and the resulting bounds written back into `TextBlockProps` only
+when a dimension is *fixed*; auto dimensions are derived at read time and never stored.
+
+Undo grouping of typing:: Consecutive typed characters are one undo step and one change on the
+wire while all of the following hold: same text node; each insert is adjacent to the previous
+insert (the caret has not moved); no more than 1 s has elapsed since the previous keystroke;
+the previous character was not whitespace or the new one is whitespace (a word plus its
+trailing space is one group; the first letter of the next word starts another); no other
+command ran in between.  kbd:[Return], kbd:[Tab] and special characters always close a group.
+Backspace runs group the same way.  Input-method composition is one group per committed
+string.  The change label is "Type" for inserts, "Delete text" for deletions.
+
+Text tool:: A `Tool` (APP-003) owning an `NSTextInputClient` implementation for the canvas so
+that dictation, marked text and the Character Viewer work.  kbd:[Esc] ends editing.
+
+=== Build tasks
+
+[[TYPE-001]]
+==== TYPE-001 Text schema
+[horizontal]
+Track:: proto
+Depends on:: PROTO-003, PROTO-005
+Size:: M
+Delivers:: `doc/v1/text.proto` with `TextProps`, `TextBlockProps`, `RichText`, `TextChar`,
+`TextMark`, `Anchor`, `TextMarkValue`, `Leading`, `ParagraphProps`, `TabStop`, `Hyphenation`,
+`ParagraphRule`, `SpacingRange`, `ColumnsRows`, `AdjustColumns`, `TextOnPathProps`,
+`TextEffect`, `TextStyleProps`; `CommonProps.text_wrap`; the `text` and `text_style` kind cases
+with reserved number blocks; every field commented with its merge policy.
+Done when::
+* `buf lint` (with `COMMENTS`) and `buf breaking` pass; `protoc-gen-wtcrdt` emits the merge
+  table with `MERGE_TEXT` for `text`, `MERGE_SEQUENCE` for `tabs`, ATOMIC for `Leading`,
+  `SpacingRange` and the two links.
+* A conformance vector encodes a two-paragraph, three-mark snapshot identically in Swift and
+  Java.
+* Adding `TextChar.paragraph` as STRUCT is verified by a vector that sets `alignment` and
+  `left_indent` from two replicas and keeps both.
+
+[[TYPE-002]]
+==== TYPE-002 Text commands in WTModel
+[horizontal]
+Track:: client-model
+Depends on:: CRDT-006, APP-011, TYPE-001
+Size:: M
+Delivers:: `TextNode` typed wrapper over the engine's `RichText`; commands `createTextBlock`,
+`insert(text:at:)`, `delete(range:)`, `splitParagraph`, `joinParagraph`, `applyMark`,
+`setParagraph`; the undo grouping rule for typing; change labels.
+Done when::
+* Typing "hello world" produces two changes ("hello " and "world") and two undo steps; a 1.5 s
+  pause mid-word splits a group.
+* kbd:[Return] copies the terminator's `ParagraphProps` onto the new newline explicitly.
+* Merge test: two simulated replicas type at the same anchor; both orders converge to the same
+  string with neither word interleaved.
+* Merge test: replica A deletes the node while B inserts; B's characters are present after
+  `deleted = false`.
+
+[[TYPE-003]]
+==== TYPE-003 Text tool
+[horizontal]
+Track:: client-ui
+Depends on:: APP-003, TXT-001, TYPE-002
+Size:: M
+Delivers:: The Text tool: click and drag creation with kbd:[Shift]/kbd:[Option], the
+`NSTextInputClient` canvas editor (marked text, dictation, Character Viewer), caret and
+selection drawing, kbd:[Esc], the *Text tool reverts to Pointer* and *New text blocks
+auto-expand* preferences, discarding of empty abandoned blocks.
+Done when::
+* UI tests create an auto-expanding and a fixed-size block, type in each, and verify the node
+  props and that an abandoned empty block is not in the document.
+* Marked text from the Japanese input method is not sent until committed (no `TextInsert` in
+  the outbox during composition).
+* kbd:[Option]-click opens the Text Editor window with the new block.
+
+[[TYPE-004]]
+==== TYPE-004 Text merge conformance vectors
+[horizontal]
+Track:: crdt
+Depends on:: CRDT-006, CRDT-011, TYPE-001
+Size:: M
+Delivers:: Conformance vectors for every case named under *Merge semantics* on the Type pages:
+concurrent typing at one anchor, bold vs. typing at each edge, overlapping font marks,
+paragraph split vs. alignment change, paragraph join vs. property change, block delete vs.
+typing, replace-all vs. inner insert, link races and loop cutting, style delete vs. apply.
+Done when::
+* Both engines produce identical `state_hash` for every vector in every delivery order.
+* Each vector's expected attributed string is asserted, not just the hash.
+endif::spec[]

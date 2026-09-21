@@ -1,0 +1,7 @@
+= Copying type attributes
+include::_attributes.adoc[]
+:page-slug: copying-type
+:page-group: Type
+:page-fh: Chapter 8, "Copying type attributes"
+
+include::_includes/type/copying-type.adoc[]

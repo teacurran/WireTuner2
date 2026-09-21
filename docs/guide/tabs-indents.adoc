@@ -1,0 +1,7 @@
+= Tabs, indents and margins
+include::_attributes.adoc[]
+:page-slug: tabs-indents
+:page-group: Type
+:page-fh: Chapter 8, "Setting tabs, indents, and margins"
+
+include::_includes/type/tabs-indents.adoc[]

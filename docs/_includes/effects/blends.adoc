@@ -1,0 +1,445 @@
+A blend is a series of in-between shapes drawn from one object to another: a small red circle
+blending into a large blue square passes through shapes that are a little larger, a little
+squarer and a little bluer at each step.  Blends make smooth color transitions, contour-like
+shading, and rows of evolving shapes.  In {product} blends are *live*: the objects you blended
+stay inside the blend, and editing one of them -- its shape, its colors, its stroke -- redraws
+every intermediate step.  A blend can also be joined to a path so the steps follow a curve.
+
+// TODO screenshot: a blend from a circle to a star, and the same blend joined to an S-shaped path
+
+== What can be blended
+
+* Two or more paths with the same *kind* of fill and stroke.  Basic and gradient fills blend
+  with each other; a pattern, tiled or lens fill blends only with the same kind.  Bitmaps
+  cannot be blended.
+* Composite paths blend with composite paths; groups blend with groups, provided the groups
+  contain only simple paths (no composites, images, clipping paths or nested groups) and
+  matching fill and stroke kinds.
+* Text blocks: convert to paths first (xref:text-to-paths.adoc[Converting text to paths]).
+
+Blending starts from the object lowest in the stacking order and ends at the highest, so the
+order you drew the objects in decides the direction of the blend.  Path direction matters too:
+blending a clockwise path into a counterclockwise one twists the steps; reverse one path
+(menu:Modify[Alter Path > Reverse Direction], xref:editing-paths.adoc[Editing paths]) to
+untwist it.
+
+Colors: a blend between two tints of one spot color, or between two spot colors, makes steps
+that use only those spot colors and prints on their plates.  A blend from a spot color to a
+process color sets the spot component to overprint.  Releasing such a blend converts its steps
+to process colors, as does exporting to a format that cannot carry spot blends
+(xref:spot-process.adoc[Spot and process color]).
+
+== Using the Blend tool
+
+The Blend tool draws a "rubber band" from one object to another and blends them.  It shares a
+Tools panel slot with the other effect tools.
+
+To blend two objects:
+
+. Select the Blend tool from its pop-up in the Tools panel.
+. Drag from the first object to the second.  As you drag, an outline preview shows the
+  steps; release over the second object to create the blend.
+
+To add an object to a blend:
+
+. With the Blend tool, drag from an object that is already in the blend to the object to add.
+  The new object becomes the last key object.
+
+To change where the blend starts and ends on each object:
+
+Each key object shows a *blend point* -- a large circle -- marking the point on its outline
+that the steps start from.  Matching the blend points on both ends (the top of each shape, say)
+keeps the steps from rotating.
+
+. With the Blend tool, drag a blend point to another point on the same object's outline.  The
+  preview updates as you drag.
+
+To join a blend to a path with the Blend tool:
+
+* kbd:[Option]-drag from the blend onto a path.  See <<Joining a blend to a path>>.
+
+== Blending from the menu
+
+To blend selected objects:
+
+. Check the stacking order: the bottom object is the start, the top is the end.
+. Select the objects.
+. Do one of the following:
+* Choose menu:Modify[Combine > Blend] (kbd:[Cmd+Shift+B]).
+* Click btn:[Blend] on the Operations toolbar (menu:Window[Toolbars > Operations]).
+* Choose menu:Extensions[Create > Blend].
+
+To blend from point to point:
+
+. Select the objects, then with the Subselect tool select one point on each object.
+. Choose menu:Modify[Combine > Blend].  The selected points become the blend points, which
+  shapes the intermediate steps differently from an object-to-object blend.
+
+NOTE: {fh}'s *Xtras* menu and *Xtra Operations* toolbar are the *Extensions* menu and
+*Operations* toolbar in {product} (xref:extensions.adoc[Extensions]).
+
+== Adjusting a blend in the Object panel
+
+Select a blend and the Object panel shows its settings:
+
+[cols="1,3"]
+|===
+|Option |What it does
+
+|*Steps*
+|The number of intermediate objects, 1--1000.  More steps make a smoother transition; the
+default is chosen from the color difference between the ends so that adjacent steps differ by
+less than the eye can see at 100%.
+
+|*Range % First*, *Last*
+|Where the steps begin and end, as a percentage of the distance between the two ends.  *First*
+0 and *Last* 100 spread the steps across the whole span; *First* 20 leaves the first fifth
+empty next to the start object.
+
+|*Blend type*
+|Composite paths and groups only.  *Normal* suits most blends.  *Horizontal* and *Vertical*
+divide each composite path into horizontal or vertical bands and blend band to band, which
+helps when the sub-paths do not overlap.
+
+|*Blend order*
+|Composite paths and groups only.  *Positional* pairs sub-paths by position, *Stacking* by
+their order in the composite.
+
+|*Show path*
+|Joined blends only: draws the path the blend follows so you can see and edit it.
+
+|*Rotate on path*
+|Joined blends only: turns each step to follow the path's direction.  Off, every step keeps
+its original orientation.
+|===
+
+To edit a key object inside a blend:
+
+. Select one of the original objects with the Subselect tool (or kbd:[Option]-click it).
+. Change its shape, its path direction, or its stroke or fill.  The blend redraws.
+
+Intermediate steps cannot be selected or edited individually; to work on them, release the
+blend.
+
+== Joining a blend to a path
+
+Joining places the first key object's centre at the path's start point, the last at its end
+point, and distributes the steps along the path.  By default the steps rotate to follow the
+path; reverse the path's direction to make the blend run the other way.
+
+To join a blend to a path:
+
+* With the Blend tool, kbd:[Option]-drag from the blend to the path, or
+* Select the blend and the path and choose menu:Modify[Combine > Join Blend to Path].
+
+Then, in the Object panel, turn on *Show path* to see the path and *Rotate on path* to choose
+whether steps turn with it.  The path can be edited in place with the Subselect tool; the blend
+re-fits.
+
+To separate a blend from its path:
+
+* Choose menu:Modify[Split] to get a blend and a separate path, both intact.
+* Choose menu:Modify[Ungroup] to get the path and the original key objects as separate
+  objects; the intermediate steps become a group of ordinary paths.
+
+== Releasing a blend
+
+To turn a blend into ordinary objects:
+
+* Select the blend and choose menu:Modify[Ungroup] (kbd:[Cmd+Shift+U]).  The key objects become
+  plain objects and the intermediate steps become a group of plain paths between them, each
+  with its own fill and stroke.  Spot-color steps become process colors.
+
+== Working with others
+
+* A blend is a group whose members are the original objects, and collaborators can edit those
+  members, the blend's settings, or both, at the same time.  If you change the number of
+  steps while someone else reshapes the end object, both changes apply and the blend redraws
+  for everyone.
+* If you and a collaborator both drag the same blend point or set the same steps value, the
+  later change wins and the other appears in the merge review after an offline session.
+* If someone releases a blend while you are editing one of its key objects, your edit lands on
+  that object, which is now a plain object where the blend was.  The intermediate steps they
+  released were computed before your edit, so they will not reflect it -- reselect the objects
+  and blend again if you need them to.
+* If someone deletes the path a blend is joined to, the blend becomes a straight blend again.
+  Restoring the path (from the merge review, or with Undo on their side) joins it back.
+* Blends are computed on each Mac from the key objects; nothing about the steps is sent over
+  the network, so a change to a 1,000-step blend is as small as a change to a single shape.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,1"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Blend tool: drag to blend, drag to add, drag blend points, Option-drag to join to path
+|Same.
+|Faithful
+
+|menu:Modify[Combine > Blend], Xtra Operations toolbar Blend, menu:Xtras[Create > Blend]
+|Same; Xtras → Extensions, Xtra Operations → Operations toolbar.
+|Adapted -- renaming only.
+
+|Point-to-point blend via subselected points
+|Same.
+|Faithful
+
+|Object panel: Steps, Range First/Last, blend type, blend order, Show path, Rotate on path
+|Same.
+|Faithful
+
+|Join Blend to Path, Split, Ungroup
+|Same.
+|Faithful
+
+|Live regeneration on subselect edit
+|Same; steps are never stored, always derived.
+|Faithful
+
+|Spot color rules, fill-kind compatibility, no bitmaps
+|Same rules.
+|Faithful
+
+|Ungroup converts steps to editable objects and spot steps to process
+|Same.
+|Faithful
+|===
+
+=== Data model
+
+A blend is a node of kind `blend`.  Its live children are the *key objects* in blend order
+(bottom first, by sibling position) plus, when joined, the *path*.  Intermediate steps are
+never stored: every replica derives them on read from the key objects and the props.
+
+[source,protobuf]
+----
+// proto/wiretuner/doc/v1/blend.proto (sketch); BlendProps is a NodeProps.kind case
+message BlendProps {
+  CommonProps common = 1;
+  uint32 steps = 2 [(buf.validate.field).uint32 = {gte: 1, lte: 1000}];
+  double range_first = 3 [(buf.validate.field).double = {gte: 0, lte: 100}];   // percent
+  double range_last = 4 [(buf.validate.field).double = {gte: 0, lte: 100}];
+  enum Type { TYPE_NORMAL = 0; TYPE_HORIZONTAL = 1; TYPE_VERTICAL = 2; }
+  Type type = 5;
+  enum Order { ORDER_POSITIONAL = 0; ORDER_STACKING = 1; }
+  Order order = 6;
+  // The child node that is the path the blend follows.  Unset, deleted, not a child, or not a
+  // path: the blend is straight (REF_FALLBACK_UNSET).  The path is a child so it moves,
+  // copies and deletes with the blend.
+  NodeRef path = 7 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
+  bool show_path = 8;
+  bool rotate_on_path = 9;       // default true on join
+  // Blend points: which point of each key object the steps start from.  One element per key
+  // object; the element with the greatest id wins if two name the same object.
+  repeated BlendPoint blend_points = 10 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+}
+
+message BlendPoint {
+  ElementId id = 1;
+  OpId object = 2;               // a key object (child of this blend node)
+  ElementId contour = 3;         // contour element in that path
+  ElementId point = 4;           // point element in that contour
+}
+----
+
+Key objects keep their own kinds and props.  A `blend` node's `deleted` flag, its children's
+parent links and their positions are the ordinary tree registers.
+
+=== Merge semantics
+
+Steps vs. shape:: `steps`, `range_*`, `type`, `order`, `show_path`, `rotate_on_path` are
+registers on the blend node; a key object's geometry and appearance are on the child.  Any
+combination merges and every replica derives the same steps.
+
+Add object vs. add object:: Two replicas each `MoveNode` a different object into the blend at
+the end: both become key objects, ordered by fractional position then node id.  The blend
+gains two ends in a deterministic order.  Same object moved into two different blends:
+Kleppmann move semantics -- one wins by OpId order; the other blend loses a member.
+
+Blend points:: Sequence elements keyed by `object`.  Two replicas setting the blend point of
+the same object insert two elements; the greatest element id wins on read, the other is a
+harmless extra that the next write from anyone deletes (the model's set-blend-point command
+deletes all elements for that object and inserts one).  A blend point whose `contour`/`point`
+no longer exist reads as unset (the path's start point).  Note that these are `ElementId`s,
+not `NodeRef`s, so the fallback is declared here.
+
+Release vs. edit:: *Ungroup* (release) is: create a `group` node of derived step paths from
+the releasing replica's state, move it to the blend's parent at the blend's position, move each
+key object (and the path) out to the parent at fractional positions around it, and set the
+blend node `deleted`.  A concurrent edit to a key object lands on the child, which now lives in
+the layer as a plain object -- nothing is lost and nothing is flagged, but the released steps
+do not reflect the edit, as the guide says.  A concurrent edit to the blend node's own props
+(steps) is reviewed as edit-vs-delete with *Restore* (which re-deletes the released group and
+moves the members back: the model's inverse of release).
+
+Join vs. delete path:: `path` dangling → straight blend.  Restore brings the join back without
+any write to the blend.
+
+Split:: Moves the path out and clears `path`; a concurrent edit to `show_path` is moot.
+
+Read-time normalizations::
+* Fewer than two live key objects: the blend renders its remaining child as is (crdt-model's
+  "renders as its endpoints only").
+* A key object that is not a path, composite path, or group of simple paths (a text block
+  moved in by a concurrent move): it is skipped as a key object and rendered plain on top.
+* Incompatible fill kinds between neighbors: those two neighbors blend shape and stroke only;
+  the fill switches at the midpoint.
+* `range_first > range_last`: swapped.
+* `steps` 0 (never written by an old writer): default computation.
+
+=== Offline behavior
+
+Nothing beyond the general rules.  A blend-point drag or steps stepper run coalesces.
+
+=== Server
+
+Nothing beyond storing and relaying changes.
+
+=== Client
+
+Package:: `WTGeometry/Blend/` (`BlendInterpolator`, `PathMatcher`, `OnPathDistributor`),
+`WTRender` (`BlendDrawable`, cache), `WTApp/Tools/BlendTool`, `WTApp/Inspector/Blend`.
+
+Interpolation (on read, cached)::
+. *Point matching* (`PathMatcher`): for each pair of consecutive key objects, rotate each
+  closed contour to start at its blend point (or the start point), reverse neither (direction
+  is the user's), then add points to the contour with fewer so both have the same count,
+  inserting at the largest arc-length gaps (GEO-001 splitting).  Composite paths and groups
+  match sub-paths by `order` (positional: nearest centroid; stacking: index) and by `type`
+  (horizontal/vertical banding).
+. *Step geometry*: for step `i` of `steps`, parameter
+  `t = range_first/100 + (range_last − range_first)/100 × i/(steps+1)`; anchors and handles are
+  linearly interpolated.
+. *Appearance*: stroke width, dash, and basic fill/stroke colors interpolate in the color
+  model shared by both ends (tint percentage for same-spot, CMYK for spot→process with
+  overprint set on the spot component, RGB or CMYK for process); gradients interpolate stop by
+  stop after matching stop counts; other fill kinds copy from the nearer end.
+. *On path* (`OnPathDistributor`): arc-length parametrize the path (GEO-001); place key object
+  `k` and its steps at their `t` mapped to arc length; with `rotate_on_path`, rotate each by
+  the tangent angle.
+
+Default steps:: `max(1, ceil(ΔE × 3))` where `ΔE` is the CIE76 distance between the end
+fill colors, capped at 100; falls back to 25 when there is no color difference.
+
+Cache:: Keyed by `(blend node id, blend state hash, key-object subtree hashes)`; REND-004
+evicts on any change under the node.  Steps are a display-list fragment.
+
+Hit testing:: Steps hit-test as the blend node (selecting the blend); key objects hit-test as
+themselves for Subselect and kbd:[Option]-click.
+
+Tool:: `BlendTool`: drag from object A to object B → one change (`CreateNode(blend)`, move A
+and B in, default props); drag from a member to C → `MoveNode(C)` into the blend at the end;
+drag a blend point → set-blend-point command with live preview; kbd:[Option]-drag onto a path
+→ move the path in and set `path`.  Rubber-band preview draws the interpolated outlines in
+the overlay layer without writing.
+
+Object panel:: Steps stepper, two range fields, two pop-ups, two checkboxes; disabled states
+per the tables.
+
+Undo:: One change per tool gesture or menu command ("Blend", "Add to blend", "Move blend
+point", "Join blend to path", "Split", "Ungroup").
+
+Output:: Steps are emitted as vector paths with their interpolated attributes; spot-to-spot
+steps carry tint values so they separate onto the spot plates.
+
+=== Build tasks
+
+[[FX-023]]
+==== FX-023 Blend node kind and BlendProps
+[horizontal]
+Track:: proto
+Depends on:: PROTO-003
+Size:: S
+Delivers:: `blend` kind, `BlendProps`, `BlendPoint` as sketched.
+Done when::
+* Lints clean; `path` carries `REF_FALLBACK_UNSET`; `blend_points` is SEQUENCE.
+* Conformance vectors: steps vs. child edit; two blend points for one object; path deleted
+  concurrently with `rotate_on_path` write; two objects added concurrently.
+
+[[FX-024]]
+==== FX-024 Blend commands
+[horizontal]
+Track:: client-model
+Depends on:: APP-011, FX-023
+Size:: M
+Delivers:: `WTModel` commands: blend (from selection, with stacking order), point-to-point
+blend, add object, set blend point, set any prop, join to path, split, ungroup/release (baking
+steps from FX-025 into a group), plus the read-time normalizations.
+Done when::
+* Each command one change with documented label and inverse; undo of Ungroup restores the
+  live blend.
+* Merge tests: release vs. key-object edit (edit survives on the freed object, steps stale);
+  steps vs. endpoint move; join vs. path delete (straight, restore re-joins); concurrent add
+  of two objects (deterministic order).
+* Eligibility checks (fill kinds, no bitmaps, group contents) refuse with an explanation.
+
+[[FX-025]]
+==== FX-025 Blend interpolation kernel
+[horizontal]
+Track:: client-render
+Depends on:: GEO-001, FX-023
+Size:: L
+Delivers:: `PathMatcher` (blend-point rotation, point-count matching, composite/group
+matching by type and order), `BlendInterpolator` (geometry, stroke, fills, color models and
+spot rules, default step count), producing step paths with attributes.
+Done when::
+* Reference renders of the manual's examples match visually; circle→square with matched blend
+  points shows no rotation.
+* Spot→spot steps carry only tints of the two spots; spot→process steps set overprint.
+* A 1,000-step blend of two 50-point paths interpolates in under 10 ms on M1.
+
+[[FX-026]]
+==== FX-026 Blend along a path
+[horizontal]
+Track:: client-render
+Depends on:: FX-025
+Size:: M
+Delivers:: `OnPathDistributor`: arc-length placement of key objects and steps, rotate-on-path,
+show-path rendering, direction following the path's direction.
+Done when::
+* First and last key objects sit exactly on the path's start and end points.
+* Reversing the path reverses the blend; rotate-on-path off keeps orientations.
+
+[[FX-027]]
+==== FX-027 Blend tool
+[horizontal]
+Track:: client-ui
+Depends on:: APP-003, FX-024, FX-025
+Size:: M
+Delivers:: `BlendTool` with rubber-band preview, add-to-blend, blend-point handles with live
+preview, kbd:[Option]-drag to join to path.
+Done when::
+* UI tests for each gesture; each is one change and one undo step.
+* Dragging over a non-blendable object shows a refusing cursor and creates nothing.
+
+[[FX-028]]
+==== FX-028 Blend commands in menus, toolbar and Object panel
+[horizontal]
+Track:: client-ui
+Depends on:: APP-005, APP-007, FX-024
+Size:: S
+Delivers:: menu:Modify[Combine > Blend / Join Blend to Path], menu:Modify[Split],
+menu:Extensions[Create > Blend], the Operations toolbar btn:[Blend], and the Object panel blend
+section with every option.
+Done when::
+* Every option round-trips; joined-only options disable when not joined; type/order enable
+  only for composite/group blends.
+* Remote changes update the section live.
+
+[[FX-029]]
+==== FX-029 Blend rendering, cache, hit testing and output
+[horizontal]
+Track:: client-render
+Depends on:: REND-002, REND-003, REND-004, FX-026
+Size:: M
+Delivers:: `BlendDrawable`, the step cache with the documented key, hit testing of steps as
+the blend and of key objects as themselves, vector step output to `WTInterchange` with tint
+values for spot steps.
+Done when::
+* A remote edit to one key object repaints only the blend's tiles and re-interpolates once.
+* PDF output of a live blend equals that of its released group.
+endif::spec[]

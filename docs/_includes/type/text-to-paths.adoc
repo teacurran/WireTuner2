@@ -1,0 +1,166 @@
+Converting text to paths turns each character into an ordinary vector shape.  Once converted
+you can reshape letters point by point, use a word as a clipping path, give it gradient and
+pattern fills, run it through path effects, and send the file anywhere without worrying about
+fonts.  What you give up is the text: it is no longer editable as words, its spelling and
+formatting are frozen, and it no longer follows a text style.
+
+== Converting
+
+To convert text to paths:
+
+. Select one or more text blocks with the Pointer tool (or text on a path).  Linked blocks
+  must be unlinked first (xref:text-blocks.adoc[Working with text blocks]).
+. Choose menu:Text[Convert to Paths] (kbd:[Cmd+Shift+P]) or click btn:[Convert to Paths] in
+  the Text toolbar.
+
+What you get:
+
+* Each text block becomes a *group* in the same place in the stacking order, named after the
+  block's first words.
+* Each character becomes a path.  A character with separate pieces (i, j, ;) becomes a
+  composite path; a character with holes (B, O, e) becomes a composite path with transparent
+  holes; the rest are single paths (xref:combining-paths.adoc[Combining paths]).
+* Every glyph path carries the text's fill and stroke as its own fill and stroke.  Text
+  effects that can be expressed as shapes -- underline, strikethrough, highlight, inline and
+  shadow -- become paths in the group too; zoom is dropped.
+* Text on a path stays where it was; the path it followed is deleted.  A text block's own
+  background fill and stroke become a rectangle path at the bottom of the group.
+* Inline graphics are placed in the group as they were.
+
+To edit individual letters, ungroup (menu:Modify[Ungroup], kbd:[Cmd+Shift+G]); to treat a word
+as one object again, select its letters and group them.
+
+Any font macOS can render can be converted, including variable fonts at their current
+settings and color fonts (which convert to their outline layer).  If the document uses a font
+you do not have, the *substitute* font's outlines are what you get; the Missing Fonts sheet
+warns before converting (xref:font-substitution.adoc[Font substitution]).
+
+Converted small type can look rougher on screen and in print than live text, because the font
+hinting is gone.  For output that needs fonts but not editing, embedding fonts on export is
+usually the better choice (xref:print-fonts.adoc[Fonts and printing],
+xref:export-vector.adoc[Vector export]).
+
+== Going back
+
+There is no command that turns paths back into text.  menu:Edit[Undo] reverses the conversion
+as long as it is within your undo history -- even after you have edited the paths, in which
+case those edits are undone first, and even after closing and reopening the document, since
+undo history is kept.  Version history can also bring back the text from before the
+conversion (xref:history.adoc[History]).
+
+== Working with others
+
+Converting is one action: your collaborators see the text disappear and the group of paths
+appear in its place.  If someone was typing in the block at that moment, their new characters
+went into the text that no longer shows; they get a notice with *Restore*, which brings the
+text block back beside the paths so nothing is lost -- you then decide which to keep.  After
+offline work, the same choice appears in the review sheet.
+
+ifdef::spec[]
+== Specification
+
+=== FreeHand parity
+
+[cols="2,3,1"]
+|===
+|{fh} capability |{product} behavior |Verdict
+
+|Text > Convert to Paths; toolbar button
+|Same.
+|Faithful
+
+|Block → group; multi-part glyphs → composite paths; holes → composite paths with transparent
+holes; others → single paths
+|Same.
+|Faithful
+
+|Text on a path converts in place, path disappears
+|Same.
+|Faithful
+
+|Linked text cannot be converted until unlinked
+|Same.
+|Faithful
+
+|Type 1, Fontographer Type 3, TrueType fonts convertible
+|Anything Core Text loads; Type 1 not available on macOS.
+|Adapted -- platform.
+
+|Undo reverses only if paths not yet manipulated and file not saved
+|Undo always reverses within the undo history, including across relaunch.
+|Adapted -- persistent, per-user undo makes the restriction unnecessary.
+
+|Text effects may be lost on conversion
+|Five of six effects become paths; zoom is dropped with a warning.
+|Adapted -- expressible effects are kept.
+|===
+
+=== Data model
+
+No new fields.  The conversion is one change ("Convert text to paths"): `CreateNode` for the
+group at the text node's position in its parent, `CreateNode` for each glyph path and effect
+path as children, `SetDeleted(text, true)`, and for text on a path also `SetDeleted(path,
+true)` (the path stays a child of the deleted text).  Inline graphic children are moved into
+the group (`MoveNode`).
+
+=== Merge semantics
+
+Convert vs. typing:: The typist's `TextInsert` lands on the deleted text node.  Live: the
+typist's client sees `deleted = true` for the node holding its caret and shows the notice;
+*Restore* writes `deleted = false`, after which both the text (with the extra characters) and
+the group exist.  Offline: *edit vs delete* row with *Restore*.  The paths never contain the
+concurrent characters -- they are outlines of the text as the converter saw it.
+
+Convert vs. convert:: Two users convert the same block: two groups, two `SetDeleted` writes of
+the same value.  Both groups exist; the review sheet (offline) lists the text under *edit vs
+delete* twice -- once per side -- and the user deletes one group.  Live, the second converter
+sees the block vanish under their selection and the command validates against a deleted node
+(no-op), so the race is narrow.
+
+Convert vs. format:: A concurrent mark lands on the deleted text; irrelevant unless restored.
+
+Undo:: The inverse writes `deleted = false` on the text (and path) and `deleted = true` on
+the group and its children, subject to the general "only if still my value" rule: if someone
+else has since edited a glyph path, that path's deletion is still applied (the register being
+restored is `deleted`, which they did not write) -- their edit is preserved on the now-deleted
+path and appears under *edit vs delete* if they were offline.
+
+Read-time normalizations:: None specific; a group is a group.
+
+=== Offline behavior
+
+Nothing beyond outbox coalescing.  Converting with a substituted font offline uses the
+substitute's outlines, as it would online; the warning names the font.
+
+=== Server
+
+Nothing beyond storing and relaying changes.
+
+=== Client
+
+`WTText` provides `glyphOutlines(for:)` from `CTFontCreatePathForGlyph` per positioned glyph,
+composed with the run's transform (baseline shift, horizontal scale, text-on-path glyph
+transform, the block's transform) and decomposed into contours with even-odd hole detection
+via GEO-001 winding.  Effects reuse TYPE-036's geometry generators.  `WTModel` builds the group
+in one change with a label from the first words.  The Missing Fonts warning reuses TXT-002's
+sheet in a "convert with substitutes?" mode.
+
+=== Build tasks
+
+[[TYPE-044]]
+==== TYPE-044 Convert to Paths
+[horizontal]
+Track:: client-model
+Depends on:: TYPE-002, TYPE-021, TYPE-036, GEO-001
+Size:: M
+Delivers:: menu:Text[Convert to Paths] producing groups of glyph paths (composite where
+needed) with fills, strokes and expressible effects, text-on-path handling, inline graphic
+moves, block appearance rectangle, linked-text refusal, missing-font warning, one-change undo.
+Done when::
+* Converting a fixture of 200 glyphs across five fonts produces paths whose rendered bounds
+  match the live text within 0.1 pt.
+* "i" and "O" produce composite paths with correct hole winding.
+* Undo after editing a converted path restores the text block and removes the group.
+* Merge test: convert vs. concurrent typing converges; Restore yields the text with the typed
+  characters beside the group.
+endif::spec[]

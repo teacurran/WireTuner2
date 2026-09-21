@@ -1,0 +1,7 @@
+= Creating text
+include::_attributes.adoc[]
+:page-slug: creating-text
+:page-group: Type
+:page-fh: Chapter 8, "Creating text"
+
+include::_includes/type/creating-text.adoc[]

@@ -1,0 +1,7 @@
+= Rulers and units
+include::_attributes.adoc[]
+:page-slug: rulers
+:page-group: Document setup
+:page-fh: Chapter 2, "Using the rulers"
+
+include::_includes/document/rulers.adoc[]

@@ -1,0 +1,7 @@
+= Setting the document view
+include::_attributes.adoc[]
+:page-slug: document-view
+:page-group: Basics
+:page-fh: Chapter 1, "Setting the document view", "Anti-aliasing artwork", "Optimizing document redrawing", "Magnifying and reducing the view", "Displaying multiple document views", "Naming and saving custom views"
+
+include::_includes/basics/document-view.adoc[]
