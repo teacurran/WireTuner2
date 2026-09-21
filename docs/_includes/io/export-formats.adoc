@@ -6,10 +6,6 @@ options per format on xref:export-vector.adoc[Exporting vector artwork],
 xref:export-bitmap.adoc[Exporting bitmap images], xref:export-pdf.adoc[Exporting PDF files]
 and xref:export-text.adoc[Exporting text].
 
-NOTE: For {fh} users: the {fh}-version, PICT, WMF/EMF, DCS and movie formats are gone, and the
-five kinds of EPS collapsed into one EPS with a *Preview* option.  SVG, WebP, HEIC, AVIF,
-PDF/X and DXF are new.  Editable EPS survives as an option on EPS and PDF export.
-
 == Formats
 
 [cols="2,1,4"]
@@ -189,91 +185,6 @@ the file.
 
 ifdef::spec[]
 == Specification
-
-=== FreeHand parity
-
-[cols="2,3,2"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Acrobat PDF
-|PDF 1.4 through 2.0, PDF/X-1a, PDF/X-4.
-|Faithful, extended.
-
-|Adobe Illustrator 1.1, 88, 3, 4, 5.x, 7.x
-|One *Adobe Illustrator* format: PDF 1.7 with the `.ai` extension and an AI-compatible
-structure (layers as optional content groups).  Illustrator 10 and later open it fully; the
-1990s versions cannot be targeted.
-|Adapted -- modern Illustrator files are PDF; the legacy PostScript-dialect versions have no
-readers left.
-
-|ASCII text, RTF
-|Plain Text (UTF-8) and RTF.
-|Faithful.
-
-|BMP, GIF, JPEG, PNG, TIFF, Targa
-|All written.
-|Faithful.
-
-|Photoshop 5 PSD with layers
-|PSD with layers, from the current PSD specification.
-|Faithful.
-
-|Generic EPS, Macintosh EPS (PICT preview), MS-DOS EPS (TIFF preview), EPS with TIFF preview,
-QuarkXPress EPS, CMYK EPS
-|One EPS format with a *Preview* option (None or TIFF) and a *Colors* option.  PICT previews
-are not written.
-|Adapted -- the variants differed only in preview and platform; PICT is unreadable on
-current macOS.
-
-|Photoshop 3 EPS, Photoshop 4/5 EPS
-|Plain EPS; Photoshop rasterizes it on open exactly as it did those.
-|Adapted -- no separate flavor needed.
-
-|DCS 2.0 EPS
-|Not written.
-|Dropped -- pre-separated EPS served OPI workflows that PDF/X-1a replaced twenty years ago.
-
-|Windows Metafile, Enhanced Metafile
-|Not written.
-|Dropped -- Windows-only vector formats; SVG and PDF cover the use.
-
-|PICT
-|Not written.
-|Dropped -- removed from macOS.
-
-|Macromedia Flash movie
-|Animated SVG (xref:animation.adoc[Animating objects and text]; also GIF, APNG, MP4).
-|Adapted -- animated SVG is the vector animation format; see xref:svg-animation.adoc[SVG animations and browser preview].
-
-|FreeHand 8, 9, 10 documents
-|Not written; the {product} package is the native exchange format
-(xref:saving.adoc[Saving]).
-|Dropped -- the {fh} file format is undocumented and has no consumers that {product} does not
-replace.  Reading FreeHand files is on xref:import-formats.adoc[Import formats].
-
-|Editable EPS
-|*Embed {product} document* option on EPS and PDF export; opening such a file imports the
-embedded package.
-|Adapted -- same intent (round trip through a print file), different carrier.
-
-|"Choosing an export format" output-device table
-|The *Choosing a format* table above, by destination rather than output device.
-|Adapted -- imagesetters and slide recorders are no longer a designer's daily targets.
-
-|Web formats comparison (GIF, JPEG, PNG)
-|Extended with WebP and AVIF.
-|Faithful, extended.
-
-|Hexachrome colors exported as CMYK process with an alert
-|Any spot color a format cannot carry is converted to process and the export sheet says so.
-|Adapted -- Hexachrome specifically is not a color model {product} offers
-(xref:spot-process.adoc[Spot and process colors]).
-
-|Launching Fireworks to optimize web images
-|Not supported; WebP/AVIF quality controls and a size readout in the options sheet instead.
-|Dropped -- Fireworks is discontinued.
-|===
 
 === Data model
 

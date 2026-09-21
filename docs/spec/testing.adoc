@@ -51,8 +51,7 @@ transitions:
 
 * `WTGeometry`: property tests against numeric references; a corpus of 200 boolean cases
   including tangencies; fuzzed random paths never crash or hang.
-* `WTRender`: golden-image tests for a corpus of documents (converted {fh} examples where
-  licensing allows, otherwise reconstructed), rendered by the Core Graphics reference renderer
+* `WTRender`: golden-image tests for a corpus of documents (built for the purpose), rendered by the Core Graphics reference renderer
   and compared at 1× and 4× with a per-pixel tolerance; bitmap render vs. PDF render compared
   pairwise.  The goldens are Core Graphics output: Core Graphics is the truth.
 * Metal/CG parity (REND-007): every corpus document is rendered by the Metal tile renderer

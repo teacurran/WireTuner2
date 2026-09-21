@@ -102,42 +102,6 @@ base with *Restore Deleted Colors…*.
 ifdef::spec[]
 == Specification
 
-=== FreeHand parity
-
-[cols="2,3,1"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Tints panel: base from pop-up or drop, presets, slider, 1--100%
-|Same.
-|Faithful
-
-|Apply by drag, drag to Tools panel wells, Apply Color button
-|Same.
-|Faithful
-
-|Add to Swatches; name is percentage + base name; base added if unnamed
-|Same, except a base must already be named: the Tints panel refuses an unnamed base and
-offers to add it.  {fh} added the base silently.
-|Adapted: an implicit swatch creation in a shared list surprises collaborators.
-
-|Removing a base removes its tints
-|Same, in one change; concurrent tint creation survives with a badge.
-|Faithful
-
-|Tint of a tint
-|Not offered in the UI; a merged chain resolves by multiplying percentages.
-|Faithful
-
-|Tint name follows base rename
-|Yes, for default-named tints.
-|Adapted: addition; keeps the list truthful without a write per tint.
-
-|Change a tint's base
-|kbd:[Option]-drop of a base onto the tint.
-|Adapted: addition.
-|===
-
 === Data model
 
 A named tint is a swatch node with `parent` set (xref:swatches.adoc[Swatches]); an unnamed

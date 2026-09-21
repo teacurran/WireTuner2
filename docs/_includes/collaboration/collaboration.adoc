@@ -10,9 +10,7 @@ xref:presence.adoc[Presence], xref:comments.adoc[Comments], xref:sharing.adoc[Sh
 xref:branches.adoc[Branches], xref:history.adoc[Version history] and
 xref:inspect.adoc[Inspect mode].
 
-NOTE: {fh} had no equivalent of anything in this chapter.  Its documents were files on one
-Mac, edited by one person at a time.  If you are arriving from {fh}, the one habit to unlearn
-is kbd:[Cmd+S]: in {product} it names a version rather than saving (xref:history.adoc[Version
+NOTE: kbd:[Cmd+S] does not save: in {product} it names a version (xref:history.adoc[Version
 history]).
 
 // TODO screenshot: document window with three collaborators' avatars in the toolbar, two remote cursors and one remote selection outline on the canvas
@@ -300,23 +298,6 @@ xref:backlog.adoc#SYNC-007[SYNC-007]; the rules that decide when it opens are
 xref:reconcile.adoc[Reconciling offline edits] and xref:backlog.adoc#SYNC-006[SYNC-006].  The
 guide text above is normative for the sheet's vocabulary: every control named there exists
 with that title.
-
-=== FreeHand parity
-
-[cols="2,3,2"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|--
-|Simultaneous multi-user editing, presence, live merge, offline reconcile.
-|Added -- no FreeHand equivalent
-
-|Locked objects (Modify > Lock)
-|Same user-facing control (owned by xref:arranging.adoc[Arranging]); here it becomes a shared
-register that every client's UI respects but the server does not enforce.
-|Adapted -- a lock cannot be enforced against an offline editor without losing their work;
-advisory locking plus roles and branches gives the same protection.
-|===
 
 === Data model
 

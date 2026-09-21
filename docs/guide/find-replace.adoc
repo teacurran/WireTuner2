@@ -2,6 +2,5 @@
 include::_attributes.adoc[]
 :page-slug: find-replace
 :page-group: Objects
-:page-fh: Chapter 4, "Making global changes", "Selecting objects globally", "Finding and replacing graphics"
 
 include::_includes/objects/find-replace.adoc[]

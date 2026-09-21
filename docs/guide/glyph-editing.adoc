@@ -2,6 +2,5 @@
 include::_attributes.adoc[]
 :page-slug: glyph-editing
 :page-group: Typeface documents
-:page-fh: None (addition); reference: FontForge, "Outline Glyph View", "Element menu" (references, anchors, Find Problems)
 
 include::_includes/typeface/glyph-editing.adoc[]

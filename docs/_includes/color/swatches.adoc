@@ -41,10 +41,6 @@ Libraries, Export…, Restore Deleted Colors…, and Color Control… (a shortcu
 sheet as menu:Extensions[Colors > Color Control…]).
 |===
 
-NOTE: {fh} users: the *Xtras* menu is called *Extensions* in {product}.  Everything under
-{fh}'s menu:Xtras[Colors] and menu:Xtras[Delete] is under menu:Extensions[Colors] and
-menu:Extensions[Delete].
-
 === Default colors
 
 Every new document starts with four entries that cannot be removed, renamed or redefined:
@@ -228,102 +224,6 @@ they put it and you can sort again.
 
 ifdef::spec[]
 == Specification
-
-=== FreeHand parity
-
-[cols="2,3,1"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Swatches panel with Fill / Stroke / Both selectors and the Add arrow
-|Same.
-|Faithful
-
-|Default colors None, White, Black, Registration; not removable or renamable
-|Same.  Black is a spot swatch with `role = BLACK`; the printer maps it to the K plate.
-|Faithful
-
-|Italic process names, upright spot names, RGB icon
-|Same; the RGB icon becomes a space badge (*RGB*, *P3*, *Lab*, *OKLab*) because a color now
-carries its space.  The Hexachrome hexagon icon goes with Hexachrome.
-|Faithful, extended
-
-|Make RGB / Make CMYK in the Options menu
-|*Convert to > sRGB / Display P3 / CMYK*; see xref:spot-process.adoc[Spot and process colors].
-|Faithful, extended
-
-|--
-|Every swatch carries its color space; Display P3, Lab and OKLab swatches beside sRGB and
-CMYK ones; libraries and `.wtcolors` files carry the space of each color.
-|Added: every Mac since 2016 has a Display P3 screen, and a color that does not know its
-space cannot be shown on one honestly.
-
-|Add from Mixer / Tints with a naming sheet; Cmd-click bypasses the sheet
-|Same.
-|Faithful
-
-|Windows right-click "Add to Swatches" on a color box
-|Every color well has a context menu with *Add to Swatches* on macOS as well.
-|Adapted: was Windows-only; macOS has context menus too.
-
-|Drop onto an existing swatch redefines it
-|Same.
-|Faithful
-
-|Duplicate ("Copy of …")
-|Same.
-|Faithful
-
-|Default names from mix values; `-1` suffixes; Auto-Rename Colors preference
-|Same.
-|Faithful
-
-|Rename by double-click; unique names enforced
-|Same.  Uniqueness is enforced when the command runs; concurrent renames to one name are
-disambiguated on read.
-|Faithful
-
-|Imported color with a clashing name is renamed to its mix values
-|Same.
-|Faithful
-
-|Name All Colors Xtra
-|menu:Extensions[Colors > Name All Colors].
-|Faithful
-
-|Sort Color List by Name Xtra; Show / Hide Names; drag to rearrange
-|Same.  Sort writes canonical positions so concurrent sorts agree.
-|Faithful
-
-|Swatch groups
-|Collapsible groups in the list.  Not in {fh}.
-|Adapted: addition; libraries of hundreds of colors need structure.
-
-|Remove with the all / unused prompt; removing spot converts objects to process; removing a base removes its tints
-|Same.
-|Faithful
-
-|Cannot remove colors from an unconverted EPS
-|EPS is placed as an opaque asset; its colors are never listed (xref:import-formats.adoc[Import formats]).
-|Faithful
-
-|Delete > Unused Named Colors
-|menu:Extensions[Delete > Unused Named Colors] with a preview sheet.  Not refused during
-concurrent use; see Merge semantics.
-|Faithful
-
-|Restore Deleted Colors…
-|Lists swatches deleted in the last 30 days for restoration.  Not in {fh}.
-|Adapted: addition; multiplayer deletion needs an undo that outlives the deleter's undo stack.
-
-|Import RGB Color Table (Photoshop ACT)
-|Same, into a group.
-|Faithful
-
-|Color libraries in the Options menu
-|See xref:spot-process.adoc[Spot and process colors].
-|--
-|===
 
 === Data model
 

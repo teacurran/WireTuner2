@@ -2,6 +2,5 @@
 include::_attributes.adoc[]
 :page-slug: output-area
 :page-group: Printing
-:page-fh: Chapter 14, "Defining an output area"
 
 include::_includes/printing/output-area.adoc[]

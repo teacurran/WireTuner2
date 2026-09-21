@@ -122,9 +122,8 @@ To choose which formats are placed on the clipboard when you copy:
 . Under *Convert colors to*, choose *CMYK*, *RGB* or *CMYK and RGB* for the PDF and SVG
   copies.
 
-NOTE: {fh}'s Macintosh clipboard offered Adobe Illustrator, ASCII and PICT.  Those are
-replaced by PDF, plain text and TIFF/PNG, which are what current macOS applications exchange.
-Windows-only formats (EMF, Metafile, DIB, LRG) are not offered.
+NOTE: The clipboard formats are PDF, plain text and TIFF/PNG, which are what current macOS
+applications exchange.  Windows-only formats (EMF, Metafile, DIB, LRG) are not offered.
 
 To copy or paste in one format:
 
@@ -235,61 +234,6 @@ objects.
 
 ifdef::spec[]
 == Specification
-
-=== FreeHand parity
-
-[cols="2,3,2"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Cut, Copy, Paste, Clear
-|Same.
-|Faithful
-
-|Paste In Front / Paste Behind
-|Same, including pasting into groups and clipping paths.
-|Faithful
-
-|Copy Special / Paste Special
-|Same, over the macOS format set.
-|Faithful
-
-|Clipboard Output Formats preference (FreeHand, RTF, Adobe Illustrator, ASCII, PICT)
-|PDF, SVG, TIFF/PNG, RTF, plain text; native always on.
-|Adapted -- AI/PICT are dead on macOS; PDF is the universal vector clipboard type.
-
-|Windows paste formats preference (LRG, EMF, Metafile, DIB)
-|Not offered.
-|Dropped -- Windows only.
-
-|Convert Colors To (CMYK / RGB / both; Photoshop 4/5 options)
-|CMYK / RGB / both for PDF and SVG.  Photoshop 4/5 options dropped.
-|Adapted -- Photoshop 4/5 are obsolete.
-
-|Clone (copy on top)
-|Same.
-|Faithful
-
-|Duplicate (offset copy) and power-duplicating
-|Same, including combining move with rotate/scale, and the scale+skew restriction.
-|Faithful
-
-|Option-drag copies, and its preference
-|Same.
-|Faithful
-
-|Drag between documents; Remember Layer Info
-|Same.
-|Faithful
-
-|Drag to/from other applications
-|Same via `NSDraggingSession` and file promises.
-|Faithful
-
-|Copy/Paste Attributes
-|Same.
-|Faithful
-|===
 
 === Data model
 

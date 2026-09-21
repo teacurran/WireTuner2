@@ -158,49 +158,6 @@ are typing in keeps your text until you commit it.
 ifdef::spec[]
 == Specification
 
-=== FontForge parity
-
-[cols="2,3,1"]
-|===
-|FontForge capability |{product} behavior |Verdict
-
-|Metrics View: enter text, drag width, LSB, kern; numeric fields; arrow keys with Shift ×10
-|Same, with kbd:[Option] ×100 and history/preset strings.
-|Faithful
-
-|Metrics View shows OpenType features with checkboxes and previews substitutions
-|Features pop-up, previewed from a quick compile.
-|Faithful
-
-|Kern by classes: first/second classes, matrix, exceptions as pair kerns
-|Kerning Classes editor with left/right classes, matrix, exceptions list.
-|Faithful
-
-|Kern pair closeup with device tables
-|Not present.
-|Dropped -- device tables (pixel-size corrections) are a hinting-era feature.
-
-|Auto Kern with separation, min kern, class guessing
-|Auto Kern with separation, minimum kern, replace/fill; Guess Classes.
-|Adapted -- simpler optical measurement; documented as a first pass.
-
-|Auto Width
-|Not present; Spacing Overview and the bearing commands instead.
-|Dropped -- FontForge's own docs call it unreliable; spacing is a design act.
-
-|Vertical metrics and VKern
-|Not present.
-|Dropped -- no vertical writing.
-
-|Set Width / LBearing / RBearing / Center / Thirds
-|Glyph menu commands (xref:glyph-grid.adoc[The glyph grid]).
-|Faithful
-
-|Metrics menu modes: kerning only, width only, both
-|Not present; the table always shows all values, and drags are distinguished by target.
-|Dropped -- macOS drag targets make the modes unnecessary.
-|===
-
 === Data model
 
 Kerning lives on `FontProps` (xref:font-info.adoc[Font Info]).  Pairs and class memberships refer

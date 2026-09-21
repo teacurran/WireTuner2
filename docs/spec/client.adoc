@@ -2,7 +2,7 @@
 include::_attributes.adoc[]
 :page-slug: client
 
-The Mac app is where {fh} lives again.  Everything a designer touches is native AppKit; the
+The Mac app is the product.  Everything a designer touches is native AppKit; the
 document is a typed Swift model over the merge engine; rendering is one display list drawn by
 Metal on screen and by Core Graphics for PDF and print, and the two are tested against each
 other so that the screen, the PDF and the printer agree.
@@ -74,7 +74,7 @@ protocol Tool: AnyObject {
     func mouseDown(_ e: CanvasEvent)
     func mouseDragged(_ e: CanvasEvent)
     func mouseUp(_ e: CanvasEvent)
-    func flagsChanged(_ e: CanvasEvent)     // modifier change mid-drag (FreeHand relies on it)
+    func flagsChanged(_ e: CanvasEvent)     // modifier change mid-drag; many tools depend on it
     func keyDown(_ e: NSEvent) -> Bool
     func drawOverlay(in ctx: CGContext, viewport: Viewport)  // handles, previews
     func cancel()                            // Esc

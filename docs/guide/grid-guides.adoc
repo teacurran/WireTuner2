@@ -2,6 +2,5 @@
 include::_attributes.adoc[]
 :page-slug: grid-guides
 :page-group: Document setup
-:page-fh: Chapter 2, "Using the grid and guides", "Using the grid", "Using guides"
 
 include::_includes/document/grid-guides.adoc[]

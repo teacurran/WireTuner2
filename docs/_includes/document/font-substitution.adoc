@@ -76,41 +76,6 @@ your new text takes the replacement too.
 ifdef::spec[]
 == Specification
 
-=== FreeHand parity
-
-[cols="2,3,1"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Missing Fonts dialog on open or import; Select All; Replace; OK / Cancel
-|Same, as a sheet, plus *Substitute…*.
-|Faithful
-
-|Unreplaced fonts display and print in the default font (Courier on Mac); the assignment is kept
-|Same intent; default substitute is Helvetica Neue and is a preference.
-|Adapted -- Courier is a poor stand-in for reflow; the default is user-settable.
-
-|Replacing strips manual kerning
-|Kerning is kept.
-|Adapted -- no reason to discard work; the kerning values still apply to the new font.
-
-|Temporary substitution when opening
-|The substitution table; remembered per user.
-|Faithful
-
-|Adobe Type Manager automatic substitution
-|None.
-|Dropped -- ATM no longer exists; {product}'s own substitution covers the case.
-
-|Fontographer cross-platform advice
-|Not applicable to a Mac-only product.
-|Dropped
-
-|Team font library
-|Fonts fetched from the team library before asking.
-|Adapted -- new capability from the cloud; delivered by TXT-002.
-|===
-
 === Data model
 
 No document fields.  Font names live in text marks (TYPE epic); replacement writes `TextMark` ops

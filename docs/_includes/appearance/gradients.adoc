@@ -136,49 +136,6 @@ after an offline session.
 ifdef::spec[]
 == Specification
 
-=== FreeHand parity
-
-[cols="2,3,1a"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Gradient fill with two or more colors on a ramp
-|Same.
-|Faithful
-
-|Six types: Linear, Logarithmic, Radial, Rectangle, Contour, Cone
-|Same six.
-|Faithful
-
-|Behaviors Normal, Repeat, Reflect (with count) and Auto Size
-|Same.
-|Faithful
-
-|Handles on the canvas: start point and one or two end points; none for Auto Size
-|Same, plus kbd:[Shift] constrain and kbd:[Option] symmetric axes.
-|Faithful
-
-|Ramp editing: click to color, drag to add, drag to move, end-swatch replacement, Cmd-drag to copy, drag off to remove
-|Same gestures.
-|Faithful
-
-|Control-drag, Option-drag, Cmd+Option-drag swatch for linear/radial/contour
-|Same.
-|Faithful
-
-|Gradient to Basic uses the left color
-|Same.
-|Faithful
-
-|Redraw preference "Better (but slower) display"
-|Not offered; gradients always render fully.
-|Dropped -- Core Graphics shadings cost nothing to render smoothly.
-
-|Gradient applied to a group applies per object
-|Same.
-|Faithful
-|===
-
 === Data model
 
 [source,protobuf]
@@ -349,7 +306,7 @@ Depends on:: REND-002, GEO-001, ATTR-023
 Size:: L
 Delivers:: Ramp compilation with the four behaviors and the logarithmic curve; axial, elliptical, rectangle, cone and contour shadings including the cached distance field; PDF export mapping.
 Done when::
-* Reference renders for every type × behavior on the corpus match {fh} within tolerance.
+* Reference renders for every type × behavior on the corpus match the golden corpus within tolerance.
 * Contour on a 500-point path renders under 10 ms at screen resolution on M1 after the first frame.
 * PDF export of each type reopens in Preview identically to the screen.
 

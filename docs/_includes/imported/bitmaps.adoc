@@ -114,8 +114,7 @@ edges -- use the transparency features on xref:transparency.adoc[Transparency] a
 xref:raster-effects.adoc[Raster effects], or crop it to a shape with Paste Inside
 (xref:cropping-bitmaps.adoc[Cropping bitmap images]).
 
-NOTE: {fh} displayed an imported alpha channel but discarded it on export unless you applied one
-of its own.  {product} keeps the imported channel throughout.
+NOTE: {product} keeps an imported alpha channel throughout, including on export.
 
 == Bilevel and grayscale images
 
@@ -252,71 +251,6 @@ are working, the sheet closes with a message.
 ifdef::spec[]
 == Specification
 
-=== FreeHand parity
-
-[cols="2,3,2"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Bitmap formats behave alike; TIFF as the model
-|One `image` kind for every format.
-|Faithful
-
-|Embed, extract and change links in the Links dialog
-|Links panel with *Update from source*, *Save a copy…* (extract) per
-xref:linking-embedding.adoc[Linking and embedding].
-|Adapted -- always embedded; extraction is "save a copy".
-
-|Display alpha channel (on by default); alpha not kept on export
-|Same control; alpha kept on export.
-|Adapted -- keeping the channel is strictly better and costs nothing with modern formats.
-
-|*Transparent* for grayscale and bilevel images
-|Same, with partial transparency for grays.
-|Faithful
-
-|Edit grayscale ramp: four presets, Lightness/Contrast, Reset/Apply/OK
-|Same in a sheet, live preview.
-|Faithful
-
-|Fill color tints grayscale and bilevel images
-|Same; `tint` register, applied through the ordinary fill UI.
-|Faithful
-
-|Plug-ins (Xtras) on bitmaps convert them to embedded TIFF
-|Raster effects are live and non-destructive (xref:raster-effects.adoc[Raster effects]); pixel
-plug-ins are not supported.
-|Adapted -- covered by the FX epic; nothing converts an image in place.
-
-|*Set on-screen image resolution* (Full / proxy) redraw preference; image RAM cache
-|*Image display*: High resolution, Proxy, Gray boxes.  Cache is automatic.
-|Adapted -- renamed and given a gray-box option; no manual cache size.
-
-|JPEG always displayed at full resolution
-|Same in Proxy mode.
-|Faithful
-
-|Resize by handles; kbd:[Shift] proportional; kbd:[Option] in printer-resolution steps; Object
-panel scale and dimensions
-|Same.
-|Faithful
-
-|Object panel Properties list prefixes grayscale images with "Grayscale"
-|Kind label *Image (mode)*.
-|Faithful
-
-|(none)
-|*Image Info…* popover; *Warn when image resolution is below*; stored vs. effective resolution
-shown.
-|Added -- the information {fh} users had to compute by hand.
-
-|(none)
-|menu:Object[Image > Remove Background…] (transparent image or clipping path) and
-menu:Object[Image > Select Subject], on-device subject segmentation.
-|Added -- macOS provides the segmentation; the results are ordinary pixels and paths
-(xref:decisions.adoc[Decisions]: on-device ML only, no generative features in v1).
-|===
-
 === Data model
 
 All fields are in `ImageProps` on xref:importing.adoc[Importing artwork].  This page edits
@@ -383,7 +317,7 @@ Nothing beyond storing and relaying changes and blobs.
   `CGImageSourceCreateImageAtIndex` with `kCGImageSourceSubsampleFactor` for the pyramid and a
   tiled decode for the full level, so peak memory stays under 1.5× the on-screen tiles.
 * Hit testing (REND-003): the cropped natural rect transformed; with *Transparent* or alpha,
-  a hit inside the rect on a fully transparent pixel still selects (as {fh}), so pointer
+  a hit inside the rect on a fully transparent pixel still selects, so pointer
   behavior does not depend on decoding.
 * Undo: each Object panel edit is one change; kbd:[Option]-drag resizing is one change per
   drag with the coalescing rule from APP-011.

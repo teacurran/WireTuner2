@@ -181,42 +181,6 @@ Two people dragging the same handle at once end with the value of whichever let 
 ifdef::spec[]
 == Specification
 
-=== FreeHand parity
-
-[cols="2,3,1"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Five type attribute buttons in the Object panel
-|Same five sections.
-|Faithful
-
-|Text toolbar with font, size, style, leading, alignment, path and editor buttons
-|Same, customizable.
-|Faithful
-
-|Text menu and submenus
-|Same structure; *Type Style* holds the preset effects.
-|Faithful
-
-|Text context menu (Windows only)
-|Available on macOS via kbd:[Control]-click.
-|Adapted -- macOS has context menus; no reason to drop it.
-
-|Drag top/bottom center handle for leading, side handle for kerning
-|Same, with kbd:[Shift] for coarse steps.
-|Faithful
-
-|Cmd+Option+arrows kerning by 1 em; with Shift by 10% em
-|kbd:[Cmd+Option] arrows step 1% of an em, with kbd:[Shift] 10%.
-|Adapted -- {fh}'s manual states 1 em for the unmodified step, which is unusable as a fine
-step; the common convention (and the Shift step it documents) implies 1%.
-
-|Control+Option+arrows baseline shift
-|Same, 1 pt; with kbd:[Shift], 10 pt.
-|Faithful
-|===
-
 === Data model
 
 No new fields.  Leading and kerning drags write `TextMarkValue.leading` and

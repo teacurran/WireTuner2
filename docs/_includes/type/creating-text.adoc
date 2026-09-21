@@ -90,8 +90,7 @@ methods.  Text you are composing with an input method (the underlined "marked" t
 alone until you commit it; collaborators see it appear when you press kbd:[Return] or the
 composition ends.
 
-NOTE: {fh} could not set double-byte text in its English edition.  {product} has no such limit:
-one document can mix any scripts your fonts support.
+NOTE: One document can mix any scripts your fonts support.
 
 Typing at the insertion point inserts before the character to its right and takes the
 formatting of the character to its left (or of the one to the right at the start of a
@@ -131,47 +130,6 @@ ifdef::spec[]
 
 This page is the canonical home of the text data model.  Every other page in the *Type* group
 extends or refers to the messages sketched here.
-
-=== FreeHand parity
-
-[cols="2,3,1"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Click with the Text tool creates an auto-expanding block
-|Same; governed by the *New text blocks auto-expand* preference.
-|Faithful
-
-|Drag with the Text tool creates a fixed-size block
-|Same, with kbd:[Shift] (square) and kbd:[Option] (from center) modifiers added for consistency
-with the shape tools.
-|Faithful
-
-|Option-click opens the Text Editor for the new block
-|Same.
-|Faithful
-
-|Text tool reverts to the Pointer tool after a block (preference)
-|Same preference, same default.
-|Faithful
-
-|Return creates a new paragraph; text wraps in fixed-size blocks
-|Same; kbd:[Shift+Return] added as a shortcut for the End of Line character.
-|Faithful
-
-|New text takes the Object panel defaults or the selected text style
-|Same.
-|Faithful
-
-|English edition cannot set double-byte text; imported CJK text is rotated to fake vertical
-|Unicode throughout; every script macOS can render.  Vertical writing is a text block property
-(xref:text-effects.adoc[Text effects]).
-|Adapted -- the limit was an artifact of {fh}'s era, and Core Text has none.
-
-|PostScript / TrueType font requirement
-|Any font macOS can load (OpenType, TrueType, PostScript-flavored OpenType, variable fonts).
-|Adapted -- Type 1 fonts are no longer supported by macOS.
-|===
 
 === Data model
 

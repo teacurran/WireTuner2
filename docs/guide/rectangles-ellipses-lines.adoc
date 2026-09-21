@@ -2,6 +2,5 @@
 include::_attributes.adoc[]
 :page-slug: rectangles-ellipses-lines
 :page-group: Drawing
-:page-fh: Chapter 3, "Drawing rectangles, ellipses, and lines"
 
 include::_includes/drawing/rectangles-ellipses-lines.adoc[]

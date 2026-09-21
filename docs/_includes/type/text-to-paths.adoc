@@ -59,42 +59,6 @@ offline work, the same choice appears in the review sheet.
 ifdef::spec[]
 == Specification
 
-=== FreeHand parity
-
-[cols="2,3,1"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Text > Convert to Paths; toolbar button
-|Same.
-|Faithful
-
-|Block → group; multi-part glyphs → composite paths; holes → composite paths with transparent
-holes; others → single paths
-|Same.
-|Faithful
-
-|Text on a path converts in place, path disappears
-|Same.
-|Faithful
-
-|Linked text cannot be converted until unlinked
-|Same.
-|Faithful
-
-|Type 1, Fontographer Type 3, TrueType fonts convertible
-|Anything Core Text loads; Type 1 not available on macOS.
-|Adapted -- platform.
-
-|Undo reverses only if paths not yet manipulated and file not saved
-|Undo always reverses within the undo history, including across relaunch.
-|Adapted -- persistent, per-user undo makes the restriction unnecessary.
-
-|Text effects may be lost on conversion
-|Five of six effects become paths; zoom is dropped with a warning.
-|Adapted -- expressible effects are kept.
-|===
-
 === Data model
 
 No new fields.  The conversion is one change ("Convert text to paths"): `CreateNode` for the

@@ -177,8 +177,7 @@ for *Horizontal*, *Vertical*, *Horizontal & Vertical* or *Multiple* mirroring, t
 copies, whether the axes are set by *Closed Path*, *Rotate* or *Reflect*, and *Auto
 Rotate*.
 
-NOTE: {fh} called these Xtra tools.  In {product} they are extensions; see
-xref:extensions.adoc[Extensions].
+NOTE: These tools are extensions; see xref:extensions.adoc[Extensions].
 
 == Working with others
 
@@ -198,53 +197,6 @@ anything.
 
 ifdef::spec[]
 == Specification
-
-=== FreeHand parity
-
-[cols="2,3,2"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Rotate, Scale, Skew, Reflect tools with a chosen center; Shift constrain
-|Same; kbd:[Option]-copy added to the tools (it existed on handles).
-|Faithful
-
-|Transform panel: Move/Rotate/Scale/Skew/Reflect, Contents/Fills/Strokes, Copies, center X/Y
-|Same.
-|Faithful
-
-|Transform handles via double-click; preference to enable
-|Same.
-|Faithful
-
-|Option-subselect inside a group with handles; Tilde to superselect keeping the center
-|Same.
-|Faithful
-
-|Transform selected points
-|Same.
-|Faithful
-
-|Transform as Unit for groups
-|Same (xref:grouping.adoc[Grouping]).
-|Faithful
-
-|Constrain angle in Document Settings
-|A user preference.
-|Adapted -- like nudge distance, an input habit rather than document content; the DOC epic owns the Document Settings dialog and may mirror it there.
-
-|Power-duplicating
-|Same, plus an explicit *Transform Again* command.
-|Faithful
-
-|3D Rotation and Mirror Xtra tools
-|Extension tools.
-|Faithful
-
-|Transform as live effect
-|xref:live-effects.adoc[Live effects].
-|Faithful
-|===
 
 === Data model
 
@@ -273,8 +225,7 @@ Why one ATOMIC register, and not baked geometry::
   A concurrent point edit by another user would then merge into a shape where some points
   moved and some did not -- a torn outline.  With a transform register, a point edit and a
   transformation are different registers and both apply, intact.
-* Rectangles, ellipses, polygons and text blocks stay their kind after transformation, as
-  in {fh}.
+* Rectangles, ellipses, polygons and text blocks stay their kind after transformation.
 * One op per object per gesture keeps changes small and coalescing effective.
 Consequences::
 * Hit testing, snapping, alignment and the Object panel's X/Y/W/H all go through the

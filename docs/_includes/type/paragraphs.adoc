@@ -95,8 +95,7 @@ paragraph's last line) or *Column* (the column width).  A *Position* field sets 
 below the baseline of the last line, and *Above* draws the rule above the paragraph's first
 line instead.
 
-NOTE: {fh} drew rules only below paragraphs and only in the block's stroke.  {product} adds
-rules above, and a per-rule stroke override in the sheet, so a document can have a thin block
+NOTE: The sheet also has a per-rule stroke override, so a document can have a thin block
 border and heavy rules.
 
 == Word and letter spacing
@@ -156,51 +155,6 @@ line up visually.  Only punctuation hangs; which characters is fixed.
 ifdef::spec[]
 == Specification
 
-=== FreeHand parity
-
-[cols="2,3,1"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Left/center/right/justified alignment
-|Same.
-|Faithful
-
-|Edit Alignment: Ragged Width, Flush Zone
-|Same.
-|Faithful
-
-|Space Above / Space Below (negative allowed)
-|Same; larger-of rule between paragraphs stated.
-|Faithful
-
-|Hyphenate; Edit Hyphenation: language, consecutive hyphens, skip capitalized, inhibit in
-selection
-|Same, using Core Foundation hyphenation per language.
-|Faithful
-
-|Paragraph rules: Centered / Paragraph; width % of last line or column; stroke from the block;
-Display Border to hide the outline
-|Same, plus *Above*, *Position* and a per-rule stroke override.
-|Faithful (extended)
-
-|Word spacing min/opt/max (100 = normal); letter spacing (0 = normal)
-|Same.
-|Faithful
-
-|Keep Lines Together N; Selected Words
-|Same; *Keep with next* added.
-|Faithful (extended)
-
-|Hang Punctuation
-|Same fixed set of hanging characters.
-|Faithful
-
-|Selecting a linked block applies hyphenation to the whole chain
-|Same: the chain's text is one story on the head.
-|Faithful
-|===
-
 === Data model
 
 All on `ParagraphProps` (xref:creating-text.adoc[Creating text]): `alignment`,
@@ -251,8 +205,7 @@ Read-time normalizations::
 * `ragged_width` and `flush_zone` clamp to 0–100.
 * A `SpacingRange` with `min > opt` or `opt > max` is read as `(opt, opt, opt)`.
 * `keep_lines` larger than the paragraph's line count keeps the whole paragraph together.
-* `rule.mode` other than `NONE` with no block stroke and no override stroke draws nothing
-  (as in {fh}).
+* `rule.mode` other than `NONE` with no block stroke and no override stroke draws nothing.
 
 === Offline behavior
 

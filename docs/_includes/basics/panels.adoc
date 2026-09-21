@@ -33,10 +33,6 @@ some are collapsed to their title bars.  Halftones and Navigation are closed unt
 them.  Groups with a single panel are named after it.  Except for Properties and Assets, a
 group made of several panels shows every panel's name in its title bar until you rename it.
 
-NOTE: {fh}'s *Answers* panel is the *Help* panel in {product}.  It searches this guide and
-opens the page for whatever panel or tool is under the pointer, instead of fetching articles
-from a website.
-
 == Opening, closing and activating panels
 
 To open a panel::
@@ -45,7 +41,7 @@ to the front.  If the panel is already open and in front, choosing it again clos
 group or collapses a docked one.
 
 To open the Find & Replace Graphics or Select panel::
-These are also in menu:Edit[Find & Replace] and menu:Edit[Select], as in {fh}.
+These are also in menu:Edit[Find & Replace] and menu:Edit[Select].
 
 To activate a panel in a group::
 Click its tab.  Tabs show an icon, a name, or both, depending on the *Label panel tabs with*
@@ -69,8 +65,8 @@ Click the thin handle between the canvas and the docked panels, or drag it to re
 Hiding the dock gives the canvas the full window; the panels come back with one click.
 
 To cycle through floating groups::
-Press kbd:[Cmd+`] (the standard macOS window cycle) while a floating group is in front.  The
-Windows-only kbd:[Control+Tab] cycles document tabs here (xref:workspace.adoc[The workspace]).
+Press kbd:[Cmd+`] (the standard macOS window cycle) while a floating group is in front.
+kbd:[Control+Tab] cycles document tabs instead (xref:workspace.adoc[The workspace]).
 
 == Docking and floating
 
@@ -148,8 +144,7 @@ saved automatically and restored when you relaunch.  You can also name layouts a
 between them, and reset to the factory layout.
 
 To reset the panels to their default positions::
-Choose menu:Window[Panel Layout > Reset to Default].  In {fh} this required quitting and
-deleting the preferences file; here it is a menu command and does not touch your other
+Choose menu:Window[Panel Layout > Reset to Default].  It does not touch your other
 preferences.
 
 To save and recall layouts::
@@ -220,49 +215,6 @@ your layout changes.
 
 ifdef::spec[]
 == Specification
-
-=== FreeHand parity
-
-[cols="2,3,1"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Panel groups with tabs, default grouping (Properties, Assets, Mixer and Tints, Align and Transform, Find & Replace and Select), standalone Layers, Answers, Navigation, Halftones
-|Same groups, same names; Answers becomes Help.
-|Faithful
-
-|Open/close/collapse from Window menu; Find & Replace and Select in Edit menu too
-|Same.
-|Faithful
-
-|Drag by gripper to dock, by title bar to move; highlight shows drop target
-|Same, plus a dock-edge handle to hide the dock and an Options-menu Float/Dock toggle.
-|Faithful
-
-|Dock to the application window (Windows only)
-|Dock to the document window on macOS, left or right edge.
-|Adapted -- see xref:workspace.adoc[The workspace].
-
-|Control+Tab cycles floating groups (Windows)
-|kbd:[Cmd+`] cycles floating groups; kbd:[Control+Tab] cycles document tabs.
-|Adapted -- macOS convention.
-
-|Group … With / New Panel Group / Rename Panel Group in the Options menu
-|Same, plus dragging tabs between groups.
-|Faithful
-
-|Reset panels by deleting the preferences file
-|menu:Window[Panel Layout > Reset to Default].
-|Adapted -- a menu command; the file dance is not acceptable UX.
-
-|Label Panel Tabs With (text/icon/both), Show ToolTips
-|Same preferences.
-|Faithful
-
-|Answers panel fetching macromedia.com content
-|Help panel: searchable in-app guide, hover help, What's New.
-|Adapted -- no vendor content service; the guide ships with the app.
-|===
 
 === Data model
 

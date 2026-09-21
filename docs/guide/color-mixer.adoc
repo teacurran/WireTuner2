@@ -2,6 +2,5 @@
 include::_attributes.adoc[]
 :page-slug: color-mixer
 :page-group: Color
-:page-fh: Chapter 5, "Using the Color Mixer panel"
 
 include::_includes/color/color-mixer.adoc[]

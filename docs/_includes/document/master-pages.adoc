@@ -125,69 +125,6 @@ Collisions worth knowing about:
 ifdef::spec[]
 == Specification
 
-=== FreeHand parity
-
-[cols="2,3,1"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|New Master Page from the Document panel or Library panel
-|Same, opens in a tab.
-|Faithful
-
-|New master takes the active page's (or its master's) size, orientation, bleed
-|Same.
-|Faithful
-
-|Convert to Master Page (page's elements move to the master)
-|Same; the page becomes the new master's child.
-|Faithful
-
-|Apply via Master Page pop-up or drag from Library panel
-|Same.
-|Faithful
-
-|Add child pages via Add Pages, Duplicate, Option-drag
-|Same.
-|Faithful
-
-|Master objects appear at the bottom of each layer of the child
-|Same, by rendering the master canvas per layer below the page's objects.
-|Faithful
-
-|Master bleed rectangle controls child imaging
-|Same.
-|Faithful
-
-|Edit master: double-click in Library, or Edit button in Document panel
-|Same; a master page window is a tab of the document window.
-|Adapted -- tabs instead of a separate window, matching modern macOS document windows.
-
-|Release Child Page: master objects pasted as one group per layer
-|Same.
-|Faithful
-
-|Show Master Pages toggle in the Library panel
-|Same.
-|Faithful
-
-|Import / export master pages through the Library panel
-|Same; delivered by the LIB epic's import/export.
-|Faithful
-
-|Master pages listed in a document report
-|Report is on the printing page.
-|Faithful
-
-|Children cannot be modified, resized, rotated
-|Same.
-|Faithful
-
-|Deleting a master leaves children as ordinary pages
-|Same; recorded as `on_dangling = UNSET`.
-|Faithful
-|===
-
 === Data model
 
 `MasterProps` and `PageProps.master` are on xref:document-panel.adoc[The Document panel].  A

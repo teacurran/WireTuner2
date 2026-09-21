@@ -2,6 +2,5 @@
 include::_attributes.adoc[]
 :page-slug: export-formats
 :page-group: Saving and exporting
-:page-fh: Chapter 12, "About export file formats", "Choosing an export format", "About web formats"
 
 include::_includes/io/export-formats.adoc[]

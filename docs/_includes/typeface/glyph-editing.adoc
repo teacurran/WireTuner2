@@ -90,7 +90,7 @@ on a glyph canvas.
 
 The Layers panel (xref:layers.adoc[Using layers]) is shared by every glyph, as it is by every
 page: a layer is a drawer that exists across the whole document, and each glyph canvas shows what
-is on it for that glyph.  Use them like FontForge's layers:
+is on it for that glyph.  In a typeface document they play three roles:
 
 * Layers *above* the separator (printing layers) are *foreground*: their artwork becomes the
   glyph outline.  Most fonts need only one, but you can keep, say, *Serifs* and *Stems* separate.
@@ -254,69 +254,6 @@ together]).
 
 ifdef::spec[]
 == Specification
-
-=== FontForge parity
-
-[cols="2,3,1"]
-|===
-|FontForge capability |{product} behavior |Verdict
-
-|Outline glyph view with its own tool palette (pointer, pen, spiro, shapes, transforms, ruler)
-|The document canvas with {product}'s Tools panel; no spiro.
-|Adapted -- one tool set for illustration and glyphs.
-
-|Guide layer with ascent, descent, baseline, x=0 lines; optional x-height, cap-height
-|Metric lines from Font Info: baseline, x-height, cap height, ascender, descender, side bearings,
-em box, extra named lines; snap; labels.
-|Faithful
-
-|Background layers with images and splines; multiple foreground layers
-|Layers panel: printing layers are foreground, non-printing are background; bitmaps allowed on
-background layers only.
-|Faithful
-
-|Drag the advance width line to change width; arrow keys move selections in em-units, Meta ×10
-|Same; kbd:[Option]-drag keeps the RSB; kbd:[Shift] steps of 10; LSB line drags the artwork.
-|Faithful
-
-|Point types: corner, curve, tangent; extrema marked; contour start marked with direction
-|Corner, curve, connector from the Drawing chapter; direction and extrema shown by Find Problems.
-|Adapted -- point types map one to one (tangent = connector); no start-point arrow.
-
-|References: drag from the font view; select by outline; Meta to move; unlink references
-|Add Component sheet / Paste as Component; move with the Pointer, transform; Decompose.
-|Faithful
-
-|Anchor points with anchor classes (mark, base, ligature, cursive) and Anchor Control dialog
-|Anchors with base and mark roles by name convention; Show Mark Attachment preview; no ligature or
-cursive anchors, no device tables.
-|Adapted -- basic mark attachment only; ligature and cursive attachment recorded in Decisions.
-
-|Build accented/composite glyph from Unicode decomposition
-|Build Accented Glyphs using anchors; falls back to centering the mark over the base when no
-anchor pair exists.
-|Faithful
-
-|Find Problems (points, paths, refs, hints, ATT, Unicode) and Validate
-|Find Problems panel with the checks in the table above; hint checks dropped.
-|Adapted -- no hinting.
-
-|Info bar with coordinates, distance, angle, zoom, layer
-|The document window's status bar in font units.
-|Faithful
-
-|Correct Direction, Remove Overlap, Add Extrema, Round to Int, Simplify as edits
-|Same as Glyph menu commands (Simplify from the Drawing chapter).
-|Faithful
-
-|Preview of the glyph in a text string
-|The preview strip with kerning.
-|Faithful
-
-|Spiro curves, TrueType instruction debugger, bitmap glyph view
-|Not present.
-|Dropped -- outside the fundamentals.
-|===
 
 === Data model
 

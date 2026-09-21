@@ -2,6 +2,5 @@
 include::_attributes.adoc[]
 :page-slug: raster-effects
 :page-group: Effects
-:page-fh: Chapter 7, "Applying live raster effects"
 
 include::_includes/effects/raster-effects.adoc[]

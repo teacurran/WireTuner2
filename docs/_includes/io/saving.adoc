@@ -5,11 +5,9 @@ save.  What the File menu offers instead is a set of commands about *versions* a
 bookmarking a moment in the document's history, duplicating the document, exporting a
 self-contained package for backup or exchange, and restoring an earlier version.
 
-NOTE: For {fh} users: menu:File[Save] became menu:File[Save Version…] and marks a named point in
-the document's history rather than writing a file.  menu:File[Save As…] became
-menu:File[Duplicate] and menu:File[Export a Package…].  menu:File[Revert] became
-menu:File[Restore a Version…].  There is no asterisk in the title bar: the sync indicator
-described below replaces it.
+NOTE: menu:File[Save Version…] marks a named point in the document's history rather than
+writing a file.  There is no asterisk in the title bar: the sync indicator described below
+replaces it.
 
 == The sync indicator
 
@@ -168,14 +166,14 @@ have never opened on this Mac cannot be opened without a connection
 
 {product} writes a compact copy of the whole document to disk at the *Snapshot interval*
 (menu:{product}[Settings… > Documents], default every 5 minutes) and when the window closes.
-This is not a save in the {fh} sense -- every change is already on disk the moment it is made
--- it only makes reopening faster.  At the same moments, if the document changed, {product}
+This is not a save -- every change is already on disk the moment it is made -- it only makes
+reopening faster.  At the same moments, if the document changed, {product}
 refreshes the document's picture in the library window (xref:creating-opening.adoc[Creating
 and opening documents]).  There is nothing to configure about backups: the cloud holds the
 document's whole history, and a package is the way to take a copy elsewhere.
 
-NOTE: For {fh} users: there is no autosave, backup or "save reminder" preference because there
-is nothing to remind you about.  The *Snapshot interval* is the one setting that survived.
+NOTE: There is no autosave, backup or "save reminder" preference because there is nothing to
+remind you about; the *Snapshot interval* is the only setting.
 
 == Quick Look and Spotlight
 
@@ -270,57 +268,6 @@ everything you can see, which is everything that had reached this Mac when you e
 
 ifdef::spec[]
 == Specification
-
-=== FreeHand parity
-
-[cols="2,3,2"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|menu:File[Save] writes the document file
-|Every change is persisted locally as it is made and synced when online; kbd:[Cmd+S] creates a
-named version (a `server_seq` bookmark).
-|Adapted -- cloud document with no file; the reflex is preserved and given a useful meaning.
-
-|Save as FreeHand Document / Template / Editable EPS
-|Duplicate; templates are documents flagged as templates (xref:templates.adoc[Templates]);
-Editable EPS becomes the *Embed {product} document* option on EPS and PDF export
-(xref:export-vector.adoc[Exporting vector artwork]).
-|Adapted -- no native file format to save into; the package is the exchange format.
-
-|menu:File[Save As] to a new name or location
-|menu:File[Duplicate] (cloud copy) and menu:File[Export a Package…] (local file).
-|Adapted -- two commands because the two intents differ.
-
-|Asterisk in the title bar for unsaved changes
-|Sync state in the window subtitle and toolbar.
-|Adapted -- "unsaved" is never true; "unsynced" is what matters.
-
-|menu:File[Revert]
-|menu:File[Restore a Version…] (in place or as a copy).
-|Adapted -- history replaces the on-disk copy as the thing to revert to.
-
-|FreeHand File Preview (thumbnail in saved file)
-|Every package carries `thumbnail.png`; no preference.
-|Faithful.
-
-|Extensis Portfolio preview
-|Not supported.
-|Dropped -- Extensis Portfolio is discontinued; keywords live in Document Info
-(xref:file-info.adoc[Adding file information]).
-
-|--
-|Quick Look preview and thumbnail extensions for packages (`preview.pdf`, `thumbnail.png`).
-|Added -- what every document type on macOS is expected to provide.
-
-|--
-|Spotlight indexing of local documents and of packages: name, text, Document Info.
-|Added -- the Portfolio keywords' modern home is the system search.
-
-|--
-|Handoff of an open document to the account's other Macs (page, zoom, scroll).
-|Added -- the cloud document makes it free; iCloud is not involved.
-|===
 
 === Data model
 

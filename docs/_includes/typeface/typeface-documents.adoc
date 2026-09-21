@@ -5,10 +5,8 @@ baseline, an x-height and an advance width instead of a paper size, and the docu
 grid of glyphs instead of page thumbnails.  From the same document you generate installable OTF,
 TTF and WOFF2 fonts, or exchange a UFO package with other font editors.
 
-NOTE: {fh} has no typeface mode; this is a {product} addition.  The reference for its behavior is
-FontForge, an open-source font editor, and the parity tables on these pages compare against
-FontForge rather than {fh}.  Typeface documents cover the fundamentals of font design; they are not a
-replacement for a dedicated font editor.
+NOTE: Typeface documents cover the fundamentals of font design; they are not a replacement for a
+dedicated font editor.
 
 // TODO screenshot: a typeface document window showing the glyph grid with a Basic Latin set
 
@@ -26,8 +24,7 @@ title bar:
 the Document panel's page commands) are hidden.  Otherwise identical to a multi-page document.
 
 |Multi-page illustration
-|Any number of pages on one pasteboard (xref:pages.adoc[Working with pages]).  This is the {fh}
-document.
+|Any number of pages on one pasteboard (xref:pages.adoc[Working with pages]).
 
 |Typeface
 |A set of glyphs, font-level settings (names, metrics, kerning, OpenType features) and, in a
@@ -214,37 +211,6 @@ same name or the same character -- are described on xref:glyph-grid.adoc[The gly
 
 ifdef::spec[]
 == Specification
-
-=== FontForge parity
-
-[cols="2,3,1"]
-|===
-|FontForge capability |{product} behavior |Verdict
-
-|A font is its own file type (SFD) with no illustration mode
-|A typeface is a document kind sharing the illustration document's node tree, tools and sync; glyphs
-are canvases like master pages.
-|Adapted -- the whole point of the addition is one drawing engine for both.
-
-|New font starts empty (or from an encoding's slot set)
-|New Typeface sheet with Empty, Basic Latin, Latin-1 and From a font file starting sets, plus team
-templates.
-|Adapted -- starting sets create glyph nodes; FontForge's encoding slots are a view
-(xref:glyph-grid.adoc[The glyph grid]).
-
-|Import of outlines from SVG/EPS into a glyph (File > Import)
-|Paste from any {product} document, or Convert Page to Glyph.  SVG/EPS go through the illustration
-importer first (xref:importing.adoc[Importing artwork]).
-|Adapted -- same result, one importer.
-
-|Em size in Font Info, 1000 or 2048 conventions
-|Same; chosen at creation, changeable with scaling in Font Info.
-|Faithful
-
-|Font view opens glyphs in separate windows
-|Glyphs open as tabs in the typeface window.
-|Adapted -- macOS tabbed windows; separate windows via drag-out of a tab.
-|===
 
 === Data model
 

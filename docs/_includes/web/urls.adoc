@@ -6,8 +6,7 @@ panel, which also lists every link already used in the document, finds the objec
 and rewrites a link everywhere it appears.  The same panel holds the page-to-page links described
 in xref:interactivity.adoc[Adding interactivity].
 
-NOTE: {fh} calls this attaching a URL.  {product} uses *link* in the interface and *URL* only
-for the address itself.  The panel keeps its {fh} name, *Navigation*.
+NOTE: {product} uses *link* in the interface and *URL* only for the address itself.
 
 == The Navigation panel
 
@@ -164,49 +163,6 @@ both addresses side by side and lets you keep either.
 
 ifdef::spec[]
 == Specification
-
-=== FreeHand parity
-
-[cols="2,3,2"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Navigation panel: Name, Alt, Link, Substring
-|Same fields; *Substring* is shown as *Text*.  Adds *Opens in*.
-|Faithful
-
-|Assign a URL to an object
-|`CommonProps.url` on the node.
-|Faithful
-
-|Assign a URL to a substring of text
-|A `link` formatting mark on the character range.
-|Faithful
-
-|Link pop-up lists the document's URLs
-|Derived from the document at read time; not stored.
-|Faithful
-
-|Find objects linked to a URL
-|Same, across all pages; selection plus count in the status bar.
-|Faithful
-
-|Update a URL for all objects linked to it
-|Same, as one change.
-|Faithful
-
-|Links honored in movie export
-|Links are honored in PDF, SVG (including animated SVG) and published HTML.
-|Adapted -- SVG carries links natively.
-
-|HTML image map follows the shape (stroke-only objects hit only on the stroke)
-|Same in image maps; in PDF the bounding box is used because link annotations are rectangles.
-|Adapted -- PDF limitation, documented in the guide.
-
-|Actions area of the Navigation panel
-|See xref:interactivity.adoc[Adding interactivity].
-|Adapted
-|===
 
 === Data model
 

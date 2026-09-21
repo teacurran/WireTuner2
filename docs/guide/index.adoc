@@ -2,9 +2,8 @@
 include::_attributes.adoc[]
 :page-slug: index
 
-{product} is a vector illustration application for the Mac with the feature set, interaction
-model and keyboard feel of Macromedia {fh} -- and, unlike {fh}, it saves every edit to the
-cloud as you make it, lets any number of people draw in one document at the same time, and keeps
+{product} is a vector illustration application for the Mac.  It saves every edit to the cloud
+as you make it, lets any number of people draw in one document at the same time, and keeps
 working when you are offline.
 
 ifdef::spec[]
@@ -47,7 +46,6 @@ endif::[]
 * xref:grid-guides.adoc[Grid and guides]
 * xref:linking-embedding.adoc[Linking and embedding]
 * xref:font-substitution.adoc[Font substitution]
-* xref:scripting.adoc[Scripting]
 
 == Drawing
 
@@ -161,6 +159,11 @@ endif::[]
 * xref:export-pdf.adoc[Exporting PDF]
 * xref:export-text.adoc[Exporting text]
 
+== Automation and data
+
+* xref:scripting.adoc[Scripting and automation]
+* xref:data-merge.adoc[Data merge]
+
 == Color management
 
 * xref:color-management.adoc[Color management]
@@ -205,7 +208,6 @@ ifdef::spec[]
 * xref:testing.adoc[Testing]
 * xref:decisions.adoc[Decisions]
 * xref:modernizations.adoc[Modernizations]
-* xref:parity.adoc[FreeHand parity]
 * xref:backlog.adoc[Backlog]
 * xref:authoring.adoc[Authoring this book]
 endif::[]

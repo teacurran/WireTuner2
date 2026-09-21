@@ -3,9 +3,6 @@ format the Import sheet accepts, what each one turns into once it is in the docu
 options the btn:[Options…] button offers for it.  The mechanics of placing a file -- the Import
 command, dragging from the Finder, pasting -- are on xref:importing.adoc[Importing artwork].
 
-NOTE: Several formats {fh} imported existed only on Windows or belong to applications that no
-longer exist.  The table below names each and says what to do instead.
-
 == Format summary
 
 [cols="2,1,1,3"]
@@ -14,21 +11,20 @@ longer exist.  The table below names each and says what to do instead.
 
 |PDF |`.pdf` |Paths, text, images |Options: pages, text handling, notes and links.
 |Adobe Illustrator |`.ai` |Paths, text, images |Version 9 and later (PDF-based) fully; earlier versions through the PostScript reader.
-|SVG |`.svg`, `.svgz` |Paths, text, images |Options: text handling.  Not in {fh}.
+|SVG |`.svg`, `.svgz` |Paths, text, images |Options: text handling.
 |AutoCAD DXF |`.dxf` |Paths, text |Options: invisible attributes, white strokes and fills.
-|{fh} |`.fh8`–`.fh11`, `.fhmx`, `.fh` |Everything the converter recognizes |Opens as a new document or imports as a group.
 |Encapsulated PostScript |`.eps` |Placed file with preview |Not editable; printed as PostScript on PostScript devices.
-|SVG animation |`.svg`, `.svgz` with animation |Placed animation |See xref:svg-animation.adoc[SVG animations and browser preview].  Not in {fh}.
+|SVG animation |`.svg`, `.svgz` with animation |Placed animation |See xref:svg-animation.adoc[SVG animations and browser preview].
 |TIFF |`.tif`, `.tiff` |Image |Alpha, 16-bit, CMYK and LAB supported.
 |JPEG |`.jpg`, `.jpeg` |Image |RGB, CMYK and grayscale, 8-bit.
-|PNG |`.png` |Image |8- and 16-bit, palette, alpha.  Fireworks vector data is not read.
+|PNG |`.png` |Image |8- and 16-bit, palette, alpha.  Editor-private vector data in the file is not read.
 |GIF |`.gif` |Image |First frame only.
 |BMP |`.bmp` |Image |
 |Targa |`.tga` |Image |8- to 32-bit, alpha.
 |Photoshop |`.psd` |Image |Flattened composite with transparency.
-|HEIC / HEIF |`.heic`, `.heif` |Image |Not in {fh}.
-|WebP |`.webp` |Image |Not in {fh}.
-|AVIF |`.avif` |Image |Not in {fh}.
+|HEIC / HEIF |`.heic`, `.heif` |Image |
+|WebP |`.webp` |Image |
+|AVIF |`.avif` |Image |
 |Rich Text |`.rtf` |Text block |xref:importing-text.adoc[Importing text].
 |Plain text |`.txt` |Text block |xref:importing-text.adoc[Importing text].
 |===
@@ -137,15 +133,6 @@ anything without a two-dimensional appearance is ignored.
 points.  Default inches.
 |===
 
-== {fh} files
-
-{product} opens {fh} 8 through MX documents as new documents (menu:File[Open…]) and imports
-them into an open document as a group.  Paths, groups, blends, clipping groups, text blocks and
-their formatting, layers, swatches, styles, symbols, master pages and pages are converted;
-{product} reports anything it could not convert in a summary sheet after the import, listing
-the objects by name and page.  Older {fh} versions are not read; open them in {fh} and save as
-{fh} MX first.
-
 == EPS
 
 An EPS file is placed, not converted.  {product} shows the preview the file carries (a TIFF or
@@ -182,9 +169,9 @@ JPEG:: 8-bit RGB, CMYK and grayscale.  JPEG is lossy: every save from an externa
 recompresses it, so prefer TIFF or PNG for images you expect to edit again.  A grayscale JPEG
 can be tinted with a fill color.
 
-PNG:: 8- and 16-bit, palette and truecolor, with alpha.  Fireworks PNGs import as their
-flattened picture; the vector objects, layers and frames Fireworks stored in the file are not
-read (see the parity table).
+PNG:: 8- and 16-bit, palette and truecolor, with alpha.  A PNG that carries an editor's private
+vector objects, layers or frames imports as its flattened picture; that private data is not
+read.
 
 GIF:: Up to 256 colors, with one transparent color honored as alpha.  Animated GIFs import their
 first frame; for animation see xref:animation.adoc[Animation].
@@ -210,100 +197,6 @@ pixels have uploaded, and a placed EPS likewise since its file is stored like an
 
 ifdef::spec[]
 == Specification
-
-=== FreeHand parity
-
-[cols="2,3,2"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Acrobat PDF import, with *Import Notes* / *Import URLs* preferences
-|PDF converter; notes and links as options in the import sheet with *Pages*, *Text* and *Keep
-page clip* added.
-|Adapted -- options moved from Preferences to the format's options sheet; page range and text
-handling are additions.
-
-|Multipage PDF import places all pages, later pages on the pasteboard, size lost
-|Selected pages placed in a row with the offset; opening creates pages.
-|Adapted -- a row is more useful than a pile on the pasteboard.
-
-|Illustrator 1.1–9.0 (`.ai`, `.eps`); live blends as groups; meshes as 50% black
-|PDF-compatible AI through the PDF converter; legacy AI/EPS through the PostScript operator
-reader.  Same blend and mesh treatment.  Illustrator 10 and later are PDF-compatible.
-|Faithful
-
-|EPS: linked, embedded or parsed by preference; clipping paths kept
-|Placed file with preview; PostScript passed through to PostScript output only.  No parsing to
-editable paths.
-|Adapted -- macOS has no PostScript interpreter and bundling one (Ghostscript is AGPL) is an
-open question.  Editable import of the PostScript-based subset is covered for Illustrator EPS.
-
-|DCS 1.0 / 2.0 EPS with plate data used for separations
-|Placed as EPS through the composite preview; plates ignored.
-|Dropped -- a prepress workflow for spot plates that {product}'s print path
-(xref:printing.adoc[Printing]) does not reproduce in this version.
-
-|Photoshop PSD 3.0–6.0 as flattened bitmap
-|Flattened composite with alpha, any PSD version ImageIO reads.
-|Faithful
-
-|AutoCAD DXF with three filter preferences
-|DXF reader with the same three options plus *Units*, in the options sheet.
-|Adapted -- preferences moved to the options sheet.
-
-|CorelDRAW 7 and 8 (`.cdr`)
-|Not read.  Export PDF or SVG from CorelDRAW.
-|Dropped -- proprietary, obsolete versions with no maintained reader.
-
-|CGM, HPGL2 (`.plt`), Micrografx Designer (`.drw`), WMF, EMF
-|Not read.
-|Dropped -- Windows-only in {fh}; no macOS producers of note.
-
-|Macintosh PICT, with *Convert PICT patterns to grays*
-|Not read.  Convert to PNG or TIFF in Preview.
-|Dropped -- QuickDraw PICT decoding is no longer available on macOS.
-
-|Fireworks PNG: vectors, text, layers, frames, effects; the Fireworks PNG Import dialog
-|Imported as the flattened picture.  Private chunks preserved in the blob but not read.
-|Dropped -- Fireworks was discontinued and its chunk format is undocumented; the flattened
-bitmap path (*Import as a single flattened bitmap*) is what remains.
-
-|Generic PNG
-|ImageIO decode.
-|Faithful
-
-|GIF (256 colors, first frame)
-|Same.
-|Faithful
-
-|JPEG 8-bit RGB/CMYK/grayscale; no YCC or 12-bit
-|Same set through ImageIO; 12-bit JPEG refused with a message.
-|Faithful
-
-|TIFF, BMP, Targa
-|ImageIO decode; Targa alpha honored.
-|Faithful
-
-|{fh} 8.0 through MX
-|Converter in `WTInterchange`; unconvertible objects reported.
-|Adapted -- fidelity limited by what can be learned of the format; see open question.
-
-|Flash movie placed on a page
-|An animated SVG placed as a live object; xref:svg-animation.adoc[SVG animations and browser preview].
-|Adapted -- the movie format is discontinued; animated SVG needs no player.
-
-|RTF and ASCII text
-|xref:importing-text.adoc[Importing text].
-|Faithful
-
-|(none)
-|SVG import.
-|Added -- the interchange format of the modern web and of every current drawing application.
-
-|(none)
-|HEIC, WebP, AVIF.
-|Added -- what cameras, phones and the web produce today.
-|===
 
 === Data model
 
@@ -354,8 +247,7 @@ notes are on `CommonProps` as for every node.
 === Offline behavior
 
 Every converter runs on the client, so every format imports offline.  Placed EPS and SVG
-animation files upload their blob and preview blob through the same queue as images.  The {fh} converter's
-"could not convert" summary is local; nothing about it is written to the document.
+animation files upload their blob and preview blob through the same queue as images.
 
 === Server
 
@@ -386,11 +278,6 @@ Nothing beyond storing and relaying changes and blobs.
   section of a Windows EPS binary header, EPSI hex bitmap, or the embedded PDF stream when
   present, rendered with `CGPDFDocument`), PostScript body kept verbatim in the blob for
   print pass-through (PRINT epic).
-* {fh}: a reader for the {fh} MX container (a PICT-wrapped block stream of typed records, as
-  reverse-engineered by the open-source community for libfreehand) mapping records to nodes;
-  the reader lives in its own module so its licensing is contained (libfreehand is MPL-2.0,
-  which permits bundling the knowledge but not copying the code into a proprietary module;
-  see the open question).
 * Bitmaps: ImageIO through IMG-002.  HEIC orientation is applied by re-encoding as PNG when
   the EXIF orientation is not identity, so `PixelSource` dimensions are the upright ones.
 
@@ -417,7 +304,7 @@ Depends on:: IMG-008, IMG-002, TXT-001
 Size:: L
 Delivers:: The PDF converter: paths, fills, strokes, dashes, clipping groups, linear and radial shadings, other shadings as 10% black, images as blobs, text as text blocks or paths, notes and links layers, page range, *Keep page clip*, font substitution hook.
 Done when::
-* A corpus of 50 PDFs (from {fh}, Illustrator, Affinity, Inkscape, Preview) renders after
+* A corpus of 50 PDFs (from Illustrator, Affinity, Inkscape, Preview) renders after
   import within tolerance of the PDF rasterized by Core Graphics.
 * Text extraction produces Unicode for fonts with ToUnicode maps and paths otherwise.
 * Multi-page import places one group per selected page in a row.
@@ -469,19 +356,6 @@ Delivers:: ASCII and binary DXF readers, entity handlers (LINE, LWPOLYLINE, POLY
 Done when::
 * Fixtures from AutoCAD, LibreCAD and Blender import with correct geometry and units.
 * Bulged polylines match arc geometry within 0.01 pt.
-
-[[IMG-014]]
-==== IMG-014 FreeHand file converter
-[horizontal]
-Track:: import-export
-Depends on:: IMG-008, IMG-002, TXT-001
-Size:: L
-Delivers:: A reader for {fh} 8–MX files: container parsing, record decoding for paths, groups, blends, clipping groups, text with formatting, layers, swatches, styles, symbols, pages and master pages; open-as-document and import-as-group; the unconvertible-objects summary sheet.
-Done when::
-* The `docs/inspo` sample files and a corpus of 30 {fh} MX documents open with every page,
-  layer and object present; a per-file report lists unconverted records.
-* Objects the reader does not understand are imported as placeholders named by record type,
-  never silently dropped.
 
 [[IMG-015]]
 ==== IMG-015 Bitmap format coverage

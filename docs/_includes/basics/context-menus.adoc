@@ -1,6 +1,6 @@
 A context menu is the short menu that appears where you click, listing the commands that make
-sense for what is under the pointer.  {fh} offered them only on Windows; {product} has them
-everywhere on macOS -- on objects, on empty pasteboard, on pages, and inside panels.
+sense for what is under the pointer.  {product} has them everywhere -- on objects, on empty
+pasteboard, on pages, and inside panels.
 
 // TODO screenshot: a context menu on a selected path, with the Path submenu open.
 
@@ -18,9 +18,8 @@ the commands apply to the whole selection; if it is not, clicking selects it fir
 Pointer tool would) and the commands apply to it alone.  kbd:[Control]-clicking empty
 pasteboard opens the pasteboard menu without changing the selection.
 
-NOTE: {fh} for Windows had a preference to make the right mouse button zoom instead of
-opening menus.  {product} has no such option -- use kbd:[Cmd+Space] or pinch to zoom
-(xref:document-view.adoc[Setting the document view]).
+The right mouse button always opens a menu; there is no option to make it zoom instead.  To
+zoom, use kbd:[Cmd+Space] or pinch (xref:document-view.adoc[Setting the document view]).
 
 Every command in a context menu is also somewhere in the menu bar, with the same shortcut,
 so nothing is reachable only by context menu.
@@ -139,8 +138,7 @@ Follow <name>, Go to <name>'s Page, Hide <name>'s Cursor (xref:presence.adoc[Pre
 With the Text tool active and the pointer in a text block, the context menu is the text menu:
 Cut, Copy, Paste, Font ▸, Size ▸, Style ▸, Leading ▸, Alignment ▸, Special Characters ▸,
 Spelling ▸, Editor…, Convert Case ▸, Attach to Path, Run Around Selection…, Convert to Paths.
-It applies to the selected characters, or to the whole block when nothing is selected.  {fh}
-offered this menu on Windows only.
+It applies to the selected characters, or to the whole block when nothing is selected.
 
 == Working with others
 
@@ -155,29 +153,6 @@ The *Follow* and *Go to page* items on a collaborator's cursor change only your 
 
 ifdef::spec[]
 == Specification
-
-=== FreeHand parity
-
-[cols="2,3,1"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Right-click context menus on objects, selections, pages, colors, styles, layers (Windows only)
-|Control-click, secondary click and two-finger tap on macOS, on the same targets and more.
-|Adapted -- brought to macOS; the Windows-only limitation was a port artifact.
-
-|Right Mouse Button Magnification preference
-|Not offered.
-|Dropped -- disabled context menus; macOS has better zoom gestures.
-
-|Text context menu (Windows only)
-|Available on macOS.
-|Adapted -- same content, now on the only platform.
-
-|Add to Swatches from the Mixer's color box context menu (bypasses the name sheet)
-|Same.
-|Faithful
-|===
 
 === Data model
 

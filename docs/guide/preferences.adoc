@@ -2,6 +2,5 @@
 include::_attributes.adoc[]
 :page-slug: preferences
 :page-group: Basics
-:page-fh: Chapter 1, "Using preferences", "Using tooltips"
 
 include::_includes/basics/preferences.adoc[]

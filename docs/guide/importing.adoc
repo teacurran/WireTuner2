@@ -2,6 +2,5 @@
 include::_attributes.adoc[]
 :page-slug: importing
 :page-group: Imported artwork
-:page-fh: Chapter 10, "Importing a graphic", "Importing artwork using the FreeHand MX File Viewer"
 
 include::_includes/imported/importing.adoc[]

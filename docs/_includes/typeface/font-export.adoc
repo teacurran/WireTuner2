@@ -194,51 +194,6 @@ your library, private until you share it.
 ifdef::spec[]
 == Specification
 
-=== FontForge parity
-
-[cols="2,3,1"]
-|===
-|FontForge capability |{product} behavior |Verdict
-
-|Generate: OpenType (CFF), TrueType, Type 1, Type 3, Type 42, CID, SVG fonts, bitmap fonts
-|OTF, TTF, WOFF2.
-|Adapted -- the formats in use today; Type 1 and bitmap formats dropped (Decisions).
-
-|WOFF/WOFF2 via File > Generate
-|WOFF2 only.
-|Adapted -- WOFF1 is superseded.
-
-|Options: round to int, hints, flex, AFM/PFM/TFM, Apple vs. OpenType layout, old-style kern table,
-dummy DSIG, PfEd table
-|Keep overlaps, include set, add standard glyphs, install for testing.  Rounding always; no
-hinting; OpenType layout only; no legacy kern table written.
-|Adapted -- hinting and legacy tables dropped.
-
-|Validate before saving; Validate window with fixes
-|Validation list in the sheet, errors block, warnings listed, Fix All Warnings.
-|Faithful
-
-|Unlink references and remove overlap on save (per-glyph flag)
-|Always: components are decomposed when mixed with paths; overlaps removed unless Keep overlaps.
-|Adapted
-
-|UFO export and import (via File > Save As / Open)
-|Export UFO… with flattened or as-drawn outlines; Open and Import UFO.
-|Faithful
-
-|Open OTF/TTF: outlines, metrics, kerning, anchors, lookups, hints
-|Same except hints; unsupported lookups reported and dropped.
-|Adapted -- hinting not modelled.
-
-|Multiple master / variable font generation
-|Not present.
-|Dropped -- one master per document; interpolation is a later addition.
-
-|Install the font on the system
-|Install for Testing with a Test suffix, Remove Test Fonts.
-|Adapted -- FontForge has no install; this is a {product} convenience.
-|===
-
 === Data model
 
 No document fields.  Generation reads the model; the only persisted state is local: the list of

@@ -24,9 +24,8 @@ The built-in sets are:
 |===
 |Set |What it is
 
-|{fh} MX (default) |{fh}'s Mac shortcuts.  Every shortcut in this guide is from this set.
-|{fh} 9 |The older set, for people whose hands learned it.
-|Illustrator |Adobe Illustrator's Mac shortcuts where a command corresponds; {fh} MX shortcuts for the rest.
+|{product} (default) |{product}'s own Mac shortcuts.  Every shortcut in this guide is from this set.
+|Illustrator |Adobe Illustrator's Mac shortcuts where a command corresponds; {product}'s shortcuts for the rest.
 |QuarkXPress |Likewise.
 |Photoshop |Likewise, for the commands the two share (zoom, hand, selection, transforms).
 |===
@@ -39,14 +38,12 @@ To make your own set::
 . Name the set.  It starts as a copy of the current set.
 
 To rename, duplicate or delete a set::
-Use the btn:[⋯] menu beside the pop-up.  Deleting the active set switches to {fh} MX.
+Use the btn:[⋯] menu beside the pop-up.  Deleting the active set switches to the {product}
+set.
 
 Your sets sync with your account, so they are on every Mac you sign in on.  To give a set to
 someone else, choose *Export Set…* from the btn:[⋯] menu; they choose *Import Set…*.  The
 file is a small text file you can also keep in version control.
-
-NOTE: In {fh} you copied the Shortcuts file between computers by hand.  {product} syncs sets
-automatically; Export and Import exist for sharing with other people.
 
 === Assigning a shortcut
 
@@ -76,7 +73,7 @@ kbd:[Cmd+,] and the others listed in System Settings) cannot be assigned; the fi
 Single letters and digits without modifiers are allowed and are what tools use; they are
 ignored while you type in a text block or a field.
 
-NOTE: Extensions cannot be given shortcuts individually, as in {fh}; *Repeat Extension*
+NOTE: Extensions cannot be given shortcuts individually; *Repeat Extension*
 (kbd:[Cmd+Shift+=]) can.  Extensions that are also tools (Roughen, Mirror and the rest) take
 shortcuts as tools.
 
@@ -157,6 +154,9 @@ Choose menu:Window[Panel Layout > Reset to Default].
 
 Layouts are local to this Mac: they depend on your displays.
 
+Scripts you install appear in the Shortcuts settings as their own *Scripts* group, so any script
+can be given a key (xref:scripting.adoc[Scripting and automation]).
+
 == Working with others
 
 Nothing on this page touches the document.  Your shortcuts, toolbars and layouts are invisible
@@ -167,46 +167,6 @@ does not change theirs.
 
 ifdef::spec[]
 == Specification
-
-=== FreeHand parity
-
-[cols="2,3,1"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Keyboard Shortcuts dialog: Commands list mirroring menus plus Tools/Commands, Current Shortcut Keys, Press New Shortcut Key, Currently Assigned To, Go to Conflict on Assign, Assign, Remove, Reset, Close
-|Same window and workflow; Revert instead of Reset+Close (immediate apply).
-|Faithful
-
-|Shortcut groups: FreeHand MX, FreeHand 8, FreeHand 9, Illustrator, QuarkXPress, PageMaker, Photoshop, Director
-|FreeHand MX, FreeHand 9, Illustrator, QuarkXPress, Photoshop.
-|Adapted -- FreeHand 8, PageMaker and Director dropped: no users to serve; Illustrator/Quark/Photoshop kept.
-
-|Custom groups saved as files; copy between computers by hand
-|Sets sync with the account; Export/Import for sharing.
-|Adapted
-
-|Shortcuts assignable to Repeat Xtra only, not other Xtras
-|Same rule; tool extensions take shortcuts as tools.
-|Faithful
-
-|Print quick-reference card; Save As text file
-|Print with preview and Save as PDF; Export as Text (CSV).
-|Faithful (PDF added)
-
-|Customize dialog for toolbars: drag buttons on/off, Cmd-drag move, Cmd+Option-drag duplicate; disabled buttons immovable; removal not undoable
-|Same for the dockable toolbars and Tools panel; the Main toolbar uses the macOS sheet; Reset Toolbars added.
-|Adapted (Main toolbar) / Faithful (others)
-
-|Reset panels by deleting the preferences file
-|Named layouts, Save/Manage/Reset commands.
-|Adapted -- see xref:panels.adoc[Using panels].
-
-|--
-|Command palette over the command registry: fuzzy search, shortcuts shown, recent-first
-ranking, panels, pages, layers, named views and recent documents as sources.
-|Added -- cheap once the registry exists; expected of a modern Mac application.
-|===
 
 === Data model
 
@@ -220,7 +180,7 @@ too (`~/Library/Application Support/WireTuner/palette-recents.json`: up to 500 e
 // proto/wiretuner/account/v1/preferences.proto (continued sketch)
 message ShortcutSets {
   repeated ShortcutSet sets = 1 [(buf.validate.field).repeated.max_items = 32];
-  string active_set_id = 2;            // built-in ids are "builtin.freehand-mx" etc.
+  string active_set_id = 2;            // built-in ids are "builtin.wiretuner" etc.
 }
 
 message ShortcutSet {
@@ -293,7 +253,7 @@ runs server-side in `SetPreferences` (BASIC-023).
   (matches on the typed prefix, decayed by age, capped at 500 entries), so the item last
   chosen for the same prefix lists first.  Disabled commands are listed last, greyed, with the
   registry's validation reason as subtitle.
-* Shortcut: kbd:[Cmd+K] is *Keyline* in the {fh} MX set and kbd:[Cmd+Shift+P] is *Convert to
+* Shortcut: kbd:[Cmd+K] is *Keyline* in the default set and kbd:[Cmd+Shift+P] is *Convert to
   Paths* and *Page Setup…*, so neither is free.  The default set binds the palette to
   kbd:[Cmd+/], which no built-in set uses; APP-005's conflict report is the final word, and
   the command (`help.commandPalette`) is rebindable like any other.  The built-in presets all
@@ -312,7 +272,7 @@ runs server-side in `SetPreferences` (BASIC-023).
 Track:: client-ui
 Depends on:: APP-005, BASIC-008
 Size:: M
-Delivers:: `ShortcutSet` model, the five built-in sets as validated JSON resources, `ShortcutResolver` applying a set to menus and tools, reserved-key list, conflict index, and the `.wtkeys` export/import format.
+Delivers:: `ShortcutSet` model, the four built-in sets as validated JSON resources, `ShortcutResolver` applying a set to menus and tools, reserved-key list, conflict index, and the `.wtkeys` export/import format.
 Done when::
 * Every command in the registry appears in each built-in set's validation report (bound or explicitly unbound); the build fails on an unknown command id.
 * Switching sets rebinds every menu item and tool without relaunch; a UI test verifies kbd:[Cmd+U] means *Smart Guides* in every set (it is Illustrator's own binding) and kbd:[Cmd+K] means Preferences in the Illustrator set only.

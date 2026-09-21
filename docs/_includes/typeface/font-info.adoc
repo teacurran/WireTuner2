@@ -208,59 +208,6 @@ worth a look.
 ifdef::spec[]
 == Specification
 
-=== FontForge parity
-
-[cols="2,3,1"]
-|===
-|FontForge capability |{product} behavior |Verdict
-
-|PS Names pane: fontname, family, weight, version, copyright, base filename
-|Names pane; PostScript name generated from family and style with a custom override; weight is
-the OS/2 weight class; base filename is chosen at generate time.
-|Adapted -- one source for names (no separate PS vs. TTF name panes).
-
-|TTF Names pane: per-language name strings, 20+ name ids
-|English only: family, style, PostScript, full, version, copyright, trademark, designer,
-manufacturer, URLs, description, sample text, license.
-|Adapted -- per-language names dropped for v1; recorded in Decisions.
-
-|General: em size, ascent/descent (sum = em), italic angle, underline, vertical metrics
-|Metrics pane; ascender and descender need not sum to the em; vertical (CJK) metrics not
-supported.
-|Adapted -- vertical writing is out of scope.
-
-|Scale outlines when changing em size
-|Same; the *Scale* / *Do not scale* choice, scaling also advance widths, anchors, kerning and
-metrics.
-|Faithful
-
-|OS/2: weight, width, vendor, embedding (fsType), PANOSE, style map, line gap, win/typo/hhea metrics
-|OS/2 pane with weight, width, vendor, style bits, embedding, PANOSE; win metrics computed by
-default; typo follows the design metrics by default; hhea always equals typo.
-|Adapted -- hhea/typo split dropped; the *USE_TYPO_METRICS* bit is always set.
-
-|Unicode ranges and code pages
-|Computed at generate time; shown read-only.
-|Faithful
-
-|Layers pane, PS Private (hinting), PS UID, TeX, Size, Mac FOND, gasp, WOFF metadata, comments
-|Not present.  Hinting is not supported in v1; other panes are format-specific data {product} does
-not write.
-|Dropped -- outside the fundamentals; the compiler writes sensible defaults.
-
-|Lookups pane (GSUB/GPOS)
-|Replaced by the Features editor (xref:opentype-features.adoc[OpenType features]).
-|Adapted
-
-|Mark classes and sets
-|Not exposed; anchors carry their own class by name.
-|Dropped -- basic mark attachment only.
-
-|Guide layer shared by all glyphs
-|The Guides pane: standard metric lines, extra named lines, colors.
-|Faithful
-|===
-
 === Data model
 
 [source,protobuf]

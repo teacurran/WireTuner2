@@ -1,5 +1,5 @@
-{fh} could import movies, place them on a page, send them out for editing, export the document
-as a movie, and test the result in a playback window.  {product} does each of those jobs with
+{product} imports animations, places them on a page, sends them out for editing, exports the
+document as an animation, and tests the result in a browser.  It does each of those jobs with
 *SVG animations*: animated SVG files that every browser plays natively, need no plug-in or
 player, stay vector at any size, and are just text a designer can read.
 
@@ -13,9 +13,8 @@ player, stay vector at any size, and are just text a designer can read.
   xref:publish-html.adoc[Publishing as HTML] would and opened in your browser, with links, page
   links and animations playing.
 
-NOTE: {fh}'s *Movie Settings*, *Controller* toolbar and menu:Window[Movie] commands do not exist
-in {product}.  Their animation options moved to the Animation panel and the Export sheet; their
-testing role is taken by *Preview in Browser*.
+NOTE: Animation options live in the Animation panel and the Export sheet; testing is done with
+*Preview in Browser*.
 
 == Placing an SVG animation
 
@@ -146,57 +145,6 @@ again once the sync indicator settles.
 
 ifdef::spec[]
 == Specification
-
-=== FreeHand parity
-
-[cols="2,3,2"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Import a Flash movie and place it on a page
-|Place an animated SVG file as a live object.
-|Adapted -- the movie format is discontinued and has no player; animated SVG is native to every browser and stays vector.
-
-|Set movie attributes in the Object panel: X, Y, W, H, X/Y Scale
-|Same fields for a placed SVG animation.
-|Faithful
-
-|Show Snapshot with a frame number
-|*Poster frame* time; always shown (there is no other way to draw the object when it cannot play).
-|Adapted -- time instead of frame number; SVG animation has no fixed frame rate.
-
-|Links dialog for movies
-|The imported-file management of xref:linking-embedding.adoc[Linking and embedding] applies; btn:[Replace…], btn:[Reveal], btn:[Save a Copy…], btn:[Edit With…].
-|Faithful
-
-|Edit a placed movie in Flash
-|btn:[Edit With…] opens the SVG in any editor and updates the placed copy on save.
-|Adapted -- any SVG or text editor, not one product.
-
-|Print a chosen frame of a movie
-|The poster frame prints.
-|Faithful
-
-|Export the document as a Flash movie (Movie Settings: Single/Multiple, Animate/Flatten layers, page range, Autoplay, Full Screen, fps, background, Allow Printing, Protect from Import, Size to Match Contents, optimization, path compression, dashed strokes, image compression, text options, Compress Movie)
-|Export as animated SVG (also GIF, APNG, MP4) from xref:animation.adoc[Animating objects and text]; Animate/Flatten and fps live in the Animation panel; page range and size live in the Export sheet.
-|Adapted -- animated SVG is the vector animation format; the player-specific options (Full Screen, Protect from Import, Compress Movie) have no meaning and are dropped.
-
-|Controller toolbar; Window > Movie: Test, Play, Stop, Step, Rewind, First/Last, Settings, Export
-|Animation panel transport (xref:animation.adoc[Animating objects and text]) and menu:File[Preview in Browser].
-|Adapted -- the playback window is replaced by the canvas and the browser.
-
-|Test Movie (Cmd+Return) in the playback window
-|menu:File[Preview in Browser] (kbd:[Cmd+Return]).
-|Adapted -- same key, same purpose, the browser is the player.
-
-|Anti-aliased preview of movie output
-|The browser preview shows exactly the SVG the publisher writes.
-|Faithful
-
-|Placed movies become movie clips on export
-|A placed SVG animation is nested in SVG and HTML output, a poster elsewhere.
-|Adapted
-|===
 
 === Data model
 

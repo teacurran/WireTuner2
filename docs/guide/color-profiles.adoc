@@ -2,6 +2,5 @@
 include::_attributes.adoc[]
 :page-slug: color-profiles
 :page-group: Color management
-:page-fh: Chapter 13, "About color profiles", "Choosing printer profiles"
 
 include::_includes/cms/color-profiles.adoc[]

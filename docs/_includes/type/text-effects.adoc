@@ -146,9 +146,6 @@ pop-up in the *Text Block* section.  Latin characters are rotated on their side;
 stay upright; punctuation uses the vertical forms of the font.  Tabs, columns, rows and text on
 a path are horizontal-only and are ignored in a vertical block.
 
-NOTE: {fh} had no vertical text.  {product} adds it because the layout engine supports it and
-Unicode documents need it.
-
 == Working with others
 
 * An effect is formatting like bold: it stays on its characters as others type around them,
@@ -163,47 +160,6 @@ Unicode documents need it.
 
 ifdef::spec[]
 == Specification
-
-=== FreeHand parity
-
-[cols="2,3,1"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Six text effects with the documented options
-|Same options, same sheets.
-|Faithful
-
-|Text > Effect submenu; Effect pop-up in Character options; Graphic pseudo-effect
-|Same.
-|Faithful
-
-|Display Text Effects preference; effects hidden in Keyline
-|Same.
-|Faithful
-
-|Find text effects in the Select panel
-|Same.
-|Faithful
-
-|Inline graphics via Paste Special, sized by height, adjusted by leading/kerning/baseline
-shift, shown as a dot in the Text Editor, override in styled paragraphs
-|Same; placeholder box rather than a dot; in-place editing added.
-|Faithful (extended)
-
-|Flow Around Selection with Standoff, Remove Text Wrap; object must be in front; no wrap
-around groups or blends
-|Same rules.  Wrap applies to every text block behind the object on any layer.
-|Faithful
-
-|Vertical text
-|Added as a block direction.
-|Adapted -- no {fh} feature; TXT-001 already lays out vertical text.
-
-|Effects lost for non-PostScript printing, some exports
-|Effects rasterize or convert to paths on export where the format lacks them (IO epic).
-|Adapted -- modern output paths keep them.
-|===
 
 === Data model
 
@@ -281,8 +237,8 @@ Nothing beyond storing and relaying changes.
 
 Rendering:: `WTText` draws effects in the glyph pass: line effects as stroked paths with the
 dash from the document's dash list; inline as repeated outset strokes; shadow as a second
-fill pass; zoom as N intermediate fills between `from` and `to` (N from the offset length, as
-{fh}: one step per point).  Vertical layout uses Core Text's vertical glyph forms
+fill pass; zoom as N intermediate fills between `from` and `to` (N from the offset length:
+one step per point).  Vertical layout uses Core Text's vertical glyph forms
 (`kCTVerticalFormsAttributeName`) with a rotated frame.  Wrap: `WTText` receives exclusion
 paths from `WTRender` -- every object in front of the block with `text_wrap.enabled`, offset
 by `standoff` via GEO-003 -- and lays out around them.

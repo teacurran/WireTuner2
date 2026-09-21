@@ -5,9 +5,9 @@ drawn -- kerning from the Metrics window, mark attachment from anchors, ligature
 -- and gives you a *Features editor* for anything else, written in the standard feature-file
 syntax that every font tool understands.
 
-NOTE: FontForge builds features through *lookups* edited in dialogs.  {product} uses the Adobe
-feature file syntax (`.fea`) instead, the format FontForge, Glyphs and the AFDKO tools all read
-and write.  If you have a feature file from another editor, paste it in.
+NOTE: {product} writes features in the Adobe feature file syntax (`.fea`), the format the AFDKO
+tools and other font editors read and write.  If you have a feature file from another editor,
+paste it in.
 
 // TODO screenshot: the Features editor with a liga feature and the Generated pane collapsed
 
@@ -133,49 +133,6 @@ generate points it out.
 
 ifdef::spec[]
 == Specification
-
-=== FontForge parity
-
-[cols="2,3,1"]
-|===
-|FontForge capability |{product} behavior |Verdict
-
-|Lookups pane: GSUB/GPOS lookups, subtables, feature tags, scripts and languages, edited in dialogs
-|A feature file in the Features editor; lookups are written in text.
-|Adapted -- the file is the interchange format all tools share and merges as text.
-
-|Ligature substitutions defined in Glyph Info
-|`liga` generated from Ligature-kind glyphs named `a_b`; others written in the file.
-|Adapted -- naming convention replaces per-glyph dialogs.
-
-|Kerning as a GPOS pair lookup with classes
-|Generated `kern` from pairs and classes.
-|Faithful
-
-|Mark-to-base, mark-to-mark from anchor classes
-|Generated `mark` and `mkmk` from anchors by name.
-|Faithful
-
-|Mark-to-ligature, cursive attachment
-|Not generated; can be written in the file by hand.
-|Dropped -- basic attachment only.
-
-|Import and export of AFDKO feature files (File > Merge Feature Info)
-|The file *is* the model; UFO exchange carries it as `features.fea`.
-|Faithful
-
-|Contextual and chaining substitutions via the lookup dialogs
-|Written in the file.
-|Adapted
-
-|Apple AAT (`morx`) features
-|Not supported.
-|Dropped -- OpenType layout only.
-
-|Feature preview in the Metrics View
-|Same, via quick compile and Core Text.
-|Faithful
-|===
 
 === Data model
 

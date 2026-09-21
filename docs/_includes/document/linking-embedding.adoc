@@ -27,9 +27,8 @@ Import]; when it is off, imported files are linked.  Importing itself is covered
 xref:importing.adoc[Importing artwork].  EPS files that are converted to editable objects on
 import are neither embedded nor linked; they become artwork.
 
-NOTE: {fh} could link a DCS EPS only as a link.  {product} embeds a DCS 1.0 file as a
-placeholder preview plus its plates, so it prints correctly (xref:import-formats.adoc[Import
-formats]).
+NOTE: {product} embeds a DCS 1.0 file as a placeholder preview plus its plates, so it prints
+correctly (xref:import-formats.adoc[Import formats]).
 
 == The Links window
 
@@ -110,57 +109,6 @@ the other person can reapply theirs from the notice.
 
 ifdef::spec[]
 == Specification
-
-=== FreeHand parity
-
-[cols="2,3,1"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Embed or link on import, by preference
-|Same preference (*Embed imported files*), default on.
-|Faithful
-
-|Linked graphic displays a preview; printing/export requires the link
-|A full copy is always stored; printing and export never need the source.
-|Adapted -- a cloud document must render and print on every Mac; a copy is required anyway for collaborators.
-
-|Embedding increases document size and memory
-|Same; blobs are lazily downloaded and cached.
-|Faithful
-
-|DCS EPS 1.0 must not be embedded
-|Embedded as preview plus plates.
-|Adapted -- with blobs there is no reason to forbid it; handled on the import formats page.
-
-|Links dialog: list with Kind, Size, Page; italics for broken links
-|Same plus Status column and cloud-library links.
-|Faithful
-
-|Info, Change, Embed, Extract
-|Same; *Update* and *Update All* added because copies exist.
-|Faithful
-
-|Links button in the Object panel
-|Same.
-|Faithful
-
-|Locate File dialog when opening a document with broken links; Ignore / Ignore All; Search the current folder
-|No dialog on open; badges and automatic search instead.
-|Adapted -- a modal on open would block joining a shared document for links belonging to someone else's Mac.
-
-|Search for Missing Links preference with a chosen folder, 10 subfolders deep
-|Same name *Search for missing links in*, same depth.
-|Faithful
-
-|Collect for Output gathers linked graphics
-|Printing page; all content is already in the document.
-|Faithful
-
-|Guidance about linked images on network servers
-|Not applicable.
-|Dropped -- copies are stored with the document; there is no network file dependency.
-|===
 
 === Data model
 

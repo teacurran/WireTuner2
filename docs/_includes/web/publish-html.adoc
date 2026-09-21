@@ -10,8 +10,8 @@ in your Documents folder.  You can edit it, add your own, and publish the same d
 times with different settings -- once as crisp SVG for modern browsers, once as PNG for an email
 client -- as long as each goes to a different folder or name.
 
-NOTE: {fh} wrote movie files for vector art and offered an HTML *Assistant*.  {product} writes SVG
-and has no assistant: the Setup sheet is short enough to fill in directly.
+NOTE: {product} writes SVG for vector art and has no setup assistant: the Setup sheet is short
+enough to fill in directly.
 
 == Publishing
 
@@ -191,74 +191,6 @@ collaborator's latest changes are still syncing to you, they are not in the outp
 
 ifdef::spec[]
 == Specification
-
-=== FreeHand parity
-
-[cols="2,3,2"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|File > Publish as HTML with named HTML settings
-|menu:File[Publish as HTML…] with named settings stored in the document.
-|Faithful
-
-|HTML Output dialog: setting pop-up, Setup, Wizard/Assistant
-|Setting pop-up and btn:[Setup…]; no Assistant.
-|Adapted -- the Setup sheet is small enough not to need a wizard.
-
-|Page range
-|Same.
-|Faithful
-
-|Show Output Warnings
-|Same, with btn:[Show] to select the offending object.
-|Faithful
-
-|View in Browser or HTML Editor
-|*Open when done* with a browser pop-up; an editor can be chosen with btn:[Other…].
-|Faithful
-
-|Default setting: desktop folder "FreeHand HTML Output", layers, Latin 1, movie + JPEG
-|`~/Documents/{product} HTML Output`, Whole pages, UTF-8, SVG + JPEG.
-|Adapted -- SVG for vectors; encoding fixed.
-
-|Layout: Positioning with Layers
-|*Positioned objects* (absolute CSS positioning, `z-index` from stacking order).
-|Adapted -- same intent, modern CSS.
-
-|Layout: Positioning with Tables
-|Dropped.  Also adds *Whole pages* as the default.
-|Dropped -- table layout existed for pre-4.0 browsers; slicing overlapping objects into cells is worse than any modern option.
-
-|Encoding pop-up
-|Always UTF-8.
-|Dropped -- every browser and font path handles UTF-8; the choice only caused mojibake.
-
-|Vector Art format (movie/GIF/JPEG/PNG)
-|SVG or PNG.
-|Adapted -- SVG replaces the movie format; JPEG/GIF are poor for rasterized vectors and PNG covers the case.
-
-|Images format (GIF/JPEG/PNG)
-|JPEG, PNG, WebP.
-|Faithful (extended)
-
-|Bitmap export options set only in the Export dialog
-|Quality and scale are in the HTML setting.
-|Adapted -- fewer round trips.
-
-|Link on a stroke-only object active only on the stroke
-|Same in image maps; SVG mode behaves the same because SVG hit-testing follows the painted area.
-|Faithful
-
-|--
-|*Publish to web link* (hosted read-only copy).
-|Addition -- collaboration feature; no {fh} equivalent.
-
-|--
-|Wide-gamut colors written as CSS Color 4 values with sRGB fallbacks; PNG pages tagged
-Display P3 when needed.
-|Addition -- {fh} predates wide-gamut displays and CSS Color 4.
-|===
 
 === Data model
 

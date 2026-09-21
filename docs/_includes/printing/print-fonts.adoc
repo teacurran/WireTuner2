@@ -5,10 +5,6 @@ exact glyphs you see.  This page covers the cases that need attention: fonts the
 but your Mac lacks, fonts whose license forbids embedding, and the option of turning text into
 outlines for a difficult printer.
 
-NOTE: {fh} users: there is no longer a choice to make between PostScript and TrueType fonts,
-no font downloading, and no *Unlimited downloadable fonts* option.  Every font is embedded once,
-subsetted, in the job.
-
 == How fonts reach the printer
 
 {product} draws each printed sheet with the same text layout the canvas uses, then macOS embeds
@@ -84,37 +80,6 @@ license allows, follow the document to every Mac that opens it.
 
 ifdef::spec[]
 == Specification
-
-=== FreeHand parity
-
-[cols="2,3,2"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Choose PostScript or TrueType fonts for the output device
-|No choice: every font is embedded through Core Graphics.
-|Dropped -- the distinction has no effect on modern macOS printing.
-
-|ATM and screen/printer/metrics font components
-|Not applicable.
-|Dropped -- macOS handles font management.
-
-|Prompt to replace missing fonts on open
-|Same (TXT-002); plus a pre-print warning naming missing fonts on the printed pages.
-|Faithful -- warning added.
-
-|Download only the fonts needed for the printed pages; skip pasteboard-only fonts
-|Same effect: subsetting covers only glyphs on printed sheets.
-|Faithful
-
-|Unlimited downloadable fonts
-|Dropped.
-|Dropped -- no font downloading.
-
-|Print text as outlines (not in {fh}; from other tools)
-|Added as a per-job option.
-|Adapted -- addition, replaces the compatibility role of font-format choice.
-|===
 
 === Data model
 

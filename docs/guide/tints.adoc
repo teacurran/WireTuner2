@@ -2,6 +2,5 @@
 include::_attributes.adoc[]
 :page-slug: tints
 :page-group: Color
-:page-fh: Chapter 5, "Using the Tints panel"
 
 include::_includes/color/tints.adoc[]

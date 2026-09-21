@@ -169,46 +169,6 @@ entry.
 ifdef::spec[]
 == Specification
 
-=== FreeHand parity
-
-[cols="2,3,1"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Chart tool: drag to size, Chart dialog with data grid, entry field, Undo, Import
-tab-delimited, labels/legend convention, quoted numeric labels, Transpose, column width
-triangles, decimal precision, thousands separator, Apply/OK
-|Same, as a sheet with *Data* and *Type* tabs.
-|Faithful
-
-|Edit data: Cut/Copy/Paste, Transpose, Switch XY
-|Same.
-|Faithful
-
-|Six chart types with their options, gridlines, axis display, axis values, tick marks,
-prefix/suffix
-|Same.
-|Faithful
-
-|Subselect and Superselect chart elements; style them as objects
-|Same in effect; stored as per-series/per-element style overrides rather than as edits to
-stored objects (see Data model).  Transformations of a single element are limited to those the
-override can express (any affine transform).
-|Adapted
-
-|Pictographs (Paste In, Copy Out, Repeating, Remove Pictograph)
-|Same.  Pictograph artwork is stored as real nodes under the chart.
-|Faithful
-
-|Charts drawn in grayscale
-|Same.
-|Faithful
-
-|Ungroup makes the chart a plain graphic
-|Same: creates a group of ordinary nodes and deletes the chart node.
-|Faithful
-|===
-
 === Data model
 
 The choice: store the generated bars, labels and axes as real child nodes, or regenerate them
@@ -391,8 +351,8 @@ Chart sheet:: SwiftUI sheet with a grid (`NSTableView`-backed for keyboard navig
 field with draft state, Undo (local to the sheet's draft), Import via `NSOpenPanel` parsing
 tab-delimited UTF-8, Transpose, column-width triangles (view state), *Type* tab with the type
 buttons and options, and the two Axis sheets.  btn:[Apply] commits pending registers; btn:[OK]
-commits and closes; btn:[Cancel] discards uncommitted drafts (already-committed cells stay,
-as in {fh}, where Apply is not undone by Cancel).
+commits and closes; btn:[Cancel] discards uncommitted drafts (already-committed cells stay;
+Apply is not undone by Cancel).
 
 Pictograph:: The pasted artwork becomes a `group` child of the chart node (real nodes, hidden
 from the Layers panel except under the chart's disclosure); the layout engine instantiates it
@@ -425,7 +385,7 @@ Depends on:: DRAW-031, DRAW-002, TXT-001
 Size:: L
 Delivers:: `WTModel.Chart` with the read normalizations (cell/override dedup, transposition, missing cells, dangling overrides), commands (set cell, insert/delete row and column, transpose, switch XY, import, set type/options/axis, set override, set pictograph, ungroup), and `ChartLayout` producing synthetic elements for all six types with every option, gridlines, axes, ticks, labels, legend, data numbers, drop shadow and pictograph instancing.
 Done when::
-* Reference renders for each type and option combination in the corpus match {fh} output within tolerance; layout of a 100×20 table runs under 5 ms.
+* Reference renders for each type and option combination in the corpus match the golden corpus within tolerance; layout of a 100×20 table runs under 5 ms.
 * Merge tests for the eight cases under Merge semantics.
 * Inverse tests for every command; ungroup produces nodes whose render is pixel-identical to the chart.
 

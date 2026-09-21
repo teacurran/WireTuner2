@@ -4,11 +4,6 @@ exports that has a place for it: PDF, SVG, EPS, PNG, JPEG, TIFF, WebP, HEIC, AVI
 fields follow the IPTC Core standard, so a picture desk, a digital asset manager or Adobe
 Bridge reads them without help.
 
-NOTE: For {fh} users: menu:Xtras[Other > File Info] is now menu:File[Document Info…].  The
-same information is written, plus a few fields the modern IPTC Core schema added.  The
-separate *Portfolio Info* command is gone; its keywords and description are the same
-*Keywords* and *Description* fields here.
-
 == Adding document information
 
 To add or change document information:
@@ -96,6 +91,10 @@ TIP: Set *Copyright notice* and *Creator* once in a template
 The *Language* field (BCP 47, e.g. `en-GB`) tells screen readers and tagged PDF how to read
 the document; the accessibility checker (xref:names-notes.adoc[]) reports it when missing.
 
+The sheet also lists the *hosts* the document reaches: every data-source URL, every host a
+script source has fetched, and the scope's allowlist, so a reviewer sees at a glance where a
+document's data comes from (xref:data-merge.adoc[Data merge]).
+
 == Working with others
 
 Document information is one shared set of fields per document.  If you and a colleague edit
@@ -110,31 +109,6 @@ touched the same field.
 
 ifdef::spec[]
 == Specification
-
-=== FreeHand parity
-
-[cols="2,3,2"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|File Info Xtra with Origin, Credits, Caption, Categories and Keywords sections
-|menu:File[Document Info…] with Description, Creator, Rights and Origin sections covering the
-same IPTC fields plus IPTC Core additions (rights usage terms, web statement, instructions).
-|Faithful (renamed; it is a document command, not an extension).
-
-|Information preserved in exported files that support IPTC
-|Written as XMP everywhere XMP fits, IPTC-IIM in JPEG, TIFF and PSD, PDF Info dictionary,
-SVG metadata, EPS header comments.
-|Faithful, extended to more formats.
-
-|IPTC character limits enforced in the dialog
-|Enforced by protovalidate constraints and shown as counters.
-|Faithful.
-
-|Portfolio Info keywords (31 characters, up to 200) and description (254 characters)
-|The same *Keywords* and *Description* fields, with IPTC Core limits instead.
-|Adapted -- one set of fields serves both; Extensis Portfolio itself is not supported.
-|===
 
 === Data model
 

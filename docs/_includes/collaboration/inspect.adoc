@@ -10,9 +10,8 @@ is viewer.
 
 // TODO screenshot: Inspect mode with a button hovered, red measurement lines to the selected text block, and the Inspect panel showing the button's colors, corner radius and CSS
 
-NOTE: {fh} had nothing like this; the closest was reading values off the Object panel one field
-at a time.  Editors keep the Object panel for changing things; Inspect mode is for reading
-them, and for handing them to someone else.
+NOTE: Editors keep the Object panel for changing things; Inspect mode is for reading them, and
+for handing them to someone else.
 
 == Entering and leaving Inspect mode
 
@@ -197,23 +196,6 @@ ifdef::spec[]
 Inspect mode writes nothing and stores nothing in the document; it is a client presentation
 mode plus a snippet library.  The server's only involvement is resolving a deep link's document
 id through `DocumentService.Get`.
-
-=== FreeHand parity
-
-[cols="2,3,2"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|--
-|Read-only inspect mode with hover measurements, a properties panel with multi-notation colors,
-copy as SVG/CSS/Swift/PNG, and object deep links.
-|Added -- no FreeHand equivalent
-
-|Info toolbar (pointer coordinates, object size while dragging)
-|Kept (xref:toolbars.adoc[Toolbars]); Inspect mode adds between-object and to-page distances
-and the panel.
-|Faithful -- the Info toolbar is unchanged.
-|===
 
 === Data model
 

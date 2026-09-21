@@ -2,6 +2,5 @@
 include::_attributes.adoc[]
 :page-slug: connectors
 :page-group: Drawing
-:page-fh: Chapter 3, "Dynamically linking objects"
 
 include::_includes/drawing/connectors.adoc[]

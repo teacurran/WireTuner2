@@ -1,11 +1,7 @@
-Extensions are the commands and tools that {fh} shipped as add-on modules -- path operations,
-color utilities, distortion tools, chart pictographs, animation helpers.  In {product} they
-are all built in, organized under the *Extensions* menu and on two toolbars, and can be
-switched off individually if you never use them.
-
-NOTE: {fh} called these *Xtras*, the menu *Xtras* and the toolbars *Xtra Tools* and *Xtra
-Operations*.  {product} says *Extensions* everywhere.  Every Xtra that shipped with {fh} MX
-is here; third-party Xtras are not, and {product} does not load plug-ins in this version.
+Extensions are {product}'s specialized commands and tools -- path operations, color
+utilities, distortion tools, chart pictographs, animation helpers.  They are all built in,
+organized under the *Extensions* menu and on two toolbars, and can be switched off
+individually if you never use them.
 
 // TODO screenshot: the Extensions menu with the Path Operations submenu open.
 
@@ -72,8 +68,8 @@ Turning an extension off hides it; artwork made with it is unaffected, and a doc
 uses a hidden extension's tool (a chart, a connector) still opens and edits normally.  The
 list is per Mac.
 
-{fh} installed Xtras by dropping files in a folder and restarting.  There is nothing to
-install in {product}: everything listed here ships with the application.
+There is nothing to install: everything listed here ships with the application, and
+{product} does not load third-party plug-ins in this version.
 
 == Working with others
 
@@ -87,33 +83,6 @@ remains.
 
 ifdef::spec[]
 == Specification
-
-=== FreeHand parity
-
-[cols="2,3,1"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Xtras menu with submenus (Animate, Chart, Cleanup, Colors, Create, Delete, Distort, Path Operations, Other)
-|Extensions menu, same submenus and items.
-|Faithful (renamed)
-
-|Xtra Tools and Xtra Operations toolbars
-|Extension Tools and Extension Operations toolbars.
-|Faithful (renamed)
-
-|Repeat Xtra (Cmd+Shift+=)
-|Repeat Extension, same key.
-|Faithful
-
-|Install Xtras by copying files; third-party Xtras; Xtra Manager
-|All extensions built in; Manage Extensions turns them on/off; no plug-in loading.
-|Adapted -- no plug-in API in v1 (recorded in xref:decisions.adoc[Decisions]).  A future plug-in mechanism, if any, will be App Extensions or scripting (xref:scripting.adoc[Scripting]), not loaded code.
-
-|Shortcuts only for Repeat Xtra
-|Same; tool extensions get tool shortcuts.
-|Faithful
-|===
 
 === Data model
 

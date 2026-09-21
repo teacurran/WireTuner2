@@ -2,6 +2,5 @@
 include::_attributes.adoc[]
 :page-slug: export-pdf
 :page-group: Saving and exporting
-:page-fh: Chapter 12, "Exporting PDF files"
 
 include::_includes/io/export-pdf.adoc[]

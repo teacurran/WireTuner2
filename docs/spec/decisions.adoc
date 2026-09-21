@@ -2,9 +2,9 @@
 include::_attributes.adoc[]
 :page-slug: decisions
 
-Every choice that could have gone another way, with the reason it went this way.  Feature pages
-record their own `Adapted` and `Dropped` verdicts in their parity tables; the ones with
-consequences beyond one page are collected here.  Open questions are at the end.
+Every choice that could have gone another way, with the reason it went this way.  Choices that
+matter to one page only are explained on that page; the ones with consequences beyond one page
+are collected here.  Open questions are at the end.
 
 == Architecture
 
@@ -42,7 +42,7 @@ SwiftUI/AppKit interop.  Revisited every September.
 [[D-005]]
 === D-005 AppKit for the document window, SwiftUI for panel bodies
 
-{fh}'s interaction model (modifier keys mid-drag, precise tracking, docked tabbed panel groups)
+The interaction model (modifier keys mid-drag, precise tracking, docked tabbed panel groups)
 is an AppKit model; SwiftUI is faster for the many form-like panels.
 
 [[D-006]]
@@ -128,16 +128,16 @@ properties are extra attributes on the glyph and the document
 (xref:typeface-documents.adoc[Typeface documents]).
 
 [[D-018]]
-=== D-018 Flash is gone; the intent stays
+=== D-018 SVG animations are the vector animation format
 
-Animation, interactivity and movie import/export are adapted to SVG animations, PDF and HTML
+Animation, interactivity and placed animations are built on SVG animations, PDF and HTML
 (xref:animation.adoc[Animation], xref:interactivity.adoc[Interactivity],
 xref:svg-animation.adoc[SVG animations]).
 
 [[D-019]]
-=== D-019 Third-party plug-ins (Xtras) out of scope for v1
+=== D-019 Third-party plug-ins out of scope for v1
 
-All {fh} Xtras that matter are built in as *Extensions*; an SDK is an open question
+Every extension ships built in under *Extensions*; an SDK is an open question
 (xref:extensions.adoc[Extensions]).
 
 == Decisions from the feature chapters
@@ -155,8 +155,8 @@ xref:live-effects.adoc[Live effects]).
 
 [[D-021]]
 === D-021 Fills, strokes and effects share one position space
-The three sequences on an appearance are ordered by one fractional index, preserving {fh}'s
-free interleaving (a fill above a stroke) with no engine change (xref:attribute-stack.adoc[]).
+The three sequences on an appearance are ordered by one fractional index, so a fill can sit
+above a stroke, with no engine change (xref:attribute-stack.adoc[]).
 
 [[D-022]]
 === D-022 Randomness is seeded
@@ -327,7 +327,7 @@ by moving Preferences to kbd:[Cmd+,] (xref:moving.adoc[], xref:modernizations.ad
 A fuzzy-searched palette over APP-005's registry (plus panels, pages, layers, named views and
 recent documents as registered sources) runs exactly what the menu item runs.  Ranking is
 recent-first from a local history file; nothing syncs.  kbd:[Cmd+K] (Keyline) and
-kbd:[Cmd+Shift+P] are taken in the {fh} MX set, so the default is kbd:[Cmd+/]; APP-005's
+kbd:[Cmd+Shift+P] are taken in the default shortcut set, so the default is kbd:[Cmd+/]; APP-005's
 conflict report is final (xref:customizing.adoc[], xref:modernizations.adoc#M-08[M-08]).
 
 [[D-049]]
@@ -415,6 +415,31 @@ would keep `+liga` and `-liga` together) and over a single struct mark (which co
 features).  PDF export instances `glyf`/`gvar` fonts with an own instancer; CFF2 fonts are
 outlined and listed (xref:type-specifications.adoc[], xref:modernizations.adoc#M-11[M-11]).
 
+[[D-059]]
+=== D-059 Data-merge API calls run on the server
+The client never calls a customer's API.  `DataSourceService` executes the request definition
+with the credential injected, behind a per-team or per-account host allowlist, an SSRF guard
+(https only, resolve-once-and-pin, blocked private and metadata ranges, no cross-host
+redirects), rate limits, size caps and a 90-day audit log.  Credentials never reach a laptop;
+customers can allowlist one egress address; every collaborator gets identical records.  Cost:
+the server gains its first outbound HTTP client, and API sources are online-only (offline =
+embedded sample).  `wt.fetch` in scripts is the same proxy (xref:data-merge.adoc[],
+xref:scripting.adoc[]).
+
+[[D-060]]
+=== D-060 Merge data is never in the document
+A document carries field definitions, bindings and source definitions; records are fetched on
+demand and streamed to the merge.  Only a pasted table, an explicit *Embed All Records* or a
+five-record *Embed Sample* is stored, as a blob, so a leaked local store or package discloses
+nothing the user did not choose to embed (xref:data-merge.adoc[]).
+
+[[D-061]]
+=== D-061 Credentials never in the document; outbound hosts allowlisted
+Sources and scripts reference a credential by name only; the secret is written once via
+`PutCredential`, envelope-encrypted, never returned, bound to one host.  Outbound hosts are
+allowlisted per team by admins or per account by a first-use consent prompt; scripts run only on
+explicit user action, never on open or by timer (xref:data-merge.adoc[], xref:scripting.adoc[]).
+
 == Open questions
 
 [[Q-001]]
@@ -427,9 +452,9 @@ comments is unusual; decide before beta.
 PANTONE and similar libraries need licences.  Ship none in v1; allow import of ASE/ACO files.
 
 [[Q-003]]
-=== Q-003 FreeHand file import
-The FH11 format is undocumented.  Options: reverse-engineer, or import via PDF/EPS/AI exported
-from a surviving FreeHand install.  Decide by user demand.
+=== Q-003 Legacy illustration formats
+Import of older proprietary illustration formats is not planned; PDF, EPS, AI and SVG are the
+interchange routes.  Revisit by user demand.
 
 [[Q-004]]
 === Q-004 Plug-in SDK
@@ -441,10 +466,8 @@ If 200,000-character flows with long histories become slow, adopt the Eg-walker 
 (xref:crdt-model.adoc[CRDT model]).
 
 [[Q-006]]
-=== Q-006 FreeHand file import licensing
-The converter assumes knowledge from the libfreehand reverse-engineering effort (MPL-2.0);
-whether that code can be linked, ported or only read needs a decision
-(xref:import-formats.adoc[]).
+=== Q-006 Withdrawn
+Folded into Q-003.
 
 [[Q-007]]
 === Q-007 PostScript for placed EPS
@@ -471,16 +494,16 @@ field on `Change` may be better (xref:master-pages.adoc[], xref:pages.adoc[]).
 
 [[Q-011]]
 === Q-011 Shortcut preset verification
-Tool letters and menu keys were written from memory of the {fh} MX Mac preset; APP-005 loads
-the real preset and reconciles every page's `kbd:[]` macros.
+Tool letters and menu keys in the pages are proposals; APP-005 builds the default preset and
+reconciles every page's `kbd:[]` macros.
 
 [[Q-012]]
 === Q-012 Envelopes as their own page
-Chapter 7 gives envelopes nine procedures; they share xref:path-effects.adoc[] today.
+Envelopes have nine procedures and share xref:path-effects.adoc[] today.
 
 [[Q-013]]
 === Q-013 Per-user layer visibility
-Layer visibility is shared as in {fh}; a "hide for me" view is requested and planned.
+Layer visibility is shared document state; a "hide for me" view is requested and planned.
 
 [[Q-014]]
 === Q-014 Presence between a branch and its parent
@@ -516,3 +539,31 @@ exact register equality.  The find-replace page should say which the panel expos
 The `(feature, tag)` identity is the only text mark whose identity includes part of its value;
 a `wt.crdt` `mark_key` option would let `protoc-gen-wtcrdt` emit it generically instead of the
 CRDT-006 special case.
+
+[[Q-021]]
+=== Q-021 Who may write a team credential
+Any editor of a team document can `PutCredential` in the team scope today; admin-only, with
+editors merely using them, may be safer (xref:data-merge.adoc[]).
+
+[[Q-022]]
+=== Q-022 Credentials on shared personal documents
+Editors of a shared personal document fetch with the owner's credentials for the life of the
+share; confirm, or require the collaborator's own credential.
+
+[[Q-023]]
+=== Q-023 Allowlist granularity
+Exact `host[:port]` only in v1; wildcard subdomains and path prefixes are deferred.
+
+[[Q-024]]
+=== Q-024 One JSONPath implementation
+The same subset exists in Java (server fetch) and Swift (file sources), kept aligned by shared
+vectors; one implementation would be simpler if file sources ever move server-side.
+
+[[Q-025]]
+=== Q-025 Barcode scope
+QR and Code 128 in v1; EAN-13/UPC and Data Matrix when retail or logistics customers ask.
+
+[[Q-026]]
+=== Q-026 Where script data sources run
+On the client, with `wt.fetch` proxied; running them server-side would give identical results
+for every collaborator at the cost of hosting a JavaScript runtime on the server.

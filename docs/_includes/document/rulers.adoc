@@ -20,7 +20,7 @@ edit text (xref:tabs-indents.adoc[Tabs and indents]).
 == The zero point
 
 The rulers count from the zero point.  By default it is at the bottom-left corner of the active
-page, with x growing to the right and y growing upward, as in {fh}, so that the Object panel's
+page, with x growing to the right and y growing upward, so that the Object panel's
 position fields, the Info bar, and the rulers all agree.  Each page has its own zero point; when
 you make a different page active, the rulers switch to that page's.
 
@@ -84,37 +84,6 @@ restore it after offline work.
 ifdef::spec[]
 == Specification
 
-=== FreeHand parity
-
-[cols="2,3,1"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|View > Page Rulers > Show toggle
-|Same; per user.
-|Faithful
-
-|Rulers adjust with scroll and zoom; ticks in document units
-|Same.
-|Faithful
-
-|Drag the zero-point marker; double-click to reset
-|Same; Shift snaps to page corners and center.
-|Faithful
-
-|Zero point per page
-|Same; stored per page in the document (shared).
-|Faithful
-
-|Custom units per document via Edit Units dialog (name, amount, base unit, +/-)
-|Same, as a sheet; units are also editable in place.
-|Faithful
-
-|Custom units carried by templates
-|Same, because a template is a document.
-|Faithful
-|===
-
 === Data model
 
 `PageProps.ruler_origin` (ATOMIC `Point`, relative to the page's top-left in points, y down) and
@@ -122,14 +91,14 @@ ifdef::spec[]
 pages have no `ruler_origin`; the master canvas uses the bottom-left corner of the master.
 
 Default (`ruler_origin` unset) is `(0, height)` -- the bottom-left corner.  The rulers display
-`(x - origin.x, origin.y - y)` in the document's unit, so y increases upward on screen as in {fh}
-while the pasteboard stays y-down internally.
+`(x - origin.x, origin.y - y)` in the document's unit, so y increases upward on screen while
+the pasteboard stays y-down internally.
 
 Why the zero point is shared document data and not local view state:: The zero point defines what
 the numbers in the Object panel's X and Y fields mean.  Two people discussing "move it to
 x = 100" must be reading the same frame, and a script or a print mark referring to page
-coordinates must mean the same thing on every Mac.  {fh} stored it in the file for the same
-reason.  It changes rarely, so LWW is unproblematic.  Zoom and scroll, by contrast, describe
+coordinates must mean the same thing on every Mac.  It changes rarely, so LWW is
+unproblematic.  Zoom and scroll, by contrast, describe
 *where a person is looking*, not the document, and stay in the local `view` table.
 
 Rulers visible:: Local `view` table, per document.
@@ -162,8 +131,8 @@ Nothing beyond storing and relaying changes.
 === Client
 
 * `RulerView` (AppKit, `WTApp`): two `NSView`s in the scroll view's accessory positions
-  (`NSScrollView.hasHorizontalRuler` is not used -- {fh}-style ticks and the pointer tracker are
-  custom drawn).  Tick spacing chosen from the unit's natural subdivisions (points: 1/6/12/72;
+  (`NSScrollView.hasHorizontalRuler` is not used -- the ticks and the pointer tracker are custom
+  drawn).  Tick spacing chosen from the unit's natural subdivisions (points: 1/6/12/72;
   picas: 1/6/12; inches: 1/2/4/8/16; mm: 1/5/10; pixels: 1/10/100) so that labelled ticks are at
   least 40 px apart.
 * Zero-point drag is a temporary tool that draws crosshair guides during the drag and writes

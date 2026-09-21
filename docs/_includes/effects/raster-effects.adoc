@@ -9,8 +9,7 @@ and every one of its options, and what happens to raster effects on the way to a
 exported file.  Transparency is a raster-family effect with its own page,
 xref:transparency.adoc[Transparency].
 
-NOTE: {fh} used the Fireworks raster engine for these effects.  {product} draws them with Core
-Image; the options, ranges and names are the same, the pixels are close but not identical.
+NOTE: {product} draws these effects with Core Image.
 
 == Resolution
 
@@ -258,58 +257,6 @@ document resolution before the final print.  See xref:printing.adoc[Printing].
 ifdef::spec[]
 == Specification
 
-=== FreeHand parity
-
-[cols="2,3,1"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|menu:File[Document Settings > Raster Effects Settings]: Resolution, Optimal CMYK Rendering
-|Same sheet, same two settings, stored in the document's settings node.
-|Faithful
-
-|Per-object Raster Effect Settings from the Object panel options menu
-|Same.  `Appearance.raster_dpi`, 0 = use document.
-|Faithful
-
-|Bevel and Emboss: Outer/Inner Bevel, Raised/Inset Emboss; color, width, contrast, softness,
-angle, edge shape, button preset
-|Same options.  Edge shapes and button presets carry the Fireworks names.
-|Faithful
-
-|Blur: Basic, Gaussian; radius
-|Same.  Core Image `CIBoxBlur` / `CIGaussianBlur`.
-|Faithful
-
-|Shadow and Glow: Drop, Inner, Glow, Inner Glow; color, offset, opacity, softness, angle
-|Same.
-|Faithful
-
-|Sharpen: Basic, Unsharp Mask; amount, pixel radius, threshold
-|Same.  `CISharpenLuminance` / `CIUnsharpMask`.
-|Faithful
-
-|Spot colors converted to RGB on screen, CMYK for print inside raster effects
-|Same rule.
-|Faithful
-
-|PostScript fills do not print correctly with raster effects
-|PostScript fills draw as their preview color inside a raster effect; documented, not an
-error.
-|Adapted -- macOS has no PostScript interpreter; the preview color is the only rendition the
-client has.
-
-|Fireworks raster engine
-|Core Image.  Same options, pixels differ slightly.
-|Adapted -- the Fireworks engine is unavailable; Core Image is native, GPU-backed and
-color-managed.
-
-|Redraw preferences for raster effects (none in {fh}: effects always drew at document
-resolution)
-|*Raster effect preview* preference with four levels.
-|Adapted -- keeps a 300 ppi document interactive.
-|===
-
 === Data model
 
 [source,protobuf]
@@ -525,7 +472,7 @@ parameter mapping and spread computation.
 Done when::
 * Radius 0 and amount 0 are identity; spread equals 3σ for gaussian; unsharp threshold 255
   leaves a flat image unchanged.
-* Unsharp Mask on a placed bitmap matches Fireworks output within a documented tolerance.
+* Unsharp Mask on a placed bitmap matches the golden corpus within a documented tolerance.
 
 [[FX-012]]
 ==== FX-012 Raster effects in print and export

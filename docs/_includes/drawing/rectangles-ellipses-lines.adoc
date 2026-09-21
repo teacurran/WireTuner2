@@ -102,9 +102,6 @@ points; the shape's rounded corners, position and size are preserved, but the Ob
 longer offers the radius or size fields.  Ungrouping cannot be reversed except by
 menu:Edit[Undo].
 
-NOTE: For {fh} users: rectangles and ellipses are not groups in {product}, but *Ungroup*
-still converts them to paths so the habit carries over.
-
 == Working with others
 
 A collaborator can round the corners of a rectangle you are resizing; you will see the corners
@@ -117,38 +114,6 @@ sheet with both sets of values.
 
 ifdef::spec[]
 == Specification
-
-=== FreeHand parity
-
-[cols="2,3,1"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Rectangle, Ellipse and Line tools; drag to draw; kbd:[Option] from center; kbd:[Shift]
-constrain; constrain angle from Document Settings
-|Same.
-|Faithful
-
-|kbd:[Space] to reposition while drawing; Windows right-button reposition
-|kbd:[Space] kept; right-button variant dropped (Windows-only).
-|Adapted
-
-|Rectangles and ellipses are grouped objects; Ungroup converts to a path
-|Rectangles and ellipses are `rect` and `ellipse` node kinds (not groups).  menu:Modify[Ungroup]
-converts them to `path` nodes, preserving the {fh} habit.  Reason: a group with a phantom child
-would complicate the tree for no benefit; a kind with derived geometry is one node with a few
-registers.
-|Adapted
-
-|Rectangle Tool dialog radius 0--100; Object panel Uniform and per-corner radii; Subselect
-radius handles
-|Same.  Values above 100 accepted by typing.
-|Faithful
-
-|Object panel X, Y, W, H for rectangles and ellipses
-|Same.
-|Faithful
-|===
 
 === Data model
 
@@ -293,7 +258,7 @@ Depends on:: DRAW-006, DRAW-003
 Size:: S
 Delivers:: `rectPath` and `ellipsePath` in `WTGeometry`, the read-time radius clamp and Uniform rule in `WTModel`'s path view of shape nodes, and hit-testing through the derived path.
 Done when::
-* Derived paths match {fh} exports of the same shapes within 0.01 pt.
+* Derived paths match the golden corpus for the same shapes within 0.01 pt.
 * Radius clamp and Uniform read rules have unit tests, including a merged state with radii larger than the shape.
 
 [[DRAW-009]]

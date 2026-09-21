@@ -1,8 +1,12 @@
-{product} can be driven from outside: by AppleScript through Script Editor, and by Shortcuts and
-Automator-style workflows through App Intents.  Both expose the same things -- documents, pages,
-master pages, layers, the objects on them and their properties, export and printing -- and both
-produce ordinary document changes that sync and are undoable like anything done by hand.  The
-scripting surface in version 1 is deliberately small; it grows with the features that ship.
+{product} can be driven by scripts in three ways: by AppleScript through Script Editor, by
+Shortcuts and Automator-style workflows through App Intents, and by JavaScript scripts written
+in {product}'s own Script Editor panel and run from its Scripts menu.  All three expose the same
+things -- documents, pages, master pages, layers, the objects on them and their properties,
+export and printing -- and all three produce ordinary document changes that sync and are
+undoable like anything done by hand.  JavaScript goes further: it can fetch data from the web
+(through the {product} cloud), drive a data merge (xref:data-merge.adoc[Data merge]) and show
+its own small dialogs.  The scripting surface in version 1 is deliberately small; it grows with
+the features that ship.
 
 // TODO screenshot: Script Editor showing the WireTuner dictionary's Document suite
 
@@ -98,6 +102,154 @@ menu.  The intents shipped in version 1:
 Shortcuts can chain these with any other app.  A shortcut runs under your account and follows the
 same permissions as the scripting dictionary.
 
+== JavaScript
+
+JavaScript is the scripting language for anything more than a few lines: batch changes with
+conditions and loops, scripts that fetch data from the web and put it in the document, data
+merge sources and transformations, and small tools you want to run with a keyboard shortcut.
+Scripts run inside {product}, using the `wt` API described below, and every change a script
+makes is an ordinary, labelled, undoable document change.
+
+// TODO screenshot: the Script Editor panel with a short script, its console showing output, and the Run button
+
+=== Writing a script
+
+Choose menu:Window[Script Editor] to open the Script Editor panel.  It has an editor with
+syntax coloring and completion for the `wt` API, a btn:[Run] button (kbd:[Cmd+Return]), a
+btn:[Stop] button, and a console beneath the editor where `console.log` output, errors and the
+web requests a script made are listed.  The panel's pop-up chooses which script is open: a new
+untitled script, one from your Scripts folder, one stored in the document, or one from a team
+library.
+
+A script is a JavaScript module.  The simplest script runs top to bottom:
+
+[source,javascript]
+----
+// Name every unnamed text block after its first words.
+for (const block of wt.document.objects.where({ kind: "text", name: "" })) {
+  block.name = block.text.split(/\s+/).slice(0, 3).join(" ");
+}
+console.log("done");
+----
+
+Each property assignment is one document change, labelled after the script ("Script: Name
+blocks") and undoable with kbd:[Cmd+Z].  To make a run of changes one undo step, wrap them:
+
+[source,javascript]
+----
+wt.document.transaction("Number the pages", () => {
+  wt.document.pages.forEach((page, i) => { page.name = `Page ${i + 1}`; });
+});
+----
+
+Modern JavaScript is available: modules, `async`/`await`, classes, template strings, `Map`,
+`Set`, `Intl` for number and date formatting.  Type definitions for the whole `wt` API ship with
+{product} (`wiretuner.d.ts`, in the Scripts folder after first launch) so an external editor
+such as Visual Studio Code offers completion and type checking; the Script Editor panel uses the
+same definitions for its own completion.
+
+=== The `wt` API
+
+[cols="1,3"]
+|===
+|Object |What it gives you
+
+|`wt.document`
+|The front document: `name`, `pages`, `masterPages`, `layers`, `objects` (every object, with
+`where({...})` filters by kind, name, layer or page), `selection` (read and set), `fields` and
+`dataSources` (xref:data-merge.adoc[Data merge]), `swatches`, `styles`; `transaction(label,
+fn)`; `export(options)` and `print(preset)`.  `wt.documents` lists the open documents and
+`wt.open(name)` opens one from your library.
+
+|Objects
+|Every page, layer and object is a JavaScript object whose properties mirror the Object panel:
+`name`, `notes`, `bounds`, `position`, `size`, `visible`, `locked`, `layer`, `fill`, `stroke`,
+`text` (text blocks), `url`.  Reading is free; setting a property makes one change.  Methods:
+`duplicate()`, `remove()`, `moveTo(layer)`, `bringToFront()`, `sendToBack()`.  Creation:
+`wt.document.createRectangle({...})`, `createEllipse`, `createLine`, `createText({...})`,
+`createBarcode({...})`, `placeImage(data, {...})`.  The same limits as AppleScript apply in
+version 1: path points, effects, gradients, symbols, styles and blends are readable as
+summaries and not settable.
+
+|`wt.fetch(url, options)`
+|Makes a web request and returns a response with `status`, `headers`, `text()` and `json()`.
+The request is made by the {product} cloud on your behalf, not by your Mac: the host must be
+permitted for your team or your account, and `options.credential` names a credential stored in
+the cloud (xref:data-merge.adoc#hosts[Hosts and permissions]).  Method, headers and body are
+set in `options` as with the browser `fetch`.  A script cannot open any other connection.
+
+|`wt.records`
+|Inside a data merge: `wt.records.all()` (the resolved records), `wt.records.current()` (the
+previewed record), `wt.records.merge({ to: "pages" \| "pdf" \| "printer", ... })` to run a merge
+from a script, `wt.records.fields` for the field definitions.
+
+|`wt.ui`
+|`alert(message)`, `confirm(message)` (true or false), `prompt(message, defaultText)`,
+`choose(message, ["A", "B"])`, `openFile({ types })` and `saveFile({ suggestedName })`, which
+show the standard panels and return the file's contents or a writer -- the only way a script
+touches files.  `progress(title)` returns an object with `update(fraction, text)` and `done()`
+so long scripts show a progress sheet with a Cancel button.
+
+|`console`
+|`log`, `warn`, `error`, `table`; output goes to the Script Editor console.
+|===
+
+=== Where scripts live
+
+[cols="1,3"]
+|===
+|Place |Use
+
+|Your Scripts folder
+|`~/Library/Application Support/WireTuner/Scripts/`.  Any `.js` file here appears in the
+Scripts menu; subfolders become submenus.  Choose menu:Scripts[Open Scripts Folder] to get
+there.  These are yours, on this Mac.
+
+|The document
+|A script saved *into a document* (btn:[Save to Document] in the Script Editor) travels with it:
+collaborators see it under menu:Scripts[Document Scripts] and can run and edit it.  Data merge
+sources and transforms use document scripts, so a document's merge works for everyone who
+has it.
+
+|A team library
+|A team library document (xref:library.adoc[The Library and symbols]) can hold scripts as well as
+symbols and styles.  Every script saved into a team library appears under
+menu:Scripts[Team Libraries > _Library name_] for everyone in the team.  Anyone who can edit
+the library document can add or change its scripts.
+|===
+
+=== Running a script
+
+Do one of the following:
+
+* Choose it from the menu:Scripts[] menu.
+* Press kbd:[Cmd+/] and type its name in the command palette
+  (xref:workspace.adoc[The workspace]).
+* Give it a keyboard shortcut under menu:{product}[Settings… > Shortcuts]: scripts are listed
+  in the *Scripts* group like any command (xref:customizing.adoc[Customizing shortcuts and
+  toolbars]).
+* Click btn:[Run] in the Script Editor.
+* Let a data merge run it, as a source or a field transform (xref:data-merge.adoc[Data merge]).
+
+A script runs on the front document and as *you*: it can only open what you can open and edit
+what you can edit.  While it runs, the Script Editor's btn:[Stop] and the progress sheet's
+btn:[Cancel] stop it after the current change; what it already did stays and can be undone.  A
+script that runs for more than a minute without showing progress is stopped with a message.
+Nothing runs a script on its own: not opening a document, not a collaborator's action, not a
+timer.
+
+=== What a script cannot do
+
+Scripts are sandboxed:
+
+* No file system, except the files you choose in the open and save panels through `wt.ui`.
+* No shell, no other applications, no AppleScript from JavaScript.
+* No network, except `wt.fetch`, which goes through the {product} cloud with its permitted hosts
+  and credentials.
+* No access to your account, your credentials or other documents you have not opened.
+* A limit on memory and on time between progress updates, so a runaway script cannot freeze
+  {product}.
+
 == Working with others
 
 Scripts and shortcuts change documents on your behalf, and to everyone else those changes look
@@ -108,39 +260,50 @@ needs a quiet document, run it on a branch (xref:branches.adoc[Branches]).
 
 A script that runs while you are offline works on the local copy and its changes sync afterwards
 like any others.  Intents that need the server -- *Share Link*, opening a document not cached on
-this Mac -- fail immediately with an *offline* error rather than waiting.
+this Mac -- fail immediately with an *offline* error rather than waiting.  So does `wt.fetch`,
+which needs the {product} cloud.
+
+JavaScript scripts stored in a document or a team library are shared like anything else in
+that document: if a collaborator edits a script while you have it open in the Script Editor,
+the panel shows a notice with *Reload*; your unsaved edits are kept until you decide.  Two
+people saving the same script at the same moment: the later save stands, and the other is
+listed in the sync review so it can be brought back.  A script is always run as last saved,
+never half-typed.
 
 ifdef::spec[]
 == Specification
 
-=== FreeHand parity
-
-[cols="2,3,1"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|AppleScript automation of document manipulation, printing, report generation, find and replace
-|Same areas through an sdef-based dictionary; larger object model but attribute detail deferred.
-|Adapted -- modern `sdef` + `NSScriptCommand` instead of the FreeHand MX dictionary; v1 surface limited.
-
-|Scripts run from Script Editor or saved as applications
-|Same, plus the system Script menu folder.
-|Faithful
-
-|AppleScript Read Me documentation
-|The dictionary is self-documenting; this page lists the v1 scope.
-|Adapted
-
-|Sending mail (Windows, MAPI): File > Send with the active or all open documents attached
-|No mail attachment; use menu:File[Share…] to invite people or copy a link, or export and share the file with the system share sheet.
-|Dropped -- Windows-only, and a cloud document is shared by link; the intent is covered by the COLLAB epic's Share sheet (recorded in decisions).
-|===
-
 === Data model
 
-No document fields.  Every mutating script command maps onto an existing `WTModel` command and
-therefore onto ordinary changes; the change label is prefixed `Script: ` (AppleScript) or
-`Shortcut: ` (App Intents) followed by the command name.
+Every mutating script command -- AppleScript, App Intent or JavaScript -- maps onto an existing
+`WTModel` command and therefore onto ordinary changes; the change label is prefixed `Script: `
+(AppleScript and JavaScript) or `Shortcut: ` (App Intents) followed by the command name or, for
+JavaScript, the script's name and the property set (`Script: Number the pages`).
+
+JavaScript adds one node kind, `script`, for scripts stored in a document or a team library
+document.  Script nodes live under the well-known `assets` collection (0:9).
+
+[source,protobuf]
+----
+// proto/wiretuner/doc/v1/script.proto (sketch; numbers in the DATA block)
+
+// NodeProps.kind case `script`.  A script is saved whole from the Script Editor, so
+// `source` is one ATOMIC register: a script is always run as last saved by somebody, never
+// as a character-level merge of two people's edits.  Name and description are independent
+// registers.
+message ScriptProps {
+  string name = 1 [(buf.validate.field).string.max_len = 128];
+  string description = 2 [(buf.validate.field).string.max_len = 1024];
+  string source = 3 [(buf.validate.field).string.max_len = 1048576,
+                     (wt.crdt.field).merge = MERGE_ATOMIC];
+  // Set when copied from a team library so *Update from Library* can find the original.
+  LibraryProvenance library = 4 [(wt.crdt.field).merge = MERGE_ATOMIC];   // LIB epic message
+}
+----
+
+Scripts in the user's Scripts folder are files, not document state.  Keyboard shortcuts for
+scripts are entries in the user's shortcut set (BASIC epic), keyed by the script's path or node
+id.
 
 === Merge semantics
 
@@ -150,15 +313,39 @@ evaluates the collection once per command, so an object created by a collaborato
 simply not visited.  A script writing to an object a collaborator deletes mid-run gets no error
 (the edit applies to the deleted node) and the ordinary edit-vs-delete review entry.
 
+JavaScript adds:
+
+* `wt.document.transaction` groups its property sets into one change (chunked at 10,000 ops
+  under one label, one undo step); outside a transaction every property set is its own change.
+  A script stopped mid-transaction leaves the ops emitted so far as one change -- a consistent,
+  partially-applied document, never a half-applied op.
+* A `script` node's `source` is ATOMIC: two people saving concurrently keep the later save; the
+  loser is listed in the review sheet under *same register* with both sources in the preview.
+  `name` vs. `source` edits from two sides both survive.  Delete vs. save: the save lands on the
+  deleted node; *Restore* brings the script back with the saved source.
+* A script that reads a collection (`wt.document.objects`) gets a snapshot of the merged state at
+  that call; objects created by collaborators later in the run are not visited unless the
+  script reads again.
+* A data-merge transform or source references its script node by `NodeRef`; deleting the script
+  makes the field's transform read as none (`REF_FALLBACK_UNSET`) and the source fail with
+  "script missing" in the panel.
+
 === Offline behavior
 
 Local commands work offline.  `share link`, opening uncached documents and library listing beyond
 the cache return `errOfflineRequired` (AppleScript error 1001; App Intents `.offline` failure with
-a localized reason).
+a localized reason).  JavaScript: `wt.fetch` rejects with an `OfflineError` immediately; team
+library scripts already listed in the menu run from the cached copy, but browsing a library
+needs the network.
 
 === Server
 
-Nothing beyond storing and relaying changes.  `Share Link` uses `ShareService` (SRV-010).
+Nothing beyond storing and relaying changes for AppleScript, App Intents and the `wt.document`
+API.  `Share Link` uses `ShareService` (SRV-010).  `wt.fetch` is `DataSourceService.Proxy`
+(xref:data-merge.adoc[Data merge], DATA-006): the server makes the request with the scope's
+allowlist, credentials, rate limits, SSRF guard and audit log; the client never opens a
+connection to a third-party host.  Team library scripts are listed through `ListLibraries`
+(LIB-015).
 
 === Client
 
@@ -175,6 +362,55 @@ Nothing beyond storing and relaying changes.  `Share Link` uses `ShareService` (
   where a file is produced.
 * Errors follow Apple's scripting error codes with human-readable messages; permission errors
   name the role required.
+
+One command registry:: `WTApp/Commands/CommandRegistry` is the single table of every user
+command: menu items, the command palette, keyboard shortcuts, `NSScriptCommand` subclasses,
+`AppIntent`s and the `wt` API are all thin adapters over it.  Each entry names the `WTModel`
+command it runs, its parameters, its label, and whether it is available for the current
+selection.  Adding a command to the registry adds it to every surface; nothing is scriptable in
+one language and not another.
+
+JavaScript runtime:: `WTScripting` (a package in `WTApp`'s workspace, depending on `WTModel`
+and `WTInterchange`) hosts JavaScriptCore.  One `JSContext` per run, in a `JSVirtualMachine`
+per document, on a dedicated `ScriptRunner` actor; the `wt` object is installed as
+`JSExport`-conforming Swift bridges over `WTModel`.  Property reads take a snapshot of the
+merged state; property sets and method calls hop to the main actor, run the registry command,
+and return after the change is emitted.  `wt.document.transaction` opens a command group
+(APP-011) and closes it on return or throw.  Sandbox: the context has no `require`, `import()`
+of files, `XMLHttpRequest`, `WebSocket`, timers beyond `setTimeout` (capped at 60 s), or file
+APIs; `wt.ui.openFile`/`saveFile` go through `NSOpenPanel`/`NSSavePanel` and hand back
+contents or a writer, never a path.  Limits: 256 MiB per virtual machine, 60 s wall-clock
+between progress updates (then stopped with `ScriptTimeout`), 20 changes per second throttled by
+the outbox as for AppleScript.  Errors carry file, line and column into the console.  Module
+syntax is supported by wrapping the script in a module record; `export`ed functions
+(`records`, `transform`) are looked up by name by the data-merge engine.
+
+`wt.fetch`:: Serializes the request into `DataSourceService.Proxy` (method, URL, headers, body
+up to 1 MiB, `credential`), maps `HOST_NOT_ALLOWED` to the consent sheet on a personal
+document (then retries) and to an error naming the admins on a team document, and returns a
+`Response`-like object.  Every call is logged to the console with host, path, status and size.
+There is no other network primitive in the context.
+
+Typings:: `wiretuner.d.ts` is generated from the bridge declarations at build time (a `wt-typegen`
+tool over the `JSExport` protocols with doc comments) and shipped in the app bundle; on first
+launch it is copied to the Scripts folder next to a `README`.  The Script Editor's completion
+reads the same file.
+
+Script Editor panel:: `WTApp/Panels/ScriptEditorPanel`: an `NSTextView`-based editor with
+JavaScript syntax coloring and `d.ts`-driven completion, the script chooser pop-up (untitled,
+Scripts folder, document scripts, team libraries), btn:[Run]/btn:[Stop], btn:[Save],
+btn:[Save to Document] and btn:[Save to Library…], and the console (a table of log entries with
+level, text, and request rows).  Saving a document or library script writes `ScriptProps.source`
+whole as one change "Save script".  A remote change to the open script shows the *Reload*
+notice; the buffer is kept.
+
+Scripts menu and library:: `menu:Scripts[]` is built from an `FSEvents`-watched Scripts
+folder (files and subfolders), the front document's `script` nodes, and the team libraries'
+script nodes from the library cache; *Open Scripts Folder*, *Script Editor* and *Reload
+Scripts* at the bottom.  Every entry is registered in the command registry with a `script:`
+prefix, so the command palette and the shortcut editor see them.  Team library scripts run
+from the cached library document; *Save to Library…* writes into the chosen library document
+through the same path the Library panel uses for symbols (LIB-014).
 
 === Build tasks
 
@@ -202,4 +438,56 @@ Done when::
 * Each intent runs from Shortcuts against a test document and produces the expected result or file.
 * *Open Document* finds documents by name through the library cache offline.
 * Export intent output is byte-identical to the equivalent menu export.
+
+The JavaScript tasks carry the `DATA` prefix: scripting and data merge are one epic, and the
+data merge page (xref:data-merge.adoc[Data merge]) owns DATA-001 to DATA-010 and DATA-015 to
+DATA-023.
+
+[[DATA-011]]
+==== DATA-011 JavaScript runtime and `wt.document` API
+[horizontal]
+Track:: client-model
+Depends on:: APP-005, APP-011, DATA-001
+Size:: L
+Delivers:: `WTScripting` with the JavaScriptCore host, the `ScriptRunner` actor, the command registry adapter, `wt.document` (pages, masterPages, layers, objects with `where`, selection, fields, dataSources, swatches, styles, creation methods, export and print), object property bridges with one change per set, `transaction` with chunking and one undo step, `console`, the sandbox (no file, shell, network or timer primitives beyond those listed), memory and wall-clock limits, error mapping with line and column, module wrapping with named exports, the `script` node kind and its commands (save, rename, delete) with inverses, and the generated `wiretuner.d.ts`.
+Done when::
+* A test corpus of scripts exercises every `wt.document` member; each property set is one labelled change and one undo step; a `transaction` of 30,000 sets is three changes and one undo step.
+* A script attempting `require`, `XMLHttpRequest`, `WebSocket` or file access fails with the documented error; a busy loop is stopped at 60 s; a 300 MiB allocation fails without taking the app down.
+* Merge test: two replicas save the same script concurrently; both converge on one source with the other in the review sheet.
+* `wiretuner.d.ts` type-checks the corpus with `tsc` in CI.
+
+[[DATA-012]]
+==== DATA-012 `wt.fetch`, `wt.records` and `wt.ui`
+[horizontal]
+Track:: client-model
+Depends on:: DATA-011, DATA-010
+Size:: M
+Delivers:: `wt.fetch` over `DataSourceService.Proxy` with the consent and admin-message handling, the console request log, and `OfflineError`; `wt.records` (`all`, `current`, `fields`, `merge`) over the data-merge engine; `wt.ui` (`alert`, `confirm`, `prompt`, `choose`, `openFile`, `saveFile`, `progress` with cancel).
+Done when::
+* Against the compose stack's mock service, `wt.fetch` returns status, headers and JSON; a non-allowlisted host produces the consent sheet on a personal document and the admin message on a team document; no socket to the mock is opened by the client process.
+* `wt.records.merge({ to: "pdf" })` from a script produces the same file as the merge sheet.
+* `openFile` returns contents only (no path is observable from the script); `progress` shows the sheet and its Cancel stops the script after the current change.
+
+[[DATA-013]]
+==== DATA-013 Script Editor panel
+[horizontal]
+Track:: client-ui
+Depends on:: APP-004, DATA-012
+Size:: M
+Delivers:: menu:Window[Script Editor] with the editor (syntax coloring, `d.ts` completion), the script chooser, Run/Stop with kbd:[Cmd+Return], Save, *Save to Document*, *Save to Library…*, the console with log levels and request rows, the *Reload* notice on remote change, and the *Show script console on error* preference.
+Done when::
+* UI tests: write, run, see output; an error highlights its line; save to the document and see it under menu:Scripts[Document Scripts] on a second client within a second; a remote save while editing shows *Reload* and keeps the local buffer.
+* Completion lists `wt.document` members and their doc comments.
+
+[[DATA-014]]
+==== DATA-014 Scripts menu, shortcuts and script library
+[horizontal]
+Track:: client-ui
+Depends on:: APP-005, APP-009, DATA-013
+Size:: M
+Delivers:: The `menu:Scripts[]` menu built from the watched Scripts folder (subfolders as submenus), document scripts and team library scripts; *Open Scripts Folder*, *Reload Scripts*; registration of every script in the command registry with palette search and shortcut assignment in the Shortcuts settings; first-launch copy of `wiretuner.d.ts` and the README into the Scripts folder; *Save to Library…* and *Update from Library* for scripts.
+Done when::
+* Adding a file to the Scripts folder shows it in the menu without relaunch; a subfolder becomes a submenu; the palette finds it; a shortcut assigned to it runs it.
+* A script saved to a team library appears in the menu on a second team member's Mac after the library cache refreshes; offline, already-listed library scripts still run.
+* Nothing runs at launch, on document open or on a timer (audit: the runner records zero runs without a user action in a UI test session that opens three documents).
 endif::spec[]

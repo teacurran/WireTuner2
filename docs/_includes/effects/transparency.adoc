@@ -12,9 +12,9 @@ type {product} draws (xref:gradients.adoc[Gradients]).
 
 // TODO screenshot: the same shape over a photo with Basic, Feather and Gradient Mask
 
-NOTE: {fh} also offered a *lens fill* of type Transparency, which tints and reveals what lies
-beneath the shape.  That is a fill, not an effect, and is documented with the other lens fills
-on xref:fill-attributes.adoc[Fill attributes].  menu:Modify[Combine > Transparency], which
+NOTE: The *lens fill* of type Transparency, which tints and reveals what lies beneath the
+shape, is a fill, not an effect, and is documented with the other lens fills on
+xref:fill-attributes.adoc[Fill attributes].  menu:Modify[Combine > Transparency], which
 cuts a new shape from two overlapping ones and mixes their colors, is on
 xref:combining-paths.adoc[Combining paths].
 
@@ -106,37 +106,6 @@ needs the network.
 
 ifdef::spec[]
 == Specification
-
-=== FreeHand parity
-
-[cols="2,3,1"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Transparency > Basic Transparency, 0--100
-|Same.
-|Faithful
-
-|Transparency > Feather: Radius, Softness
-|Same; rasterized at the raster effects resolution.
-|Faithful
-
-|Transparency > Gradient Mask, edited like a gradient fill
-|Same; reuses the ATTR gradient message and editor.
-|Faithful
-
-|Gradient Mask lightness → alpha (white transparent, black opaque)
-|Same mapping.  Rendered as a vector soft mask rather than pixels.
-|Adapted -- Core Graphics soft masks keep the mask resolution independent in PDF.
-
-|Basic Transparency rasterized with other raster effects
-|Rendered as vector constant alpha; exported as native PDF transparency.
-|Adapted -- no reason to rasterize a constant alpha on a platform with native compositing.
-
-|Lens fill: Transparency
-|Kept, as a fill (xref:fill-attributes.adoc[Fill attributes]).
-|Faithful
-|===
 
 === Data model
 

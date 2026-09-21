@@ -98,10 +98,8 @@ linked chains edit as one continuous story.
 To always edit in the Text Editor, turn on the *Always use Text Editor* preference; the Text
 tool then opens the window whenever you click into a block.
 
-NOTE: {fh}'s Text Editor had btn:[OK], btn:[Cancel] and btn:[Apply] buttons and held your edits
-until you committed them.  {product}'s editor is live: what you type is in the document
-immediately, so a collaborator editing the same block sees it as you go.  To abandon an edit,
-use Undo.
+NOTE: The Text Editor is live: what you type is in the document immediately, so a
+collaborator editing the same block sees it as you go.  To abandon an edit, use Undo.
 
 == Special characters
 
@@ -224,8 +222,7 @@ precedence when set.
 Learned words live in your macOS user dictionary; edit them in System Settings, or with
 btn:[Unlearn] in the Spelling window.
 
-NOTE: {fh} kept its own dictionaries and a personal `.tlx` file.  {product} uses the system
-spelling service instead, so there is no dictionary file to locate.
+NOTE: {product} uses the system spelling service, so there is no dictionary file to locate.
 
 == Finding and replacing text
 
@@ -289,60 +286,6 @@ how they are drawn, and choosing it again removes it.
 
 ifdef::spec[]
 == Specification
-
-=== FreeHand parity
-
-[cols="2,3,1"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Click/drag, double-click word, triple-click paragraph, Select All
-|Same, plus kbd:[Shift]-click and the standard macOS keyboard selection set.
-|Faithful
-
-|View > Text Rulers; Show Text Handles When Ruler Is Off
-|Same menu item and preference.
-|Faithful
-
-|Text Editor with OK/Cancel/Apply, 12 Point Black, Show Invisibles
-|Live window; options kept; *Wrap to window* added.
-|Adapted -- a buffered editor whose OK replaces the block's text would overwrite concurrent
-edits; live editing composes with them.
-
-|Always Use Text Editor preference
-|Same.
-|Faithful
-
-|Option-click / Option-double-click opens the editor
-|Same.
-|Faithful
-
-|Special Characters submenu (nine characters)
-|Same nine, with keyboard shortcuts.
-|Faithful
-
-|Smart Quotes with six sets and Control override
-|Same.
-|Faithful
-
-|Spelling checker with own dictionaries, personal TLX dictionary, five options, add-as-typed
-or lowercase, dictionary chooser
-|macOS `NSSpellChecker`; the five options are honoured (duplicate words and capitalization by
-{product}'s own pass, the three ignore rules as filters); learned words go to the system user
-dictionary.
-|Adapted -- system dictionaries cover more languages, stay updated, and are shared with every
-app; a private TLX file has no equivalent.
-
-|Find Text dialog: Find/Change To with Special pop-ups, Whole Word, Match Case, Show Selection,
-Find Next / Change / Change All
-|Same, as a floating window; *Show Selection* becomes *Search in*; *Replace & Find* added.
-|Faithful
-
-|Convert Case: Uppercase, Lowercase, Small Caps, Title, Sentence; Settings with small caps size
-and exceptions
-|Same; Small Caps is a `case` mark rather than a character rewrite.
-|Faithful
-|===
 
 === Data model
 

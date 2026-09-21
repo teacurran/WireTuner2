@@ -81,42 +81,6 @@ reconnect exactly as they would have live.
 ifdef::spec[]
 == Specification
 
-=== FreeHand parity
-
-[cols="2,3,1"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Import RTF with formatting, ASCII plain text
-|RTF, RTFD, plain text (any Foundation-detected encoding), Markdown as plain.
-|Faithful (formats extended)
-
-|Missing Fonts dialog on import
-|Font substitution sheet from TXT-002 (xref:font-substitution.adoc[Font substitution]).
-|Faithful
-
-|Custom tab leaders / strikethrough / underline effects change on import
-|Approximated to the nearest effect and listed in the import summary note.
-|Faithful
-
-|Outline, subscript, superscript imported but not exported
-|Superscript/subscript map to baseline shift + size; outline maps to a glyph stroke with no
-fill; all three round-trip on export.
-|Adapted -- expressed with existing attributes so nothing is one-way.
-
-|Click to place at original size, drag to size the block
-|Same, plus Finder drag-and-drop.
-|Faithful
-
-|Drag or paste text from another application
-|Same, plus *Paste and Match Style* and kbd:[Option]-drop for plain text.
-|Faithful
-
-|English edition: double-byte text rotated to simulate vertical
-|Unicode; vertical writing is a block property (xref:text-effects.adoc[Text effects]).
-|Adapted -- see creating-text.
-|===
-
 === Data model
 
 No new fields.  An import produces one `CreateNode` (kind `text`) plus `TextInsert` and

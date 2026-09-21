@@ -150,61 +150,6 @@ moved until unlocked.
 ifdef::spec[]
 == Specification
 
-=== FreeHand parity
-
-[cols="2,3,1"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Guide and grid colors in Colors preferences
-|Same names, local preferences.
-|Faithful
-
-|View > Grid > Show, Snap to Grid, Edit (size, Relative grid)
-|Same; show and snap are per user, size and relative are shared.
-|Faithful
-
-|Guides drawn from rulers; release over pasteboard deletes
-|Same; kbd:[Option] adds to every crossed page, kbd:[Shift] snaps.
-|Faithful
-
-|Drag a guide off the page to delete
-|Same, plus kbd:[Delete].
-|Faithful
-
-|Guides dialog: Add by Count or Increment, first/last, page range; Edit position; Release; Remove
-|Same, as a sheet; multi-select with kbd:[Cmd] and kbd:[Shift].
-|Faithful
-
-|View > Guides > Snap to Guides with triangle pointer feedback
-|Same.
-|Faithful
-
-|View > Guides > Lock and the Guides layer padlock
-|Same; lock is shared document state.
-|Faithful
-
-|Guides only on pages, not on the pasteboard
-|Same.
-|Faithful
-
-|Master page guides editable only on the master
-|Same.
-|Faithful
-
-|Dragging a guide scrolls the window preference
-|Same name, under General.
-|Faithful
-
-|Convert paths to guides via the Guides layer
-|Same; delivered with the layers page.
-|Faithful
-
-|Snap distance preference
-|Same; on the selecting page.
-|Faithful
-|===
-
 === Data model
 
 `Guide`, `PageProps.guides`, `MasterProps.guides`, `GridSettings` and
@@ -222,8 +167,8 @@ point, snap to object.  Preferences: *Guide color*, *Grid color*, *Dragging a gu
 window*, *Snap distance* (owned by the selecting page).
 
 Why `guides_locked` is shared:: The lock exists to keep a layout from being disturbed; a lock that
-only bound the person who set it would not do that.  {fh} saved it in the document.  Show and
-snap toggles are about how one person works and are local.
+only bound the person who set it would not do that.  Show and snap toggles are about how one
+person works and are local.
 
 === Merge semantics
 

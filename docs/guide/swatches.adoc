@@ -2,6 +2,5 @@
 include::_attributes.adoc[]
 :page-slug: swatches
 :page-group: Color
-:page-fh: Chapter 5, "Using the Swatches panel", "Adding colors to the Swatches panel", "Naming colors", "Using Photoshop color tables", "Managing the color list in the Swatches panel", "Removing colors"
 
 include::_includes/color/swatches.adoc[]

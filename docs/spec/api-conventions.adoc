@@ -82,6 +82,7 @@ without buf installed; generated Java is not, because Quarkus regenerates it in 
 |`wiretuner.docs.v1` |`DocumentService`, `BranchService`, `VersionService`: library, search, sharing, branches, versions.
 |`wiretuner.blob.v1` |`BlobService`: content-addressed binary upload and download.
 |`wiretuner.account.v1` |`AccountService` and `TeamService`: profile, devices, preferences sync, personal and team spaces, workspaces.
+|`wiretuner.data.v1` |`DataSourceService`: credentials, allowlists, server-side fetch for data merge and scripts (xref:data-merge.adoc[Data merge]).
 |`wiretuner.internal.v1` |Server-to-server and admin RPCs.  Excluded from the public module.
 |===
 
@@ -158,6 +159,10 @@ Standard gRPC status codes, with a machine-readable reason in `google.rpc.ErrorI
 |`RESOURCE_EXHAUSTED` |`RATE_LIMITED` |Back off for the `RetryInfo` delay.
 |`RESOURCE_EXHAUSTED` |`STORAGE_QUOTA` |The space's blob storage quota is full; change ingest is never quota-limited (xref:saving.adoc[Saving]).
 |`NOT_FOUND` |`DOCUMENT_NOT_FOUND` |Deleted, or never visible to the caller (the two are indistinguishable on purpose).
+|`PERMISSION_DENIED` |`HOST_NOT_ALLOWED` |A data-source fetch targets a host outside the scope's allowlist (xref:data-merge.adoc[Data merge]).
+|`FAILED_PRECONDITION` |`CREDENTIAL_MISSING` |The source names a credential the scope does not hold.
+|`RESOURCE_EXHAUSTED` |`RESPONSE_TOO_LARGE` |An upstream response exceeded the size cap.
+|`UNAVAILABLE` |`UPSTREAM_ERROR` |The upstream API failed; details carry its status.
 |===
 
 == Metadata

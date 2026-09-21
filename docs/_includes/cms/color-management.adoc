@@ -18,11 +18,9 @@ the nearest color a narrower screen can make, never silently rewritten.  The one
 belongs to your Mac, not to the document, is your display's own profile, which macOS manages
 (xref:monitor-calibration.adoc[Calibrating your display]).
 
-NOTE: In {fh}, color management was chosen per computer in menu:Preferences[Colors] with a
-choice of engine (Kodak Digital Science or Apple ColorSync) and a *Color Management Setup*
-dialog.  {product} uses Apple ColorSync only, and the setup dialog has become the
-menu:File[Color Settings…] sheet, stored in the document so that collaborators share it.  The
-old *Adjust Display Colors* and *Color Tables* options are covered by
+NOTE: Apple ColorSync is the color engine.  Color settings live in the
+menu:File[Color Settings…] sheet, stored in the document so that collaborators share it.
+Display calibration and color conversion are covered by
 xref:monitor-calibration.adoc[Calibrating your display] and
 xref:color-tables.adoc[Color conversion and spot color preview].
 
@@ -68,7 +66,7 @@ in the artwork are not reinterpreted by it: each carries its own space, sRGB or 
 
 |Working CMYK
 |The profile that gives meaning to every CMYK color, and the profile of the press the document
-is separated for.  {fh} called this the *Separations Printer*.  Default: the bundled
+is separated for.  Default: the bundled
 *Default CMYK* press profile.
 
 |Intent
@@ -185,10 +183,9 @@ press and menu:View[Proof Colors] turned on, an RGB photograph is shown the way 
 after separation, and a CMYK swatch is shown through the press profile and then your display
 profile, rather than as the nearest bright screen color.
 
-NOTE: {fh} called this *Monitor Simulates* and set it in Preferences.  In {product} the
-proof *setup* is part of the document's Color Settings, so that everyone proofing the document
-simulates the same device; the on/off switch is per window, so turning it on does not change
-what your collaborators see.
+NOTE: The proof *setup* is part of the document's Color Settings, so that everyone proofing
+the document simulates the same device; the on/off switch is per window, so turning it on does
+not change what your collaborators see.
 
 To set up proofing:
 
@@ -250,83 +247,6 @@ the nearest bundled profile with a *profile pending* badge in the status bar unt
 
 ifdef::spec[]
 == Specification
-
-=== FreeHand parity
-
-[cols="2,3,2"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Color management type: None
-|No separate mode.  Equivalent to proofing off with the working spaces; color management is
-always on because the document, not the machine, defines color meaning.
-|Adapted: a per-machine "off" would show collaborators different colors for the same document.
-
-|Color management type: Adjust Display Colors (visual calibration dialog)
-|macOS Display Calibrator and the display's ColorSync profile; {product} shows the current
-profile and links to System Settings.
-|Adapted: see xref:monitor-calibration.adoc[Calibrating your display].
-
-|Color management type: Color Tables
-|Conversions computed on demand from the ICC profiles and cached; no user-managed tables.
-|Adapted: see xref:color-tables.adoc[Color conversion and spot color preview].
-
-|Color management type: Kodak Digital Science
-|Not offered.
-|Dropped: the Kodak CMM no longer exists; ColorSync is the platform engine on macOS.
-
-|Color management type: Apple ColorSync
-|The only engine.
-|Faithful.
-
-|Color Manage Spot Colors
-|*Color manage spot colors* in Color Settings, stored in the document.
-|Faithful (moved from Preferences to the document).
-
-|Rebuild Color Tables
-|Not offered; conversions are always derived from the current profiles.
-|Dropped: nothing to rebuild.
-
-|Color Management Setup: Monitor profile
-|Taken from the display the window is on; not chosen in the app.
-|Adapted: macOS owns the display profile per screen, including multi-display setups.
-
-|Monitor Simulates: None / Composite Printer / Separations Printer
-|Proof setup in Color Settings (document) plus menu:View[Proof Colors] (per window).
-|Adapted: setup is shared, toggle is local.
-
-|Separations Printer profile
-|Working CMYK profile.
-|Faithful (renamed; the NOTE on xref:color-profiles.adoc[Choosing color profiles] says so).
-
-|Composite Printer profile, Composite Simulates Separations
-|Composite Printer profile and *Composite simulates separations* in Proof setup; honored by
-printing to a composite device (PRINT epic).
-|Faithful.
-
-|Intent (four rendering intents)
-|Same four intents, document default plus per-image override.
-|Faithful.
-
-|Default RGB Image Source
-|*Default RGB image source* in Color Settings.
-|Faithful.
-
-|Black point compensation, Simulate paper white, Simulate black ink
-|Offered in Color Settings and Proof setup.
-|Addition: standard ICC proofing controls that ColorSync provides for free.
-
-|Verifying installation of the Kodak CMS (Windows)
-|--
-|Dropped: Windows-only and Kodak-only.
-
-|--
-|Colors carry their own space through the pipeline: Display P3, Lab and OKLab colors are
-converted from their own space to the display, the proof, the press and every export; the
-Working RGB profile is the output space, not the meaning of artwork colors.
-|Added: {fh} predates wide-gamut displays; a single "RGB means the working profile" rule
-cannot hold both an sRGB hex value and a P3 pick.
-|===
 
 === Data model
 
@@ -392,7 +312,7 @@ message ColorSettings {
   RenderingIntent intent = 3;
   // Written as its negation so that the unset default is "on".
   bool no_black_point_compensation = 4;
-  // Written as its negation so that the unset default is "on" (FreeHand's Color Manage Spot Colors).
+  // Written as its negation so that the unset default is "on" (the *Color manage spot colors* setting).
   bool no_spot_color_management = 5;
   // Profile assumed for RGB images with neither embedded nor assigned profile.
   // Unset reads as rgb_profile.

@@ -49,8 +49,7 @@ A named profile:: Any bundled, document or installed profile of the image's colo
 The assignment is one undo step per image.  With several images selected the menu shows
 *Mixed* until you choose, and then applies to all of them.
 
-NOTE: {fh} called this menu *Image Source* and offered it for RGB images only.  {product}
-offers it for RGB, CMYK and grayscale images.  As in {fh}, the *Changing object changes
+NOTE: The menu is offered for RGB, CMYK and grayscale images.  The *Changing object changes
 defaults* preference does not apply to it: assigning a profile to one image never changes the
 default for the next.
 
@@ -90,40 +89,6 @@ offline, the review sheet shows "edited something that was deleted" with a *Rest
 
 ifdef::spec[]
 == Specification
-
-=== FreeHand parity
-
-[cols="2,3,2"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Image Source menu in the Object panel for RGB images
-|*Source profile* menu for RGB, CMYK and grayscale images.
-|Faithful (extended to other models; the RGB behavior is identical).
-
-|Per-image profile does not change the default RGB image profile
-|Same; *Changing object changes defaults* excludes it.
-|Faithful.
-
-|Embedded profile used by default when the CMS is active
-|*Embedded image profiles* preference, default *Use embedded*, with *Ask* and *Ignore*.
-|Faithful (with two additional choices).
-
-|Missing Image Sources dialog when profiles are absent on another computer
-|Profiles travel in the document; a not-yet-synced profile shows *profile pending* and falls
-back to the document default without a dialog.
-|Adapted: the document carries its profiles, so absence is transient rather than a setup
-problem.
-
-|Temporary assignment of the default profile when the original is missing
-|Read-time fallback to the document default; nothing is written.
-|Adapted: same visible result, no write, so the assignment survives once the data arrives.
-
-|Per-image rendering intent
-|*Intent* menu per image.
-|Addition: the ICC workflow the manual describes assumed one intent; per-image intent is what
-Core Graphics offers and what photographs in illustrations need.
-|===
 
 === Data model
 

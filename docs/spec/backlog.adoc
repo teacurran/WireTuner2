@@ -21,23 +21,24 @@ work depends on, and orders everything into waves that can run in parallel.
 |`GEO` |client-render |Geometry kernels
 |`TXT` |client-render |Text layout
 |`TEST` |test |Test infrastructure
-|`BASIC` |client-ui |Chapter 1: interface, panels, toolbars, preferences, view
-|`DOC` |client-model |Chapter 2: document setup, pages, masters, rulers, grid, guides
-|`DRAW` |client-ui |Chapter 3: drawing tools
-|`OBJ` |client-model |Chapter 4: objects, selection, transforms, combining
-|`COLOR` |client-model |Chapter 5: color, swatches, mixer, tints
-|`ATTR` |client-model |Chapter 6: strokes and fills
-|`FX` |client-render |Chapter 7: live effects, extrude, blends, perspective
-|`TYPE` |client-ui |Chapter 8: type
-|`LIB` |client-model |Chapter 9: layers, symbols, styles
-|`IMG` |import-export |Chapter 10: imported artwork
-|`WEB` |import-export |Chapter 11: web graphics and animation
-|`IO` |import-export |Chapter 12: saving, exporting, file formats
-|`CMS` |client-render |Chapter 13: color management
-|`PRINT` |import-export |Chapter 14: printing
+|`BASIC` |client-ui |interface, panels, toolbars, preferences, view
+|`DOC` |client-model |document setup, pages, masters, rulers, grid, guides
+|`DRAW` |client-ui |drawing tools
+|`OBJ` |client-model |objects, selection, transforms, combining
+|`COLOR` |client-model |color, swatches, mixer, tints
+|`ATTR` |client-model |strokes and fills
+|`FX` |client-render |live effects, extrude, blends, perspective
+|`TYPE` |client-ui |type
+|`LIB` |client-model |layers, symbols, styles
+|`IMG` |import-export |imported artwork
+|`WEB` |import-export |web graphics and animation
+|`IO` |import-export |saving, exporting, file formats
+|`CMS` |client-render |color management
+|`PRINT` |import-export |printing
 |`COLLAB` |client-ui |Presence, sharing, comments, inspect, branches, history -- the multiplayer surface
 |`SEC` |server |Accounts, teams, workspaces (xref:security.adoc[Accounts, teams and security])
 |`FONT` |client-model |Typeface documents: glyphs as pages, metrics, kerning, font generation (an addition)
+|`DATA` |client-model |Automation and data: JavaScript scripting, data merge, server-side API fetch (server tasks DATA-005..009 are track `server`)
 |===
 
 == Foundation tasks
@@ -517,7 +518,7 @@ Track:: client-ui
 Depends on:: APP-001
 Size:: M
 Delivers:: Main menu built from a declarative command registry (id, title, default key, validation), customizable shortcuts with a preferences UI and export, context menus from the same registry.
-Done when:: {fh}'s default Mac shortcut set is loaded as a preset; conflicts are reported.
+Done when:: the default shortcut set is loaded as a preset; conflicts are reported.
 
 [[APP-006]]
 ==== APP-006 Selection model
@@ -591,7 +592,7 @@ Track:: client-render
 Depends on:: REND-001, GEO-001
 Size:: M
 Delivers:: Fill rules, stroke caps/joins/miter, dashes, arrowheads host, multiple fills and strokes in stack order, overprint preview hook.
-Done when:: Reference renders match {fh}'s output for the corpus within anti-aliasing tolerance.
+Done when:: Reference renders match the golden corpus within anti-aliasing tolerance.
 
 [[REND-003]]
 ==== REND-003 Hit testing
@@ -617,7 +618,7 @@ Done when:: A remote change to one object repaints only its tiles.
 Track:: client-render
 Depends on:: REND-002
 Size:: S
-Delivers:: Preview, Fast Preview, Keyline and Fast Keyline modes; flash player preview host hook.
+Delivers:: Preview, Fast Preview, Keyline and Fast Keyline modes; the Preview-in-Browser host hook.
 Done when:: Modes switch without rebuilding the display list.
 
 [[REND-006]]
@@ -653,7 +654,7 @@ Done when:: Property tests against numeric references; no allocation in hot path
 Track:: client-render
 Depends on:: GEO-001
 Size:: L
-Delivers:: Union, intersect, punch, divide, crop, transparency (as in {fh}'s Combine) on multi-contour paths with even-odd and non-zero fills; `CGPath` operations where available, own implementation for the rest.
+Delivers:: Union, intersect, punch, divide, crop, transparency (the Combine commands) on multi-contour paths with even-odd and non-zero fills; `CGPath` operations where available, own implementation for the rest.
 Done when:: Corpus of 200 cases including tangencies and self-intersections passes; degenerate input never crashes.
 
 [[GEO-003]]
@@ -672,7 +673,7 @@ Track:: client-render
 Depends on:: GEO-001
 Size:: M
 Delivers:: Schneider curve fitting for freehand input, Douglas–Peucker + curve simplify, smoothing.
-Done when:: Freehand tool output matches {fh}'s precision settings behavior on recorded strokes.
+Done when:: Pencil-group tool output matches the precision settings on recorded strokes.
 
 [[GEO-005]]
 ==== GEO-005 Transforms and constraints
@@ -739,17 +740,17 @@ Agents work in waves; a wave's tasks depend only on earlier waves.
 |PROTO-004..007, CRDT-001, CRDT-003, CRDT-005, CRDT-007, CRDT-011, APP-002, APP-008, APP-010, REND-002, REND-003, REND-006, REND-007, GEO-003
 
 |3
-|CRDT-002, CRDT-004, CRDT-006, SRV-004, SRV-008, SRV-009, APP-003, APP-006, REND-005, and every *feature* task whose dependencies are met -- most `DRAW`, `DOC`, `COLOR`, `ATTR` tasks start here
+|CRDT-002, CRDT-004, CRDT-006, SRV-004, SRV-008, SRV-009, APP-003, APP-006, REND-005, DATA-001, DATA-002, and every *feature* task whose dependencies are met -- most `DRAW`, `DOC`, `COLOR`, `ATTR` tasks start here
 
 |4
 |CRDT-008..010, SRV-005..007, SRV-010, SYNC-001..003, APP-007, APP-009, APP-011, REND-004, TXT-001, CRDT-012
 
 |5
-|SRV-011..014, SYNC-004..010, TXT-002, TEST-001, SEC-001..003, `TYPE`, `FX`, `LIB`, `COLLAB`
+|SRV-011..014, SYNC-004..010, TXT-002, TEST-001, SEC-001..003, DATA-005..009, `TYPE`, `FX`, `LIB`, `COLLAB`
 
 |6
-|`IMG`, `WEB`, `IO`, `CMS`, `PRINT`, `FONT`, polish, parity audit
+|`IMG`, `WEB`, `IO`, `CMS`, `PRINT`, `FONT`, `DATA`, polish
 |===
 
-Feature epics list their own tasks on their pages; the parity page
-(xref:parity.adoc[FreeHand parity]) is the index of every feature page.
+Feature epics list their own tasks on their pages; the xref:index.adoc[table of contents] is
+the index of every feature page.

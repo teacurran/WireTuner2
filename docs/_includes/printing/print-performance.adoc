@@ -83,35 +83,6 @@ deleting hidden objects deletes them for everyone -- so mention it, or do them o
 ifdef::spec[]
 == Specification
 
-=== FreeHand parity
-
-[cols="2,3,2"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Guidelines: complexity, points, flatness, subpaths, effects, simplify, clipping, halftones,
-imported graphics
-|Same advice adapted to the renderer; the PostScript-specific items (binary vs. ASCII images,
-subpath counts) dropped.
-|Adapted -- PostScript-era items removed.
-
-|Paper size no larger than the illustration to save printer memory
-|Not applicable; memory is the Mac's.
-|Dropped -- no longer a constraint.
-
-|Text guidelines (text on a path, typefaces, Zoom effect, downloadable fonts)
-|Same minus font downloading.
-|Adapted
-
-|Fonts downloaded only for printed pages
-|Subsetting has the same effect.
-|Faithful
-
-|Print progress and cancel (system dialog)
-|{product}'s own progress panel with sheet names, background drawing, cancellation.
-|Adapted -- addition.
-|===
-
 === Data model
 
 `PrintSettings.rasterize_dpi`, `flatness` and `text_as_outlines` on

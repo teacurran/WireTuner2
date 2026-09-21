@@ -42,29 +42,6 @@ default fill keeps both.
 ifdef::spec[]
 == Specification
 
-=== FreeHand parity
-
-[cols="2,3,2"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Defaults shown and edited in the Object panel with nothing selected
-|Same.
-|Faithful
-
-|Defaults defined by the selected style; changing the style changes them
-|Same.
-|Faithful
-
-|Changing Object Changes Defaults preference
-|Same; a per-user preference writing shared defaults.
-|Faithful
-
-|Defaults saved with the document
-|Same: shared document data under `settings`.
-|Faithful
-|===
-
 === Data model
 
 Defaults are shared document data on the well-known `settings` node.
@@ -89,8 +66,8 @@ message Defaults {
 ----
 
 Why document, not user::
-The alternative -- defaults as a per-user preference -- was rejected: {fh} stores them in
-the file (as the Normal style), a template's whole point is to carry defaults
+The alternative -- defaults as a per-user preference -- was rejected: the defaults are
+the Normal style, which lives in the file, a template's whole point is to carry defaults
 (xref:templates.adoc[Templates]), and a document should draw the same on every Mac.  The
 cost -- a collaborator can change them -- is small because defaults affect only future
 objects, and the change is visible in the Object panel and in history.  The *current style*

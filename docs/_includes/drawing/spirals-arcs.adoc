@@ -96,31 +96,6 @@ Mac, not in the document, so changing your spiral options never affects anyone e
 ifdef::spec[]
 == Specification
 
-=== FreeHand parity
-
-[cols="2,3,1"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Spiral dialog: type (concentric/expanding with expansion rate), draw by rotations or
-increments (number, increment width, starting radius), draw from center/edge/corner, direction
-|Same, as a sheet.
-|Faithful
-
-|Spiral drag with kbd:[Shift] constrain, kbd:[Option] from center
-|Same.
-|Faithful
-
-|Arc dialog: open, flipped, concave
-|Same.
-|Faithful
-
-|Arc modifiers: kbd:[Shift], kbd:[Option] flipped, kbd:[Cmd] closed, kbd:[Control] concave;
-Windows Control + right button for concave
-|Mac keys kept; the Windows right-button variant dropped.
-|Adapted
-|===
-
 === Data model
 
 None.  Spirals and arcs are `PathProps` nodes (xref:vector-basics.adoc[Vector basics]).  The

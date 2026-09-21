@@ -64,9 +64,6 @@ Colors]) decides what the Swatches panel's fill and stroke selectors act on when
 is selected with the Pointer tool: *Text* (the characters) or *Text block* (the container).
 The preference also decides which color the Swatches panel highlights for such a selection.
 
-NOTE: {fh} called this preference *Color List Shows*, with the choices *Container Color* and
-*Text Color*.
-
 == Working with others
 
 * Character color is part of the text's formatting, so it follows the same rules as bold: it
@@ -81,41 +78,6 @@ NOTE: {fh} called this preference *Color List Shows*, with the choices *Containe
 
 ifdef::spec[]
 == Specification
-
-=== FreeHand parity
-
-[cols="2,3,1"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Text Fill and Text Stroke color wells under the Text property; Add Stroke
-|Same rows under the Text row.
-|Faithful
-
-|Block stroke and fill via Add Stroke / Add Fill; drop on border or interior
-|Same.
-|Faithful
-
-|Display Border shows/hides block stroke and fill
-|Same, auto-enabled on first stroke/fill.
-|Faithful
-
-|Delete button removes a text fill or stroke
-|Same.
-|Faithful
-
-|Properties list order can hide text under a fill
-|Same behavior; the guide tells the user to reorder.
-|Faithful
-
-|Preference Color List Shows: Container Color / Text Color
-|*Swatches apply color to*: *Text* / *Text block*.
-|Faithful (renamed)
-
-|Gradient or pattern fill on characters
-|Not offered on text; available after Convert to Paths.
-|Faithful ({fh} did not offer them on live text either)
-|===
 
 === Data model
 

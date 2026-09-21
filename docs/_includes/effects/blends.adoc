@@ -75,9 +75,6 @@ To blend from point to point:
 . Choose menu:Modify[Combine > Blend].  The selected points become the blend points, which
   shapes the intermediate steps differently from an object-to-object blend.
 
-NOTE: {fh}'s *Xtras* menu and *Xtra Operations* toolbar are the *Extensions* menu and
-*Operations* toolbar in {product} (xref:extensions.adoc[Extensions]).
-
 == Adjusting a blend in the Object panel
 
 Select a blend and the Object panel shows its settings:
@@ -169,45 +166,6 @@ To turn a blend into ordinary objects:
 
 ifdef::spec[]
 == Specification
-
-=== FreeHand parity
-
-[cols="2,3,1"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Blend tool: drag to blend, drag to add, drag blend points, Option-drag to join to path
-|Same.
-|Faithful
-
-|menu:Modify[Combine > Blend], Xtra Operations toolbar Blend, menu:Xtras[Create > Blend]
-|Same; Xtras → Extensions, Xtra Operations → Operations toolbar.
-|Adapted -- renaming only.
-
-|Point-to-point blend via subselected points
-|Same.
-|Faithful
-
-|Object panel: Steps, Range First/Last, blend type, blend order, Show path, Rotate on path
-|Same.
-|Faithful
-
-|Join Blend to Path, Split, Ungroup
-|Same.
-|Faithful
-
-|Live regeneration on subselect edit
-|Same; steps are never stored, always derived.
-|Faithful
-
-|Spot color rules, fill-kind compatibility, no bitmaps
-|Same rules.
-|Faithful
-
-|Ungroup converts steps to editable objects and spot steps to process
-|Same.
-|Faithful
-|===
 
 === Data model
 

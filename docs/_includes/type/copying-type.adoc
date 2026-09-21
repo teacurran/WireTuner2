@@ -71,25 +71,6 @@ paste stays.  Your attribute clipboard is yours alone and works offline.
 ifdef::spec[]
 == Specification
 
-=== FreeHand parity
-
-[cols="2,3,1"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Edit > Special > Copy Attributes / Paste Attributes for text
-|Same commands and shortcuts; the attribute set is enumerated above.
-|Faithful
-
-|Copies Character, Paragraph, Spacing options, tabs, indents, margins, text fill and stroke
-|Same.  "Margins" in {fh}'s list is read as indents; block insets are not copied.
-|Faithful
-
-|Eyedropper applies text attributes
-|Same; kbd:[Shift]/kbd:[Cmd] filters added.
-|Faithful (extended)
-|===
-
 === Data model
 
 No new fields.  The attribute clipboard is client state: a resolved `TextMarkValue` set and a

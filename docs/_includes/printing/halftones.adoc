@@ -77,31 +77,6 @@ properties with both values.
 ifdef::spec[]
 == Specification
 
-=== FreeHand parity
-
-[cols="2,3,2"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Halftones panel: Screen (Default + shapes), Angle dial, Frequency slider
-|Same.
-|Faithful
-
-|Object screens honored on PostScript printers
-|Honored on separations and whenever *Screen in {product}* is on; on a desktop printer with
-in-app screening off, no effect (the print path carries no halftone dictionaries).
-|Adapted -- the PDF print path does not transmit screens; in-app screening restores the
-capability on every device.
-
-|Override object-level screens in Print Setup
-|*Ignore object screens* in the Print dialog.
-|Faithful
-
-|Screen inherited through groups
-|Same.
-|Faithful
-|===
-
 === Data model
 
 One field on `CommonProps`, added by xref:printing.adoc#PRINT-001[PRINT-001]:
@@ -117,8 +92,8 @@ message CommonProps {
 }
 ----
 
-`CommonProps` rather than the appearance stack because {fh} applied the screen to the object,
-not to one fill; a fill-level screen would be a new capability with no parity.  And
+`CommonProps` rather than the appearance stack because the screen applies to the object, not
+to one fill; there is no fill-level screen.  And
 `PrintSettings.ignore_object_halftones` (a bool, STRUCT sibling of the fields on
 xref:printing.adoc[Printing]).
 

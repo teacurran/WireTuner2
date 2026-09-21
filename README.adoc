@@ -1,8 +1,7 @@
 = WireTuner
 
-A native macOS vector illustration application with the feature set of Macromedia FreeHand MX,
-rebuilt as a multiplayer, cloud-saved, offline-capable tool: Swift client, Quarkus server, gRPC
-via buf, CRDT documents.
+A native macOS vector illustration application built as a multiplayer, cloud-saved,
+offline-capable tool: Swift client, Quarkus server, gRPC via buf, CRDT documents.
 
 == Documentation
 
@@ -21,5 +20,3 @@ make docs-check   # fast render of both books with the asciidoctor CLI; warnings
 make docs         # the Maven render CI uses (docs/pom.xml), output under docs/target/docs
 ----
 
-`docs/inspo/` holds the FreeHand MX manual used as the reference for feature parity.  It is
-reference material only and is never quoted in the book.

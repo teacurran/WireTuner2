@@ -1,7 +1,6 @@
 = Scripting and automation
 include::_attributes.adoc[]
 :page-slug: scripting
-:page-group: Document setup
-:page-fh: Chapter 2, "Using AppleScript to automate FreeHand (Macintosh)", "Sending mail (Windows)"
+:page-group: Automation and data
 
 include::_includes/document/scripting.adoc[]

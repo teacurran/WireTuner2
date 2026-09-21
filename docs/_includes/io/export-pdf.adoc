@@ -83,9 +83,6 @@ image at its placed resolution.
 |Lossless compression of everything that is not an image.  Always on except for debugging.
 |===
 
-NOTE: For {fh} users: *ASCII Format* is gone (7-bit mail gateways are gone too).  *Compress
-Text and Graphics* is *Compress text and line art*, on by default.
-
 == Fonts
 
 [cols="1,3"]
@@ -236,9 +233,6 @@ feature that modern readers honor.  With *Tagged PDF* on, the alt text, *Decorat
 settings and reading order from the Object panel are kept too, so the PDF reads aloud in the
 order you arranged (xref:names-notes.adoc[Names, notes and alt text]).
 
-NOTE: For {fh} users: the PDF limits listed in the {fh} manual -- no alpha transparency, no
-text effects, no custom fills, overprint turned off, pages clipped to 45 inches -- are gone.
-
 == Working with others
 
 PDF export reads the document at the instant you click btn:[Export] and never changes it.
@@ -249,72 +243,6 @@ the document (xref:print-fonts.adoc[Fonts and printing]).
 
 ifdef::spec[]
 == Specification
-
-=== FreeHand parity
-
-[cols="2,3,2"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Pages: All / From-To
-|In the Export sheet: Current / All / Range.
-|Faithful.
-
-|Color and Grayscale Image Compression (JPEG levels)
-|*Color and grayscale images*: Automatic / JPEG quality / Lossless / None, plus downsampling.
-|Faithful, extended.
-
-|Convert Colors To CMYK / RGB / CMYK and RGB
-|*Colors*: Keep / Convert to CMYK / Convert to RGB, with a destination profile.
-|Faithful (renamed).
-
-|Compatibility: Acrobat 1, 2, 3, 4
-|PDF 1.4 through 2.0, PDF/X-1a, PDF/X-4.
-|Adapted -- Acrobat 1--4 targets are two decades unsupported; 1.4 is the floor that keeps
-transparency.
-
-|Compress Text and Graphics
-|*Compress text and line art*.
-|Faithful.
-
-|ASCII Format
-|Not offered.
-|Dropped -- 7-bit transport is gone.
-
-|Editable Text Format (keep text blocks intact for re-import)
-|Text is always editable in the PDF; the round-trip use is *Embed {product} document*.
-|Adapted -- the option existed to work around PDF re-import limits that the package removes.
-
-|Export Notes as annotations
-|*Notes as comments*.
-|Faithful.
-
-|Export URLs as link annotations
-|*Links from URLs*.
-|Faithful.
-
-|Embed Fonts (TrueType and Type 1)
-|*Embed fonts*: Subset / Complete / Outlines, with license handling; OpenType and variable
-fonts included.
-|Faithful, extended.
-
-|Unsupported in PDF: custom and PostScript fills and strokes, arrowheads, textured fills;
-alpha transparency; EPS images (preview exported instead); text effects; overprint turned off;
-page size capped at 3240 × 3240 px
-|All supported; overprint preserved; page size up to 200 in, larger via `/UserUnit`.
-|Adapted -- improvements.
-
-|--
-|PDF/X-1a and PDF/X-4, bleed and marks, layers, bookmarks, passwords, fast web view,
-embedded package, Display P3 and Lab colors kept with their profiles.
-|Addition.
-
-|--
-|Tagged PDF with PDF/UA-1 structure: figures with alternate text, artifacts, logical reading
-order, document language.
-|Added -- accessible PDF is a legal requirement for much published work; the data is on the
-objects (xref:names-notes.adoc[]).
-|===
 
 === Data model
 

@@ -370,82 +370,6 @@ name in xref:history.adoc[History].
 ifdef::spec[]
 == Specification
 
-=== FreeHand parity
-
-[cols="2,3,2"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Foreground, Guides and Background layers in a new document
-|Same three layers, created by the document template with the roles below.
-|Faithful
-
-|Separator line; layers below it do not print and draw dimmed
-|Same appearance and behavior.  Stored as a `printing` flag per layer rather than a separator
-position (see Data model).
-|Adapted -- a per-layer flag survives concurrent reordering; a separator position does not.
-
-|Show/hide, Preview/Keyline, lock per layer, with drag-through and kbd:[Option]-click for all
-|Same gestures.
-|Faithful
-
-|Include invisible layers when printing
-|Output options on xref:output-area.adoc[Setting the output area].
-|Faithful
-
-|New, Duplicate, Remove, Merge Selected, Merge Foreground, Move Objects to Current Layer
-|Same commands in the panel options menu and on the row context menu.
-|Faithful
-
-|Windows-only context menu (*Move Selection to This Layer*, *Remove*)
-|Available on macOS as a kbd:[Control]-click context menu.
-|Adapted -- macOS has context menus; no reason to keep it Windows-only.
-
-|Rename by double-click; Guides layer cannot be renamed, merged or removed
-|Same.
-|Faithful
-
-|kbd:[Option]-click a layer name selects all objects on it
-|Same.
-|Faithful
-
-|Clicking a layer name moves the selection (Panels preference)
-|Same, same preference name.
-|Faithful
-
-|Remember layer info (General preference): paste keeps the layer, ungroup restores layers
-|Same, using an origin-layer name stored on the object.
-|Faithful
-
-|Layer highlight color from Swatches, Mixer, another layer, Object panel, Eyedropper
-|Same sources, plus double-click for the system color panel.
-|Faithful
-
-|Highlight selected paths (General preference)
-|Same.
-|Faithful
-
-|Guide color (Colors preference), guides black in Keyline
-|Same; the preference is documented on xref:grid-guides.adoc[Using the grid and guides].
-|Faithful
-
-|Guide paths: path to guide by clicking the Guides layer; release from the Guides dialog
-|Same, the dialog is a sheet.
-|Faithful
-
-|Warning when removing a non-empty layer
-|Same, as a sheet; removal is undoable and restorable from History.
-|Faithful
-
-|"Edit all layers" versus current layer only
-|*Edit current layer only* preference (Object category), default off.
-|Adapted -- {fh} MX exposes this only through selection behavior; a named preference is clearer.
-
-|Hiding or locking a layer is a document setting
-|Same: shared with collaborators.  A per-user "hide for me" is an open question.
-|Faithful
-|===
-
 === Data model
 
 Layers are children of the well-known `layers` node (xref:crdt-model.adoc[CRDT model]).  Their
@@ -471,7 +395,7 @@ enum LayerRole {
 message LayerProps {
   // Fixed at creation; readers ignore later writes (the client never issues them).
   LayerRole role = 1;
-  // Objects on the layer are drawn and selectable.  Shared, as in FreeHand.
+  // Objects on the layer are drawn and selectable.  Shared.
   bool visible = 2;
   // Objects on the layer cannot be selected or edited from the canvas.  Advisory: it constrains
   // each client's own tools and is never enforced against remote ops (see Merge semantics).

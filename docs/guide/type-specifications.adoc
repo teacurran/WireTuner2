@@ -2,6 +2,5 @@
 include::_attributes.adoc[]
 :page-slug: type-specifications
 :page-group: Type
-:page-fh: Chapter 8, "Setting precise type specifications"
 
 include::_includes/type/type-specifications.adoc[]

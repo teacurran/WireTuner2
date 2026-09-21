@@ -5,10 +5,6 @@ tiling, composite or separated output, printer's marks, bleed and the per-ink se
 prepress shop asks for.  Nothing in the print path leaves your Mac -- the same drawing code
 that paints the canvas paints the printed page, so what you see is what prints.
 
-NOTE: {fh} users: the separate *Print Setup* dialog (Separations, Imaging and Paper Setup
-tabs) and the *Print Setting* presets have become the *{product}* pane of the Print dialog
-and the Print dialog's *Presets* menu.  Everything the tabs held is still there.
-
 // TODO screenshot: the Print dialog with the WireTuner pane selected, showing the Pages, Scale and Output groups
 
 == The Print dialog
@@ -288,92 +284,6 @@ ifdef::spec[]
 Printing is client-only.  The print path is `NSPrintOperation` driven by a view that draws
 output pages with `WTRender` into the print context; macOS spools the result as PDF.  There is
 no PostScript generation, no PPD parsing and no server involvement.
-
-=== FreeHand parity
-
-[cols="2,3,2"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Printer, copies, collate, page range in the system dialog
-|The same, through `NSPrintPanel`.
-|Faithful
-
-|Selected Objects Only
-|Same.
-|Faithful
-
-|Composite / Separations
-|Same, in the *{product}* pane.
-|Faithful
-
-|Scale: Uniform, Variable, Fit on Paper
-|Same.
-|Faithful
-
-|Tile: manual (zero point) and automatic with overlap
-|Same; the manual tile is anchored by its top-left corner at the ruler zero point ({fh}:
-bottom-left) because pasteboard coordinates are y-down.  Automatic tiles carry row/column
-labels and tile marks.
-|Adapted -- coordinate convention; labels added.
-
-|Print Setting presets (`.pst` files)
-|The Print dialog's *Presets* menu.  The pane's settings are written into the `NSPrintInfo`
-dictionary so a preset captures them together with paper and printer options.
-|Adapted -- native mechanism, same intent.
-
-|Use PPD / Select PPD
-|Dropped.  macOS has no PPD selection for the application; paper sizes, printable area and
-resolution come from the printer's queue.  A *Screen in {product}* option replaces the parts
-of the PPD (screens, resolution) that mattered to artwork.
-|Dropped -- no PPD layer on modern macOS.
-
-|Print Setup: Separations tab (ink list with print/overprint/angle/frequency, halftone screen,
-spot as process)
-|Ink list with *Print*, *Angle*, *Frequency* per plate; default screen shape and frequency;
-*Print spot colors as process*.  The per-ink *Overprint* column is not carried: overprint is
-per fill/stroke in the Object panel (ATTR).
-|Adapted -- per-ink overprint override dropped (a plate-wide overprint is not expressible in the
-PDF path and was rarely used).
-
-|Transfer function (Default / Normalize / Posterize)
-|Dropped.  Transfer curves are a RIP setting; the PDF print path carries none.
-|Dropped -- RIP-side.
-
-|Spread size (trapping)
-|Dropped.  Trapping is done in prepress.
-|Dropped -- prepress-side.
-
-|Print Setup: Imaging tab -- labels and marks, emulsion, positive/negative, include invisible
-layers, flatness
-|Same options.
-|Faithful
-
-|Split complex paths, Maximum color steps, Images ASCII/Binary/None
-|Dropped.  There is no PostScript path limit, gradients print as smooth shadings, images are
-always embedded as binary.
-|Dropped -- PostScript-era limits.
-
-|Print as: PostScript Level 1/2/3
-|Dropped; replaced by *Rasterize output* as the compatibility fallback.
-|Dropped -- no PostScript generation.
-
-|Unlimited downloadable fonts
-|Dropped; fonts are embedded once, subsetted, in the spooled PDF.
-|Dropped -- no font downloading.
-
-|Paper Setup tab: size, orientation, transverse, offset
-|Size and orientation from Page Setup; *Offset* in the pane; transverse dropped.
-|Adapted -- transverse is an imagesetter media setting made in the RIP.
-
-|Print to PostScript file
-|*Save as PDF* in the dialog; PDF/X via xref:export-pdf.adoc[Exporting PDF].
-|Adapted -- PDF is the interchange format shops accept today.
-
-|Color Management button
-|The dialog's *Color Matching* pane and the document's working spaces.
-|Adapted -- native ColorSync pane.
-|===
 
 === Data model
 

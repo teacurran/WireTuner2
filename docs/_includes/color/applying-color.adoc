@@ -144,50 +144,6 @@ someone else, showing both colors so you can choose.
 ifdef::spec[]
 == Specification
 
-=== FreeHand parity
-
-[cols="2,3,1"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Drag a swatch from Mixer / Tints / Swatches onto an object's fill or stroke
-|Same, with fill/stroke highlight during the drag.
-|Faithful
-
-|Shift on release = fill only; Ctrl-Shift (Win) / Cmd (Mac) on release = stroke only
-|kbd:[Shift] and kbd:[Cmd]; modifier read at drop time as in {fh}.
-|Faithful
-
-|Swatches panel Fill / Stroke / Both selectors: drag onto or click then choose
-|Same.
-|Faithful
-
-|Object panel: select the stroke or fill, then choose a color
-|Same, plus a value field, *Detach* and *Restore* items.
-|Faithful
-
-|Tools panel color boxes with a pop-up palette; Swatches or Color Cubes view
-|Same.  Color Cubes adds a hex field.
-|Faithful
-
-|Eyedropper: drag a color from one object to another
-|Same, and the Eyedropper carries the swatch reference when the source color is named.
-Click sets current colors; Option-click picks the stroke.
-|Faithful
-
-|Applying color to text
-|See xref:text-color.adoc[Applying color to text].
-|--
-
-|Current colors for new objects follow the color boxes when nothing is selected
-|Per user, per Mac (`local_only`), seeded from the document's default attributes.
-|Adapted: in a shared document one person's "next color" must not flip another's.
-
-|Drop on a group colors the group's objects
-|Same; kbd:[Option] limits the drop to the object under the pointer.
-|Adapted: addition of the Option modifier.
-|===
-
 === Data model
 
 A fill, stroke, text run, guide or anything else that carries a color holds a `ColorRef`.

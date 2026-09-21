@@ -130,46 +130,6 @@ xref:paragraphs.adoc[Paragraphs].
 ifdef::spec[]
 == Specification
 
-=== FreeHand parity
-
-[cols="2,3,1"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Text ruler with tab well, default half-inch tabs, indent markers
-|Same.
-|Faithful
-
-|Five tab kinds: left, right, center, decimal, wrapping
-|Same.
-|Faithful
-
-|Drag to place/move/delete tabs; vertical tracking line (preference)
-|Same, plus kbd:[Option]-drag to duplicate.
-|Faithful
-
-|Edit Tab dialog: alignment, position, leader (preset or custom character)
-|Same as a sheet; a *Tabs…* table view added for bulk editing.
-|Faithful
-
-|Tab leaders unavailable on wrapping tabs and on text on a path
-|Same.
-|Faithful
-
-|Left/right/first-line indents on ruler and Object panel; hanging indent
-|Same.
-|Faithful
-
-|Inset l/r/t/b in the Text Block property
-|Same.
-|Faithful
-
-|Decimal tab aligns on "."
-|Aligns on the locale's decimal separator; "." and "," both recognized when the paragraph's
-language is unset.
-|Adapted -- localized documents need the comma.
-|===
-
 === Data model
 
 `ParagraphProps.left_indent`, `right_indent`, `first_line_indent` and `tabs` on
@@ -225,7 +185,7 @@ Nothing beyond storing and relaying changes.
 === Client
 
 Ruler:: An `NSView` above the block in canvas coordinates, following the block's transform
-(a rotated block gets a rotated ruler, as in {fh}).  Drags produce one change at mouse-up;
+(a rotated block gets a rotated ruler).  Drags produce one change at mouse-up;
 the tracking line is a canvas overlay.
 
 Layout:: `WTText` implements tabs itself rather than through `NSTextTab` so that wrapping

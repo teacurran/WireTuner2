@@ -42,8 +42,7 @@ To name the current state:
 . The version appears at the top of the History panel.  Everyone with the document open sees
   it.
 
-NOTE: For {fh} users: kbd:[Cmd+S] does not save.  The document is always saved.  It names a
-version, which is the nearest thing to the moment you used to save for.
+NOTE: kbd:[Cmd+S] does not save.  The document is always saved; kbd:[Cmd+S] names a version.
 
 To rename or delete a named version, right-click it in the History panel.  Deleting the name
 does not delete the changes; it only removes the bookmark (and, once the changes are older
@@ -153,30 +152,6 @@ offline; older history downloads when you are back online.
 
 ifdef::spec[]
 == Specification
-
-=== FreeHand parity
-
-[cols="2,3,2"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Save (kbd:[Cmd+S])
-|Names a version.  Saving is continuous.
-|Adapted -- there is no file to save; the shortcut keeps its meaning of "mark this moment".
-
-|Save As / Save a Copy
-|Restore as Copy at any point in history; Duplicate in the library window for the current
-state.
-|Adapted -- same intent through history rather than the file system.
-
-|Revert
-|View or restore any earlier state.
-|Adapted -- superset.
-
-|--
-|Timeline, blame, compare, restore-as-change.
-|Added -- no FreeHand equivalent
-|===
 
 === Data model
 

@@ -81,9 +81,6 @@ To import a hose someone gives you, drop the `.wthose` file on the Graphic Hose 
 it into the library folder.  Only import hoses from people you trust; a hose can contain any
 artwork, including large bitmaps.
 
-NOTE: For {fh} users: hose files from {fh} (`.fh11` hose documents) are not readable; recreate
-them by pasting their contents into a new set.
-
 == Working with others
 
 Spraying places ordinary objects, so collaborators see them appear when you release the
@@ -94,41 +91,6 @@ Library hoses are private to your Mac until you spray with them.
 
 ifdef::spec[]
 == Specification
-
-=== FreeHand parity
-
-[cols="2,3,1"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Graphic Hose dialog: Hose view with Sets and Contents pop-ups, preview
-|Same, as a sheet.
-|Faithful
-
-|Spray by dragging; speed affects spacing; arrow keys for spacing and scale; click places one
-|Same.
-|Faithful
-
-|Options: order (loop/back and forth/random), spacing (grid/variable/random), scale
-(uniform/random), rotation (uniform/incremental/random) with angle dial
-|Same.
-|Faithful
-
-|Sets: New, Rename, Duplicate; up to 10 objects; Paste In; symbols allowed
-|Same, plus btn:[Remove] and *Delete…*, which {fh} required file management for.
-|Adapted
-
-|Hoses stored as files in the user's Application Support folder; import by copying files;
-restore defaults from the CD
-|Library hoses stored as `.wthose` files in Application Support; import by drop or copy;
-defaults ship with the app and can be restored from the sheet.  Added: hoses can be kept in
-the document and shared.
-|Adapted
-
-|Predefined {fh} hose collection
-|A new collection of {product}-drawn hoses; the {fh} artwork is not reused.
-|Adapted
-|===
 
 === Data model
 

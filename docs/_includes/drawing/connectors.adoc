@@ -53,38 +53,6 @@ keep or discard.  Restoring the deleted object reconnects it.
 ifdef::spec[]
 == Specification
 
-=== FreeHand parity
-
-[cols="2,3,1"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Connector tool: hover to find a connectable object, choose a side, drag to a side of the
-target
-|Same.
-|Faithful
-
-|Drag an end to another object or to empty space
-|Same.
-|Faithful
-
-|Reverse Direction on a connector
-|Same.
-|Faithful
-
-|Reshape with handles on the connector tool
-|Same; kept as per-run offsets that reset when the route's shape changes.
-|Faithful
-
-|Connector stroke attributes (start/end symbols, etc.) from the Object panel
-|Same, through the attribute stack.
-|Faithful
-
-|Behavior when a connected object is deleted (unspecified in {fh})
-|The end becomes a free point at its last attachment position.
-|Adapted
-|===
-
 === Data model
 
 `doc/v1/connector.proto`.  The geometry of a connector is *never stored*; it is derived on
@@ -166,7 +134,7 @@ Nothing beyond storing and relaying changes.
 Routing:: `WTGeometry.routeConnector(startPoint:startSide:endPoint:endSide:) -> [Point]`, an
 orthogonal (Manhattan) router: leave each side by a 12 pt stub, then join the stubs with one
 or two bends chosen by the relative position of the ends (the classic flowchart elbow), no
-obstacle avoidance (as in {fh}).  `run_offsets` slide the intermediate runs.  Output is a
+obstacle avoidance.  `run_offsets` slide the intermediate runs.  Output is a
 `Path` with corner points; arrowheads and stroke come from REND-002.
 
 Dependency tracking:: `WTModel` keeps a reverse index node → connectors referencing it, built

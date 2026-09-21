@@ -4,11 +4,9 @@ has a ColorSync profile -- a factory one for Apple displays, a generic or manufa
 others, or a custom one made with a measuring device -- and {product} draws every window through
 the profile of the screen it is on.  Your job is to make sure that profile is a good one.
 
-NOTE: {fh} offered *Adjust Display Colors*, a dialog in which you tuned a set of on-screen
-patches by eye against a printed swatch book.  {product} does not reproduce it.  macOS provides
-the *Display Calibrator Assistant* for visual calibration and accepts profiles from hardware
-calibrators, both of which produce a real ICC profile that every application on the Mac then
-shares.
+NOTE: macOS provides the *Display Calibrator Assistant* for visual calibration and accepts
+profiles from hardware calibrators, both of which produce a real ICC profile that every
+application on the Mac then shares.
 
 == Seeing which profile is in use
 
@@ -24,8 +22,7 @@ To see the display profile {product} is using:
 
 == Calibrating with the Display Calibrator Assistant
 
-macOS's own visual calibration is the counterpart of {fh}'s Adjust Display Colors.  It asks you
-to match patches by eye and writes a profile.
+macOS's own visual calibration asks you to match patches by eye and writes a profile.
 
 To calibrate a display visually:
 
@@ -47,8 +44,8 @@ so itself); {product} picks it up through macOS like any other.
 
 == Matching printed samples
 
-If you want to compare the screen to printed samples, as {fh}'s procedure suggested, do it
-with proofing rather than by bending the display profile:
+If you want to compare the screen to printed samples, do it with proofing rather than by
+bending the display profile:
 
 . Print a sheet of swatches on the target printer.
 . In {product}, set the proof target to that printer's profile and turn on
@@ -66,31 +63,6 @@ see.
 
 ifdef::spec[]
 == Specification
-
-=== FreeHand parity
-
-[cols="2,3,2"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Adjust Display Colors (Display Color Setup dialog with clickable patches)
-|macOS Display Calibrator Assistant via System Settings; link from the Colors settings pane.
-|Dropped: macOS calibration produces a system-wide ICC profile; a private in-app adjustment
-would apply to one application only and conflict with the system's, which the {fh} manual
-itself warned about.
-
-|Calibrate button opening the system color picker per patch
-|--
-|Dropped with the above.
-
-|Windows Color dialog
-|--
-|Dropped: no Windows client.
-
-|Comparing screen to printed samples
-|Proofing with the printer's profile and *Simulate paper white*.
-|Adapted: same goal through the proof path instead of altering the display.
-|===
 
 === Data model
 

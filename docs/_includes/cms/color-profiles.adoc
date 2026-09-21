@@ -23,11 +23,9 @@ Loaded from a file::
 Any `.icc` or `.icm` file, through *Other…* in a profile menu.  It too is copied into the
 document.
 
-NOTE: {fh} named its two printer profiles *Separations Printer* and *Composite Printer* and
-kept them in Preferences.  In {product} the Separations Printer is the document's *Working
-CMYK* profile and the Composite Printer is chosen in the document's proof setup, both in
-menu:File[Color Settings…].  {fh}'s rules about `.icm` extensions and 27-character names do
-not apply on macOS.
+NOTE: The press the document is separated for is its *Working CMYK* profile, and the
+composite device it is proofed on is chosen in the document's proof setup, both in
+menu:File[Color Settings…].
 
 == Which profile goes where
 
@@ -122,48 +120,6 @@ one is offered back in the review sheet (xref:color-management.adoc[Color manage
 
 ifdef::spec[]
 == Specification
-
-=== FreeHand parity
-
-[cols="2,3,2"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Reads ICC v2 profiles from vendor and custom sources
-|Reads ICC v2 and v4 through ColorSync.
-|Faithful.
-
-|Profile naming conventions (`.icm`, 27 characters, no special characters)
-|Any name macOS accepts; the document stores the profile's description tag and hash.
-|Dropped: cross-platform file naming; no Windows client.
-
-|Profile folder locations (FreeHand ICM folder, ColorSync folders)
-|Installed profiles enumerated from the standard macOS ColorSync locations; chosen profiles
-are copied into the document.
-|Adapted: the document, not a folder, is the unit shared between collaborators.
-
-|Separations Printer profile: Default (CMYK) or an ICC CMYK profile
-|Working CMYK: *Default CMYK* bundled profile or any CMYK profile.
-|Faithful (renamed).
-
-|Separations Printer: Hexachrome profile (six-color output)
-|Not offered.
-|Dropped: six-color separation is outside the PRINT epic's scope and Core Graphics has no
-N-color output path; recorded in xref:decisions.adoc[Decisions].
-
-|Composite Printer profile (CMYK and RGB profiles)
-|Composite Printer in proof setup, CMYK or RGB.
-|Faithful.
-
-|Monitor profile chosen in the setup dialog
-|Taken from the display.
-|Adapted: see xref:monitor-calibration.adoc[Calibrating your display].
-
-|--
-|Wide-gamut output: RGB exports written in Display P3 when the artwork needs it, PDF objects
-tagged with the Display P3 profile, CSS Color 4 values with sRGB fallbacks for the web.
-|Added: {fh}'s outputs predate wide-gamut displays and CSS Color 4.
-|===
 
 === Data model
 

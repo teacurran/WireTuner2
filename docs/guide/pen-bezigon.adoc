@@ -2,6 +2,5 @@
 include::_attributes.adoc[]
 :page-slug: pen-bezigon
 :page-group: Drawing
-:page-fh: Chapter 3, "Drawing with the Pen tool and Bezigon tool"
 
 include::_includes/drawing/pen-bezigon.adoc[]

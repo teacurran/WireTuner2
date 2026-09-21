@@ -22,7 +22,7 @@ settings across documents and launches.
 |Option |Effect
 
 |*Tracer*
-|*Classic* (default) traces regions of similar color, as {fh} did; it is exact and
+|*Classic* (default) traces regions of similar color; it is exact and
 predictable and right for logos, lettering, scans and line art.  *Photo* first divides the
 picture into the things in it -- a face, a shirt, the sky, a car -- on your Mac, and traces
 each of those separately, so the shapes follow objects rather than bands of color.  See
@@ -167,68 +167,6 @@ your Mac, so it works offline, and the result syncs like any drawing.
 
 ifdef::spec[]
 == Specification
-
-=== FreeHand parity
-
-[cols="2,3,2"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Trace tool in the Tools panel; double-click for options
-|Same.
-|Faithful
-
-|Colors 2–256, Colors/Grays, RGB/CMYK
-|Same.
-|Faithful
-
-|Resolution Low/Normal/High
-|Same; defined as sampling at 1/4, 1/2 and 1/1.
-|Faithful
-
-|Trace layers All/Foreground/Background
-|Same.
-|Faithful
-
-|Path conversion Outline (overlap None/Loose/Tight), Centerline (Uniform), Centerline/Outline
-(Open paths below 2–10), Outer edge
-|Same.
-|Faithful
-
-|Trace conformity 0–10, Noise tolerance 0–20, Wand color tolerance 0–255
-|Same.
-|Faithful
-
-|Marquee trace; kbd:[Shift] constrains to a square
-|Same; kbd:[Option] from center added.
-|Faithful
-
-|Wand: click, kbd:[Shift]-click add/subtract, kbd:[Tab] deselect, click selection for
-*Trace Selection* / *Convert Selection Edge*
-|Same; the options appear in a popover.
-|Faithful
-
-|Result placed directly above the traced object
-|Same, grouped and named.
-|Faithful
-
-|Low-memory fallback to the lowest resolution
-|Not needed; tracing streams tiles and never holds more than the sampled image.
-|Dropped -- a 2003 memory constraint.
-
-|Traces {fh} objects and text as well as bitmaps
-|Same: the selection area is rendered to pixels first.
-|Faithful
-
-|Settings saved to the Preferences file
-|Same: *Trace tool options* stored with the user's preferences.
-|Faithful
-
-|(none)
-|*Tracer: Photo* -- on-device segmentation into regions before classic tracing.
-|Added -- better shapes for photographs; the classic tracer is unchanged and remains the
-default (xref:decisions.adoc[Decisions]: on-device ML only).
-|===
 
 === Data model
 

@@ -83,9 +83,6 @@ To add points everywhere:
 * Choose menu:Extensions[Distort > Add Points], or click *Add Points* on the Extension
   Operations toolbar.  One point is added halfway along every segment of the selected paths.
 
-NOTE: For {fh} users: the Xtras menu is *Extensions* in {product}, and the Xtra Operations
-toolbar is *Extension Operations* (xref:extensions.adoc[Extensions]).
-
 == Reshaping with the Freeform tool
 
 The Freeform tool reshapes a path by pushing or pulling its segments directly, adding,
@@ -153,9 +150,9 @@ To set the Knife tool options:
 . Double-click the Knife tool.
 . Set:
 +
-Cut:: *Freehand* follows your drag; *Straight* cuts along a line from press to release.  In
-Freehand mode, hold kbd:[Option] to cut straight for part of the drag and kbd:[Shift] to
-constrain it.
+Cut:: *Free* follows your drag; *Straight* cuts along a line from press to release.  In
+*Free* mode, hold kbd:[Option] to cut straight for part of the drag and
+kbd:[Shift] to constrain it.
 Width:: 0 to 72 points.  0 makes one hairline cut; larger values make two cuts that far apart,
 removing the strip between them.
 Close cut paths:: Closes each piece so it keeps the original's fill.  Off, the pieces are open
@@ -240,54 +237,6 @@ on the same path:
 
 ifdef::spec[]
 == Specification
-
-=== FreeHand parity
-
-[cols="2,3,1"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Select and move points with Pointer/Subselect; Shift-add; drag handles; neighbor handles shown
-|Same.
-|Faithful
-
-|Delete points and segments; Pen click adds a point; Xtras > Distort > Add Points
-|Same; menu is *Extensions*.
-|Faithful
-
-|Object panel point section: type buttons, retract handles, Automatic, X/Y
-|Same.
-|Faithful
-
-|Freeform tool Push/Pull (size, precision, bend by length/between points, pressure) and
-Reshape area (size, strength, precision, pressure) with all keys
-|Same.
-|Faithful
-
-|Knife tool: freehand/straight, width, close cut paths, tight fit; Modify > Split
-|Same.
-|Faithful
-
-|Eraser tool with min/max width, keys, pressure
-|Same.
-|Faithful
-
-|Left/Right arrow keys for width (Windows)
-|Dropped in favor of the bracket keys.
-|Dropped
-
-|Simplify with Apply preview; Reverse Direction; Correct Direction (three routes)
-|Same.
-|Faithful
-
-|Smoother editing preference
-|Kept as a General preference (it also controls handle display during drags).
-|Faithful
-
-|Constrained by other {fh} behavior: Freeform Option-drag clones the path
-|Same.
-|Faithful
-|===
 
 === Data model
 

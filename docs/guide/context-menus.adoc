@@ -2,6 +2,5 @@
 include::_attributes.adoc[]
 :page-slug: context-menus
 :page-group: Basics
-:page-fh: Chapter 1, "Using the right mouse button (Windows)"
 
 include::_includes/basics/context-menus.adoc[]

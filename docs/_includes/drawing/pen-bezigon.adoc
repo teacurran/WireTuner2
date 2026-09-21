@@ -92,9 +92,6 @@ preference in the *Object* settings, on by default; turn it off if you often dra
 happen to start or end on other paths' ends.  Two paths can also be joined explicitly with
 menu:Modify[Join] (xref:combining-paths.adoc[Combining paths]).
 
-NOTE: For {fh} users: Windows' right-button gestures for connector points are kbd:[Control]
-gestures on the Mac, as they were in {fh} for Macintosh.
-
 == Working with others
 
 While you place points, collaborators see your path grow one point at a time; each click or
@@ -108,46 +105,6 @@ review sheet; points only one of you touched merge silently.
 
 ifdef::spec[]
 == Specification
-
-=== FreeHand parity
-
-[cols="2,3,1"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Pen: click corner, drag curve, kbd:[Control]-click connector, kbd:[Cmd]-drag to move the
-point while placing, double-click/kbd:[Tab] to end, click first point to close
-|Same.
-|Faithful
-
-|Pen rubber-band preview
-|Same, governed by the *Pen tool preview* preference.
-|Faithful
-
-|Bezigon: click corner, kbd:[Option]-click curve, kbd:[Control]-drag connector, kbd:[Cmd]-drag
-to move
-|Same.  Bezigon curve points are stored as `automatic` points.
-|Faithful
-
-|kbd:[Shift] constrains segments
-|Same, honoring the document constrain angle.
-|Faithful
-
-|Continue a selected path from a selected end point; continue an unselected path by
-kbd:[Option]-dragging its end point; Pen and Bezigon interchangeable
-|Same.
-|Faithful
-
-|Close by dragging end onto end, or Object panel *Closed*; open via Object panel; Windows
-context-menu Path > Closed/Open
-|Mac methods kept; the context-menu variant is offered on the Mac too under
-xref:context-menus.adoc[Context menus] since there is no reason to withhold it.
-|Adapted
-
-|kbd:[Option]-drag to break a curve point's handle pair while placing it
-|Added (an Illustrator convention {fh} users expect on the Mac).
-|Adapted
-|===
 
 === Data model
 
@@ -199,8 +156,8 @@ extended.  The session survives tool switches between Pen and Bezigon and ends o
 kbd:[Esc], double-click, close, a click on another tool, or the node's deletion.
 
 Cursors:: `NSCursor` variants: pen, pen-with-plus (continue), pen-with-circle (close),
-pen-with-minus (over an existing point of the active path: click deletes it, as in {fh}'s
-Pen), pen-with-caret (over a segment of a selected path: click adds a point; see
+pen-with-minus (over an existing point of the active path: click deletes it),
+pen-with-caret (over a segment of a selected path: click adds a point; see
 xref:editing-paths.adoc[Editing paths]).
 
 Preview:: The rubber-band segment is drawn in the tool overlay from the active end's anchor

@@ -62,11 +62,6 @@ information]).
 Transparency, live effects and raster effects are flattened for EPS, which has no
 transparency model; see <<flattening,How effects and transparency export>>.
 
-NOTE: For {fh} users: *Generic*, *Macintosh*, *MS-DOS*, *QuarkXPress*, *Photoshop* and *CMYK*
-EPS are all this one EPS.  Choose a TIFF preview for what used to be Macintosh or QuarkXPress
-EPS; leave the preview off for Generic.  *Include FreeHand Document* is *Embed {product}
-document*.  Photoshop opens the result exactly as it opened Photoshop EPS.
-
 == Adobe Illustrator options
 
 The Illustrator format is a PDF arranged so that Illustrator opens it with layers, paths and
@@ -265,60 +260,6 @@ the same document with a substituted font gets the substitute
 
 ifdef::spec[]
 == Specification
-
-=== FreeHand parity
-
-[cols="2,3,2"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|EPS: pages to export, one file per page
-|Pages chosen in the Export sheet; one file per page.
-|Faithful.
-
-|EPS: Include FreeHand Document
-|*Embed {product} document* (package as a private data block).
-|Adapted -- same intent; the embedded data is the package format.
-
-|EPS: Include Fonts in EPS
-|*Fonts*: Embed (subset) / Convert to outlines / Reference only.
-|Faithful, extended (subsetting, license handling).
-
-|EPS: Convert Colors To CMYK / RGB / both
-|*Colors*: Convert to CMYK / Convert to RGB / Keep document colors.
-|Faithful (renamed).
-
-|EPS preview variants (PICT, TIFF, none)
-|*Preview*: None / TIFF 72 / TIFF 144.
-|Adapted -- PICT dropped.
-
-|Photoshop EPS: Include Invisible Layers via Output Options
-|*Include hidden layers* in Document Settings applies to all exports
-(xref:printing.adoc[Printing]).
-|Faithful.
-
-|Illustrator 1.1--7.x export
-|One Illustrator format as PDF 1.7.
-|Adapted -- see xref:export-formats.adoc[About export file formats].
-
-|EMF: Include FreeHand Document, Convert Type to Paths, Description
-|Not written.
-|Dropped -- Windows-only format.
-
-|--
-|SVG and DXF exporters with the options above.
-|Addition.
-
-|--
-|Overprint preserved in EPS and PDF (FreeHand turned it off in PDF).
-|Addition.
-
-|--
-|SVG accessibility: `<title>`/`<desc>` and `role="img"` from alt text, `aria-hidden` for
-decorative objects, document title, description and language on the root.
-|Added -- accessible SVG is what browsers and the web expect; the data is already on the
-objects (xref:names-notes.adoc[]).
-|===
 
 === Data model
 

@@ -5,11 +5,6 @@ common housekeeping tasks that used to need an external editor (changing the fil
 reducing the file size, resampling to a sensible resolution, converting to grayscale) {product}
 has its own *Optimize Image* sheet.
 
-NOTE: {fh} had a dedicated *Edit in Fireworks* button and *Optimize in Fireworks* command, plus
-a general *External Editor* preference per file format.  Fireworks no longer exists.  {product}
-replaces all three with *Edit With…*, which lists every application on your Mac that can edit
-the image's format, and with the in-app *Optimize Image* sheet.
-
 == Editing an image in another application
 
 To edit an image's pixels:
@@ -129,49 +124,6 @@ collaborators see a placeholder for the image (with its name) until they arrive.
 
 ifdef::spec[]
 == Specification
-
-=== FreeHand parity
-
-[cols="2,3,2"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|*Edit in Fireworks* button; *Edit Source in Fireworks* context menu
-|*Edit With* submenu and Object panel button listing registered applications.
-|Adapted -- Fireworks is gone; any editor registered with Launch Services serves.
-
-|Fireworks source PNG options (Always / Never / Ask); Link Info source field
-|Not provided.  The image itself is what is sent and returned.
-|Dropped -- Fireworks-specific.  Photoshop users get the same effect because the stored PSD
-keeps its layers.
-
-|*Optimize in Fireworks* (Options / File / Animation tabs)
-|In-app *Optimize Image* sheet: format, quality, resample, color mode, metadata.  Animation
-settings are on xref:animation.adoc[Animation].
-|Adapted -- no external application needed; animation belongs elsewhere.
-
-|External editor per file format (PICT, BMP, GIF, JPEG, Photoshop, PNG, Targa, TIFF, xRes LRG)
-|One *Default image editor* preference plus the per-format list from Launch Services.
-|Adapted -- macOS already knows which applications open each format.
-
-|*Warn before launch and edit*
-|*Confirm before opening an external editor*, default on.
-|Faithful
-
-|menu:Edit[Edit in External Editor]; kbd:[Option]-double-click
-|menu:Edit[Edit With]; kbd:[Option]-double-click opens the default editor.
-|Faithful
-
-|*Editing in Progress* dialog with btn:[Done]
-|*Editing in _application_* panel with btn:[Done] and btn:[Cancel]; updates on every save
-rather than only on Done.
-|Adapted -- live updates are the modern expectation (Illustrator, Sketch, Figma plugins
-behave this way); btn:[Cancel] is an addition.
-
-|Plug-ins convert linked JPEG to embedded TIFF
-|Not applicable; see xref:raster-effects.adoc[Raster effects].
-|Dropped -- no pixel plug-ins.
-|===
 
 === Data model
 

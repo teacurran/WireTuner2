@@ -82,36 +82,6 @@ they reconnect, the same as for rectangles.
 ifdef::spec[]
 == Specification
 
-=== FreeHand parity
-
-[cols="2,3,1"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Polygon Tool dialog: Polygon/Star, 3--360 sides, Automatic/Manual star points with
-Acute/Obtuse slider and preview
-|Same, as a sheet.
-|Faithful
-
-|Drag from center; kbd:[Shift] constrains angle; kbd:[Option] from center
-|Same.
-|Faithful
-
-|Subselect handles: diamond (vertices) and circle (midpoints), kbd:[Shift] to keep the angle
-|Same.
-|Faithful
-
-|Polygons are grouped objects, ungrouped to paths
-|`polygon` node kind with derived geometry; menu:Modify[Ungroup] converts to a `path`.  Same
-reasoning as rectangles.
-|Adapted
-
-|Object panel numeric editing of sides, radii, rotation
-|Added: {fh} exposed only the handles; the panel fields make handle edits reproducible and give
-collaborators something to compare in the review sheet.
-|Adapted
-|===
-
 === Data model
 
 `doc/v1/shape.proto` (shared with DRAW-006).  Local space: center at the origin, first vertex
@@ -127,7 +97,7 @@ message PolygonProps {
   // Outer radius (vertex distance from center), local units.
   double radius = 4 [(buf.validate.field).double.gt = 0];
   // Inner radius for stars.  Ignored when star is false or auto_inner is true.  May exceed
-  // radius (an inside-out star), which FreeHand also allows.
+  // radius (an inside-out star).
   double inner_radius = 5 [(buf.validate.field).double.gte = 0];
   bool auto_inner = 6;                        // "Automatic" star points
   // Manual star sharpness, 0 (acute) .. 1 (obtuse); the Acute/Obtuse slider.  Only used to
@@ -172,7 +142,7 @@ Read-time normalizations::
 * `sides` outside 3--360 (older client): clamped.
 * `auto_inner = true`: `inner_radius` reads as the automatic value for `sides`
   (`radius * cos(2π/sides) / cos(π/sides)` for odd counts, the pentagram-style construction;
-  `radius * 0.5` for even counts, matching {fh}'s preset).
+  `radius * 0.5` for even counts).
 * `radius <= 0`: renders nothing; selectable from the Layers panel.
 
 === Offline behavior

@@ -65,34 +65,6 @@ edit.
 ifdef::spec[]
 == Specification
 
-=== FreeHand parity
-
-[cols="2,3,2"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Crop tool hides parts of a bitmap non-destructively; hidden parts retrievable
-|Same: a crop rectangle stored on the image node.
-|Faithful
-
-|Crop tool absent from toolbars by default; added through Customize; hot key kbd:[C]
-|In the Tools panel under the Pointer group; kbd:[Shift+C] (kbd:[C] is the Comment tool).
-|Adapted -- no reason to hide a tool that has a hot key; toolbars remain customizable
-(xref:toolbars.adoc[Toolbars]).
-
-|Drag crop handles; kbd:[Shift] constrains
-|Same; kbd:[Option] for symmetric cropping and drag-inside to slide the image are additions.
-|Faithful
-
-|Paste Inside to crop bitmaps
-|Same, via xref:clipping-paths.adoc[Clipping paths].
-|Faithful
-
-|(none)
-|Object panel crop fields, menu:Modify[Remove Crop], *Trim to crop* in Optimize Image.
-|Added -- exact values and a way to discard hidden pixels when the file size matters.
-|===
-
 === Data model
 
 `ImageProps.crop` (xref:importing.adoc[Importing artwork]): a `Rect` in unit image space

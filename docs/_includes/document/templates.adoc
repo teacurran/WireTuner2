@@ -6,10 +6,6 @@ live in your library like any other document, marked with a template badge, and 
 
 // TODO screenshot: the New from Template gallery with the built-in starting points and a team template
 
-NOTE: {fh} for Windows had *wizards* -- guided screens for setting up stationery, publications and
-screen graphics.  {product} replaces them with the template gallery's built-in *starting points*,
-which cover the same ground on macOS.
-
 == Starting a document from a template
 
 To create a document from a template:
@@ -83,49 +79,6 @@ is available offline on your Mac; team templates are cached the first time you u
 
 ifdef::spec[]
 == Specification
-
-=== FreeHand parity
-
-[cols="2,3,1"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Templates as defaults for new documents; default template preference
-|Same; templates are library documents with a flag.
-|Adapted -- no template file format; a template is a document with `is_template`.
-
-|Template saves guides, layers, styles, symbols, masters, objects, brushes, colors, custom sizes, custom units
-|Same, because a template is a document.
-|Faithful
-
-|Opening a template yields an untitled copy
-|Same via New from Template; opening from the Templates section edits the template itself.
-|Adapted -- editing needs a way in; {fh} used Save As over the original.
-
-|Save As > FreeHand Template
-|menu:File[Save as Template…] stores a copy with the flag.
-|Adapted -- no Save As exists.
-
-|Edit a template by open, change, Save As over it
-|Open from Templates and edit in place.
-|Adapted
-
-|Finder Stationery Pad toggle
-|*Use as Template* / *Use as Document* in the Library window.
-|Adapted -- there is no file in the Finder.
-
-|Default template stored in the Settings folder
-|Preference references a library document id.
-|Adapted
-
-|Windows wizards: Welcome, Setup, Screen-based, Stationery, Publication
-|The gallery's built-in starting points with a side panel of options; gallery at launch.
-|Adapted -- Windows-only feature; the gallery gives the same outcomes in macOS idiom (recorded in decisions).
-
-|Wizard adds preset color palettes to swatches
-|Starting points carry swatch sets; the side panel offers a palette choice for Print and Screen.
-|Faithful
-|===
 
 === Data model
 

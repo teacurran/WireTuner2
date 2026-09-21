@@ -92,33 +92,6 @@ everyone sees.
 ifdef::spec[]
 == Specification
 
-=== FreeHand parity
-
-[cols="2,3,1"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Export selected colors as a custom color library with name, filename, rows, columns, notes
-|Same, as `.wtcolors`; `.ase` also offered.
-|Faithful
-
-|Libraries in the Colors settings folder appear in the Options menu
-|`~/Library/Application Support/WireTuner/Colors/` as *My Libraries*.
-|Faithful
-
-|Convert colors on artwork export
-|xref:export-formats.adoc[Export formats].
-|--
-
-|Drag colors between documents
-|Same, plus *Import from Document…* and paste carrying named colors.
-|Faithful
-
-|Team color libraries
-|Not in {fh}: a team document whose swatches are published.
-|Adapted: addition for multiplayer teams.
-|===
-
 === Data model
 
 `SwatchProps.library` and `library_key` (xref:swatches.adoc[Swatches]) record a swatch's

@@ -2,6 +2,5 @@
 include::_attributes.adoc[]
 :page-slug: cropping-bitmaps
 :page-group: Imported artwork
-:page-fh: Chapter 10, "Cropping a bitmap image"
 
 include::_includes/imported/cropping-bitmaps.adoc[]

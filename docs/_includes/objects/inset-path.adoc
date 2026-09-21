@@ -53,29 +53,6 @@ edits made to the original at the same moment.
 ifdef::spec[]
 == Specification
 
-=== FreeHand parity
-
-[cols="2,3,2"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Inset Path dialog: Steps, Uniform/Farther/Nearer, Inset, Join, Miter Limit
-|Same, as a sheet.
-|Faithful
-
-|Steps > 1 produce a group
-|Same.
-|Faithful
-
-|Positive inside, negative outside
-|Same.
-|Faithful
-
-|Entry points via Xtras and Xtra Operations toolbar
-|Modify > Alter Path and Path Operations toolbar.
-|Adapted -- no Xtras menu for built-in operations.
-|===
-
 === Data model
 
 No fields.  Steps = 1: one new path node replacing the original (per the consume rule).

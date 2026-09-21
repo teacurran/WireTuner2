@@ -10,8 +10,8 @@ perspective.
 
 NOTE: In {product} an extrusion wraps the shape the way a group wraps its members.  Select the
 extruded object with the Pointer tool to edit the extrusion; kbd:[Option]-click or use the
-Subselect tool to reach the flat shape inside it.  {fh} users will find every command in the
-same place: menu:Modify[Extrude].
+Subselect tool to reach the flat shape inside it.  Every command is under
+menu:Modify[Extrude].
 
 == Extruding
 
@@ -80,8 +80,8 @@ To rotate an extrusion in 3D:
   again.
 
 Transforming an extruded object with the transformation tools or the Pointer tool transforms
-the flat shape inside it, and the solid is rebuilt from the result.  {fh} permanently locked
-the extrusion in that case; {product} does not.
+the flat shape inside it, and the solid is rebuilt from the result.  The extrusion is not
+locked by the transformation.
 
 == Editing in the Object panel
 
@@ -194,47 +194,6 @@ gives one full turn.
 
 ifdef::spec[]
 == Specification
-
-=== FreeHand parity
-
-[cols="2,3,1"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Extrude tool: drag to set vanishing point
-|Same.
-|Faithful
-
-|menu:Modify[Extrude > Remove / Release / Reset / Share Vanishing Points]
-|Same commands.
-|Faithful
-
-|Canvas controls: centre point, depth control, vanishing point; rotation circle on double-click
-with inside/outside drag; exit with Pointer, kbd:[Tab], double-click
-|Same, plus kbd:[Shift] constraints.
-|Faithful
-
-|Object panel: Length, Vanishing Point, Position x/y/z, Rotation x/y/z
-|Same.
-|Faithful
-
-|Surface: Flat, Shaded, Wireframe, Mesh, Hidden Mesh; Steps, Ambient, two lights with
-direction and intensity
-|Same.
-|Faithful
-
-|Profile: None, Bevel, Static (+Angle), Steps, Twist, Paste In from the clipboard
-|Same.
-|Faithful
-
-|Transforming with the Pointer tool "locks" the extrusion
-|The flat shape is transformed and the extrusion rebuilt; nothing locks.
-|Adapted -- {product} recomputes the solid on read, so there is no state to lock.
-
-|Extruding text
-|Text blocks extrude as glyph outlines and remain editable text inside the extrusion.
-|Adapted -- {fh} required conversion to paths; the read-time model makes it unnecessary.
-|===
 
 === Data model
 

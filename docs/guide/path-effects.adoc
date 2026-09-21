@@ -2,6 +2,5 @@
 include::_attributes.adoc[]
 :page-slug: path-effects
 :page-group: Effects
-:page-fh: Chapter 7, "Adding points to objects or paths" through "Using 3D rotation"
 
 include::_includes/effects/path-effects.adoc[]

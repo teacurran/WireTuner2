@@ -2,6 +2,5 @@
 include::_attributes.adoc[]
 :page-slug: publish-html
 :page-group: Web and animation
-:page-fh: Chapter 11, "Publishing FreeHand documents as HTML"
 
 include::_includes/web/publish-html.adoc[]

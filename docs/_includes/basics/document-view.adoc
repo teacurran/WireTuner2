@@ -34,9 +34,6 @@ are shared with your collaborators.
 |Show All / Hide Selection |kbd:[Cmd+Shift+Option+H] / kbd:[Cmd+Shift+H] |xref:selecting.adoc[Selecting].
 |===
 
-NOTE: {fh}'s menu:View[Portfolio Info] is gone; document keywords live in
-xref:file-info.adoc[File info].
-
 == Zooming
 
 To zoom with the Zoom tool::
@@ -171,7 +168,7 @@ The drawing mode changes only what you see, never the document or its printed ou
 
 |Preview
 |The artwork as it prints: strokes, fills, effects, images, text.  Custom, PostScript and
-textured fills draw as a gray placeholder pattern, as in {fh}.
+textured fills draw as a gray placeholder pattern.
 
 |Fast Preview
 |Preview with blends reduced to ten steps and text at 50 points and below drawn as gray bars
@@ -262,9 +259,8 @@ views, so it needs at least two.
 
 == Preview in Browser
 
-{fh} could open the document in a Flash Player window to test it.  {product} opens the current
-page -- or the whole document as a multi-page SVG set with its interactions -- in your default
-web browser, from a temporary export.
+{product} opens the current page -- or the whole document as a multi-page SVG set with its
+interactions -- in your default web browser, from a temporary export.
 
 To preview in the browser::
 Choose menu:View[Preview in Browser] or press kbd:[Cmd+Return].  Interactions assigned with
@@ -298,85 +294,6 @@ rename one in the Edit Views sheet.
 
 ifdef::spec[]
 == Specification
-
-=== FreeHand parity
-
-[cols="2,3,1"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Zoom tool: click, drag, Option-click, Option-drag, Control-click max, Control+Option-click min, Shift-drag new view
-|Same.
-|Faithful
-
-|Magnification 6%--6400% from the field, up to 256x typed
-|6%--25,600% everywhere (256x); the field and pinch zoom reach every value.
-|Faithful (upper limit unified)
-
-|View > Magnification presets 25%--800%
-|Same, plus Zoom In/Out step commands and pinch zoom.
-|Faithful (with additions)
-
-|Fit to Page, Fit Selection, Fit All
-|Same.
-|Faithful
-
-|Preview, Fast Preview, Keyline, Fast Keyline; View > Keyline and View > Fast Mode toggles
-|Same, from REND-005.
-|Faithful
-
-|Enable Anti-Aliasing preference
-|Always on.
-|Dropped -- no benefit on any supported Mac; screen/print parity matters more.
-
-|Redraw While Scrolling preference
-|Always redraws live (tiled renderer).
-|Dropped -- the Metal tile canvas pans at the display's refresh rate (120 Hz on ProMotion);
-the option exists to work around slow redraw.
-
-|Better (but Slower) Display preference
-|Removed.
-|Dropped -- addressed 8-bit displays.
-
-|Preview Drag count, Option-drag full preview
-|Same.
-|Faithful
-
-|Display Text Effects, Greek Type Below, image screen resolution
-|Same, in the Redraw category.
-|Faithful
-
-|Window > New Window, up to eight views; Option-click close box closes all
-|Same, as tabs; Option-click a tab's close button.
-|Faithful
-
-|Custom views: New, Edit (Redefine/rename/Delete), Previous; in the magnification pop-up
-|Same; views are shared document data.
-|Faithful (shared)
-
-|Flash Player test window (Window > Movie > Test)
-|Preview in Browser through a temporary SVG/HTML export.
-|Adapted -- no Flash Player; the browser is the target for web output.
-
-|Right mouse button magnification (Windows)
-|Not offered.
-|Dropped -- macOS uses kbd:[Cmd+Space] and pinch; the option also disabled context menus.
-
-|Restore View When Opening Document
-|Same, from the local view state (rotation included).
-|Faithful
-
-|--
-|Canvas rotation: two-finger rotate, menu:View[Rotate Canvas] in 15° steps, kbd:[Shift]
-snapping, status-bar compass, rulers/grid/guides turning with the page; view state only.
-|Added -- what a paper-and-pen illustrator does by turning the sheet; every modern raster and
-vector tool has it.
-
-|--
-|Trackpad and mouse vocabulary: pinch, two-finger pan, smart zoom, Force click subselect;
-tablet ring rotation.
-|Added -- macOS input conventions that did not exist in {fh}'s day.
-|===
 
 === Data model
 

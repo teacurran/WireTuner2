@@ -1,7 +1,6 @@
 A clipping path is a closed path that shows only what lies inside it.  Paste artwork, text
 or a bitmap into a path and everything beyond the path's edge is hidden -- not cut away.  The
 contents stay whole, and you can edit, move and transform them inside the clip at any time.
-{fh} users know this as *Paste Inside*.
 
 // TODO screenshot: a photograph pasted inside a star, with the contents handle visible
 
@@ -90,42 +89,6 @@ contents show unclipped until a new clipping shape is chosen.
 
 ifdef::spec[]
 == Specification
-
-=== FreeHand parity
-
-[cols="2,3,2"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Paste Contents into a closed path; add more by repeating
-|Same.
-|Faithful
-
-|Contents handle to move contents
-|Same.
-|Faithful
-
-|Subselect contents; double-click handle or Contents row selects all
-|Same.
-|Faithful
-
-|Cut Contents
-|Same.
-|Faithful
-
-|Transform panel *Contents* option
-|Same.
-|Faithful
-
-|Composite path as clip only if joined first
-|Same restriction, and it is natural: Paste Contents takes one path node.
-|Faithful
-
-|Paste Inside naming
-|Menu commands are *Paste Contents* / *Cut Contents* as in {fh} MX; the object is called a
-clipping path.
-|Faithful
-|===
 
 === Data model
 

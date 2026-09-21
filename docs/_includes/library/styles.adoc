@@ -244,7 +244,7 @@ To import styles:
 
 . Choose *Import…* from the options menu.
 . Pick a document from your document library, a team library, or click btn:[Choose File…] for
-  a {product} document or {fh} style library on disk.
+  a {product} document or style library file on disk.
 . In the Import Styles sheet select the styles (kbd:[Shift]-click, kbd:[Cmd]-click) and click
   btn:[Import].
 
@@ -286,66 +286,6 @@ Styles are part of the document, so the Styles panel is the same for everyone wi
 
 ifdef::spec[]
 == Specification
-
-=== FreeHand parity
-
-[cols="2,3,2"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Styles panel with graphic and text styles; Compact, Large, Previews Only views
-|Same.
-|Faithful
-
-|Normal and Normal Text default styles
-|Same, with fixed roles; cannot be removed or given a parent.
-|Faithful
-
-|Selecting a style with nothing selected sets default attributes
-|Same.
-|Faithful
-
-|Apply by click, drag from panel, drag from Object panel
-|Same.
-|Faithful
-
-|Copy Attributes / Paste Attributes
-|Same; the paste is recorded as overrides.
-|Faithful
-
-|Auto-Apply to Selection (Object preference)
-|*Auto-apply new styles to selection*, default on.
-|Faithful
-
-|Style Behavior: Both Fill + Stroke / Fill / Stroke
-|Four independent categories: Fills, Strokes, Effects, Halftone.
-|Adapted -- {fh} MX styles carry effects and halftones but the behavior menu cannot exclude
-them; checkboxes cover every category the style holds.
-
-|New, New from Normal, Duplicate, Remove, Remove Unused, rename
-|Same.
-|Faithful
-
-|Modify defaults in the Object panel; plus sign; Redefine via button, menu, drag
-|Same.
-|Faithful
-
-|Override an object's style; plus sign on selection; reapply to clear
-|Same, plus a dot on overridden rows in the Object panel.
-|Faithful
-
-|Parent styles: inheritance, child removal moves objects to parent
-|Same; loops prevented in the UI and cut on read.
-|Faithful
-
-|Paste between documents keeps the destination's same-named style and overrides the object
-|Same.
-|Faithful
-
-|Import/Export styles from documents or style library files
-|Import from cloud documents, team libraries and files; export to team library or file.
-|Adapted -- cloud sources added; files remain.
-|===
 
 === Data model
 
@@ -423,7 +363,7 @@ Baking makes *Redefine* a fan-out write to every object using the style (thousan
 a large document, and a change per 10,000-op limit), makes a concurrent override and a
 redefine collide on the *same register* (so LWW could silently discard a designer's override),
 and doubles storage.  Resolve-on-read keeps redefine a write to one node, keeps overrides on
-different registers from redefinitions -- so an override always wins, as in {fh} -- and costs
+different registers from redefinitions -- so an override always wins -- and costs
 one cached resolution per style per subtree version in `WTModel`.  The price is the dangling
 case, handled below.
 
@@ -496,8 +436,7 @@ compaction such an object falls back to its overrides, which is the documented c
 ignoring the review.
 
 Remove child style::
-Objects move to the parent with their attributes as overrides (above), which is the {fh}
-behavior.
+Objects move to the parent with their attributes as overrides (above).
 
 Remove Unused::
 Computed from the style-to-objects index at the moment of the command.  A concurrent apply of
@@ -636,7 +575,7 @@ Done when::
 * Pasting a styled object into a document with a different same-named style looks identical and shows the plus sign.
 * Importing a child style imports its parents once.
 * Merge test: two people import the same style concurrently yield "Name" and "Name 2" and no conflict rows.
-* {fh} style libraries route through the IMG epic's importer (prose dependency).
+* Style library files route through the IMG epic's importer (prose dependency).
 
 [[LIB-023]]
 ==== LIB-023 Multi-client scenarios for layers, symbols and styles

@@ -2,7 +2,7 @@
 mathematically, so it scales to any size and prints at any resolution without losing detail.
 Everything you do happens in one place -- the document window -- surrounded by panels, toolbars
 and the menu bar.  This page walks through that window: the pasteboard, the tab bar that holds
-several open documents, the status bar, and how the {fh} layout has been adapted to a Mac.
+several open documents, the status bar, and the command palette.
 
 // TODO screenshot: the document window with a two-page document, the Tools panel on the left,
 // docked panels on the right, the tab bar and the status bar, with callouts.
@@ -22,12 +22,9 @@ Each document opens in a document window.  The window has, from top to bottom:
 * The *status bar* along the bottom edge (below).
 
 Panels dock at the right edge of the window, and the Tools panel docks at the left edge
-(xref:panels.adoc[Using panels]).  Any of them can float instead.
-
-NOTE: {fh} on the Mac could not dock panels into the document window; only the Windows edition
-had the "integrated workspace".  {product} docks panels and toolbars inside the window on
-macOS, so a single window holds the whole workspace, and a second display can hold floating
-panels if you prefer.
+(xref:panels.adoc[Using panels]).  Any of them can float instead.  Because panels and toolbars
+dock inside the window, a single window holds the whole workspace, and a second display can
+hold floating panels if you prefer.
 
 === The pasteboard
 
@@ -48,7 +45,7 @@ icon.  It appears as a new tab in the frontmost window.
 
 To switch tabs::
 Click a tab, or press kbd:[Control+Tab] and kbd:[Control+Shift+Tab] to cycle.  kbd:[Cmd+1]
-through kbd:[Cmd+9] are *not* tab switches -- {fh} uses them for magnification
+through kbd:[Cmd+9] are *not* tab switches -- {product} uses them for magnification
 (xref:document-view.adoc[Setting the document view]).
 
 To move a tab into its own window::
@@ -70,8 +67,8 @@ which of your documents are busy without switching to them.
 
 === The status bar
 
-The status bar runs along the bottom of the canvas.  It cannot be undocked (the same as {fh} on
-the Mac).  From left to right:
+The status bar runs along the bottom of the canvas.  It cannot be undocked.  From left to
+right:
 
 [cols="1,3"]
 |===
@@ -111,8 +108,7 @@ person is working (xref:presence.adoc[Presence]).
 // TODO screenshot: the status bar with all controls labelled.
 
 The status bar also shows a short message about the operation in progress (for example "Drag
-to draw a rectangle; Shift constrains") -- the equivalent of the Windows-only messages in
-{fh}'s Status toolbar.
+to draw a rectangle; Shift constrains").
 
 === The command palette
 
@@ -139,8 +135,8 @@ wrong kind of object) are shown greyed with the reason, so you know what to sele
 // TODO screenshot: the command palette open over the document window, "rot" typed,
 // Rotate Canvas commands and the Rotate tool listed with shortcuts.
 
-NOTE: {fh} had no equivalent; its Keyboard Shortcuts window was the only searchable list of
-commands.  The palette searches the same list and needs no setup.
+The palette searches the same list of commands as the Keyboard Shortcuts window and needs no
+setup.
 
 === Magnification and the canvas
 
@@ -170,53 +166,6 @@ looking at has been deleted, {product} scrolls to the nearest remaining page.
 
 ifdef::spec[]
 == Specification
-
-=== FreeHand parity
-
-[cols="2,3,1"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Studio MX integrated workspace (Windows only); floating panels on Mac
-|Panels and toolbars dock inside the document window on macOS; floating remains available.
-|Adapted -- the integrated layout is the better one and AppKit supports it; the Mac limitation
-was historical.
-
-|Document window with pasteboard 222 × 222 in, 520 letter pages
-|Same limits; page rectangles validated against them.
-|Faithful
-
-|Asterisk in the title for unsaved changes
-|No unsaved state; title shows sync state and offline change count.
-|Adapted -- every change is kept locally at once; the meaningful state is "has it synced".
-
-|One window per document
-|Tabs (native `NSWindow` tabbing) with one document per tab; several windows still allowed.
-|Adapted -- requested for multi-document projects; matches macOS conventions.
-
-|Status toolbar: add page, page selector, magnification, view mode, units
-|Same controls plus a sync indicator and collaborator avatars.
-|Faithful (with additions)
-
-|Status toolbar messages (Windows only)
-|A status message area shows tool hints and operation progress.
-|Adapted -- brought to macOS because it costs nothing and helps new users.
-
-|Cancel button for operations in progress (Windows only)
-|kbd:[Esc] cancels an in-progress tool gesture; long operations (import, export, trace) show a
-sheet with btn:[Cancel].
-|Adapted -- macOS has no toolbar-cancel convention.
-
-|Restore view when opening / Remember window size and location
-|Both, stored locally per document.
-|Faithful
-
-|--
-|Command palette (kbd:[Cmd+/]): fuzzy search over commands, panels, pages, layers, named
-views and recent documents, with shortcuts shown and recent-first ranking.
-|Added -- a modern expectation; built on the command registry, specified on
-xref:customizing.adoc[Customizing your environment].
-|===
 
 === Data model
 

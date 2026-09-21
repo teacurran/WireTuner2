@@ -108,41 +108,6 @@ objects that were pulled two ways.
 ifdef::spec[]
 == Specification
 
-=== FreeHand parity
-
-[cols="2,3,2"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Group / Ungroup
-|Same.
-|Faithful
-
-|Grouping moves members to the current layer
-|Same.
-|Faithful
-
-|Remember Layer Info returns members to original layers on ungroup
-|Same; the origin is recorded on the group at grouping time.
-|Faithful
-
-|Group-level attributes, lost on ungroup
-|Same.
-|Faithful
-
-|Nesting limit of 20 (28 internal)
-|No limit.
-|Adapted -- the limit was an implementation constraint; the tree has none.
-
-|Transform as Unit (Object panel)
-|Same.
-|Faithful
-
-|Cannot move a member to another layer or group with outsiders
-|Same restrictions enforced by the commands.
-|Faithful
-|===
-
 === Data model
 
 [source,protobuf]

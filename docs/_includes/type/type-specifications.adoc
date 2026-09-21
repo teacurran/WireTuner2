@@ -33,8 +33,8 @@ stroke, a slant) and shown with a warning icon in the Object panel, since synthe
 print poorly.  A font the document uses that is missing on your Mac is substituted and listed
 in the Missing Fonts sheet (xref:font-substitution.adoc[Font substitution]).
 
-NOTE: {fh} listed PostScript Type 1 and TrueType fonts.  macOS no longer supports Type 1, so
-{product} does not offer them; a document that names one gets a substitute.
+NOTE: macOS no longer supports PostScript Type 1 fonts, so {product} does not offer them; a
+document that names one gets a substitute.
 
 Type set smaller than the *Greek type below* preference (8 pixels on screen by default) is
 drawn as gray bars to keep scrolling fast; selected text is always drawn in full.
@@ -261,74 +261,6 @@ wrap]; the panel itself is described on xref:find-replace.adoc[Find and replace]
 ifdef::spec[]
 == Specification
 
-=== FreeHand parity
-
-[cols="2,3,1"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Font, size, style from menu, Object panel, toolbar
-|Same; type-to-filter added in the panel.
-|Faithful
-
-|Size submenu with Smaller/Larger/Other
-|Same.
-|Faithful
-
-|Font preview on hover, *Display Font Preview* preference
-|Same.
-|Faithful
-
-|Greek type below N pixels (Redraw preference)
-|Same preference, *Greek type below*, default 8 px.
-|Faithful
-
-|Leading: Extra, Fixed, Percentage; Solid; Auto = 120%
-|Same three modes, `Leading` message.
-|Faithful
-
-|Kerning at insertion point, range kerning, in % em; keyboard nudges
-|Same.
-|Faithful
-
-|Baseline shift with keyboard nudges
-|Same; *Superscript*/*Subscript* presets added under Type Style.
-|Faithful
-
-|Horizontal scale in Spacing options
-|Same.
-|Faithful
-
-|Settings with no selection apply to subsequent text
-|Same: pending format at an insertion point, document defaults with nothing selected.
-|Faithful
-
-|Select / Find & Replace by Font attribute (family, style, size range; Any Font; No Change)
-|Same in the Find & Replace panel (OBJ epic's panel).
-|Faithful
-
-|PostScript Type 1 fonts
-|Not loadable on modern macOS; substituted.
-|Dropped -- platform no longer supports the format.
-
-|Synthesized bold/italic
-|Offered with a warning icon; real faces preferred in the list.
-|Adapted -- {fh} silently synthesized; a warning avoids print surprises.
-
-|Variable font axes (no {fh} counterpart)
-|*Axes* group in the Character section: sliders for wght, wdth, slnt, opsz and custom axes,
-named instances in the Style pop-up, Bold via the weight axis, axes in text styles.
-|Added -- {fh} predates variable fonts; Core Text renders them natively and the document
-needs one mark field.
-
-|OpenType feature controls (no {fh} counterpart)
-|*Features* group listing only the features the font offers: ligatures, discretionary
-ligatures, small caps, all small caps, figure styles, fractions, swashes, stylistic sets 1--20,
-contextual alternates; features in text styles.
-|Added -- {fh} had no OpenType layout; Core Text applies features natively and a checkbox per
-feature is what every current layout application offers.
-|===
-
 === Data model
 
 Fields on xref:creating-text.adoc[Creating text]: `font_family`, `font_style`, `size`,
@@ -380,7 +312,7 @@ the greater OpId wins.  The review sheet's *same text* row shows the paragraph d
 sizes named.
 
 Leading per line:: Layout takes the maximum leading among a line's characters; a concurrent
-leading change on part of a line therefore always shows, which is what {fh} did.
+leading change on part of a line therefore always shows.
 
 Find & Replace font:: One change ("Replace font Helvetica → Inter (N blocks)") of `TextMark`
 ops over the matched runs, per block.  Concurrent typing inside a matched run: the typed
@@ -475,8 +407,8 @@ Delivers:: `WTText` handling of size, leading modes with per-line maximum, pair 
 kerning combined with font kerning, baseline shift, horizontal scale via glyph transform,
 greeking, synthesized faces.
 Done when::
-* Reference renders for each attribute match {fh} output within anti-aliasing tolerance for
-  the corpus.
+* Reference renders for each attribute match the golden corpus within anti-aliasing
+  tolerance.
 * Leading per line equals the maximum over the line's characters.
 * Layout with a 200,000-character mixed-attribute text stays under the TXT-001 budget.
 

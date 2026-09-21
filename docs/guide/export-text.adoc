@@ -2,6 +2,5 @@
 include::_attributes.adoc[]
 :page-slug: export-text
 :page-group: Saving and exporting
-:page-fh: Chapter 12, "Exporting text"
 
 include::_includes/io/export-text.adoc[]

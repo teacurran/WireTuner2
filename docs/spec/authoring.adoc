@@ -7,6 +7,9 @@ how to draw with the Pen tool also tells a builder what the Pen tool writes into
 how that behaves when two people draw at once, and which tasks deliver it.  The two books cannot
 drift apart because they are not two books.
 
+The book describes {product} on its own terms.  It never compares the product to another one
+or explains a feature by its history; a page says what {product} does and why.
+
 == Layout
 
 [cols="1,3"]
@@ -34,9 +37,6 @@ spec build.
 |`docs/images/`
 |Screenshots and diagrams.  Referenced as `image::name.png[]`; a reference that does not resolve
 fails the build, so do not add one until the image exists.
-
-|`docs/inspo/`
-|The {fh} manual we are matching.  Reference material only -- never quoted.
 |===
 
 Slugs are lowercase, hyphenated, and unique across `guide/` *and* `spec/`, because both renders
@@ -51,19 +51,17 @@ write every page flat into the same output directory.
 \include::_attributes.adoc[]
 :page-slug: pen-bezigon
 :page-group: Drawing
-:page-fh: Chapter 3, "Drawing with the Pen tool and Bezigon tool"
 
 \include::_includes/drawing/pen-bezigon.adoc[]
 ----
 
-`page-fh` names the {fh} section the page covers, so parity can be audited section by section
-(xref:parity.adoc[FreeHand parity]).
+`page-group` names the section of the xref:index.adoc[table of contents] the page belongs to.
 
 == Content: guide first, spec inside
 
-The include reads, top to bottom, as the user guide.  Write it for a designer who has never seen
-{fh}: what the feature is for, the procedures to use it, every option, every modifier key, and
-what the user sees when collaborators are working at the same time.
+The include reads, top to bottom, as the user guide.  Write it for a designer who has never used
+{product}: what the feature is for, the procedures to use it, every option, every modifier key,
+and what the user sees when collaborators are working at the same time.
 
 Specification material goes in `ifdef::spec[]` blocks.  Most pages carry one block at the end;
 a page may also put a short block right after the guide section it qualifies, when the spec
@@ -81,7 +79,6 @@ part of the user guide, not the spec.
 \ifdef::spec[]
 \== Specification
 
-\=== FreeHand parity
 \=== Data model
 \=== Merge semantics
 \=== Offline behavior
@@ -94,16 +91,15 @@ part of the user guide, not the spec.
 === Guide conventions
 
 * Procedures are introduced with a lead-in ending in a colon (`To draw a star:`) followed by an
-  ordered list, one action per step, as {fh}'s manual does.  Options go in a table or a
-  labelled list after the procedure.
+  ordered list, one action per step.  Options go in a table or a labelled list after the
+  procedure.
 * Menus are written `menu:Modify[Transform > Rotate]`, keys as `kbd:[Cmd+Shift+G]`, buttons as
   `btn:[Apply]`, all from the `experimental` attribute.  The client is macOS-only: use
   kbd:[Cmd], kbd:[Option], kbd:[Control], kbd:[Shift], never Windows names.
-* Name panels, tools and menus exactly as the app does.  Where {product} renames something
-  from {fh} (the *Answers* panel became *Help*, *Xtras* became *Extensions*), say so once, in a
-  `NOTE:`, for users arriving from FreeHand.
-* Write original prose.  The {fh} manual defines *what* the feature does; it is copyrighted and is
-  never pasted, paraphrased sentence by sentence, or quoted.
+* Name panels, tools and menus exactly as the app does.
+* Other products appear only where they are a fact about {product}: a file format it imports or
+  exports, a shortcut preset named after another application, an external editor it can open.
+  Never as a comparison.
 * A guide page never mentions CRDTs, gRPC, operations or replicas.  A user hears about
   "your changes", "saving", "syncing" and "offline".
 
@@ -113,18 +109,12 @@ Every Specification section uses these subsections, in this order, and leaves ou
 genuinely has nothing to say.  "Nothing to say" is rare for *Merge semantics* and *Offline
 behavior*: every feature that changes the document has a concurrent case.
 
-FreeHand parity::
-A table: each {fh} capability in the section, what {product} does, and a parity verdict --
-`Faithful` (same behavior), `Adapted` (same intent, different mechanism, reason given),
-`Dropped` (reason given, and recorded in xref:decisions.adoc[Decisions]) or `Added` (no {fh}
-counterpart: a capability the cloud, multiplayer or modern macOS made necessary or cheap).
-
 Data model::
 The protobuf messages the feature adds or extends, sketched in a `[source,protobuf]` block,
 with a `wt.crdt` merge option on every field whose default policy is not the one you mean
-(xref:crdt-model.adoc#options[CRDT model]).  Say in a comment why a message is ATOMIC.  Sketches are
-normative for field meaning and merge policy; field numbers are assigned when the `.proto` is
-written.
+(xref:crdt-model.adoc#options[CRDT model]).  Say in a comment why a message is ATOMIC.
+Sketches are normative for field meaning and merge policy; field numbers are assigned when the
+`.proto` is written.
 
 Merge semantics::
 What happens when two people change the same thing concurrently.  Name the merge policy per
@@ -145,6 +135,9 @@ grouping.
 
 Build tasks::
 The tasks that deliver the page (below).
+
+A design choice that could have gone another way is explained where it is made; one whose
+consequences reach other pages is also recorded in xref:decisions.adoc[Decisions].
 
 == Build tasks
 

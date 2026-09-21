@@ -2,6 +2,5 @@
 include::_attributes.adoc[]
 :page-slug: export-bitmap
 :page-group: Saving and exporting
-:page-fh: Chapter 12, "Exporting bitmap images", "Working with alpha channels", "Defining transparency using a background layer", "Exporting to BMP format", "Exporting to GIF format", "Exporting to JPEG format", "Exporting to Photoshop PSD format", "Other export file formats"
 
 include::_includes/io/export-bitmap.adoc[]

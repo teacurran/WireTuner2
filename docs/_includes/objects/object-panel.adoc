@@ -194,43 +194,6 @@ The panel framework -- host, property list, attribute stack rows, kind-editor re
 live remote updates without stealing focus -- is xref:backlog.adoc#APP-007[APP-007].  This page
 specifies what OBJ adds to it and how the panel's editors turn into changes.
 
-=== FreeHand parity
-
-[cols="2,3,2"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Properties list and attributes halves
-|Same layout, same context sensitivity.
-|Faithful
-
-|Add Stroke, Add Fill, Add Effect above the selected row
-|Same.
-|Faithful
-
-|Drag rows to reorder
-|Same.
-|Faithful
-
-|Some attributes apply on Return only
-|Every text field applies on commit (Return, Tab, focus loss); every non-text control applies
-immediately.  The rule is uniform rather than per attribute.
-|Adapted -- one rule is learnable; per-attribute exceptions were an artifact of {fh}'s
-implementation.
-
-|Default attributes shown with nothing selected
-|Same; the defaults are shared document data (xref:default-attributes.adoc[Defaults]).
-|Faithful
-
-|Duplicate a stroke/fill/effect row
-|Added (action menu).  {fh} had no direct equivalent.
-|Adapted -- addition.
-
-|Numeric entry with units and arithmetic
-|Same, plus `%` of the current value.
-|Faithful
-|===
-
 === Data model
 
 The panel adds no document fields.  It edits `CommonProps` (name, note, locked, transform),

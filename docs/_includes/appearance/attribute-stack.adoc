@@ -7,10 +7,6 @@ that follow cover what each stroke, fill and effect can be
 (xref:stroke-attributes.adoc[Strokes], xref:fill-attributes.adoc[Fills],
 xref:gradients.adoc[Gradients], xref:live-effects.adoc[Live effects]).
 
-NOTE: {fh} users: the upper part of the Object panel that {fh} called the *Properties list* is
-the *Attributes list* in {product}.  It works the same way, plus a visibility toggle and a
-Duplicate command.
-
 == The Attributes list
 
 Open the Object panel with menu:Window[Object] (kbd:[Cmd+F3]).  With an object selected, the
@@ -129,49 +125,6 @@ review sheet lists the setting with both values so you can pick
 
 ifdef::spec[]
 == Specification
-
-=== FreeHand parity
-
-[cols="2,3,1a"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Properties list showing strokes, fills and effects per object
-|Attributes list in the Object panel; same content and painting order.
-|Faithful
-
-|Add Stroke / Add Fill buttons and Options-menu commands
-|btn:[Add Stroke], btn:[Add Fill], btn:[Add Effect] and the same commands in the action menu.
-|Faithful
-
-|Remove Item button
-|btn:[Remove Item], kbd:[Delete], action menu *Remove*.
-|Faithful
-
-|Drag to reorder items; order affects appearance
-|Same, with free interleaving of strokes, fills and effects.
-|Faithful
-
-|Duplicating an item
-|*Duplicate* in the action menu and kbd:[Option]-drag.  {fh} had no direct duplicate.
-|Adapted -- added convenience; no data-model cost.
-
-|Hiding an item
-|Visibility checkbox per row.  {fh} required removing the item.
-|Adapted -- lets collaborators leave alternatives in place without deleting each other's work.
-
-|Multiple objects selected
-|Common rows edited together, "Mixed" where they differ.
-|Faithful
-
-|Applying color by dragging swatches, Tools-panel color pop-ups, Eyedropper
-|Same routes; the Tools panel wells act on the top-most visible attribute.
-|Faithful
-
-|Default stroke and fill set with nothing selected
-|Same; stored in the document's settings node.
-|Faithful
-|===
 
 === Data model
 

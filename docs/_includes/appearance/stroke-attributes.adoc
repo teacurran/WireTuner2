@@ -7,10 +7,9 @@ the stroke in the Attributes list (xref:attribute-stack.adoc[Strokes, fills and 
 list]) and the editor below shows the options for its kind.  Colors are chosen as described in
 xref:applying-color.adoc[Applying color].
 
-NOTE: {fh} users: {fh}'s sixth stroke type, *PostScript*, is not offered.  {product} draws with
-Core Graphics and prints and exports through PDF, so there is no PostScript interpreter to hand
-raw code to.  Custom and Pattern strokes, which {fh} showed only on a PostScript printer, are
-drawn on screen here.
+NOTE: There is no *PostScript* stroke type.  {product} draws with Core Graphics and prints and
+exports through PDF, so there is no PostScript interpreter to hand raw code to.  Custom and
+Pattern strokes are drawn on screen.
 
 == Stroke width presets
 
@@ -127,7 +126,7 @@ Duplicate:: Adds "Copy of <name>" to the pop-up.
 Remove…:: Asks what to do with strokes using the brush: *Release* turns each into a group of
 ordinary objects grouped with the original path, *Delete* removes the brush and the paths
 using it.
-Import…:: Opens a brush file (a {product} or {fh} document); pick the brushes to bring in with
+Import…:: Opens a brush file (a {product} document); pick the brushes to bring in with
 kbd:[Cmd]-click.  Their symbols are added to the Library and their colors to the Swatches panel.
 Export…:: Saves chosen brushes (kbd:[Shift]-click for several) as a brush file.
 
@@ -155,7 +154,7 @@ list order, the first symbol at the bottom.
 between the endpoints and a Spray brush keeps the symbol's original orientation.
 
 |Fold corners
-|Folds the brush at corner points instead of sweeping around them, as early {fh} versions did.
+|Folds the brush at corner points instead of sweeping around them.
 
 |Spacing
 |Distance between copies, as a percentage of the symbol's size.  *Fixed* (1%--200%, with a
@@ -261,80 +260,6 @@ always sees exactly the dash or arrowhead you chose, even if they never installe
 
 ifdef::spec[]
 == Specification
-
-=== FreeHand parity
-
-[cols="2,3,1a"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Six stroke types: Basic, Brush, Calligraphic, Custom, Pattern, PostScript
-|Five; PostScript is not offered.  On import, a {fh} PostScript stroke becomes a Basic stroke
-of the same width and color with the code preserved in the object's note.
-|Dropped -- no PostScript interpreter in a Core Graphics/PDF pipeline; user-supplied printer
-code is also a security liability.
-
-|Default stroke attributes with nothing selected
-|Same, via the settings node.
-|Faithful
-
-|Preset stroke widths, edited in Object preferences, relaunch required
-|*Stroke width presets* preference, applied immediately.
-|Adapted -- no relaunch.
-
-|Width 0--16,164 pt (Mac), 0 = hairline
-|Same range; hairline renders one device pixel wide.
-|Faithful
-
-|Cap, join, miter limit 1--57
-|Same.
-|Faithful
-
-|Dash pop-up; Option-select opens Dash Editor; up to 255 dashes; cannot remove
-|Same editor; dashes stored inline in the stroke; the pop-up is unlimited and custom dashes
-can be removed with *Manage Dashes…*.
-|Adapted -- inline storage makes documents self-contained across collaborators.
-
-|Arrowhead pop-ups, Arrowhead Editor with a subset of tools, Option-select to edit a copy, 255 limit, no removal
-|Same editor and gestures; arrowheads stored inline; no limit; *Manage Arrowheads…* removes.
-|Adapted -- as for dashes.
-
-|Brush strokes: Paint and Spray, width 1--400%
-|Same.
-|Faithful
-
-|Create Brush (Copy/Convert), Edit Brush sheet with every option, Change/Create on edit of a used brush
-|Same.
-|Faithful
-
-|Brush Import/Export/Duplicate/Remove (Release/Delete)
-|Same; brush files are {product} or {fh} documents.
-|Faithful
-
-|Random spacing/angle/offset/scaling
-|Same, seeded per stroke so every replica and print renders identically.
-|Adapted -- determinism required for collaboration.
-
-|Calligraphic stroke with width/height/angle and Paste In / Copy Out nib
-|Same.
-|Faithful
-
-|23 Custom strokes, print-only
-|Same 23, rendered on screen and in every export.
-|Adapted -- native procedural rendering replaces PostScript.
-
-|Custom strokes do not print with raster effects
-|No restriction.
-|Adapted -- limitation removed.
-
-|64 Pattern strokes with pixel editor, print at device resolution
-|Same editor; pixel size fixed at 0.25 pt.
-|Adapted -- device-independent size so screen, PDF and print agree.
-
-|PostScript stroke code (255 characters)
-|Not offered.
-|Dropped -- see above.
-|===
 
 === Data model
 
@@ -609,7 +534,7 @@ Depends on:: REND-002, GEO-001, ATTR-005
 Size:: L
 Delivers:: Spray and Paint layout along arc length, orientation, fold corners, the four variations with Flare, deterministic PCG randomness from `seed`, symbol display-list instancing, bounds and hit testing.
 Done when::
-* Reference renders for each variation mode in each brush mode match {fh} output for the corpus within tolerance.
+* Reference renders for each variation mode in each brush mode match the golden corpus within tolerance.
 * Two renders of one stroke on two machines are pixel-identical; a duplicate with a new seed differs.
 * A 2,000-copy spray renders under 8 ms on M1.
 
@@ -632,7 +557,7 @@ Depends on:: REND-002, GEO-001, ATTR-005
 Size:: L
 Delivers:: Procedural tile generators for all 23 custom stroke patterns, tile repetition and bending along the path, Neon's fixed multi-stroke rendering, length/spacing handling.
 Done when::
-* Each pattern has a reference render on a straight, a curved and a closed path compared with a {fh} print sample within tolerance.
+* Each pattern has a reference render on a straight, a curved and a closed path compared with the golden corpus within tolerance.
 * Rendering scales to width and zoom without rasterization artifacts.
 
 [[ATTR-013]]

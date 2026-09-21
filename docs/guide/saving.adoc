@@ -2,6 +2,5 @@
 include::_attributes.adoc[]
 :page-slug: saving
 :page-group: Saving and exporting
-:page-fh: Chapter 12, "Saving files"
 
 include::_includes/io/saving.adoc[]

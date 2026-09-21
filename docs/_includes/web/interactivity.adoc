@@ -5,9 +5,8 @@ two that every output format can honor.  A PDF opens the page or the URL; an SVG
 web page follows the anchor; menu:File[Preview in Browser] lets you click through before
 exporting.  Page links are set in the *Navigation* panel or drawn with the *Link tool*.
 
-NOTE: {fh} assigned Flash *actions* (ActionScript) with an Action tool.  {product} has no Flash
-player to run scripts, so actions are reduced to page links and web links; the Action tool is
-now the *Link tool*.  See the parity table at the end for what became of each action.
+NOTE: {product} runs no scripts on click; interactivity is limited to page links and web links,
+set with the *Link tool*.
 
 == Setting what happens on click
 
@@ -110,73 +109,13 @@ shared while you drag, so collaborators see the badge appear, not the connector.
 ifdef::spec[]
 == Specification
 
-=== FreeHand parity
-
-[cols="2,3,2"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Go To and Stop / Go To and Play (to a page and layer/frame)
-|*Go to page*.  No frame parameter.
-|Adapted -- page navigation kept; frame-level jumps need a player.
-
-|Get URL
-|*Open link* (the object's URL).
-|Faithful
-
-|Play, Stop
-|Dropped.
-|Dropped -- animation in exported SVG cannot be controlled per object without scripts.
-
-|Print (frames)
-|Dropped.
-|Dropped -- no player; a PDF viewer's own Print command covers printing.
-
-|Full Screen
-|Dropped.
-|Dropped -- a player feature.
-
-|Start/Stop Drag
-|Dropped.
-|Dropped -- requires a runtime.
-
-|Load Movie / Unload Movie
-|Dropped.
-|Dropped -- needs a movie player; the closest intent (show another page) is *Go to page*.
-
-|Tell Target
-|Dropped.
-|Dropped -- needs a movie player.
-
-|Events: On Press, On Release, On Roll Over, Frame Action, keyboard
-|Only click (On Release).
-|Adapted -- the one event PDF, SVG and HTML all support without scripts.
-
-|Action tool: drag from object to page, default Go To and Stop
-|Link tool: drag from object to page sets *Go to page*.
-|Adapted (renamed) -- same gesture, one behavior.
-
-|Action proton at lower right; drag to empty spot to remove
-|Link badge; same removal gesture.
-|Faithful
-
-|Action tool options: Link to Target Page / Print Target Page / Load Target Page as Movie
-|No options dialog; only linking exists.
-|Dropped -- the other two behaviors were dropped with Flash.
-
-|Multiple actions per object
-|One click behavior per object.
-|Dropped -- nothing left to combine.
-|===
-
 === Data model
 
 The field is `NavigationProps.go_to_page` defined on xref:urls.adoc[Attaching links to objects
 and text]: a `NodeRef` to a page node with `REF_FALLBACK_UNSET`.  *On click* is not stored; it
 is derived: `go_to_page` set → Go to page; else `url` non-empty → Open link; else Nothing.
 Setting *Nothing* clears `go_to_page` and leaves `url` alone (the link is still exportable as an
-ordinary link; only the click precedence changes), which is what {fh}'s Get URL action also
-implied.
+ordinary link; only the click precedence changes).
 
 === Merge semantics
 

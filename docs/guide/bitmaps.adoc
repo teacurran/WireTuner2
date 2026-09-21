@@ -2,6 +2,5 @@
 include::_attributes.adoc[]
 :page-slug: bitmaps
 :page-group: Imported artwork
-:page-fh: Chapter 10, "Working with bitmap images in FreeHand"
 
 include::_includes/imported/bitmaps.adoc[]

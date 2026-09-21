@@ -146,17 +146,6 @@ closes with the same read-only bar and the same offer to save your unsent change
 ifdef::spec[]
 == Specification
 
-=== FreeHand parity
-
-[cols="2,3,2"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|--
-|Branches with fork points, compare, partial merge, offline creation.
-|Added -- no FreeHand equivalent
-|===
-
 === Data model
 
 Server state (SRV-003 `branch`, extended by COLLAB-019) plus the `docs.v1` sketches below.

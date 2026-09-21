@@ -7,16 +7,13 @@ exporting styles, and graphic styles are on xref:styles.adoc[Styles].
 {product} has two kinds of text style:
 
 Paragraph style::
-Applies to whole paragraphs and can set every character and paragraph setting.  This is
-{fh}'s text style.  Every document has a *Normal Text* paragraph style that new text uses.
+Applies to whole paragraphs and can set every character and paragraph setting.  Every
+document has a *Normal Text* paragraph style that new text uses.
 
 Character style::
 Applies to a range of characters and sets character settings only -- for a run of emphasis or
 a product name that must always be in a particular face.  Character styles sit on top of the
 paragraph style.
-
-NOTE: {fh} had paragraph styles only.  Character styles are new in {product}; if you never
-create one, nothing changes.
 
 == Creating a text style
 
@@ -138,55 +135,6 @@ style are re-parented to its parent.  Undo restores the style and its links.
 
 ifdef::spec[]
 == Specification
-
-=== FreeHand parity
-
-[cols="2,3,1"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Text styles in the Styles panel and the Object panel's Style pop-up
-|Same, as paragraph styles.
-|Faithful
-
-|New style from selection or from selected style (child)
-|Same.
-|Faithful
-
-|Edit a style through the Object panel with the style selected
-|Same.
-|Faithful
-
-|Style Behavior: No Selection per attribute, blank alignment, Style Affects Text Color, mixed
-Hang Punctuation, cleared fields, No Selection on the ruler, Global Settings, Next
-|Same sheet, same controls.
-|Faithful
-
-|Rename (not Normal Text)
-|Same.
-|Faithful
-
-|Apply by click, drag (preference Single Paragraph / Entire Text Container), Object panel
-|Same; preference renamed *Dragging a text style changes* with *Entire text block*.
-|Faithful
-
-|Overrides marked with +, removed by re-clicking the style
-|Same.
-|Faithful
-
-|Redefine from selection; preference Build Text Styles Based On (First Paragraph / Shared
-Attributes)
-|Same.
-|Faithful
-
-|Character styles
-|Added.
-|Adapted -- a standard feature of every later layout application; costs one mark field.
-
-|Remove style
-|Text keeps its appearance via cached values.
-|Faithful
-|===
 
 === Data model
 

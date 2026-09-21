@@ -150,6 +150,8 @@ fails and its outbox is offered for export as a package.
 * Blobs are content-addressed but only served to principals with a role on a document that
   references them.
 * Exports and packages are produced on the client; the server never renders artwork.
+* Data-source credentials are stored envelope-encrypted in `data_credential`, decrypted only
+  inside one outbound request, never returned by any RPC (xref:data-merge.adoc[Data merge]).
 * Account deletion: personal documents trashed, team memberships removed, personal data purged
   after 30 days; change-log attribution keeps an opaque author id.
 

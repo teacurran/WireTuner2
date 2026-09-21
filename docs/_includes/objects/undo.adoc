@@ -28,8 +28,8 @@ To set how many actions are kept:
 . Enter *Undo levels* (1--1,000; default 100).  The change applies to documents opened
   afterwards.
 
-NOTE: {fh} had menu:File[Revert] to go back to the last saved copy.  {product} saves every
-change as it happens, so there is no unsaved state to revert to; to go back further than
+NOTE: There is no Revert command.  {product} saves every change as it happens, so there is
+no unsaved state to revert to; to go back further than
 undo reaches, restore an earlier version from the document's history
 (xref:history.adoc[History]).
 
@@ -62,33 +62,6 @@ ifdef::spec[]
 The mechanism is specified in xref:crdt-model.adoc[CRDT model] (Undo) and delivered by
 xref:backlog.adoc#APP-011[APP-011].  This page fixes the user-facing rules and the
 preference.
-
-=== FreeHand parity
-
-[cols="2,3,2"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Undo / Redo with the action named
-|Same.
-|Faithful
-
-|Undo levels preference (1--100, memory-bound)
-|1--1,000, default 100, persisted in the local store.
-|Faithful
-
-|Undo after saving, not after reopening
-|Undo survives reopening and relaunch.
-|Adapted -- the stack is in the local store; there is no reason to lose it.
-
-|Change takes effect after reopening the document
-|Same.
-|Faithful
-
-|File > Revert to last saved
-|No unsaved state exists; version history replaces it.
-|Dropped -- continuous save; xref:history.adoc[History] covers the need.
-|===
 
 === Data model
 

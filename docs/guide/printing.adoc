@@ -2,6 +2,5 @@
 include::_attributes.adoc[]
 :page-slug: printing
 :page-group: Printing
-:page-fh: Chapter 14, "Printing a document"
 
 include::_includes/printing/printing.adoc[]

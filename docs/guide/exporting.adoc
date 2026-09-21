@@ -2,6 +2,5 @@
 include::_attributes.adoc[]
 :page-slug: exporting
 :page-group: Saving and exporting
-:page-fh: Chapter 12, "Exporting files", "Exporting an area of a document", "About color conversion during export"
 
 include::_includes/io/exporting.adoc[]

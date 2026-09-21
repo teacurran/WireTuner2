@@ -9,9 +9,9 @@ for them.
 
 // TODO screenshot: canvas with three comment pins (one with an unread badge), the open thread popover with a reply and a reaction, and the Comments panel beside it
 
-NOTE: {fh} had no comments.  The nearest thing was the *Note* field in the Object panel
-(xref:names-notes.adoc[Names and notes]), which is still there and is still the place for a
-description that belongs to the object itself.  A comment is a conversation; a note is a label.
+NOTE: The *Note* field in the Object panel (xref:names-notes.adoc[Names and notes]) is the
+place for a description that belongs to the object itself.  A comment is a conversation; a
+note is a label.
 
 == Pins and threads
 
@@ -262,23 +262,6 @@ under `0:12`.  Everything else about comments -- pins, panel, tool, merge -- is 
 node machinery of xref:crdt-model.adoc[CRDT model].  Comment text is a `RichText`
 (MERGE_TEXT) so that concurrent edits of one comment merge by character and mentions are
 Peritext marks that survive editing around them.
-
-=== FreeHand parity
-
-[cols="2,3,2"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|--
-|Pinned comment threads, replies, mentions, reactions, resolve, Comments panel, notifications,
-comments in PDF export, commenter role.
-|Added -- no FreeHand equivalent
-
-|Object notes (Object panel)
-|Kept unchanged (xref:names-notes.adoc[Names and notes]).  A note is a property of the object;
-a comment is a thread about it.
-|Faithful -- comments are added beside notes, not instead of them.
-|===
 
 === Data model
 

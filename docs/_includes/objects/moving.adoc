@@ -50,9 +50,8 @@ To set the nudge distances:
 . Enter *Arrow key distance* (default 1 pt) and *Shift-arrow key distance* (default 10 pt),
   1--864 pt, in the document's unit.
 
-NOTE: {fh} kept these under menu:File[Document Settings > Cursor Distance] as a property of
-the document.  In {product} they are your own preference, so a shared document does not change
-how everyone's arrow keys behave.
+NOTE: These distances are your own preference, not a property of the document, so a shared
+document does not change how everyone's arrow keys behave.
 
 == Moving numerically
 
@@ -212,47 +211,6 @@ both places and offers *Use mine*, *Use theirs* or *Keep both copies*.
 
 ifdef::spec[]
 == Specification
-
-=== FreeHand parity
-
-[cols="2,3,2"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Drag to move, kbd:[Cmd] for temporary Pointer
-|Same.
-|Faithful
-
-|Arrow keys and kbd:[Shift]-arrow nudge with configurable distance
-|Same; the distances are user preferences rather than document settings.
-|Adapted -- a nudge distance is a hand habit, and sharing it in a multiplayer document would let one user change everyone's keyboard.
-
-|Transform panel Move with X/Y
-|Same.
-|Faithful
-
-|Object panel X/Y position
-|Same.
-|Faithful
-
-|Snap to Point, Snap to Object, Snap distance
-|Same, plus Snap to Guides and Snap to Grid from the same menu.
-|Faithful
-
-|Pointer changes when snapping
-|Same.
-|Faithful
-
-|Drag between document windows
-|Same.
-|Faithful
-
-|--
-|Smart guides: edge, centre, equal-spacing and size-match hints while dragging, resizing and
-drawing, snapping with the existing priorities; kbd:[Option]-hover measurements.
-|Added -- every current design tool has them; the alignment work {fh} sent to the Align panel
-happens during the drag instead.
-|===
 
 === Data model
 

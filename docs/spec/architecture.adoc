@@ -2,9 +2,9 @@
 include::_attributes.adoc[]
 :page-slug: architecture
 
-{product} is a vector illustration application with {fh}'s feature set, UX and keyboard feel,
-rebuilt as a native macOS client that saves every edit to the cloud and lets several people work
-in one document at once -- including people who have been offline for a day or two.
+{product} is a vector illustration application: a native macOS client that saves every edit to
+the cloud and lets several people work in one document at once -- including people who have
+been offline for a day or two.
 
 This page is the map.  The pages it links to are normative.
 
@@ -96,10 +96,7 @@ streaming, versioning.
 |Every choice that could have gone another way, with its reason, and the open questions.
 
 |xref:modernizations.adoc[Modernizations]
-|The sixteen capabilities added beyond {fh} parity before building, with reasons and destinations.
-
-|xref:parity.adoc[FreeHand parity]
-|Every {fh} manual section, mapped to the page that delivers it and its parity verdict.
+|Capabilities settled before building that go beyond a classic illustration tool, with reasons and destinations.
 
 |xref:backlog.adoc[Backlog]
 |Epics, foundation tasks, dependency waves for parallel agents.

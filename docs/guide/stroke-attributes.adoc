@@ -2,6 +2,5 @@
 include::_attributes.adoc[]
 :page-slug: stroke-attributes
 :page-group: Strokes and fills
-:page-fh: Chapter 6, "Applying attributes to strokes" (Basic, Brush, Calligraphic, Custom, Pattern, PostScript)
 
 include::_includes/appearance/stroke-attributes.adoc[]

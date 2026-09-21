@@ -40,7 +40,7 @@ default set, left to right:
 
 |New |Creates a document from the default template (xref:creating-opening.adoc[Creating and opening]).
 |Open |Opens the library window.
-|Save Version |Names the current state as a version you can return to (xref:history.adoc[History]).  {fh}'s Save button has no equivalent job; every change is already kept.
+|Save Version |Names the current state as a version you can return to (xref:history.adoc[History]).  There is no Save button; every change is already kept.
 |Import |menu:File[Import…].
 |Print |menu:File[Print…].
 |Lock |Locks the selected objects (xref:selecting.adoc[Selecting]).
@@ -87,9 +87,9 @@ the key to return to the tool you were using.
 
 === Tools section
 
-Shortcuts are the *{fh} MX* preset, which is {product}'s default; the *Illustrator* preset
-and your own changes are described on xref:customizing.adoc[Customizing your environment].
-Where {fh} offered both a letter and a digit, both work.
+Shortcuts are {product}'s default set; the *Illustrator* preset and your own changes are
+described on xref:customizing.adoc[Customizing your environment].  Where a tool lists both a
+letter and a digit, both work.
 
 [cols="1,1,3,2"]
 |===
@@ -162,12 +162,11 @@ Where {fh} offered both a letter and a digit, both work.
 |Reflect |-- |Flip across an axis. |xref:transforming.adoc[Transforming]
 |===
 
-NOTE: The *Action* tool in {fh} assigned Flash actions.  {product} keeps the tool and the
-name; it assigns interactions that survive HTML and SVG export
-(xref:interactivity.adoc[Interactivity]).  Tools that {fh} kept on the Xtra Tools toolbar
-(Mirror, Roughen, Bend, Fisheye Lens, Smudge, Shadow, 3D Rotation, Graphic Hose, Chart) are
-built in and appear in the Tools panel flyouts; the Extension Tools toolbar shows the same
-tools in one row for people who prefer it.
+The *Action* tool assigns interactions that survive HTML and SVG export
+(xref:interactivity.adoc[Interactivity]).  The extension tools (Mirror, Roughen, Bend,
+Fisheye Lens, Smudge, Shadow, 3D Rotation, Graphic Hose, Chart) are built in and appear in
+the Tools panel flyouts; the Extension Tools toolbar shows the same tools in one row for
+people who prefer it.
 
 === View section
 
@@ -226,10 +225,7 @@ pop-up (xref:perspective.adoc[Perspective and envelopes]).
 
 == The Extension Tools and Extension Operations toolbars
 
-NOTE: {fh} called these *Xtra Tools* and *Xtra Operations*; {product} calls extensions
-*Extensions* throughout (xref:extensions.adoc[Extensions]).
-
-*Extension Tools* holds the tools listed above under Freeform, Effects and "Objects that link
+Both toolbars are made of extensions (xref:extensions.adoc[Extensions]).  *Extension Tools* holds the tools listed above under Freeform, Effects and "Objects that link
 and repeat" in one row.  *Extension Operations* holds one-click path operations: Union,
 Divide, Intersect, Punch, Crop, Transparency, Expand Stroke, Inset Path, Add Points, Correct
 Direction, Reverse Direction, Remove Overlap, Simplify, Blend, Emboss, Fractalize, Trap
@@ -249,49 +245,6 @@ syncs later.
 
 ifdef::spec[]
 == Specification
-
-=== FreeHand parity
-
-[cols="2,3,1"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Toolbars: Tools, Main, Text, Envelope, Info, Status, Xtra Tools, Xtra Operations
-|Same set; Status is the fixed status bar (xref:workspace.adoc[The workspace]); Xtra → Extension.
-|Faithful
-
-|Dock toolbars top/left/bottom or float; drag to move
-|Same, with the Main toolbar as the window's `NSToolbar`.
-|Faithful
-
-|Main toolbar default buttons incl. Save
-|Save becomes Save Version; Share added.
-|Adapted -- no save; versions are the nearest concept.
-
-|Tools panel: four sections, flyouts, add/remove buttons via Customize
-|Same sections and flyouts; customization through the Customize Toolbars window.
-|Faithful
-
-|Cmd-drag a tool off the Tools panel to remove it
-|Same; menu:Window[Toolbars > Reset Toolbars] brings it back without the Customize window.
-|Faithful (with a reset command)
-
-|Tool shortcuts (letters and digits)
-|The FreeHand MX Mac preset is the default set.
-|Faithful
-
-|Xtra Tools as a separate plug-in toolbar
-|Those tools are built in and also live in Tools panel flyouts.
-|Adapted -- no plug-in loading in v1 (xref:extensions.adoc[Extensions]).
-
-|Status toolbar Cancel button (Windows)
-|kbd:[Esc] and sheet cancel buttons.
-|Adapted
-
-|Action tool assigning Flash actions
-|Action tool assigning web-export interactions.
-|Adapted -- Flash is gone; the interaction model is kept for HTML/SVG.
-|===
 
 === Data model
 
@@ -334,7 +287,7 @@ Nothing beyond storing and relaying changes.
   sharing the drag code with panels.
 * Tool option sheets: `NSViewController`s hosting SwiftUI forms, presented as sheets on
   double-click; options persist in `NSUserDefaults` per tool id (they are preferences, not
-  document data, as in {fh}).
+  document data).
 * The Info toolbar observes `ToolManager.infoPublisher` (a struct of optional readouts) and
   renders only the fields the current tool sets.
 * Accessibility identifiers follow `tool.<id>` and `toolbar.<name>.<command>` (TEST-002).
@@ -347,7 +300,7 @@ Nothing beyond storing and relaying changes.
 Track:: client-ui
 Depends on:: APP-003
 Size:: M
-Delivers:: `ToolRegistry`, `ToolDescriptor`, `FlyoutGroup`, `UnimplementedTool`, and registrations for all 43 tools and controls in the tables above with ids, titles, SF Symbol placeholders, sections, groups, help slugs and FreeHand MX default shortcuts.
+Delivers:: `ToolRegistry`, `ToolDescriptor`, `FlyoutGroup`, `UnimplementedTool`, and registrations for all 43 tools and controls in the tables above with ids, titles, SF Symbol placeholders, sections, groups, help slugs and the default shortcut set's bindings.
 Done when::
 * Every tool in the tables can be selected by click, flyout and shortcut; the unimplemented ones show the HUD and write nothing (asserted by an outbox-empty check).
 * Shortcut cycling within a flyout and temporary-tool push/pop are covered by UI tests.

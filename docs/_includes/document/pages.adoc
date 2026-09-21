@@ -100,9 +100,6 @@ the list button next to the magnification buttons -- or choose *Move Page…* fr
 Options menu and enter a new number.  Page order decides printing and export sequence and the
 numbering everywhere in the interface.
 
-NOTE: {fh} numbered pages in the order they were created and had no command to reorder them.
-{product} adds the page list and *Move Page…*.
-
 == Modifying, resizing and rotating pages
 
 To change a page's settings in a sheet:
@@ -159,61 +156,6 @@ removed page (xref:collaboration.adoc[Working together]).
 
 ifdef::spec[]
 == Specification
-
-=== FreeHand parity
-
-[cols="2,3,1"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Add Page button at the bottom of the window
-|Same.
-|Faithful
-
-|Add Pages dialog (count, size, orientation, bleed, make child of master)
-|Same, as a sheet.
-|Faithful
-
-|Page tool: click to select, Option-drag to duplicate, Delete to remove
-|Same; Shift-click and marquee add multi-select.
-|Faithful
-
-|Select a page via Document panel thumbnail, Go to Page pop-up, page selector buttons
-|Same; Option-click on the buttons jumps to first/last.
-|Faithful
-
-|Preferences: Changing view sets the active page; Using tools sets the active page
-|Same names and behavior; live under Settings > Document.
-|Faithful
-
-|Remove page prompts if it has objects; at least one page must remain
-|Same; objects straddling other pages or the pasteboard survive.
-|Faithful
-
-|Drag page moves contents; Cmd during drag moves frame only
-|Same.
-|Faithful
-
-|Option-double-click for Modify Page dialog
-|Same, as a sheet.
-|Faithful
-
-|Resize by handles, Shift proportional, snap to grid
-|Same; Option resizes about the center.
-|Faithful
-
-|Rotate a page by dragging near a handle; objects do not rotate
-|Same; only the two orientations exist.
-|Faithful
-
-|Page numbering by creation order, no reordering
-|Page order is an explicit, editable order (page list drag, Move Page…).
-|Adapted -- a multiplayer document needs an order that survives concurrent adds; the sibling position provides it for free.
-
-|Child pages cannot be modified, resized or rotated
-|Same.
-|Faithful
-|===
 
 === Data model
 

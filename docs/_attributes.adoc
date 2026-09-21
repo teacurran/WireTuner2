@@ -8,7 +8,6 @@
 //     spec/ pages (architecture, protocol, backlog) render alongside them.
 :product: WireTuner
 :product-full: WireTuner for macOS
-:fh: FreeHand MX
 :icons: font
 :sectanchors:
 :sectlinks:

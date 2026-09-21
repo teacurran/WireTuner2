@@ -81,9 +81,8 @@ areas of that layer become opaque, black transparent, grays in between; the laye
 not drawn.  A non-printing background layer is a convenient place for it
 (xref:layers.adoc[Layers]).
 
-NOTE: For {fh} users: *Include Alpha Channel* is *Background: Transparent*; *Alpha Includes
-Background* is *Mask from layer*.  Two limitations are gone: objects with effects keep their
-transparency in the export, and an imported image's own alpha channel is preserved.
+NOTE: Objects with effects keep their transparency in the export, and an imported image's own
+alpha channel is preserved.
 
 == PNG
 
@@ -225,9 +224,6 @@ A multi-page document writes one PSD per page.  Objects inside a layer are merge
 layer's pixels; if you want each object on its own layer, put them on separate {product}
 layers first.
 
-NOTE: For {fh} users: the *Remember Layer Info* preference is gone; layers are always
-available in the PSD options.
-
 == BMP and Targa
 
 [cols="1,3"]
@@ -267,80 +263,6 @@ with a placeholder in it is rarely what you want.
 
 ifdef::spec[]
 == Specification
-
-=== FreeHand parity
-
-[cols="2,3,2"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Resolution pop-up and text field
-|*Resolution* with 72/144/300 and free entry, plus *Scale* 1×/2×/3×.
-|Faithful, extended.
-
-|Anti-aliasing None/2/3/4
-|Same levels, implemented as supersampling factors.
-|Faithful.
-
-|Bitmap Export Defaults (Windows only)
-|*Bitmap Export Defaults* on macOS.
-|Faithful (adopted on macOS).
-
-|Include Alpha Channel; Alpha Includes Background (background layer as mask)
-|*Background: Transparent*; *Mask from layer*.
-|Faithful (renamed); the two documented limitations are removed.
-
-|Imported bitmap's alpha channel not preserved on export
-|Preserved.
-|Adapted -- improvement.
-
-|Transparency of objects with effects not preserved
-|Preserved.
-|Adapted -- improvement.
-
-|BMP 8-bit uncompressed/compressed, 16, 24, 32 with alpha
-|Same.
-|Faithful.
-
-|GIF: interlaced, dither, palettes (Exact, WebSafe 216, WebSnap Adaptive 256/128/16, 64/32/16,
-3-3-2, Other/Photoshop palette), Optimized Palette, Transparent Background, index choice
-|*Palette*: Adaptive (with *Colors* count), Exact, Web 216, Grayscale, Custom `.aco`/`.act`;
-*Dither* percent; *Transparent background* with *Matte*; *Interlaced*.  "Optimized" is always
-on (unused entries are dropped).
-|Adapted -- WebSnap and 3-3-2 palettes dropped: no browser has needed web-safe snapping since
-2002; adaptive with a color count covers the size use.  Transparency index is chosen
-automatically from unused entries.
-
-|JPEG: Image Quality, Progressive
-|Same, plus chroma subsampling.
-|Faithful, extended.
-
-|PNG: 8/16/24/32/48/64-bit, Interlaced
-|Same, plus compression level.
-|Faithful.
-
-|Targa: 8/16/24/32-bit, Compression
-|Same.
-|Faithful.
-
-|TIFF: 8/24/32-bit with alpha
-|Same, plus 48/64-bit, CMYK, compression choice, byte order.
-|Faithful, extended.
-
-|PSD: Include Layers (with Remember Layer Info preference), invisible layers via Output Options
-|*Layers* option, always available; hidden layers via the document setting.
-|Adapted -- the preference had no reason to exist.
-
-|Multi-page document exports as one PSD
-|One PSD per page.
-|Adapted -- one page per file is consistent with every other bitmap format; a single-page
-document behaves identically.
-
-|--
-|WebP, HEIC, AVIF; scale factors; color mode and profile embedding; the *RGB profile* rule
-that writes Display P3 when the artwork needs it; simulate overprint.
-|Addition.
-|===
 
 === Data model
 

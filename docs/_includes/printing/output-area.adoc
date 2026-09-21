@@ -78,37 +78,6 @@ not listed in the merge review.
 ifdef::spec[]
 == Specification
 
-=== FreeHand parity
-
-[cols="2,3,2"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Output Area tool: drag to define, one per document, saved with the document
-|Same; shared document data.
-|Faithful
-
-|Resize by handles, move by dragging the boundary or arrow keys
-|Same, plus kbd:[Shift] and kbd:[Option] modifiers matching the drawing tools.
-|Faithful
-
-|Dimensions shown in the Object panel
-|Shown and editable.
-|Faithful -- editing added.
-
-|Delete: click outside, Delete key, or drag a new one
-|Same, plus a menu command.
-|Faithful
-
-|Print > Area, with Print Page Boundary
-|*Output area* under *Print* in the pane, with *Print page boundaries*.
-|Faithful
-
-|Use in export
-|Export dialogs offer *Area* (IO epic).
-|Faithful
-|===
-
 === Data model
 
 One field on `SettingsProps` (the well-known `settings` node), added by
@@ -128,7 +97,7 @@ message SettingsProps {
 ----
 
 Stored on `settings` rather than on a page because the area is independent of pages -- it
-may span several or lie on bare pasteboard -- and {fh} allowed exactly one per document.
+may span several or lie on bare pasteboard -- and there is exactly one per document.
 Whether it is shown is view state: `show_output_area` is `local_only` in the local store.
 
 === Merge semantics

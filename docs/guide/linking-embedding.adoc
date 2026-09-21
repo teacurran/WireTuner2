@@ -2,6 +2,5 @@
 include::_attributes.adoc[]
 :page-slug: linking-embedding
 :page-group: Document setup
-:page-fh: Chapter 2, "Linking and embedding", "Managing links", "Updating and fixing broken links upon opening a document"
 
 include::_includes/document/linking-embedding.adoc[]

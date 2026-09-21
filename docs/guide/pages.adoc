@@ -2,6 +2,5 @@
 include::_attributes.adoc[]
 :page-slug: pages
 :page-group: Document setup
-:page-fh: Chapter 2, "Working with pages", "Selecting pages", "Duplicating, removing, and moving pages", "Modifying, resizing, and rotating pages"
 
 include::_includes/document/pages.adoc[]

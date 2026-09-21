@@ -57,8 +57,8 @@ else is editing simply joins them (xref:collaboration.adoc[Working together]).
 
 === Opening other file types
 
-menu:File[Open…] opens {product} documents from the library.  To bring in {fh} files, Illustrator
-files, PDF, EPS and other formats, use menu:File[Import…] or drag the file onto the Library window,
+menu:File[Open…] opens {product} documents from the library.  To bring in Illustrator files,
+PDF, EPS and other formats, use menu:File[Import…] or drag the file onto the Library window,
 which creates a new document from it (xref:import-formats.adoc[Import formats]).  The original
 file is never modified.
 
@@ -106,61 +106,6 @@ worked on offline gets its new picture when you reconnect.
 
 ifdef::spec[]
 == Specification
-
-=== FreeHand parity
-
-[cols="2,3,1"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|File > New based on the default template
-|Same; template is a library document or the built-in default.
-|Faithful
-
-|File > Open, Open Recent (four most recent)
-|Library window; Open Recent lists ten, synced across the account's Macs.
-|Adapted -- documents are library entries, not files; recents come from the account.
-
-|Multiple open documents, switched via the Window menu
-|Same, plus tabs and next/previous tab shortcuts.
-|Faithful
-
-|Review unsaved documents on quit; Always Review Unsaved Documents upon Quit preference
-|No unsaved state exists.  Quit alert only mentions unsent changes.
-|Dropped -- continuous saving makes the review meaningless (recorded in decisions).
-
-|Restore View When Opening Document preference
-|Same name, per Mac.
-|Faithful
-
-|Remember Window Size and Location preference
-|Same name, per Mac.
-|Faithful
-
-|New Document Template preference with a file chooser
-|Same name; chooser lists library templates.
-|Adapted -- templates are library documents.
-
-|Search for Missing Links (Mac only)
-|Kept as *Search for missing links in*.
-|Faithful
-
-|Opening files of other types, including Illustrator 1.1--9
-|Import creates a new document; formats on the import pages.
-|Adapted -- opening a foreign file in place would imply saving back to it, which {product} never does.
-
-|Opening documents from FreeHand 8 and later; converted file renamed "(Converted)"
-|Import of `.fh8`--`.fh11` produces a new library document named after the file; the source file is untouched.
-|Adapted -- same intent; delivered by the import epic.
-
-|--
-|Library search by content (text, names, notes, keywords, page names) with highlighted matches.
-|Added -- the cloud library holds every document's contents; the Finder never could search inside a FreeHand file.
-
-|File preview thumbnail inside the saved file
-|A thumbnail per library document, rendered by the client on close and every few minutes of change, shown in the Library window.
-|Added -- {fh}'s preview lived in the file; here the library is the file browser.
-|===
 
 === Data model
 

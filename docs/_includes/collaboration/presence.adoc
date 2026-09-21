@@ -168,17 +168,6 @@ joined or left while you were away, the strip shows who is here now.
 ifdef::spec[]
 == Specification
 
-=== FreeHand parity
-
-[cols="2,3,2"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|--
-|Avatars, colors, remote cursors, selections, carets, follow, spotlight.
-|Added -- no FreeHand equivalent
-|===
-
 === Data model
 
 Presence never enters the document or the change log.  It is the `PresenceUpdate` /

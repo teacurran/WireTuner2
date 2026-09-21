@@ -4,9 +4,6 @@ extensions and each object gets its own adjusted, unnamed color while the swatch
 they were.  This page covers both, and the global replace that swaps one color for another
 throughout the artwork.
 
-NOTE: {fh} users: the *Xtras* menu is called *Extensions* in {product}; menu:Xtras[Colors] is
-menu:Extensions[Colors].
-
 == Editing a named color
 
 Change a swatch and everything using it -- fills, strokes, text, tints of it, gradient stops
@@ -138,45 +135,6 @@ swatch back.
 
 ifdef::spec[]
 == Specification
-
-=== FreeHand parity
-
-[cols="2,3,1"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Editing a named color redefines it everywhere
-|Same: objects hold a `NodeRef` to the swatch and read its live value.
-|Faithful
-
-|Lighten, Darken, Saturate, Desaturate Colors; spot colors unaffected; repeatable to a limit
-|Same; results are `ColorRef.inline`.
-|Faithful
-
-|Color Control Xtra: CMYK/RGB/HLS, −100..100%, hue ±360°, Preview
-|Same, as a sheet; also reachable from the Swatches Options menu.
-|Faithful
-
-|Convert to Grayscale → tints of black
-|Same: `ColorRef.tint` of the Black swatch.
-|Faithful
-
-|Replace from the color list or a library
-|Same.  From the list: reference rewrite plus removal; from a library: a swatch edit.
-|Faithful
-
-|Randomize Named Colors
-|Same.
-|Faithful
-
-|Defaults cannot be replaced
-|Same.
-|Faithful
-
-|Global replace via Find & Replace Graphics
-|xref:find-replace.adoc[Find and replace] (OBJ epic).
-|--
-|===
 
 === Data model
 

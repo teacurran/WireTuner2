@@ -3,9 +3,8 @@ outline, its name and the character it encodes.  It is where you add and remove 
 and re-encode them, select several to act on at once, and open one for drawing.  It takes the
 place of the page thumbnails of an illustration document.
 
-NOTE: FontForge calls this the *Font View* and shows one cell per *encoding slot*, whether or not
-a glyph exists there.  {product}'s grid shows glyphs -- things you have made -- and can optionally
-show the empty slots of an encoding as faint placeholders.
+NOTE: The grid shows glyphs -- things you have made -- and can optionally show the empty slots of
+an encoding as faint placeholders.
 
 // TODO screenshot: the glyph grid in Unicode order with a few empty Latin-1 slots visible
 
@@ -193,60 +192,6 @@ like pages: the removal wins but the other person's drawings are kept and offere
 
 ifdef::spec[]
 == Specification
-
-=== FontForge parity
-
-[cols="2,3,1"]
-|===
-|FontForge capability |{product} behavior |Verdict
-
-|Font View: a cell per encoding slot, empty slots with a red X
-|A cell per glyph; encoding placeholders optional via View > Encoding.
-|Adapted -- glyphs are nodes; slots are a view.  Keeps the "what is missing" affordance.
-
-|Cell sizes 24/36/48/72/96 px, anti-aliased
-|Small/Medium/Large (48/72/96 pt), always anti-aliased; preference *Glyph cell size*.
-|Adapted -- fewer sizes.
-
-|Labels: glyph image, name, Unicode, encoding
-|Name, character, codepoint.
-|Faithful
-
-|Show H Metrics / V Metrics in cells
-|Show Metrics in Cells (horizontal only).
-|Adapted -- no vertical metrics.
-
-|Encodings: ISO 8859 family, Windows and Mac code pages, Unicode planes, custom encodings
-|ASCII, Latin-1, Mac Roman and Unicode blocks as placeholder sets; the stored encoding is always
-Unicode via `codepoints`; a "custom encoding" is the Custom sort order.
-|Adapted -- legacy 8-bit encodings only matter for legacy formats {product} does not write.
-
-|Selection: click, shift-click, drag, arrow keys, Tab to next glyph with outline, type to jump,
-find by name/encoding/Unicode
-|Same set with macOS modifiers, plus the live search field and Select submenu.
-|Faithful
-
-|Multi-glyph operations: transform, expand stroke, simplify, build accents, autohint, metrics
-|Transform, set width/bearings, center/thirds, build accents, decompose, remove overlaps, correct
-directions, add extrema, kind, color, export.  No hinting, no simplify.
-|Adapted -- hinting out of scope; Simplify is available per path (Drawing chapter).
-
-|Cut/paste merges or replaces glyph data; paste of references
-|Copy/paste with replace-on-same-count and add-otherwise; Paste as Component.
-|Faithful
-
-|Glyph Info: name, Unicode, alternate Unicodes, comment, color, class
-|Glyph section of the Object panel: name, codepoints (many), kind, mark color, export, note.
-|Faithful
-
-|CID-keyed and Multiple Master fonts
-|Not supported.
-|Dropped -- outside the fundamentals.
-
-|Glyph names may be derived from encoding or vice versa
-|AGL and uniXXXX naming applied at creation; names are otherwise free.
-|Faithful
-|===
 
 === Data model
 

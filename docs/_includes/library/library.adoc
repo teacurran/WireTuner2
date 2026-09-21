@@ -47,9 +47,6 @@ reverse.
 The options menu holds *New Graphic*, *New Folder*, *Duplicate*, *Remove*, *Swap*, *Edit*,
 *Import…*, *Export…*, *Preview*, and a *Show* submenu for choosing which kinds are listed.
 
-NOTE: {fh} calls a library folder a *group*.  {product} calls it a *folder* so that it is not
-confused with grouped objects on the canvas.
-
 == Creating symbols
 
 A symbol can be made from any object, group, text block or selection of several objects.
@@ -176,10 +173,9 @@ To edit a symbol:
   works as usual.  Edits appear on the instances as you make them.
 . Close the window (kbd:[Cmd+W]) or click btn:[Done] when you are finished.
 
-NOTE: {fh}'s editing window has an *Auto-Update* checkbox and applies the edits when the window
-closes.  In {product} edits to a symbol are live, for you and for everyone else in the
-document, so there is nothing to apply and no checkbox.  If you want to try something without
-affecting the instances, edit a duplicate of the symbol and use btn:[Swap] when you are happy.
+NOTE: Edits to a symbol are live, for you and for everyone else in the document, so there is
+nothing to apply.  If you want to try something without affecting the instances, edit a
+duplicate of the symbol and use btn:[Swap] when you are happy.
 
 To replace a symbol's artwork with an object from the canvas:
 
@@ -240,7 +236,7 @@ To import symbols from another document:
 . Choose *Import…* from the Library panel's options menu.
 . Pick a document from your document library, or click btn:[Choose File…] for a {product}
   document or symbol library file on disk (xref:import-formats.adoc[Import formats] lists what
-  is accepted, including {fh} symbol libraries).
+  is accepted).
 . In the Import Symbols sheet select the symbols you want, with kbd:[Shift]-click and
   kbd:[Cmd]-click, and click btn:[Import].
 
@@ -320,81 +316,6 @@ sees.
 
 ifdef::spec[]
 == Specification
-
-=== FreeHand parity
-
-[cols="2,3,2"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Library panel: preview, toggle sorting, list, New Symbol, New Group, Swap, Remove
-|Same panel with a *Kind* column and sortable column headers.
-|Faithful
-
-|"Group" (library folder)
-|Renamed *folder*; nested folders allowed.
-|Adapted -- avoids confusion with grouped objects.
-
-|Create symbol: Convert to Symbol, Copy to Symbol, New Symbol button, drag into list, New Graphic
-|Same five ways.
-|Faithful
-
-|Duplicate (menu or kbd:[Option]-drag)
-|Same.
-|Faithful
-
-|Preview toggle
-|Same.
-|Faithful
-
-|Import symbols from a {fh} document; Export to a symbol file
-|Import from a {product} document (cloud or file) and from {fh} symbol libraries via the IMG
-epic's importer; export to a team library or to a file.
-|Adapted -- cloud documents replace the file browser as the primary source; files remain.
-
-|Team libraries with *Update from Library*
-|New.
-|Adapted -- addition for shared teams; no {fh} equivalent.
-
-|Remove symbol with confirmation
-|Sheet offering Release Instances / Delete Instances.
-|Adapted -- {fh} deletes instances; offering release preserves work.
-
-|Instance: drag from panel, copy/paste/duplicate; transform; URL
-|Same, plus *Place* from the options menu.
-|Faithful
-
-|Release Instance
-|Same; result is a group with the instance's transform applied.
-|Faithful
-
-|Edit symbol in a separate window with Auto-Update, applied on close
-|Separate window; edits are live for everyone; no Auto-Update.
-|Adapted -- deferred apply is incompatible with live sharing; a duplicate serves as a sandbox.
-
-|Replace symbol by dragging an object onto it
-|Same, with a confirmation sheet.
-|Faithful
-
-|Swap selected objects for instances of a symbol
-|Same.
-|Faithful
-
-|Master pages listed in the Library
-|Same; content owned by xref:master-pages.adoc[master pages].
-|Faithful
-
-|Brush and hose symbols in the Library
-|Same, marked by kind, with a *Show* filter.
-|Faithful
-
-|Instance overrides (no {fh} counterpart; Sketch, Figma and Illustrator symbols)
-|Per-instance overrides of text, fill and stroke color, visibility and image source, listed in
-an *Overrides* section of the Object panel with reset arrows, *Reset All Overrides* and
-*Detach*; overrides survive symbol edits and are set aside on swap.
-|Added -- without overrides every button or card needs its own symbol; four overridable
-properties cover most of what teams vary per instance and cost one sequence field.
-|===
 
 === Data model
 
@@ -784,7 +705,6 @@ Done when::
 * Importing 200 symbols with shared swatches creates each swatch once.
 * Paste of an instance into a document that has an identical symbol of the same name reuses it; a different symbol of the same name is added as "Name 2".
 * Merge test: two people import the same symbol concurrently produce two symbols and no conflict rows.
-* {fh} `.fhl` symbol libraries route through the IMG epic's importer (prose dependency).
 
 [[LIB-014]]
 ==== LIB-014 Team library service surface

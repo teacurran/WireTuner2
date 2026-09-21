@@ -3,12 +3,8 @@ in the RGB equivalent of a CMYK mix in the Color Mixer, it converts between colo
 page explains where those conversions come from, why every collaborator gets the same answer,
 and how spot colors are previewed.
 
-NOTE: {fh} shipped prebuilt *color tables* -- lookup tables for CMYK display and RGB
-conversion computed from a fixed set of default profiles -- as a lightweight alternative to a
-full color management system, and let you rebuild them from ColorSync.  {product} has no
-tables to manage: every conversion is computed from the document's working profiles when
-needed and cached.  The *Color Tables* choice, *Rebuild Color Tables* option and the
-rebuilding procedure have no counterpart.
+NOTE: {product} has no color tables to manage: every conversion is computed from the
+document's working profiles when needed and cached.
 
 == How conversions are computed
 
@@ -95,39 +91,6 @@ an offline period (xref:color-management.adoc[Color management]).
 ifdef::spec[]
 == Specification
 
-=== FreeHand parity
-
-[cols="2,3,2"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Color Tables color management type (prebuilt CMYK display and RGB conversion tables)
-|Conversions computed from the working profiles through ColorSync and cached in memory.
-|Adapted: a modern CMM computes a transform in milliseconds; prebuilt tables were a
-performance workaround with worse accuracy.
-
-|Rebuild Color Tables using KDS or ColorSync with chosen monitor and separations profiles
-|Not needed: the cache is keyed by the profiles and rebuilds itself when they change.
-|Dropped: nothing to rebuild.
-
-|Color Manage Spot Colors under Color Tables
-|Same setting, in the document's Color Settings.
-|Faithful.
-
-|Monitor Simulates under Color Tables (None / Separations Printer)
-|Proof setup.
-|Adapted: see xref:color-management.adoc[Color management].
-
-|Spot colors previewed from the CMS when managed, from swatch book values otherwise
-|Managed: Lab from the library through ColorSync.  Unmanaged: nominal CMYK through the
-working CMYK profile.
-|Faithful.
-
-|No profile assignment to images under Color Tables / Adjust Display Colors / None
-|Always available, since color management is always on.
-|Adapted.
-|===
-
 === Data model
 
 Nothing new in the document.  Spot color library data is shipped in the app, not stored in
@@ -181,7 +144,7 @@ Nothing.
 * Spot preview: `SpotLibraryStore` loads `.binpb` resources lazily; `previewColor(ink,
   settings)` returns a `CGColor` in Working RGB (managed) or Working CMYK (unmanaged), cached
   per `(library, ink, settings hash)`.  Tints multiply in Lab (managed) or scale the CMYK mix
-  (unmanaged), matching {fh}'s two behaviors.
+  (unmanaged).
 * Determinism: ColorSync is the CMM on every Mac; results are identical on the same macOS
   version and within 1/255 across versions (CMS-003's committed corpus).  Because nothing
   derived is ever written to the document except on an explicit Mixer conversion, and that

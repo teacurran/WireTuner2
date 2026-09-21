@@ -6,8 +6,8 @@ field, *Alt text*, and a *Decorative* checkbox: together they describe the objec
 who cannot see it, and they go into every SVG, PDF and web page {product} writes
 (<<accessibility,Describing objects for accessibility>>).
 
-NOTE: {fh} kept names and notes in the Navigation panel.  {product} puts them in the Object
-panel, on the object's root row, next to the URL (xref:urls.adoc[Attaching URLs]).
+NOTE: Names and notes are in the Object panel, on the object's root row, next to the URL
+(xref:urls.adoc[Attaching URLs]).
 
 // TODO screenshot: Object panel root row with Name, Note and Alt text fields filled in
 
@@ -135,38 +135,6 @@ object one person arranges while another deletes it simply drops out of the orde
 
 ifdef::spec[]
 == Specification
-
-=== FreeHand parity
-
-[cols="2,3,2"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Name (26 characters) and Note (254 characters) in the Navigation panel
-|Name (256) and Note (8,192) in the Object panel root row.
-|Adapted -- one inspector instead of two panels; the limits are the schema's.
-
-|Applied as typed
-|Same (committed per keystroke burst, see below).
-|Faithful
-
-|Exported as PDF annotations
-|Same.
-|Faithful
-
-|--
-|*Alt text* and *Decorative* on every object, exported to SVG, tagged PDF and HTML.
-|Added -- accessible output is expected of every current design tool; the fields are two
-registers beside the name.
-
-|--
-|Per-page reading order override, defaulting to stacking order.
-|Added -- needed for PDF/UA and for image maps; cheap as one sequence per page.
-
-|--
-|menu:File[Check Accessibility…] sheet: missing alt, contrast, reading order, language.
-|Added -- no {fh} counterpart.
-|===
 
 === Data model
 

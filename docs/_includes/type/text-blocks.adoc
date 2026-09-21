@@ -58,8 +58,6 @@ To delete a text block, select it and press kbd:[Delete], or choose menu:Edit[Cl
 empty auto-expanding block deletes itself when you deselect it.  To sweep every empty block
 out of the document at once, choose menu:Extensions[Delete > Empty Text Blocks].
 
-NOTE: {fh} called the Extensions menu *Xtras*.
-
 To remove rotation, skew and scaling from a text block while keeping its position, select it
 and choose menu:Text[Remove Transforms].  Live effects applied in the Object panel are not
 affected.
@@ -195,62 +193,6 @@ both values (xref:reconcile.adoc[Reconciling offline edits]).
 
 ifdef::spec[]
 == Specification
-
-=== FreeHand parity
-
-[cols="2,3,1"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Solid/hollow handles indicate fixed/auto dimensions
-|Same.
-|Faithful
-
-|Link box with overflow dot
-|Same, plus an arrow glyph when linked.
-|Faithful
-
-|Corner drag resizes; Shift proportional; Option scales type; double-click link box fits
-|Same.
-|Faithful
-
-|Double-click side/bottom handle toggles auto-expanding
-|Same.
-|Faithful
-
-|Object panel Width/Height buttons convert several blocks
-|Same controls, labelled *Auto width* / *Auto height*.
-|Faithful
-
-|Delete empty text blocks (Xtras > Delete > Empty Text Blocks)
-|menu:Extensions[Delete > Empty Text Blocks].
-|Faithful (menu renamed with the Extensions menu)
-
-|Text > Remove Transforms
-|Same; resets `CommonProps.transform` to translation only.
-|Faithful
-
-|Layer highlight colors for selected text blocks in Preview mode
-|Handled by the LIB epic's layers page.
-|Faithful
-
-|Link fixed-size blocks and paths; auto-expanding only as chain end
-|Same rules; the UI refuses a drop on a non-empty block.
-|Faithful
-
-|Break a link and retain text; break a link and delete following blocks
-|Retain-and-reflow is the only unlink gesture.  Deleting the following blocks is an ordinary
-delete of those nodes afterwards.
-|Adapted -- one gesture with a predictable outcome; the destructive variant is two steps.
-
-|Linked object acquires text block attributes and keeps them
-|Same: a path that receives a link gains `on_path` with `INSIDE` mode and keeps it.
-|Faithful
-
-|Text flows across pages in a chain
-|Same; a chain is a list of node references and pages are geometry.
-|Faithful
-|===
 
 === Data model
 

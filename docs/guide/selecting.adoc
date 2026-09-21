@@ -2,6 +2,5 @@
 include::_attributes.adoc[]
 :page-slug: selecting
 :page-group: Objects
-:page-fh: Chapter 4, "Selecting objects", "Selecting complex objects", "Selecting grouped objects"
 
 include::_includes/objects/selecting.adoc[]

@@ -2,6 +2,5 @@
 include::_attributes.adoc[]
 :page-slug: rasterizing
 :page-group: Imported artwork
-:page-fh: Chapter 10, "Converting vector graphics to bitmap images"
 
 include::_includes/imported/rasterizing.adoc[]

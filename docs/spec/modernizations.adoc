@@ -2,11 +2,11 @@
 include::_attributes.adoc[]
 :page-slug: modernizations
 
-{fh} MX shipped in 2003.  Matching its features is the floor, not the ceiling: a designer in
-2026 brings expectations that did not exist then -- 120 Hz displays, wide-gamut color, comments
-in the document, variable fonts, accessibility law, and a Mac that indexes and previews
-everything.  This page lists the modernizations accepted before building, why each is worth its
-cost, and where in the book it is specified.  Everything here is `Added` in parity terms.
+A classic illustration tool's feature set is the floor, not the ceiling: a designer in 2026
+brings expectations that did not exist when that generation of tools was designed -- 120 Hz
+displays, wide-gamut color, comments in the document, variable fonts, accessibility law, and a
+Mac that indexes and previews everything.  This page lists the capabilities settled before
+building, why each is worth its cost, and where in the book it is specified.
 
 == Before wave 0: architecture and schema
 
@@ -69,7 +69,7 @@ xref:backlog.adoc#APP-008[APP-008]
 
 |[[M-07]]*M-07* Smart guides and measurement overlays
 |Dynamic alignment, equal-spacing and size-match hints, and kbd:[Option] distance readouts.
-{fh} snapped only to points, grid and guides.  The largest daily-use gain on the list.
+Snapping to points, grid and guides alone is not enough.  The largest daily-use gain on the list.
 |xref:moving.adoc[Moving], xref:grid-guides.adoc[Grid and guides]
 
 |[[M-08]]*M-08* Command palette
@@ -78,8 +78,8 @@ views is days of work and removes menu diving.
 |xref:workspace.adoc[Workspace], xref:customizing.adoc[Customizing]
 
 |[[M-09]]*M-09* Live corners and live boolean shapes
-|{fh}'s Combine is destructive and its radius is rectangle-only.  As live effects they stay
-editable and merge like any effect.
+|The Combine commands are destructive and the rectangle radius is rectangle-only.  As live
+effects they stay editable and merge like any effect.
 |xref:live-effects.adoc[Live effects], xref:combining-paths.adoc[Combining paths]
 
 |[[M-10]]*M-10* Symbol instance overrides
@@ -146,7 +146,7 @@ object so a JavaScriptCore plug-in API later is a thin layer.
 
 == Two risks to watch
 
-Text engine scope:: Chapter 8 plus xref:backlog.adoc#TXT-001[TXT-001] is the largest single
+Text engine scope:: The type pages plus xref:backlog.adoc#TXT-001[TXT-001] are the largest single
 piece of the client; Core Text shapes glyphs but does not lay out columns, tab leaders,
 paragraph rules or text on a path.  Text on a path and tables are candidates for a second wave
 if the first slips.

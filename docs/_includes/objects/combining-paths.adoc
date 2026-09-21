@@ -9,10 +9,6 @@ The commands live in menu:Modify[Combine] and, as buttons, on the Path Operation
 (menu:Window[Toolbars > Path Operations]).  *Blend* is on the same menu and has its own page
 (xref:blends.adoc[Blends]).
 
-NOTE: {fh} listed these under *Xtras > Path Operations* and on the *Xtra Operations*
-toolbar.  In {product} they are ordinary commands under menu:Modify[Combine] and the toolbar is
-*Path Operations*.
-
 TIP: For a version that stays editable, use the *Combine* live effect instead: group the paths
 and add the effect (xref:live-effects.adoc[Live vector effects]).  The group draws as the
 union, difference, intersection or exclusion of its members while every member remains an
@@ -123,41 +119,6 @@ originals are consumed.  The two results may overlap; undo either.
 
 ifdef::spec[]
 == Specification
-
-=== FreeHand parity
-
-[cols="2,3,2"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Join / Split, Join Non-Touching Paths preference
-|Same.
-|Faithful
-
-|Union, Divide, Intersect, Punch, Crop
-|Same semantics via GEO-002.
-|Faithful
-
-|Transparency (Xtra)
-|Same, as a Combine command.
-|Faithful
-
-|Path Operations Consume Original Paths preference; Shift inverts
-|Same.
-|Faithful
-
-|Xtras > Path Operations menu and Xtra Operations toolbar
-|Commands under Modify > Combine; toolbar renamed Path Operations.
-|Adapted -- Xtras are Extensions in {product}; built-in operations are not extensions.
-
-|Composite path attributes from the backmost path
-|Same.
-|Faithful
-
-|Even/Odd Fill, Correct/Reverse Direction, Remove Overlap
-|Same; specified on xref:editing-paths.adoc[Editing paths].
-|Faithful
-|===
 
 === Data model
 

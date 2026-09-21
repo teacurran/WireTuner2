@@ -30,7 +30,7 @@ points and how overlapping contours of a composite path fill.  You can reverse i
 
 Contours::
 One path object may contain several separate contours -- the letter *O* is one path with two
-contours.  Each contour is open or closed on its own.  {fh} calls this a composite path; see
+contours.  Each contour is open or closed on its own.  This is a composite path; see
 xref:combining-paths.adoc[Combining paths].
 
 Size limits::
@@ -94,9 +94,6 @@ To decide whether new open paths show their fill:
 . Close the settings window.  The setting affects paths you draw from now on; existing paths
   keep their behavior.
 
-NOTE: For {fh} users: the Preferences dialog is the macOS *Settings…* window
-(xref:preferences.adoc[Preferences]).  The categories keep their {fh} names.
-
 == Path properties in the Object panel
 
 Select a path and the Object panel (menu:Window[Object], kbd:[Cmd+I]) lists its properties
@@ -156,44 +153,6 @@ ifdef::spec[]
 
 This page owns the path data model.  Every other drawing page, and the Objects, Effects and Type
 chapters, build on `PathProps` as defined here.
-
-=== FreeHand parity
-
-[cols="2,3,1"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Open and closed paths, up to 32,000 points
-|Same.  The limit is enforced when the client writes a change; a merged contour that exceeds it
-still renders.
-|Faithful
-
-|Corner, curve and connector points with the same handle behavior and glyphs
-|Same.
-|Faithful
-
-|Path direction, set by the tool that drew the path
-|Same tools, same directions.  Direction is stored as a per-contour flag rather than by
-physically reordering points (see Data model).
-|Faithful
-
-|Preferences: Smaller handles, Show solid points, Show fill for new open paths
-|Same three preferences in the Settings window.
-|Faithful
-
-|Object panel: Closed, Even/odd fill, Flatness, point count
-|Same.
-|Faithful
-
-|Point display when selected vs. unselected
-|Same glyphs; remote users' selections also show point glyphs, tinted in their presence color.
-|Faithful
-
-|Composite (multi-contour) paths
-|One path node, several contour elements.  The Combine operations live on
-xref:combining-paths.adoc[Combining paths].
-|Faithful
-|===
 
 === Data model
 
@@ -436,7 +395,7 @@ Depends on:: DRAW-002, REND-002, REND-003
 Size:: M
 Delivers:: Contour-to-`CGPath` conversion honoring `reversed`, `start`, `closed`, even-odd vs. winding, `fill_when_open`; the selection overlay with corner/curve/connector glyphs, handles, the *Smaller handles* and *Show solid points* preferences, and remote-selection glyphs; hit-testing of points, handles and segments through REND-003.
 Done when::
-* Reference renders of the path corpus match {fh} output within anti-aliasing tolerance for both fill rules.
+* Reference renders of the path corpus match the golden corpus within anti-aliasing tolerance for both fill rules.
 * Glyph overlay stays screen-sized across zoom; UI test toggles both preferences and verifies glyph size and fill.
 * Hit tests for point, handle and segment at the Pick distance pass at 100% and 1600% zoom.
 

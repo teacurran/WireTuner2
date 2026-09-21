@@ -104,45 +104,6 @@ block moves to the first cell of the next linked block.
 ifdef::spec[]
 == Specification
 
-=== FreeHand parity
-
-[cols="2,3,1"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Columns: count, height, spacing, rules (Inset / Full height)
-|Same.
-|Faithful
-
-|Rows: count, width, spacing, rules (Inset / Full width)
-|Same.
-|Faithful
-
-|Flow down or across
-|Same.
-|Faithful
-
-|End of Column character
-|Same, kbd:[Cmd+Return].
-|Faithful
-
-|Stroke on the block draws rules and the border; Display Border
-|Same.
-|Faithful
-
-|Uniform tables via columns/rows; variable tables via tabs and paragraph rules
-|Same.
-|Faithful
-
-|Adjust Columns: Balance, Modify Leading with Threshold, Copyfit min/max, First Line Leading
-|Same.
-|Faithful
-
-|Copyfit to an irregular path
-|Same, through the same settings on text flowed inside a path.
-|Faithful
-|===
-
 === Data model
 
 `TextBlockProps.columns` and `TextBlockProps.adjust` on xref:creating-text.adoc[Creating text]:

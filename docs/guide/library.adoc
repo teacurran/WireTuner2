@@ -2,6 +2,5 @@
 include::_attributes.adoc[]
 :page-slug: library
 :page-group: Layers, symbols and styles
-:page-fh: Chapter 9, "Using the Library panel", "Creating and importing symbols", "Creating and modifying instances", "Editing symbols", "Exporting symbols"
 
 include::_includes/library/library.adoc[]

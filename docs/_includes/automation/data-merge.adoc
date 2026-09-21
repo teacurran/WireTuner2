@@ -1,0 +1,1408 @@
+Data merge turns one designed page into many: a mailing label for every address in a list, a
+name badge for every attendee, a product card for every row a web service returns, a ticket
+with its own QR code for every order.  You design the page once, mark the places where the data
+goes, connect a source of records, and {product} produces a page -- or a printed sheet, or a
+PDF -- for each record.  The data itself stays where it lives: in a file, in a spreadsheet you
+paste from, behind a web API, or in a script you write.  The document only knows the names of
+the *fields* it expects and where each one goes.
+
+Fields and placeholders are shared with everyone in the document, records can come from a web
+API or a script as well as from a file, and a merge can go straight to the printer or to a PDF
+without making pages.
+
+// TODO screenshot: the Data panel with a CSV source connected, five fields listed, the record navigator on 3 of 120, and a label page on the canvas showing record 3
+
+== How data merge works
+
+Three things take part:
+
+Fields::
+Named slots the document declares -- `first_name`, `address_line_1`, `photo`, `ticket_code`.
+Each field has a type: *Text*, *Number*, *Date*, *Boolean* (yes/no), *Image* or *Link*.  Fields
+are part of the document and everyone in it sees the same list.
+
+Bindings::
+The places where fields go: a placeholder like `{{first_name}}` inside a text block, an image
+object that takes its picture from an Image field, an object that is shown or hidden by a
+Boolean field, a link that comes from a Link field, or a barcode generated from a field's value.
+Bindings are part of the document too.
+
+Sources::
+Where the records come from: a CSV, TSV or JSON file, a table pasted from a spreadsheet, a web
+API, or a script.  The *definition* of a source (which file, which URL, how its columns map to
+fields) is part of the document; the *records* are fetched when you preview or merge and are not
+stored in the document -- except for a small sample you can choose to embed so that everyone
+sees realistic data in the preview.
+
+With those in place you preview any record on the canvas, then *merge*: to real pages in the
+document, to a PDF, or straight to the printer.
+
+== The Data panel
+
+Choose menu:Window[Data] to open the Data panel.  It has three parts, top to bottom:
+
+[cols="1,3"]
+|===
+|Part |What it holds
+
+|*Source*
+|The connected source (or *None*), its status (`120 records`, `Fetched 2 minutes ago`,
+`Offline -- showing embedded sample`), a btn:[Refresh] button and the *Connect…* pop-up for
+adding or changing the source.
+
+|*Fields*
+|The document's fields, one per row: name, type, the value in the previewed record, and how many
+places in the document use it.  Drag a field onto the canvas to place it; double-click to rename
+it or change its type and format.
+
+|*Records*
+|The record navigator: btn:[<] and btn:[>], a field for the record number, and the *Preview*
+switch.  When *Preview* is on, every placeholder on the canvas shows the current record's value
+instead of its name.
+|===
+
+The btn:[Merge…] button at the bottom opens the merge sheet; the panel's options menu holds
+*Insert Field*, *Insert Barcode…*, *Add Fields from Source*, *Embed Sample*, *Export Data…*,
+*Credentials…* and *Show Hosts*.  The same commands are under menu:File[Data Merge].
+
+== Defining fields
+
+Fields can be created by hand or taken from a source.
+
+To add a field by hand:
+
+. In the Data panel, click btn:[+] under *Fields*.
+. Type a name.  Names are letters, digits and underscores, and must be unique in the document;
+  `first_name` and `First Name` are the same field.
+. Choose a type:
++
+[cols="1,3"]
+|===
+|Type |Holds
+
+|*Text* |Any text.  The default.
+|*Number* |A number.  Formatted with the field's number format when placed.
+|*Date* |A date or a date and time.  Formatted with the field's date format when placed.
+|*Boolean* |Yes or no.  Used to show or hide objects.  Values `true`, `yes`, `1`, `x` and
+`on` count as yes; anything else, including an empty value, counts as no.
+|*Image* |A picture: a web address, a file path relative to the source file, or, from a script,
+image data.  Used by image bindings.
+|*Link* |A web address.  Used to set an object's attached link (xref:urls.adoc[Attaching
+URLs]).
+|===
+. Optionally set a *Format* (Number and Date fields, below) and a *Transform* script.
+. Click btn:[Add].
+
+To take the fields from a source, connect the source and choose *Add Fields from Source* from the
+options menu.  Every column or property of the source that is not yet a field is added, with its
+type guessed from the first records; change any guess by double-clicking the field.
+
+Renaming a field renames it everywhere it is used; deleting a field that is used somewhere asks
+you first, and the places that used it show `{{missing}}` until you delete or rebind them.
+
+=== Number and date formats
+
+A Number or Date field carries a format that decides how its value is placed:
+
+* *Number*: a pattern such as `#,##0.00` or `0`, a currency (`€#,##0.00`), a percentage, or
+  *As is* to place the raw text.  The locale pop-up decides the decimal and grouping characters
+  (`1,234.56` or `1.234,56`).
+* *Date*: a pattern such as `d MMMM yyyy` or `MM/dd/yy`, or one of the locale's standard styles
+  (*Short*, *Medium*, *Long*).  Values are read as ISO dates (`2026-09-21`,
+  `2026-09-21T14:30:00Z`) or in the locale's common forms; a value that cannot be read is placed
+  as it is and listed in the merge report.
+
+A Text field has no format; use a transform script for anything beyond the plain value.
+
+=== Transforming a field with a script
+
+Any field can run a script on its value before it is placed: join a first and last name, pick the
+right salutation, look up a price band, upper-case a code.  Choose *Transform…* in the field's
+settings and pick a script that exports a `transform` function:
+
+[source,javascript]
+----
+// Salutation from a title and last name; falls back to the first name.
+export function transform(value, record, field) {
+  if (record.title && record.last_name) return `${record.title} ${record.last_name}`;
+  return record.first_name;
+}
+----
+
+The function receives the field's raw value, the whole record and the field's name, and returns
+the value to place.  It runs for the preview and for every merged record.  How scripts are
+written and where they live is on xref:scripting.adoc[Scripting and automation].
+
+== Placing fields in the document
+
+=== Text placeholders
+
+A placeholder is a field's name between double braces inside a text block.  It takes the
+formatting of the text around it, so a bold, 14-point placeholder produces bold, 14-point data.
+
+To place a text placeholder, do one of the following:
+
+* With the Text tool, type `{{` followed by the field name and `}}` -- for example
+  `{{first_name}}`.  As soon as the closing braces are typed, the placeholder becomes one unit:
+  it is selected as a whole, deleted as a whole, and shown with a light tint so you can tell it
+  from ordinary text.  If the name matches no field, the placeholder is shown in red and the
+  Data panel offers to create the field.
+* Put the insertion point where the field should go and drag the field from the Data panel, or
+  choose it from *Insert Field* in the panel's options menu.
+
+A text block can hold any number of placeholders mixed with ordinary text:
+
+[listing]
+....
+{{first_name}} {{last_name}}
+{{address_line_1}}
+{{address_line_2}}
+{{city}} {{postcode}}
+....
+
+A placeholder can also stand alone as an entire text block; that is simply a block with one
+placeholder in it.  To bind a whole block to a field without a placeholder in the text -- so that
+the field's value replaces everything the block contains -- select the block and choose the field
+under *Text* in the Object panel's *Data* section.
+
+The tint that marks placeholders is a display aid only; it never prints or exports.  Turn it off
+with the *Highlight data fields* preference (menu:{product}[Settings… > Automation]).
+
+=== Binding an object
+
+Objects other than text bind to a field through the *Data* section of the Object panel:
+
+[cols="1,1,3"]
+|===
+|Binding |Field type |Effect
+
+|*Image*
+|Image
+|The selected image object shows the record's picture, scaled to fit the object's frame the way
+the original was placed (the picture's proportions are kept; the frame is the crop).  Only image
+objects can take this binding; an empty frame is made by importing any placeholder picture.
+
+|*Visibility*
+|Boolean
+|The object is shown when the value is yes and hidden when it is no.  Any object or group can
+take it -- a "VIP" badge, a "sold out" stamp, an alternative layout.
+
+|*Link*
+|Link
+|The object's attached link (xref:urls.adoc[Attaching URLs]) is set from the record.  Useful for
+PDF and HTML output.
+
+|*Text*
+|Any
+|The whole text block's contents are replaced by the value.  The block's first character's
+formatting is used.  For a barcode object, the barcode's content comes from the field.
+|===
+
+An object has at most one binding.  A bound object shows a small data badge at its corner on the
+canvas (never in output).
+
+=== Barcodes and QR codes
+
+A *barcode* is an object that draws a code from a piece of text: fixed text you type, or a
+field's value, so every record gets its own.
+
+To add a barcode:
+
+. Choose *Insert Barcode…* from the Data panel's options menu (or menu:File[Data Merge > Insert
+  Barcode…]).
+. Choose the kind: *QR code* or *Code 128*.
+. Choose *Field* and pick the field whose value becomes the code, or choose *Text* and type the
+  content.
+. Click btn:[Insert].  The barcode is placed at the center of the view; drag it where it belongs.
+
+A barcode is a normal object: it has a fill color (the bars), sits on a layer, can be scaled and
+rotated, and can be turned into paths with menu:Text[Convert to Paths] if you need to edit the
+bars.  Its settings are in the Object panel:
+
+[cols="1,3"]
+|===
+|Setting |Effect
+
+|*Kind* |*QR code* or *Code 128*.
+|*Content* |*Field* with a field pop-up, or *Text* with a text field.
+|*Error correction* (QR) |*Low*, *Medium*, *Quartile* or *High*.  Higher levels survive more
+damage and make a denser code.  *Medium* by default.
+|*Quiet zone* |The blank margin around the code, in modules (QR) or in points (Code 128).  Keep
+the default unless the scanner has trouble.
+|*Show text* (Code 128) |Prints the encoded text under the bars in the object's font.
+|===
+
+A value that a kind cannot encode (Code 128 takes ASCII only; a QR code holds at most about 2,900
+characters at *Low*) draws as a hatched rectangle and is listed in the merge report.
+
+== Connecting a data source
+
+A document has one data source at a time.  Choose *Connect…* in the Data panel and pick a kind.
+Changing the source keeps the fields; the new source's columns are matched to them by name, and
+anything that does not match is shown in the *Mapping* table so you can pair columns to fields
+by hand.
+
+=== A CSV or TSV file
+
+. Choose *Connect… > CSV or TSV File…* and pick the file.
+. {product} reads the first row as the column names, detects the delimiter (comma, tab or
+  semicolon) and the text encoding (UTF-8 with or without a byte-order mark, UTF-16, or
+  Windows Latin-1 as a fallback), and shows the first rows.  Correct any of those in the sheet
+  if the guess is wrong.
+. Click btn:[Connect].  Columns whose names match fields are mapped automatically; choose *Add
+  Fields from Source* to create the rest.
+
+The file stays where it is: {product} remembers its location on this Mac and reads it again
+whenever you click btn:[Refresh] or merge.  Collaborators on other Macs do not have the file --
+see <<sample,Embedding a sample>> for what they see.  To make the whole file part of the
+document, choose *Embed All Records* from the options menu; a file up to 20 MB can be embedded,
+and the source then works for everyone, everywhere, until you refresh it from the file again.
+
+A column named with an image field's name, holding a file path, is read relative to the CSV
+file's folder, so a folder of photos next to the CSV works as expected.
+
+=== A JSON file
+
+. Choose *Connect… > JSON File…* and pick the file.
+. The file must hold an array of objects, or an object with an array in it.  Type the *Records
+  path* to the array if it is not the top level (`data`, `result.items`).
+. Nested properties are addressed with dots: `address.city`, `tags[0]`.  Map them to fields in
+  the *Mapping* table or let *Add Fields from Source* create a field for every property of the
+  first record.
+
+=== A pasted table
+
+Copy rows from Numbers, Excel, Google Sheets or any table and choose *Connect… > Pasted Table*.
+The rows are read exactly like a TSV file and are stored *in* the document, so a pasted source
+works for everyone and offline.  Paste again over the same source to replace the rows.
+
+=== A web API
+
+An API source fetches records from a web service each time you refresh or merge.  The request
+is made by the {product} cloud, not by your Mac: your Mac tells the service what to fetch, the
+service calls the API with the credential you stored there, and the records come back to you.
+This is why an API source needs a connection, why a credential is entered once and never seen
+again, and why every collaborator gets exactly the same records.
+
+// TODO screenshot: the API source sheet with URL, headers, records path, pagination and mapping sections
+
+. Choose *Connect… > Web API…*.
+. Fill in the request:
++
+[cols="1,3"]
+|===
+|Setting |Meaning
+
+|*Method* |*GET* or *POST*.
+|*URL*
+|The address.  It may contain parameters in braces -- `+https://api.example.com/orders?since={{since}}+`
+-- which you fill in the panel's *Parameters* section before each fetch.  Parameter defaults are
+part of the document; the values you type are yours.
+|*Headers* |Name and value pairs sent with each request (`Accept: application/json`).  Put no
+secret here; that is what a credential is for.
+|*Body* (POST) |The request body, with the same `{{param}}` templating.
+|*Credential*
+|The name of a credential stored in the cloud for your team (or for you, in a personal
+document).  How it is sent -- bearer token, basic authentication, an API key header, or an
+OAuth 2 client-credentials token -- is part of the credential, not of the document.
+|*Records path*
+|Where the records are in the response: `$.data[*]`, `$.results[*].item`, or empty when the
+response itself is an array.
+|*Pagination*
+|*None*; *Next URL* with the path to the next page's address in each response (`$.next`),
+followed until it is empty; or *Page number* with the name of the page parameter, requested
+from 1 until a page returns no records.  *Maximum pages* stops a runaway source.
+|*Timeout* |Seconds to wait for each response.  30 by default.
+|*Mapping* |Each field paired with a path inside a record (`$.customer.first_name`).
+|===
+. Click btn:[Test].  If the host is not yet permitted (see <<hosts,Hosts and permissions>>),
+  {product} says so and, for a personal document, asks whether to permit it.  The first page is
+  fetched and the records it found are shown.
+. Click btn:[Connect].
+
+Refreshing an API source fetches every page again.  A fetch runs in the background with a
+progress bar in the panel; click btn:[Stop] to keep what has arrived so far.  A team's sources
+share a fair-use limit on how many requests they can make per minute; a fetch that reaches it
+pauses and tells you.
+
+=== A script
+
+A script source is a JavaScript function that returns the records, for anything the other kinds
+cannot express: a service with an unusual response, records built from two requests, or data
+generated on the fly.  Choose *Connect… > Script…* and pick a script from your Scripts folder,
+the document, or a team library that exports a `records` function:
+
+[source,javascript]
+----
+export async function records(params) {
+  const res = await wt.fetch(`https://api.example.com/tickets?event=${params.event}`, {
+    credential: "ticketing-api",
+  });
+  const tickets = await res.json();
+  return tickets.map(t => ({
+    first_name: t.holder.first,
+    last_name: t.holder.last,
+    seat: `${t.block}-${t.row}-${t.seat}`,
+    qr_payload: t.checkin_url,
+  }));
+}
+----
+
+The function returns an array of plain objects; each property becomes a column that maps to a
+field by name.  `wt.fetch` goes through the same cloud service as an API source, with the same
+permitted hosts and the same credentials -- a script never connects from your Mac directly.  See
+xref:scripting.adoc[Scripting and automation] for the `wt` API.
+
+=== Credentials
+
+A credential is a secret a source needs -- a bearer token, a user name and password, an API key,
+or an OAuth 2 client id and secret.  You enter it once; it is stored, encrypted, by the {product}
+cloud for your team (or for you, in a personal document), and the document refers to it *only by
+name*.  The secret is never shown again, never comes back to any Mac, never syncs, and never
+appears in the history.  The cloud adds it to the request when it fetches on your behalf, and only
+for the host it was created for.
+
+To add a credential:
+
+. Choose *Credentials…* from the Data panel's options menu.
+. Click btn:[+], type a name (`ticketing-api`), choose the kind and enter the secret.
+. Enter the host the credential may be sent to.  A credential is only ever sent to that host,
+  whatever a source or script asks for.
+. Click btn:[Save].  The secret leaves the sheet and is not displayed again; btn:[Replace] and
+  btn:[Remove] are the only later operations.
+
+In a team document, anyone with the editor role can fetch with the team's credentials, and team
+admins can see who did (the fetch log in the team settings); anyone who can edit the document
+can replace or remove a credential they created, and admins can replace or remove any.  In a
+personal document the credentials are yours; people you have shared the document with as editors
+can fetch with them while the share lasts, and you can remove the credential at any time.
+
+=== Hosts and permissions [[hosts]]
+
+The cloud only ever connects to hosts that have been permitted:
+
+* For a *team*, a team admin keeps the list of permitted hosts in the team settings
+  (xref:sharing.adoc[Sharing, teams and roles]).  A source or script that names another host
+  fails with a message naming the host and the admins to ask.
+* For a *personal* document, you keep your own list.  The first time a source or script in one
+  of your documents names a new host, {product} asks whether to permit it, and the answer is
+  remembered on your account for every Mac you use.
+
+*Show Hosts* in the Data panel's options menu lists the hosts the document's sources and scripts
+reach and whether each is permitted; for a personal account it lets you revoke any.
+menu:File[Document Info…] lists the same hosts for anyone reviewing the document.
+
+Nothing connects on its own.  A source fetches when you click btn:[Refresh], btn:[Test] or
+btn:[Merge]; a script runs when you run it.  Opening a document never runs a script or
+fetches data.
+
+=== Embedding a sample [[sample]]
+
+Records are not in the document, so a collaborator on another Mac -- or you, on a train --
+would see `{{first_name}}` and nothing better.  *Embed Sample* in the options menu stores the
+first five records in the document (up to 2 MB, pictures included).  Everyone then sees realistic
+data in the preview, and the record navigator works offline with those five records.  The sample
+is refreshed whenever you refresh the source with the option on.  *Embed sample records* in
+menu:{product}[Settings… > Automation] turns this on for every source you connect.
+
+== Previewing records
+
+Turn on *Preview* in the Data panel and every placeholder, bound object and barcode on the
+canvas shows the current record.  Step through records with the arrows, type a number, or
+press kbd:[Cmd+Option+Right] and kbd:[Cmd+Option+Left].  The preview is live: edit the text
+around a placeholder, move a bound image, restyle a barcode, and the preview follows.
+
+The preview is yours alone.  It changes nothing in the document, collaborators do not see it,
+and it is not what prints -- the document prints with placeholders unless you merge.  Turn
+*Preview* off to see the placeholders again.
+
+Fields whose values do not fit are marked in the preview: a text block whose text overflows
+shows its overflow mark, and the *Records* section lists how many records overflow somewhere
+so you can fix the layout before merging.
+
+== Merging
+
+Click btn:[Merge…] in the Data panel.  The sheet's *To* pop-up decides what a merge produces;
+the options beneath it are shared by every target.
+
+// TODO screenshot: the Merge sheet with To: Pages, Multiple records per page selected, 3 columns by 8 rows and the layout preview
+
+=== Merge to Pages
+
+*Merge to Pages* creates real pages in the document, one per record (or one per group of
+records), with the values baked in.  The result is ordinary artwork: edit any page, print, export
+or share it like any other.
+
+. Select the page or pages that make up the template.  Several pages become one *set*, so a
+  two-page template makes two pages per record.
+. Choose *To: Pages*.
+. Under *Records*, choose *All*, or a range (`1-50`, `51-`, `3, 7, 12`).
+. Choose the layout:
+* *One record per page* copies the template page(s) once per record.
+* *Multiple records per page* lays a grid of copies of the *selected objects' bounds* on each
+  page -- for labels, badges and cards.  Set *Columns* and *Rows*, the *Gap* between them, the
+  *Margins* from the page edge, and whether records run *Across then down* or *Down then
+  across*.  The sheet previews the grid and says how many pages the records need.
+. Set the finishing options (below) and click btn:[Merge].
+
+The new pages go immediately after the template in page order and are named after the template
+and the record (`Label · 1`, `Label · 2`, …).  The template pages are untouched.  The whole merge
+is one entry in the history ("Merge 250 records to pages") and one undo step, however many pages
+it makes; a large merge shows progress and can be cancelled, which undoes what it had made.
+
+Text flow links between blocks on the template page are kept between the copies of those
+blocks on each merged page.  Bound images get their pictures; barcodes get their codes;
+placeholders become plain text in the placeholder's formatting; visibility bindings remove the
+hidden objects.  The merged pages carry no bindings, so merging again does not touch them.
+
+=== Merge to PDF or Print
+
+*Merge to PDF* and *Print Merge* send records straight to the export or print pipeline without
+making pages.  This is the path for a 10,000-piece mailing: nothing is added to the document,
+collaborators are not flooded with pages, and the output starts at once.
+
+. Choose *To: PDF* or *To: Printer*.
+. Choose the records and layout as above.
+. For PDF, choose *One file* or *One file per record*, and the file name pattern.  The pattern
+  takes the tokens from xref:exporting.adoc#naming[Exporting] plus any field in braces:
+  `invoice-\{order_id}` names each file after its record.  Names that collide get a numeric
+  suffix.  The PDF options (xref:export-pdf.adoc[Exporting PDF]) are the document's current ones.
+. For the printer, the standard Print dialog opens with the *{product}* pane
+  (xref:printing.adoc[Printing]); page ranges refer to the merged output.
+. Click btn:[Merge].  A progress sheet counts records; btn:[Cancel] stops after the current one.
+
+The output is exactly what *Merge to Pages* followed by an export or print would produce, page
+for page.
+
+=== Finishing options
+
+These apply to every target:
+
+[cols="1,3"]
+|===
+|Option |Effect
+
+|*Remove blank lines*
+|A line in a text block that would contain nothing but an empty field (and spaces or
+punctuation) is removed, so an empty `{{address_line_2}}` does not leave a gap.  On by default.
+
+|*Text that does not fit*
+|*Shrink to fit* reduces the type size of the overflowing block, down to the *Minimum size*
+you set, until it fits; *Leave and report* keeps the size and lists the record in the report.
+
+|*Report*
+|After the merge, a report lists every record with an overflowing block, an image that could not
+be fetched, a value a barcode could not encode, or a date or number that could not be read.
+Click a row to preview that record.
+|===
+
+=== Exporting data
+
+*Export Data…* in the options menu writes the records as the document sees them -- after
+mapping, formats and transforms -- to a CSV file.  Use it to keep what an API returned, to hand
+generated codes back to a spreadsheet, or to check a transform.  Choose the fields and the
+record range, and whether to include a `record` column with the record's number in the merge.
+
+== Working with others
+
+* *Fields, bindings and the source definition are shared.*  When a collaborator adds a field,
+  it appears in your Data panel; when they bind an image, you see its data badge.  A field
+  renamed by one person is renamed for everyone, in every placeholder.
+* *Previews are private.*  Your record 12 and your collaborator's record 40 do not interfere.
+  Their canvas shows placeholders, or their own preview.
+* *A merge to pages is a normal change.*  Everyone sees the new pages arrive, page by page for a
+  large merge.  If two people merge at the same time, both sets of pages are created; the sync
+  review lists the two runs and offers to keep both, one after the other, or remove one.
+* *The records are not in the document* -- unless the source is a pasted table, an embedded
+  file, or an embedded sample.  A collaborator without the file sees the embedded sample and can
+  design against it; only someone with the file can merge the full set.  An API source, on the
+  other hand, gives everyone with the editor role the same records, because the cloud fetches
+  them with the team's credential.
+* *Offline*, pasted and embedded sources work completely.  A file source works on the Mac that
+  has the file.  An API source, and a script that fetches, needs the connection: offline, the
+  panel shows the last embedded sample and says so, and merging waits until you are online.
+
+ifdef::spec[]
+== Specification
+
+=== Data model
+
+Everything shared lives on the well-known `settings` node: the fields, the sources and the
+mapping.  Bindings are a mark in `TextMarkValue` and one message on `CommonProps`.  Barcodes are
+a node kind.  Records are never document state; an embedded sample or pasted table is a blob.
+Credentials, allowlists and the fetch audit are *server* state, sketched afterwards.
+
+[source,protobuf]
+----
+// proto/wiretuner/doc/v1/data.proto (sketch; normative for meaning and merge policy)
+package wiretuner.doc.v1;
+
+message SettingsProps {
+  // ...
+  // DATA block.  Fields and sources are SEQUENCEs so people can add, rename and remove
+  // them independently; every reference to a field is by its element id, never by name.
+  repeated DataField data_fields = 80 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  repeated DataSource data_sources = 81 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  // Which source is connected (one at a time in v1; the sequence keeps the others so
+  // switching back restores their settings).  Dangling reads as "none connected".
+  ElementId data_source_active = 82;
+  // Preview state.  Never leaves this Mac.
+  DataPreview data_preview = 83 [(wt.crdt.field).local_only = true];
+}
+
+enum DataFieldType {
+  DATA_FIELD_TYPE_UNSPECIFIED = 0;   // reads as TEXT
+  DATA_FIELD_TYPE_TEXT = 1;
+  DATA_FIELD_TYPE_NUMBER = 2;
+  DATA_FIELD_TYPE_DATE = 3;
+  DATA_FIELD_TYPE_BOOLEAN = 4;
+  DATA_FIELD_TYPE_IMAGE = 5;
+  DATA_FIELD_TYPE_LINK = 6;
+}
+
+// A field.  STRUCT: name, type, format and transform are independent edits.
+message DataField {
+  ElementId id = 1;
+  // Unique among live fields when written; [A-Za-z_][A-Za-z0-9_]*, compared case-insensitively.
+  string name = 2 [(buf.validate.field).string = {max_len: 64, pattern: "^[A-Za-z_][A-Za-z0-9_]*$"}];
+  DataFieldType type = 3;
+  FieldFormat format = 4;             // STRUCT; only NUMBER and DATE read it
+  // A `script` node in this document exporting `transform`.  Dangling = no transform.
+  NodeRef transform = 5 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
+}
+
+message FieldFormat {
+  string pattern = 1 [(buf.validate.field).string.max_len = 64];   // ICU number or date pattern; "" = As is / locale default
+  string locale = 2 [(buf.validate.field).string.max_len = 32];    // BCP 47; "" = the merging user's locale
+}
+
+// A source.  `spec` is a VARIANT: switching a source from File to Web API and back keeps
+// both configurations.  `mapping` and `sample` sit beside the variant because every kind
+// has them.
+message DataSource {
+  ElementId id = 1;
+  string name = 2 [(buf.validate.field).string.max_len = 128];
+  DataSourceSpec spec = 3 [(wt.crdt.field).merge = MERGE_VARIANT];
+  // Source column or path -> field.  A field with no mapping entry maps to a column of its
+  // own name.
+  repeated FieldMapping mapping = 4 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  // Embedded records: the first N (sample), or all of them (pasted table, Embed All
+  // Records).  ATOMIC: hash, count and completeness describe one blob.
+  EmbeddedRecords sample = 5 [(wt.crdt.field).merge = MERGE_ATOMIC];
+}
+
+enum DataSourceKind {
+  DATA_SOURCE_KIND_UNSPECIFIED = 0;
+  DATA_SOURCE_KIND_FILE = 1;      // CSV, TSV or JSON on the connecting user's Mac
+  DATA_SOURCE_KIND_PASTED = 2;    // rows stored in `sample` with complete = true
+  DATA_SOURCE_KIND_HTTP = 3;      // fetched by the server (wiretuner.data.v1)
+  DATA_SOURCE_KIND_SCRIPT = 4;
+}
+
+message DataSourceSpec {
+  DataSourceKind kind = 1;
+  FileSource file = 2;
+  PastedSource pasted = 3;
+  HttpSource http = 4;
+  ScriptSource script = 5;
+}
+
+enum FileFormat { FILE_FORMAT_UNSPECIFIED = 0; FILE_FORMAT_CSV = 1; FILE_FORMAT_TSV = 2; FILE_FORMAT_JSON = 3; }
+
+message FileSource {
+  FileFormat format = 1;
+  string file_name = 2 [(buf.validate.field).string.max_len = 256];   // display only
+  string delimiter = 3;              // CSV: "," ";" or "\t" after detection; "" = detect
+  string encoding = 4;               // IANA name after detection; "" = detect
+  bool header_row = 5;               // CSV/TSV: first row names the columns (default true)
+  string records_path = 6 [(buf.validate.field).string.max_len = 512];   // JSON: path to the array; "" = root
+  // Security-scoped bookmark of the file on this Mac.  Never on the wire.
+  bytes bookmark = 7 [(wt.crdt.field).local_only = true];
+}
+
+message PastedSource {
+  // Nothing beyond the rows in DataSource.sample.  Present so the variant has a case.
+  int64 pasted_at_ms = 1;
+}
+
+enum HttpMethod { HTTP_METHOD_UNSPECIFIED = 0; HTTP_METHOD_GET = 1; HTTP_METHOD_POST = 2; }
+
+// The request definition the server executes.  No secret is ever written here: headers are
+// validated on ingest against the well-known credential header names (Authorization,
+// Proxy-Authorization, Cookie, X-Api-Key and any header a credential kind sets) and rejected.
+message HttpSource {
+  HttpMethod method = 1;
+  // May contain {{param}} references.  https only.
+  string url = 2 [(buf.validate.field).string.max_len = 2048];
+  repeated HttpHeader headers = 3 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  string body_template = 4 [(buf.validate.field).string.max_len = 65536];
+  // Name of a credential in the server's secret store, scoped to the document's team or,
+  // for a personal document, to its owner.  The document never holds the secret.
+  string credential_name = 5 [(buf.validate.field).string.max_len = 64];
+  string records_path = 6 [(buf.validate.field).string.max_len = 512];   // JSONPath subset; "" = root array
+  Pagination pagination = 7;          // STRUCT
+  // Parameters referenced by url and body_template; defaults are shared, values typed at
+  // fetch time are local.
+  repeated HttpParam params = 8 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  uint32 timeout_s = 9;               // 0 reads as 30; capped by the server at 120
+  uint32 max_records = 10;            // 0 = no limit (the server's cap still applies)
+}
+
+message HttpHeader {
+  ElementId id = 1;
+  string name = 2 [(buf.validate.field).string.max_len = 128];
+  string value = 3 [(buf.validate.field).string.max_len = 4096];
+}
+
+message HttpParam {
+  ElementId id = 1;
+  string name = 2 [(buf.validate.field).string.max_len = 64];
+  string default_value = 3 [(buf.validate.field).string.max_len = 1024];
+}
+
+enum PaginationMode {
+  PAGINATION_MODE_NONE = 0;
+  PAGINATION_MODE_NEXT_URL = 1;     // follow `next_url_path` in each response until empty
+  PAGINATION_MODE_PAGE_PARAM = 2;   // increment `page_param` from `first_page` until a page has no records
+}
+
+message Pagination {
+  PaginationMode mode = 1;
+  string next_url_path = 2 [(buf.validate.field).string.max_len = 512];
+  string page_param = 3 [(buf.validate.field).string.max_len = 64];
+  uint32 first_page = 4;            // 0 reads as 1
+  uint32 max_pages = 5;             // 0 reads as 1000
+}
+
+message ScriptSource {
+  // A `script` node in this document exporting `records`.  Team-library scripts are copied
+  // into the document on use, as symbols are.
+  NodeRef script = 1 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
+}
+
+message FieldMapping {
+  ElementId id = 1;
+  ElementId field = 2;                // a DataField; dangling = entry ignored on read
+  string path = 3 [(buf.validate.field).string.max_len = 512];   // column name, or JSONPath for JSON and HTTP
+}
+
+// Records stored in the document as one blob: CSV (text/csv, UTF-8, header row) with a
+// sidecar of images referenced by hash for IMAGE fields, or JSON.  Limits: 2 MiB for a
+// sample, 20 MiB for a complete embed, images counted.
+message EmbeddedRecords {
+  bytes blob_sha256 = 1 [(buf.validate.field).bytes.len = 32];
+  string media_type = 2;              // text/csv or application/json
+  uint32 record_count = 3;
+  bool complete = 4;                  // true: every record is here (pasted table, Embed All)
+  int64 fetched_at_ms = 5;            // informational: "Fetched 2 minutes ago"
+}
+
+// Preview state: local, never synced.
+message DataPreview {
+  bool showing = 1;
+  uint32 record_index = 2;            // 0-based into the resolved record list
+}
+----
+
+Bindings extend two messages other pages own; the numbers are in the DATA block of each:
+
+[source,protobuf]
+----
+// common.proto -- extension of CommonProps
+message CommonProps {
+  // ...
+  // Bound field and how it applies.  ATOMIC: a field of the wrong kind for the binding is
+  // meaningless, so both are written together.  Unset = not bound.
+  DataBinding data_binding = 12 [(wt.crdt.field).merge = MERGE_ATOMIC];
+}
+
+enum BindingKind {
+  BINDING_KIND_UNSPECIFIED = 0;
+  BINDING_KIND_IMAGE = 1;        // image nodes: pixels from an IMAGE field
+  BINDING_KIND_VISIBILITY = 2;   // any node: shown when the BOOLEAN field is true
+  BINDING_KIND_LINK = 3;         // any node: CommonProps.url from a LINK field
+  BINDING_KIND_TEXT = 4;         // text nodes: whole contents; barcode nodes: the content
+}
+
+message DataBinding {
+  ElementId field = 1;           // a DataField on settings; dangling = binding ignored, badge shows "missing"
+  BindingKind kind = 2;
+}
+
+// text.proto -- extension of TextMarkValue
+message TextMarkValue {
+  oneof value {
+    // ...
+    // A placeholder.  The span is the placeholder's characters ("{{first_name}}" as typed,
+    // or the field name inserted from the panel); on merge the span is replaced by the
+    // value.  Non-expanding (start before, end after): typing at either edge is outside.
+    ElementId field = 41;
+  }
+}
+----
+
+The barcode is a node kind:
+
+[source,protobuf]
+----
+// proto/wiretuner/doc/v1/barcode.proto (sketch)
+enum BarcodeSymbology {
+  BARCODE_SYMBOLOGY_UNSPECIFIED = 0;   // reads as QR
+  BARCODE_SYMBOLOGY_QR = 1;
+  BARCODE_SYMBOLOGY_CODE_128 = 2;
+}
+
+enum QrErrorCorrection { QR_EC_UNSPECIFIED = 0; QR_EC_L = 1; QR_EC_M = 2; QR_EC_Q = 3; QR_EC_H = 4; }  // unspecified reads as M
+
+// NodeProps.kind case `barcode`.  Drawn by WTRender from `value` (or, when
+// CommonProps.data_binding.kind == TEXT, from the bound field's value); the bars take the
+// node's first fill, the background is clear.  Natural size: one module = 1 pt (QR), one
+// narrow bar = 1 pt (Code 128), then CommonProps.transform.  STRUCT.
+message BarcodeProps {
+  BarcodeSymbology symbology = 1;
+  string value = 2 [(buf.validate.field).string.max_len = 4096];   // fixed content; ignored while bound
+  QrErrorCorrection qr_error_correction = 3;
+  double quiet_zone = 4;             // modules (QR, default 4) or points (Code 128, default 10)
+  bool show_text = 5;                // Code 128: human-readable line under the bars
+  AppearanceProps appearance = 6;    // ATTR epic; only the first fill is used
+}
+----
+
+Merge jobs (target, record range, layout grid, blank-line and overflow options, PDF naming
+pattern) are job parameters, not document state, like print ranges; the last used values are
+kept per document in the local store's `view` table.  Merged pages are ordinary `page` nodes
+created by `WTModel.PageCommands` (DOC-006) with `CommonProps.name` set to
+`<template name> · <n>`; their objects are deep copies with every `data_binding` cleared and
+every `field` mark replaced by its value's characters.
+
+==== Server state and the data service
+
+The API fetch is a server function.  Credentials, allowed hosts and the audit trail are rows on
+the server; the RPCs below are the only way a client touches them.
+
+.Schema (DATA-005, DATA-007, DATA-008)
+[listing]
+....
+data_credential(id, team_id XOR account_id, name, kind, host, key_id, ciphertext, created_by, created_at, rotated_at)
+  unique (team_id, name) / (account_id, name); ciphertext = envelope-encrypted secret (per-row data key wrapped by the service master key)
+data_allowed_host(id, team_id XOR account_id, host, added_by, added_at)
+data_fetch_audit(id, team_id XOR account_id, document_id, source_id, account_id, host, kind (source|script|asset), started_at, finished_at, status, pages, records, bytes)
+....
+
+[source,protobuf]
+----
+// proto/wiretuner/data/v1/data.proto (sketch)
+package wiretuner.data.v1;
+
+service DataSourceService {
+  // Stores or replaces a secret.  The secret is never returned by any RPC.
+  rpc PutCredential(PutCredentialRequest) returns (PutCredentialResponse);
+  rpc DeleteCredential(DeleteCredentialRequest) returns (DeleteCredentialResponse);
+  // Names, kinds, hosts, creators and dates only.
+  rpc ListCredentials(ListCredentialsRequest) returns (ListCredentialsResponse);
+
+  // Team admins (team scope) or the account itself (personal scope).
+  rpc ListAllowedHosts(ListAllowedHostsRequest) returns (ListAllowedHostsResponse);
+  rpc PutAllowedHost(PutAllowedHostRequest) returns (PutAllowedHostResponse);
+  rpc DeleteAllowedHost(DeleteAllowedHostRequest) returns (DeleteAllowedHostResponse);
+
+  // Executes an HttpSource on the caller's behalf and streams the records page by page.
+  // Requires the editor role on the document.  `cursor` resumes a paged fetch.
+  rpc Fetch(FetchRequest) returns (stream FetchResponse);
+  // Fetches one asset (an IMAGE field's URL) through the same guards and stores it as a
+  // blob associated with the document; returns the hash.  Editor role.
+  rpc FetchAsset(FetchAssetRequest) returns (FetchAssetResponse);
+  // wt.fetch: one request, one response, same guards; body capped at 16 MiB.  Editor role.
+  rpc Proxy(ProxyRequest) returns (ProxyResponse);
+
+  // Team admins: the audit trail, newest first, filterable by document, host and account.
+  rpc ListFetchAudit(ListFetchAuditRequest) returns (ListFetchAuditResponse);
+}
+
+enum CredentialKind {
+  CREDENTIAL_KIND_UNSPECIFIED = 0;
+  CREDENTIAL_KIND_BEARER = 1;          // Authorization: Bearer <token>
+  CREDENTIAL_KIND_BASIC = 2;           // Authorization: Basic base64(user:password)
+  CREDENTIAL_KIND_HEADER = 3;          // <header_name>: <value>
+  CREDENTIAL_KIND_OAUTH2_CLIENT = 4;   // client-credentials grant against token_url; token cached server-side
+}
+
+message CredentialScope { oneof scope { string team_id = 1; string account_id = 2; } }
+
+message PutCredentialRequest {
+  CredentialScope scope = 1;
+  string name = 2 [(buf.validate.field).string = {max_len: 64, pattern: "^[A-Za-z0-9_.-]+$"}];
+  CredentialKind kind = 3;
+  string host = 4;                     // the only host the secret is ever sent to
+  // Exactly one is set, per kind.  Wire-only: never stored in clear, never logged.
+  string token = 5;
+  string username = 6;
+  string password = 7;
+  string header_name = 8;
+  string header_value = 9;
+  string client_id = 10;
+  string client_secret = 11;
+  string token_url = 12;
+  string oauth_scope = 13;
+}
+
+message FetchRequest {
+  string document_id = 1;
+  wiretuner.doc.v1.ElementId source_id = 2;
+  // The definition as the client reads it from the document.  The server validates it
+  // (no secret headers, https, host allowed) rather than reading the document itself, so
+  // a fetch never depends on the snapshotter's lag.
+  wiretuner.doc.v1.HttpSource source = 3;
+  map<string, string> params = 4;      // {{param}} values typed by the user
+  repeated string paths = 5;           // mapping paths to extract from each record
+  string cursor = 6;                   // from a previous FetchResponse; "" = start
+}
+
+message FetchResponse {
+  oneof body {
+    RecordPage page = 1;
+    FetchProgress progress = 2;        // bytes so far, page number; for the panel's bar
+  }
+}
+
+message RecordPage {
+  repeated Record records = 1;
+  uint32 page_number = 2;
+  string next_cursor = 3;              // "" = last page
+}
+
+// One record: the requested paths, each as text (JSON numbers, booleans and strings in
+// their JSON textual form; null and missing = absent).  Objects and arrays are rendered as
+// compact JSON so a script or transform can still read them.
+message Record { map<string, string> values = 1; }
+
+message FetchAssetRequest { string document_id = 1; string url = 2; string credential_name = 3; }
+message FetchAssetResponse { bytes blob_sha256 = 1; string media_type = 2; uint64 size = 3; }
+
+message ProxyRequest {
+  string document_id = 1;
+  string method = 2;                   // GET, POST, PUT, PATCH, DELETE
+  string url = 3;
+  map<string, string> headers = 4;     // validated like HttpSource.headers
+  bytes body = 5 [(buf.validate.field).bytes.max_len = 1048576];
+  string credential_name = 6;
+}
+message ProxyResponse { uint32 status = 1; map<string, string> headers = 2; bytes body = 3; }
+----
+
+=== Merge semantics
+
+Fields:: SEQUENCE elements; `name`, `type`, `format` and `transform` are independent registers.
+Two people renaming one field: LWW, both names in the review sheet under *same register*.  A
+rename concurrent with a new binding elsewhere: no conflict, the binding holds the element id.
+Two people creating fields with the same name concurrently: both live; *read-time
+normalization* -- among live fields with equal names (case-insensitive) the one with the smaller
+element id keeps the name and the others display with a numeric suffix (`first_name (2)`) until
+someone renames them; mappings and bindings are by id and unaffected.
+
+Deleting a field that has bindings:: `ElementDelete` on the field.  Every `field` mark and
+`data_binding` naming it dangles: placeholders render as `{{missing}}` in red, bound objects show
+a *missing* badge and are treated as unbound (an image keeps its last pixels, a visibility
+binding shows the object).  The live client shows a notice with *Restore field*; the review
+sheet lists "field removed with N bindings" with *Restore* (`deleted = false`) beside the
+ordinary delete entry.  Restoring makes every dangling reference resolve again.
+
+Placeholder marks:: A `field` mark is a normal Peritext mark with non-expanding anchors.  Typing
+*inside* the span (someone editing the placeholder characters) stays inside the mark; the merge
+ignores the span's characters and replaces the whole span, so the outcome is still the value.
+Deleting every character of the span removes the placeholder (a mark covering nothing covers
+nothing).  Two overlapping `field` marks: the one with the greater OpId wins where they overlap,
+as for any attribute.  A `field` mark placed by one user while another types just before or
+after the span: the anchors exclude the typed text, as intended.
+
+Bindings:: `data_binding` is ATOMIC LWW.  Two people binding one object to different fields:
+later wins, the loser is listed.  A binding written to a node someone deletes: ordinary
+edit-vs-delete.
+
+Sources:: STRUCT registers inside a VARIANT: one person changing the URL while another adds a
+header keeps both; a kind switch keeps the other kind's fields.  `sample` is ATOMIC: two
+refreshes with the option on keep the later blob (the earlier is retained as a blob and in the
+log; no review entry -- a sample is disposable).  `mapping` elements merge as any SEQUENCE.
+`data_source_active` is one register.  A `credential_name` naming a credential that does not
+exist in the scope is not a merge problem: the fetch fails with `CREDENTIAL_MISSING` and the
+panel offers *Credentials…*.
+
+Merge to Pages vs. everything::
+* *Vs. template edits*: copies hold the template as the merger saw it.  Edits to the template
+  after the merge do not propagate; edits concurrent with it land on the template only.
+* *Two users merging concurrently*: two runs of pages, each contiguous in its own creator's
+  order but interleavable with the other run because both generated positions after the same
+  template page.  `WTSync` detects "two merge runs after the same page" (two sets of changes
+  labelled `Merge … to pages` whose first page position follows the same template) and the
+  review sheet lists one entry with *Keep both, one after the other* (moves the later run's
+  pages after the earlier run's last page, one change), *Remove theirs* and *Remove mine*
+  (`SetDeleted` on that run's pages and their objects).  The live client shows the same choice
+  as a notice.
+* *Vs. page moves and reorders*: the `move vs move` and reorder rules of
+  xref:pages.adoc[Pages] apply to merged pages as to any page.
+* *Vs. field deletion*: a merged page has no bindings, so nothing dangles.
+* *Cancel* mid-merge undoes the pages created so far by the ordinary undo path (`deleted =
+  true`), which is why chunks carry the same label.
+
+Barcodes:: STRUCT; `value` and `symbology` are independent registers.  Read-time: a value the
+symbology cannot encode draws the hatched placeholder and is reported at merge; a Code 128
+`quiet_zone` below 0 reads as 10; a QR `quiet_zone` below 0 reads as 4.
+
+Read-time normalizations, collected::
+* `data_source_active` dangling or deleted: no source connected.
+* A `FieldMapping` whose field dangles is ignored; a field with no live mapping maps to the
+  column of its own name.
+* A `data_binding` whose field type does not suit the kind (an IMAGE binding to a TEXT field)
+  is treated as unbound with the *missing* badge.
+* `timeout_s = 0` reads 30; `first_page = 0` reads 1; `max_pages = 0` reads 1000.
+* A `DataPreview.record_index` past the last record reads as the last record.
+* An `HttpSource.url` that is not `https` reads as invalid: the panel shows the error and the
+  server rejects the fetch.
+
+=== Offline behavior
+
+* Pasted and complete-embedded sources are fully functional offline: preview, merge to pages,
+  merge to PDF and print.
+* A file source works on any Mac holding a valid bookmark; elsewhere it falls back to the
+  embedded sample, and the panel says *Showing embedded sample*.
+* An HTTP source is a server call, so offline it is the embedded sample only: preview works on
+  the sample; *Refresh*, *Test* and any merge that needs the full set are disabled with an
+  *offline* message rather than queued.  A script source that calls `wt.fetch` behaves the
+  same; one that does not runs offline.
+* Merge to Pages offline: images for IMAGE fields come from the source (embedded, file-relative
+  path or already-cached blob); any that cannot be obtained produce an image node with the
+  `pixels` register unset (rendered as the empty placeholder) and a report row.  Blobs the
+  client creates (file-relative images, script data) join `blobs_pending` and upload with the
+  usual rules (xref:importing.adoc[Importing]); blobs the server fetched through `FetchAsset`
+  are already on the server and need no upload.
+* Embedding a sample offline writes the blob locally and queues its upload; the `sample`
+  register syncs before the blob and collaborators see "sample uploading" until it lands.
+* Credentials and allowlists are server state: adding, replacing or revoking them needs the
+  connection and the sheets say so.
+
+=== Server
+
+This is the one page on which the server does real work beyond storing and relaying changes
+and blobs: it is the only thing that ever calls a customer's API.  Decision recorded in
+xref:decisions.adoc[Decisions] ("API calls run on the server").
+
+Why on the server::
+* Credentials never reach a laptop, a local store, a package export or the change log; a lost
+  Mac leaks nothing.
+* Customers with strict APIs can allowlist one egress address, the service's, instead of every
+  designer's home network.
+* Abuse control (rate limits, response caps, host allowlists) and the audit trail live in one
+  place, and the audit answers "who fetched what, when".
+* Every collaborator gets identical records, because one fetcher with one credential produced
+  them.
+
+Consequences::
+* API sources and `wt.fetch` need the network; offline means the embedded sample.
+* The server gains its first outbound HTTP client, with the attack surface that implies (SSRF);
+  the guard below is not optional.
+* The server never stores a response: records stream to the caller and are gone.
+
+Secret store (DATA-005):: `data_credential` rows hold an envelope-encrypted secret: a random
+per-row data key encrypts the secret material (AES-256-GCM), and the data key is wrapped by the
+service master key (`WT_DATA_MASTER_KEY` from the environment or a KMS-backed key in
+production; `key_id` records which, so keys can rotate).  `PutCredential` requires the editor
+role on some document in the scope (team) or the account itself (personal); `DeleteCredential`
+the creator or a team admin.  The secret is decrypted only inside the fetch path, in memory, for
+the duration of one request; it is never logged, never returned, and `ListCredentials` returns
+metadata only.
+
+Fetch proxy and SSRF guard (DATA-006):: A Quarkus REST client (`quarkus-rest-client`) with:
+`https` only; the URL's host resolved *once* and every resolved address checked against the
+blocked ranges (loopback, link-local, RFC 1918, CGNAT, unique-local and multicast, the
+metadata addresses `169.254.169.254` and `fd00:ec2::254`) before connecting to *that* address
+(the DNS-rebinding defence: the connection is pinned to the checked address); no redirects
+followed automatically -- a `3xx` to the same host is followed up to three times, to another
+host it is an error `HOST_NOT_ALLOWED`; connect timeout 10 s, read timeout `timeout_s` capped
+at 120 s; response body capped at 64 MiB per page (16 MiB for `Proxy`, 200 MiB for
+`FetchAsset`, matching the blob limit); `Content-Type` of a page must be JSON; at most 16
+concurrent fetches per team and 4 per account.  The credential is injected per kind; for
+`OAUTH2_CLIENT` the access token is obtained from `token_url` and cached in memory until 60 s
+before expiry.  Headers from the request definition are validated against the secret-header
+denylist (`Authorization`, `Proxy-Authorization`, `Cookie`, `X-Api-Key`, and the credential's
+own header) and refused with `INVALID_ARGUMENT` naming the header.
+
+Allowlists (DATA-007):: `data_allowed_host` per team (written by admins through the RPCs, shown
+in the team settings sheet) or per account (written by the consent prompt: the client calls
+`PutAllowedHost` on the user's own scope after the sheet).  A host entry is `host[:port]`,
+exact match, case-insensitive; no wildcards in v1.  A fetch to a host not in the scope's list
+fails with `HOST_NOT_ALLOWED` carrying the host and, for a team, the admin display names.
+
+Rate limits and audit (DATA-008):: Token buckets per team (600 requests per minute, burst 100)
+and per account (120 per minute, burst 20), configurable per team by operators; exceeded
+returns `RESOURCE_EXHAUSTED` with `RetryInfo` and the panel pauses.  Every `Fetch`,
+`FetchAsset` and `Proxy` writes one `data_fetch_audit` row on completion with status, page,
+record and byte counts -- never a URL query string beyond the path, never headers or bodies.
+Rows are retained 90 days.  `ListFetchAudit` is admin-only and is surfaced in the team settings
+sheet's *Data fetches* list.
+
+Pagination engine and extraction (DATA-009):: The server expands `{{param}}` references,
+executes page after page according to `Pagination`, applies `records_path` and the requested
+`paths` (JSONPath subset, same grammar as the client's file reader: `$`, `.name`, `['name']`,
+`[n]`, `[*]`, `..name`), and streams `RecordPage`s.  `cursor` is an opaque, signed token holding
+the next URL or page number so a client can resume after a disconnect.  `max_records`,
+`max_pages` and the team's caps end the stream with `next_cursor = ""`.
+
+Roles:: `Fetch`, `FetchAsset` and `Proxy` require the editor role on `document_id`, evaluated as
+for any document RPC; the scope (team or owner account) is derived from the document row, so a
+shared personal document lets its editors fetch with the owner's credentials for as long as the
+share lasts, and the audit names who did.
+
+=== Client
+
+Packages:: `WTInterchange.DataSources` (file parsers, the data service client), `WTModel`
+(fields, bindings, merge engine), `WTRender` (barcodes, preview substitution), `WTApp` (Data
+panel, merge sheet, credentials and hosts sheets), `WTInterchange/Print` and
+`WTInterchange/Export` (streamed merge).
+
+Parsers (client-side sources)::
+* CSV/TSV: RFC 4180 with quoted fields, embedded newlines and doubled quotes; delimiter chosen
+  by the most consistent column count over the first 50 rows among `,`, `;` and tab; encoding by
+  BOM, then UTF-8 validity, then Windows-1252.  Streaming: files are read row by row so a
+  200 MB CSV merges without loading it whole.
+* JSON: files over 64 MiB are refused with the size in the message; smaller files are parsed
+  once and records addressed by path with the same JSONPath subset the server implements.
+* Pasted table: the TSV parser over the pasteboard string.
+
+Data service client:: `DataSourceClient` wraps `DataSourceService`: `fetch(source, params,
+paths)` returns an `AsyncSequence` of `RecordPage`s and resumes from the last `next_cursor` on
+a dropped stream; `fetchAsset(url, credential)` for IMAGE fields (result hash goes straight
+into a `PixelSource`; the blob is already server-side, so the local cache downloads it as for
+any remote image); `proxy` for `wt.fetch`.  `HOST_NOT_ALLOWED` on a personal document opens
+the consent sheet (`NSAlert`, naming document and host), which on *Allow* calls
+`PutAllowedHost` on the account scope and retries; on a team document it shows the host and the
+admin names.  `CREDENTIAL_MISSING` offers the credentials sheet.  Every fetch is logged to the
+Script Editor console with host, path, status, pages and size -- never headers or bodies.  The
+client never opens a connection to any host but the {product} service.
+
+Credentials and hosts sheets:: `Credentials…` lists `ListCredentials` metadata and offers
+btn:[+], btn:[Replace] and btn:[Remove]; the secret fields are cleared the moment
+`PutCredential` returns.  *Show Hosts* lists the hosts referenced by the connected source's URL,
+by script sources' recorded hosts (the last run's `wt.fetch` targets, kept in the local store),
+and by the scope's allowlist, with revoke on a personal scope.  The Document Info sheet reads
+the same derived list (xref:file-info.adoc[Document information]).
+
+Fields and bindings:: `WTModel.DataCommands`: `addField`, `renameField`, `setFieldType`,
+`setFieldFormat`, `setFieldTransform`, `deleteField` (with the binding count for the
+confirmation), `setSource`, `setMapping`, `setSample`, `insertPlaceholder(at:field:)` (a
+`TextInsert` of the field's name in braces plus the `field` mark, one change "Insert field"),
+`bind(node:field:kind:)`, `unbind`.  The Text tool recognizes a completed `{{name}}` typed run
+and converts it in place (delete the braces and name, re-insert with the mark) as one change,
+so the placeholder is one unit; a name matching no field gets the mark with a zero element id,
+which renders in red and drives the "create field" offer.
+
+Record resolution:: `RecordSet` (in `WTModel`) is the resolved list for a source: raw records
+from a parser, the data service or a script, mapping applied, per-field type coercion, formats
+(ICU through `NumberFormatter` and `DateFormatter` with the field's locale) and transforms
+(run through the DATA-011 runtime, one `JSContext` for the whole set, values cached per
+record).  It is a value type consumed by preview, merge and export alike, so the three cannot
+disagree.
+
+Preview:: `WTRender` takes an optional `RecordSubstitution` (record + field values) with the
+display list; text layout substitutes each `field` span's characters with the value before
+`TXT-001` layout, images with a binding draw the picture from the local blob cache (downloads
+happen in the background with the placeholder meanwhile), visibility bindings skip the node,
+barcodes encode the value.  The substitution is keyed by the `DataPreview` register, so
+toggling it is a view invalidation, not a document change.  Placeholder tinting and data badges
+are canvas overlays and never reach export.
+
+Merge engine:: `MergeEngine.plan(template pages, records, layout, options) -> [MergedPage]`
+where a `MergedPage` is a list of `(source node, substitutions, transform)` for one output page.
+Two consumers: `MergeToPages` turns each `MergedPage` into `CreateNode` ops (page, deep copies
+with substituted text, replaced pixels, cleared bindings, recreated flow links by an id map),
+batched into changes of at most 10,000 ops, all labelled `Merge N records to pages`, grouped
+into one undo step (APP-011); `MergeToOutput` renders each `MergedPage` through `WTRender` with
+the substitution directly into `PrintPlanView` (`knowsPageRange` answers the merged count;
+`rectForPage` maps to the template page's geometry) or the PDF exporter's page loop, so nothing
+is written to the document.  Multiple records per page: the grid's cells are the template
+page's *selected objects' union bounds*; each cell is a translated copy of those objects only,
+laid out in the chosen order within the page's margins.  Blank-line removal runs on the
+substituted paragraph: a paragraph whose remaining characters are whitespace or punctuation
+and which contained at least one placeholder is deleted with its terminator.  Shrink-to-fit
+re-lays the block in 0.5 pt steps down to the minimum; overflow that remains is a report row.
+
+Images from IMAGE fields:: A URL goes through `FetchAsset` (server-side, same allowlist and
+credential) and returns a blob hash; a relative path is resolved against the file source's
+folder and script data is taken as bytes, each through `ImageImporter` (IMG-002, with the
+*Downsample* preference) into a local blob and a pending upload.  The bound image node's `crop`
+and `transform` are kept and the picture is fitted by adjusting `dpi` so the frame is the crop,
+matching *Merge to Pages* and preview.  A picture fetched once is cached by URL for the run.
+
+Barcodes:: `WTRender` rasterizes nothing: a QR matrix (own encoder, ISO/IEC 18004, versions
+1--40, byte mode with UTF-8; `CIQRCodeGenerator` is used only to cross-check in tests) and a
+Code 128 pattern (subsets A/B/C with automatic switching, checksum) are emitted as one
+rectangle path per module or bar, so PDF and print are vector.  Hit testing is the bounds
+rectangle.  *Convert to Paths* writes those rectangles as a `path` group.
+
+Data panel and sheets:: `WTApp/Panels/DataPanel` (SwiftUI body in the standard panel host), the
+source sheets, the merge sheet with its live grid preview, the report window, the credentials
+sheet, *Show Hosts*.  Merge progress is a sheet with cancel; Merge to Pages cancel runs the undo
+of the chunks so far.
+
+Export data:: `RecordSet` to CSV (RFC 4180, UTF-8 with BOM for spreadsheet compatibility),
+IMAGE fields as their URL or path, plus the optional `record` column.
+
+Undo:: Each panel edit is one change.  A merge to pages is one undo step covering all its
+chunks.  Preview changes are not undoable (view state).
+
+=== Security
+
+* Nothing on this page runs without a user action in the foreground: btn:[Refresh], btn:[Test],
+  btn:[Merge], running a script, or a transform during those.  Opening a document, receiving a
+  change, or a collaborator's action never triggers a fetch or a script on this Mac or on the
+  server.
+* API calls run on the server, never on the Mac.  The client speaks only to the {product}
+  service; scripts get no direct network either -- `wt.fetch` is `DataSourceService.Proxy`.
+  Outbound hosts are allowlisted per team by admins, or per account by the consent prompt;
+  redirects to other hosts are refused; private and metadata address ranges are blocked with
+  the connection pinned to the checked address.
+* Credentials are written once through `PutCredential`, envelope-encrypted at rest, decrypted
+  only inside one request, bound to one host, never returned, never in a change, snapshot,
+  package, blob, log or report.  The document carries names only, so a package export or a
+  leaked local store discloses nothing.
+* Rate limits per team and per account, response caps per call, concurrency caps, and a 90-day
+  audit trail (who, which document, which host, when, how much -- no payloads) that team admins
+  can read.
+* Embedded samples are document data like any pasted text: whoever can read the document can
+  read them.  The *Embed Sample* command says so the first time it is used.
+* Transform and source scripts run in the DATA-011 sandbox: no file system, no shell, no
+  sockets; network only through `wt.fetch`, which is the proxy above; wall-clock limit per
+  record.
+
+=== Build tasks
+
+[[DATA-001]]
+==== DATA-001 Data merge document schema
+[horizontal]
+Track:: proto
+Depends on:: PROTO-003, PROTO-005
+Size:: M
+Delivers:: `doc/v1/data.proto` with `DataField`, `DataFieldType`, `FieldFormat`, `DataSource`, `DataSourceSpec`, `DataSourceKind`, `FileSource`, `PastedSource`, `HttpSource`, `HttpHeader`, `HttpParam`, `Pagination`, `ScriptSource`, `FieldMapping`, `EmbeddedRecords`, `DataPreview`; `SettingsProps.data_fields`, `data_sources`, `data_source_active`, `data_preview` (local_only); `CommonProps.data_binding` with `DataBinding` and `BindingKind`; `TextMarkValue.field`; `doc/v1/barcode.proto` with `BarcodeProps` and the `barcode` kind case; the `script` kind case and `ScriptProps` from xref:scripting.adoc[Scripting and automation]; protovalidate rules as sketched, including the secret-header denylist on `HttpHeader.name` and `https` on `HttpSource.url`.
+Done when::
+* `buf lint` with `COMMENTS` and `buf breaking` pass; the generated merge table marks `data_fields`, `data_sources`, `headers`, `params`, `mapping` SEQUENCE, `spec` VARIANT, `sample` and `data_binding` ATOMIC, `data_preview` and `bookmark` local_only.
+* Conformance vectors: concurrent field rename vs. type change (both kept); concurrent source URL vs. header edit (both kept); kind switch FILE→HTTP→FILE restores the file settings; two concurrent `sample` writes yield one whole value; a `SetFields` on `data_preview` is a no-op in both engines.
+* A vector applies a `field` mark and asserts non-expanding anchors around typed text at both edges.
+* Validation rejects an `Authorization` header and an `http://` URL in a `SetFields`.
+
+[[DATA-002]]
+==== DATA-002 Data service schema
+[horizontal]
+Track:: proto
+Depends on:: PROTO-001, DATA-001
+Size:: S
+Delivers:: `wiretuner/data/v1/data.proto` with `DataSourceService` and every message sketched under *Server state and the data service*: credential RPCs and `CredentialKind`, allowlist RPCs, `Fetch` (server-streaming), `FetchAsset`, `Proxy`, `ListFetchAudit`; protovalidate rules (name pattern, `https` URLs, body caps); the error codes `HOST_NOT_ALLOWED`, `CREDENTIAL_MISSING`, `RESPONSE_TOO_LARGE`, `UPSTREAM_ERROR` in the API conventions' error detail.
+Done when::
+* `buf lint` and `buf breaking` pass; Swift and Java stubs generate.
+* Every request carrying secret material is annotated so the server's logging interceptor redacts it (test: a `PutCredentialRequest` in a debug log shows `<redacted>`).
+
+[[DATA-003]]
+==== DATA-003 Fields, bindings and record resolution
+[horizontal]
+Track:: client-model
+Depends on:: DATA-001, APP-011, CRDT-006
+Size:: L
+Delivers:: `WTModel.DataCommands` (fields, source, mapping, sample, placeholders, bindings) with inverses and labels; the typed-`{{name}}` recognition; `RecordSet` with coercion, ICU formats and the transform hook (a protocol the DATA-011 runtime implements); every read-time normalization on this page; the `{{missing}}` and duplicate-name rules; the field-deleted live notice.
+Done when::
+* Each command emits one labelled change; undo restores prior registers; inserting a placeholder is one change and one unit for selection and deletion.
+* Merge test: replica A renames a field while B binds an object to it; both converge with the binding intact under the new name.
+* Merge test: A deletes a field while B inserts a placeholder for it; B's placeholder reads `{{missing}}` on both; restoring the field resolves it on both.
+* Merge test: two replicas add `email` concurrently; both are live, one shows `email (2)`, and mappings by id are unaffected.
+* `RecordSet` unit tests cover Number and Date formats in two locales, Boolean coercion of the listed spellings, and a transform that reads another field.
+
+[[DATA-004]]
+==== DATA-004 CSV, TSV, JSON and pasted-table sources
+[horizontal]
+Track:: import-export
+Depends on:: DATA-003, SYNC-008
+Size:: M
+Delivers:: `WTInterchange.DataSources`: the streaming CSV/TSV parser with delimiter and encoding detection, the JSON reader and the JSONPath subset, the pasted-table reader, security-scoped bookmarks for file sources, embedded records as blobs (sample and complete, with image sidecar), *Embed Sample* / *Embed All Records* / *Refresh*, and the *Embed sample records* preference.
+Done when::
+* A fixture corpus (UTF-8 with and without BOM, UTF-16, Windows-1252, comma, semicolon, tab, quoted newlines, 1 M rows) parses to the expected records; the 1 M-row file streams in under 2 GB of address space growth.
+* JSONPath tests cover every listed form and reject filters with a clear error; the same vectors are shared with DATA-009 so both implementations agree.
+* Pasting 200 rows from Numbers connects a source whose records are identical to the TSV export of the same rows.
+* Merge test: two replicas embed samples concurrently; both converge on one blob and the other remains cached.
+
+[[DATA-005]]
+==== DATA-005 Credential secret store
+[horizontal]
+Track:: server
+Depends on:: SRV-002, SRV-003, SEC-001, DATA-002
+Size:: M
+Delivers:: The `data_credential` table and migration; envelope encryption (AES-256-GCM data keys wrapped by `WT_DATA_MASTER_KEY` or a KMS key, `key_id` for rotation); `PutCredential`, `DeleteCredential`, `ListCredentials` with the role rules; the in-request decrypt helper; redaction of secret fields in every log and error path; a master-key rotation job that rewraps data keys.
+Done when::
+* Round-trip tests per credential kind; `ListCredentials` never contains secret material (assertion over the serialized response); a database dump contains no plaintext secret (grep test).
+* An editor of a team document can put a credential in the team scope; a viewer cannot; a member of another team cannot list it.
+* Key rotation rewraps every row and fetches still succeed.
+
+[[DATA-006]]
+==== DATA-006 Fetch proxy and SSRF guard
+[horizontal]
+Track:: server
+Depends on:: DATA-005
+Size:: L
+Delivers:: The outbound REST client with `https`-only, resolve-once-and-pin address checking against the blocked ranges, same-host-only redirects (max 3), connect and read timeouts, per-call body caps, JSON content-type requirement, concurrency caps; credential injection per kind including the OAuth 2 client-credentials token cache; `FetchAsset` storing the response as a document blob through `BlobService`; `Proxy` for `wt.fetch`; the header denylist enforcement.
+Done when::
+* A test suite against a compose-hosted mock service proves each guard: `http://` refused; a host resolving to `10.0.0.5` refused; a host whose second resolution changes to a private address still connects to the first (pinned) address; a redirect to another host returns `HOST_NOT_ALLOWED`; a 65 MiB page returns `RESPONSE_TOO_LARGE`; an `Authorization` header in the definition is rejected.
+* Each credential kind produces the expected header or token on the mock; the OAuth token is fetched once for ten requests.
+* `FetchAsset` of a 5 MiB image yields a blob associated with the document and the same hash the client computes.
+
+[[DATA-007]]
+==== DATA-007 Host allowlists
+[horizontal]
+Track:: server
+Depends on:: DATA-006
+Size:: S
+Delivers:: The `data_allowed_host` table; `ListAllowedHosts`, `PutAllowedHost`, `DeleteAllowedHost` with admin (team) and self (account) authorization; the allowlist check in the fetch path with `HOST_NOT_ALLOWED` carrying the host and the team's admin names.
+Done when::
+* A fetch to an unlisted host fails before any connection is opened (mock records no request); adding the host makes it succeed; a member cannot add to a team list, an admin can; an account can add to its own list only.
+
+[[DATA-008]]
+==== DATA-008 Rate limits and fetch audit
+[horizontal]
+Track:: server
+Depends on:: DATA-006, SRV-014
+Size:: M
+Delivers:: Token buckets per team and per account on the fetch path with `RESOURCE_EXHAUSTED` + `RetryInfo`; the `data_fetch_audit` table written on completion of every `Fetch`, `FetchAsset` and `Proxy`; `ListFetchAudit` (admin only, filters, paging); the 90-day retention job; metrics for fetch counts, bytes and failures.
+Done when::
+* 700 requests in a minute from one team yield 600 successes and `RetryInfo` on the rest; a burst of 100 succeeds at once.
+* Every audit row has who, document, host, status and counts; no row contains a query string, header or body (schema and test).
+* Retention deletes rows older than 90 days and nothing newer.
+
+[[DATA-009]]
+==== DATA-009 Pagination engine and record extraction
+[horizontal]
+Track:: server
+Depends on:: DATA-006
+Size:: M
+Delivers:: `{{param}}` expansion, the three pagination modes with `max_pages` and `max_records`, the JSONPath subset (shared vectors with DATA-004), `records_path` and per-record `paths` extraction into `Record` values in JSON textual form, signed resumable cursors, `RecordPage` streaming with `FetchProgress`.
+Done when::
+* Against the mock: NEXT_URL, PAGE_PARAM and NONE each return the expected records; `max_pages` stops a source that never ends; a stream dropped after page 3 resumes from its cursor with no duplicate or missing record.
+* A tampered cursor is rejected.
+* JSONPath vectors from DATA-004 pass unchanged; numbers, booleans, nulls, nested objects and arrays render as specified.
+
+[[DATA-010]]
+==== DATA-010 Web API source client
+[horizontal]
+Track:: import-export
+Depends on:: DATA-004, DATA-002
+Size:: M
+Delivers:: `DataSourceClient` (`fetch` as a resumable `AsyncSequence`, `fetchAsset`, `proxy`), the Web API source sheet with btn:[Test] and the mapping table, the `{{param}}` entry section, the consent sheet on `HOST_NOT_ALLOWED` for personal scopes and the admin message for team scopes, the credentials sheet (metadata list, add, replace, remove, immediate clearing of secret fields), *Show Hosts*, the request log to the console, the Document Info host list feed, the rate-limit pause in the panel.
+Done when::
+* Against the compose stack with the mock service, a GET and a POST source with each pagination mode connect and preview; a dropped connection mid-fetch resumes without duplicates.
+* No socket is opened by the client to any host but the service (network audit in the UI test).
+* The consent sheet appears once per host on a personal document and never on a team document; denial fails the fetch with the documented message.
+* Credential names appear in the document; secrets in no change, snapshot, package, local store or log (grep of every artifact after a session).
+* Offline: the source falls back to the sample and *Refresh* is disabled with the offline message.
+
+[[DATA-015]]
+==== DATA-015 Script sources and field transforms
+[horizontal]
+Track:: client-model
+Depends on:: DATA-012, DATA-004
+Size:: S
+Delivers:: The `records` and `transform` export conventions, the `ScriptSource` fetcher through the runtime, `wt.records` bound to the resolved set, per-record transform execution with caching and the wall-clock limit, recording of a script source's `wt.fetch` hosts for *Show Hosts*, and copying a team-library script into the document on selection.
+Done when::
+* A script source returning 10,000 records merges identically to the same records from a CSV.
+* A transform that throws reports the record and leaves the raw value; a transform exceeding the limit is stopped and reported.
+* A script source calling `wt.fetch` goes through `Proxy` with the allowlist and credential (test asserts the audit row and no direct socket).
+
+[[DATA-016]]
+==== DATA-016 Record preview
+[horizontal]
+Track:: client-render
+Depends on:: DATA-003, REND-001, TXT-001
+Size:: M
+Delivers:: `RecordSubstitution` in `WTRender` and `WTText`: placeholder substitution before layout, bound image drawing from the cache with background download, visibility skipping, barcode content substitution; placeholder tint and data badges as overlays; the *Highlight data fields* preference; overflow detection per record for the panel's count.
+Done when::
+* Reference renders of a label with three placeholders, a bound image and a barcode match fixtures for records 1 and 2; export of the same document with preview on contains placeholders, not values.
+* Toggling preview or stepping records writes no op (outbox stays empty) and invalidates within one frame.
+* Overflow count for a fixture set of 100 records matches the expected 7.
+
+[[DATA-017]]
+==== DATA-017 Data panel
+[horizontal]
+Track:: client-ui
+Depends on:: APP-005, APP-010, DATA-010, DATA-016
+Size:: L
+Delivers:: menu:Window[Data] with the Source, Fields and Records sections, drag-to-place, *Insert Field*, *Add Fields from Source*, the field sheet (name, type, format, transform), the source sheets for the file, pasted and script kinds (the Web API sheet is DATA-010), *Embed Sample*, *Export Data…*, the record navigator with its shortcuts, live remote updates with the focused-control rule, and the menu:File[Data Merge] submenu.
+Done when::
+* UI tests: add a field, place it by drag and by typing, connect each source kind through its sheet, rename a field and see every placeholder update, delete a bound field through the confirmation and see `{{missing}}`.
+* Merge test: a remote field rename while the local name field is focused leaves keystrokes intact and the local value wins on Return.
+* Every control writes exactly one labelled change on commit.
+
+[[DATA-018]]
+==== DATA-018 Barcode node
+[horizontal]
+Track:: client-render
+Depends on:: DATA-001, REND-001, REND-003
+Size:: M
+Delivers:: The QR encoder (versions 1--40, byte mode, four EC levels, masking) and Code 128 encoder (A/B/C, checksum) as vector paths; `barcode` rendering, hit testing and *Convert to Paths*; the Object panel section; *Insert Barcode…*; the unencodable placeholder.
+Done when::
+* Every generated QR fixture decodes with `CIDetector` to the input for all four levels at three sizes; every Code 128 fixture decodes with a reference decoder; ISO 18004 test vectors match module for module.
+* PDF export of a barcode contains rectangles, not an image.
+* Merge test: concurrent `value` and `symbology` edits on one barcode both survive.
+
+[[DATA-019]]
+==== DATA-019 Formats, blank lines and overflow rules
+[horizontal]
+Track:: client-model
+Depends on:: DATA-003, TXT-001
+Size:: M
+Delivers:: `MergeEngine.plan` with substitution, blank-line removal, shrink-to-fit with minimum size, flow-link recreation map, multiple-records-per-page grid geometry, and the merge report model.
+Done when::
+* Unit tests: an address with an empty line 2 loses that line and its paragraph terminator; a 40-character name in a 30-character block shrinks to the first size that fits and not below the minimum; a 3×8 grid on Letter with 4 pt gaps yields the expected 24 cell transforms in both orders.
+* A template with two linked blocks yields merged pages whose copies are linked to each other, never to the template.
+* The report lists overflow, unfetchable image, unencodable barcode and unparsable date rows with record numbers.
+
+[[DATA-020]]
+==== DATA-020 Merge to Pages
+[horizontal]
+Track:: client-model
+Depends on:: DATA-019, DATA-018, APP-011
+Size:: L
+Delivers:: `MergeToPages`: page creation after the template, deep copies with substituted text (marks preserved, `field` marks resolved), replaced pixels with blob creation or `FetchAsset` hashes, cleared bindings, visibility removal, naming, chunking at 10,000 ops under one label, one undo step, progress and cancel-as-undo; the merge sheet's *Pages* target.
+Done when::
+* Merging 250 records makes 250 pages after the template with the values baked in; history shows one entry; undo removes all 250; cancel at record 120 leaves none.
+* A merge of 10,000 label records at 24 per page completes in under 60 s on M1 and produces 417 pages in changes of at most 10,000 ops each.
+* Merge test: two replicas merge concurrently; both converge with both runs present; the review sheet lists one *two merge runs* entry; *Keep both, one after the other* orders them contiguously on both.
+* Merge test: a template edit concurrent with a merge changes the template only.
+
+[[DATA-021]]
+==== DATA-021 Merge to PDF and Print Merge
+[horizontal]
+Track:: import-export
+Depends on:: DATA-019, DATA-018, REND-001
+Size:: L
+Delivers:: `MergeToOutput` feeding `PrintPlanView` and the PDF exporter from `MergedPage`s without document writes; one-file and one-file-per-record PDF with field tokens in the naming pattern; the Print dialog integration with merged page ranges; progress with cancel after the current record; memory-bounded streaming that consumes `RecordPage`s as they arrive.
+Done when::
+* A 10,000-record merge to a single PDF runs with flat memory (no growth after the first 100 records) and can be cancelled at any record.
+* The PDF of *Merge to PDF* for records 1--10 is content-identical to *Merge to Pages* followed by export of those pages.
+* `invoice-{order_id}` names files after the field; a duplicate id gets a numeric suffix.
+* The outbox contains no change after a merge to PDF or print.
+
+[[DATA-022]]
+==== DATA-022 Export data
+[horizontal]
+Track:: import-export
+Depends on:: DATA-004, DATA-015
+Size:: S
+Delivers:: *Export Data…* writing the resolved `RecordSet` (formats and transforms applied) as CSV with field and range selection and the optional `record` column.
+Done when::
+* The export of a source re-imported as a CSV source resolves to identical records.
+* Excel and Numbers open the file with correct characters (BOM test) and columns.
+
+[[DATA-023]]
+==== DATA-023 Data merge multi-client scenarios
+[horizontal]
+Track:: test
+Depends on:: TEST-001, DATA-020, DATA-017
+Size:: M
+Delivers:: Simulator scenarios: field rename vs. bind, field delete vs. placeholder, duplicate field names, source URL vs. header, sample race, concurrent merge runs with each review choice, merge vs. template edit, two clients fetching the same API source through the compose stack and receiving identical records, offline day of field and source edits on two clients, and a package round-trip asserting no credential material.
+Done when::
+* All scenarios converge to identical hashes on every client with the expected review entries.
+* Runs inside the TEST-001 CI budget.
+endif::spec[]

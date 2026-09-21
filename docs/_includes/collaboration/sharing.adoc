@@ -236,8 +236,12 @@ by itself; choose menu:Actions[Update from Library] on the item to copy the curr
 over it, or menu:Actions[Detach from Library] to forget the origin.  A library you have never
 opened on this Mac is unavailable offline; ones you have used are cached.
 
-NOTE: Team libraries are an addition.  {fh}'s Library panel held a single document's symbols;
-{product} keeps that panel (xref:library.adoc[Library]) and adds shared libraries above it.
+NOTE: The Library panel (xref:library.adoc[Library]) holds a single document's symbols; team
+libraries sit above it.
+
+Team admins also manage the team's *Permitted hosts* for data sources and scripts, see the
+*Data fetches* audit list, and see the names (never the values) of the team's stored
+credentials (xref:data-merge.adoc[Data merge]).
 
 == Working with others
 
@@ -253,23 +257,6 @@ are ordinary objects in your document and sync like any other change.
 
 ifdef::spec[]
 == Specification
-
-=== FreeHand parity
-
-[cols="2,3,2"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|--
-|Spaces, roles, invitations, links, access requests, ownership transfer, mid-session role
-changes.
-|Added -- no FreeHand equivalent
-
-|Library panel (per-document symbols)
-|Kept (xref:library.adoc[Library]); team libraries added on top as copy-on-use with
-provenance.
-|Added -- shared libraries on top of the unchanged per-document panel.
-|===
 
 === Data model
 

@@ -192,69 +192,6 @@ If the same page setting was changed on both sides, the review sheet lists it
 ifdef::spec[]
 == Specification
 
-=== FreeHand parity
-
-[cols="2,3,1"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Document panel: pasteboard preview with page thumbnails
-|Same panel, same regions; thumbnails render page contents at low resolution and show presence dots.
-|Faithful
-
-|Page Size pop-up with standard sizes, Custom and Edit
-|Same list; custom sizes defined per document.
-|Faithful
-
-|Orientation buttons
-|Same; swaps width and height around the page's top-left corner.
-|Faithful
-
-|Bleed field
-|Same, per page.
-|Faithful
-
-|Printer Resolution pop-up
-|Same values plus a typed value; stored in document settings.
-|Faithful
-
-|Magnification buttons for the preview
-|Same three levels; stored locally per document, not shared.
-|Faithful
-
-|Drag thumbnails to move pages
-|Same, moves page and contents.
-|Faithful
-
-|Space-drag to scroll the preview
-|Same.
-|Faithful
-
-|Document panel button in the Main toolbar (off by default)
-|Same; the toolbar customization is on the customizing page.
-|Faithful
-
-|Custom page sizes cannot be edited, only deleted and recreated
-|Custom sizes can be renamed and resized in the Page Sizes sheet; pages using a size follow it.
-|Adapted -- no reason to keep the limitation; the sheet is a simple list editor.
-
-|Deleting a custom size turns pages using it to Custom
-|Same.
-|Faithful
-
-|Units pop-up at the bottom of the window (points, picas, inches, decimal inches, mm, kyus, cm, pixels)
-|Same list plus custom units.
-|Faithful
-
-|Unit suffixes in numeric fields
-|Same suffixes; `pt`, `in`, `mm`, `cm`, `px` accepted as well.
-|Faithful
-
-|Math in numeric fields
-|Same operators and precedence; invalid input leaves the field unchanged instead of writing 0.
-|Adapted -- writing 0 into a page width or a stroke width on a typo is destructive in a shared document.
-|===
-
 === Data model
 
 The document setup chapter owns the `page` and `master` node kinds and the setup fields of the

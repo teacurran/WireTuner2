@@ -6,8 +6,8 @@ procedures and every option of each format live on xref:export-bitmap.adoc[Expor
 images] and xref:export-vector.adoc[Exporting vector formats]; xref:publish-html.adoc[Publishing
 as HTML] applies these choices to a whole document at once.
 
-NOTE: {fh} offered GIF, JPEG and PNG, plus a movie format for vectors.  {product} keeps the
-three bitmap formats, adds WebP and AVIF, and uses SVG -- animated where needed -- for vectors.
+NOTE: {product} offers GIF, JPEG, PNG, WebP and AVIF for bitmaps, and uses SVG -- animated where
+needed -- for vectors.
 
 == Vector or bitmap?
 
@@ -95,25 +95,6 @@ imports your exported preset file.
 
 ifdef::spec[]
 == Specification
-
-=== FreeHand parity
-
-[cols="2,3,2"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Compress artwork as GIF, JPEG or PNG
-|Same formats plus WebP and AVIF, all via ImageIO.
-|Faithful (extended)
-
-|Choose a format by color characteristics and browser support
-|Guidance table above; browser support is no longer a differentiator for PNG.
-|Faithful
-
-|Export vectors as a movie to keep them small
-|SVG, and animated SVG for motion, is the vector web format.
-|Adapted -- SVG is native to browsers and needs no player.
-|===
 
 === Data model
 

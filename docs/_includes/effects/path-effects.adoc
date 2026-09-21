@@ -11,9 +11,8 @@ Most of these tools share pop-up slots in the Tools panel (xref:toolbars.adoc[Th
 panel]); the commands live in the *Extensions* menu and on the *Operations* toolbar
 (menu:Window[Toolbars > Operations]).
 
-NOTE: {fh} called these *Xtras*, with an *Xtra Tools* toolbar and an *Xtra Operations*
-toolbar.  {product} calls the menu *Extensions* and the toolbar *Operations*; the tools sit in
-the Tools panel.  See xref:extensions.adoc[Extensions].
+NOTE: The tools sit in the Tools panel; the commands are extensions.  See
+xref:extensions.adoc[Extensions].
 
 Every tool that has options opens them when you double-click the tool in the Tools panel.  Tool
 options are remembered on your Mac between sessions and are not part of the document.
@@ -320,64 +319,6 @@ Preset].
 
 ifdef::spec[]
 == Specification
-
-=== FreeHand parity
-
-[cols="2,3,1"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Add Points (Xtra Operations toolbar, menu:Xtras[Distort > Add Points])
-|Same; Operations toolbar, menu:Extensions[Distort > Add Points].
-|Adapted -- renaming only.
-
-|Roughen tool: Amount 0--100 per inch, Rough/Smooth; drag distance
-|Same.
-|Faithful
-
-|Fisheye Lens tool: Perspective −100..100, drag lens
-|Same, plus kbd:[Option]-drag from centre.
-|Faithful
-
-|Bend tool: amount 1--10, drag up = spike, down = bloat
-|Same.
-|Faithful
-
-|Shadow tool: Hard/Soft/Zoom, Tint/Shade/Color, Fade to, Soft edge, Scale, Offset, Apply
-|Same.  Limitations (no bitmaps, text, clipping paths) kept.
-|Faithful
-
-|Smudge tool: fill and stroke colors, Option-drag from centre, error past capacity
-|Same; capacity is 1,000 objects per smudge.
-|Faithful
-
-|Emboss Xtra: five styles, Vary Contrast/Colors, Depth, Angle, Soft Edge, Apply, Cmd-click
-toolbar button
-|Same.
-|Faithful
-
-|Fractalize
-|Same.
-|Faithful
-
-|Mirror Xtra tool: four axis modes, Multiple with axes count and Reflect/Rotate, Close Paths,
-modifier keys and arrow keys during drag
-|Same, from the Tools panel.
-|Faithful
-
-|3D Rotation tool: Easy/Expert, Rotate from, Distance, Project from, Shift constrain
-|Same.
-|Faithful
-
-|Envelopes: Create, presets, Paste as Envelope, Show Map, Copy as Path, Release, Remove, Save
-as Preset, Delete Preset, Envelope toolbar
-|Same commands.  Presets live in account preferences instead of a settings file.
-|Adapted -- no per-app settings folder; preferences sync gives the same result on every Mac.
-
-|Envelope settings file `Envelope` in Application Support
-|Not used.
-|Dropped -- replaced by preferences (above).
-|===
 
 === Data model
 

@@ -2,6 +2,5 @@
 include::_attributes.adoc[]
 :page-slug: creating-opening
 :page-group: Document setup
-:page-fh: Chapter 2, "Creating and opening documents", "Opening documents from previous versions of FreeHand"
 
 include::_includes/document/creating-opening.adoc[]

@@ -2,6 +2,5 @@
 include::_attributes.adoc[]
 :page-slug: image-color
 :page-group: Color management
-:page-fh: Chapter 13, "Managing RGB image color for selected images", "Setting profiles for selected RGB images", "About preserving RGB device profiles"
 
 include::_includes/cms/image-color.adoc[]

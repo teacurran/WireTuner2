@@ -2,6 +2,5 @@
 include::_attributes.adoc[]
 :page-slug: text-blocks
 :page-group: Type
-:page-fh: Chapter 8, "Working with text blocks", "Linking text blocks"
 
 include::_includes/type/text-blocks.adoc[]

@@ -59,7 +59,7 @@ document (0:0)
 ├── styles      (0:6)   ── graphic style / text style …
 ├── symbols     (0:7)   ── symbol ── object …           (Library panel)
 ├── brushes     (0:8)   ── brush …
-├── assets      (0:9)   ── image / font / embedded file (blob references)
+├── assets      (0:9)   ── image / font / embedded file / script (blob references)
 ├── trash       (0:10)  (reserved; deleted nodes stay in place, see Deletion)
 ├── glyphs      (0:11)  ── glyph …   (typeface documents only; a glyph is a canvas like a page)
 └── comments    (0:12)  ── comment_thread …   (conversation, not artwork; never rendered or exported by default)
@@ -69,7 +69,7 @@ The well-known nodes (replica `0`, counters `0`--`15`) exist in every document w
 created; counters `13`--`15` are reserved for future collections.  `glyphs` is empty in an
 illustration document (xref:typeface-documents.adoc[Typeface documents]).
 
-Artwork lives under layers, as in {fh}: a top-level object's parent is its layer, and its
+Artwork lives under layers: a top-level object's parent is its layer, and its
 position among the layer's children is its stacking order.  Objects sit on one large pasteboard
 in pasteboard coordinates (points, 1/72 inch, y down, origin at the pasteboard's top left); a
 page is a rectangle on the pasteboard, and "the objects on page 3" is a geometric query, not a

@@ -2,6 +2,5 @@
 include::_attributes.adoc[]
 :page-slug: arranging
 :page-group: Objects
-:page-fh: Chapter 4, "Arranging objects", "Aligning and distributing objects", "Hiding objects", "Locking objects"
 
 include::_includes/objects/arranging.adoc[]

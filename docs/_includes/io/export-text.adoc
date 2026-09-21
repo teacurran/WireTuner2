@@ -101,9 +101,8 @@ RGB), OpenType feature choices beyond small caps, and text linked to an external
 Plain text keeps characters, paragraph breaks and tabs only.  Smart quotes, dashes and other
 typographic characters are kept as the Unicode characters they are.
 
-NOTE: For {fh} users: {fh} lost outline, subscript and superscript on RTF export; {product}
-keeps subscript and superscript.  Inline graphics no longer have to be converted to paths for
-any export.
+NOTE: RTF export keeps subscript and superscript.  Inline graphics do not have to be converted
+to paths for any export.
 
 == Working with others
 
@@ -114,37 +113,6 @@ there are no locks on text.
 
 ifdef::spec[]
 == Specification
-
-=== FreeHand parity
-
-[cols="2,3,2"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Export RTF and ASCII text from the Export dialog
-|*Rich Text* and *Plain Text* formats with encoding and line-ending options.
-|Faithful, extended.
-
-|Linked blocks in link order; unlinked in stacking order, first page to last
-|Same order rule.
-|Faithful.
-
-|Drag text to other applications; Copy and Paste
-|Same, with RTF and plain-text flavors, and drag to the Finder as `.rtf`.
-|Faithful, extended.
-
-|Outline, Subscript, Superscript not maintained in RTF
-|Subscript and superscript kept; outline (a text effect) not.
-|Adapted -- improvement where RTF has the construct.
-
-|Inline graphics replaced by bullets in formats without graphics
-|Bullets in plain text; embedded PNG in RTF by default.
-|Adapted -- improvement.
-
-|Text with inline graphics must be converted to paths for Illustrator or Photoshop 3 EPS
-|Not required; every format handles inline graphics.
-|Adapted -- improvement.
-|===
 
 === Data model
 

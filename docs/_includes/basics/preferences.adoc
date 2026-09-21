@@ -13,11 +13,6 @@ Choose menu:WireTuner[Preferences…] or press kbd:[Cmd+,].  The window has a ca
 on the left and the settings for the chosen category on the right.  Changes apply as you make
 them; there is no OK button.
 
-NOTE: {fh} opened preferences with kbd:[Cmd+U] and applied them with btn:[OK].  {product}
-follows macOS: kbd:[Cmd+,], immediate effect.  kbd:[Cmd+U] now toggles menu:View[Smart
-Guides], as it does in Illustrator (xref:moving.adoc#smart-guides[Smart guides],
-xref:customizing.adoc[Customizing your environment]).
-
 To restore every preference to its default::
 Click btn:[Restore Defaults] at the bottom of the window and confirm.  This resets every
 category, including your panel layout; keyboard shortcut sets are not touched.
@@ -54,7 +49,7 @@ collaboration* category; each Mac then keeps its own copy.
 |Rotate canvas with trackpad |On |The two-finger rotate gesture turns the canvas; off leaves rotation to menu:View[Rotate Canvas] and the compass. xref:document-view.adoc[Setting the document view]
 |===
 
-Undo levels moved to *Sync and collaboration* (below); {fh} kept it here.
+Undo levels are under *Sync and collaboration* (below).
 
 == Object (synced)
 
@@ -117,9 +112,6 @@ Macs.
 |Warn when image resolution is below |150 ppi |Low-resolution images are flagged in the Object panel and before printing. xref:bitmaps.adoc[Bitmaps]
 |===
 
-{fh}'s *Always review unsaved documents upon quit* has no work to do: there are no unsaved
-documents.  *Warn when quitting with unsynced changes* is its replacement.
-
 == Import (synced unless noted)
 
 [cols="2,1,3"]
@@ -139,8 +131,7 @@ documents.  *Warn when quitting with unsynced changes* is its replacement.
 |===
 
 Embedding is on by default because a linked file exists only on one Mac, and a shared
-document should look the same for everyone.  {fh}'s *Convert PICT patterns to grays* is gone
-with the PICT format.
+document should look the same for everyone.
 
 == Export (synced unless noted)
 
@@ -162,9 +153,6 @@ with the PICT format.
 |Open exported file with |None |Per format, an application to open the result (local). xref:exporting.adoc[Exporting]
 |Preview browser |System default |The browser menu:File[Preview in Browser] uses (local). xref:svg-animation.adoc[SVG animations and browser preview]
 |===
-
-{fh}'s *Include Portfolio preview* served Extensis Portfolio, which is discontinued; the Quick
-Look thumbnail takes its place.
 
 == Spelling (synced)
 
@@ -200,8 +188,6 @@ Look thumbnail takes its place.
 |Monitor, composite and separations profiles |System defaults |Set through btn:[Setup…] (local). xref:color-profiles.adoc[Color profiles]
 |===
 
-Kodak Digital Science color management is not offered; ColorSync is the macOS engine.
-
 == Panels (local)
 
 [cols="2,1,3"]
@@ -226,14 +212,13 @@ Kodak Digital Science color management is not offered; ColorSync is the macOS en
 |Raster effect preview |Screen resolution |Screen resolution, Document resolution, Draft or Off for live raster effects on screen. xref:raster-effects.adoc[Raster effects]
 |===
 
-Anti-aliasing, *Redraw while scrolling* and *Better (but slower) display* are not options:
-artwork is always anti-aliased and always redrawn live.
+There is no anti-aliasing or redraw-quality switch: artwork is always anti-aliased and always
+redrawn live.
 
 == Sounds (local)
 
-{fh} for the Mac could play a sound when something snapped.  {product} keeps the feature and
-uses the system alert sounds; it is silent when *Play user interface sound effects* is off in
-System Settings.
+{product} can play a sound when something snaps.  It uses the system alert sounds, and is
+silent when *Play user interface sound effects* is off in System Settings.
 
 [cols="2,1,3"]
 |===
@@ -247,8 +232,8 @@ System Settings.
 
 == Sync and collaboration (synced unless noted)
 
-These preferences have no {fh} equivalent; they govern undo, what happens when your work and
-someone else's meet, and what others see of you.
+These preferences govern undo, what happens when your work and someone else's meet, and what
+others see of you.
 
 [cols="2,1,3"]
 |===
@@ -271,6 +256,17 @@ someone else's meet, and what others see of you.
 
 A team can set a floor for the review thresholds; when it has, the fields show the team's
 value and cannot be lowered below it (xref:sharing.adoc[Sharing]).
+
+== Automation (synced unless noted)
+
+[cols="2,1,3"]
+|===
+|Preference |Default |Effect
+
+|Highlight data fields |On |Draws a tint behind bound text and objects on the canvas (local). xref:data-merge.adoc[Data merge]
+|Embed sample records |On |New data sources keep their first five records in the document so previews work offline. xref:data-merge.adoc[Data merge]
+|Show script console on error |On |A failing script opens the Script Editor's console (local). xref:scripting.adoc[Scripting and automation]
+|===
 
 == Printing (synced)
 
@@ -308,73 +304,6 @@ is offline, the later change wins when both have synced; nothing asks.
 
 ifdef::spec[]
 == Specification
-
-=== FreeHand parity
-
-[cols="2,3,1"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Preferences dialog, Cmd+U, categories General/Object/Text/Document/Import/Export/Spelling/Colors/Panels/Redraw/Sounds, OK/Defaults
-|Preferences window, Cmd+, , same categories plus Sync and collaboration, immediate apply, Restore Defaults.
-|Adapted -- macOS conventions; category set kept.
-
-|Undo levels 1--100 in General, effective after reopen
-|Undo levels 1--1000 in Sync and collaboration, effective at once.
-|Adapted -- persistent local undo makes memory a non-issue; grouped with the other cross-user behaviors.
-
-|Right Mouse Button Magnification
-|Removed.
-|Dropped -- see xref:context-menus.adoc[Context menus].
-
-|Always Review Unsaved Documents upon Quit
-|Warn when quitting with unsynced changes.
-|Adapted -- no unsaved state exists; the analogous risk is unsent changes.
-
-|Embed Images and EPS upon Import (default off)
-|Embed images upon import, default on.
-|Adapted -- linked files are not visible to collaborators.
-
-|Convert PICT Patterns to Grays
-|Removed.
-|Dropped -- PICT import is not supported.
-
-|Clipboard Paste Formats (Windows only) / Clipboard Output Formats
-|Paste formats and Copy formats with macOS pasteboard types.
-|Adapted
-
-|Bitmap PICT Previews for EPS
-|Include TIFF preview in EPS.
-|Adapted -- PICT is gone; TIFF is the surviving EPS preview format.
-
-|Include Portfolio Preview and size
-|Include Quick Look thumbnail.
-|Adapted -- Extensis Portfolio is discontinued.
-
-|Bitmap Export defaults (Windows only)
-|Available on macOS.
-|Adapted
-
-|Kodak Digital Science / Apple ColorSync
-|ColorSync only.
-|Dropped (KDS) -- not available on modern macOS.
-
-|Enable Anti-Aliasing, Redraw While Scrolling, Better (but Slower) Display
-|Removed.
-|Dropped -- see xref:document-view.adoc[Setting the document view].
-
-|Snap sounds (Mac only)
-|Kept, using system alert sounds.
-|Faithful
-
-|Preferences file per user, copy between machines by hand
-|Synced through the account; local categories stay on the Mac.
-|Adapted
-
-|Spelling options
-|Same options over the macOS spell checker.
-|Faithful
-|===
 
 === Data model
 

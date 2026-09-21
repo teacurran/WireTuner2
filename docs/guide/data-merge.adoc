@@ -1,0 +1,6 @@
+= Data merge
+include::_attributes.adoc[]
+:page-slug: data-merge
+:page-group: Automation and data
+
+include::_includes/automation/data-merge.adoc[]

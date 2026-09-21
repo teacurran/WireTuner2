@@ -129,40 +129,6 @@ widths, nib angle -- are yours alone and never travel with the document.
 ifdef::spec[]
 == Specification
 
-=== FreeHand parity
-
-[cols="2,3,1"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Pencil: precision 1--10, Draw dotted line, kbd:[Option] straight segment, continue from an
-end point with the + cursor
-|Same, as a sheet.
-|Faithful
-
-|Variable Stroke Pen: precision, dotted line, Auto remove overlap, Min/Max width 1--72,
-bracket keys, tablet pressure
-|Same.  Output is a closed filled path (the stroke outline), as in {fh}.
-|Faithful
-
-|Calligraphic Pen: Fixed/Variable width, angle dial 0--359°, bracket keys, pressure
-|Same.
-|Faithful
-
-|Left/Right arrow keys for width (Windows)
-|Dropped; the Mac bracket keys are the documented ones.
-|Dropped
-
-|Pressure-sensitive tablet support
-|Any tablet macOS reports pressure for, plus Apple Pencil via Sidecar.
-|Faithful
-
-|Auto remove overlap slows redraw (note in manual)
-|Runs off the main actor after mouse-up; the un-cleaned path is written first and replaced
-by the cleaned one in the same undo group.
-|Adapted
-|===
-
 === Data model
 
 None beyond `PathProps`.  The Variable Stroke and Calligraphic pens store only the fitted
@@ -201,7 +167,7 @@ Input pipeline:: `WTApp.StrokeCapture` collects `NSEvent` samples (position, `pr
 `timestamp`, and `tabletPoint` data when present) at the event rate, drawing the preview trail
 (solid or dotted per the setting) in the tool overlay.  On mouse-up the samples go to GEO-004's
 Schneider fit with an error tolerance derived from precision (`tolerance = 12 / precision` pt
-at 100% zoom, scaled by the inverse zoom so precision is in screen terms as in {fh}).
+at 100% zoom, scaled by the inverse zoom so precision is in screen terms).
 
 Pencil:: The fitted centerline becomes an open contour of curve points; kbd:[Option] spans
 are emitted as straight segments with corner points at both ends.
@@ -231,7 +197,7 @@ Depends on:: DRAW-002, APP-003, GEO-004
 Size:: M
 Delivers:: `StrokeCapture` (sampling, pressure, tablet detection, dotted/solid preview overlay, kbd:[Option] straight spans with kbd:[Shift] constraint), the precision-to-tolerance mapping, and the end-point "+" continuation detection shared by the three pencil tools.
 Done when::
-* Recorded strokes from the GEO-004 corpus fit to the same point counts at each precision as {fh}'s recorded results, within 10%.
+* Recorded strokes from the GEO-004 corpus fit to the golden corpus's point counts at each precision, within 10%.
 * A stroke on a 1600% zoomed view uses a tolerance 16× smaller in pasteboard units.
 * Continuation from either end of a selected path inserts at the correct side; merge test: continuation vs. a concurrent point move elsewhere keeps both.
 

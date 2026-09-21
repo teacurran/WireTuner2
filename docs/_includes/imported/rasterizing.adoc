@@ -4,8 +4,6 @@ editor, to freeze the look of something so nobody can nudge it, or simply becaus
 graphic only needs pixels.  The result is an ordinary image object that behaves like an
 imported one (xref:bitmaps.adoc[Working with bitmap images]).
 
-NOTE: {fh} called this command *Convert to Image*.  In {product} it is menu:Modify[Rasterize…].
-
 == Rasterizing selected objects
 
 To rasterize:
@@ -74,44 +72,6 @@ reconnect.
 
 ifdef::spec[]
 == Specification
-
-=== FreeHand parity
-
-[cols="2,3,2"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|menu:Modify[Convert to Image]
-|menu:Modify[Rasterize…].
-|Adapted -- renamed to the term every current application uses; a NOTE tells {fh} users.
-
-|Resolution 72 / 144 / 300 dpi
-|Same presets plus *Custom* 36–2400.
-|Faithful
-
-|Anti-aliasing value
-|*None* / *Low* / *Medium* / *High* (1×–4× supersampling).
-|Faithful
-
-|Result is an embedded TIFF
-|Result is a PNG blob (lossless, alpha) stored like an import; TIFF when *CMYK* is chosen,
-since PNG has no CMYK.
-|Adapted -- PNG is smaller and universally decodable; the user never sees the container.
-
-|Replaces the original; copy first to keep it
-|Same by default; *Keep originals* option added.
-|Adapted -- a checkbox instead of a manual copy.
-
-|Error when too large or complex; export instead
-|No complexity limit; the 200 MiB blob limit is the only refusal, with the size shown.
-|Adapted -- the renderer is the same one that draws the screen and can render anything the
-document shows.
-
-|(none)
-|*Background* and *Color mode* options.
-|Added -- transparent results and grayscale results (for tinting) were requested workflows
-{fh} lacked.
-|===
 
 === Data model
 

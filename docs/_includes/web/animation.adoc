@@ -1,13 +1,13 @@
-{product} animates the way {fh} did: frame by frame, with each frame drawn on its own layer or its
+{product} animates frame by frame, with each frame drawn on its own layer or its
 own page.  There are no tweens and no timeline of keyframes; instead you build the frames as
 artwork -- often by blending two shapes and releasing the blend to layers -- and the document's
 *animation settings* say how to play them: which layers or pages are the frames, how fast, and
 whether to loop.  The *Animation* panel plays the result on the canvas, and menu:File[Export…]
 writes it as an animated SVG, a GIF, an APNG or an MP4 movie.
 
-NOTE: {fh} played and exported animation through Macromedia Flash.  {product} has no
-Flash: the same layer-and-page animation is previewed in the Animation panel and exported to
-formats browsers and video players read today.  menu:Xtras[Animate] is now menu:Extensions[Animate].
+NOTE: The layer-and-page animation is previewed in the Animation panel and exported to formats
+browsers and video players read today.  The animation commands live under
+menu:Extensions[Animate].
 
 == How frames are built
 
@@ -105,7 +105,7 @@ animation settings; the bottom half is a transport bar for previewing.
 animated; exporters then offer only still formats.
 
 |*Frame rate*
-|Frames per second, 0.01 to 120 in steps of 0.01.  12 fps matches {fh}'s default and looks right
+|Frames per second, 0.01 to 120 in steps of 0.01.  12 fps is the default and looks right
 for hand-built frames; use 24 or 30 for video output.
 
 |*Loop*
@@ -195,61 +195,6 @@ setting both of you changed.
 ifdef::spec[]
 == Specification
 
-=== FreeHand parity
-
-[cols="2,3,2"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Xtras > Animate > Release to Layers: Sequence, Build, Drop, Trail (Trail By)
-|menu:Extensions[Animate > Release to Layers…], same four modes.
-|Faithful
-
-|Reverse Direction, Use Existing Layers, Send to Back
-|Same.
-|Faithful
-
-|Releasing text converts letters to paths, one per layer
-|Same.
-|Faithful
-
-|Background layer objects appear in every frame
-|Layers below the separator are the background of every frame.
-|Faithful
-
-|Animate Pages / Animate Pages and Layers on movie export
-|*Frames from* setting: Layers, Pages, Pages and layers.
-|Adapted -- a document setting instead of an export option, so preview and every exporter agree.
-
-|Movie Settings: frame rate 0.01--120 fps, Autoplay, Background color
-|Same, in the Animation panel.
-|Faithful
-
-|Movie Settings: Full Screen Playback, Allow Printing, Protect from Import, Size to Match Contents, Optimize, Path Compression, Trace Dashed Strokes, Image Compression, Text options, Compress Movie
-|Dropped.  Size and quality options exist per export format instead.
-|Dropped -- player-specific; animated SVG has no player settings.
-
-|Controller toolbar and Window > Movie: Test, Play, Stop, Step, Rewind, First/Last
-|Animation panel transport bar and kbd:[Cmd+Option] shortcuts; playback on the canvas.
-|Adapted -- no Flash Playback window; the canvas plays the frames.
-
-|Preview in the Flash Player (Cmd+Return)
-|menu:File[Preview in Browser] (kbd:[Cmd+Return]).
-|Adapted -- see xref:svg-animation.adoc[SVG animations and browser preview].
-
-|Export a movie via Controller or Window > Movie > Export
-|menu:File[Export…] with Animated SVG, GIF, APNG, MP4.
-|Adapted -- animated SVG is the vector animation format.
-
-|--
-|Per-layer *Hold* and *Exclude from animation*.
-|Addition -- the smallest control that makes hand-built frames practical without duplicating layers.
-
-|--
-|Lottie export
-|Dropped -- Lottie's value is tweened properties; a frame-flip animation gains nothing and the JSON is larger than the SVG.  Revisit if tweening is ever added.
-|===
-
 === Data model
 
 [source,protobuf]
@@ -301,7 +246,7 @@ message LayerFrameProps {
 
 `loop` defaults to true at read time when the `animation` message has never been written
 (`source` unset); once any field is written the stored value is authoritative.  This keeps a
-never-touched document animating as {fh} would while letting the proto default be false.
+never-touched document looping while letting the proto default be false.
 
 Release to Layers writes ordinary nodes: `CreateNode` for new layers (parent `layers`, position
 above the current layer), `MoveNode` for the released pieces, `CreateNode` for the copies that

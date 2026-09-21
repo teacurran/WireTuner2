@@ -119,37 +119,6 @@ The Select tab changes nothing in the document; it only changes your selection.
 ifdef::spec[]
 == Specification
 
-=== FreeHand parity
-
-[cols="2,3,2"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Find & Replace panel with Color, Stroke Width, Font, Remove, Path Shape, Simplify, Rotate, Scale, Blend Steps
-|Same attributes.
-|Faithful
-
-|Change In: Page / Document / Selection
-|Same.
-|Faithful
-
-|Select panel with the fourteen attributes
-|Same.
-|Faithful
-
-|Hidden objects are found
-|Same; hidden is local, and the search runs over the document model.
-|Faithful
-
-|Main toolbar Graphics button
-|Same.
-|Faithful
-
-|Halftone and Overprint (printing attributes)
-|Same; the attributes are defined by xref:halftones.adoc[Halftones] and xref:stroke-attributes.adoc[Stroke attributes].
-|Faithful
-|===
-
 === Data model
 
 No fields.  The panel is a query over `WTModel` plus commands from other pages: color

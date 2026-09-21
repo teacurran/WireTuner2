@@ -2,6 +2,5 @@
 include::_attributes.adoc[]
 :page-slug: transparency
 :page-group: Effects
-:page-fh: Chapter 7, "Using a Transparency effect attribute"
 
 include::_includes/effects/transparency.adoc[]

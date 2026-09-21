@@ -2,6 +2,5 @@
 include::_attributes.adoc[]
 :page-slug: animation
 :page-group: Web and animation
-:page-fh: Chapter 11, "Animating objects and text", "Exporting FreeHand documents as Flash movies" (animation options)
 
 include::_includes/web/animation.adoc[]

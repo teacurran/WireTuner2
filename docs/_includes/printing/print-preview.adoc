@@ -4,9 +4,8 @@ crop marks, and the preview redraws.  It is the place to check that a page fits 
 that marks are not being clipped, and that a tiled poster comes out as the number of sheets
 you expect -- before any paper is used.
 
-NOTE: {fh} users: the Print dialog no longer has its own preview pane with a hand pointer.  The
-macOS preview shows the same information, and the page is moved on the paper with the *Offset*
-fields rather than by dragging.
+NOTE: The preview is the macOS Print dialog's own and is not draggable; the page is moved on
+the paper with the *Offset* fields.
 
 // TODO screenshot: the Print dialog preview showing a page on larger paper with crop marks, bleed area and a two-sheet tile grid
 
@@ -78,38 +77,6 @@ ifdef::spec[]
 The preview is the print panel's own preview of the `NSPrintOperation` view; {product} adds
 nothing to the panel's chrome beyond its accessory pane.  What this page specifies is what the
 view draws in preview and how the pane keeps it current.
-
-=== FreeHand parity
-
-[cols="2,3,2"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Preview pane in the Print dialog showing print area, paper, crop and registration marks,
-bleed
-|The `NSPrintPanel` preview, which renders the actual sheets; the same non-printing
-overlays (paper, printable area, page outline, bleed, tile grid) are drawn by the view when it
-knows it is drawing for the panel.
-|Faithful
-
-|Hand pointer to reposition objects on the paper for the current output only
-|Numeric *Offset X/Y* and btn:[Center] in the pane; the offset is a document setting.
-|Adapted -- the panel preview is not interactive; a stored offset is reproducible across the
-team.
-
-|Reset arrow (click the pasteboard to restore the original location)
-|btn:[Center].
-|Adapted -- same intent.
-
-|Preview modes X-Box, Keyline, Preview
-|Dropped.  The panel preview renders asynchronously off the main thread and can be collapsed
-(btn:[Hide Details]) if it is slow; X-Box existed to make the dialog open faster.
-|Dropped -- performance workaround no longer needed.
-
-|Windows: Preview button for non-PostScript printers
-|Not applicable.
-|Dropped -- Windows only.
-|===
 
 === Data model
 

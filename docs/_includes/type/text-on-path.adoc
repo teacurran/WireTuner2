@@ -114,54 +114,6 @@ while they were joined are removed.
 ifdef::spec[]
 == Specification
 
-=== FreeHand parity
-
-[cols="2,3,1"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Attach to Path from a text block and a path; open and closed paths; top/bottom runs on a
-closed path; open path shows first line only
-|Same.
-|Faithful
-
-|Overflow dot; text on a path linkable
-|Same.
-|Faithful
-
-|Left-aligned text on a curve respaced to avoid overlap
-|Same.
-|Faithful
-
-|Orientation: Rotate Around Path, Vertical, Skew Horizontal, Skew Vertical; Show Path
-|Same.
-|Faithful
-
-|Alignment Top/Bottom: None, Baseline, Ascent, Descent
-|Same.
-|Faithful
-
-|Triangle handle to slide text; Option to see text while dragging; Left/Right fields
-|Same.
-|Faithful
-
-|Reverse text by reversing the path
-|Same (the OBJ epic's Reverse Direction).
-|Faithful
-
-|Flow Inside Path with insets; overflow box below the shape
-|Same.
-|Faithful
-
-|Detach from Path: two objects, transforms removed, block width = path width
-|Same.
-|Faithful
-
-|Tabs unavailable on a path
-|Same.
-|Faithful
-|===
-
 === Data model
 
 `TextProps.on_path` on xref:creating-text.adoc[Creating text].  The path is the text node's
@@ -224,7 +176,7 @@ Read-time normalizations::
 * More than one live `path` child (possible after concurrent attaches to the same text): the
   one with the smallest node id is the path; the others render as ordinary children on top.
 * `mode = INSIDE` on an open path: the path is closed for layout purposes.
-* Both alignments `NONE`: nothing drawn, overflow dot shown (as {fh}).
+* Both alignments `NONE`: nothing drawn, overflow dot shown.
 
 === Offline behavior
 

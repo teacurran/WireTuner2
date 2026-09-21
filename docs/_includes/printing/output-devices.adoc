@@ -5,10 +5,10 @@ often today, a PDF the shop's prepress system will separate itself.  This page e
 {product} sends to each kind of device, which options matter for which, and how to get a job
 to a service provider.
 
-NOTE: {fh} users: there is no PPD to choose and no PostScript file to write.  macOS talks to
-every printer through its queue; {product} draws every job as PDF.  Separations, which
-{fh} left to the printer's PostScript interpreter, are produced by {product} itself, so they
-work on any device -- including a PDF file.
+NOTE: There is no PPD to choose and no PostScript file to write.  macOS talks to every printer
+through its queue; {product} draws every job as PDF.  Separations are produced by {product}
+itself rather than by the printer's PostScript interpreter, so they work on any device --
+including a PDF file.
 
 == Desktop printers and proofs
 
@@ -99,44 +99,8 @@ person on one Mac, with that Mac's fonts and printers.
 ifdef::spec[]
 == Specification
 
-The one addition to {fh}'s model is that separation is done by the renderer rather than by a
-PostScript interpreter.  Everything below specifies that renderer mode and the in-app screener.
-
-=== FreeHand parity
-
-[cols="2,3,2"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Desktop printer composite output
-|Composite through the print queue, ColorSync-managed.
-|Faithful
-
-|Separations on a PostScript device (in-RIP)
-|Separations rendered by {product}: one grayscale sheet per plate in the job PDF.  Works on
-any device and in *Save as PDF*.
-|Adapted -- client-side separation replaces in-RIP separation; capability kept and widened.
-
-|PPD selection for device capabilities (paper, resolution, screens)
-|Dropped.  Paper and resolution from the queue; screens from the ink list.
-|Dropped -- no PPD layer.
-
-|Output to a PostScript file for the service bureau
-|*Save as PDF* (marks, separations) or PDF/X export.
-|Adapted -- PDF replaces PostScript.
-
-|Halftone screens honored by the device
-|Honored by the in-app screener when *Screen in {product}* is on; otherwise left to the RIP.
-|Adapted -- see xref:halftones.adoc[Halftones].
-
-|Print as image / printer's built-in rasterizer
-|*Rasterize output* at a chosen resolution.
-|Faithful
-
-|Document report for the service bureau
-|xref:file-info.adoc[Document info] (IO epic).
-|Faithful -- documented elsewhere.
-|===
+Separation is done by the renderer rather than by a PostScript interpreter.  Everything below
+specifies that renderer mode and the in-app screener.
 
 === Data model
 

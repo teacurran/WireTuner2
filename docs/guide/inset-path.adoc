@@ -2,6 +2,5 @@
 include::_attributes.adoc[]
 :page-slug: inset-path
 :page-group: Objects
-:page-fh: Chapter 4, "Insetting a path"
 
 include::_includes/objects/inset-path.adoc[]

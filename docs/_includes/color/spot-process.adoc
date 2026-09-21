@@ -188,70 +188,6 @@ duplicate in the panel and you can remove either.
 ifdef::spec[]
 == Specification
 
-=== FreeHand parity
-
-[cols="2,3,1"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Spot vs process colors; italic/upright names
-|Same; `SwatchProps.spot`.
-|Faithful
-
-|Make Spot / Make Process
-|Same.
-|Faithful
-
-|CMYK, RGB, HLS mixing; HLS stored as RGB
-|Same; HLS is stored in the default RGB space (sRGB or Display P3).
-|Faithful
-
-|System Color Picker (Windows, 48 colors)
-|Dropped; the Apple picker covers it.
-|Dropped: Windows-only.
-
-|Apple Color Picker (CMYK, RGB, HLS, HSV, Crayons, Web HTML)
-|`NSColorPanel` with all its modes; result stored as Display P3 on a P3 Mac, or in the
-default RGB space when that is sRGB.
-|Faithful
-
-|Make RGB / Make CMYK on named colors, with color-management-aware conversion
-|*Convert to > sRGB / Display P3 / CMYK*.  sRGB ↔ P3 by {product}'s own gamut mapping
-(hue and lightness preserved); to and from CMYK through the document's profiles (CMS epic),
-naive formulas only where no profile is available.
-|Faithful, extended
-
-|--
-|Display P3, CIELAB and OKLab as stored spaces beside sRGB and CMYK, every color tagged with
-its space; the OKLCH mixing mode; the *Default color space for new colors* preference.
-|Added: every Mac since 2016 has a Display P3 screen, and CSS Color 4 made P3 and OKLCH the
-web's vocabulary; a color that does not know its space cannot be shown on either honestly.
-
-|Hexachrome colors and libraries
-|Dropped.  Six-color Hexachrome was discontinued by PANTONE; no press supports it.
-|Dropped: discontinued process.
-
-|Bundled libraries: Crayon, Grays, Web Safe
-|Bundled as `.wtcolors` data files.
-|Faithful
-
-|Bundled PANTONE, Focoltone, Toyo, DIC, Munsell libraries
-|Not bundled; read from vendor or third-party files (`.ase`).  Licensing is an open question.
-|Adapted: trademark licensing.
-
-|Import a library stored outside the Colors folder
-|*Import…* from a file; remembered under *My Libraries*.
-|Faithful
-
-|Library dialog with Shift-click multiple selection
-|Sheet with kbd:[Cmd]/kbd:[Shift] selection and a search field.
-|Faithful
-
-|Custom color display of library name and reference
-|`library` and `library_key` shown in the Object panel.
-|Faithful
-|===
-
 === Data model
 
 `Color`, `ColorSpace`, `Cmyk`, `Rgb`, `Lab` and `SwatchProps.spot`, `library`, `library_key`
@@ -268,7 +204,7 @@ Library files are not part of the document:
 message ColorLibrary {
   string name = 1;                     // shown in the Options menu
   string notes = 2;
-  uint32 rows = 3;                     // layout hint for the sheet, from FreeHand's export dialog
+  uint32 rows = 3;                     // layout hint for the sheet
   uint32 columns = 4;
   repeated LibraryColor colors = 5;
 }

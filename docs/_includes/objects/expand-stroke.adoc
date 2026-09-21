@@ -53,29 +53,6 @@ that was replaced and is listed after an offline period as an edit to a deleted 
 ifdef::spec[]
 == Specification
 
-=== FreeHand parity
-
-[cols="2,3,2"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Expand Stroke dialog: Width, Cap, Join, Miter Limit
-|Same, as a sheet.
-|Faithful
-
-|Open path → closed filled path; closed path → composite path
-|Same.
-|Faithful
-
-|Menu, Xtras menu and Xtra Operations toolbar entry points
-|Modify > Alter Path and the Path Operations toolbar.
-|Adapted -- no Xtras menu for built-in operations.
-
-|Expand stroke as a live effect
-|Same, on xref:path-effects.adoc[Path effects].
-|Faithful
-|===
-
 === Data model
 
 No fields.  The result is a new path node created with the outline geometry in pasteboard

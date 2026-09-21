@@ -21,7 +21,7 @@ different executors.
 |UI
 |AppKit for the document window, canvas, tools and menus; SwiftUI hosted in `NSHostingView` for
 panel contents and dialogs
-|{fh}'s interaction model -- precise mouse tracking, modifier keys mid-drag, docked tabbed panel
+|The interaction model -- precise mouse tracking, modifier keys mid-drag, docked tabbed panel
 groups, floating toolbars -- is an AppKit interaction model.  SwiftUI is faster to build the many
 form-like panels in.
 
@@ -67,7 +67,7 @@ engine feeds both renderers, so glyph positions cannot differ between screen and
 
 |Scripting
 |AppleScript (`NSScriptCommand` + sdef) and App Intents (Shortcuts)
-|{fh} was AppleScriptable on the Mac; App Intents is the modern route
+|AppleScript is the established Mac automation route; App Intents is the modern one
 (xref:scripting.adoc[Scripting]).
 
 |Distribution
@@ -91,6 +91,7 @@ Same stack as `dissipate-server`, so the two can share runbooks, CI pools and pe
 |Identity |Keycloak 26 (OIDC); `quarkus-oidc` validates bearer tokens on every call
 |Jobs |`quarkus-scheduler` for snapshotting, compaction, retention and trash expiry
 |Observability |OpenTelemetry traces (Jaeger locally), Micrometer + Prometheus metrics, JSON logs with trace ids
+|Outbound HTTP |`quarkus-rest-client` for server-side data-merge fetches, behind the SSRF guard and allowlists (xref:data-merge.adoc[]); a master key (`WT_DATA_MASTER_KEY` or a KMS key) envelope-encrypts stored credentials
 |Mail |`quarkus-mailer` + Qute templates (share invitations); Mailpit locally
 |Local dev |`docker compose`: postgres, valkey, keycloak, minio (+ init), jaeger, mailpit, api, migrations
 |===

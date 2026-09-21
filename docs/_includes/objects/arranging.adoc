@@ -155,41 +155,6 @@ Hiding is private, so nothing you hide changes for anyone else.
 ifdef::spec[]
 == Specification
 
-=== FreeHand parity
-
-[cols="2,3,2"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Bring to Front / Move Forward / Move Backward / Send to Back
-|Same; "Move" renamed "Bring/Send" to match macOS menu convention.
-|Faithful
-
-|Arrange applies only within a layer
-|Same.
-|Faithful
-
-|Align panel: preview clicks, pop-up menus, Align to Page, Apply
-|Same, with the full option set.
-|Faithful
-
-|Locked objects stay put during alignment
-|Same.
-|Faithful
-
-|Lock / Unlock, toolbar buttons
-|Same.
-|Faithful
-
-|Edit Locked Objects preference
-|Same.
-|Faithful
-
-|Hide Selection / Show All; hidden objects reappear on reopen; hidden objects print
-|Same; hidden state is per user and never syncs.
-|Faithful
-|===
-
 === Data model
 
 No new document fields.  Stacking order is the node's `position` (written by `MoveNode`

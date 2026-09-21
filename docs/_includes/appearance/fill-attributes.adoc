@@ -13,9 +13,8 @@ as closed.  Where a path crosses itself or has several contours, the path's *fil
 (even-odd or non-zero winding, set in xref:editing-paths.adoc[Editing paths]) decides which
 regions are inside, and every fill in the object's list obeys the same rule.
 
-NOTE: {fh} users: {fh}'s eighth fill type, *PostScript*, is not offered, for the reason given
-on the xref:stroke-attributes.adoc[Strokes] page.  Custom and Textured fills, print-only in
-{fh}, are drawn on screen here.
+NOTE: There is no *PostScript* fill type, for the reason given on the
+xref:stroke-attributes.adoc[Strokes] page.  Custom and Textured fills are drawn on screen.
 
 == Basic fills
 
@@ -205,62 +204,6 @@ Snapshot freezes the picture you captured, on every screen.
 ifdef::spec[]
 == Specification
 
-=== FreeHand parity
-
-[cols="2,3,1a"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Eight fill types
-|Seven; PostScript is not offered.  On import a PostScript fill becomes a Basic fill of the
-displayed color with the code kept in the object's note.
-|Dropped -- no PostScript interpreter; see Strokes.
-
-|Fill of an open path bounded by the closing line
-|Same.
-|Faithful
-
-|Basic fill with color and Overprint
-|Same.
-|Faithful
-
-|Ten Custom fills with per-pattern options, print-only, fixed size
-|Same ten with the same options, rendered on screen and in every export, fixed page size.
-|Adapted -- native procedural rendering replaces PostScript.
-
-|Six lenses with amount/magnification, color
-|Same.
-|Faithful
-
-|Centerpoint, Objects only, Snapshot; reset on lens change
-|Same.  Snapshot stores a vector copy of the captured objects inside the fill.
-|Faithful
-
-|Lens not allowed on EPS, clipping paths, live text
-|Same restrictions.
-|Faithful
-
-|64 Pattern fills with editor, print at device resolution
-|Same editor; pixel fixed at 0.25 pt.
-|Adapted -- device-independent size.
-
-|Textured fills, print-only, fixed size
-|Same textures, rendered on screen as procedural textures at fixed page size.
-|Adapted -- native rendering replaces PostScript.
-
-|Tiled fills with Paste In / Copy Out, angle, scale, offset
-|Same; the tile is an embedded copy stored with the fill.
-|Faithful
-
-|Transform panel *Fills* option moving tiles with the object
-|Same.
-|Faithful
-
-|PostScript fill code
-|Not offered.
-|Dropped -- see above.
-|===
-
 === Data model
 
 [source,protobuf]
@@ -325,7 +268,7 @@ enum Texture { TEXTURE_UNSPECIFIED = 0; BURLAP = 1; DENIM = 2; GRAVEL = 3; MARBL
   MESH = 5; OAK = 6; SAND = 7; STUCCO = 8; }
 
 message TiledFill {
-  // The tile artwork, embedded.  Not a node reference: FreeHand's tile is a private copy that
+  // The tile artwork, embedded.  Not a node reference: the tile is a private copy that
   // is edited by Copy Out / Paste In, and a symbol would clutter the Library and let an edit
   // elsewhere silently change fills.  One picture, so ATOMIC.
   Subtree tile = 1 [(wt.crdt.field).merge = MERGE_ATOMIC];
@@ -416,7 +359,7 @@ Rendering (`WTRender`)::
   tile's bounds × scale, rotated by `angle`, phased by `offset`, in object-local space so the
   fill follows the object's transform when *Fills* is on.
 
-Hit testing:: Lens and Custom transparent fills hit anywhere inside the path, as {fh} does.
+Hit testing:: Lens and Custom transparent fills hit anywhere inside the path.
 
 Object panel editors:: SwiftUI forms per `FillKind`; the custom-fill form shows only the
 options the chosen pattern uses (table above); lens form with sliders and the three checkboxes;
@@ -463,7 +406,7 @@ Depends on:: REND-002, ATTR-016
 Size:: L
 Delivers:: Procedural generators for the ten custom fills with all options, seeded grass and leaves, stable noise, and the eight textures, at fixed page size, clipped to the path.
 Done when::
-* Reference renders for each pattern and texture at two zoom levels match {fh} print samples within tolerance and are identical on two machines.
+* Reference renders for each pattern and texture at two zoom levels match the golden corpus within tolerance and are identical on two machines.
 * Opaque patterns fully cover; transparent ones paint only their marks.
 
 [[ATTR-019]]

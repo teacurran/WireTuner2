@@ -12,7 +12,7 @@ selected is visible to collaborators only as a colored outline with your name.
 |Tool |Key |Selects
 
 |Pointer
-|kbd:[V] (kbd:[0] when the tool shortcut set is {fh}'s)
+|kbd:[V]
 |Whole objects.  Click an object, or drag a rectangular marquee.  Clicking a member of a
 group selects the group.
 
@@ -205,59 +205,14 @@ minus anything that was deleted in the meantime.
 ifdef::spec[]
 == Specification
 
-=== FreeHand parity
-
-[cols="2,3,2"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|Pointer, Subselect, Lasso tools
-|Same tools and modifiers.
-|Faithful
-
-|Contact Sensitive tool option
-|Same; renamed *Contact-sensitive selection*.
-|Faithful
-
-|Pick Distance preference (1--5 px)
-|Same.
-|Faithful
-
-|Select All / All in Document / None / Invert Selection / Superselect
-|Same commands and shortcuts.
-|Faithful
-
-|Subselect all via double-clicking Contents
-|Same, plus a menu command menu:Edit[Select > Subselect All].
-|Faithful
-
-|Control+Option-click to cycle through stacked objects
-|Same, and works outside containers too.
-|Faithful
-
-|Windows Control+Alt-right-click
-|Not applicable.
-|Dropped -- Windows only.
-
-|Hidden objects reappear on reopen
-|Hidden state is per user and per session (below).
-|Faithful
-
-|(none)
-|menu:Edit[Select > Similar > Fill / Stroke / Fill and Stroke / Shape]; *Shape* through an
-optional on-device classifier.
-|Added -- a menu shortcut over the Select tab's *Same as selection*, plus shape class
-(xref:decisions.adoc[Decisions]: on-device ML only, no generative features in v1).
-|===
-
 === Data model
 
 Selection is ephemeral and lives in `WTModel.Selection` (APP-006) and in presence frames
 (xref:sync-protocol.adoc[Sync protocol]); no document field is added by this page.
 
 Hidden objects are *view state*: a `hidden` set of node ids kept in the local store's
-`view` table (`local_only`), never sent.  This matches {fh}, where hidden objects reappear on
-reopen, and avoids the surprise of one person hiding an object for the whole team.
+`view` table (`local_only`), never sent.  Hidden objects reappear on reopen, which avoids
+the surprise of one person hiding an object for the whole team.
 
 [source,protobuf]
 ----

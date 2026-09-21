@@ -38,6 +38,7 @@ server/
 |`VersionService` |`VersionGrpcService` |Named versions, restore-as-copy.
 |`BlobService` |`BlobGrpcService` |Content-addressed storage in R2/MinIO.
 |`AccountService`, `TeamService` |`AccountGrpcService`, `TeamGrpcService` |xref:security.adoc[Accounts, teams and security].
+|`DataSourceService` |`DataSourceGrpcService` |Credentials, host allowlists, the server-side fetch proxy with SSRF guard, pagination and audit (xref:data-merge.adoc[Data merge]).
 |`grpc.health.v1.Health` |built-in |Liveness for compose and the load balancer.
 |===
 
@@ -104,6 +105,8 @@ transaction holds it for one insert.
 |Trash |daily |Delete documents trashed over 30 days ago and their orphaned blobs.
 |Invitations |daily |Expire stale invitations and share links.
 |Domains |hourly |Re-verify workspace DNS records.
+|Credential key rotation |on demand |Re-wrap `data_credential` rows under a new master key (DATA-005).
+|Fetch audit retention |daily |Drop `data_fetch_audit` rows older than 90 days.
 |===
 
 Jobs use `quarkus-scheduler` with a Postgres advisory lock per job so only one node runs each.

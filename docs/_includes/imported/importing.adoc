@@ -11,7 +11,7 @@ xref:bitmaps.adoc[Working with bitmap images] covers what you can do with an ima
 
 {product} treats an imported file in one of three ways, chosen by its format:
 
-Vector files (PDF, Illustrator, SVG, DXF, {fh}) ::
+Vector files (PDF, Illustrator, SVG, DXF) ::
   The file's drawing is converted into native paths, text blocks and groups, wrapped in one
   group named after the file, and placed on the current layer.  Nothing remains of the original
   file format: the objects are as editable as if you had drawn them.  Details that {product}
@@ -29,9 +29,8 @@ Placed files (EPS, SVG animations) ::
 
 Text files (RTF, plain text) become text blocks; see xref:importing-text.adoc[Importing text].
 
-NOTE: {fh} *linked* bitmap and EPS files to the document by default, reading them from disk each
-time.  Because a {product} document lives in the cloud and is opened by other people on other
-Macs, every imported file is stored *in* the document.  The Links panel still remembers where a
+NOTE: Because a {product} document lives in the cloud and is opened by other people on other
+Macs, every imported file is stored *in* the document.  The Links panel remembers where a
 file came from so you can update the artwork when the original changes; see
 xref:linking-embedding.adoc[Linking and embedding].
 
@@ -43,7 +42,7 @@ To import a file into the open document:
 . Select one or more files in the sheet.  A preview of the selected file appears in the sheet
   beside the file list, with its format, pixel size and color mode where the format provides
   them.
-. If the format has import options (PDF, Illustrator, DXF, SVG, {fh}), click btn:[Options…] to
+. If the format has import options (PDF, Illustrator, DXF, SVG), click btn:[Options…] to
   set them.  Options are remembered per format until you change them.
 . Click btn:[Import].  The sheet closes and the pointer becomes the *import pointer*, a corner
   bracket showing where the artwork's top-left corner will land.
@@ -99,9 +98,8 @@ between them.
 Dragging a file onto the {product} icon in the Dock, or double-clicking a file {product} owns,
 opens it as a new document instead (xref:creating-opening.adoc[Creating and opening documents]).
 
-NOTE: {fh} shipped a separate *FreeHand MX File Viewer* application for browsing and dragging
-{fh} files into a document.  {product} relies on the Finder: {product} documents and {fh} files
-show previews in Quick Look, and any file can be dragged in from a Finder window.
+{product} documents show previews in Quick Look, and any file can be dragged in from a Finder
+window.
 
 == Pasting
 
@@ -183,75 +181,6 @@ automatically once you are back online.
 
 ifdef::spec[]
 == Specification
-
-=== FreeHand parity
-
-[cols="2,3,2"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|menu:File[Import…] with format-specific *Setup* dialog
-|menu:File[Import…] (kbd:[Cmd+R]) sheet with preview accessory and btn:[Options…] per format.
-|Faithful
-
-|Import pointer: click to place at default size, drag a marquee to size
-|Same; kbd:[Shift] fills the marquee's width, kbd:[Option] draws from the center, kbd:[Esc]
-cancels.  Marquee placement keeps proportions.
-|Faithful
-
-|Import several files
-|Multi-selection in the sheet; sequential placement with a counter, kbd:[Return] places the
-rest stacked.
-|Adapted -- {fh} placed multiple files without a counter or a place-all gesture; the counter
-and kbd:[Return] are additions.
-
-|Drag and drop from the Finder
-|Same; each file placed at natural size at the drop point.
-|Faithful
-
-|Paste imports clipboard images and vector data
-|Same; PDF and image pasteboard types, {product}'s own type preferred.
-|Faithful
-
-|Bitmaps linked by default, embedded when pasted; *Embed* preference
-|Every imported file is stored in the document as a content-addressed blob.  Source path kept
-for *Update from source* in the Links panel.
-|Adapted -- a linked path on one Mac is meaningless to collaborators and to the cloud copy.
-Recorded as a decision; the Links panel is specified in xref:linking-embedding.adoc[Linking and
-embedding].
-
-|Modified source file updates all references on next open
-|The Links panel offers *Update from source* and can watch a source file while the document is
-open (xref:linking-embedding.adoc[Linking and embedding]).
-|Adapted -- explicit rather than automatic, because automatic replacement would push a new blob
-to everyone without anyone asking.
-
-|Imported vector graphics converted to {fh} objects in the document
-|Same: native nodes under one group.
-|Faithful
-
-|Illustrator live blends imported as groups; gradient meshes as 50% black
-|Same treatment in the AI/PDF converter (xref:import-formats.adoc[Import file formats]).
-|Faithful
-
-|Imports go onto the current layer
-|Same, with the fallback to the nearest editable layer when the current one is locked or
-hidden.
-|Adapted -- {fh} refused; the fallback avoids a dead end.
-
-|HPGL/CGM/DXF cannot be saved back to their format
-|True of every format: {product} saves only {product} documents and exports the formats on
-xref:export-formats.adoc[Export file formats].
-|Faithful
-
-|{fh} MX File Viewer (Macintosh)
-|Not provided.  Finder + Quick Look previews and drag-and-drop cover it.
-|Dropped -- a separate browser application has no role on modern macOS.
-
-|--
-|*Add to {product} Document* in other apps' Share menus (Share extension) and Services menus.
-|Added -- the macOS sharing model; lands in the same place command as paste.
-|===
 
 === Data model
 

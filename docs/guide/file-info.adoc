@@ -2,6 +2,5 @@
 include::_attributes.adoc[]
 :page-slug: file-info
 :page-group: Saving and exporting
-:page-fh: Chapter 12, "Adding IPTC file information", "Using Extensis Portfolio (Macintosh)"
 
 include::_includes/io/file-info.adoc[]

@@ -161,53 +161,6 @@ To make a new grid by dragging:
 ifdef::spec[]
 == Specification
 
-=== FreeHand parity
-
-[cols="2,3,1"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|menu:View[Perspective Grid > Show / Define Grids / Remove Perspective / Release with
-Perspective]
-|Same.
-|Faithful
-
-|Perspective tool: drag + arrow key to attach by plane; drag to move; Shift constrain;
-Option+Shift move grid and clone
-|Same.
-|Faithful
-
-|Spacebar flip; keys 1--6 shrink/enlarge
-|Same.
-|Faithful
-
-|Pointer tool or arrow keys detach the object keeping its appearance
-|Same.
-|Faithful
-
-|Text on the grid edited via the Text Editor with Cmd+Option double-click
-|Same.
-|Faithful
-
-|Define Grids: New, Duplicate, rename, Delete, vanishing points 1--3, cell size, three plane
-colors
-|Same.  Grids are per document; each page selects one.
-|Faithful
-
-|Gridline dragging; double-click vanishing point / horizon to hide a plane; Option-drag to
-create a grid
-|Same.
-|Faithful
-
-|Grid definitions stored in the document
-|Same, and shared live.
-|Faithful
-
-|Snap to Grid snaps Pointer moves to the perspective grid without perspective
-|Same.
-|Faithful
-|===
-
 === Data model
 
 Grid definitions are a sequence on the document's settings node; each page names the grid it

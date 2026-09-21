@@ -2,6 +2,5 @@
 include::_attributes.adoc[]
 :page-slug: undo
 :page-group: Objects
-:page-fh: Chapter 4, "Undoing actions"
 
 include::_includes/objects/undo.adoc[]

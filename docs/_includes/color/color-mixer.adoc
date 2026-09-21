@@ -147,62 +147,6 @@ the document holds one value for both of you, and the color prints and exports i
 ifdef::spec[]
 == Specification
 
-=== FreeHand parity
-
-[cols="2,3,1"]
-|===
-|{fh} capability |{product} behavior |Verdict
-
-|CMYK, RGB, HLS and System modes
-|Same, plus Grayscale, P3 and OKLCH modes.  System stores Display P3 when the panel returns
-it.
-|Faithful
-
-|Grayscale mode
-|A single K slider producing CMYK 0/0/0/k.
-|Adapted: addition; grays are the most common quick mix.
-
-|Hex entry
-|Color field in RGB, P3 and OKLCH modes: hex (sRGB), `p3(…)` / `color(display-p3 …)`,
-`oklch(…)`, `lab(…)`, as CSS Color 4 writes them.
-|Adapted: addition; every screen designer types hex, and CSS now types P3 and OKLCH.
-
-|--
-|*P3* mode (Display P3 sliders), *OKLCH* mode (perceptual sliders storing OKLab), the gamut
-indicator with the per-display clipping warning, the *Default color space for new colors*
-preference.
-|Added: every Mac since 2016 has a P3 display; OKLCH is the perceptually even picker HLS was
-meant to be.
-
-|Web Safe snap
-|btn:[Web Safe] in RGB mode.
-|Adapted: addition, paired with the Color Cubes palette.
-
-|Split color box, with a preference for a single box
-|Same; preference *Color Mixer and Tints use a split color well*, default on.
-|Faithful
-
-|Add to Swatches with naming sheet; Cmd-click to bypass
-|Same.
-|Faithful
-
-|Drag from the color box to add or apply
-|Same.
-|Faithful
-
-|Option-click a swatch to show its components
-|Same.
-|Faithful
-
-|Change attribute color (apply to selection) button
-|btn:[Apply], honouring the Fill / Stroke / Both selector.
-|Faithful
-
-|Windows Control+U to open preferences
-|kbd:[Cmd+,] (macOS standard).
-|Adapted: platform convention.
-|===
-
 === Data model
 
 None.  The Mixer's state -- mode, current and original colors -- is view state on this Mac
@@ -229,7 +173,7 @@ Nothing beyond storing and relaying changes.
 === Client
 
 * `WTApp`: SwiftUI panel body.  Sliders are custom (gradient-backed tracks showing the
-  component's range at the current mix, as {fh} does; the P3 and OKLCH tracks are drawn in a
+  component's range at the current mix; the P3 and OKLCH tracks are drawn in a
   Display P3 context and hatch the out-of-P3 run, found by sampling the track at 64 points
   through COLOR-002's in-gamut test).  The HLS wheel is a custom view with a lightness
   slider.  *System* opens `NSColorPanel` in continuous mode and observes `changeColor(_:)`;
