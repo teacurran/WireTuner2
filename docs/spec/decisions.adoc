@@ -295,7 +295,7 @@ separate agent process (xref:saving.adoc[]).
 `SyncService.Session` (bidi) became server-streaming `Subscribe` plus unary `PushChange`,
 `UpdatePresence` and `Ack`, with `PushChangeBatch` as the unary fallback for `PushChanges`.
 gRPC-Web and Connect cannot do bidi from a browser and HTTP/1.1 balancers mishandle duplex
-streams; causality is unchanged because the ack is the response.  Quarkus 3.36 serves HTTP/2
+streams; causality is unchanged because the ack is the response.  Quarkus 3.39 serves HTTP/2
 gRPC only, so a browser client means an Envoy or Vanguard gateway, not a schema change
 (xref:sync-protocol.adoc[], xref:api-conventions.adoc[], xref:modernizations.adoc#M-01[M-01]).
 

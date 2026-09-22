@@ -128,7 +128,7 @@ a name is at most 256 characters, a change carries at most 10,000 ops.
   the native one.  `BlobService.Upload` has none: a browser viewer only downloads.
 * Transport.  The Mac client speaks gRPC over HTTP/2 straight to the API.  For browsers and
   HTTP/1.1 the server does *not* speak Connect or gRPC-Web itself: as far as we can verify for
-  Quarkus 3.36, `quarkus-grpc` serves HTTP/2 only (both with its own Netty server and when
+  Quarkus 3.39, `quarkus-grpc` serves HTTP/2 only (both with its own Netty server and when
   sharing the Vert.x HTTP server), it has no gRPC-Web, Connect or JSON-transcoding switch, and
   the upstream requests for gRPC-Web were closed as won't-fix; the Vert.x gRPC libraries
   underneath do ship gRPC-Web and transcoding modules, but Quarkus does not wire them in.
