@@ -371,11 +371,11 @@ To add a credential:
 . Click btn:[Save].  The secret leaves the sheet and is not displayed again; btn:[Replace] and
   btn:[Remove] are the only later operations.
 
-In a team document, anyone with the editor role can fetch with the team's credentials, and team
-admins can see who did (the fetch log in the team settings); anyone who can edit the document
-can replace or remove a credential they created, and admins can replace or remove any.  In a
-personal document the credentials are yours; people you have shared the document with as editors
-can fetch with them while the share lasts, and you can remove the credential at any time.
+In a team document, only team admins add, replace or remove credentials; anyone with the editor
+role can fetch with them, and admins can see who did (the fetch log in the team settings).  In a
+personal document the credentials are the owner's; editors you have shared the document with are
+full editors and fetch with them like you do while the share lasts, and the owner can remove a
+credential at any time.
 
 === Hosts and permissions [[hosts]]
 
@@ -1005,9 +1005,9 @@ Consequences::
 Secret store (DATA-005):: `data_credential` rows hold an envelope-encrypted secret: a random
 per-row data key encrypts the secret material (AES-256-GCM), and the data key is wrapped by the
 service master key (`WT_DATA_MASTER_KEY` from the environment or a KMS-backed key in
-production; `key_id` records which, so keys can rotate).  `PutCredential` requires the editor
-role on some document in the scope (team) or the account itself (personal); `DeleteCredential`
-the creator or a team admin.  The secret is decrypted only inside the fetch path, in memory, for
+production; `key_id` records which, so keys can rotate).  `PutCredential` requires the team
+`admin` role in the team scope, or the account itself in the personal scope; `DeleteCredential`
+the same (xref:decisions.adoc#D-062[D-062]).  The secret is decrypted only inside the fetch path, in memory, for
 the duration of one request; it is never logged, never returned, and `ListCredentials` returns
 metadata only.
 
@@ -1235,7 +1235,7 @@ Size:: M
 Delivers:: The `data_credential` table and migration; envelope encryption (AES-256-GCM data keys wrapped by `WT_DATA_MASTER_KEY` or a KMS key, `key_id` for rotation); `PutCredential`, `DeleteCredential`, `ListCredentials` with the role rules; the in-request decrypt helper; redaction of secret fields in every log and error path; a master-key rotation job that rewraps data keys.
 Done when::
 * Round-trip tests per credential kind; `ListCredentials` never contains secret material (assertion over the serialized response); a database dump contains no plaintext secret (grep test).
-* An editor of a team document can put a credential in the team scope; a viewer cannot; a member of another team cannot list it.
+* A team admin can put a credential in the team scope; an editor who is not an admin cannot, though they can fetch with it; a member of another team cannot list it.
 * Key rotation rewraps every row and fetches still succeed.
 
 [[DATA-006]]

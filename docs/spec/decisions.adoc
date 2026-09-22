@@ -440,6 +440,25 @@ Sources and scripts reference a credential by name only; the secret is written o
 allowlisted per team by admins or per account by a first-use consent prompt; scripts run only on
 explicit user action, never on open or by timer (xref:data-merge.adoc[], xref:scripting.adoc[]).
 
+[[D-062]]
+=== D-062 Team credentials are written by admins only
+Only team admins add, replace or remove a team's data-source credentials; editors use them.
+Personal documents' credentials belong to the owner (xref:data-merge.adoc[]).
+
+[[D-063]]
+=== D-063 One owner per document; editors are full editors
+A document has exactly one owner, the superuser for that document (sharing, roles, transfer,
+space moves, credentials, deletion).  Everyone else with the editor role has every editing
+privilege -- including fetching with the document's configured credentials and running scripts
+-- and none of the administrative ones.  Team admins hold the owner powers on team documents
+(xref:security.adoc[], xref:sharing.adoc[]).
+
+[[D-064]]
+=== D-064 Sign in with Apple through Keycloak's generic OIDC provider
+Configured as a generic OIDC identity provider with a JWT client secret rotated by the *Apple
+secret* job, rather than a community Apple extension: nothing to fork or track, and the
+rotation job already exists (xref:security.adoc[], xref:server.adoc[]).
+
 == Open questions
 
 [[Q-001]]
@@ -515,9 +534,8 @@ The sync page sketches `Welcome.merge_table` (bytes); the CRDT model calls it `W
 PROTO-006 picks one.
 
 [[Q-016]]
-=== Q-016 Sign in with Apple provider in Keycloak
-Generic OIDC identity provider with a rotated client secret (the *Apple secret* job) versus the
-community Apple extension; SEC-004 decides and records it.
+=== Q-016 Resolved
+See xref:decisions.adoc#D-064[D-064].
 
 [[Q-017]]
 === Q-017 Home of the color module
@@ -541,14 +559,12 @@ a `wt.crdt` `mark_key` option would let `protoc-gen-wtcrdt` emit it generically 
 CRDT-006 special case.
 
 [[Q-021]]
-=== Q-021 Who may write a team credential
-Any editor of a team document can `PutCredential` in the team scope today; admin-only, with
-editors merely using them, may be safer (xref:data-merge.adoc[]).
+=== Q-021 Resolved
+See xref:decisions.adoc#D-062[D-062].
 
 [[Q-022]]
-=== Q-022 Credentials on shared personal documents
-Editors of a shared personal document fetch with the owner's credentials for the life of the
-share; confirm, or require the collaborator's own credential.
+=== Q-022 Resolved
+See xref:decisions.adoc#D-063[D-063].
 
 [[Q-023]]
 === Q-023 Allowlist granularity

@@ -20,8 +20,9 @@ generic OIDC identity provider with `response_mode = form_post`, the `name` and 
 scopes, and a client secret that is a JWT signed with the developer team's `.p8` key and
 valid for at most six months -- the *Apple secret* job (xref:server.adoc[Server]) rotates
 it every 30 days through the admin API.  Apple sends the user's name only on the first
-authorization; the first-broker-login flow stores it then.  (Whether to use the community
-Apple provider extension instead of the generic OIDC provider is an open question for SEC-004.)
+authorization; the first-broker-login flow stores it then.  The generic OIDC provider is the
+decision (xref:decisions.adoc#D-064[D-064]): no community extension to track, and the secret
+rotation is a job we already run.
 Email and password::
 The fallback, with Keycloak's email verification and brute-force protection.
 Workspace SSO::
@@ -119,7 +120,12 @@ enum TeamRole { TEAM_ROLE_UNSPECIFIED = 0; TEAM_ROLE_OWNER = 1; TEAM_ROLE_ADMIN 
 
 == Document roles
 
-Per document, independent of team role: `owner`, `editor`, `commenter` (may write only under the
+Per document, independent of team role: `owner`, `editor`, `commenter`, `viewer`.  A document
+has exactly one owner, who can do everything on it (share, change roles, transfer, move between
+spaces, manage its credentials, delete); an editor has every editing privilege, including
+fetching with the document's credentials and every command a script can run, but none of the
+owner's administrative ones.  In a team document the team's admins hold the owner's
+administrative powers.  `commenter` (may write only under the
 `comments (0:12)` collection: start threads, reply, mention, react, edit and delete own comments,
 resolve own threads -- xref:comments.adoc[Comments]), `viewer`.  A change from a `commenter`
 session is accepted only if every op targets a node under `0:12` and obeys the per-comment
