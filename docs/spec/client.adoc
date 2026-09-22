@@ -185,6 +185,20 @@ screen and Core Graphics for everything that must be exactly right (xref:decisio
   to the stroked outline, points and handles by view-space distance, with the pointer mapped
   through the inverse view transform (rotation included).
 
+NOTE: Deviation recorded by REND-001.  The bitmap and PDF renders of the corpus are
+pixel-identical for opaque content (0 tolerance on every interior pixel; anti-aliased edge
+pixels within 16/255).  Inside a group composited with opacity below 1, Core Graphics blends
+the PDF's transparency group in a different working space than a live transparency layer
+does, and single channels of interior pixels shift by up to 4/255 (observed: green 140 vs 144
+for 50% red over white); neither the group's colour space nor the rasterizer's is exposed, so
+the gate holds translucent-group interiors to 4/255 and everything else to 0.  Until the image
+pipeline and `WTText` land, the display list carries an image placeholder (drawn as a neutral
+grey block with a cross) and a text-run placeholder (the run's bounds tinted at 15% plus its
+baseline); strokes carry width, cap, join, miter limit and dash and are stroked by Core
+Graphics until GEO-003 supplies pre-expanded outlines.  Tile keys quantize the rasterization
+scale (zoom × backing scale) on a ladder of 64 steps per octave (`ZoomStep`), so the preset
+magnifications sit on the ladder and any settled zoom is within 0.55% of its step.
+
 == Undo
 
 `Command` execution returns a `Change` and its inverse.  The `UndoManager` is per document and
