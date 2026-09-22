@@ -1,0 +1,36 @@
+// proto/wiretuner/doc/v1/text.proto
+//
+// Rich text: the Fugue character sequence and Peritext marks (docs/_includes/type/
+// creating-text.adoc).  PROTO-003 creates only what ops.proto's TextMark needs, `Anchor` and
+// `TextMarkValue`; TYPE-001 adds `TextProps`, `RichText`, `TextChar`, `TextMark`, the mark
+// vocabulary and the paragraph messages here, in this file, because the FILE breaking rules
+// pin a message to the file it first appeared in.
+syntax = "proto3";
+
+package wiretuner.doc.v1;
+
+import "wiretuner/doc/v1/common.proto";
+
+option java_multiple_files = true;
+option java_package = "com.villagecompute.wiretuner.doc.v1";
+option optimize_for = SPEED;
+
+// A Peritext anchor: a position immediately before or after one character.  Marks are bounded
+// by anchors so a span grows as text is typed inside it and follows its characters when others
+// edit nearby.
+message Anchor {
+  // The character.  An all-zero id means the start of the text (with `before`) or its end
+  // (with `after`).
+  ElementId char = 1;
+  // True: the position just before `char`; false: just after it.
+  bool before = 2;
+}
+
+// The value of one formatting mark: exactly one attribute (font, size, color, style
+// reference, link, ...).  A bold red word carries two marks.  A mark's value is written whole
+// and is one register (marks are never edited in place; a new mark supersedes by OpId), so the
+// `oneof value` TYPE-001 adds here is correct and MERGE_VARIANT is not needed.  Numbers already
+// claimed by feature pages: 1-21 type/creating-text.adoc, 40 `link` (web/urls.adoc), 41
+// `field` (automation/data-merge.adoc), `mention` (collaboration/comments.adoc, next free).
+// Filled in by TYPE-001.
+message TextMarkValue {}

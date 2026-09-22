@@ -459,6 +459,24 @@ Configured as a generic OIDC identity provider with a JWT client secret rotated 
 secret* job, rather than a community Apple extension: nothing to fork or track, and the
 rotation job already exists (xref:security.adoc[], xref:server.adoc[]).
 
+[[D-065]]
+=== D-065 Field numbers are allocated in blocks per epic; CommonProps is numbered
+PROTO-003 fixed the `NodeProps.kind` blocks (DOC 1--19, DRAW 20--49, OBJ 50--69, COLOR 70--79,
+ATTR 80--99, FX 100--129, TYPE 130--149, LIB 150--169, IMG 170--189, WEB 190--209, COLLAB
+210--219, FONT 220--239, DATA 240--259; recorded at the top of `doc/v1/node.proto`) and the
+`CommonProps` numbering (1--7 as first sketched, `navigation` 8, `alt` 9, `decorative` 10,
+`halftone` 11, `data_binding` 12, `text_wrap` 13, `origin_layer` 14; 15--19 held, features
+continue from 20; recorded at the top of `doc/v1/common.proto` and on
+xref:crdt-model.adoc[CRDT model]).  Two page sketches had claimed number 8 (`halftone`,
+`origin_layer`) already taken by `navigation`; they moved.  Because `buf breaking` runs the
+`FILE` category, a message stays in the file it first appeared in: the kind messages PROTO-003
+had to name (`DocumentProps`, `SettingsProps`, `PageProps`, `MasterPageProps`, `LayerProps`,
+`GroupProps`, `Anchor`, `TextMarkValue`) were created as stubs in their eventual files
+(`document.proto`, `layer.proto`, `group.proto`, `text.proto`), and `Color`, `ColorRef`,
+`NavigationProps`, `Halftone`, `TextWrap` and `DataBinding` live in `common.proto` for good.
+Per-kind and per-settings numbers inside those messages are allocated by the task that fills
+each message in, in a comment at its top, the same way.
+
 == Open questions
 
 [[Q-001]]
@@ -500,10 +518,9 @@ a bit-exact CMM (Little CMS) vs. ColorSync is open (xref:color-profiles.adoc[],
 xref:color-tables.adoc[]).
 
 [[Q-009]]
-=== Q-009 Field numbers across epics
-Chapter authors sketched field numbers on shared messages (`CommonProps`, `SettingsProps`,
-`PageProps`, `LayerProps`, `TextMarkValue`, `Preferences`).  PROTO-003 assigns the blocks and
-each `.proto` task reconciles its page's sketch against them.
+=== Q-009 Resolved
+See xref:decisions.adoc#D-065[D-065].  Each `.proto` task still reconciles its page's sketch
+against the recorded numbers when it fills its message in.
 
 [[Q-010]]
 === Q-010 Feature-specific overlap kinds in the review

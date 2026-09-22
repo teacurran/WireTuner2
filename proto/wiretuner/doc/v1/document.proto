@@ -1,0 +1,50 @@
+// proto/wiretuner/doc/v1/document.proto
+//
+// The document-level node kinds: the root, the settings node, pages and master pages
+// (docs/_includes/document/document-panel.adoc and the other DOC pages).  PROTO-003 creates
+// the kind messages empty so NodeProps can name them; DOC-001 fills them in here, in this
+// file, because the FILE breaking rules pin a message to the file it first appeared in.
+syntax = "proto3";
+
+package wiretuner.doc.v1;
+
+import "wiretuner/doc/v1/common.proto";
+
+option java_multiple_files = true;
+option java_package = "com.villagecompute.wiretuner.doc.v1";
+option optimize_for = SPEED;
+
+// NodeProps.kind case `document`: the root node 0:0.  It carries nothing yet; the document's
+// user-visible settings live on the settings node so the root stays a pure container.
+// Filled in by DOC-001 (document.proto).
+message DocumentProps {
+  // Name, note and the other shared registers.  The root's name is not the document's title
+  // (that is `document.name` on the server); the DOC epic decides whether it is used at all.
+  CommonProps common = 1;
+}
+
+// NodeProps.kind case `settings`: the well-known settings node 0:1.  Units, default
+// attributes, print and export settings, document info and every other document-wide choice.
+// STRUCT: each field is an independent register.  Every epic that owns settings fields adds
+// them here; the DOC epic (DOC-001) allocates their number blocks in a comment at the top of
+// this message when it fills it in.  Filled in by DOC-001.
+message SettingsProps {
+  // Shared registers.  Unused by the panel; present so every kind has `common = 1`.
+  CommonProps common = 1;
+}
+
+// NodeProps.kind case `page`: a child of the well-known pages node 0:2, whose sibling position
+// is the page order.  Origin and geometry on the pasteboard, bleed, master, ruler origin,
+// guides (document-panel.adoc) and reading order (names-notes.adoc).  Filled in by DOC-001.
+message PageProps {
+  // Name (the page's label in the Document panel) and the other shared registers.
+  CommonProps common = 1;
+}
+
+// NodeProps.kind case `master_page`: a child of the well-known masters node 0:3.  A separate
+// canvas: its objects live under layers with `CommonProps.canvas` naming this node.  Geometry,
+// bleed and guides (document-panel.adoc, master-pages.adoc).  Filled in by DOC-001.
+message MasterPageProps {
+  // Name (the master's label) and the other shared registers.
+  CommonProps common = 1;
+}

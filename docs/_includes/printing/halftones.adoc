@@ -88,7 +88,7 @@ message CommonProps {
   // ...
   // Object-level halftone screen; unset = document default.  ATOMIC because shape, angle
   // and frequency describe one screen (see doc/v1/print.proto).
-  Halftone halftone = 8 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  Halftone halftone = 11 [(wt.crdt.field).merge = MERGE_ATOMIC];
 }
 ----
 

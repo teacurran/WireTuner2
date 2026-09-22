@@ -23,8 +23,13 @@ lint:
     # sketch verbatim (docs/spec/crdt-model.adoc, "Merge policies").
     PACKAGE_VERSION_SUFFIX:
       - proto/wt/crdt/options.proto
+    # wiretuner.doc.v1.WellKnown's zero value is the document root 0:0, a real node, not
+    # "unspecified" (docs/spec/crdt-model.adoc, "The node tree"); ColorSpace's zero value is
+    # sRGB so a Color written before the tag existed reads as it did (color/swatches.adoc).
     ENUM_ZERO_VALUE_SUFFIX:
       - proto/wt/crdt/options.proto
+      - proto/wiretuner/doc/v1/common.proto
+      - proto/wiretuner/doc/v1/node.proto
 breaking:
   use:
     - FILE

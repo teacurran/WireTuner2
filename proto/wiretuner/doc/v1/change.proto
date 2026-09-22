@@ -1,0 +1,48 @@
+// proto/wiretuner/doc/v1/change.proto
+//
+// A change is the atomic unit a user action produces -- one drag of fifty objects, one paste,
+// one typed word -- and the unit of sync, undo and history (docs/spec/crdt-model.adoc,
+// "Operations").  The server stores what the client signed off, byte for byte, and never
+// modifies a change.
+syntax = "proto3";
+
+package wiretuner.doc.v1;
+
+import "buf/validate/validate.proto";
+import "wiretuner/doc/v1/ops.proto";
+
+option java_multiple_files = true;
+option java_package = "com.villagecompute.wiretuner.doc.v1";
+option optimize_for = SPEED;
+
+// One change: a replica's ops with the numbering that gives each its OpId.  Idempotent by
+// `(replica, seq)`: a retried push never duplicates anything, and the same key with different
+// content is REPLICA_CONFLICT.  Limits: at most 10,000 ops (below), and at most 4 MiB encoded
+// (docs/spec/api-conventions.adoc, "Validation") -- protovalidate cannot measure a message's
+// encoded size, so the byte cap is the gRPC maximum inbound message size on the sync service
+// and the client's outbox splits a change that would exceed it; the per-field caps in ops.proto
+// keep any single op far below it.
+message Change {
+  // The replica that produced the change.  Never 0, which is reserved for the well-known nodes.
+  fixed64 replica = 1 [(buf.validate.field).fixed64.gt = 0];
+  // 1, 2, 3 ... per replica, no gaps.  The server accepts only `last + 1` (SEQ_GAP otherwise).
+  uint64 seq = 2 [(buf.validate.field).uint64.gt = 0];
+  // Op i has counter `start_counter + i`, plus the extra counters inserts consume (an
+  // ElementInsert of n elements or a TextInsert of n characters takes n counters).  The
+  // replica's Lamport clock after the change is the last counter used.
+  uint64 start_counter = 3 [(buf.validate.field).uint64.gt = 0];
+  // Causal past: everything the server had sequenced up to this server_seq was known to the
+  // replica when it made the change.  Together with the replica's own earlier seqs this is the
+  // whole causal context; no vector clocks travel.
+  uint64 base_server_seq = 4;
+  // Wall-clock time of the change in milliseconds since the Unix epoch.  Informational only
+  // (history UI); never used to merge.
+  int64 wall_time_ms = 5 [(buf.validate.field).int64.gte = 0];
+  // What the user did, for history and the undo menu: "Move 3 objects".
+  string label = 6 [(buf.validate.field).string.max_len = 256];
+  // The operations, in order; at least one, at most 10,000.
+  repeated Op ops = 7 [(buf.validate.field).repeated = {
+    min_items: 1
+    max_items: 10000
+  }];
+}

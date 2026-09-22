@@ -1,0 +1,25 @@
+// proto/wiretuner/doc/v1/layer.proto
+//
+// The layer node kind (docs/_includes/library/layers.adoc).  PROTO-003 creates the message
+// with only `common` so NodeProps can name it; LIB-001 fills in `LayerRole` and the layer
+// flags here, in this file, because the FILE breaking rules pin a message to the file it
+// first appeared in.
+syntax = "proto3";
+
+package wiretuner.doc.v1;
+
+import "wiretuner/doc/v1/common.proto";
+
+option java_multiple_files = true;
+option java_package = "com.villagecompute.wiretuner.doc.v1";
+option optimize_for = SPEED;
+
+// NodeProps.kind case `layer`: a child of the well-known layers node 0:4, whose sibling
+// position is the stacking order (bottom first).  Its children are the top-level objects of
+// every canvas.  STRUCT: each flag is an independent choice, so one person hiding a layer
+// while another locks it keeps both.  Filled in by LIB-001.
+message LayerProps {
+  // The layer's name and the other shared registers.  `CommonProps.locked` is not the layer
+  // lock; LIB-001 adds a layer-level `locked` flag beside `visible` and `printing`.
+  CommonProps common = 1;
+}

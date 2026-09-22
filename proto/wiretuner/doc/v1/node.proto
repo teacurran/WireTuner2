@@ -1,0 +1,120 @@
+// proto/wiretuner/doc/v1/node.proto
+//
+// The node tree (docs/spec/crdt-model.adoc, "The node tree").  Everything in a document is a
+// node: pages, layers, paths, groups, text blocks, swatches, styles, symbols.  Each node has an
+// immutable kind (the NodeProps oneof case), a mutable parent, a position among its siblings,
+// a `deleted` flag and typed properties.  Adding a kind is one line in NodeProps.kind plus the
+// new file; nothing else in the engines changes.
+//
+// NodeProps.kind field-number blocks, one per epic (docs/spec/api-conventions.adoc,
+// "Packages").  A task takes the next free number in its epic's block and records the case
+// here; blocks are never renumbered and a case is never removed.
+//
+//   Block     Epic    Cases so far
+//   1-19      DOC     1 document, 2 settings, 3 page, 4 master_page
+//   20-49     DRAW    (path, rectangle, ellipse, polygon, ... DRAW-001 onward)
+//   50-69     OBJ     50 group
+//   70-79     COLOR   (swatch, COLOR-001)
+//   80-99     ATTR    (graphic style, brush, ... ATTR epic)
+//   100-129   FX      (blend, path effect, envelope, perspective, extrude, ... FX epic)
+//   130-149   TYPE    (text, text_style, TYPE-001)
+//   150-169   LIB     150 layer; (symbol, symbol instance, LIB epic)
+//   170-189   IMG     (image, placed_file, ... IMG epic)
+//   190-209   WEB     (svg_animation, ... WEB epic)
+//   210-219   COLLAB  (comment_thread, COLLAB-025)
+//   220-239   FONT    (glyph, FONT-001)
+//   240-259   DATA    (barcode, script, DATA-001)
+//   260-      free; a new epic takes the next block of 20 and adds a row here.
+syntax = "proto3";
+
+package wiretuner.doc.v1;
+
+import "buf/validate/validate.proto";
+import "wiretuner/doc/v1/common.proto";
+import "wiretuner/doc/v1/document.proto";
+import "wiretuner/doc/v1/group.proto";
+import "wiretuner/doc/v1/layer.proto";
+
+option java_multiple_files = true;
+option java_package = "com.villagecompute.wiretuner.doc.v1";
+option optimize_for = SPEED;
+
+// The counters of the well-known nodes: `OpId(counter = <value>, replica = 0)`.  They exist in
+// every document without being created, have no props (the NodeProps oneof is unset) and cannot
+// be moved or deleted; an op that tries is a deterministic no-op.  Counters 13-15 are reserved
+// for future collections.  The zero value is the document root, not "unspecified"
+// (buf.yaml carries the lint exception).
+enum WellKnown {
+  // 0:0, the root of the tree.  Its props are DocumentProps.
+  WELL_KNOWN_DOCUMENT = 0;
+  // 0:1, the settings node: units, default attributes, print and export settings
+  // (SettingsProps).
+  WELL_KNOWN_SETTINGS = 1;
+  // 0:2, the pages collection; children are `page` nodes in page order.
+  WELL_KNOWN_PAGES = 2;
+  // 0:3, the master pages collection; children are `master_page` nodes.
+  WELL_KNOWN_MASTERS = 3;
+  // 0:4, the layers collection; children are `layer` nodes in stacking order, bottom first.
+  WELL_KNOWN_LAYERS = 4;
+  // 0:5, the swatches collection: color, tint and gradient swatches in list order.
+  WELL_KNOWN_SWATCHES = 5;
+  // 0:6, the styles collection: graphic and text styles.
+  WELL_KNOWN_STYLES = 6;
+  // 0:7, the symbols collection (Library panel); each symbol's children are its objects.
+  WELL_KNOWN_SYMBOLS = 7;
+  // 0:8, the brushes collection.
+  WELL_KNOWN_BRUSHES = 8;
+  // 0:9, the assets collection: image, font, embedded file and script blob references.
+  WELL_KNOWN_ASSETS = 9;
+  // 0:10, reserved.  Deleted nodes stay in place under their parent with `deleted = true`;
+  // nothing is ever moved here.
+  WELL_KNOWN_TRASH = 10;
+  // 0:11, the glyphs collection (typeface documents only; a glyph is a canvas like a page).
+  // Empty in an illustration document.
+  WELL_KNOWN_GLYPHS = 11;
+  // 0:12, the comments collection; children are `comment_thread` nodes.  Conversation, not
+  // artwork: never rendered or exported by default.
+  WELL_KNOWN_COMMENTS = 12;
+}
+
+// A node as a plain value: its identity, place in the tree, deletion flag and properties,
+// without the per-register OpIds the merge engines keep (those are in snapshot.proto's
+// NodeState).  The shape exporters, the clipboard and tests exchange.
+message Node {
+  // The node's id: the OpId of the CreateNode that made it, or a WellKnown counter with
+  // replica 0.
+  OpId id = 1 [(buf.validate.field).required = true];
+  // The parent's id.  Unset only for the root 0:0.
+  OpId parent = 2;
+  // Fractional index among the parent's children, compared bytewise; ties break by node id.
+  // Empty only for the root and the well-known collections.
+  bytes position = 3 [(buf.validate.field).bytes.max_len = 1024];
+  // A deleted node keeps its properties, children and history; it is not rendered or
+  // selectable, and edits to it still apply so restoring it restores them too.
+  bool deleted = 4;
+  // The kind and its properties.
+  NodeProps props = 5;
+}
+
+// The typed properties of a node.  The set `kind` case is the node's kind, fixed at creation;
+// each case is a `<Kind>Props` message whose first field is `CommonProps common = 1`.  A
+// SetFields op carries a sparse NodeProps holding only the registers it writes, addressed by
+// FieldPath from this message.  Numbers are allocated per epic by the table at the top of
+// this file.
+message NodeProps {
+  // The node's kind and its properties.  Unset for the well-known collection nodes 0:2-0:12.
+  oneof kind {
+    // The root node 0:0 (DOC block).
+    DocumentProps document = 1;
+    // The settings node 0:1 (DOC block).
+    SettingsProps settings = 2;
+    // A page under 0:2 (DOC block).
+    PageProps page = 3;
+    // A master page under 0:3 (DOC block).
+    MasterPageProps master_page = 4;
+    // A group of objects (OBJ block).
+    GroupProps group = 50;
+    // A layer under 0:4 (LIB block).
+    LayerProps layer = 150;
+  }
+}

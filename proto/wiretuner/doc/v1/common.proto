@@ -1,0 +1,424 @@
+// proto/wiretuner/doc/v1/common.proto
+//
+// Identifiers, geometry, color and the properties every node shares (docs/spec/crdt-model.adoc,
+// "Identifiers", "Merge policies").  Everything here is referenced from every other file of the
+// document schema, so it changes rarely and only by addition; feature files add fields to
+// CommonProps by number from the table below, never by renumbering.
+//
+// CommonProps field numbers (PROTO-003 assigned these; docs/spec/decisions.adoc Q-009):
+//    1 name          crdt-model.adoc        8 navigation    web/urls.adoc
+//    2 note          crdt-model.adoc        9 alt           objects/names-notes.adoc
+//    3 locked        crdt-model.adoc       10 decorative    objects/names-notes.adoc
+//    4 transform     crdt-model.adoc       11 halftone      printing/halftones.adoc
+//    5 canvas        crdt-model.adoc       12 data_binding  automation/data-merge.adoc
+//    6 url           crdt-model.adoc       13 text_wrap     type/text-effects.adoc
+//    7 style         crdt-model.adoc       14 origin_layer  library/layers.adoc
+//   15-19 held for the core; a feature epic that needs a new CommonProps field takes the next
+//   free number from 20 and adds it to this table in the same change.
+syntax = "proto3";
+
+package wiretuner.doc.v1;
+
+import "buf/validate/validate.proto";
+import "wt/crdt/options.proto";
+
+option java_multiple_files = true;
+option java_package = "com.villagecompute.wiretuner.doc.v1";
+option optimize_for = SPEED;
+
+// The id of one operation, and through it of every node and sequence element (a node's id is
+// the id of the op that created it; an element's id is the id of the op that inserted it, plus
+// its index in that insert).  Ids are totally ordered by `counter`, then `replica` compared as
+// an unsigned integer; that order decides every last-writer-wins tie and never involves
+// wall-clock time or floating point.
+message OpId {
+  // Lamport clock: a replica's next counter is one more than the largest counter it has created
+  // or seen.  Counters 0-15 exist only with replica 0 (the well-known nodes, node.proto).
+  uint64 counter = 1;
+  // The replica that created the op: a random 64-bit value per (install, document).  0 is
+  // reserved for the well-known nodes and is never a live replica.
+  fixed64 replica = 2;
+}
+
+// The id of one element of a SEQUENCE or TEXT field: the OpId of the insert that created it.
+// An insert of n elements takes n consecutive counters.  Structurally identical to OpId; a
+// separate type so a field's meaning is visible in the schema.
+message ElementId {
+  // Lamport counter of the inserting op, plus the element's index within that insert.
+  uint64 counter = 1;
+  // The inserting replica.  An all-zero ElementId is "none" wherever a field allows it (a
+  // Fugue origin at the start or end of the text, an unset Contour.start).
+  fixed64 replica = 2;
+}
+
+// A run of element ids created by one insert: `first` and the `count - 1` ids that follow it
+// on the same replica with consecutive counters.
+message ElementIdRange {
+  // The first element of the run.
+  ElementId first = 1 [(buf.validate.field).required = true];
+  // How many consecutive ids the run covers, at least one.
+  uint64 count = 2 [(buf.validate.field).uint64.gte = 1];
+}
+
+// A reference to another node.  Always an ATOMIC register.  If the target is deleted, unknown
+// or of the wrong kind, readers apply the field's `(wt.crdt.field).on_dangling` fallback;
+// references never block a merge.
+message NodeRef {
+  // The referenced node's id.
+  OpId id = 1;
+  // Optionally, the referent's resolved value at write time, encoded as the message the field's
+  // page names (a swatch reference caches its `Color`, space included), for REF_FALLBACK_CACHED.
+  bytes cached = 2 [(buf.validate.field).bytes.max_len = 65536];
+}
+
+// A location in pasteboard coordinates: points (1/72 inch), y down, origin at the pasteboard's
+// top left.  ATOMIC wherever it is used: x and y only make sense together.
+message Point {
+  // Horizontal coordinate in points.
+  double x = 1;
+  // Vertical coordinate in points, increasing downward.
+  double y = 2;
+}
+
+// A width and a height in points.  ATOMIC wherever it is used.
+message Size {
+  // Width in points.
+  double width = 1 [(buf.validate.field).double.gte = 0];
+  // Height in points.
+  double height = 2 [(buf.validate.field).double.gte = 0];
+}
+
+// An axis-aligned rectangle in pasteboard coordinates.  ATOMIC wherever it is used.
+message Rect {
+  // Left edge in points.
+  double x = 1;
+  // Top edge in points (y down).
+  double y = 2;
+  // Width in points.
+  double width = 3 [(buf.validate.field).double.gte = 0];
+  // Height in points.
+  double height = 4 [(buf.validate.field).double.gte = 0];
+}
+
+// An affine transform, column-major: [a c tx; b d ty] maps (x, y) to (a*x + c*y + tx,
+// b*x + d*y + ty).  Always ATOMIC (crdt-model.adoc, "Choosing a policy"): merging a rotation
+// from one user with a scale from another per component produces a shear nobody drew, so one
+// whole matrix wins.  The default (all zeros) is never written; an unset field reads as the
+// identity.
+message Transform {
+  // Scale/rotation component: x contribution to x.
+  double a = 1;
+  // Scale/rotation component: x contribution to y.
+  double b = 2;
+  // Scale/rotation component: y contribution to x.
+  double c = 3;
+  // Scale/rotation component: y contribution to y.
+  double d = 4;
+  // Translation in x, points.
+  double tx = 5;
+  // Translation in y, points.
+  double ty = 6;
+}
+
+// The space a Color's components are in (color/swatches.adoc).  Zero is sRGB, so an `rgb`
+// written before this tag existed reads exactly as it did.
+enum ColorSpace {
+  // With `rgb`: sRGB (IEC 61966-2-1).
+  COLOR_SPACE_SRGB = 0;
+  // With `rgb`: Display P3 (P3 primaries, D65 white, sRGB transfer curve).
+  COLOR_SPACE_DISPLAY_P3 = 1;
+  // With `lab`: CIELAB, D50 white (the ICC profile connection space).
+  COLOR_SPACE_LAB = 2;
+  // With `lab`: OKLab (what the Mixer's OKLCH mode stores).
+  COLOR_SPACE_OKLAB = 3;
+}
+
+// A color value.  ATOMIC: the components and the space they are in only mean something
+// together.  Merging a cyan from one user with a magenta from another produces a color nobody
+// mixed, mixing a CMYK write with an RGB write per field is nonsense, and a P3 tag from one
+// writer over sRGB components from another is a color neither chose; a space change is
+// therefore a value change.  The read-time rules for a `space` that does not fit its
+// components, or that this client does not know, are on color/spot-process.adoc.
+message Color {
+  // The components in one of the three component models.
+  oneof components {
+    // Process ink percentages; their meaning is the document's Working CMYK profile.
+    Cmyk cmyk = 1;
+    // Red, green, blue in `space`, which is SRGB or DISPLAY_P3.
+    Rgb rgb = 2;
+    // Lightness and two opponent axes in `space`, which is LAB or OKLAB.
+    Lab lab = 3;
+  }
+  // Which space `rgb` or `lab` is in.  Ignored for `cmyk`.  A value this client does not know
+  // (a newer space) reads as SRGB with the components as-is and is preserved for others.
+  ColorSpace space = 4;
+}
+
+// CMYK components, each 0..1 (the UI shows percentages).
+message Cmyk {
+  // Cyan, 0..1.
+  double c = 1 [(buf.validate.field).double = {
+    gte: 0
+    lte: 1
+  }];
+  // Magenta, 0..1.
+  double m = 2 [(buf.validate.field).double = {
+    gte: 0
+    lte: 1
+  }];
+  // Yellow, 0..1.
+  double y = 3 [(buf.validate.field).double = {
+    gte: 0
+    lte: 1
+  }];
+  // Black, 0..1.
+  double k = 4 [(buf.validate.field).double = {
+    gte: 0
+    lte: 1
+  }];
+}
+
+// RGB components, each 0..1 in `Color.space` (the UI shows 0..255 and hex).
+message Rgb {
+  // Red, 0..1.
+  double r = 1 [(buf.validate.field).double = {
+    gte: 0
+    lte: 1
+  }];
+  // Green, 0..1.
+  double g = 2 [(buf.validate.field).double = {
+    gte: 0
+    lte: 1
+  }];
+  // Blue, 0..1.
+  double b = 3 [(buf.validate.field).double = {
+    gte: 0
+    lte: 1
+  }];
+}
+
+// Lab components for both Lab spaces; `Color.space` says which.  Natural ranges: CIELAB l
+// 0..100, a and b -128..128; OKLab l 0..1, a and b -0.5..0.5.  The validation ranges are the
+// union; readers clamp to the space's own range.  The Mixer's OKLCH is the polar form of OKLab
+// and is never stored.
+message Lab {
+  // Lightness: 0..100 (CIELAB) or 0..1 (OKLab).
+  double l = 1 [(buf.validate.field).double = {
+    gte: 0
+    lte: 100
+  }];
+  // Green-red axis.
+  double a = 2 [(buf.validate.field).double = {
+    gte: -128
+    lte: 128
+  }];
+  // Blue-yellow axis.
+  double b = 3 [(buf.validate.field).double = {
+    gte: -128
+    lte: 128
+  }];
+}
+
+// Where an object gets a color from (color/applying-color.adoc).  ATOMIC: the oneof is one
+// register, so a concurrent "make it a swatch reference" and "make it inline" cannot leave a
+// half-set case, and a tint's base and percent never come from two different writers.
+message ColorRef {
+  // Exactly one source.  An unset oneof reads as `none`.
+  oneof ref {
+    // No color.  A fill with `none` is drawn as nothing.
+    bool none = 1;
+    // A named color or named tint: a swatch node under 0:5.  `cached` is the swatch's resolved
+    // Color (a tint's computed color) when the reference was written, so the object keeps its
+    // look if the swatch is later deleted.
+    NodeRef swatch = 2 [(wt.crdt.field).on_dangling = REF_FALLBACK_CACHED];
+    // An unnamed color owned by this object alone.
+    Color inline = 3;
+    // An unnamed tint of a named color (the Tints panel's Apply Color without adding).
+    InlineTint tint = 4;
+  }
+}
+
+// An unnamed tint: a base swatch and a strength.  Only ever inside a ColorRef, so ATOMIC with it.
+message InlineTint {
+  // The base swatch; `cached` holds its Color at write time.
+  NodeRef base = 1 [(wt.crdt.field).on_dangling = REF_FALLBACK_CACHED];
+  // Tint strength as a percentage of the base, 1..100.
+  double percent = 2 [(buf.validate.field).double = {
+    gte: 1
+    lte: 100
+  }];
+}
+
+// One segment of a FieldPath.
+message PathSegment {
+  // A field number, or the id of an element inside a SEQUENCE or TEXT field.
+  oneof segment {
+    option (buf.validate.oneof).required = true;
+    // A protobuf field number of the message the path has reached so far.
+    uint32 field = 1 [(buf.validate.field).uint32 = {
+      gte: 1
+      lte: 536870911
+    }];
+    // An element of the SEQUENCE or TEXT field the previous segment named.
+    ElementId element = 2;
+  }
+}
+
+// The address of one register: a list of segments starting at NodeProps, each a field number
+// or, inside a SEQUENCE, an element id.  `[kind.path=20, contours=2, <elem 91:7>, points=3,
+// <elem 91:12>, anchor=2]` addresses one anchor point.  The generated merge table tells both
+// engines which segments are STRUCT, SEQUENCE and so on.  An op whose path names a field that
+// does not exist, or is malformed, is a deterministic no-op in both engines.
+message FieldPath {
+  // The segments, outermost first.  Never empty: a path always names at least the kind case.
+  repeated PathSegment segments = 1 [(buf.validate.field).repeated = {
+    min_items: 1
+    max_items: 64
+  }];
+}
+
+// Where an object-level URL opens in HTML and SVG output (web/urls.adoc).
+enum LinkTarget {
+  // Reads as SAME_WINDOW.
+  LINK_TARGET_UNSPECIFIED = 0;
+  // Replace the current page.
+  LINK_TARGET_SAME_WINDOW = 1;
+  // Open in a new tab or window.
+  LINK_TARGET_NEW_TAB = 2;
+}
+
+// Navigation panel fields other than the link itself (web/urls.adoc; WEB-001 owns the
+// meaning).  STRUCT: alt text, target and the page link are independent choices.
+message NavigationProps {
+  // Alternative text for the link region (HTML area alt, SVG <a> <title>, PDF /Contents):
+  // describes the destination.  The object's own description is CommonProps.alt; exporters
+  // write both.
+  string alt = 1 [(buf.validate.field).string.max_len = 1024];
+  // Where the URL opens in HTML/SVG output.  Ignored by PDF.
+  LinkTarget target = 2 [(buf.validate.field).enum.defined_only = true];
+  // Page-to-page link (web/interactivity.adoc): a page node under 0:2.  Unset when the page is
+  // deleted; readers then treat the object as having no page link.
+  NodeRef go_to_page = 3 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
+}
+
+// Dot shape of a halftone screen (printing/printing.adoc).
+enum HalftoneShape {
+  // "Default": inherit the document default, or the printer's.
+  HALFTONE_SHAPE_UNSPECIFIED = 0;
+  // Round dots.
+  HALFTONE_SHAPE_ROUND = 1;
+  // Elliptical dots.
+  HALFTONE_SHAPE_ELLIPSE = 2;
+  // Lines.
+  HALFTONE_SHAPE_LINE = 3;
+  // Diamond dots.
+  HALFTONE_SHAPE_DIAMOND = 4;
+  // Square dots.
+  HALFTONE_SHAPE_SQUARE = 5;
+  // Cross-hatched lines.
+  HALFTONE_SHAPE_CROSS = 6;
+}
+
+// A halftone screen (printing/printing.adoc; PRINT-001 owns the meaning).  ATOMIC: shape,
+// angle and frequency describe one screen; a frequency from one user with an angle from another
+// is a screen nobody chose.  Read-time: a frequency outside 1..600 reads as inherit and the
+// angle is reduced modulo 360.
+message Halftone {
+  // The dot shape; UNSPECIFIED inherits.
+  HalftoneShape shape = 1 [(buf.validate.field).enum.defined_only = true];
+  // Screen angle in degrees, 0..360.
+  double angle = 2 [(buf.validate.field).double = {
+    gte: 0
+    lte: 360
+  }];
+  // Screen frequency in lines per inch; 0 = inherit.
+  double frequency = 3 [(buf.validate.field).double = {
+    gte: 0
+    lte: 600
+  }];
+}
+
+// Text behind this object flows around it (type/text-effects.adoc; TYPE-001 owns the meaning).
+// STRUCT: the switch and the standoff are independent choices.
+message TextWrap {
+  // Whether text blocks behind this object wrap around it.
+  bool enabled = 1;
+  // Distance in points kept between the object's outline and the text; negative overlaps.
+  double standoff = 2;
+}
+
+// What a data-merge binding drives on an object (automation/data-merge.adoc).
+enum BindingKind {
+  // No binding.
+  BINDING_KIND_UNSPECIFIED = 0;
+  // Image nodes: pixels from an IMAGE field.
+  BINDING_KIND_IMAGE = 1;
+  // Any node: shown when the BOOLEAN field is true.
+  BINDING_KIND_VISIBILITY = 2;
+  // Any node: CommonProps.url from a LINK field.
+  BINDING_KIND_LINK = 3;
+  // Text nodes: whole contents; barcode nodes: the content.
+  BINDING_KIND_TEXT = 4;
+}
+
+// A data-merge binding: which field and how it applies (automation/data-merge.adoc; DATA-001
+// owns the meaning).  ATOMIC: a field of the wrong kind for the binding is meaningless, so
+// both are written together.
+message DataBinding {
+  // A DataField element on the settings node; dangling = binding ignored, the badge shows
+  // "missing".
+  ElementId field = 1;
+  // How the field's value applies to the object.
+  BindingKind kind = 2 [(buf.validate.field).enum.defined_only = true];
+}
+
+// The properties every node kind carries as its first field (`CommonProps common = 1`).  STRUCT
+// by default: each field is its own register, so a rename and a move from two people both
+// survive.  Field numbers are fixed by the table at the top of this file.
+message CommonProps {
+  // The name shown in the Object panel, Layers panel and change labels.  Empty = the kind's
+  // localized name.  ATOMIC string: a rename wins whole.
+  string name = 1 [(buf.validate.field).string.max_len = 256];
+  // Object panel notes.  A plain string, not RichText: short and rarely edited concurrently
+  // (objects/names-notes.adoc).
+  string note = 2 [(buf.validate.field).string.max_len = 8192];
+  // The object cannot be selected or edited from the canvas.  Advisory: it constrains each
+  // client's own tools and is never enforced against remote ops.
+  bool locked = 3;
+  // The object's transform on top of its own geometry, so a move or rotation writes one
+  // register.  Relative to the parent group's space for a group member.  ATOMIC.  Unset =
+  // identity.
+  Transform transform = 4 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Which canvas a top-level object belongs to: unset for the main pasteboard, or the master
+  // page (a child of 0:3) or glyph (a child of 0:11) it is drawn on.  Layers remain the single
+  // stacking hierarchy for every canvas.  Dangling reads as the main pasteboard.
+  NodeRef canvas = 5 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
+  // The object-level link (web/urls.adoc).  Empty after trimming reads as unset.
+  string url = 6 [(buf.validate.field).string.max_len = 2048];
+  // The graphic style applied to the object: a style node under 0:6.  Dangling reads as no
+  // style (the object keeps its own appearance).
+  NodeRef style = 7 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
+  // Navigation panel fields other than the link itself (web/urls.adoc).
+  NavigationProps navigation = 8;
+  // Accessible description of the object itself (SVG <title>/<desc>, PDF /Alt, HTML alt).
+  // Distinct from NavigationProps.alt, which describes the link's destination.  ATOMIC string:
+  // a sentence is edited as a whole (objects/names-notes.adoc).
+  string alt = 9 [(buf.validate.field).string.max_len = 512];
+  // Skipped by assistive technology: SVG aria-hidden, PDF artifact, no HTML alt.  Independent
+  // of `alt` so ticking and unticking never loses the text.
+  bool decorative = 10;
+  // Object-level halftone screen; unset = document default.  ATOMIC because shape, angle and
+  // frequency describe one screen (printing/halftones.adoc).  A group's screen applies to
+  // members whose own field is unset.
+  Halftone halftone = 11 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Data-merge binding: the bound field and how it applies.  ATOMIC.  Unset = not bound
+  // (automation/data-merge.adoc).
+  DataBinding data_binding = 12 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Text behind this object flows around it (type/text-effects.adoc).  Unset = no wrap.
+  TextWrap text_wrap = 13;
+  // Name of the layer the object was on before it was grouped, joined, clipped or turned into
+  // a guide, or of its layer in the document it was copied from.  Written only when the
+  // "Remember layer info" preference is on; read by ungroup, split, guide release and
+  // cross-document paste.  Empty = no memory (library/layers.adoc).
+  string origin_layer = 14 [(buf.validate.field).string.max_len = 256];
+}

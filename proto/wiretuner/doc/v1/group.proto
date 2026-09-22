@@ -1,0 +1,23 @@
+// proto/wiretuner/doc/v1/group.proto
+//
+// The group node kind (docs/_includes/objects/grouping.adoc).  PROTO-003 creates the message
+// with only `common` so NodeProps can name it; OBJ-016 fills in `GroupKind`, the clip path and
+// the layer origins here, in this file, because the FILE breaking rules pin a message to the
+// file it first appeared in.
+syntax = "proto3";
+
+package wiretuner.doc.v1;
+
+import "wiretuner/doc/v1/common.proto";
+
+option java_multiple_files = true;
+option java_package = "com.villagecompute.wiretuner.doc.v1";
+option optimize_for = SPEED;
+
+// NodeProps.kind case `group`: a container object.  Its children are the members in stacking
+// order (bottom first); their `CommonProps.transform` is relative to the group, and the group's
+// own transform maps group space to the parent's space.  Filled in by OBJ-016.
+message GroupProps {
+  // The group's name, transform, canvas and the other shared registers.
+  CommonProps common = 1;
+}

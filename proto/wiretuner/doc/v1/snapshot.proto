@@ -1,0 +1,168 @@
+// proto/wiretuner/doc/v1/snapshot.proto
+//
+// The full merge state of a document at a server sequence number (docs/spec/crdt-model.adoc,
+// "Snapshots"): every node with its registers and their OpIds, sequence elements including
+// unstable tombstones, the unstable part of the move log, and each replica's highest applied
+// seq.  Both engines encode a snapshot identically and hash it (`state_hash`); a snapshot is
+// zstd-compressed and chunked to 1 MiB for transfer (SnapshotFrame).  CRDT-009 implements the
+// encoding and the canonical order it hashes.
+syntax = "proto3";
+
+package wiretuner.doc.v1;
+
+import "buf/validate/validate.proto";
+import "wiretuner/doc/v1/common.proto";
+import "wiretuner/doc/v1/node.proto";
+
+option java_multiple_files = true;
+option java_package = "com.villagecompute.wiretuner.doc.v1";
+option optimize_for = SPEED;
+
+// The complete merge state at `server_seq`.  Canonical encoding (what `state_hash` covers):
+// `nodes` sorted by node id, each node's `registers` and `elements` sorted by path, `move_log`
+// in OpId order, `replicas` by replica id, every message field in field-number order, and
+// `state_hash` itself empty.  Both engines produce the same bytes for the same state.
+message DocumentSnapshot {
+  // The server sequence number the state includes everything up to.  0 for a snapshot of a
+  // document that has never been synced (tests, packages).
+  uint64 server_seq = 1;
+  // Every node, well-known nodes and deleted nodes included, sorted by id.  Deleted nodes are
+  // compacted out 30 days after deletion (crdt-model.adoc, "Garbage collection").
+  repeated NodeState nodes = 2;
+  // The move-log entries that are not yet causally stable, in OpId order.  A late tree op is
+  // applied by undoing these, applying it, and redoing them.
+  repeated MoveLogEntry move_log = 3;
+  // Each replica's highest applied seq and acknowledged server_seq, by replica id.
+  repeated ReplicaState replicas = 4;
+  // The causally stable server_seq at snapshot time: tombstones and move-log entries at or
+  // below it have been dropped.
+  uint64 stable_seq = 5;
+  // The largest Lamport counter in the state, so a bootstrapping replica can continue the clock
+  // without scanning every OpId.
+  uint64 max_counter = 6;
+  // The document's feature level: the highest schema feature any change in it has used.
+  uint32 feature_level = 7;
+  // SHA-256 over the canonical encoding of this message with this field empty; 32 bytes.
+  // Clients compare their own hash to the server's at the same server_seq whenever their outbox
+  // is empty; a mismatch is a bug report plus a re-bootstrap.
+  bytes state_hash = 8 [(buf.validate.field).bytes.len = 32];
+}
+
+// One node with the merge metadata the engines keep beside its values.
+message NodeState {
+  // The node's identity, parent, position, deletion flag and merged values.  `props` holds
+  // every register's current value, including values on deleted nodes and tombstoned elements;
+  // a register that was cleared (`(unset, OpId)`) has a stamp below but no value here.
+  Node node = 1 [(buf.validate.field).required = true];
+  // The OpId of the CreateNode or MoveNode that set the node's current parent and position.
+  OpId tree_op = 2;
+  // The OpId of the write that set the current `deleted` value; unset when never written.
+  OpId deleted_op = 3;
+  // The OpId of every register that has been written, by path from NodeProps, sorted by path.
+  // Registers never written have no stamp and read as their default.
+  repeated RegisterStamp registers = 4;
+  // Every element of every SEQUENCE and TEXT field, tombstones included, sorted by path.
+  repeated ElementState elements = 5;
+}
+
+// The OpId of the last write to one register.
+message RegisterStamp {
+  // The register's path from NodeProps.
+  FieldPath path = 1 [(buf.validate.field).required = true];
+  // The OpId of the write that holds the register.  A concurrent write with a smaller OpId was
+  // ignored (and retained in the change log).
+  OpId op = 2 [(buf.validate.field).required = true];
+}
+
+// The position and deletion registers of one sequence or text element.  The element's own
+// fields are registers in NodeState.registers under the element's path.
+message ElementState {
+  // The element: the SEQUENCE or TEXT field's path followed by the element id.
+  FieldPath element = 1 [(buf.validate.field).required = true];
+  // The element's fractional position (SEQUENCE) or empty (TEXT, whose order is the Fugue tree
+  // recorded on each character).
+  bytes position = 2 [(buf.validate.field).bytes.max_len = 1024];
+  // The OpId of the write that set `position`; unset when the insert's position stands.
+  OpId position_op = 3;
+  // True for a tombstone: skipped on read, kept until causally stable.
+  bool deleted = 4;
+  // The OpId of the write that set `deleted`; unset when never written.
+  OpId deleted_op = 5;
+}
+
+// One entry of the move log (Kleppmann et al., "A highly-available move operation for
+// replicated trees"): what a tree op did, so it can be undone and redone when an earlier op
+// arrives late.
+message MoveLogEntry {
+  // The tree op (a CreateNode or MoveNode) this entry records.
+  OpId op = 1 [(buf.validate.field).required = true];
+  // The node the op moved or created.
+  OpId node = 2 [(buf.validate.field).required = true];
+  // The node's parent before the op; unset when the op created the node.
+  OpId old_parent = 3;
+  // The node's position before the op; empty when the op created the node.
+  bytes old_position = 4 [(buf.validate.field).bytes.max_len = 1024];
+  // The parent the op asked for.
+  OpId new_parent = 5 [(buf.validate.field).required = true];
+  // The position the op asked for.
+  bytes new_position = 6 [(buf.validate.field).bytes.max_len = 1024];
+  // False when the op was skipped because it would have made the node its own ancestor (or
+  // named an unknown parent); undoing a skipped entry changes nothing.
+  bool applied = 7;
+}
+
+// What the state knows about one replica.
+message ReplicaState {
+  // The replica id.
+  fixed64 replica = 1 [(buf.validate.field).fixed64.gt = 0];
+  // The replica's highest change seq applied in this state.  Its next change must be `seq + 1`.
+  uint64 seq = 2;
+  // The highest server_seq the replica has acknowledged, which drives causal stability; 0 when
+  // it has never acknowledged.
+  uint64 acked_server_seq = 3;
+}
+
+// How a snapshot's bytes are compressed on the wire and in object storage.
+enum SnapshotCompression {
+  // Uncompressed protobuf.  Only for tests and tiny documents.
+  SNAPSHOT_COMPRESSION_UNSPECIFIED = 0;
+  // zstd, the default.
+  SNAPSHOT_COMPRESSION_ZSTD = 1;
+}
+
+// The first frame of a chunked snapshot transfer: everything the receiver needs to allocate,
+// verify and decode what follows.
+message SnapshotHeader {
+  // The server_seq the snapshot is at.
+  uint64 server_seq = 1;
+  // The snapshot's `state_hash`, so the receiver can verify the decoded state before using it.
+  bytes state_hash = 2 [(buf.validate.field).bytes.len = 32];
+  // How the chunks are compressed.
+  SnapshotCompression compression = 3 [(buf.validate.field).enum.defined_only = true];
+  // Total compressed size across every chunk, in bytes.
+  uint64 compressed_size = 4;
+  // Size of the encoded DocumentSnapshot after decompression, in bytes.
+  uint64 uncompressed_size = 5;
+  // Number of chunk frames that follow.
+  uint32 chunk_count = 6;
+  // Number of nodes in the snapshot, for progress display.
+  uint32 node_count = 7;
+}
+
+// One frame of a chunked snapshot transfer (FetchSnapshot streams these): the header first,
+// then the compressed DocumentSnapshot in chunks of at most 1 MiB, in order.  Chunks are sent
+// with gRPC compression disabled, since they are already compressed.
+message SnapshotFrame {
+  // The header on the first frame, a chunk on every later one.
+  oneof frame {
+    option (buf.validate.oneof).required = true;
+    // The snapshot's identity and sizes; exactly once, first.
+    SnapshotHeader header = 1;
+    // The next run of compressed bytes, at most 1 MiB; the concatenation of every chunk is the
+    // compressed snapshot.
+    bytes chunk = 2 [(buf.validate.field).bytes = {
+      min_len: 1
+      max_len: 1048576
+    }];
+  }
+}

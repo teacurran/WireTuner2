@@ -66,8 +66,34 @@ document (0:0)
 ....
 
 The well-known nodes (replica `0`, counters `0`--`15`) exist in every document without being
-created; counters `13`--`15` are reserved for future collections.  `glyphs` is empty in an
-illustration document (xref:typeface-documents.adoc[Typeface documents]).
+created; counters `13`--`15` are reserved for future collections.  Their counters are the
+`WellKnown` enum in `doc/v1/node.proto` (`WELL_KNOWN_DOCUMENT = 0` ... `WELL_KNOWN_COMMENTS =
+12`).  `glyphs` is empty in an illustration document (xref:typeface-documents.adoc[Typeface
+documents]).
+
+A node's kind is the set case of the `NodeProps.kind` oneof (`doc/v1/node.proto`).  Its field
+numbers are allocated in blocks per epic so parallel schema tasks never collide
+(xref:decisions.adoc#D-065[D-065]); the table is repeated at the top of `node.proto` and a task
+adds its case there:
+
+[cols="1,1,3"]
+|===
+|Block |Epic |Cases
+
+|1--19 |DOC |`document` 1, `settings` 2, `page` 3, `master_page` 4
+|20--49 |DRAW |path, rectangle, ellipse, polygon, ...
+|50--69 |OBJ |`group` 50
+|70--79 |COLOR |swatch
+|80--99 |ATTR |graphic style, brush, ...
+|100--129 |FX |blend, path effect, envelope, perspective, extrude, ...
+|130--149 |TYPE |text, text_style
+|150--169 |LIB |`layer` 150; symbol, ...
+|170--189 |IMG |image, placed_file, ...
+|190--209 |WEB |svg_animation, ...
+|210--219 |COLLAB |comment_thread
+|220--239 |FONT |glyph
+|240--259 |DATA |barcode, script
+|===
 
 Artwork lives under layers: a top-level object's parent is its layer, and its
 position among the layer's children is its stacking order.  Objects sit on one large pasteboard
@@ -165,34 +191,50 @@ fill/stroke/effect stack, gradient stops, tab stops, table columns, chart data r
 
 [source,protobuf]
 ----
-// Excerpt of proto/wiretuner/doc/v1/common.proto
+// Excerpt of proto/wiretuner/doc/v1/common.proto (PROTO-003; the file is normative)
+message OpId      { uint64 counter = 1; fixed64 replica = 2; }
 message ElementId { uint64 counter = 1; fixed64 replica = 2; }
+message ElementIdRange { ElementId first = 1; uint64 count = 2; }   // consecutive ids from one insert
 
 // A reference to another node.  `cached` optionally carries the referent's resolved value at
-// write time (e.g. the CMYK of a swatch) for REF_FALLBACK_CACHED.
+// write time (e.g. the Color of a swatch) for REF_FALLBACK_CACHED.
 message NodeRef {
   OpId id = 1;
   bytes cached = 2;
 }
 
+// Also here: Point, Size, Rect, Transform (all ATOMIC where used); ColorSpace, Color, Cmyk,
+// Rgb, Lab, ColorRef, InlineTint (color/swatches.adoc, color/applying-color.adoc); and the
+// messages CommonProps fields need: NavigationProps + LinkTarget (web/urls.adoc), Halftone +
+// HalftoneShape (printing/printing.adoc), TextWrap (type/text-effects.adoc), DataBinding +
+// BindingKind (automation/data-merge.adoc).
+
+// The properties every node kind carries as `common = 1`.  STRUCT by default.  Numbers are
+// final (decisions.adoc D-065): 15-19 are held, a new feature field takes the next free number
+// from 20 and adds a row to the table at the top of common.proto.
 message CommonProps {
   string name = 1 [(buf.validate.field).string.max_len = 256];   // Object panel name
   string note = 2 [(buf.validate.field).string.max_len = 8192];  // Object panel notes
   bool locked = 3;
   Transform transform = 4 [(wt.crdt.field).merge = MERGE_ATOMIC];
   NodeRef canvas = 5 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
-  string url = 6;                                              // Attached URL
+  string url = 6 [(buf.validate.field).string.max_len = 2048];   // Attached URL (urls.adoc)
   NodeRef style = 7 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
-  string alt = 9 [(buf.validate.field).string.max_len = 512];   // accessible description (names-notes.adoc)
+  NavigationProps navigation = 8;                                // STRUCT (urls.adoc)
+  string alt = 9 [(buf.validate.field).string.max_len = 512];    // accessible description (names-notes.adoc)
   bool decorative = 10;                                          // skipped by assistive technology
+  Halftone halftone = 11 [(wt.crdt.field).merge = MERGE_ATOMIC]; // object screen (halftones.adoc)
+  DataBinding data_binding = 12 [(wt.crdt.field).merge = MERGE_ATOMIC];   // (data-merge.adoc)
+  TextWrap text_wrap = 13;                                       // STRUCT (text-effects.adoc)
+  string origin_layer = 14 [(buf.validate.field).string.max_len = 256];   // Remember layer info (layers.adoc)
 }
 ----
 
 Registers are addressed by a *field path*: a list of segments from `NodeProps`, each either a
-field number or, inside a SEQUENCE, an element id.  `[kind.path=12, contours=3, <elem 91:7>,
-points=2, <elem 91:12>, anchor=1]` addresses one anchor point.  The generated merge tables tell
-both engines which segments are STRUCT, SEQUENCE and so on; the engines themselves contain no
-per-feature code.
+field number or, inside a SEQUENCE, an element id (`FieldPath` / `PathSegment` in
+`common.proto`).  `[kind.path=20, contours=2, <elem 91:7>, points=3, <elem 91:12>, anchor=2]`
+addresses one anchor point.  The generated merge tables tell both engines which segments are
+STRUCT, SEQUENCE and so on; the engines themselves contain no per-feature code.
 
 == Operations
 
@@ -200,7 +242,9 @@ Operations are fixed; features add fields, not operations.
 
 [source,protobuf]
 ----
-// proto/wiretuner/doc/v1/ops.proto (sketch)
+// proto/wiretuner/doc/v1/ops.proto (PROTO-003; the file is normative and adds the
+// protovalidate caps: positions <= 1 KiB, <= 32,000 elements per insert or delete,
+// <= 64 KiB of characters per TextInsert)
 message Op {
   oneof op {
     CreateNode create = 1;
@@ -361,11 +405,15 @@ Undo is per user and local.  Undoing never rewinds the shared document; it write
 
 == Snapshots
 
-A `DocumentSnapshot` is the full merge state at a server sequence number: every node with its
-registers and their OpIds, sequence elements including unstable tombstones, the unstable part of
-the move log, and each replica's highest applied seq.  Snapshots are zstd-compressed protobuf,
-chunked to 1 MiB for transfer, and carry a `state_hash` (SHA-256 over a canonical encoding) that
-both engines compute identically.  Clients compare their own hash to the server's at the same
+A `DocumentSnapshot` (`doc/v1/snapshot.proto`) is the full merge state at a server sequence
+number: every node with its registers and their OpIds (`NodeState`: a plain `Node` plus a
+`RegisterStamp` per written path and an `ElementState` per sequence or text element), sequence
+elements including unstable tombstones, the unstable part of the move log (`MoveLogEntry`), and
+each replica's highest applied seq and acknowledged server sequence (`ReplicaState`).  Snapshots
+are zstd-compressed protobuf, chunked to 1 MiB for transfer (`SnapshotFrame`: a `SnapshotHeader`
+first, then `bytes chunk` frames, mirroring the blob service), and carry a `state_hash` (SHA-256
+over a canonical encoding -- nodes by id, stamps and elements by path, the hash field itself
+empty; CRDT-009 fixes the rest) that both engines compute identically.  Clients compare their own hash to the server's at the same
 sequence number whenever their outbox is empty.  A mismatch is a bug report plus an automatic
 re-bootstrap from the snapshot.
 

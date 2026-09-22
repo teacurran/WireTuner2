@@ -1,0 +1,256 @@
+// proto/wiretuner/doc/v1/ops.proto
+//
+// The thirteen operations (docs/spec/crdt-model.adoc, "Operations").  Operations are fixed:
+// features add fields to props messages, never operations.  Every op has an OpId -- it is not
+// carried here but derived from the enclosing Change: op i of a change has counter
+// `start_counter + i` and the change's replica (change.proto).  Every op applies to every
+// state: one naming an unknown node, a wrong-kind field or a malformed path is a deterministic
+// no-op in both engines (crdt-model.adoc, "Totality").
+syntax = "proto3";
+
+package wiretuner.doc.v1;
+
+import "buf/validate/validate.proto";
+import "wiretuner/doc/v1/common.proto";
+import "wiretuner/doc/v1/node.proto";
+import "wiretuner/doc/v1/text.proto";
+
+option java_multiple_files = true;
+option java_package = "com.villagecompute.wiretuner.doc.v1";
+option optimize_for = SPEED;
+
+// One operation.  Exactly one case is set.
+message Op {
+  // The operation.  Numbers are fixed by the CRDT model page.
+  oneof op {
+    option (buf.validate.oneof).required = true;
+    // Create a node.
+    CreateNode create = 1;
+    // Write or clear registers on a node.
+    SetFields set = 2;
+    // Move a node to a new parent and/or position.
+    MoveNode move = 3;
+    // Delete or restore a node.
+    SetDeleted set_deleted = 4;
+    // Insert elements into a SEQUENCE field.
+    ElementInsert element_insert = 5;
+    // Move one element within its sequence.
+    ElementMove element_move = 6;
+    // Delete or restore sequence elements.
+    ElementDelete element_delete = 7;
+    // Insert characters into a TEXT field.
+    TextInsert text_insert = 8;
+    // Delete characters from a TEXT field.
+    TextDelete text_delete = 9;
+    // Apply a formatting mark to a span of a TEXT field.
+    TextMark text_mark = 10;
+    // Add a member to a SET field.
+    SetAdd set_add = 11;
+    // Remove a member from a SET field.
+    SetRemove set_remove = 12;
+    // Do nothing; keeps a counter slot.
+    Noop noop = 13;
+  }
+}
+
+// Creates a node whose id is this op's OpId.  The node's kind is the `kind` case of `props`,
+// fixed forever; `props` also carries the initial register values, each stamped with this
+// op's OpId.  Creating a node under a deleted parent is allowed (the child is simply not
+// rendered); creating one under an unknown parent is a no-op.  A CreateNode is also a tree op
+// and goes through the move algorithm (crdt-model.adoc, "Tree moves").
+message CreateNode {
+  // The parent node.  Required: only the well-known nodes have no parent, and they are never
+  // created.
+  OpId parent = 1 [(buf.validate.field).required = true];
+  // Fractional index among the parent's children (bytewise order, ties by node id).
+  bytes position = 2 [(buf.validate.field).bytes = {
+    min_len: 1
+    max_len: 1024
+  }];
+  // The kind (the set oneof case) and initial values.  Required: a node without a kind cannot
+  // be created.
+  NodeProps props = 3 [(buf.validate.field).required = true];
+}
+
+// Writes registers on one node.  Each path in `paths` is written with this op's OpId; the
+// value comes from `values` at the same path.  A path listed in `paths` with no value present
+// in `values` CLEARS that register: it writes `(unset, OpId)`, so clearing a field (a style
+// override, an attached URL) competes with concurrent writes by the same last-writer-wins rule
+// instead of reverting to the schema default silently.  A value present in `values` at a path
+// not listed in `paths` is ignored.  Paths must address registers (ATOMIC leaves, or an
+// ATOMIC message as a whole); a path into a SEQUENCE names the element, then the element's
+// field.  A write whose OpId is smaller than the register's is ignored but retained in the
+// change log for the conflict review.
+message SetFields {
+  // The node whose registers are written.
+  OpId node = 1 [(buf.validate.field).required = true];
+  // The registers written by this op, at least one.
+  repeated FieldPath paths = 2 [(buf.validate.field).repeated = {
+    min_items: 1
+    max_items: 10000
+  }];
+  // A sparse NodeProps in the node's kind holding the new values.  Absent at a listed path =
+  // clear that register.  Absent entirely = every listed path is cleared.
+  NodeProps values = 3;
+}
+
+// Moves a node under a new parent and/or to a new sibling position.  Applied in OpId order
+// with the undo-do-redo scheme of Kleppmann et al.; a move that would make a node its own
+// ancestor is skipped.  Moving a well-known node is a no-op.
+message MoveNode {
+  // The node to move.
+  OpId node = 1 [(buf.validate.field).required = true];
+  // The new parent.  Required; a move within the same parent repeats the current parent.
+  OpId parent = 2 [(buf.validate.field).required = true];
+  // The new fractional index among the parent's children.
+  bytes position = 3 [(buf.validate.field).bytes = {
+    min_len: 1
+    max_len: 1024
+  }];
+}
+
+// Writes a node's `deleted` register.  A deleted node keeps its properties, children and
+// history and keeps accepting edits, so restoring it (`deleted = false`) restores them too.
+// Deleting a well-known node is a no-op.
+message SetDeleted {
+  // The node.
+  OpId node = 1 [(buf.validate.field).required = true];
+  // True deletes, false restores.
+  bool deleted = 2;
+}
+
+// Inserts elements into a SEQUENCE field.  The i-th inserted element's id is this op's OpId
+// with counter `+ i`, so an insert of n elements takes n consecutive counters (the enclosing
+// Change accounts for them in `start_counter`).  Each element's fields are registers stamped
+// with the element's own id.
+message ElementInsert {
+  // The node owning the sequence.
+  OpId node = 1 [(buf.validate.field).required = true];
+  // The SEQUENCE field, addressed from NodeProps (for a nested sequence, through its parent
+  // element).
+  FieldPath sequence = 2 [(buf.validate.field).required = true];
+  // One fractional position per inserted element, in element order; at least one.  Positions
+  // are generated between the intended neighbors with a random suffix (crdt-model.adoc,
+  // "Sibling order").
+  repeated bytes positions = 3 [(buf.validate.field).repeated = {
+    min_items: 1
+    max_items: 32000
+    items: {
+      bytes: {
+        min_len: 1
+        max_len: 1024
+      }
+    }
+  }];
+  // A sparse NodeProps holding the inserted elements at `sequence`, in the same order as
+  // `positions`, each with its initial field values.  An element's `id` field (always field 1)
+  // is ignored on ingest: the id is derived from this op.
+  NodeProps values = 4;
+}
+
+// Moves one sequence element by writing its position register.  Concurrent moves of the same
+// element resolve by OpId; a move of a deleted element applies to the tombstone.
+message ElementMove {
+  // The node owning the sequence.
+  OpId node = 1 [(buf.validate.field).required = true];
+  // The element: the SEQUENCE field's path followed by the element id.
+  FieldPath element = 2 [(buf.validate.field).required = true];
+  // The new fractional position among the sequence's elements.
+  bytes position = 3 [(buf.validate.field).bytes = {
+    min_len: 1
+    max_len: 1024
+  }];
+}
+
+// Writes each listed element's `deleted` register.  A deleted element is a tombstone: it keeps
+// its registers (edits still apply) and is skipped on read until it is collected once causally
+// stable.  `deleted = false` restores an element whose tombstone still exists (the review
+// sheet's Restore); restoring a collected element is a no-op, and the client re-inserts it as
+// a new element instead.
+message ElementDelete {
+  // The node owning the sequence.
+  OpId node = 1 [(buf.validate.field).required = true];
+  // The elements: each the SEQUENCE field's path followed by an element id.  At least one.
+  repeated FieldPath elements = 2 [(buf.validate.field).repeated = {
+    min_items: 1
+    max_items: 32000
+  }];
+  // True deletes (the usual case; the client always writes it explicitly), false restores.
+  bool deleted = 3;
+}
+
+// Inserts characters into a TEXT field between two Fugue origins.  The i-th character's id is
+// this op's OpId with counter `+ i`, one per Unicode scalar.  Two people typing at the same
+// position produce two contiguous runs, never interleaved letters.
+message TextInsert {
+  // The node owning the text.
+  OpId node = 1 [(buf.validate.field).required = true];
+  // The TEXT field, addressed from NodeProps.
+  FieldPath text = 2 [(buf.validate.field).required = true];
+  // The character the insertion follows; an all-zero id means the start of the text.
+  ElementId left_origin = 3;
+  // The character the insertion precedes; an all-zero id means the end of the text.
+  ElementId right_origin = 4;
+  // The characters, valid UTF-8, at most 64 KiB per op (the client splits longer pastes).
+  string chars = 5 [(buf.validate.field).string = {
+    min_len: 1
+    max_bytes: 65536
+  }];
+}
+
+// Deletes characters from a TEXT field by id.  Deleted characters remain as tombstones until
+// causally stable; a concurrent insert beside one still lands where its origins say.
+message TextDelete {
+  // The node owning the text.
+  OpId node = 1 [(buf.validate.field).required = true];
+  // The TEXT field, addressed from NodeProps.
+  FieldPath text = 2 [(buf.validate.field).required = true];
+  // The character ids to delete, as runs of consecutive ids; at least one.
+  repeated ElementIdRange ranges = 3 [(buf.validate.field).repeated = {
+    min_items: 1
+    max_items: 10000
+  }];
+}
+
+// Applies one formatting mark to a span of a TEXT field (Peritext).  The mark's id is this
+// op's OpId; marks of the same attribute resolve by OpId where they overlap, marks of different
+// attributes stack.  Which anchor sides an attribute uses (whether the span grows when text is
+// typed at its edges) is fixed per attribute on type/creating-text.adoc.
+message TextMark {
+  // The node owning the text.
+  OpId node = 1 [(buf.validate.field).required = true];
+  // The TEXT field, addressed from NodeProps.
+  FieldPath text = 2 [(buf.validate.field).required = true];
+  // Where the span starts.
+  Anchor start = 3 [(buf.validate.field).required = true];
+  // Where the span ends.
+  Anchor end = 4 [(buf.validate.field).required = true];
+  // The attribute and its value; exactly one attribute per mark.
+  TextMarkValue value = 5 [(buf.validate.field).required = true];
+}
+
+// Adds a member to a SET field (add-wins observed-remove set; members compare by value).
+// A concurrent add and remove of the same member keeps it.
+message SetAdd {
+  // The node owning the set.
+  OpId node = 1 [(buf.validate.field).required = true];
+  // The SET field, addressed from NodeProps.
+  FieldPath set = 2 [(buf.validate.field).required = true];
+  // A sparse NodeProps holding, at `set`, the member (or members) to add.
+  NodeProps values = 3 [(buf.validate.field).required = true];
+}
+
+// Removes a member from a SET field.  Removes only the adds the remover had observed: an add
+// concurrent with the remove survives.
+message SetRemove {
+  // The node owning the set.
+  OpId node = 1 [(buf.validate.field).required = true];
+  // The SET field, addressed from NodeProps.
+  FieldPath set = 2 [(buf.validate.field).required = true];
+  // A sparse NodeProps holding, at `set`, the member (or members) to remove.
+  NodeProps values = 3 [(buf.validate.field).required = true];
+}
+
+// Does nothing.  Keeps a counter slot when the outbox coalesces an op away (a swatch
+// recolored fifty times sends one write), so `start_counter + i` stays the op's id.
+message Noop {}
