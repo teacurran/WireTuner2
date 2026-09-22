@@ -1,0 +1,135 @@
+import Foundation
+
+/// The result of asking a command whether it can run right now.  Menus disable the item and
+/// show `reason` as a tooltip; the command palette lists disabled commands greyed with the
+/// reason; `isChecked` draws the check mark; `title` overrides the static title ("Undo Move").
+struct CommandValidation: Equatable, Sendable {
+    var isEnabled: Bool
+    var reason: String?
+    var isChecked: Bool
+    var title: String?
+
+    init(isEnabled: Bool = true, reason: String? = nil, isChecked: Bool = false, title: String? = nil) {
+        self.isEnabled = isEnabled
+        self.reason = reason
+        self.isChecked = isChecked
+        self.title = title
+    }
+
+    static let enabled = CommandValidation()
+
+    static func disabled(_ reason: String) -> CommandValidation {
+        CommandValidation(isEnabled: false, reason: reason)
+    }
+
+    static func checked(_ isChecked: Bool) -> CommandValidation {
+        CommandValidation(isChecked: isChecked)
+    }
+}
+
+/// What running a command does.
+enum CommandAction: Sendable {
+    /// Runs in the app after validation.
+    case perform(@MainActor @Sendable () -> Void)
+    /// Sent down the responder chain by selector name (`"cut:"`).  AppKit validates and
+    /// performs it, so text fields, the canvas and the window all get their standard behavior.
+    case responder(String)
+
+    var responderSelectorName: String? {
+        if case let .responder(name) = self { return name }
+        return nil
+    }
+}
+
+/// Where a command lives in the menu bar.  `components` is the path of titles from the
+/// top-level menu (`["View", "Magnification"]`); `section` groups items at each level, and
+/// sections are separated by a line.  Within a section commands keep registration order.
+struct MenuPath: Hashable, Sendable, Codable {
+    var components: [String]
+    var section: Int
+
+    init(_ components: String..., section: Int = 0) {
+        self.components = components
+        self.section = section
+    }
+
+    init(components: [String], section: Int) {
+        self.components = components
+        self.section = section
+    }
+
+    /// The top-level menu title.
+    var menu: String { components[0] }
+}
+
+/// The situations a context menu can be opened in (Context menus page, BASIC-018).  A command
+/// with a non-empty set appears in the context menu of those targets.
+enum MenuContext: String, Hashable, Sendable, Codable, CaseIterable {
+    case path, text, bitmap, group, blend, clip, connector, symbolInstance, chart, envelope
+    case multiple, pasteboard, page, guide, presence, swatch, layer, style, symbol, tint
+    case pageThumbnail, tab, panelTab, textEditing
+}
+
+/// One entry in the command registry: everything the menu bar, the shortcut editor, context
+/// menus and the palette need to know about a command.
+struct Command: Sendable, Identifiable {
+    let id: CommandID
+    var title: String
+    /// The binding in the built-in default shortcut set; `nil` for an unbound command.
+    var defaultKey: KeyEquivalent?
+    /// `nil` for commands with no menu item (tools, palette-only commands).
+    var menuPath: MenuPath?
+    var contexts: Set<MenuContext>
+    /// Extra words the palette matches besides the title.
+    var keywords: [String]
+    var validation: @MainActor @Sendable () -> CommandValidation
+    var action: CommandAction
+
+    init(
+        id: CommandID,
+        title: String,
+        key: KeyEquivalent? = nil,
+        menu: MenuPath? = nil,
+        contexts: Set<MenuContext> = [],
+        keywords: [String] = [],
+        validation: @escaping @MainActor @Sendable () -> CommandValidation = { .enabled },
+        action: CommandAction
+    ) {
+        self.id = id
+        self.title = title
+        self.defaultKey = key
+        self.menuPath = menu
+        self.contexts = contexts
+        self.keywords = keywords
+        self.validation = validation
+        self.action = action
+    }
+
+    /// The single shared no-op every placeholder runs.
+    static let noop: @MainActor @Sendable () -> Void = {}
+
+    static let placeholderReason = "Not available yet"
+
+    /// A menu item for a feature a later task delivers: it shows in the menu with its default
+    /// shortcut, disabled with a reason, and does nothing if run.
+    static func placeholder(
+        id: CommandID, title: String, key: KeyEquivalent? = nil, menu: MenuPath? = nil,
+        contexts: Set<MenuContext> = [], keywords: [String] = []
+    ) -> Command {
+        Command(
+            id: id, title: title, key: key, menu: menu, contexts: contexts, keywords: keywords,
+            validation: { .disabled(placeholderReason) }, action: .perform(noop)
+        )
+    }
+
+    /// A standard AppKit command that the responder chain validates and performs.
+    static func responder(
+        id: CommandID, title: String, key: KeyEquivalent? = nil, menu: MenuPath? = nil,
+        contexts: Set<MenuContext> = [], keywords: [String] = [], selector: String
+    ) -> Command {
+        Command(
+            id: id, title: title, key: key, menu: menu, contexts: contexts, keywords: keywords,
+            action: .responder(selector)
+        )
+    }
+}

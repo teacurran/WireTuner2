@@ -220,7 +220,10 @@ ifdef::spec[]
 
 None.  Panel layout is application state, stored as a JSON file per named layout under
 `~/Library/Application Support/WireTuner/Layouts/` and, for the current layout, in
-`NSUserDefaults`.  It is never in a document and never synced.  (A `Preferences` field to sync
+`~/Library/Application Support/WireTuner/PanelLayout.json` (APP-004: the same format and the
+same file writer as a named layout, so BASIC-030's Save Layout is a copy of that file; an
+earlier draft of this page named `NSUserDefaults`).  Inside the sandbox these paths are under
+the app container.  It is never in a document and never synced.  (A `Preferences` field to sync
 named layouts was considered and rejected: layouts depend on display geometry.)
 
 [source,json]

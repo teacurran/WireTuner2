@@ -8,19 +8,44 @@
 
 /* Begin PBXBuildFile section */
 		00A8E5921B0273408FF2582C /* WTSync in Frameworks */ = {isa = PBXBuildFile; productRef = 471B5A84CD7866567E0FC54B /* WTSync */; };
+		01EC77E6D6E708E67C48D94C /* MenuTree.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A0D8F43A952271C28A18B88 /* MenuTree.swift */; };
+		0BB3920DA81AB10E094C3DF5 /* PanelDescriptor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89E0BCC92D5EA76458AB33C3 /* PanelDescriptor.swift */; };
+		1137CFA677D5EF1E3D2F6BCD /* PanelLayoutController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34051624C25EBC2F306EEE92 /* PanelLayoutController.swift */; };
 		11ECC5BDC4555C7CE02E3375 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA559F4D67053E6B84D9EE08 /* AppDelegate.swift */; };
 		12AA9AF714AA828F811E00EE /* LaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C99CD9C6218FA1BED9F30C5D /* LaunchTests.swift */; };
+		17FF0E112E376E269065340C /* CommandRegistryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8D5F817250F1C205B441B67 /* CommandRegistryTests.swift */; };
 		1A84CC0C77CAEADD7EA6D532 /* WTCRDT in Frameworks */ = {isa = PBXBuildFile; productRef = BAE3DB4DC8F06661870A2657 /* WTCRDT */; };
 		1D8999F10F24DD8CC03713F6 /* WTText in Frameworks */ = {isa = PBXBuildFile; productRef = 08C3675137E50641A70094F8 /* WTText */; };
+		2432ABCDFB5C099F14405220 /* MenuTreeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD539A99543C6E841A2BB04A /* MenuTreeTests.swift */; };
+		2F48C0AB3FD5CE3B27A4947D /* PanelRegistryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46E8405C34C44A536CFC2944 /* PanelRegistryTests.swift */; };
+		2F8AECCC98A2059250D201DD /* PanelDockTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC239E118ADA1229304FF5E7 /* PanelDockTests.swift */; };
 		364AFDCD5C52E959E60E5AEE /* WTModel in Frameworks */ = {isa = PBXBuildFile; productRef = D7CCC596AE0E2B551643E221 /* WTModel */; };
+		38D8C7466DA17C00D1D21AC7 /* PanelLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29D97497B47C9702BD8AD0E7 /* PanelLayoutTests.swift */; };
+		3E9812AA700E470404EB0A21 /* PanelDockController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E791ECB2B368B1A8E804D8F /* PanelDockController.swift */; };
+		3F9B5ACA197D9B08151F8FAA /* ShortcutSet.swift in Sources */ = {isa = PBXBuildFile; fileRef = E18284E6402FC6A70286B28C /* ShortcutSet.swift */; };
 		4E759190313AFF4BA297E5BD /* WTProto in Frameworks */ = {isa = PBXBuildFile; productRef = 41651617B1CA311751CEFAA9 /* WTProto */; };
+		5C69D90A09405C76CDA8AE4C /* KeyEquivalentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5A73FB23FC6A3950EE219F2 /* KeyEquivalentTests.swift */; };
+		5C914428ED5729BFC3755F28 /* PanelID.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A02F3DD73CCCD58B47B512E /* PanelID.swift */; };
 		65B2DD8A43DDF8CAF3803D45 /* WTGeometry in Frameworks */ = {isa = PBXBuildFile; productRef = 60AA0F560C13C7F9DAB07F68 /* WTGeometry */; };
+		69766AB9FDA7276047BD75DA /* CommandRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE801CF1BD010375CB3CE64E /* CommandRegistry.swift */; };
+		69950C13F0B3ED9F9AEA33AC /* PanelLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 352D202B8393E0B91942563B /* PanelLayout.swift */; };
+		706CF7F9AECC6A01A5232441 /* PanelRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72A919DDFD79C472BB83F545 /* PanelRegistry.swift */; };
+		7BB65D12B8AF3B10D0FEA6CE /* PanelLayoutStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 656E8AB3DBD70AC4B517E423 /* PanelLayoutStore.swift */; };
 		7E00252DBDF6D880EA67F809 /* MainWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD757FAD86FA5549E8A91C3A /* MainWindow.swift */; };
-		82004F4F383C9F096C574716 /* MainMenuTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62A731B918C79F3066FA8A97 /* MainMenuTests.swift */; };
+		833ACCA643319DCF4D8C4E33 /* CommandID.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1512FEFB9F1C1DCFCD7C6C9 /* CommandID.swift */; };
+		85F2B2FC8B8F12B4B968803F /* KeyEquivalentResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 864D7ED4058E0748A46DD4AF /* KeyEquivalentResolver.swift */; };
+		96E99C921E244205F0BA4C1E /* PlaceholderPanels.swift in Sources */ = {isa = PBXBuildFile; fileRef = C46E9C5BB2BE0B59C198A387 /* PlaceholderPanels.swift */; };
+		B9A9D28E6B39E941DCEAD977 /* StandardCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5BEA0DD82E5423AEA35D3B9 /* StandardCommands.swift */; };
+		C2D3B1FAEAE0B9212822B894 /* ShortcutSetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A98EF394B63F85812A1FA732 /* ShortcutSetTests.swift */; };
 		C72227A3FC3EF6FA6C368A68 /* WTInterchange in Frameworks */ = {isa = PBXBuildFile; productRef = 00D86B1A32BF132424E66A31 /* WTInterchange */; };
-		CA2718B4390AD7EB28C3CCB2 /* MainMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFA4FBCAD1B7541495D6CE7C /* MainMenu.swift */; };
+		D943A22796246EA3E2EB35E1 /* PanelCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2088A26FF2592954FFDDFE3E /* PanelCommands.swift */; };
+		E4DFCEB5648FEC8B5FBACF38 /* DockTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 704C825199E9853360D5498B /* DockTests.swift */; };
+		E8A16002F7DDEA23AE135AB9 /* MainMenuBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0E2E2C5FD9C65483CAE12CB /* MainMenuBuilder.swift */; };
+		F65F027F8051F0EEA26574AC /* PanelLayoutControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9734417E31F42CF25967614 /* PanelLayoutControllerTests.swift */; };
 		FCCAA7C0A2B14239132D876E /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = A21803070916F2818F09638E /* Sparkle */; };
+		FCEB7B894FB3CEA9D4E7E3B9 /* KeyEquivalent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56BEDCCF536AA5A6AC6A3995 /* KeyEquivalent.swift */; };
 		FCF6121947A69E9DD2AE3F3A /* WTRender in Frameworks */ = {isa = PBXBuildFile; productRef = 0E3C267385D7C4EC7FE62D3B /* WTRender */; };
+		FF23E035CF3C3DFC49B5E31B /* Command.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26D2DCB38B35473908EBEE3A /* Command.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -43,20 +68,45 @@
 /* Begin PBXFileReference section */
 		0552EFEE2D0D7BF3287AC1CB /* WTRender */ = {isa = PBXFileReference; lastKnownFileType = folder; name = WTRender; path = Packages/WTRender; sourceTree = SOURCE_ROOT; };
 		17DCB90ECA11D7A4BB285BD2 /* WTCRDT */ = {isa = PBXFileReference; lastKnownFileType = folder; name = WTCRDT; path = Packages/WTCRDT; sourceTree = SOURCE_ROOT; };
+		2088A26FF2592954FFDDFE3E /* PanelCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PanelCommands.swift; sourceTree = "<group>"; };
+		26D2DCB38B35473908EBEE3A /* Command.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Command.swift; sourceTree = "<group>"; };
+		29D97497B47C9702BD8AD0E7 /* PanelLayoutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PanelLayoutTests.swift; sourceTree = "<group>"; };
+		2A0D8F43A952271C28A18B88 /* MenuTree.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuTree.swift; sourceTree = "<group>"; };
+		34051624C25EBC2F306EEE92 /* PanelLayoutController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PanelLayoutController.swift; sourceTree = "<group>"; };
+		352D202B8393E0B91942563B /* PanelLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PanelLayout.swift; sourceTree = "<group>"; };
 		391239378827B9FEE73C2CC6 /* WTGeometry */ = {isa = PBXFileReference; lastKnownFileType = folder; name = WTGeometry; path = Packages/WTGeometry; sourceTree = SOURCE_ROOT; };
+		3A02F3DD73CCCD58B47B512E /* PanelID.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PanelID.swift; sourceTree = "<group>"; };
 		3E5D6C25212155353C087E60 /* Signing.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Signing.xcconfig; sourceTree = "<group>"; };
+		3E791ECB2B368B1A8E804D8F /* PanelDockController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PanelDockController.swift; sourceTree = "<group>"; };
 		460B71B23E673F75D7DD782E /* WTModel */ = {isa = PBXFileReference; lastKnownFileType = folder; name = WTModel; path = Packages/WTModel; sourceTree = SOURCE_ROOT; };
+		46E8405C34C44A536CFC2944 /* PanelRegistryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PanelRegistryTests.swift; sourceTree = "<group>"; };
 		484A7B706CA8D88B936AB511 /* WTSync */ = {isa = PBXFileReference; lastKnownFileType = folder; name = WTSync; path = Packages/WTSync; sourceTree = SOURCE_ROOT; };
+		56BEDCCF536AA5A6AC6A3995 /* KeyEquivalent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyEquivalent.swift; sourceTree = "<group>"; };
 		5DA2F15495C3C971FBA861BA /* WireTuner.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = WireTuner.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		62A731B918C79F3066FA8A97 /* MainMenuTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainMenuTests.swift; sourceTree = "<group>"; };
+		656E8AB3DBD70AC4B517E423 /* PanelLayoutStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PanelLayoutStore.swift; sourceTree = "<group>"; };
 		6972F2F5F4CBB416BB21BC4A /* WTInterchange */ = {isa = PBXFileReference; lastKnownFileType = folder; name = WTInterchange; path = Packages/WTInterchange; sourceTree = SOURCE_ROOT; };
+		704C825199E9853360D5498B /* DockTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DockTests.swift; sourceTree = "<group>"; };
+		72A919DDFD79C472BB83F545 /* PanelRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PanelRegistry.swift; sourceTree = "<group>"; };
+		864D7ED4058E0748A46DD4AF /* KeyEquivalentResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyEquivalentResolver.swift; sourceTree = "<group>"; };
+		89E0BCC92D5EA76458AB33C3 /* PanelDescriptor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PanelDescriptor.swift; sourceTree = "<group>"; };
+		A5BEA0DD82E5423AEA35D3B9 /* StandardCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StandardCommands.swift; sourceTree = "<group>"; };
 		A8373963850ABC898BFBF1F7 /* WireTunerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = WireTunerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		A98EF394B63F85812A1FA732 /* ShortcutSetTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutSetTests.swift; sourceTree = "<group>"; };
+		B1512FEFB9F1C1DCFCD7C6C9 /* CommandID.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandID.swift; sourceTree = "<group>"; };
+		B8D5F817250F1C205B441B67 /* CommandRegistryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandRegistryTests.swift; sourceTree = "<group>"; };
 		BA559F4D67053E6B84D9EE08 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		C46E9C5BB2BE0B59C198A387 /* PlaceholderPanels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceholderPanels.swift; sourceTree = "<group>"; };
+		C5A73FB23FC6A3950EE219F2 /* KeyEquivalentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyEquivalentTests.swift; sourceTree = "<group>"; };
 		C99CD9C6218FA1BED9F30C5D /* LaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchTests.swift; sourceTree = "<group>"; };
+		CE801CF1BD010375CB3CE64E /* CommandRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandRegistry.swift; sourceTree = "<group>"; };
 		D12309DE456E5D0E56AA5411 /* WTTestSupport */ = {isa = PBXFileReference; lastKnownFileType = folder; name = WTTestSupport; path = Packages/WTTestSupport; sourceTree = SOURCE_ROOT; };
+		DC239E118ADA1229304FF5E7 /* PanelDockTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PanelDockTests.swift; sourceTree = "<group>"; };
+		DD539A99543C6E841A2BB04A /* MenuTreeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuTreeTests.swift; sourceTree = "<group>"; };
+		E18284E6402FC6A70286B28C /* ShortcutSet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutSet.swift; sourceTree = "<group>"; };
 		E25848144CAA67025DFEB76F /* WireTunerUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = WireTunerUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		E75E4FA554C827D25E354ACF /* WTProto */ = {isa = PBXFileReference; lastKnownFileType = folder; name = WTProto; path = Packages/WTProto; sourceTree = SOURCE_ROOT; };
-		EFA4FBCAD1B7541495D6CE7C /* MainMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainMenu.swift; sourceTree = "<group>"; };
+		E9734417E31F42CF25967614 /* PanelLayoutControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PanelLayoutControllerTests.swift; sourceTree = "<group>"; };
+		F0E2E2C5FD9C65483CAE12CB /* MainMenuBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainMenuBuilder.swift; sourceTree = "<group>"; };
 		FD757FAD86FA5549E8A91C3A /* MainWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainWindow.swift; sourceTree = "<group>"; };
 		FF71F4B37BBF04BC5AE6E070 /* WTText */ = {isa = PBXFileReference; lastKnownFileType = folder; name = WTText; path = Packages/WTText; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
@@ -84,16 +134,34 @@
 		3FD8D03570505216E2764A5B /* WTApp */ = {
 			isa = PBXGroup;
 			children = (
+				F8DFF3CFDABAC2E620A3A319 /* Commands */,
+				57E8071B6BC406957BD23B48 /* Panels */,
 				BA559F4D67053E6B84D9EE08 /* AppDelegate.swift */,
-				EFA4FBCAD1B7541495D6CE7C /* MainMenu.swift */,
 				FD757FAD86FA5549E8A91C3A /* MainWindow.swift */,
 			);
 			path = WTApp;
 			sourceTree = "<group>";
 		};
+		57E8071B6BC406957BD23B48 /* Panels */ = {
+			isa = PBXGroup;
+			children = (
+				2088A26FF2592954FFDDFE3E /* PanelCommands.swift */,
+				89E0BCC92D5EA76458AB33C3 /* PanelDescriptor.swift */,
+				3E791ECB2B368B1A8E804D8F /* PanelDockController.swift */,
+				3A02F3DD73CCCD58B47B512E /* PanelID.swift */,
+				352D202B8393E0B91942563B /* PanelLayout.swift */,
+				34051624C25EBC2F306EEE92 /* PanelLayoutController.swift */,
+				656E8AB3DBD70AC4B517E423 /* PanelLayoutStore.swift */,
+				72A919DDFD79C472BB83F545 /* PanelRegistry.swift */,
+				C46E9C5BB2BE0B59C198A387 /* PlaceholderPanels.swift */,
+			);
+			path = Panels;
+			sourceTree = "<group>";
+		};
 		6B6E868406FE01C54FC2800A /* WTAppUITests */ = {
 			isa = PBXGroup;
 			children = (
+				704C825199E9853360D5498B /* DockTests.swift */,
 				C99CD9C6218FA1BED9F30C5D /* LaunchTests.swift */,
 			);
 			path = WTAppUITests;
@@ -148,9 +216,32 @@
 		DE3773AA4BCAF3E7BFBFB57B /* WTAppTests */ = {
 			isa = PBXGroup;
 			children = (
-				62A731B918C79F3066FA8A97 /* MainMenuTests.swift */,
+				B8D5F817250F1C205B441B67 /* CommandRegistryTests.swift */,
+				C5A73FB23FC6A3950EE219F2 /* KeyEquivalentTests.swift */,
+				DD539A99543C6E841A2BB04A /* MenuTreeTests.swift */,
+				DC239E118ADA1229304FF5E7 /* PanelDockTests.swift */,
+				E9734417E31F42CF25967614 /* PanelLayoutControllerTests.swift */,
+				29D97497B47C9702BD8AD0E7 /* PanelLayoutTests.swift */,
+				46E8405C34C44A536CFC2944 /* PanelRegistryTests.swift */,
+				A98EF394B63F85812A1FA732 /* ShortcutSetTests.swift */,
 			);
 			path = WTAppTests;
+			sourceTree = "<group>";
+		};
+		F8DFF3CFDABAC2E620A3A319 /* Commands */ = {
+			isa = PBXGroup;
+			children = (
+				26D2DCB38B35473908EBEE3A /* Command.swift */,
+				B1512FEFB9F1C1DCFCD7C6C9 /* CommandID.swift */,
+				CE801CF1BD010375CB3CE64E /* CommandRegistry.swift */,
+				56BEDCCF536AA5A6AC6A3995 /* KeyEquivalent.swift */,
+				864D7ED4058E0748A46DD4AF /* KeyEquivalentResolver.swift */,
+				F0E2E2C5FD9C65483CAE12CB /* MainMenuBuilder.swift */,
+				2A0D8F43A952271C28A18B88 /* MenuTree.swift */,
+				E18284E6402FC6A70286B28C /* ShortcutSet.swift */,
+				A5BEA0DD82E5423AEA35D3B9 /* StandardCommands.swift */,
+			);
+			path = Commands;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -279,8 +370,25 @@
 			buildActionMask = 2147483647;
 			files = (
 				11ECC5BDC4555C7CE02E3375 /* AppDelegate.swift in Sources */,
-				CA2718B4390AD7EB28C3CCB2 /* MainMenu.swift in Sources */,
+				FF23E035CF3C3DFC49B5E31B /* Command.swift in Sources */,
+				833ACCA643319DCF4D8C4E33 /* CommandID.swift in Sources */,
+				69766AB9FDA7276047BD75DA /* CommandRegistry.swift in Sources */,
+				FCEB7B894FB3CEA9D4E7E3B9 /* KeyEquivalent.swift in Sources */,
+				85F2B2FC8B8F12B4B968803F /* KeyEquivalentResolver.swift in Sources */,
+				E8A16002F7DDEA23AE135AB9 /* MainMenuBuilder.swift in Sources */,
 				7E00252DBDF6D880EA67F809 /* MainWindow.swift in Sources */,
+				01EC77E6D6E708E67C48D94C /* MenuTree.swift in Sources */,
+				D943A22796246EA3E2EB35E1 /* PanelCommands.swift in Sources */,
+				0BB3920DA81AB10E094C3DF5 /* PanelDescriptor.swift in Sources */,
+				3E9812AA700E470404EB0A21 /* PanelDockController.swift in Sources */,
+				5C914428ED5729BFC3755F28 /* PanelID.swift in Sources */,
+				69950C13F0B3ED9F9AEA33AC /* PanelLayout.swift in Sources */,
+				1137CFA677D5EF1E3D2F6BCD /* PanelLayoutController.swift in Sources */,
+				7BB65D12B8AF3B10D0FEA6CE /* PanelLayoutStore.swift in Sources */,
+				706CF7F9AECC6A01A5232441 /* PanelRegistry.swift in Sources */,
+				96E99C921E244205F0BA4C1E /* PlaceholderPanels.swift in Sources */,
+				3F9B5ACA197D9B08151F8FAA /* ShortcutSet.swift in Sources */,
+				B9A9D28E6B39E941DCEAD977 /* StandardCommands.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -288,7 +396,14 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				82004F4F383C9F096C574716 /* MainMenuTests.swift in Sources */,
+				17FF0E112E376E269065340C /* CommandRegistryTests.swift in Sources */,
+				5C69D90A09405C76CDA8AE4C /* KeyEquivalentTests.swift in Sources */,
+				2432ABCDFB5C099F14405220 /* MenuTreeTests.swift in Sources */,
+				2F8AECCC98A2059250D201DD /* PanelDockTests.swift in Sources */,
+				F65F027F8051F0EEA26574AC /* PanelLayoutControllerTests.swift in Sources */,
+				38D8C7466DA17C00D1D21AC7 /* PanelLayoutTests.swift in Sources */,
+				2F48C0AB3FD5CE3B27A4947D /* PanelRegistryTests.swift in Sources */,
+				C2D3B1FAEAE0B9212822B894 /* ShortcutSetTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -296,6 +411,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E4DFCEB5648FEC8B5FBACF38 /* DockTests.swift in Sources */,
 				12AA9AF714AA828F811E00EE /* LaunchTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
