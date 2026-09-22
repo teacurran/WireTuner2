@@ -1,0 +1,59 @@
+= Building
+include::_attributes.adoc[]
+:page-slug: building
+
+How code gets written against this book.  Every task in xref:backlog.adoc[Backlog] and on the
+feature pages is picked up by one agent (or one person) working alone; this page is the
+contract they work under.
+
+== Before starting a task
+
+. Read the task: its page, the task's `Delivers` and `Done when`, and every page it xrefs.
+. Read xref:architecture.adoc[Architecture], xref:stack.adoc[Technology stack] and the
+  spec page for the track (xref:api-conventions.adoc[], xref:crdt-model.adoc[],
+  xref:server.adoc[], xref:client.adoc[], xref:testing.adoc[]).
+. Check the dependencies are merged: a task starts only when every `Depends on` id is done.
+
+== While working
+
+* Stay inside the track's directory: `proto/` for proto, `server/` for server,
+  `client/` for the client tracks, `crdt-conformance/` and `client/Packages/WTCRDT` +
+  `server/wt-crdt` together for crdt, `docs/` for docs.  Edits to shared root files
+  (`Makefile`, `README.adoc`, `.gitignore`, `docker-compose.yml`) are proposed in the report,
+  not made silently.
+* The spec is normative.  Where code must deviate (an API that does not exist, a limit that is
+  wrong), the deviation is recorded on the page in the same change, under the relevant
+  subsection, and named in the report.  The book and the code move together.
+* Every task ends green: its own tests pass with the commands named below, the previous tests
+  still pass, and the SonarQube quality gate -- 95% line and 95% branch coverage on both server
+  and client (xref:testing.adoc[Testing]) -- stays green.  Code that is hard to cover is
+  restructured until it is not; exclusions are for generated code only.
+* No temporal words in file names.  Match the surrounding code's idiom.
+
+== Commands
+
+[cols="1,3"]
+|===
+|Track |Verify with
+
+|proto
+|`buf format --diff --exit-code && buf lint && buf breaking --against '.git#branch=main' && buf generate`
+
+|server
+|`cd server && JAVA_HOME=$(sdk home java 25-amzn) ./mvnw -q verify` (Testcontainers need Docker running); coverage lands in `target/site/jacoco/jacoco.xml`; `make sonar-server` uploads it
+
+|client
+|`make client-test` (every package's `swift test --enable-code-coverage`, then `xcodebuild test -enableCodeCoverage YES`), which also writes `client/build/coverage/sonar.xml`; `make sonar-client` uploads it
+
+|crdt
+|Both engines' tests plus `make conformance`
+
+|docs
+|`make docs-check`
+|===
+
+== Reporting a task
+
+The report names: the task id; files created and changed; the exact verify commands run and
+their result; deviations from the spec and where they were recorded; anything left for the
+next task.  The coordinator commits one task per commit with the id in the subject.

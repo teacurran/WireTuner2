@@ -100,4 +100,7 @@ streaming, versioning.
 
 |xref:backlog.adoc[Backlog]
 |Epics, foundation tasks, dependency waves for parallel agents.
+
+|xref:building.adoc[Building]
+|The contract a task is built under: reading, directories, verify commands, coverage gate, reporting.
 |===

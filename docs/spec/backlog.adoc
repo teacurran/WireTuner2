@@ -262,7 +262,7 @@ Track:: server
 Depends on:: PROTO-001
 Size:: M
 Delivers:: `server/` Maven multi-module (api, wt-crdt, jobs) on the latest released Quarkus (3.39.4 at writing) and JDK 25, mirroring dissipate-server's layout, `docker-compose.yml` with postgres, valkey, keycloak (realm import), minio + init, jaeger, mailpit, migrations job; health endpoints; OTel and Prometheus wired.
-Done when:: `docker compose up` yields a healthy API answering `grpc.health.v1`.
+Done when:: `docker compose up` yields a healthy API answering `grpc.health.v1`; `./mvnw verify` writes `target/site/jacoco/jacoco.xml` for every module, and the `sonar.*` properties in `server/pom.xml` name the `wiretuner-server` project (TEST-003 wires the upload).
 
 [[SRV-002]]
 ==== SRV-002 Authentication and roles
@@ -482,7 +482,7 @@ Track:: client-ui
 Depends on:: PROTO-004
 Size:: M
 Delivers:: `client/WireTuner.xcodeproj`, the Swift packages listed in xref:stack.adoc[Stack], Swift 6 strict concurrency, signing and notarization configuration, Sparkle, CI job on a macOS runner running unit and UI tests.
-Done when:: An empty app launches, CI is green, and `swift test` runs every package.
+Done when:: An empty app launches, CI is green, `swift test` runs every package with coverage enabled, and `xcodebuild test` produces a `.profdata` that `llvm-cov export` reads (TEST-003 consumes it).
 
 [[APP-002]]
 ==== APP-002 Document window and canvas
@@ -713,6 +713,18 @@ Size:: L
 Delivers:: A Swift harness running N in-process clients against a compose server with scripted partitions, latency, packet loss, reordering of pipelined unary pushes, stream drops mid-window, gateway mode (`PushChangeBatch`, one call in flight) and offline periods; asserts hash convergence, `SEQ_GAP` recovery and sync-state transitions.
 Done when:: The scenarios in xref:testing.adoc[Testing] run in CI in under 10 minutes, in native and gateway modes.
 
+[[TEST-003]]
+==== TEST-003 Coverage and SonarQube pipeline
+[horizontal]
+Track:: test
+Depends on:: SRV-001, APP-001
+Size:: M
+Delivers:: Server: `quarkus-jacoco` in every module, an aggregate `jacoco.xml`, `sonar-maven-plugin` configured through `server/pom.xml` `sonar.*` properties (project `wiretuner-server`, host `https://sonar.villagecompute.com`, generated sources excluded).  Client: coverage-enabled `swift test`/`xcodebuild test`, `llvm-cov export -format=lcov` with branch data, `tools/coverage/lcov-to-sonar.swift` producing Sonar generic coverage XML, `sonar-scanner` configuration for project `wiretuner-client`.  `make sonar-server`, `make sonar-client` reading `~/.sonar-token`; the CI jobs using the `SONAR_TOKEN` secret and failing the build when the quality gate fails (`sonar.qualitygate.wait=true`).  Quality gate on both projects: 95% line and 95% branch coverage, new and overall code.
+Done when::
+* Both projects appear on the Sonar server with coverage measures after one CI run; a deliberately uncovered branch in each side lowers the reported branch coverage.
+* The token never appears in the repository or in CI logs (grep of the workflow output).
+* A PR with coverage below the gate is blocked by the status check.
+
 [[TEST-002]]
 ==== TEST-002 UI test harness
 [horizontal]
@@ -734,7 +746,7 @@ Agents work in waves; a wave's tasks depend only on earlier waves.
 |PROTO-001, PROTO-002, PROTO-008, PROTO-009, SRV-001, APP-001, GEO-001
 
 |1
-|PROTO-003, SRV-002, SRV-003, REND-001, APP-004, APP-005, GEO-002, GEO-004, GEO-005, TEST-002 (after APP-003)
+|PROTO-003, SRV-002, SRV-003, REND-001, APP-004, APP-005, GEO-002, GEO-004, GEO-005, TEST-003, TEST-002 (after APP-003)
 
 |2
 |PROTO-004..007, CRDT-001, CRDT-003, CRDT-005, CRDT-007, CRDT-011, APP-002, APP-008, APP-010, REND-002, REND-003, REND-006, REND-007, GEO-003

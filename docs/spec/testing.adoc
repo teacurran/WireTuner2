@@ -81,6 +81,56 @@ Mac, driven in one test).
 Quarkus tests with Testcontainers (postgres, valkey, minio, keycloak), one test class per
 service, plus the ingest load test (`SRV-004`) and the conformance run against `wt-crdt`.
 
+== Coverage and SonarQube
+
+Every build reports to SonarQube at `https://sonar.villagecompute.com`, and the quality gate
+requires *95% line coverage and 95% branch (condition) coverage* on new and overall code, for
+the server and for the client alike.  A pull request whose gate fails does not merge.
+
+[cols="1,3"]
+|===
+|Side |How coverage is produced and reported
+
+|Server (Java)
+|`quarkus-jacoco` instruments every Maven module (`api`, `wt-crdt`, `conformance`); the
+aggregate `jacoco.xml` is passed to `sonar-maven-plugin` as
+`sonar.coverage.jacoco.xmlReportPaths`.  JaCoCo reports lines and branches natively.  Sonar
+configuration lives in `server/pom.xml` `sonar.*` properties, never in a
+`sonar-project.properties` (the Maven plugin ignores that file), exactly as dissipate-server
+does.  Generated sources (`target/generated-sources/**`, protobuf stubs) are excluded from
+analysis and from the denominator.
+
+|Client (Swift)
+|Every `swift test` and `xcodebuild test` run is built with `-enable-code-coverage` and produces
+a `.profdata`; `llvm-cov export -format=lcov` (Xcode's toolchain) emits line *and branch*
+records, which `tools/coverage/lcov-to-sonar.swift` converts into Sonar's generic coverage XML
+(`lineToCover`, `coveredBranches`/`branchesToCover`).  `sonar-scanner` (CLI) uploads it with
+`sonar.coverageReportPaths`, `sonar.sources=client/Packages/*/Sources,client/WTApp`,
+`sonar.tests=client/Packages/*/Tests,client/WTAppTests`.  Generated protobuf Swift
+(`WTProto/Sources/WTProto/Generated`) is excluded.  Xcode's own `xccov` is not used for the
+upload because it reports no branch data.
+
+|Projects
+|Two Sonar projects, `wiretuner-server` and `wiretuner-client`, each with the same gate.  The
+proto module contributes no measurable code; the docs contribute none.
+|===
+
+The token is read from `~/.sonar-token` for local runs (`make sonar`) and from the `SONAR_TOKEN`
+secret in CI; it is never written into the repository, a `pom.xml`, or a log.
+
+Design consequences of the 95% branch target:
+
+* Client UI code is written so it is testable without a screen: view models and tools are
+  plain types driven by `CanvasEvent`s and observed state; AppKit views are thin.  XCUITest
+  covers the thin layer.  The tool framework (APP-003) and panel framework (APP-004) exist
+  partly so that this split holds everywhere.
+* Server RPCs are exercised through the gRPC surface with Testcontainers, not by mocking the
+  service class; every error reason in xref:api-conventions.adoc[API conventions] has a test
+  that reaches it.
+* Generated code, `main()` entry points and Objective-C bridging shims are excluded explicitly
+  and listed in the Sonar configuration so the exclusion is visible in review.
+* A task is not done while its Sonar gate is red (xref:building.adoc[Building]).
+
 == Performance gates
 
 CI fails when any of these regress by more than 20% against the stored baseline:
