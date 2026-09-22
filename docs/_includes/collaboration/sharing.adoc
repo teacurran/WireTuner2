@@ -428,6 +428,16 @@ message DocumentEvent {
 }
 ----
 
+As built by PROTO-007 (`proto/wiretuner/docs/v1/share.proto`): `DocumentRole` is the enum
+already in `account/v1/team.proto` (`OWNER = 1`, `EDITOR = 2`, `COMMENTER = 3`,
+`VIEWER = 4`; no `NONE`), so removing a named role is `ShareService.RemoveMember`, a member
+with access only through the team or a link carries `role = DOCUMENT_ROLE_UNSPECIFIED`, and
+`ResolveAccessRequest.grant = DOCUMENT_ROLE_UNSPECIFIED` declines.  `InviteRequest` puts
+`email` and `account_id` in a required `oneof`; the link token is
+`CreateLinkResponse.token`, not a `ShareLink` field; `ListMembers` and `ListAccessRequests`
+page with `cursor`/`page_size`; `TransferOwnership` returns both members.  `DocumentEvent`
+lives in `sync.proto` with a `Reconnect` and a `MembersChanged` case beside the ones above.
+
 Team libraries add one thing to the *document* schema: provenance on a copied node.
 
 [source,protobuf]

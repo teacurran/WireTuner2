@@ -96,13 +96,37 @@ message PushChangeBatchResponse {
 message PushChangesRequest { string document_id = 1; repeated wiretuner.doc.v1.Change changes = 2; }  // frames ≤ 1 MiB
 message PushChangesResponse { uint64 last_accepted_seq = 1; ChangeRejected rejected = 2; }
 
-message ChangeRejected { fixed64 replica = 1; uint64 seq = 2; string reason = 3; google.rpc.Status status = 4; }
+// The status a unary PushChange would have failed with, flattened: google.rpc.Status would
+// pull googleapis into the buf module with no Swift type generated for it (PROTO-006).
+message ChangeRejected { fixed64 replica = 1; uint64 seq = 2; ErrorReason reason = 3; int32 code = 4; string message = 5; }
 
 message UpdatePresenceRequest { string document_id = 1; fixed64 replica = 2; PresenceUpdate presence = 3; }
 message UpdatePresenceResponse {}
 message AckRequest { string document_id = 1; fixed64 replica = 2; uint64 applied_server_seq = 3; }
 message AckResponse { uint64 stable_seq = 1; }
 ----
+
+As built by PROTO-006 (`proto/wiretuner/sync/v1/sync.proto`), with these settled details:
+
+* Every message the subscription carries lives in `sync.proto`: the frames above, the
+  presence messages sketched on xref:presence.adoc[Presence] (`PresenceUpdate`,
+  `PresenceSnapshot`, `Participant`, `Viewport`, `TextCaret`, `PresenceState`) and
+  `DocumentEvent` with its cases (`RoleChanged`, `AccessRemoved`, `Renamed`, `Moved`,
+  `Trashed`, `BranchEvent`, `Reconnect`, `MembersChanged`).  `sync.v1` imports only `doc.v1`
+  and `account.v1`; `docs.v1` imports `sync.v1` for `Participant`, so `BranchEvent` names the
+  branch by id rather than embedding `docs.v1.Branch` (buf's `PACKAGE_NO_IMPORT_CYCLE`).
+* `ErrorReason` is the enum behind xref:api-conventions.adoc[API conventions]' error table
+  (one value per row, `ERROR_REASON_` prefix dropped on the wire), used by `ChangeRejected`.
+* `SequencedChange` carries the server-filled `author` (a `Participant`).  `Welcome.merge_table`
+  is at most 4 MiB (xref:decisions.adoc#Q-015[Q-015]).  `FetchChangesRequest` takes
+  `after_server_seq` and an optional `until_server_seq`; `FetchSnapshotRequest` takes
+  `at_or_before_server_seq` (0 = newest) and streams `doc.v1.SnapshotFrame`.  `Pong` carries
+  the server's wall time.
+* The 1 MiB frame cap of `PushChanges` and `FetchChanges` is not expressible in protovalidate
+  (it cannot measure encoded size): the service's maximum inbound message size enforces it,
+  the client's outbox packs frames to it, and `max_items: 256` per frame is the declared
+  sanity bound.  `Subscribe` returns `ServerFrame` rather than a `SubscribeResponse`; `buf.yaml`
+  exempts that one file from `RPC_RESPONSE_STANDARD_NAME`.
 
 === Why no bidirectional stream
 

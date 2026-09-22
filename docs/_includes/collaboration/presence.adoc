@@ -255,6 +255,12 @@ message SequencedChange {
 }
 ----
 
+As built by PROTO-006: these messages live in `proto/wiretuner/sync/v1/sync.proto` beside
+the frames that carry them (one file per package for now; `buf breaking`'s `FILE` category
+keeps them there).  `Participant.avatar_sha256` is `bytes` (32 raw, or empty), matching how
+every other blob hash travels; `branch_id` and `following_user_id` are validated as UUIDs
+when set.
+
 Color assignment is server state: `document_member.color_index` (SRV-003 schema, extended by
 COLLAB-005), assigned on the first `Subscribe` from that user as the lowest palette index not in
 use among members who have ever opened the document, wrapping after twelve.  Users with

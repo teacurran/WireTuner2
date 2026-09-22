@@ -20,16 +20,21 @@ docs-check:
 docs-clean:
 	rm -rf docs/target
 
-.PHONY: proto-lint proto-gen
+.PHONY: proto-lint proto-gen proto-plugins
 
 # The proto gate CI runs (.github/workflows/proto.yml); breaking is compared with main.
 proto-lint:
 	buf format --diff --exit-code
 	buf lint
+	tools/proto/check-no-bidi.sh
 	buf breaking --against '.git#branch=main'
 
+# Builds tools/bin/protoc-gen-grpc-swift-2 at the version WTProto pins (docs/spec/decisions.adoc D-014).
+proto-plugins:
+	tools/proto/install-plugins.sh
+
 # Regenerates the committed Swift and the HTML reference (proto/gen/docs, gitignored).
-proto-gen:
+proto-gen: proto-plugins
 	buf generate
 
 .PHONY: client-test client-build

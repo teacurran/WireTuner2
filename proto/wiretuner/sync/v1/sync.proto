@@ -1,0 +1,597 @@
+// proto/wiretuner/sync/v1/sync.proto
+//
+// The sync protocol (docs/spec/sync-protocol.adoc).  The server is a hub: every change goes
+// to it, it assigns a position in the document's log, and every other client with the document
+// open receives it from that log.  One server-streaming Subscribe carries everything the server
+// has to say about a document; everything the client has to say is a unary call (or, for a bulk
+// upload, a client-streaming one with a unary fallback).  No RPC streams in both directions --
+// tools/proto/check-no-bidi.sh enforces it -- so every call works through a Connect or gRPC-Web
+// gateway and an HTTP/1.1 load balancer (docs/spec/api-conventions.adoc, "Services and RPC
+// shape"; docs/spec/decisions.adoc D-044).
+//
+// Presence (docs/_includes/collaboration/presence.adoc, "Data model") and the document events
+// a session receives (sharing.adoc, branches.adoc) are here too: they are frames of the one
+// subscription.  This package imports doc.v1 and account.v1 only; docs.v1 imports it for
+// Participant, so nothing here may import docs.v1 (buf's PACKAGE_NO_IMPORT_CYCLE).
+syntax = "proto3";
+
+package wiretuner.sync.v1;
+
+import "buf/validate/validate.proto";
+import "wiretuner/account/v1/team.proto";
+import "wiretuner/doc/v1/change.proto";
+import "wiretuner/doc/v1/common.proto";
+import "wiretuner/doc/v1/snapshot.proto";
+
+option java_multiple_files = true;
+option java_package = "com.villagecompute.wiretuner.sync.v1";
+option optimize_for = SPEED;
+
+// Subscriptions, pushes, catch-up and presence for one document at a time.  Every call carries
+// the bearer token, `wt-client` and `wt-device` as metadata (api-conventions.adoc, "Metadata")
+// and names the document; the caller's role on the document gates it: any role may subscribe,
+// fetch and send presence, editor or owner (commenter under the comments collection) may
+// push.  A document the caller cannot see answers NOT_FOUND with reason DOCUMENT_NOT_FOUND.
+service SyncService {
+  // The one long-lived call: everything the server pushes about one document.  The first frame
+  // is always Welcome; then the replay of every change after `after_server_seq` (unless
+  // Welcome.snapshot_hint says to FetchSnapshot instead), a PresenceSnapshot, and from there
+  // live changes, presence, document events and a Pong after 15 s of silence.  Either side may
+  // end the stream; reconnection is a new Subscribe from the client's current
+  // `after_server_seq`.  The server keeps no per-subscription state except presence.
+  rpc Subscribe(SubscribeRequest) returns (stream ServerFrame);
+  // One local change; the ack (its server_seq) is the response, so causality needs no echo.
+  // Clients pipeline up to 32 of these on one HTTP/2 connection in seq order.  A rejection is
+  // the call's status with the reason in google.rpc.ErrorInfo (ErrorReason, below): on SEQ_GAP
+  // the client drains its in-flight calls and resends from the last accepted seq; a retried
+  // duplicate with identical content is silently acked.
+  rpc PushChange(PushChangeRequest) returns (PushChangeResponse);
+  // Up to 32 consecutive changes of one replica in one call, accepted as a prefix: the
+  // response acks what got in and names the first rejection.  For clients behind a gateway
+  // that cannot keep pipelined calls in order; a native client never needs it.
+  rpc PushChangeBatch(PushChangeBatchRequest) returns (PushChangeBatchResponse);
+  // Bulk upload of a backlog (offline catch-up above 200 changes or 512 KiB, offline.adoc).
+  // Client-streaming, frames of at most 1 MiB, changes in seq order across frames; the single
+  // response carries the last accepted seq and the first rejection.  Progress is read from the
+  // caller's own SequencedChange echoes on the subscription.  Not gateway-friendly either; a
+  // gateway client loops over PushChangeBatch instead.
+  rpc PushChanges(stream PushChangesRequest) returns (PushChangesResponse);
+  // The caller's current presence, coalesced to at most 20 per second per replica; a final
+  // call with state GONE on close.  Current state, never a delta: a lost update costs nothing.
+  rpc UpdatePresence(UpdatePresenceRequest) returns (UpdatePresenceResponse);
+  // The highest server_seq the replica has applied locally, sent every 2 s while remote changes
+  // are being applied and on close.  Drives causal stability (crdt-model.adoc, "Garbage
+  // collection"); the response is the document's stable seq.
+  rpc Ack(AckRequest) returns (AckResponse);
+  // Catch-up download: the changes after a server_seq, oldest first, in frames of at most
+  // 1 MiB.  Hot changes come from Postgres, older ones from cold segments; the client never
+  // touches storage directly.
+  rpc FetchChanges(FetchChangesRequest) returns (stream FetchChangesResponse);
+  // The newest snapshot at or before a server_seq, as a header frame followed by compressed
+  // chunks of at most 1 MiB (doc.v1.SnapshotFrame).  The client then replays FetchChanges from
+  // the snapshot's seq.  A client bootstrapping a document it has never opened always takes
+  // this path.
+  rpc FetchSnapshot(FetchSnapshotRequest) returns (stream FetchSnapshotResponse);
+}
+
+// Machine-readable reasons carried in google.rpc.ErrorInfo.reason (domain `wiretuner.app`)
+// on every failed call, and in ChangeRejected.reason inside batch and bulk responses.  The
+// wire string is the value name without its `ERROR_REASON_` prefix (`TOKEN_EXPIRED`); clients
+// branch on it, never on message text.  One value per row of the table in
+// docs/spec/api-conventions.adoc, "Errors", plus the page-specific reasons that table lists.
+enum ErrorReason {
+  // No reason given; the status code alone describes the failure (INVALID_ARGUMENT with
+  // google.rpc.BadRequest details, INTERNAL, ...).
+  ERROR_REASON_UNSPECIFIED = 0;
+  // UNAUTHENTICATED: refresh the token and retry.
+  ERROR_REASON_TOKEN_EXPIRED = 1;
+  // PERMISSION_DENIED: the caller's role on the document does not allow this (a viewer
+  // pushing changes).
+  ERROR_REASON_ROLE_INSUFFICIENT = 2;
+  // FAILED_PRECONDITION: the replica was retired after long inactivity (offline.adoc,
+  // "Expiry"); rotate the replica id and salvage.
+  ERROR_REASON_REPLICA_EXPIRED = 3;
+  // FAILED_PRECONDITION: the same (replica, seq) arrived with different content; the client
+  // must rotate its replica id.
+  ERROR_REASON_REPLICA_CONFLICT = 4;
+  // FAILED_PRECONDITION: the document's feature level is above this client's; open read-only
+  // and prompt to update.
+  ERROR_REASON_CLIENT_TOO_OLD = 5;
+  // ABORTED: a change arrived before its predecessor; resend from the acked seq.
+  ERROR_REASON_SEQ_GAP = 6;
+  // RESOURCE_EXHAUSTED: back off for the google.rpc.RetryInfo delay.
+  ERROR_REASON_RATE_LIMITED = 7;
+  // RESOURCE_EXHAUSTED: the space's blob storage quota is full; change ingest is never
+  // quota-limited (saving.adoc).
+  ERROR_REASON_STORAGE_QUOTA = 8;
+  // NOT_FOUND: deleted, or never visible to the caller (indistinguishable on purpose).
+  ERROR_REASON_DOCUMENT_NOT_FOUND = 9;
+  // PERMISSION_DENIED: a data-source fetch targets a host outside the scope's allowlist
+  // (data-merge.adoc).
+  ERROR_REASON_HOST_NOT_ALLOWED = 10;
+  // FAILED_PRECONDITION: the source names a credential the scope does not hold.
+  ERROR_REASON_CREDENTIAL_MISSING = 11;
+  // RESOURCE_EXHAUSTED: an upstream response exceeded the size cap.
+  ERROR_REASON_RESPONSE_TOO_LARGE = 12;
+  // UNAVAILABLE: the upstream API failed; details carry its status.
+  ERROR_REASON_UPSTREAM_ERROR = 13;
+  // INVALID_ARGUMENT: a protovalidate rule failed; the violations are in
+  // google.rpc.BadRequest details.  In a batch or bulk response the change is dropped by the
+  // client, reverted with an inverse change and reported as a bug.
+  ERROR_REASON_VALIDATION_FAILED = 14;
+  // PERMISSION_DENIED: the share link needs a password, or the one given is wrong
+  // (sharing.adoc, "Data model").
+  ERROR_REASON_LINK_PASSWORD_REQUIRED = 15;
+  // NOT_FOUND: the share link is unknown, expired or revoked.
+  ERROR_REASON_LINK_INVALID = 16;
+  // FAILED_PRECONDITION: the parent advanced past the reviewed head by changes touching nodes
+  // the merge review decided on; review again (branches.adoc, "Merge semantics").
+  ERROR_REASON_MERGE_STALE = 17;
+}
+
+// Opens the subscription on one document.
+message SubscribeRequest {
+  // The document.
+  string document_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+  // The caller's replica id for this document; bound to the caller's account and device on
+  // first use.  Never 0 (reserved for the well-known nodes).
+  fixed64 replica = 2 [(buf.validate.field).fixed64.gt = 0];
+  // Highest server_seq applied locally; the replay starts after it.  0 = bootstrap.
+  uint64 after_server_seq = 3;
+  // Optional initial presence, saving one UpdatePresence round trip.
+  PresenceUpdate presence = 4;
+}
+
+// One frame of the subscription stream; exactly one case is set.
+message ServerFrame {
+  // What the frame carries.
+  oneof frame {
+    option (buf.validate.oneof).required = true;
+    // Always the first frame, exactly once.
+    Welcome welcome = 1;
+    // Someone's change with its server_seq, including the caller's own (which the caller uses
+    // only to keep its applied server_seq contiguous; the ops are already applied).
+    SequencedChange change = 2;
+    // Everyone present.  Sent after the replay and whenever the server rebuilds it.
+    PresenceSnapshot presence = 3;
+    // One collaborator's presence changed (or went GONE).
+    PresenceUpdate presence_update = 4;
+    // Something about the document other than its content changed: renamed, shared, role
+    // changed, trashed, a branch event, or the server asks the client to reconnect.
+    DocumentEvent event = 5;
+    // Heartbeat after 15 s of silence; there is no Ping, the stream is one-way.  A client
+    // that sees nothing for 45 s cancels and resubscribes.
+    Pong pong = 6;
+  }
+}
+
+// The first frame of every subscription: where the caller stands.
+message Welcome {
+  // The caller's effective role on the document; decides whether pushes are allowed.
+  wiretuner.account.v1.DocumentRole role = 1 [(buf.validate.field).enum.defined_only = true];
+  // The server's serialized merge table (field path -> policy), emitted by protoc-gen-wtcrdt,
+  // so a client that meets a field newer than itself still merges it correctly and preserves
+  // it for others (crdt-model.adoc, "Schema evolution"; decisions.adoc Q-015 settled the name).
+  bytes merge_table = 2 [(buf.validate.field).bytes.max_len = 4194304];
+  // The document's head server_seq at the moment of subscribing.
+  uint64 head_seq = 3;
+  // This replica's last accepted seq: where pushes resume.  Pushes that were in flight when a
+  // stream dropped are neither retried nor forgotten until this says which of them got in.
+  uint64 last_accepted_seq = 4;
+  // True when the gap between `after_server_seq` and head is larger than the newest
+  // snapshot's distance from head: FetchSnapshot instead of waiting for the replay, which is
+  // then not sent.
+  bool snapshot_hint = 5;
+  // The highest schema feature any change in the document has used.  A client below it opens
+  // read-only (CLIENT_TOO_OLD on push).
+  uint32 feature_level = 6;
+}
+
+// A change with the position the server gave it and, so attribution needs no replica lookup,
+// its author (collaboration.adoc, history.adoc).
+message SequencedChange {
+  // Position in the document's log: 1, 2, 3 ... per document.
+  uint64 server_seq = 1 [(buf.validate.field).uint64.gt = 0];
+  // The change, byte for byte as the client sent it.
+  wiretuner.doc.v1.Change change = 2 [(buf.validate.field).required = true];
+  // Server-filled from the replica binding: who made it.
+  Participant author = 3;
+}
+
+// Server heartbeat.
+message Pong {
+  // The server's wall clock in milliseconds since the Unix epoch, for lag display.
+  int64 server_time_ms = 1 [(buf.validate.field).int64.gte = 0];
+}
+
+// Pushes one change.
+message PushChangeRequest {
+  // The document.
+  string document_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+  // The change; its replica must be the caller's and its seq exactly one more than the last
+  // accepted.
+  wiretuner.doc.v1.Change change = 2 [(buf.validate.field).required = true];
+}
+
+// The ack.  A rejection is the call's status, never a response.
+message PushChangeResponse {
+  // Where in the log the change landed.
+  uint64 server_seq = 1;
+}
+
+// Pushes up to 32 consecutive changes of one replica.
+message PushChangeBatchRequest {
+  // The document.
+  string document_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+  // The changes, in seq order, all from the caller's replica.
+  repeated wiretuner.doc.v1.Change changes = 2 [(buf.validate.field).repeated = {
+    min_items: 1
+    max_items: 32
+  }];
+}
+
+// The prefix that was accepted.
+message PushChangeBatchResponse {
+  // One per accepted change, in batch order: a prefix of the batch.
+  repeated uint64 server_seqs = 1;
+  // Set when the prefix is shorter than the batch: the first change that failed.  The client
+  // resumes after the prefix.
+  ChangeRejected rejected = 2;
+}
+
+// One frame of a bulk upload.  A frame carries whole changes whose encoded sizes total at most
+// 1 MiB (a single change larger than that travels alone; the 4 MiB change cap of change.proto
+// still applies).  protovalidate cannot measure encoded size, so the byte cap is the service's
+// maximum inbound message size and the client's outbox packs frames to it; `max_items` is a
+// sanity bound.
+message PushChangesRequest {
+  // The document; the same on every frame.
+  string document_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+  // The next changes in seq order, continuing from the previous frame.
+  repeated wiretuner.doc.v1.Change changes = 2 [(buf.validate.field).repeated = {
+    min_items: 1
+    max_items: 256
+  }];
+}
+
+// The outcome of a bulk upload.
+message PushChangesResponse {
+  // The caller's replica seq up to which everything was accepted.
+  uint64 last_accepted_seq = 1;
+  // The first rejection, if any; everything after it was not ingested.
+  ChangeRejected rejected = 2;
+}
+
+// Why a change in a batch or bulk upload was refused; the same information a rejected
+// PushChange carries in its status.  On SEQ_GAP the client resends from the acked seq; on
+// REPLICA_CONFLICT or REPLICA_EXPIRED it rotates or salvages; on ROLE_INSUFFICIENT the changes
+// go to salvage and the document reopens read-only; on VALIDATION_FAILED the client drops the
+// change and reports a bug (sync-protocol.adoc, "Rejections").
+message ChangeRejected {
+  // The replica of the refused change.
+  fixed64 replica = 1;
+  // Its seq.
+  uint64 seq = 2;
+  // The machine-readable reason.
+  ErrorReason reason = 3 [(buf.validate.field).enum.defined_only = true];
+  // The gRPC status code a unary PushChange would have failed with (google.rpc.Code).
+  int32 code = 4 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 16
+  }];
+  // Human-readable detail for logs; never branched on.
+  string message = 5 [(buf.validate.field).string.max_len = 1024];
+}
+
+// Sends the caller's presence.
+message UpdatePresenceRequest {
+  // The document.
+  string document_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+  // The caller's replica; presence is bound to this replica's subscription.
+  fixed64 replica = 2 [(buf.validate.field).fixed64.gt = 0];
+  // The complete current state.  The server-filled fields are ignored.
+  PresenceUpdate presence = 3 [(buf.validate.field).required = true];
+}
+
+// Empty; presence was fanned out.
+message UpdatePresenceResponse {}
+
+// Reports how far the replica has applied.
+message AckRequest {
+  // The document.
+  string document_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+  // The caller's replica.
+  fixed64 replica = 2 [(buf.validate.field).fixed64.gt = 0];
+  // Highest server_seq applied locally.
+  uint64 applied_server_seq = 3;
+}
+
+// The document's causal stability after the ack.
+message AckResponse {
+  // Every active replica has applied everything up to here.
+  uint64 stable_seq = 1;
+}
+
+// Asks for a range of the log.
+message FetchChangesRequest {
+  // The document.
+  string document_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+  // The stream starts with the change after this server_seq.  0 = from the beginning of
+  // retained history.
+  uint64 after_server_seq = 2;
+  // Optional last server_seq to send, inclusive; 0 = up to the head at the time of the call.
+  uint64 until_server_seq = 3;
+}
+
+// One frame of a catch-up download: at most 1 MiB of changes, oldest first (`max_items` is a
+// sanity bound; the byte cap is the frame packing rule of PushChangesRequest).
+message FetchChangesResponse {
+  // The next changes in server_seq order.
+  repeated SequencedChange changes = 1 [(buf.validate.field).repeated = {
+    min_items: 1
+    max_items: 256
+  }];
+  // The document's head at the time of the call, so the client knows how far the download
+  // goes before it ends.
+  uint64 head_seq = 2;
+}
+
+// Asks for a snapshot.
+message FetchSnapshotRequest {
+  // The document.
+  string document_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+  // The newest snapshot at or before this server_seq is sent; 0 = the newest snapshot.
+  uint64 at_or_before_server_seq = 2;
+}
+
+// One frame of a snapshot download.
+message FetchSnapshotResponse {
+  // The header first, then the compressed chunks in order.
+  wiretuner.doc.v1.SnapshotFrame frame = 1 [(buf.validate.field).required = true];
+}
+
+// A collaborator's presence state.
+enum PresenceState {
+  // Not set; reads as ACTIVE.
+  PRESENCE_STATE_UNSPECIFIED = 0;
+  // Input within the last 2 min.
+  PRESENCE_STATE_ACTIVE = 1;
+  // No input for 2 min; the avatar dims.
+  PRESENCE_STATE_IDLE = 2;
+  // The client sent a final update on close; the entry is removed at once.
+  PRESENCE_STATE_GONE = 3;
+}
+
+// One collaborator's live state.  Sent by the client at most 20 times a second; the server
+// coalesces and fans out.  Every field is "current state", never a delta, so a lost frame costs
+// nothing.  Never in the log.
+message PresenceUpdate {
+  // Server-filled: the account this session belongs to, with display data so clients need no
+  // lookup.  Ignored on the way up.
+  Participant user = 1;
+  // Server-filled: index into the 12-color palette, stable per (document, user).
+  uint32 color_index = 2 [(buf.validate.field).uint32.lt = 12];
+  // Server-filled: set when this session is on a branch of the document rather than on the
+  // document itself (a branch's participants are relayed to the parent's subscription and
+  // vice versa, so both sides see each other).  The branch document's id.
+  string branch_id = 3 [
+    (buf.validate.field).string.uuid = true,
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+  // ACTIVE, IDLE or GONE.
+  PresenceState state = 4 [(buf.validate.field).enum.defined_only = true];
+  // Node id of the page the viewport is mostly on.  Unset on a master page canvas.
+  wiretuner.doc.v1.OpId page = 5;
+  // Pointer position in pasteboard points.  Unset when the pointer is off the canvas.
+  wiretuner.doc.v1.Point cursor = 6;
+  // Visible rect and zoom, for Follow.
+  Viewport viewport = 7;
+  // Identifier of the active tool ("pointer", "pen", ...), for the cursor badge.
+  string tool = 8 [(buf.validate.field).string.max_len = 32];
+  // Selected nodes.  Capped: a larger selection sends the first 200 and `selection_count`.
+  repeated wiretuner.doc.v1.OpId selection = 9 [(buf.validate.field).repeated.max_items = 200];
+  // The full selection size when `selection` is truncated; 0 = `selection` is complete.
+  uint32 selection_count = 10;
+  // Selected points or segments, as field paths into the selected path nodes.
+  repeated wiretuner.doc.v1.FieldPath sub_selection = 11 [(buf.validate.field).repeated.max_items = 500];
+  // Nodes the user is actively changing (mouse down on them, or a field being edited).  Drives
+  // "Priya is editing this object".
+  repeated wiretuner.doc.v1.OpId editing = 12 [(buf.validate.field).repeated.max_items = 200];
+  // Text caret, when editing text.
+  TextCaret caret = 13;
+  // True while the user is spotlighting; others show the banner once per rising edge.
+  bool spotlight = 14;
+  // The account this session is following, if any (shown on the hover card).
+  string following_user_id = 15 [
+    (buf.validate.field).string.uuid = true,
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+}
+
+// A person as shown to collaborators: in presence, as a change's author, as a version's
+// creator.  Always server-filled.
+message Participant {
+  // The account id.
+  string user_id = 1 [(buf.validate.field).string.uuid = true];
+  // The display name at the time of sending.
+  string display_name = 2 [(buf.validate.field).string.max_len = 256];
+  // Avatar image as a blob hash (32 raw bytes) if the account has one; clients cache by hash.
+  // Empty when none.
+  bytes avatar_sha256 = 3 [(buf.validate.field).cel = {
+    id: "participant.avatar_sha256.len"
+    message: "avatar_sha256 must be empty or 32 bytes"
+    expression: "size(this) == 0 || size(this) == 32"
+  }];
+  // The person's effective role on the document.
+  wiretuner.account.v1.DocumentRole role = 4 [(buf.validate.field).enum.defined_only = true];
+}
+
+// What a collaborator sees, for Follow.
+message Viewport {
+  // The visible rect in pasteboard points.
+  wiretuner.doc.v1.Rect visible = 1;
+  // The zoom factor; 1.0 = 100%.
+  double zoom = 2 [(buf.validate.field).double.gt = 0];
+}
+
+// Where a collaborator's text caret is.
+message TextCaret {
+  // The text block.
+  wiretuner.doc.v1.OpId node = 1;
+  // Which text field of the node.
+  wiretuner.doc.v1.FieldPath text = 2;
+  // The character id the caret is before; all-zero = at the end.
+  wiretuner.doc.v1.ElementId position = 3;
+  // The other end of the selected range; unset for a bare caret.
+  wiretuner.doc.v1.ElementId range_end = 4;
+}
+
+// Everyone currently present.  Sent once after the replay and whenever the server rebuilds it.
+message PresenceSnapshot {
+  // One entry per subscription with live presence, the caller's own included.
+  repeated PresenceUpdate participants = 1 [(buf.validate.field).repeated.max_items = 1000];
+}
+
+// Something about the document other than its content changed while the caller was
+// subscribed.  Content travels as changes; these are the server-state changes the session
+// needs to know about at once (sharing.adoc, branches.adoc, server.adoc "Scaling").  New cases
+// are added by the features that need them (COLLAB-025 adds comments).
+message DocumentEvent {
+  // Exactly one case is set.
+  oneof event {
+    option (buf.validate.oneof).required = true;
+    // The caller's own effective role changed.
+    RoleChanged role_changed = 1;
+    // The caller lost access; the stream ends after this frame and the document reopens
+    // read-only from the local store.
+    AccessRemoved access_removed = 2;
+    // The document was renamed.
+    Renamed renamed = 3;
+    // The document moved to another space or folder.
+    Moved moved = 4;
+    // The document was trashed (or restored).
+    Trashed trashed = 5;
+    // A branch of this document, or this branch itself, changed.
+    BranchEvent branch = 6;
+    // The server node is draining: resubscribe with backoff.  The stream ends after this
+    // frame.
+    Reconnect reconnect = 7;
+    // The People list changed: someone was invited, removed, changed role, or a link was
+    // created or revoked.  The client re-lists members if it shows them.
+    MembersChanged members_changed = 8;
+  }
+}
+
+// The caller's effective role changed.
+message RoleChanged {
+  // The new effective role.
+  wiretuner.account.v1.DocumentRole role = 1 [(buf.validate.field).enum.defined_only = true];
+  // Who changed it.
+  Participant actor = 2;
+}
+
+// The caller lost access to the document.
+message AccessRemoved {
+  // Who removed it; unset when a link expired or the team membership ended.
+  Participant actor = 1;
+}
+
+// The document was renamed.
+message Renamed {
+  // The new name.
+  string name = 1 [(buf.validate.field).string.max_len = 256];
+  // Who renamed it.
+  Participant actor = 2;
+}
+
+// The document moved.
+message Moved {
+  // The space it is in now (an account id or a team id).
+  string space_id = 1 [(buf.validate.field).string.uuid = true];
+  // The folder it is in now; empty = the space's root.
+  string folder_id = 2 [
+    (buf.validate.field).string.uuid = true,
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+  // Who moved it.
+  Participant actor = 3;
+}
+
+// The document was trashed or restored.
+message Trashed {
+  // True when trashed, false when restored from the trash.
+  bool trashed = 1;
+  // Who did it.
+  Participant actor = 2;
+}
+
+// What happened to a branch.
+enum BranchEventKind {
+  // Not set.
+  BRANCH_EVENT_KIND_UNSPECIFIED = 0;
+  // A branch was created from this document.
+  BRANCH_EVENT_KIND_CREATED = 1;
+  // The branch was merged into its parent; the merged changes follow as SequencedChanges.
+  BRANCH_EVENT_KIND_MERGED = 2;
+  // The branch was archived.
+  BRANCH_EVENT_KIND_ARCHIVED = 3;
+  // The branch was made active again.
+  BRANCH_EVENT_KIND_RESTORED = 4;
+  // The branch was trashed.
+  BRANCH_EVENT_KIND_TRASHED = 5;
+  // The branch was renamed.
+  BRANCH_EVENT_KIND_RENAMED = 6;
+}
+
+// A branch event, delivered on the parent's and the branch's subscriptions.  Names the branch
+// by id (this package cannot import docs.v1); the client refreshes it with
+// BranchService.GetBranch when it shows branch details.
+message BranchEvent {
+  // The branch document's id.
+  string branch_document_id = 1 [(buf.validate.field).string.uuid = true];
+  // The parent document's id.
+  string parent_document_id = 2 [(buf.validate.field).string.uuid = true];
+  // The branch's name after the event.
+  string name = 3 [(buf.validate.field).string.max_len = 256];
+  // What happened.
+  BranchEventKind kind = 4 [(buf.validate.field).enum.defined_only = true];
+  // Who did it.
+  Participant actor = 5;
+}
+
+// The server asks the client to resubscribe (a node is draining, server.adoc "Scaling").
+message Reconnect {
+  // Suggested minimum delay before resubscribing, in milliseconds; the client adds jitter and
+  // backs off from there.
+  uint32 retry_after_ms = 1;
+}
+
+// The document's members or links changed.
+message MembersChanged {
+  // Who made the change.
+  Participant actor = 1;
+}

@@ -1,0 +1,501 @@
+// proto/wiretuner/docs/v1/share.proto
+//
+// Sharing a document (docs/_includes/collaboration/sharing.adoc, "Data model"): named members
+// and their roles, the team access row of a team document, share links with role, expiry and
+// password, access requests, and ownership transfer.  All of it is server state (`document`,
+// `document_member`, `share_link`, `access_request`), never document content.  Roles are
+// wiretuner.account.v1.DocumentRole, shared with sync.v1; that enum has no "none" value, so
+// removing a named role is its own RPC and a member who has access only through the team or a
+// link carries `role = DOCUMENT_ROLE_UNSPECIFIED`.  Every share link requires sign-in
+// (decisions.adoc D-034).
+syntax = "proto3";
+
+package wiretuner.docs.v1;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+import "wiretuner/account/v1/team.proto";
+
+option java_multiple_files = true;
+option java_package = "com.villagecompute.wiretuner.docs.v1";
+option optimize_for = SPEED;
+
+// Members, links, access requests and ownership of one document.  Unless a comment says
+// otherwise an RPC needs the owner (team admins hold the owner's powers on team documents,
+// decisions.adoc D-063); anyone below gets PERMISSION_DENIED with reason ROLE_INSUFFICIENT.
+// A workspace with `restrict_sharing` refuses outside invitations and links with
+// FAILED_PRECONDITION.  Every change here is delivered to open sessions as a
+// wiretuner.sync.v1.DocumentEvent (RoleChanged, AccessRemoved, MembersChanged).
+service ShareService {
+  // The People list: named members plus everyone with access through the team default or a
+  // link who has ever opened the document, with how their effective role arises.  Any role;
+  // emails are filled in for the owner only.
+  rpc ListMembers(ListMembersRequest) returns (ListMembersResponse);
+  // Give a person a named role, by account id or by email.  An unknown email gets an
+  // invitation mail and a pending member row that binds on first sign-in.  Never OWNER, and
+  // never above the caller's own role.  A person who already holds a named role answers
+  // ALREADY_EXISTS (use SetRole).  Editor or owner.
+  rpc Invite(InviteRequest) returns (InviteResponse);
+  // Change a named member's role among editor, commenter and viewer.  Never OWNER (use
+  // TransferOwnership) and never above the caller's own role.  Editor or owner; only the
+  // owner may lower another editor.
+  rpc SetRole(SetRoleRequest) returns (SetRoleResponse);
+  // Remove a person's named role.  They may keep access through the team default or a link;
+  // the response says what remains.  Owner, or an editor removing a viewer or commenter they
+  // invited.  Idempotent.
+  rpc RemoveMember(RemoveMemberRequest) returns (RemoveMemberResponse);
+  // Override, for one team document, the role the team's members get by default; UNSPECIFIED
+  // clears the override.  Owner only; FAILED_PRECONDITION on a personal document.
+  rpc SetTeamAccess(SetTeamAccessRequest) returns (SetTeamAccessResponse);
+  // Create a share link.  The token is returned once, here; the URL is https://<host>/l/<token>.
+  // Owner only (editors when the workspace allows, sharing.adoc).
+  rpc CreateLink(CreateLinkRequest) returns (CreateLinkResponse);
+  // Change a link's role, expiry, password or team restriction; only the fields present
+  // change.  Owner only.
+  rpc UpdateLink(UpdateLinkRequest) returns (UpdateLinkResponse);
+  // Revoke a link: it stops opening, and with `revoke_on_expiry` the access it granted ends
+  // too.  Owner only.  Idempotent.
+  rpc RevokeLink(RevokeLinkRequest) returns (RevokeLinkResponse);
+  // The document's live links, newest first, without their tokens.  Owner only.
+  rpc ListLinks(ListLinksRequest) returns (ListLinksResponse);
+  // Open a share link as the signed-in caller: the token (and password, if the link has one)
+  // become one of the caller's access sources on the document.  A missing or wrong password is
+  // PERMISSION_DENIED with reason LINK_PASSWORD_REQUIRED; an unknown, expired or revoked link
+  // is NOT_FOUND with reason LINK_INVALID; a team-members-only link opened by a non-member
+  // answers PERMISSION_DENIED with reason ROLE_INSUFFICIENT and `can_request_access`.
+  rpc OpenLink(OpenLinkRequest) returns (OpenLinkResponse);
+  // Ask the owner for access to a document the caller knows the id of but cannot open (a
+  // dead link, a shared URL).  The owner is notified; one pending request per person.
+  rpc RequestAccess(RequestAccessRequest) returns (RequestAccessResponse);
+  // Pending access requests, oldest first.  Owner only.
+  rpc ListAccessRequests(ListAccessRequestsRequest) returns (ListAccessRequestsResponse);
+  // Grant a pending request at a role, or decline it.  Owner only.
+  rpc ResolveAccessRequest(ResolveAccessRequestRequest) returns (ResolveAccessRequestResponse);
+  // Make another named member the owner; the caller becomes an editor.  Owner only.
+  rpc TransferOwnership(TransferOwnershipRequest) returns (TransferOwnershipResponse);
+}
+
+// How a person's effective role on a document arises.
+enum AccessSource {
+  // Not set.
+  ACCESS_SOURCE_UNSPECIFIED = 0;
+  // A named membership (Invite, SetRole, ownership).
+  ACCESS_SOURCE_NAMED = 1;
+  // The team's default document role, or the document's override of it.
+  ACCESS_SOURCE_TEAM_DEFAULT = 2;
+  // A share link the person opened.
+  ACCESS_SOURCE_LINK = 3;
+}
+
+// One person with access to a document, as the People list shows them.
+message Member {
+  // The account.
+  string account_id = 1 [(buf.validate.field).string.uuid = true];
+  // The display name.
+  string display_name = 2 [(buf.validate.field).string.max_len = 256];
+  // The email; filled in for the owner only, and for a pending invitation that has not bound
+  // to an account yet.
+  string email = 3 [(buf.validate.field).string.max_len = 320];
+  // The named role; UNSPECIFIED when the person has access only through the team or a link.
+  wiretuner.account.v1.DocumentRole role = 4 [(buf.validate.field).enum.defined_only = true];
+  // Every source the person's access arises from.
+  repeated AccessSource sources = 5 [(buf.validate.field).repeated = {
+    max_items: 3
+    items: {
+      enum: {defined_only: true}
+    }
+  }];
+  // The role that applies: the highest over `sources`.
+  wiretuner.account.v1.DocumentRole effective_role = 6 [(buf.validate.field).enum.defined_only = true];
+  // Presence color, an index into the 12-color palette (presence.adoc).
+  uint32 color_index = 7 [(buf.validate.field).uint32.lt = 12];
+  // True for the account that created the document (team documents).
+  bool is_creator = 8;
+  // True for an invitation by email that no account has claimed yet.
+  bool pending = 9;
+}
+
+// The team's access to a team document.
+message TeamAccess {
+  // The team.
+  string team_id = 1 [(buf.validate.field).string.uuid = true];
+  // The team's display name.
+  string team_name = 2 [(buf.validate.field).string.max_len = 256];
+  // The team's default document role: what members get unless overridden below.
+  wiretuner.account.v1.DocumentRole team_default = 3 [(buf.validate.field).enum.defined_only = true];
+  // The per-document override; UNSPECIFIED = use the team default.
+  wiretuner.account.v1.DocumentRole override = 4 [(buf.validate.field).enum.defined_only = true];
+}
+
+// A share link, without its token (returned only at creation).
+message ShareLink {
+  // The link id.
+  string id = 1 [(buf.validate.field).string.uuid = true];
+  // The document.
+  string document_id = 2 [(buf.validate.field).string.uuid = true];
+  // The role it grants: editor, commenter or viewer.
+  wiretuner.account.v1.DocumentRole role = 3 [(buf.validate.field).enum.defined_only = true];
+  // When it stops opening; unset = never.
+  google.protobuf.Timestamp expires_at = 4;
+  // True to also drop the access it granted when it expires or is revoked.
+  bool revoke_on_expiry = 5;
+  // True when opening needs a password; the password itself is never returned.
+  bool has_password = 6;
+  // True when only members of the document's team may open it.
+  bool team_members_only = 7;
+  // The account that created it.
+  string created_by_account_id = 8 [(buf.validate.field).string.uuid = true];
+  // When it was created.
+  google.protobuf.Timestamp created_at = 9;
+  // When it was revoked; unset while live.
+  google.protobuf.Timestamp revoked_at = 10;
+  // How many people have opened it.
+  uint32 uses = 11;
+}
+
+// A pending request for access.
+message AccessRequest {
+  // The request id.
+  string id = 1 [(buf.validate.field).string.uuid = true];
+  // The document.
+  string document_id = 2 [(buf.validate.field).string.uuid = true];
+  // The requesting account.
+  string account_id = 3 [(buf.validate.field).string.uuid = true];
+  // The requester's display name.
+  string display_name = 4 [(buf.validate.field).string.max_len = 256];
+  // The requester's email.
+  string email = 5 [(buf.validate.field).string.max_len = 320];
+  // The requester's message to the owner.
+  string message = 6 [(buf.validate.field).string.max_len = 2000];
+  // When it was made.
+  google.protobuf.Timestamp created_at = 7;
+}
+
+// Lists a document's members.
+message ListMembersRequest {
+  // The document.
+  string document_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+  // Opaque cursor from a previous response; empty for the first page.
+  string cursor = 2 [(buf.validate.field).string.max_len = 1024];
+  // Members per page; 0 selects the server's default, at most 50.
+  uint32 page_size = 3 [(buf.validate.field).uint32.lte = 50];
+}
+
+// One page of members.
+message ListMembersResponse {
+  // The members, owner first, then by display name.
+  repeated Member members = 1;
+  // The team access row on the first page of a team document; unset otherwise.
+  TeamAccess team_access = 2;
+  // Cursor for the next page; empty when this is the last page.
+  string next_cursor = 3;
+}
+
+// Invites a person.
+message InviteRequest {
+  // The document.
+  string document_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+  // Who: exactly one of the two.
+  oneof principal {
+    option (buf.validate.oneof).required = true;
+    // An email address; an unknown one gets an invitation mail and a pending row.
+    string email = 2 [(buf.validate.field).string = {
+      max_len: 320
+      email: true
+    }];
+    // An existing account.
+    string account_id = 3 [(buf.validate.field).string.uuid = true];
+  }
+  // The role to grant: editor, commenter or viewer.
+  wiretuner.account.v1.DocumentRole role = 4 [(buf.validate.field).enum = {
+    defined_only: true
+    in: [
+      2,
+      3,
+      4
+    ]
+  }];
+  // A note included in the invitation mail.
+  string message = 5 [(buf.validate.field).string.max_len = 2000];
+}
+
+// The invited member.
+message InviteResponse {
+  // The member row, pending if the email is unknown.
+  Member member = 1;
+}
+
+// Changes a named member's role.
+message SetRoleRequest {
+  // The document.
+  string document_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+  // The member.
+  string account_id = 2 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+  // The new named role: editor, commenter or viewer.
+  wiretuner.account.v1.DocumentRole role = 3 [(buf.validate.field).enum = {
+    defined_only: true
+    in: [
+      2,
+      3,
+      4
+    ]
+  }];
+}
+
+// The member after the change.
+message SetRoleResponse {
+  // The member.
+  Member member = 1;
+}
+
+// Removes a named role.
+message RemoveMemberRequest {
+  // The document.
+  string document_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+  // The member.
+  string account_id = 2 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+}
+
+// What access the person keeps.
+message RemoveMemberResponse {
+  // The member with `role` cleared, if access remains through the team or a link; unset when
+  // the person has no access left.
+  Member member = 1;
+}
+
+// Sets a team document's access override.
+message SetTeamAccessRequest {
+  // The document.
+  string document_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+  // The role team members get on this document; UNSPECIFIED clears the override.  Never OWNER.
+  wiretuner.account.v1.DocumentRole override = 2 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [1]
+  }];
+}
+
+// The team access after the change.
+message SetTeamAccessResponse {
+  // The team access row.
+  TeamAccess team_access = 1;
+}
+
+// Creates a share link.
+message CreateLinkRequest {
+  // The document.
+  string document_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+  // The role the link grants: editor, commenter or viewer.
+  wiretuner.account.v1.DocumentRole role = 2 [(buf.validate.field).enum = {
+    defined_only: true
+    in: [
+      2,
+      3,
+      4
+    ]
+  }];
+  // When the link stops opening; unset = never.
+  google.protobuf.Timestamp expires_at = 3;
+  // Also drop the access it granted when it expires or is revoked.
+  bool revoke_on_expiry = 4;
+  // A password to require; empty = none.  Stored as an argon2id hash, never returned.
+  string password = 5 [(buf.validate.field).string.max_len = 128];
+  // Only members of the document's team may open it.
+  bool team_members_only = 6;
+}
+
+// The created link, with its token.
+message CreateLinkResponse {
+  // The link.
+  ShareLink link = 1;
+  // The opaque 128-bit token, returned only here; the URL is https://<host>/l/<token>.
+  string token = 2 [(buf.validate.field).string.max_len = 64];
+}
+
+// Updates a link; only the fields present change.
+message UpdateLinkRequest {
+  // The link.
+  string link_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+  // The new role: editor, commenter or viewer.
+  optional wiretuner.account.v1.DocumentRole role = 2 [(buf.validate.field).enum = {
+    defined_only: true
+    in: [
+      2,
+      3,
+      4
+    ]
+  }];
+  // The new expiry; an unset timestamp inside a present field clears it (never expires).
+  optional google.protobuf.Timestamp expires_at = 3;
+  // The new revoke-on-expiry flag.
+  optional bool revoke_on_expiry = 4;
+  // The new password; the empty string clears it.
+  optional string password = 5 [(buf.validate.field).string.max_len = 128];
+  // The new team restriction.
+  optional bool team_members_only = 6;
+}
+
+// The link after the update.
+message UpdateLinkResponse {
+  // The link.
+  ShareLink link = 1;
+}
+
+// Revokes a link.
+message RevokeLinkRequest {
+  // The link.
+  string link_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+}
+
+// Empty; the link no longer opens.
+message RevokeLinkResponse {}
+
+// Lists a document's links.
+message ListLinksRequest {
+  // The document.
+  string document_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+  // Whether to include revoked links, which are otherwise omitted.
+  bool include_revoked = 2;
+}
+
+// The links.  A document has few links, so there is no paging.
+message ListLinksResponse {
+  // The links, newest first.
+  repeated ShareLink links = 1;
+}
+
+// Opens a share link.
+message OpenLinkRequest {
+  // The token from the URL.
+  string token = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string = {
+      min_len: 16
+      max_len: 64
+    }
+  ];
+  // The password, when the link has one.
+  string password = 2 [(buf.validate.field).string.max_len = 128];
+}
+
+// The document the link opened.
+message OpenLinkResponse {
+  // The document.
+  string document_id = 1 [(buf.validate.field).string.uuid = true];
+  // Its name, for the window title before the document loads.
+  string document_name = 2 [(buf.validate.field).string.max_len = 256];
+  // The caller's effective role now that the link is one of their access sources.
+  wiretuner.account.v1.DocumentRole effective_role = 3 [(buf.validate.field).enum.defined_only = true];
+}
+
+// Asks for access.
+message RequestAccessRequest {
+  // The document.
+  string document_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+  // A message to the owner.
+  string message = 2 [(buf.validate.field).string.max_len = 2000];
+}
+
+// The pending request.
+message RequestAccessResponse {
+  // The request id; a repeated call answers the existing pending request.
+  string request_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+// Lists pending access requests.
+message ListAccessRequestsRequest {
+  // The document.
+  string document_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+  // Opaque cursor from a previous response; empty for the first page.
+  string cursor = 2 [(buf.validate.field).string.max_len = 1024];
+  // Requests per page; 0 selects the server's default, at most 50.
+  uint32 page_size = 3 [(buf.validate.field).uint32.lte = 50];
+}
+
+// One page of requests.
+message ListAccessRequestsResponse {
+  // The pending requests, oldest first.
+  repeated AccessRequest requests = 1;
+  // Cursor for the next page; empty when this is the last page.
+  string next_cursor = 2;
+}
+
+// Grants or declines a request.
+message ResolveAccessRequestRequest {
+  // The request.
+  string request_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+  // The role to grant (editor, commenter or viewer); UNSPECIFIED declines.
+  wiretuner.account.v1.DocumentRole grant = 2 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [1]
+  }];
+}
+
+// The outcome.
+message ResolveAccessRequestResponse {
+  // The new member when granted; unset when declined.
+  Member member = 1;
+}
+
+// Transfers ownership.
+message TransferOwnershipRequest {
+  // The document.
+  string document_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+  // The named member who becomes owner.
+  string new_owner_account_id = 2 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+}
+
+// The two members after the transfer.
+message TransferOwnershipResponse {
+  // The new owner.
+  Member owner = 1;
+  // The caller, now an editor.
+  Member previous_owner = 2;
+}

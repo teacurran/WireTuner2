@@ -1,0 +1,343 @@
+// proto/wiretuner/docs/v1/version.proto
+//
+// Version history (docs/_includes/collaboration/history.adoc, "Data model"; saving.adoc): the
+// history is the change log itself -- hot rows in Postgres, cold segments in object storage --
+// grouped into sessions by the server; named versions are `version` rows (document,
+// server_seq, name, note, creator, a materialized snapshot once pinned).  Nothing here enters
+// the document schema: a restore is an ordinary Change (decisions.adoc D-037) or a new
+// document (RestoreAsCopy).  Cmd-S names a version (D-015).
+syntax = "proto3";
+
+package wiretuner.docs.v1;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+import "wiretuner/doc/v1/common.proto";
+import "wiretuner/docs/v1/document.proto";
+import "wiretuner/sync/v1/sync.proto";
+
+option java_multiple_files = true;
+option java_package = "com.villagecompute.wiretuner.docs.v1";
+option optimize_for = SPEED;
+
+// The timeline, blame and named versions of one document.  Any role may read history and
+// versions; editor or owner may name, update, pin and delete versions; restoring as a copy
+// needs create rights in the destination space.  A document the caller cannot see answers
+// NOT_FOUND with reason DOCUMENT_NOT_FOUND.
+service VersionService {
+  // The timeline: change summaries newest first, already grouped into sessions by the server
+  // (same author, gaps under 10 min), interleaved with named versions.
+  rpc ListHistory(ListHistoryRequest) returns (ListHistoryResponse);
+  // Every change that touched one node (blame), newest first.
+  rpc ListNodeHistory(ListNodeHistoryRequest) returns (ListNodeHistoryResponse);
+  // The named versions, newest first.
+  rpc ListVersions(ListVersionsRequest) returns (ListVersionsResponse);
+  // Name the state at a server_seq.  Idempotent by `version_id`, which is also how a version
+  // named offline finds its row when the client finally sends it.
+  rpc NameVersion(NameVersionRequest) returns (NameVersionResponse);
+  // Rename a version or change its note; only the fields present change.
+  rpc UpdateVersion(UpdateVersionRequest) returns (UpdateVersionResponse);
+  // Delete a named version.  The changes stay; only the bookmark goes.  Idempotent.
+  rpc DeleteVersion(DeleteVersionRequest) returns (DeleteVersionResponse);
+  // Pin a version: the server materializes a snapshot at exactly its server_seq, so it stays
+  // viewable and restorable after its changes leave the retention window.  Unpinning drops the
+  // snapshot at the next compaction.
+  rpc PinVersion(PinVersionRequest) returns (PinVersionResponse);
+  // A new document from the state at a server_seq: DocumentService.Fork with no changes.
+  rpc RestoreAsCopy(RestoreAsCopyRequest) returns (RestoreAsCopyResponse);
+}
+
+// A named version: a bookmark on the log.
+message Version {
+  // The version id, a client-generated UUIDv7.
+  string id = 1 [(buf.validate.field).string.uuid = true];
+  // The document.
+  string document_id = 2 [(buf.validate.field).string.uuid = true];
+  // The state "at" this server_seq, inclusive.
+  uint64 server_seq = 3;
+  // The name.
+  string name = 4 [(buf.validate.field).string.max_len = 256];
+  // A longer note.
+  string note = 5 [(buf.validate.field).string.max_len = 8192];
+  // Who named it.
+  wiretuner.sync.v1.Participant created_by = 6;
+  // When it was named.
+  google.protobuf.Timestamp created_at = 7;
+  // True once the server holds a snapshot at exactly `server_seq` (PinVersion), which keeps the
+  // version viewable after its changes leave the retention window.
+  bool pinned = 8;
+}
+
+// One row of the timeline.
+message HistoryRow {
+  // A session or a named version.
+  oneof row {
+    option (buf.validate.oneof).required = true;
+    // A stretch of one person's work.
+    Session session = 1;
+    // A named version.
+    Version version = 2;
+  }
+}
+
+// A stretch of one person's work: consecutive changes by one author with gaps under 10 min.
+// Individual changes are fetched by expanding the session.
+message Session {
+  // Who.
+  wiretuner.sync.v1.Participant author = 1;
+  // The first server_seq of the session.
+  uint64 first_server_seq = 2;
+  // The last server_seq of the session.
+  uint64 last_server_seq = 3;
+  // Wall time of the first change.
+  google.protobuf.Timestamp started_at = 4;
+  // Wall time of the last change.
+  google.protobuf.Timestamp ended_at = 5;
+  // How many changes.
+  uint32 change_count = 6;
+  // How many distinct nodes were touched.
+  uint32 node_count = 7;
+  // Set when the session is a branch merge: the branch document's id.
+  string merged_from_branch_id = 8 [
+    (buf.validate.field).string.uuid = true,
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+  // The branch's name at the time of the merge.
+  string merged_from_branch_name = 9 [(buf.validate.field).string.max_len = 256];
+  // Present when the session is small or was expanded (`expand_session` in the request): the
+  // changes, newest first.
+  repeated ChangeSummary changes = 10;
+}
+
+// One change as the History panel lists it.
+message ChangeSummary {
+  // The change's position in the log.
+  uint64 server_seq = 1;
+  // What the user did (Change.label).
+  string label = 2 [(buf.validate.field).string.max_len = 256];
+  // Wall time of the change.
+  google.protobuf.Timestamp wall_time = 3;
+  // How many ops.
+  uint32 op_count = 4;
+  // Up to 8 touched nodes with their Objects-panel names at the time, for the row text.
+  repeated NamedNode nodes = 5 [(buf.validate.field).repeated.max_items = 8];
+  // Register names written, for blame ("Fill", "Position"): derived from field paths through
+  // the merge table's display names.
+  repeated string attributes = 6 [(buf.validate.field).repeated = {
+    max_items: 32
+    items: {
+      string: {max_len: 64}
+    }
+  }];
+}
+
+// A node with its display name at a point in history.
+message NamedNode {
+  // The node.
+  wiretuner.doc.v1.OpId id = 1;
+  // Its name then (CommonProps.name, or the kind's default name).
+  string name = 2 [(buf.validate.field).string.max_len = 256];
+}
+
+// Pages backwards through the timeline.
+message ListHistoryRequest {
+  // The document.
+  string document_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+  // Start below this server_seq; 0 = the head.  The cursor continues from there.
+  uint64 before_server_seq = 2;
+  // Opaque cursor from a previous response; empty for the first page.
+  string cursor = 3 [(buf.validate.field).string.max_len = 1024];
+  // Rows per page; 0 selects the server's default, at most 500.
+  uint32 page_size = 4 [(buf.validate.field).uint32.lte = 500];
+  // Label, author or object-name filter, applied server-side; empty = everything.
+  string query = 5 [(buf.validate.field).string.max_len = 256];
+  // A session (by its first server_seq) whose individual changes to include; 0 = none beyond
+  // the small sessions the server expands on its own.
+  uint64 expand_session = 6;
+}
+
+// One page of the timeline.
+message ListHistoryResponse {
+  // The rows, newest first.
+  repeated HistoryRow rows = 1;
+  // Cursor for the next (older) page; empty when this is the last page.
+  string next_cursor = 2;
+  // Below this server_seq only pinned versions are viewable (retention window).
+  uint64 retained_from_seq = 3;
+}
+
+// Pages through one node's changes.
+message ListNodeHistoryRequest {
+  // The document.
+  string document_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+  // The node.
+  wiretuner.doc.v1.OpId node = 2 [(buf.validate.field).required = true];
+  // Opaque cursor from a previous response; empty for the first page.
+  string cursor = 3 [(buf.validate.field).string.max_len = 1024];
+  // Changes per page; 0 selects the server's default, at most 200.
+  uint32 page_size = 4 [(buf.validate.field).uint32.lte = 200];
+}
+
+// One page of a node's changes.
+message ListNodeHistoryResponse {
+  // The changes that touched the node, newest first.
+  repeated ChangeSummary changes = 1;
+  // The author of each change, in the same order as `changes`.
+  repeated wiretuner.sync.v1.Participant authors = 2;
+  // Cursor for the next page; empty when this is the last page.
+  string next_cursor = 3;
+}
+
+// Lists named versions.
+message ListVersionsRequest {
+  // The document.
+  string document_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+  // Opaque cursor from a previous response; empty for the first page.
+  string cursor = 2 [(buf.validate.field).string.max_len = 1024];
+  // Versions per page; 0 selects the server's default, at most 50.
+  uint32 page_size = 3 [(buf.validate.field).uint32.lte = 50];
+}
+
+// One page of versions.
+message ListVersionsResponse {
+  // The versions, newest first.
+  repeated Version versions = 1;
+  // Cursor for the next page; empty when this is the last page.
+  string next_cursor = 2;
+}
+
+// Names a version.
+message NameVersionRequest {
+  // The document.
+  string document_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+  // The client-generated UUIDv7 of the version (idempotency key; also the offline key).
+  string version_id = 2 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string = {
+      uuid: true
+      pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-7[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+    }
+  ];
+  // The head the client had applied when the user named it; 0 = the head at the time of the
+  // call.  For a version named offline this is the last remote head plus the client's own
+  // changes: the server records the seq at which `through_local_change` was sequenced, so the
+  // version means "my state then".
+  uint64 server_seq = 3;
+  // The last local change included (the offline case): the OpId of its first op.  Unset when
+  // `server_seq` alone says where the version is.
+  wiretuner.doc.v1.OpId through_local_change = 4;
+  // The name.
+  string name = 5 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 256
+  }];
+  // A longer note.
+  string note = 6 [(buf.validate.field).string.max_len = 8192];
+}
+
+// The named version.
+message NameVersionResponse {
+  // The version, with the server_seq it resolved to.
+  Version version = 1;
+}
+
+// Updates a version; only the fields present change.
+message UpdateVersionRequest {
+  // The version.
+  string version_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+  // The new name.
+  optional string name = 2 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 256
+  }];
+  // The new note; the empty string clears it.
+  optional string note = 3 [(buf.validate.field).string.max_len = 8192];
+}
+
+// The version after the update.
+message UpdateVersionResponse {
+  // The version.
+  Version version = 1;
+}
+
+// Deletes a version.
+message DeleteVersionRequest {
+  // The version.
+  string version_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+}
+
+// Empty; the bookmark is gone.
+message DeleteVersionResponse {}
+
+// Pins or unpins a version.
+message PinVersionRequest {
+  // The version.
+  string version_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+  // True to materialize and keep a snapshot at the version's server_seq, false to let it go.
+  bool pinned = 2;
+}
+
+// The version after the change.
+message PinVersionResponse {
+  // The version; `pinned` reflects the request once the snapshot exists (pinning a version
+  // whose changes are still hot completes at the next snapshotter run).
+  Version version = 1;
+}
+
+// Creates a new document from a past state.
+message RestoreAsCopyRequest {
+  // The document.
+  string document_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+  // The server_seq to restore; must be within retained history or a pinned version's seq.
+  uint64 server_seq = 2 [(buf.validate.field).uint64.gt = 0];
+  // The client-generated UUIDv7 of the new document (the idempotency key).
+  string new_document_id = 3 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string = {
+      uuid: true
+      pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-7[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+    }
+  ];
+  // The new document's name; empty = "<name> at <version or time>".
+  string name = 4 [(buf.validate.field).string.max_len = 256];
+  // The space to create in; empty = the caller's personal space.
+  string space_id = 5 [
+    (buf.validate.field).string.uuid = true,
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+  // The folder to create in; empty = the space's root.
+  string folder_id = 6 [
+    (buf.validate.field).string.uuid = true,
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+}
+
+// The new document.
+message RestoreAsCopyResponse {
+  // The new document, owned by the caller.
+  Document document = 1;
+}

@@ -18,16 +18,18 @@ plugins:
     opt:
       - Visibility=Public
       - FileNaming=PathToUnderscores
-  # grpc-swift 2 async/await stubs (PROTO-004).  As of 2026-09 the BSR plugin
-  # buf.build/grpc/swift is v1.27.6, a grpc-swift 1.x generator; PROTO-004 verifies whether a
-  # v2 emitter has landed and, if not, wires protoc-gen-grpc-swift-2 from grpc-swift-protobuf
-  # as a local plugin.  Left out until then so no 1.x stubs are ever committed.
-  # - remote: buf.build/grpc/swift
-  #   out: client/Packages/WTProto/Sources/WTProto/Generated
-  #   opt:
-  #     - Visibility=Public
-  #     - Client=true
-  #     - Server=false
+  # grpc-swift 2 async/await client stubs (PROTO-004, docs/spec/decisions.adoc D-014).  The BSR
+  # plugin buf.build/grpc/swift is a grpc-swift 1.x generator (v1.27.6, `import GRPC`), so the
+  # v2 generator is built from grpc/grpc-swift-protobuf by tools/proto/install-plugins.sh at
+  # the version WTProto's Package.resolved pins (2.4.1) and run as a local plugin.  Client only:
+  # the server is Quarkus.  Emits <file>.grpc.swift beside the swift-protobuf <file>.pb.swift.
+  - local: tools/bin/protoc-gen-grpc-swift-2
+    out: client/Packages/WTProto/Sources/WTProto/Generated
+    opt:
+      - Visibility=Public
+      - Client=true
+      - Server=false
+      - FileNaming=PathToUnderscores
   # merge tables + client-side validators generated from wt.crdt and buf.validate options
   # (PROTO-005 delivers the plugin; enable this entry with it).
   # - local: tools/protoc-gen-wtcrdt/bin/protoc-gen-wtcrdt

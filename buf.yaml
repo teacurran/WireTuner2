@@ -30,6 +30,11 @@ lint:
       - proto/wt/crdt/options.proto
       - proto/wiretuner/doc/v1/common.proto
       - proto/wiretuner/doc/v1/node.proto
+    # SyncService.Subscribe streams `ServerFrame`, the oneof frame message the protocol pages
+    # name (docs/spec/sync-protocol.adoc, api-conventions.adoc "Services and RPC shape"); it is
+    # not a response to one request but the one channel every server-to-client message uses.
+    RPC_RESPONSE_STANDARD_NAME:
+      - proto/wiretuner/sync/v1/sync.proto
 breaking:
   use:
     - FILE

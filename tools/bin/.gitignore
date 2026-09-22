@@ -1,0 +1,5 @@
+# Locally built protoc plugins (tools/proto/install-plugins.sh writes protoc-gen-grpc-swift-2
+# here; buf.gen.yaml runs it as a local plugin).  Binaries are never committed; CI rebuilds
+# them from the pinned version and caches the result.
+*
+!.gitignore

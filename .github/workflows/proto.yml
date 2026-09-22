@@ -1,10 +1,10 @@
 name: Proto
 
 # The proto gate (docs/spec/api-conventions.adoc): on every change under proto/ or to the buf
-# configuration, check formatting, lint (STANDARD + COMMENTS), breaking changes against main,
-# regenerate, and fail if the committed Swift differs from what buf produced.  The HTML
-# reference rendered from the proto comments is uploaded as an artifact, as in
-# dissipate-server's proto-docs workflow.
+# configuration, check formatting, lint (STANDARD + COMMENTS), the no-bidi rule, breaking
+# changes against main, regenerate (with the locally built grpc-swift 2 plugin), and fail if
+# the committed Swift differs from what buf produced.  The HTML reference rendered from the
+# proto comments is uploaded as an artifact, as in dissipate-server's proto-docs workflow.
 on:
   push:
     branches:
@@ -15,6 +15,8 @@ on:
       - 'buf.lock'
       - 'buf.gen.yaml'
       - 'client/Packages/WTProto/Sources/WTProto/Generated/**'
+      - 'client/Packages/WTProto/Package.resolved'
+      - 'tools/proto/**'
       - '.github/workflows/proto.yml'
   pull_request:
     branches:
@@ -25,6 +27,8 @@ on:
       - 'buf.lock'
       - 'buf.gen.yaml'
       - 'client/Packages/WTProto/Sources/WTProto/Generated/**'
+      - 'client/Packages/WTProto/Package.resolved'
+      - 'tools/proto/**'
       - '.github/workflows/proto.yml'
   workflow_dispatch:
 
@@ -62,6 +66,32 @@ jobs:
 
       - name: Lint
         run: buf lint
+
+      # The no-bidi rule (api-conventions.adoc, "Services and RPC shape"): buf has no built-in
+      # rule for it, so tools/proto/check-no-bidi.sh greps the formatted sources.
+      - name: Check for bidirectional streaming RPCs
+        run: tools/proto/check-no-bidi.sh
+
+      # protoc-gen-grpc-swift-2 is built from source at the version WTProto pins (decisions.adoc
+      # D-014); the binary is cached by the installer's hash (which carries the pin's source) and
+      # the resolved version, so the Swift toolchain is only set up on a cache miss.  Built with
+      # the Swift stdlib linked statically, so the cached binary runs without the toolchain.
+      - name: Restore the grpc-swift 2 plugin
+        id: plugin-cache
+        uses: actions/cache@v4
+        with:
+          path: tools/bin/protoc-gen-grpc-swift-2
+          key: protoc-gen-grpc-swift-2-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools/proto/install-plugins.sh', 'client/Packages/WTProto/Package.resolved') }}
+
+      - name: Set up Swift for the plugin build
+        if: steps.plugin-cache.outputs.cache-hit != 'true'
+        uses: swift-actions/setup-swift@v2
+        with:
+          swift-version: "6.1"
+
+      - name: Build the grpc-swift 2 plugin
+        if: steps.plugin-cache.outputs.cache-hit != 'true'
+        run: tools/proto/install-plugins.sh
 
       # A pull request is compared with the main it will merge into.  On a push to main there
       # is nothing older to compare against, so the step is skipped there.

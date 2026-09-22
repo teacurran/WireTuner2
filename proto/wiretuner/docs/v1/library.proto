@@ -1,0 +1,118 @@
+// proto/wiretuner/docs/v1/library.proto
+//
+// Team libraries (docs/_includes/library/library.adoc, "Team libraries";
+// docs/_includes/collaboration/sharing.adoc, "Data model"): a team document its owner has
+// marked as a library, whose symbols, styles, master pages and colors every document in the
+// team can draw on.  The server does not know what a symbol is: a library's contents are read
+// by opening the library document read-only through SyncService.FetchSnapshot, and *using*
+// something from a library is a client-side copy into the consuming document that records
+// where it came from in document data (`LibrarySource` on the copied node, doc.v1; decisions.adoc
+// D-035: copy on use, no live cross-document references).  `Library.head_seq` is what the
+// "update available" badge compares that provenance's `server_seq` with.  Color libraries add
+// their own service to this file (COLOR-020).
+syntax = "proto3";
+
+package wiretuner.docs.v1;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+import "wiretuner/docs/v1/document.proto";
+
+option java_multiple_files = true;
+option java_package = "com.villagecompute.wiretuner.docs.v1";
+option optimize_for = SPEED;
+
+// Publish and list team libraries.  Publishing needs the document's owner (or a team admin)
+// and a team document; listing and getting need team membership.  A document the caller
+// cannot see answers NOT_FOUND with reason DOCUMENT_NOT_FOUND.
+service LibraryService {
+  // Mark a team document as a library, or unmark it.  Publishing sets the document's team
+  // access override to at least VIEWER so every member can read it; unpublishing leaves
+  // consumers' copies intact (they are copies).  A personal document answers
+  // FAILED_PRECONDITION: move it to a team first.
+  rpc SetLibrary(SetLibraryRequest) returns (SetLibraryResponse);
+  // The libraries of one team the caller belongs to, by name.  Offline, the client shows the
+  // last list it saw.
+  rpc ListLibraries(ListLibrariesRequest) returns (ListLibrariesResponse);
+  // One library, for the "update available" check: compare `head_seq` with the provenance
+  // recorded on the copied nodes.
+  rpc GetLibrary(GetLibraryRequest) returns (GetLibraryResponse);
+}
+
+// A team library as the Library panel lists it.
+message Library {
+  // The library document's id.
+  string document_id = 1 [(buf.validate.field).string.uuid = true];
+  // The team that owns it.
+  string team_id = 2 [(buf.validate.field).string.uuid = true];
+  // The document's name.
+  string name = 3 [(buf.validate.field).string.max_len = 256];
+  // The kind of document (a typeface library offers glyph components).
+  DocumentKind kind = 4 [(buf.validate.field).enum.defined_only = true];
+  // The library document's head server_seq; a copy whose provenance records a lower seq has
+  // an update available.
+  uint64 head_seq = 5;
+  // When the document was marked as a library.
+  google.protobuf.Timestamp published_at = 6;
+  // The account that marked it.
+  string published_by_account_id = 7 [(buf.validate.field).string.uuid = true];
+  // The library's thumbnail, as on Document.
+  bytes thumbnail_blob = 8 [(buf.validate.field).cel = {
+    id: "library.thumbnail_blob.len"
+    message: "thumbnail_blob must be empty or 32 bytes"
+    expression: "size(this) == 0 || size(this) == 32"
+  }];
+}
+
+// Publishes or unpublishes a library.
+message SetLibraryRequest {
+  // The team document.
+  string document_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+  // True to make the document a library, false to unmark it.
+  bool is_library = 2;
+}
+
+// The outcome.
+message SetLibraryResponse {
+  // The library when published; unset after unpublishing.
+  Library library = 1;
+}
+
+// Lists a team's libraries.
+message ListLibrariesRequest {
+  // The team.
+  string team_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+  // Opaque cursor from a previous response; empty for the first page.
+  string cursor = 2 [(buf.validate.field).string.max_len = 1024];
+  // Libraries per page; 0 selects the server's default, at most 50.
+  uint32 page_size = 3 [(buf.validate.field).uint32.lte = 50];
+}
+
+// One page of libraries.
+message ListLibrariesResponse {
+  // The libraries, by name.
+  repeated Library libraries = 1;
+  // Cursor for the next page; empty when this is the last page.
+  string next_cursor = 2;
+}
+
+// Fetches one library.
+message GetLibraryRequest {
+  // The library document.
+  string document_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+}
+
+// The library.
+message GetLibraryResponse {
+  // The library.
+  Library library = 1;
+}

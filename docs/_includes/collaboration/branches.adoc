@@ -248,6 +248,15 @@ message BranchEvent {
 }
 ----
 
+As built by PROTO-007 (`proto/wiretuner/docs/v1/branch.proto`): `ListBranches` pages with
+`cursor`/`page_size`; `DeleteBranch` trashes the branch document; `Branch` carries
+`head_seq` and the last author as id plus display name; `on_server` is client state (the
+branch row exists on the server or the call would have answered NOT_FOUND), so it is not a
+field.  `BranchEvent` is defined in `sync.proto` and names the branch by
+`branch_document_id`, `parent_document_id` and `name` rather than embedding `Branch`, because
+`docs.v1` imports `sync.v1` (for `Participant`) and buf forbids package import cycles; a client
+that shows details calls `GetBranch`.
+
 Changes replayed into the parent by a merge are stored verbatim (the server never modifies a
 change) and the `change_log` row carries `merged_from_branch_id`, so history and attribution
 show both the person and the branch.

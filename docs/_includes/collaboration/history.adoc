@@ -277,6 +277,13 @@ message RestoreAsCopyRequest {
 message RestoreAsCopyResponse { string new_document_id = 1; }
 ----
 
+As built by PROTO-007 (`proto/wiretuner/docs/v1/version.proto`): `limit` is `page_size`, as
+in every other list of the API; `ListHistoryRequest.expand_session` asks for one session's
+individual changes; `PinVersion(version_id, pinned)` materializes (or releases) the snapshot
+that `Version.pinned` reports; `RestoreAsCopy` takes `space_id`/`folder_id` and returns the
+new `Document`; `Version.id` and `NameVersionRequest.version_id` are client UUIDv7s.  Roles:
+any role reads, editor or owner names, pins, updates and deletes.
+
 === Merge semantics
 
 Restore to current::

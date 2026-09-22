@@ -103,8 +103,21 @@ collection forever.  Salvage on return rebases unsent changes rather than discar
 
 protovalidate has no Swift runtime (no Swift CEL interpreter).  `protoc-gen-wtcrdt` emits
 validators for the standard rules; CEL rules stay server-only and are listed by the generator.
-PROTO-004 verifies the BSR `buf.build/grpc/swift` plugin emits v2 stubs and records the
-outcome here.
+
+PROTO-004 outcome (2026-09): the BSR plugin `buf.build/grpc/swift` is a grpc-swift *1.x*
+generator -- its newest version is v1.27.6 (published 2026-09-03, runtime library
+`grpc-swift` 1.27.6, product `GRPC`), and its output is `import GRPC` / `GRPCClient` /
+`UnaryCall` code that cannot link against `GRPCCore`.  No v2 emitter exists on the BSR.  The
+grpc-swift 2 stubs therefore come from `protoc-gen-grpc-swift-2`, the plugin in the
+`grpc/grpc-swift-protobuf` package, built from source by `tools/proto/install-plugins.sh` at
+the version WTProto's `Package.resolved` pins (2.4.1, so stubs and runtime move together),
+installed under `tools/bin/` (gitignored) and run by `buf.gen.yaml` as a `local` plugin with
+`Client=true, Server=false, Visibility=Public, FileNaming=PathToUnderscores`.  CI caches the
+binary by the installer's hash and only sets up a Swift toolchain on a miss
+(`.github/workflows/proto.yml`).  The plugin emits a header-only `<file>.grpc.swift` for
+files without services, which is committed like the rest.  Re-check the BSR when
+grpc-swift-protobuf is bumped; if a v2 remote plugin appears, the `local` entry becomes a
+pinned `remote` one and nothing else changes.
 
 [[D-015]]
 === D-015 No Save; Cmd-S names a version
@@ -546,9 +559,11 @@ Layer visibility is shared document state; a "hide for me" view is requested and
 Whether viewers of the parent see branch participants, or editors only.
 
 [[Q-015]]
-=== Q-015 Name of the merge table in `Welcome`
-The sync page sketches `Welcome.merge_table` (bytes); the CRDT model calls it `Welcome.schema`.
-PROTO-006 picks one.
+=== Q-015 Resolved
+PROTO-006 named it `Welcome.merge_table` (`bytes`, at most 4 MiB), as the sync page sketched:
+it is the serialized merge table `protoc-gen-wtcrdt` emits (PROTO-005), and "schema" would
+suggest the descriptor set, which never travels.  xref:api-conventions.adoc[API conventions]
+and xref:crdt-model.adoc[CRDT model] now say `merge_table`.
 
 [[Q-016]]
 === Q-016 Resolved

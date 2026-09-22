@@ -1,0 +1,570 @@
+// proto/wiretuner/docs/v1/document.proto
+//
+// The document library (docs/_includes/document/creating-opening.adoc, "Specification";
+// docs/spec/server.adoc, "Search"; templates.adoc; saving.adoc): the `document` row and its
+// folder, not the document's content, which travels through wiretuner.sync.v1.  A document
+// belongs to exactly one space -- an account's personal space or a team -- and to at most one
+// folder in it.  Ids the client creates (documents) are UUIDv7 so a retried call never
+// duplicates anything; ids the server mints (folders) are plain UUIDs.
+syntax = "proto3";
+
+package wiretuner.docs.v1;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+import "wiretuner/account/v1/team.proto";
+import "wiretuner/doc/v1/change.proto";
+
+option java_multiple_files = true;
+option java_package = "com.villagecompute.wiretuner.docs.v1";
+option optimize_for = SPEED;
+
+// Library CRUD, fork, duplicate and search.  Each RPC's comment names the role it needs on the
+// document (docs/spec/security.adoc, "Document roles"; decisions.adoc D-063: one owner, whose
+// administrative powers team admins share on team documents).  A document the caller cannot
+// see answers NOT_FOUND with reason DOCUMENT_NOT_FOUND, whether it is trashed, deleted or was
+// never visible.  Lists page with opaque cursors (`cursor`, `page_size`, `next_cursor`).
+service DocumentService {
+  // Create a document with a client-generated UUIDv7 and, usually, its initial change (the
+  // template's content, creating-opening.adoc).  Idempotent by id: a retry with the same id
+  // answers the existing document; the same id in another space or with different content
+  // is ALREADY_EXISTS.  The caller becomes the owner.  Needs the right to create in the
+  // space: the account itself, or team member or above.
+  rpc Create(CreateRequest) returns (CreateResponse);
+  // One page of documents of one space: a folder's contents (with its subfolders on the first
+  // page), the trash, templates, or everything shared with the caller across spaces.  Branch
+  // documents are never listed.  Any member of the space; for SHARED_WITH_ME, the caller.
+  rpc List(ListRequest) returns (ListResponse);
+  // One document the caller has any role on, trashed or not.  Also how a deep link resolves
+  // (inspect.adoc).
+  rpc Get(GetRequest) returns (GetResponse);
+  // Rename a document.  Editor or owner.  Everyone subscribed receives DocumentEvent.Renamed.
+  rpc Rename(RenameRequest) returns (RenameResponse);
+  // Move a document to another folder of its space (editor or owner) or to another space
+  // (owner only; named members keep their roles, the team access row is replaced by the new
+  // space's).  Subscribers receive DocumentEvent.Moved.
+  rpc MoveToFolder(MoveToFolderRequest) returns (MoveToFolderResponse);
+  // Move a document to the trash, where it stays restorable for 30 days.  Subscriptions end
+  // with DocumentEvent.Trashed; the document disappears from members' libraries.  Owner only.
+  // Idempotent.
+  rpc Trash(TrashRequest) returns (TrashResponse);
+  // Bring a trashed document back to its folder.  Owner only.  Idempotent.
+  rpc Restore(RestoreRequest) returns (RestoreResponse);
+  // Create a new document in the caller's chosen space from the source's state at a
+  // server_seq plus a set of changes: "Save my version as a copy" (reconcile.adoc) and
+  // VersionService.RestoreAsCopy build on it.  The new document's history begins with one
+  // creation change re-issuing that state; the copy has no link to the source.  Any role on
+  // the source; create rights in the destination space.  Idempotent by `new_document_id`.
+  rpc Fork(ForkRequest) returns (ForkResponse);
+  // Copy a document at its head into a space the caller can create in: Fork with no extra
+  // changes, no seq and a "Copy of" default name.  Offline, the client instead runs Create and
+  // PushChanges from its local state (saving.adoc).  Idempotent by `new_document_id`.
+  rpc Duplicate(DuplicateRequest) returns (DuplicateResponse);
+  // Find documents in one space by name and content (server.adoc, "Search"): names match by
+  // trigram substring, text by word, over the record the snapshotter extracts plus the live
+  // document name.  Documents the caller cannot open are never returned.  Any member of the
+  // space.
+  rpc Search(SearchRequest) returns (SearchResponse);
+  // Mark or unmark a document as a template (templates.adoc): the library's Templates section
+  // and the New-from-template gallery list it; nothing else changes.  Editor or owner.
+  rpc SetTemplate(SetTemplateRequest) returns (SetTemplateResponse);
+  // Create a folder in a space, at its root or inside another folder.  Any member of the
+  // space who can create documents there.
+  rpc CreateFolder(CreateFolderRequest) returns (CreateFolderResponse);
+  // Rename a folder.  Same right as CreateFolder.
+  rpc RenameFolder(RenameFolderRequest) returns (RenameFolderResponse);
+  // Delete a folder; its documents and subfolders move to its parent (or the space root).
+  // Same right as CreateFolder.  Idempotent.
+  rpc DeleteFolder(DeleteFolderRequest) returns (DeleteFolderResponse);
+}
+
+// What kind of document this is, for the library's sections and icons.  Mirrors the document
+// settings' `document_kind` (typeface-documents.adoc, FONT-001): the client sets it at Create
+// and the snapshotter refreshes it from the settings node, so the library never has to open a
+// document to know.
+enum DocumentKind {
+  // Not recorded; reads as ILLUSTRATION_MULTI_PAGE.
+  DOCUMENT_KIND_UNSPECIFIED = 0;
+  // A single-page illustration.
+  DOCUMENT_KIND_ILLUSTRATION_SINGLE_PAGE = 1;
+  // A multi-page illustration or publication.
+  DOCUMENT_KIND_ILLUSTRATION_MULTI_PAGE = 2;
+  // A typeface: glyphs as pages, font properties on the document.
+  DOCUMENT_KIND_TYPEFACE = 3;
+}
+
+// A document as the library shows it: the `document` row plus what the caller may do with it.
+message Document {
+  // The document id, a client-generated UUIDv7.
+  string id = 1 [(buf.validate.field).string.uuid = true];
+  // The space that owns it: an account id (personal space) or a team id.
+  string space_id = 2 [(buf.validate.field).string.uuid = true];
+  // The folder it is in; empty = the space's root.
+  string folder_id = 3 [
+    (buf.validate.field).string.uuid = true,
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+  // The display name.
+  string name = 4 [(buf.validate.field).string.max_len = 256];
+  // The kind, for sections and icons.
+  DocumentKind kind = 5 [(buf.validate.field).enum.defined_only = true];
+  // The owner's account id.  On a team document the team's admins hold the same powers.
+  string owner_account_id = 6 [(buf.validate.field).string.uuid = true];
+  // The account that created it (a team document's `is_creator` member).
+  string created_by_account_id = 7 [(buf.validate.field).string.uuid = true];
+  // The caller's effective role: named membership, team default or link, whichever is highest.
+  wiretuner.account.v1.DocumentRole caller_role = 8 [(buf.validate.field).enum.defined_only = true];
+  // The head of the change log at the time of the call.
+  uint64 head_seq = 9;
+  // The highest schema feature level any change has used; a client below it opens read-only.
+  uint32 feature_level = 10;
+  // When the row was created.
+  google.protobuf.Timestamp created_at = 11;
+  // When the last change was accepted, or the row last changed if later.
+  google.protobuf.Timestamp updated_at = 12;
+  // When the document was trashed; unset while it is live.  Permanently deleted 30 days later.
+  google.protobuf.Timestamp trashed_at = 13;
+  // sha256 (32 raw bytes) of the newest client-rendered thumbnail uploaded with
+  // BlobTag.THUMBNAIL (sync-protocol.adoc, "Blobs"); empty when none has arrived.  Downloaded
+  // through BlobService.Download with this document's id.
+  bytes thumbnail_blob = 14 [(buf.validate.field).cel = {
+    id: "document.thumbnail_blob.len"
+    message: "thumbnail_blob must be empty or 32 bytes"
+    expression: "size(this) == 0 || size(this) == 32"
+  }];
+  // When that thumbnail was uploaded; unset when none.
+  google.protobuf.Timestamp thumbnail_at = 15;
+  // True for a template (SetTemplate).
+  bool is_template = 16;
+  // True for a team library (LibraryService.SetLibrary).
+  bool is_library = 17;
+  // Set when this document is a branch: the parent document's id (BranchService).  Branches
+  // are never returned by List.
+  string parent_document_id = 18 [
+    (buf.validate.field).string.uuid = true,
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+}
+
+// A folder in a space.  Folders hold documents and folders; they carry no roles of their own
+// (access is per document and per space).
+message Folder {
+  // The folder id, minted by the server.
+  string id = 1 [(buf.validate.field).string.uuid = true];
+  // The space the folder is in.
+  string space_id = 2 [(buf.validate.field).string.uuid = true];
+  // The parent folder; empty = the space's root.
+  string parent_folder_id = 3 [
+    (buf.validate.field).string.uuid = true,
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+  // The display name.
+  string name = 4 [(buf.validate.field).string.max_len = 256];
+  // When the folder was created.
+  google.protobuf.Timestamp created_at = 5;
+}
+
+// Creates a document.
+message CreateRequest {
+  // The client-generated UUIDv7 that becomes the document's id (the idempotency key).
+  string document_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string = {
+      uuid: true
+      pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-7[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+    }
+  ];
+  // The space to create in: the caller's account id or a team id.
+  string space_id = 2 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+  // The folder to create in; empty = the space's root.
+  string folder_id = 3 [
+    (buf.validate.field).string.uuid = true,
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+  // The display name.
+  string name = 4 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 256
+  }];
+  // The kind; UNSPECIFIED reads as a multi-page illustration.
+  DocumentKind kind = 5 [(buf.validate.field).enum.defined_only = true];
+  // The first change of the document's log, sequenced as server_seq 1: the template's content
+  // as one creation change from the creating replica.  Optional: a Duplicate or package import
+  // materialized offline sends its re-issued state with PushChanges afterwards (saving.adoc).
+  wiretuner.doc.v1.Change initial_change = 6;
+}
+
+// The created (or, on a retry, the existing) document.
+message CreateResponse {
+  // The document, with the caller as owner.
+  Document document = 1;
+}
+
+// Which documents a List returns.
+enum ListScope {
+  // Reads as FOLDER.
+  LIST_SCOPE_UNSPECIFIED = 0;
+  // The live documents of one folder of the space (`folder_id`; empty = root), templates and
+  // libraries included, plus the folder's subfolders on the first page.
+  LIST_SCOPE_FOLDER = 1;
+  // The space's trashed documents, whatever folder they were in.
+  LIST_SCOPE_TRASH = 2;
+  // The space's templates, whatever folder they are in.
+  LIST_SCOPE_TEMPLATES = 3;
+  // Documents in other spaces the caller has a named role or link access on ("Shared with
+  // me"); `space_id` and `folder_id` are ignored.
+  LIST_SCOPE_SHARED_WITH_ME = 4;
+}
+
+// Lists documents.
+message ListRequest {
+  option (buf.validate.message).cel = {
+    id: "list.space_required"
+    message: "space_id is required unless scope is SHARED_WITH_ME"
+    expression: "this.scope == 4 || this.space_id != ''"
+  };
+  // The space to list; required except for SHARED_WITH_ME.
+  string space_id = 1 [
+    (buf.validate.field).string.uuid = true,
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+  // For FOLDER: the folder to list; empty = the space's root.
+  string folder_id = 2 [
+    (buf.validate.field).string.uuid = true,
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+  // What to list.
+  ListScope scope = 3 [(buf.validate.field).enum.defined_only = true];
+  // Opaque cursor from a previous response; empty for the first page.
+  string cursor = 4 [(buf.validate.field).string.max_len = 1024];
+  // Documents per page; 0 selects the server's default, at most 100.
+  uint32 page_size = 5 [(buf.validate.field).uint32.lte = 100];
+}
+
+// One page of documents.
+message ListResponse {
+  // The documents, by name.
+  repeated Document documents = 1;
+  // For FOLDER on the first page: the listed folder's subfolders, by name.  Empty otherwise.
+  repeated Folder folders = 2;
+  // Cursor for the next page; empty when this is the last page.
+  string next_cursor = 3;
+}
+
+// Fetches one document.
+message GetRequest {
+  // The document.
+  string document_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+}
+
+// The document.
+message GetResponse {
+  // The document.
+  Document document = 1;
+}
+
+// Renames a document.
+message RenameRequest {
+  // The document.
+  string document_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+  // The new name.
+  string name = 2 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 256
+  }];
+}
+
+// The document after the rename.
+message RenameResponse {
+  // The document.
+  Document document = 1;
+}
+
+// Moves a document to a folder, in its space or another.
+message MoveToFolderRequest {
+  // The document.
+  string document_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+  // The destination space; empty = keep the current one.  A different space needs the owner.
+  string space_id = 2 [
+    (buf.validate.field).string.uuid = true,
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+  // The destination folder, which must belong to the destination space; empty = its root.
+  string folder_id = 3 [
+    (buf.validate.field).string.uuid = true,
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+}
+
+// The document after the move.
+message MoveToFolderResponse {
+  // The document.
+  Document document = 1;
+}
+
+// Trashes a document.
+message TrashRequest {
+  // The document.
+  string document_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+}
+
+// The document after trashing.
+message TrashResponse {
+  // The document, with `trashed_at` set.
+  Document document = 1;
+}
+
+// Restores a trashed document.
+message RestoreRequest {
+  // The document.
+  string document_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+}
+
+// The document after restoring.
+message RestoreResponse {
+  // The document, live again.
+  Document document = 1;
+}
+
+// Creates a new document from another's state.
+message ForkRequest {
+  // The document to fork from; any role.
+  string source_document_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+  // The client-generated UUIDv7 of the new document (the idempotency key).
+  string new_document_id = 2 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string = {
+      uuid: true
+      pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-7[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+    }
+  ];
+  // The source's server_seq to start from; 0 = its head at the time of the call.  Must be
+  // within retained history or at a pinned version.
+  uint64 at_server_seq = 3;
+  // Changes to apply on top of that state before the copy is sealed into its creation change:
+  // the caller's unsent local changes ("Save my version as a copy").  Their replica must be
+  // the caller's; larger sets are pushed to the new document afterwards.
+  repeated wiretuner.doc.v1.Change changes = 4 [(buf.validate.field).repeated.max_items = 1000];
+  // The space to create in; empty = the caller's personal space.
+  string space_id = 5 [
+    (buf.validate.field).string.uuid = true,
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+  // The folder to create in; empty = the space's root.
+  string folder_id = 6 [
+    (buf.validate.field).string.uuid = true,
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+  // The new document's name; empty = the source's name.
+  string name = 7 [(buf.validate.field).string.max_len = 256];
+}
+
+// The new document.
+message ForkResponse {
+  // The new document, owned by the caller.
+  Document document = 1;
+}
+
+// Copies a document at its head.
+message DuplicateRequest {
+  // The document to copy; any role.
+  string document_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+  // The client-generated UUIDv7 of the copy (the idempotency key).
+  string new_document_id = 2 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string = {
+      uuid: true
+      pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-7[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+    }
+  ];
+  // The space to create in; empty = the source's space.
+  string space_id = 3 [
+    (buf.validate.field).string.uuid = true,
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+  // The folder to create in; empty = the source's folder when staying in the space, else the
+  // destination's root.
+  string folder_id = 4 [
+    (buf.validate.field).string.uuid = true,
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+  // The copy's name; empty = "<source name> copy" in the caller's language.
+  string name = 5 [(buf.validate.field).string.max_len = 256];
+  // Whether the copy is a template; a duplicated document never inherits the flag otherwise
+  // (templates.adoc, "Save as Template").
+  bool as_template = 6;
+}
+
+// The copy.
+message DuplicateResponse {
+  // The new document, owned by the caller.
+  Document document = 1;
+}
+
+// Where a search hit matched.
+enum SearchField {
+  // Not set.
+  SEARCH_FIELD_UNSPECIFIED = 0;
+  // The document's name (matched live, so a rename is searchable at once).
+  SEARCH_FIELD_DOCUMENT_NAME = 1;
+  // An object's name (CommonProps.name).
+  SEARCH_FIELD_OBJECT_NAME = 2;
+  // The text of a text block.
+  SEARCH_FIELD_TEXT = 3;
+  // An object's note (CommonProps.note).
+  SEARCH_FIELD_NOTE = 4;
+  // A swatch name.
+  SEARCH_FIELD_SWATCH = 5;
+  // A graphic or text style name.
+  SEARCH_FIELD_STYLE = 6;
+  // A symbol name.
+  SEARCH_FIELD_SYMBOL = 7;
+  // A keyword, or the title or description, from Document Info (file-info.adoc).
+  SEARCH_FIELD_KEYWORD = 8;
+  // A page name.
+  SEARCH_FIELD_PAGE = 9;
+}
+
+// Searches one space.
+message SearchRequest {
+  // What to find: words for the text index (websearch syntax), a substring for names.
+  string query = 1 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 256
+  }];
+  // The personal space or one team; documents the caller cannot open are never returned.
+  string space_id = 2 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+  // Opaque cursor from a previous response; empty for the first page.
+  string cursor = 3 [(buf.validate.field).string.max_len = 1024];
+  // Hits per page; 0 selects the server's default, at most 50.
+  uint32 page_size = 4 [(buf.validate.field).uint32.lte = 50];
+}
+
+// One matching document.
+message SearchHit {
+  // The document.
+  string document_id = 1 [(buf.validate.field).string.uuid = true];
+  // Where it matched and the matching text, with `<b>` markers around the matched words (from
+  // ts_headline, or the matching line of the names record); the library shows it under the
+  // document's name.
+  repeated SearchMatch matches = 2;
+  // Relevance, higher is better; hits are ordered by it, then by name similarity.
+  float rank = 3;
+}
+
+// One highlighted match inside a hit.
+message SearchMatch {
+  // Which field matched.
+  SearchField field = 1 [(buf.validate.field).enum.defined_only = true];
+  // The matching text with `<b>`...`</b>` around the match; no other markup.
+  string highlighted = 2 [(buf.validate.field).string.max_len = 1024];
+}
+
+// One page of hits.
+message SearchResponse {
+  // The hits, best first.
+  repeated SearchHit hits = 1;
+  // Cursor for the next page; empty when this is the last page.
+  string next_cursor = 2;
+}
+
+// Marks or unmarks a template.
+message SetTemplateRequest {
+  // The document.
+  string document_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+  // True to make the document a template, false to make it an ordinary document.
+  bool is_template = 2;
+}
+
+// The document after the change.
+message SetTemplateResponse {
+  // The document.
+  Document document = 1;
+}
+
+// Creates a folder.
+message CreateFolderRequest {
+  // The space.
+  string space_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+  // The parent folder; empty = the space's root.
+  string parent_folder_id = 2 [
+    (buf.validate.field).string.uuid = true,
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+  // The display name.
+  string name = 3 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 256
+  }];
+}
+
+// The created folder.
+message CreateFolderResponse {
+  // The folder.
+  Folder folder = 1;
+}
+
+// Renames a folder.
+message RenameFolderRequest {
+  // The folder.
+  string folder_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+  // The new name.
+  string name = 2 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 256
+  }];
+}
+
+// The folder after the rename.
+message RenameFolderResponse {
+  // The folder.
+  Folder folder = 1;
+}
+
+// Deletes a folder.
+message DeleteFolderRequest {
+  // The folder.
+  string folder_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+}
+
+// Empty; the folder is gone and its contents moved up.
+message DeleteFolderResponse {}
