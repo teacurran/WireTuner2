@@ -46,3 +46,18 @@ client-build:
 	cd client && xcodebuild -project WireTuner.xcodeproj -scheme WireTuner -destination 'platform=macOS' \
 		-derivedDataPath build/DerivedData \
 		DEVELOPMENT_TEAM="$(DEVELOPMENT_TEAM)" CODE_SIGN_IDENTITY="$(or $(CODE_SIGN_IDENTITY),-)" build
+
+.PHONY: server-test sonar-server up down
+
+server-test:
+	cd server && JAVA_HOME=$$(sdk home java 25-amzn) ./mvnw -q verify
+
+sonar-server:
+	@test -n "$(SONAR_TOKEN)" || (echo 'SONAR_TOKEN unset; try: export SONAR_TOKEN=$$(cat ~/.sonar-token)' >&2; exit 2)
+	cd server && ./mvnw -B -ntp sonar:sonar
+
+up:
+	docker compose up -d
+
+down:
+	docker compose down

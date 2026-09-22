@@ -20,3 +20,11 @@ make docs-check   # fast render of both books with the asciidoctor CLI; warnings
 make docs         # the Maven render CI uses (docs/pom.xml), output under docs/target/docs
 ----
 
+
+== Server
+
+[source,bash]
+----
+docker compose up -d   # postgres, valkey, keycloak, minio, jaeger, mailpit, migrations, api (dev mode)
+make server-test       # ./mvnw verify on JDK 25 with JaCoCo reports per module
+----

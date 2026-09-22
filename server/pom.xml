@@ -1,0 +1,214 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>com.villagecompute.wiretuner</groupId>
+  <artifactId>wiretuner-server</artifactId>
+  <version>1.0-SNAPSHOT</version>
+  <packaging>pom</packaging>
+  <name>WireTuner server</name>
+
+  <!-- Reactor order matters: api and conformance both depend on wt-crdt. -->
+  <modules>
+    <module>wt-crdt</module>
+    <module>api</module>
+    <module>conformance</module>
+  </modules>
+
+  <properties>
+    <maven.compiler.release>25</maven.compiler.release>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+    <failsafe.useModulePath>false</failsafe.useModulePath>
+
+    <!-- The latest released Quarkus (docs/spec/stack.adoc): bump on each release. -->
+    <version.quarkus>3.39.4</version.quarkus>
+    <!-- Same Flyway line the Quarkus BOM manages (flyway-core), so the compose migrations job
+         and the api agree on the schema-history format. -->
+    <version.flyway>12.0.0</version.flyway>
+    <version.postgres.driver>42.7.13</version.postgres.driver>
+    <!-- Its ValidateProto gencode must not be newer than the BOM's protobuf-java runtime
+         (4.35.0 in Quarkus 3.39.4): 1.3.0 is built with 4.36.0 and breaks dev mode's
+         gRPC Dev UI step; 1.2.2 (protobuf 4.34.1) is also what dissipate-server pins. -->
+    <version.protovalidate>1.2.2</version.protovalidate>
+    <version.awssdk>2.55.2</version.awssdk>
+    <version.assertj>3.27.3</version.assertj>
+
+    <compiler-plugin.version>3.16.0</compiler-plugin.version>
+    <surefire-plugin.version>3.6.0</surefire-plugin.version>
+    <jacoco-plugin.version>0.8.15</jacoco-plugin.version>
+    <sonar-plugin.version>5.8.0.7211</sonar-plugin.version>
+
+    <!-- SonarQube config lives HERE, not in a sonar-project.properties: the sonar-maven-plugin
+         reads the POM and -D flags only (that file is the sonar-scanner CLI's input), exactly as
+         dissipate-server does. The token is never here: local runs read ~/.sonar-token, CI the
+         SONAR_TOKEN secret (docs/spec/testing.adoc). TEST-003 wires the upload. -->
+    <sonar.projectKey>wiretuner-server</sonar.projectKey>
+    <sonar.projectName>wiretuner-server</sonar.projectName>
+    <sonar.host.url>https://sonar.villagecompute.com</sonar.host.url>
+    <sonar.sourceEncoding>UTF-8</sonar.sourceEncoding>
+    <!-- Every module's JaCoCo XML, listed once at the reactor root; Sonar merges the listed
+         reports into one coverage figure. Paths are absolute so the property means the same
+         thing in every module of the reactor. -->
+    <sonar.coverage.jacoco.xmlReportPaths>${maven.multiModuleProjectDirectory}/wt-crdt/target/site/jacoco/jacoco.xml,${maven.multiModuleProjectDirectory}/api/target/site/jacoco/jacoco.xml,${maven.multiModuleProjectDirectory}/conformance/target/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
+    <!-- Exclusions are for generated code only (docs/spec/building.adoc): protoc/Quarkus stubs
+         under generated-sources, Quarkus's own scratch dir, build output. Test sources are
+         analysed on purpose. -->
+    <sonar.exclusions>**/target/**,**/generated-sources/**,**/generated-test-sources/**,**/.quarkus/**</sonar.exclusions>
+    <sonar.coverage.exclusions>**/generated-sources/**,**/generated-test-sources/**</sonar.coverage.exclusions>
+
+    <!-- Defaults for `./mvnw -N flyway:migrate` against the compose database on the host; the
+         main-db-migrations compose job overrides all three with -D flags. -->
+    <flyway.url>jdbc:postgresql://localhost:5433/wiretuner</flyway.url>
+    <flyway.user>wiretuner</flyway.user>
+    <flyway.password>wiretuner</flyway.password>
+  </properties>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>io.quarkus.platform</groupId>
+        <artifactId>quarkus-bom</artifactId>
+        <version>${version.quarkus}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+      <dependency>
+        <groupId>software.amazon.awssdk</groupId>
+        <artifactId>bom</artifactId>
+        <version>${version.awssdk}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+      <dependency>
+        <groupId>com.villagecompute.wiretuner</groupId>
+        <artifactId>wt-crdt</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>build.buf</groupId>
+        <artifactId>protovalidate</artifactId>
+        <version>${version.protovalidate}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.assertj</groupId>
+        <artifactId>assertj-core</artifactId>
+        <version>${version.assertj}</version>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
+  <build>
+    <pluginManagement>
+      <plugins>
+        <plugin>
+          <groupId>io.quarkus.platform</groupId>
+          <artifactId>quarkus-maven-plugin</artifactId>
+          <version>${version.quarkus}</version>
+        </plugin>
+        <plugin>
+          <artifactId>maven-compiler-plugin</artifactId>
+          <version>${compiler-plugin.version}</version>
+          <configuration>
+            <compilerArgs>
+              <arg>-parameters</arg>
+            </compilerArgs>
+          </configuration>
+        </plugin>
+        <plugin>
+          <artifactId>maven-surefire-plugin</artifactId>
+          <version>${surefire-plugin.version}</version>
+          <configuration>
+            <!-- @{argLine} is late-bound so the JaCoCo agent prepared below is kept. -->
+            <argLine>@{argLine}</argLine>
+            <systemPropertyVariables>
+              <maven.home>${maven.home}</maven.home>
+            </systemPropertyVariables>
+          </configuration>
+        </plugin>
+        <plugin>
+          <artifactId>maven-failsafe-plugin</artifactId>
+          <version>${surefire-plugin.version}</version>
+        </plugin>
+        <plugin>
+          <groupId>org.jacoco</groupId>
+          <artifactId>jacoco-maven-plugin</artifactId>
+          <version>${jacoco-plugin.version}</version>
+          <executions>
+            <execution>
+              <id>prepare-agent</id>
+              <goals>
+                <goal>prepare-agent</goal>
+              </goals>
+              <configuration>
+                <!-- Our classes only (class-name patterns). Instrumenting every loaded class
+                     bought nothing and crashed C2 on dissipate-server's CI. -->
+                <includes>
+                  <include>com.villagecompute.wiretuner.*</include>
+                </includes>
+              </configuration>
+            </execution>
+            <execution>
+              <id>report</id>
+              <phase>verify</phase>
+              <goals>
+                <goal>report</goal>
+              </goals>
+              <configuration>
+                <outputDirectory>${project.build.directory}/site/jacoco</outputDirectory>
+              </configuration>
+            </execution>
+          </executions>
+        </plugin>
+        <plugin>
+          <groupId>org.sonarsource.scanner.maven</groupId>
+          <artifactId>sonar-maven-plugin</artifactId>
+          <version>${sonar-plugin.version}</version>
+        </plugin>
+        <!-- Flyway for the compose `main-db-migrations` job and `./mvnw -N flyway:migrate`:
+             runs on this parent alone (-N), so the job resolves nothing but the plugin and the
+             driver. The api applies the same files with quarkus-flyway in dev and test. -->
+        <plugin>
+          <groupId>org.flywaydb</groupId>
+          <artifactId>flyway-maven-plugin</artifactId>
+          <version>${version.flyway}</version>
+          <configuration>
+            <url>${flyway.url}</url>
+            <user>${flyway.user}</user>
+            <password>${flyway.password}</password>
+            <locations>
+              <location>filesystem:${maven.multiModuleProjectDirectory}/api/src/main/resources/db/migration</location>
+            </locations>
+          </configuration>
+          <dependencies>
+            <dependency>
+              <groupId>org.flywaydb</groupId>
+              <artifactId>flyway-database-postgresql</artifactId>
+              <version>${version.flyway}</version>
+            </dependency>
+            <dependency>
+              <groupId>org.postgresql</groupId>
+              <artifactId>postgresql</artifactId>
+              <version>${version.postgres.driver}</version>
+            </dependency>
+          </dependencies>
+        </plugin>
+      </plugins>
+    </pluginManagement>
+
+    <plugins>
+      <plugin>
+        <artifactId>maven-compiler-plugin</artifactId>
+      </plugin>
+      <plugin>
+        <artifactId>maven-surefire-plugin</artifactId>
+      </plugin>
+      <plugin>
+        <groupId>org.jacoco</groupId>
+        <artifactId>jacoco-maven-plugin</artifactId>
+      </plugin>
+    </plugins>
+  </build>
+</project>

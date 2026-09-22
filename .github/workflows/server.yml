@@ -1,0 +1,65 @@
+name: Server
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "server/**"
+      - "proto/**"
+      - ".github/workflows/server.yml"
+  pull_request:
+    paths:
+      - "server/**"
+      - "proto/**"
+      - ".github/workflows/server.yml"
+
+# PR runs group by PR and cancel freely; push runs group by commit so no main run is superseded
+# while queued (dissipate-server's lesson).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  verify:
+    name: mvnw verify
+    # Linux, X64 on purpose: the suite starts linux/amd64 Testcontainers (Dev Services Postgres
+    # and Valkey) through the runner's Docker.
+    runs-on: [self-hosted, Linux, X64, ci]
+    timeout-minutes: 45
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v5
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+          # No `cache: maven`: the runner's ~/.m2 survives between jobs.
+
+      - name: Docker is available for Testcontainers
+        run: |
+          if ! docker info >/dev/null 2>&1; then
+            echo "::error::Docker is not running on this runner; @QuarkusTest needs it for Dev Services."
+            exit 1
+          fi
+
+      - name: Build and test
+        working-directory: server
+        run: ./mvnw -B -ntp verify
+
+      # One jacoco.xml per module (wt-crdt, api, conformance); TEST-003's sonar job consumes them.
+      - name: Upload coverage
+        uses: actions/upload-artifact@v5
+        if: always()
+        with:
+          name: server-jacoco
+          path: server/**/target/site/jacoco/jacoco.xml
+          if-no-files-found: error
+          retention-days: 2
+
+  # sonar:
+  #   TEST-003 wires this job: download `server-jacoco`, then run
+  #   `./mvnw -B -ntp sonar:sonar` in server/ with SONAR_TOKEN from secrets. The sonar.* properties
+  #   (projectKey wiretuner-server, host, jacoco.xmlReportPaths) already live in server/pom.xml.
+  #   Never scan without a jacoco.xml: a report-less scan publishes 0% and replaces the real figure.

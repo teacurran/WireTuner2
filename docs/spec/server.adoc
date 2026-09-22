@@ -17,7 +17,7 @@ server/
 ├── pom.xml                  parent (latest Quarkus BOM -- 3.39.4 at writing -- Java 25)
 ├── wt-crdt/                 the Java merge engine: pure library, no Quarkus
 ├── api/                     gRPC services, persistence, jobs, Keycloak integration
-│   └── src/main/proto -> ../../proto   (symlink; Quarkus generate-code reads it)
+│   └── src/main/proto -> ../../../../proto   (symlink to the repo's proto/; Quarkus generate-code reads it)
 └── conformance/             runs crdt-conformance vectors against wt-crdt
 ....
 

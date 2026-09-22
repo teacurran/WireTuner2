@@ -261,7 +261,7 @@ Done when:: One million random ops run nightly with no divergence.
 Track:: server
 Depends on:: PROTO-001
 Size:: M
-Delivers:: `server/` Maven multi-module (api, wt-crdt, jobs) on the latest released Quarkus (3.39.4 at writing) and JDK 25, mirroring dissipate-server's layout, `docker-compose.yml` with postgres, valkey, keycloak (realm import), minio + init, jaeger, mailpit, migrations job; health endpoints; OTel and Prometheus wired.
+Delivers:: `server/` Maven multi-module (api, wt-crdt, conformance) on the latest released Quarkus (3.39.4 at writing) and JDK 25, mirroring dissipate-server's layout, `docker-compose.yml` with postgres, valkey, keycloak (realm import), minio + init, jaeger, mailpit, migrations job; health endpoints; OTel and Prometheus wired.
 Done when:: `docker compose up` yields a healthy API answering `grpc.health.v1`; `./mvnw verify` writes `target/site/jacoco/jacoco.xml` for every module, and the `sonar.*` properties in `server/pom.xml` name the `wiretuner-server` project (TEST-003 wires the upload).
 
 [[SRV-002]]

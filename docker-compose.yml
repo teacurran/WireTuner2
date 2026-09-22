@@ -1,0 +1,228 @@
+# Local development stack (docs/spec/server.adoc, Local development). Same shape as
+# dissipate-server's compose: a healthy database, a one-shot migrations job, then the api in
+# Quarkus dev mode configured through QUARKUS_* environment variables.
+#
+#   docker compose up -d              everything; the api answers on :8080 (gRPC + /q/health)
+#   docker compose up -d main-db valkey   just the stores, for `./mvnw quarkus:dev` on the host
+#
+# Host ports: postgres 5433, valkey 6379, keycloak 8180, minio 9300/9301, jaeger 16686 (UI) and
+# 4317 (OTLP), mailpit 8025 (UI) and 1025 (SMTP), api 8080 and 5005 (debugger).
+
+services:
+  main-db:
+    image: postgres:17
+    user: postgres
+    restart: always
+    # Container stdout is history, not data: cap it (dissipate's 50 GB json-file lesson).
+    logging:
+      driver: json-file
+      options:
+        max-size: "100m"
+        max-file: "2"
+    environment:
+      POSTGRES_USER: wiretuner
+      POSTGRES_PASSWORD: wiretuner
+      POSTGRES_DB: wiretuner
+      POSTGRES_HOST_AUTH_METHOD: scram-sha-256
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
+    volumes:
+      - main-db:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: 'pg_isready -U wiretuner --dbname=postgres'
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Applies server/api/src/main/resources/db/migration with Flyway before the api boots. The
+  # repository is mounted so the parent pom's flyway-maven-plugin configuration is used (-N: the
+  # parent alone, so the job downloads the plugin and the driver, not the api's dependencies).
+  main-db-migrations:
+    image: maven:3.9-eclipse-temurin-25
+    depends_on:
+      main-db:
+        condition: service_healthy
+    working_dir: /workspace/server
+    volumes:
+      - .:/workspace
+      - maven_cache:/root/.m2
+    command:
+      - mvn
+      - -B
+      - -ntp
+      - -N
+      - org.flywaydb:flyway-maven-plugin:migrate
+      - -Dflyway.url=jdbc:postgresql://main-db:5432/wiretuner
+      - -Dflyway.user=wiretuner
+      - -Dflyway.password=wiretuner
+
+  # Pub/sub fan-out for live changes and presence. No persistence on purpose: the bus carries
+  # SequencedChange events that are also in change_log, never state of its own.
+  valkey:
+    image: valkey/valkey:8
+    restart: always
+    command: valkey-server --save '' --appendonly no
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "2"
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: 'valkey-cli ping'
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Identity. The realm file declares the `wiretuner` realm, the `wiretuner-mac` public PKCE
+  # client and one test user (testuser / testpass).
+  # TODO(SEC-004): add the passkey-enabled browser flow, the stub Apple identity provider pointed
+  # at a local mock, and a workspace IdP to server/keycloak/wiretuner-realm.json.
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.4
+    command: start-dev --import-realm
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_HTTP_PORT: 8080
+      KC_HEALTH_ENABLED: "true"
+    volumes:
+      - ./server/keycloak:/opt/keycloak/data/import:ro
+    ports:
+      - "8180:8080"
+
+  # S3-compatible object storage for snapshots, cold segments and blobs. Host ports are
+  # 9300/9301 because 9000/9001 are a common collision; in-network the api uses http://minio:9000.
+  # quay.io: MinIO no longer publishes anonymously pullable images on Docker Hub.
+  minio:
+    image: quay.io/minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio-data:/data
+    ports:
+      - "9300:9000"
+      - "9301:9001"
+    healthcheck:
+      test: 'curl -sf http://localhost:9000/minio/health/live'
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # One-shot bucket bootstrap: creates the bucket the api expects, then exits.
+  minio-init:
+    image: quay.io/minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      until mc alias set local http://minio:9000 minioadmin minioadmin; do sleep 1; done;
+      mc mb -p local/wiretuner;
+      "
+
+  # Traces. The v2 image is the all-in-one: OTLP in on 4317/4318, UI on 16686.
+  jaeger:
+    image: jaegertracing/jaeger:2.21.0
+    ports:
+      - "16686:16686"
+      - "4317:4317"
+      - "4318:4318"
+
+  # Share-invitation mail lands here (UI on 8025).
+  mailpit:
+    image: axllent/mailpit:v1.31
+    restart: unless-stopped
+    volumes:
+      - mailpit_data:/data
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+    environment:
+      MP_MAX_MESSAGES: 5000
+      MP_DATABASE: /data/mailpit.db
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+
+  # The API in Quarkus dev mode from ./server (live reload; debugger on 5005).
+  api:
+    image: wiretuner-api-dev
+    build:
+      context: ./server/api
+      dockerfile: src/main/docker/dev-jvm.dockerfile
+    depends_on:
+      # fresh-volume ordering: db healthy -> migrations applied -> api boots
+      main-db:
+        condition: service_healthy
+      main-db-migrations:
+        condition: service_completed_successfully
+      valkey:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+      minio-init:
+        condition: service_completed_successfully
+      jaeger:
+        condition: service_started
+      mailpit:
+        condition: service_started
+    # The repository, not just server/, is mounted: api/src/main/proto is a symlink to the
+    # repo's proto/ and must resolve inside the container for generate-code to run.
+    working_dir: /app/server
+    volumes:
+      - .:/app
+      - maven_cache:/root/.m2
+      # Named volumes mask the host's target dirs: dev-mode hot-reload writing the same class
+      # files a host `./mvnw verify` reads corrupts test discovery (dissipate, 2026-07-12).
+      - maven_target_api:/app/server/api/target
+      - maven_target_crdt:/app/server/wt-crdt/target
+    environment:
+      # No Docker socket in here: never let Dev Services try to start containers.
+      QUARKUS_DEVSERVICES_ENABLED: "false"
+      QUARKUS_HTTP_HOST: 0.0.0.0
+      QUARKUS_DATASOURCE_REACTIVE_URL: vertx-reactive:postgresql://main-db:5432/wiretuner
+      QUARKUS_DATASOURCE_JDBC_URL: jdbc:postgresql://main-db:5432/wiretuner
+      QUARKUS_DATASOURCE_USERNAME: wiretuner
+      QUARKUS_DATASOURCE_PASSWORD: wiretuner
+      # main-db-migrations is authoritative; the api only validates at start.
+      QUARKUS_FLYWAY_MIGRATE_AT_START: "false"
+      QUARKUS_REDIS_HOSTS: redis://valkey:6379
+      QUARKUS_OIDC_AUTH_SERVER_URL: http://keycloak:8080/realms/wiretuner
+      WT_S3_ENDPOINT: http://minio:9000
+      WT_S3_BUCKET: wiretuner
+      AWS_ACCESS_KEY_ID: minioadmin
+      AWS_SECRET_ACCESS_KEY: minioadmin
+      QUARKUS_OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://jaeger:4317
+      QUARKUS_MAILER_HOST: mailpit
+      QUARKUS_MAILER_PORT: 1025
+    command:
+      - mvn
+      - -pl
+      - api
+      - -am
+      - quarkus:dev
+      - -Dquarkus.http.host=0.0.0.0
+      - -Ddebug=true
+      - -DdebugHost=0.0.0.0
+    ports:
+      - "8080:8080"
+      - "5005:5005"
+    healthcheck:
+      test: 'curl -sf http://localhost:8080/q/health/ready'
+      interval: 15s
+      timeout: 5s
+      retries: 40
+      start_period: 120s
+
+volumes:
+  main-db:
+  maven_cache:
+  maven_target_api:
+  maven_target_crdt:
+  mailpit_data:
+  minio-data:
