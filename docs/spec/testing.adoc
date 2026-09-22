@@ -92,9 +92,10 @@ the server and for the client alike.  A pull request whose gate fails does not m
 |Side |How coverage is produced and reported
 
 |Server (Java)
-|`quarkus-jacoco` instruments every Maven module (`api`, `wt-crdt`, `conformance`); the
-aggregate `jacoco.xml` is passed to `sonar-maven-plugin` as
-`sonar.coverage.jacoco.xmlReportPaths`.  JaCoCo reports lines and branches natively.  Sonar
+|`quarkus-jacoco` instruments every Maven module (`api`, `wt-crdt`, `conformance`); each
+module's `target/site/jacoco/jacoco.xml` is listed in `sonar.coverage.jacoco.xmlReportPaths`
+and `sonar-maven-plugin` merges them into one figure (SRV-001: JaCoCo's `report-aggregate`
+needs a module that depends on all others, which the reactor does not have).  JaCoCo reports lines and branches natively.  Sonar
 configuration lives in `server/pom.xml` `sonar.*` properties, never in a
 `sonar-project.properties` (the Maven plugin ignores that file), exactly as dissipate-server
 does.  Generated sources (`target/generated-sources/**`, protobuf stubs) are excluded from
@@ -114,6 +115,16 @@ upload because it reports no branch data.
 |Two Sonar projects, `wiretuner-server` and `wiretuner-client`, each with the same gate.  The
 proto module contributes no measurable code; the docs contribute none.
 |===
+
+NOTE: Deviation recorded by APP-001.  The Swift compiler's coverage mapping (Xcode 26.4,
+Swift 6.3) emits line and function regions but no branch regions: `llvm-cov export
+-format=lcov` on a Swift binary writes `BRF:0` and no `BRDA` records, so the client's Sonar
+report carries line coverage only and Sonar reports no branch-coverage measure for
+`wiretuner-client` (the 95% branch condition is then vacuously met, not measured).
+`tools/coverage/lcov-to-sonar.swift` converts `BRDA` records whenever they are present, so the
+pipeline needs no change once the compiler emits them; until then, TEST-003 should decide
+whether to approximate branches from llvm-cov's per-line region counts or to leave the client
+gate at lines only.
 
 The token is read from `~/.sonar-token` for local runs (`make sonar`) and from the `SONAR_TOKEN`
 secret in CI; it is never written into the repository, a `pom.xml`, or a log.

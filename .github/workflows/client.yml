@@ -1,0 +1,104 @@
+name: Client
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "client/**"
+      - "tools/coverage/**"
+      - ".github/workflows/client.yml"
+  pull_request:
+    paths:
+      - "client/**"
+      - "tools/coverage/**"
+      - ".github/workflows/client.yml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  DERIVED_DATA: client/build/DerivedData
+  RESULT_BUNDLE: client/build/coverage/WireTuner.xcresult
+
+jobs:
+  test:
+    name: Package and app tests
+    # GitHub-hosted for now.  A self-hosted Mac in the `ci` pool (docs/spec/stack.adoc, CI) may
+    # replace this with `[self-hosted, macOS, ci]` once one is enrolled; nothing below assumes
+    # a hosted image beyond Xcode living under /Applications.
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        # Newest Xcode 26 on the image, else the newest 16.x; the project needs a Swift 6 toolchain
+        # and the macOS 15 SDK.
+        run: |
+          xcode="$(ls -d /Applications/Xcode_26*.app /Applications/Xcode_16*.app 2>/dev/null | sort -V | tail -1)"
+          test -n "$xcode" || { ls /Applications | grep Xcode; exit 1; }
+          sudo xcode-select -s "$xcode"
+          xcodebuild -version
+          swift --version
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate the Xcode project
+        # The committed project must match the spec; a drift here fails the build.
+        run: |
+          cd client && xcodegen generate
+          git diff --exit-code --stat -- WireTuner.xcodeproj/project.pbxproj
+
+      - name: Package tests (with coverage)
+        run: |
+          for package in client/Packages/*/; do
+            echo "==> $package"
+            (cd "$package" && swift test --enable-code-coverage)
+          done
+
+      - name: App unit and UI tests (with coverage)
+        run: |
+          set -o pipefail
+          mkdir -p client/build/coverage
+          xcodebuild test \
+            -project client/WireTuner.xcodeproj -scheme WireTuner -destination 'platform=macOS' \
+            -enableCodeCoverage YES \
+            -derivedDataPath "$DERIVED_DATA" \
+            -resultBundlePath "$RESULT_BUNDLE" \
+            CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO \
+            | tee client/build/xcodebuild-test.log | grep -E '^(Test Suite|Test Case|\*\*|Executed|error:)'
+
+      - name: Coverage report (lcov -> Sonar generic XML)
+        run: tools/coverage/Tests/run.sh && tools/coverage/client-coverage.sh --export-only
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: client-coverage
+          path: |
+            client/build/coverage/sonar.xml
+            client/build/coverage/client.lcov
+          if-no-files-found: error
+
+      - name: Upload test results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: client-test-results
+          path: |
+            client/build/coverage/WireTuner.xcresult
+            client/build/xcodebuild-test.log
+
+  sonar:
+    name: SonarQube (placeholder)
+    # TEST-003 fills this in: sonar-scanner uploads client/build/coverage/sonar.xml as
+    # sonar.coverageReportPaths to project `wiretuner-client` on https://sonar.villagecompute.com
+    # with the SONAR_TOKEN secret and sonar.qualitygate.wait=true.  Until then the job is a no-op
+    # so the status check name is already reserved.
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "SonarQube upload is wired by TEST-003 (docs/spec/backlog.adoc)."

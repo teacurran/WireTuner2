@@ -31,3 +31,18 @@ proto-lint:
 # Regenerates the committed Swift and the HTML reference (proto/gen/docs, gitignored).
 proto-gen:
 	buf generate
+
+.PHONY: client-test client-build
+
+# Every package's `swift test --enable-code-coverage`, then `xcodebuild test -enableCodeCoverage YES`,
+# then client/build/coverage/sonar.xml (docs/spec/building.adoc).  XCUITest is skipped when macOS
+# Automation Mode is off: sudo automationmodetool enable-automationmode-without-authentication
+client-test:
+	tools/coverage/Tests/run.sh
+	tools/coverage/client-coverage.sh
+
+# Debug build, ad-hoc signed unless DEVELOPMENT_TEAM (and optionally CODE_SIGN_IDENTITY) are exported.
+client-build:
+	cd client && xcodebuild -project WireTuner.xcodeproj -scheme WireTuner -destination 'platform=macOS' \
+		-derivedDataPath build/DerivedData \
+		DEVELOPMENT_TEAM="$(DEVELOPMENT_TEAM)" CODE_SIGN_IDENTITY="$(or $(CODE_SIGN_IDENTITY),-)" build

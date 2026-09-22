@@ -1,0 +1,159 @@
+# XcodeGen spec for the WireTuner app.  `xcodegen generate` (run from client/) rewrites
+# WireTuner.xcodeproj, which is committed so the project opens without XcodeGen installed.
+# Regenerate and commit the project whenever this file changes.
+name: WireTuner
+options:
+  bundleIdPrefix: com.villagecompute
+  deploymentTarget:
+    macOS: "15.0"
+  createIntermediateGroups: true
+  generateEmptyDirectories: true
+  groupSortPosition: top
+  # A stable file/group order keeps the committed pbxproj diff small.
+  groupOrdering:
+    - order: [WTApp, WTAppTests, WTAppUITests, Config, Packages]
+
+configs:
+  Debug: debug
+  Release: release
+
+# Signing is entirely in the xcconfig so a team id never lands in the pbxproj.
+configFiles:
+  Debug: Config/Signing.xcconfig
+  Release: Config/Signing.xcconfig
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"                  # Swift 6 language mode
+    SWIFT_STRICT_CONCURRENCY: complete
+    MACOSX_DEPLOYMENT_TARGET: "15.0"
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    DEAD_CODE_STRIPPING: YES
+    SWIFT_TREAT_WARNINGS_AS_ERRORS: YES
+    GCC_TREAT_WARNINGS_AS_ERRORS: YES
+    CURRENT_PROJECT_VERSION: 1
+    MARKETING_VERSION: 0.1.0
+  configs:
+    Debug:
+      SWIFT_OPTIMIZATION_LEVEL: -Onone
+      # Tests are built and run against Debug; without this flag no .profdata is written.
+      CLANG_ENABLE_CODE_COVERAGE: YES
+    Release:
+      SWIFT_OPTIMIZATION_LEVEL: -O
+
+packages:
+  WTProto:       { path: Packages/WTProto }
+  WTCRDT:        { path: Packages/WTCRDT }
+  WTModel:       { path: Packages/WTModel }
+  WTSync:        { path: Packages/WTSync }
+  WTGeometry:    { path: Packages/WTGeometry }
+  WTRender:      { path: Packages/WTRender }
+  WTText:        { path: Packages/WTText }
+  WTInterchange: { path: Packages/WTInterchange }
+  WTTestSupport: { path: Packages/WTTestSupport }
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    from: 2.7.0
+
+targets:
+  WireTuner:
+    type: application
+    platform: macOS
+    sources:
+      - path: WTApp
+        excludes: ["Info.plist", "WireTuner.entitlements"]
+    info:
+      path: WTApp/Info.plist
+      properties:
+        CFBundleName: WireTuner
+        CFBundleDisplayName: WireTuner
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
+        LSApplicationCategoryType: public.app-category.graphics-design
+        NSPrincipalClass: NSApplication
+        NSHumanReadableCopyright: "Copyright 2026 Village Compute"
+        NSHighResolutionCapable: true
+        NSSupportsAutomaticGraphicsSwitching: true
+        # Sparkle.  The feed URL is a placeholder until the distribution task publishes an
+        # appcast; SUPublicEDKey is added by the same task (generate_keys), and the updater is
+        # started only once it is present (see AppDelegate).
+        SUFeedURL: https://updates.villagecompute.com/wiretuner/appcast.xml
+        SUEnableInstallerLauncherService: true
+    entitlements:
+      path: WTApp/WireTuner.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+        com.apple.security.network.client: true
+        # Sparkle's XPC services inside the sandbox (Sparkle docs, "Sandboxing").
+        com.apple.security.temporary-exception.mach-lookup.global-name:
+          - $(PRODUCT_BUNDLE_IDENTIFIER)-spks
+          - $(PRODUCT_BUNDLE_IDENTIFIER)-spki
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.villagecompute.wiretuner
+        PRODUCT_NAME: WireTuner
+        GENERATE_INFOPLIST_FILE: NO
+        # App only: a hardened XCUITest runner refuses to load an ad-hoc-signed test bundle
+        # ("different Team IDs"), so the test targets are not hardened.
+        ENABLE_HARDENED_RUNTIME: YES
+    dependencies:
+      - package: WTProto
+      - package: WTCRDT
+      - package: WTModel
+      - package: WTSync
+      - package: WTGeometry
+      - package: WTRender
+      - package: WTText
+      - package: WTInterchange
+      - package: Sparkle
+
+  WireTunerTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources: [WTAppTests]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.villagecompute.wiretuner.tests
+        GENERATE_INFOPLIST_FILE: YES
+    # No package products here on purpose.  A product linked by both the app and its hosted
+    # test bundle makes Xcode build every package as a dynamic "PackageProduct" framework, and
+    # Xcode 26.4 then fails to schedule the link of swift-crypto's before swift-certificates'.
+    # Tests reach the packages through the host app (`@testable import WireTuner`).
+    dependencies:
+      - target: WireTuner
+
+  WireTunerUITests:
+    type: bundle.ui-testing
+    platform: macOS
+    sources: [WTAppUITests]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.villagecompute.wiretuner.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: WireTuner
+    dependencies:
+      - target: WireTuner
+
+schemes:
+  WireTuner:
+    build:
+      targets:
+        WireTuner: all
+        WireTunerTests: [test]
+        WireTunerUITests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      # Coverage for every target in the scheme (no coverageTargets list = all targets).
+      gatherCoverageData: true
+      targets:
+        - WireTunerTests
+        - WireTunerUITests
+    profile:
+      config: Release
+    analyze:
+      config: Debug
+    archive:
+      config: Release

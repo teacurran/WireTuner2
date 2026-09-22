@@ -1,0 +1,693 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		00A8E5921B0273408FF2582C /* WTSync in Frameworks */ = {isa = PBXBuildFile; productRef = 471B5A84CD7866567E0FC54B /* WTSync */; };
+		11ECC5BDC4555C7CE02E3375 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA559F4D67053E6B84D9EE08 /* AppDelegate.swift */; };
+		12AA9AF714AA828F811E00EE /* LaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C99CD9C6218FA1BED9F30C5D /* LaunchTests.swift */; };
+		1A84CC0C77CAEADD7EA6D532 /* WTCRDT in Frameworks */ = {isa = PBXBuildFile; productRef = BAE3DB4DC8F06661870A2657 /* WTCRDT */; };
+		1D8999F10F24DD8CC03713F6 /* WTText in Frameworks */ = {isa = PBXBuildFile; productRef = 08C3675137E50641A70094F8 /* WTText */; };
+		364AFDCD5C52E959E60E5AEE /* WTModel in Frameworks */ = {isa = PBXBuildFile; productRef = D7CCC596AE0E2B551643E221 /* WTModel */; };
+		4E759190313AFF4BA297E5BD /* WTProto in Frameworks */ = {isa = PBXBuildFile; productRef = 41651617B1CA311751CEFAA9 /* WTProto */; };
+		65B2DD8A43DDF8CAF3803D45 /* WTGeometry in Frameworks */ = {isa = PBXBuildFile; productRef = 60AA0F560C13C7F9DAB07F68 /* WTGeometry */; };
+		7E00252DBDF6D880EA67F809 /* MainWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD757FAD86FA5549E8A91C3A /* MainWindow.swift */; };
+		82004F4F383C9F096C574716 /* MainMenuTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62A731B918C79F3066FA8A97 /* MainMenuTests.swift */; };
+		C72227A3FC3EF6FA6C368A68 /* WTInterchange in Frameworks */ = {isa = PBXBuildFile; productRef = 00D86B1A32BF132424E66A31 /* WTInterchange */; };
+		CA2718B4390AD7EB28C3CCB2 /* MainMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFA4FBCAD1B7541495D6CE7C /* MainMenu.swift */; };
+		FCCAA7C0A2B14239132D876E /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = A21803070916F2818F09638E /* Sparkle */; };
+		FCF6121947A69E9DD2AE3F3A /* WTRender in Frameworks */ = {isa = PBXBuildFile; productRef = 0E3C267385D7C4EC7FE62D3B /* WTRender */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		DA27A8F87ADB677C307213F4 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 1A09B63C62D68F8DD5E7CEDE /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 91272E66766A86F043D79FFE;
+			remoteInfo = WireTuner;
+		};
+		E96DE9F5745BF98ED2649FC4 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 1A09B63C62D68F8DD5E7CEDE /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 91272E66766A86F043D79FFE;
+			remoteInfo = WireTuner;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		0552EFEE2D0D7BF3287AC1CB /* WTRender */ = {isa = PBXFileReference; lastKnownFileType = folder; name = WTRender; path = Packages/WTRender; sourceTree = SOURCE_ROOT; };
+		17DCB90ECA11D7A4BB285BD2 /* WTCRDT */ = {isa = PBXFileReference; lastKnownFileType = folder; name = WTCRDT; path = Packages/WTCRDT; sourceTree = SOURCE_ROOT; };
+		391239378827B9FEE73C2CC6 /* WTGeometry */ = {isa = PBXFileReference; lastKnownFileType = folder; name = WTGeometry; path = Packages/WTGeometry; sourceTree = SOURCE_ROOT; };
+		3E5D6C25212155353C087E60 /* Signing.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Signing.xcconfig; sourceTree = "<group>"; };
+		460B71B23E673F75D7DD782E /* WTModel */ = {isa = PBXFileReference; lastKnownFileType = folder; name = WTModel; path = Packages/WTModel; sourceTree = SOURCE_ROOT; };
+		484A7B706CA8D88B936AB511 /* WTSync */ = {isa = PBXFileReference; lastKnownFileType = folder; name = WTSync; path = Packages/WTSync; sourceTree = SOURCE_ROOT; };
+		5DA2F15495C3C971FBA861BA /* WireTuner.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = WireTuner.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		62A731B918C79F3066FA8A97 /* MainMenuTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainMenuTests.swift; sourceTree = "<group>"; };
+		6972F2F5F4CBB416BB21BC4A /* WTInterchange */ = {isa = PBXFileReference; lastKnownFileType = folder; name = WTInterchange; path = Packages/WTInterchange; sourceTree = SOURCE_ROOT; };
+		A8373963850ABC898BFBF1F7 /* WireTunerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = WireTunerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		BA559F4D67053E6B84D9EE08 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		C99CD9C6218FA1BED9F30C5D /* LaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchTests.swift; sourceTree = "<group>"; };
+		D12309DE456E5D0E56AA5411 /* WTTestSupport */ = {isa = PBXFileReference; lastKnownFileType = folder; name = WTTestSupport; path = Packages/WTTestSupport; sourceTree = SOURCE_ROOT; };
+		E25848144CAA67025DFEB76F /* WireTunerUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = WireTunerUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		E75E4FA554C827D25E354ACF /* WTProto */ = {isa = PBXFileReference; lastKnownFileType = folder; name = WTProto; path = Packages/WTProto; sourceTree = SOURCE_ROOT; };
+		EFA4FBCAD1B7541495D6CE7C /* MainMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainMenu.swift; sourceTree = "<group>"; };
+		FD757FAD86FA5549E8A91C3A /* MainWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainWindow.swift; sourceTree = "<group>"; };
+		FF71F4B37BBF04BC5AE6E070 /* WTText */ = {isa = PBXFileReference; lastKnownFileType = folder; name = WTText; path = Packages/WTText; sourceTree = SOURCE_ROOT; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		CC3AB9382F5AB459DB10948A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4E759190313AFF4BA297E5BD /* WTProto in Frameworks */,
+				1A84CC0C77CAEADD7EA6D532 /* WTCRDT in Frameworks */,
+				364AFDCD5C52E959E60E5AEE /* WTModel in Frameworks */,
+				00A8E5921B0273408FF2582C /* WTSync in Frameworks */,
+				65B2DD8A43DDF8CAF3803D45 /* WTGeometry in Frameworks */,
+				FCF6121947A69E9DD2AE3F3A /* WTRender in Frameworks */,
+				1D8999F10F24DD8CC03713F6 /* WTText in Frameworks */,
+				C72227A3FC3EF6FA6C368A68 /* WTInterchange in Frameworks */,
+				FCCAA7C0A2B14239132D876E /* Sparkle in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		3FD8D03570505216E2764A5B /* WTApp */ = {
+			isa = PBXGroup;
+			children = (
+				BA559F4D67053E6B84D9EE08 /* AppDelegate.swift */,
+				EFA4FBCAD1B7541495D6CE7C /* MainMenu.swift */,
+				FD757FAD86FA5549E8A91C3A /* MainWindow.swift */,
+			);
+			path = WTApp;
+			sourceTree = "<group>";
+		};
+		6B6E868406FE01C54FC2800A /* WTAppUITests */ = {
+			isa = PBXGroup;
+			children = (
+				C99CD9C6218FA1BED9F30C5D /* LaunchTests.swift */,
+			);
+			path = WTAppUITests;
+			sourceTree = "<group>";
+		};
+		6B8C550F8B8C2B4B85B24965 = {
+			isa = PBXGroup;
+			children = (
+				3FD8D03570505216E2764A5B /* WTApp */,
+				DE3773AA4BCAF3E7BFBFB57B /* WTAppTests */,
+				6B6E868406FE01C54FC2800A /* WTAppUITests */,
+				D931F7B1FE31A4938161F5DE /* Config */,
+				71552818E1C50C33CC658E65 /* Packages */,
+				BE0F1D8B1D3F100D2BFD8E54 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		71552818E1C50C33CC658E65 /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				17DCB90ECA11D7A4BB285BD2 /* WTCRDT */,
+				391239378827B9FEE73C2CC6 /* WTGeometry */,
+				6972F2F5F4CBB416BB21BC4A /* WTInterchange */,
+				460B71B23E673F75D7DD782E /* WTModel */,
+				E75E4FA554C827D25E354ACF /* WTProto */,
+				0552EFEE2D0D7BF3287AC1CB /* WTRender */,
+				484A7B706CA8D88B936AB511 /* WTSync */,
+				D12309DE456E5D0E56AA5411 /* WTTestSupport */,
+				FF71F4B37BBF04BC5AE6E070 /* WTText */,
+			);
+			path = Packages;
+			sourceTree = "<group>";
+		};
+		BE0F1D8B1D3F100D2BFD8E54 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				5DA2F15495C3C971FBA861BA /* WireTuner.app */,
+				A8373963850ABC898BFBF1F7 /* WireTunerTests.xctest */,
+				E25848144CAA67025DFEB76F /* WireTunerUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		D931F7B1FE31A4938161F5DE /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				3E5D6C25212155353C087E60 /* Signing.xcconfig */,
+			);
+			path = Config;
+			sourceTree = "<group>";
+		};
+		DE3773AA4BCAF3E7BFBFB57B /* WTAppTests */ = {
+			isa = PBXGroup;
+			children = (
+				62A731B918C79F3066FA8A97 /* MainMenuTests.swift */,
+			);
+			path = WTAppTests;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		1414F74DF5568673718915C6 /* WireTunerTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E2BD6BA54604F0D7AD93AF7E /* Build configuration list for PBXNativeTarget "WireTunerTests" */;
+			buildPhases = (
+				A9B3856742877362969B207F /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				018EE3CBDD7B97A87919F052 /* PBXTargetDependency */,
+			);
+			name = WireTunerTests;
+			packageProductDependencies = (
+			);
+			productName = WireTunerTests;
+			productReference = A8373963850ABC898BFBF1F7 /* WireTunerTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		7B2EEB813436C79F16C9BE13 /* WireTunerUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 8810B3F248B29E6120AA7970 /* Build configuration list for PBXNativeTarget "WireTunerUITests" */;
+			buildPhases = (
+				BF4D21DEBCD4675A271BC1F2 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				FC493F8B677A2B2CAC4AE986 /* PBXTargetDependency */,
+			);
+			name = WireTunerUITests;
+			packageProductDependencies = (
+			);
+			productName = WireTunerUITests;
+			productReference = E25848144CAA67025DFEB76F /* WireTunerUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		91272E66766A86F043D79FFE /* WireTuner */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 0A920CF03A2AD3C6677D9ED3 /* Build configuration list for PBXNativeTarget "WireTuner" */;
+			buildPhases = (
+				1DE3AF0C44EDF7CA9922EAA8 /* Sources */,
+				CC3AB9382F5AB459DB10948A /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = WireTuner;
+			packageProductDependencies = (
+				41651617B1CA311751CEFAA9 /* WTProto */,
+				BAE3DB4DC8F06661870A2657 /* WTCRDT */,
+				D7CCC596AE0E2B551643E221 /* WTModel */,
+				471B5A84CD7866567E0FC54B /* WTSync */,
+				60AA0F560C13C7F9DAB07F68 /* WTGeometry */,
+				0E3C267385D7C4EC7FE62D3B /* WTRender */,
+				08C3675137E50641A70094F8 /* WTText */,
+				00D86B1A32BF132424E66A31 /* WTInterchange */,
+				A21803070916F2818F09638E /* Sparkle */,
+			);
+			productName = WireTuner;
+			productReference = 5DA2F15495C3C971FBA861BA /* WireTuner.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		1A09B63C62D68F8DD5E7CEDE /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					1414F74DF5568673718915C6 = {
+						ProvisioningStyle = Manual;
+					};
+					7B2EEB813436C79F16C9BE13 = {
+						ProvisioningStyle = Manual;
+						TestTargetID = 91272E66766A86F043D79FFE;
+					};
+					91272E66766A86F043D79FFE = {
+						ProvisioningStyle = Manual;
+					};
+				};
+			};
+			buildConfigurationList = 6E5332490CA3F7B545C3D058 /* Build configuration list for PBXProject "WireTuner" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 6B8C550F8B8C2B4B85B24965;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				0B5F4DCC572B0F8A2731B5CA /* XCRemoteSwiftPackageReference "Sparkle" */,
+				28BFBD8D0C9ACADE235351B5 /* XCLocalSwiftPackageReference "Packages/WTCRDT" */,
+				80DBC61EF926C40B57FB7599 /* XCLocalSwiftPackageReference "Packages/WTGeometry" */,
+				26469CD080F5B3ACC8CA03AA /* XCLocalSwiftPackageReference "Packages/WTInterchange" */,
+				F802E1D73B28EF7EC3A7198B /* XCLocalSwiftPackageReference "Packages/WTModel" */,
+				86059FF4CCFC4076550FCF44 /* XCLocalSwiftPackageReference "Packages/WTProto" */,
+				49751FA7D4A9E3E2A2D8BEE3 /* XCLocalSwiftPackageReference "Packages/WTRender" */,
+				04F39ABE2806D45189FBC442 /* XCLocalSwiftPackageReference "Packages/WTSync" */,
+				B374304461288DA6ECF86C38 /* XCLocalSwiftPackageReference "Packages/WTTestSupport" */,
+				D8C64F099128F7EF1424BDE6 /* XCLocalSwiftPackageReference "Packages/WTText" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = BE0F1D8B1D3F100D2BFD8E54 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				91272E66766A86F043D79FFE /* WireTuner */,
+				1414F74DF5568673718915C6 /* WireTunerTests */,
+				7B2EEB813436C79F16C9BE13 /* WireTunerUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		1DE3AF0C44EDF7CA9922EAA8 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				11ECC5BDC4555C7CE02E3375 /* AppDelegate.swift in Sources */,
+				CA2718B4390AD7EB28C3CCB2 /* MainMenu.swift in Sources */,
+				7E00252DBDF6D880EA67F809 /* MainWindow.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A9B3856742877362969B207F /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				82004F4F383C9F096C574716 /* MainMenuTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BF4D21DEBCD4675A271BC1F2 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				12AA9AF714AA828F811E00EE /* LaunchTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		018EE3CBDD7B97A87919F052 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 91272E66766A86F043D79FFE /* WireTuner */;
+			targetProxy = E96DE9F5745BF98ED2649FC4 /* PBXContainerItemProxy */;
+		};
+		FC493F8B677A2B2CAC4AE986 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 91272E66766A86F043D79FFE /* WireTuner */;
+			targetProxy = DA27A8F87ADB677C307213F4 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		102ACD9C49EF81AE412C3FCB /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = WTApp/WireTuner.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = WTApp/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.villagecompute.wiretuner;
+				PRODUCT_NAME = WireTuner;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		4DD8A24D930C166C102E9992 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 3E5D6C25212155353C087E60 /* Signing.xcconfig */;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_CODE_COVERAGE = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_TREAT_WARNINGS_AS_ERRORS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MARKETING_VERSION = 0.1.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_TREAT_WARNINGS_AS_ERRORS = YES;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		62607919B77E99F1E6EE0A9C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.villagecompute.wiretuner.uitests;
+				SDKROOT = macosx;
+				TEST_TARGET_NAME = WireTuner;
+			};
+			name = Release;
+		};
+		9529FA00165E47325C561D12 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.villagecompute.wiretuner.tests;
+				SDKROOT = macosx;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/WireTuner.app/Contents/MacOS/WireTuner";
+			};
+			name = Release;
+		};
+		AAF3BA8430A174478B3371E6 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.villagecompute.wiretuner.uitests;
+				SDKROOT = macosx;
+				TEST_TARGET_NAME = WireTuner;
+			};
+			name = Debug;
+		};
+		D2545F932F4FCAE0004AAA1A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.villagecompute.wiretuner.tests;
+				SDKROOT = macosx;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/WireTuner.app/Contents/MacOS/WireTuner";
+			};
+			name = Debug;
+		};
+		E13969FF5A5E3B4C99B5AA86 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = WTApp/WireTuner.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = WTApp/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.villagecompute.wiretuner;
+				PRODUCT_NAME = WireTuner;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		F6F1302350B18C4E39BDDE33 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 3E5D6C25212155353C087E60 /* Signing.xcconfig */;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_TREAT_WARNINGS_AS_ERRORS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MARKETING_VERSION = 0.1.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_TREAT_WARNINGS_AS_ERRORS = YES;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		0A920CF03A2AD3C6677D9ED3 /* Build configuration list for PBXNativeTarget "WireTuner" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E13969FF5A5E3B4C99B5AA86 /* Debug */,
+				102ACD9C49EF81AE412C3FCB /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		6E5332490CA3F7B545C3D058 /* Build configuration list for PBXProject "WireTuner" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4DD8A24D930C166C102E9992 /* Debug */,
+				F6F1302350B18C4E39BDDE33 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		8810B3F248B29E6120AA7970 /* Build configuration list for PBXNativeTarget "WireTunerUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AAF3BA8430A174478B3371E6 /* Debug */,
+				62607919B77E99F1E6EE0A9C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		E2BD6BA54604F0D7AD93AF7E /* Build configuration list for PBXNativeTarget "WireTunerTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D2545F932F4FCAE0004AAA1A /* Debug */,
+				9529FA00165E47325C561D12 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		04F39ABE2806D45189FBC442 /* XCLocalSwiftPackageReference "Packages/WTSync" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/WTSync;
+		};
+		26469CD080F5B3ACC8CA03AA /* XCLocalSwiftPackageReference "Packages/WTInterchange" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/WTInterchange;
+		};
+		28BFBD8D0C9ACADE235351B5 /* XCLocalSwiftPackageReference "Packages/WTCRDT" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/WTCRDT;
+		};
+		49751FA7D4A9E3E2A2D8BEE3 /* XCLocalSwiftPackageReference "Packages/WTRender" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/WTRender;
+		};
+		80DBC61EF926C40B57FB7599 /* XCLocalSwiftPackageReference "Packages/WTGeometry" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/WTGeometry;
+		};
+		86059FF4CCFC4076550FCF44 /* XCLocalSwiftPackageReference "Packages/WTProto" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/WTProto;
+		};
+		B374304461288DA6ECF86C38 /* XCLocalSwiftPackageReference "Packages/WTTestSupport" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/WTTestSupport;
+		};
+		D8C64F099128F7EF1424BDE6 /* XCLocalSwiftPackageReference "Packages/WTText" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/WTText;
+		};
+		F802E1D73B28EF7EC3A7198B /* XCLocalSwiftPackageReference "Packages/WTModel" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/WTModel;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		0B5F4DCC572B0F8A2731B5CA /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.7.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		00D86B1A32BF132424E66A31 /* WTInterchange */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = WTInterchange;
+		};
+		08C3675137E50641A70094F8 /* WTText */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = WTText;
+		};
+		0E3C267385D7C4EC7FE62D3B /* WTRender */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = WTRender;
+		};
+		41651617B1CA311751CEFAA9 /* WTProto */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = WTProto;
+		};
+		471B5A84CD7866567E0FC54B /* WTSync */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = WTSync;
+		};
+		60AA0F560C13C7F9DAB07F68 /* WTGeometry */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = WTGeometry;
+		};
+		A21803070916F2818F09638E /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 0B5F4DCC572B0F8A2731B5CA /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
+		};
+		BAE3DB4DC8F06661870A2657 /* WTCRDT */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = WTCRDT;
+		};
+		D7CCC596AE0E2B551643E221 /* WTModel */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = WTModel;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 1A09B63C62D68F8DD5E7CEDE /* Project object */;
+}

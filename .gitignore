@@ -27,3 +27,7 @@ xcuserdata/
 # Reference material: the FreeHand MX manual is copyrighted and is not part of the work.
 # Keep it locally at docs/inspo/ (the book cites it); do not commit it.
 docs/inspo/*.pdf
+
+# Xcode test results and raw coverage profiles
+*.xcresult
+*.profraw
