@@ -19,3 +19,15 @@ docs-check:
 
 docs-clean:
 	rm -rf docs/target
+
+.PHONY: proto-lint proto-gen
+
+# The proto gate CI runs (.github/workflows/proto.yml); breaking is compared with main.
+proto-lint:
+	buf format --diff --exit-code
+	buf lint
+	buf breaking --against '.git#branch=main'
+
+# Regenerates the committed Swift and the HTML reference (proto/gen/docs, gitignored).
+proto-gen:
+	buf generate

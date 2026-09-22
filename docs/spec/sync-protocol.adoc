@@ -225,6 +225,15 @@ previous thumbnail becomes an orphan the trash job collects.  The server never r
 
 A browser viewer needs only `Download` (server-streaming) and never uploads.
 
+Wire shape (PROTO-008, `proto/wiretuner/blob/v1/blob.proto`): `UploadRequest` is a `oneof
+frame` of an `UploadHeader` (document id, sha256 as 32 raw bytes, total size, media type,
+tag) on the first frame and `bytes chunk` on every later one; `DownloadResponse` mirrors it
+with `BlobInfo` first.  Chunks are at most 1 MiB, a blob at most 1 GiB (the space's storage
+quota is the practical limit), a tagged upload at most 256 KiB -- all declared as
+protovalidate rules, the last as a CEL rule on the header.  `Stat` answers `exists = false`
+rather than `NOT_FOUND` for a hash the server does not hold, since that is the expected case
+while a blob is still on its way.
+
 == Sequencing guarantees
 
 * A client applies remote changes in `server_seq` order and its own changes immediately.

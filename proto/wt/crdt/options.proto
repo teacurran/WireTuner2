@@ -1,0 +1,68 @@
+// proto/wt/crdt/options.proto
+//
+// Merge-policy field options for the document schema (docs/spec/crdt-model.adoc, "Merge
+// policies").  Every field of every props message in wiretuner.doc.v1 has a merge policy;
+// the two defaults (scalars ATOMIC, singular messages STRUCT) cover most fields, so a field
+// is annotated only when its default is not what is meant.  protoc-gen-wtcrdt (PROTO-005)
+// reads these options and emits the merge tables both engines run on.
+syntax = "proto3";
+
+package wt.crdt;
+
+import "google/protobuf/descriptor.proto";
+
+option java_multiple_files = true;
+option java_package = "com.villagecompute.wiretuner.crdt";
+option optimize_for = SPEED;
+
+// How concurrent writes to a field are reconciled.
+enum Merge {
+  // Scalars, strings, bytes, enums and repeated scalars: ATOMIC.
+  // Singular message fields: STRUCT.
+  MERGE_UNSPECIFIED = 0;
+  // The whole value is one register; the op with the greatest OpId wins.
+  MERGE_ATOMIC = 1;
+  // Each field of the message is its own register (recursively).
+  MERGE_STRUCT = 2;
+  // A repeated message whose first field is `ElementId id = 1`.  Elements are inserted,
+  // moved and deleted individually; order is a fractional position per element (LWW);
+  // each element's fields merge as STRUCT.
+  MERGE_SEQUENCE = 3;
+  // A RichText field: Fugue character sequence plus Peritext formatting marks.
+  MERGE_TEXT = 4;
+  // A repeated scalar, or a repeated ElementId/OpId, treated as an add-wins observed-remove
+  // set; members compare by value.
+  MERGE_SET = 5;
+  // A message with an enum discriminator (`kind`) and one sibling STRUCT message per case.
+  // The discriminator is a register; every case's fields are registers that survive a
+  // concurrent kind switch, so switching back restores them.  Preferred over `oneof` for
+  // anything users toggle between (fill kinds, effect kinds): a protobuf oneof drops the
+  // inactive case and has no defined merge for its discriminator.
+  MERGE_VARIANT = 6;
+}
+
+// What a NodeRef field reads as when the node it points at has been deleted or is unknown.
+enum RefFallback {
+  // Reference to a deleted or unknown node reads as unset.
+  REF_FALLBACK_UNSET = 0;
+  // Read the value cached beside the reference (see NodeRef.cached).
+  REF_FALLBACK_CACHED = 1;
+  // The referencing node renders as a placeholder until the reference resolves.
+  REF_FALLBACK_PLACEHOLDER = 2;
+}
+
+// The per-field merge declaration, attached as `[(wt.crdt.field) = {...}]`.
+message FieldOptions {
+  // The merge policy; MERGE_UNSPECIFIED selects the default for the field's type.
+  Merge merge = 1;
+  // For NodeRef fields: what the reference reads as while dangling.
+  RefFallback on_dangling = 2;
+  // Never leaves the device: view state stored in the document for convenience.
+  bool local_only = 3;
+}
+
+// The wt.crdt extension of protobuf's FieldOptions.
+extend google.protobuf.FieldOptions {
+  // The merge declaration for this field.
+  FieldOptions field = 51234;
+}

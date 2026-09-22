@@ -1,0 +1,30 @@
+# Single source of truth: proto/.  Quarkus generates the server's Java/Mutiny stubs from it;
+# buf lints it, checks breaking changes against main, and generates the Swift client and the
+# HTML reference.  The internal (server-to-server, admin) API never reaches the client.
+# Docs: https://buf.build/docs/configuration/v2/buf-yaml
+version: v2
+modules:
+  - path: proto
+    name: buf.build/villagecompute/wiretuner
+    excludes:
+      - proto/wiretuner/internal
+deps:
+  - buf.build/bufbuild/protovalidate
+lint:
+  use:
+    - STANDARD
+    # Every message, field, RPC, enum value and oneof carries a comment: the proto reference is
+    # rendered from them (protoc-gen-doc, see buf.gen.yaml).
+    - COMMENTS
+  ignore_only:
+    # wt.crdt is a set of custom options, not an API: it has no version suffix (its schema is
+    # frozen by the merge engines that read it) and its RefFallback zero value is the
+    # meaningful default "reads as unset", not "unspecified".  The file is the CRDT model page's
+    # sketch verbatim (docs/spec/crdt-model.adoc, "Merge policies").
+    PACKAGE_VERSION_SUFFIX:
+      - proto/wt/crdt/options.proto
+    ENUM_ZERO_VALUE_SUFFIX:
+      - proto/wt/crdt/options.proto
+breaking:
+  use:
+    - FILE

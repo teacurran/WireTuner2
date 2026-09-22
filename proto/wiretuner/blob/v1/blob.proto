@@ -1,0 +1,165 @@
+// proto/wiretuner/blob/v1/blob.proto
+//
+// Content-addressed binary storage (docs/spec/sync-protocol.adoc, "Blobs").  Images,
+// embedded fonts and other binaries are keyed by their sha256; a document op only ever
+// references a blob by hash.  The server stores blobs in R2 (MinIO locally), records each
+// hash against the document it was uploaded for, and serves a blob only to principals with
+// a role on a document that references it.
+syntax = "proto3";
+
+package wiretuner.blob.v1;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+
+option java_multiple_files = true;
+option java_package = "com.villagecompute.wiretuner.blob.v1";
+option optimize_for = SPEED;
+
+// Upload, download and existence checks for content-addressed blobs.  Every call carries the
+// bearer token and the document the blob belongs to; the document's role check gates access.
+service BlobService {
+  // Whether the server holds a blob, and its metadata if so.  A client asks before uploading
+  // (an identical upload is a no-op either way) and when a change references a hash it has
+  // not seen.  NOT_FOUND is never returned for a missing blob: `exists` is false instead.
+  rpc Stat(StatRequest) returns (StatResponse);
+  // Upload one blob as a stream: the first frame is the header, every following frame a
+  // chunk of at most 1 MiB.  The server hashes the chunks, rejects the stream with
+  // INVALID_ARGUMENT if the hash or size disagrees with the header, and answers only once
+  // the blob is durable.  Uploads are idempotent by hash.  Chunks are sent with compression
+  // disabled (they are usually already compressed).  There is no unary equivalent: a
+  // browser viewer only downloads (docs/spec/api-conventions.adoc).
+  rpc Upload(stream UploadRequest) returns (UploadResponse);
+  // Download one blob as a stream: the first frame carries the blob's metadata, every
+  // following frame a chunk of at most 1 MiB, in order.  NOT_FOUND with reason
+  // DOCUMENT_NOT_FOUND when the document is not visible to the caller; NOT_FOUND when the
+  // document does not reference the hash or the blob has not arrived yet.
+  rpc Download(DownloadRequest) returns (stream DownloadResponse);
+}
+
+// A purpose attached to an upload.  Untagged uploads are document content referenced from
+// ops; tagged uploads are server-side metadata that no op references.
+enum BlobTag {
+  // Ordinary document content: an image, an embedded font, a linked file.
+  BLOB_TAG_UNSPECIFIED = 0;
+  // The document's thumbnail, rendered by the client at 512 px on the long edge.  The server
+  // sets the document row's `thumbnail_blob` to the hash (newest wins); the upload is capped at
+  // 256 KiB, exempt from the storage quota and not referenced from the document, so the
+  // previous thumbnail becomes an orphan the trash job collects.
+  BLOB_TAG_THUMBNAIL = 1;
+}
+
+// What the server knows about a stored blob.
+message BlobInfo {
+  // The blob's sha256, 32 raw bytes.
+  bytes sha256 = 1 [(buf.validate.field).bytes.len = 32];
+  // Size in bytes.
+  uint64 size = 2;
+  // The media type the uploader declared, for example `image/png`; empty if none was given.
+  string media_type = 3 [(buf.validate.field).string.max_len = 256];
+  // The tag the blob was uploaded with.
+  BlobTag tag = 4 [(buf.validate.field).enum.defined_only = true];
+  // When the server first stored the blob.
+  google.protobuf.Timestamp created_at = 5;
+}
+
+// Asks whether a blob exists for a document.
+message StatRequest {
+  // The document the caller holds a role on; a blob is visible only through a document.
+  string document_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+  // The sha256 of the blob, 32 raw bytes.
+  bytes sha256 = 2 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).bytes.len = 32
+  ];
+}
+
+// Whether the blob exists, and its metadata when it does.
+message StatResponse {
+  // True when the server holds the blob and the document references it (or it is the
+  // document's thumbnail).
+  bool exists = 1;
+  // The blob's metadata; unset when `exists` is false.
+  BlobInfo blob = 2;
+}
+
+// The first frame of an upload: everything the server needs before the first chunk.
+message UploadHeader {
+  option (buf.validate.message).cel = {
+    id: "upload_header.tagged_size"
+    message: "a tagged upload is at most 256 KiB"
+    expression: "this.tag == 0 || this.size <= 262144u"
+  };
+  // The document the blob is uploaded for.  The hash is recorded against it, and a
+  // THUMBNAIL upload replaces its thumbnail.
+  string document_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+  // The sha256 of the complete content, 32 raw bytes; the server verifies it over the chunks.
+  bytes sha256 = 2 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).bytes.len = 32
+  ];
+  // Total size in bytes across every chunk; at most 1 GiB (the space's storage quota is the
+  // practical limit, RESOURCE_EXHAUSTED / STORAGE_QUOTA), and at most 256 KiB when tagged.
+  uint64 size = 3 [
+    (buf.validate.field).uint64.gt = 0,
+    (buf.validate.field).uint64.lte = 1073741824
+  ];
+  // The content's media type, for example `image/png`; stored and echoed in BlobInfo.
+  string media_type = 4 [(buf.validate.field).string = {
+    max_len: 256
+    pattern: "^([a-zA-Z0-9!#$&^_.+-]+/[a-zA-Z0-9!#$&^_.+-]+)?$"
+  }];
+  // The upload's purpose; BLOB_TAG_UNSPECIFIED for ordinary document content.
+  BlobTag tag = 5 [(buf.validate.field).enum.defined_only = true];
+}
+
+// One frame of an upload stream.
+message UploadRequest {
+  // The header on the first frame, a chunk on every later one.
+  oneof frame {
+    option (buf.validate.oneof).required = true;
+    // The blob's identity and size; exactly once, first.
+    UploadHeader header = 1;
+    // The next run of content bytes, at most 1 MiB; the concatenation of every chunk is the
+    // content.
+    bytes chunk = 2 [(buf.validate.field).bytes.max_len = 1048576];
+  }
+}
+
+// The stored blob, once durable.
+message UploadResponse {
+  // The stored blob's metadata, including `created_at` (which predates this upload when the
+  // blob already existed).
+  BlobInfo blob = 1;
+}
+
+// Asks for a blob's content.
+message DownloadRequest {
+  // The document through which the caller may see the blob.
+  string document_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+  // The sha256 of the blob, 32 raw bytes.
+  bytes sha256 = 2 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).bytes.len = 32
+  ];
+}
+
+// One frame of a download stream.
+message DownloadResponse {
+  // The metadata on the first frame, a chunk on every later one.
+  oneof frame {
+    // The blob's metadata; exactly once, first.
+    BlobInfo info = 1;
+    // The next run of content bytes, at most 1 MiB, in order.
+    bytes chunk = 2 [(buf.validate.field).bytes.max_len = 1048576];
+  }
+}

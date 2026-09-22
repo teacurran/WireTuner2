@@ -98,25 +98,43 @@ space: a document row has owner_account_id XOR team_id
 
 [source,protobuf]
 ----
-// proto/wiretuner/account/v1/team.proto (sketch)
+// proto/wiretuner/account/v1/team.proto (PROTO-009; the file carries the full comments)
 service TeamService {
   rpc CreateTeam(CreateTeamRequest) returns (CreateTeamResponse);
   rpc ListTeams(ListTeamsRequest) returns (ListTeamsResponse);      // the caller's memberships
   rpc GetTeam(GetTeamRequest) returns (GetTeamResponse);
   rpc UpdateTeam(UpdateTeamRequest) returns (UpdateTeamResponse);
+  rpc DeleteTeam(DeleteTeamRequest) returns (DeleteTeamResponse);   // owner: trash for 30 days
+  rpc TransferOwnership(TransferOwnershipRequest) returns (TransferOwnershipResponse);
+  rpc ListMembers(ListMembersRequest) returns (ListMembersResponse);
   rpc InviteMember(InviteMemberRequest) returns (InviteMemberResponse);
+  rpc ListInvites(ListInvitesRequest) returns (ListInvitesResponse);
+  rpc RevokeInvite(RevokeInviteRequest) returns (RevokeInviteResponse);
   rpc AcceptInvite(AcceptInviteRequest) returns (AcceptInviteResponse);
   rpc SetMemberRole(SetMemberRoleRequest) returns (SetMemberRoleResponse);
   rpc RemoveMember(RemoveMemberRequest) returns (RemoveMemberResponse);
   rpc LeaveTeam(LeaveTeamRequest) returns (LeaveTeamResponse);
   rpc AddWorkspaceDomain(AddWorkspaceDomainRequest) returns (AddWorkspaceDomainResponse);
   rpc VerifyWorkspaceDomain(VerifyWorkspaceDomainRequest) returns (VerifyWorkspaceDomainResponse);
+  rpc RemoveWorkspaceDomain(RemoveWorkspaceDomainRequest) returns (RemoveWorkspaceDomainResponse);
   rpc SetWorkspaceSettings(SetWorkspaceSettingsRequest) returns (SetWorkspaceSettingsResponse);
 }
 
 enum TeamRole { TEAM_ROLE_UNSPECIFIED = 0; TEAM_ROLE_OWNER = 1; TEAM_ROLE_ADMIN = 2;
                 TEAM_ROLE_MEMBER = 3; TEAM_ROLE_GUEST = 4; }
+// Shared with docs.v1 (PROTO-007); lives beside TeamRole because Team.default_document_role uses it.
+enum DocumentRole { DOCUMENT_ROLE_UNSPECIFIED = 0; DOCUMENT_ROLE_OWNER = 1; DOCUMENT_ROLE_EDITOR = 2;
+                    DOCUMENT_ROLE_COMMENTER = 3; DOCUMENT_ROLE_VIEWER = 4; }
 ----
+
+The owner-only powers the role list names (delete team, transfer) and the administration an
+admin needs (list members and pending invitations, withdraw an invitation, drop a domain) are
+RPCs of their own rather than modes of `UpdateTeam`, so each has its own role check.  Lists
+page with opaque cursors (`cursor`, `page_size` ≤ 50, `next_cursor`), as every list in the
+API does.  Every request carries protovalidate constraints; the team-specific refusals
+(last owner leaving, an invitation for an existing member, a domain another team verified)
+use `FAILED_PRECONDITION` and `ALREADY_EXISTS` with reasons SEC-001 adds to the error table
+on xref:api-conventions.adoc[API conventions].
 
 == Document roles
 

@@ -1,0 +1,43 @@
+# buf generates the Swift client and the HTML API reference.  Java/Mutiny stubs come from
+# Quarkus's generate-code in the Maven build (buf's remote Java plugins don't emit Quarkus
+# Mutiny stubs), which reads the java_* options declared in each .proto file.
+# Docs: https://buf.build/docs/configuration/v2/buf-gen-yaml
+version: v2
+managed:
+  enabled: true
+  disable:
+    # The files declare java_package themselves (com.villagecompute.wiretuner.<package>) so that
+    # Quarkus, which does not run through buf, and buf see the same value.
+    - file_option: java_package
+plugins:
+  # swift-protobuf messages; keep in lock-step with the client's SwiftProtobuf package version
+  # (the plugin's version is the swift-protobuf release it emits for).  Pinned so that
+  # `buf generate` is reproducible and the CI drift check compares like with like.
+  - remote: buf.build/apple/swift:v1.38.1
+    out: client/Packages/WTProto/Sources/WTProto/Generated
+    opt:
+      - Visibility=Public
+      - FileNaming=PathToUnderscores
+  # grpc-swift 2 async/await stubs (PROTO-004).  As of 2026-09 the BSR plugin
+  # buf.build/grpc/swift is v1.27.6, a grpc-swift 1.x generator; PROTO-004 verifies whether a
+  # v2 emitter has landed and, if not, wires protoc-gen-grpc-swift-2 from grpc-swift-protobuf
+  # as a local plugin.  Left out until then so no 1.x stubs are ever committed.
+  # - remote: buf.build/grpc/swift
+  #   out: client/Packages/WTProto/Sources/WTProto/Generated
+  #   opt:
+  #     - Visibility=Public
+  #     - Client=true
+  #     - Server=false
+  # merge tables + client-side validators generated from wt.crdt and buf.validate options
+  # (PROTO-005 delivers the plugin; enable this entry with it).
+  # - local: tools/protoc-gen-wtcrdt/bin/protoc-gen-wtcrdt
+  #   out: .
+  #   opt:
+  #     - swift_out=client/Packages/WTCRDT/Sources/WTCRDTSchema/Generated
+  #     - java_out=server/wt-crdt/target/generated-sources/wtcrdt
+  # static API reference from proto comments; CI uploads it as an artifact (proto workflow);
+  # the directory is gitignored.
+  - remote: buf.build/community/pseudomuto-doc:v1.5.1
+    out: proto/gen/docs
+    opt:
+      - html,index.html

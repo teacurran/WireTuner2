@@ -1,0 +1,158 @@
+// proto/wiretuner/account/v1/account.proto
+//
+// The caller's own account (docs/spec/security.adoc, "Accounts"): profile and linked
+// identities, the devices it has signed in on, and its synced preferences.  Every account is
+// a Keycloak subject; the server never sees a credential.  Teams are in team.proto.
+syntax = "proto3";
+
+package wiretuner.account.v1;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+import "wiretuner/account/v1/preferences.proto";
+
+option java_multiple_files = true;
+option java_package = "com.villagecompute.wiretuner.account.v1";
+option optimize_for = SPEED;
+
+// Profile, devices and preferences of the signed-in account.  Every RPC acts on the caller
+// (the bearer token's subject) and on the device named by the `wt-device` metadata key;
+// there is no way to address another account.
+service AccountService {
+  // The caller's account, linked identities and the calling device.  The client calls it
+  // after sign-in and on every launch; SRV-002 records the device row (name, platform,
+  // the token's `wt_auth_method`) the first time it sees a device id.
+  rpc Me(MeRequest) returns (MeResponse);
+  // The devices the account has signed in on, most recently seen first.
+  rpc ListDevices(ListDevicesRequest) returns (ListDevicesResponse);
+  // Revoke a device: its token refresh fails from now on and its outbox is offered for export
+  // as a package.  Revoking the calling device signs it out.  Idempotent.
+  rpc RevokeDevice(RevokeDeviceRequest) returns (RevokeDeviceResponse);
+  // The full synced-preferences map.  Called at sign-in on a new Mac before the first document
+  // opens, and on reconnect.
+  rpc GetPreferences(GetPreferencesRequest) returns (GetPreferencesResponse);
+  // Merge changed entries into the account's preferences, per key newest `updated_at_ms`
+  // wins, and return the full merged map, which the client applies wholesale.
+  rpc SetPreferences(SetPreferencesRequest) returns (SetPreferencesResponse);
+}
+
+// A personal account.
+message Account {
+  // The account id, a UUID minted by the server; the author id in change logs is derived
+  // from it, never equal to it.
+  string id = 1 [(buf.validate.field).string.uuid = true];
+  // The primary email address.
+  string email = 2 [(buf.validate.field).string = {
+    max_len: 320
+    email: true
+  }];
+  // The name shown to collaborators.
+  string display_name = 3 [(buf.validate.field).string.max_len = 256];
+  // When the account was created.
+  google.protobuf.Timestamp created_at = 4;
+  // The sign-in methods linked to the account.  Unlinking the last one is refused.
+  repeated AccountIdentity identities = 5;
+}
+
+// One sign-in method linked to an account (`account_identity`).
+message AccountIdentity {
+  // The provider: `password`, `apple`, or `sso:<idp alias>` for a workspace's identity
+  // provider.  Passkeys are not identities: a passkey is registered on an account that is
+  // already signed in.
+  string provider = 1 [(buf.validate.field).string.max_len = 128];
+  // The email address the provider asserts for this identity.
+  string email = 2 [(buf.validate.field).string.max_len = 320];
+  // Whether the provider asserted the email as verified.  Only verified addresses link
+  // automatically and only verified addresses count for workspace domain matching.
+  bool email_verified = 3;
+  // True for an Apple private relay address.  Relay addresses link (they are unique per app)
+  // but never match a workspace domain and never satisfy a require-SSO rule.
+  bool is_relay = 4;
+  // When the identity was linked.
+  google.protobuf.Timestamp linked_at = 5;
+}
+
+// A Mac the account has signed in on (`device`), keyed by the stable per-install id the
+// client sends as `wt-device`.
+message Device {
+  // The device id, a UUID the client generates once per install.
+  string id = 1 [(buf.validate.field).string.uuid = true];
+  // The device's name as reported at first sight (the Mac's computer name).
+  string name = 2 [(buf.validate.field).string.max_len = 256];
+  // The platform string the client reported, for example `macos/15.6/arm64`.
+  string platform = 3 [(buf.validate.field).string.max_len = 128];
+  // How the device signed in, from the token's `wt_auth_method` claim: `passkey`, `apple`,
+  // `password` or `sso:<idp alias>`.
+  string auth_method = 4 [(buf.validate.field).string.max_len = 128];
+  // The last call the server saw from the device.
+  google.protobuf.Timestamp last_seen_at = 5;
+  // When the device was revoked; unset while it is active.
+  google.protobuf.Timestamp revoked_at = 6;
+  // True for the device making the call.
+  bool current = 7;
+}
+
+// Asks for the caller's account.
+message MeRequest {}
+
+// The caller's account and calling device.
+message MeResponse {
+  // The account.
+  Account account = 1;
+  // The calling device, as identified by `wt-device`.
+  Device device = 2;
+}
+
+// Lists the caller's devices.
+message ListDevicesRequest {
+  // Opaque cursor from a previous response; empty for the first page.
+  string cursor = 1 [(buf.validate.field).string.max_len = 1024];
+  // Devices per page; 0 selects the server's default, at most 50.
+  uint32 page_size = 2 [(buf.validate.field).uint32.lte = 50];
+  // Whether to include revoked devices, which are otherwise omitted.
+  bool include_revoked = 3;
+}
+
+// One page of devices.
+message ListDevicesResponse {
+  // The devices, most recently seen first.
+  repeated Device devices = 1;
+  // Cursor for the next page; empty when this is the last page.
+  string next_cursor = 2;
+}
+
+// Revokes one device.
+message RevokeDeviceRequest {
+  // The device to revoke.
+  string device_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+}
+
+// The device after revocation.
+message RevokeDeviceResponse {
+  // The device, with `revoked_at` set.
+  Device device = 1;
+}
+
+// Asks for the caller's synced preferences.
+message GetPreferencesRequest {}
+
+// The full synced-preferences map.
+message GetPreferencesResponse {
+  // Every stored entry; ids that are absent are at their defaults.
+  Preferences preferences = 1;
+}
+
+// Pushes the entries the client changed.  Partial: entries not sent are untouched.
+message SetPreferencesRequest {
+  // The changed entries, each with its `updated_at_ms`.
+  Preferences changes = 1 [(buf.validate.field).required = true];
+}
+
+// The merged map after the write.
+message SetPreferencesResponse {
+  // The full map after merging, which the client applies wholesale.
+  Preferences preferences = 1;
+}

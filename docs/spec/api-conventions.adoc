@@ -26,10 +26,24 @@ deps:
 lint:
   use:
     - STANDARD
+    - COMMENTS
+  ignore_only:
+    # wt.crdt is custom options, not an API: no version suffix, and REF_FALLBACK_UNSET = 0 is
+    # the meaningful default, not "unspecified" (crdt-model.adoc).
+    PACKAGE_VERSION_SUFFIX:
+      - proto/wt/crdt/options.proto
+    ENUM_ZERO_VALUE_SUFFIX:
+      - proto/wt/crdt/options.proto
 breaking:
   use:
     - FILE
 ----
+
+Every file declares `java_multiple_files = true`, `java_package =
+"com.villagecompute.wiretuner.<package>"` and `optimize_for = SPEED` itself, because Quarkus
+reads the files directly, not through buf; managed mode leaves `java_package` alone so both
+see the same value.  Remote plugins are pinned to a version so `buf generate` is reproducible
+and the CI drift check compares like with like.
 
 .`buf.gen.yaml`
 [source,yaml]
@@ -37,15 +51,18 @@ breaking:
 version: v2
 managed:
   enabled: true
+  disable:
+    - file_option: java_package
 plugins:
   # swift-protobuf messages; keep in lock-step with the client's SwiftProtobuf package version
-  - remote: buf.build/apple/swift
+  - remote: buf.build/apple/swift:v1.38.1
     out: client/Packages/WTProto/Sources/WTProto/Generated
     opt:
       - Visibility=Public
       - FileNaming=PathToUnderscores
-  # grpc-swift 2 async/await stubs (see PROTO-004: verify the BSR plugin emits v2; if not,
-  # run protoc-gen-grpc-swift-2 from grpc-swift-protobuf as a local plugin)
+  # grpc-swift 2 async/await stubs (PROTO-004: as of 2026-09 the BSR plugin is v1.27.6, a
+  # grpc-swift 1.x generator, so this entry stays commented out until a v2 emitter exists or
+  # protoc-gen-grpc-swift-2 from grpc-swift-protobuf is wired as a local plugin)
   - remote: buf.build/grpc/swift
     out: client/Packages/WTProto/Sources/WTProto/Generated
     opt:
@@ -53,6 +70,7 @@ plugins:
       - Client=true
       - Server=false
   # merge tables + client-side validators generated from wt.crdt and buf.validate options
+  # (commented out until PROTO-005 delivers the plugin)
   - local: tools/protoc-gen-wtcrdt/bin/protoc-gen-wtcrdt
     out: .
     opt:
@@ -65,9 +83,11 @@ plugins:
       - html,index.html
 ----
 
-CI runs, on every pull request touching `proto/`: `buf format --diff --exit-code`, `buf lint`,
-`buf breaking --against '.git#branch=main'`, `buf generate`, then fails if the generated Swift
-differs from what is committed.  Generated Swift *is* committed so the Xcode project builds
+CI (`.github/workflows/proto.yml`) runs, on every pull request touching `proto/`, the buf
+configuration or the generated Swift: `buf format --diff --exit-code`, `buf lint`,
+`buf breaking --against '.git#branch=main'` (pull requests only: a push to main has nothing
+older to compare with), `buf generate`, then fails if the generated Swift differs from what
+is committed.  Generated Swift *is* committed so the Xcode project builds
 without buf installed; generated Java is not, because Quarkus regenerates it in the Maven build.
 
 == Packages

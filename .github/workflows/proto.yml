@@ -1,0 +1,102 @@
+name: Proto
+
+# The proto gate (docs/spec/api-conventions.adoc): on every change under proto/ or to the buf
+# configuration, check formatting, lint (STANDARD + COMMENTS), breaking changes against main,
+# regenerate, and fail if the committed Swift differs from what buf produced.  The HTML
+# reference rendered from the proto comments is uploaded as an artifact, as in
+# dissipate-server's proto-docs workflow.
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'proto/**'
+      - 'buf.yaml'
+      - 'buf.lock'
+      - 'buf.gen.yaml'
+      - 'client/Packages/WTProto/Sources/WTProto/Generated/**'
+      - '.github/workflows/proto.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'proto/**'
+      - 'buf.yaml'
+      - 'buf.lock'
+      - 'buf.gen.yaml'
+      - 'client/Packages/WTProto/Sources/WTProto/Generated/**'
+      - '.github/workflows/proto.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # `ci` (villagecompute#39): the build pool; the deploy box is held back by not carrying the
+  # label.  `Linux, X64` as in dissipate-server's proto-docs workflow: buf's remote plugins run
+  # on the BSR, so any Linux box in the pool will do.
+  gate:
+    name: Format, lint, breaking, generate
+    runs-on: [self-hosted, Linux, X64, ci]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          # buf breaking reads main out of this clone's .git.
+          fetch-depth: 0
+
+      - name: Set up buf
+        uses: bufbuild/buf-action@v1
+        with:
+          setup_only: true
+          # Match the developer machines; buf format's output and the lint category names
+          # depend on the release.
+          version: 1.73.0
+
+      - name: Check formatting
+        run: buf format --diff --exit-code
+
+      - name: Lint
+        run: buf lint
+
+      # A pull request is compared with the main it will merge into.  On a push to main there
+      # is nothing older to compare against, so the step is skipped there.
+      - name: Fetch main for the breaking check
+        if: github.event_name == 'pull_request'
+        run: git fetch --no-tags origin main:main
+
+      - name: Check breaking changes against main
+        if: github.event_name == 'pull_request'
+        run: buf breaking --against '.git#branch=main'
+
+      - name: Generate Swift and the API reference
+        run: buf generate
+
+      # Generated Swift is committed so the Xcode project builds without buf; a change to the
+      # protos without the regenerated Swift beside it fails here.
+      - name: Fail on Swift drift
+        run: |
+          git add --intent-to-add client/Packages/WTProto/Sources/WTProto/Generated
+          if ! git diff --exit-code -- client/Packages/WTProto/Sources/WTProto/Generated; then
+            echo '::error::Generated Swift is out of date: run `buf generate` and commit client/Packages/WTProto/Sources/WTProto/Generated' >&2
+            exit 1
+          fi
+
+      # Reviewable on any PR touching the protos, without a Pages deploy.
+      - name: Upload docs artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: proto-docs
+          path: proto/gen/docs/
+          retention-days: 14
+
+      - name: Link the artifact from the run summary
+        run: |
+          echo "## Proto API docs" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Rendered reference is in the **proto-docs** artifact of this run" >> $GITHUB_STEP_SUMMARY
+          echo "(download, then open index.html)." >> $GITHUB_STEP_SUMMARY

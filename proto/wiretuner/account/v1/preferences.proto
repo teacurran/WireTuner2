@@ -1,0 +1,81 @@
+// proto/wiretuner/account/v1/preferences.proto
+//
+// Synced preferences (docs/guide/preferences.adoc, "Specification").  Not a CRDT and not
+// document data: the synced categories are one map from preference id to value, merged per
+// key by the server (newest `updated_at_ms` wins, receipt order on ties) and applied
+// wholesale by the client.  Local categories never leave the Mac (NSUserDefaults, `wt.`
+// prefix).  account.v1 carries no wt.crdt options.
+//
+// Preference ids are dotted, lower-case, category first: `general.pick_distance`,
+// `general.smart_guides`, `object.option_drag_copies`, `text.smart_quotes_style`,
+// `document.new_template`, `import.embed_images`, `export.eps_tiff_preview`,
+// `spelling.ignore_uppercase`, `colors.guide_color`, `sync.undo_levels`, `sync.share_presence`.
+// The client's PreferenceCatalog (BASIC-021) is the one place an id is declared; the server
+// stores whatever ids it is sent, so feature epics add preferences without schema churn.
+syntax = "proto3";
+
+package wiretuner.account.v1;
+
+import "buf/validate/validate.proto";
+
+option java_multiple_files = true;
+option java_package = "com.villagecompute.wiretuner.account.v1";
+option optimize_for = SPEED;
+
+// The synced preferences of one account: one entry per preference id.  Storing a map rather
+// than typed fields keeps the schema stable while feature epics add preferences.  An unset
+// id means "default", so defaults can change in later versions without rewriting stored
+// preferences.  The server stores the map as one JSONB column capped at 64 KiB; the
+// per-entry limits below keep any single write far under it, and the server answers
+// INVALID_ARGUMENT when the merged map would exceed the cap.
+message Preferences {
+  // Preference id to value.  Keys are dotted lower-case ids, category first.
+  map<string, PreferenceValue> values = 1 [(buf.validate.field).map = {
+    max_pairs: 512
+    keys: {
+      string: {
+        min_len: 3
+        max_len: 128
+        pattern: "^[a-z][a-z0-9_]*(\\.[a-z0-9_]+)+$"
+      }
+    }
+  }];
+}
+
+// One preference's value with the provenance the per-key merge needs.
+message PreferenceValue {
+  // The typed value.  Field 5 is held for `Color color_value` (wiretuner.doc.v1 Color, for
+  // guide and grid colors), added by BASIC-020 once PROTO-003 defines the type.  Exactly one
+  // case is set: a preference is restored to its default by writing the default explicitly,
+  // never by sending an empty value.
+  oneof value {
+    option (buf.validate.oneof).required = true;
+    // A switch, for example `general.smart_guides`.
+    bool bool_value = 1;
+    // An integer, for example `sync.undo_levels`.
+    int64 int_value = 2;
+    // A real number, for example `general.pick_distance` in points.
+    double double_value = 3;
+    // A string, for example `document.new_template`.
+    string string_value = 4 [(buf.validate.field).string.max_len = 4096];
+    // An ordered list of strings, for example default line weights or DXF options.
+    StringList list_value = 6;
+  }
+  // The client's wall-clock time of the write, in milliseconds since the Unix epoch.  The
+  // server keeps, per key, the entry with the greater value; ties go to the later receipt.
+  // Clock skew between one person's Macs can let an older edit win; accepted.
+  int64 updated_at_ms = 10 [(buf.validate.field).int64.gt = 0];
+  // The `wt-device` id of the Mac that wrote it, for the account's device list.
+  string device = 11 [(buf.validate.field).string.max_len = 64];
+}
+
+// An ordered list of strings, as a preference value.
+message StringList {
+  // The items, in order.
+  repeated string items = 1 [(buf.validate.field).repeated = {
+    max_items: 256
+    items: {
+      string: {max_len: 1024}
+    }
+  }];
+}

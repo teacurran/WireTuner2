@@ -1,0 +1,590 @@
+// proto/wiretuner/account/v1/team.proto
+//
+// Teams and company workspaces (docs/spec/security.adoc, "Teams").  A team is a named group
+// of accounts with a shared document space, shared libraries and shared settings; a person
+// belongs to any number of teams and a document belongs to exactly one space (an account or a
+// team).  A team may be bound to a company workspace: verified email domains and, optionally,
+// a Keycloak identity-provider connection for SSO.  The role enums here are shared with
+// wiretuner.docs.v1 (PROTO-007).
+syntax = "proto3";
+
+package wiretuner.account.v1;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+
+option java_multiple_files = true;
+option java_package = "com.villagecompute.wiretuner.account.v1";
+option optimize_for = SPEED;
+
+// Teams, membership, invitations and workspace binding.  Each RPC's comment names the team
+// role it needs; a caller below it gets PERMISSION_DENIED with reason ROLE_INSUFFICIENT.  A
+// team the caller is not a member of (or a guest is not meant to see) answers NOT_FOUND, so
+// existence is never revealed.
+service TeamService {
+  // Create a team with the caller as its owner.  The slug is derived from the name when
+  // empty and must be unique; ALREADY_EXISTS otherwise.
+  rpc CreateTeam(CreateTeamRequest) returns (CreateTeamResponse);
+  // The caller's memberships: every team the caller belongs to, with the caller's role.
+  // Guests see only the teams they are guests of.
+  rpc ListTeams(ListTeamsRequest) returns (ListTeamsResponse);
+  // One team the caller is a member of.
+  rpc GetTeam(GetTeamRequest) returns (GetTeamResponse);
+  // Change a team's name, slug or default document role.  Admin or owner.
+  rpc UpdateTeam(UpdateTeamRequest) returns (UpdateTeamResponse);
+  // Trash the team: its documents are trashed for 30 days, during which the owner can
+  // transfer them to another space; memberships end at once.  Owner only.
+  rpc DeleteTeam(DeleteTeamRequest) returns (DeleteTeamResponse);
+  // Make another member the owner; the caller becomes an admin.  Owner only.
+  rpc TransferOwnership(TransferOwnershipRequest) returns (TransferOwnershipResponse);
+  // The team's members, owner first, then by join time.  Any member; guests cannot list.
+  rpc ListMembers(ListMembersRequest) returns (ListMembersResponse);
+  // Invite an email address to the team at a role; the invitation is mailed (Qute template)
+  // and expires.  An address that already belongs to a member answers ALREADY_EXISTS.  Admin
+  // or owner.
+  rpc InviteMember(InviteMemberRequest) returns (InviteMemberResponse);
+  // Pending invitations, newest first.  Admin or owner.
+  rpc ListInvites(ListInvitesRequest) returns (ListInvitesResponse);
+  // Withdraw a pending invitation; its token stops working.  Admin or owner.  Idempotent.
+  rpc RevokeInvite(RevokeInviteRequest) returns (RevokeInviteResponse);
+  // Join a team with the token from an invitation mail.  The caller's account must hold a
+  // verified identity for the invited address; FAILED_PRECONDITION otherwise, and when the
+  // workspace requires SSO and the caller's session did not sign in through it.  NOT_FOUND
+  // for an unknown, expired or revoked token.
+  rpc AcceptInvite(AcceptInviteRequest) returns (AcceptInviteResponse);
+  // Change a member's role among admin, member and guest.  Admin or owner; only the owner
+  // may promote to or demote from admin.  Ownership moves with TransferOwnership.
+  rpc SetMemberRole(SetMemberRoleRequest) returns (SetMemberRoleResponse);
+  // Remove a member; their access to the team's documents ends at their next change or
+  // session open.  Admin or owner; the owner cannot be removed.  Idempotent.
+  rpc RemoveMember(RemoveMemberRequest) returns (RemoveMemberResponse);
+  // Leave the team.  The owner must transfer ownership first; FAILED_PRECONDITION otherwise.
+  rpc LeaveTeam(LeaveTeamRequest) returns (LeaveTeamResponse);
+  // Claim an email domain for the team's workspace.  The response carries the verification
+  // token to publish as a DNS TXT record; the domain counts only after
+  // VerifyWorkspaceDomain succeeds.  A domain verified by another team answers
+  // ALREADY_EXISTS.  Admin or owner.
+  rpc AddWorkspaceDomain(AddWorkspaceDomainRequest) returns (AddWorkspaceDomainResponse);
+  // Look up the domain's TXT records and mark the domain verified when the token is found.
+  // Admin or owner.  Safe to repeat.
+  rpc VerifyWorkspaceDomain(VerifyWorkspaceDomainRequest) returns (VerifyWorkspaceDomainResponse);
+  // Drop a domain from the workspace; members admitted through it keep their membership.
+  // Admin or owner.  Idempotent.
+  rpc RemoveWorkspaceDomain(RemoveWorkspaceDomainRequest) returns (RemoveWorkspaceDomainResponse);
+  // Replace the workspace's settings: SSO connection, require-SSO, auto-admit and the sharing
+  // restrictions.  Requiring SSO or auto-admitting needs at least one verified domain;
+  // FAILED_PRECONDITION otherwise.  Admin or owner.
+  rpc SetWorkspaceSettings(SetWorkspaceSettingsRequest) returns (SetWorkspaceSettingsResponse);
+}
+
+// A member's role in a team.
+enum TeamRole {
+  // No role; never stored.
+  TEAM_ROLE_UNSPECIFIED = 0;
+  // Billing, delete team, transfer ownership, plus everything an admin can do.  Exactly one
+  // per team.
+  TEAM_ROLE_OWNER = 1;
+  // Members, workspace settings, team libraries; holds the document owner's administrative
+  // powers on every team document.
+  TEAM_ROLE_ADMIN = 2;
+  // Creates and edits team documents at the team's default document role.
+  TEAM_ROLE_MEMBER = 3;
+  // Sees only documents explicitly shared with them; cannot see the team list.
+  TEAM_ROLE_GUEST = 4;
+}
+
+// A principal's role on one document, independent of team role (docs/spec/security.adoc,
+// "Document roles").  Effective role is the maximum of explicit membership, the team default
+// for members, and the share link's role if one was used.
+enum DocumentRole {
+  // No access.
+  DOCUMENT_ROLE_UNSPECIFIED = 0;
+  // Everything: share, change roles, transfer, move between spaces, manage credentials,
+  // delete.  Exactly one per document; a team's admins hold the same powers on team documents.
+  DOCUMENT_ROLE_OWNER = 1;
+  // Every editing privilege, including fetching with the document's credentials and every
+  // command a script can run; none of the owner's administrative ones.
+  DOCUMENT_ROLE_EDITOR = 2;
+  // May write only under the comments collection: start threads, reply, mention, react, edit
+  // and delete own comments, resolve own threads.
+  DOCUMENT_ROLE_COMMENTER = 3;
+  // Read only; may not write comments.
+  DOCUMENT_ROLE_VIEWER = 4;
+}
+
+// A team as the caller sees it.
+message Team {
+  // The team id, a UUID minted by the server.  A team document's `space_id` is this id.
+  string id = 1 [(buf.validate.field).string.uuid = true];
+  // The display name.
+  string name = 2 [(buf.validate.field).string.max_len = 256];
+  // The URL-safe short name: lower-case letters, digits and hyphens, unique across teams.
+  string slug = 3 [(buf.validate.field).string.max_len = 64];
+  // The owner's account id.
+  string owner_account_id = 4 [(buf.validate.field).string.uuid = true];
+  // When the team was created.
+  google.protobuf.Timestamp created_at = 5;
+  // When the team was deleted; unset while it is live.  A deleted team is listed for its
+  // owner during the 30-day trash period only.
+  google.protobuf.Timestamp deleted_at = 6;
+  // Number of members, guests included.
+  uint32 member_count = 7;
+  // The document role a member holds on team documents without an explicit share.
+  DocumentRole default_document_role = 8 [(buf.validate.field).enum.defined_only = true];
+  // The caller's role in the team.
+  TeamRole caller_role = 9 [(buf.validate.field).enum.defined_only = true];
+  // The company workspace the team is bound to; unset for a plain team.
+  Workspace workspace = 10;
+}
+
+// One membership row.
+message TeamMember {
+  // The member's account id.
+  string account_id = 1 [(buf.validate.field).string.uuid = true];
+  // The member's display name.
+  string display_name = 2 [(buf.validate.field).string.max_len = 256];
+  // The member's primary email.
+  string email = 3 [(buf.validate.field).string.max_len = 320];
+  // The member's role.
+  TeamRole role = 4 [(buf.validate.field).enum.defined_only = true];
+  // When the member joined.
+  google.protobuf.Timestamp joined_at = 5;
+}
+
+// A pending or accepted invitation.  The token itself is only ever in the mail.
+message TeamInvite {
+  // The invitation id.
+  string id = 1 [(buf.validate.field).string.uuid = true];
+  // The team invited to.
+  string team_id = 2 [(buf.validate.field).string.uuid = true];
+  // The invited address.
+  string email = 3 [(buf.validate.field).string.max_len = 320];
+  // The role granted on acceptance.
+  TeamRole role = 4 [(buf.validate.field).enum.defined_only = true];
+  // The account that sent the invitation.
+  string invited_by_account_id = 5 [(buf.validate.field).string.uuid = true];
+  // When the token stops working.
+  google.protobuf.Timestamp expires_at = 6;
+  // When it was accepted; unset while pending.
+  google.protobuf.Timestamp accepted_at = 7;
+}
+
+// The settings of a company workspace, as set by SetWorkspaceSettings.
+message WorkspaceSettings {
+  // The Keycloak identity-provider alias of the workspace's SSO connection (SAML or OIDC);
+  // empty when the workspace has no SSO.
+  string sso_idp_alias = 1 [(buf.validate.field).string.max_len = 128];
+  // Members must have signed in through the SSO connection; checked against the token's
+  // `wt_auth_method` on every call, not only at sign-in.  Needs `sso_idp_alias`.
+  bool require_sso = 2;
+  // Anyone who signs in with a verified address on a verified domain joins as a member
+  // automatically.  Relay addresses never qualify.
+  bool auto_admit = 3;
+  // Team documents may be shared with team members only: no outside invitations, no links.
+  bool restrict_sharing = 4;
+  // Members may not export team documents as packages, so a removed member cannot keep a copy.
+  bool restrict_package_export = 5;
+}
+
+// A team's workspace binding.
+message Workspace {
+  // The settings.
+  WorkspaceSettings settings = 1;
+  // The claimed domains, verified or not.
+  repeated WorkspaceDomain domains = 2;
+}
+
+// An email domain claimed by a workspace.
+message WorkspaceDomain {
+  // The domain, lower-case, for example `example.com`.
+  string domain = 1 [(buf.validate.field).string = {
+    max_len: 253
+    hostname: true
+  }];
+  // The token to publish as a DNS TXT record on the domain (`wiretuner-verification=<token>`)
+  // so VerifyWorkspaceDomain can find it.
+  string verification_token = 2 [(buf.validate.field).string.max_len = 128];
+  // When verification succeeded; unset until then.
+  google.protobuf.Timestamp verified_at = 3;
+}
+
+// Creates a team.
+message CreateTeamRequest {
+  // The display name.
+  string name = 1 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 256
+  }];
+  // The slug; derived from the name when empty.
+  string slug = 2 [(buf.validate.field).string = {
+    max_len: 64
+    pattern: "^([a-z0-9]([a-z0-9-]{0,62}[a-z0-9])?)?$"
+  }];
+  // The default document role for members; DOCUMENT_ROLE_UNSPECIFIED selects the server's
+  // default (editor).  Owner is not a default.
+  DocumentRole default_document_role = 3 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [1]
+  }];
+}
+
+// The created team.
+message CreateTeamResponse {
+  // The team, with the caller as owner.
+  Team team = 1;
+}
+
+// Lists the caller's teams.
+message ListTeamsRequest {
+  // Opaque cursor from a previous response; empty for the first page.
+  string cursor = 1 [(buf.validate.field).string.max_len = 1024];
+  // Teams per page; 0 selects the server's default, at most 50.
+  uint32 page_size = 2 [(buf.validate.field).uint32.lte = 50];
+}
+
+// One page of teams.
+message ListTeamsResponse {
+  // The teams, by name.
+  repeated Team teams = 1;
+  // Cursor for the next page; empty when this is the last page.
+  string next_cursor = 2;
+}
+
+// Fetches one team.
+message GetTeamRequest {
+  // The team.
+  string team_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+}
+
+// The team.
+message GetTeamResponse {
+  // The team.
+  Team team = 1;
+}
+
+// Updates a team; only the fields present change.
+message UpdateTeamRequest {
+  // The team.
+  string team_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+  // The new display name.
+  optional string name = 2 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 256
+  }];
+  // The new slug.
+  optional string slug = 3 [(buf.validate.field).string = {
+    max_len: 64
+    pattern: "^[a-z0-9]([a-z0-9-]{0,62}[a-z0-9])?$"
+  }];
+  // The new default document role for members; owner is not a default.
+  optional DocumentRole default_document_role = 4 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [
+      0,
+      1
+    ]
+  }];
+}
+
+// The team after the update.
+message UpdateTeamResponse {
+  // The team.
+  Team team = 1;
+}
+
+// Trashes a team.
+message DeleteTeamRequest {
+  // The team.
+  string team_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+}
+
+// The team after deletion.
+message DeleteTeamResponse {
+  // The team, with `deleted_at` set.
+  Team team = 1;
+}
+
+// Transfers ownership to another member.
+message TransferOwnershipRequest {
+  // The team.
+  string team_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+  // The member who becomes owner; must be an admin or member, not a guest.
+  string account_id = 2 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+}
+
+// The team after the transfer.
+message TransferOwnershipResponse {
+  // The team, with the new owner and the caller's role now admin.
+  Team team = 1;
+}
+
+// Lists a team's members.
+message ListMembersRequest {
+  // The team.
+  string team_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+  // Opaque cursor from a previous response; empty for the first page.
+  string cursor = 2 [(buf.validate.field).string.max_len = 1024];
+  // Members per page; 0 selects the server's default, at most 50.
+  uint32 page_size = 3 [(buf.validate.field).uint32.lte = 50];
+}
+
+// One page of members.
+message ListMembersResponse {
+  // The members, owner first, then by join time.
+  repeated TeamMember members = 1;
+  // Cursor for the next page; empty when this is the last page.
+  string next_cursor = 2;
+}
+
+// Invites an address to a team.
+message InviteMemberRequest {
+  // The team.
+  string team_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+  // The address to invite.
+  string email = 2 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string = {
+      max_len: 320
+      email: true
+    }
+  ];
+  // The role granted on acceptance: admin, member or guest.  Ownership is transferred, never
+  // granted by invitation.
+  TeamRole role = 3 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [
+      0,
+      1
+    ]
+  }];
+}
+
+// The invitation sent.
+message InviteMemberResponse {
+  // The invitation.
+  TeamInvite invite = 1;
+}
+
+// Lists a team's pending invitations.
+message ListInvitesRequest {
+  // The team.
+  string team_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+  // Opaque cursor from a previous response; empty for the first page.
+  string cursor = 2 [(buf.validate.field).string.max_len = 1024];
+  // Invitations per page; 0 selects the server's default, at most 50.
+  uint32 page_size = 3 [(buf.validate.field).uint32.lte = 50];
+}
+
+// One page of invitations.
+message ListInvitesResponse {
+  // The pending invitations, newest first.
+  repeated TeamInvite invites = 1;
+  // Cursor for the next page; empty when this is the last page.
+  string next_cursor = 2;
+}
+
+// Withdraws an invitation.
+message RevokeInviteRequest {
+  // The team.
+  string team_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+  // The invitation.
+  string invite_id = 2 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+}
+
+// Empty; the invitation is gone.
+message RevokeInviteResponse {}
+
+// Accepts an invitation.
+message AcceptInviteRequest {
+  // The token from the invitation mail's link.
+  string token = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string = {
+      min_len: 16
+      max_len: 512
+    }
+  ];
+}
+
+// The team joined.
+message AcceptInviteResponse {
+  // The team, with the caller's new role.
+  Team team = 1;
+}
+
+// Changes a member's role.
+message SetMemberRoleRequest {
+  // The team.
+  string team_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+  // The member.
+  string account_id = 2 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+  // The new role: admin, member or guest.
+  TeamRole role = 3 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [
+      0,
+      1
+    ]
+  }];
+}
+
+// The member after the change.
+message SetMemberRoleResponse {
+  // The member.
+  TeamMember member = 1;
+}
+
+// Removes a member.
+message RemoveMemberRequest {
+  // The team.
+  string team_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+  // The member to remove.
+  string account_id = 2 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+}
+
+// Empty; the membership is gone.
+message RemoveMemberResponse {}
+
+// Leaves a team.
+message LeaveTeamRequest {
+  // The team.
+  string team_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+}
+
+// Empty; the caller is no longer a member.
+message LeaveTeamResponse {}
+
+// Claims a domain.
+message AddWorkspaceDomainRequest {
+  // The team.
+  string team_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+  // The domain to claim, for example `example.com`.
+  string domain = 2 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string = {
+      max_len: 253
+      hostname: true
+    }
+  ];
+}
+
+// The claimed domain with its verification token.
+message AddWorkspaceDomainResponse {
+  // The domain, unverified, with `verification_token` to publish.
+  WorkspaceDomain domain = 1;
+}
+
+// Checks a domain's TXT record.
+message VerifyWorkspaceDomainRequest {
+  // The team.
+  string team_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+  // The claimed domain.
+  string domain = 2 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string = {
+      max_len: 253
+      hostname: true
+    }
+  ];
+}
+
+// The verification outcome.
+message VerifyWorkspaceDomainResponse {
+  // True when the token was found and the domain is now verified.
+  bool verified = 1;
+  // The domain, with `verified_at` set on success.
+  WorkspaceDomain domain = 2;
+}
+
+// Drops a domain.
+message RemoveWorkspaceDomainRequest {
+  // The team.
+  string team_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+  // The domain to drop.
+  string domain = 2 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string = {
+      max_len: 253
+      hostname: true
+    }
+  ];
+}
+
+// Empty; the domain is gone.
+message RemoveWorkspaceDomainResponse {}
+
+// Replaces the workspace settings.
+message SetWorkspaceSettingsRequest {
+  option (buf.validate.message).cel = {
+    id: "workspace_settings.require_sso_needs_idp"
+    message: "require_sso needs an SSO connection"
+    expression: "!this.settings.require_sso || this.settings.sso_idp_alias != ''"
+  };
+  // The team.
+  string team_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+  // The complete settings; every field is written.
+  WorkspaceSettings settings = 2 [(buf.validate.field).required = true];
+}
+
+// The workspace after the change.
+message SetWorkspaceSettingsResponse {
+  // The workspace, with its domains.
+  Workspace workspace = 1;
+}

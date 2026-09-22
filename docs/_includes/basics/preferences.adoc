@@ -413,9 +413,9 @@ size-limited to 64 KiB.  Team policy floors are a `team` table column read by th
 Track:: proto
 Depends on:: PROTO-009
 Size:: S
-Delivers:: `account/v1/preferences.proto` with `Preferences`, `PreferenceValue`, `StringList`, and `GetPreferences`/`SetPreferences` request/response messages carrying partial maps; the id naming rule in comments.
+Delivers:: PROTO-009 created `account/v1/preferences.proto` (`Preferences`, `PreferenceValue` without its `color_value` case, `StringList`, the id naming rule in comments, per-entry protovalidate limits) and the `GetPreferences`/`SetPreferences` request/response messages in `account.proto`.  This task adds `Color color_value = 5` once PROTO-003 defines `wiretuner.doc.v1.Color`, and the tests.
 Done when::
-* Lints clean with comments; a 64 KiB size constraint is declared on the map.
+* Lints clean with comments; the 64 KiB cap on the stored map is enforced server-side (protovalidate cannot measure serialized size; the per-entry limits in the file bound any single write).
 * Round-trip test in Swift and Java for every `PreferenceValue` case.
 
 [[BASIC-021]]
