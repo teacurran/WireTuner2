@@ -1,6 +1,5 @@
-/// WTTestSupport: Simulated clients, vector loaders, screenshot helpers.
-///
-/// Placeholder from APP-001; the first task on this package replaces it with real code.
+/// WTTestSupport: Simulated clients, vector loaders, screenshot helpers.  The multi-client
+/// simulator (TEST-001) is `Simulation` and its parts under `Simulation/`.
 public enum WTTestSupportPackage {
     /// The package name, as a smoke test that the module links.
     public static let name = "WTTestSupport"

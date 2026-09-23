@@ -17,6 +17,9 @@ let package = Package(
         .package(path: "../WTModel"),
         .package(path: "../WTCRDT"),
         .package(path: "../WTProto"),
+        // The compose scenarios' document and token calls (tests only; WTSync resolves them anyway).
+        .package(url: "https://github.com/grpc/grpc-swift-2", from: "2.0.0"),
+        .package(url: "https://github.com/grpc/grpc-swift-nio-transport", from: "2.0.0"),
     ],
     targets: [
         .target(
@@ -29,12 +32,17 @@ let package = Package(
                 .product(name: "WTSync", package: "WTSync"),
                 .product(name: "WTModel", package: "WTModel"),
                 .product(name: "WTCRDT", package: "WTCRDT"),
+                .product(name: "WTCRDTSchema", package: "WTCRDT"),
                 .product(name: "WTProto", package: "WTProto"),
             ]
         ),
         .testTarget(
             name: "WTTestSupportTests",
-            dependencies: ["WTTestSupport"]
+            dependencies: [
+                "WTTestSupport",
+                .product(name: "GRPCCore", package: "grpc-swift-2"),
+                .product(name: "GRPCNIOTransportHTTP2", package: "grpc-swift-nio-transport"),
+            ]
         ),
     ],
     swiftLanguageModes: [.v6]

@@ -170,6 +170,67 @@ store copied to a second Mac, an expired replica salvaged onto a collected snaps
 `BlobService` and the subscription.  `SyncIntegrationTests` runs two clients against the compose server and is
 skipped unless `WT_SYNC_IT=1` (`WT_SYNC_API`, `WT_SYNC_KEYCLOAK` override the local URLs).
 
+[[simulator]]
+NOTE: As built by TEST-001 (`WTTestSupport/Sources/WTTestSupport/Simulation`, scenarios in
+`WTTestSupportTests/Simulation`).  A `SimClient` is wired as WTApp's `DocumentSession` wires a
+window: a `LocalStore`, the WTModel `Document` over it as the sink, a real `SyncClient` with a
+`LocalPresence`, `stateReplaced` reloading the façade and a collection point advancing the horizon.
+Every edit is a WTModel command (paths, shapes, names, deletes, text typing, marks and paragraph
+breaks) performed under a unique label.  Deviations from the paragraph above: *(1) the server.*  The
+scenarios run in every `swift test` against `SimServer`, an in-process `SyncService` for any number
+of documents, people and devices that follows the server as built: acceptance in the server's order
+with replica binding to (account, device), `Welcome` with the snapshot hint, replay, presence, `Pong`,
+`RoleChanged`/`AccessRemoved` to the person's own subscriptions, `FetchChanges` and `FetchSnapshot`,
+tokens expiring on the simulated clock, `Ack` with the monotone stable point and the recorded
+horizons, the Stability job (retirement after 90 simulated days, (C, T) computed as `Stability.java`
+does), the snapshotter collecting at (C, T), `Fork`, and scripted node restarts (abrupt, or a drain
+with `RECONNECT`), Valkey restarts (live frames lost, then every subscription failed) and Postgres
+failovers (calls fail, the push in flight commits and loses its reply).  The compose server is the
+other backend (`SimulationBackend`, `ComposeSimulationTests`, `WT_SIM_COMPOSE=1`): scenario 1 in
+both modes and the cloned store of scenario 4 run against it, with `WT_SIM_COMPOSE_RESTART=1`
+adding `docker compose restart` of api and valkey mid-run; the scenarios that need the server
+scripted (retirement, roles, token lifetimes) run in-process only, and the compose stack has no
+Postgres replica to fail over to.  *(2) the proxy* is a `SyncTransport` per client
+(`ProxyTransport` over a `NetworkLink`) rather than a TCP proxy: gRPC multiplexes the calls on one
+HTTP/2 connection, so only a call-level proxy can reorder two pushes or lose one answer.  It
+applies latency and jitter to every call, answer and frame, holds pipelined pushes back so later
+ones overtake them, loses requests or answers, drops the connection after a subscription frame
+(failing the stream and every call in flight) and partitions the client (token refreshes fail
+too).  *(3) time* is simulated (`SimClock`): a scenario runs compressed (ten minutes in six real
+seconds), and offline days, token lifetimes and retention windows are jumps of the clock that
+the server, the clients' change timestamps and their reconnect gap all read, with a skew per
+client.  Each fault a call meets is drawn from the seed and the call's own key (link, kind,
+replica, seq, attempt), so the operating system's scheduling does not change which push is lost.
+*Checks* (`Simulation.expectConverged`, after `settle()`): every outbox empty and every client at
+the log's head; each `Document` showing its store's state; every state -- collected at the
+server's collection point, as replicas compare -- hashing like the server's own log; each replica's
+seqs dense in the log and no op id twice; every change a client made in the log by its label
+(unless discarded, or dropped whole by salvage); no client ever in `error`.  A failure names the
+scenario, the seed (`WT_SIM_SEED` replays it), each client's state and link, the differing nodes,
+and the end of the trace, and writes the whole trace to `$WT_SIM_REPORTS` (default
+`$TMPDIR/WTSimulation`)`/<scenario>-seed<seed>.log`.  The eight scenarios run in native and gateway
+mode (`ScenarioTests`); `RandomizedSimulationTests` runs seeded runs of two to four clients with
+random modes, networks and skews under random partitions of up to 36 hours, restarts and a
+first-time opener bootstrapping from a snapshot (`WT_SIM_SEEDS`, `WT_SIM_RUNS=n`).  The whole suite
+takes about 80 s (debug build, M-series), within TEST-001's 10 minutes in the package-tests step of
+CI.  Scenario 2 holds the time from *Keep the merged result* to convergence (1,000 changes, 30,000
+ops, up through `PushChanges` or batches) to a `PerfBudget` of 5 s (1.4 s measured, release).  Findings, each pinned by a
+known-issue test until fixed: *(a)* D-067 as built never publishes a collection point above 0 --
+the server credits a change with the publication its author confirmed by acking again, and
+`SyncClient` acks only when its applied seq moves, so every change's horizon is at most its seq - 2
+and the job's lowering step walks C down to 0 (scenario 5 publishes the point itself,
+`SimServer.publishCollectionPoint`, to exercise compaction and salvage's dropped ops); a
+confirming `Ack` when the last answer's `stable_seq` is below the applied seq, or the horizon sent
+with each push, would let C rise at the quiet points.  *(b)* A change refused with
+`VALIDATION_FAILED` for its op count is resent as one `Noop` per counter, over the limit again, for
+as long as the session lasts (403 refusals in 0.3 s here; a change of more than 10,000 counters,
+such as a long paste, meets it).  *(c)* Reconciling runs on every reconnect, so a connection
+dropped for a few seconds while people edit one object opens the whole-document review holding
+the outbox (one object in common is 100% of a small session); the simulated people settle it with
+*Keep the merged result*, as dismissing the sheet does.  *(d)* The server reads `wt-device` as a
+UUID and binds any other value to the all-zero device, so clients sending a non-UUID device share
+one binding (the compose backend sends UUIDs).
+
 == Geometry and rendering
 
 * `WTGeometry`: property tests against numeric references; a corpus of 200 boolean cases
@@ -607,6 +668,7 @@ no remote dependencies.
 |`WTSync`: coalesce and encode a 20,000-op outbox |500 ms |`CoalescerTests`
 |`WTSync`: the slowest edit while a 100 MiB image uploads (SYNC-008) |250 ms |`BlobTests`
 |`WTSync`: a remote cursor frame reaches the model, median of 20 (SYNC-009) |100 ms |`PresenceTests`
+|`WTTestSupport`: *Keep the merged result* to convergence after 48 hours offline, 1,000 changes of 30,000 ops (TEST-001 scenario 2, each mode) |5 s |`ScenarioTests`
 |`WTText`: incremental relayout of 200,000 characters after a one-paragraph edit (TXT-001) |100 ms |`IncrementalLayoutTests`
 |`WTText`: 200,000 justified characters; mixed attributes; axes on every paragraph; 10,000 effected characters laid out and drawn |100 ms each |`ColumnsAdjustTests`, `TypeAttributeTests`, `TextEffectTests`
 |`WTText`: a 1,000-row tab table |50 ms |`TabLayoutTests`

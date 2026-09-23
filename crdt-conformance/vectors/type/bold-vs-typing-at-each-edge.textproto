@@ -1,0 +1,71 @@
+# crdt-conformance/vectors/type/bold-vs-typing-at-each-edge.textproto (TYPE-004; schema: crdt-conformance/schema/vector.proto)
+name: "type/bold-vs-typing-at-each-edge"
+description: "Creating text, Merge semantics, Marks: over \"abcd\" replica 1 bolds bc (an expanding attribute: start before b, end before d) while replica 2 types Z at the start edge (between a and b), replica 3 types Y at the end edge (between c and d) and replica 4 types X inside (between b and c).  X is inside the anchors and bold; Y was inserted before the end anchor's character, so it is inside and bold, as sequential typing would be; Z is before the start anchor and plain."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Type"
+    ops { create { parent { counter: 4 } position: "\x80" props { test { label: "T" } } } }
+    ops { text_insert { node { counter: 1 replica: 7 } text { segments { field: 1000 } segments { field: 9 } } chars: "abcd" } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 6 base_server_seq: 1 label: "Bold"
+    ops { text_mark { node { counter: 1 replica: 7 } text { segments { field: 1000 } segments { field: 9 } } start { char { counter: 3 replica: 7 } before: true } end { char { counter: 5 replica: 7 } before: true } value { bold: true } } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 6 base_server_seq: 1 label: "Type"
+    ops { text_insert { node { counter: 1 replica: 7 } text { segments { field: 1000 } segments { field: 9 } } left_origin { counter: 2 replica: 7 } right_origin { counter: 3 replica: 7 } chars: "Z" } }
+  }
+}
+replica {
+  id: 3
+  change {
+    replica: 3 seq: 1 start_counter: 6 base_server_seq: 1 label: "Type"
+    ops { text_insert { node { counter: 1 replica: 7 } text { segments { field: 1000 } segments { field: 9 } } left_origin { counter: 4 replica: 7 } right_origin { counter: 5 replica: 7 } chars: "Y" } }
+  }
+}
+replica {
+  id: 4
+  change {
+    replica: 4 seq: 1 start_counter: 6 base_server_seq: 1 label: "Type"
+    ops { text_insert { node { counter: 1 replica: 7 } text { segments { field: 1000 } segments { field: 9 } } left_origin { counter: 3 replica: 7 } right_origin { counter: 4 replica: 7 } chars: "X" } }
+  }
+}
+deliveries { order: [1, 2, 3, 4] }
+deliveries { order: [1, 2, 4, 3] }
+deliveries { order: [1, 3, 2, 4] }
+deliveries { order: [1, 3, 4, 2] }
+deliveries { order: [1, 4, 2, 3] }
+deliveries { order: [1, 4, 3, 2] }
+deliveries { order: [2, 1, 3, 4] }
+deliveries { order: [2, 1, 4, 3] }
+deliveries { order: [2, 3, 1, 4] }
+deliveries { order: [2, 3, 4, 1] }
+deliveries { order: [2, 4, 1, 3] }
+deliveries { order: [2, 4, 3, 1] }
+deliveries { order: [3, 1, 2, 4] }
+deliveries { order: [3, 1, 4, 2] }
+deliveries { order: [3, 2, 1, 4] }
+deliveries { order: [3, 2, 4, 1] }
+deliveries { order: [3, 4, 1, 2] }
+deliveries { order: [3, 4, 2, 1] }
+deliveries { order: [4, 1, 2, 3] }
+deliveries { order: [4, 1, 3, 2] }
+deliveries { order: [4, 2, 1, 3] }
+deliveries { order: [4, 2, 3, 1] }
+deliveries { order: [4, 3, 1, 2] }
+deliveries { order: [4, 3, 2, 1] }
+expect {
+  state_hash: "cfa1377db9d2adfb42a99215ee311f9c6fdc63acb82fbcf5658667d472e7804a"
+  snapshot_hash: "5645f41f1757c928928382fa637d7d87a582ec782a667b344540343dd7486721"
+  node {
+    id { counter: 1 replica: 7 }
+    node_hash: ""
+    text { path { segments { field: 1000 } segments { field: 9 } } text: "aZbXcYd" chars { counter: 2 replica: 7 } chars { counter: 6 replica: 2 } chars { counter: 3 replica: 7 } chars { counter: 6 replica: 4 } chars { counter: 4 replica: 7 } chars { counter: 6 replica: 3 } chars { counter: 5 replica: 7 }  runs { start: 0 length: 2 } runs { start: 2 length: 4 attributes { value { bold: true } mark { counter: 6 replica: 1 } }} runs { start: 6 length: 1 } }
+  }
+}

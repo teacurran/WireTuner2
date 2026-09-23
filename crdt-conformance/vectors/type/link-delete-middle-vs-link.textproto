@@ -1,0 +1,61 @@
+# crdt-conformance/vectors/type/link-delete-middle-vs-link.textproto (TYPE-004; schema: crdt-conformance/schema/vector.proto)
+name: "type/link-delete-middle-vs-link"
+description: "Working with text blocks, Merge semantics, Link races: in the chain X to Y to Z replica 1 deletes Y, writing X.next = Z and Z.prev = X, while replica 2 links Y to W.  Replica 2's writes land on the deleted Y and on W: Y is deleted with next_link W, W's prev_link names the deleted Y (read as unset: W is a head), and the chain X to Z holds."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Create"
+    ops { create { parent { counter: 4 } position: "\x80" props { text { common { name: "X" } } } } }
+    ops { create { parent { counter: 4 } position: "\x90" props { text { common { name: "Y" } } } } }
+    ops { create { parent { counter: 4 } position: "\xa0" props { text { common { name: "Z" } } } } }
+    ops { create { parent { counter: 4 } position: "\xb0" props { text { common { name: "W" } } } } }
+    ops { set { node { counter: 1 replica: 7 } paths { segments { field: 130 } segments { field: 4 } } values { text { next_link { id { counter: 2 replica: 7 } } } } } }
+    ops { set { node { counter: 2 replica: 7 } paths { segments { field: 130 } segments { field: 5 } } values { text { prev_link { id { counter: 1 replica: 7 } } } } } }
+    ops { set { node { counter: 2 replica: 7 } paths { segments { field: 130 } segments { field: 4 } } values { text { next_link { id { counter: 3 replica: 7 } } } } } }
+    ops { set { node { counter: 3 replica: 7 } paths { segments { field: 130 } segments { field: 5 } } values { text { prev_link { id { counter: 2 replica: 7 } } } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 9 base_server_seq: 1 label: "Delete"
+    ops { set_deleted { node { counter: 2 replica: 7 } deleted: true } }
+    ops { set { node { counter: 1 replica: 7 } paths { segments { field: 130 } segments { field: 4 } } values { text { next_link { id { counter: 3 replica: 7 } } } } } }
+    ops { set { node { counter: 3 replica: 7 } paths { segments { field: 130 } segments { field: 5 } } values { text { prev_link { id { counter: 1 replica: 7 } } } } } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 9 base_server_seq: 1 label: "Link"
+    ops { set { node { counter: 2 replica: 7 } paths { segments { field: 130 } segments { field: 4 } } values { text { next_link { id { counter: 4 replica: 7 } } } } } }
+    ops { set { node { counter: 4 replica: 7 } paths { segments { field: 130 } segments { field: 5 } } values { text { prev_link { id { counter: 2 replica: 7 } } } } } }
+  }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "7ce2f66ff102d22117e690a58bae8cc4446ff0db3d8fdfab4962d759b6592b72"
+  snapshot_hash: "c2b12fbbd93414783805295c1a5c9c74e12b96a9ade601ffba24c827d3707d64"
+  node {
+    id { counter: 1 replica: 7 }
+    node_hash: ""
+    register { path { segments { field: 130 } segments { field: 4 } } value { text { next_link { id { counter: 3 replica: 7 } } } } op { counter: 10 replica: 1 } losing { counter: 5 replica: 7 } }
+  }
+  node {
+    id { counter: 2 replica: 7 }
+    node_hash: ""
+    tree { parent { counter: 4 } position: "\x90" deleted: true }
+    register { path { segments { field: 130 } segments { field: 5 } } value { text { prev_link { id { counter: 1 replica: 7 } } } } op { counter: 6 replica: 7 } }
+    register { path { segments { field: 130 } segments { field: 4 } } value { text { next_link { id { counter: 4 replica: 7 } } } } op { counter: 9 replica: 2 } losing { counter: 7 replica: 7 } }
+  }
+  node {
+    id { counter: 3 replica: 7 }
+    node_hash: ""
+    register { path { segments { field: 130 } segments { field: 5 } } value { text { prev_link { id { counter: 1 replica: 7 } } } } op { counter: 11 replica: 1 } losing { counter: 8 replica: 7 } }
+  }
+  node {
+    id { counter: 4 replica: 7 }
+    node_hash: ""
+    register { path { segments { field: 130 } segments { field: 5 } } value { text { prev_link { id { counter: 2 replica: 7 } } } } op { counter: 10 replica: 2 } }
+  }
+}

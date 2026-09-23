@@ -124,3 +124,8 @@ sonar-tools-test:
 # Both engines replay every crdt-conformance vector (docs/spec/testing.adoc, CRDT-011).
 conformance:
 	$(MAKE) -C crdt-conformance run
+
+.PHONY: client-sim
+# The multi-client simulator (docs/spec/testing.adoc, "Multi-client simulation"); SIM_RUNS=n seeded random runs, SIM_COMPOSE=1 also against the compose server.
+client-sim:
+	cd client/Packages/WTTestSupport && WT_SIM_RUNS=$(or $(SIM_RUNS),4) $(if $(SIM_COMPOSE),WT_SIM_COMPOSE=1) swift test --filter 'ScenarioTests|RandomizedSimulationTests|ComposeSimulationTests'

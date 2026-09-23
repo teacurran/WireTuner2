@@ -1,0 +1,42 @@
+# crdt-conformance/vectors/type/block-delete-vs-typing.textproto (TYPE-004; schema: crdt-conformance/schema/vector.proto)
+name: "type/block-delete-vs-typing"
+description: "Creating text, Merge semantics, Text vs. block deletion; Working with text blocks, Delete vs. edit: replica 1 deletes the block holding \"ab\" and then restores it (the notice's Restore, a later change) while replica 2 types XY between a and b and bolds them.  The deleted block keeps receiving the characters and the mark, so after the restore the text is aXYb with XY bold, in every order."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Type"
+    ops { create { parent { counter: 4 } position: "\x80" props { test { label: "T" } } } }
+    ops { text_insert { node { counter: 1 replica: 7 } text { segments { field: 1000 } segments { field: 9 } } chars: "ab" } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 4 base_server_seq: 1 label: "Delete"
+    ops { set_deleted { node { counter: 1 replica: 7 } deleted: true } }
+  }
+  change {
+    replica: 1 seq: 2 start_counter: 5 base_server_seq: 1 label: "Restore"
+    ops { set_deleted { node { counter: 1 replica: 7 } deleted: false } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 4 base_server_seq: 1 label: "Type"
+    ops { text_insert { node { counter: 1 replica: 7 } text { segments { field: 1000 } segments { field: 9 } } left_origin { counter: 2 replica: 7 } right_origin { counter: 3 replica: 7 } chars: "XY" } }
+    ops { text_mark { node { counter: 1 replica: 7 } text { segments { field: 1000 } segments { field: 9 } } start { char { counter: 4 replica: 2 } before: true } end { char { counter: 3 replica: 7 } before: true } value { bold: true } } }
+  }
+}
+deliveries { order: [1, 1, 2] }
+deliveries { order: [1, 2, 1] }
+deliveries { order: [2, 1, 1] }
+expect {
+  state_hash: "83349e35cb5a3339317096c0b84e3f1f94ae6a8cb62d277218311e47d7ff2d92"
+  snapshot_hash: "5fc30cfd5dd50a07e544775daf0880cfbcd502c207a131f72247a1a6b308e9c6"
+  node {
+    id { counter: 1 replica: 7 }
+    node_hash: ""
+    tree { parent { counter: 4 } position: "\x80" deleted: false }
+    text { path { segments { field: 1000 } segments { field: 9 } } text: "aXYb" chars { counter: 2 replica: 7 } chars { counter: 4 replica: 2 } chars { counter: 5 replica: 2 } chars { counter: 3 replica: 7 }  runs { start: 0 length: 1 } runs { start: 1 length: 2 attributes { value { bold: true } mark { counter: 6 replica: 2 } }} runs { start: 3 length: 1 } }
+  }
+}

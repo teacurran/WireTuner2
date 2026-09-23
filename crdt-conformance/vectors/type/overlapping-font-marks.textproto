@@ -1,0 +1,49 @@
+# crdt-conformance/vectors/type/overlapping-font-marks.textproto (TYPE-004; schema: crdt-conformance/schema/vector.proto)
+name: "type/overlapping-font-marks"
+description: "Type specifications, Merge semantics, Overlap; Creating text, Marks: over \"abcdef\" replica 1 sets font A on a-d and size 12 on a-c, replica 2 font B on c-f and size 24 on b-e, replica 3 size 36 on d-f and types X between c and d.  Per character the covering mark of each attribute with the greater OpId wins (counter first: B 9:2 over A 8:1, 24 at 10:2 over 12 at 9:1 and 36 at 8:3); font and size stack.  X lies inside both font marks and both of the first two size marks (end anchors before d expand over it) but before the 36 mark's start anchor, so it reads B and 24."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Type"
+    ops { create { parent { counter: 4 } position: "\x80" props { test { label: "T" } } } }
+    ops { text_insert { node { counter: 1 replica: 7 } text { segments { field: 1000 } segments { field: 9 } } chars: "abcdef" } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 8 base_server_seq: 1 label: "Format"
+    ops { text_mark { node { counter: 1 replica: 7 } text { segments { field: 1000 } segments { field: 9 } } start { char { counter: 2 replica: 7 } before: true } end { char { counter: 6 replica: 7 } before: true } value { font_family: "A" } } }
+    ops { text_mark { node { counter: 1 replica: 7 } text { segments { field: 1000 } segments { field: 9 } } start { char { counter: 2 replica: 7 } before: true } end { char { counter: 5 replica: 7 } before: true } value { size: 12 } } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 9 base_server_seq: 1 label: "Format"
+    ops { text_mark { node { counter: 1 replica: 7 } text { segments { field: 1000 } segments { field: 9 } } start { char { counter: 4 replica: 7 } before: true } end { } value { font_family: "B" } } }
+    ops { text_mark { node { counter: 1 replica: 7 } text { segments { field: 1000 } segments { field: 9 } } start { char { counter: 3 replica: 7 } before: true } end { char { counter: 7 replica: 7 } before: true } value { size: 24 } } }
+  }
+}
+replica {
+  id: 3
+  change {
+    replica: 3 seq: 1 start_counter: 8 base_server_seq: 1 label: "Format"
+    ops { text_mark { node { counter: 1 replica: 7 } text { segments { field: 1000 } segments { field: 9 } } start { char { counter: 5 replica: 7 } before: true } end { } value { size: 36 } } }
+    ops { text_insert { node { counter: 1 replica: 7 } text { segments { field: 1000 } segments { field: 9 } } left_origin { counter: 4 replica: 7 } right_origin { counter: 5 replica: 7 } chars: "X" } }
+  }
+}
+deliveries { order: [1, 2, 3] }
+deliveries { order: [1, 3, 2] }
+deliveries { order: [2, 1, 3] }
+deliveries { order: [2, 3, 1] }
+deliveries { order: [3, 1, 2] }
+deliveries { order: [3, 2, 1] }
+expect {
+  state_hash: "67154f287d7f72008f2de0f48d777f3f6df397386ba6253641e62568ecd06145"
+  snapshot_hash: "e8823f428196873a5a2b7b922d136086ff813ef1d8a9342fc60397009dc46c55"
+  node {
+    id { counter: 1 replica: 7 }
+    node_hash: ""
+    text { path { segments { field: 1000 } segments { field: 9 } } text: "abcXdef" chars { counter: 2 replica: 7 } chars { counter: 3 replica: 7 } chars { counter: 4 replica: 7 } chars { counter: 9 replica: 3 } chars { counter: 5 replica: 7 } chars { counter: 6 replica: 7 } chars { counter: 7 replica: 7 }  runs { start: 0 length: 1 attributes { value { font_family: "A" } mark { counter: 8 replica: 1 } } attributes { value { size: 12 } mark { counter: 9 replica: 1 } }} runs { start: 1 length: 1 attributes { value { font_family: "A" } mark { counter: 8 replica: 1 } } attributes { value { size: 24 } mark { counter: 10 replica: 2 } }} runs { start: 2 length: 4 attributes { value { font_family: "B" } mark { counter: 9 replica: 2 } } attributes { value { size: 24 } mark { counter: 10 replica: 2 } }} runs { start: 6 length: 1 attributes { value { font_family: "B" } mark { counter: 9 replica: 2 } } attributes { value { size: 36 } mark { counter: 8 replica: 3 } }} }
+  }
+}

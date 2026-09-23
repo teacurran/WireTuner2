@@ -1,0 +1,48 @@
+# crdt-conformance/vectors/type/link-race.textproto (TYPE-004; schema: crdt-conformance/schema/vector.proto)
+name: "type/link-race"
+description: "Working with text blocks, Merge semantics, Link races: next_link is LWW.  Replica 1 links X to Y while replica 2 links X to Z (each writing the target's prev_link too).  X's link resolves to the greater OpId (Z, 4:2; X to Y is retained as the losing write); Y keeps prev_link = X with no reciprocal next_link, which layout reads as a chain head."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Create"
+    ops { create { parent { counter: 4 } position: "\x80" props { text { common { name: "X" } } } } }
+    ops { create { parent { counter: 4 } position: "\x90" props { text { common { name: "Y" } } } } }
+    ops { create { parent { counter: 4 } position: "\xa0" props { text { common { name: "Z" } } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 4 base_server_seq: 1 label: "Link"
+    ops { set { node { counter: 1 replica: 7 } paths { segments { field: 130 } segments { field: 4 } } values { text { next_link { id { counter: 2 replica: 7 } } } } } }
+    ops { set { node { counter: 2 replica: 7 } paths { segments { field: 130 } segments { field: 5 } } values { text { prev_link { id { counter: 1 replica: 7 } } } } } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 4 base_server_seq: 1 label: "Link"
+    ops { set { node { counter: 1 replica: 7 } paths { segments { field: 130 } segments { field: 4 } } values { text { next_link { id { counter: 3 replica: 7 } } } } } }
+    ops { set { node { counter: 3 replica: 7 } paths { segments { field: 130 } segments { field: 5 } } values { text { prev_link { id { counter: 1 replica: 7 } } } } } }
+  }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "e3b7907afb1d2f9325f218d04f849b3945fd35c596e3e30390442decc6b32fb0"
+  snapshot_hash: "094573c9830e76ff9eb8810581a3999f69e4973ae174dc2cb29f289c5ab6e327"
+  node {
+    id { counter: 1 replica: 7 }
+    node_hash: ""
+    register { path { segments { field: 130 } segments { field: 4 } } value { text { next_link { id { counter: 3 replica: 7 } } } } op { counter: 4 replica: 2 } losing { counter: 4 replica: 1 } }
+  }
+  node {
+    id { counter: 2 replica: 7 }
+    node_hash: ""
+    register { path { segments { field: 130 } segments { field: 5 } } value { text { prev_link { id { counter: 1 replica: 7 } } } } op { counter: 5 replica: 1 } }
+  }
+  node {
+    id { counter: 3 replica: 7 }
+    node_hash: ""
+    register { path { segments { field: 130 } segments { field: 5 } } value { text { prev_link { id { counter: 1 replica: 7 } } } } op { counter: 5 replica: 2 } }
+  }
+}

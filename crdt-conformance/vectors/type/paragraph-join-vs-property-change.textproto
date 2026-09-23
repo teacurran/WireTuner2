@@ -1,0 +1,51 @@
+# crdt-conformance/vectors/type/paragraph-join-vs-property-change.textproto (TYPE-004; schema: crdt-conformance/schema/vector.proto)
+name: "type/paragraph-join-vs-property-change"
+description: "Creating text, Merge semantics, Paragraphs: in \"ab\\ncd\\nef\" replica 1 joins the first two paragraphs by deleting the first newline; concurrently replica 2 sets that newline's alignment to 3 and replica 3 sets the surviving second newline's space above to 6.  The joined paragraph \"abcd\" keeps the surviving terminator's properties plus replica 3's change; replica 2's write lands on the tombstone, where its register is kept (for the review sheet's same-text row) but no live newline carries it."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Type"
+    ops { create { parent { counter: 4 } position: "\x80" props { test { label: "T" } } } }
+    ops { text_insert { node { counter: 1 replica: 7 } text { segments { field: 1000 } segments { field: 9 } } chars: "ab\ncd\nef" } }
+    ops { set { node { counter: 1 replica: 7 } paths { segments { field: 1000 } segments { field: 9 } segments { element { counter: 4 replica: 7 } } segments { field: 6 } } values { test { text { chars { paragraph { alignment: 1 } } } } } } }
+    ops { set { node { counter: 1 replica: 7 } paths { segments { field: 1000 } segments { field: 9 } segments { element { counter: 7 replica: 7 } } segments { field: 6 } } values { test { text { chars { paragraph { alignment: 1 } } } } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 12 base_server_seq: 1 label: "Delete text"
+    ops { text_delete { node { counter: 1 replica: 7 } text { segments { field: 1000 } segments { field: 9 } } ranges { first { counter: 4 replica: 7 } count: 1 } } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 12 base_server_seq: 1 label: "Align"
+    ops { set { node { counter: 1 replica: 7 } paths { segments { field: 1000 } segments { field: 9 } segments { element { counter: 4 replica: 7 } } segments { field: 6 } segments { field: 1 } } values { test { text { chars { paragraph { alignment: 3 } } } } } } }
+  }
+}
+replica {
+  id: 3
+  change {
+    replica: 3 seq: 1 start_counter: 12 base_server_seq: 1 label: "Space above"
+    ops { set { node { counter: 1 replica: 7 } paths { segments { field: 1000 } segments { field: 9 } segments { element { counter: 7 replica: 7 } } segments { field: 6 } segments { field: 7 } } values { test { text { chars { paragraph { space_above: 6 } } } } } } }
+  }
+}
+deliveries { order: [1, 2, 3] }
+deliveries { order: [1, 3, 2] }
+deliveries { order: [2, 1, 3] }
+deliveries { order: [2, 3, 1] }
+deliveries { order: [3, 1, 2] }
+deliveries { order: [3, 2, 1] }
+expect {
+  state_hash: "b5627b6ce728180b7d77fd6f569b407f7a6faf6daae844482aba443def41cc86"
+  snapshot_hash: "cc22ac4bff695c01aedf68aa99f5acb9f0ae6afa42f46f5f0d461ca0c0a4e534"
+  node {
+    id { counter: 1 replica: 7 }
+    node_hash: ""
+    register { path { segments { field: 1000 } segments { field: 9 } segments { element { counter: 4 replica: 7 } } segments { field: 6 } segments { field: 1 } } value { test { text { chars { paragraph { alignment: 3 } } } } } op { counter: 12 replica: 2 } losing { counter: 10 replica: 7 } }
+    register { path { segments { field: 1000 } segments { field: 9 } segments { element { counter: 7 replica: 7 } } segments { field: 6 } segments { field: 1 } } value { test { text { chars { paragraph { alignment: 1 } } } } } op { counter: 11 replica: 7 } }
+    register { path { segments { field: 1000 } segments { field: 9 } segments { element { counter: 7 replica: 7 } } segments { field: 6 } segments { field: 7 } } value { test { text { chars { paragraph { space_above: 6 } } } } } op { counter: 12 replica: 3 } losing { counter: 11 replica: 7 } }
+    text { path { segments { field: 1000 } segments { field: 9 } } text: "abcd\nef" chars { counter: 2 replica: 7 } chars { counter: 3 replica: 7 } chars { counter: 5 replica: 7 } chars { counter: 6 replica: 7 } chars { counter: 7 replica: 7 } chars { counter: 8 replica: 7 } chars { counter: 9 replica: 7 } deleted { counter: 4 replica: 7 } runs { start: 0 length: 7 } }
+  }
+}

@@ -1,0 +1,47 @@
+# crdt-conformance/vectors/type/replace-all-vs-inner-insert.textproto (TYPE-004; schema: crdt-conformance/schema/vector.proto)
+name: "type/replace-all-vs-inner-insert"
+description: "Editing text, Merge semantics, Replace All: in \"a colour\" replica 1 replaces \"colour\" with \"color\" (one TextDelete of the match, one TextInsert with left origin the space before it and right origin its first character, so the replacement sorts before the tombstones) while replica 2 types s after the r and replica 3 types x after \"col\".  The concurrent characters keep their origins inside the tombstones and come out after the replacement: \"a colorxs\", nothing lost."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Type"
+    ops { create { parent { counter: 4 } position: "\x80" props { test { label: "T" } } } }
+    ops { text_insert { node { counter: 1 replica: 7 } text { segments { field: 1000 } segments { field: 9 } } chars: "a colour" } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 10 base_server_seq: 1 label: "Replace all 'colour' with 'color' (1)"
+    ops { text_delete { node { counter: 1 replica: 7 } text { segments { field: 1000 } segments { field: 9 } } ranges { first { counter: 4 replica: 7 } count: 6 } } }
+    ops { text_insert { node { counter: 1 replica: 7 } text { segments { field: 1000 } segments { field: 9 } } left_origin { counter: 3 replica: 7 } right_origin { counter: 4 replica: 7 } chars: "color" } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 10 base_server_seq: 1 label: "Type"
+    ops { text_insert { node { counter: 1 replica: 7 } text { segments { field: 1000 } segments { field: 9 } } left_origin { counter: 9 replica: 7 } chars: "s" } }
+  }
+}
+replica {
+  id: 3
+  change {
+    replica: 3 seq: 1 start_counter: 10 base_server_seq: 1 label: "Type"
+    ops { text_insert { node { counter: 1 replica: 7 } text { segments { field: 1000 } segments { field: 9 } } left_origin { counter: 6 replica: 7 } right_origin { counter: 7 replica: 7 } chars: "x" } }
+  }
+}
+deliveries { order: [1, 2, 3] }
+deliveries { order: [1, 3, 2] }
+deliveries { order: [2, 1, 3] }
+deliveries { order: [2, 3, 1] }
+deliveries { order: [3, 1, 2] }
+deliveries { order: [3, 2, 1] }
+expect {
+  state_hash: "666940ab0cca005aa285d0b4829e54a82b0381e84e829debae4ad50dcc4ce2a4"
+  snapshot_hash: "f92733d537d0dc7cb4ab0c12b73cce2316c8e5b33607a00c2af59485e75b3d1a"
+  node {
+    id { counter: 1 replica: 7 }
+    node_hash: ""
+    text { path { segments { field: 1000 } segments { field: 9 } } text: "a colorxs" chars { counter: 2 replica: 7 } chars { counter: 3 replica: 7 } chars { counter: 11 replica: 1 } chars { counter: 12 replica: 1 } chars { counter: 13 replica: 1 } chars { counter: 14 replica: 1 } chars { counter: 15 replica: 1 } chars { counter: 10 replica: 3 } chars { counter: 10 replica: 2 } deleted { counter: 4 replica: 7 } deleted { counter: 5 replica: 7 } deleted { counter: 6 replica: 7 } deleted { counter: 7 replica: 7 } deleted { counter: 8 replica: 7 } deleted { counter: 9 replica: 7 } runs { start: 0 length: 9 } }
+  }
+}

@@ -1,0 +1,44 @@
+# crdt-conformance/vectors/type/link-loop.textproto (TYPE-004; schema: crdt-conformance/schema/vector.proto)
+name: "type/link-loop"
+description: "Working with text blocks, Merge semantics, Loops: replica 1 links X to Y while replica 2 links Y to X.  Both writes stand, so the merged registers form the cycle X to Y to X in every order; cutting it (the next_link of the member with the smallest node id, X, read as unset) is a read-time normalisation over these registers, the same on every replica because the registers are."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Create"
+    ops { create { parent { counter: 4 } position: "\x80" props { text { common { name: "X" } } } } }
+    ops { create { parent { counter: 4 } position: "\x90" props { text { common { name: "Y" } } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 3 base_server_seq: 1 label: "Link"
+    ops { set { node { counter: 1 replica: 7 } paths { segments { field: 130 } segments { field: 4 } } values { text { next_link { id { counter: 2 replica: 7 } } } } } }
+    ops { set { node { counter: 2 replica: 7 } paths { segments { field: 130 } segments { field: 5 } } values { text { prev_link { id { counter: 1 replica: 7 } } } } } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 3 base_server_seq: 1 label: "Link"
+    ops { set { node { counter: 2 replica: 7 } paths { segments { field: 130 } segments { field: 4 } } values { text { next_link { id { counter: 1 replica: 7 } } } } } }
+    ops { set { node { counter: 1 replica: 7 } paths { segments { field: 130 } segments { field: 5 } } values { text { prev_link { id { counter: 2 replica: 7 } } } } } }
+  }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "d7b210fc809376faa083df05eac879808a4da470f8ce86129b86c1dc07f2dd48"
+  snapshot_hash: "dcde67b4b7c110ff40ed71e6b8aff9223fed11242f64d7e497e15e99bca73221"
+  node {
+    id { counter: 1 replica: 7 }
+    node_hash: ""
+    register { path { segments { field: 130 } segments { field: 4 } } value { text { next_link { id { counter: 2 replica: 7 } } } } op { counter: 3 replica: 1 } }
+    register { path { segments { field: 130 } segments { field: 5 } } value { text { prev_link { id { counter: 2 replica: 7 } } } } op { counter: 4 replica: 2 } }
+  }
+  node {
+    id { counter: 2 replica: 7 }
+    node_hash: ""
+    register { path { segments { field: 130 } segments { field: 4 } } value { text { next_link { id { counter: 1 replica: 7 } } } } op { counter: 3 replica: 2 } }
+    register { path { segments { field: 130 } segments { field: 5 } } value { text { prev_link { id { counter: 1 replica: 7 } } } } op { counter: 4 replica: 1 } }
+  }
+}

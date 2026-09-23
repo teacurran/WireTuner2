@@ -1,0 +1,36 @@
+# crdt-conformance/vectors/type/block-delete-vs-typing-stays-deleted.textproto (TYPE-004; schema: crdt-conformance/schema/vector.proto)
+name: "type/block-delete-vs-typing-stays-deleted"
+description: "Creating text, Merge semantics, Text vs. block deletion: replica 1 deletes the block while replica 2 types into it.  With no restore the block stays deleted, but its text holds replica 2's characters (a later Restore reveals them): deleted is a register on the node and does not block edits inside it."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Type"
+    ops { create { parent { counter: 4 } position: "\x80" props { test { label: "T" } } } }
+    ops { text_insert { node { counter: 1 replica: 7 } text { segments { field: 1000 } segments { field: 9 } } chars: "ab" } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 4 base_server_seq: 1 label: "Delete"
+    ops { set_deleted { node { counter: 1 replica: 7 } deleted: true } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 4 base_server_seq: 1 label: "Type"
+    ops { text_insert { node { counter: 1 replica: 7 } text { segments { field: 1000 } segments { field: 9 } } left_origin { counter: 3 replica: 7 } chars: "cd" } }
+  }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "efc01f9d12247716ce6065f57f83598380ae41583eb4f255af5e589d9da8961f"
+  snapshot_hash: "fcb8bf8d63da54a263248d6df58f0b5959a0412f65a171cf97b6b5ed9a53980b"
+  node {
+    id { counter: 1 replica: 7 }
+    node_hash: ""
+    tree { parent { counter: 4 } position: "\x80" deleted: true }
+    text { path { segments { field: 1000 } segments { field: 9 } } text: "abcd" chars { counter: 2 replica: 7 } chars { counter: 3 replica: 7 } chars { counter: 4 replica: 2 } chars { counter: 5 replica: 2 }  runs { start: 0 length: 4 } }
+  }
+}
