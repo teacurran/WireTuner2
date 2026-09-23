@@ -7,7 +7,7 @@
 #     tools/coverage/client-coverage.sh               # test everything, then export
 #     tools/coverage/client-coverage.sh --export-only # reuse the artifacts of an earlier run
 #     tools/coverage/client-coverage.sh --gate        # ... and fail below the client gate
-#     tools/coverage/client-coverage.sh --gate-only   # gate an existing regions.json (CI)
+#     tools/coverage/client-coverage.sh --gate-only   # gate existing *.regions.json exports (CI)
 #
 # The client gate (docs/spec/decisions.adoc D-066) is 95% lines AND 95% llvm-cov *regions*:
 # Swift's coverage mapping has no branch records, and regions (each if/guard/switch arm, ?:/??
@@ -20,9 +20,9 @@
 #     client.lcov                      the merged tracefile
 #     sonar.xml                        what sonar-scanner uploads; paths relative to client/,
 #                                      the scanner's base dir (client/sonar-project.properties)
-#     client.profdata                  every package's profile and the app's, merged
-#     regions.json                     `llvm-cov export -summary-only` over client.profdata and
-#                                      every instrumented binary: the region gate's input
+#     <Package>.regions.json           `llvm-cov export -summary-only` of the package's test
+#                                      binary over its Sources: part of the region gate's input
+#     WireTuner.regions.json           the same for the app's binaries over WTApp
 #     WireTuner.xcresult               the app test result bundle
 # The app build lives in client/build/DerivedData so the .profdata is at a known path.
 set -euo pipefail
@@ -51,7 +51,7 @@ done
 # The files the gate measures: what sonar-project.properties lists as sources, nothing else.
 # Substrings of absolute paths; --relative-to drops everything outside client/.
 run_gate() {
-    swift "$root/tools/coverage/regions-gate.swift" "$out/regions.json" \
+    swift "$root/tools/coverage/regions-gate.swift" "$out"/*.regions.json \
         --relative-to "$client" \
         --exclude /.build/ --exclude /client/build/ \
         --exclude /Tests/ --exclude /WTAppTests/ --exclude /WTAppUITests/ \
@@ -60,13 +60,13 @@ run_gate() {
 }
 
 if [ "$gate_only" = true ]; then
-    test -s "$out/regions.json" || { echo "no $out/regions.json; run without --gate-only first" >&2; exit 2; }
+    ls "$out"/*.regions.json >/dev/null 2>&1 || { echo "no $out/*.regions.json; run without --gate-only first" >&2; exit 2; }
     run_gate
     exit $?
 fi
 
 mkdir -p "$out"
-rm -f "$out"/*.lcov "$out/sonar.xml" "$out/regions.json" "$out/client.profdata"
+rm -f "$out"/*.lcov "$out/sonar.xml" "$out"/*.regions.json "$out/regions-export.log"
 
 # Every (profile, binary) pair that exported, for the merged region export below.
 profiles=()
@@ -155,6 +155,7 @@ for object in "${objects[@]:1}"; do
     args+=(-object "$object")
 done
 xcrun llvm-cov export -format=lcov -instr-profile "$profdata" "${objects[0]}" "${args[@]}" > "$out/WireTuner.lcov"
+profdata_app="$profdata"
 profiles+=("$profdata")
 binaries+=("${objects[@]}")
 
@@ -165,22 +166,34 @@ swift "$root/tools/coverage/lcov-to-sonar.swift" "$out/client.lcov" "$out/sonar.
 echo "coverage report: $out/sonar.xml"
 
 # --- Regions --------------------------------------------------------------------------------
-# One profile and one export over every binary, so a source compiled into several test
-# binaries appears once with the union of their counts (the per-binary lcov files are merged
-# line by line by lcov-to-sonar instead; regions cannot be merged that way because their
-# boundaries are not in the lcov).  Functions whose hash differs between two builds of the same
-# source are reported by llvm-cov as mismatched and counted from one of them.
-xcrun llvm-profdata merge -sparse -o "$out/client.profdata" "${profiles[@]}"
+# Each source is measured by the test binary that owns it: a package's Sources by that
+# package's test binary, WTApp by the app's binaries.  One export over every binary does not
+# work: the app compiles its own copies of the package sources, llvm-cov reports those
+# functions as hash mismatches and counts them from the app's mostly unexercised copy.
+rm -f "$out"/*.regions.json
+for package in "$client"/Packages/*/; do
+    name="$(basename "$package")"
+    profdata="$package/.build/debug/codecov/default.profdata"
+    binary="$package/.build/debug/${name}PackageTests.xctest/Contents/MacOS/${name}PackageTests"
+    if [ ! -f "$profdata" ] || [ ! -x "$binary" ]; then
+        continue
+    fi
+    xcrun llvm-cov export -format=text -summary-only -instr-profile "$profdata" "$binary" \
+        "${package%/}/Sources" > "$out/$name.regions.json" 2>> "$out/regions-export.log" || {
+        cat "$out/regions-export.log" >&2
+        exit 1
+    }
+done
 args=()
-for object in "${binaries[@]:1}"; do
+for object in "${objects[@]:1}"; do
     args+=(-object "$object")
 done
-xcrun llvm-cov export -format=text -summary-only -instr-profile "$out/client.profdata" \
-    "${binaries[0]}" "${args[@]}" > "$out/regions.json" 2> "$out/regions-export.log" || {
+xcrun llvm-cov export -format=text -summary-only -instr-profile "$profdata_app" "${objects[0]}" "${args[@]}" \
+    "$client/WTApp" > "$out/WireTuner.regions.json" 2>> "$out/regions-export.log" || {
     cat "$out/regions-export.log" >&2
     exit 1
 }
-echo "region export: $out/regions.json"
+echo "region exports: $out/*.regions.json"
 
 if [ "$gate" = true ]; then
     run_gate

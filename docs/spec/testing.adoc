@@ -386,9 +386,13 @@ a `.profdata`.  `tools/coverage/client-coverage.sh` exports each binary with `ll
 -format=lcov` (Xcode's toolchain) and `tools/coverage/lcov-to-sonar.swift` converts the merged
 tracefile into Sonar's generic coverage XML, `client/build/coverage/sonar.xml`, with paths
 relative to `client/` (`lineToCover`; `coveredBranches`/`branchesToCover` whenever `BRDA`
-records exist, which for Swift they do not).  The same script merges every profile and writes
-one `llvm-cov export -format=text -summary-only` over all binaries, `regions.json`, which
-`tools/coverage/regions-gate.swift` sums into line and region coverage.  `sonar-scanner` (CLI)
+records exist, which for Swift they do not).  For regions the same script writes one
+`llvm-cov export -format=text -summary-only` per owning test binary: each package's test
+binary over that package's `Sources` (`<Package>.regions.json`) and the app's binaries over
+`WTApp` (`WireTuner.regions.json`), which `tools/coverage/regions-gate.swift` totals into line
+and region coverage.  A single export over every binary under-counts: the app compiles its own
+copies of the package sources, llvm-cov reports their functions as hash mismatches and counts
+them from the app's copy, which the app's tests barely exercise.  `sonar-scanner` (CLI)
 runs from `client/` with `client/sonar-project.properties`: `sonar.sources=Packages,WTApp` with
 `sonar.inclusions=Packages/*/Sources/**,WTApp/**`, `sonar.tests=Packages,WTAppTests,WTAppUITests`
 with the matching `sonar.test.inclusions` (the scanner takes directories, not wildcards, in
@@ -402,7 +406,7 @@ llvm-cov does not.
 fails the `verify` job below 95% of either, independently of Sonar.
 
 |Client gate in CI
-|`tools/coverage/client-coverage.sh --gate-only` runs `regions-gate.swift` over `regions.json`
+|`tools/coverage/client-coverage.sh --gate-only` runs `regions-gate.swift` over the `*.regions.json` exports
 and fails the client workflow's `sonar` job below 95% lines or 95% regions, before the upload;
 the figures and the ten files with the most uncovered regions go to the job summary.
 

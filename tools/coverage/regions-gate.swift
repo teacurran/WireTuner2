@@ -121,7 +121,8 @@ func row(_ name: String, _ counter: Counter) -> String {
 }
 
 struct Options {
-    var input = ""
+    /// One or more `llvm-cov export -summary-only` files; their file lists are concatenated.
+    var inputs: [String] = []
     var base: String?
     var excluding: [String] = []
     var minimumRegions = 95.0
@@ -167,23 +168,27 @@ func parseOptions(_ arguments: [String]) throws -> Options {
         }
         index += 1
     }
-    guard positional.count == 1 else {
-        throw GateError.usage("expected exactly one export.json")
+    guard !positional.isEmpty else {
+        throw GateError.usage("expected one or more export.json files")
     }
-    options.input = positional[0]
+    options.inputs = positional
     return options
 }
 
 func run(_ arguments: [String]) throws -> Int32 {
     let options = try parseOptions(arguments)
-    guard let data = FileManager.default.contents(atPath: options.input) else {
-        throw GateError.unreadable(options.input)
-    }
     var lines = Counter()
     var regions = Counter()
     var branches = Counter()
     var kept: [FileSummary] = []
-    for file in try parse(export: data) {
+    var files: [FileSummary] = []
+    for input in options.inputs {
+        guard let data = FileManager.default.contents(atPath: input) else {
+            throw GateError.unreadable(input)
+        }
+        files += try parse(export: data)
+    }
+    for file in files {
         guard let shown = displayPath(file.path, relativeTo: options.base) else {
             continue
         }

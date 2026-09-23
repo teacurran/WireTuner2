@@ -83,6 +83,11 @@ if swift "$gate" "$here/regions-fixture.json" "${filters[@]}" --minimum 90 --min
 fi
 grep -q 'FAIL: line coverage 96.67% is below the 97.00% gate' "$work/gate.out"
 
+# Several exports (one per owning test binary) are totalled file list by file list.
+swift "$gate" "$here/regions-fixture.json" "$here/regions-fixture.json" "${filters[@]}" --minimum 90 --summary /dev/null > "$work/gate.out"
+grep -q '^| Regions (branch gate, D-066) | 200 | 220 | 90.91% |$' "$work/gate.out"
+grep -q '(llvm-cov, 4 files)' "$work/gate.out"
+
 # Everything filtered out is a failure, not a vacuous pass.
 if swift "$gate" "$here/regions-fixture.json" --relative-to /nowhere --summary /dev/null > "$work/gate.out"; then
     echo "expected an empty file set to fail" >&2

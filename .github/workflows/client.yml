@@ -78,8 +78,8 @@ jobs:
             CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO \
             | tee client/build/xcodebuild-test.log | grep -E '^(Test Suite|Test Case|\*\*|Executed|error:)'
 
-      # Writes sonar.xml (lcov -> Sonar generic XML, lines) and regions.json (the merged
-      # llvm-cov summary export the region gate reads in the sonar job).
+      # Writes sonar.xml (lcov -> Sonar generic XML, lines) and *.regions.json (one llvm-cov
+      # summary export per owning test binary, which the region gate totals in the sonar job).
       - name: Metal parity must run (REND-007)
         run: |
           cd client/Packages/WTRender
@@ -97,7 +97,7 @@ jobs:
           path: |
             client/build/coverage/sonar.xml
             client/build/coverage/client.lcov
-            client/build/coverage/regions.json
+            client/build/coverage/*.regions.json
           if-no-files-found: error
           retention-days: 2
 
