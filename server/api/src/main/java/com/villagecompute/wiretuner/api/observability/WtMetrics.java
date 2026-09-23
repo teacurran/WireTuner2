@@ -56,6 +56,16 @@ public class WtMetrics {
         registry.counter("wt.rate.limited").increment();
     }
 
+    /**
+     * One data-service call ended (DATA-008): {@code wt_data_fetches_total} by kind (source, script, asset)
+     * and status ({@code OK}, {@code CANCELLED} or the error reason), and {@code wt_data_fetch_bytes_total}
+     * by kind, the upstream bytes it received.
+     */
+    public void dataFetch(String kind, String status, long bytes) {
+        registry.counter("wt.data.fetches", "kind", kind, "status", status).increment();
+        registry.counter("wt.data.fetch.bytes", "kind", kind).increment(bytes);
+    }
+
     /** One accepted change's ingest time, from the call's turn in its replica's queue to the commit. */
     public void ingest(long nanos) {
         Timer.builder("wt.ingest").publishPercentileHistogram().register(registry).record(nanos, TimeUnit.NANOSECONDS);

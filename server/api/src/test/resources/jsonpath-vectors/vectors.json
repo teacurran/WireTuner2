@@ -1,0 +1,467 @@
+{
+  "description": "JSONPath subset vectors shared by the server's data service (DATA-009, JsonPath/JsonTree) and the client's JSON reader (DATA-004). Documents are JSON text so number source text survives. `matches` lists every match as compact JSON (no whitespace, members in source order, numbers as their source text, strings escaping only quote, backslash and control characters); `error` names the refusal kind. In `records`, each record maps a requested path to its text value: strings unquoted, numbers as source text, booleans true/false, null and missing absent, objects and arrays compact JSON, indefinite paths a compact JSON array of their matches. See docs/_includes/automation/data-merge.adoc, Pagination engine and extraction.",
+  "paths": [
+    {
+      "name": "empty path is the root",
+      "document": "[1, 2]",
+      "path": "",
+      "matches": [
+        "[1,2]"
+      ]
+    },
+    {
+      "name": "dollar is the root",
+      "document": "{ \"a\" : 1 }",
+      "path": "$",
+      "matches": [
+        "{\"a\":1}"
+      ]
+    },
+    {
+      "name": "dot member",
+      "document": "{\"store\":{\"book\":[{\"category\":\"reference\",\"author\":\"Nigel Rees\",\"title\":\"Sayings of the Century\",\"price\":8.95},{\"category\":\"fiction\",\"author\":\"Evelyn Waugh\",\"title\":\"Sword of Honour\",\"price\":12.990,\"isbn\":null},{\"category\":\"fiction\",\"author\":\"Herman Melville\",\"title\":\"Moby Dick\",\"isbn\":\"0-553-21311-3\",\"price\":8.99,\"tags\":[\"sea\",\"whale\"]}],\"bicycle\":{\"color\":\"red\",\"price\":1.995e1,\"in-stock\":true,\"spec.sheet\":{\"gears\":21}}}}",
+      "path": "$.store.bicycle.color",
+      "matches": [
+        "\"red\""
+      ]
+    },
+    {
+      "name": "number keeps its source text",
+      "document": "{\"store\":{\"book\":[{\"category\":\"reference\",\"author\":\"Nigel Rees\",\"title\":\"Sayings of the Century\",\"price\":8.95},{\"category\":\"fiction\",\"author\":\"Evelyn Waugh\",\"title\":\"Sword of Honour\",\"price\":12.990,\"isbn\":null},{\"category\":\"fiction\",\"author\":\"Herman Melville\",\"title\":\"Moby Dick\",\"isbn\":\"0-553-21311-3\",\"price\":8.99,\"tags\":[\"sea\",\"whale\"]}],\"bicycle\":{\"color\":\"red\",\"price\":1.995e1,\"in-stock\":true,\"spec.sheet\":{\"gears\":21}}}}",
+      "path": "$.store.bicycle.price",
+      "matches": [
+        "1.995e1"
+      ]
+    },
+    {
+      "name": "trailing zero kept",
+      "document": "{\"store\":{\"book\":[{\"category\":\"reference\",\"author\":\"Nigel Rees\",\"title\":\"Sayings of the Century\",\"price\":8.95},{\"category\":\"fiction\",\"author\":\"Evelyn Waugh\",\"title\":\"Sword of Honour\",\"price\":12.990,\"isbn\":null},{\"category\":\"fiction\",\"author\":\"Herman Melville\",\"title\":\"Moby Dick\",\"isbn\":\"0-553-21311-3\",\"price\":8.99,\"tags\":[\"sea\",\"whale\"]}],\"bicycle\":{\"color\":\"red\",\"price\":1.995e1,\"in-stock\":true,\"spec.sheet\":{\"gears\":21}}}}",
+      "path": "$.store.book[1].price",
+      "matches": [
+        "12.990"
+      ]
+    },
+    {
+      "name": "dash in dot name",
+      "document": "{\"store\":{\"book\":[{\"category\":\"reference\",\"author\":\"Nigel Rees\",\"title\":\"Sayings of the Century\",\"price\":8.95},{\"category\":\"fiction\",\"author\":\"Evelyn Waugh\",\"title\":\"Sword of Honour\",\"price\":12.990,\"isbn\":null},{\"category\":\"fiction\",\"author\":\"Herman Melville\",\"title\":\"Moby Dick\",\"isbn\":\"0-553-21311-3\",\"price\":8.99,\"tags\":[\"sea\",\"whale\"]}],\"bicycle\":{\"color\":\"red\",\"price\":1.995e1,\"in-stock\":true,\"spec.sheet\":{\"gears\":21}}}}",
+      "path": "$.store.bicycle.in-stock",
+      "matches": [
+        "true"
+      ]
+    },
+    {
+      "name": "quoted member with a dot",
+      "document": "{\"store\":{\"book\":[{\"category\":\"reference\",\"author\":\"Nigel Rees\",\"title\":\"Sayings of the Century\",\"price\":8.95},{\"category\":\"fiction\",\"author\":\"Evelyn Waugh\",\"title\":\"Sword of Honour\",\"price\":12.990,\"isbn\":null},{\"category\":\"fiction\",\"author\":\"Herman Melville\",\"title\":\"Moby Dick\",\"isbn\":\"0-553-21311-3\",\"price\":8.99,\"tags\":[\"sea\",\"whale\"]}],\"bicycle\":{\"color\":\"red\",\"price\":1.995e1,\"in-stock\":true,\"spec.sheet\":{\"gears\":21}}}}",
+      "path": "$.store.bicycle['spec.sheet'].gears",
+      "matches": [
+        "21"
+      ]
+    },
+    {
+      "name": "double-quoted member",
+      "document": "{\"store\":{\"book\":[{\"category\":\"reference\",\"author\":\"Nigel Rees\",\"title\":\"Sayings of the Century\",\"price\":8.95},{\"category\":\"fiction\",\"author\":\"Evelyn Waugh\",\"title\":\"Sword of Honour\",\"price\":12.990,\"isbn\":null},{\"category\":\"fiction\",\"author\":\"Herman Melville\",\"title\":\"Moby Dick\",\"isbn\":\"0-553-21311-3\",\"price\":8.99,\"tags\":[\"sea\",\"whale\"]}],\"bicycle\":{\"color\":\"red\",\"price\":1.995e1,\"in-stock\":true,\"spec.sheet\":{\"gears\":21}}}}",
+      "path": "$[\"store\"][\"bicycle\"][\"color\"]",
+      "matches": [
+        "\"red\""
+      ]
+    },
+    {
+      "name": "escaped quote in a quoted member",
+      "document": "{\"it's\":1,\"a\\\"b\":2,\"back\\\\slash\":3}",
+      "path": "$['it\\'s']",
+      "matches": [
+        "1"
+      ]
+    },
+    {
+      "name": "escaped double quote",
+      "document": "{\"a\\\"b\":2}",
+      "path": "$[\"a\\\"b\"]",
+      "matches": [
+        "2"
+      ]
+    },
+    {
+      "name": "escaped backslash",
+      "document": "{\"back\\\\slash\":3}",
+      "path": "$['back\\\\slash']",
+      "matches": [
+        "3"
+      ]
+    },
+    {
+      "name": "index",
+      "document": "{\"store\":{\"book\":[{\"category\":\"reference\",\"author\":\"Nigel Rees\",\"title\":\"Sayings of the Century\",\"price\":8.95},{\"category\":\"fiction\",\"author\":\"Evelyn Waugh\",\"title\":\"Sword of Honour\",\"price\":12.990,\"isbn\":null},{\"category\":\"fiction\",\"author\":\"Herman Melville\",\"title\":\"Moby Dick\",\"isbn\":\"0-553-21311-3\",\"price\":8.99,\"tags\":[\"sea\",\"whale\"]}],\"bicycle\":{\"color\":\"red\",\"price\":1.995e1,\"in-stock\":true,\"spec.sheet\":{\"gears\":21}}}}",
+      "path": "$.store.book[2].title",
+      "matches": [
+        "\"Moby Dick\""
+      ]
+    },
+    {
+      "name": "index past the end matches nothing",
+      "document": "{\"store\":{\"book\":[{\"category\":\"reference\",\"author\":\"Nigel Rees\",\"title\":\"Sayings of the Century\",\"price\":8.95},{\"category\":\"fiction\",\"author\":\"Evelyn Waugh\",\"title\":\"Sword of Honour\",\"price\":12.990,\"isbn\":null},{\"category\":\"fiction\",\"author\":\"Herman Melville\",\"title\":\"Moby Dick\",\"isbn\":\"0-553-21311-3\",\"price\":8.99,\"tags\":[\"sea\",\"whale\"]}],\"bicycle\":{\"color\":\"red\",\"price\":1.995e1,\"in-stock\":true,\"spec.sheet\":{\"gears\":21}}}}",
+      "path": "$.store.book[3]",
+      "matches": []
+    },
+    {
+      "name": "index on an object matches nothing",
+      "document": "{\"store\":{\"book\":[{\"category\":\"reference\",\"author\":\"Nigel Rees\",\"title\":\"Sayings of the Century\",\"price\":8.95},{\"category\":\"fiction\",\"author\":\"Evelyn Waugh\",\"title\":\"Sword of Honour\",\"price\":12.990,\"isbn\":null},{\"category\":\"fiction\",\"author\":\"Herman Melville\",\"title\":\"Moby Dick\",\"isbn\":\"0-553-21311-3\",\"price\":8.99,\"tags\":[\"sea\",\"whale\"]}],\"bicycle\":{\"color\":\"red\",\"price\":1.995e1,\"in-stock\":true,\"spec.sheet\":{\"gears\":21}}}}",
+      "path": "$.store[0]",
+      "matches": []
+    },
+    {
+      "name": "member on an array matches nothing",
+      "document": "{\"store\":{\"book\":[{\"category\":\"reference\",\"author\":\"Nigel Rees\",\"title\":\"Sayings of the Century\",\"price\":8.95},{\"category\":\"fiction\",\"author\":\"Evelyn Waugh\",\"title\":\"Sword of Honour\",\"price\":12.990,\"isbn\":null},{\"category\":\"fiction\",\"author\":\"Herman Melville\",\"title\":\"Moby Dick\",\"isbn\":\"0-553-21311-3\",\"price\":8.99,\"tags\":[\"sea\",\"whale\"]}],\"bicycle\":{\"color\":\"red\",\"price\":1.995e1,\"in-stock\":true,\"spec.sheet\":{\"gears\":21}}}}",
+      "path": "$.store.book.title",
+      "matches": []
+    },
+    {
+      "name": "missing member matches nothing",
+      "document": "{\"store\":{\"book\":[{\"category\":\"reference\",\"author\":\"Nigel Rees\",\"title\":\"Sayings of the Century\",\"price\":8.95},{\"category\":\"fiction\",\"author\":\"Evelyn Waugh\",\"title\":\"Sword of Honour\",\"price\":12.990,\"isbn\":null},{\"category\":\"fiction\",\"author\":\"Herman Melville\",\"title\":\"Moby Dick\",\"isbn\":\"0-553-21311-3\",\"price\":8.99,\"tags\":[\"sea\",\"whale\"]}],\"bicycle\":{\"color\":\"red\",\"price\":1.995e1,\"in-stock\":true,\"spec.sheet\":{\"gears\":21}}}}",
+      "path": "$.store.car",
+      "matches": []
+    },
+    {
+      "name": "null member matches null",
+      "document": "{\"store\":{\"book\":[{\"category\":\"reference\",\"author\":\"Nigel Rees\",\"title\":\"Sayings of the Century\",\"price\":8.95},{\"category\":\"fiction\",\"author\":\"Evelyn Waugh\",\"title\":\"Sword of Honour\",\"price\":12.990,\"isbn\":null},{\"category\":\"fiction\",\"author\":\"Herman Melville\",\"title\":\"Moby Dick\",\"isbn\":\"0-553-21311-3\",\"price\":8.99,\"tags\":[\"sea\",\"whale\"]}],\"bicycle\":{\"color\":\"red\",\"price\":1.995e1,\"in-stock\":true,\"spec.sheet\":{\"gears\":21}}}}",
+      "path": "$.store.book[1].isbn",
+      "matches": [
+        "null"
+      ]
+    },
+    {
+      "name": "wildcard on an array",
+      "document": "{\"store\":{\"book\":[{\"category\":\"reference\",\"author\":\"Nigel Rees\",\"title\":\"Sayings of the Century\",\"price\":8.95},{\"category\":\"fiction\",\"author\":\"Evelyn Waugh\",\"title\":\"Sword of Honour\",\"price\":12.990,\"isbn\":null},{\"category\":\"fiction\",\"author\":\"Herman Melville\",\"title\":\"Moby Dick\",\"isbn\":\"0-553-21311-3\",\"price\":8.99,\"tags\":[\"sea\",\"whale\"]}],\"bicycle\":{\"color\":\"red\",\"price\":1.995e1,\"in-stock\":true,\"spec.sheet\":{\"gears\":21}}}}",
+      "path": "$.store.book[*].author",
+      "matches": [
+        "\"Nigel Rees\"",
+        "\"Evelyn Waugh\"",
+        "\"Herman Melville\""
+      ]
+    },
+    {
+      "name": "wildcard on an object, in source order",
+      "document": "{\"store\":{\"book\":[{\"category\":\"reference\",\"author\":\"Nigel Rees\",\"title\":\"Sayings of the Century\",\"price\":8.95},{\"category\":\"fiction\",\"author\":\"Evelyn Waugh\",\"title\":\"Sword of Honour\",\"price\":12.990,\"isbn\":null},{\"category\":\"fiction\",\"author\":\"Herman Melville\",\"title\":\"Moby Dick\",\"isbn\":\"0-553-21311-3\",\"price\":8.99,\"tags\":[\"sea\",\"whale\"]}],\"bicycle\":{\"color\":\"red\",\"price\":1.995e1,\"in-stock\":true,\"spec.sheet\":{\"gears\":21}}}}",
+      "path": "$.store.bicycle[*]",
+      "matches": [
+        "\"red\"",
+        "1.995e1",
+        "true",
+        "{\"gears\":21}"
+      ]
+    },
+    {
+      "name": "wildcard on a scalar matches nothing",
+      "document": "{\"store\":{\"book\":[{\"category\":\"reference\",\"author\":\"Nigel Rees\",\"title\":\"Sayings of the Century\",\"price\":8.95},{\"category\":\"fiction\",\"author\":\"Evelyn Waugh\",\"title\":\"Sword of Honour\",\"price\":12.990,\"isbn\":null},{\"category\":\"fiction\",\"author\":\"Herman Melville\",\"title\":\"Moby Dick\",\"isbn\":\"0-553-21311-3\",\"price\":8.99,\"tags\":[\"sea\",\"whale\"]}],\"bicycle\":{\"color\":\"red\",\"price\":1.995e1,\"in-stock\":true,\"spec.sheet\":{\"gears\":21}}}}",
+      "path": "$.store.bicycle.color[*]",
+      "matches": []
+    },
+    {
+      "name": "descendant member, document order",
+      "document": "{\"store\":{\"book\":[{\"category\":\"reference\",\"author\":\"Nigel Rees\",\"title\":\"Sayings of the Century\",\"price\":8.95},{\"category\":\"fiction\",\"author\":\"Evelyn Waugh\",\"title\":\"Sword of Honour\",\"price\":12.990,\"isbn\":null},{\"category\":\"fiction\",\"author\":\"Herman Melville\",\"title\":\"Moby Dick\",\"isbn\":\"0-553-21311-3\",\"price\":8.99,\"tags\":[\"sea\",\"whale\"]}],\"bicycle\":{\"color\":\"red\",\"price\":1.995e1,\"in-stock\":true,\"spec.sheet\":{\"gears\":21}}}}",
+      "path": "$..price",
+      "matches": [
+        "8.95",
+        "12.990",
+        "8.99",
+        "1.995e1"
+      ]
+    },
+    {
+      "name": "descendant includes the node itself",
+      "document": "{\"a\":{\"a\":1}}",
+      "path": "$..a",
+      "matches": [
+        "{\"a\":1}",
+        "1"
+      ]
+    },
+    {
+      "name": "descendant then index",
+      "document": "{\"store\":{\"book\":[{\"category\":\"reference\",\"author\":\"Nigel Rees\",\"title\":\"Sayings of the Century\",\"price\":8.95},{\"category\":\"fiction\",\"author\":\"Evelyn Waugh\",\"title\":\"Sword of Honour\",\"price\":12.990,\"isbn\":null},{\"category\":\"fiction\",\"author\":\"Herman Melville\",\"title\":\"Moby Dick\",\"isbn\":\"0-553-21311-3\",\"price\":8.99,\"tags\":[\"sea\",\"whale\"]}],\"bicycle\":{\"color\":\"red\",\"price\":1.995e1,\"in-stock\":true,\"spec.sheet\":{\"gears\":21}}}}",
+      "path": "$..tags[1]",
+      "matches": [
+        "\"whale\""
+      ]
+    },
+    {
+      "name": "bare name is one member",
+      "document": "{\"first name\":\"Ann\",\"$x\":1}",
+      "path": "first name",
+      "matches": [
+        "\"Ann\""
+      ]
+    },
+    {
+      "name": "names may contain $ and non-ASCII",
+      "document": "{\"prénom\":\"Zoé\",\"a$b\":2}",
+      "path": "$.prénom",
+      "matches": [
+        "\"Zoé\""
+      ]
+    },
+    {
+      "name": "names mix upper and lower case, digits, _ and $",
+      "document": "{\"Ab_9$\":1}",
+      "path": "$.Ab_9$",
+      "matches": [
+        "1"
+      ]
+    },
+    {
+      "name": "strings escape only quote, backslash and controls",
+      "document": "{\"s\":\"a\\\"b\\\\c\\/d\\u0001\\n\\t\\b\\f\\ré \"}",
+      "path": "$.s",
+      "matches": [
+        "\"a\\\"b\\\\c/d\\u0001\\n\\t\\b\\f\\ré \""
+      ]
+    },
+    {
+      "name": "compact objects keep member order",
+      "document": "{ \"z\" : [ 1 , { \"y\" : false , \"x\" : null } ] }",
+      "path": "$",
+      "matches": [
+        "{\"z\":[1,{\"y\":false,\"x\":null}]}"
+      ]
+    },
+    {
+      "name": "filter refused",
+      "path": "$.store.book[?(@.price < 10)]",
+      "error": "filter"
+    },
+    {
+      "name": "script refused",
+      "path": "$.store.book[(@.length-1)]",
+      "error": "script"
+    },
+    {
+      "name": "slice refused",
+      "path": "$.store.book[0:2]",
+      "error": "slice"
+    },
+    {
+      "name": "open slice refused",
+      "path": "$.store.book[:2]",
+      "error": "slice"
+    },
+    {
+      "name": "union refused",
+      "path": "$.store.book[0,1]",
+      "error": "union"
+    },
+    {
+      "name": "quoted union refused",
+      "path": "$['a','b']",
+      "error": "union"
+    },
+    {
+      "name": "negative index refused",
+      "path": "$.store.book[-1]",
+      "error": "negative_index"
+    },
+    {
+      "name": "leading zero refused",
+      "path": "$.a[01]",
+      "error": "syntax"
+    },
+    {
+      "name": "empty brackets refused",
+      "path": "$.a[]",
+      "error": "syntax"
+    },
+    {
+      "name": "unterminated bracket refused",
+      "path": "$.a[",
+      "error": "syntax"
+    },
+    {
+      "name": "unclosed index refused",
+      "path": "$.a[0",
+      "error": "syntax"
+    },
+    {
+      "name": "unterminated quote refused",
+      "path": "$['a",
+      "error": "syntax"
+    },
+    {
+      "name": "unknown escape refused",
+      "path": "$['a\\n']",
+      "error": "syntax"
+    },
+    {
+      "name": "missing name after dot refused",
+      "path": "$.",
+      "error": "syntax"
+    },
+    {
+      "name": "missing name after dots refused",
+      "path": "$..",
+      "error": "syntax"
+    },
+    {
+      "name": "dot wildcard is not in the subset",
+      "path": "$.*",
+      "error": "syntax"
+    },
+    {
+      "name": "text after the root refused",
+      "path": "$a",
+      "error": "syntax"
+    },
+    {
+      "name": "space refused",
+      "path": "$.a b",
+      "error": "syntax"
+    },
+    {
+      "name": "a character outside the name set refused",
+      "path": "$.a~",
+      "error": "syntax"
+    },
+    {
+      "name": "index too long refused",
+      "path": "$.a[1234567890]",
+      "error": "syntax"
+    }
+  ],
+  "records": [
+    {
+      "name": "records path to an array reads its elements",
+      "document": "{\"data\":[{\"id\":1,\"name\":\"Ann\"},{\"id\":2,\"name\":\"Bo\"}],\"next\":null}",
+      "records_path": "$.data",
+      "paths": [
+        "$.id",
+        "name",
+        "$.missing"
+      ],
+      "records": [
+        {
+          "$.id": "1",
+          "name": "Ann"
+        },
+        {
+          "$.id": "2",
+          "name": "Bo"
+        }
+      ]
+    },
+    {
+      "name": "wildcard records path",
+      "document": "{\"data\":[{\"id\":1},{\"id\":2}]}",
+      "records_path": "$.data[*]",
+      "paths": [
+        "$.id"
+      ],
+      "records": [
+        {
+          "$.id": "1"
+        },
+        {
+          "$.id": "2"
+        }
+      ]
+    },
+    {
+      "name": "empty records path reads the root array",
+      "document": "[{\"a\":true},{\"a\":false},{\"a\":null}]",
+      "records_path": "",
+      "paths": [
+        "$.a"
+      ],
+      "records": [
+        {
+          "$.a": "true"
+        },
+        {
+          "$.a": "false"
+        },
+        {}
+      ]
+    },
+    {
+      "name": "a root object is one record",
+      "document": "{\"a\":\"x\"}",
+      "records_path": "",
+      "paths": [
+        "$.a",
+        "$"
+      ],
+      "records": [
+        {
+          "$.a": "x",
+          "$": "{\"a\":\"x\"}"
+        }
+      ]
+    },
+    {
+      "name": "records under a descendant path",
+      "document": "{\"a\":{\"item\":{\"v\":1}},\"b\":[{\"item\":{\"v\":2}}]}",
+      "records_path": "$..item",
+      "paths": [
+        "$.v"
+      ],
+      "records": [
+        {
+          "$.v": "1"
+        },
+        {
+          "$.v": "2"
+        }
+      ]
+    },
+    {
+      "name": "nested objects and arrays render as compact JSON",
+      "document": "[{\"o\":{\"k\":[1, 2.50, \"s\"]},\"arr\":[ ]}]",
+      "records_path": "",
+      "paths": [
+        "$.o",
+        "$.arr",
+        "$.o.k[1]"
+      ],
+      "records": [
+        {
+          "$.o": "{\"k\":[1,2.50,\"s\"]}",
+          "$.arr": "[]",
+          "$.o.k[1]": "2.50"
+        }
+      ]
+    },
+    {
+      "name": "indefinite paths render their matches as an array",
+      "document": "[{\"tags\":[{\"n\":\"a\"},{\"n\":\"b\"}]},{\"tags\":[]}]",
+      "records_path": "",
+      "paths": [
+        "$.tags[*].n"
+      ],
+      "records": [
+        {
+          "$.tags[*].n": "[\"a\",\"b\"]"
+        },
+        {}
+      ]
+    },
+    {
+      "name": "indefinite path keeps nulls inside its array",
+      "document": "[{\"xs\":[1,null]}]",
+      "records_path": "",
+      "paths": [
+        "$.xs[*]"
+      ],
+      "records": [
+        {
+          "$.xs[*]": "[1,null]"
+        }
+      ]
+    },
+    {
+      "name": "a records path matching nothing yields no records",
+      "document": "{\"data\":[]}",
+      "records_path": "$.items",
+      "paths": [
+        "$.a"
+      ],
+      "records": []
+    }
+  ]
+}

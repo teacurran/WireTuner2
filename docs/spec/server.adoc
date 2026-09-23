@@ -73,7 +73,7 @@ importing doc.v1 from the `wt-crdt` jar, and replays every vector in `Conformanc
 |`VersionService` |`VersionGrpcService` |Named versions, restore-as-copy.
 |`BlobService` |`BlobGrpcService` |Content-addressed storage in R2/MinIO.
 |`AccountService`, `TeamService` |`AccountGrpcService`, `TeamGrpcService` |xref:security.adoc[Accounts, teams and security].
-|`DataSourceService` |`DataSourceGrpcService` |Credentials, host allowlists, the server-side fetch proxy with SSRF guard, pagination and audit (xref:data-merge.adoc[Data merge]).
+|`DataSourceService` |`DataSourceGrpcService` |Credentials, host allowlists, the server-side fetch proxy with SSRF guard, pagination and audit (xref:data-merge.adoc[Data merge]; as built in `api/.../data`, xref:data-merge.adoc#as-built-server[As built]).  The server's only outbound HTTP client (`Egress`).
 |`grpc.health.v1.Health` |built-in |Liveness for compose and the load balancer.
 |===
 
@@ -150,6 +150,7 @@ Postgres holds the truth; object storage holds bulk.
 |`branch` |Child document id, parent document id, fork `server_seq`, merged at.
 |`version` |`(document_id, server_seq)`, name, author, created.
 |`blob`, `document_blob` |sha256, size, media type, storage key (`blobs/<first byte>/<sha256>`), `tag` the blob was first uploaded with (`content` or `thumbnail`); references per document.  A thumbnail upload sets `document.thumbnail_blob` and adds no reference.
+|`data_credential`, `data_allowed_host`, `data_fetch_audit` |V8 (DATA-005, DATA-007, DATA-008): the data service's envelope-encrypted credentials, permitted hosts and fetch audit trail, each in a team XOR one account's personal space (xref:data-merge.adoc#as-built-server[Data merge], As built).
 |`account`, `account_identity`, `device`, `team`, `team_member`, `team_invite`, `workspace`, `workspace_domain` |xref:security.adoc[Accounts, teams and security].  V7 adds `workspace_domain.checked_at` and `failed_checks` for the Domains job.
 |===
 
@@ -241,8 +242,8 @@ As built (SRV-004, SRV-005; `api/.../sync`):
 |Trash |daily |Delete documents trashed over 30 days ago and their orphaned blobs.
 |Invitations |daily |Expire stale invitations and share links.
 |Domains |hourly |Re-verify workspace DNS records.
-|Credential key rotation |on demand |Re-wrap `data_credential` rows under a new master key (DATA-005).
-|Fetch audit retention |daily |Drop `data_fetch_audit` rows older than 90 days.
+|Credential key rotation |2 min after start, then daily |Re-wrap the data key of every `data_credential` row wrapped with another master key than the current one (DATA-005); a no-op once every row is current.
+|Fetch audit retention |daily |Drop `data_fetch_audit` rows older than 90 days (DATA-008).
 |===
 
 Jobs use `quarkus-scheduler` with a Postgres advisory lock per job so only one node runs each.

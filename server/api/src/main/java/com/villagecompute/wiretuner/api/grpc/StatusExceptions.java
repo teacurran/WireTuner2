@@ -106,6 +106,24 @@ public final class StatusExceptions {
                 "host " + host + " is not in the scope's allowlist", Map.of("host", host));
     }
 
+    /**
+     * {@code PERMISSION_DENIED / HOST_NOT_ALLOWED} for a team scope: the host and the team's admins to ask
+     * ({@code admins} metadata, display names joined by ", ").
+     */
+    public static StatusRuntimeException hostNotAllowed(String host, String admins) {
+        return withReason(Code.PERMISSION_DENIED, ErrorReasons.HOST_NOT_ALLOWED,
+                "host " + host + " is not in the team's allowlist; ask " + admins, Map.of("host", host, "admins", admins));
+    }
+
+    /**
+     * {@code PERMISSION_DENIED / HOST_NOT_ALLOWED} for a host the server refuses whatever the allowlist says:
+     * it resolves to a blocked address, a redirect leaves it, or a credential is bound to another host.
+     */
+    public static StatusRuntimeException hostRefused(String host, String why) {
+        return withReason(Code.PERMISSION_DENIED, ErrorReasons.HOST_NOT_ALLOWED, "host " + host + ": " + why,
+                Map.of("host", host));
+    }
+
     /** {@code FAILED_PRECONDITION / CREDENTIAL_MISSING}: the source names a credential the scope does not hold. */
     public static StatusRuntimeException credentialMissing(String credential) {
         return withReason(Code.FAILED_PRECONDITION, ErrorReasons.CREDENTIAL_MISSING,
@@ -122,6 +140,11 @@ public final class StatusExceptions {
     public static StatusRuntimeException upstreamError(int upstreamStatus) {
         return withReason(Code.UNAVAILABLE, ErrorReasons.UPSTREAM_ERROR,
                 "the upstream API answered " + upstreamStatus, Map.of("upstream_status", Integer.toString(upstreamStatus)));
+    }
+
+    /** {@code UNAVAILABLE / UPSTREAM_ERROR} without an upstream status: no answer (resolution, connection, timeout, format). */
+    public static StatusRuntimeException upstreamFailed(String description) {
+        return withReason(Code.UNAVAILABLE, ErrorReasons.UPSTREAM_ERROR, description, Map.of());
     }
 
     /**

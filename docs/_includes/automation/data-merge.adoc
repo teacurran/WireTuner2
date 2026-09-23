@@ -1061,6 +1061,156 @@ for any document RPC; the scope (team or owner account) is derived from the docu
 shared personal document lets its editors fetch with the owner's credentials for as long as the
 share lasts, and the audit names who did.
 
+[[as-built-server]]
+==== As built (DATA-002, DATA-005 to DATA-009)
+
+The proto is `proto/wiretuner/data/v1/data.proto` (every message and field carries its comment);
+the server is `+server/api/.../api/data+`.  Where it differs from the sketches above:
+
+Schema (DATA-002)::
+* One `Scope` message (a `oneof` of `team_id` and `account_id`, required) replaces
+  `CredentialScope` and serves credentials, hosts and the audit alike.  `ListCredentials` and
+  `ListAllowedHosts` take `document_id` *instead of* a scope (CEL: exactly one), so an editor who
+  is neither the owner nor a team admin -- the collaborator on a shared personal document -- can
+  read the names the document's sources may use.  Team scope reads are open to any team member,
+  a guest included; writes need the team `admin` or `owner` role (`ROLE_INSUFFICIENT`; a
+  non-member gets `TEAM_NOT_FOUND`); an account scope is the account's own (`SPACE_NOT_FOUND`
+  for anyone else's).
+* Metadata messages: `Credential` (name, kind, host, creator id and name, `created_at`,
+  `rotated_at` = when the secret was last replaced), `AllowedHost`, `FetchAuditEntry` with a
+  `FetchKind` (`SOURCE`, `SCRIPT`, `ASSET`), and `FetchProgress` (page number, bytes, records so
+  far).  Deletes answer `deleted`; lists page with opaque cursors (`page_size` <= 50).
+* `PutCredentialRequest` has one CEL rule per kind (the fields that kind takes, and no others);
+  `token`, `password`, `header_value` and `client_secret` are marked `debug_redact`.  The server
+  logs every data-service request at DEBUG through `Redaction`, which prints those fields as
+  `<redacted>` (there is no general logging interceptor to annotate for; the redaction is keyed
+  on the proto option, so a future one reuses it).
+* `ProxyRequest` gains `timeout_s` (0 reads 30, at most 120); `method` is one of the five
+  listed; URLs everywhere are `https` by pattern.  `FetchRequest` requires a non-empty
+  `source.url` (doc.v1's rule ignores an empty one).  `ListFetchAuditRequest` filters by
+  document, host and account.  `FetchAsset` is unary as sketched (the blob comes back through
+  `BlobService`).  The four error reasons already existed in `sync.v1.ErrorReason`.
+* `HOST_NOT_ALLOWED` carries `host` in its `ErrorInfo` metadata and, for a team, `admins` (the
+  owner's and admins' display names, else emails, joined by ", ").  A host refused for its
+  addresses, a redirect that leaves the host, and a credential sent elsewhere use the same
+  reason with only `host`.
+
+Secret store (DATA-005)::
+* `data_credential` keeps the wrapped data key in its own column, `wrapped_key`, beside
+  `ciphertext` (12-byte nonce, then the AES-256-GCM output); rotation rewrites `wrapped_key` and
+  `key_id` only.  The secret is sealed with the scope and name as associated data, so a
+  ciphertext copied to another row does not open.  Putting an existing name replaces the secret,
+  kind and host and keeps the row, its creator and `created_at`.
+* `WT_DATA_MASTER_KEY` (`wt.data.master-key`) is comma-separated `id:base64` 32-byte keys, the
+  first current and the rest kept to unwrap rows not yet rotated.  No KMS integration yet: a KMS
+  key would replace the `MasterKeys` bean.  Without a key, `PutCredential` fails (`INTERNAL`).
+* The *Credential key rotation* job runs two minutes after start and daily (not on demand):
+  rotating is putting a new key first in the variable and keeping the old one until the job has
+  run; with every row under the current key it does nothing.
+
+Fetch proxy and SSRF guard (DATA-006)::
+* The client is the Vert.x core `HttpClient`, not `quarkus-rest-client`: pinning needs
+  `RequestOptions.setServer` (connect to the checked address while SNI, certificate
+  verification and `Host` use the name), which the REST client does not expose.  Names resolve
+  through one configured resolver, as workspace domains do (`+wt.data.dns.*+`, defaulting to
+  `+wt.dns.*+`), A and AAAA, once per call per host.
+* Blocked, beyond the list above: `0.0.0.0/8`, the IETF, documentation, benchmarking and
+  6to4-relay IPv4 blocks, `240.0.0.0/4` and broadcast; IPv6 unspecified, the IPv4-compatible
+  block, discard, Teredo, ORCHID, documentation, site-local and local-use NAT64; IPv4-mapped,
+  NAT64 (`64:ff9b::/96`) and 6to4 addresses are judged by the IPv4 address they carry.  URLs with
+  user information, and numeric hosts that are not dotted quads (`2130706433`, `0x7f000001`),
+  are refused before any lookup.
+* Same-host redirects keep the method and body, except a 303, which becomes a GET without a
+  body.  The timeout covers one whole exchange (connect, headers and body) per hop; `FetchAsset`
+  uses 120 s.  `FetchAsset` holds the body in memory (at most 200 MiB) to hash it before the
+  single content-addressed PUT.  The page cap applies to the bytes as sent: the client never asks
+  for or decompresses an encoded body.
+* The header denylist adds the connection headers the server owns (`Host`, `Content-Length`,
+  `Transfer-Encoding`, `Connection`, `Keep-Alive`, `Upgrade`, `TE`, `Trailer`,
+  `Proxy-Connection`, `Expect`) and refuses names that are not HTTP tokens.  `Proxy` returns
+  every upstream status as it is, headers lower-cased and joined, without `set-cookie` and the
+  connection headers.
+* OAuth 2: the client authenticates to `token_url` with HTTP Basic (RFC 6749 2.3.1); the token
+  request goes through the SSRF guard but not the allowlist (whoever may store the credential
+  also keeps the allowlist); a token with no `expires_in`, or one of 60 s or less, is not reused.
+* Concurrency caps (16 per team, 4 per account) are counted per API node.
+* The only address exemption is `wt.data.egress.exempt-addresses`, set by the tests alone (the
+  HTTPS stub on 127.0.0.1, whose self-signed certificate `wt.data.egress.trust-pem` trusts).
+  Plain `http` is never fetched, in tests either.
+
+Allowlists (DATA-007)::
+Entries are stored normalised: lower case, `:443` dropped, so `api.example.com` and
+`api.example.com:443` are one entry.  IPv6 literals are not accepted as entries.
+
+Rate limits and audit (DATA-008)::
+* One token per upstream request (each page of a `Fetch`, each `FetchAsset` and `Proxy`; OAuth
+  token requests are free) from the team's bucket (`rl:dt:<team>`, team documents) and the
+  caller's (`rl:da:<account>`), through the SRV-014 limiter's script without leasing.  Per-team
+  operator overrides are not built (the rates are `+wt.data.limits.*+`).  Of DATA-008's first check,
+  "700 requests in a minute yield 600 successes" cannot hold for a bucket of burst 100 refilling
+  at 600 a minute (which admits 700 in the first minute); the test asserts the burst of 100 and
+  `RetryInfo` on the 101st.
+* `data_fetch_audit` names the scope `team_id` XOR `owner_account_id` and the caller
+  `account_id`, and adds `path` (the first request's path, never its query; a CHECK forbids
+  `?`) and the source's element id (`source_counter`, `source_replica`).  `status` is `OK`,
+  `CANCELLED` (the client went away), or the error's reason (else its gRPC code).  A request
+  refused before it connects (allowlist, rate limit, credential) is audited too; a call refused
+  before the role check is not.
+* `ListFetchAudit` is also open to an account for its own scope: the fetches made in its
+  personal documents, by it and by the editors it shared them with.
+* Metrics: `wt_data_fetches_total{kind,status}` and `wt_data_fetch_bytes_total{kind}`.
+
+Pagination engine and extraction (DATA-009)::
+* `{{param}}` (spaces allowed inside the braces) takes the typed value, else the source's
+  default, else empty; in the URL it is percent-encoded (everything but `A-Z a-z 0-9 - . _ ~`),
+  in the body inserted as typed.  The expanded URL is then checked like any other.
+* NEXT_URL: the value at `next_url_path` is resolved against the URL the page came from (after
+  redirects); pages after the first are GETs without a body; a next URL that is not an `https`
+  URL this server fetches ends the fetch with `UPSTREAM_ERROR`, and a next page on a host
+  outside the allowlist with `HOST_NOT_ALLOWED`.  PAGE_PARAM sets (or replaces) the query
+  parameter.  The server's record cap is `wt.data.max-records`, 100,000.  Every page is preceded
+  by its progress frame; a page must answer 2xx with a JSON media type (`application/json` or
+  `+json`).
+* The cursor is `base64url(JSON position) . base64url(HMAC-SHA256)`, the key derived from the
+  current master key; the position is bound to a SHA-256 of the request without its cursor (its
+  parameters in key order).  Rotating the master key invalidates outstanding cursors.
+* The JSONPath subset, exactly:
++
+[listing]
+....
+path  = ""                    the root
+      | "$" step*
+      | bare                  any text not starting with "$": the one member of that name
+step  = "." name              member
+      | "[" quoted "]"        member; 'single' or "double" quotes; \\ \' \" escape
+      | "[" index "]"         array element: 0, or digits without a leading zero (at most 9)
+      | "[*]"                 every array element, or every member value of an object
+      | ".." name             that member of the node and of every node below it
+name  = one or more of A-Z a-z 0-9 _ - $ or any non-ASCII character
+....
++
+Anything else is refused, and the vectors name the kind: `filter` (`+[?(...)]+`), `script`
+(`+[(...)]+`), `slice` (`[0:2]`), `union` (`[0,1]`), `negative_index`, `syntax` (`+.*+` included).
+Matches are in document order (objects keep their source member order).  A path without `+[*]+`
+or `..` is *definite*.  `records_path` selects every match, except that a definite path
+matching one array selects its elements, so `$.data` reads like `+$.data[*]+` and the empty path
+reads a root array's elements (or a root object as one record).  A record field is a definite
+path's first match as text, or an indefinite path's matches as a compact JSON array; nothing
+matched, or JSON null for a definite path, is absent.  Compact JSON has no whitespace, keeps
+member order, writes numbers as their source text (`12.990` stays `12.990`) and escapes only
+`"`, `\` and the control characters (`\b \f \n \r \t`, others as `\u00xx`).
+* The shared vectors are `server/api/src/test/resources/jsonpath-vectors/vectors.json`: `paths`
+  (document as JSON text, path, every match as compact JSON, or the refusal kind) and `records`
+  (document, `records_path`, `paths`, the expected records).  DATA-004's reader runs them
+  unchanged.
+
+Tests (DATA-006's "compose-hosted mock")::
+An in-JVM HTTPS stub (`EgressStub`, a JDK `HttpsServer` with a committed self-signed certificate
+for `+*.wt.test+`, `localhost` and `127.0.0.1`) plays every upstream, and the DNS stub answers A
+and AAAA for the test hosts, so the SSRF cases -- private and metadata answers, mixed answers,
+rebinding after the check, redirects off the host, TLS names that do not match -- run inside
+`./mvnw verify` without compose.
+
 === Client
 
 Packages:: `WTInterchange.DataSources` (file parsers, the data service client), `WTModel`

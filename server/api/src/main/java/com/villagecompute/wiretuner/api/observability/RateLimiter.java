@@ -1,6 +1,7 @@
 package com.villagecompute.wiretuner.api.observability;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -157,13 +158,35 @@ public class RateLimiter {
 
     /** One script run: takes {@code cost} from the buckets, or answers the wait in ms (0 = taken). */
     Uni<Long> take(UUID account, UUID document, long cost) {
-        Request eval = Request.cmd(Command.EVAL).arg(SCRIPT);
-        if (document == null) {
-            eval.arg(1).arg(accountKey(account)).arg(cost).arg(accountRate).arg(accountBurst);
-        } else {
-            eval.arg(2).arg(accountKey(account)).arg(documentKey(document)).arg(cost)
-                    .arg(accountRate).arg(accountBurst).arg(documentRate).arg(documentBurst);
-        }
+        Bucket accountBucket = new Bucket(accountKey(account), accountRate, accountBurst);
+        return wait(document == null ? List.of(accountBucket)
+                : List.of(accountBucket, new Bucket(documentKey(document), documentRate, documentBurst)), cost);
+    }
+
+    /** A token bucket: its Valkey key, its refill rate per second and its capacity. */
+    public record Bucket(String key, double ratePerSecond, double burst) {
+    }
+
+    /**
+     * Takes {@code cost} from every bucket or from none, without leasing (the data service's buckets,
+     * DATA-008, are far below the lease size): refused with {@code RESOURCE_EXHAUSTED / RATE_LIMITED}
+     * and the wait until the emptiest bucket holds the cost again.
+     */
+    public Uni<Void> takeExact(List<Bucket> buckets, long cost) {
+        return wait(buckets, cost).chain(wait -> {
+            if (wait == 0) {
+                return Uni.createFrom().voidItem();
+            }
+            metrics.rateLimited();
+            return Uni.createFrom().failure(StatusExceptions.rateLimited(Duration.ofMillis(wait)));
+        });
+    }
+
+    private Uni<Long> wait(List<Bucket> buckets, long cost) {
+        Request eval = Request.cmd(Command.EVAL).arg(SCRIPT).arg(buckets.size());
+        buckets.forEach(bucket -> eval.arg(bucket.key()));
+        eval.arg(cost);
+        buckets.forEach(bucket -> eval.arg(bucket.ratePerSecond()).arg(bucket.burst()));
         return redis.send(eval).map(Response::toLong);
     }
 

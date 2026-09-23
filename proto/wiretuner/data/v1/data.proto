@@ -1,0 +1,564 @@
+// proto/wiretuner/data/v1/data.proto
+//
+// The data service (docs/_includes/automation/data-merge.adoc, "Server state and the data
+// service"; DATA-002).  Data merge's web API sources and scripts' `wt.fetch` never connect from
+// the Mac: the server executes the request on the caller's behalf, with a credential it holds
+// envelope-encrypted, behind a host allowlist per team or per account, an SSRF guard, rate limits
+// and response caps, and writes an audit row per call.  Credentials are write-only: no RPC ever
+// returns secret material, and the secret fields are marked `debug_redact` so the server's logs
+// print them as `<redacted>`.
+syntax = "proto3";
+
+package wiretuner.data.v1;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+import "wiretuner/doc/v1/common.proto";
+import "wiretuner/doc/v1/data.proto";
+
+option java_multiple_files = true;
+option java_package = "com.villagecompute.wiretuner.data.v1";
+option optimize_for = SPEED;
+
+// Credentials, host allowlists, the server-side fetch proxy and its audit trail.  Team-scope
+// writes need the team admin (or owner) role: PERMISSION_DENIED / ROLE_INSUFFICIENT for a lower
+// member, NOT_FOUND / TEAM_NOT_FOUND for a non-member.  Account-scope calls are the account's
+// own: NOT_FOUND / SPACE_NOT_FOUND for anyone else's.  The fetch RPCs need the editor role on the
+// document and use the document's scope: its team, or its owner for a personal document.
+service DataSourceService {
+  // Stores or replaces a secret under a name in the scope.  The secret is never returned by any
+  // RPC, never logged and never leaves the server except to the credential's host.
+  rpc PutCredential(PutCredentialRequest) returns (PutCredentialResponse);
+  // Removes a credential.  Same roles as PutCredential; removing a name that does not exist
+  // answers `deleted = false`.
+  rpc DeleteCredential(DeleteCredentialRequest) returns (DeleteCredentialResponse);
+  // Names, kinds, hosts, creators and dates only.  Any member of the team (team scope), the
+  // account itself (account scope), or an editor of the document (document form).
+  rpc ListCredentials(ListCredentialsRequest) returns (ListCredentialsResponse);
+
+  // The scope's permitted hosts.  Same readers as ListCredentials.
+  rpc ListAllowedHosts(ListAllowedHostsRequest) returns (ListAllowedHostsResponse);
+  // Permits a host.  Team admins (team scope) or the account itself (account scope: the
+  // first-use consent sheet calls this after the person allows the host).  Idempotent.
+  rpc PutAllowedHost(PutAllowedHostRequest) returns (PutAllowedHostResponse);
+  // Revokes a host.  Same roles as PutAllowedHost.
+  rpc DeleteAllowedHost(DeleteAllowedHostRequest) returns (DeleteAllowedHostResponse);
+
+  // Executes an HttpSource on the caller's behalf and streams the records page by page, each
+  // page preceded by a progress frame.  Editor role on the document.  `cursor` resumes a paged
+  // fetch after a dropped stream.  Errors: PERMISSION_DENIED / HOST_NOT_ALLOWED,
+  // FAILED_PRECONDITION / CREDENTIAL_MISSING, RESOURCE_EXHAUSTED / RESPONSE_TOO_LARGE or
+  // RATE_LIMITED, UNAVAILABLE / UPSTREAM_ERROR, INVALID_ARGUMENT / VALIDATION_FAILED.
+  rpc Fetch(FetchRequest) returns (stream FetchResponse);
+  // Fetches one asset (an IMAGE field's URL) through the same guards, stores it as a blob
+  // referenced by the document and returns its hash; the client downloads it through
+  // BlobService like any other blob.  Editor role.  At most 200 MiB.
+  rpc FetchAsset(FetchAssetRequest) returns (FetchAssetResponse);
+  // `wt.fetch` for scripts: one request, one response, the same guards; the response body is
+  // capped at 16 MiB and any upstream status is returned as it is.  Editor role.
+  rpc Proxy(ProxyRequest) returns (ProxyResponse);
+
+  // The audit trail, newest first, filterable by document, host and account.  Team admins
+  // (team scope) or the account itself (account scope: fetches made with its credentials in
+  // its personal documents, by it and by the editors it shared them with).
+  rpc ListFetchAudit(ListFetchAuditRequest) returns (ListFetchAuditResponse);
+}
+
+// How a credential is sent.
+enum CredentialKind {
+  // Not a valid kind; refused.
+  CREDENTIAL_KIND_UNSPECIFIED = 0;
+  // `Authorization: Bearer <token>`.
+  CREDENTIAL_KIND_BEARER = 1;
+  // `Authorization: Basic base64(<username>:<password>)`.
+  CREDENTIAL_KIND_BASIC = 2;
+  // `<header_name>: <header_value>`, for API keys.
+  CREDENTIAL_KIND_HEADER = 3;
+  // An OAuth 2 client-credentials grant against `token_url`; the access token is sent as a
+  // bearer token and cached by the server until 60 s before it expires.
+  CREDENTIAL_KIND_OAUTH2_CLIENT = 4;
+}
+
+// Where credentials, permitted hosts and audit rows live: a team, or one account's personal
+// space.
+message Scope {
+  // Exactly one.
+  oneof scope {
+    option (buf.validate.oneof).required = true;
+    // A team.
+    string team_id = 1 [(buf.validate.field).string.uuid = true];
+    // A personal account; only the account itself may use it.
+    string account_id = 2 [(buf.validate.field).string.uuid = true];
+  }
+}
+
+// A stored credential's metadata.  Never carries secret material.
+message Credential {
+  // The name documents refer to it by.
+  string name = 1;
+  // How it is sent.
+  CredentialKind kind = 2;
+  // The only host (`host[:port]`, lower case) it is ever sent to.
+  string host = 3;
+  // The account that stored it.
+  string created_by_account_id = 4;
+  // That account's display name.
+  string created_by_name = 5;
+  // When it was first stored.
+  google.protobuf.Timestamp created_at = 6;
+  // When its secret was last replaced; unset when never.
+  google.protobuf.Timestamp rotated_at = 7;
+}
+
+// Stores or replaces a credential.
+message PutCredentialRequest {
+  option (buf.validate.message).cel = {
+    id: "put_credential.bearer"
+    message: "a bearer credential takes token only"
+    expression: "this.kind != 1 || (this.token != '' && this.username == '' && this.password == '' && this.header_name == '' && this.header_value == '' && this.client_id == '' && this.client_secret == '' && this.token_url == '' && this.oauth_scope == '')"
+  };
+  option (buf.validate.message).cel = {
+    id: "put_credential.basic"
+    message: "a basic credential takes username and password only"
+    expression: "this.kind != 2 || (this.username != '' && this.token == '' && this.header_name == '' && this.header_value == '' && this.client_id == '' && this.client_secret == '' && this.token_url == '' && this.oauth_scope == '')"
+  };
+  option (buf.validate.message).cel = {
+    id: "put_credential.header"
+    message: "a header credential takes header_name and header_value only"
+    expression: "this.kind != 3 || (this.header_name != '' && this.header_value != '' && this.token == '' && this.username == '' && this.password == '' && this.client_id == '' && this.client_secret == '' && this.token_url == '' && this.oauth_scope == '')"
+  };
+  option (buf.validate.message).cel = {
+    id: "put_credential.oauth2_client"
+    message: "an OAuth 2 client credential takes client_id, client_secret, token_url and oauth_scope only"
+    expression: "this.kind != 4 || (this.client_id != '' && this.client_secret != '' && this.token_url != '' && this.token == '' && this.username == '' && this.password == '' && this.header_name == '' && this.header_value == '')"
+  };
+  // The team or account that holds it.
+  Scope scope = 1 [(buf.validate.field).required = true];
+  // The name documents refer to it by; unique in the scope.  Putting an existing name replaces
+  // its secret, kind and host.
+  string name = 2 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 64
+    pattern: "^[A-Za-z0-9_.-]+$"
+  }];
+  // How it is sent.
+  CredentialKind kind = 3 [
+    (buf.validate.field).enum.defined_only = true,
+    (buf.validate.field).enum.not_in = 0
+  ];
+  // The only host it is ever sent to: `host` or `host:port`, compared case-insensitively; no
+  // wildcards.  Port 443 is the same as no port.
+  string host = 4 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 261
+    pattern: "^(?i)[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*(:[0-9]{1,5})?$"
+  }];
+  // BEARER: the token.
+  string token = 5 [
+    debug_redact = true,
+    (buf.validate.field).string.max_len = 8192
+  ];
+  // BASIC: the user name.
+  string username = 6 [(buf.validate.field).string.max_len = 1024];
+  // BASIC: the password; may be empty.
+  string password = 7 [
+    debug_redact = true,
+    (buf.validate.field).string.max_len = 1024
+  ];
+  // HEADER: the header's name, for example `X-Api-Key`.
+  string header_name = 8 [(buf.validate.field).string = {
+    max_len: 128
+    pattern: "^([!#$%&'*+.^_`|~0-9A-Za-z-]+)?$"
+  }];
+  // HEADER: the header's value.
+  string header_value = 9 [
+    debug_redact = true,
+    (buf.validate.field).string.max_len = 8192
+  ];
+  // OAUTH2_CLIENT: the client id.
+  string client_id = 10 [(buf.validate.field).string.max_len = 1024];
+  // OAUTH2_CLIENT: the client secret.
+  string client_secret = 11 [
+    debug_redact = true,
+    (buf.validate.field).string.max_len = 8192
+  ];
+  // OAUTH2_CLIENT: the token endpoint; https only.
+  string token_url = 12 [
+    (buf.validate.field).string = {
+      max_len: 2048
+      pattern: "^https://"
+    },
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+  // OAUTH2_CLIENT: the `scope` parameter of the grant; empty sends none.
+  string oauth_scope = 13 [(buf.validate.field).string.max_len = 1024];
+}
+
+// The stored credential.
+message PutCredentialResponse {
+  // Its metadata.
+  Credential credential = 1;
+}
+
+// Removes a credential.
+message DeleteCredentialRequest {
+  // The team or account that holds it.
+  Scope scope = 1 [(buf.validate.field).required = true];
+  // Its name.
+  string name = 2 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 64
+  }];
+}
+
+// Whether a credential was removed.
+message DeleteCredentialResponse {
+  // False when the scope held no credential of that name.
+  bool deleted = 1;
+}
+
+// Lists a scope's credentials.
+message ListCredentialsRequest {
+  option (buf.validate.message).cel = {
+    id: "list_credentials.one_scope"
+    message: "exactly one of scope and document_id"
+    expression: "has(this.scope) != (this.document_id != '')"
+  };
+  // The team or account.
+  Scope scope = 1;
+  // Instead of `scope`: the scope of this document (its team, or its owner's account), for an
+  // editor who is not the owner or a team admin.
+  string document_id = 2 [
+    (buf.validate.field).string.uuid = true,
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+  // Opaque cursor from a previous response; empty for the first page.
+  string cursor = 3 [(buf.validate.field).string.max_len = 1024];
+  // Credentials per page; 0 selects the server's default, at most 50.
+  uint32 page_size = 4 [(buf.validate.field).uint32.lte = 50];
+}
+
+// One page of credentials, by name.
+message ListCredentialsResponse {
+  // Metadata only.
+  repeated Credential credentials = 1;
+  // Cursor for the next page; empty when this is the last page.
+  string next_cursor = 2;
+}
+
+// A permitted host.
+message AllowedHost {
+  // `host` or `host:port`, lower case; port 443 is stored without a port.
+  string host = 1;
+  // The account that permitted it.
+  string added_by_account_id = 2;
+  // That account's display name.
+  string added_by_name = 3;
+  // When it was permitted.
+  google.protobuf.Timestamp added_at = 4;
+}
+
+// Lists a scope's permitted hosts.
+message ListAllowedHostsRequest {
+  option (buf.validate.message).cel = {
+    id: "list_allowed_hosts.one_scope"
+    message: "exactly one of scope and document_id"
+    expression: "has(this.scope) != (this.document_id != '')"
+  };
+  // The team or account.
+  Scope scope = 1;
+  // Instead of `scope`: the scope of this document; editor role on it.
+  string document_id = 2 [
+    (buf.validate.field).string.uuid = true,
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+  // Opaque cursor from a previous response; empty for the first page.
+  string cursor = 3 [(buf.validate.field).string.max_len = 1024];
+  // Hosts per page; 0 selects the server's default, at most 50.
+  uint32 page_size = 4 [(buf.validate.field).uint32.lte = 50];
+}
+
+// One page of permitted hosts, by host.
+message ListAllowedHostsResponse {
+  // The hosts.
+  repeated AllowedHost hosts = 1;
+  // Cursor for the next page; empty when this is the last page.
+  string next_cursor = 2;
+}
+
+// Permits a host.
+message PutAllowedHostRequest {
+  // The team or account.
+  Scope scope = 1 [(buf.validate.field).required = true];
+  // `host` or `host:port`, exact, case-insensitive; no wildcards.
+  string host = 2 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 261
+    pattern: "^(?i)[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*(:[0-9]{1,5})?$"
+  }];
+}
+
+// The permitted host.
+message PutAllowedHostResponse {
+  // The entry, as stored (or as it already was).
+  AllowedHost host = 1;
+}
+
+// Revokes a host.
+message DeleteAllowedHostRequest {
+  // The team or account.
+  Scope scope = 1 [(buf.validate.field).required = true];
+  // The entry, as permitted.
+  string host = 2 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 261
+  }];
+}
+
+// Whether a host was revoked.
+message DeleteAllowedHostResponse {
+  // False when the scope did not permit it.
+  bool deleted = 1;
+}
+
+// Executes an HttpSource.
+message FetchRequest {
+  option (buf.validate.message).cel = {
+    id: "fetch.url"
+    message: "the source has no URL"
+    expression: "this.source.url != ''"
+  };
+  // The document whose source it is; its scope supplies the credential and the allowlist.
+  string document_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+  // The source's element id in SettingsProps.data_sources; recorded in the audit.
+  wiretuner.doc.v1.ElementId source_id = 2;
+  // The definition as the client reads it from the document.  The server validates it (no
+  // secret headers, https, host allowed) rather than reading the document, so a fetch never
+  // depends on the snapshotter's lag.
+  wiretuner.doc.v1.HttpSource source = 3 [(buf.validate.field).required = true];
+  // `{{param}}` values typed by the person; a parameter missing here takes the source's default.
+  map<string, string> params = 4 [(buf.validate.field).map = {
+    max_pairs: 64
+    keys: {
+      string: {
+        max_len: 64
+        pattern: "^[A-Za-z_][A-Za-z0-9_]*$"
+      }
+    }
+    values: {
+      string: {max_len: 1024}
+    }
+  }];
+  // The mapping paths to extract from each record (JSONPath subset; data-merge.adoc, Pagination
+  // engine and extraction).
+  repeated string paths = 5 [(buf.validate.field).repeated = {
+    max_items: 256
+    items: {
+      string: {max_len: 512}
+    }
+  }];
+  // From a previous RecordPage; empty to start.  Only valid for the same document, source,
+  // parameters and paths.
+  string cursor = 6 [(buf.validate.field).string.max_len = 8192];
+}
+
+// One frame of a fetch.
+message FetchResponse {
+  // A page of records or a progress report.
+  oneof body {
+    // The records of one upstream page.
+    RecordPage page = 1;
+    // Sent after each upstream response arrives, before its page; for the panel's bar.
+    FetchProgress progress = 2;
+  }
+}
+
+// The records of one upstream page.
+message RecordPage {
+  // The records, in the response's order.
+  repeated Record records = 1;
+  // 1-based number of the upstream page, counted from the start of the fetch (a resumed fetch
+  // continues the count).
+  uint32 page_number = 2;
+  // Resumes the fetch after this page; empty when this is the last page.
+  string next_cursor = 3;
+}
+
+// How far a fetch has come.
+message FetchProgress {
+  // The upstream page just received.
+  uint32 page_number = 1;
+  // Response bytes received so far in this call.
+  uint64 bytes = 2;
+  // Records streamed so far in this call, before this page.
+  uint64 records = 3;
+}
+
+// One record: each requested path that matched, as text.  JSON strings are their contents,
+// numbers their source text, booleans `true` / `false`; null and missing paths are absent;
+// objects and arrays are compact JSON.  A path with a wildcard or descendant step renders its
+// matches as a compact JSON array.
+message Record {
+  // Path, as requested, to value.
+  map<string, string> values = 1;
+}
+
+// Fetches one asset into the document's blobs.
+message FetchAssetRequest {
+  // The document the blob is stored for; editor role.
+  string document_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+  // The asset's URL; https only.
+  string url = 2 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 2048
+    pattern: "^https://"
+  }];
+  // A credential of the document's scope to send; empty sends none.
+  string credential_name = 3 [(buf.validate.field).string.max_len = 64];
+}
+
+// The stored asset.
+message FetchAssetResponse {
+  // sha256 of the content, 32 raw bytes: the blob the document now references.
+  bytes blob_sha256 = 1;
+  // The response's media type (without parameters).
+  string media_type = 2;
+  // Size in bytes.
+  uint64 size = 3;
+}
+
+// One `wt.fetch` request.
+message ProxyRequest {
+  // The document whose script runs; its scope supplies the credential and the allowlist.
+  string document_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+  // GET, POST, PUT, PATCH or DELETE.
+  string method = 2 [(buf.validate.field).string = {
+    in: [
+      "GET",
+      "POST",
+      "PUT",
+      "PATCH",
+      "DELETE"
+    ]
+  }];
+  // The URL; https only.
+  string url = 3 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 2048
+    pattern: "^https://"
+  }];
+  // Request headers; credential and connection headers are refused, as for HttpSource.headers.
+  map<string, string> headers = 4 [(buf.validate.field).map = {
+    max_pairs: 64
+    keys: {
+      string: {
+        min_len: 1
+        max_len: 128
+        pattern: "^[!#$%&'*+.^_`|~0-9A-Za-z-]+$"
+      }
+    }
+    values: {
+      string: {max_len: 4096}
+    }
+  }];
+  // The request body; at most 1 MiB.
+  bytes body = 5 [(buf.validate.field).bytes.max_len = 1048576];
+  // A credential of the document's scope to send; empty sends none.
+  string credential_name = 6 [(buf.validate.field).string.max_len = 64];
+  // Seconds to wait for the response; 0 reads as 30, at most 120.
+  uint32 timeout_s = 7 [(buf.validate.field).uint32.lte = 120];
+}
+
+// The upstream response.
+message ProxyResponse {
+  // The HTTP status.
+  uint32 status = 1;
+  // Response headers, names in lower case; repeated headers joined with ", ".  `set-cookie`
+  // and connection headers are dropped.
+  map<string, string> headers = 2;
+  // The body; at most 16 MiB (RESOURCE_EXHAUSTED / RESPONSE_TOO_LARGE beyond).
+  bytes body = 3;
+}
+
+// What made an upstream call.
+enum FetchKind {
+  // Not recorded.
+  FETCH_KIND_UNSPECIFIED = 0;
+  // An API source (Fetch).
+  FETCH_KIND_SOURCE = 1;
+  // A script's `wt.fetch` (Proxy).
+  FETCH_KIND_SCRIPT = 2;
+  // An IMAGE field's asset (FetchAsset).
+  FETCH_KIND_ASSET = 3;
+}
+
+// Lists the audit trail.
+message ListFetchAuditRequest {
+  // The team (admins) or the account (itself).
+  Scope scope = 1 [(buf.validate.field).required = true];
+  // Only this document's fetches; empty for all.
+  string document_id = 2 [
+    (buf.validate.field).string.uuid = true,
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+  // Only fetches to this host (`host[:port]`, case-insensitive); empty for all.
+  string host = 3 [(buf.validate.field).string.max_len = 261];
+  // Only fetches by this account; empty for all.
+  string account_id = 4 [
+    (buf.validate.field).string.uuid = true,
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+  // Opaque cursor from a previous response; empty for the first page.
+  string cursor = 5 [(buf.validate.field).string.max_len = 1024];
+  // Entries per page; 0 selects the server's default, at most 50.
+  uint32 page_size = 6 [(buf.validate.field).uint32.lte = 50];
+}
+
+// One audited call.  Never a query string, a header or a body.
+message FetchAuditEntry {
+  // The row's id.
+  string id = 1;
+  // The document the call was made for.
+  string document_id = 2;
+  // The source's element id (Fetch only).
+  wiretuner.doc.v1.ElementId source_id = 3;
+  // Who made it.
+  string account_id = 4;
+  // Their display name.
+  string account_name = 5;
+  // The host called first (`host[:port]`).
+  string host = 6;
+  // The path of the first request, without its query string.
+  string path = 7;
+  // What made it.
+  FetchKind kind = 8;
+  // When it started.
+  google.protobuf.Timestamp started_at = 9;
+  // When it ended.
+  google.protobuf.Timestamp finished_at = 10;
+  // `OK`, `CANCELLED`, or the error's reason (`HOST_NOT_ALLOWED`, `UPSTREAM_ERROR`, ...).
+  string status = 11;
+  // Upstream requests made.
+  uint32 pages = 12;
+  // Records streamed (Fetch only).
+  uint64 records = 13;
+  // Response bytes received.
+  uint64 bytes = 14;
+}
+
+// One page of the audit trail.
+message ListFetchAuditResponse {
+  // Newest first.
+  repeated FetchAuditEntry entries = 1;
+  // Cursor for the next page; empty when this is the last page.
+  string next_cursor = 2;
+}
