@@ -306,6 +306,20 @@ point", "Join blend to path", "Split", "Ungroup").
 Output:: Steps are emitted as vector paths with their interpolated attributes; spot-to-spot
 steps carry tint values so they separate onto the spot plates.
 
+NOTE: As built by FX-025, FX-026 and FX-029 (`WTRender/Effects/Blend/BlendInterpolator.swift`:
+`PathMatcher`, `BlendInterpolator`, `OnPathDistributor`, `BlendResolver`), in WTRender rather than
+`WTGeometry/Blend/`.  The blend is a `GroupItem` whose `live` is a `BlendSpec` (the path and the
+blend points as child and anchor indices).  *Colour*: display-list colours are resolved sRGB
+values with no spot or tint model, so steps interpolate in sRGB and the spot rules (tints of the
+two spots only, overprint on a spot→process blend) wait for the COLOR epic to put spot identity in
+the display list.  Gradients interpolate over the union of both ramps' stop offsets, a solid
+colour against a gradient reading as a flat gradient.  The default step count uses CIE76 between
+the first fill colours of the first and last key objects.  Unequal sub-path counts reuse the
+shorter shape's last sub-path.  On a path, the path's first contour is used and each key object's
+and step's bounds centre is placed; Rotate on path turns by the tangent's absolute angle.
+Keyline draws the steps.  Performance: a 1,000-step blend of two 50-point paths interpolates in
+4.5 ms in release (105 ms in debug); the gate enforces 10 ms in release builds.
+
 === Build tasks
 
 [[FX-023]]

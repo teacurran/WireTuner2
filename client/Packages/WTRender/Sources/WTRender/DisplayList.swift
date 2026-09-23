@@ -257,6 +257,12 @@ public struct GroupItem: Hashable, Sendable {
     /// The layer highlight colour, set on the group a layer becomes: Keyline modes draw every
     /// descendant's hairlines in the nearest ancestor's colour (REND-005).  Nil inherits.
     public var highlightColor: Color?
+    /// The group's own attribute stack (FX-006, FX-048): its effects apply to the group as one
+    /// shape; its fills and strokes draw only over a Combine effect's outline.
+    public var appearance: Appearance
+    /// A live wrapper kind whose drawing is derived from the children on read (blend,
+    /// extrusion, envelope, perspective); nil for a plain group.
+    public var live: LiveGroup?
 
     public init(
         children: [DisplayItem],
@@ -264,7 +270,9 @@ public struct GroupItem: Hashable, Sendable {
         clipRule: FillRule = .nonZero,
         opacity: Double = 1,
         transform: AffineTransform = .identity,
-        highlightColor: Color? = nil
+        highlightColor: Color? = nil,
+        appearance: Appearance = Appearance(),
+        live: LiveGroup? = nil
     ) {
         self.children = children
         self.clip = clip
@@ -272,6 +280,13 @@ public struct GroupItem: Hashable, Sendable {
         self.opacity = min(max(opacity, 0), 1)
         self.transform = transform
         self.highlightColor = highlightColor
+        self.appearance = appearance
+        self.live = live
+    }
+
+    /// Whether the group's drawing is derived (a live kind or effects of its own).
+    public var isDerived: Bool {
+        live != nil || appearance.hasEffects
     }
 }
 
@@ -307,13 +322,17 @@ public indirect enum DisplayItem: Hashable, Sendable {
             let outset = item.style.outset
             return item.path.controlBounds.map { $0.expanded(by: outset).applying(item.transform) }
         case .path(let item):
+            if item.hasEffects {
+                return EffectNode.union(EffectPipeline.nodes(for: item))
+            }
             return item.appearance.paintedBounds(of: item.path).map { $0.applying(item.transform) }
         case .image(let item):
             return item.rect.applying(item.transform)
         case .text(let item):
             return item.bounds.applying(item.transform)
         case .group(let item):
-            guard let content = DisplayList.union(of: item.children.compactMap(\.bounds)) else {
+            let drawn = item.isDerived ? EffectNode.union(EffectPipeline.derived(item).nodes) : DisplayList.union(of: item.children.compactMap(\.bounds))
+            guard let content = drawn else {
                 return nil
             }
             guard let clip = item.clip else {
@@ -534,6 +553,22 @@ extension DisplayItem {
                 return content
             }
             return clip.controlBounds.flatMap { content.intersection($0.applying(group.transform)).nonNull }
+        }
+    }
+}
+
+extension DisplayItem {
+    /// The item's own geometry in pasteboard space, effects excluded: what the Object panel
+    /// shows and alignment uses (live-effects.adoc, "Effects and the rest of the object").
+    public var ownBounds: Rect? { geometricBounds }
+
+    /// The effected bounds menu:View[Show Effect Bounds] draws, for an item whose live effects or
+    /// derived drawing change what it paints; nil otherwise.
+    public var effectBounds: Rect? {
+        switch self {
+        case .path(let item) where item.hasEffects: return bounds
+        case .group(let group) where group.isDerived: return bounds
+        default: return nil
         }
     }
 }

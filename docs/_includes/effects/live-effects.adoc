@@ -772,6 +772,59 @@ one undo group (APP-011).  Add, remove, reorder and kind change are single chang
 "Add Bend effect", "Remove effect", "Reorder effects", "Change effect to Ragged"; btn:[Expand]
 is one change labelled "Expand Combine".
 
+NOTE: As built by FX-004, FX-005, FX-006, FX-046 and FX-048 (`WTRender/Effects/`).
+*Package*: the kernels live in WTRender (`Effects/Kernels/`: `BendKernel`, `DuetKernel`,
+`TransformKernel`, `ExpandKernel`, `RaggedKernel` with `SplitMix64`, `SketchKernel`,
+`CornersKernel`, `CombineKernel`), not in `WTGeometry/Effects/`: the render track does not edit
+WTGeometry, and the kernels read the display-list settings types.  They use only WTGeometry's
+public API (offsets, booleans, arc length, de Casteljau splits), so moving them needs only the
+settings types to move with them.  *Display list*: WTRender does not import `WTProto`.
+`Appearance` gained `effects` (`EffectElement`: a `LiveEffect`, a target -- `.object` or
+`.element(i)` indexing `items` -- and `hidden`; ascending position, which is application order)
+and `raster` (the resolved `RasterSettings`).  `Appearance(stack:effects:raster:)` takes targets
+as stack indices, remaps them past hidden elements and drops the effects attached to hidden
+ones.  `LiveEffect` mirrors `EffectSettings`' live case with nested settings structs whose
+`effective*` accessors apply this page's read-time normalizations; `CornersEffect.points` is
+`[CornerPoint]` (contour and anchor index, as WTModel resolves the element ids) and a `rect`'s
+zero-radius derived path is WTModel's to build.  `GroupItem` gained `appearance` (the group's own
+stack) and `live` (the wrapper kinds, `LiveGroup`); no `DisplayItem` case was added, because
+WTApp switches over `DisplayItem` exhaustively.  *Pipeline*: `EffectPipeline` resolves an item
+into a tree of `EffectNode`s in pasteboard space -- plain items, transparency layers, raster
+nodes, masked nodes -- that both renderers draw.  Attached effects apply before object-level
+ones and a group's inherited effects after both.  Raster stages split a chain as follows: every
+non-affine vector effect is applied to the geometry before the chain's raster stages, and an
+affine one (Transform, Duet) that sits below a raster stage copies the rasterized result.  A
+group's vector effects (without Combine) apply to each member in pasteboard space about the
+group's bounds centre -- glyph runs become filled paths, images and placeholder text are left
+alone -- and its raster and transparency effects to the group as a whole; a group's own fills and
+strokes draw only over a Combine outline.  *Cache*: results are memoized by value (the path item
+with its stack and transform, the group with its children), as the stroke outlines are, not by
+`(node id, state hash)`: the display list is rebuilt from values, so an edit to one object misses
+only for that object and REND-004 needs nothing extra.  *Kernels*, where this page left room:
+Bend moves anchors *and* control points by their own distance (d_max over both), so straight
+sides bulge or cave, then turns the handles of anchors that were smooth back onto one line;
+Duet's Rotate `copies` counts the original ("two copies give a 180° pair") and mirror images are
+reversed so the non-zero fill is the union; Transform copy k is the step applied k times, k = 1
+... `copies`; Expand Path Inside and Outside are the bands between the region and its GEO-003
+inset or outset, not the inset or outset region; Ragged adds `floor(length × frequency / 72)`
+points inside each segment at equal arc length, keeps the anchors, displaces the added points
+along the normal by `size × (2u − 1)` with u the top 53 bits of the stream over 2⁵³ (Uniform:
+±size alternating), draws Rough as straight segments and Smooth as a Catmull-Rom spline with the
+segment's end tangents, and seeds copy k with `seed + k × 0xD1B54A32D192ED03`; Sketch shifts each
+copy by up to ±amount/2, jitters every anchor by as much again and, unless Closed, trims each end
+by up to `amount`; Corners treats an anchor as a corner when its tangents turn by more than
+0.001 rad and less than π − 0.001 rad; Combine's Exclude folds exclusive-or pairwise, which is the
+odd-coverage rule, and normalizes.  *Hit testing*: fills and strokes hit on the effected outlines
+(an Expand Path band is a fill), points, handles and segments on the raw path; derived groups hit
+per entry (`DerivedGroup`).  *Show Effect Bounds*: WTRender supplies `DisplayItem.ownBounds` and
+`effectBounds`; the menu item and its overlay are WTApp's.  The merge tests of FX-046 and FX-048
+are WTModel's.  Performance: a warm 256 px tile of the 5,000-object design point with Bend and
+Corners on every object renders in 4.2 ms in release (18 ms in debug); the gate enforces 8 ms in release builds.
+The Metal stencil's edge test (`TileShaders.msl`, `inside`) now evaluates each edge from its
+lower end point whichever way a fan triangle runs, so triangles sharing an edge agree exactly on
+samples next to it: the stroke outlines of effected squares, whose fan edges ran along the sample
+lattice's diagonal, showed seams against REND-007 before.
+
 === Build tasks
 
 [[FX-001]]

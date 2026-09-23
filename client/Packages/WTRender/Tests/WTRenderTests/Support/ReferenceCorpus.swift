@@ -116,8 +116,8 @@ enum ReferenceCorpus {
         .text(TextRunItem(text: "Label", origin: Point(x: 76, y: 92), bounds: Rect(x: 76, y: 82, width: 44, height: 12), color: .black)),
     ])
 
-    /// REND-002's cases and the ATTR cases.
-    static let cases: [ReferenceCase] = baseCases + AttributeCorpus.cases
+    /// REND-002's cases, the ATTR cases and the FX cases.
+    static let cases: [ReferenceCase] = baseCases + AttributeCorpus.cases + EffectCorpus.cases
 
     static let baseCases: [ReferenceCase] = [
         ReferenceCase(name: "fillRules", list: list([

@@ -408,6 +408,38 @@ profile; the object's vector parts keep their spot separations.
 Undo:: Same grouping as vector effects; the document resolution sheet's btn:[OK] is one change
 labelled "Change raster effects resolution".
 
+NOTE: As built by FX-009, FX-010 and FX-011 (`WTRender/Effects/Raster/`: `RasterEffectStage`,
+`RasterFilters`, `RasterEffectCache`, `RasterImage`, `RasterPixels`).  *Core Image*: one
+`CIContext` renders each graph into a CPU bitmap (RGBA floats), not into an `MTLTexture` through
+`CIContext(mtlDevice:)`; the result reaches both renderers as a *device layer* -- a bitmap
+aligned with the destination's pixels in which the raster images are resampled bilinearly per
+pixel -- which Core Graphics copies pixel for pixel and the Metal renderer composites as a
+texture, the per-item fallback the ATTR paints use (docs/spec/client.adoc), so the two agree by
+construction.  Core Image runs the blurs (`CIBoxBlur`, `CIGaussianBlur` with σ = the radius),
+`CIMorphologyMaximum`, the compositing and `CISharpenLuminance`; the distance fields (the exact
+Euclidean transform on the pixel grid), bevel lighting, the Unsharp threshold arithmetic and
+Feather are loops over the same buffer, having no Core Image filter.  *Units*: Blur and Unsharp
+radii are pixels at the object's resolution, so a blur keeps its physical size at every preview
+resolution; offsets, widths and the feather radius are points; Shadow softness is the blur's
+reach in points (σ = softness/3); Bevel softness blurs the height field with σ = softness × width
+/ 20 (at least 0.75 px); the spread adds 1 pt.  *Bevel*: the height field is the edge shape of
+`distance / width` inside the outline (outside it for Outer bevel); edge shapes: Flat x, Smooth
+sin(πx/2), Sloped smoothstep, Frame 1 a step with a ledge at ½, Frame 2 a ridge then a groove,
+Ring sin(πx), Ruffle x + ¼ sin(4πx); the light is at `angle` 45° above the page; highlight and
+shadow strengths per preset: Raised 1/1, Highlighted 1.5/0.6, Inset 1/1 inverted, Inverted 0.6/1.5
+inverted; contrast scales both.  Inner bevels shade the object, Outer bevels draw a shaded rim in
+the rim colour under it, embosses leave only the relief.  *Cache*: keyed by the raster node's
+value (its content in pasteboard space, operations and settings) and the resolution, LRU under a
+256 MiB byte cap; an edit changes the key, so the old entry ages out; `removeAll()` is for a change
+of the document resolution or the preview preference (WTApp calls it).  *Optimal CMYK* renders
+without colour management (no working or output space) until the CMS epic supplies a CMYK
+working space.  *Off-thread*: with `rasterEffectsReady` set, a miss renders on a background queue
+and the tile draws the vector content with the badge -- a grey disc six device pixels across at
+the content's top-right corner, also drawn for *Off* -- until the callback names the rectangle to
+repaint.  *PDF*: raster images are placed at the object's resolution with their own alpha (no clip
+path for interior effects).  The reviewed screenshots of FX-010 are the golden renders
+(`WTRenderTests/Goldens/effects*`), not images under `docs/images`.
+
 === Build tasks
 
 [[FX-007]]

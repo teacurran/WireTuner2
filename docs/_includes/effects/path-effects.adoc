@@ -441,6 +441,16 @@ single change on release.  Options dialogs are sheets opened by double-click on 
 Undo:: One step per application ("Roughen", "Fisheye lens", "Bend", "Smudge", "Add shadow",
 "Emboss", "Fractalize", "Mirror", "3D rotate", "Create envelope", "Release envelope"…).
 
+NOTE: As built by FX-038 (`WTRender/Effects/Warp/EnvelopeWarp.swift`, `CurveWarp.swift`), in
+WTRender rather than `WTGeometry/Distort/`.  The envelope is a `GroupItem` whose `live` is an
+`EnvelopeSpec` in pasteboard space; `corners` are anchor indices of the contour, and one that is
+missing or invalid falls back to the anchor nearest that corner of the envelope's bounds (WTModel
+resolves the element ids, so the contour-order fallback is its).  An edge with points between its
+corners is refit as one cubic by least squares with the chain's end tangents.  Contents map as
+plain paths: effects resolved to their vector geometry (raster stages drop out), text as glyph
+outlines filled with the text colour, transforms baked in.  `EnvelopeWarp.inverse` is the caret
+map; Show Map draws 8 × 8 iso-curves as hairlines.
+
 === Build tasks
 
 [[FX-030]]

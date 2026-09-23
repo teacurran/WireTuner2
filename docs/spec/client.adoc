@@ -317,7 +317,7 @@ whose `layer` replaces the `TiledCanvasLayer`'s inside WTApp's `CanvasView` (sam
 `invalidate`, `settle` surface; gestures add `beginGesture`/`endGesture`); while a new zoom step or angle renders, the last tiling
 whose visible tiles were all drawable is drawn beneath it.  The fallback also engages when the
 shaders or the atlas cannot be created, and logs under subsystem
-`com.villagecompute.wiretuner`, category `render`.  The glyph atlas, Core Image into textures
+`com.villagecompute.wiretuner`, category `render`.  The glyph atlas, Core Image into textures  (Superseded by the FX render tasks: see the effects pages' Client notes.)
 and image textures wait for the display list to carry glyph runs, raster effects and images
 (TXT-001, FX, the image pipeline); until then Metal draws the same placeholders as Core
 Graphics.

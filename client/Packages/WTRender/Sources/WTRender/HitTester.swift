@@ -240,12 +240,43 @@ public struct HitTester: Sendable {
                 return []
             }
         }
+        if group.isDerived {
+            return derivedHits(group, path: path, point: point, tolerance: tolerance)
+        }
         var result: [HitResult] = []
         for (childIndex, child) in group.children.enumerated().reversed() {
             guard let bounds = child.bounds, bounds.expanded(by: tolerance).contains(point) else {
                 continue
             }
             result.append(contentsOf: hits(child, path: path + [childIndex], point: point, tolerance: tolerance))
+        }
+        return result
+    }
+
+    /// Hits in a derived group (FX-006, FX-022, FX-029, FX-048): entries standing for a child
+    /// hit as that child, derived geometry (blend steps, extrusion sides, a Combine outline) as
+    /// the group; a live wrapper's entries are mapped geometry, so their hits stop at the child.
+    /// The members under a Combine are reached only with Subselect.
+    private func derivedHits(_ group: GroupItem, path: [Int], point: Point, tolerance: Double) -> [HitResult] {
+        var result: [HitResult] = []
+        for entry in EffectPipeline.derived(group).entries.reversed() {
+            guard entry.visible || options.subselect,
+                  let bounds = entry.item.bounds, bounds.expanded(by: tolerance).contains(point)
+            else {
+                continue
+            }
+            if let origin = entry.origin {
+                let hits = hits(entry.item, path: path + [origin], point: point, tolerance: tolerance)
+                if group.live == nil {
+                    result += hits
+                } else {
+                    result += hits.map { HitResult(itemPath: path + [origin], leafPath: path + [origin], kind: $0.kind, distance: $0.distance) }
+                }
+            } else {
+                result += hits(entry.item, path: path, point: point, tolerance: tolerance).map {
+                    HitResult(itemPath: path, leafPath: path, kind: $0.kind, distance: $0.distance)
+                }
+            }
         }
         return result
     }
@@ -301,6 +332,8 @@ public struct HitTester: Sendable {
 
     private func hitLeaf(_ item: DisplayItem, point: Point, tolerance: Double) -> (HitKind, Double)? {
         switch item {
+        case .path(let path) where path.hasEffects:
+            return hitEffected(path, point: point, tolerance: tolerance)
         case .image(let image):
             return hitFrame(image.rect, transform: image.transform, point: point, tolerance: tolerance).map { (.image, $0) }
         case .text(let text):
@@ -323,26 +356,65 @@ public struct HitTester: Sendable {
     }
 
     private func hitShape(_ shape: Shape, point: Point, tolerance: Double) -> (HitKind, Double)? {
-        let transform = shape.transform
-        if options.pickPoints || options.pickHandles {
-            var best: (PathPoint, Double)?
-            for candidate in shape.path.points(includeControls: options.pickHandles) {
-                if candidate.control == 0 && !options.pickPoints {
-                    continue
-                }
-                let distance = transform.apply(candidate.point).distance(to: point)
-                if distance <= tolerance && (best == nil || distance < best!.1) {
-                    best = (candidate, distance)
-                }
-            }
-            if let (hit, distance) = best {
-                return (hit.control == 0 ? .point(element: hit.element) : .handle(element: hit.element, control: hit.control), distance)
+        hitPoints(shape, point: point, tolerance: tolerance)
+            ?? hitStroke(shape, point: point, tolerance: tolerance)
+            ?? hitSegment(shape, point: point, tolerance: tolerance)
+            ?? hitFill(shape, point: point)
+    }
+
+    /// An effected path (FX-006): points, handles and segments on the path as drawn by the
+    /// user, strokes and fills on the effected outlines (an Expand Path band is a fill).
+    private func hitEffected(_ item: PathItem, point: Point, tolerance: Double) -> (HitKind, Double)? {
+        let raw = PathItem(path: item.path, appearance: Appearance(item.appearance.items), transform: item.transform)
+        guard let rawShape = shape(of: .path(raw)) else {
+            return nil
+        }
+        if let hit = hitPoints(rawShape, point: point, tolerance: tolerance) {
+            return hit
+        }
+        let effected = EffectPipeline.nodes(for: item).flatMap(\.plainItems).reversed().compactMap { shape(of: $0) }
+        for candidate in effected {
+            if let hit = hitStroke(candidate, point: point, tolerance: tolerance) {
+                return (.stroke(nil), hit.1)
             }
         }
-        let contours = shape.path.contours.map { $0.applying(transform) }
-        let scale = transform.scaleFactor
+        if let hit = hitSegment(rawShape, point: point, tolerance: tolerance) {
+            return hit
+        }
+        for candidate in effected {
+            if let hit = hitFill(candidate, point: point) {
+                return hit
+            }
+        }
+        return nil
+    }
+
+    private func hitPoints(_ shape: Shape, point: Point, tolerance: Double) -> (HitKind, Double)? {
+        guard options.pickPoints || options.pickHandles else {
+            return nil
+        }
+        let transform = shape.transform
+        var best: (PathPoint, Double)?
+        for candidate in shape.path.points(includeControls: options.pickHandles) {
+            if candidate.control == 0 && !options.pickPoints {
+                continue
+            }
+            let distance = transform.apply(candidate.point).distance(to: point)
+            if distance <= tolerance && (best == nil || distance < best!.1) {
+                best = (candidate, distance)
+            }
+        }
+        guard let (hit, distance) = best else {
+            return nil
+        }
+        return (hit.control == 0 ? .point(element: hit.element) : .handle(element: hit.element, control: hit.control), distance)
+    }
+
+    private func hitStroke(_ shape: Shape, point: Point, tolerance: Double) -> (HitKind, Double)? {
+        let transform = shape.transform
         if let style = shape.stroke {
-            let halfWidth = max(style.width, 0) * scale / 2
+            let contours = shape.path.contours.map { $0.applying(transform) }
+            let halfWidth = max(style.width, 0) * transform.scaleFactor / 2
             // A square cap's corners reach √2 × (half width + tolerance) past an end point.
             let reach = (halfWidth + tolerance) * (style.cap == .square ? 2.0.squareRoot() : 1)
             if let nearest = HitTester.nearest(on: contours, to: point, reach: reach),
@@ -365,9 +437,19 @@ public struct HitTester: Sendable {
                 return (.stroke(nil), 0)
             }
         }
-        if let nearest = HitTester.nearest(on: contours, to: point, reach: tolerance) {
-            return (.segment(nearest.location), nearest.distance)
+        return nil
+    }
+
+    private func hitSegment(_ shape: Shape, point: Point, tolerance: Double) -> (HitKind, Double)? {
+        let contours = shape.path.contours.map { $0.applying(shape.transform) }
+        guard let nearest = HitTester.nearest(on: contours, to: point, reach: tolerance) else {
+            return nil
         }
+        return (.segment(nearest.location), nearest.distance)
+    }
+
+    private func hitFill(_ shape: Shape, point: Point) -> (HitKind, Double)? {
+        let contours = shape.path.contours.map { $0.applying(shape.transform) }
         for rule in shape.fillRules where HitTester.contains(contours, point, rule: rule) {
             return (.fill, 0)
         }

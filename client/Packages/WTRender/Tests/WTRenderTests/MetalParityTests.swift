@@ -155,7 +155,8 @@ struct MetalFillRuleSelfTests {
             #expect(failing == expected, "\(configuration): failing \(failing.sorted { $0.description < $1.description }) expected \(expected.sorted { $0.description < $1.description })")
             affectedCount += expected.count
         }
-        let decidesRules = ["fillRules", "multiContourRules"].contains(name)
+        // The Duet rosette's petals overlap, so their fill rule decides the overlaps.
+        let decidesRules = ["fillRules", "multiContourRules", "effectsBendDuetTransform"].contains(name)
         #expect((affectedCount > 0) == decidesRules, "\(name): \(affectedCount) affected tiles")
     }
 }

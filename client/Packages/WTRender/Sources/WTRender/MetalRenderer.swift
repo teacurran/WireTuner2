@@ -22,6 +22,10 @@ public struct MetalRenderer: WTRender {
     /// REND-007's self-test: swaps every declared fill rule, which must fail exactly the
     /// tiles the rule decides.
     var swapsFillRules = false
+    /// The *Raster effect preview* preference, as `CoreGraphicsRenderer.rasterPreview`.
+    public var rasterPreview: RasterPreview = .screen
+    /// As `CoreGraphicsRenderer.rasterEffectsReady`.
+    public var rasterEffectsReady: (@Sendable (Rect) -> Void)?
 
     /// The fraction of the shared tolerance this renderer flattens to.  The shared tolerance
     /// is the bound both renderers honour, but Core Graphics' scan converter subdivides curves
@@ -126,7 +130,9 @@ public struct MetalRenderer: WTRender {
             tolerance: FlatteningTolerance(devicePixels: flatteningTolerance.devicePixels * MetalRenderer.flatteningRefinement),
             surface: Rect(x: 0, y: 0, width: Double(width), height: Double(height)),
             swapsFillRules: swapsFillRules,
-            referenceTolerance: flatteningTolerance
+            referenceTolerance: flatteningTolerance,
+            rasterPreview: rasterPreview,
+            rasterEffectsReady: rasterEffectsReady
         )
         return builder.operations(for: displayList, pasteboardTransform: pasteboardTransform, cull: cull)
     }

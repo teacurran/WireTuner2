@@ -354,6 +354,25 @@ Undo:: Each drag one group; menu commands one change each ("Extrude", "Remove ex
 Output:: Extrusions print and export as vector faces (the same polygons as rendered, with
 their shaded fill colors), so a released extrusion and a live one produce identical output.
 
+NOTE: As built by FX-018, FX-019 and FX-022 (`WTRender/Effects/Extrude/ExtrudeSolver.swift`:
+`ExtrudeSolver`, `ProfileSweep`, `ExtrudeShading`, `ExtrudeResolver`), in WTRender rather than
+`WTGeometry/Extrude/`.  The extrusion is a `GroupItem` whose `live` is an `ExtrudeSpec`; its first
+child is extruded and any others draw flat above.  *Projection*: a point at depth z lands at
+VP + (p − VP) · f / (f + z), f the distance from the outline's centre to the vanishing point; the
+eye, for culling, is at the vanishing point f in front of the page; a non-finite vanishing point
+is orthographic straight behind.  Rotations turn about x, then y, then z in pasteboard axes (y
+down, z away).  *Profile*: the pasted path's x runs front to back over the length, its y upward is
+outward from the outline; rings sit at the profile's anchors with each profile segment cut into
+slices in proportion to its length (at least one), so a two-segment chamfer on a square gives eight
+facets.  *Faces*: Flat, Shaded and Hidden Mesh cull and sort; Wireframe strokes the front and rear
+outlines and the edges running front to back, Mesh every quad edge (distinct edges only, as open
+lines, 0.5 pt in the child's stroke colour); filled faces carry a 0.25 pt stroke of their own
+colour to close anti-aliasing seams.  Light directions are the unit vectors of (dx, dy, −1) with
+dx, dy ∈ {−1, 0, 1} (Front (0, 0, −1)).  The face cache is the pipeline's value memo; sides hit
+as the extrusion, the front face as the child.  Performance: a 500-point outline at 20 steps
+solves in 3.0 ms in release (41 ms in debug); the gate enforces 5 ms in release builds.  The screenshots of the
+manual's examples are the golden renders (`effectsExtrude`).
+
 === Build tasks
 
 [[FX-016]]

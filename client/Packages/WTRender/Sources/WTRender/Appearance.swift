@@ -117,19 +117,60 @@ public struct StackElement: Hashable, Sendable {
 }
 
 /// A resolved attribute stack: every visible fill and stroke in ascending position, bottom
-/// first.  Effects join with the FX epic.
+/// first, and the live effects (FX epic) in ascending position, which is the order they apply
+/// in.  An effect's `.element` target indexes `items`.
 public struct Appearance: Hashable, Sendable {
     public var items: [AppearanceItem]
+    /// The live effects, first applied first.
+    public var effects: [EffectElement]
+    /// The resolution raster effects render at (the object's override or the document's).
+    public var raster: RasterSettings
 
-    public init(_ items: [AppearanceItem] = []) {
+    public init(_ items: [AppearanceItem] = [], effects: [EffectElement] = [], raster: RasterSettings = RasterSettings()) {
         self.items = items
+        self.effects = effects
+        self.raster = raster
     }
 
     /// The display-list stack of `stack` (already in ascending position): hidden elements are
-    /// skipped here, at build time, so they cost nothing to paint or hit test.
-    public init(stack: [StackElement]) {
-        self.init(stack.filter { !$0.hidden }.map(\.item))
+    /// skipped here, at build time, so they cost nothing to paint or hit test.  `effects`
+    /// target `stack` indices; an effect attached to a hidden element is skipped with it, and
+    /// hidden effects are dropped.
+    public init(stack: [StackElement], effects: [EffectElement] = [], raster: RasterSettings = RasterSettings()) {
+        var remap: [Int: Int] = [:]
+        var items: [AppearanceItem] = []
+        for (index, element) in stack.enumerated() where !element.hidden {
+            remap[index] = items.count
+            items.append(element.item)
+        }
+        let kept = effects.compactMap { element -> EffectElement? in
+            guard !element.hidden else { return nil }
+            switch element.target {
+            case .object:
+                return element
+            case .element(let index):
+                guard let mapped = remap[index] else { return nil }
+                var result = element
+                result.target = .element(mapped)
+                return result
+            }
+        }
+        self.init(items, effects: kept, raster: raster)
     }
+
+    /// The effects that draw: visible, of a known kind, attached to an element that exists.
+    var liveEffects: [EffectElement] {
+        effects.filter { element in
+            guard !element.hidden, element.effect != .unsupported else { return false }
+            if case .element(let index) = element.target {
+                return items.indices.contains(index)
+            }
+            return true
+        }
+    }
+
+    /// Whether any effect draws.
+    public var hasEffects: Bool { !liveEffects.isEmpty }
 
     /// The default for a newly drawn object: one fill with one stroke above it.
     public static func fillAndStroke(fill: Color, stroke: Color, width: Double = 1) -> Appearance {
@@ -198,11 +239,18 @@ public struct PathItem: Hashable, Sendable {
     public var appearance: Appearance
     /// Local → pasteboard.
     public var transform: AffineTransform
+    /// Vector effects inherited from enclosing groups (FX-006), applied after the item's own.
+    var inheritedEffects: [FramedEffect] = []
 
     public init(path: DisplayPath, appearance: Appearance, transform: AffineTransform = .identity) {
         self.path = path
         self.appearance = appearance
         self.transform = transform
+    }
+
+    /// Whether any live effect changes how the item draws.
+    public var hasEffects: Bool {
+        appearance.hasEffects || !inheritedEffects.isEmpty
     }
 }
 

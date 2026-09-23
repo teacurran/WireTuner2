@@ -311,6 +311,19 @@ Undo:: One change per drag, key press sequence or sheet OK ("Attach to perspecti
 
 Output:: Projected outlines are emitted as vector paths; the grid never prints.
 
+NOTE: As built by FX-042 (`WTRender/Effects/Warp/PlaneProjector.swift`), in WTRender rather than
+`WTGeometry/Perspective/`.  The attached object is a `GroupItem` whose `live` is a
+`PerspectiveSpec` carrying its grid in pasteboard space.  Each plane's homography has a near
+origin N and two axes, each either receding toward a vanishing point A -- s cells along it land at
+N + (A − N) · s·c / (s·c + |A − N|) -- or parallel to a direction.  Walls: N at the wall's near
+edge x on the floor's near edge; the left wall's u runs away from the left vanishing point, the
+right wall's toward the right one, v up (toward the vertical vanishing point on three-point
+grids).  Floors: N at the walls' mean x; Floor right u toward the right vanishing point and v
+toward the left, Floor left u away from the left and v toward the right.  One-point grids: the
+wall is the frontal plane (u right, v up), the floor's v recedes to the vanishing point.  Text
+projects as glyph outlines; `PerspectivePlacement.inverse` is the caret map.  The grid overlay is
+FX-043's.
+
 === Build tasks
 
 [[FX-040]]

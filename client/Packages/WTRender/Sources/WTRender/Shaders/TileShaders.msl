@@ -79,10 +79,20 @@ vertex FanVarying fanVertex(uint vid [[vertex_id]],
 }
 
 // Top-left rule for a clockwise (on a y-down screen) triangle: samples exactly on a top or
-// left edge belong to it, so a sample on an edge shared by two triangles counts once.
+// left edge belong to it, so a sample on an edge shared by two triangles counts once.  The
+// edge function is evaluated from the edge's lower end point (by y, then x) whichever way the
+// triangle runs, so the two triangles sharing an edge compute exactly opposite values and never
+// both include, or both miss, a sample next to it (FX-006: fan edges of stroke outlines along a
+// diagonal through the sample lattice left seams).
 static bool inside(float2 p, float2 from, float2 to) {
+    bool reversed = from.y > to.y || (from.y == to.y && from.x > to.x);
+    float2 start = reversed ? to : from;
+    float2 end = reversed ? from : to;
+    float value = cross2(end - start, p - start);
+    if (reversed) {
+        value = -value;
+    }
     float2 edge = to - from;
-    float value = cross2(edge, p - from);
     bool topLeft = (edge.y == 0.0 && edge.x > 0.0) || edge.y < 0.0;
     return value > 0.0 || (value == 0.0 && topLeft);
 }

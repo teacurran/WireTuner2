@@ -14,6 +14,13 @@ final class RenderCache<Key: Hashable & Sendable, Value: Sendable>: @unchecked S
         self.capacity = max(capacity, 1)
     }
 
+    /// Whether `key` has a value, without computing one.
+    func contains(_ key: Key) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return entries[key] != nil
+    }
+
     /// The cached value for `key`, computing and storing it on a miss.  When full, the cache
     /// starts over: simple, and a working set larger than the capacity recomputes either way.
     func value(for key: Key, compute: () -> Value) -> Value {

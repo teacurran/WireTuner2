@@ -34,6 +34,22 @@ public struct CoreGraphicsRenderer: WTRender {
     /// The raster scale of PDF output: 4 pixels per point, about 300 dpi.
     public static let pdfRasterScale = 4.0
 
+    /// The *Raster effect preview* preference (FX-009): the resolution raster effects render at
+    /// in bitmaps and tiles.  PDF output always uses each object's resolution.
+    public var rasterPreview: RasterPreview = .screen
+
+    /// When set, raster effects missing from the cache render in the background and this is
+    /// called with the pasteboard rectangle to repaint when one is ready; meanwhile the object
+    /// draws without them and with a badge.  Nil renders them before returning.
+    public var rasterEffectsReady: (@Sendable (Rect) -> Void)?
+
+    /// Whether the context is vector output (PDF): raster effects are placed as images at the
+    /// objects' own resolution and masks become image soft masks.
+    var vectorOutput = false
+
+    /// Where raster effect results are cached.
+    var rasterCache = RasterEffectCache.shared
+
     public init(
         flatteningTolerance: FlatteningTolerance = .standard,
         background: Color? = nil,
@@ -117,6 +133,7 @@ public struct CoreGraphicsRenderer: WTRender {
         context.beginPDFPage(nil)
         var vector = self
         vector.rasterScale = CoreGraphicsRenderer.pdfRasterScale
+        vector.vectorOutput = true
         vector.render(displayList, viewport: viewport, into: context)
         context.endPDFPage()
         context.closePDF()
@@ -196,7 +213,7 @@ public struct CoreGraphicsRenderer: WTRender {
         }
     }
 
-    private func draw(_ item: DisplayItem, state: DrawState, cull: Rect, into context: CGContext) {
+    func draw(_ item: DisplayItem, state: DrawState, cull: Rect, into context: CGContext) {
         if viewMode.isKeyline {
             drawKeyline(item, state: state, cull: cull, into: context)
             return
@@ -214,7 +231,11 @@ public struct CoreGraphicsRenderer: WTRender {
             drawRegions(strokeRegions(paint, path: stroke.path, in: context), path: stroke.path, rule: .nonZero, overprint: false, state: state, into: context)
             context.restoreGState()
         case .path(let path):
-            drawPath(path, state: state, into: context)
+            if path.hasEffects {
+                drawNodes(EffectPipeline.nodes(for: path), state: state, cull: cull, into: context)
+            } else {
+                drawPath(path, state: state, into: context)
+            }
         case .image(let image):
             if viewMode.drawsImagesAsBoxes {
                 drawImageBox(image, color: Color(white: 0.45), into: context)
@@ -417,11 +438,25 @@ public struct CoreGraphicsRenderer: WTRender {
             inner.alpha = state.alpha * group.opacity
             context.setAlpha(CGFloat(inner.alpha))
         }
-        for (index, child) in group.children.enumerated() {
-            if let bounds = child.bounds, bounds.intersects(cull) {
-                var childState = inner
-                childState.indexPath = state.indexPath + [index]
-                draw(child, state: childState, cull: cull, into: context)
+        if group.isDerived {
+            // A derived group draws its entries (Keyline: without the group's own effects);
+            // nothing in it is a lens backdrop position of the canvas.
+            var derivedState = inner
+            derivedState.canvas = nil
+            if viewMode.isKeyline {
+                for item in EffectPipeline.derived(group).keylineItems where item.bounds?.intersects(cull) ?? false {
+                    draw(item, state: derivedState, cull: cull, into: context)
+                }
+            } else {
+                drawNodes(EffectPipeline.derived(group).nodes, state: derivedState, cull: cull, into: context)
+            }
+        } else {
+            for (index, child) in group.children.enumerated() {
+                if let bounds = child.bounds, bounds.intersects(cull) {
+                    var childState = inner
+                    childState.indexPath = state.indexPath + [index]
+                    draw(child, state: childState, cull: cull, into: context)
+                }
             }
         }
         if layered {

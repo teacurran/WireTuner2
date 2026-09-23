@@ -84,12 +84,17 @@ struct PaintListBuilder: Sendable {
         tolerance: FlatteningTolerance,
         surface: Rect,
         swapsFillRules: Bool = false,
-        referenceTolerance: FlatteningTolerance = .standard
+        referenceTolerance: FlatteningTolerance = .standard,
+        rasterPreview: RasterPreview = .screen,
+        rasterEffectsReady: (@Sendable (Rect) -> Void)? = nil
     ) {
         self.viewMode = viewMode
         self.overprintPreview = overprintPreview
         flattener = PathFlattener(tolerance: tolerance)
-        reference = CoreGraphicsRenderer(flatteningTolerance: referenceTolerance, viewMode: viewMode, overprintPreview: overprintPreview)
+        var reference = CoreGraphicsRenderer(flatteningTolerance: referenceTolerance, viewMode: viewMode, overprintPreview: overprintPreview)
+        reference.rasterPreview = rasterPreview
+        reference.rasterEffectsReady = rasterEffectsReady
+        self.reference = reference
         self.swapsFillRules = swapsFillRules
         self.surface = surface
         clipBounds = surface.expanded(by: 64)
@@ -133,7 +138,11 @@ struct PaintListBuilder: Sendable {
             let regions = strokeRegions(StrokePaint(paint: stroke.paint, style: stroke.style), path: stroke.path, transform: transform)
             addRegions(regions, path: stroke.path, rule: .nonZero, transform: transform, blend: .normal, state: state, cull: cull, into: &result)
         case .path(let path):
-            lowerPath(path, base: base, state: state, cull: cull, into: &result)
+            if path.hasEffects {
+                lowerNodes(EffectPipeline.nodes(for: path), base: base, state: state, cull: cull, into: &result)
+            } else {
+                lowerPath(path, base: base, state: state, cull: cull, into: &result)
+            }
         case .image(let image):
             let transform = image.transform.concatenating(base)
             if viewMode.drawsImagesAsBoxes {
@@ -270,11 +279,23 @@ struct PaintListBuilder: Sendable {
             inner.alpha = state.alpha * group.opacity
         }
         var children: [PaintOperation] = []
-        for (index, child) in group.children.enumerated() {
-            if let bounds = child.bounds, bounds.intersects(cull) {
-                var childState = inner
-                childState.indexPath = state.indexPath + [index]
-                lower(child, base: base, state: childState, cull: cull, into: &children)
+        if group.isDerived {
+            var derivedState = inner
+            derivedState.canvas = nil
+            if viewMode.isKeyline {
+                for item in EffectPipeline.derived(group).keylineItems where item.bounds?.intersects(cull) ?? false {
+                    lower(item, base: base, state: derivedState, cull: cull, into: &children)
+                }
+            } else {
+                lowerNodes(EffectPipeline.derived(group).nodes, base: base, state: derivedState, cull: cull, into: &children)
+            }
+        } else {
+            for (index, child) in group.children.enumerated() {
+                if let bounds = child.bounds, bounds.intersects(cull) {
+                    var childState = inner
+                    childState.indexPath = state.indexPath + [index]
+                    lower(child, base: base, state: childState, cull: cull, into: &children)
+                }
             }
         }
         let clip = group.clip.map { flattener.flatten($0, transform: group.transform.concatenating(base)).clipped(to: clipBounds) }
@@ -283,6 +304,66 @@ struct PaintListBuilder: Sendable {
             return
         }
         result.append(.group(PaintGroup(operations: children, clip: clip, clipRule: group.clipRule, opacity: layered ? group.opacity : 1)))
+    }
+
+    // MARK: Effects
+
+    /// Effect nodes (pasteboard space, `base` pasteboard → device pixels): plain items as
+    /// usual, transparency layers as groups, raster and masked nodes as the reference
+    /// renderer's device layer composited as a texture over its pixel rectangle.
+    private func lowerNodes(_ nodes: [EffectNode], base: AffineTransform, state: State, cull: Rect, into result: inout [PaintOperation]) {
+        for node in nodes {
+            guard let bounds = node.bounds, bounds.intersects(cull) else {
+                continue
+            }
+            switch node {
+            case .item(let item):
+                lower(item, base: base, state: state, cull: cull, into: &result)
+            case .layer(let opacity, let content):
+                var inner = state
+                if viewMode.drawsTransparencyGroups {
+                    inner.alpha = 1
+                    var children: [PaintOperation] = []
+                    lowerNodes(content, base: base, state: inner, cull: cull, into: &children)
+                    if !children.isEmpty {
+                        result.append(.group(PaintGroup(operations: children, clip: nil, clipRule: .nonZero, opacity: opacity)))
+                    }
+                } else {
+                    inner.alpha = state.alpha * opacity
+                    lowerNodes(content, base: base, state: inner, cull: cull, into: &result)
+                }
+            case .masked(let mask):
+                if viewMode.drawsRasterEffects {
+                    addLayer(node, bounds: bounds, base: base, state: state, into: &result)
+                } else {
+                    lowerNodes(mask.content, base: base, state: state, cull: cull, into: &result)
+                }
+            case .raster(let raster):
+                if !viewMode.drawsRasterEffects {
+                    lowerNodes(raster.content, base: base, state: state, cull: cull, into: &result)
+                } else if reference.rasterPreview == .off {
+                    lowerNodes(raster.content, base: base, state: state, cull: cull, into: &result)
+                    if let badge = CoreGraphicsRenderer.badge(for: raster, pixelSize: PaintListBuilder.hairlineWidth(for: base)) {
+                        addFill(badge, transform: base, rule: .nonZero, color: CoreGraphicsRenderer.badgeColor, declaredRule: false, state: state, into: &result)
+                    }
+                } else {
+                    addLayer(node, bounds: bounds, base: base, state: state, into: &result)
+                }
+            }
+        }
+    }
+
+    /// The node's device layer over the surface pixels it covers.
+    private func addLayer(_ node: EffectNode, bounds: Rect, base: AffineTransform, state: State, into result: inout [PaintOperation]) {
+        guard let region = PixelRect(covering: bounds.applying(base).intersection(surface)),
+              let image = reference.deviceLayerImage(node, pasteboardToPixels: base, region: region)
+        else {
+            return
+        }
+        var rect = FlatPath()
+        let r = region.rect
+        rect.append(contour: [SIMD2(r.minX, r.minY), SIMD2(r.maxX, r.minY), SIMD2(r.maxX, r.maxY), SIMD2(r.minX, r.maxY)])
+        result.append(.texture(PaintTexture(path: rect, rule: .nonZero, image: image, origin: SIMD2(Int32(region.minX), Int32(region.minY)), alpha: Float(state.alpha), blend: .normal)))
     }
 
     // MARK: Keyline

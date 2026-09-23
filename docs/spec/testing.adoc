@@ -163,7 +163,11 @@ FetchChanges, FetchSnapshot) with injectable faults: delayed (reordered) and los
 rejections, dropped and duplicated live frames, disconnects, silent streams, bulk uploads cut off
 mid-way.  The same fake is served over grpc-swift's in-process transport to test
 `GRPCSyncTransport` end to end.  `SyncSimulationTests` runs seeded rounds of loss and reordering in
-both push modes.  `SyncIntegrationTests` runs two clients against the compose server and is
+both push modes.  `ReconcileTests` plays scenarios 2 to 5 in miniature against the same fake
+(an overlap holding the outbox, *Keep the merged result*, *Save my version as a copy*'s revert, a
+store copied to a second Mac, an expired replica salvaged onto a collected snapshot), and
+`BlobTests` and `PresenceTests` drive the blob queue and the presence model through fakes of
+`BlobService` and the subscription.  `SyncIntegrationTests` runs two clients against the compose server and is
 skipped unless `WT_SYNC_IT=1` (`WT_SYNC_API`, `WT_SYNC_KEYCLOAK` override the local URLs).
 
 == Geometry and rendering
