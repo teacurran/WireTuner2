@@ -146,10 +146,10 @@ import WTRender
         controller.statusBar.magnificationEntered(controller.statusBar.magnification)
         #expect(controller.viewport.zoom == 2)
         controller.statusBar.magnification.selectItem(withObjectValue: "50%")
-        controller.statusBar.comboBoxSelectionDidChange(Notification(name: NSComboBox.selectionDidChangeNotification))
+        controller.statusBar.comboBoxSelectionDidChange(Notification(name: NSComboBox.selectionDidChangeNotification, object: controller.statusBar.magnification))
         #expect(controller.viewport.zoom == 0.5)
         controller.statusBar.magnification.deselectItem(at: controller.statusBar.magnification.indexOfSelectedItem)
-        controller.statusBar.comboBoxSelectionDidChange(Notification(name: NSComboBox.selectionDidChangeNotification))
+        controller.statusBar.comboBoxSelectionDidChange(Notification(name: NSComboBox.selectionDidChangeNotification, object: controller.statusBar.magnification))
         #expect(controller.viewport.zoom == 0.5)
     }
 
@@ -442,14 +442,14 @@ final class TargetBox {
 @Suite @MainActor struct DocumentContentTests {
     @Test func placeholderContentAppendsEditsAndNotifies() {
         let content = PlaceholderDocumentContent.blank(canvas: "c")
-        #expect(content.items.count == 2)
+        #expect(content.items.count == 1, "every page is in one group")
         let document = DocumentHandle.placeholder(title: "T", content: content)
         var seen: [Rect?] = []
         let token = document.observe { seen.append($0) }
         let items = RectangleSketchTool.items(for: Rect(x: 0, y: 0, width: 5, height: 5))
         document.commandSink.submit(DocumentEdit(label: "Rectangle", insertedItems: items))
         #expect(content.edits.count == 1)
-        #expect(document.displayList.count == 3, "the page's fill and stroke plus the rectangle's one path")
+        #expect(document.displayList.count == 2, "the pages group plus the rectangle's one path")
         #expect(seen.count == 1)
         document.stopObserving(token)
         document.contentDidChange(dirty: nil)

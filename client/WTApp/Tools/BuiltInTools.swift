@@ -3,8 +3,7 @@ import WTGeometry
 import WTRender
 
 /// The stand-in for a tool whose epic has not landed (toolbars.adoc, "Client"): selectable,
-/// with a cursor, says "coming soon" on mouse down and never writes a change.  The Pointer
-/// runs on it until APP-006.
+/// with a cursor, shows a "coming soon" HUD on mouse down and never writes a change.
 @MainActor
 final class UnimplementedTool: Tool {
     static let id: ToolID = "unimplemented"
@@ -28,7 +27,7 @@ final class UnimplementedTool: Tool {
 
     func mouseDown(_ e: CanvasEvent) {
         pressCount += 1
-        context?.host.showStatusMessage(message)
+        context?.host.showHUD(message)
     }
 
     func mouseDragged(_ e: CanvasEvent) {}

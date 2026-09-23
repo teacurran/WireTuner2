@@ -49,7 +49,7 @@ struct ShortcutSet: Codable, Equatable, Sendable, Identifiable {
     static func builtInDefault(commands: [Command]) -> ShortcutSet {
         ShortcutSet(
             id: defaultID, name: defaultName,
-            bindings: commands.map { ShortcutBinding(commandID: $0.id, keys: $0.defaultKey.map { [$0] } ?? []) }
+            bindings: commands.map { ShortcutBinding(commandID: $0.id, keys: ($0.defaultKey.map { [$0] } ?? []) + $0.alternateKeys) }
         )
     }
 

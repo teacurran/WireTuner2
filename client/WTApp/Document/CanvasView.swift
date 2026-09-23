@@ -162,6 +162,53 @@ final class CanvasView: NSView, CanvasHost {
         onStatusMessage?(message)
     }
 
+    // MARK: HUD
+
+    /// How long the "coming soon" HUD stays.
+    static let hudDuration: Duration = .milliseconds(1500)
+
+    /// A rounded label over the canvas, bottom centre (a text layer: this view hosts layers,
+    /// not subviews).
+    let hud: CATextLayer = {
+        let layer = CATextLayer()
+        layer.fontSize = 13
+        layer.alignmentMode = .center
+        layer.foregroundColor = CGColor(gray: 1, alpha: 1)
+        layer.backgroundColor = CGColor(gray: 0.1, alpha: 0.8)
+        layer.cornerRadius = 8
+        layer.isHidden = true
+        layer.actions = ["contents": NSNull(), "hidden": NSNull(), "bounds": NSNull(), "position": NSNull()]
+        return layer
+    }()
+    private(set) var hudMessage: String?
+    private var hudHide: Task<Void, Never>?
+
+    /// Shows `message` over the canvas for `hudDuration`, and in the status bar.
+    func showHUD(_ message: String) {
+        showStatusMessage(message)
+        hudMessage = message
+        if hud.superlayer == nil { layer?.addSublayer(hud) }
+        hud.string = message
+        hud.contentsScale = window?.backingScaleFactor ?? 2
+        let width = min(max(CGFloat(message.count) * 7.5 + 24, 120), max(bounds.width - 20, 120))
+        hud.frame = CGRect(x: (bounds.width - width) / 2, y: 24, width: width, height: 26)
+        hud.isHidden = false
+        hudHide?.cancel()
+        hudHide = Task { [weak self] in
+            do {
+                try await Task.sleep(for: Self.hudDuration)
+            } catch {
+                return
+            }
+            self?.hideHUD()
+        }
+    }
+
+    func hideHUD() {
+        hud.isHidden = true
+        hudMessage = nil
+    }
+
     func drawOverlay(in ctx: CGContext) {
         if let selectionController {
             SelectionOverlay(document: document, viewport: viewport).draw(

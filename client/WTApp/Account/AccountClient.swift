@@ -33,6 +33,8 @@ struct AccountProfile: Equatable, Sendable {
     var displayName: String
     var identities: [Identity]
     var devices: [Device]
+    /// The account id: the id of the personal library space.
+    var accountID: String = ""
 
     static func methodTitle(_ method: String) -> String {
         switch method {
@@ -59,7 +61,8 @@ extension AccountProfile {
                     isRelay: identity.isRelay, linkedAt: identity.hasLinkedAt ? identity.linkedAt.date : nil
                 )
             },
-            devices: response.hasDevice ? [Device(response.device)] : []
+            devices: response.hasDevice ? [Device(response.device)] : [],
+            accountID: account.id
         )
     }
 }

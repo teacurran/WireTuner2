@@ -231,6 +231,30 @@ Nothing beyond storing and relaying changes.  Collaborator avatars come from pre
 * Undo grouping: nothing here is undoable except the units change, which is one change
   labelled "Change Units".
 
+NOTE: Deviations recorded by BASIC-001, BASIC-002 and BASIC-003.  *Tabs*: native window
+tabbing; menu:View[Show Tab Bar], menu:Window[Show Next Tab] (kbd:[Control+Tab]), Show Previous
+Tab (kbd:[Control+Shift+Tab]), Move Tab to New Window and Merge All Windows are responder-chain
+commands AppKit performs (`WindowTabCommands`).  `WindowState` restoration is not
+`NSWindowRestoration`: `DocumentController.sessionState()` is written to
+`WireTuner/Session.json` at quit and reopened at launch (skipped for test launches unless they
+pass `-WTRestoreSession`); a document the library cache knows as trashed is skipped.  A window
+opened on its own is ordered front with tabbing disallowed for that moment, because a
+`.preferred` window otherwise joins the front window.  Tab dots are a `TabPresenceDotsView`
+accessory driven by `PresenceProviding` (the stub until SYNC-009).  *Status bar*: the page
+selector is an `NSComboBox` listing "Page 1", "Page 2"... until pages have names; stepping to a
+page centres it at the current zoom; the current page is kept on the `DocumentHandle` (one window
+per document until BASIC-016).  Until `WTModel`, the placeholder document draws every page (a
+shadow, the white sheet and its border) as one group at display-list index 0, so adding a page
+never renumbers objects; btn:[Add Page] records one change labelled "Add Page" and places the page
+after the current page's row (a new row below when the pasteboard is full); `settings.units` is a
+last-writer-wins `UnitsRegister` (Lamport counter, then replica id) on the handle, and remote
+page deletions and unit changes arrive through `removePage(at:)` and `mergeUnits(_:)`, stand-ins
+for `WTSync`, so the merge test is a unit test of that register.  Named views are empty until
+BASIC-012.  The sync glyph and avatars are SwiftUI hosts over `StatusBarModel`.  *Title*: the sync
+state comes from `SyncStatusProviding` (`StubSyncStatus`, always synced, until SYNC-001); the
+separator is an em dash.  The canvas's scroll limits are APP-002's scroller model;
+`Pasteboard.clamp` keeps a page on the pasteboard for the DOC epic's page drag.
+
 === Build tasks
 
 [[BASIC-001]]

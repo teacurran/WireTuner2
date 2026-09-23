@@ -174,6 +174,27 @@ extended in the backlog).  The server never renders a thumbnail.
   produce the informational alert with btn:[Quit] and btn:[Cancel], never a save prompt.
 * The built-in template content is a textproto resource in `WTModel` applied as one change.
 
+NOTE: Deviations recorded by APP-009.  The Library window is `LibraryWindowController` over
+`LibraryModel` (`WTApp/Library`), talking to `DocumentService`, `TeamService.ListTeams` and
+`BlobService.Download` through `GRPCLibraryClient` (one connection per call, as
+`GRPCAccountClient`) behind the `LibraryDocumentClient`, `TeamListClient` and
+`BlobDownloadClient` protocols, so the model is tested against in-memory fakes.  Until SYNC-001
+gives every document a local store: the library cache is one JSON file,
+`WireTuner/Library.json` in Application Support (spaces, every listed document and folder,
+recents, offline flags), not the local store's tables; a document is *offline available* when it
+was opened on this Mac, and *Keep Available Offline* only marks it; opening a library document
+opens a blank placeholder window.  Downloaded thumbnails are kept as
+`WireTuner/Thumbnails/<sha256>.png` and checked against their hash; a changed thumbnail is a new
+hash, so it shows after the next `List`.  The personal space's id is the account id, learned from
+`AccountService.Me` and cached; a document created before it is known is re-targeted when it
+uploads.  Being signed out is treated like being offline (cached list, names-only search).
+Recents are this Mac's (50 kept) until DOC-020 syncs them through the account.  A search hit
+missing from the cache is fetched with `Get`.  menu:File[New] and btn:[New] create through the
+library at once (UUIDv7, *Waiting to upload* until `Create` succeeds; `ALREADY_EXISTS` counts as
+uploaded), but the untitled document opened at launch has no library record until DOC-019.  The
+template gallery offers only the built-in template until DOC-019.  Documents move between
+folders by dragging onto a folder tile; there is no Trash view yet (`LIST_SCOPE_TRASH`).
+
 === Build tasks
 
 [[DOC-019]]

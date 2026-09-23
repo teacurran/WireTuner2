@@ -1,8 +1,26 @@
 import Foundation
 
-/// The window edges a group can dock at.
+/// The window edges a group can dock at.  Panel groups dock left or right; the top and
+/// bottom strips hold toolbars (the Tools panel docks at all four, toolbars.adoc).
 enum DockEdge: String, Codable, Sendable, CaseIterable, CodingKeyRepresentable {
-    case left, right
+    case left, right, top, bottom
+
+    /// Left and right docks are columns; top and bottom are rows.
+    var isVertical: Bool { self == .left || self == .right }
+}
+
+/// How the factory layout treats one default group (panels.adoc, "The default layout").
+struct PanelGroupDefaults: Equatable, Sendable {
+    /// Place in the dock, top first.
+    var position: Int
+    /// Open at first launch; a closed group's panels are in `PanelLayout.closedPanels`.
+    var isOpen: Bool = true
+    /// Collapsed to its title bar at first launch.
+    var isCollapsed: Bool = false
+    /// Keeps its name however its members change (Properties, Assets); other groups are named
+    /// after their panels until renamed.
+    var keepsName: Bool = false
+    var edge: DockEdge = .right
 }
 
 /// A floating group's frame in screen points, stored as `[x, y, width, height]`.
@@ -144,7 +162,8 @@ struct FloatingGroup: Equatable, Sendable, Codable {
 /// `PanelLayoutStore`.
 struct PanelLayout: Codable, Equatable, Sendable {
     static let currentVersion = 1
-    static let defaultDockWidth: [DockEdge: Double] = [.right: 280, .left: 44]
+    /// Width of the side docks, height of the top and bottom strips.
+    static let defaultDockWidth: [DockEdge: Double] = [.right: 280, .left: 84, .top: 44, .bottom: 44]
     static let minimumDockWidth: Double = 44
     static let defaultGroupHeight: Double = 220
 
@@ -154,21 +173,29 @@ struct PanelLayout: Codable, Equatable, Sendable {
     var dockWidth: [DockEdge: Double]
     /// Docks hidden with the dock handle or menu:View[Panels]; their groups keep their place.
     var hiddenDocks: Set<DockEdge>
+    /// Registered panels that are deliberately not in the layout (closed groups, and groups
+    /// closed by the user); a reload does not bring them back.
+    var closedPanels: Set<PanelID>
+    /// The member each Tools panel flyout shows, by flyout group (toolbars.adoc: "the slot
+    /// remembers the last chosen member per layout").
+    var flyoutSlots: [String: String]
 
     init(
         version: Int = PanelLayout.currentVersion, docks: [DockEdge: [PanelGroup]] = [:],
         floating: [FloatingGroup] = [], dockWidth: [DockEdge: Double] = PanelLayout.defaultDockWidth,
-        hiddenDocks: Set<DockEdge> = []
+        hiddenDocks: Set<DockEdge> = [], closedPanels: Set<PanelID> = [], flyoutSlots: [String: String] = [:]
     ) {
         self.version = version
         self.docks = docks
         self.floating = floating
         self.dockWidth = dockWidth
         self.hiddenDocks = hiddenDocks
+        self.closedPanels = closedPanels
+        self.flyoutSlots = flyoutSlots
     }
 
     enum CodingKeys: String, CodingKey {
-        case version, docks, floating, dockWidth, hiddenDocks
+        case version, docks, floating, dockWidth, hiddenDocks, closedPanels, flyoutSlots
     }
 
     /// Lenient about missing keys so a hand-edited or older file still loads.
@@ -179,25 +206,40 @@ struct PanelLayout: Codable, Equatable, Sendable {
         floating = try container.decodeIfPresent([FloatingGroup].self, forKey: .floating) ?? []
         dockWidth = try container.decodeIfPresent([DockEdge: Double].self, forKey: .dockWidth) ?? PanelLayout.defaultDockWidth
         hiddenDocks = try container.decodeIfPresent(Set<DockEdge>.self, forKey: .hiddenDocks) ?? []
+        closedPanels = try container.decodeIfPresent(Set<PanelID>.self, forKey: .closedPanels) ?? []
+        flyoutSlots = try container.decodeIfPresent([String: String].self, forKey: .flyoutSlots) ?? [:]
     }
 
-    /// The factory layout: one group per distinct `defaultGroup`, in the order the descriptors
-    /// name them, all docked at `edge`, every group expanded with its first panel in front.
-    static func standard(for descriptors: [PanelDescriptor], edge: DockEdge = .right) -> PanelLayout {
-        var groups: [PanelGroup] = []
-        var indexByName: [String: Int] = [:]
+    /// The factory layout: one group per distinct `defaultGroup`, ordered and shown as
+    /// `defaults` says (groups it does not name follow in descriptor order, open, expanded, at
+    /// `edge`, keeping their name), each with its first panel in front.
+    static func standard(for descriptors: [PanelDescriptor], groups defaults: [String: PanelGroupDefaults] = [:], edge: DockEdge = .right) -> PanelLayout {
+        var names: [String] = []
+        var members: [String: [PanelID]] = [:]
         for descriptor in descriptors {
-            if let index = indexByName[descriptor.defaultGroup] {
-                groups[index].panels.append(descriptor.id)
-            } else {
-                indexByName[descriptor.defaultGroup] = groups.count
-                groups.append(PanelGroup(
-                    id: PanelGroup.id(forName: descriptor.defaultGroup), name: descriptor.defaultGroup,
-                    panels: [descriptor.id]
-                ))
-            }
+            if members[descriptor.defaultGroup] == nil { names.append(descriptor.defaultGroup) }
+            members[descriptor.defaultGroup, default: []].append(descriptor.id)
         }
-        return PanelLayout(docks: groups.isEmpty ? [:] : [edge: groups])
+        let ordered = names.enumerated().sorted { lhs, rhs in
+            let l = (defaults[lhs.element]?.position ?? Int.max, lhs.offset)
+            let r = (defaults[rhs.element]?.position ?? Int.max, rhs.offset)
+            return l < r
+        }.map(\.element)
+        var layout = PanelLayout()
+        for name in ordered {
+            let panels = members[name]!
+            let settings = defaults[name]
+            guard settings?.isOpen ?? true else {
+                layout.closedPanels.formUnion(panels)
+                continue
+            }
+            let group = PanelGroup(
+                id: PanelGroup.id(forName: name), name: Self.groupName(name, settings: settings), panels: panels,
+                collapsed: settings?.isCollapsed ?? false
+            )
+            layout.insert(group, at: settings?.edge ?? edge, index: nil)
+        }
+        return layout
     }
 
     // MARK: Queries
@@ -207,7 +249,7 @@ struct PanelLayout: Codable, Equatable, Sendable {
         case floating(Int)
     }
 
-    /// Every group: docked left, docked right, then floating.
+    /// Every group: docked left, right, top, bottom, then floating.
     var groups: [PanelGroup] {
         DockEdge.allCases.flatMap { docks[$0] ?? [] } + floating.map(\.group)
     }
@@ -260,7 +302,7 @@ struct PanelLayout: Codable, Equatable, Sendable {
         }
     }
 
-    private mutating func insert(_ group: PanelGroup, at edge: DockEdge, index: Int?) {
+    fileprivate mutating func insert(_ group: PanelGroup, at edge: DockEdge, index: Int?) {
         var list = docks[edge] ?? []
         list.insert(group, at: min(max(index ?? list.count, 0), list.count))
         docks[edge] = list
@@ -393,22 +435,71 @@ struct PanelLayout: Codable, Equatable, Sendable {
     /// Drops every panel not in `registered` (a layout saved by a build that had more panels).
     mutating func prune(keeping registered: Set<PanelID>) {
         for panel in panelIDs where !registered.contains(panel) { removePanel(panel) }
+        closedPanels.formIntersection(registered)
     }
 
     /// Adds panels the layout does not have yet to their default group, creating the group at
-    /// `edge` when it does not exist.  Called after loading, so a panel a later task registers
-    /// appears without a reset.
-    mutating func add(panels descriptors: [PanelDescriptor], edge: DockEdge = .right) {
-        for descriptor in descriptors where !contains(descriptor.id) {
-            let defaultID = PanelGroup.id(forName: descriptor.defaultGroup)
-            if group(defaultID) != nil {
-                update(group: defaultID) { $0.panels.append(descriptor.id) }
-            } else if let named = groups.first(where: { $0.name == descriptor.defaultGroup }) {
-                update(group: named.id) { $0.panels.append(descriptor.id) }
-            } else {
-                insert(PanelGroup(id: defaultID, name: descriptor.defaultGroup, panels: [descriptor.id]), at: edge, index: nil)
+    /// its default edge (else `edge`) when it does not exist.  Called after loading, so a panel
+    /// a later task registers appears without a reset.  Closed panels stay closed; a panel whose
+    /// default group is closed by default joins them.
+    mutating func add(panels descriptors: [PanelDescriptor], groups defaults: [String: PanelGroupDefaults] = [:], edge: DockEdge = .right) {
+        for descriptor in descriptors where !contains(descriptor.id) && !closedPanels.contains(descriptor.id) {
+            let settings = defaults[descriptor.defaultGroup]
+            if settings?.isOpen == false {
+                closedPanels.insert(descriptor.id)
+                continue
             }
+            place(descriptor, settings: settings, edge: edge)
         }
+    }
+
+    private mutating func place(_ descriptor: PanelDescriptor, settings: PanelGroupDefaults?, edge: DockEdge) {
+        let defaultID = PanelGroup.id(forName: descriptor.defaultGroup)
+        if group(defaultID) != nil {
+            update(group: defaultID) { $0.panels.append(descriptor.id) }
+        } else if let named = groups.first(where: { $0.name == descriptor.defaultGroup }) {
+            update(group: named.id) { $0.panels.append(descriptor.id) }
+        } else {
+            let name = Self.groupName(descriptor.defaultGroup, settings: settings)
+            insert(PanelGroup(id: defaultID, name: name, panels: [descriptor.id]), at: settings?.edge ?? edge, index: nil)
+        }
+    }
+
+    /// A default group's stored name: nil (named after its panels) unless it keeps its name;
+    /// groups without settings keep theirs.
+    static func groupName(_ name: String, settings: PanelGroupDefaults?) -> String? {
+        guard let settings else { return name }
+        return settings.keepsName ? name : nil
+    }
+
+    /// Brings closed panels back (menu:Window[<panel>] on a closed panel): each of
+    /// `descriptors` rejoins its default group, recreated at its default edge if needed.
+    mutating func reopen(_ descriptors: [PanelDescriptor], groups defaults: [String: PanelGroupDefaults] = [:], edge: DockEdge = .right) {
+        for descriptor in descriptors where !contains(descriptor.id) {
+            closedPanels.remove(descriptor.id)
+            place(descriptor, settings: defaults[descriptor.defaultGroup], edge: edge)
+        }
+    }
+
+    /// Close Group: the group's panels leave the layout and stay closed until shown again.
+    mutating func close(group id: PanelGroup.ID) {
+        guard let group = group(id) else { return }
+        for panel in group.panels { removePanel(panel) }
+        closedPanels.formUnion(group.panels)
+    }
+
+    /// The edge a group is docked at; nil when floating or unknown.
+    func edge(of id: PanelGroup.ID) -> DockEdge? {
+        if case let .docked(edge, _)? = location(of: id) { return edge }
+        return nil
+    }
+
+    /// Moves every panel of group `source` into group `target` (a group dragged onto a tab
+    /// strip), the first moved panel in front.
+    mutating func merge(group source: PanelGroup.ID, into target: PanelGroup.ID) {
+        guard source != target, let moving = group(source), group(target) != nil else { return }
+        for panel in moving.panels { movePanel(panel, toGroup: target) }
+        activate(moving.panels[0])
     }
 
     /// Moves floating groups whose frame is off every display onto `screen`.

@@ -314,7 +314,8 @@ which are document nodes.
 //     ViewState view = 40 [(wt.crdt.field).local_only = true];  // BASIC block
 //   }
 message ViewState {
-  double magnification = 1;        // 0.06 .. 256.0 (1.0 = 100%)
+  double magnification = 1;        // 0.06 .. 256.0 (1.0 = 100%); 0 reads 1.0
+  // Point and OpId fields are annotated [(wt.crdt.field).merge = MERGE_ATOMIC].
   Point scroll_origin = 2;         // pasteboard point at the window's top-left
   DrawingMode mode = 3;            // PREVIEW, FAST_PREVIEW, KEYLINE, FAST_KEYLINE
   OpId current_page = 4;           // page node; unset = first page
@@ -341,11 +342,12 @@ enum DrawingMode {
   DRAWING_MODE_FAST_KEYLINE = 4;
 }
 
-// A named view.  Node kind `custom_view`, child of the well-known `settings` node (0:1);
-// sibling order is the order in View > Custom.  Shared: it is the one piece of "view" that
-// is a document fact.
+// A named view.  Node kind `custom_view` = 260 (BASIC block 260-279), child of the
+// well-known `settings` node (0:1); sibling order is the order in View > Custom.  Shared: it
+// is the one piece of "view" that is a document fact.  The name is CommonProps.name (empty
+// reads as "View n"), as for every other named kind.
 message CustomViewProps {
-  string name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 64}];
+  CommonProps common = 1;
   // Magnification, mode and scroll position are one register: a view redefined by two
   // people concurrently must not end up with one person's zoom and the other's scroll.
   ViewTarget target = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];
@@ -353,7 +355,7 @@ message CustomViewProps {
 
 message ViewTarget {
   double magnification = 1 [(buf.validate.field).double = {gte: 0.06, lte: 256.0}];
-  Point scroll_origin = 2;
+  Point scroll_origin = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];
   DrawingMode mode = 3;
 }
 ----
@@ -372,7 +374,7 @@ outbox, and two Macs of the same user each hold their own.  `current_page` and
 back to the nearest page by pasteboard distance at read time (a normalization in `WTModel`),
 a deleted named view simply drops out of the Previous pair.
 
-`custom_view` nodes:: `name` is an ATOMIC string register (LWW); `target` is one ATOMIC
+`custom_view` nodes:: `common.name` is an ATOMIC string register (LWW); `target` is one ATOMIC
 register; position among siblings is the tree position.  Cases:
 
 * *Redefine vs. redefine*: LWW on `target`; the loser's window does not move (recall is
@@ -505,7 +507,7 @@ Done when::
 Track:: proto
 Depends on:: PROTO-003, PROTO-005
 Size:: S
-Delivers:: `doc/v1/view.proto` with `ViewState`, `DrawingMode`, `CustomViewProps`, `ViewTarget`, the `SettingsProps.view` field marked `local_only`, and the `custom_view` kind in `NodeProps` within the BASIC block.
+Delivers:: `doc/v1/view.proto` with `ViewState`, `DrawingMode`, `CustomViewProps`, `ViewTarget`, the `SettingsProps.view` field marked `local_only`, and the `custom_view` kind in `NodeProps` within the BASIC block (implemented in `view.proto`; `view` = `SettingsProps` 40, `custom_view` = 260 in the new BASIC block 260-279).
 Done when::
 * `buf lint` clean with comments; the generated merge table marks `target` ATOMIC and every `ViewState` path local_only.
 * Conformance vectors: concurrent redefine (LWW), rename vs. redefine (both kept), delete vs. redefine (edits retained on the deleted node), and a vector asserting a `SetFields` on a local_only path is a deterministic no-op in both engines.

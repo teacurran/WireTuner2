@@ -281,6 +281,27 @@ Nothing beyond storing and relaying changes.
   search index built at packaging time; hover help uses `NSView.accessibilityIdentifier`
   conventions from TEST-002 to map the view under the pointer to a `helpSlug`.
 
+NOTE: Deviations recorded by BASIC-004, BASIC-005 and BASIC-006.  `PanelDescriptor` carries
+`icon` (an SF Symbol), `optionsMenu: () -> [PanelMenuItem]` and `makeView` in place of `body`;
+`menuOrder` follows the table in "The panels".  The default layout's per-group state (position,
+open, collapsed, keeps its name, edge) is a `PanelGroupDefaults` table the registry holds
+(`PanelCatalog.groupDefaults`), and the layout file gains `closedPanels` (panels deliberately not
+in the layout, so a reload does not bring a closed group back; showing one reopens the closed
+members of its default group) and `flyoutSlots` (the Tools panel's, BASIC-009); both keys are
+optional, so the file stays version 1.  Dock edges gained `top` and `bottom` strips (for the Tools
+panel); docks are stacks of groups rather than an `NSSplitView`, so there is no divider between
+docked groups yet (a group keeps its stored height).  The Tools panel is a panel of the framework,
+docked left (84 pt) by default.  Floating groups are `NSPanel` child windows of the front document
+window, one per group, app-wide (`FloatingPanelsController`).  The Options menu's *Group <panel>
+With* lists every other group then *New Panel Group*; *Help for <panel>* shows the Help panel's
+placeholder naming the page until BASIC-007.  Renaming edits the title in place: kbd:[Return]
+commits, kbd:[Esc], clicking elsewhere or an empty name cancels.  Tabs and the gripper drag with a
+private pasteboard type each (panel, group); a drag released outside every target floats what it
+carried at that point; the 2 pt insertion line is not drawn yet.  The dock handle is a 6 pt strip
+between the canvas and each side dock: a click hides or shows the dock, a drag resizes it.  The
+two appearance preferences apply live through `PreferenceStore.observe`.  The thirteen panels
+whose epics have not landed register placeholder bodies.
+
 === Build tasks
 
 [[BASIC-004]]

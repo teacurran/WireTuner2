@@ -50,6 +50,7 @@ final class PreferenceStore {
     private(set) var revision = 0
 
     @ObservationIgnored private var continuations: [UUID: AsyncStream<PreferenceChange>.Continuation] = [:]
+    @ObservationIgnored private var observers: [UUID: @MainActor (PreferenceChange) -> Void] = [:]
 
     /// - Parameter backend: the account side of synced keys; `nil` uses `LocalPreferenceBackend`.
     init(defaults: UserDefaults = PreferenceStore.makeDefaults(), backend: SyncedPreferenceBackend? = nil, catalog: [AnyPreferenceKey] = PreferenceCatalog.all) {
@@ -113,6 +114,7 @@ final class PreferenceStore {
         revision += 1
         let change = PreferenceChange(id: key.id, value: value)
         for continuation in continuations.values { continuation.yield(change) }
+        for observer in observers.values { observer(change) }
     }
 
     /// Whether synced keys follow the account on this Mac.
@@ -158,6 +160,18 @@ final class PreferenceStore {
     }
 
     // MARK: Observation
+
+    /// Calls `handler` synchronously after every change (views that apply a preference live).
+    @discardableResult
+    func observe(_ handler: @escaping @MainActor (PreferenceChange) -> Void) -> UUID {
+        let id = UUID()
+        observers[id] = handler
+        return id
+    }
+
+    func stopObserving(_ token: UUID) {
+        observers[token] = nil
+    }
 
     /// Every change from now on.
     func changes() -> AsyncStream<PreferenceChange> {

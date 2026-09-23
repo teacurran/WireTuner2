@@ -8,13 +8,13 @@ enum PlaceholderPanels {
     /// The Object panel stand-in; with `selection` it publishes the front window's selection
     /// ("3 objects selected"), which is what APP-007's inspector will observe.
     static func objectPanel(selection: ActiveSelection?) -> PanelDescriptor {
-        PanelDescriptor(id: "object", title: "Object", defaultGroup: "Properties", menuOrder: 10, helpSlug: "object-panel") {
+        PanelDescriptor(id: "object", title: "Object", icon: "slider.horizontal.3", defaultGroup: "Properties", menuOrder: 10, helpSlug: "object-panel") {
             SelectionSummaryBody(selection: selection)
         }
     }
 
     static let layers = PanelDescriptor(
-        id: "layers", title: "Layers", defaultGroup: "Layers", menuOrder: 20, helpSlug: "layers"
+        id: "layers", title: "Layers", icon: "square.3.layers.3d", defaultGroup: "Layers", menuOrder: 20, helpSlug: "layers"
     ) {
         PlaceholderPanelBody(title: "Layers", detail: "The document's layers appear here.")
     }

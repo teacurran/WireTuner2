@@ -15,6 +15,8 @@ struct DocumentWindowState: Codable, Equatable, Sendable {
     /// BASIC-034 writes it; restored with the rest so the angle survives reopening.
     var rotationDegrees: Double
     var viewMode: ViewMode
+    /// The snap toggles (BASIC-009); nil in files written before them.
+    var snap: SnapSettings?
 
     init(frame: LayoutRect? = nil, zoom: Double = 1, scrollX: Double = 0, scrollY: Double = 0, rotationDegrees: Double = 0, viewMode: ViewMode = .preview) {
         self.frame = frame
@@ -95,5 +97,43 @@ struct WindowStateStore: Sendable {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         try encoder.encode(File(version: Self.currentVersion, documents: documents)).write(to: url, options: .atomic)
+    }
+}
+
+/// One window of the session at quit (workspace.adoc, `WindowState`): restored when the app
+/// relaunches, keyed by document id.
+struct WindowState: Codable, Equatable, Sendable {
+    var documentID: String
+    /// The name to show until the document is loaded.
+    var title: String
+    var frame: LayoutRect?
+    /// Windows with the same number were tabs of one window.
+    var tabGroup: Int
+    var tabIndex: Int
+    /// Was the key window at quit.
+    var key: Bool
+}
+
+/// The session as one JSON file beside the window states (`WireTuner/Session.json`).
+struct SessionStore: Sendable {
+    static let fileName = "Session.json"
+
+    let url: URL
+
+    static var defaultURL: URL {
+        WindowStateStore.defaultURL.deletingLastPathComponent().appending(path: fileName)
+    }
+
+    /// The saved session; empty when there is none or it is unreadable.
+    func load() -> [WindowState] {
+        guard let data = try? Data(contentsOf: url) else { return [] }
+        return (try? JSONDecoder().decode([WindowState].self, from: data)) ?? []
+    }
+
+    func save(_ states: [WindowState]) throws {
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        try encoder.encode(states).write(to: url, options: .atomic)
     }
 }

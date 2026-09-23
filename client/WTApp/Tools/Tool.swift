@@ -63,6 +63,12 @@ protocol CanvasHost: AnyObject {
     func toolCursorDidChange()
     /// Shows `message` in the status bar ("Drag to draw a rectangle; Shift constrains").
     func showStatusMessage(_ message: String)
+    /// Shows `message` briefly over the canvas (the "coming soon" HUD).
+    func showHUD(_ message: String)
+}
+
+extension CanvasHost {
+    func showHUD(_ message: String) { showStatusMessage(message) }
 }
 
 /// Snapping, as the tools see it.  A placeholder until GEO-005 and OBJ-039 deliver the

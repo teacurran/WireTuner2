@@ -143,15 +143,18 @@ import WTRender
         let registry = ToolRegistry()
         registry.registerBuiltIn()
         registry.registerBuiltIn()
-        #expect(registry.ids == [.pointer, .rectangle, .zoom, .hand])
+        #expect(registry.ids.count == ToolCatalog.all.count)
+        #expect(Array(registry.ids.suffix(2)) == [.zoom, .hand])
         #expect(throws: ToolRegistry.Failure.duplicateID(.hand)) {
             try registry.register(ToolDescriptor(id: .hand, title: "Hand", symbolName: "hand", helpSlug: "x") { PanTool() })
         }
         let state = CommandState()
-        let commands = registry.commands(activate: { state.activated.append($0) }, activeTool: { state.active })
+        let all = registry.commands(activate: { state.activated.append($0) }, activeTool: { state.active })
+        let commands = [ToolID.pointer, .rectangle, .zoom, .hand].map { id in all.first { $0.id == ToolRegistry.commandID(for: id) }! }
         #expect(commands.map(\.id.rawValue) == ["tool.pointer", "tool.rectangle", "tool.zoom", "tool.hand"])
         #expect(commands.map(\.defaultKey) == [KeyEquivalent("v"), KeyEquivalent("r"), KeyEquivalent("z"), KeyEquivalent("h")])
-        #expect(commands.allSatisfy { $0.menuPath == nil })
+        #expect(commands[0].alternateKeys == [KeyEquivalent("0")] && commands[1].alternateKeys == [KeyEquivalent("2")])
+        #expect(all.allSatisfy { $0.menuPath == nil })
         #expect(commands[0].validation() == .disabled("No document is open"))
         state.active = .zoom
         #expect(commands[2].validation() == .checked(true))

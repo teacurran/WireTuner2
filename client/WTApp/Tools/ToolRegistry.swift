@@ -6,38 +6,81 @@ enum ToolSection: String, Sendable {
     case view
 }
 
-/// Everything the app needs to know about a tool (toolbars.adoc, "Client").  BASIC-008 adds
-/// flyout groups and option sheets and registers every tool.
+/// A flyout: related tools sharing one slot of the Tools panel (toolbars.adoc, "To select a
+/// tool from a flyout").  The first member is the slot's default.
+struct FlyoutGroup: RawRepresentable, Hashable, Sendable, ExpressibleByStringLiteral {
+    let rawValue: String
+
+    init(rawValue: String) { self.rawValue = rawValue }
+    init(stringLiteral value: String) { self.rawValue = value }
+
+    static let pen: FlyoutGroup = "pen"
+    static let pencil: FlyoutGroup = "pencil"
+    static let rectangle: FlyoutGroup = "rectangle"
+    static let ellipse: FlyoutGroup = "ellipse"
+    static let freeform: FlyoutGroup = "freeform"
+    static let knife: FlyoutGroup = "knife"
+    static let effects: FlyoutGroup = "effects"
+    static let transform: FlyoutGroup = "transform"
+}
+
+/// Everything the app needs to know about a tool (toolbars.adoc, "Client": `ToolDescriptor`).
 struct ToolDescriptor: Identifiable, Sendable {
     let id: ToolID
     var title: String
     /// SF Symbol for the Tools panel.
     var symbolName: String
-    /// Default shortcut (the first key of the page's list; BASIC-008 binds the digits too).
-    var shortcut: KeyEquivalent?
+    /// The default shortcut set's keys, the letter first; empty is the decision "no shortcut".
+    var shortcuts: [KeyEquivalent]
+    var group: FlyoutGroup?
     var section: ToolSection
+    /// The options sheet a double-click opens; nil for tools without options.
+    var options: (@MainActor @Sendable () -> NSViewController)?
     var helpSlug: String
     var make: @MainActor @Sendable () -> any Tool
 
     init(
-        id: ToolID, title: String, symbolName: String, shortcut: KeyEquivalent? = nil, section: ToolSection = .tools,
-        helpSlug: String, make: @escaping @MainActor @Sendable () -> any Tool
+        id: ToolID, title: String, symbolName: String, shortcuts: [KeyEquivalent] = [], group: FlyoutGroup? = nil, section: ToolSection = .tools,
+        options: (@MainActor @Sendable () -> NSViewController)? = nil, helpSlug: String, make: @escaping @MainActor @Sendable () -> any Tool
     ) {
         self.id = id
         self.title = title
         self.symbolName = symbolName
-        self.shortcut = shortcut
+        self.shortcuts = shortcuts
+        self.group = group
         self.section = section
+        self.options = options
         self.helpSlug = helpSlug
         self.make = make
     }
 
+    /// One shortcut (APP-003's form).
+    init(
+        id: ToolID, title: String, symbolName: String, shortcut: KeyEquivalent?, section: ToolSection = .tools,
+        helpSlug: String, make: @escaping @MainActor @Sendable () -> any Tool
+    ) {
+        self.init(id: id, title: title, symbolName: symbolName, shortcuts: shortcut.map { [$0] } ?? [], section: section, helpSlug: helpSlug, make: make)
+    }
+
+    /// The key the menu and tooltips show.
+    var shortcut: KeyEquivalent? { shortcuts.first }
+
     /// `tool.<id>`: the command a tool's shortcut runs, and its accessibility identifier.
     var commandID: CommandID { ToolRegistry.commandID(for: id) }
+
+    /// "Pen (P)", or the title alone.
+    var tooltip: String { shortcut.map { "\(title) (\($0.displayString))" } ?? title }
+
+    /// The same catalog entry running `make` (an epic delivering its tool).
+    func delivering(_ make: @escaping @MainActor @Sendable () -> any Tool) -> ToolDescriptor {
+        var copy = self
+        copy.make = make
+        return copy
+    }
 }
 
 /// The tools the application has.  Registering a descriptor gives the tool a Tools panel
-/// button and a `tool.<id>` command bound to its shortcut (no menu item: shortcuts are
+/// button and a `tool.<id>` command bound to its shortcuts (no menu item: shortcuts are
 /// dispatched by the canvas through the registry).
 @MainActor
 final class ToolRegistry {
@@ -75,18 +118,25 @@ final class ToolRegistry {
     func contains(_ id: ToolID) -> Bool { indexByID[id] != nil }
     var ids: [ToolID] { descriptors.map(\.id) }
 
+    /// The members of `group`, in registration order.
+    func members(of group: FlyoutGroup) -> [ToolDescriptor] {
+        descriptors.filter { $0.group == group }
+    }
+
     /// A new instance of `id`; an unknown id gets an `UnimplementedTool`.
     func makeTool(_ id: ToolID) -> any Tool {
         descriptor(for: id)?.make() ?? UnimplementedTool(id: id, title: id.rawValue)
     }
 
-    /// One command per tool.  `activate` selects the tool in the key window; `activeTool`
-    /// reports the key window's tool for the check mark (nil without a document window).
+    /// One command per tool.  `activate` handles the key press (the Tools panel model cycles
+    /// flyouts); `activeTool` reports the key window's tool for the check mark (nil without a
+    /// document window).
     func commands(activate: @escaping @MainActor @Sendable (ToolID) -> Void, activeTool: @escaping @MainActor @Sendable () -> ToolID?) -> [Command] {
         descriptors.map { descriptor in
             let id = descriptor.id
             return Command(
-                id: descriptor.commandID, title: descriptor.title, key: descriptor.shortcut,
+                id: descriptor.commandID, title: descriptor.title, key: descriptor.shortcuts.first,
+                alternateKeys: Array(descriptor.shortcuts.dropFirst()),
                 keywords: ["tool", descriptor.section.rawValue],
                 validation: {
                     guard let active = activeTool() else { return .disabled("No document is open") }
@@ -97,22 +147,10 @@ final class ToolRegistry {
         }
     }
 
-    /// The tools APP-003 delivers or stubs.  BASIC-008 registers the rest.
+    /// Every tool of toolbars.adoc: APP-003's delivered tools (Rectangle sketch, Zoom, Hand)
+    /// and the rest as `UnimplementedTool`s.
     static func builtIn() -> [ToolDescriptor] {
-        [
-            ToolDescriptor(id: .pointer, title: "Pointer", symbolName: "cursorarrow", shortcut: KeyEquivalent("v"), helpSlug: "selecting") {
-                UnimplementedTool(id: .pointer, title: "Pointer", cursor: .arrow)
-            },
-            ToolDescriptor(id: .rectangle, title: "Rectangle", symbolName: "rectangle", shortcut: KeyEquivalent("r"), helpSlug: "rectangles-ellipses-lines") {
-                RectangleSketchTool()
-            },
-            ToolDescriptor(id: .zoom, title: "Zoom", symbolName: "plus.magnifyingglass", shortcut: KeyEquivalent("z"), section: .view, helpSlug: "document-view") {
-                ZoomTool()
-            },
-            ToolDescriptor(id: .hand, title: "Hand", symbolName: "hand.raised", shortcut: KeyEquivalent("h"), section: .view, helpSlug: "document-view") {
-                PanTool()
-            },
-        ]
+        ToolCatalog.all
     }
 
     func registerBuiltIn() {

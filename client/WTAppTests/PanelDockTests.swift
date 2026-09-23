@@ -67,7 +67,7 @@ import Testing
         let (_, layout, dock) = makeDock(extraPanels: [document])
         #expect(layout.layout.group("properties")?.panels == ["object", "document"])
 
-        dock.groupViews[1].onDropPanel?("document")
+        dock.groupViews[1].onDrop?(.panel("document"), nil)
         #expect(layout.layout.group("layers")?.panels == ["layers", "document"])
         #expect(dock.groupViews.count == 2)
 
@@ -168,7 +168,8 @@ import Testing
         delegate.applicationDidFinishLaunching(Notification(name: NSApplication.didFinishLaunchingNotification))
         let window = delegate.activeDocumentWindow
         #expect(window?.window?.identifier == DocumentWindowController.windowIdentifier)
-        #expect(window?.dock.groupViews.count == 3, "Tools, Properties, Layers")
+        #expect(window?.dock.groupViews.map(\.group.id) == ["properties", "assets", "mixer-and-tints", "layers", "help"])
+        #expect(window?.leftDock.groupViews.map(\.group.id) == ["tools"])
         #expect(delegate.commands.contains(PanelCommands.ID.show("layers")))
         #expect(delegate.commands.contains(PanelCommands.ID.show("tools")))
         #expect(delegate.commands.contains(PanelCommands.ID.resetLayout))
@@ -182,10 +183,10 @@ import Testing
         #expect(windowMenu?.item(withTitle: "Layers")?.identifier?.rawValue == "menu.panel.show.layers")
 
         // A panel registered later lands in the layout, the dock and the Window menu.
-        delegate.panels.registerIfAbsent(PanelDescriptor(id: "swatches", title: "Swatches", defaultGroup: "Assets") { NSView() })
-        #expect(delegate.layout.layout.group("assets")?.panels == ["swatches"])
-        #expect(window?.dock.groupViews.count == 4)
-        #expect(NSApp.mainMenu?.item(withTitle: "Window")?.submenu?.item(withTitle: "Swatches") != nil)
+        delegate.panels.registerIfAbsent(PanelDescriptor(id: "extra", title: "Extra", defaultGroup: "Extras") { NSView() })
+        #expect(delegate.layout.layout.group("extras")?.panels == ["extra"])
+        #expect(window?.dock.groupViews.count == 6)
+        #expect(NSApp.mainMenu?.item(withTitle: "Window")?.submenu?.item(withTitle: "Extra") != nil)
 
         // Tool shortcuts reach the key window's tool manager through the registry.
         #expect(delegate.menuTarget?.perform(ToolRegistry.commandID(for: .hand)) == true)

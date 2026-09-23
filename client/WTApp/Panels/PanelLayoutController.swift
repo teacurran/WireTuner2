@@ -24,10 +24,10 @@ final class PanelLayoutController {
         self.registry = registry
         self.store = store
         self.debounce = debounce
-        self.layout = PanelLayout.standard(for: registry.descriptors)
+        self.layout = PanelLayout.standard(for: registry.descriptors, groups: registry.groupDefaults)
     }
 
-    var defaultLayout: PanelLayout { PanelLayout.standard(for: registry.descriptors) }
+    var defaultLayout: PanelLayout { PanelLayout.standard(for: registry.descriptors, groups: registry.groupDefaults) }
 
     /// Loads the saved layout, or the default when there is none or it cannot be read, and
     /// reconciles it with the registered panels.
@@ -48,7 +48,7 @@ final class PanelLayoutController {
 
     private func reconcile(_ layout: inout PanelLayout) {
         layout.prune(keeping: Set(registry.ids))
-        layout.add(panels: registry.descriptors)
+        layout.add(panels: registry.descriptors, groups: registry.groupDefaults)
     }
 
     /// Puts panels registered since the last load into the layout.
@@ -90,7 +90,7 @@ final class PanelLayoutController {
             update { layout in
                 guard let group = layout.group(containing: panel) else { return }
                 if case .floating? = layout.location(of: group.id) {
-                    for member in group.panels { layout.removePanel(member) }
+                    layout.close(group: group.id)
                 } else {
                     layout.setCollapsed(true, group: group.id)
                 }
@@ -100,14 +100,29 @@ final class PanelLayoutController {
         }
     }
 
-    /// Brings `panel` to the front, putting it back into its default group if it was closed.
+    /// Brings `panel` to the front.  A closed panel reopens with the closed members of its
+    /// default group (menu:Window[Align] brings back Align and Transform).
     func showPanel(_ panel: PanelID) {
         update { layout in
             if !layout.contains(panel), let descriptor = registry.descriptor(for: panel) {
-                layout.add(panels: [descriptor])
+                let siblings = registry.descriptors.filter { $0.defaultGroup == descriptor.defaultGroup && layout.closedPanels.contains($0.id) }
+                layout.reopen([descriptor] + siblings.filter { $0.id != panel }, groups: registry.groupDefaults)
             }
             layout.activate(panel)
         }
+    }
+
+    /// The edge a floating group docks at with *Dock Group*: its first panel's default edge.
+    func defaultEdge(for group: PanelGroup) -> DockEdge {
+        group.panels.first.flatMap(registry.descriptor(for:)).flatMap { registry.groupDefaults[$0.defaultGroup]?.edge } ?? .right
+    }
+
+    // MARK: Flyout slots
+
+    func flyoutSlot(_ group: String) -> String? { layout.flyoutSlots[group] }
+
+    func setFlyoutSlot(_ group: String, to tool: String) {
+        update { $0.flyoutSlots[group] = tool }
     }
 
     /// menu:View[Panels]: hides every dock, or shows them all again.

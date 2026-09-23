@@ -292,6 +292,29 @@ Nothing beyond storing and relaying changes.
   renders only the fields the current tool sets.
 * Accessibility identifiers follow `tool.<id>` and `toolbar.<name>.<command>` (TEST-002).
 
+NOTE: Deviations recorded by BASIC-008 and BASIC-009.  `ToolDescriptor` has `symbolName`,
+`shortcuts: [KeyEquivalent]` (letter first; the first is the menu key, the rest are
+`Command.alternateKeys` in the default set; an empty list is the decision "no shortcut"),
+`group: FlyoutGroup?` and `options: (() -> NSViewController)?`.  `ToolCatalog` registers 42
+tools: the 40 of the Tools section and Zoom and Hand; Keyline and Fast Mode are the View menu's
+commands and the Colors and Snap controls are commands too (`ToolPanelCommands`: Swap
+kbd:[Shift+X], None kbd:[/], Default kbd:[Shift+D], and the four snap toggles in the View menu),
+which is how the table's 43 "tools and controls" are counted.  "Effects flyouts" is one flyout
+(Extrude, Blend, Perspective); the tools under "Objects that link and repeat" have buttons of
+their own.  Shortcut cycling: the key of a flyout's visible member, while that member is current,
+advances to the next member, and so does the key of the flyout's first member while another
+visible member is current; any other key selects its tool.  A flyout is a SwiftUI `Menu` with a
+primary action (a click selects the visible member, press-and-hold opens the list, which also
+offers the tool's options), not a 250 ms timer.  The Tools panel is a panel of the panel framework
+(two columns in a side dock, one row when its host is wider than tall), so it docks left, right,
+top and bottom and floats as a panel group until BASIC-011's `ToolbarHost`.  The wells show the
+first selected object's fill and stroke; Swap, None and Default change the colours new objects get
+and are disabled while something is selected, until the appearance commands land.  The snap
+toggles are window view state saved with the window state (`SnapSettings`) until the local
+store's `view` table.  Tools with options open a placeholder sheet; option persistence arrives with
+each tool.  `UnimplementedTool` shows its "coming soon" HUD as a text layer over the canvas for
+1.5 s and in the status bar.
+
 === Build tasks
 
 [[BASIC-008]]

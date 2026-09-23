@@ -52,9 +52,19 @@ final class DocumentController {
         open(DocumentHandle.placeholder(title: nextUntitledTitle()), show: show)
     }
 
+    /// Where a newly opened document's window goes.
+    enum TabPlacement {
+        /// A tab of the front window (the default).
+        case front
+        /// A window of its own.
+        case alone
+        /// A tab of `window`.
+        case with(NSWindow)
+    }
+
     /// Opens `document` (bringing its window forward if it is open already).
     @discardableResult
-    func open(_ document: DocumentHandle, show: Bool = true) -> DocumentWindowController {
+    func open(_ document: DocumentHandle, show: Bool = true, placement: TabPlacement = .front) -> DocumentWindowController {
         if let existing = windowControllers[document.id] {
             if show { existing.showWindow(nil) }
             activate(existing)
@@ -65,16 +75,85 @@ final class DocumentController {
         controller.onClose = { [weak self] closed in self?.windowDidClose(closed) }
         controller.onBecomeMain = { [weak self] main in self?.activate(main) }
         controller.onToolChange = { [weak self] changed, tool in self?.toolDidChange(in: changed, to: tool) }
+        controller.onSelectionChange = { [weak self] changed in self?.viewDidChange(in: changed) }
+        controller.onViewStateChange = { [weak self] changed in self?.viewDidChange(in: changed) }
         documents.append(document)
         windowControllers[document.id] = controller
         if show, let window = controller.window {
-            if let frontWindow = front?.window, frontWindow.isVisible {
-                frontWindow.addTabbedWindow(window, ordered: .above)
+            let target: NSWindow? = switch placement {
+            case .front: front?.window
+            case .alone: nil
+            case let .with(window): window
             }
-            window.makeKeyAndOrderFront(nil)
+            if let target, target.isVisible, target !== window {
+                target.addTabbedWindow(window, ordered: .above)
+                window.makeKeyAndOrderFront(nil)
+            } else {
+                // A preferred-tabbing window would join the front window on its own.
+                let mode = window.tabbingMode
+                window.tabbingMode = .disallowed
+                window.makeKeyAndOrderFront(nil)
+                window.tabbingMode = mode
+            }
         }
         activate(controller)
         return controller
+    }
+
+    /// The front window's selection or view state changed: the panels follow.
+    private func viewDidChange(in controller: DocumentWindowController) {
+        guard controller.documentHandle.id == activeDocumentID else { return }
+        onChange?()
+    }
+
+    // MARK: Session (BASIC-001)
+
+    /// Every open window as `WindowState`: its tab group, its place in the group, and which
+    /// window was key.  Windows of one tab group share a group number.
+    func sessionState() -> [WindowState] {
+        var groups: [ObjectIdentifier: Int] = [:]
+        var states: [WindowState] = []
+        let ordered = documents.compactMap { windowControllers[$0.id] }
+        for controller in ordered {
+            guard let window = controller.window else { continue }
+            let siblings = window.tabbedWindows ?? [window]
+            let groupKey = ObjectIdentifier(siblings.first ?? window)
+            let group = groups[groupKey] ?? groups.count
+            groups[groupKey] = group
+            let frame = window.frame
+            states.append(WindowState(
+                documentID: controller.documentHandle.id, title: controller.documentHandle.title,
+                frame: LayoutRect(x: frame.minX, y: frame.minY, width: frame.width, height: frame.height),
+                tabGroup: group, tabIndex: siblings.firstIndex(of: window) ?? 0,
+                key: controller.documentHandle.id == activeDocumentID
+            ))
+        }
+        return states
+    }
+
+    /// Reopens a saved session: the same tabs in the same windows, the key window key again.
+    /// Documents `isAvailable` refuses (trashed) are skipped without an error.  Returns the
+    /// documents opened.
+    @discardableResult
+    func restore(_ states: [WindowState], isAvailable: (String) -> Bool) -> [DocumentWindowController] {
+        var firstOfGroup: [Int: NSWindow] = [:]
+        var opened: [DocumentWindowController] = []
+        var key: DocumentWindowController?
+        for state in states.sorted(by: { ($0.tabGroup, $0.tabIndex) < ($1.tabGroup, $1.tabIndex) }) where isAvailable(state.documentID) {
+            let placement: TabPlacement = firstOfGroup[state.tabGroup].map { .with($0) } ?? .alone
+            let controller = open(DocumentHandle.placeholder(id: state.documentID, title: state.title), placement: placement)
+            if firstOfGroup[state.tabGroup] == nil, let window = controller.window {
+                firstOfGroup[state.tabGroup] = window
+                if let frame = state.frame { window.setFrame(NSRect(x: frame.x, y: frame.y, width: frame.width, height: frame.height), display: false) }
+            }
+            if state.key { key = controller }
+            opened.append(controller)
+        }
+        if let key {
+            key.window?.makeKeyAndOrderFront(nil)
+            activate(key)
+        }
+        return opened
     }
 
     /// Forgets `documentID` and closes its window if it is still open.

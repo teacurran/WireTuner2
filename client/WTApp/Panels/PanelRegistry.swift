@@ -13,6 +13,8 @@ final class PanelRegistry {
 
     /// Called after every registration so the Window menu and the layout can pick up the panel.
     var onChange: (@MainActor () -> Void)?
+    /// How the factory layout shows each default group, by group name (`PanelCatalog`).
+    var groupDefaults: [String: PanelGroupDefaults] = [:]
 
     init() {}
 

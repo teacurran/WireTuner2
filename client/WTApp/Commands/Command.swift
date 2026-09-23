@@ -77,6 +77,8 @@ struct Command: Sendable, Identifiable {
     var title: String
     /// The binding in the built-in default shortcut set; `nil` for an unbound command.
     var defaultKey: KeyEquivalent?
+    /// More keys the default set binds (a tool's digit beside its letter); never in the menu.
+    var alternateKeys: [KeyEquivalent]
     /// `nil` for commands with no menu item (tools, palette-only commands).
     var menuPath: MenuPath?
     var contexts: Set<MenuContext>
@@ -89,6 +91,7 @@ struct Command: Sendable, Identifiable {
         id: CommandID,
         title: String,
         key: KeyEquivalent? = nil,
+        alternateKeys: [KeyEquivalent] = [],
         menu: MenuPath? = nil,
         contexts: Set<MenuContext> = [],
         keywords: [String] = [],
@@ -98,6 +101,7 @@ struct Command: Sendable, Identifiable {
         self.id = id
         self.title = title
         self.defaultKey = key
+        self.alternateKeys = alternateKeys
         self.menuPath = menu
         self.contexts = contexts
         self.keywords = keywords

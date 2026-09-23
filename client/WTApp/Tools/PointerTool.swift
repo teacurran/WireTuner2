@@ -15,9 +15,7 @@ final class PointerTool: Tool {
     static let statusMessage = "Click to select, drag to select an area; Shift adds or removes, Option subselects"
 
     static var descriptor: ToolDescriptor {
-        ToolDescriptor(id: .pointer, title: "Pointer", symbolName: "cursorarrow", shortcut: KeyEquivalent("v"), helpSlug: "selecting") {
-            PointerTool()
-        }
+        ToolCatalog.all.first { $0.id == .pointer }!.delivering { PointerTool() }
     }
 
     private var context: ToolContext?
