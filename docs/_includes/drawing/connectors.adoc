@@ -229,7 +229,53 @@ Attributes list names the kind "Connector".  Merge tests (`ConnectorMergeTests`,
 both ends re-attached concurrently, one end re-attached concurrently (all three fields from one
 writer), delete vs. attach and a restore reconnecting with no observer op, attach vs. detach,
 concurrent `run_offsets`, Reverse Direction vs. re-attach, and a remote move rerouting the
-observer's connector with no op.
+observer's connector with no op.  Frame budget (the third "Done when" of DRAW-035, through the
+model): `ConnectorPerformanceTests` moves one box joined to 1,000 others by 1,000 connectors and
+times the `MoveObjects` change plus `DocumentDisplayListBuilder.apply` (the box and its 1,000
+connectors rebuilt and rerouted, every other item reused, the change summary) -- 9.9 ms median in a
+release build on an M3 Pro (59 ms before these caches), against one 60 fps frame (16.7 ms, held in release builds
+only).  What keeps it there: the builder keeps each connector as stored (`Connectors.storedSpec`:
+ends, run offsets, strokes, `locked`) until the connector itself is touched, so a connector
+rerouted because an object it joins changed reads no registers -- it re-checks its ends against the
+document (`Connectors.attached`), recomputes its dependency sources from the stored ends and is
+routed again; a leaf's placed item, its painted bounds and its attachment bounds are kept with its
+cached item while the enclosing transform is the same; and each layer's transform is read once per
+build.
+
+NOTE: As built by DRAW-036 (`WTApp`: `Tools/ConnectorTool.swift`, `Tools/ConnectorHandles.swift`,
+`Commands/ConnectorCommands.swift`, `Panels/ConnectorSection.swift`).  Hover: the top-most object an
+end may attach to (`Connectors.isAttachable`) whose rendered bounds, grown by the *Pick distance*,
+contain the pointer -- anywhere over its box, filled or not -- and the side whose edge is nearest
+the pointer; the box is outlined and that side drawn thick, and the cursor becomes the pointing hand.
+A press inside an object starts a connector from the highlighted side even where a connector
+already leaves it; a press on empty canvas starts one from a free point (so the tool can draw a
+line with both ends free); elsewhere a press on a connector's line selects it, and dragging from
+there does nothing.  The drag previews the route and writes one `CreateConnector` on release (the
+new connector is selected); a release within 3 view points of the press is a click and selects as
+the Pointer does.  Handles are drawn on every selected connector while the tool is active: a
+circle on each end and a square at the middle of each intermediate run.  An end drag writes one
+`SetConnectorEnd` on release (the side under the pointer, or a free end at the snapped point); a
+run drag adds the drag's component along the run's normal to that run's offset and writes the whole
+list with one `SetConnectorRunOffsets`, starting from zero offsets when the stored ones do not apply
+to the current route.  So each gesture is one change and one undo step, and the tool writes nothing
+while dragging.  The page names no modifier keys and the tool reads none; kbd:[Esc] abandons the
+drag.  menu:Modify[Alter Path > Reverse Direction] (`modify.alterPath.reverseDirection`) runs
+`ReverseConnectors` on the selected connectors; reversing paths is not delivered yet, so without a
+connector selected it is disabled ("Select a connector").  The Object panel section shows while
+exactly one connector is selected: Start and End, each the attached object's name (`ObjectNaming`,
+which now names the kind "Connector") with a side pop-up (Automatic, Top, Bottom, Left, Right) that
+writes the whole end with the attachment point there now, or "Free" for a free or dangling end.
+*Deviation*: object-panel.adoc's table also lists offsets; the section does not show them (the run
+handles edit them).  The Pointer rule: the Pointer's drag and the arrow keys leave connectors out
+of the `MoveObjects` they write, and a selection of connectors alone neither moves nor copies
+(kbd:[Option]-drag); with the objects it joins selected, those move and the connector follows.  The
+Modify menu's Connector submenu (Reroute, Detach Ends) stays a placeholder: this page does not
+specify those commands.  *Deviation*: the UI tests of DRAW-036's *Done when* are unit tests hosted
+in the app driving the tool with the canvas's events (`ConnectorToolTests`: all 16 side pairs
+between two boxes, an end dragged to a third box and to empty canvas, a run handle, hover and
+clicks; `ConnectorCommandTests`: Reverse Direction, the Object panel section, the Pointer rule, a
+remote move rerouting the observer's connector with no local change, and both ends re-attached
+concurrently on two replicas); XCUITest runs need Automation Mode on this Mac.
 
 === Build tasks
 

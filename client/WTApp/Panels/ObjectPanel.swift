@@ -156,6 +156,7 @@ struct ObjectPanelBody: View {
                 if let point = model.point { PointSectionView(section: point, model: model) }
                 if let rectangle = model.rectangle { RectangleSectionView(section: rectangle, model: model) }
                 if let polygon = model.polygon { PolygonSectionView(section: polygon, model: model) }
+                if let connector = model.connector { ConnectorSectionView(section: connector, model: model) }
                 if let common = model.common { CommonSectionView(section: common, model: model) }
             }
         }

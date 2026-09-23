@@ -105,6 +105,10 @@ targets:
           - UTTypeIdentifier: com.villagecompute.wiretuner.colorref
             UTTypeDescription: WireTuner Color
             UTTypeConformsTo: [public.data]
+          # Copied objects on the pasteboard (copying.adoc, "Client"; ClipboardPayload).
+          - UTTypeIdentifier: com.villagecompute.wiretuner.objects
+            UTTypeDescription: WireTuner Objects
+            UTTypeConformsTo: [public.data]
         CFBundleDocumentTypes:
           - CFBundleTypeName: WireTuner Package
             CFBundleTypeRole: Editor

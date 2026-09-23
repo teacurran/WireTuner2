@@ -101,6 +101,16 @@
 			<key>UTTypeIdentifier</key>
 			<string>com.villagecompute.wiretuner.colorref</string>
 		</dict>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>WireTuner Objects</string>
+			<key>UTTypeIdentifier</key>
+			<string>com.villagecompute.wiretuner.objects</string>
+		</dict>
 	</array>
 	<key>WTAPIURL</key>
 	<string>$(WT_API_URL)</string>

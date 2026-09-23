@@ -245,7 +245,7 @@ its contents:
 [source,protobuf]
 ----
 // proto/wiretuner/clipboard/v1/clipboard.proto
-// Native pasteboard type "com.wiretuner.objects".  Never stored in a document.
+// Native pasteboard type "com.villagecompute.wiretuner.objects".  Never stored in a document.
 message ClipboardPayload {
   // Subtrees, in stacking order (bottom first).  Each carries its full NodeProps,
   // with the register values current at copy time and no OpIds.
@@ -322,7 +322,10 @@ Nothing beyond storing and relaying changes.
   at:position, placement:)`.  `WTInterchange` provides the PDF, SVG, image and RTF writers and
   readers for the other pasteboard types (shared with export and import:
   xref:export-formats.adoc[Export formats]).
-* `NSPasteboard` types: `com.wiretuner.objects`, `com.adobe.pdf`, `public.svg-image`,
+* `NSPasteboard` types: `com.villagecompute.wiretuner.objects` (exported by the app, conforming
+  to `public.data`; objects on the pasteboard as `com.wiretuner.objects`, the name earlier builds
+  wrote, are still read; `WTModel`'s `ClipboardPayload.pasteboardType` still holds that name and
+  the app no longer writes it), `com.adobe.pdf`, `public.svg-image`,
   `public.tiff`, `public.png`, `public.rtf`, `public.utf8-plain-text`.  Copy writes lazily
   via `NSPasteboardItemDataProvider` for the expensive formats.
 * Power-duplicate state: `WTModel.DuplicateMemory { sourceIds, matrix }` set by Duplicate,

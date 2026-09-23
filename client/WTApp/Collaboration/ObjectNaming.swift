@@ -23,6 +23,7 @@ enum ObjectNaming {
         case .layer?: "Layer"
         case .text?: "Text"
         case .image?: "Image"
+        case .connector?: "Connector"
         default: "Object"
         }
     }

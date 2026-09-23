@@ -13,7 +13,7 @@ import WTProto
 /// not nodes yet, and colours are inline.
 public struct ClipboardPayload: Hashable, Sendable {
     /// The pasteboard type.
-    public static let pasteboardType = "com.wiretuner.objects"
+    public static let pasteboardType = "com.villagecompute.wiretuner.objects"
 
     /// Top-level copied objects, bottom first; each root's transform maps to the pasteboard
     /// (enclosing groups baked in).

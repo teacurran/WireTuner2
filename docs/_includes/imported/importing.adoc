@@ -391,9 +391,9 @@ the view, and otherwise the PDF (preferred) or image data `ImportPasteboard.choo
 converted with the format's *remembered* options (so the app calls the importer itself rather than
 `ImportPasteboard.convert`, which uses the defaults), named "Pasted", with no link record, centred
 in the view, one change.  menu:Edit[Paste at Pointer] is not in the Edit menu yet, so pasting always
-centres.  The app's own objects are written as `com.wiretuner.objects` (`ClipboardPayload`), not the
-`com.villagecompute.wiretuner.objects` that `ImportPasteboard` declines on; the window checks for
-its objects first, so the mismatch changes nothing, but the two names should be made one.
+centres.  The app's own objects are written as `com.villagecompute.wiretuner.objects`
+(`SystemObjectPasteboard`), the type `ImportPasteboard` declines on, and the window checks for them
+first (DRAW-036 made the two names one; `com.wiretuner.objects` is still read).
 *Deviation*: the UI tests of *Done when* are unit tests hosted in the app that drive the same
 paths (`ImportPointerTests`: click, marquee, kbd:[Shift] and kbd:[Option], three files with
 kbd:[Esc] after the second, kbd:[Return] stacking, paste of image, PDF and file data;

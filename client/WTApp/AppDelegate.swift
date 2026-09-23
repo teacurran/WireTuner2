@@ -330,6 +330,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ToolOptionSheets.install(into: tools, store: preferences)
         let documents = documents!
         ObjectMenuCommands.install(into: commands) { documents.activeWindowController?.objectEditing }
+        ConnectorCommands.install(commands: commands, tools: tools) { documents.activeWindowController?.objectEditing }
         let palette = toolPalette
         let toolCommands = tools.commands(
             activate: { id in palette.pressShortcut(id) },

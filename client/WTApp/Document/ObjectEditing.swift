@@ -1,12 +1,13 @@
 import AppKit
 import WTCRDT
 import WTGeometry
+import WTInterchange
 import WTModel
 import WTProto
 import WTRender
 
-/// Where copied objects go: the native pasteboard type `com.wiretuner.objects` (copying.adoc,
-/// "Client").  Tests use a private named pasteboard.
+/// Where copied objects go: the native pasteboard type `com.villagecompute.wiretuner.objects`
+/// (copying.adoc, "Client").  Tests use a private named pasteboard.
 @MainActor
 protocol ObjectPasteboard: AnyObject {
     func write(_ payload: [UInt8])
@@ -14,10 +15,15 @@ protocol ObjectPasteboard: AnyObject {
     func read() -> [UInt8]?
 }
 
-/// An `NSPasteboard` holding the objects payload.
+/// An `NSPasteboard` holding the objects payload, under the app's `com.villagecompute.wiretuner.*`
+/// namespace: the type the project exports and the one `ImportPasteboard` leaves to the app, so a
+/// paste of WireTuner objects never goes through import.  Objects an earlier build put on the
+/// pasteboard as `com.wiretuner.objects` are still read.
 @MainActor
 final class SystemObjectPasteboard: ObjectPasteboard {
-    static let type = NSPasteboard.PasteboardType(ClipboardPayload.pasteboardType)
+    static let type = NSPasteboard.PasteboardType(ImportPasteboard.objectsType)
+    /// The type earlier builds wrote; read, never written.
+    static let legacyType = NSPasteboard.PasteboardType("com.wiretuner.objects")
     let pasteboard: NSPasteboard
 
     init(_ pasteboard: NSPasteboard = .general) {
@@ -30,7 +36,7 @@ final class SystemObjectPasteboard: ObjectPasteboard {
     }
 
     func read() -> [UInt8]? {
-        pasteboard.data(forType: Self.type).map { Array($0) }
+        (pasteboard.data(forType: Self.type) ?? pasteboard.data(forType: Self.legacyType)).map { Array($0) }
     }
 }
 
@@ -277,8 +283,10 @@ final class ObjectEditing: CommandSink {
             if !moves.isEmpty { pointMoves.append(MovePoints(node: id.opID, moves: moves)) }
         }
         if !pointMoves.isEmpty { return CommandBatch(pointMoves.count == 1 ? pointMoves[0].label : "Move Points", pointMoves) }
-        guard !current.isEmpty else { return nil }
-        return MoveObjects(current.ids.map(\.opID), by: delta)
+        // Connectors follow the objects they join (connectors.adoc): they are not moved themselves.
+        let movable = current.ids.map(\.opID).filter { document.state.nodeKind($0) != .connector }
+        guard !movable.isEmpty else { return nil }
+        return MoveObjects(movable, by: delta)
     }
 
     /// An arrow press: nudges by `delta`, grouping a burst of presses (key repeat) into one undo

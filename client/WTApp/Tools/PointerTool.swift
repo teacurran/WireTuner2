@@ -320,8 +320,11 @@ final class PointerTool: Tool, PointerTracking {
             return ObjectEditing.moveCommand(delta, selection: context.selection.selection, document: context.document)
         }
         let nodes = context.selection.selection.ids.map(\.opID)
-        guard !nodes.isEmpty else { return nil }
-        return copy ? DuplicateObjects(nodes, offset: .translation(delta), label: "Copy") : MoveObjects(nodes, by: delta)
+        // A connector follows the objects it joins and cannot be dragged on its own
+        // (connectors.adoc): a selection of connectors alone neither moves nor copies.
+        let movable = nodes.filter { context.document.state.nodeKind($0) != .connector }
+        guard !movable.isEmpty else { return nil }
+        return copy ? DuplicateObjects(nodes, offset: .translation(delta), label: "Copy") : MoveObjects(movable, by: delta)
     }
 
     private func commitMove(_ delta: Vector, copy: Bool) {
@@ -367,7 +370,7 @@ final class PointerTool: Tool, PointerTracking {
         let document = context.document
         let selection = context.selection.selection
         return selection.ids.compactMap { id -> DisplayPath? in
-            guard let object = document.object(for: id) else { return nil }
+            guard let object = document.object(for: id), object.kind != .connector else { return nil }
             guard var path = object.path else {
                 return object.bounds.map { DisplayPath(rect: $0.applying(.translation(delta))) }
             }
