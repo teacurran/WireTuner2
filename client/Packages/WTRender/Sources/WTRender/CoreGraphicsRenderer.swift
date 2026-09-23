@@ -26,6 +26,14 @@ public struct CoreGraphicsRenderer: WTRender {
     /// the multiply blend mode, which simulates inks printing over one another.
     public var overprintPreview: Bool
 
+    /// Sampled paints (Rectangle, Cone and Contour gradients, noise, textures, lens backdrops)
+    /// are rasterized this many times finer than the context's base space.  1 for bitmaps and
+    /// tiles, whose base space is device pixels; `renderPDF` uses `pdfRasterScale`.
+    public var rasterScale: Double = 1
+
+    /// The raster scale of PDF output: 4 pixels per point, about 300 dpi.
+    public static let pdfRasterScale = 4.0
+
     public init(
         flatteningTolerance: FlatteningTolerance = .standard,
         background: Color? = nil,
@@ -107,7 +115,9 @@ public struct CoreGraphicsRenderer: WTRender {
             return nil
         }
         context.beginPDFPage(nil)
-        render(displayList, viewport: viewport, into: context)
+        var vector = self
+        vector.rasterScale = CoreGraphicsRenderer.pdfRasterScale
+        vector.render(displayList, viewport: viewport, into: context)
         context.endPDFPage()
         context.closePDF()
         return data as Data
@@ -116,11 +126,18 @@ public struct CoreGraphicsRenderer: WTRender {
     // MARK: Drawing
 
     /// Inherited down the group tree while drawing.
-    private struct DrawState {
+    struct DrawState {
         /// The alpha a fast-mode group applies in place of a transparency layer.
         var alpha: Double = 1
         /// The keyline colour: the nearest enclosing layer's highlight colour.
         var highlight: Color = .black
+        /// The canvas being drawn and the item's index path in it, for lens backdrops; nil for
+        /// nested content (tiles, brush symbols, snapshots).
+        var canvas: DisplayList?
+        var indexPath: [Int] = []
+        var lensDepth = 0
+        /// Canvas space → base space when the canvas began.
+        var canvasToBase: CGAffineTransform = .identity
     }
 
     /// Draws `displayList` through `pasteboardTransform` into `context`, flipping Core
@@ -142,8 +159,40 @@ public struct CoreGraphicsRenderer: WTRender {
             context.fill(surface.cg)
         }
         context.concatenate(pasteboardTransform.cg)
+        let base = DrawState(canvas: displayList, canvasToBase: context.ctm)
         for index in displayList.indices(intersecting: cull) {
-            draw(displayList.items[index], state: DrawState(), cull: cull, into: context)
+            var state = base
+            state.indexPath = [index]
+            draw(displayList.items[index], state: state, cull: cull, into: context)
+        }
+    }
+
+    /// Draws canvas items (a lens's backdrop: a prefix of `canvas`, positions unchanged) with
+    /// the context's current user space as canvas space.
+    func drawCanvasItems(_ items: [DisplayItem], canvas: DisplayList, in context: CGContext, lensDepth: Int) {
+        context.saveGState()
+        defer { context.restoreGState() }
+        context.setFlatness(CGFloat(flatteningTolerance.devicePixels))
+        let cull = Rect(context.boundingBoxOfClipPath)
+        let base = DrawState(canvas: canvas, lensDepth: lensDepth, canvasToBase: context.ctm)
+        for (index, item) in items.enumerated() {
+            guard let bounds = item.bounds, bounds.intersects(cull) else { continue }
+            var state = base
+            state.indexPath = [index]
+            draw(item, state: state, cull: cull, into: context)
+        }
+    }
+
+    /// Draws nested display items (a tile, brush copies, a snapshot) in the context's current
+    /// user space; lenses among them render as Basic.
+    func drawNested(_ items: [DisplayItem], in context: CGContext) {
+        context.saveGState()
+        defer { context.restoreGState() }
+        context.setFlatness(CGFloat(flatteningTolerance.devicePixels))
+        let state = DrawState(canvasToBase: context.ctm)
+        let cull = Rect(context.boundingBoxOfClipPath)
+        for item in items {
+            draw(item, state: state, cull: cull, into: context)
         }
     }
 
@@ -154,11 +203,18 @@ public struct CoreGraphicsRenderer: WTRender {
         }
         switch item {
         case .fill(let fill):
-            drawFill(fill, into: context)
+            context.saveGState()
+            context.concatenate(fill.transform.cg)
+            drawRegions([.fill(fill.path, fill.rule, fill.paint)], path: fill.path, rule: fill.rule, overprint: false, state: state, into: context)
+            context.restoreGState()
         case .stroke(let stroke):
-            drawStroke(stroke, into: context)
+            context.saveGState()
+            context.concatenate(stroke.transform.cg)
+            let paint = StrokePaint(paint: stroke.paint, style: stroke.style)
+            drawRegions(strokeRegions(paint, path: stroke.path, in: context), path: stroke.path, rule: .nonZero, overprint: false, state: state, into: context)
+            context.restoreGState()
         case .path(let path):
-            drawPath(path, into: context)
+            drawPath(path, state: state, into: context)
         case .image(let image):
             if viewMode.drawsImagesAsBoxes {
                 drawImageBox(image, color: Color(white: 0.45), into: context)
@@ -178,81 +234,84 @@ public struct CoreGraphicsRenderer: WTRender {
         }
     }
 
-    private func drawFill(_ item: FillItem, into context: CGContext) {
-        guard let color = item.paint.color else {
-            return
-        }
-        context.saveGState()
-        context.concatenate(item.transform.cg)
-        context.addPath(item.path.cgPath)
-        context.setFillColor(color.cg)
-        context.fillPath(using: item.rule.cg)
-        context.restoreGState()
-    }
-
-    private func drawStroke(_ item: StrokeItem, into context: CGContext) {
-        guard let color = item.paint.color else {
-            return
-        }
-        context.saveGState()
-        context.concatenate(item.transform.cg)
-        context.addPath(item.path.cgPath)
-        apply(item.style, to: context)
-        context.setStrokeColor(color.cg)
-        context.strokePath()
-        context.restoreGState()
+    /// The regions a stroke paints, at the context's current scale (hairline width and outline
+    /// tolerance; PDF output, whose base space is points, outlines at its raster scale).
+    private func strokeRegions(_ stroke: StrokePaint, path: DisplayPath, in context: CGContext) -> [PaintedRegion] {
+        let ctm = context.ctm
+        let scale = abs(ctm.a * ctm.d - ctm.b * ctm.c).squareRoot() * max(rasterScale, 1)
+        return StrokeExpansion.regions(for: stroke, path: path, hairlineWidth: Double(hairlineWidth(in: context)), tolerance: StrokeExpansion.tolerance(forScale: scale))
     }
 
     /// The attribute stack, bottom first, all in the item's local space.
-    private func drawPath(_ item: PathItem, into context: CGContext) {
+    private func drawPath(_ item: PathItem, state: DrawState, into context: CGContext) {
         context.saveGState()
         context.concatenate(item.transform.cg)
-        let path = item.path.cgPath
         for element in item.appearance.items {
             switch element {
             case .fill(let fill):
-                guard let color = fill.paint.color else { continue }
-                context.saveGState()
-                applyOverprint(fill.overprint, to: context)
-                context.addPath(path)
-                context.setFillColor(color.cg)
-                context.fillPath(using: fill.rule.cg)
-                context.restoreGState()
+                drawRegions([.fill(item.path, fill.rule, fill.paint)], path: item.path, rule: fill.rule, overprint: fill.overprint, state: state, into: context)
             case .stroke(let stroke):
-                guard let color = stroke.paint.color else { continue }
-                context.saveGState()
-                applyOverprint(stroke.overprint, to: context)
-                let geometry = StrokeGeometry(path: item.path, stroke: stroke)
-                context.addPath(stroke.hasArrowheads ? geometry.body.cgPath : path)
-                apply(stroke.style, to: context)
-                context.setStrokeColor(color.cg)
-                context.strokePath()
-                for head in geometry.heads {
-                    drawArrowhead(head, style: stroke.style, color: color, into: context)
-                }
-                context.restoreGState()
+                drawRegions(strokeRegions(stroke, path: item.path, in: context), path: item.path, rule: .nonZero, overprint: stroke.overprint, state: state, into: context)
             }
         }
         context.restoreGState()
     }
 
-    private func drawArrowhead(_ head: PlacedArrowhead, style: StrokeStyle, color: Color, into context: CGContext) {
-        context.saveGState()
-        context.concatenate(head.transform.cg)
-        context.addPath(head.arrowhead.shape.cgPath)
-        if head.arrowhead.filled {
-            context.setFillColor(color.cg)
-            context.fillPath(using: .winding)
-        } else {
-            context.setLineDash(phase: 0, lengths: [])
-            context.setLineWidth(1)
-            context.setLineCap(style.cap.cg)
-            context.setLineJoin(style.join.cg)
-            context.setMiterLimit(CGFloat(style.miterLimit))
-            context.setStrokeColor(color.cg)
-            context.strokePath()
+    /// Fills each region with its paint: solid colours directly, other paints through the
+    /// path's clip by `PaintDrawing` (composited as one layer when a fast-mode alpha or the
+    /// overprint preview's multiply applies, as the Metal renderer composites their texture).
+    /// Brush copies draw as nested items.  `path` and `rule` are the item's own, for paints that
+    /// depend on the object's shape.
+    private func drawRegions(_ regions: [PaintedRegion], path: DisplayPath, rule: FillRule, overprint: Bool, state: DrawState, into context: CGContext) {
+        for region in regions {
+            switch region {
+            case .fill(let shape, let shapeRule, let paint):
+                if paint.isNone {
+                    continue
+                }
+                if let color = paint.color, !(overprint && overprintPreview) {
+                    // The common case needs no saved state: the colour is set for every fill.
+                    context.addPath(shape.cgPath)
+                    context.setFillColor(color.cg)
+                    context.fillPath(using: shapeRule.cg)
+                    continue
+                }
+                context.saveGState()
+                applyOverprint(overprint, to: context)
+                context.addPath(shape.cgPath)
+                if let color = paint.color {
+                    context.setFillColor(color.cg)
+                    context.fillPath(using: shapeRule.cg)
+                } else {
+                    context.clip(using: shapeRule.cg)
+                    let layered = state.alpha < 1 || (overprint && overprintPreview)
+                    if layered {
+                        context.beginTransparencyLayer(auxiliaryInfo: nil)
+                    }
+                    let environment = PaintEnvironment(
+                        renderer: self,
+                        canvasToBase: state.canvasToBase,
+                        path: path,
+                        rule: rule,
+                        rasterScale: rasterScale,
+                        canvas: state.canvas,
+                        indexPath: state.indexPath,
+                        lensDepth: state.lensDepth
+                    )
+                    PaintDrawing.fill(paint, in: context, environment: environment)
+                    if layered {
+                        context.endTransparencyLayer()
+                    }
+                }
+                context.restoreGState()
+            case .items(let items):
+                var nested = state
+                nested.canvas = nil
+                for item in items {
+                    draw(item, state: nested, cull: Rect(context.boundingBoxOfClipPath), into: context)
+                }
+            }
         }
-        context.restoreGState()
     }
 
     private func applyOverprint(_ overprint: Bool, to context: CGContext) {
@@ -274,19 +333,12 @@ public struct CoreGraphicsRenderer: WTRender {
     /// The image's frame and diagonals only: the fast modes' and Keyline's crossed box, as
     /// hairlines.  With `lineWidth` (the Preview placeholder) only the diagonals are drawn.
     private func drawImageBox(_ item: ImageItem, color: Color, lineWidth: Double? = nil, into context: CGContext) {
-        context.saveGState()
-        context.concatenate(item.transform.cg)
-        context.setStrokeColor(color.cg)
-        context.setLineWidth(lineWidth.map { CGFloat($0) } ?? hairlineWidth(in: context))
-        if lineWidth == nil {
-            context.addRect(item.rect.cg)
-        }
-        context.move(to: CGPoint(x: item.rect.minX, y: item.rect.minY))
-        context.addLine(to: CGPoint(x: item.rect.maxX, y: item.rect.maxY))
-        context.move(to: CGPoint(x: item.rect.maxX, y: item.rect.minY))
-        context.addLine(to: CGPoint(x: item.rect.minX, y: item.rect.maxY))
-        context.strokePath()
-        context.restoreGState()
+        var box = lineWidth == nil ? DisplayPath(rect: item.rect) : DisplayPath()
+        box.move(to: Point(x: item.rect.minX, y: item.rect.minY))
+        box.addLine(to: Point(x: item.rect.maxX, y: item.rect.maxY))
+        box.move(to: Point(x: item.rect.maxX, y: item.rect.minY))
+        box.addLine(to: Point(x: item.rect.minX, y: item.rect.maxY))
+        drawLine(box, width: lineWidth, transform: item.transform, color: color, into: context)
     }
 
     /// The run's ink bounds at 15% of the text colour plus its baseline, until `WTText`
@@ -296,11 +348,23 @@ public struct CoreGraphicsRenderer: WTRender {
         context.concatenate(item.transform.cg)
         context.setFillColor(item.color.withAlpha(multipliedBy: 0.15).cg)
         context.fill(item.bounds.cg)
-        context.setStrokeColor(item.color.cg)
-        context.setLineWidth(1)
-        context.move(to: CGPoint(x: item.bounds.minX, y: item.origin.y))
-        context.addLine(to: CGPoint(x: item.bounds.maxX, y: item.origin.y))
-        context.strokePath()
+        context.restoreGState()
+        var baseline = DisplayPath()
+        baseline.move(to: Point(x: item.bounds.minX, y: item.origin.y))
+        baseline.addLine(to: Point(x: item.bounds.maxX, y: item.origin.y))
+        drawLine(baseline, width: 1, transform: item.transform, color: item.color, into: context)
+    }
+
+    /// A decoration line (`HairlineOutline`): `width` local units, or one device pixel when nil.
+    private func drawLine(_ path: DisplayPath, width: Double?, transform: AffineTransform, color: Color, into context: CGContext) {
+        context.saveGState()
+        context.concatenate(transform.cg)
+        let ctm = context.ctm
+        let scale = abs(ctm.a * ctm.d - ctm.b * ctm.c).squareRoot()
+        let outline = HairlineOutline.region(path, width: width ?? Double(hairlineWidth(in: context)), tolerance: StrokeExpansion.tolerance(forScale: scale) * 16)
+        context.addPath(outline.cgPath)
+        context.setFillColor(color.cg)
+        context.fillPath(using: .winding)
         context.restoreGState()
     }
 
@@ -353,9 +417,11 @@ public struct CoreGraphicsRenderer: WTRender {
             inner.alpha = state.alpha * group.opacity
             context.setAlpha(CGFloat(inner.alpha))
         }
-        for child in group.children {
+        for (index, child) in group.children.enumerated() {
             if let bounds = child.bounds, bounds.intersects(cull) {
-                draw(child, state: inner, cull: cull, into: context)
+                var childState = inner
+                childState.indexPath = state.indexPath + [index]
+                draw(child, state: childState, cull: cull, into: context)
             }
         }
         if layered {
@@ -403,13 +469,7 @@ public struct CoreGraphicsRenderer: WTRender {
     }
 
     private func strokeHairline(_ path: DisplayPath, transform: AffineTransform, color: Color, into context: CGContext) {
-        context.saveGState()
-        context.concatenate(transform.cg)
-        context.addPath(path.cgPath)
-        context.setLineWidth(hairlineWidth(in: context))
-        context.setStrokeColor(color.cg)
-        context.strokePath()
-        context.restoreGState()
+        drawLine(path, width: nil, transform: transform, color: color, into: context)
     }
 
     /// One device pixel in the context's current user space.  Core Graphics' own line width 0
@@ -419,16 +479,5 @@ public struct CoreGraphicsRenderer: WTRender {
         let ctm = context.ctm
         let scale = abs(ctm.a * ctm.d - ctm.b * ctm.c).squareRoot()
         return scale > 0 ? 1 / scale : 1
-    }
-
-    private func apply(_ style: StrokeStyle, to context: CGContext) {
-        context.setLineWidth(style.isHairline ? hairlineWidth(in: context) : CGFloat(style.width))
-        context.setLineCap(style.cap.cg)
-        context.setLineJoin(style.join.cg)
-        context.setMiterLimit(CGFloat(style.miterLimit))
-        let dash = style.effectiveDash
-        if !dash.isEmpty {
-            context.setLineDash(phase: CGFloat(style.dashPhase), lengths: dash.map { CGFloat($0) })
-        }
     }
 }

@@ -292,6 +292,22 @@ keyboard focus.
 
 Undo:: One command, one undo step.  A drag reorder is a single step at drop time.
 
+NOTE: As built by ATTR-004 (`WTRender/Appearance.swift`, `StrokeExpansion.swift`, `HitTester.swift`).
+WTRender does not import `WTProto`, so the stack kinds are display-list values WTModel fills in:
+`Paint` gained `.gradient`, `.pattern`, `.custom`, `.textured`, `.tiled` and `.lens`
+(`FillKinds.swift`), and `StrokePaint` gained `kind` (`.basic`, `.brush`, `.calligraphic`,
+`.custom`; `StrokeKinds.swift`).  A Pattern stroke is a Basic stroke whose paint is
+`.pattern`, so its outline is the Basic stroke's.  `Appearance(stack:)` takes
+`StackElement`s (element and `hidden`) and drops the hidden ones, which is the build-time
+skip.  Every element lowers to `PaintedRegion`s (a path, a rule and a paint, or brush copies as
+nested display items) that both renderers fill.  *None* for hit testing is `Paint.isNone`:
+*None*, a gradient without stops and a tiled fill whose tile has no area; every other fill,
+lenses and transparent Custom fills included, hits anywhere inside the path.  The outline
+tolerance uses the widest stroke among the width-outlined kinds (Basic, Pattern, Custom and
+a brush's cached Basic stroke); a Brush stroke hits inside its copies' symbol frames and a
+Calligraphic stroke inside its swept nib.  The Metal renderer draws paints other than a solid
+colour through a per-item texture (docs/spec/client.adoc, NOTE on the ATTR paints).
+
 === Build tasks
 
 [[ATTR-001]]

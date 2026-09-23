@@ -28,6 +28,11 @@ other so that the screen, the PDF and the printer agree.
 Dependency direction is strictly downward in the table: `WTApp` may import everything;
 `WTCRDT` imports only `WTProto`.
 
+NOTE: Deviation recorded by DRAW-002.  `WTModel` builds WTRender's display list and change
+summaries (`DocumentDisplayListBuilder`, below), so it imports `WTRender` and `WTGeometry`, which
+sit below it in the table; neither imports `WTModel`, so the package graph stays acyclic
+(`WTSync` reaches WTRender only through `WTModel`).
+
 == Concurrency
 
 * `Engine` and `SyncClient` are actors.  `Document` is a `@MainActor` observable façade over the
@@ -45,7 +50,20 @@ last server seq and undo stack), not by a `WTCRDT.Engine` actor: a local change 
 and appended to the outbox in one database transaction, which an `await` on a separate actor
 cannot give, and `Engine` cannot be created from a decoded snapshot.  `Document` is the
 `@MainActor @Observable` façade over the backend; it publishes `revision`, `lastChange` and the
-Edit menu state.  `ChangeSummary` is not produced yet (the backend returns the applied change).
+Edit menu state.
+
+NOTE: As built by DRAW-002 and the WTApp integration.  `Document` also keeps `state`, a copy of
+the merged `EngineState` as of the last change it published (read back from the backend after each
+call), so the main actor can build the display list and the panels without an actor hop; the
+backend's copy stays authoritative.  Calls to the backend run one at a time in call order
+(`settle()` waits for them), and every published change is delivered to `observe` handlers as a
+`DocumentEvent` (the change, its origin -- local, undo, redo, remote -- and the states before and
+after).  `Document(memory:)` opens a `MemoryBackend` without suspending.  `ChangeSummary` is
+produced by `WTModel.DocumentDisplayListBuilder.apply(_:state:origin:)` from the event: the nodes
+each op targets (with the field paths written), their painted bounds before and after, and the
+structural flag when items were added, removed or restacked.  The builder reuses the items of
+nodes a change did not touch.  It is named `DocumentDisplayListBuilder` because WTRender's
+low-level `DisplayListBuilder` would be ambiguous in every file importing both.
 
 == The document window
 
@@ -80,12 +98,26 @@ which `Viewport` already owns, and it cannot scroll a rotated extent.  The Metal
 of the fallback canvas is checked by a snapshot of the view's layer tree (pasteboard (0, 0)
 at the top-left; no flip was needed).  `ToolContext` carries `SnappingContext`, an identity
 placeholder reading *Snap distance* and *Pick distance* until GEO-005 and OBJ-039; the
-document is a `DocumentHandle` (id, title, pages, a display-list provider and the
-`CommandSink`) until `WTModel.Document` lands.  Temporary tools follow
+document is a `DocumentHandle` (id, title, pages, the display list and the `CommandSink`), backed
+by a `WTModel.Document` since the WTApp integration of DRAW-002 (next note).  Temporary tools follow
 xref:toolbars.adoc[Toolbars]: pushed only between drags (Command pressed mid-drag is a
 modifier for the current tool, as xref:moving.adoc[Moving] requires), restored on key-up even
 mid-drag, in which case the current tool's drag is ended with a synthesized mouse-up at the
 last pointer position and the rest of the drag is swallowed.
+
+NOTE: As built by the WTApp integration of DRAW-002.  `DocumentHandle` (`WTApp/Document`) is the
+window's view of a `WTModel.Document`: it opens the model through `DocumentEnvironment.openModel`
+per document id -- `DocumentOpener.localStore` (a `WTSync.LocalStore` at
+`LocalStore.defaultURL(documentID:)` with the *Undo levels* preference) in the app, a memory
+document in tests and test launches -- and shows the pages alone until the model is open; commands
+issued before then wait for it.  It keeps a `DocumentDisplayListBuilder` whose background is the
+page furniture (one group at index 0; pages and units are not nodes yet, so Add Page and Change
+Units are not undoable changes) and rebuilds the touched nodes on every `DocumentEvent`, handing
+the summary and the lists before and after to one `InvalidationBatcher` whose targets are the
+canvases' tile canvases (local changes at once, remote ones per frame).  `CommandSink` is
+`perform(_ command: WTModel.Command) -> Task<Change?, Never>`; a command that throws is logged
+(subsystem `com.villagecompute.wiretuner`, category `document`) and performs nothing.  The local
+store is closed when the document's last view closes.
 
 == Tools
 
@@ -360,9 +392,42 @@ depends on and lines by (start, column width, hyphens before); a 200,000-charact
 81 linked blocks relays out in 9--15 ms after a one-paragraph edit (release, M-series; full layout
 0.2--0.5 s).
 
+NOTE: As built by ATTR-004, ATTR-007, ATTR-010 to ATTR-012, ATTR-014, ATTR-018, ATTR-019, ATTR-021
+and ATTR-027 (the ATTR paints).  This supersedes the "until GEO-003" statements in the REND-001,
+REND-002/003/005 and REND-006 notes: no stroke reaches either renderer as a style.  Every stroke
+attribute, hairlines and arrowheads included, is filled as its GEO-003 outline, computed once per
+path, style and tolerance and cached (`StrokeExpansion`); the view modes' lines are
+`HairlineOutline` polygons; neither renderer calls Core Graphics' stroker.  Stack elements lower
+to `PaintedRegion`s both renderers fill.  *Paints*: solid colours stay colours in both renderers.
+Every other paint (gradients, patterns, Custom, Textured, Tiled and Lens fills) is drawn by
+`PaintDrawing` in Core Graphics: the reference renderer clips to the region and paints the clip;
+the Metal renderer paints an unclipped bitmap covering the region's pixels on its surface,
+aligned with them, uploads it and composites it through its own coverage of the region
+(`PaintOperation.texture`, `texturePaintFragment`), with a fast-mode group's alpha and the
+overprint preview's multiply applied to the whole texture as Core Graphics applies them to a
+transparency layer around the paint.  Interior pixels therefore agree by construction and
+REND-007 compares coverage; this is the per-item fallback the ATTR tasks allow, and native Metal
+shading of gradients and patterns remains open.  Paints are defined in resolution-independent
+spaces (page-anchored ones in canvas space, object-anchored ones in local space) and sampled
+paints on grids anchored at their space's origin, because the tile and the texture must sample
+the same points; where Core Graphics' own resampling was not translation-invariant (patterns
+under rotation) the paint is computed per device pixel instead.  `CoreGraphicsRenderer.rasterScale`
+(4 in `renderPDF`) sets the resolution of sampled paints and lens backdrops in PDF.
+
 == Undo
 
-NOTE: Selection lives in `WTApp/Selection` (`SelectionModel`, `SelectionController`) until `WTModel` lands; ids are display-list index paths, renumbered when items are removed.  The Pointer tool is only the selection part of OBJ-005.  The sketch rectangle is one `PathItem`.
+NOTE: Selection lives in `WTApp/Selection` (`SelectionModel`, `SelectionController`).  A
+`SelectionID` is the object's node id (the render-side `NodeID` mirror of its `OpId`); points are
+`PointReference(node, contour, point)` and segments `SegmentReference(node, contour, from)`, all
+element ids, so a selection survives other objects and points being added or deleted; a change
+drops only what no longer resolves.  Hit results (index paths) are mapped to them through the
+scene (`DocumentScene.object(atItemPath:)`, `SceneObject.point(leafPath:element:)`).  A rectangle's
+or ellipse's derived points carry synthetic ids (replica 0, counter = index + 1).  The Pointer
+tool is only the selection part of OBJ-005.  menu:Edit[Undo] and menu:Edit[Redo] are
+`UndoCommands` (replacing the standard responder items): their titles are the front document's
+`undoTitle`/`redoTitle`, and while a text field edits they go to the field's own undo.
+menu:Edit[Clear] deletes the selected points (one `DeletePoints` per path, one change) or else the
+selected objects.
 
 `Command` execution returns a `Change` and its inverse.  The `UndoManager` is per document and
 holds pairs; undo emits the inverse *filtered* by the rule in xref:crdt-model.adoc[CRDT model].

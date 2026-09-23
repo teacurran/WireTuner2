@@ -468,6 +468,65 @@ through the tool framework (APP-003).
 Undo:: Each committed field edit is one step; a pixel drag in the pattern editor is one step
 per mouse-up; Create Brush and Remove Brush are one step each including their side effects.
 
+NOTE: As built by ATTR-007 (`WTRender/StrokeExpansion.swift`).  Both renderers fill the GEO-003
+outline (`Offset.strokeOutline`) of every stroke attribute instead of stroking with Core
+Graphics: caps, joins, miter limit and dashes (laid out by GEO-003's arc length, so dash ends on
+curves moved slightly from Core Graphics' dasher and the goldens were re-recorded), hairlines at
+one device pixel, and open arrowheads outlined at the stroke width, undashed; filled heads are
+their shape.  The outline tolerance is 1/64 device pixel at the larger of the scale and 4,
+rounded down to a power of two, so every render at 4× or below (and PDF, drawn at 4 pixels per
+point) fills the same cached outline.  The view modes' own lines (Keyline outlines, placeholder
+boxes and baselines) are polygons too (`HairlineOutline`: a quad per flattened segment and an
+octagon per vertex): Core Graphics' stroker painted a stray full-height column in a tile that a
+long hairline did not cross.  Hit testing still measures the centreline against the widest
+stroke (REND-003).  The built-in dashes are `DashPreset.builtIns` (Dotted, Short, Medium, Long,
+Dash Dot, Dash Dot Dot, Sparse), next to `Arrowhead.builtIns`, until the preset resources land.
+
+NOTE: As built by ATTR-010 (`WTRender/BrushLayout.swift`, `ArcLength.swift`).  Symbols arrive as
+display lists (`BrushSymbol`); a symbol's size is its artwork's geometric bounds (strokes not
+included) and symbols with none are skipped.  Every copy position draws four values from PCG32
+(XSH RR, the reference `pcg32_srandom_r` seeding with a fixed sequence) in the order spacing,
+angle, offset, scaling, whatever the modes.  Flare is `min` at both ends and `max` halfway
+(`min + (max − min) · sin(π·u)`); an offset Flare follows the same curve between the offset's
+own `min` and `max`.  Spray places the first copy at the start and steps by the spacing (at
+least 1%) times the symbol's length at that copy's scale; Paint gives each of `count` copies an
+equal share of the length and stretches it to fill the share.  Copies are placed by an affine
+map (position, tangent, scale, offset, angle), not bent; an unoriented Paint brush runs along the
+chord between the ends.  Every copy of the first symbol draws below every copy of the second.
+Fold corners splits at turns of more than 10°.  A stroke stops at 100,000 copy positions.  A
+2,000-copy spray lays out in 0.5 ms and draws (4,000 symbol shapes through Core Graphics) in
+9.2 ms in a release build on the development Mac, over the 8 ms budget, and slower under load:
+the budget is measured and reported as a known issue rather than enforced
+(`BrushStrokeTests.twoThousandCopySpray`); instancing symbols as cached layers is left open.
+
+NOTE: As built by ATTR-011 (`WTRender/CalligraphicSweep.swift`).  The sweep is not built from
+GEO-003 envelope offsets: the region swept by a polygon along a segment is exactly the polygon
+at both ends plus every polygon edge swept along the segment (a parallelogram), so the path is
+flattened at the outline tolerance and those pieces, all oriented positively, are filled
+non-zero, which is their union without a boolean pass: no gaps at corners or cusps, nothing
+outside the Minkowski sum, and any simple nib (convex or not) works.  The ellipse is a polygon
+within the tolerance.
+
+NOTE: As built by ATTR-012 (`WTRender/CustomStrokeTiles.swift`).  The 23 tiles are polygons in
+tile space designed for this implementation (Arrow: shaft and head; Ball: an ellipse; Braid: two
+crossing bands; Cartographer: a filled half and two rails; Checker: two squares; Crepe: three
+thin waves; Diamond; Dot; Heart; Left and Right Diagonal: slanted bands; Rectangle; Roman: rails
+and two columns; Snowflake: three crossing bars; Squiggle: one wave; Star; Swirl: a spiral band;
+Teeth and Wedge: triangles; Three and Two Waves; ZigZag: a chevron band).  Only whole tiles are
+drawn: `⌊(L + spacing) / (length + spacing)⌋` on an open path, `⌊L / (length + spacing)⌋` on a
+closed one.  Normals are averaged at the flattened path's vertices so bent tiles do not tear.
+A length of 0 reads as twice the width.  Neon is four round-capped outlines at 100%, 70%, 45%
+and 20% of the width, from deep violet to near white.
+
+NOTE: As built by ATTR-014 (`WTRender/ProceduralFills.swift`).  The pattern is anchored to the
+canvas (pasteboard) origin: the display list has no pages.  On screen and in bitmaps it is not a
+`CGPattern`: each device pixel is the bitmap's coverage from 4 × 4 samples, drawn back pixel for
+pixel, because Core Graphics resamples a pattern cell (or an image) differently depending on
+where drawing starts, which moved quarter-point pixels between a tile and the Metal renderer's
+offscreen of the same pixels (REND-007 failed at 4× under rotation).  PDF output keeps the
+vector `CGPattern` with a 2 × 2 pt cell; reopened, it agrees with the screen within REND-007's
+tile tolerance with interiors off by rounding (1/255), not pixel for pixel.
+
 === Build tasks
 
 [[ATTR-005]]

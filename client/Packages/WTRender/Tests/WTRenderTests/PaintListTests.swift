@@ -88,6 +88,7 @@ import struct WTRender.StrokeStyle
         operations.flatMap { operation -> [PaintFill] in
             switch operation {
             case .fill(let fill): return [fill]
+            case .texture: return []
             case .group(let group): return fills(group.operations)
             }
         }

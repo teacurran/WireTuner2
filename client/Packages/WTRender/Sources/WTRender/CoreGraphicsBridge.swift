@@ -100,3 +100,24 @@ extension LineJoin {
         }
     }
 }
+
+extension Rect {
+    /// A Core Graphics rectangle; the null rectangle stays null and an infinite one (an
+    /// unclipped context's clip) becomes a very large finite one.
+    init(_ rect: CGRect) {
+        if rect.isNull {
+            self = .null
+        } else if rect.isInfinite {
+            self.init(x: -1e12, y: -1e12, width: 2e12, height: 2e12)
+        } else {
+            self.init(x: Double(rect.minX), y: Double(rect.minY), width: Double(rect.width), height: Double(rect.height))
+        }
+    }
+}
+
+extension CGAffineTransform {
+    /// The inverse, or nil for a transform that collapses the plane.
+    var invertedIfPossible: CGAffineTransform? {
+        abs(a * d - b * c) > 1e-300 ? inverted() : nil
+    }
+}

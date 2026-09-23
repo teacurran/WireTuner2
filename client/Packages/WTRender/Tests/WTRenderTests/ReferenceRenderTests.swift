@@ -25,7 +25,7 @@ import Testing
     @Test(arguments: ReferenceCorpus.cases.map(\.name))
     func matchesGolden(name: String) throws {
         let reference = try #require(ReferenceCorpus.cases.first { $0.name == name })
-        let viewport = Viewport(size: ReferenceCorpus.viewSize)
+        let viewport = Viewport(size: reference.viewSize)
         for scale in ReferenceCorpus.scales {
             let image = try #require(reference.renderer.renderBitmap(reference.list, viewport: viewport, scale: scale))
             let url = GoldenStore.url(for: name, scale: scale)
@@ -58,7 +58,10 @@ import Testing
     @Test(arguments: ReferenceCorpus.cases.map(\.name))
     func bitmapAndPDFAgree(name: String) throws {
         let reference = try #require(ReferenceCorpus.cases.first { $0.name == name })
-        let viewport = Viewport(size: ReferenceCorpus.viewSize)
+        guard reference.comparesPDF else {
+            return
+        }
+        let viewport = Viewport(size: reference.viewSize)
         let pdf = try #require(reference.renderer.renderPDF(reference.list, viewport: viewport))
         for scale in reference.hasHairlines ? [1.0] : [1.0, 2.0] {
             let bitmapImage = try #require(reference.renderer.renderBitmap(reference.list, viewport: viewport, scale: scale))

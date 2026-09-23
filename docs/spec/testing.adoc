@@ -187,6 +187,16 @@ itself.  The frame-time gate (`MetalFrameTimeTests`) plays a 10 s pan, pinch and
 2880 × 1800 offscreen texture and sums each frame's main-actor update and encode time with its
 GPU time; it enforces 8.3 ms only in release builds (`swift test -c release -Xswiftc
 -enable-testing`) and reports debug figures.
++
+NOTE: As built by the ATTR render tasks (`WTRenderTests/Support/AttributeCorpus.swift`).  The golden
+corpus holds 45 cases, each with its own view size; the ATTR cases run through goldens and
+REND-007 parity like the rest.  The bitmap/PDF gate is skipped (`comparesPDF`) for cases with
+sampled paints -- noise, textures, lenses, the gradient grid -- which PDF embeds at 4 pixels per
+point while bitmaps sample at device resolution, and for patterns, which stay vector in PDF;
+`PatternPaintTests.pdfExportAndScreenAgree` and `GradientTests.pdfOutputMatchesTheScreen` hold
+those to their own bounds (the appearance pages' ATTR-014 and ATTR-027 notes).  The tiled page and
+contour timings enforce their budgets only in release builds; the brush spray's is reported as a
+known issue (the ATTR-010 note).
 * `WTText`: layout goldens for the type chapter's features (columns, tabs, rules, on-path).
 +
 NOTE: As built by TXT-001 (`WTTextTests/Support/Goldens.swift`).  Each golden case is two files

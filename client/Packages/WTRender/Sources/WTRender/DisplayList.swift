@@ -53,22 +53,46 @@ public struct Color: Hashable, Sendable {
     }
 }
 
-/// What a fill or stroke is painted with.  Gradients and tiled fills join in the colour epic.
+/// What a fill or stroke is painted with (docs/_includes/appearance/fill-attributes.adoc,
+/// gradients.adoc).  A stroke's paint fills its outline, so a Pattern stroke is a Basic stroke
+/// painted `.pattern`.
 public enum Paint: Hashable, Sendable {
     /// The well-known *None*: paints nothing and, for hit testing, covers nothing
     /// (docs/_includes/appearance/attribute-stack.adoc, "Hit testing").
     case none
     case solid(Color)
+    case gradient(Gradient)
+    case pattern(PatternPaint)
+    case custom(CustomFill)
+    case textured(TexturedFill)
+    case tiled(TiledFill)
+    case lens(LensFill)
 
-    /// The colour a solid paint paints with; nil for *None*.
+    /// The colour a solid paint paints with; nil for *None* and every other kind.
     public var color: Color? {
         switch self {
-        case .none: return nil
         case .solid(let color): return color
+        default: return nil
         }
     }
 
-    public var isNone: Bool { self == .none }
+    /// Whether the paint paints nothing: *None*, a gradient without stops, a tiled fill whose
+    /// tile paints nothing.  Lens and transparent Custom fills paint (and hit) everywhere
+    /// inside the path.
+    public var isNone: Bool {
+        switch self {
+        case .none: return true
+        case .gradient(let gradient): return gradient.stops.isEmpty
+        case .tiled(let tiled): return tiled.tileBounds == nil
+        case .solid, .pattern, .custom, .textured, .lens: return false
+        }
+    }
+
+    /// Whether the paint looks at what is beneath the object (a lens).
+    public var isLens: Bool {
+        if case .lens = self { return true }
+        return false
+    }
 }
 
 public enum LineCap: Hashable, Sendable {
@@ -283,8 +307,7 @@ public indirect enum DisplayItem: Hashable, Sendable {
             let outset = item.style.outset
             return item.path.controlBounds.map { $0.expanded(by: outset).applying(item.transform) }
         case .path(let item):
-            let outset = item.appearance.outset
-            return item.path.controlBounds.map { $0.expanded(by: outset).applying(item.transform) }
+            return item.appearance.paintedBounds(of: item.path).map { $0.applying(item.transform) }
         case .image(let item):
             return item.rect.applying(item.transform)
         case .text(let item):
@@ -319,6 +342,9 @@ public struct DisplayList: Hashable, Sendable {
     public let nodeIDs: [NodeID?]
     /// Top-level item index by node id.
     private let nodeIndex: [NodeID: Int]
+    /// The top-level items that carry a lens fill (at any depth): they repaint whenever
+    /// anything beneath them does (ATTR-019).
+    public let lensIndices: [Int]
 
     public init(canvas: CanvasID, items: [DisplayItem], nodeIDs: [NodeID?] = []) {
         self.canvas = canvas
@@ -337,6 +363,7 @@ public struct DisplayList: Hashable, Sendable {
             }
         }
         nodeIndex = index
+        lensIndices = items.indices.filter { items[$0].containsLens }
     }
 
     public var count: Int { items.count }
@@ -418,5 +445,95 @@ public struct DisplayListBuilder: Sendable {
         }
         let nodes = sorted.map(\.node)
         return DisplayList(canvas: canvas, items: sorted.map(\.item), nodeIDs: nodes.contains { $0 != nil } ? nodes : [])
+    }
+}
+
+extension DisplayItem {
+    /// The item placed by `transform` (its local space → the space `transform` maps into):
+    /// `transform` is appended to the item's own transform, and to every descendant's and the
+    /// clip's in a group.  Brush copies, tiles and snapshots are instanced this way.
+    public func transformed(by transform: AffineTransform) -> DisplayItem {
+        switch self {
+        case .fill(var item):
+            item.transform = item.transform.concatenating(transform)
+            return .fill(item)
+        case .stroke(var item):
+            item.transform = item.transform.concatenating(transform)
+            return .stroke(item)
+        case .path(var item):
+            item.transform = item.transform.concatenating(transform)
+            return .path(item)
+        case .image(var item):
+            item.transform = item.transform.concatenating(transform)
+            return .image(item)
+        case .text(var item):
+            item.transform = item.transform.concatenating(transform)
+            return .text(item)
+        case .group(var item):
+            item.children = item.children.map { $0.transformed(by: transform) }
+            item.transform = item.transform.concatenating(transform)
+            return .group(item)
+        }
+    }
+
+    /// Whether the item or anything inside it carries a lens fill.
+    var containsLens: Bool {
+        switch self {
+        case .path(let item): return item.appearance.hasLens
+        case .group(let group): return group.children.contains { $0.containsLens }
+        case .fill(let item): return item.paint.isLens
+        case .stroke, .image, .text: return false
+        }
+    }
+}
+
+extension DisplayList {
+    /// Everything drawn before the item at `indexPath` (top-level index, then child indices):
+    /// the earlier top-level items, and inside each enclosing group the earlier siblings, kept
+    /// in their groups so clips and opacity still apply.  A lens's backdrop.
+    func items(before indexPath: [Int]) -> [DisplayItem] {
+        DisplayList.items(items, before: indexPath[...])
+    }
+
+    private static func items(_ items: [DisplayItem], before path: ArraySlice<Int>) -> [DisplayItem] {
+        guard let first = path.first, first < items.count else {
+            return items
+        }
+        var result = Array(items[..<first])
+        if case .group(var group) = items[first], path.count > 1 {
+            group.children = DisplayList.items(group.children, before: path.dropFirst())
+            if !group.children.isEmpty {
+                result.append(.group(group))
+            }
+        }
+        return result
+    }
+}
+
+extension DisplayItem {
+    /// The item's geometry in pasteboard (parent) space without stroke outsets: path control
+    /// bounds, image frames, text bounds, a group's children within its clip.  What a tile's
+    /// cell and a brush symbol's size are measured by.
+    var geometricBounds: Rect? {
+        switch self {
+        case .fill(let item):
+            return item.path.controlBounds.map { $0.applying(item.transform) }
+        case .stroke(let item):
+            return item.path.controlBounds.map { $0.applying(item.transform) }
+        case .path(let item):
+            return item.path.controlBounds.map { $0.applying(item.transform) }
+        case .image(let item):
+            return item.rect.applying(item.transform)
+        case .text(let item):
+            return item.bounds.applying(item.transform)
+        case .group(let group):
+            guard let content = DisplayList.union(of: group.children.compactMap(\.geometricBounds)) else {
+                return nil
+            }
+            guard let clip = group.clip else {
+                return content
+            }
+            return clip.controlBounds.flatMap { content.intersection($0.applying(group.transform)).nonNull }
+        }
     }
 }

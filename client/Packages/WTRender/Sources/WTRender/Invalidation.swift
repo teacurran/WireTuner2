@@ -131,7 +131,28 @@ public struct InvalidationMapper: Hashable, Sendable {
                 }
             }
         }
+        InvalidationMapper.addLenses(over: &region, lists: before + after)
         return region
+    }
+
+    /// A lens shows what is beneath it anywhere in its bounds (magnified, from its centerpoint),
+    /// so a change under any part of a lens repaints all of it, and so on up a stack of lenses
+    /// (ATTR-019).
+    static func addLenses(over region: inout DirtyRegion, lists: [DisplayList]) {
+        for list in lists where !list.lensIndices.isEmpty {
+            var pending = list.lensIndices.compactMap { index in list.itemBounds[index] }
+            var grew = true
+            while grew {
+                grew = false
+                let dirty = region.rects(for: list.canvas)
+                for (position, bounds) in pending.enumerated() where dirty.contains(where: { $0.intersects(bounds) }) {
+                    region.add(bounds, canvas: list.canvas)
+                    pending.remove(at: position)
+                    grew = true
+                    break
+                }
+            }
+        }
     }
 }
 

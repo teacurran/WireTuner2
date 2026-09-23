@@ -136,6 +136,10 @@ public struct MarqueeHit: Hashable, Sendable {
 
 /// Hit tests one display list through one viewport.
 public struct HitTester: Sendable {
+    /// The approximation tolerance, in local units, of the stroke geometry hits are tested
+    /// against (a calligraphic sweep).
+    static let regionTolerance = 0.05
+
     public private(set) var displayList: DisplayList
     /// The spatial index over top-level item indices.
     public private(set) var index: RTree<Int>
@@ -255,6 +259,9 @@ public struct HitTester: Sendable {
         /// The widest stroke that paints.
         let stroke: StrokeStyle?
         let heads: [PlacedArrowhead]
+        /// Strokes that hit on their own geometry, in local space, each filled non-zero: a
+        /// calligraphic sweep, a brush's copy frames (ATTR-010, ATTR-011).
+        var strokeRegions: [[Contour]] = []
     }
 
     private func shape(of item: DisplayItem) -> Shape? {
@@ -268,12 +275,24 @@ public struct HitTester: Sendable {
             let heads = appearance.strokes
                 .filter { !$0.paint.isNone && $0.hasArrowheads }
                 .flatMap { StrokeGeometry(path: item.path, stroke: $0).heads }
+            var regions: [[Contour]] = []
+            for stroke in appearance.strokes {
+                switch stroke.effectiveKind {
+                case .calligraphic(let nib) where !stroke.paint.isNone:
+                    regions.append(CalligraphicSweep.region(nib, path: item.path, tolerance: HitTester.regionTolerance).contours)
+                case .brush(let brush):
+                    regions += BrushLayout.cached(path: item.path, stroke: brush).frames.map { [$0] }
+                default:
+                    break
+                }
+            }
             return Shape(
                 path: item.path,
                 transform: item.transform,
                 fillRules: appearance.fills.filter { !$0.paint.isNone }.map(\.rule),
                 stroke: appearance.widestStroke?.style,
-                heads: heads
+                heads: heads,
+                strokeRegions: regions
             )
         case .image, .text, .group:
             return nil
@@ -339,6 +358,11 @@ public struct HitTester: Sendable {
                 if let nearest = HitTester.nearest(on: headContours, to: point, reach: reach) {
                     return (.stroke(nil), nearest.distance)
                 }
+            }
+        }
+        if !shape.strokeRegions.isEmpty, let local = transform.inverted()?.apply(point) {
+            for region in shape.strokeRegions where HitTester.contains(region, local, rule: .nonZero) {
+                return (.stroke(nil), 0)
             }
         }
         if let nearest = HitTester.nearest(on: contours, to: point, reach: tolerance) {

@@ -21,6 +21,13 @@ struct ReferenceCase: Sendable {
     let list: DisplayList
     var viewMode: ViewMode = .preview
     var overprintPreview = false
+    /// The view the case is drawn in, at the origin of the pasteboard.
+    var viewSize: Size = ReferenceCorpus.viewSize
+    /// Whether the bitmap and PDF renders are held to agree (REND-001's gate).  Sampled paints
+    /// (noise, textures, Rectangle/Cone/Contour gradients, lenses) are rasterized at 300 dpi in
+    /// PDF and at device resolution in bitmaps, so those cases compare against their own PDF
+    /// separately or not at all.
+    var comparesPDF = true
 
     /// Whether the render contains one-device-pixel hairlines (hairline strokes, Keyline, the
     /// fast modes' image boxes).  A hairline is one device pixel in a bitmap but one point in a
@@ -109,7 +116,10 @@ enum ReferenceCorpus {
         .text(TextRunItem(text: "Label", origin: Point(x: 76, y: 92), bounds: Rect(x: 76, y: 82, width: 44, height: 12), color: .black)),
     ])
 
-    static let cases: [ReferenceCase] = [
+    /// REND-002's cases and the ATTR cases.
+    static let cases: [ReferenceCase] = baseCases + AttributeCorpus.cases
+
+    static let baseCases: [ReferenceCase] = [
         ReferenceCase(name: "fillRules", list: list([
             path(star(center: Point(x: 34, y: 50), radius: 30), [fill(blue, rule: .nonZero)]),
             path(star(center: Point(x: 94, y: 50), radius: 30), [fill(blue, rule: .evenOdd)]),

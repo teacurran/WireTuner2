@@ -378,6 +378,43 @@ clears it.
 
 Undo:: Paste In, Copy Out (no change), Snapshot and every option edit are single steps.
 
+NOTE: As built by ATTR-018 (`WTRender/ProceduralFills.swift`, `PaintDrawing.swift`).  Bricks,
+Circles, Hatch (one pattern per set of lines) and Squares are `CGPattern`s in canvas space
+rotated by their angle.  Zero lengths read as defaults: Bricks 16 × 8 with mortar 12% of the
+smaller side (at least 0.5 pt), Circles radius 3 at spacing 10, Hatch spacing 6 and width 1,
+Squares side 5 at spacing 10; a Squares outline width of 0 fills the squares.  Tiger Teeth covers
+the object's bounds, rotated by the angle, in the background colour with `count` teeth hanging
+three quarters of the way down.  Grass and Leaves place `count` marks over the object's local
+bounds from PCG32 seeded with `seed` (five draws per mark), in fixed greens and browns, as the
+table gives them no colour.  The noise fills sample hashed canvas-space cells of 0.5 pt (Top
+Noise marks 30% of them), and the eight textures are procedural lightness fields over
+canvas-space value noise (weave, twill, pebbles, veins, grid, grain, grit and blotches) shading
+the colour from 55% to a third of the way to white.  Sampled paints are evaluated on a grid
+anchored at their space's origin at the device resolution rounded to a power of two (¼ to 16
+samples per point; 4 per point in PDF, where they are images rather than vector) over the part
+of the clip that needs them, so tiles and repeated renders sample the same points.
+
+NOTE: As built by ATTR-019 (`WTRender/LensRendering.swift`).  The backdrop is everything drawn
+before the lens object in its canvas (earlier siblings keep their groups' clips and opacity; the
+lens object's own lower attributes are not beneath it), rendered by Core Graphics over white
+paper at the device pixels of the lens's clip, or at 4 pixels per point in PDF.  Invert takes the
+complement in the naive CMY space, `1 − r, 1 − g, 1 − b`: the four-channel CMYK complement maps
+white and black both to black, which is not a negative.  Monochrome uses the Rec. 709
+luminance of the encoded sRGB colour.  Objects only masks the result with the alpha of the
+backdrop rendered without paper.  Magnify re-renders the backdrop through the magnification
+about the centerpoint, so it stays sharp.  A lens inside a tile, a brush symbol or a snapshot has
+no backdrop and renders as Basic, as does one nested deeper than 8; each of those logs and counts
+(`LensRendering.depthCapCount`).  Snapshot contents and tiles arrive as display items in
+object-local space; WTModel decodes the `Subtree`.  A change repaints the whole bounds of every
+lens its dirty rectangles touch, transitively up a stack of lenses (`InvalidationMapper`,
+`DisplayList.lensIndices`), since a magnified lens shows what changed elsewhere in its bounds.
+
+NOTE: As built by ATTR-021 (`WTRender/PaintDrawing.swift`).  The pattern cell is the tile's
+geometric bounds -- its paths' control bounds, strokes not included -- so a stroke overhanging
+the tile is clipped at the cell edge.  An empty tile, or one without area, renders as None.  A
+1,000-node tile over a Letter page draws in 5--8 ms in a release build (40 ms in debug); the
+16 ms budget is enforced in release builds.
+
 === Build tasks
 
 [[ATTR-016]]

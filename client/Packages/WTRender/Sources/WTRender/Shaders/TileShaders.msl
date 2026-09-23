@@ -197,6 +197,32 @@ fragment CoverOutput layerFragment(float4 position [[position]],
     return output;
 }
 
+// A paint texture (a gradient, pattern, procedural or lens fill rasterized by Core Graphics at
+// the surface's pixels) through the region's coverage.  Texels outside the image are clear.
+struct TextureUniforms {
+    int2 origin;    // device pixel of texel (0, 0)
+    int2 size;
+    uint rule;
+    uint blend;     // 0 source over, 1 multiply
+    float alpha;    // a fast-mode group's alpha
+    uint padding;
+};
+
+fragment CoverOutput texturePaintFragment(float4 position [[position]],
+                                          float4 destination [[color(0), raster_order_group(0)]],
+                                          uint4 winding [[color(1), raster_order_group(0)]],
+                                          texture2d<float, access::read> image [[texture(0)]],
+                                          constant TextureUniforms &uniforms [[buffer(0)]]) {
+    int2 texel = int2(floor(position.xy)) - uniforms.origin;
+    bool inside = texel.x >= 0 && texel.y >= 0 && texel.x < uniforms.size.x && texel.y < uniforms.size.y;
+    float4 paint = inside ? image.read(uint2(texel)) : float4(0.0);
+    float4 source = paint * (uniforms.alpha * coverage(winding, uniforms.rule));
+    CoverOutput output;
+    output.color = uniforms.blend == 1u ? multiply(source, destination) : sourceOver(source, destination);
+    output.winding = uint4(0);
+    return output;
+}
+
 // ---- Frame composition ----------------------------------------------------------------------
 
 // One textured quad per atlas tile, placed through the current view transform (which, during

@@ -28,6 +28,8 @@ public final class MetalContext: @unchecked Sendable {
     let paintPipeline: any MTLRenderPipelineState
     /// Cover: a group's surface through its clip's counters.
     let layerPipeline: any MTLRenderPipelineState
+    /// Cover: a paint texture through the region's counters.
+    let texturePipeline: any MTLRenderPipelineState
     let library: any MTLLibrary
 
     private let lock = NSLock()
@@ -86,7 +88,8 @@ public final class MetalContext: @unchecked Sendable {
         }
         guard let fan = pipeline(vertex: "fanVertex", fragment: "fanFragment", writesColor: false),
               let paint = pipeline(vertex: "coverVertex", fragment: "paintFragment", writesColor: true),
-              let layer = pipeline(vertex: "coverVertex", fragment: "layerFragment", writesColor: true)
+              let layer = pipeline(vertex: "coverVertex", fragment: "layerFragment", writesColor: true),
+              let texture = pipeline(vertex: "coverVertex", fragment: "texturePaintFragment", writesColor: true)
         else {
             MetalContext.logger.error("Metal tile pipelines unavailable")
             return nil
@@ -94,6 +97,7 @@ public final class MetalContext: @unchecked Sendable {
         fanPipeline = fan
         paintPipeline = paint
         layerPipeline = layer
+        texturePipeline = texture
     }
 
     static func configureSourceOver(_ attachment: MTLRenderPipelineColorAttachmentDescriptor) {

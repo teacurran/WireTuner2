@@ -37,7 +37,7 @@ struct MetalParityTests {
         /// Every tile the corpus view (and anything the list paints outside it) touches.
         var keys: [TileKey] {
             let area = (reference.list.bounds ?? Rect(x: 0, y: 0, width: 1, height: 1))
-                .union(Rect(x: 0, y: 0, width: ReferenceCorpus.viewSize.width, height: ReferenceCorpus.viewSize.height))
+                .union(Rect(x: 0, y: 0, width: reference.viewSize.width, height: reference.viewSize.height))
                 .expanded(by: 4)
             return geometry.tiles(coveringPasteboardRect: area, canvas: reference.list.canvas)
         }

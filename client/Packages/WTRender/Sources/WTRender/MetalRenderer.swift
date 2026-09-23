@@ -125,7 +125,8 @@ public struct MetalRenderer: WTRender {
             overprintPreview: overprintPreview,
             tolerance: FlatteningTolerance(devicePixels: flatteningTolerance.devicePixels * MetalRenderer.flatteningRefinement),
             surface: Rect(x: 0, y: 0, width: Double(width), height: Double(height)),
-            swapsFillRules: swapsFillRules
+            swapsFillRules: swapsFillRules,
+            referenceTolerance: flatteningTolerance
         )
         return builder.operations(for: displayList, pasteboardTransform: pasteboardTransform, cull: cull)
     }
@@ -181,8 +182,21 @@ struct PlannedGroup {
     var opacity: Float
 }
 
+/// A texture-painted fill: its fan and cover, and which uploaded texture it samples.
+struct PlannedTexture {
+    var fan: Range<Int>
+    var cover: Range<Int>
+    var rule: FillRule
+    var texture: Int
+    var origin: SIMD2<Int32>
+    var size: SIMD2<Int32>
+    var alpha: Float
+    var blend: PaintBlend
+}
+
 indirect enum PlannedOperation {
     case fill(PlannedFill)
+    case texture(PlannedTexture)
     case group(PlannedGroup)
 }
 
@@ -190,6 +204,8 @@ indirect enum PlannedOperation {
 struct PaintGeometry {
     private(set) var triangles: [FanTriangle] = []
     private(set) var covers: [SIMD2<Float>] = []
+    /// The texture images, in the order planned textures index them.
+    private(set) var images: [TextureImage] = []
 
     mutating func plan(_ operations: [PaintOperation], width: Double, height: Double) -> [PlannedOperation] {
         let surface = Rect(x: 0, y: 0, width: width, height: height)
@@ -200,6 +216,20 @@ struct PaintGeometry {
                 let fan = appendFan(fill.path)
                 let cover = appendQuad(fill.path.bounds!, in: surface)
                 result.append(.fill(PlannedFill(fan: fan, cover: cover, rule: fill.rule, color: fill.color, blend: fill.blend)))
+            case .texture(let texture):
+                let fan = appendFan(texture.path)
+                let cover = appendQuad(texture.path.bounds!, in: surface)
+                images.append(texture.image)
+                result.append(.texture(PlannedTexture(
+                    fan: fan,
+                    cover: cover,
+                    rule: texture.rule,
+                    texture: images.count - 1,
+                    origin: texture.origin,
+                    size: SIMD2(Int32(texture.image.width), Int32(texture.image.height)),
+                    alpha: texture.alpha,
+                    blend: texture.blend
+                )))
             case .group(let group):
                 let children = plan(group.operations, width: width, height: height)
                 if let clip = group.clip {
@@ -267,6 +297,16 @@ struct CoverUniforms {
     static let everything: UInt32 = 2
 }
 
+/// The shader's `TextureUniforms`.
+struct TextureUniforms {
+    var origin: SIMD2<Int32>
+    var size: SIMD2<Int32>
+    var rule: UInt32
+    var blend: UInt32
+    var alpha: Float
+    var padding: UInt32 = 0
+}
+
 /// Encodes planned operations into render passes: one pass per surface, split around every
 /// group (whose children render into their own surface first).  The winding counters live in
 /// a memoryless attachment and are zero between paths, so every pass starts them cleared.
@@ -278,6 +318,8 @@ struct PaintEncoder {
     private var triangleBuffer: (any MTLBuffer)?
     private var coverBuffer: (any MTLBuffer)?
     private var winding: (any MTLTexture)?
+    /// The paint textures, uploaded once per encode.
+    private var textures: [any MTLTexture] = []
     /// Offscreen surfaces by group depth, reused by sibling groups.
     private var layers: [Int: any MTLTexture] = [:]
 
@@ -301,6 +343,18 @@ struct PaintEncoder {
         descriptor.usage = .renderTarget
         descriptor.storageMode = .memoryless
         winding = device.makeTexture(descriptor: descriptor)
+        for image in geometry.images {
+            let imageDescriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: MetalContext.colorFormat, width: image.width, height: image.height, mipmapped: false)
+            imageDescriptor.usage = .shaderRead
+            imageDescriptor.storageMode = .shared
+            guard let texture = device.makeTexture(descriptor: imageDescriptor) else {
+                return false
+            }
+            image.bytes.withUnsafeBytes { bytes in
+                texture.replace(region: MTLRegionMake2D(0, 0, image.width, image.height), mipmapLevel: 0, withBytes: bytes.baseAddress!, bytesPerRow: image.width * 4)
+            }
+            textures.append(texture)
+        }
         return winding != nil
             && (geometry.triangles.isEmpty || triangleBuffer != nil)
             && (geometry.covers.isEmpty || coverBuffer != nil)
@@ -318,6 +372,8 @@ struct PaintEncoder {
             switch operation {
             case .fill(let fill):
                 draw(fill, with: encoder)
+            case .texture(let texture):
+                draw(texture, with: encoder)
             case .group(let group):
                 encoder.endEncoding()
                 guard let layer = layerTexture(depth: depth + 1),
@@ -367,6 +423,15 @@ struct PaintEncoder {
         encoder.setRenderPipelineState(context.paintPipeline)
         encoder.setFragmentBytes(&uniforms, length: MemoryLayout<CoverUniforms>.stride, index: 0)
         encoder.drawPrimitives(type: .triangle, vertexStart: fill.cover.lowerBound, vertexCount: fill.cover.count)
+    }
+
+    private func draw(_ texture: PlannedTexture, with encoder: any MTLRenderCommandEncoder) {
+        stencil(texture.fan, with: encoder)
+        var uniforms = TextureUniforms(origin: texture.origin, size: texture.size, rule: CoverUniforms.rule(texture.rule), blend: texture.blend == .multiply ? 1 : 0, alpha: texture.alpha)
+        encoder.setRenderPipelineState(context.texturePipeline)
+        encoder.setFragmentTexture(textures[texture.texture], index: 0)
+        encoder.setFragmentBytes(&uniforms, length: MemoryLayout<TextureUniforms>.stride, index: 0)
+        encoder.drawPrimitives(type: .triangle, vertexStart: texture.cover.lowerBound, vertexCount: texture.cover.count)
     }
 
     private func composite(_ group: PlannedGroup, layer: any MTLTexture, with encoder: any MTLRenderCommandEncoder) {

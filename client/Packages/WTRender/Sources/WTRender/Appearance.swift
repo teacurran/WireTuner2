@@ -20,7 +20,10 @@ public struct FillPaint: Hashable, Sendable {
     }
 }
 
-/// One Basic stroke of an attribute stack, resolved: paint, geometry parameters, arrowheads.
+/// One stroke of an attribute stack, resolved: its kind, paint, geometry parameters and
+/// arrowheads.  For Basic strokes (and Pattern strokes, which are Basic strokes painted
+/// `.pattern`) `style` and the arrowheads define the outline; a Custom stroke reads its width
+/// from `style`; a Brush stroke falls back to `paint` and `style` (the cached Basic stroke).
 public struct StrokePaint: Hashable, Sendable {
     public var paint: Paint
     public var style: StrokeStyle
@@ -29,36 +32,70 @@ public struct StrokePaint: Hashable, Sendable {
     /// Drawn at the path's end point, pointing along the path.  Ignored on a closed end.
     public var endArrowhead: Arrowhead?
     public var overprint: Bool
+    public var kind: StrokeKind
 
     public init(
         paint: Paint,
         style: StrokeStyle = StrokeStyle(),
         startArrowhead: Arrowhead? = nil,
         endArrowhead: Arrowhead? = nil,
-        overprint: Bool = false
+        overprint: Bool = false,
+        kind: StrokeKind = .basic
     ) {
         self.paint = paint
         self.style = style
         self.startArrowhead = startArrowhead
         self.endArrowhead = endArrowhead
         self.overprint = overprint
+        self.kind = kind
     }
 
-    /// Whether either end carries an arrowhead (hairlines carry none: heads scale with width).
+    /// The kind that actually draws: a brush stroke whose brush is gone or has no live symbol
+    /// draws as its cached Basic stroke.
+    var effectiveKind: StrokeKind {
+        if case .brush(let brush) = kind, brush.liveBrush == nil {
+            return .basic
+        }
+        return kind
+    }
+
+    /// Whether the stroke is outlined at `style.width` along the path (Basic, Pattern, Custom
+    /// and a brush's fallback), which is what the outline hit tolerance measures.
+    var hasWidthOutline: Bool {
+        switch effectiveKind {
+        case .basic, .custom: return true
+        case .brush, .calligraphic: return false
+        }
+    }
+
+    /// Whether either end carries an arrowhead (hairlines carry none: heads scale with width;
+    /// only Basic strokes carry heads).
     public var hasArrowheads: Bool {
-        !style.isHairline && (startArrowhead != nil || endArrowhead != nil)
+        effectiveKind == .basic && !style.isHairline && (startArrowhead != nil || endArrowhead != nil)
     }
 
     /// How far, in local units, the stroke's paint can reach beyond the path's control bounds,
-    /// arrowheads included.
+    /// arrowheads included.  Brush strokes are bounded by their copies instead (see
+    /// `Appearance.paintedBounds(of:)`).
     var outset: Double {
-        var result = style.outset
-        if !style.isHairline {
-            for head in [startArrowhead, endArrowhead].compactMap({ $0 }) {
-                result = max(result, head.extent * style.width)
+        switch effectiveKind {
+        case .basic:
+            var result = style.outset
+            if hasArrowheads {
+                for head in [startArrowhead, endArrowhead].compactMap({ $0 }) {
+                    result = max(result, head.extent * style.width)
+                }
             }
+            return result
+        case .custom:
+            // Tiles span the width across the path; bent round corners they can reach a
+            // little further, which the miter-style outset covers.
+            return style.outset
+        case .calligraphic(let nib):
+            return CalligraphicSweep.nibPolygon(nib, tolerance: 0.1).map { $0.distance(to: .zero) }.max() ?? 0
+        case .brush:
+            return 0
         }
-        return result
     }
 }
 
@@ -68,6 +105,17 @@ public enum AppearanceItem: Hashable, Sendable {
     case stroke(StrokePaint)
 }
 
+/// One element of an object's stack as WTModel reads it: the element and its visibility.
+public struct StackElement: Hashable, Sendable {
+    public var item: AppearanceItem
+    public var hidden: Bool
+
+    public init(_ item: AppearanceItem, hidden: Bool = false) {
+        self.item = item
+        self.hidden = hidden
+    }
+}
+
 /// A resolved attribute stack: every visible fill and stroke in ascending position, bottom
 /// first.  Effects join with the FX epic.
 public struct Appearance: Hashable, Sendable {
@@ -75,6 +123,12 @@ public struct Appearance: Hashable, Sendable {
 
     public init(_ items: [AppearanceItem] = []) {
         self.items = items
+    }
+
+    /// The display-list stack of `stack` (already in ascending position): hidden elements are
+    /// skipped here, at build time, so they cost nothing to paint or hit test.
+    public init(stack: [StackElement]) {
+        self.init(stack.filter { !$0.hidden }.map(\.item))
     }
 
     /// The default for a newly drawn object: one fill with one stroke above it.
@@ -99,19 +153,42 @@ public struct Appearance: Hashable, Sendable {
         }
     }
 
-    /// Whether any fill paints the interior (a *None* fill does not).
+    /// Whether any fill paints the interior (a *None* fill does not; lens and transparent
+    /// Custom fills do, everywhere inside the path).
     public var paintsInterior: Bool {
         fills.contains { !$0.paint.isNone }
     }
 
-    /// The widest stroke that paints, whose half width sets the outline's hit tolerance.
+    /// The widest width-outlined stroke that paints, whose half width sets the outline's hit
+    /// tolerance.  Brush and Calligraphic strokes hit on their own geometry instead.
     public var widestStroke: StrokePaint? {
-        strokes.filter { !$0.paint.isNone }.max { $0.style.width < $1.style.width }
+        strokes.filter { !$0.paint.isNone && $0.hasWidthOutline }.max { $0.style.width < $1.style.width }
+    }
+
+    /// Whether any fill is a lens: the item repaints when anything beneath it changes.
+    public var hasLens: Bool {
+        fills.contains { $0.paint.isLens }
     }
 
     /// The largest outset of any stroke, 0 for fills only.
     var outset: Double {
         strokes.map(\.outset).max() ?? 0
+    }
+
+    /// A conservative local-space bound on everything the stack paints on `path`: the control
+    /// bounds grown by the strokes' outset, joined with every brush stroke's copies.
+    func paintedBounds(of path: DisplayPath) -> Rect? {
+        guard let control = path.controlBounds else {
+            return nil
+        }
+        var result = control.expanded(by: outset)
+        for stroke in strokes {
+            if case .brush(let brush) = stroke.effectiveKind,
+               let copies = BrushLayout.cached(path: path, stroke: brush).bounds {
+                result = result.union(copies)
+            }
+        }
+        return result
     }
 }
 
@@ -191,4 +268,27 @@ public struct Arrowhead: Hashable, Sendable {
 
     /// The built-in presets, in pop-up order.
     public static let builtIns: [Arrowhead] = [triangle, open, circle, square, bar]
+}
+
+/// A named dash (`DashPattern`): on, off, on, off... lengths in points.
+public struct DashPreset: Hashable, Sendable {
+    public var name: String
+    public var lengths: [Double]
+
+    public init(name: String, lengths: [Double]) {
+        self.name = name
+        self.lengths = lengths
+    }
+
+    /// The built-in dashes, in pop-up order after *No dash*.  Application resources: a stroke
+    /// copies the chosen lengths into its own `dash`.
+    public static let builtIns: [DashPreset] = [
+        DashPreset(name: "Dotted", lengths: [1, 2]),
+        DashPreset(name: "Short", lengths: [2, 2]),
+        DashPreset(name: "Medium", lengths: [4, 2]),
+        DashPreset(name: "Long", lengths: [8, 4]),
+        DashPreset(name: "Dash Dot", lengths: [8, 3, 1, 3]),
+        DashPreset(name: "Dash Dot Dot", lengths: [8, 3, 1, 3, 1, 3]),
+        DashPreset(name: "Sparse", lengths: [2, 6]),
+    ]
 }

@@ -252,6 +252,25 @@ double-click opens the color popover.
 
 Undo:: Each stop gesture (add, move, recolor, remove) and each handle drag is one step.
 
+NOTE: As built by ATTR-027 (`WTRender/GradientRendering.swift`).  The ramp is a 1,024-entry
+table interpolated between stops in OKLab with premultiplied alpha and clipped to the sRGB gamut
+per channel; stops outside 0 ... 1 clamp and ties keep their order.  Reflect runs forward and
+back once per count (the triangle wave of `t × count` with period 1) and ends on the start
+colour; Repeat ends on the end colour.  Linear, Logarithmic and Radial are `CGShading`s over a
+`CGFunction` of the ramp; Rectangle and Cone are sampled in object-local space at the device
+resolution rounded to a power of two rather than drawn by a shading callback, which Core
+Graphics does not offer.  Contour's distance field is computed on the CPU (scan conversion with
+the fill rule, then the exact Euclidean distance transform of Felzenszwalb and Huttenlocher), not
+by jump flooding, and both the field and the coloured image are cached per path, rule, gradient
+and resolution: a 500-point path at 800 × 800 px draws in 2.4--4 ms after the first frame in a release build
+(9 ms in debug); the 10 ms budget is enforced in release builds.  A start
+outside the path reaches the inradius.  PDF output uses native shadings for Linear, Logarithmic
+and Radial (reopened, identical to the screen within REND-001's gate); Rectangle, Cone,
+Contour, and any ramp with a transparent stop (a PDF shading carries no alpha) are embedded as
+images sampled at 4 pixels per point, not as `ShadingType 1`, and agree with the screen within
+24/255 on all but 1% of the pixels.  Display-list colours are sRGB until the colour epic, so PDF
+shadings are sRGB rather than the widest stop space.
+
 === Build tasks
 
 [[ATTR-023]]
