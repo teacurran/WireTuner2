@@ -248,11 +248,12 @@ private func groupProps(tx: Double = 0) -> Wiretuner_Doc_V1_NodeProps {
         #expect(scene.object(node)?.itemPath == [2])
     }
 
-    @Test func transformedLeavesItemsWithoutTransformsAlone() {
+    @Test func placingMovesEveryKindOfItem() {
         let text = DisplayItem.text(TextRunItem(text: "a", origin: .zero, bounds: Rect(x: 0, y: 0, width: 1, height: 1)))
-        #expect(DocumentDisplayListBuilder.transformed(text, by: .translation(x: 5, y: 0)) == text)
+        guard case .text(let movedText) = text.transformed(by: .translation(x: 5, y: 0)) else { Issue.record("text"); return }
+        #expect(movedText.transform == AffineTransform.translation(x: 5, y: 0))
         let group = DisplayItem.group(GroupItem(children: [.path(PathItem(path: DisplayPath(), appearance: Appearance()))]))
-        guard case .group(let moved) = DocumentDisplayListBuilder.transformed(group, by: .translation(x: 5, y: 0)),
+        guard case .group(let moved) = group.transformed(by: .translation(x: 5, y: 0)),
               case .path(let child) = moved.children[0] else { Issue.record("group"); return }
         #expect(child.transform == AffineTransform.translation(x: 5, y: 0))
     }

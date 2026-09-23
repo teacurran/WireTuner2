@@ -18,9 +18,10 @@ final class SelectionController {
     var pickDistance: @MainActor () -> Double
     /// The Lasso's *Contact-sensitive selection*.
     var lassoContactSensitive: @MainActor () -> Bool = { false }
-    /// Whether clicks and marquees may pick the object: *Edit current layer only* limits them to
-    /// the active layer's objects (layers.adoc, LIB-007).
-    var canPick: @MainActor (SelectionID) -> Bool = { _ in true }
+    /// The window's active layer and *Edit current layer only* (layers.adoc, LIB-005/007): the hit
+    /// tester skips every layer but the active one while the preference is on (and locked layers
+    /// and guides always, from the display list's layer runs).
+    var layerRule: @MainActor () -> (activeLayer: OpID?, currentLayerOnly: Bool) = { (nil, false) }
 
     /// Built on first use and after every content change; the viewport and options are set
     /// per query (they are plain values).
@@ -68,7 +69,9 @@ final class SelectionController {
             tester = HitTester(displayList: document.displayList, viewport: viewport)
             hitTesterBuilds += 1
         }
-        tester.options = HitOptions(subselect: subselect, contactSensitive: contactSensitive(), pickDistanceInViewPixels: pickDistance())
+        let rule = layerRule()
+        tester.options = HitOptions(subselect: subselect, contactSensitive: contactSensitive(), pickDistanceInViewPixels: pickDistance(),
+                                    activeLayer: rule.activeLayer.map(NodeID.init), editCurrentLayerOnly: rule.currentLayerOnly)
         cachedTester = tester
         return tester
     }
@@ -77,7 +80,7 @@ final class SelectionController {
     func pick(at viewPoint: Point, viewport: Viewport, subselect: Bool) -> (id: SelectionID, sub: SubSelection?)? {
         let hits = hitTester(viewport: viewport, subselect: subselect).hitTest(viewPoint: viewPoint)
         for hit in hits {
-            guard let id = document.selectionID(atItemPath: hit.itemPath), document.isSelectable(id), canPick(id) else { continue }
+            guard let id = document.selectionID(atItemPath: hit.itemPath), document.isSelectable(id) else { continue }
             return (id, subselect ? subSelection(for: hit, in: id) : nil)
         }
         return nil
@@ -123,7 +126,7 @@ final class SelectionController {
         var picked: [SelectionID] = []
         var sub: [SelectionID: SubSelection] = [:]
         for hit in hits.reversed() {
-            guard let id = document.selectionID(atItemPath: hit.itemPath), document.isSelectable(id), canPick(id) else { continue }
+            guard let id = document.selectionID(atItemPath: hit.itemPath), document.isSelectable(id) else { continue }
             let object = document.object(for: id)
             let anchors = hit.anchors.compactMap { object?.point(leafPath: $0.leafPath, element: $0.element) }
             if subselect, !anchors.isEmpty {

@@ -301,7 +301,9 @@ enum NodeValues {
         case .ellipse: props.ellipse.appearance = stack
         case .polygon: props.polygon.appearance = stack
         case .group: props.group.appearance = stack
-        case .layer: break
+        case .instance: props.instance.appearance = stack
+        case .barcode: props.barcode.appearance = stack
+        case .layer, .chart, .symbol: break
         }
         return props
     }
@@ -318,6 +320,10 @@ enum NodeValues {
         case .polygon: props.polygon.common = common
         case .group: props.group.common = common
         case .layer: props.layer.common = common
+        case .chart: props.chart.common = common
+        case .symbol: props.symbol.common = common
+        case .instance: props.instance.common = common
+        case .barcode: props.barcode.common = common
         }
         return props
     }
@@ -336,6 +342,10 @@ enum NodeValues {
         case .polygon(let polygon)?: polygon.common
         case .group(let group)?: group.common
         case .layer(let layer)?: layer.common
+        case .chart(let chart)?: chart.common
+        case .symbol(let symbol)?: symbol.common
+        case .instance(let instance)?: instance.common
+        case .barcode(let barcode)?: barcode.common
         default: nil
         }
     }
@@ -348,8 +358,27 @@ enum NodeValues {
         case .ellipse(let ellipse)?: ellipse.appearance
         case .polygon(let polygon)?: polygon.appearance
         case .group(let group)?: group.appearance
+        case .instance(let instance)?: instance.appearance
+        case .barcode(let barcode)?: barcode.appearance
         default: nil
         }
+    }
+
+    /// `props` with the attribute stack of its `kind` replaced by `appearance` (kinds without
+    /// one are returned unchanged).
+    static func replacing(_ appearance: Wiretuner_Doc_V1_AppearanceProps, of kind: NodeKind, in props: Wiretuner_Doc_V1_NodeProps) -> Wiretuner_Doc_V1_NodeProps {
+        var props = props
+        switch kind {
+        case .path: props.path.appearance = appearance
+        case .rect: props.rect.appearance = appearance
+        case .ellipse: props.ellipse.appearance = appearance
+        case .polygon: props.polygon.appearance = appearance
+        case .group: props.group.appearance = appearance
+        case .instance: props.instance.appearance = appearance
+        case .barcode: props.barcode.appearance = appearance
+        case .layer, .chart, .symbol: break
+        }
+        return props
     }
 
     /// The appearance field number of a kind with one.
@@ -360,7 +389,9 @@ enum NodeValues {
         case .ellipse: 3
         case .polygon: 10
         case .group: 6
-        case .layer: nil
+        case .instance: 4
+        case .barcode: 7
+        case .layer, .chart, .symbol: nil
         }
     }
 }

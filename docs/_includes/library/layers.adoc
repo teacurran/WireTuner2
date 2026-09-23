@@ -673,6 +673,19 @@ ignores opacity, as for any group).  Hit testing skips locked layers and guides 
 dirties the union of that layer's items (`DisplayList.bounds(ofLayer:)`), so a flag toggle repaints
 only its tiles.  Selection overlays are WTApp's: they read `LayerRendering.highlight`.
 
+NOTE: As built by LIB-005 (model half; `WTModel/DocumentScene.swift`, WTApp's `SelectionController`).
+`DocumentDisplayListBuilder` builds the canvas list through `LayerScene.build(.screen(guideColor:))`:
+one `LayerContent` per layer in `LayerOrder`, its `LayerRendering` from the `LayerInfo` (locked,
+printing, keyline, Guides; an unset `highlight` reads black), hidden layers' objects not placed.
+`guideColor` is a builder property, cyan by default; WTApp does not yet pass the *Guide color*
+preference to it.  `outputDisplayList(_:includeHidden:)` is the print and export list
+(`.output`), built from the same cached items without touching the scene.  WTApp passes the window's
+active layer (or the drawing layer when it is gone) and *Edit current layer only* to
+`HitOptions.activeLayer`/`editCurrentLayerOnly` (`SelectionController.layerRule`); the app's own
+`canPick` filter is gone, and locked layers and guides are skipped by the hit tester from the
+list's spans.  Selection overlays still draw in the accent colour: nothing reads
+`LayerRendering.highlight` in WTApp yet.
+
 === Build tasks
 
 [[LIB-001]]

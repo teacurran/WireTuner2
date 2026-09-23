@@ -327,6 +327,19 @@ drives it from the canvas's display link; `TimerTicker` is a main-queue timer fo
 hand.  `CVDisplayLink` is deprecated on macOS 15, so WTRender does not use it.  Measured: 100 frames of
 a 2,000-object document drawn at 520 × 200 px, worst frame 0.8 ms (release; 33 ms budget).
 
+NOTE: As built by WEB-014 (commands and frame list; `WTModel/Animation.swift`) and WEB-016 (canvas
+half; `WTApp/Document/CanvasView.swift`).  `AnimationInfo` reads the settings (unset source *None*,
+fps 0 as 12, `loop` true while the message has never been written) and the layers in `LayerOrder` as
+`AnimationLayer`s; `frames(pages:)` is the frame list over the window's page rectangles (pages are
+not nodes yet) and `visibleNodes(of:in:)` a frame's objects.  `SetAnimationSettings` ("Animation
+Settings"; its first write also writes `loop = true`) and `SetLayerFrame` ("Frame Hold", "Exclude
+from Animation") are the commands.  The canvas's `previewFrame` shows one frame: the tiles leave
+the document's invalidation batcher and draw the list restricted to the frame's layers, a document
+change is applied to that restricted list with its summary, and switching frames repaints only the
+objects on layers that appear or disappear.  `startPlayback()` plays the frames with an
+`AnimationPlayer` driven by `DisplayLinkTicker` (`NSView.displayLink`); clicking the canvas ends
+preview.  No menu or panel starts playback yet (WEB-017).
+
 === Build tasks
 
 [[WEB-014]]

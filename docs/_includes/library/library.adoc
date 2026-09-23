@@ -659,6 +659,36 @@ The 16 ms budget is held by the instance machinery: 1,000 instances of one symbo
 the list in 5.8 ms after the first build (release); drawing them is the tile renderers' budget (the
 reference renderer's whole 880 × 550 pt view of them took 24 ms on a heavily loaded machine).
 
+NOTE: As built by LIB-010 and LIB-026 (model half) with the parts of LIB-009 and LIB-025 they need
+(`WTModel/Symbols.swift`, `SymbolCommands.swift`, `DocumentScene.swift`).  Every build reads the
+symbols (children of `symbols` and of folders, a deleted folder's symbols included) into a
+`SymbolLibrary`: each symbol's artwork as `SymbolNode`s with group transforms flattened into the
+leaves, its version the hash of that artwork.  An instance draws through `SymbolRenderer` from
+`Symbols.instanceSpec`: a deleted symbol gives the placeholder with its name, a reference to another
+kind of node "not a symbol", an unknown id no name; the placeholder is 72 × 72 pt, not the symbol's
+last known bounds.  `Symbols.liveOverrides` applies the read-time rules (property set; master node a
+live node of the current symbol's artwork; `TEXT` only on a text block, `IMAGE` only on an image;
+the greatest element id per `(master_node, property)`); a fill or stroke of *None* recolours to
+clear, and an image override names the asset's SHA-256 in hex (WTRender's asset id).  Text
+overrides are read but not drawn -- WTModel has no text layout and the builder draws no text blocks
+yet -- so an instance shows the master's words.  Commands: `ConvertToSymbol` ("Convert to Symbol";
+origin the selection's bounds centre, masters flattened into symbol space, the instance in place or
+on the active layer; name the single object's own or the first free "Symbol N"), `PlaceInstance`
+("Place Symbol"), `SwapSymbol` ("Swap Symbol"), `ReleaseInstances` ("Release Instance", or
+"Detach instance": resolved deep copies in a group in the instance's place, hidden parts left out,
+basic fills and strokes recoloured; image and text overrides are not baked), `SetOverride`
+("Override fill", "Override stroke", "Hide <name>" / "Show <name>", "Override image": the live
+element's register, or a new element) and `ResetOverrides` ("Reset override", "Reset all
+overrides").  `Symbols.instanceIndex` computes the instance index on read.  Not yet built: Copy to
+Symbol, Duplicate, Replace artwork, Remove with Release or Delete instances, folder commands, a
+public `resolvedArtwork(of:)`, and the nesting-cycle cut at the smallest instance id (WTRender cuts
+at the second visit of a symbol).  Dirty rects: the builder keeps the `DependencyIndex` (a symbol
+from its master nodes and nested symbols through `SymbolLibrary.addDependencies`, an instance from
+its symbol id even while it dangles, a chart from its pictograph nodes), rebuilt with each scene;
+`apply` rebuilds the touched nodes and their dependents and names every one in the summary, so a
+master edit repaints every instance and an override edit only its own.  Instances, charts and
+barcodes are objects to the object commands (`Objects.kinds`, with bounds).
+
 === Build tasks
 
 [[LIB-008]]

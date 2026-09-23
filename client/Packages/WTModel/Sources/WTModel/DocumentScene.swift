@@ -88,9 +88,15 @@ public struct DocumentScene: Hashable, Sendable {
 }
 
 /// Builds the display list of the main pasteboard from the merged state (client.adoc, "The
-/// display list"): layers bottom first, invisible layers and deleted nodes skipped, each object a
-/// top-level item tagged with its node id (group members nested), transforms flattened, attribute
-/// stacks resolved.  Items for nodes a change did not touch are reused, and every change yields a
+/// display list"): layers bottom first in `LayerOrder` through WTRender's `LayerScene` (each
+/// layer's run of items with its rendering rules: locked, background, keyline, highlight, Guides;
+/// hidden layers contribute nothing), deleted nodes skipped, each object a top-level item tagged
+/// with its node id (group members nested), transforms flattened, attribute stacks resolved.
+/// Symbol instances draw their symbol's artwork through `SymbolRenderer` (LIB-010/026), charts
+/// their `ChartLayout` (DRAW-032), barcodes their bars (DATA-018); colours from spot swatches
+/// carry their ink (PRINT-007).  Items for nodes a change did not touch are reused; a change's
+/// touched nodes are expanded through the `DependencyIndex` (an edited symbol or master node
+/// reaches every instance of it, a pictograph's nodes their chart), and every change yields a
 /// `ChangeSummary` for the invalidation pipeline.  Background items (the page furniture the window
 /// draws until pages are nodes) come first and carry no node id.
 ///
@@ -100,7 +106,16 @@ public struct DocumentDisplayListBuilder: Sendable {
     public let canvas: CanvasID
     public private(set) var background: [DisplayItem]
     public private(set) var scene: DocumentScene
+    /// *Guide color* (preferences.adoc, cyan by default): objects on the Guides layer draw in it.
+    public var guideColor = Color(red: 0, green: 1, blue: 1)
+    /// Node → the nodes drawn from it, as of the last build: a symbol from its master nodes and
+    /// nested symbols, an instance from its symbol, a chart from its pictograph nodes.
+    public private(set) var dependencies = DependencyIndex()
+    /// The document's symbols as of the last build.
+    public private(set) var library = SymbolLibrary([])
     private var cache: [OpID: Built] = [:]
+    private let symbolRenderer = SymbolRenderer()
+    private let labels = CoreTextLabels()
 
     /// A node's item before enclosing transforms, and what the scene records about it.
     private struct Built: Sendable {
@@ -111,6 +126,10 @@ public struct DocumentDisplayListBuilder: Sendable {
         var elementPoints: [[Int]: [PointRef?]]
         var leafContours: [[Int]: [OpID]]
         var locked = false
+        /// An instance's own drawing input (its item is made when it is placed on a layer).
+        var instance: SymbolInstance?
+        /// The nodes the item is drawn from besides its own registers.
+        var sources: [OpID] = []
     }
 
     public init(canvas: CanvasID, background: [DisplayItem] = []) {
@@ -150,9 +169,11 @@ public struct DocumentDisplayListBuilder: Sendable {
         return (scene, ChangeSummary(origin: .local, isStructural: true))
     }
 
-    /// Brings the scene up to `state` after `change` was applied, rebuilding the nodes it touched,
-    /// and returns the scene with the change's summary (touched nodes and fields, painted bounds
-    /// before and after, structural when items were added, removed or reordered).
+    /// Brings the scene up to `state` after `change` was applied, rebuilding the nodes it touched
+    /// and every node drawn from them (`dependencies`), and returns the scene with the change's
+    /// summary (touched nodes and their dependents with fields and painted bounds before and
+    /// after, structural when items were added, removed or reordered).  A change to a swatch
+    /// rebuilds every item and names each object whose drawing changed.
     public mutating func apply(_ change: Wiretuner_Doc_V1_Change, state: EngineState, origin: ChangeOrigin) -> (DocumentScene, ChangeSummary) {
         let before = scene
         var touched: [OpID: [FieldPath]] = [:]
@@ -162,16 +183,20 @@ public struct DocumentDisplayListBuilder: Sendable {
         for (op, id) in zip(change.ops, change.opIDs) {
             if case .create = op.op { touched[id, default: []] += [] }
         }
-        for node in touched.keys {
-            cache[node] = nil
-        }
+        let dependents = dependencies.dependents(of: touched.keys.map(NodeID.init))
+        for node in touched.keys { cache[node] = nil }
+        for node in dependents { cache[OpID(node)] = nil }
+        let swatches = touched.keys.contains { $0 == WellKnown.swatches || state.store.kind($0) == Self.swatchKind }
+        if swatches { cache = [:] }
         scene = build(state)
         var summary = ChangeSummary(origin: origin, isStructural: before.displayList.nodeIDs != scene.displayList.nodeIDs
             || before.objects.mapValues(\.itemPath) != scene.objects.mapValues(\.itemPath))
-        var affected = Set(touched.keys.map(NodeID.init))
+        var affected = Set(touched.keys.map(NodeID.init)).union(dependents).union(dependencies.dependents(of: touched.keys.map(NodeID.init)))
+        let all = before.objects.merging(scene.objects, uniquingKeysWith: { $1 })
         // A touched group moves its members; a touched layer everything on it.
-        for (id, object) in before.objects.merging(scene.objects, uniquingKeysWith: { $1 }) {
+        for (id, object) in all {
             if let parent = object.parent, affected.contains(NodeID(parent)) { affected.insert(id) }
+            if swatches, before.objects[id]?.item != scene.objects[id]?.item { affected.insert(id) }
         }
         for node in touched.keys where state.nodeKind(node) == .layer {
             for child in state.store.children(node) { affected.insert(NodeID(child)) }
@@ -188,6 +213,9 @@ public struct DocumentDisplayListBuilder: Sendable {
         }
         return (scene, summary)
     }
+
+    /// `NodeProps.swatch`.
+    static let swatchKind: UInt32 = 70
 
     /// The nodes an op writes, with the field paths it writes.
     static func targets(_ op: Wiretuner_Doc_V1_Op) -> [(OpID, [FieldPath])] {
@@ -209,28 +237,108 @@ public struct DocumentDisplayListBuilder: Sendable {
         }
     }
 
+    // MARK: Output
+
+    /// The list print and export draw (layers.adoc, "Printing"): printing, non-Guides layers
+    /// only, hidden ones only with `includeHidden`, no dimming or keyline.  Built from the same
+    /// cached items as the canvas; the scene is not changed.
+    public mutating func outputDisplayList(_ state: EngineState, includeHidden: Bool = false) -> DisplayList {
+        SpotInks.$current.withValue(SpotInks(state)) {
+            var scratch: [NodeID: SceneObject] = [:]
+            let order = LayerOrder(state)
+            let contents = layerContents(state, order: order, includeHidden: includeHidden, objects: &scratch).contents
+            return LayerScene.build(canvas: canvas, layers: contents, purpose: .output(includeHidden: includeHidden), background: [])
+        }
+    }
+
     // MARK: Building
 
     private mutating func build(_ state: EngineState) -> DocumentScene {
-        var items = background
-        var nodeIDs: [NodeID?] = background.map { _ in nil }
+        SpotInks.$current.withValue(SpotInks(state)) { buildScene(state) }
+    }
+
+    private mutating func buildScene(_ state: EngineState) -> DocumentScene {
+        var index = DependencyIndex()
+        library = buildLibrary(state, dependencies: &index)
         var objects: [NodeID: SceneObject] = [:]
-        var topLevel: [NodeID] = []
         let order = LayerOrder(state)
-        for layer in order.layers where layer.visible {
-            let layerTransform = PathEditing.transform(state.props(layer.id).layer.common.transform)
-            let context = Placing(layer: layer.id, locked: layer.locked)
-            for child in order.objects(on: layer.id, in: state) {
-                let index = items.count
-                guard let item = place(child, state: state, parentTransform: layerTransform, itemPath: [index], parent: nil, context: context,
-                                       objects: &objects) else { continue }
-                items.append(item)
-                nodeIDs.append(NodeID(child))
-                topLevel.append(NodeID(child))
-            }
+        let (contents, topLevel) = layerContents(state, order: order, includeHidden: false, objects: &objects)
+        for (node, built) in cache where objects[NodeID(node)] != nil {
+            for source in built.sources { index.add(NodeID(node), dependsOn: NodeID(source)) }
         }
-        return DocumentScene(displayList: DisplayList(canvas: canvas, items: items, nodeIDs: nodeIDs), objects: objects, topLevel: topLevel,
-                             layers: order)
+        dependencies = index
+        let list = LayerScene.build(canvas: canvas, layers: contents, purpose: .screen(guideColor: guideColor), background: background)
+        return DocumentScene(displayList: list, objects: objects, topLevel: topLevel, layers: order)
+    }
+
+    /// Every layer's content in `order`, placing the objects of the visible ones (and of hidden
+    /// ones with `includeHidden`) and recording them in `objects`.
+    private mutating func layerContents(_ state: EngineState, order: LayerOrder, includeHidden: Bool,
+                                        objects: inout [NodeID: SceneObject]) -> (contents: [LayerContent], topLevel: [NodeID]) {
+        var contents: [LayerContent] = []
+        var topLevel: [NodeID] = []
+        var next = background.count
+        for layer in order.layers {
+            let rendering = LayerRendering(
+                id: NodeID(layer.id), locked: layer.locked, printing: layer.printing, keyline: layer.keyline,
+                highlight: layer.highlight.map(Appearances.color) ?? .black, isGuides: layer.role == .guides
+            )
+            var items: [(item: DisplayItem, node: NodeID?)] = []
+            if layer.visible || includeHidden {
+                let layerTransform = PathEditing.transform(state.props(layer.id).layer.common.transform)
+                let context = Placing(layer: layer.id, locked: layer.locked)
+                for child in order.objects(on: layer.id, in: state) {
+                    guard let item = place(child, state: state, parentTransform: layerTransform, itemPath: [next], parent: nil, context: context,
+                                           objects: &objects) else { continue }
+                    items.append((item, NodeID(child)))
+                    topLevel.append(NodeID(child))
+                    next += 1
+                }
+            }
+            contents.append(LayerContent(layer: rendering, visible: layer.visible, items: items))
+        }
+        return (contents, topLevel)
+    }
+
+    /// The symbols' artwork in symbol space (library.adoc, "Rendering"), recording each symbol's
+    /// dependency on its master nodes and nested symbols, and each nested instance's on its
+    /// symbol.  The version is the artwork's hash, so any edit under a symbol changes it.
+    private mutating func buildLibrary(_ state: EngineState, dependencies: inout DependencyIndex) -> SymbolLibrary {
+        var artworks: [SymbolArtwork] = []
+        var nested: [(instance: OpID, symbol: OpID)] = []
+        for symbol in Symbols.symbols(in: state) {
+            let props = state.props(symbol).symbol
+            let nodes = state.liveChildren(symbol).compactMap { symbolNode($0, state: state, parentTransform: .identity, nested: &nested) }
+            var hasher = Hasher()
+            hasher.combine(nodes)
+            artworks.append(SymbolArtwork(symbol: NodeID(symbol), name: props.common.name, version: UInt64(bitPattern: Int64(hasher.finalize())),
+                                          origin: Point(x: props.origin.x, y: props.origin.y), nodes: nodes))
+        }
+        let library = SymbolLibrary(artworks)
+        for symbol in library.symbols.keys {
+            library.addDependencies(of: symbol, on: symbol, to: &dependencies)
+        }
+        for (instance, symbol) in nested {
+            dependencies.add(NodeID(instance), dependsOn: NodeID(symbol))
+        }
+        return library
+    }
+
+    /// One node of a symbol's artwork with the enclosing groups' transforms flattened into it.
+    private mutating func symbolNode(_ node: OpID, state: EngineState, parentTransform: AffineTransform,
+                                     nested: inout [(instance: OpID, symbol: OpID)]) -> SymbolNode? {
+        guard let built = built(node, state: state) else { return nil }
+        if var instance = built.instance {
+            instance.transform = instance.transform.concatenating(parentTransform)
+            nested += built.sources.map { (node, $0) }
+            return SymbolNode(id: NodeID(node), content: .instance(instance))
+        }
+        if built.kind == .group {
+            let transform = built.transform.concatenating(parentTransform)
+            let members = state.liveChildren(node).compactMap { symbolNode($0, state: state, parentTransform: transform, nested: &nested) }
+            return SymbolNode(id: NodeID(node), content: .group(GroupItem(children: []), members: members))
+        }
+        return built.item.map { SymbolNode(id: NodeID(node), content: .item($0.transformed(by: parentTransform))) }
     }
 
     /// What enclosing nodes pass down while placing.
@@ -242,7 +350,7 @@ public struct DocumentDisplayListBuilder: Sendable {
     /// The item of `node` under `parentTransform`, recording it (and its members) in `objects`.
     private mutating func place(_ node: OpID, state: EngineState, parentTransform: AffineTransform, itemPath: [Int], parent: OpID?,
                                 context: Placing, objects: inout [NodeID: SceneObject]) -> DisplayItem? {
-        guard let built = built(node, state: state) else { return nil }
+        guard var built = built(node, state: state) else { return nil }
         let transform = built.transform.concatenating(parentTransform)
         let locked = context.locked || built.locked
         let item: DisplayItem
@@ -258,8 +366,12 @@ public struct DocumentDisplayListBuilder: Sendable {
             guard !children.isEmpty else { return nil }
             item = .group(GroupItem(children: children))
         } else {
+            if built.item == nil, let instance = built.instance {
+                built.item = symbolRenderer.item(for: instance, in: library)
+                cache[node] = built
+            }
             guard let own = built.item else { return nil }
-            item = parentTransform.isIdentity ? own : Self.transformed(own, by: parentTransform)
+            item = parentTransform.isIdentity ? own : own.transformed(by: parentTransform)
         }
         objects[NodeID(node)] = SceneObject(
             id: node, kind: built.kind, path: built.path, transform: transform, itemPath: itemPath, parent: parent,
@@ -269,9 +381,17 @@ public struct DocumentDisplayListBuilder: Sendable {
         return item
     }
 
+    /// `node`'s subtree drawn in its parent's space without recording scene objects (a chart's
+    /// pictograph source).
+    private mutating func detachedItem(_ node: OpID, state: EngineState) -> DisplayItem? {
+        var scratch: [NodeID: SceneObject] = [:]
+        return place(node, state: state, parentTransform: .identity, itemPath: [], parent: nil, context: Placing(layer: node, locked: false),
+                     objects: &scratch)
+    }
+
     private mutating func built(_ node: OpID, state: EngineState) -> Built? {
         if let cached = cache[node] { return cached }
-        guard let kind = state.nodeKind(node), kind != .layer else { return nil }
+        guard let kind = state.nodeKind(node), kind != .layer, kind != .symbol else { return nil }
         let props = state.props(node)
         guard let common = NodeValues.common(props), !common.hasCanvas else { return nil }
         let transform = PathEditing.transform(common.transform)
@@ -294,6 +414,21 @@ public struct DocumentDisplayListBuilder: Sendable {
             let model = ShapeGeometry.path(polygon)
             built.path = model
             Self.render(model, appearance: polygon.appearance, order: order, transform: transform, into: &built)
+        case .instance(let instance)?:
+            built.instance = Symbols.instanceSpec(node, transform: transform, in: state)
+            built.sources = instance.hasSymbol ? [OpID(instance.symbol.id)] : []
+        case .chart(let chart)?:
+            // Pictograph sources are the chart's children: any node under it redraws it.
+            built.sources = Array(Symbols.artworkNodes(of: node, in: state))
+            let spec = Chart(chart).spec(node: node) { source in
+                guard state.liveChildren(node).contains(source), let item = self.detachedItem(source, state: state) else { return nil }
+                return [item]
+            }
+            built.item = spec.map { ChartLayout(spec: $0, typesetter: labels).displayItem(transform: transform) }
+        case .barcode(let barcode)?:
+            var spec = Barcodes.spec(barcode, appearance: Appearances.resolve(barcode.appearance, order: order))
+            spec.transform = transform
+            built.item = BarcodeRendering.item(spec)
         default:
             break
         }
@@ -361,21 +496,6 @@ public struct DocumentDisplayListBuilder: Sendable {
             }
         }
         return (result, points, contours)
-    }
-
-    /// `item` with `transform` applied after its own.
-    static func transformed(_ item: DisplayItem, by transform: AffineTransform) -> DisplayItem {
-        switch item {
-        case .path(var path):
-            path.transform = path.transform.concatenating(transform)
-            return .path(path)
-        case .group(var group):
-            group.children = group.children.map { transformed($0, by: transform) }
-            group.transform = group.transform.concatenating(transform)
-            return .group(group)
-        default:
-            return item
-        }
     }
 }
 

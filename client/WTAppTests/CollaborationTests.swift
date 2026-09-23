@@ -557,12 +557,20 @@ func bitmap(width: Int = 400, height: Int = 300) -> CGContext {
         defer { controller.close() }
         let art = LayerOrder(fixture.document.state).layer(of: fixture.a.opID, in: fixture.document.state)
         let layer = await fixture.document.perform(CreateLayer(name: "Top")).value?.createdNodes.first
-        #expect(controller.selection.canPick(fixture.a))
+        let viewport = SelectionFixture.viewport
+        func picks() -> Bool { controller.selection.pick(at: Point(x: 30, y: 30), viewport: viewport, subselect: false)?.id == fixture.a }
+        #expect(picks())
         environment.preferences.set(true, for: PreferenceCatalog.Object.editCurrentLayerOnly)
         controller.objectEditing.activeLayer = art
-        #expect(controller.selection.canPick(fixture.a))
+        #expect(picks())
+        #expect(controller.selection.hitTester(viewport: viewport, subselect: false).options.activeLayer == art.map(NodeID.init))
         controller.objectEditing.activeLayer = layer
-        #expect(!controller.selection.canPick(fixture.a))
+        #expect(!picks())
+        #expect(controller.pickingLayer == layer)
+        // A locked layer's objects are never picked (LIB-005: the hit tester skips its run).
+        environment.preferences.set(false, for: PreferenceCatalog.Object.editCurrentLayerOnly)
+        _ = await fixture.document.perform(SetLayerFlag([art!], .locked, true)).value
+        #expect(!picks())
         // Hiding the active layer shows the warning strip.
         _ = await fixture.document.perform(SetLayerFlag([layer!], .visible, false)).value
         #expect(controller.collaboration.banner.warning != nil && !controller.collaboration.bannerHost.isHidden)

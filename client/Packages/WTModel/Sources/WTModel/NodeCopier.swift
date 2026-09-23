@@ -32,6 +32,10 @@ public struct NodeTree: Hashable, Sendable {
         case .polygon?: .polygon
         case .group?: .group
         case .layer?: .layer
+        case .chart?: .chart
+        case .symbol?: .symbol
+        case .instance?: .instance
+        case .barcode?: .barcode
         default: nil
         }
     }
@@ -51,6 +55,10 @@ public struct NodeTree: Hashable, Sendable {
             case .polygon?: assign(&props.polygon.common)
             case .group?: assign(&props.group.common)
             case .layer?: assign(&props.layer.common)
+            case .chart?: assign(&props.chart.common)
+            case .symbol?: assign(&props.symbol.common)
+            case .instance?: assign(&props.instance.common)
+            case .barcode?: assign(&props.barcode.common)
             default: break
             }
         }

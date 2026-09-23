@@ -1,6 +1,7 @@
 import AppKit
 import QuartzCore
 import Testing
+import WTCRDT
 import WTGeometry
 import WTModel
 import WTProto
@@ -101,5 +102,80 @@ final class OverlayProbeTool: Tool {
         drawCount += 1
         ctx.setFillColor(CGColor(srgbRed: 0, green: 0, blue: 1, alpha: 1))
         ctx.fill(CGRect(x: viewport.size.width - 15, y: 0, width: 10, height: 10))
+    }
+}
+
+/// WEB-016's canvas half: preview mode and display-link playback of the document's frames.
+@Suite @MainActor struct CanvasPlaybackTests {
+    /// Two layers, a red square on the bottom one at (0, 0) and on the top one at (40, 0), with
+    /// *Layers* as the frame source.
+    private func makeCanvas() async -> (CanvasView, [OpID]) {
+        let document = DocumentHandle.memory(title: "Frames")
+        var appearance = Wiretuner_Doc_V1_AppearanceProps()
+        appearance.fills = [Appearances.basicFill(red: 1, green: 0, blue: 0)]
+        let square = Size(width: 20, height: 20)
+        _ = await document.perform(CreateShape(.rectangle(CornerRadii()), size: square, appearance: appearance)).value
+        let bottom = document.state.liveChildren(WellKnown.layers)[0]
+        let top = await document.perform(CreateLayer(name: "Frame 2", above: bottom)).value!.createdNodes[0]
+        _ = await document.perform(CreateShape(.rectangle(CornerRadii()), size: square, transform: .translation(x: 40, y: 0), appearance: appearance, layer: top)).value
+        _ = await document.perform(SetAnimationSettings(source: .layers, fps: 10)).value
+        let canvas = CanvasView(document: document, frame: NSRect(x: 0, y: 0, width: 100, height: 40))
+        canvas.setViewport(Viewport(scrollOrigin: .zero, zoom: 1, size: Size(width: 100, height: 40)))
+        return (canvas, [bottom, top])
+    }
+
+    private func redAt(_ canvas: CanvasView, x: Int) async -> Bool {
+        await canvas.tiles.settle()
+        let scale = canvas.tiles.backingScale
+        let surface = BitmapSurface(width: Int(canvas.bounds.width * scale), height: Int(canvas.bounds.height * scale))!
+        surface.context.scaleBy(x: scale, y: scale)
+        canvas.layer!.render(in: surface.context)
+        let pixel = surface.pixel(x: x * Int(scale), y: 5 * Int(scale))
+        return pixel.red > 200 && pixel.green < 60 && pixel.alpha > 200
+    }
+
+    @Test func playbackShowsOneLayerPerFrameAndWritesNothing() async throws {
+        let (canvas, layers) = await makeCanvas()
+        #expect(await redAt(canvas, x: 5))
+        #expect(await redAt(canvas, x: 45))
+        let changes = canvas.document.changeCount
+        let ticker = DisplayLinkTicker(view: canvas)
+        let playback = try #require(canvas.startPlayback(ticker: ticker))
+        #expect(ticker.isRunning && playback.frames.map(\.layers) == [[NodeID(layers[0])], [NodeID(layers[1])]])
+        #expect(canvas.previewFrame == playback.frames[0])
+        #expect(await redAt(canvas, x: 5))
+        #expect(await !redAt(canvas, x: 45))
+        ticker.fire(at: 100)
+        ticker.fire(at: 100.15)
+        #expect(canvas.previewFrame == playback.frames[1] && playback.player.currentFrame == 1)
+        #expect(await !redAt(canvas, x: 5))
+        #expect(await redAt(canvas, x: 45))
+        // A change during playback shows in the frame; preview itself wrote nothing.
+        _ = await canvas.document.perform(SetLayerFlag([layers[1]], .keyline, true)).value
+        #expect(canvas.shownDisplayList.layers.map(\.layer.keyline) == [true])
+        #expect(canvas.document.changeCount == changes + 1)
+        // Clicking the canvas ends preview mode.
+        let click = try #require(NSEvent.mouseEvent(with: .leftMouseDown, location: .zero, modifierFlags: [], timestamp: 0, windowNumber: 0,
+                                                    context: nil, eventNumber: 0, clickCount: 1, pressure: 1))
+        canvas.mouseDown(with: click)
+        #expect(canvas.previewFrame == nil && canvas.playback == nil && !ticker.isRunning)
+        #expect(canvas.shownDisplayList == canvas.document.displayList)
+        #expect(await redAt(canvas, x: 5))
+    }
+
+    @Test func aDocumentWithoutFramesDoesNotPlay() async {
+        let canvas = CanvasView(document: .memory(title: "Still"), frame: NSRect(x: 0, y: 0, width: 100, height: 40))
+        #expect(canvas.startPlayback() == nil && canvas.previewFrame == nil)
+        let ticker = DisplayLinkTicker(view: canvas)
+        ticker.start { _ in }
+        #expect(ticker.isRunning)
+        ticker.stop()
+        #expect(!ticker.isRunning)
+        var detached: NSView? = NSView()
+        let orphan = DisplayLinkTicker(view: detached!)
+        detached = nil
+        orphan.start { _ in Issue.record("no view, no ticks") }
+        orphan.fire(at: 1)
+        #expect(!orphan.isRunning)
     }
 }

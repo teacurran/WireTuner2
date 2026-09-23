@@ -1,6 +1,7 @@
 import AppKit
 import Metal
 import WTGeometry
+import WTModel
 import WTRender
 
 /// The canvas: a layer-hosting view whose root layer holds the REND-006 `MetalTileCanvas` (a
@@ -84,6 +85,14 @@ final class CanvasView: NSView, CanvasHost {
     private(set) var animation: Task<Void, Never>?
     /// How long a menu rotation animates; zero applies it at once (tests).
     var rotationAnimationDuration = CanvasRotation.animationDuration
+    /// Animation preview (WEB-016): the one frame shown instead of the whole document, nil for
+    /// everything.  Nothing is written to the document; the tiles draw the canvas list restricted
+    /// to the frame's layers.
+    var previewFrame: AnimationFrame? {
+        didSet { if previewFrame != oldValue { previewFrameDidChange(from: oldValue) } }
+    }
+    /// Playback of the document's frames while previewing.
+    private(set) var playback: CanvasPlayback?
 
     init(document: DocumentHandle, tiles: MetalTileCanvas = CanvasView.makeFallbackTiles(), frame: NSRect = NSRect(x: 0, y: 0, width: 800, height: 600)) {
         self.document = document
@@ -112,7 +121,7 @@ final class CanvasView: NSView, CanvasHost {
         setAccessibilityLabel("Canvas")
 
         document.invalidation.add(tiles)
-        documentObservation = document.observe { [weak self] _ in self?.documentDidChange() }
+        documentObservation = document.observe { [weak self] change in self?.documentDidChange(change) }
         viewport = navigation.clamped(viewport)
         updateAccessibilityValue()
         render()
@@ -145,7 +154,7 @@ final class CanvasView: NSView, CanvasHost {
     /// Lays out and requests the visible tiles for the current viewport and display list.
     func render() {
         if let scale = window?.backingScaleFactor { tiles.backingScale = Double(scale) }
-        tiles.update(displayList: document.displayList, viewport: viewport)
+        tiles.update(displayList: shownDisplayList, viewport: viewport)
         overlay.bounds = CGRect(origin: .zero, size: bounds.size)
         overlay.setNeedsDisplay()
         presenceLayer.bounds = overlay.bounds
@@ -204,7 +213,11 @@ final class CanvasView: NSView, CanvasHost {
 
     /// The document changed: the tiles were already told through the document's invalidation
     /// batcher; the overlay (selection, glyphs) and the accessibility value follow.
-    private func documentDidChange() {
+    private func documentDidChange(_ change: ContentChange) {
+        if let previewFrame {
+            // Out of the invalidation batcher while previewing: the next frame shows the change.
+            tiles.update(displayList: FrameComposer.displayList(change.after, for: previewFrame), viewport: viewport, changes: change.summary)
+        }
         updateAccessibilityValue()
         overlay.setNeedsDisplay()
         presenceLayer.setNeedsDisplay()
@@ -336,6 +349,10 @@ final class CanvasView: NSView, CanvasHost {
 
     override func mouseDown(with event: NSEvent) {
         window?.makeFirstResponder(self)
+        if previewFrame != nil {
+            // Clicking the canvas ends preview mode (animation.adoc, "Client").
+            endPreview()
+        }
         if event.modifierFlags.contains(.control), toolManager?.activeToolID != .zoom, let menu = contextMenu(for: event) {
             NSMenu.popUpContextMenu(menu, with: event, for: self)
             return
@@ -607,5 +624,114 @@ enum CanvasAutoscroll {
         if value < edge { return -min(step + (edge - value), maximumStep) }
         if value > length - edge { return min(step + (value - (length - edge)), maximumStep) }
         return 0
+    }
+}
+
+// MARK: - Animation preview and playback (WEB-016)
+
+extension CanvasView {
+    /// What the tiles show: the document, or only the preview frame's layers.
+    var shownDisplayList: DisplayList {
+        previewFrame.map { FrameComposer.displayList(document.displayList, for: $0) } ?? document.displayList
+    }
+
+    /// Plays the document's frames (`AnimationInfo`: its source, fps, loop and layer holds, over
+    /// the window's pages) in preview mode from the first, driven by `ticker` -- the canvas's
+    /// display link by default.  Nil when the document has no frames.
+    @discardableResult
+    func startPlayback(ticker: PlaybackTicker? = nil) -> CanvasPlayback? {
+        endPreview()
+        let info = AnimationInfo(document.state)
+        let frames = info.frames(pages: document.pages)
+        guard !frames.isEmpty else { return nil }
+        let playback = CanvasPlayback(canvas: self, frames: frames, timeline: AnimationTimeline(frames: frames, fps: info.fps, loop: info.loop),
+                                      ticker: ticker ?? DisplayLinkTicker(view: self))
+        self.playback = playback
+        previewFrame = frames[0]
+        playback.player.play()
+        return playback
+    }
+
+    /// Leaves preview mode: playback stops and the whole document shows again.
+    func endPreview() {
+        playback?.player.stop()
+        playback = nil
+        previewFrame = nil
+    }
+
+    /// Switches the tiles between frames: only the objects on layers that appear or disappear
+    /// repaint.  While previewing the canvas takes document changes itself (the batcher would
+    /// show the whole list).
+    fileprivate func previewFrameDidChange(from old: AnimationFrame?) {
+        if old == nil {
+            document.invalidation.remove(tiles)
+        } else if previewFrame == nil {
+            document.invalidation.add(tiles)
+        }
+        let full = document.displayList
+        let everything = Set(full.layers.map(\.layer.id))
+        let changed = (old.map { Set($0.layers) } ?? everything).symmetricDifference(previewFrame.map { Set($0.layers) } ?? everything)
+        var summary = ChangeSummary(origin: .local)
+        for span in full.layers where changed.contains(span.layer.id) {
+            for node in full.nodeIDs.isEmpty ? [] : full.nodeIDs[span.range] {
+                if let node { summary.touch(node) }
+            }
+        }
+        tiles.update(displayList: shownDisplayList, viewport: viewport, changes: summary)
+        overlay.setNeedsDisplay()
+    }
+}
+
+/// Canvas playback over a frame list: the player's frame becomes the canvas's preview frame.
+@MainActor
+final class CanvasPlayback {
+    let frames: [AnimationFrame]
+    let player: AnimationPlayer
+
+    init(canvas: CanvasView, frames: [AnimationFrame], timeline: AnimationTimeline, ticker: PlaybackTicker) {
+        self.frames = frames
+        player = AnimationPlayer(timeline: timeline, ticker: ticker)
+        player.onFrame = { [weak canvas] index in
+            canvas?.previewFrame = frames[index]
+        }
+    }
+}
+
+/// A `PlaybackTicker` on the canvas's display refresh (`NSView.displayLink`; `CVDisplayLink` is
+/// deprecated on macOS 15), reporting the frame's timestamp in seconds.
+@MainActor
+final class DisplayLinkTicker: NSObject, PlaybackTicker {
+    private weak var view: NSView?
+    private var link: CADisplayLink?
+    private var tick: (@MainActor (Double) -> Void)?
+
+    init(view: NSView) {
+        self.view = view
+    }
+
+    var isRunning: Bool { link != nil }
+
+    func start(_ tick: @escaping @MainActor (Double) -> Void) {
+        stop()
+        guard let view else { return }
+        self.tick = tick
+        let link = view.displayLink(target: self, selector: #selector(step(_:)))
+        link.add(to: .main, forMode: .common)
+        self.link = link
+    }
+
+    func stop() {
+        link?.invalidate()
+        link = nil
+        tick = nil
+    }
+
+    @objc private func step(_ link: CADisplayLink) {
+        fire(at: link.timestamp)
+    }
+
+    /// One refresh at `time` (what the display link calls; tests call it directly).
+    func fire(at time: Double) {
+        tick?(time)
     }
 }

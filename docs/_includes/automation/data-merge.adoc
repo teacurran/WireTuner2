@@ -1346,6 +1346,16 @@ not; module-for-module agreement is checked against `CIQRCodeGenerator` instead 
 chose), decoding with `CIDetector`; Vision's `VNDetectBarcodesRequest` is the Code 128 reference
 decoder.  The Object panel section, *Insert Barcode…* and the merge test are WTApp's and WTModel's.
 
+NOTE: As built by DATA-018 (model half; `WTModel/Barcodes.swift`).  `Barcodes.spec` reads a
+`barcode` node (unset symbology QR, unset error correction M, a quiet zone of 0 the symbology's
+default, the first fill's paint or black) and the builder draws it with `BarcodeRendering.item`
+under its transform.  Commands: `InsertBarcode` ("Insert Barcode"; black fill), `SetBarcodeFields`
+("Change barcode", one register per field given, so concurrent `value` and `symbology` edits both
+survive) and `ConvertBarcodesToPaths` ("Convert to Paths": one path of the bars' rectangles with
+the barcode's transform and stack; an unencodable barcode is left alone).  Bound fields are not
+substituted (WTModel has no record resolution yet), and the Object panel section and the
+*Insert Barcode…* menu item are not built.
+
 === Build tasks
 
 [[DATA-001]]

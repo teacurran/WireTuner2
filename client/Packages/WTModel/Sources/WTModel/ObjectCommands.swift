@@ -1,6 +1,7 @@
 import WTCRDT
 import WTGeometry
 import WTProto
+import WTRender
 
 extension AffineTransform {
     /// The inverse, or the identity for a matrix that has none (a parent chain never writes one:
@@ -22,7 +23,7 @@ public enum ObjectEditError: Error, Equatable, Sendable {
 /// object on a locked layer -- is not moved, transformed, deleted, restacked or reshaped).
 public enum Objects {
     /// The kinds the object commands act on.
-    public static let kinds: Set<NodeKind> = [.path, .rect, .ellipse, .polygon, .group]
+    public static let kinds: Set<NodeKind> = [.path, .rect, .ellipse, .polygon, .group, .chart, .instance, .barcode]
 
     /// The kind of the live object `node`, or throws.
     static func kind(_ node: OpID, in state: EngineState) throws -> NodeKind {
@@ -113,12 +114,31 @@ public enum Objects {
     private static func bounds(of node: OpID, in state: EngineState, through parentTransform: AffineTransform) -> Rect? {
         guard let kind = state.nodeKind(node) else { return nil }
         let transform = transform(of: node, in: state).concatenating(parentTransform)
-        if kind == .group {
+        switch kind {
+        case .group:
             var result = Rect.null
             for child in state.liveChildren(node) {
                 if let rect = bounds(of: child, in: state, through: transform) { result = result.union(rect) }
             }
             return result.isNull ? nil : result
+        case .instance:
+            guard let symbol = Symbols.symbol(of: node, in: state) else { return nil }
+            let origin = state.props(symbol).symbol.origin
+            let placement = AffineTransform.translation(x: -origin.x, y: -origin.y).concatenating(transform)
+            var result = Rect.null
+            for child in state.liveChildren(symbol) {
+                if let rect = bounds(of: child, in: state, through: placement) { result = result.union(rect) }
+            }
+            return result.isNull ? nil : result
+        case .chart:
+            let size = state.props(node).chart.size
+            guard size.width > 0, size.height > 0 else { return nil }
+            return Rect(x: 0, y: 0, width: size.width, height: size.height).applying(transform)
+        case .barcode:
+            guard case .success(let geometry) = BarcodeRendering.geometry(Barcodes.spec(state.props(node).barcode)) else { return nil }
+            return geometry.bounds.applying(transform)
+        default:
+            break
         }
         guard let path = localPath(node, in: state), path.isRenderable else { return nil }
         var result = Rect.null

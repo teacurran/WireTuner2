@@ -127,6 +127,10 @@ struct AttributesListModel {
         case .polygon: "Polygon"
         case .group: "Group"
         case .layer: "Layer"
+        case .chart: "Chart"
+        case .symbol: "Symbol"
+        case .instance: "Instance"
+        case .barcode: "Barcode"
         }
     }
 

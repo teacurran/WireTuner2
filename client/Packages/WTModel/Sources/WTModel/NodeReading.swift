@@ -31,6 +31,8 @@ public enum WellKnown {
     public static let settings = OpID.wellKnown(1)
     public static let pages = OpID.wellKnown(2)
     public static let layers = OpID.wellKnown(4)
+    public static let swatches = OpID.wellKnown(5)
+    public static let symbols = OpID.wellKnown(7)
 }
 
 /// The `NodeProps.kind` field numbers WTModel reads (docs/spec/crdt-model.adoc, the kind table).
@@ -39,8 +41,16 @@ public enum NodeKind: UInt32, Sendable, CaseIterable {
     case rect = 21
     case ellipse = 22
     case polygon = 23
+    /// A chart regenerated from its data (charts.adoc).
+    case chart = 24
     case group = 50
     case layer = 150
+    /// A symbol's master: its children are the artwork (library.adoc).
+    case symbol = 151
+    /// An instance of a symbol, on a layer (library.adoc).
+    case instance = 153
+    /// A QR or Code 128 barcode (data-merge.adoc, "Barcodes").
+    case barcode = 240
 }
 
 extension EngineState {

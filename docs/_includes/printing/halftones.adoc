@@ -134,6 +134,14 @@ NOTE: As built by PRINT-009 (render half).  `HalftoneScreen` (`WTRender/Plates/H
 reduces the angle modulo 360 and reads a frequency outside 1--600 as 60; inheritance (*Default*,
 frequency 0) is resolved by WTModel before the screener sees a screen.
 
+NOTE: As built by PRINT-009 (model half; `WTModel/Halftones.swift`).  `Halftones.objectScreens`
+gives the screener each top-level object's own `CommonProps.halftone`, an unset shape taking the
+plate's shape and a frequency of 0 (or outside 1--600) the plate's frequency; a screen with both
+inherited is no object screen, and *Ignore object screens* gives none.  The screener assigns screens
+per top-level item, so a group's screen covers its members and a member's own screen inside a group
+is not separable; resolution through groups (PRINT-010) needs member-level spans in WTRender's
+`ScreenAssignment`.
+
 === Build tasks
 
 [[PRINT-010]]

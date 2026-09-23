@@ -390,6 +390,27 @@ decimals with the axis prefix and suffix.  WTModel's `Chart`, its commands, merg
 are the model half of DRAW-032 and are not delivered here.  Measured: a 100 × 20 table lays out in
 0.7 ms in a release build (the 5 ms budget is enforced in release builds only).
 
+NOTE: As built by DRAW-032 (model half; `WTModel/Charts.swift`, `ChartCommands.swift`).  `Chart`
+reads the live columns and rows and, per row, the winning cell of each live column (greatest cell
+id; a deleted column's cells are not read).  `Chart.table` applies transposition, then takes the
+first row as the legend when it holds labels and no values (the top-left cell aside) and the first
+column as the categories likewise; a label is quoted or not a number, commas are accepted in
+numbers, other text and missing cells read 0; *Switch XY* swaps each pair of columns of a scatter
+chart only.  `liveOverrides(for:)` keeps the greatest element id per `(series, index)` and drops a
+series or index that is not in the table.  Unset option enums read as the defaults (square markers,
+axis at the left, major ticks outside, minor none); a manual axis range with a zero step or
+minimum not below maximum reads as automatic.  The builder draws `ChartLayout.displayItem` with the
+chart's transform; pictograph sources (children of the chart) are drawn in their own space for
+`ChartStyle.pictograph` and are not scene objects, and the chart repaints when they change.
+Commands: `CreateChart` ("Chart"; two decimals), `SetChartCell` ("Edit Chart Data": the winning
+cell's `text`, or a new cell), `InsertChartLines` ("Insert Row", "Insert 3 Columns"),
+`DeleteChartLines`, `ImportChartData` ("Import Chart Data"; tab-delimited text; refused past 10,000
+ops), `SetChartFields` ("Transpose", "Switch XY", "Change Chart Type", "Change Chart": one register
+per changed field of the options and axis STRUCTs) and `SetChartOverride` ("Style chart element":
+creates the override, replaces its stack, sets transform, pictograph and repeating).  Not yet
+built: *Ungroup* for charts, the pictograph paste, and the full eight-case merge suite (duplicate
+cells and delete-column versus cell edit are tested).
+
 === Build tasks
 
 [[DRAW-031]]

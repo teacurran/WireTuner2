@@ -246,18 +246,18 @@ public enum Appearances {
     }
 
     /// The colour a reference resolves to; nil for *None*.  A swatch reference reads its cached
-    /// colour (black when it has none); an unset reference reads black.
+    /// colour (black when it has none); an unset reference reads black.  A spot or Registration
+    /// swatch (and a tint of one) carries its ink (`SpotInks.current`).
     public static func color(_ ref: Wiretuner_Doc_V1_ColorRef) -> Color? {
         switch ref.ref {
         case .none?: return nil
         case .inline(let color)?: return self.color(color)
         case .swatch(let swatch)?:
-            if let cached = try? Wiretuner_Doc_V1_Color(serializedBytes: swatch.cached) {
-                return color(cached)
-            }
-            return .black
+            let value = (try? Wiretuner_Doc_V1_Color(serializedBytes: swatch.cached)).map { color($0) } ?? .black
+            return SpotInks.current.color(value, swatch: OpID(swatch.id))
         case .tint(let tint)?:
-            return color(tint)
+            let amount = min(max(tint.percent / 100, 0), 1)
+            return SpotInks.current.color(color(tint), swatch: OpID(tint.base.id), amount: amount)
         case nil:
             return .black
         }

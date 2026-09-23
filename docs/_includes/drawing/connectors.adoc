@@ -171,6 +171,12 @@ touches every connector of a moved node so the builder rebuilds it and REND-004 
 tint).  Measured: 1,000 connectors of one node rerouted and invalidated in 11 ms in a release
 build (the one-frame budget is enforced in release builds only).
 
+NOTE: The model half of DRAW-035 and DRAW-037 is not built: `doc/v1/connector.proto` and the
+`connector` kind do not exist yet (DRAW-035's render half did not carry them and the proto track
+owns them), so WTModel has nothing to read into a `ConnectorSpec`.  When the schema lands, the
+connector's `ConnectorSpec.addDependencies(to:)` goes into `DocumentDisplayListBuilder`'s
+`DependencyIndex`, which already expands every change through it (symbols and charts use it).
+
 === Build tasks
 
 [[DRAW-035]]

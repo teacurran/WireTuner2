@@ -242,9 +242,8 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         canvas.showsRemoteSelections = { preferences[PreferenceCatalog.Sync.showSelections] }
         canvas.presenceDrawer = { [weak self] ctx in self?.collaboration.drawPresence(in: ctx) }
         objectEditing.onActiveLayerChange = { [weak self] in self?.updateLayerWarning() }
-        selection.canPick = { [weak self] id in
-            guard let self, preferences[PreferenceCatalog.Object.editCurrentLayerOnly] else { return true }
-            return self.isOnActiveLayer(id)
+        selection.layerRule = { [weak self] in
+            (self?.pickingLayer, preferences[PreferenceCatalog.Object.editCurrentLayerOnly])
         }
         canvas.onPointer = { [weak self] point in self?.collaboration.publisher?.pointer(point) }
         canvas.onUserNavigation = { [weak self] in self?.collaboration.stopFollowing() }
@@ -395,11 +394,11 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         updateLayerWarning()
     }
 
-    /// Whether `id` is on the active layer (*Edit current layer only*).
-    func isOnActiveLayer(_ id: SelectionID) -> Bool {
+    /// The layer *Edit current layer only* keeps picks on: the active layer while it is live, else
+    /// the drawing layer.
+    var pickingLayer: OpID? {
         let order = LayerOrder(documentHandle.state)
-        let active = objectEditing.activeLayer.flatMap { order.isLive($0) ? $0 : nil } ?? order.drawingLayer
-        return order.layer(of: id.opID, in: documentHandle.state) == active
+        return objectEditing.activeLayer.flatMap { order.isLive($0) ? $0 : nil } ?? order.drawingLayer
     }
 
     /// The strip at the top of the canvas while the active layer is hidden (layers.adoc,
