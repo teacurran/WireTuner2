@@ -291,7 +291,10 @@ with *None* first, or Color Cubes with a hex field; the choice persists in `User
 out the `ColorRef` payload and takes drops; the pop-up lists *None*, every swatch (tints indented),
 *Add to Swatches…* for an unnamed colour, *Detach* for a named one and *Restore "<name>"* for a
 dangling reference; the value field shows an unnamed colour in its own space's form and parses
-every form the Mixer's field does.  `ApplyColor` writes the topmost Basic fill, stroke or both of
+every form the Mixer's field does.  Since APP-007 the value field is the inspector's
+`InspectorField`: it follows the colour but not while the user types (a remote recolour tints the
+field, Return keeps the typed colour, kbd:[Esc] shows the remote one), and an entry that is not a
+colour beeps and stays, where it was silently ignored before.  `ApplyColor` writes the topmost Basic fill, stroke or both of
 each object (groups expanded) in one change.  *Deviations*: *Add to Swatches…* is two changes (the
 swatch, then the reference) and two undo steps, because the editors commit a reference rather than
 a register path; the Tools panel wells, the canvas drop targets and the kbd:[Shift] / kbd:[Cmd] /

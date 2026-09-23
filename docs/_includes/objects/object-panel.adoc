@@ -252,6 +252,40 @@ Nothing beyond storing and relaying changes.
 * Undo grouping: one change per commit; slider drags group under one label for the duration
   of the drag (mouse down to mouse up).
 
+NOTE: As built by APP-007 (`WTApp/Inspector`: `InspectorHost.swift`, `InspectorRegistry.swift`,
+`PropertyEditor.swift`, `InspectorField.swift`, `PropertiesOutline.swift`).  *Host*: `ObjectPanelBody`
+is the Object panel's body -- the selection summary, the buttons and the properties list above a
+divider, and below it, in a scroll view, the selected stack row's editor or, for the root row, the
+registered sections.  It reads the active selection and the front document's revision on every
+render and caches nothing.  *Registry*: `InspectorRegistry` holds `InspectorSection`s (id, order,
+kinds, a view built from `ObjectPanelModel`, nil when there is nothing to show) and one row editor
+per `AppearanceList`.  A section shows only when every selected object is one of its kinds.  So a
+path selected with a rectangle shows only the common attributes, where DRAW-004's panel showed the
+path section for the paths in any selection.  `InspectorRegistry.standard` registers point, path,
+rectangle, polygon, connector and common sections and the stroke, fill and effect row editors;
+registering an id again replaces it.  *Editors*: every text field of the panel and its row editors
+-- `CommitField`, `MeasureField`, `CommitTextField` and the colour well's value field -- is an
+`InspectorField` over a `FieldEditor`, the `PropertyEditor` implementation.  *Deviation*:
+`bind(selection:)` takes the selection's current value (nil for `Mixed`), not the selection, so
+one editor type serves every property.  The field commits on kbd:[Return], and on kbd:[Tab] or a
+click elsewhere through the focus change.  Input the format refuses beeps and stays; on focus loss
+it reverts.  kbd:[Esc] discards the draft and shows the document's value now.  kbd:[Up] and
+kbd:[Down] commit one document unit (`MeasureUnit.points`) or one (plain numbers) away, ten with
+kbd:[Shift], stepping from the draft when there is one; a `Mixed` field does not step.  A draft
+writes to the objects selected when typing began, even if the selection changed before the commit.
+While the draft is dirty a new value from the document is not applied into the field: the field is
+tinted with the accent colour, its help and accessibility value say "changed by someone else", and
+Return writes the draft as a fresh change.  After a commit the field stands on the value it wrote
+until the document reports otherwise.  Plain numbers now format without grouping separators, which
+they could not parse back.  *Properties list*: see attribute-stack.adoc (ATTR-003 note); a single
+selected group adds a *Contents* row whose double-click subselects its members.  Clipping paths add
+no rows: there is no clipping-path kind yet, and text rows are the TYPE pages'.  Undo is as before:
+one change per commit, slider drags grouped from mouse-down to mouse-up.  The "UI test" of the
+*Done when* is a unit test (`InspectorTests`): a remote move delivered through a second replica
+lands while X holds typed keystrokes, the keystrokes stay, Return writes them as the winning `Move`,
+and Esc after another remote move shows the remote value.  XCUITest runs need Automation Mode on
+this Mac.
+
 NOTE: As built by OBJ-001 to OBJ-004.  *Measure* (`WTModel/Measure.swift`): `%` applies to the number it
 follows (`50% + 1`), arithmetic runs in the document unit (a suffixed number is converted first), the
 suffixes are case-insensitive, `2p6` and `2p.5` are pica-point forms, and errors carry the character
@@ -265,9 +299,9 @@ sections appear when every selected object is one; a fan-out is one `CompositeCo
 attribute stack commands are `AddAppearance.fill/.stroke/.effect` (above the selected row of the same
 list, else at the top of it; `effect` takes the `Effect` value, since the effect kernels own their
 defaults), `RemoveAppearance`, `MoveAppearance`, `DuplicateAppearance`, `SetAppearanceColor` and
-`SetStrokeWidth`.  The properties list with stack rows and the Add/Remove buttons in the panel, the
-`PropertyEditor` protocol and the remote-edit highlight belong to APP-007's framework and are not
-wired here; the UI tests are unit tests of the panel model and its bindings.  The OBJ-004
+`SetStrokeWidth`.  The properties list, its buttons, the `PropertyEditor` protocol and the
+remote-edit highlight are APP-007's (next note); the UI tests are unit tests of the panel model and
+its bindings.  The OBJ-004
 conformance vector (concurrent inserts at one gap) is a WTModel merge test until the CRDT track adds
 it.
 

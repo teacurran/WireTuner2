@@ -261,8 +261,9 @@ to the current route.  So each gesture is one change and one undo step, and the 
 while dragging.  The page names no modifier keys and the tool reads none; kbd:[Esc] abandons the
 drag.  menu:Modify[Alter Path > Reverse Direction] (`modify.alterPath.reverseDirection`) runs
 `ReverseConnectors` on the selected connectors; reversing paths is not delivered yet, so without a
-connector selected it is disabled ("Select a connector").  The Object panel section shows while
-exactly one connector is selected: Start and End, each the attached object's name (`ObjectNaming`,
+connector selected it is disabled ("Select a connector").  The Object panel section (registered
+with the APP-007 `InspectorRegistry` for kind `connector`) shows while exactly one connector is
+selected: Start and End, each the attached object's name (`ObjectNaming`,
 which now names the kind "Connector") with a side pop-up (Automatic, Top, Bottom, Left, Right) that
 writes the whole end with the attachment point there now, or "Free" for a free or dangling end.
 *Deviation*: object-panel.adoc's table also lists offsets; the section does not show them (the run

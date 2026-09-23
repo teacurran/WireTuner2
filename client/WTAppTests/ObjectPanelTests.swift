@@ -167,12 +167,7 @@ import WTRender
         await document.settle()
         #expect(fixture.model(selection).point?.location == Point(x: 10, y: 5), "Y keeps the section's X")
 
-        var committed: [Double] = []
-        CommitField.submit("2.5") { committed.append($0) }
-        CommitField.submit("abc") { committed.append($0) }
-        #expect(committed == [2.5])
-        #expect(CommitField.shown("typing", 4, focused: true) == "typing", "a focused field keeps its text")
-        #expect(CommitField.shown("typing", 4, focused: false) == "4")
+        #expect(FieldFormat<Double>.number.parse(" 2.5 ", nil) == 2.5 && FieldFormat<Double>.number.parse("abc", nil) == nil)
     }
 
     @Test func flatnessThatDiffersIsBlank() async {
@@ -202,8 +197,8 @@ import WTRender
             node: fixture.open.opID, contour: .zero, point: .zero, kind: .curve, automatic: false, location: .zero, handlesUnlinked: true
         )
         _ = NSHostingView(rootView: PointSectionView(section: unlinked, model: fixture.model(.empty))).fittingSize
-        #expect(CommitField.format(nil) == "")
-        #expect(CommitField.format(1.25) == "1.25")
+        #expect(FieldFormat<Double>.number.format(nil) == "")
+        #expect(FieldFormat<Double>.number.format(1.25) == "1.25" && FieldFormat<Double>.number.format(1234.5) == "1234.5")
         #expect(PointSectionView.kinds.map(\.1) == ["Corner", "Curve", "Connector"])
     }
 }

@@ -103,9 +103,7 @@ final class AttributeFixture {
         #expect(document.undoTitle == "Undo Remove Effect", "nothing selected: nothing to remove")
 
         // The visibility checkbox.
-        let binding = AttributesListView.visibility(list.rows[0], list)
-        #expect(binding.wrappedValue)
-        binding.wrappedValue = false
+        AttributesListView.actions(list, state, members: [], selection: nil).setVisible(list.rows[0], false)
         await document.settle()
         #expect(fixture.list().rows[0].hidden == .on && document.undoTitle == "Undo Hide Fill")
 
@@ -162,7 +160,7 @@ final class AttributeFixture {
         var effect = list.rows[0]
         effect.list = .effects
         #expect(list.drop(ColorBridge.none, on: effect) == nil && !AttributesListView.drop(from: pasteboard, on: effect, model: list))
-        #expect(AttributesListView.colorTypes == ColorDrag.dropTypes)
+        #expect(PropertiesOutlineController.colorTypes.map(\.rawValue) == ColorDrag.dropTypes.map(\.identifier))
     }
 
     @Test func severalObjectsShareRowsOnlyWhenTheirStacksMatch() async throws {
@@ -236,13 +234,13 @@ final class AttributeFixture {
         for row in list.rows {
             state.select(row.id, targets: list.targets)
             #expect(!ObjectPanelBody.showsObjectSections(active, state))
-            AttributeFixture.render(AttributesListView(model: list, state: state, pasteboard: fixture.pasteboard))
+            AttributeFixture.render(AttributesListView(model: list, state: state))
         }
         _ = await list.perform(list.addEffect(.shadow, above: nil))?.value
         let effects = fixture.list()
         state.select(effects.rows.last?.id, targets: effects.targets)
         AttributeFixture.render(AttributesListView(model: effects, state: state))
-        AttributeFixture.render(AttributeRowView(item: effects.rows[0], visible: .constant(true)))
+        AttributeFixture.render(ObjectPanelBody(selection: ActiveSelection(model: SelectionModel(Selection(fixture.ids)), document: fixture.document)))
         // Differing stacks show the note.
         let two = await AttributeFixture.make(2)
         _ = await two.document.perform(AddAppearance.fill([two.ids[0].opID])).value
@@ -269,18 +267,12 @@ final class AttributeFixture {
         let pasteboard = NSPasteboard(name: NSPasteboard.Name("WireTunerTests.drop.\(UUID().uuidString)"))
         pasteboard.declareTypes([.color], owner: nil)
         NSColor(srgbRed: 0, green: 0, blue: 1, alpha: 1).write(to: pasteboard)
-        #expect(AttributesListView.dropping(on: list.rows[0], model: list, pasteboard: pasteboard)([]))
-        _ = AttributesListView.dropping(on: list.rows[0], model: list)
-        AttributesListView.moving(list, optionHeld: { false })(IndexSet(integer: 0), 3)
+        let actions = AttributesListView.actions(list, state, members: [], selection: nil)
+        #expect(actions.dropColor(pasteboard, list.rows[0]))
+        actions.move(0, 3, false)
         await document.settle()
         #expect(document.undoTitle == "Undo Reorder Attributes")
         let view = AttributesListView(model: list, state: state)
         #expect(!view.optionHeld())
-        // Hidden and mixed rows render dimmed with their checkbox value.
-        var hidden = list.rows[0]
-        hidden.hidden = .on
-        AttributeFixture.render(AttributeRowView(item: hidden, visible: .constant(false)))
-        hidden.hidden = .mixed
-        AttributeFixture.render(AttributeRowView(item: hidden, visible: .constant(false)))
     }
 }

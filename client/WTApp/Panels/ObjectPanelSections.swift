@@ -189,64 +189,6 @@ enum PanelProps {
     }
 }
 
-/// A numeric field in the document's unit: units, the pica-point form, arithmetic and `%` of the
-/// current value (`Measure`); `Mixed` when the objects differ.  It holds its text while focused and
-/// commits on Return; input `Measure` refuses is ignored.
-struct MeasureField: View {
-    let title: String
-    /// The value in points; nil shows `Mixed`.
-    let value: Double?
-    let unit: MeasureUnit
-    let identifier: String
-    let commit: (Double) -> Void
-    @State private var text = ""
-    @FocusState private var focused: Bool
-
-    var body: some View {
-        TextField(title, text: $text, prompt: Text(value == nil ? "Mixed" : ""))
-            .focused($focused)
-            .onSubmit { Self.submit(text, value: value, unit: unit, commit) }
-            .onAppear { text = Self.format(value, unit: unit) }
-            .onChange(of: value) { _, new in text = focused ? text : Self.format(new, unit: unit) }
-            .accessibilityIdentifier(identifier)
-    }
-
-    /// Commits the points `text` stands for, when it parses.
-    static func submit(_ text: String, value: Double?, unit: MeasureUnit, _ commit: (Double) -> Void) {
-        guard let points = try? Measure.parse(text, unit: unit, current: value ?? 0) else { return }
-        commit(points)
-    }
-
-    static func format(_ value: Double?, unit: MeasureUnit) -> String {
-        value.map { Measure.format($0, unit: unit, suffix: false) } ?? ""
-    }
-}
-
-/// A text field that holds its text while focused and commits it on Return; `Mixed` when the
-/// objects differ.
-struct CommitTextField: View {
-    let title: String
-    let value: String?
-    let identifier: String
-    let commit: (String) -> Void
-    @State private var text = ""
-    @FocusState private var focused: Bool
-
-    var body: some View {
-        TextField(title, text: $text, prompt: Text(value == nil ? "Mixed" : ""))
-            .focused($focused)
-            .onSubmit { commit(text) }
-            .onAppear { text = value ?? "" }
-            .onChange(of: value) { _, new in text = Self.shown(text, new, focused: focused) }
-            .accessibilityIdentifier(identifier)
-    }
-
-    /// The text after the value changed to `value`: kept while the field is focused.
-    static func shown(_ text: String, _ value: String?, focused: Bool) -> String {
-        focused ? text : value ?? ""
-    }
-}
-
 /// The common attributes: X, Y, W, H with the proportion lock, Name, Note, Locked.
 struct CommonSectionView: View {
     let section: ObjectPanelModel.CommonSection
@@ -263,6 +205,14 @@ struct CommonSectionView: View {
         }
     }
 
+    static func name(_ model: ObjectPanelModel) -> (String) -> Void {
+        { model.perform(model.setName($0)) }
+    }
+
+    static func note(_ model: ObjectPanelModel) -> (String) -> Void {
+        { model.perform(model.setNote($0)) }
+    }
+
     static func locked(_ section: ObjectPanelModel.CommonSection, _ model: ObjectPanelModel) -> Binding<Bool> {
         Binding(get: { section.locked.isOn }, set: { model.perform(model.setLocked($0)) })
     }
@@ -274,8 +224,8 @@ struct CommonSectionView: View {
             MeasureField(title: "W", value: section.width, unit: model.unit, identifier: "object.w", commit: Self.size(model, horizontal: true, proportional: proportional))
             MeasureField(title: "H", value: section.height, unit: model.unit, identifier: "object.h", commit: Self.size(model, horizontal: false, proportional: proportional))
             Toggle("Keep proportions", isOn: $proportional).accessibilityIdentifier("object.proportional")
-            CommitTextField(title: "Name", value: section.name, identifier: "object.name") { model.perform(model.setName($0)) }
-            CommitTextField(title: "Note", value: section.note, identifier: "object.note") { model.perform(model.setNote($0)) }
+            CommitTextField(title: "Name", value: section.name, identifier: "object.name", commit: Self.name(model))
+            CommitTextField(title: "Note", value: section.note, identifier: "object.note", commit: Self.note(model))
             Toggle("Locked", isOn: Self.locked(section, model))
                 .accessibilityIdentifier("object.locked")
                 .accessibilityValue(PathSectionView.accessibilityValue(section.locked))

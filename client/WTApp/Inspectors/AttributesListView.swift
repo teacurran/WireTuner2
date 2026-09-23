@@ -16,17 +16,18 @@ extension AttributesListModel {
     }
 }
 
-/// The Attributes list (ATTR-003): the root row, one row per stack element top first with its
-/// kind icon, description and visibility checkbox, btn:[Add Stroke], btn:[Add Fill],
-/// btn:[Add Effect], btn:[Remove Item] and the action menu; rows reorder by dragging (a copy with
-/// kbd:[Option]) and take dropped colours.  Below it, the selected row's editor.  Rows are
-/// identified by element, so a remote insert neither moves the selection nor rebuilds the editor
-/// that has focus.
+/// The Object panel's upper half (ATTR-003 on the APP-007 host): btn:[Add Stroke], btn:[Add Fill],
+/// btn:[Add Effect], btn:[Remove Item] and the action menu above the properties list -- the
+/// outline with the root row, one row per stack element top first with its kind icon, description
+/// and visibility checkbox, and a group's *Contents*; rows reorder by dragging (a copy with
+/// kbd:[Option]) and take dropped colours.  Rows are identified by element, so a remote insert
+/// neither moves the selection nor rebuilds the editor that has focus (the host shows the selected
+/// row's editor below).
 struct AttributesListView: View {
     let model: AttributesListModel
     let state: AttributesState
-    var pasteboard: (any ObjectPasteboard)?
-    var widthPresets: [String] = PreferenceCatalog.Object.defaultLineWeights.defaultValue
+    /// The window's selection (*Contents* subselects into it).
+    var selection: SelectionModel?
     /// Whether kbd:[Option] is down (a drag duplicates).
     var optionHeld: @MainActor () -> Bool = { NSEvent.modifierFlags.contains(.option) }
 
@@ -68,15 +69,6 @@ struct AttributesListView: View {
         model.perform(model.duplicate(item))
     }
 
-    /// The visibility checkbox of `item`: checked is visible.
-    static func visibility(_ item: AttributeRowItem, _ model: AttributesListModel) -> Binding<Bool> {
-        Binding(get: { item.hidden == .off }, set: { model.perform(model.setHidden(item, !$0)) })
-    }
-
-    /// Colours a drag can carry: the `ColorRef` payload of the colour panels and wells
-    /// (COLOR-008), or an `NSColor` from another application or the Colors panel.
-    static let colorTypes: [UTType] = ColorDrag.dropTypes
-
     /// A colour dropped on `item`, read from the drag pasteboard: applied to that row only (a
     /// swatch from another document is created here first, `ColorDrop`).  False when the drag
     /// carries no colour or the row takes none.
@@ -107,41 +99,45 @@ struct AttributesListView: View {
         { duplicate(model, state) }
     }
 
-    static func dropping(on item: AttributeRowItem, model: AttributesListModel, pasteboard: NSPasteboard = NSPasteboard(name: .drag)) -> ([NSItemProvider]) -> Bool {
-        { _ in drop(from: pasteboard, on: item, model: model) }
-    }
-
-    static func moving(_ model: AttributesListModel, optionHeld: @escaping @MainActor () -> Bool) -> (IndexSet, Int) -> Void {
-        { move($0, to: $1, model: model, duplicate: optionHeld()) }
-    }
-
     /// A row drag onto the insertion point `destination` (top first).
     static func move(_ source: IndexSet, to destination: Int, model: AttributesListModel, duplicate: Bool) {
         guard let from = source.first else { return }
         model.perform(model.move(fromDisplay: from, toDisplay: destination, duplicate: duplicate))
     }
 
+    /// *Contents*: subselects the group's members.
+    static func openContents(_ members: [OpID], selection: SelectionModel?) {
+        guard !members.isEmpty else { return }
+        selection?.set(Selection(members.map(SelectionID.init)))
+    }
+
+    /// What the properties list's rows do: every action is the model's command.
+    static func actions(_ model: AttributesListModel, _ state: AttributesState, members: [OpID], selection: SelectionModel?) -> PropertiesOutlineController.Actions {
+        PropertiesOutlineController.Actions(
+            select: { Self.selection(model, state).wrappedValue = $0 },
+            setVisible: { item, visible in model.perform(model.setHidden(item, !visible)) },
+            move: { from, to, duplicate in move(IndexSet(integer: from), to: to, model: model, duplicate: duplicate) },
+            dropColor: { pasteboard, item in drop(from: pasteboard, on: item, model: model) },
+            remove: { remove(model, state) },
+            openContents: { openContents(members, selection: selection) }
+        )
+    }
+
+    /// The selected row's key in the properties list.
+    static func selectedKey(_ model: AttributesListModel, _ state: AttributesState) -> PropertiesKey {
+        selected(model, state).map { .row($0.id) } ?? .root
+    }
+
     var body: some View {
         let selectedItem = Self.selected(model, state)
+        let members = PropertiesTree.members(model)
         VStack(alignment: .leading, spacing: 6) {
             toolbar(selectedItem)
-            List(selection: Self.selection(model, state)) {
-                Text(model.rootTitle).bold().tag(ListSelection.root).accessibilityIdentifier("attributes.root")
-                ForEach(model.displayRows) { item in
-                    AttributeRowView(item: item, visible: Self.visibility(item, model))
-                        .tag(ListSelection.row(item.id))
-                        .onDrop(of: Self.colorTypes, isTargeted: nil, perform: Self.dropping(on: item, model: model))
-                }
-                .onMove(perform: Self.moving(model, optionHeld: optionHeld))
-            }
-            .frame(minHeight: 90, idealHeight: 130)
-            .onDeleteCommand(perform: Self.removing(model, state))
-            .accessibilityIdentifier("attributes.list")
+            PropertiesOutline(tree: PropertiesTree(list: model, members: members), selected: Self.selectedKey(model, state),
+                              actions: Self.actions(model, state, members: members, selection: selection), optionHeld: optionHeld)
+                .frame(minHeight: 90, idealHeight: 130)
             if model.rows.isEmpty && model.targets.count > 1 {
                 Text("The selected objects' attributes differ.").font(.caption).foregroundStyle(.secondary)
-            }
-            if let selectedItem {
-                editor(selectedItem).id(selectedItem.id)
             }
         }
         .padding(.horizontal)
@@ -176,38 +172,5 @@ struct AttributesListView: View {
             .accessibilityIdentifier("attributes.actions")
         }
         .disabled(model.targets.isEmpty)
-    }
-
-    @ViewBuilder private func editor(_ item: AttributeRowItem) -> some View {
-        let context = AttributeEditorContext(list: model, item: item)
-        switch item.list {
-        case .strokes:
-            StrokeEditorView(model: StrokeEditorModel(context: context, widthPresets: widthPresets, pasteboard: pasteboard))
-        case .fills:
-            FillEditorView(model: FillEditorModel(context: context, pasteboard: pasteboard))
-        case .effects:
-            Text("\(item.summary) is edited with the effect editors.").font(.caption).foregroundStyle(.secondary)
-        }
-    }
-}
-
-/// One row: kind icon, description and the visibility checkbox; hidden rows are dimmed.
-struct AttributeRowView: View {
-    let item: AttributeRowItem
-    let visible: Binding<Bool>
-
-    var body: some View {
-        HStack {
-            Image(systemName: item.icon).frame(width: 16)
-            Text(item.summary)
-            Spacer()
-            Toggle("Visible", isOn: visible)
-                .labelsHidden()
-                .toggleStyle(.checkbox)
-                .accessibilityIdentifier("attributes.visible.\(item.index)")
-                .accessibilityValue(PathSectionView.accessibilityValue(item.hidden == .on ? .off : item.hidden == .off ? .on : .mixed))
-        }
-        .opacity(item.hidden == .on ? 0.5 : 1)
-        .accessibilityIdentifier("attributes.row.\(item.index)")
     }
 }

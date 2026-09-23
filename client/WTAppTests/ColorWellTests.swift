@@ -301,16 +301,22 @@ final class ColorPanelFixture {
         state.togglePalette()
         ColorWellView.picking(actions, state)(ColorResolver.none)
         #expect(!state.showsPalette && committed.last == ColorResolver.none)
-        var text = "#00ff00"
-        let binding = Binding(get: { text }, set: { text = $0 })
-        ColorWellView.submitting(binding, actions)()
+        ColorWellView.committing(actions)("#00ff00")
         #expect(committed.last == ColorResolver.inline(RenderColor(red: 0, green: 1, blue: 0)))
-        text = "not a colour"
         let count = committed.count
-        ColorWellView.submitting(binding, actions)()
+        ColorWellView.committing(actions)("not a colour")
         #expect(committed.count == count)
-        ColorWellView.syncing(binding, model)()
-        #expect(text == "#FF0000")
+        // The value field follows the colour, but not while the user types (APP-007).
+        let field = FieldEditor(format: ColorWellView.valueFormat, value: model.valueText)
+        field.connect { ColorWellView.committing(actions)($0) }
+        field.beep = {}
+        #expect(field.text == "#FF0000")
+        field.edit("not a colour")
+        #expect(!field.submit() && field.text == "not a colour", "refused input stays for the user to fix")
+        field.bind(selection: "#0000FF")
+        #expect(field.text == "not a colour" && field.remoteChanged)
+        field.edit("#00ff00")
+        #expect(field.submit() && committed.count == count + 1 && !field.remoteChanged)
         #expect(ColorWellView.dragging(model)().registeredTypeIdentifiers.contains(ColorRefPasteboard.typeIdentifier))
         #expect(ColorWellView.dragging(ColorWellModel(ref: nil, state: fixture.state))().registeredTypeIdentifiers.isEmpty)
         fixture.put(NSColor(srgbRed: 1, green: 1, blue: 0, alpha: 1))

@@ -331,19 +331,26 @@ ATTR-008, resolves brush nodes; effects are the FX epic's), decodes `Subtree` ti
 (`SubtreeRendering`), and reads an unset miter limit as 4 as specified (it read 10 before).
 
 NOTE: As built by ATTR-003 (`WTApp/Inspectors/AttributesList.swift`, `AttributesListView.swift`).
-The list is a SwiftUI `List` in the Object panel rather than an `NSOutlineView` (APP-007's
-inspector host is not built): the root row, then the rows top first, each with its kind icon,
-description and a visibility checkbox; btn:[Add Stroke], btn:[Add Fill], btn:[Add Effect] (a menu
-of the effect kinds, added with their default settings), btn:[Remove Item] (and kbd:[Delete]) and
-the action menu; `onMove` reorders and duplicates with kbd:[Option] down at the drop.  The selected
-row is remembered by the first target's element (`AttributesState`) and the editor is identified by
-it, so a remote insert neither moves the selection nor rebuilds the focused editor.  With several
-objects a row shows only where every object has an element of the same list at the same position;
-its description reads "Mixed" where they differ.  A colour dropped on a row is an `NSColor` from the
-drag pasteboard (a colour well or the Colors panel) applied as an unnamed colour; swatch drags
-carry the `ColorRef` pasteboard type once the Swatches panel and Color Mixer (COLOR-007, COLOR-008)
-exist.  Selecting an effect row names it; effects are edited by FX-003.  The "UI tests" are unit
-tests of the list model, its bindings and the views rendered in an `NSHostingView`.
+Since APP-007 the list is the `NSOutlineView` subclass `PropertiesOutlineView`
+(`WTApp/Inspector/PropertiesOutline.swift`) in the Object panel's host, fed a `PropertiesTree` on every
+render by `PropertiesOutlineController`, which reloads only when the rows changed and keeps one item
+per row, so the outline keeps its selection.  It shows the root row, then the rows top first, each
+with its kind icon, description and an `NSButton` visibility checkbox (mixed when the objects
+differ), and a *Contents* row for one group.  The outline's own arrow keys navigate it and kbd:[Delete]
+removes the selected row.  The buttons are btn:[Add Stroke], btn:[Add Fill], btn:[Add Effect] (a menu
+of the effect kinds, added with their default settings), btn:[Remove Item] and the action menu.
+Dragging a row reorders it, or duplicates it with kbd:[Option] down at the drop; the drag carries
+the row's display position under `com.villagecompute.wiretuner.attribute-row`.  The row editors are
+the APP-007 registry's, one per list rather than one per `FillKind` / `StrokeKind` (the fill and
+stroke editors switch on the kind themselves).  The selected row is remembered by the first
+target's element (`AttributesState`) and the editor is identified by it, so a remote insert neither
+moves the selection nor rebuilds the focused editor.  With several objects a row shows only where
+every object has an element of the same list at the same position; its description reads "Mixed"
+where they differ.  A colour dropped on a fill or stroke row -- the `ColorRef` payload of the colour
+panels and wells, or an `NSColor` from another application -- colours that row only.  Selecting an
+effect row names it; effects are edited by FX-003.  The "UI tests" are unit
+tests of the list model, its actions, the outline controller driven with an `NSOutlineView`, and
+the views rendered in an `NSHostingView`.
 
 === Build tasks
 

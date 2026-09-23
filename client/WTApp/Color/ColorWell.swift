@@ -334,7 +334,6 @@ struct ColorWellView: View {
     let actions: ColorWellActions
     let identifier: String
     @State private var state = ColorWellState()
-    @State private var text = ""
 
     /// A pop-up item's action.
     static func running(_ item: ColorWellModel.Item.Kind, _ model: ColorWellModel, _ actions: ColorWellActions) -> () -> Void {
@@ -349,10 +348,14 @@ struct ColorWellView: View {
         }
     }
 
-    /// The value field's commit: an entry that is a colour writes it; anything else is ignored.
-    static func submitting(_ text: Binding<String>, _ actions: ColorWellActions) -> () -> Void {
-        { ColorWellModel.parse(text.wrappedValue).map(actions.commit) }
+    /// The value field's commit: an entry that is a colour writes it.
+    static func committing(_ actions: ColorWellActions) -> (String) -> Void {
+        { ColorWellModel.parse($0).map(actions.commit) }
     }
+
+    /// The value field's format: text that is a colour (anything else beeps and stays for the user
+    /// to fix, or kbd:[Esc] to discard).
+    static var valueFormat: FieldFormat<String> { .text { ColorWellModel.parse($0) != nil } }
 
     /// The chip's drag.
     static func dragging(_ model: ColorWellModel) -> () -> NSItemProvider {
@@ -362,11 +365,6 @@ struct ColorWellView: View {
     /// A drop on the chip.
     static func dropping(_ actions: ColorWellActions, pasteboard: NSPasteboard = NSPasteboard(name: .drag)) -> ([NSItemProvider]) -> Bool {
         { _ in actions.drop(from: pasteboard) }
-    }
-
-    /// The field's text follows the colour when it changes (not while the user types).
-    static func syncing(_ text: Binding<String>, _ model: ColorWellModel) -> () -> Void {
-        { text.wrappedValue = model.valueText }
     }
 
     /// The pop-up palette the chip opens.
@@ -394,13 +392,10 @@ struct ColorWellView: View {
             }
             .fixedSize()
             .accessibilityIdentifier("\(identifier).menu")
-            TextField("Value", text: $text)
+            // The inspector's field: it follows the colour, but not while the user types.
+            InspectorField(title: "Value", value: model.valueText, format: Self.valueFormat, identifier: "\(identifier).value", commit: Self.committing(actions))
                 .disabled(!model.isValueEditable)
-                .onSubmit(Self.submitting($text, actions))
-                .onAppear(perform: Self.syncing($text, model))
-                .onChange(of: model.valueText, Self.syncing($text, model))
                 .frame(minWidth: 90)
-                .accessibilityIdentifier("\(identifier).value")
         }
     }
 }

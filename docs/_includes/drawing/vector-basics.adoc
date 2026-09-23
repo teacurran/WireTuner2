@@ -390,8 +390,8 @@ canvas overlay (not by WTRender): squares, and for *selected* curve and connecto
 triangles; *Smaller handles* halves them; with *Show solid points* unselected points are filled and
 selected ones hollow, without it the reverse; selected points show their handles as 1 px lines
 ending in a 2 pt circle.  Remote selections still draw as outlined rectangles with name tags, not
-glyphs.  *Object panel*: the path and point sections are SwiftUI views in the Object panel's body
-(`WTApp/Panels/ObjectPanel.swift`) until APP-007's inspector registry exists; an edit applied to
+glyphs.  *Object panel*: the path and point sections are SwiftUI views (`WTApp/Panels/ObjectPanel.swift`)
+registered with APP-007's `InspectorRegistry` for kind `path`; an edit applied to
 several selected paths is one change (`CommandBatch`).  *Not done here*: the conformance vectors
 under `crdt-conformance/path/` (another track's directory), the path golden corpus renders, and the
 UI tests toggling the glyph preferences.  The merge cases run as WTModel unit tests through two

@@ -133,62 +133,6 @@ struct ObjectPanelModel {
     }
 }
 
-/// The Object panel: the selection summary, then the path section and, with one point selected,
-/// the point section.  It observes the active selection and the front document's revision, so a
-/// remote change to the selected path updates it; a number field being edited keeps its text
-/// until it is committed (client.adoc, "Panels").
-struct ObjectPanelBody: View {
-    let selection: ActiveSelection?
-    @State private var attributes = AttributesState()
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            SelectionSummaryBody(selection: selection)
-            if let line = selection?.editingLine {
-                Text(line).font(.caption).italic().foregroundStyle(.secondary).padding(.horizontal).accessibilityIdentifier("object.editingBy")
-            }
-            if let list = Self.attributes(selection) {
-                AttributesListView(model: list, state: attributes, pasteboard: selection?.editing?.pasteboard,
-                                   widthPresets: Self.widthPresets(selection))
-            }
-            if Self.showsObjectSections(selection, attributes), let model = model {
-                if let path = model.path { PathSectionView(section: path, model: model) }
-                if let point = model.point { PointSectionView(section: point, model: model) }
-                if let rectangle = model.rectangle { RectangleSectionView(section: rectangle, model: model) }
-                if let polygon = model.polygon { PolygonSectionView(section: polygon, model: model) }
-                if let connector = model.connector { ConnectorSectionView(section: connector, model: model) }
-                if let common = model.common { CommonSectionView(section: common, model: model) }
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-    }
-
-    /// The Attributes list of the front window's selection (ATTR-003).
-    static func attributes(_ selection: ActiveSelection?) -> AttributesListModel? {
-        guard let document = selection?.document, let selectionModel = selection?.model else { return nil }
-        _ = document.model?.revision
-        return AttributesListModel(document: document, selection: selectionModel.selection)
-    }
-
-    /// *Default line weights*, from the app's preferences when the panel has them.
-    static func widthPresets(_ selection: ActiveSelection?) -> [String] {
-        selection?.preferences?[PreferenceCatalog.Object.defaultLineWeights] ?? PreferenceCatalog.Object.defaultLineWeights.defaultValue
-    }
-
-    /// The object's own sections show while its root row is selected (the lower half edits
-    /// whichever row is selected in the list).
-    static func showsObjectSections(_ selection: ActiveSelection?, _ state: AttributesState) -> Bool {
-        guard let list = attributes(selection) else { return true }
-        return AttributesListView.selected(list, state) == nil
-    }
-
-    private var model: ObjectPanelModel? {
-        guard let document = selection?.document, let selectionModel = selection?.model else { return nil }
-        _ = document.model?.revision
-        return ObjectPanelModel(document: document, selection: selectionModel.selection)
-    }
-}
-
 /// The path section: Closed, Even/odd fill, Flatness, Points.
 struct PathSectionView: View {
     let section: ObjectPanelModel.PathSection
@@ -276,40 +220,5 @@ struct PointSectionView: View {
             CommitField(title: "Y", value: section.location.y, identifier: "object.point.y", commit: Self.location(section, model, horizontal: false))
         }
         .padding(.horizontal)
-    }
-}
-
-/// A number field that holds its text while focused and commits on Return; a value arriving from
-/// elsewhere while it edits does not replace the text.
-struct CommitField: View {
-    let title: String
-    let value: Double?
-    let identifier: String
-    let commit: (Double) -> Void
-    @State private var text = ""
-    @FocusState private var focused: Bool
-
-    var body: some View {
-        TextField(title, text: $text)
-            .focused($focused)
-            .onSubmit { Self.submit(text, commit) }
-            .onAppear { text = Self.format(value) }
-            .onChange(of: value) { _, new in text = Self.shown(text, new, focused: focused) }
-            .accessibilityIdentifier(identifier)
-    }
-
-    /// Commits `text` when it is a number; anything else is ignored.
-    static func submit(_ text: String, _ commit: (Double) -> Void) {
-        Double(text).map(commit)
-    }
-
-    /// The text to show after the value changed to `value`: kept while the field is focused.
-    static func shown(_ text: String, _ value: Double?, focused: Bool) -> String {
-        focused ? text : format(value)
-    }
-
-    static func format(_ value: Double?) -> String {
-        guard let value else { return "" }
-        return value.formatted(.number.precision(.fractionLength(0...3)))
     }
 }

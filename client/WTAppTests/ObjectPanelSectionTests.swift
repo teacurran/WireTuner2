@@ -165,17 +165,12 @@ import WTRender
     }
 
     @Test func measureFieldsParseInTheDocumentUnit() {
-        var committed: [Double] = []
-        MeasureField.submit("2p6", value: nil, unit: .points) { committed.append($0) }
-        MeasureField.submit("1", value: nil, unit: .inches) { committed.append($0) }
-        MeasureField.submit("50%", value: 30, unit: .points) { committed.append($0) }
-        MeasureField.submit("12 qq", value: 30, unit: .points) { committed.append($0) }
-        #expect(committed == [30, 72, 15])
-        #expect(MeasureField.format(36, unit: .inches) == "0.5" && MeasureField.format(nil, unit: .points) == "")
+        let points = FieldFormat<Double>.measure(.points), inches = FieldFormat<Double>.measure(.inches)
+        #expect(points.parse("2p6", nil) == 30 && inches.parse("1", nil) == 72 && points.parse("50%", 30) == 15 && points.parse("12 qq", 30) == nil)
+        #expect(inches.format(36) == "0.5" && points.format(nil) == "")
         #expect(DocumentUnits.allCases.map(\.measureUnit) == MeasureUnit.allCases)
-        #expect(CommitTextField.shown("typed", "remote", focused: true) == "typed")
-        #expect(CommitTextField.shown("typed", "remote", focused: false) == "remote")
-        #expect(CommitTextField.shown("typed", nil, focused: false) == "")
+        let text = FieldFormat<String>.text()
+        #expect(text.format("remote") == "remote" && text.format(nil) == "" && text.parse("typed", nil) == "typed" && text.step == nil)
         _ = MeasureField(title: "X", value: 1, unit: .points, identifier: "x") { _ in }.body
         _ = CommitTextField(title: "Name", value: nil, identifier: "n") { _ in }.body
         #expect(PanelProps.common(Wiretuner_Doc_V1_NodeProps()) == Wiretuner_Doc_V1_CommonProps())
