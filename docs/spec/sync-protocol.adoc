@@ -123,9 +123,10 @@ As built by PROTO-006 (`proto/wiretuner/sync/v1/sync.proto`), with these settled
   `at_or_before_server_seq` (0 = newest) and streams `doc.v1.SnapshotFrame`.  `Pong` carries
   the server's wall time.
 * The 1 MiB frame cap of `PushChanges` and `FetchChanges` is not expressible in protovalidate
-  (it cannot measure encoded size): the service's maximum inbound message size enforces it,
-  the client's outbox packs frames to it, and `max_items: 256` per frame is the declared
-  sanity bound.  `Subscribe` returns `ServerFrame` rather than a `SubscribeResponse`; `buf.yaml`
+  (it cannot measure encoded size): the server checks it (`ChangeRules`, SRV-004; the server-wide
+  maximum inbound message size is 4 MiB + 64 KiB so that a lone 4 MiB change still arrives, see
+  xref:server.adoc[Server]), the client's outbox packs frames to it, and `max_items: 256` per frame
+  is the declared sanity bound.  `Subscribe` returns `ServerFrame` rather than a `SubscribeResponse`; `buf.yaml`
   exempts that one file from `RPC_RESPONSE_STANDARD_NAME`.
 
 === Why no bidirectional stream
@@ -229,6 +230,34 @@ storage (the server reads them; clients never touch storage directly).  `FetchSn
 the chunks of a snapshot, then the client replays `FetchChanges` from the snapshot's seq.
 
 A client bootstrapping a document it has never opened always takes the snapshot path.
+
+As built (SRV-005, SRV-006):
+
+* `Subscribe` needs any role; a replica bound to another account or device is
+  `REPLICA_CONFLICT`, a retired one `REPLICA_EXPIRED`.  `Welcome.snapshot_hint` is true when the
+  newest snapshot's `server_seq` is above `after_server_seq` (the gap rule above); the replay is
+  then not sent.  Live frames start at the head read after the subscription is registered on the
+  fan-out bus, so a client that claims to be ahead of the head still receives every later change.
+  `Pong` is sent after 15 s without a frame (checked every 5 s; `wt.sync.pong-after`).  A subscriber
+  that falls 4,096 frames behind what it has taken (`wt.sync.live-buffer`) has its stream failed
+  and resubscribes from its applied `server_seq`; the replay itself is read page by page as the
+  client takes it.
+* Presence is minimal until SRV-012: `UpdatePresence` and `SubscribeRequest.presence` store the
+  replica's last state in Valkey with a 15 s time to live and fan it out with the server-filled
+  user (with role), color index and no branch id; `GONE`, or the end of the subscription, removes
+  the entry and fans out `GONE`.  There is no 20 Hz limit yet.
+* `FetchChanges` reads the hot log only: a range not contiguous there (compacted, pending the cold
+  segments of SRV-007) is `FAILED_PRECONDITION / HISTORY_UNAVAILABLE`, sent before any frame of
+  the missing part.  `until_server_seq` above the head is clamped to it.
+* `FetchSnapshot` with no snapshot at or before the requested seq is `FAILED_PRECONDITION /
+  HISTORY_UNAVAILABLE` (replay `FetchChanges` from 0 instead).  The header's compression is ZSTD
+  and its `uncompressed_size` is 0 until the snapshotter (SRV-007) records the size.
+* `PushChanges` checks every frame names the first frame's document and that a frame of more than
+  one change is at most 1 MiB; it feeds each frame through the replica queue change by change and
+  answers as soon as a change is rejected, without reading the rest of the stream.
+  `last_accepted_seq` is the caller's replica's `last_seq` after the upload, so a client that lost
+  the stream resumes from `Welcome.last_accepted_seq` and may resend overlapping changes, which are
+  silently acked.
 
 == Blobs
 

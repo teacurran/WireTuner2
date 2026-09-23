@@ -127,6 +127,51 @@ enum ErrorReason {
   // FAILED_PRECONDITION: the parent advanced past the reviewed head by changes touching nodes
   // the merge review decided on; review again (branches.adoc, "Merge semantics").
   ERROR_REASON_MERGE_STALE = 17;
+  // ALREADY_EXISTS: a Create, Fork or Duplicate id belongs to a different document (another
+  // space, another owner, other first change); generate a new id.
+  ERROR_REASON_DOCUMENT_EXISTS = 18;
+  // NOT_FOUND: the space is neither the caller's account nor a team they belong to (or the
+  // team is deleted, for creating).
+  ERROR_REASON_SPACE_NOT_FOUND = 19;
+  // NOT_FOUND: the folder does not exist in the space, or the caller may not see it.
+  ERROR_REASON_FOLDER_NOT_FOUND = 20;
+  // FAILED_PRECONDITION: the requested server_seq lies beyond the head or within history that
+  // is not available (compacted out of the hot log, or no snapshot at or before it).
+  ERROR_REASON_HISTORY_UNAVAILABLE = 21;
+  // NOT_FOUND: the document does not reference the blob (nor shows it as its thumbnail), or it
+  // has not arrived.
+  ERROR_REASON_BLOB_NOT_FOUND = 22;
+  // INVALID_ARGUMENT: an upload's content disagrees with its header (size or sha256), or its
+  // frames are out of order.
+  ERROR_REASON_BLOB_MISMATCH = 23;
+  // NOT_FOUND: the caller is not a member of the team, or the team is deleted.
+  ERROR_REASON_TEAM_NOT_FOUND = 24;
+  // NOT_FOUND: the account named is not a member of the team.
+  ERROR_REASON_MEMBER_NOT_FOUND = 25;
+  // NOT_FOUND: the invitation token is unknown, expired, used or withdrawn, or its team was
+  // deleted.
+  ERROR_REASON_INVITE_INVALID = 26;
+  // NOT_FOUND: the workspace has not claimed the domain.
+  ERROR_REASON_DOMAIN_NOT_FOUND = 27;
+  // ALREADY_EXISTS: another team has the slug.
+  ERROR_REASON_SLUG_TAKEN = 28;
+  // ALREADY_EXISTS: the invited address belongs to a member (account email or a linked
+  // identity).
+  ERROR_REASON_ALREADY_MEMBER = 29;
+  // ALREADY_EXISTS: another team has verified the domain.
+  ERROR_REASON_DOMAIN_TAKEN = 30;
+  // FAILED_PRECONDITION: the owner cannot leave, be removed or change role; transfer ownership
+  // first.
+  ERROR_REASON_OWNER_MUST_TRANSFER = 31;
+  // FAILED_PRECONDITION: the member's team role does not allow it (a guest cannot own the
+  // team).
+  ERROR_REASON_TEAM_ROLE_INVALID = 32;
+  // FAILED_PRECONDITION: the caller holds no verified identity for the invited address.
+  ERROR_REASON_EMAIL_NOT_VERIFIED = 33;
+  // FAILED_PRECONDITION: the workspace requires signing in through its SSO connection.
+  ERROR_REASON_SSO_REQUIRED = 34;
+  // FAILED_PRECONDITION: requiring SSO or auto-admitting needs at least one verified domain.
+  ERROR_REASON_DOMAIN_UNVERIFIED = 35;
 }
 
 // Opens the subscription on one document.

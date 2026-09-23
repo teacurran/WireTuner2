@@ -29,5 +29,7 @@ class CallMetadataTest {
         assertThat(metadata.requestId()).isEqualTo("r");
         assertThat(metadata.clientVersion()).isEqualTo("macos/1.0/1");
         assertThat(metadata.bearerPresent()).isTrue();
+        metadata.authorization("Bearer x");
+        assertThat(metadata.authorization()).isEqualTo("Bearer x");
     }
 }

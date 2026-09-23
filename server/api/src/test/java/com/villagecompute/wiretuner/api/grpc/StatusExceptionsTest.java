@@ -48,7 +48,11 @@ class StatusExceptionsTest {
                 Arguments.of(StatusExceptions.responseTooLarge(1024), Status.Code.RESOURCE_EXHAUSTED,
                         ErrorReasons.RESPONSE_TOO_LARGE, Map.of("cap_bytes", "1024")),
                 Arguments.of(StatusExceptions.upstreamError(502), Status.Code.UNAVAILABLE, ErrorReasons.UPSTREAM_ERROR,
-                        Map.of("upstream_status", "502")));
+                        Map.of("upstream_status", "502")),
+                Arguments.of(StatusExceptions.replicaBound(-2L), Status.Code.FAILED_PRECONDITION,
+                        ErrorReasons.REPLICA_CONFLICT, Map.of("replica", "18446744073709551614")),
+                Arguments.of(StatusExceptions.snapshotUnavailable(9), Status.Code.FAILED_PRECONDITION,
+                        ErrorReasons.HISTORY_UNAVAILABLE, Map.of("requested", "9")));
     }
 
     @ParameterizedTest

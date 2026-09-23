@@ -37,6 +37,6 @@ class HealthTest {
                 .statusCode(200)
                 .body("status", is("UP"))
                 .body("checks.name", hasItem("merge-engine"))
-                .body("checks.find { it.name == 'merge-engine' }.data.wt-crdt", is("0.1.0"));
+                .body("checks.find { it.name == 'merge-engine' }.data.wt-crdt", is(com.villagecompute.wiretuner.crdt.Engine.version()));
     }
 }

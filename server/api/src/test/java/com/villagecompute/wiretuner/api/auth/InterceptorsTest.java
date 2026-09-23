@@ -89,6 +89,7 @@ class InterceptorsTest {
         interceptor.interceptCall(call, headers, call.handler());
         assertThat(call.started).isTrue();
         assertThat(interceptor.callMetadata.bearerPresent()).isTrue();
+        assertThat(interceptor.callMetadata.authorization()).isEqualTo("bearer abc.def.ghi");
         assertThat(interceptor.callMetadata.deviceId()).isEqualTo("dev-1");
         assertThat(interceptor.callMetadata.clientVersion()).isEqualTo("macos/1.0/7");
     }

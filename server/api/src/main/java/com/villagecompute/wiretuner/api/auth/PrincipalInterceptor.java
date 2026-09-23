@@ -46,13 +46,15 @@ public class PrincipalInterceptor implements ServerInterceptor, Prioritized {
         }
         callMetadata.deviceId(headers.get(GrpcMetadata.WT_DEVICE));
         callMetadata.clientVersion(headers.get(GrpcMetadata.WT_CLIENT));
-        if (!hasBearer(headers.get(GrpcMetadata.AUTHORIZATION))) {
+        String authorization = headers.get(GrpcMetadata.AUTHORIZATION);
+        if (!hasBearer(authorization)) {
             call.close(StatusExceptions.unauthenticated("missing bearer token").getStatus(), new Metadata());
             return new ServerCall.Listener<>() {
                 // the call is closed; nothing to listen for
             };
         }
         callMetadata.bearerPresent(true);
+        callMetadata.authorization(authorization);
         return next.startCall(call, headers);
     }
 

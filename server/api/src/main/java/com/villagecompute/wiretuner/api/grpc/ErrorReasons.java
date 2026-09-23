@@ -24,8 +24,7 @@ public final class ErrorReasons {
     public static final String UPSTREAM_ERROR = "UPSTREAM_ERROR";
     public static final String VALIDATION_FAILED = "VALIDATION_FAILED";
 
-    // Added by SRV-008, SRV-009 and SEC-001; recorded on docs/spec/server.adoc and
-    // docs/spec/security.adoc until the api-conventions table and sync.v1.ErrorReason carry them.
+    // Added by SRV-008, SRV-009 and SEC-001.
     public static final String DOCUMENT_EXISTS = "DOCUMENT_EXISTS";
     public static final String SPACE_NOT_FOUND = "SPACE_NOT_FOUND";
     public static final String FOLDER_NOT_FOUND = "FOLDER_NOT_FOUND";

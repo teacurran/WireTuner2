@@ -162,17 +162,17 @@ public class BlobGrpcService extends MutinyBlobServiceGrpc.BlobServiceImplBase {
         return HexFormat.of().formatHex(sha256.toByteArray());
     }
 
-    /** Splits the storage client's buffers into frames of at most {@code max} bytes. */
-    static final class Rechunker {
+    /** Splits the storage client's buffers into frames of at most {@code max} bytes (blob and snapshot downloads). */
+    public static final class Rechunker {
         private final int max;
         private ByteString pending = ByteString.EMPTY;
 
-        Rechunker(int max) {
+        public Rechunker(int max) {
             this.max = max;
         }
 
         /** Takes the next buffer; returns every full frame it completes. */
-        java.util.List<ByteString> add(ByteBuffer buffer) {
+        public java.util.List<ByteString> add(ByteBuffer buffer) {
             pending = pending.concat(ByteString.copyFrom(buffer));
             java.util.List<ByteString> full = new java.util.ArrayList<>();
             while (pending.size() >= max) {
@@ -183,7 +183,7 @@ public class BlobGrpcService extends MutinyBlobServiceGrpc.BlobServiceImplBase {
         }
 
         /** The last, short frame, if any bytes are left. */
-        java.util.List<ByteString> flush() {
+        public java.util.List<ByteString> flush() {
             return pending.isEmpty() ? java.util.List.of() : java.util.List.of(pending);
         }
     }

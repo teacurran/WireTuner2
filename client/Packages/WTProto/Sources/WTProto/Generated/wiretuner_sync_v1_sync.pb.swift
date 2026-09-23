@@ -113,6 +113,69 @@ public nonisolated enum Wiretuner_Sync_V1_ErrorReason: SwiftProtobuf.Enum, Swift
   /// FAILED_PRECONDITION: the parent advanced past the reviewed head by changes touching nodes
   /// the merge review decided on; review again (branches.adoc, "Merge semantics").
   case mergeStale // = 17
+
+  /// ALREADY_EXISTS: a Create, Fork or Duplicate id belongs to a different document (another
+  /// space, another owner, other first change); generate a new id.
+  case documentExists // = 18
+
+  /// NOT_FOUND: the space is neither the caller's account nor a team they belong to (or the
+  /// team is deleted, for creating).
+  case spaceNotFound // = 19
+
+  /// NOT_FOUND: the folder does not exist in the space, or the caller may not see it.
+  case folderNotFound // = 20
+
+  /// FAILED_PRECONDITION: the requested server_seq lies beyond the head or within history that
+  /// is not available (compacted out of the hot log, or no snapshot at or before it).
+  case historyUnavailable // = 21
+
+  /// NOT_FOUND: the document does not reference the blob (nor shows it as its thumbnail), or it
+  /// has not arrived.
+  case blobNotFound // = 22
+
+  /// INVALID_ARGUMENT: an upload's content disagrees with its header (size or sha256), or its
+  /// frames are out of order.
+  case blobMismatch // = 23
+
+  /// NOT_FOUND: the caller is not a member of the team, or the team is deleted.
+  case teamNotFound // = 24
+
+  /// NOT_FOUND: the account named is not a member of the team.
+  case memberNotFound // = 25
+
+  /// NOT_FOUND: the invitation token is unknown, expired, used or withdrawn, or its team was
+  /// deleted.
+  case inviteInvalid // = 26
+
+  /// NOT_FOUND: the workspace has not claimed the domain.
+  case domainNotFound // = 27
+
+  /// ALREADY_EXISTS: another team has the slug.
+  case slugTaken // = 28
+
+  /// ALREADY_EXISTS: the invited address belongs to a member (account email or a linked
+  /// identity).
+  case alreadyMember // = 29
+
+  /// ALREADY_EXISTS: another team has verified the domain.
+  case domainTaken // = 30
+
+  /// FAILED_PRECONDITION: the owner cannot leave, be removed or change role; transfer ownership
+  /// first.
+  case ownerMustTransfer // = 31
+
+  /// FAILED_PRECONDITION: the member's team role does not allow it (a guest cannot own the
+  /// team).
+  case teamRoleInvalid // = 32
+
+  /// FAILED_PRECONDITION: the caller holds no verified identity for the invited address.
+  case emailNotVerified // = 33
+
+  /// FAILED_PRECONDITION: the workspace requires signing in through its SSO connection.
+  case ssoRequired // = 34
+
+  /// FAILED_PRECONDITION: requiring SSO or auto-admitting needs at least one verified domain.
+  case domainUnverified // = 35
   case UNRECOGNIZED(Int)
 
   public init() {
@@ -139,6 +202,24 @@ public nonisolated enum Wiretuner_Sync_V1_ErrorReason: SwiftProtobuf.Enum, Swift
     case 15: self = .linkPasswordRequired
     case 16: self = .linkInvalid
     case 17: self = .mergeStale
+    case 18: self = .documentExists
+    case 19: self = .spaceNotFound
+    case 20: self = .folderNotFound
+    case 21: self = .historyUnavailable
+    case 22: self = .blobNotFound
+    case 23: self = .blobMismatch
+    case 24: self = .teamNotFound
+    case 25: self = .memberNotFound
+    case 26: self = .inviteInvalid
+    case 27: self = .domainNotFound
+    case 28: self = .slugTaken
+    case 29: self = .alreadyMember
+    case 30: self = .domainTaken
+    case 31: self = .ownerMustTransfer
+    case 32: self = .teamRoleInvalid
+    case 33: self = .emailNotVerified
+    case 34: self = .ssoRequired
+    case 35: self = .domainUnverified
     default: self = .UNRECOGNIZED(rawValue)
     }
   }
@@ -163,6 +244,24 @@ public nonisolated enum Wiretuner_Sync_V1_ErrorReason: SwiftProtobuf.Enum, Swift
     case .linkPasswordRequired: return 15
     case .linkInvalid: return 16
     case .mergeStale: return 17
+    case .documentExists: return 18
+    case .spaceNotFound: return 19
+    case .folderNotFound: return 20
+    case .historyUnavailable: return 21
+    case .blobNotFound: return 22
+    case .blobMismatch: return 23
+    case .teamNotFound: return 24
+    case .memberNotFound: return 25
+    case .inviteInvalid: return 26
+    case .domainNotFound: return 27
+    case .slugTaken: return 28
+    case .alreadyMember: return 29
+    case .domainTaken: return 30
+    case .ownerMustTransfer: return 31
+    case .teamRoleInvalid: return 32
+    case .emailNotVerified: return 33
+    case .ssoRequired: return 34
+    case .domainUnverified: return 35
     case .UNRECOGNIZED(let i): return i
     }
   }
@@ -187,6 +286,24 @@ public nonisolated enum Wiretuner_Sync_V1_ErrorReason: SwiftProtobuf.Enum, Swift
     .linkPasswordRequired,
     .linkInvalid,
     .mergeStale,
+    .documentExists,
+    .spaceNotFound,
+    .folderNotFound,
+    .historyUnavailable,
+    .blobNotFound,
+    .blobMismatch,
+    .teamNotFound,
+    .memberNotFound,
+    .inviteInvalid,
+    .domainNotFound,
+    .slugTaken,
+    .alreadyMember,
+    .domainTaken,
+    .ownerMustTransfer,
+    .teamRoleInvalid,
+    .emailNotVerified,
+    .ssoRequired,
+    .domainUnverified,
   ]
 
 }
@@ -1414,7 +1531,7 @@ public nonisolated struct Wiretuner_Sync_V1_MembersChanged: Sendable {
 fileprivate nonisolated let _protobuf_package = "wiretuner.sync.v1"
 
 nonisolated extension Wiretuner_Sync_V1_ErrorReason: SwiftProtobuf._ProtoNameProviding {
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0ERROR_REASON_UNSPECIFIED\0\u{1}ERROR_REASON_TOKEN_EXPIRED\0\u{1}ERROR_REASON_ROLE_INSUFFICIENT\0\u{1}ERROR_REASON_REPLICA_EXPIRED\0\u{1}ERROR_REASON_REPLICA_CONFLICT\0\u{1}ERROR_REASON_CLIENT_TOO_OLD\0\u{1}ERROR_REASON_SEQ_GAP\0\u{1}ERROR_REASON_RATE_LIMITED\0\u{1}ERROR_REASON_STORAGE_QUOTA\0\u{1}ERROR_REASON_DOCUMENT_NOT_FOUND\0\u{1}ERROR_REASON_HOST_NOT_ALLOWED\0\u{1}ERROR_REASON_CREDENTIAL_MISSING\0\u{1}ERROR_REASON_RESPONSE_TOO_LARGE\0\u{1}ERROR_REASON_UPSTREAM_ERROR\0\u{1}ERROR_REASON_VALIDATION_FAILED\0\u{1}ERROR_REASON_LINK_PASSWORD_REQUIRED\0\u{1}ERROR_REASON_LINK_INVALID\0\u{1}ERROR_REASON_MERGE_STALE\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0ERROR_REASON_UNSPECIFIED\0\u{1}ERROR_REASON_TOKEN_EXPIRED\0\u{1}ERROR_REASON_ROLE_INSUFFICIENT\0\u{1}ERROR_REASON_REPLICA_EXPIRED\0\u{1}ERROR_REASON_REPLICA_CONFLICT\0\u{1}ERROR_REASON_CLIENT_TOO_OLD\0\u{1}ERROR_REASON_SEQ_GAP\0\u{1}ERROR_REASON_RATE_LIMITED\0\u{1}ERROR_REASON_STORAGE_QUOTA\0\u{1}ERROR_REASON_DOCUMENT_NOT_FOUND\0\u{1}ERROR_REASON_HOST_NOT_ALLOWED\0\u{1}ERROR_REASON_CREDENTIAL_MISSING\0\u{1}ERROR_REASON_RESPONSE_TOO_LARGE\0\u{1}ERROR_REASON_UPSTREAM_ERROR\0\u{1}ERROR_REASON_VALIDATION_FAILED\0\u{1}ERROR_REASON_LINK_PASSWORD_REQUIRED\0\u{1}ERROR_REASON_LINK_INVALID\0\u{1}ERROR_REASON_MERGE_STALE\0\u{1}ERROR_REASON_DOCUMENT_EXISTS\0\u{1}ERROR_REASON_SPACE_NOT_FOUND\0\u{1}ERROR_REASON_FOLDER_NOT_FOUND\0\u{1}ERROR_REASON_HISTORY_UNAVAILABLE\0\u{1}ERROR_REASON_BLOB_NOT_FOUND\0\u{1}ERROR_REASON_BLOB_MISMATCH\0\u{1}ERROR_REASON_TEAM_NOT_FOUND\0\u{1}ERROR_REASON_MEMBER_NOT_FOUND\0\u{1}ERROR_REASON_INVITE_INVALID\0\u{1}ERROR_REASON_DOMAIN_NOT_FOUND\0\u{1}ERROR_REASON_SLUG_TAKEN\0\u{1}ERROR_REASON_ALREADY_MEMBER\0\u{1}ERROR_REASON_DOMAIN_TAKEN\0\u{1}ERROR_REASON_OWNER_MUST_TRANSFER\0\u{1}ERROR_REASON_TEAM_ROLE_INVALID\0\u{1}ERROR_REASON_EMAIL_NOT_VERIFIED\0\u{1}ERROR_REASON_SSO_REQUIRED\0\u{1}ERROR_REASON_DOMAIN_UNVERIFIED\0")
 }
 
 nonisolated extension Wiretuner_Sync_V1_PresenceState: SwiftProtobuf._ProtoNameProviding {

@@ -141,7 +141,7 @@ public class Principals {
                 device.platform = platformOf(callMetadata.clientVersion());
                 LOG.infof("first sight of device %s for account %s, signed in by %s", deviceId, account.id,
                         claims.authMethod());
-                return devices.persist(device).replaceWith(deviceId);
+                return devices.insertIfAbsent(device).replaceWith(deviceId);
             }
             if (existing.revokedAt != null) {
                 return Uni.createFrom().failure(StatusExceptions.unauthenticated("device revoked"));

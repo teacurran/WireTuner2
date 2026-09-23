@@ -24,6 +24,7 @@ import com.villagecompute.wiretuner.api.persistence.LibraryRepository.DocumentRo
 import com.villagecompute.wiretuner.api.persistence.Replica;
 import com.villagecompute.wiretuner.api.persistence.ReplicaId;
 import com.villagecompute.wiretuner.api.persistence.ReplicaRepository;
+import com.villagecompute.wiretuner.api.sync.ReplicaBinding;
 import com.villagecompute.wiretuner.doc.v1.Change;
 import com.villagecompute.wiretuner.docs.v1.CreateRequest;
 
@@ -45,9 +46,6 @@ import jakarta.inject.Inject;
  */
 @ApplicationScoped
 public class DocumentCopies {
-
-    /** The device a replica is bound to when the call carried no {@code wt-device}. */
-    static final UUID NO_DEVICE = new UUID(0, 0);
 
     /** One Fork or Duplicate, with its defaults already applied. */
     public record Copy(DocumentRow source, UUID newId, UUID spaceId, UUID folderId, String name, long atSeq,
@@ -260,7 +258,7 @@ public class DocumentCopies {
         replica.id = new ReplicaId(documentId, replicaId);
         replica.accountId = principal.accountId();
         UUID bound = device != null ? device : principal.deviceId();
-        replica.deviceId = bound != null ? bound : NO_DEVICE;
+        replica.deviceId = bound != null ? bound : ReplicaBinding.NO_DEVICE;
         replica.lastSeq = lastSeq;
         return replicas.persist(replica).replaceWithVoid();
     }

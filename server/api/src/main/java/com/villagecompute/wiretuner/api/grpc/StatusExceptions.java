@@ -57,6 +57,13 @@ public final class StatusExceptions {
                 Map.of("replica", Long.toUnsignedString(replicaId), "seq", Long.toString(seq)));
     }
 
+    /** {@code FAILED_PRECONDITION / REPLICA_CONFLICT}: the replica is bound to another account or device. */
+    public static StatusRuntimeException replicaBound(long replicaId) {
+        return withReason(Code.FAILED_PRECONDITION, ErrorReasons.REPLICA_CONFLICT,
+                "replica " + Long.toUnsignedString(replicaId) + " is bound to another account or device; rotate the replica id",
+                Map.of("replica", Long.toUnsignedString(replicaId)));
+    }
+
     /** {@code FAILED_PRECONDITION / CLIENT_TOO_OLD}: the document's feature level is above this client's. */
     public static StatusRuntimeException clientTooOld(int documentLevel, int clientLevel) {
         return withReason(Code.FAILED_PRECONDITION, ErrorReasons.CLIENT_TOO_OLD,
@@ -155,6 +162,14 @@ public final class StatusExceptions {
         return withReason(Code.FAILED_PRECONDITION, ErrorReasons.HISTORY_UNAVAILABLE,
                 "server_seq " + requested + " is not within retained history (head " + head + ")",
                 Map.of("requested", Long.toString(requested), "head", Long.toString(head)));
+    }
+
+    /** {@code FAILED_PRECONDITION / HISTORY_UNAVAILABLE}: no snapshot at or before the requested server_seq. */
+    public static StatusRuntimeException snapshotUnavailable(long atOrBefore) {
+        return withReason(Code.FAILED_PRECONDITION, ErrorReasons.HISTORY_UNAVAILABLE,
+                "the document has no snapshot at or before server_seq " + Long.toUnsignedString(atOrBefore)
+                        + "; replay FetchChanges from 0",
+                Map.of("requested", Long.toUnsignedString(atOrBefore)));
     }
 
     /** {@code NOT_FOUND / BLOB_NOT_FOUND}: the document does not reference the blob, or it has not arrived. */

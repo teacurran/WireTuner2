@@ -16,6 +16,7 @@ public class CallMetadata {
     private String deviceId;
     private String clientVersion;
     private boolean bearerPresent;
+    private String authorization;
 
     public String requestId() {
         return requestId;
@@ -60,5 +61,14 @@ public class CallMetadata {
 
     public void bearerPresent(boolean value) {
         this.bearerPresent = value;
+    }
+
+    /** The raw {@code authorization} header, when it carried a bearer token (a cache key, never logged). */
+    public String authorization() {
+        return authorization;
+    }
+
+    public void authorization(String value) {
+        this.authorization = value;
     }
 }

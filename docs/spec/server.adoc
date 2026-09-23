@@ -84,9 +84,13 @@ protovalidate, rate limit, OpenTelemetry span.
 The protovalidate interceptor (`ValidationInterceptor`, delivered with SRV-009) checks every
 inbound message, each frame of a client stream included, and closes the call with
 `INVALID_ARGUMENT / VALIDATION_FAILED` and the violations in `google.rpc.BadRequest` (field path
-to rule message).  The gRPC server accepts inbound messages up to 2 MiB
-(`quarkus.grpc.server.max-inbound-message-size`): the Vert.x gRPC server's own default, 256 KiB,
-is below the 1 MiB bulk frames of xref:api-conventions.adoc[API conventions].
+to rule message).  The gRPC server accepts inbound messages up to 4 MiB + 64 KiB
+(`quarkus.grpc.server.max-inbound-message-size`, raised from 2 MiB by SRV-004): a change may be
+4 MiB encoded and travels alone when it is larger than a 1 MiB bulk frame, and the Vert.x gRPC
+server's own default, 256 KiB, is below even the bulk frames of xref:api-conventions.adoc[API
+conventions].  One server-wide limit cannot also be the 1 MiB cap of a multi-change `PushChanges`
+frame, so `ChangeRules` enforces that cap and the 4 MiB change cap itself
+(`INVALID_ARGUMENT / VALIDATION_FAILED`).
 
 `DocumentService` (SRV-009) checks document RPCs through `RoleGuard` and space RPCs (Create,
 List, Search, folders) through space membership: a space is the caller's own account or a team
@@ -97,6 +101,9 @@ copy the source's hot `change_log` rows up to the fork point row for row (keepin
 `server_seq`), then append the caller's extra changes, carry over the source's blob references
 and thumbnail, and bind the caller's replicas on the copy.  A fork point part of which has been
 compacted is `FAILED_PRECONDITION / HISTORY_UNAVAILABLE`.
+Rename, MoveToFolder, Trash and Restore tell every live subscription on the document
+(`DocumentEvent` `Renamed`, `Moved`, `Trashed`, the caller as actor) once their transaction has
+committed (SRV-005).
 
 `BlobService` (SRV-008) streams uploads into 8 MiB S3 multipart parts while hashing, completes
 the multipart upload only when size and sha256 match the header and aborts it otherwise, so a
@@ -155,6 +162,52 @@ Throughput target: 2,000 accepted changes per second per document on a single no
 per second across the cluster.  The per-document lock serialises only the sequence number; the
 transaction holds it for one insert.
 
+As built (SRV-004, SRV-005; `api/.../sync`):
+
+* *One statement per change, group-committed.*  `ChangeIngest.INSERT` is a single SQL statement:
+  an upsert of the `replica` row that binds an unbound replica on seq 1 to the caller's account
+  and device (the all-zero device when the call has no `wt-device`) and otherwise advances
+  `last_seq` only when the row is bound to the caller, live, and at `seq - 1`; then, only if that
+  took, `head_seq + 1` on the `document` row; then the `change_log` insert at the new head.  The
+  `UPDATE` of the document row takes the per-document row lock that `SELECT ... FOR UPDATE` would,
+  and holds it to the commit.  Holding it through one commit per change caps a document at one
+  change per WAL flush (about 1,300 per second against the Postgres container here), so
+  `ChangeWriter` group-commits: while one write for a document is in flight, the next ones wait
+  and are then sent as one prepared batch, one round trip and one implicit transaction, executed
+  in arrival order.  Each statement keeps its own conditions, so a refused change inserts nothing
+  while the rest of the batch goes in; a statement error fails every call in its batch.  When a
+  change inserted nothing, the replica row (and for an old seq the logged change) is read back to
+  answer `REPLICA_CONFLICT` (bound to another account or device, or the same seq with other bytes),
+  `REPLICA_EXPIRED` (retired), `SEQ_GAP`, or the silent ack with the original `server_seq`.  A seq
+  already accepted but compacted out of the hot log answers `SEQ_GAP` from the head.
+* *ReplicaQueue* takes a push's place in its replica's line synchronously in the gRPC handler and
+  runs the ingest when every earlier push of that replica on this node has finished.  The caller's
+  authorisation (principal, role of editor or above, author) is resolved concurrently as the call
+  arrives, and memoised per node for 2 s (`wt.sync.grant-ttl`) under the exact bearer token, device
+  and document (`PushGrants`): a revoked device, an expired token or a downgraded role is seen by
+  pushes within that time.  A `commenter` may not push yet: the comments-collection rule of
+  xref:security.adoc[Accounts, teams and security] arrives with the comments tasks.
+* *Fan-out.*  `SyncBus` holds one dedicated Valkey connection per node for every channel
+  subscription (the Quarkus data source would open one connection per subscription); a channel
+  `doc:<id>` is subscribed with a document's first local listener and unsubscribed with its last.
+  Every frame -- change, presence update, document event -- is published as the node's 16-byte id
+  followed by the encoded `ServerFrame`; the publishing node delivers to its own listeners at once
+  and drops its own echo.  The ingest does not wait for the Valkey publish.  Each subscription puts
+  changes back into `server_seq` order (`LiveFeed`): it registers before reading the head, drops
+  what the replay covered, holds changes behind a gap, and fills a gap still open after 200 ms
+  (`wt.sync.gap-wait`) from the log; when the Valkey connection drops, the bus reconnects,
+  resubscribes and has every subscription reread the log up to the head.
+* *The author* of a `SequencedChange` is the account the replica is bound to (user id and display
+  name); `Participant.role` is filled only in presence.
+* *Load test* (`IngestLoadTest`): 8 clients on their own connections, each one replica pipelining
+  a window of 32 unary pushes, 20,000 changes into one document: about 3,400 accepted changes per
+  second on the development Mac (Postgres and Valkey in Docker, JaCoCo on), with `server_seq` dense
+  from 1 and every replica's changes in seq order; the test fails below 2,000.
+* *Tests run one node.*  SRV-005's "three clients on two server nodes" is covered by three clients
+  on one node plus a frame published to Valkey under another node's id, which reaches the
+  subscription through the (resubscribed) channel; a two-node compose run is left to the
+  multi-client simulation (TEST-001).
+
 == Jobs
 
 [cols="1,1,3"]
@@ -173,6 +226,11 @@ transaction holds it for one insert.
 |===
 
 Jobs use `quarkus-scheduler` with a Postgres advisory lock per job so only one node runs each.
+
+Until the Stability job exists, `SyncService.Ack` computes it for the one document: it records
+the replica's `last_ack_seq` (never backwards, clamped to the head; an unbound replica is bound
+to the caller as by a push) and raises `document.stable_seq` to the minimum `last_ack_seq` over
+the document's live replicas, never lowering it; the response carries the result.
 
 == Search
 

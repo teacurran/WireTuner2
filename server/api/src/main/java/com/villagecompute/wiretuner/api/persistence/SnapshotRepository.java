@@ -15,4 +15,10 @@ public class SnapshotRepository implements PanacheRepositoryBase<Snapshot, Snaps
     public Uni<Snapshot> findNewest(UUID documentId) {
         return find("id.documentId", Sort.descending("id.serverSeq"), documentId).firstResult();
     }
+
+    /** The newest snapshot at or before {@code serverSeq}, or null. */
+    public Uni<Snapshot> findAtOrBefore(UUID documentId, long serverSeq) {
+        return find("id.documentId = ?1 and id.serverSeq <= ?2", Sort.descending("id.serverSeq"), documentId, serverSeq)
+                .firstResult();
+    }
 }

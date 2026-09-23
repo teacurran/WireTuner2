@@ -133,6 +133,8 @@ class RepositoriesTest {
 
         tx(() -> snapshots.persist(snapshot(doc.id, 1)).chain(() -> snapshots.persist(snapshot(doc.id, 3))));
         assertThat(tx(() -> snapshots.findNewest(doc.id)).id.serverSeq()).isEqualTo(3L);
+        assertThat(tx(() -> snapshots.findAtOrBefore(doc.id, 2)).id.serverSeq()).isEqualTo(1L);
+        assertThat(tx(() -> snapshots.findAtOrBefore(doc.id, 0))).isNull();
     }
 
     @Test

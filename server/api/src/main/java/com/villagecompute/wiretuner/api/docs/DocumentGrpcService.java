@@ -5,6 +5,7 @@ import static com.villagecompute.wiretuner.api.docs.DocumentMessages.optionalUui
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 import com.villagecompute.wiretuner.api.auth.DocumentRoles;
@@ -23,6 +24,7 @@ import com.villagecompute.wiretuner.api.persistence.FolderRepository;
 import com.villagecompute.wiretuner.api.persistence.LibraryRepository;
 import com.villagecompute.wiretuner.api.persistence.LibraryRepository.DocumentRow;
 import com.villagecompute.wiretuner.api.persistence.LibraryRepository.Scope;
+import com.villagecompute.wiretuner.api.sync.DocumentEvents;
 import com.villagecompute.wiretuner.docs.v1.CreateFolderRequest;
 import com.villagecompute.wiretuner.docs.v1.CreateFolderResponse;
 import com.villagecompute.wiretuner.docs.v1.CreateRequest;
@@ -53,6 +55,11 @@ import com.villagecompute.wiretuner.docs.v1.SetTemplateRequest;
 import com.villagecompute.wiretuner.docs.v1.SetTemplateResponse;
 import com.villagecompute.wiretuner.docs.v1.TrashRequest;
 import com.villagecompute.wiretuner.docs.v1.TrashResponse;
+import com.villagecompute.wiretuner.sync.v1.DocumentEvent;
+import com.villagecompute.wiretuner.sync.v1.Moved;
+import com.villagecompute.wiretuner.sync.v1.Participant;
+import com.villagecompute.wiretuner.sync.v1.Renamed;
+import com.villagecompute.wiretuner.sync.v1.Trashed;
 
 import io.quarkus.grpc.GrpcService;
 import io.quarkus.hibernate.reactive.panache.Panache;
@@ -64,8 +71,8 @@ import jakarta.inject.Inject;
 /**
  * {@code wiretuner.docs.v1.DocumentService} (SRV-009; docs/spec/server.adoc, Services and Search).
  * Every RPC runs in one transaction and checks the caller through {@link RoleGuard} (document
- * RPCs) or {@link Spaces} (space RPCs) before touching a row. Document events on live sessions
- * (Renamed, Moved, Trashed) arrive with the sync service (SRV-005).
+ * RPCs) or {@link Spaces} (space RPCs) before touching a row. Rename, move, trash and restore tell
+ * every live session on the document (Renamed, Moved, Trashed) once their transaction commits.
  */
 @GrpcService
 public class DocumentGrpcService extends MutinyDocumentServiceGrpc.DocumentServiceImplBase {
@@ -102,6 +109,9 @@ public class DocumentGrpcService extends MutinyDocumentServiceGrpc.DocumentServi
 
     @Inject
     LibrarySearch search;
+
+    @Inject
+    DocumentEvents events;
 
     @Override
     public Uni<CreateResponse> create(CreateRequest request) {
@@ -190,8 +200,11 @@ public class DocumentGrpcService extends MutinyDocumentServiceGrpc.DocumentServi
         UUID id = UUID.fromString(request.getDocumentId());
         return tx(() -> guard.require(id, Role.EDITOR).flatMap(grant -> documents.findById(id)
                 .invoke(doc -> touch(doc).name = request.getName())
-                .flatMap(doc -> view(grant.principal(), id))))
-                .map(doc -> RenameResponse.newBuilder().setDocument(doc).build());
+                .flatMap(doc -> view(grant.principal(), id))
+                .flatMap(doc -> announce(grant.principal(), doc, actor -> DocumentEvent.newBuilder()
+                        .setRenamed(Renamed.newBuilder().setName(doc.getName()).setActor(actor)).build()))))
+                .call(this::publish)
+                .map(done -> RenameResponse.newBuilder().setDocument(done.document()).build());
     }
 
     @Override
@@ -215,8 +228,11 @@ public class DocumentGrpcService extends MutinyDocumentServiceGrpc.DocumentServi
                     .chain(doc -> (crossSpace ? moveSpace(grant.principal(), doc, row, destination)
                             : Uni.createFrom().voidItem())
                             .invoke(() -> touch(doc).folderId = folderId))
-                    .chain(() -> view(grant.principal(), id));
-        }))).map(doc -> MoveToFolderResponse.newBuilder().setDocument(doc).build());
+                    .chain(() -> view(grant.principal(), id))
+                    .chain(doc -> announce(grant.principal(), doc, actor -> DocumentEvent.newBuilder()
+                            .setMoved(Moved.newBuilder().setSpaceId(doc.getSpaceId()).setFolderId(doc.getFolderId())
+                                    .setActor(actor)).build()));
+        }))).call(this::publish).map(done -> MoveToFolderResponse.newBuilder().setDocument(done.document()).build());
     }
 
     /**
@@ -263,8 +279,10 @@ public class DocumentGrpcService extends MutinyDocumentServiceGrpc.DocumentServi
                         doc.trashedAt = touch(doc).updatedAt;
                     }
                 })
-                .flatMap(doc -> view(grant.principal(), id))))
-                .map(doc -> TrashResponse.newBuilder().setDocument(doc).build());
+                .flatMap(doc -> view(grant.principal(), id))
+                .flatMap(doc -> announce(grant.principal(), doc, actor -> trashed(true, actor)))))
+                .call(this::publish)
+                .map(done -> TrashResponse.newBuilder().setDocument(done.document()).build());
     }
 
     @Override
@@ -272,8 +290,10 @@ public class DocumentGrpcService extends MutinyDocumentServiceGrpc.DocumentServi
         UUID id = UUID.fromString(request.getDocumentId());
         return tx(() -> guard.require(id, Role.OWNER).flatMap(grant -> documents.findById(id)
                 .invoke(doc -> touch(doc).trashedAt = null)
-                .flatMap(doc -> view(grant.principal(), id))))
-                .map(doc -> RestoreResponse.newBuilder().setDocument(doc).build());
+                .flatMap(doc -> view(grant.principal(), id))
+                .flatMap(doc -> announce(grant.principal(), doc, actor -> trashed(false, actor)))))
+                .call(this::publish)
+                .map(done -> RestoreResponse.newBuilder().setDocument(done.document()).build());
     }
 
     @Override
@@ -380,6 +400,25 @@ public class DocumentGrpcService extends MutinyDocumentServiceGrpc.DocumentServi
                                 folder.parentFolderId, id))
                         .chain(() -> folders.delete(folder)))))
                 .replaceWith(DeleteFolderResponse.getDefaultInstance());
+    }
+
+    /** A committed change to a document and the event every live session on it is told (SRV-005). */
+    record Announced(com.villagecompute.wiretuner.docs.v1.Document document, DocumentEvent event) {
+    }
+
+    /** Builds the event inside the transaction, with the caller as its actor. */
+    private Uni<Announced> announce(Principal principal, com.villagecompute.wiretuner.docs.v1.Document doc,
+            Function<Participant, DocumentEvent> event) {
+        return events.event(principal.accountId(), event).map(built -> new Announced(doc, built));
+    }
+
+    /** Publishes the event once the transaction has committed. */
+    private Uni<Void> publish(Announced done) {
+        return events.publish(UUID.fromString(done.document().getId()), done.event());
+    }
+
+    private static DocumentEvent trashed(boolean trashed, Participant actor) {
+        return DocumentEvent.newBuilder().setTrashed(Trashed.newBuilder().setTrashed(trashed).setActor(actor)).build();
     }
 
     /** The document as the caller sees it now, after flushing this transaction's writes. */
