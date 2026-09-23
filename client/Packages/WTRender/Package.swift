@@ -18,7 +18,11 @@ let package = Package(
             dependencies: [
                 .product(name: "WTGeometry", package: "WTGeometry"),
                 .product(name: "WTModel", package: "WTModel"),
-            ]
+            ],
+            // Copied, not processed: MetalContext compiles this Metal Shading Language source at
+            // run time.  Xcode 26 ships the offline Metal compiler as a separate download, and a
+            // `.metal` file would make every SwiftPM and Xcode build depend on it.
+            resources: [.copy("Shaders/TileShaders.msl")]
         ),
         .testTarget(
             name: "WTRenderTests",

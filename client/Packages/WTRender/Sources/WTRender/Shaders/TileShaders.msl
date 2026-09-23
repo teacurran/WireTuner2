@@ -1,0 +1,232 @@
+// Shaders for the Metal tile renderer (REND-006; docs/spec/client.adoc, "Metal tile renderer").
+//
+// Paths are filled by stencil-then-cover, with the stencil kept per sample in tile memory:
+//
+// * Stencil: `fanVertex`/`fanFragment` draw a path's triangle fan.  Each fan triangle covers
+//   its pixel bounding box; the fragment tests the pixel's 16 sample positions against the
+//   triangle's edges (top-left fill rule) and adds +1 or -1, by the triangle's orientation, to
+//   an 8-bit winding counter per sample held in a memoryless RGBA32Uint attachment.
+// * Cover: `coverVertex` draws the path's bounds once; the cover fragment turns the counters
+//   into coverage with the fill rule (non-zero: counter != 0; even-odd: counter odd), zeroes
+//   them for the next path, and blends colour x coverage into the target by reading it
+//   (programmable blending, ordered by raster order group 0).
+//
+// Blending per draw at pixel coverage is how Core Graphics composites, so shared and
+// coincident edges of separate shapes come out as Core Graphics draws them; 4x MSAA blends
+// per sample and differs there by up to a quarter (docs/spec/client.adoc, NOTE on REND-006).
+// Colours are premultiplied sRGB and blend in the encoded space, as Core Graphics blends in an
+// sRGB bitmap.  Programmable blending needs an Apple-family GPU; elsewhere the canvas falls
+// back to Core Graphics.
+//
+// The source ships as a copied bundle resource with the `.msl` extension and is compiled at run
+// time with `MTLDevice.makeLibrary(source:options:)`: Xcode 26 no longer installs the offline
+// Metal compiler by default (`xcodebuild -downloadComponent MetalToolchain`), and a `.metal`
+// file in the package would make every SwiftPM and Xcode build, and every CI runner, need it.
+
+#include <metal_stdlib>
+using namespace metal;
+
+// Device pixels (y down, origin top-left) to normalized device coordinates.
+static float4 toClip(float2 pixel, float2 surface) {
+    return float4(pixel.x / surface.x * 2.0 - 1.0, 1.0 - pixel.y / surface.y * 2.0, 0.0, 1.0);
+}
+
+// 16 sample positions, in 1/16 pixel from the pixel centre: the standard 16x pattern, one
+// sample per row and per column of the 16 x 16 sub-grid.
+constant float2 samplePositions[16] = {
+    float2(1, 1), float2(-1, -3), float2(-3, 2), float2(4, -1),
+    float2(-5, -2), float2(2, 5), float2(5, 3), float2(3, -5),
+    float2(-2, 6), float2(0, -7), float2(-4, -6), float2(-6, 4),
+    float2(-8, 0), float2(7, -4), float2(6, 7), float2(-7, -8),
+};
+
+static float cross2(float2 u, float2 v) {
+    return u.x * v.y - u.y * v.x;
+}
+
+// ---- Stencil ------------------------------------------------------------------------------
+
+struct FanTriangle {
+    float2 a;
+    float2 b;
+    float2 c;
+};
+
+struct FanVarying {
+    float4 position [[position]];
+    float2 a [[flat]];
+    float2 b [[flat]];
+    float2 c [[flat]];
+};
+
+constant float2 quadCorners[6] = {
+    float2(0, 0), float2(1, 0), float2(0, 1), float2(1, 0), float2(1, 1), float2(0, 1),
+};
+
+vertex FanVarying fanVertex(uint vid [[vertex_id]],
+                            const device FanTriangle *triangles [[buffer(0)]],
+                            constant float2 &surface [[buffer(1)]]) {
+    FanTriangle t = triangles[vid / 6];
+    float2 low = max(floor(min(min(t.a, t.b), t.c)) - 1.0, float2(0.0));
+    float2 high = min(ceil(max(max(t.a, t.b), t.c)) + 1.0, surface);
+    high = max(high, low);  // off-surface: an empty quad
+    FanVarying output;
+    output.position = toClip(mix(low, high, quadCorners[vid % 6]), surface);
+    output.a = t.a;
+    output.b = t.b;
+    output.c = t.c;
+    return output;
+}
+
+// Top-left rule for a clockwise (on a y-down screen) triangle: samples exactly on a top or
+// left edge belong to it, so a sample on an edge shared by two triangles counts once.
+static bool inside(float2 p, float2 from, float2 to) {
+    float2 edge = to - from;
+    float value = cross2(edge, p - from);
+    bool topLeft = (edge.y == 0.0 && edge.x > 0.0) || edge.y < 0.0;
+    return value > 0.0 || (value == 0.0 && topLeft);
+}
+
+struct FanOutput {
+    uint4 winding [[color(1), raster_order_group(0)]];
+};
+
+fragment FanOutput fanFragment(FanVarying input [[stage_in]],
+                               uint4 winding [[color(1), raster_order_group(0)]]) {
+    float2 a = input.a;
+    float2 b = input.b;
+    float2 c = input.c;
+    float area = cross2(b - a, c - a);
+    if (area == 0.0) {
+        discard_fragment();
+    }
+    uint delta = 0x01u;
+    if (area < 0.0) {
+        float2 swap = b;
+        b = c;
+        c = swap;
+        delta = 0xFFu;  // -1 in an 8-bit counter
+    }
+    float2 centre = floor(input.position.xy) + 0.5;
+    uint4 increments = uint4(0);
+    for (uint s = 0; s < 16; s++) {
+        float2 p = centre + samplePositions[s] / 16.0;
+        if (inside(p, a, b) && inside(p, b, c) && inside(p, c, a)) {
+            increments[s / 4] |= delta << ((s % 4) * 8);
+        }
+    }
+    if (all(increments == uint4(0))) {
+        discard_fragment();
+    }
+    // Byte-wise add without carries between the four counters of each word.
+    uint4 low = (winding & 0x7F7F7F7Fu) + (increments & 0x7F7F7F7Fu);
+    FanOutput output;
+    output.winding = low ^ ((winding ^ increments) & 0x80808080u);
+    return output;
+}
+
+// ---- Cover --------------------------------------------------------------------------------
+
+vertex float4 coverVertex(uint vid [[vertex_id]],
+                          const device float2 *points [[buffer(2)]],
+                          constant float2 &surface [[buffer(1)]]) {
+    return toClip(points[vid], surface);
+}
+
+// Fill rules as the Swift side encodes them.
+constant uint ruleNonZero = 0;
+constant uint ruleEvenOdd = 1;
+
+static float coverage(uint4 winding, uint rule) {
+    uint covered = 0;
+    for (uint word = 0; word < 4; word++) {
+        for (uint shift = 0; shift < 32; shift += 8) {
+            uint counter = (winding[word] >> shift) & 0xFFu;
+            covered += rule == ruleEvenOdd ? (counter & 1u) : (counter != 0u ? 1u : 0u);
+        }
+    }
+    return float(covered) / 16.0;
+}
+
+struct CoverUniforms {
+    float4 color;   // premultiplied
+    uint rule;      // ruleNonZero, ruleEvenOdd, or 2: everything (an unclipped layer)
+    uint blend;     // 0 source over, 1 multiply
+    float opacity;  // layers
+    uint padding;
+};
+
+struct CoverOutput {
+    float4 color [[color(0), raster_order_group(0)]];
+    uint4 winding [[color(1), raster_order_group(0)]];
+};
+
+static float4 sourceOver(float4 source, float4 destination) {
+    return source + destination * (1.0 - source.a);
+}
+
+// The separable multiply blend mode on premultiplied colour:
+// Sc·Dc + Sc(1 - Da) + Dc(1 - Sa), alpha Sa + Da - Sa·Da.
+static float4 multiply(float4 source, float4 destination) {
+    float3 rgb = source.rgb * destination.rgb + source.rgb * (1.0 - destination.a) + destination.rgb * (1.0 - source.a);
+    return float4(rgb, source.a + destination.a - source.a * destination.a);
+}
+
+fragment CoverOutput paintFragment(float4 position [[position]],
+                                   float4 destination [[color(0), raster_order_group(0)]],
+                                   uint4 winding [[color(1), raster_order_group(0)]],
+                                   constant CoverUniforms &uniforms [[buffer(0)]]) {
+    float4 source = uniforms.color * coverage(winding, uniforms.rule);
+    CoverOutput output;
+    output.color = uniforms.blend == 1u ? multiply(source, destination) : sourceOver(source, destination);
+    output.winding = uint4(0);
+    return output;
+}
+
+// A group's surface, same size as the target, composited through its clip at an opacity.
+fragment CoverOutput layerFragment(float4 position [[position]],
+                                   float4 destination [[color(0), raster_order_group(0)]],
+                                   uint4 winding [[color(1), raster_order_group(0)]],
+                                   texture2d<float, access::read> layer [[texture(0)]],
+                                   constant CoverUniforms &uniforms [[buffer(0)]]) {
+    float cover = uniforms.rule > ruleEvenOdd ? 1.0 : coverage(winding, uniforms.rule);
+    float4 source = layer.read(uint2(position.xy)) * uniforms.opacity * cover;
+    CoverOutput output;
+    output.color = sourceOver(source, destination);
+    output.winding = uint4(0);
+    return output;
+}
+
+// ---- Frame composition ----------------------------------------------------------------------
+
+// One textured quad per atlas tile, placed through the current view transform (which, during
+// a gesture, may differ from the one the tile was drawn at).
+struct TileQuad {
+    float2 corners[4];   // clip space: top-left, top-right, bottom-left, bottom-right
+    uint slice;
+    uint padding[3];
+};
+
+struct TileFragmentInput {
+    float4 position [[position]];
+    float2 uv;
+    uint slice [[flat]];
+};
+
+vertex TileFragmentInput tileVertex(uint vid [[vertex_id]],
+                                    uint iid [[instance_id]],
+                                    const device TileQuad *quads [[buffer(0)]]) {
+    const float2 uvs[4] = { float2(0, 0), float2(1, 0), float2(0, 1), float2(1, 1) };
+    TileQuad quad = quads[iid];
+    TileFragmentInput output;
+    output.position = float4(quad.corners[vid], 0.0, 1.0);
+    output.uv = uvs[vid];
+    output.slice = quad.slice;
+    return output;
+}
+
+fragment float4 tileFragment(TileFragmentInput input [[stage_in]],
+                             texture2d_array<float> atlas [[texture(0)]],
+                             sampler linear [[sampler(0)]]) {
+    return atlas.sample(linear, input.uv, input.slice);
+}

@@ -1,6 +1,10 @@
 import WTGeometry
 import Testing
 @testable import WTRender
+// GEO-003 added stroke types of the same names to WTGeometry; the display list's are WTRender's.
+import enum WTRender.LineCap
+import enum WTRender.LineJoin
+import struct WTRender.StrokeStyle
 
 @Suite struct HitTesterTests {
     static let viewSize = Size(width: 400, height: 300)

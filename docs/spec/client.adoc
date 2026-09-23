@@ -250,7 +250,7 @@ standard 16× sample pattern); each fan triangle covers its pixel bounding box a
 tests the 16 positions against the triangle's edges with the top-left rule, adding +1 or -1 by
 the triangle's orientation.  The cover pass turns the counters into coverage with the fill rule,
 zeroes them, and blends colour × coverage into the tile by reading it (programmable blending,
-ordered by a raster order group).  Hardware 4× MSAA failed REND-007 on 5–25% of the corpus
+ordered by a raster order group).  Hardware 4× MSAA failed REND-007 on 3–25% of the corpus
 tiles (edge errors to 128/255); 16 samples by MSAA over a 2× supersampled tile still failed
 wherever separately drawn shapes share or repeat an edge, because MSAA blends per sample while
 Core Graphics blends each draw at pixel coverage (a pixel covered c by one shape and 1 − c by

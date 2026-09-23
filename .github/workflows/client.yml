@@ -80,6 +80,12 @@ jobs:
 
       # Writes sonar.xml (lcov -> Sonar generic XML, lines) and regions.json (the merged
       # llvm-cov summary export the region gate reads in the sonar job).
+      - name: Metal parity must run (REND-007)
+        run: |
+          cd client/Packages/WTRender
+          swift test --filter 'MetalParityTests|MetalFillRuleSelfTests|MetalFrameTimeTests' 2>&1 | tee parity.log
+          if grep -q 'no Metal device' parity.log; then echo "::error::no GPU: REND-007 parity run incomplete"; exit 1; fi
+
       - name: Coverage report
         run: tools/coverage/Tests/run.sh && tools/coverage/client-coverage.sh --export-only
 
