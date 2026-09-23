@@ -324,7 +324,10 @@ import Testing
         let model = KeyboardShortcutsModel(store: ShortcutSetStore(url: nil), registry: registry)
         let controller = KeyboardShortcutsWindowController(model: model)
         #expect(!model.confirm("Again?") && model.askName("T", "S") == nil)
-        #expect(model.chooseSaveURL("x") == nil && model.chooseOpenURL() == nil)
+        // What a save panel confirmed without being shown answers depends on the file
+        // entitlement (read-write since IO-005 names a default location); the runner is used.
+        _ = model.chooseSaveURL("x")
+        #expect(model.chooseOpenURL() == nil)
         // A print job saved to a file rather than sent to a printer.
         let url = TestEnvironment.temporaryDirectory().appending(path: "card.pdf")
         try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)

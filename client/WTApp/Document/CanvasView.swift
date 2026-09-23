@@ -75,6 +75,9 @@ final class CanvasView: NSView, CanvasHost {
     /// Extra state for UI tests, appended to the accessibility value (the socket audit's
     /// counts under `-WTSocketAudit`); nil adds nothing.
     var diagnostics: @MainActor () -> String? = { nil }
+    /// Files dropped on the canvas, with the drop point in pasteboard space (importing.adoc,
+    /// "Dragging files from the Finder"); answers whether any was taken.  Nil refuses drops.
+    var onFileDrop: (@MainActor ([URL], Point) -> Bool)?
 
     /// Pinch, rotate, scroll and animations in progress (the renderer holds its tiles).
     private(set) var gestures = CanvasGestureTracker()
@@ -119,6 +122,7 @@ final class CanvasView: NSView, CanvasHost {
         setAccessibilityRole(.group)
         setAccessibilityIdentifier(Self.accessibilityIdentifier)
         setAccessibilityLabel("Canvas")
+        registerForDraggedTypes([.fileURL])
 
         document.invalidation.add(tiles)
         documentObservation = document.observe { [weak self] change in self?.documentDidChange(change) }
@@ -135,6 +139,18 @@ final class CanvasView: NSView, CanvasHost {
     override var isFlipped: Bool { false }
     override var acceptsFirstResponder: Bool { true }
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+    // MARK: Dropping files
+
+    override func draggingEntered(_ sender: any NSDraggingInfo) -> NSDragOperation {
+        onFileDrop != nil && !FileDrop.urls(from: sender.draggingPasteboard).isEmpty ? .copy : []
+    }
+
+    override func performDragOperation(_ sender: any NSDraggingInfo) -> Bool {
+        let urls = FileDrop.urls(from: sender.draggingPasteboard)
+        guard let onFileDrop, !urls.isEmpty else { return false }
+        return onFileDrop(urls, viewport.toPasteboard(viewPoint(fromAppKit: convert(sender.draggingLocation, from: nil))))
+    }
 
     /// Which renderer puts the canvas on screen.
     var backend: MetalTileCanvas.Backend { tiles.backend }

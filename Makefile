@@ -73,6 +73,7 @@ SONAR_TOKEN_SHELL = token="$${SONAR_TOKEN:-$$(cat "$$HOME/.sonar-token" 2>/dev/n
 client-test:
 	tools/coverage/Tests/run.sh
 	tools/coverage/client-coverage.sh --gate
+	tools/launch-smoke/launch-smoke.sh
 
 sonar-server:
 	@$(SONAR_TOKEN_SHELL); cd server && ./mvnw -B -ntp sonar:sonar -Dsonar.projectVersion="$$(git describe --tags --always)"

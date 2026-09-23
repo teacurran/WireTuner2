@@ -6,6 +6,21 @@
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
 	<string>WireTuner</string>
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>WireTuner Package</string>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>LSHandlerRank</key>
+			<string>Owner</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>com.villagecompute.wiretuner.package</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -52,6 +67,31 @@
 	<true/>
 	<key>SUFeedURL</key>
 	<string>https://updates.villagecompute.com/wiretuner/appcast.xml</string>
+	<key>UTExportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.zip-archive</string>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>WireTuner Package</string>
+			<key>UTTypeIdentifier</key>
+			<string>com.villagecompute.wiretuner.package</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>wiretuner</string>
+				</array>
+				<key>public.mime-type</key>
+				<array>
+					<string>application/vnd.villagecompute.wiretuner</string>
+				</array>
+			</dict>
+		</dict>
+	</array>
 	<key>WTAPIURL</key>
 	<string>$(WT_API_URL)</string>
 	<key>WTAuthIssuer</key>

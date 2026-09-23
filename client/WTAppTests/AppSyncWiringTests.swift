@@ -24,7 +24,8 @@ import WTSync
         environment.openDocument("copy-id", "Copy")
         #expect(delegate.documents.document(id: "copy-id")?.title == "Copy")
         _ = try await environment.openModel("copy-id")
-        // The popover's Sign In… and Export a Package… reach the app.
+        // The popover's Sign In… and Export a Package… reach the app (the save panel is not run).
+        delegate.packages.runSavePanel = { _, _ in nil }
         session.onExportPackage()
         delegate.sessions.onSignIn()
         #expect(delegate.commands.contains(CollaborationCommands.ID.reviewMerge))

@@ -33,6 +33,11 @@ summaries (`DocumentDisplayListBuilder`, below), so it imports `WTRender` and `W
 sit below it in the table; neither imports `WTModel`, so the package graph stays acyclic
 (`WTSync` reaches WTRender only through `WTModel`).
 
+NOTE: Deviation recorded by IMG-008 and IO-006.  `WTModel` also imports `WTInterchange`: it turns
+the importers' neutral `ImportedScene` into ops and builds and reads the `.wiretuner` package's
+document half (import-formats.adoc, "Imported scene to document"; saving.adoc, "Client").
+`WTInterchange` imports nothing above `WTRender` and `WTProto`, so the graph stays acyclic.
+
 == Concurrency
 
 * `Engine` and `SyncClient` are actors.  `Document` is a `@MainActor` observable façade over the

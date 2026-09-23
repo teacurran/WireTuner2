@@ -252,8 +252,17 @@ rather than a separate `SvgAnimationImporter`: with the *Animation* option on *A
 blob and the view box as its bounds; `SVGImporter.animationInfo(_:)` exposes the analysis for
 WEB-025.  The duration is the largest SMIL end (begin + dur × repeatCount, `end` or
 `repeatDur`) and CSS animation or transition end (delay + duration × count), 0 when any is
-indefinite or infinite.  Files over 50 MiB are refused.  The poster (`WKWebView`) and the node
-creation remain WEB-025's.
+indefinite or infinite.  Files over 50 MiB are refused.
++
+NOTE: As built by WEB-025's placement (`WTApp/Import/PosterRenderer.swift`,
+`WTModel/ImportMapping.swift`).  The poster is drawn by an offscreen `WKWebView` loading the
+file as `image/svg+xml` with page scripts off, pausing every Web Animation and SMIL timeline at
+0 from the app, at twice the view box capped at 4,096 pixels; when WebKit has not answered within
+3 s (or fails), the file converted to static objects is drawn by the reference renderer instead,
+so an animation is never placed without a poster.  The poster blob is stored before the SVG's,
+and `PlaceImportedScene` creates the `svg_animation` node with an asset for each (poster time 0).
+Placement is the Import command's and a drop's (natural size); drag-to-size with kbd:[Shift]
+waits for the import pointer (IMG-005).
 * Rendering (`WTRender`): draws the poster blob like a bitmap (IMG epic's image drawing path)
   with a small play glyph overlay at the centre in the canvas only (never in exports or print);
   placeholder states as for images.  The canvas never evaluates the animation.

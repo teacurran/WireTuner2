@@ -618,11 +618,44 @@ for the update prompt), a `merge_table_version` above the client's, a missing or
 and a blob whose bytes do not hash to its name; listed blobs absent from the zip are simply not
 restored.  It returns the manifest, the snapshot bytes, the verified blobs, the thumbnail and the
 preview (nil when absent).  `PackageReader.manifest(of:)` and `thumbnail(of:)` read one entry for
-Quick Look and Spotlight.  The zip has no zip64: a package over 4 GiB is refused.  The re-issue
-path, blob restoration into the cache, placeholder assets, the menu commands and UTI
-registration are the `WTModel`/`WTSync`/`WTApp` halves of IO-005 and IO-006, still to do, as are
+Quick Look and Spotlight.  The zip has no zip64: a package over 4 GiB is refused.  Still to do:
 the design-point timing and `qpdf --check` (not installed; the tests open `preview.pdf` with
 `CGPDFDocument` and check its one page and box instead).
++
+NOTE: As built by the `WTModel` and `WTApp` halves of IO-005 and IO-006
+(`WTModel/PackageExport.swift`, `PackageReissue.swift`, `WTApp/Import/PackageController.swift`).
+`DocumentPackage.contents` gives `PackageWriter` the zstd `DocumentSnapshot`, its `StateHash`,
+every blob the live nodes reference (image pixels, placed files and their previews, assets) with
+the cached bytes or nil, and page 1 drawn from the document's display list; the manifest carries
+`feature_level` 1 and `merge_table_version` 1 (the generated merge table names itself by a
+content hash, not a number, so packages carry 1 until it gains one), `head_server_seq` and the
+outbox count from the local store.  `DocumentPackage.state(of:)` reads the frame's content size
+from the zstd header, decompresses, checks the manifest's state hash and decodes.
+`PackageReissue` is the re-issue path IO-004's Duplicate will share: every live node is created
+first with its kind alone (tree order, fresh sibling positions), then each SEQUENCE is one
+`ElementInsert` carrying its elements' registers and each TEXT field one `TextInsert` of its live
+characters, then one `SetFields` per node for the registers outside elements (and for element
+registers whose references were not yet resolvable, and newline paragraphs), then one
+`TextMark` per mark (an anchor on a deleted character moves to the nearest live one; a mark with
+none left is dropped) and one `SetAdd` per SET.  Instead of copying whole `NodeProps` the
+registers are copied path by path, so every field of every kind is carried without per-kind code;
+`NodeRef`s and `ElementId`s inside values, paths and set members are rewritten to the copies by
+walking the merge table's message types (a reference to a node left behind is cleared);
+deleted nodes, elements and characters and `local_only` registers are not re-issued.  Missing
+blobs become placeholder `asset` nodes (note "Missing from the package") unless an asset already
+carries the hash.  Changes are cut after the step that reaches 5,000 ops or 2 MiB, each performed
+as a `ReissueChunk` command in one undo group, so -- deviation -- the new document's undo list
+holds one step, "Import package" (`DocumentBackend` has no unrecorded perform; undoing it empties
+the document, redo restores it).  menu:File[Export a Package…] warns, naming them, about blobs
+not on this Mac; menu:File[Open Package…] and a package opened from the Finder
+(`application(_:open:)`, the UTI `com.villagecompute.wiretuner.package` exported and claimed as
+the owner in `project.yml`) validate the package before anything is created, then make the new
+document through the library's pending creation in its current space and folder -- the page's
+"choose which team or folder" step is not delivered -- store the package's blobs (queued for
+upload) and re-issue.  The app's sandbox entitlement is now `files.user-selected.read-write` so
+the export can write where the save panel says.  The round trip, "two imports are unrelated" and
+the cutting are WTModel tests (`PackageReissueTests`); "importing while another window syncs does
+not interleave" is not tested separately (each document's changes go through its own backend).
 * Quit sheet: `NSApplication.delegate.applicationShouldTerminate(_:)` returns
   `.terminateLater` while *Quit When Uploaded* waits; the wait shows a progress window and can
   be cancelled.

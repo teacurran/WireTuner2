@@ -307,9 +307,9 @@ limit, and *Keep both offset* (the gap between PDF pages placed in a row).
 sheet preview and the round-trip tests use.  The per-format typed options are
 `PDFImportOptions`, `SVGImportOptions` (with the *Animation* choice of
 xref:svg-animation.adoc[SVG animations]: automatic, place or convert) and `DXFImportOptions`
-(the three filters and *Units*); IMG-008's sheet, per-format persistence UI, "Import _file_"
-change assembly and merge test belong to the `WTApp`/`WTModel` half of the task, which is still
-to do.
+(the three filters and *Units*).  IMG-008's `WTApp`/`WTModel` half -- the sheet, per-format
+persistence, the "Import _file_" change and the merge test -- is described after the mapping
+table below.
 
 ==== Imported scene to document
 
@@ -377,6 +377,46 @@ two imports of the same bytes share one blob (content addressing).
 |`notes`
 |Shown in the import notice after placement; nothing is stored.
 |===
+
+NOTE: As built by IMG-008's `WTModel`/`WTApp` half, IMG-011's node and WEB-025's placement
+(`WTModel/ImportMapping.swift`, `WTApp/Import/`).  `WTModel` imports `WTInterchange` for this
+(client.adoc, "Packages").  `PlaceImportedScene` is the command: one change, "Import _file_" for a
+`.vector` scene and "Place _file_" otherwise, with `ImportPlacement.at(point)` (the bounds'
+top-left corner at the point, natural size) or `.fit(rect, fillWidth:)` (the marquee: centred
+and proportional, or the rect's width exactly from its top-left for kbd:[Shift]).
+`ImportTarget.resolve` is the layer rule: the current layer when visible and unlocked, else the
+nearest such layer above it; with none above, a new layer "Imported Artwork" at the top (the
+page does not say; it never imports onto a layer you cannot see or edit), and with no layer at
+all "Foreground", as the drawing tools make.  The *Notes* and *URLs* layers are matched by name
+among ordinary layers and created at the top of the list, and their artwork gets the same
+placement.  Values the document cannot hold: a stroke's dash phase (`DashPattern` has none),
+a paint's alpha (`Color` has none; node opacity is kept as the transparency effect) and a
+gradient stroke, which paints its first stop.  Text: the family and style are looked up from the
+PostScript name with Core Text; a font that is not installed keeps its PostScript name as the
+family for substitution; each run gets family, style, size and fill marks (one attribute per
+`TextMark`); the block's transform is the first run's origin, then the text's transform.  A
+link record (`asset` under 0:9, `LINK_KIND_LOCAL_FILE` with name, path, the Mac's name and the
+file's modification date) is written only for a scene placed whole from a file (bitmap or placed
+file); an SVG animation always has an asset for its blob (`LINK_KIND_EMBEDDED` without a file)
+and a second for its poster; identical blobs in one change share one asset.  `PlaceImportedScene
+.placedRoot(of:in:)` names the node to select.  IMG-011: the `placed_file` node is written from
+an `.eps` `ImportedPlacedFile`, but no importer produces one yet -- `ImportRegistry.standard` has
+no EPS importer (DSC parsing and preview extraction are `WTInterchange` work, still to do), so
+EPS files are refused as unsupported apart from legacy Illustrator files that fall back to
+placement.  In `WTApp`, `ImportController` runs menu:File[Import…] (kbd:[Cmd+R]): the panel
+accepts every registered type and its accessory shows the selected file's format with
+btn:[Options…], which opens the sheet (`ImportOptionsSheet`, rendered from the importer's
+schema, btn:[Defaults], Cancel, OK); values persist per format through `ImportOptionsStore` in
+the preferences' defaults, so across launches.  The files are converted off the main actor,
+their blobs stored before the change (`BlobPlacement`: through the window's session's blob
+queue, else into the blob cache and the store's `blobs_pending`, else the cache alone for a
+memory document), and placed centred in the view at natural size, each next file down and right
+by the *Keep both offset*; the placed objects are selected, a fallback layer becomes current and
+is named in the status bar with the converters' notes, and refused files are named in one
+alert.  The import pointer (click and marquee placement, the counter, kbd:[Return] and kbd:[Esc])
+and pasting are the rest of IMG-005, still to do.  The merge test is
+`concurrentImportsOntoOneLayerConverge` (two replicas importing onto one layer converge with
+both groups in the same order).
 
 NOTE: As built by IMG-012 (`WTInterchange/Import/SVG/`).  User units are read at 96 px/in as
 this page says.  The SVG exporter (IO-019) writes one user unit per point, and by default also

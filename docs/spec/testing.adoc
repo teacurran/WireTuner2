@@ -340,6 +340,19 @@ enable-automationmode-without-authentication`); without it `xcodebuild` fails th
 at start-up ("Timed out while enabling automation mode"), and `make client-test` skips the UI
 tests.
 
+[[launch-smoke]]
+*Launch smoke test.*  Unit tests are hosted in the app, whose `main()` skips the delegate for
+them, so they cannot see a launch that runs with no delegate or no window; UI tests could, but
+need Automation Mode.  `tools/launch-smoke/launch-smoke.sh`, the last step of `make
+client-test`, starts the built `WireTuner.app` binary as its own process with an emptied
+environment, `-WTUITesting` (memory documents, no keychain, no sync, no session restore -- the
+app is sandboxed, so its container cannot be redirected with `HOME`) and
+`-ApplePersistenceIgnoreState YES`, then polls `CGWindowListCopyWindowInfo` for an on-screen
+window of that process on the normal layer at least 300 × 200 points, which needs neither
+Accessibility nor Screen Recording permission (window titles, which would, are not read).  It
+fails when the process exits or no such window appears within 30 s, and always terminates the
+app.  It needs a logged-in GUI session.
+
 == Server
 
 Quarkus tests with Testcontainers (postgres, valkey, minio, keycloak), one test class per

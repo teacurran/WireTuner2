@@ -88,6 +88,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Where the launch looks for stores to upload headlessly (the documents folder in the app).
     let storesDirectory: @Sendable () throws -> URL
     private(set) var menuTarget: CommandMenuTarget?
+    /// menu:File[Import…] and files dropped on a canvas (IMG-005, IMG-008, WEB-025).
+    private(set) lazy var imports = ImportController(preferences: preferences)
+    /// menu:File[Export a Package…], menu:File[Open Package…] and packages opened from the Finder
+    /// (IO-005, IO-006).
+    private(set) lazy var packages = PackageController()
 
     /// - Parameters:
     ///   - layoutStore: where the panel layout persists; `nil` keeps it in memory (tests).
@@ -160,6 +165,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return try await opener(id)
         }
         environment.makePasteboard = { SystemObjectPasteboard() }
+        environment.importFiles = { [weak self] window, urls, point in self?.imports.drop(urls, on: window, at: point) ?? false }
         environment.session = { sessions.session(for: $0) }
         environment.documentDidClose = { sessions.documentDidClose($0) }
         environment.userName = { accountModel.profile?.displayName ?? "" }
@@ -217,6 +223,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
         LibraryCommands.install(into: commands) { [weak self] in self?.showLibrary() }
         ShareCommands.install(into: commands, canShare: { documents.activeWindowController != nil }) { [weak self] in self?.showShare() }
+        installImports()
         CollaborationCommands.install(into: commands, window: { documents.activeWindowController }, preferences: preferences)
         PreferenceCommands.install(into: commands, store: preferences) { [weak self] in self?.showPreferences() }
         installTools()
@@ -402,10 +409,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @discardableResult
     func open(_ url: URL) -> Bool {
+        if url.isFileURL, url.pathExtension == PackageController.fileExtension {
+            Task { await packages.open(url) }
+            return true
+        }
         guard InviteLink.token(in: url) != nil else { return false }
         showLibrary()
         library.showJoinTeam(link: url.absoluteString)
         return true
+    }
+
+    /// The import and package commands over the open windows' blob queues and the library.
+    func installImports() {
+        let documents = documents!
+        let library = library
+        let account = account
+        imports.blobs.queue = { documents.windowControllers[$0.id]?.session?.client?.blobs }
+        packages.blobs.queue = imports.blobs.queue
+        packages.account = { (account.profile?.accountID ?? "", account.profile?.displayName ?? "") }
+        packages.createDocument = { title in documents.document(id: library.createDocument(name: title).id) }
+        ImportCommands.install(into: commands, hooks: ImportCommands.hooks(imports: imports, packages: packages) { documents.activeWindowController })
     }
 
     /// menu:WireTuner[Account…].

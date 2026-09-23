@@ -51,6 +51,9 @@ struct DocumentEnvironment {
     var makePasteboard: @MainActor () -> any ObjectPasteboard = {
         SystemObjectPasteboard(NSPasteboard(name: NSPasteboard.Name("com.villagecompute.wiretuner.objects.private")))
     }
+    /// Files dropped on a window's canvas at a pasteboard point: the app's `ImportController`;
+    /// nil refuses drops (tests).
+    var importFiles: (@MainActor (DocumentWindowController, [URL], Point) -> Bool)?
 
     /// A document `id` titled `title` whose model `openModel` opens.
     func makeDocument(id: String = UUID().uuidString, title: String) -> DocumentHandle {
@@ -276,6 +279,9 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         interaction.floatingFrame = { [weak window] in Self.floatingFrame(near: window?.frame) }
         canvas.onViewportChange = { [weak self] viewport in self?.viewportDidChange(viewport) }
         canvas.onStatusMessage = { [weak self] message in self?.statusBar.show(message: message) }
+        if let importFiles = environment.importFiles {
+            canvas.onFileDrop = { [weak self] urls, point in self.map { importFiles($0, urls, point) } ?? false }
+        }
         statusBar.onMagnification = { [weak self] text in self?.enterMagnification(text) }
         statusBar.onViewMode = { [weak self] mode in self?.setViewMode(mode) }
         statusBar.onAddPage = { [weak self] in self?.addPage() }
