@@ -207,6 +207,16 @@ public final class StatusExceptions {
                 Map.of("requested", Long.toUnsignedString(atOrBefore)));
     }
 
+    /**
+     * {@code FAILED_PRECONDITION / MERGE_STALE}: the parent changed nodes the merge review decided
+     * about after the head the client reviewed against (branches.adoc, Merge semantics).
+     */
+    public static StatusRuntimeException mergeStale(long reviewedParentSeq, long head) {
+        return withReason(Code.FAILED_PRECONDITION, ErrorReasons.MERGE_STALE,
+                "the parent changed reviewed nodes after server_seq " + reviewedParentSeq + " (head " + head + ")",
+                Map.of("reviewed", Long.toString(reviewedParentSeq), "head", Long.toString(head)));
+    }
+
     /** {@code NOT_FOUND / BLOB_NOT_FOUND}: the document does not reference the blob, or it has not arrived. */
     public static StatusRuntimeException blobNotFound() {
         return withReason(Code.NOT_FOUND, ErrorReasons.BLOB_NOT_FOUND, "blob not found for this document", Map.of());

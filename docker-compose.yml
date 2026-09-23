@@ -237,6 +237,8 @@ services:
       - maven_target_crdt:/app/server/wt-crdt/target
     environment:
       WT_KEYCLOAK_URL: http://keycloak:8080
+      # tools/bin is bind-mounted from the host; build protoc-gen-wtcrdt for Linux in the container.
+      MAKEFLAGS: "BIN=/tmp/wtcrdt/protoc-gen-wtcrdt WORK=/tmp/wtcrdt/work"
       # No Docker socket in here: never let Dev Services try to start containers.
       QUARKUS_DEVSERVICES_ENABLED: "false"
       QUARKUS_HTTP_HOST: 0.0.0.0

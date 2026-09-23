@@ -373,6 +373,13 @@ message AckRequest {
 message AckResponse {
   // Every active replica has applied everything up to here.
   uint64 stable_seq = 1;
+  // The collection point's server_seq C (D-067; crdt-model.adoc "Stable points, horizons and
+  // collection points"): collect at (collect_seq, collect_time_ms) once everything up to C is
+  // applied.  0 = no collection yet; a point below one already collected at collects nothing.
+  uint64 collect_seq = 2;
+  // The collection point's clock T, Unix milliseconds: deleted nodes compact when their deletion
+  // is at least 30 days before it.
+  int64 collect_time_ms = 3;
 }
 
 // Asks for a range of the log.

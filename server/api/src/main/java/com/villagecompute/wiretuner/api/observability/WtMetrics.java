@@ -108,6 +108,22 @@ public class WtMetrics {
                 new AtomicLong())).set(head - stable);
     }
 
+    /** One snapshot's build time: load, replay, collect, encode and store (SRV-007). */
+    public void snapshot(long nanos) {
+        Timer.builder("wt.snapshot").publishPercentileHistogram().register(registry).record(nanos, TimeUnit.NANOSECONDS);
+    }
+
+    /** One search record's extraction time from a snapshot's state (SRV-007). */
+    public void searchExtract(long nanos) {
+        Timer.builder("wt.search.extract").publishPercentileHistogram().register(registry)
+                .record(nanos, TimeUnit.NANOSECONDS);
+    }
+
+    /** Replicas the Stability job retired for silence (SRV-013). */
+    public void replicasRetired(long count) {
+        registry.counter("wt.replica.retired").increment(count);
+    }
+
     private void remove(String name, UUID document) {
         registry.find(name).tag(DOCUMENT, document.toString()).meters().forEach(registry::remove);
     }

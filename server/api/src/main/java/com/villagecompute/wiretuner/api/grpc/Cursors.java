@@ -57,6 +57,15 @@ public final class Cursors {
         }
     }
 
+    /** A cursor part that must be a long (a server_seq or a time). */
+    public static long number(String part) {
+        try {
+            return Long.parseLong(part);
+        } catch (NumberFormatException e) {
+            throw invalid();
+        }
+    }
+
     /** A cursor part that must be a non-negative int (an offset). */
     public static int offset(String part) {
         try {

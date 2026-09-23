@@ -42,8 +42,8 @@ class SchemaTest {
     DataSource dataSource;
 
     @Test
-    void flywayReachedV9() {
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("9");
+    void flywayReachedV10() {
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("10");
         assertThat(flyway.info().pending()).isEmpty();
     }
 
@@ -52,7 +52,7 @@ class SchemaTest {
         List<String> present = strings("SELECT tablename FROM pg_tables WHERE schemaname = 'public'");
         assertThat(present).containsAll(TABLES);
         assertThat(strings("SELECT extname FROM pg_extension")).contains("pg_trgm");
-        assertThat(strings("SELECT value FROM schema_info WHERE key = 'wiretuner.schema'")).containsExactly("WEB-012");
+        assertThat(strings("SELECT value FROM schema_info WHERE key = 'wiretuner.schema'")).containsExactly("SRV-013");
     }
 
     @Test

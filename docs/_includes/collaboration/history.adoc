@@ -338,7 +338,27 @@ later); older rows show *Available when online*.  Restore as Copy needs the netw
 
 === Server
 
-SRV-011 delivers named versions as bookmarks and restore-as-copy.  COLLAB-020 adds:
+SRV-011 delivers named versions as bookmarks and restore-as-copy.
+
+As built (SRV-011, `api/.../history`): `NameVersion` records the head for `server_seq` 0, refuses a
+seq beyond the head (`HISTORY_UNAVAILABLE`), and resolves `through_local_change` to the
+`server_seq` of the replica's logged change whose counters it falls in (not in the hot log:
+`HISTORY_UNAVAILABLE`); a retry with the same `version_id` answers the version, the id on another
+document is `DOCUMENT_EXISTS`.  `ListVersions` pages newest first by `(created_at, id)`.
+`PinVersion(true)` materializes a snapshot at exactly the version's seq (the state rebuilt from the
+newest snapshot before it plus the tail, including cold segments) unless one exists there, and sets
+`pinned`; unpinning clears the flag and leaves the snapshot.  An unknown `version_id` is
+`NOT_FOUND`.  `RestoreAsCopy` is `DocumentService.Fork` at the seq with no changes, defaulting to
+the caller's personal space and the source's name.  `ListHistory` and `ListNodeHistory` read the
+hot log only, so `retained_from_seq` is its oldest row: sessions are one author and one merged
+branch with gaps under 10 minutes, newest first, carrying their changes at five or fewer or when
+named by `expand_session`, interleaved with the named versions in the page's seq range (a version
+above a session ending at its seq); a page reads at most 5,000 rows (a session longer than that
+continues on the next page), and `query` matches labels and author names.  `ListNodeHistory` scans
+the log newest first in pages of 256 rows.  Node names at the time, `attributes`, the object-name
+query and the touched-node index are COLLAB-020.
+
+COLLAB-020 adds:
 `ListHistory` with server-side session grouping and search, a touched-node index on
 `change_log` for `ListNodeHistory`, `attributes` derivation from field paths, offline
 `NameVersion` resolution through `through_local_change`, snapshot materialization for named

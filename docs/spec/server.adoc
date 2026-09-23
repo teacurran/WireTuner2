@@ -106,12 +106,19 @@ frame, so `ChangeRules` enforces that cap and the 4 MiB change cap itself
 `DocumentService` (SRV-009) checks document RPCs through `RoleGuard` and space RPCs (Create,
 List, Search, folders) through space membership: a space is the caller's own account or a team
 they belong to; any team member, a guest included, may list and search it and sees only the
-documents they can open; creating needs team member or above on a live team.  Deviation until
-SRV-007: Fork and Duplicate do not yet re-issue the source's state as one creation change; they
-copy the source's hot `change_log` rows up to the fork point row for row (keeping each
-`server_seq`), then append the caller's extra changes, carry over the source's blob references
-and thumbnail, and bind the caller's replicas on the copy.  A fork point part of which has been
-compacted is `FAILED_PRECONDITION / HISTORY_UNAVAILABLE`.
+documents they can open; creating needs team member or above on a live team.  As built
+(SRV-007): Fork and Duplicate start the copy from the source's state at the fork point -- the
+newest snapshot at or before it plus the tail through `wt-crdt` (`DocumentStates`, reading cold
+segments where the hot log has been compacted) -- stored as the copy's snapshot at the same
+`server_seq`, so the copy keeps every node id, register OpId and unstable tombstone (which a
+branch needs, xref:branches.adoc[Branches]) and its head starts at the
+fork point with no log rows below it; the caller's extra changes follow, the source's blob
+references and thumbnail are carried over, and the caller's replicas are bound on the copy with
+the seqs the state holds.  An extra change already in the source's hot log with the same bytes is
+dropped, with other bytes is `REPLICA_CONFLICT`.  A fork point the retained history cannot rebuild
+is `FAILED_PRECONDITION / HISTORY_UNAVAILABLE`.  (Deviation: the copy is not re-issued as one
+creation change with fresh ids; the server does not generate ops, and a branch must keep the
+parent's ids.)
 Rename, MoveToFolder, Trash and Restore tell every live subscription on the document
 (`DocumentEvent` `Renamed`, `Moved`, `Trashed`, the caller as actor) once their transaction has
 committed (SRV-005).
@@ -121,6 +128,11 @@ the multipart upload only when size and sha256 match the header and aborts it ot
 bad upload never becomes visible.  A blob the server already holds is still hashed end to end
 before the document gets its reference (a hash alone must not grant access) but is not stored
 again.
+
+`BranchService` and `VersionService` (SRV-011, `api/.../branch`, `api/.../history`) are
+specified as built on xref:branches.adoc[Branches] and
+xref:history.adoc[Version history] (Server).  SRV-011 added the reason
+`MERGE_STALE`.
 
 `ShareService` (SRV-010, `api/.../share`) is specified as built on
 xref:sharing.adoc[Sharing] (Server): members by account or by email (a pending invitation
@@ -143,17 +155,17 @@ Postgres holds the truth; object storage holds bulk.
 |===
 |Table |Purpose
 
-|`document` |Identity, space (account XOR team), `folder_id` (null = the space's root), feature level, `head_seq`, `stable_seq`, trash timestamp, document kind (`illustration_single_page`, `illustration_multi_page`, `typeface`), `is_template`, `is_library`, `created_by_account_id`, `thumbnail_blob` (sha256 of the client-rendered thumbnail, nullable) and `thumbnail_at`.
+|`document` |Identity, space (account XOR team), `folder_id` (null = the space's root), feature level, `head_seq`, `stable_seq`, `collect_seq` and `collect_time_ms` (the published collection point, V10), `snapshot_due_at` (the snapshotter's last-subscription-closed trigger, V10), trash timestamp, document kind (`illustration_single_page`, `illustration_multi_page`, `typeface`), `is_template`, `is_library`, `created_by_account_id`, `thumbnail_blob` (sha256 of the client-rendered thumbnail, nullable) and `thumbnail_at`.
 |`folder` |Id, space (account XOR team), `parent_folder_id` (null = the root), name.  No roles: access is per document and per space (V6, SRV-009).
 |`document_search` |`document_id` primary key, `server_seq` the record was extracted at, `names` (text: object names, swatch / style / symbol names, keywords, page names, one per line; trigram GIN index via `pg_trgm`), `body` (`tsvector` in the `simple` configuration: text block contents and notes; GIN index), `names_body` (a second `tsvector` over the names, so a name matches as a word as well as a substring), `body_text` (the text and note lines behind `body`, prefixed like `names`, because `ts_headline` needs source text and a `tsvector` cannot be highlighted; V6).  The vectors are built from the lines with their prefixes stripped (`DocumentSearchRepository.upsert`).  Rewritten by the snapshotter; never read by sync.
-|`change_log` |`(document_id, server_seq)` primary key, replica, seq, `bytes` (the encoded `Change`), wall time, byte size.  Hash-partitioned by `document_id`, 16 partitions.  Rows older than the newest snapshot minus a margin are moved to cold segments.
-|`replica` |`(document_id, replica_id)`, account, device, `last_seq`, `last_ack_seq`, `last_seen_at`, `retired_at`.
-|`snapshot` |`(document_id, server_seq)`, object key, `state_hash`, size, node count.
-|`cold_segment` |`(document_id, from_seq, to_seq)`, object key, compressed size.
+|`change_log` |`(document_id, server_seq)` primary key, replica, seq, `bytes` (the encoded `Change`), wall time, byte size.  Hash-partitioned by `document_id`, 16 partitions.  Rows a snapshot covers, beyond the newest 10,000, are moved to cold segments.  V10 (D-067, SRV-011): `horizon_seq` and `horizon_ms`, the change's horizon (Jobs, below), and `merged_from_branch_id` for a change a branch merge replayed.
+|`replica` |`(document_id, replica_id)`, account, device, `last_seq`, `last_ack_seq`, `last_seen_at`, `retired_at`.  V10 (D-067): `published_seq` / `published_ms`, the publication the last Ack answered, and `horizon_seq` / `horizon_ms`, the one before it, which the replica confirmed receiving by acking again.
+|`snapshot` |`(document_id, server_seq)`, object key, `state_hash`, size, node count.  V10: `uncompressed_size` (the decompressed `DocumentSnapshot`, which `FetchSnapshot`'s header carries) and `collect_seq` / `collect_time_ms`, the collection point the state was collected at.
+|`cold_segment` |`(document_id, from_seq, to_seq)`, object key, compressed size.  V10: `change_count` and `min_horizon_seq` / `min_horizon_ms`, the smallest change horizon in the segment.
 |`document_member`, `share_link`, `share_link_use` |Roles; `share_link_use(share_link_id, account_id, used_at)` records who used a link, which the effective-role rule needs.  V7 (SRV-010, SRV-012): `document_member.role` may be `none` -- a row that grants nothing and only holds `color_index`, the presence color (0-11) assigned on the account's first Subscribe; `share_link` gains `password_hash` (argon2id PHC string), `revoke_on_expiry` and `team_members_only`.
 |`document_invite`, `access_request` |V7 (SRV-010): an invitation by email to an address no account has yet (`document_id`, lower-case-unique `email`, role, inviter); a request for access (`document_id`, `account_id`, message, `resolved_at`, `granted_role`), one pending per person and document.
-|`branch` |Child document id, parent document id, fork `server_seq`, merged at.
-|`version` |`(document_id, server_seq)`, name, author, created.
+|`branch` |Child document id, parent document id, fork `server_seq`, merged at.  V10 (SRV-011): name, state (`active`, `archived`, `merged`), `merged_branch_seq`, `merged_parent_seq`, `created_by_account_id`.
+|`version` |V10 (SRV-011) replaces the table: `id` (the client's UUIDv7) primary key, document, `server_seq`, name, note, author, `pinned`, created and updated; two versions may name one seq.
 |`blob`, `document_blob` |sha256, size, media type, storage key (`blobs/<first byte>/<sha256>`), `tag` the blob was first uploaded with (`content` or `thumbnail`); references per document.  A thumbnail upload sets `document.thumbnail_blob` and adds no reference.
 |`data_credential`, `data_allowed_host`, `data_fetch_audit` |V8 (DATA-005, DATA-007, DATA-008): the data service's envelope-encrypted credentials, permitted hosts and fetch audit trail, each in a team XOR one account's personal space (xref:data-merge.adoc#as-built-server[Data merge], As built).
 |`account`, `account_identity`, `device`, `team`, `team_member`, `team_invite`, `workspace`, `workspace_domain` |xref:security.adoc[Accounts, teams and security].  V7 adds `workspace_domain.checked_at` and `failed_checks` for the Domains job; V9 adds `account.preferences` (the synced preferences as JSON).
@@ -246,10 +258,10 @@ As built (SRV-004, SRV-005; `api/.../sync`):
 |===
 |Job |Schedule |Work
 
-|Snapshotter |every 2 min, per document with `head_seq - last_snapshot_seq > 2,000`, or age > 30 min, or whose last subscription closed with changes since the last snapshot |Load newest snapshot, replay the tail through `wt-crdt`, write a new snapshot to object storage, record its hash.  Then extract the document's *search record* from the same merged state and rewrite its `document_search` row (below).
+|Snapshotter |every 2 min, per document with `head_seq - last_snapshot_seq > 2,000`, or age > 30 min, or whose last subscription closed with changes since the last snapshot |Load newest snapshot, replay the tail through `wt-crdt`, collect at the published collection point (_C_, _T_), write a new snapshot to object storage, record its hash.  Then extract the document's *search record* from the same merged state and rewrite its `document_search` row (below).
 |Apple secret |every 30 days |Regenerate the Sign in with Apple client secret (a JWT signed with the team's `.p8` key, valid at most six months) and update the Keycloak identity provider through the admin API (xref:security.adoc[Accounts, teams and security]).
-|Compactor |hourly |Move `change_log` rows older than `newest_snapshot_seq - 10,000` into cold segments (zstd, 8 MiB each); delete the rows.
-|Stability |every 5 min |Compute `stable_seq = min(last_ack_seq over live replicas)`, publish it; retire replicas silent past the window.
+|Compactor |hourly |Move `change_log` rows up to `min(newest_snapshot_seq, head_seq - 10,000)` into cold segments (zstd, 8 MiB each); delete the rows.
+|Stability |every 5 min |Retire replicas silent past the window (90 days); compute `stable_seq = min(last_ack_seq over live replicas)` and the collection point (_C_, _T_) (D-067), publish both.
 |Trash |daily |Delete documents trashed over 30 days ago and their orphaned blobs.
 |Invitations |daily |Expire stale invitations and share links.
 |Comment digest |every 5 min |Mail each account one digest per document of the mentions it has not seen for 10 minutes while away (COLLAB-031).
@@ -275,10 +287,61 @@ people who opened it (a link's expiry itself is applied when roles are read).  *
 (`CommentDigestJob`, COLLAB-031, every 5 minutes, two minutes after start) is specified as built on
 xref:comments.adoc[Comments].
 
-Until the Stability job exists, `SyncService.Ack` computes it for the one document: it records
-the replica's `last_ack_seq` (never backwards, clamped to the head; an unbound replica is bound
-to the caller as by a push) and raises `document.stable_seq` to the minimum `last_ack_seq` over
-the document's live replicas, never lowering it; the response carries the result.
+`SyncService.Ack` also computes the stable point for its one document at once: it records the
+replica's `last_ack_seq` (never backwards, clamped to the head; an unbound replica is bound to the
+caller as by a push) and raises `document.stable_seq` to the minimum `last_ack_seq` over the
+document's live replicas, never lowering it; the response carries the result and the document's
+published collection point (`collect_seq`, `collect_time_ms`, D-067).
+
+As built (SRV-007, SRV-013, D-067; `api/.../history`):
+
+* *Snapshotter* (`Snapshotter`, every 2 minutes, a minute after start).  The last-subscription
+  trigger is `document.snapshot_due_at`, set when a node's last Subscribe stream on the document
+  ends while the head is past the newest snapshot, and cleared by the snapshot.  A snapshot is the
+  state at the head (`DocumentStates`: the newest snapshot at or before it, decoded, plus the tail
+  from the hot log and cold segments), collected at the document's published collection point when
+  _C_ > 0, encoded by `wt-crdt` and stored zstd-compressed as one object
+  `snapshots/<document>/<server_seq>` (`Snapshots`); its row carries the state hash, the compressed
+  and decompressed sizes, the node count and the point.  A seq already snapshotted is left as it
+  is.  The search record is then extracted from the same state (`SearchExtractor`, Search below)
+  and the `document_search` row rewritten.  A document that fails is logged and retried at the
+  next run; `wt_snapshot_seconds` and `wt_search_extract_seconds` time the two steps.  Snapshots are
+  compared with a client's state hash at the same seq and collection point (`SnapshotterTest`,
+  `BranchServiceTest`).
+* *Compactor* (`Compactor`, hourly).  Deviation: the boundary is `min(newest_snapshot_seq,
+  head_seq - 10,000)` rather than `newest_snapshot_seq - 10,000`, so the hot log stays at 10,000
+  rows (SRV-007's done-when) while never moving a row no snapshot covers.  Rows go out oldest first
+  in segments of about 8 MiB of change bytes (the segment ends with the row that crosses 8 MiB):
+  length-delimited `SequencedChange`s (seq and bytes as logged) in one zstd frame under
+  `cold/<document>/<from>-<to>` (`SegmentCodec`), with the segment's smallest change horizon; the
+  `cold_segment` row is written and the rows deleted in one transaction.  `ChangeReader` serves a
+  range the hot log no longer holds from the segment containing its next seq (authors resolved from
+  the replica), so `FetchChanges`, Subscribe's replay, forks and history reads see one log.
+* *Horizons and the collection point* (D-067, crdt-model.adoc "Stable points, horizons and
+  collection points").  A publication is an Ack's answer: the stable point with the server's clock.
+  The server cannot see when a client made a change, so a replica's *horizon* is the publication it
+  has confirmed receiving -- the answer to its previous Ack, confirmed by acking again (`replica.
+  horizon_*` takes the old `published_*`) -- and each accepted change is recorded with that horizon,
+  capped by its own `base_server_seq` (the ingest statement reads it from the replica row it
+  updates).  The Stability job starts _C_ and _T_ at the smallest horizon over the live replicas,
+  lowers _C_ to the horizon of every change sequenced after it with a lower one (hot rows, and cold
+  segments by their smallest horizon) until none is, and lowers _T_ to the smallest horizon clock
+  after _C_; `document.collect_seq` / `collect_time_ms` hold it and every Ack answers it.  A
+  document whose replicas are all retired keeps its point.  Limits, recorded here: a change made
+  before its author received a publication but pushed after the author confirmed it (an outbox
+  sent after a reconnect's first acks) is credited with the newer horizon, and a replica new to the
+  document starts at horizon 0 (holding _C_ at 0 until it has acked twice); an exact horizon needs
+  the client to send it with the change (a proposed field on the push requests, SYNC track).
+  Subscribers are not sent the point on the stream (no `ServerFrame` case carries it); they
+  receive it in their Ack answers every 2 seconds.
+* *Stability* (`Stability`, every 5 minutes).  Retires every replica whose `last_seen_at` (a push or
+  an ack) is 90 days old (`wt.replica.retire-after`, `wt_replica_retired_total`); its pushes, acks
+  and subscriptions then answer `REPLICA_EXPIRED`, and it no longer counts towards the stable point
+  or the collection point.
+* *Trash* (`TrashJob`, daily).  Deletes documents trashed 30 days ago with their branches, after
+  deleting their snapshot and cold-segment objects, then every blob no document, thumbnail or
+  published file references that is at least a day old (so an upload whose reference is being
+  written is not taken), object first.  Share-link expiry stays in the Invitations job.
 
 == Search
 
@@ -334,7 +397,10 @@ substring has the substring bolded by the server, a line matched by word gets `t
 `<b>` markers; text and note lines count only as word matches.  At most five lines are reported
 per hit, plus the document name when it matched.  The prefixes are `o:` object name, `s:` swatch,
 `st:` style, `sy:` symbol, `k:` keyword, title or description, `p:` page (in `names`), and `t:`
-text block, `n:` note (in `body_text`); SRV-007 writes them.  The
+text block, `n:` note (in `body_text`); SRV-007 writes them (`SearchExtractor`): every live node's
+name (neither it nor an ancestor deleted, and not under the comments collection), brushes as `o:`
+since the search has no brush field, the settings' `info` title, description and keywords, and
+one line per non-blank line of a multi-line value.  The
 index lags the log by the snapshotter's cadence (at most 2 minutes for a document being edited
 heavily, and one run after the last subscription closes), which the guide describes as "a few
 minutes".  Document *names* are also matched live from `document.name`, so a rename is
@@ -380,8 +446,8 @@ As built (SRV-014, `api/.../observability`):
 * *Node-wide*: `wt_ingest_seconds` and `wt_search_seconds` (with histogram buckets for quantiles),
   `wt_seq_gap_total`, `wt_rate_limited_total`, and `wt_push_inflight` -- the replica queue's size,
   without the `replica` tag the list above names (a tag per replica would be unbounded).
-  `wt_snapshot_seconds`, `wt_search_extract_seconds` and `wt_replica_retired_total` arrive with the
-  snapshotter (SRV-007) and the Stability job.
+  `wt_snapshot_seconds`, `wt_search_extract_seconds` (SRV-007) and `wt_replica_retired_total`
+  (SRV-013) are node-wide too.
 * *Rate limits* (`RateLimiter`): a token bucket per account and one per document in Valkey
   (`rl:a:<account>`, `rl:d:<document>`), refilled continuously at `wt.limits.*.rate` per second up
   to `wt.limits.*.burst` (5,000 and 20,000 for both), taken from by one Lua script that uses Valkey's

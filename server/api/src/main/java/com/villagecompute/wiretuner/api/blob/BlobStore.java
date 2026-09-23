@@ -123,6 +123,17 @@ public class BlobStore {
                 .emitOn(executor);
     }
 
+    /** The whole object in memory (snapshots and cold segments, which are bounded). */
+    public Uni<byte[]> bytes(String key) {
+        return async(() -> s3.getObject(b -> b.bucket(bucket).key(key), AsyncResponseTransformer.toBytes()))
+                .map(response -> response.asByteArray());
+    }
+
+    /** Deletes the object; deleting a missing key succeeds. */
+    public Uni<Void> delete(String key) {
+        return async(() -> s3.deleteObject(b -> b.bucket(bucket).key(key))).replaceWithVoid();
+    }
+
     private <T> Uni<T> async(Supplier<CompletableFuture<T>> call) {
         return Uni.createFrom().completionStage(call).emitOn(CallerContext.executor());
     }

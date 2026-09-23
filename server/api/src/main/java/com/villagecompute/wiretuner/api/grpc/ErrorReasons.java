@@ -46,6 +46,9 @@ public final class ErrorReasons {
     public static final String SSO_REQUIRED = "SSO_REQUIRED";
     public static final String DOMAIN_UNVERIFIED = "DOMAIN_UNVERIFIED";
 
+    // Added by SRV-011.
+    public static final String MERGE_STALE = "MERGE_STALE";
+
     private ErrorReasons() {
     }
 }

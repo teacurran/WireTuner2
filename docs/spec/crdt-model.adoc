@@ -767,9 +767,11 @@ smallest horizon) or one sequenced after _C_ (lowered past), so its author knew 
 named nothing a collection at (_C_, _T_) drops; and _C_ is a stable point, since a change's
 `base_server_seq` is at least its horizon.  `FuzzGenerator.collectionPoint` in `WTCRDTTests` is
 the reference computation; the fuzzer (xref:testing.adoc#fuzzing[Testing]) runs every replica
-under this protocol.  (Deviation, CRDT-010: server.adoc's Stability job publishes min(acks); it
-needs the two numbers above and each change's horizon, and the sync protocol's `AckResponse` a
-place for the collection point.)
+under this protocol.  The server side is built (SRV-007, SRV-013): each accepted change is stored
+with its author's horizon, the Stability job computes (_C_, _T_) as above, `AckResponse` carries it
+(`collect_seq`, `collect_time_ms`), and the snapshotter collects at it.  Deviation: the server
+takes a change's horizon to be the publication its author had confirmed receiving when the change
+arrived (xref:server.adoc[Server], Jobs, As built, which records where that can be too new).
 
 [[collect]]
 === Collecting

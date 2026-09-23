@@ -16,7 +16,7 @@ import io.grpc.StatusRuntimeException;
  * Decoding of what the server itself stored (change_log bytes, Valkey payloads), and the
  * flattening of a rejected change into {@code ChangeRejected} for batch and bulk responses.
  */
-final class Protos {
+public final class Protos {
 
     /** {@code ChangeRejected.message} is capped at 1024 characters by sync.proto. */
     static final int MESSAGE_CAP = 1024;
@@ -25,7 +25,7 @@ final class Protos {
     }
 
     /** Parses bytes this server wrote; a failure is a corrupt store, not a client error. */
-    static <M extends Message> M parse(Parser<M> parser, byte[] bytes) {
+    public static <M extends Message> M parse(Parser<M> parser, byte[] bytes) {
         try {
             return parser.parseFrom(bytes);
         } catch (InvalidProtocolBufferException e) {
@@ -33,7 +33,7 @@ final class Protos {
         }
     }
 
-    static Change change(byte[] bytes) {
+    public static Change change(byte[] bytes) {
         return parse(Change.parser(), bytes);
     }
 

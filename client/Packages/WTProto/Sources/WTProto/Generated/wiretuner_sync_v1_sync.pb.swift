@@ -921,6 +921,15 @@ public nonisolated struct Wiretuner_Sync_V1_AckResponse: Sendable {
   /// Every active replica has applied everything up to here.
   public var stableSeq: UInt64 = 0
 
+  /// The collection point's server_seq C (D-067; crdt-model.adoc "Stable points, horizons and
+  /// collection points"): collect at (collect_seq, collect_time_ms) once everything up to C is
+  /// applied.  0 = no collection yet; a point below one already collected at collects nothing.
+  public var collectSeq: UInt64 = 0
+
+  /// The collection point's clock T, Unix milliseconds: deleted nodes compact when their deletion
+  /// is at least 30 days before it.
+  public var collectTimeMs: Int64 = 0
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -2385,7 +2394,7 @@ nonisolated extension Wiretuner_Sync_V1_AckRequest: SwiftProtobuf.Message, Swift
 
 nonisolated extension Wiretuner_Sync_V1_AckResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".AckResponse"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}stable_seq\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}stable_seq\0\u{3}collect_seq\0\u{3}collect_time_ms\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -2394,6 +2403,8 @@ nonisolated extension Wiretuner_Sync_V1_AckResponse: SwiftProtobuf.Message, Swif
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularUInt64Field(value: &self.stableSeq) }()
+      case 2: try { try decoder.decodeSingularUInt64Field(value: &self.collectSeq) }()
+      case 3: try { try decoder.decodeSingularInt64Field(value: &self.collectTimeMs) }()
       default: break
       }
     }
@@ -2403,11 +2414,19 @@ nonisolated extension Wiretuner_Sync_V1_AckResponse: SwiftProtobuf.Message, Swif
     if self.stableSeq != 0 {
       try visitor.visitSingularUInt64Field(value: self.stableSeq, fieldNumber: 1)
     }
+    if self.collectSeq != 0 {
+      try visitor.visitSingularUInt64Field(value: self.collectSeq, fieldNumber: 2)
+    }
+    if self.collectTimeMs != 0 {
+      try visitor.visitSingularInt64Field(value: self.collectTimeMs, fieldNumber: 3)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Wiretuner_Sync_V1_AckResponse, rhs: Wiretuner_Sync_V1_AckResponse) -> Bool {
     if lhs.stableSeq != rhs.stableSeq {return false}
+    if lhs.collectSeq != rhs.collectSeq {return false}
+    if lhs.collectTimeMs != rhs.collectTimeMs {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

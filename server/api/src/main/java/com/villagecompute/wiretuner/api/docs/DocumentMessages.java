@@ -48,7 +48,7 @@ public final class DocumentMessages {
         };
     }
 
-    static Document document(DocumentRow row, Role callerRole) {
+    public static Document document(DocumentRow row, Role callerRole) {
         Document.Builder doc = Document.newBuilder()
                 .setId(row.id().toString())
                 .setSpaceId(row.spaceId().toString())
@@ -87,7 +87,7 @@ public final class DocumentMessages {
                 .build();
     }
 
-    static Timestamp micros(long micros) {
+    public static Timestamp micros(long micros) {
         return Timestamp.newBuilder()
                 .setSeconds(Math.floorDiv(micros, 1_000_000L))
                 .setNanos((int) Math.floorMod(micros, 1_000_000L) * 1000)

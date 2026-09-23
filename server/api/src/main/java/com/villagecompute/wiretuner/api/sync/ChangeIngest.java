@@ -38,7 +38,9 @@ import jakarta.inject.Inject;
  * unbound replica on seq 1 and otherwise advances {@code last_seq} only when the row is bound to
  * the caller's account and device, is live, and holds {@code seq - 1}; then, only if that took,
  * {@code head_seq + 1} on the document row, whose row lock serialises {@code server_seq} per document
- * and is held until the batch commits; then the {@code change_log} insert at the new head. When
+ * and is held until the batch commits; then the {@code change_log} insert at the new head, with the
+ * change's horizon (D-067): the publication the replica last confirmed receiving (its
+ * {@code horizon_seq} and {@code horizon_ms}), capped by the change's {@code base_server_seq}. When
  * nothing was written the replica row and the logged change are read back to say why: a replica
  * bound elsewhere or retired, an already-accepted seq with identical content (silently acked with
  * its original {@code server_seq}) or different content ({@code REPLICA_CONFLICT}), or a gap
@@ -58,14 +60,14 @@ public class ChangeIngest {
                     SET last_seq = EXCLUDED.last_seq, last_seen_at = EXCLUDED.last_seen_at
                     WHERE t.last_seq = EXCLUDED.last_seq - 1 AND t.account_id = EXCLUDED.account_id
                       AND t.device_id = EXCLUDED.device_id AND t.retired_at IS NULL
-                RETURNING 1
+                RETURNING t.horizon_seq, t.horizon_ms
             ), d AS (
                 UPDATE document SET head_seq = head_seq + 1
                 WHERE id = $1 AND EXISTS (SELECT 1 FROM r)
                 RETURNING head_seq
             )
-            INSERT INTO change_log (document_id, server_seq, replica_id, seq, bytes, byte_size)
-            SELECT $1, d.head_seq, $2, $5, $6, $7 FROM d
+            INSERT INTO change_log (document_id, server_seq, replica_id, seq, bytes, byte_size, horizon_seq, horizon_ms)
+            SELECT $1, d.head_seq, $2, $5, $6, $7, LEAST(r.horizon_seq, $8), r.horizon_ms FROM d, r
             RETURNING server_seq
             """;
 
@@ -123,7 +125,8 @@ public class ChangeIngest {
         byte[] bytes = change.toByteArray();
         Principal principal = pusher.principal();
         Tuple args = Tuple.from(new Object[] {documentId, change.getReplica(), principal.accountId(),
-                ReplicaBinding.device(principal), change.getSeq(), Buffer.buffer(bytes), bytes.length});
+                ReplicaBinding.device(principal), change.getSeq(), Buffer.buffer(bytes), bytes.length,
+                change.getBaseServerSeq()});
         return writer.write(documentId, args)
                 .chain(serverSeq -> serverSeq == null ? explain(principal, documentId, change, bytes).map(seq -> new Written(seq, false))
                         : Uni.createFrom().item(new Written(serverSeq, true)))

@@ -16,6 +16,8 @@ import com.villagecompute.wiretuner.account.v1.AccountServiceGrpc;
 import com.villagecompute.wiretuner.account.v1.DocumentRole;
 import com.villagecompute.wiretuner.api.ServiceTestSupport;
 import com.villagecompute.wiretuner.api.TestUsers;
+import com.villagecompute.wiretuner.crdt.Engine;
+import com.villagecompute.wiretuner.crdt.StateHash;
 import com.villagecompute.wiretuner.doc.v1.Change;
 import com.villagecompute.wiretuner.docs.v1.CreateFolderRequest;
 import com.villagecompute.wiretuner.docs.v1.CreateRequest;
@@ -30,8 +32,8 @@ import io.quarkus.grpc.GrpcClient;
 import io.quarkus.test.junit.QuarkusTest;
 
 /**
- * SRV-009: Fork and Duplicate. Until the snapshotter (SRV-007) a copy carries the source's hot log
- * up to the fork point row for row, then the caller's extra changes.
+ * SRV-009, SRV-007: Fork and Duplicate. A copy starts from the source's state at the fork point,
+ * stored as the copy's snapshot there, then the caller's extra changes.
  */
 @QuarkusTest
 class DocumentCopyTest extends ServiceTestSupport {
@@ -109,8 +111,14 @@ class DocumentCopyTest extends ServiceTestSupport {
         assertThat(copy.getThumbnailBlob().size()).isEqualTo(32);
         assertThat(copy.hasThumbnailAt()).isTrue();
         assertThat(copy.getIsTemplate()).isFalse();
-        assertThat(column("SELECT replica_id FROM change_log WHERE document_id = ? ORDER BY server_seq", copyId))
-                .containsExactly(source.aliceReplica(), source.bobReplica(), source.aliceReplica());
+        // No log rows below the fork point: the copy's snapshot there holds the source's state.
+        assertThat(count("SELECT count(*) FROM change_log WHERE document_id = ?", copyId)).isZero();
+        Engine expected = new Engine();
+        expected.apply(change(source.aliceReplica(), 1, "Create"), 1L);
+        expected.apply(change(source.bobReplica(), 1, "Bob's"), 2L);
+        expected.apply(change(source.aliceReplica(), 2, "Alice's second"), 3L);
+        assertThat(value("SELECT state_hash FROM snapshot WHERE document_id = ? AND server_seq = 3", copyId))
+                .isEqualTo(StateHash.hex(expected.stateHash()));
         assertThat(count("SELECT count(*) FROM document_blob WHERE document_id = ?", copyId)).isEqualTo(1);
         // Carol has no replica on the source, so none is bound on the copy.
         assertThat(count("SELECT count(*) FROM replica WHERE document_id = ?", copyId)).isZero();
@@ -134,7 +142,8 @@ class DocumentCopyTest extends ServiceTestSupport {
         assertThat(copy.getFolderId()).isEqualTo(folder.toString());
         assertThat(copy.getHeadSeq()).isEqualTo(5);
         assertThat(column("SELECT seq FROM change_log WHERE document_id = ? AND replica_id = ? ORDER BY server_seq",
-                copyId, source.aliceReplica())).containsExactly(1L, 2L, 3L);
+                copyId, source.aliceReplica())).containsExactly(2L, 3L);
+        assertThat(column("SELECT server_seq FROM snapshot WHERE document_id = ?", copyId)).containsExactly(2L);
         // Alice's replica continues on the copy from her device; the fresh one is bound to the call's (none).
         assertThat(value("SELECT last_seq FROM replica WHERE document_id = ? AND replica_id = ?", copyId,
                 source.aliceReplica())).isEqualTo(3L);

@@ -25,6 +25,10 @@ public class Snapshot {
     @Column(name = "size_bytes", nullable = false)
     public long sizeBytes;
 
+    /** The size of the decompressed {@code DocumentSnapshot}. */
+    @Column(name = "uncompressed_size", nullable = false)
+    public long uncompressedSize;
+
     @Column(name = "node_count", nullable = false)
     public int nodeCount;
 

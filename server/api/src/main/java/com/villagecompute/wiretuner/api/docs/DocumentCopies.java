@@ -6,11 +6,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 import com.villagecompute.wiretuner.api.auth.DocumentRoles;
 import com.villagecompute.wiretuner.api.auth.Principal;
 import com.villagecompute.wiretuner.api.auth.Role;
 import com.villagecompute.wiretuner.api.grpc.StatusExceptions;
+import com.villagecompute.wiretuner.api.history.DocumentStates;
+import com.villagecompute.wiretuner.api.history.Snapshots;
 import com.villagecompute.wiretuner.api.persistence.ChangeLog;
 import com.villagecompute.wiretuner.api.persistence.ChangeLogId;
 import com.villagecompute.wiretuner.api.persistence.ChangeLogRepository;
@@ -24,7 +27,11 @@ import com.villagecompute.wiretuner.api.persistence.LibraryRepository.DocumentRo
 import com.villagecompute.wiretuner.api.persistence.Replica;
 import com.villagecompute.wiretuner.api.persistence.ReplicaId;
 import com.villagecompute.wiretuner.api.persistence.ReplicaRepository;
+import com.villagecompute.wiretuner.api.persistence.Snapshot;
+import com.villagecompute.wiretuner.api.persistence.SnapshotId;
+import com.villagecompute.wiretuner.api.persistence.SnapshotRepository;
 import com.villagecompute.wiretuner.api.sync.ReplicaBinding;
+import com.villagecompute.wiretuner.crdt.Engine;
 import com.villagecompute.wiretuner.doc.v1.Change;
 import com.villagecompute.wiretuner.docs.v1.CreateRequest;
 
@@ -39,10 +46,12 @@ import jakarta.inject.Inject;
  * Every path is idempotent by the client-chosen id: a retry by the owner into the same space
  * answers the existing document; anything else under that id is {@code DOCUMENT_EXISTS}.
  *
- * <p>Until the snapshotter exists (SRV-007) a copy re-issues the source's history rather than one
- * creation change: the source's hot log up to the fork point is copied row for row, keeping each
- * server_seq, and the caller's extra changes follow. A fork point part of which has already been
- * compacted is {@code HISTORY_UNAVAILABLE} (docs/spec/server.adoc, Services).
+ * <p>A copy starts from the source's state at the fork point (SRV-007): the newest snapshot at or
+ * before it plus the tail through {@code wt-crdt} ({@link DocumentStates}), stored as the copy's
+ * snapshot at the same server_seq, so the copy keeps every node id, register OpId and unstable
+ * tombstone (branches.adoc, Merge semantics) and its head starts at the fork point with no log
+ * rows below it; the caller's extra changes follow. A fork point the retained history cannot
+ * rebuild is {@code HISTORY_UNAVAILABLE} (docs/spec/server.adoc, Services).
  */
 @ApplicationScoped
 public class DocumentCopies {
@@ -72,6 +81,15 @@ public class DocumentCopies {
 
     @Inject
     DocumentBlobRepository documentBlobs;
+
+    @Inject
+    DocumentStates states;
+
+    @Inject
+    Snapshots snapshots;
+
+    @Inject
+    SnapshotRepository snapshotRows;
 
     /**
      * A Create, Fork or Duplicate whose id already exists: the same call again if the caller owns
@@ -116,7 +134,7 @@ public class DocumentCopies {
     }
 
     /** Fork or Duplicate: a new document owned by the caller from the source's state plus extra changes. */
-    Uni<UUID> copy(Principal principal, Copy copy) {
+    public Uni<UUID> copy(Principal principal, Copy copy) {
         return documents.findById(copy.newId()).flatMap(existing -> {
             if (existing != null) {
                 return retried(principal, existing, copy.spaceId(), null);
@@ -127,35 +145,77 @@ public class DocumentCopies {
             }
             return spaces.creatable(principal, copy.spaceId())
                     .flatMap(space -> spaces.folderIn(copy.folderId(), copy.spaceId()).replaceWith(space))
-                    .flatMap(space -> changeLog.countUpTo(copy.source().id(), copy.atSeq()).flatMap(held -> held < copy.atSeq()
-                            ? Uni.createFrom().failure(StatusExceptions.historyUnavailable(copy.atSeq(), head))
-                            : writeCopy(principal, copy, space)));
+                    .flatMap(space -> {
+                        Document doc = newDocument(principal, copy.newId(), space, copy.folderId(), copy.name());
+                        return writeCopy(principal, copy, doc, () -> persistOwned(principal, doc, space));
+                    });
         });
     }
 
-    private Uni<UUID> writeCopy(Principal principal, Copy copy, Spaces.Space space) {
+    /**
+     * A branch document (SRV-011): the parent's state at the fork point in the parent's space and
+     * folder, with the parent's owner and a copy of its member rows, so the branch has the same
+     * people and roles (branches.adoc, Branch permissions; resolving roles through the parent live
+     * is COLLAB-019). The caller has been checked for editor on the parent.
+     */
+    public Uni<UUID> branch(Principal principal, Copy copy) {
+        DocumentRow parent = copy.source();
+        Document doc = new Document();
+        doc.id = copy.newId();
+        doc.ownerAccountId = parent.ownerAccountId();
+        doc.teamId = parent.teamId();
+        doc.folderId = parent.folderId();
+        doc.name = copy.name();
+        doc.createdByAccountId = principal.accountId();
+        return writeCopy(principal, copy, doc, () -> documents.persist(doc).chain(documents::flush)
+                .chain(() -> members.copyMembers(parent.id(), doc.id)).replaceWithVoid());
+    }
+
+    /** Writes {@code doc} ({@code persist}) as a copy of the source at the fork point, then appends the extra changes. */
+    private Uni<UUID> writeCopy(Principal principal, Copy copy, Document doc, Supplier<Uni<Void>> persist) {
         DocumentRow source = copy.source();
-        Document doc = newDocument(principal, copy.newId(), space, copy.folderId(), copy.name());
         doc.kind = source.kind();
         doc.featureLevel = source.featureLevel();
         doc.template = copy.template();
         doc.thumbnailBlob = source.thumbnailBlob();
         doc.thumbnailAt = source.thumbnailAtMicros() == null ? null
                 : Instant.EPOCH.plusNanos(source.thumbnailAtMicros() * 1000);
-        return replicas.list("id.documentId", source.id())
-                .flatMap(sourceReplicas -> changeLog.replicaHeads(source.id(), copy.atSeq())
-                        .flatMap(heads -> plan(principal, copy, bindings(sourceReplicas), heads)))
-                .flatMap(plan -> persistOwned(principal, doc, space)
+        return states.at(source.id(), copy.atSeq()).flatMap(engine -> replicas.list("id.documentId", source.id())
+                .flatMap(sourceReplicas -> plan(principal, copy, bindings(sourceReplicas), heads(engine)))
+                .flatMap(plan -> persist.get()
                         .chain(documents::flush)
-                        .chain(() -> changeLog.copyRange(source.id(), doc.id, copy.atSeq()))
+                        .chain(() -> snapshot(doc.id, copy.atSeq(), engine))
                         .chain(() -> documentBlobs.copyReferences(source.id(), doc.id))
                         .chain(() -> appendAll(doc, copy.atSeq(), plan.appended()))
                         .chain(() -> Multi.createFrom().iterable(plan.callerReplicas().entrySet())
                                 .onItem().transformToUniAndConcatenate(e -> bindReplica(principal, doc.id, e.getKey(),
                                         e.getValue(), plan.devices().get(e.getKey())))
                                 .collect().asList())
-                        .invoke(() -> doc.headSeq = copy.atSeq() + plan.appended().size()))
+                        .invoke(() -> doc.headSeq = copy.atSeq() + plan.appended().size())))
                 .replaceWith(copy.newId());
+    }
+
+    /** The highest seq the state holds of each replica. */
+    private static Map<Long, Long> heads(Engine engine) {
+        Map<Long, Long> heads = new HashMap<>();
+        engine.store().replicas().forEach((replica, state) -> heads.put(replica, state.seq()));
+        return heads;
+    }
+
+    /** The copy's snapshot at the fork point (none for an empty fork point). */
+    private Uni<Void> snapshot(UUID documentId, long atSeq, Engine engine) {
+        if (atSeq == 0) {
+            return Uni.createFrom().voidItem();
+        }
+        Snapshots.Encoded encoded = Snapshots.encode(documentId, atSeq, engine);
+        Snapshot row = new Snapshot();
+        row.id = new SnapshotId(documentId, atSeq);
+        row.objectKey = encoded.key();
+        row.stateHash = encoded.stateHash();
+        row.sizeBytes = encoded.object().length;
+        row.uncompressedSize = encoded.uncompressedSize();
+        row.nodeCount = encoded.nodeCount();
+        return snapshots.put(encoded).chain(() -> snapshotRows.persist(row)).replaceWithVoid();
     }
 
     /** The extra changes to append and the caller's replicas on the copy, with their last seqs and devices. */
@@ -169,8 +229,9 @@ public class DocumentCopies {
     }
 
     /**
-     * Checks the extra changes against the copied range: a change already in it with the same
-     * bytes is dropped, with other bytes is {@code REPLICA_CONFLICT}; a replica bound to another
+     * Checks the extra changes against the copied range: a change already in it (in the source's
+     * hot log up to the fork point) with the same bytes is dropped, with other bytes is
+     * {@code REPLICA_CONFLICT}; a replica bound to another
      * account on the source is {@code REPLICA_CONFLICT}; seqs continue each replica without gaps
      * ({@code SEQ_GAP}).
      */

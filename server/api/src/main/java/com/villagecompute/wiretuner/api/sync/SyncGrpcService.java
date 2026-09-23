@@ -17,6 +17,7 @@ import com.villagecompute.wiretuner.api.blob.BlobGrpcService.Rechunker;
 import com.villagecompute.wiretuner.api.blob.BlobStore;
 import com.villagecompute.wiretuner.api.docs.DocumentMessages;
 import com.villagecompute.wiretuner.api.grpc.StatusExceptions;
+import com.villagecompute.wiretuner.api.history.Snapshotter;
 import com.villagecompute.wiretuner.api.observability.RateLimiter;
 import com.villagecompute.wiretuner.api.observability.WtMetrics;
 import com.villagecompute.wiretuner.api.persistence.Snapshot;
@@ -93,7 +94,18 @@ public class SyncGrpcService extends MutinySyncServiceGrpc.SyncServiceImplBase {
     static final String STABLE = """
             UPDATE document SET stable_seq = GREATEST(stable_seq,
                 (SELECT COALESCE(min(last_ack_seq), 0) FROM replica WHERE document_id = $1 AND retired_at IS NULL))
-            WHERE id = $1 RETURNING stable_seq, head_seq
+            WHERE id = $1 RETURNING stable_seq, head_seq, collect_seq, collect_time_ms
+            """;
+
+    /**
+     * D-067: the replica confirmed receiving the last publication by acking again, so that becomes
+     * its horizon (the one its next changes are recorded with), and this answer is the new
+     * publication: the stable point with the server's clock.
+     */
+    static final String PUBLISHED = """
+            UPDATE replica SET horizon_seq = published_seq, horizon_ms = published_ms,
+                               published_seq = $3, published_ms = $4
+            WHERE document_id = $1 AND replica_id = $2
             """;
 
     static final String LAST_ACCEPTED = """
@@ -156,6 +168,9 @@ public class SyncGrpcService extends MutinySyncServiceGrpc.SyncServiceImplBase {
 
     @Inject
     LiveSessions sessions;
+
+    @Inject
+    Snapshotter snapshotter;
 
     // ------------------------------------------------------------------------------------ Subscribe
 
@@ -249,6 +264,9 @@ public class SyncGrpcService extends MutinySyncServiceGrpc.SyncServiceImplBase {
                     metrics.unsubscribed(documentId);
                     sessions.close(documentId, account);
                     bus.unlisten(documentId, feed);
+                    if (!bus.documents().contains(documentId)) {
+                        snapshotter.closed(documentId).subscribe().with(ignored -> { }, failure -> { });
+                    }
                     presence.leave(documentId, replica, gone).subscribe().with(ignored -> { }, failure -> { });
                 });
     }
@@ -423,8 +441,11 @@ public class SyncGrpcService extends MutinySyncServiceGrpc.SyncServiceImplBase {
                 .map(rows -> {
                     Row row = rows.iterator().next();
                     metrics.stableLag(documentId, row.getLong(1), row.getLong(0));
-                    return AckResponse.newBuilder().setStableSeq(row.getLong(0)).build();
-                });
+                    return AckResponse.newBuilder().setStableSeq(row.getLong(0)).setCollectSeq(row.getLong(2))
+                            .setCollectTimeMs(row.getLong(3)).build();
+                })
+                .call(response -> pool.preparedQuery(PUBLISHED).execute(Tuple.of(documentId, replica,
+                        response.getStableSeq(), System.currentTimeMillis())));
     }
 
     // --------------------------------------------------------------------------------------- Catch-up
@@ -461,6 +482,7 @@ public class SyncGrpcService extends MutinySyncServiceGrpc.SyncServiceImplBase {
                 .setStateHash(ByteString.copyFrom(HexFormat.of().parseHex(snapshot.stateHash)))
                 .setCompression(SnapshotCompression.SNAPSHOT_COMPRESSION_ZSTD)
                 .setCompressedSize(snapshot.sizeBytes)
+                .setUncompressedSize(snapshot.uncompressedSize)
                 .setChunkCount((int) ((snapshot.sizeBytes + SNAPSHOT_CHUNK - 1) / SNAPSHOT_CHUNK))
                 .setNodeCount(snapshot.nodeCount)
                 .build();
