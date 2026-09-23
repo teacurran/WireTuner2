@@ -73,7 +73,7 @@ enum TraceQuantizer {
             let coordinates = grays ? SIMD3(Int32(bin), 0, 0) : SIMD3(Int32(bin >> 10), Int32((bin >> 5) & 31), Int32(bin & 31))
             bins.append(Bin(coordinates: coordinates, count: counts[bin], sum: sums[bin]))
         }
-        let boxes = medianCut(bins, target: colors)
+        let boxes = try medianCut(bins, target: colors, check: check)
         var binPalette = [UInt16](repeating: TraceLabels.none, count: binCount)
         var palette: [Color] = []
         for (paletteIndex, box) in boxes.enumerated() {
@@ -88,15 +88,23 @@ enum TraceQuantizer {
             let mean = SIMD3<Double>(Double(sum.x), Double(sum.y), Double(sum.z)) / (Double(count) * 255)
             palette.append(Color(red: mean.x, green: mean.y, blue: mean.z))
         }
-        let labels = pixelBins.map { $0 < 0 ? TraceLabels.none : binPalette[Int($0)] }
+        var labels = [UInt16](repeating: TraceLabels.none, count: pixelBins.count)
+        for y in 0..<bitmap.height {
+            try check()
+            for index in (y * bitmap.width)..<((y + 1) * bitmap.width) where pixelBins[index] >= 0 {
+                labels[index] = binPalette[Int(pixelBins[index])]
+            }
+        }
         return TraceLabels(width: bitmap.width, height: bitmap.height, labels: labels, palette: palette)
     }
 
     /// Splits the bins into at most `target` boxes: repeatedly the box with the widest channel
-    /// range (ties: the earlier box) at the population median along that channel.
-    private static func medianCut(_ bins: [Bin], target: Int) -> [[Bin]] {
+    /// range (ties: the earlier box) at the population median along that channel.  Polls once
+    /// per split: a split sorts at most the 32,768 histogram bins.
+    private static func medianCut(_ bins: [Bin], target: Int, check: () throws -> Void) throws -> [[Bin]] {
         var boxes = bins.isEmpty ? [] : [bins]
         while boxes.count < target {
+            try check()
             var best = -1
             var bestRange: Int32 = 0
             var bestChannel = 0
@@ -218,6 +226,10 @@ enum TraceQuantizer {
             region[start] = regionIndex
             stack.append(start)
             while let index = stack.popLast() {
+                // One region can cover most of the bitmap: poll every row's worth of pixels.
+                if members.count % width == width - 1 {
+                    try check()
+                }
                 members.append(index)
                 let x = index % width
                 let y = index / width

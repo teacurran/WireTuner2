@@ -27,15 +27,22 @@ enum TraceStages {
             try check()
             progress(Double(step) / Double(order.count))
             let color = labels.palette[label]
-            var outlineMask = labels.labels.map { $0 == UInt16(label) }
+            var outlineMask = [Bool](repeating: false, count: labels.labels.count)
+            for y in 0..<labels.height {
+                try check()
+                for index in (y * labels.width)..<((y + 1) * labels.width) where labels.labels[index] == UInt16(label) {
+                    outlineMask[index] = true
+                }
+            }
             if options.mode != .outline {
                 guard label != labels.paper else {
                     continue
                 }
                 let strokes = try TraceCenterline.trace(mask: &outlineMask, width: labels.width, height: labels.height, options: options, check: check)
                 for stroke in strokes {
-                    let contours = stroke.chains.map { chain in
-                        (chain.closed
+                    let contours = try stroke.chains.map { chain in
+                        try check()
+                        return (chain.closed
                             ? TraceFitting.closedContour(chain.points, tolerance: options.tolerance)
                             : TraceFitting.openContour(chain.points, tolerance: options.tolerance)).applying(transform)
                     }
@@ -43,7 +50,7 @@ enum TraceStages {
                     result.append(Trace.TracedPath(contours: contours, stroke: color, strokeWidth: width, cmyk: cmyk(color, options)))
                 }
             }
-            outline.load { outlineMask[$0] }
+            try outline.load(check: check) { outlineMask[$0] }
             let loops = try outline.loops(check: check)
             guard !loops.isEmpty else {
                 continue
@@ -77,19 +84,27 @@ enum TraceStages {
     private static func outerEdge(_ labels: TraceLabels, options: Trace.Options, transform: AffineTransform, check: () throws -> Void) throws -> [Trace.TracedPath] {
         let paper = labels.paper.map { UInt16($0) }
         var outline = TraceOutline(width: labels.width, height: labels.height)
-        outline.load { labels.labels[$0] != TraceLabels.none && labels.labels[$0] != paper }
+        try outline.load(check: check) { labels.labels[$0] != TraceLabels.none && labels.labels[$0] != paper }
         let contours = try outline.loops(check: check).filter(\.isOuter).map {
-            TraceFitting.closedContour($0.samples, tolerance: options.tolerance).applying(transform)
+            try check()
+            return TraceFitting.closedContour($0.samples, tolerance: options.tolerance).applying(transform)
         }
         guard !contours.isEmpty else {
             return []
         }
         var sum = SIMD3<Double>.zero
         var count = 0.0
-        for label in labels.labels where label != TraceLabels.none && label != paper {
-            let color = labels.palette[Int(label)]
-            sum += SIMD3(color.red, color.green, color.blue)
-            count += 1
+        for y in 0..<labels.height {
+            try check()
+            for index in (y * labels.width)..<((y + 1) * labels.width) {
+                let label = labels.labels[index]
+                guard label != TraceLabels.none && label != paper else {
+                    continue
+                }
+                let color = labels.palette[Int(label)]
+                sum += SIMD3(color.red, color.green, color.blue)
+                count += 1
+            }
         }
         let mean = sum / count
         return [path(contours, color: Color(red: mean.x, green: mean.y, blue: mean.z), options: options)]

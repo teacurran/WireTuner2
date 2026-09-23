@@ -21,6 +21,25 @@ struct TraceStroke: Hashable, Sendable {
     var width: Double
 }
 
+/// Polls a trace's `check` every `interval` steps of a loop whose length the input sets (a
+/// feature's pixels, a skeleton chain), so no single feature runs long unpolled.
+struct TracePoller {
+    let interval: Int
+    private var count = 0
+
+    init(every interval: Int) {
+        self.interval = interval
+    }
+
+    mutating func step(_ check: () throws -> Void) throws {
+        count += 1
+        if count == interval {
+            count = 0
+            try check()
+        }
+    }
+}
+
 enum TraceCenterline {
     /// The strokes of the features of `mask` that route to centerlines under `options`; their
     /// pixels are cleared from `mask`, which keeps the features that route to outlines.
@@ -28,13 +47,21 @@ enum TraceCenterline {
         var strokes: [TraceStroke] = []
         var seen = [Bool](repeating: false, count: width * height)
         var stack: [Int] = []
-        for start in 0..<(width * height) where mask[start] && !seen[start] {
+        var poller = TracePoller(every: width)
+        for start in 0..<(width * height) {
+            if start % width == 0 {
+                try check()
+            }
+            guard mask[start] && !seen[start] else {
+                continue
+            }
             try check()
             var pixels: [Int] = []
             var minX = width, minY = height, maxX = 0, maxY = 0
             seen[start] = true
             stack.append(start)
             while let index = stack.popLast() {
+                try poller.step(check)
                 pixels.append(index)
                 let x = index % width
                 let y = index / width
@@ -53,13 +80,15 @@ enum TraceCenterline {
             }
             var feature = Feature(originX: minX - 1, originY: minY - 1, width: maxX - minX + 3, height: maxY - minY + 3)
             for index in pixels {
+                try poller.step(check)
                 feature.mask[feature.local(index % width, index / width)] = 1
             }
-            let featureWidth = 2 * feature.maxDistance() - 1
+            let featureWidth = 2 * (try feature.maxDistance(check: check)) - 1
             if case .centerlineAndOutline(let threshold) = options.mode, featureWidth >= threshold {
                 continue
             }
             for index in pixels {
+                try poller.step(check)
                 mask[index] = false
             }
             if let stroke = try feature.stroke(featureWidth: featureWidth, check: check) {
@@ -105,12 +134,19 @@ struct Feature {
     // MARK: Distance transform
 
     /// The largest Euclidean distance from a feature pixel's centre to a background pixel's
-    /// centre (Felzenszwalb–Huttenlocher, columns then rows).
-    func maxDistance() -> Double {
+    /// centre (Felzenszwalb–Huttenlocher, columns then rows).  Polls once per column and row.
+    func maxDistance(check: () throws -> Void) throws -> Double {
         let infinity = 1e20
-        var grid = mask.map { $0 != 0 ? infinity : 0 }
+        var grid = [Double](repeating: 0, count: mask.count)
+        for y in 0..<height {
+            try check()
+            for index in (y * width)..<((y + 1) * width) where mask[index] != 0 {
+                grid[index] = infinity
+            }
+        }
         var column = [Double](repeating: 0, count: height)
         for x in 0..<width {
+            try check()
             for y in 0..<height {
                 column[y] = grid[y * width + x]
             }
@@ -121,6 +157,7 @@ struct Feature {
         }
         var best = 0.0
         for y in 0..<height {
+            try check()
             let row = Feature.distance1D(Array(grid[(y * width)..<((y + 1) * width)]))
             best = max(best, row.max()!)
         }
@@ -166,7 +203,8 @@ struct Feature {
     /// The eight neighbour offsets, clockwise from north: P2 ... P9 in Zhang–Suen's naming.
     var ring: [Int] { [-width, -width + 1, 1, width + 1, width, width - 1, -1, -width - 1] }
 
-    /// Zhang–Suen thinning, then staircase removal: the one-pixel skeleton of the mask.
+    /// Zhang–Suen thinning, then staircase removal: the one-pixel skeleton of the mask.  Polls
+    /// once per row of every pass.
     func skeleton(check: () throws -> Void) throws -> [UInt8] {
         var image = mask
         let ring = self.ring
@@ -177,6 +215,7 @@ struct Feature {
             for pass in 0..<2 {
                 var removals: [Int] = []
                 for y in 1..<(height - 1) {
+                    try check()
                     for x in 1..<(width - 1) where image[y * width + x] != 0 {
                         let index = y * width + x
                         let p = ring.map { image[index + $0] != 0 }
@@ -201,6 +240,7 @@ struct Feature {
         // A pixel at the corner of an L whose ends touch diagonally is redundant: removing it
         // keeps its neighbours connected and leaves no spurious junction.
         for y in 1..<(height - 1) {
+            try check()
             for x in 1..<(width - 1) where image[y * width + x] != 0 {
                 let index = y * width + x
                 let p = ring.map { image[index + $0] != 0 }
@@ -247,9 +287,18 @@ struct Feature {
         func neighbours(_ index: Int) -> [Int] {
             ring.map { index + $0 }.filter { skeleton[$0] != 0 }
         }
-        let pixels = skeleton.indices.filter { skeleton[$0] != 0 }
+        // The graph passes below visit each skeleton pixel a bounded number of times.
+        var poller = TracePoller(every: 1024)
+        var pixels: [Int] = []
+        for y in 0..<height {
+            try check()
+            for index in (y * width)..<((y + 1) * width) where skeleton[index] != 0 {
+                pixels.append(index)
+            }
+        }
         var degree = [Int](repeating: 0, count: skeleton.count)
         for index in pixels {
+            try poller.step(check)
             degree[index] = neighbours(index).count
         }
         // Node clusters: 8-connected runs of pixels whose degree is not 2.
@@ -260,6 +309,7 @@ struct Feature {
             var pending = [index]
             cluster[index] = clusterPixels.count
             while let current = pending.popLast() {
+                try poller.step(check)
                 members.append(current)
                 for next in neighbours(current) where degree[next] != 2 && cluster[next] < 0 {
                     cluster[next] = clusterPixels.count
@@ -277,6 +327,7 @@ struct Feature {
         var visited = [Bool](repeating: false, count: skeleton.count)
         var directPairs = Set<[Int]>()
         for start in pixels where cluster[start] >= 0 {
+            try poller.step(check)
             for first in neighbours(start) {
                 let from = cluster[start]
                 if cluster[first] >= 0 {
@@ -295,6 +346,7 @@ struct Feature {
                 var current = first
                 var end = -1
                 while end < 0 {
+                    try poller.step(check)
                     guard let next = neighbours(current).first(where: { $0 != previous && (cluster[$0] >= 0 || !visited[$0]) }) else {
                         break
                     }
@@ -317,6 +369,7 @@ struct Feature {
             visited[start] = true
             var current = start
             while let next = neighbours(current).first(where: { !visited[$0] }) {
+                try poller.step(check)
                 visited[next] = true
                 points.append(center(next))
                 current = next
@@ -378,6 +431,10 @@ struct Feature {
             var points = chain.points
             let count = points.count
             for index in 0..<count {
+                // Each sample probes up to 2,048 steps across the feature.
+                if index % 64 == 0 {
+                    try check()
+                }
                 let sharedStart = !chain.closed && index == 0 && !isEnd[chain.ends[0]]
                 let sharedEnd = !chain.closed && index == count - 1 && chain.ends[1] >= 0 && !isEnd[chain.ends[1]]
                 guard !sharedStart && !sharedEnd else {

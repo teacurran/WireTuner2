@@ -37,15 +37,15 @@ struct TraceOutline {
         corners.reserveCapacity(4 * (width + height) + 16)
     }
 
-    /// Replaces the mask with the pixels for which `inside(y * width + x)` holds.
-    mutating func load(_ inside: (Int) -> Bool) {
+    /// Replaces the mask with the pixels for which `inside(y * width + x)` holds, polling
+    /// `check` once per row.
+    mutating func load(check: () throws -> Void, _ inside: (Int) -> Bool) throws {
         for y in 0..<height {
+            try check()
             for x in 0..<width {
                 mask[(x + 1) + (y + 1) * stride] = inside(y * width + x) ? 1 : 0
+                visited[y * width + x] = 0
             }
-        }
-        for index in visited.indices {
-            visited[index] = 0
         }
     }
 
@@ -54,13 +54,14 @@ struct TraceOutline {
         x >= -1 && y >= -1 && x <= width && y <= height && mask[(x + 1) + (y + 1) * stride] != 0
     }
 
-    /// Every boundary of the mask, in scan order of its first left edge.
+    /// Every boundary of the mask, in scan order of its first left edge; polls `check` once per
+    /// row and per boundary, and along long boundaries.
     mutating func loops(check: () throws -> Void) throws -> [TraceLoop] {
         var result: [TraceLoop] = []
         for y in 0..<height {
             try check()
             for x in 0..<width where visited[y * width + x] == 0 && inside(x, y) && !inside(x - 1, y) {
-                let area = walk(fromX: x, y: y)
+                let area = try walk(fromX: x, y: y, check: check)
                 result.append(TraceLoop(samples: TraceOutline.samples(corners), isOuter: area > 0))
             }
         }
@@ -72,9 +73,14 @@ struct TraceOutline {
     /// Direction vectors, clockwise on screen from north: turning right adds one.
     private static let directions: [(Int, Int)] = [(0, -1), (1, 0), (0, 1), (-1, 0)]
 
+    /// Lattice steps walked between polls: a boundary can wind through the whole bitmap.
+    static let stepsPerPoll = 4096
+
     /// Walks the boundary whose left edge at pixel (x, y) is unvisited, leaving its turn
-    /// corners in `corners`; returns twice the shoelace area.
-    mutating func walk(fromX startX: Int, y startY: Int) -> Int {
+    /// corners in `corners`; returns twice the shoelace area.  Polls `check` before the walk and
+    /// every `stepsPerPoll` steps.
+    mutating func walk(fromX startX: Int, y startY: Int, check: () throws -> Void) throws -> Int {
+        try check()
         corners.removeAll(keepingCapacity: true)
         let startCornerX = startX
         let startCornerY = startY + 1
@@ -82,7 +88,12 @@ struct TraceOutline {
         var cy = startCornerY
         var heading = 0
         var area = 0
+        var steps = 0
         repeat {
+            steps += 1
+            if steps % TraceOutline.stepsPerPoll == 0 {
+                try check()
+            }
             let (dx, dy) = TraceOutline.directions[heading]
             if heading == 0 {
                 visited[(cy - 1) * width + cx] = 1

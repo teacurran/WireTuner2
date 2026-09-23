@@ -1,5 +1,6 @@
 import CoreGraphics
 import Foundation
+import Synchronization
 import Testing
 import WTGeometry
 @testable import WTRender
@@ -229,19 +230,19 @@ import WTGeometry
         #expect(contours.count == 2)
     }
 
-    @Test func contourFollowingReusesItsBuffer() {
+    @Test func contourFollowingReusesItsBuffer() throws {
         // A 1,000-px disc: its boundary has thousands of turn corners.  The walk's only buffer
         // is reserved once per tracer and never grows or moves while walking.
         let side = 1000
         var tracer = TraceOutline(width: side, height: side)
-        tracer.load { index in
+        try tracer.load(check: {}) { index in
             let dx = Double(index % side) - 500, dy = Double(index / side) - 500
             return dx * dx + dy * dy < 490 * 490
         }
         let capacity = tracer.corners.capacity
         let firstRow = 500 - 489
         let startX = (0..<side).first { tracer.inside($0, firstRow) }!
-        let area = tracer.walk(fromX: startX, y: firstRow)
+        let area = try tracer.walk(fromX: startX, y: firstRow, check: {})
         #expect(tracer.corners.count > 1000)
         #expect(tracer.corners.capacity == capacity)
         #expect(abs(Double(area) / 2 - Double.pi * 490 * 490) < 0.01 * Double.pi * 490 * 490)
@@ -293,14 +294,58 @@ import WTGeometry
 
         let traced = try await Trace.trace(source, options: Trace.Options(colors: 2))
         #expect(traced.paths.count == 2)
-        let big = TraceFixtures.photograph(width: 1200, height: 1200)
-        let task = Task { try await Trace.trace(big, options: Trace.Options(colors: 64)) }
-        task.cancel()
-        let start = Date()
-        await #expect(throws: Trace.Cancelled.self) {
-            try await task.value
+    }
+
+    /// The progress a trace reports, recorded from the thread it runs on.
+    private final class ProgressLog: Sendable {
+        private let values = Mutex<[Double]>([])
+
+        func append(_ value: Double) {
+            values.withLock { $0.append(value) }
         }
-        #expect(Date().timeIntervalSince(start) < 0.5)
+
+        var snapshot: [Double] { values.withLock { $0 } }
+    }
+
+    @Test func cancellingTheCallingTaskStopsTheTrace() async throws {
+        // Timing would measure the machine's load as much as the trace (a trace that takes
+        // minutes in a debug build, sharing the cores with a parallel test run), so the checks
+        // count what the trace did instead: a cancelled trace throws and reports no further
+        // progress than the stage it was in.
+        let big = TraceFixtures.photograph(width: 1200, height: 1200)
+        let options = Trace.Options(colors: 64)
+
+        // Cancelled before it starts: nothing runs to completion.
+        let early = ProgressLog()
+        let cancelledEarly = Task { try await Trace.trace(big, options: options, progress: { early.append($0) }) }
+        cancelledEarly.cancel()
+        await #expect(throws: Trace.Cancelled.self) {
+            try await cancelledEarly.value
+        }
+        #expect(!early.snapshot.contains(1))
+
+        // Cancelled mid-flight, once quantization has finished: the trace stops within the
+        // palette entry it is tracing (each entry reports progress once, when it starts).
+        let late = ProgressLog()
+        let (reports, reporter) = AsyncStream.makeStream(of: Double.self)
+        let running = Task {
+            defer { reporter.finish() }
+            return try await Trace.trace(big, options: options, progress: { value in
+                late.append(value)
+                reporter.yield(value)
+            })
+        }
+        for await value in reports where value >= 0.2 {
+            break
+        }
+        let before = late.snapshot.count
+        running.cancel()
+        await #expect(throws: Trace.Cancelled.self) {
+            try await running.value
+        }
+        let after = late.snapshot
+        #expect(after.count - before <= 2, "\(after.count - before) progress reports after cancelling")
+        #expect(!after.contains(1))
     }
 
     @Test func fourMegapixelOutlineBudget() throws {

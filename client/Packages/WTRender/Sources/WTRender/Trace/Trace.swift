@@ -13,6 +13,7 @@
 import WTGeometry
 import CoreGraphics
 import Foundation
+import Synchronization
 
 /// Tracing a bitmap into vector paths.
 public enum Trace {
@@ -249,19 +250,41 @@ public enum Trace {
 
     /// Traces `bitmap` off the caller's actor; cancelling the calling task cancels the trace,
     /// which then throws `Cancelled`.
+    ///
+    /// The trace runs on a global dispatch queue rather than as a task: it is synchronous work
+    /// that can take seconds, and holding one of the cooperative pool's few threads that long
+    /// would delay other tasks, among them the one waiting to observe the cancellation.  A
+    /// cancellation that lands before the work starts is seen by its first poll.
     public static func trace(
         _ bitmap: Bitmap,
         options: Options = Options(),
         transform: AffineTransform = .identity,
         progress: (@Sendable (Double) -> Void)? = nil
     ) async throws -> Result {
-        let task = Task.detached(priority: .userInitiated) {
-            try run(bitmap, options: options, transform: transform, progress: progress, isCancelled: { Task.isCancelled })
-        }
+        let cancellation = Cancellation()
         return try await withTaskCancellationHandler {
-            try await task.value
+            try await withCheckedThrowingContinuation { continuation in
+                DispatchQueue.global(qos: .userInitiated).async {
+                    continuation.resume(with: Swift.Result {
+                        try run(bitmap, options: options, transform: transform, progress: progress, isCancelled: { cancellation.isSet })
+                    })
+                }
+            }
         } onCancel: {
-            task.cancel()
+            cancellation.set()
+        }
+    }
+
+    /// The flag `trace` sets when its calling task is cancelled.
+    private final class Cancellation: Sendable {
+        private let flag = Atomic<Bool>(false)
+
+        func set() {
+            flag.store(true, ordering: .relaxed)
+        }
+
+        var isSet: Bool {
+            flag.load(ordering: .relaxed)
         }
     }
 
@@ -273,9 +296,9 @@ public enum Trace {
             return []
         }
         var tracer = TraceOutline(width: width, height: height)
-        tracer.load { mask[$0] != 0 }
-        let tolerance = Options(conformity: conformity).tolerance
         // A check that never throws never cancels.
+        try! tracer.load(check: {}) { mask[$0] != 0 }
+        let tolerance = Options(conformity: conformity).tolerance
         let loops = try! tracer.loops(check: {})
         return loops.compactMap { loop in
             guard keepHoles || loop.isOuter else {
