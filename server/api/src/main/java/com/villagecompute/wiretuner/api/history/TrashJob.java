@@ -84,31 +84,41 @@ public class TrashJob {
     @Scheduled(identity = "trash", every = "${wt.jobs.trash.every:24h}", delayed = "${wt.jobs.trash.delay:4m}",
             concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
     Uni<Void> scheduled() {
-        return locks.exclusively("trash", this::run).replaceWithVoid();
+        return locks.exclusively("trash", () -> run().replaceWithVoid()).replaceWithVoid();
     }
 
-    /** One run: expired documents, then orphaned blobs. */
-    Uni<Void> run() {
+    /** What one run deleted. */
+    record Deleted(int documents, int blobs) {
+    }
+
+    /** One run: expired documents, then orphaned blobs; the result is how many of each went. */
+    Uni<Deleted> run() {
         return pool.preparedQuery(EXPIRED).execute(Tuple.of(ttl.toSeconds(), batch))
                 .chain(rows -> Multi.createFrom().iterable(ids(rows))
                         .onItem().transformToUniAndConcatenate(this::delete)
                         .collect().asList())
-                .invoke(deleted -> LOG.infof("trash: %d documents deleted", deleted.size()))
-                .chain(() -> pool.preparedQuery(ORPHANS).execute(Tuple.of(blobGrace.toSeconds(), batch)))
-                .chain(rows -> {
-                    List<Row> orphans = new ArrayList<>();
-                    rows.forEach(orphans::add);
-                    return Multi.createFrom().iterable(orphans)
-                            .onItem().transformToUniAndConcatenate(row -> store.delete(row.getString(1))
-                                    .chain(() -> pool.preparedQuery(DELETE_BLOB).execute(Tuple.of(row.getString(0)))))
-                            .collect().asList()
-                            .invoke(deleted -> LOG.infof("trash: %d orphaned blobs deleted", deleted.size()));
-                })
-                .replaceWithVoid();
+                .map(List::size)
+                .invoke(documents -> LOG.infof("trash: %d documents deleted", documents))
+                .chain(documents -> pool.preparedQuery(ORPHANS).execute(Tuple.of(blobGrace.toSeconds(), batch))
+                        .chain(rows -> {
+                            List<Row> orphans = new ArrayList<>();
+                            rows.forEach(orphans::add);
+                            return Multi.createFrom().iterable(orphans)
+                                    .onItem().transformToUniAndConcatenate(row -> store.delete(row.getString(1))
+                                            .chain(() -> pool.preparedQuery(DELETE_BLOB).execute(Tuple.of(row.getString(0))))
+                                            .replaceWith(row))
+                                    .collect().asList();
+                        })
+                        .map(List::size)
+                        .invoke(blobs -> LOG.infof("trash: %d orphaned blobs deleted", blobs))
+                        .map(blobs -> new Deleted(documents, blobs)));
     }
 
-    /** Deletes one document's objects, then its row. */
-    Uni<Void> delete(UUID documentId) {
+    /**
+     * Deletes one document's objects, then its row; the result is its id (never a null item, which
+     * a {@code Multi} would drop and the run's count would miss).
+     */
+    Uni<UUID> delete(UUID documentId) {
         return pool.preparedQuery(OBJECTS).execute(Tuple.of(documentId))
                 .chain(rows -> {
                     List<String> keys = new ArrayList<>();
@@ -118,7 +128,7 @@ public class TrashJob {
                             .collect().asList();
                 })
                 .chain(() -> pool.preparedQuery(DELETE_DOCUMENT).execute(Tuple.of(documentId)))
-                .replaceWithVoid();
+                .replaceWith(documentId);
     }
 
     private static List<UUID> ids(RowSet<Row> rows) {

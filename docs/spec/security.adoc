@@ -4,7 +4,7 @@ include::_attributes.adoc[]
 
 == Accounts
 
-NOTE: As built (SEC-003): the account window lists every device (`ListDevices`) with its sign-in method and Revoke for other Macs; adding or removing linked identities is not built (`AccountService` has no RPC for it).  The team settings sheet covers members, invitations (resend = `InviteMember` again), default document access, domains with status and TXT record, and the three workspace switches; transfer, delete and leave team are not in the sheet, and the default role cannot be set back to None because `UpdateTeam` refuses UNSPECIFIED.  `wiretuner://invite/<token>`, an `https://…/invite/<token>` link or a bare token opens the Join Team sheet; the links host comes from `WT_LINKS_URL` (default `https://wiretuner.app`).
+NOTE: As built (SEC-003): the account window lists every device (`ListDevices`) with its sign-in method and Revoke for other Macs; adding or removing linked identities is not built (`AccountService` has no RPC for it).  The team settings sheet covers members, invitations (resend = `InviteMember` again), default document access, domains with status and TXT record, and the three workspace switches; transfer, delete and leave team are not in the sheet, and the default role cannot be set back to None because `UpdateTeam` refuses UNSPECIFIED.  The history window (`history_retention_days`) is not in the sheet yet.  `wiretuner://invite/<token>`, an `https://…/invite/<token>` link or a bare token opens the Join Team sheet; the links host comes from `WT_LINKS_URL` (default `https://wiretuner.app`).
 
 Every person has one *personal account*, identified by a Keycloak subject.  Sign-in is OIDC
 with PKCE from the Mac (`ASWebAuthenticationSession`); Keycloak owns every credential and
@@ -143,7 +143,7 @@ A *team* is a named group of accounts with a shared document space, shared libra
 account(id, subject, email, display_name, created_at)
 account_identity(account_id, provider, provider_subject, email, email_verified, is_relay, linked_at)   -- unique (provider, provider_subject)
 device(id, account_id, name, platform, auth_method, last_seen_at, revoked_at   -- keyed (account_id, id): one Mac, two people
-team(id, name, slug, owner_account_id, default_document_role, created_at, deleted_at)
+team(id, name, slug, owner_account_id, default_document_role, created_at, deleted_at, history_retention_days)   -- history_retention_days: V12
 team_member(team_id, account_id, role, joined_at)
 team_invite(id, team_id, email, role, token_hash, invited_by_account_id, expires_at, accepted_at)   -- invited_by: V6
 workspace(team_id, sso_idp_alias, require_sso, auto_admit, restrict_sharing, restrict_package_export)   -- restrict_package_export: V6
@@ -210,6 +210,9 @@ on xref:api-conventions.adoc[API conventions].
   link uses on the team's documents, so the next role check (every RPC, the ingest path) finds no
   role: `RoleGuard` answers `NOT_FOUND / DOCUMENT_NOT_FOUND` for a role of none, and
   `ROLE_INSUFFICIENT` only for a role that is merely too low.
+* `UpdateTeam` also sets the team's history window, `history_retention_days` (30 to 3650 days;
+  `Team` reads 0 while it is unset, the default 30), which the History retention job honours
+  when it is longer than the default (COLLAB-020; xref:history.adoc[Version history], Server).
 * `DeleteTeam` sets `deleted_at`, trashes the team's live documents, ends every membership but
   the owner's (the owner keeps the owner's powers on the documents to move them out) and drops
   pending invitations.

@@ -129,6 +129,16 @@ message ChangeSummary {
       string: {max_len: 64}
     }
   }];
+  // The registers among `attributes` whose write in this change lost to a concurrent write
+  // (one not made knowing it) with a greater OpId, so every replica holds the other value; the
+  // blame popover marks them "did not apply" (history.adoc, Blame).  Sequence, text and set ops
+  // merge rather than lose and never appear.
+  repeated string lost_attributes = 7 [(buf.validate.field).repeated = {
+    max_items: 32
+    items: {
+      string: {max_len: 64}
+    }
+  }];
 }
 
 // A node with its display name at a point in history.

@@ -229,6 +229,13 @@ public nonisolated struct Wiretuner_Account_V1_Team: @unchecked Sendable {
   /// Clears the value of `workspace`. Subsequent reads from it will return its default value.
   public mutating func clearWorkspace() {_uniqueStorage()._workspace = nil}
 
+  /// The days the team's documents keep every change (docs/spec/history.adoc, How long history
+  /// is kept); 0 = the default, 30 days.  A team may lengthen the window, never shorten it.
+  public var historyRetentionDays: UInt32 {
+    get {_storage._historyRetentionDays}
+    set {_uniqueStorage()._historyRetentionDays = newValue}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -559,6 +566,16 @@ public nonisolated struct Wiretuner_Account_V1_UpdateTeamRequest: Sendable {
   /// Clears the value of `defaultDocumentRole`. Subsequent reads from it will return its default value.
   public mutating func clearDefaultDocumentRole() {self._defaultDocumentRole = nil}
 
+  /// The new history window in days: at least 30 (the default), at most 3650.
+  public var historyRetentionDays: UInt32 {
+    get {_historyRetentionDays ?? 0}
+    set {_historyRetentionDays = newValue}
+  }
+  /// Returns true if `historyRetentionDays` has been explicitly set.
+  public var hasHistoryRetentionDays: Bool {self._historyRetentionDays != nil}
+  /// Clears the value of `historyRetentionDays`. Subsequent reads from it will return its default value.
+  public mutating func clearHistoryRetentionDays() {self._historyRetentionDays = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -566,6 +583,7 @@ public nonisolated struct Wiretuner_Account_V1_UpdateTeamRequest: Sendable {
   fileprivate var _name: String? = nil
   fileprivate var _slug: String? = nil
   fileprivate var _defaultDocumentRole: Wiretuner_Account_V1_DocumentRole? = nil
+  fileprivate var _historyRetentionDays: UInt32? = nil
 }
 
 /// The team after the update.
@@ -1121,7 +1139,7 @@ nonisolated extension Wiretuner_Account_V1_DocumentRole: SwiftProtobuf._ProtoNam
 
 nonisolated extension Wiretuner_Account_V1_Team: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Team"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}name\0\u{1}slug\0\u{3}owner_account_id\0\u{3}created_at\0\u{3}deleted_at\0\u{3}member_count\0\u{3}default_document_role\0\u{3}caller_role\0\u{1}workspace\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}name\0\u{1}slug\0\u{3}owner_account_id\0\u{3}created_at\0\u{3}deleted_at\0\u{3}member_count\0\u{3}default_document_role\0\u{3}caller_role\0\u{1}workspace\0\u{3}history_retention_days\0")
 
   fileprivate class _StorageClass {
     var _id: String = String()
@@ -1134,6 +1152,7 @@ nonisolated extension Wiretuner_Account_V1_Team: SwiftProtobuf.Message, SwiftPro
     var _defaultDocumentRole: Wiretuner_Account_V1_DocumentRole = .unspecified
     var _callerRole: Wiretuner_Account_V1_TeamRole = .unspecified
     var _workspace: Wiretuner_Account_V1_Workspace? = nil
+    var _historyRetentionDays: UInt32 = 0
 
       // This property is used as the initial default value for new instances of the type.
       // The type itself is protecting the reference to its storage via CoW semantics.
@@ -1154,6 +1173,7 @@ nonisolated extension Wiretuner_Account_V1_Team: SwiftProtobuf.Message, SwiftPro
       _defaultDocumentRole = source._defaultDocumentRole
       _callerRole = source._callerRole
       _workspace = source._workspace
+      _historyRetentionDays = source._historyRetentionDays
     }
   }
 
@@ -1182,6 +1202,7 @@ nonisolated extension Wiretuner_Account_V1_Team: SwiftProtobuf.Message, SwiftPro
         case 8: try { try decoder.decodeSingularEnumField(value: &_storage._defaultDocumentRole) }()
         case 9: try { try decoder.decodeSingularEnumField(value: &_storage._callerRole) }()
         case 10: try { try decoder.decodeSingularMessageField(value: &_storage._workspace) }()
+        case 11: try { try decoder.decodeSingularUInt32Field(value: &_storage._historyRetentionDays) }()
         default: break
         }
       }
@@ -1224,6 +1245,9 @@ nonisolated extension Wiretuner_Account_V1_Team: SwiftProtobuf.Message, SwiftPro
       try { if let v = _storage._workspace {
         try visitor.visitSingularMessageField(value: v, fieldNumber: 10)
       } }()
+      if _storage._historyRetentionDays != 0 {
+        try visitor.visitSingularUInt32Field(value: _storage._historyRetentionDays, fieldNumber: 11)
+      }
     }
     try unknownFields.traverse(visitor: &visitor)
   }
@@ -1243,6 +1267,7 @@ nonisolated extension Wiretuner_Account_V1_Team: SwiftProtobuf.Message, SwiftPro
         if _storage._defaultDocumentRole != rhs_storage._defaultDocumentRole {return false}
         if _storage._callerRole != rhs_storage._callerRole {return false}
         if _storage._workspace != rhs_storage._workspace {return false}
+        if _storage._historyRetentionDays != rhs_storage._historyRetentionDays {return false}
         return true
       }
       if !storagesAreEqual {return false}
@@ -1713,7 +1738,7 @@ nonisolated extension Wiretuner_Account_V1_GetTeamResponse: SwiftProtobuf.Messag
 
 nonisolated extension Wiretuner_Account_V1_UpdateTeamRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".UpdateTeamRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}team_id\0\u{1}name\0\u{1}slug\0\u{3}default_document_role\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}team_id\0\u{1}name\0\u{1}slug\0\u{3}default_document_role\0\u{3}history_retention_days\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -1725,6 +1750,7 @@ nonisolated extension Wiretuner_Account_V1_UpdateTeamRequest: SwiftProtobuf.Mess
       case 2: try { try decoder.decodeSingularStringField(value: &self._name) }()
       case 3: try { try decoder.decodeSingularStringField(value: &self._slug) }()
       case 4: try { try decoder.decodeSingularEnumField(value: &self._defaultDocumentRole) }()
+      case 5: try { try decoder.decodeSingularUInt32Field(value: &self._historyRetentionDays) }()
       default: break
       }
     }
@@ -1747,6 +1773,9 @@ nonisolated extension Wiretuner_Account_V1_UpdateTeamRequest: SwiftProtobuf.Mess
     try { if let v = self._defaultDocumentRole {
       try visitor.visitSingularEnumField(value: v, fieldNumber: 4)
     } }()
+    try { if let v = self._historyRetentionDays {
+      try visitor.visitSingularUInt32Field(value: v, fieldNumber: 5)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -1755,6 +1784,7 @@ nonisolated extension Wiretuner_Account_V1_UpdateTeamRequest: SwiftProtobuf.Mess
     if lhs._name != rhs._name {return false}
     if lhs._slug != rhs._slug {return false}
     if lhs._defaultDocumentRole != rhs._defaultDocumentRole {return false}
+    if lhs._historyRetentionDays != rhs._historyRetentionDays {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

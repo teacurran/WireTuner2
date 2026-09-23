@@ -11,7 +11,7 @@ import io.quarkus.test.junit.QuarkusTest;
 
 import jakarta.inject.Inject;
 
-/** SRV-013: documents trashed 30 days ago go for good with their branches and objects; orphaned blobs go. */
+/** SRV-013: documents trashed 30 days ago go for good with their branches and objects; orphaned blobs go; a run counts both. */
 @QuarkusTest
 class TrashJobTest extends HistoryTestSupport {
 
@@ -34,6 +34,8 @@ class TrashJobTest extends HistoryTestSupport {
 
     @Test
     void expiredDocumentsGoWithTheirBranchesObjectsAndOrphanedBlobs() {
+        // Whatever other tests left to delete goes first, so the counts below are this test's.
+        run(() -> trash.run());
         UUID expired = document(ALICE);
         UUID branch = document(ALICE);
         UUID recent = document(ALICE);
@@ -59,7 +61,8 @@ class TrashJobTest extends HistoryTestSupport {
         String released = blob(2);
         exec("INSERT INTO document_blob (document_id, sha256) VALUES (?, ?)", expired, released);
 
-        run(() -> trash.scheduled());
+        // Both documents (the expired one and its branch) and both orphans are counted.
+        assertThat(run(() -> trash.run())).isEqualTo(new TrashJob.Deleted(2, 2));
         assertThat(count("SELECT count(*) FROM document WHERE id IN (?, ?)", expired, branch)).isZero();
         assertThat(count("SELECT count(*) FROM document WHERE id = ?", recent)).isEqualTo(1);
         assertThat(stored(snapshotKey)).isFalse();
@@ -68,5 +71,8 @@ class TrashJobTest extends HistoryTestSupport {
         assertThat(stored(key(orphan))).isFalse();
         assertThat(count("SELECT count(*) FROM blob WHERE sha256 IN (?, ?, ?)", young, referenced, thumbnail)).isEqualTo(3);
         assertThat(stored(key(referenced))).isTrue();
+        // The scheduled run, under its lock, has nothing left to delete.
+        run(() -> trash.scheduled());
+        assertThat(count("SELECT count(*) FROM blob WHERE sha256 IN (?, ?, ?)", young, referenced, thumbnail)).isEqualTo(3);
     }
 }

@@ -223,6 +223,12 @@ public nonisolated struct Wiretuner_Docs_V1_ChangeSummary: Sendable {
   /// the merge table's display names.
   public var attributes: [String] = []
 
+  /// The registers among `attributes` whose write in this change lost to a concurrent write
+  /// (one not made knowing it) with a greater OpId, so every replica holds the other value; the
+  /// blame popover marks them "did not apply" (history.adoc, Blame).  Sequence, text and set ops
+  /// merge rather than lose and never appear.
+  public var lostAttributes: [String] = []
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -859,7 +865,7 @@ nonisolated extension Wiretuner_Docs_V1_Session: SwiftProtobuf.Message, SwiftPro
 
 nonisolated extension Wiretuner_Docs_V1_ChangeSummary: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ChangeSummary"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}server_seq\0\u{1}label\0\u{3}wall_time\0\u{3}op_count\0\u{1}nodes\0\u{1}attributes\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}server_seq\0\u{1}label\0\u{3}wall_time\0\u{3}op_count\0\u{1}nodes\0\u{1}attributes\0\u{3}lost_attributes\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -873,6 +879,7 @@ nonisolated extension Wiretuner_Docs_V1_ChangeSummary: SwiftProtobuf.Message, Sw
       case 4: try { try decoder.decodeSingularUInt32Field(value: &self.opCount) }()
       case 5: try { try decoder.decodeRepeatedMessageField(value: &self.nodes) }()
       case 6: try { try decoder.decodeRepeatedStringField(value: &self.attributes) }()
+      case 7: try { try decoder.decodeRepeatedStringField(value: &self.lostAttributes) }()
       default: break
       }
     }
@@ -901,6 +908,9 @@ nonisolated extension Wiretuner_Docs_V1_ChangeSummary: SwiftProtobuf.Message, Sw
     if !self.attributes.isEmpty {
       try visitor.visitRepeatedStringField(value: self.attributes, fieldNumber: 6)
     }
+    if !self.lostAttributes.isEmpty {
+      try visitor.visitRepeatedStringField(value: self.lostAttributes, fieldNumber: 7)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -911,6 +921,7 @@ nonisolated extension Wiretuner_Docs_V1_ChangeSummary: SwiftProtobuf.Message, Sw
     if lhs.opCount != rhs.opCount {return false}
     if lhs.nodes != rhs.nodes {return false}
     if lhs.attributes != rhs.attributes {return false}
+    if lhs.lostAttributes != rhs.lostAttributes {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

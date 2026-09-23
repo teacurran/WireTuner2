@@ -29,6 +29,10 @@ public class Team {
     @Column(name = "default_document_role", nullable = false, columnDefinition = "text")
     public String defaultDocumentRole = "editor";
 
+    /** The days the team's documents keep every change, at least 30; null = the configured default (history.adoc). */
+    @Column(name = "history_retention_days")
+    public Integer historyRetentionDays;
+
     @Column(name = "created_at", nullable = false)
     public Instant createdAt = Instant.now();
 

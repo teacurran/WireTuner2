@@ -172,7 +172,7 @@ Postgres holds the truth; object storage holds bulk.
 |`version` |V10 (SRV-011) replaces the table: `id` (the client's UUIDv7) primary key, document, `server_seq`, name, note, author, `pinned`, created and updated; two versions may name one seq.
 |`blob`, `document_blob` |sha256, size, media type, storage key (`blobs/<first byte>/<sha256>`), `tag` the blob was first uploaded with (`content` or `thumbnail`); references per document.  A thumbnail upload sets `document.thumbnail_blob` and adds no reference.
 |`data_credential`, `data_allowed_host`, `data_fetch_audit` |V8 (DATA-005, DATA-007, DATA-008): the data service's envelope-encrypted credentials, permitted hosts and fetch audit trail, each in a team XOR one account's personal space (xref:data-merge.adoc#as-built-server[Data merge], As built).
-|`account`, `account_identity`, `device`, `team`, `team_member`, `team_invite`, `workspace`, `workspace_domain` |xref:security.adoc[Accounts, teams and security].  V7 adds `workspace_domain.checked_at` and `failed_checks` for the Domains job; V9 adds `account.preferences` (the synced preferences as JSON); V11 adds `account.storage_limit_bytes` and `team.storage_limit_bytes`, the space's blob quota (null: the configured default, IO-008); V12 adds `team.history_retention_days` (at least 30; null: the configured 30 days, COLLAB-020).
+|`account`, `account_identity`, `device`, `team`, `team_member`, `team_invite`, `workspace`, `workspace_domain` |xref:security.adoc[Accounts, teams and security].  V7 adds `workspace_domain.checked_at` and `failed_checks` for the Domains job; V9 adds `account.preferences` (the synced preferences as JSON); V11 adds `account.storage_limit_bytes` and `team.storage_limit_bytes`, the space's blob quota (null: the configured default, IO-008); V12 adds `team.history_retention_days` (at least 30; null: the configured 30 days; `UpdateTeam` sets it, COLLAB-020).
 |`library` |V9 (COLLAB-012): a team document marked as a team library, with its name, publisher and time; `document.is_library` mirrors it.  V9 also adds `document.team_access_override` and `share_link.expiry_announced_at` (COLLAB-011).
 |`comment_thread`, `comment`, `comment_read`, `comment_notification` |V9 (COLLAB-030): the server's record of comments kept from the ingested ops (opener, author, `resolved` and `deleted` by last-writer-wins, a 200-character preview), read marks, and mention / reply / resolve notifications with `seen_at` and `emailed_at` (xref:comments.adoc[Comments], As built).
 |`publish`, `publish_file` |V9 (WEB-012): published bundles (one current per document) and their files as blob references (xref:publish-html.adoc[Publish as HTML], As built).
@@ -360,7 +360,8 @@ As built (SRV-007, SRV-013, D-067; `api/.../history`):
 * *Trash* (`TrashJob`, daily).  Deletes documents trashed 30 days ago with their branches, after
   deleting their snapshot and cold-segment objects, then every blob no document, thumbnail or
   published file references that is at least a day old (so an upload whose reference is being
-  written is not taken), object first.  Share-link expiry stays in the Invitations job.
+  written is not taken), object first, and logs how many documents and blobs went.  Share-link
+  expiry stays in the Invitations job.
 
 == Search
 

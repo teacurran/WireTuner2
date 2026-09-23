@@ -241,6 +241,9 @@ public class TeamGrpcService extends MutinyTeamServiceGrpc.TeamServiceImplBase {
             if (request.hasDefaultDocumentRole()) {
                 team.defaultDocumentRole = TeamMessages.defaultDocumentRole(request.getDefaultDocumentRole());
             }
+            if (request.hasHistoryRetentionDays()) {
+                team.historyRetentionDays = request.getHistoryRetentionDays();
+            }
             return slug.chain(() -> teamMessage(team, m.role())).map(message -> new Acted<>(message, m.principal()));
         }))
                 .call(acted -> request.hasDefaultDocumentRole() ? notices.team(teamId, null, acted.actor())

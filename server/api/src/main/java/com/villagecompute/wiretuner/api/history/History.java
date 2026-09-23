@@ -120,6 +120,17 @@ public class History {
             ORDER BY server_seq DESC LIMIT $5
             """;
 
+    /**
+     * The changes after $4 that named any of some nodes ($2 replicas, $3 counters), oldest first, at
+     * most $5: the writes a page's changes may have lost to, or beaten.
+     */
+    static final String NODES_SEQS = """
+            SELECT DISTINCT server_seq FROM change_node
+            WHERE document_id = $1 AND (node_replica, node_counter) IN (SELECT * FROM unnest($2::bigint[], $3::bigint[]))
+              AND server_seq > $4
+            ORDER BY server_seq LIMIT $5
+            """;
+
     /** Nodes whose name, at any time, contains the query. */
     static final String NAMED_LIKE = """
             SELECT DISTINCT node_replica, node_counter FROM node_name WHERE document_id = $1 AND strpos(lower(name), $2) > 0
@@ -188,7 +199,10 @@ public class History {
             List<Session> sessions = shown.stream().map(g -> session(g, expand)).toList();
             long next = more && !sessions.isEmpty() ? sessions.get(sessions.size() - 1).getFirstServerSeq() : 0;
             List<ChangeSummary> summaries = sessions.stream().flatMap(s -> s.getChangesList().stream()).toList();
-            return named(documentId, summaries).map(names -> new Sessions(sessions.stream()
+            Set<Long> listed = new HashSet<>();
+            summaries.forEach(summary -> listed.add(summary.getServerSeq()));
+            List<Logged> page = shown.stream().flatMap(List::stream).filter(l -> listed.contains(l.serverSeq())).toList();
+            return annotated(documentId, page, summaries).map(names -> new Sessions(sessions.stream()
                     .map(s -> s.toBuilder().clearChanges().addAllChanges(s.getChangesList().stream()
                             .map(c -> names.get(c.getServerSeq())).toList()).build())
                     .toList(), next));
@@ -205,7 +219,7 @@ public class History {
                     long next = seqs.size() > pageSize ? shown.get(shown.size() - 1) : 0;
                     return at(documentId, shown).chain(logged -> {
                         List<ChangeSummary> summaries = logged.stream().map(History::summary).toList();
-                        return named(documentId, summaries).map(names -> new NodeChanges(
+                        return annotated(documentId, logged, summaries).map(names -> new NodeChanges(
                                 summaries.stream().map(s -> names.get(s.getServerSeq())).toList(),
                                 logged.stream().map(Logged::author).toList(), next));
                     });
@@ -301,6 +315,43 @@ public class History {
         }
         return new Logged(sequenced.getServerSeq(), change, change.getWallTimeMs() * 1000, author.build(), branchId,
                 branchName);
+    }
+
+    /** {@code summaries} (of the changes {@code page}) by server_seq, named ({@link #named}) and with their lost attributes. */
+    private Uni<Map<Long, ChangeSummary>> annotated(UUID documentId, List<Logged> page, List<ChangeSummary> summaries) {
+        return named(documentId, summaries).chain(named -> lost(documentId, page).map(lost -> {
+            lost.forEach((seq, attributes) -> named.put(seq, named.get(seq).toBuilder().addAllLostAttributes(attributes).build()));
+            return named;
+        }));
+    }
+
+    /**
+     * The lost attributes of {@code page}'s changes ({@link LostWrites}), judged against the changes
+     * that named the same nodes after the oldest causal past among them, at most a scan of them.
+     */
+    Uni<Map<Long, List<String>>> lost(UUID documentId, List<Logged> page) {
+        Set<OpId> nodes = new LinkedHashSet<>();
+        long base = Long.MAX_VALUE;
+        for (Logged logged : page) {
+            for (TouchedNodes.Named op : TouchedNodes.ops(logged.change())) {
+                if (op.op().hasSet() || op.op().hasSetDeleted() || op.op().hasMove()) {
+                    nodes.add(op.node());
+                }
+            }
+            base = Math.min(base, logged.change().getBaseServerSeq());
+        }
+        if (nodes.isEmpty()) {
+            return Uni.createFrom().item(Map.of());
+        }
+        List<LostWrites.Logged> changes = page.stream().map(l -> new LostWrites.Logged(l.serverSeq(), l.change())).toList();
+        return pool.preparedQuery(NODES_SEQS).execute(Tuple.from(new Object[] {documentId,
+                nodes.stream().map(OpId::replica).toArray(Long[]::new), nodes.stream().map(OpId::counter).toArray(Long[]::new),
+                base, scan})).chain(rows -> {
+                    List<Long> seqs = new ArrayList<>();
+                    rows.forEach(row -> seqs.add(row.getLong(0)));
+                    return at(documentId, seqs);
+                }).map(context -> LostWrites.of(changes, context.stream()
+                        .map(l -> new LostWrites.Logged(l.serverSeq(), l.change())).toList()));
     }
 
     /**

@@ -32,7 +32,8 @@ final class TeamMessages {
                 .setCreatedAt(timestamp(row.createdAt))
                 .setMemberCount((int) memberCount)
                 .setDefaultDocumentRole(DocumentMessages.role(Role.fromDb(row.defaultDocumentRole)))
-                .setCallerRole(TeamRoles.toProto(callerRole));
+                .setCallerRole(TeamRoles.toProto(callerRole))
+                .setHistoryRetentionDays(row.historyRetentionDays == null ? 0 : row.historyRetentionDays);
         if (row.deletedAt != null) {
             team.setDeletedAt(timestamp(row.deletedAt));
         }

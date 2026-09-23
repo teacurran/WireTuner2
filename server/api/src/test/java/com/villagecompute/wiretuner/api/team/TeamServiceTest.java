@@ -223,6 +223,32 @@ class TeamServiceTest extends ServiceTestSupport {
     }
 
     @Test
+    void anAdminLengthensTheHistoryWindow() {
+        UUID team = crew();
+        GetTeamRequest get = GetTeamRequest.newBuilder().setTeamId(team.toString()).build();
+        // Unset: the default window, 0 on the wire and null in the column.
+        assertThat(by(CAROL).getTeam(get).getTeam().getHistoryRetentionDays()).isZero();
+        UpdateTeamRequest.Builder update = UpdateTeamRequest.newBuilder().setTeamId(team.toString());
+        assertFails(() -> by(CAROL).updateTeam(update.setHistoryRetentionDays(90).build()), Status.Code.PERMISSION_DENIED,
+                "ROLE_INSUFFICIENT");
+        assertThat(value("SELECT history_retention_days FROM team WHERE id = ?", team)).isNull();
+
+        assertThat(by(BOB).updateTeam(update.setHistoryRetentionDays(90).build()).getTeam().getHistoryRetentionDays())
+                .isEqualTo(90);
+        assertThat(count("SELECT history_retention_days FROM team WHERE id = ?", team)).isEqualTo(90);
+        assertThat(by(CAROL).getTeam(get).getTeam().getHistoryRetentionDays()).isEqualTo(90);
+        // Other updates leave it; a window under 30 days or over ten years is refused.
+        assertThat(by(BOB).updateTeam(UpdateTeamRequest.newBuilder().setTeamId(team.toString()).setName("Kept").build())
+                .getTeam().getHistoryRetentionDays()).isEqualTo(90);
+        assertFails(() -> by(BOB).updateTeam(update.setHistoryRetentionDays(29).build()), Status.Code.INVALID_ARGUMENT,
+                "VALIDATION_FAILED");
+        assertFails(() -> by(BOB).updateTeam(update.setHistoryRetentionDays(3651).build()), Status.Code.INVALID_ARGUMENT,
+                "VALIDATION_FAILED");
+        assertThat(by(ALICE).updateTeam(update.setHistoryRetentionDays(30).build()).getTeam().getHistoryRetentionDays())
+                .isEqualTo(30);
+    }
+
+    @Test
     void deleteTeamTrashesItsDocumentsAndEndsMemberships() {
         UUID team = crew();
         Document doc = as(docs, CAROL).create(CreateRequest.newBuilder().setDocumentId(uuid7().toString())

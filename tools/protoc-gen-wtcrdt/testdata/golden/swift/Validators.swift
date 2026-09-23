@@ -616,6 +616,12 @@ public enum WTValidators {
                 out.append(ValidationViolation(fieldPath: "\(path)default_document_role", ruleID: "enum.not_in", message: "value must not be in list [0, 1]"))
             }
         }
+        if m.hasHistoryRetentionDays {
+            let v = m.historyRetentionDays
+            if !(v >= 30 && v <= 3650) {
+                out.append(ValidationViolation(fieldPath: "\(path)history_retention_days", ruleID: "uint32.gte_lte", message: "value must be greater than or equal to 30 and less than or equal to 3650"))
+            }
+        }
         return out
     }
 

@@ -30,7 +30,7 @@ service TeamService {
   rpc ListTeams(ListTeamsRequest) returns (ListTeamsResponse);
   // One team the caller is a member of.
   rpc GetTeam(GetTeamRequest) returns (GetTeamResponse);
-  // Change a team's name, slug or default document role.  Admin or owner.
+  // Change a team's name, slug, default document role or history window.  Admin or owner.
   rpc UpdateTeam(UpdateTeamRequest) returns (UpdateTeamResponse);
   // Trash the team: its documents are trashed for 30 days, during which the owner can
   // transfer them to another space; memberships end at once.  Owner only.
@@ -135,6 +135,13 @@ message Team {
   TeamRole caller_role = 9 [(buf.validate.field).enum.defined_only = true];
   // The company workspace the team is bound to; unset for a plain team.
   Workspace workspace = 10;
+  // The days the team's documents keep every change (docs/spec/history.adoc, How long history
+  // is kept); 0 = the default, 30 days.  A team may lengthen the window, never shorten it.
+  uint32 history_retention_days = 11 [(buf.validate.field).cel = {
+    id: "team.history_retention_days.range"
+    message: "history_retention_days must be 0 or between 30 and 3650"
+    expression: "this == 0u || (this >= 30u && this <= 3650u)"
+  }];
 }
 
 // One membership row.
@@ -289,6 +296,11 @@ message UpdateTeamRequest {
       0,
       1
     ]
+  }];
+  // The new history window in days: at least 30 (the default), at most 3650.
+  optional uint32 history_retention_days = 5 [(buf.validate.field).uint32 = {
+    gte: 30
+    lte: 3650
   }];
 }
 

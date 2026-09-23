@@ -347,6 +347,43 @@ class VersionServiceTest extends HistoryTestSupport {
     }
 
     @Test
+    void aWriteThatLostToAConcurrentOneIsMarked() {
+        UUID id = document(ALICE);
+        share(id, bob, "editor");
+        share(id, carol, "viewer");
+        DocOps.Author a = new DocOps.Author(replicaId());
+        DocOps.Author b = new DocOps.Author(replicaId());
+        OpId logo = a.next();
+        push(ALICE, null, id, a.change("Create", DocOps.create(wellKnown(LAYERS), DocOps.path("Logo", ""))));
+        // Alice and Bob rename it knowing only the creation; Bob's clock is ahead, so his name holds.
+        a.base(1);
+        b.base(1);
+        b.counter = 50;
+        push(ALICE, null, id, a.change("Mark", DocOps.rename(logo, "Mark"), DocOps.type(logo, "x")));
+        push(BOB, null, id, b.change("Badge", DocOps.rename(logo, "Badge"), DocOps.type(logo, "y")));
+        // Alice's next edit knew Bob's: it applied, and so did his.
+        a.base(3);
+        a.counter = 60;
+        push(ALICE, null, id, a.change("Seal", DocOps.rename(logo, "Seal"), DocOps.delete(logo),
+                com.villagecompute.wiretuner.doc.v1.Op.newBuilder().setMove(com.villagecompute.wiretuner.doc.v1.MoveNode
+                        .newBuilder().setNode(logo).setParent(wellKnown(LAYERS))
+                        .setPosition(com.google.protobuf.ByteString.copyFrom(new byte[] {(byte) 0x90}))).build()));
+
+        ListNodeHistoryResponse nodeHistory = as(CAROL).listNodeHistory(ListNodeHistoryRequest.newBuilder()
+                .setDocumentId(id.toString()).setNode(logo).build());
+        assertThat(nodeHistory.getChangesList()).extracting(ChangeSummary::getLabel)
+                .containsExactly("Seal", "Badge", "Mark", "Create");
+        assertThat(nodeHistory.getChangesList()).extracting(c -> List.copyOf(c.getLostAttributesList()))
+                .containsExactly(List.of(), List.of(), List.of("Name"), List.of());
+        assertThat(nodeHistory.getChanges(2).getAttributesList()).containsExactly("Name", "Text");
+        assertThat(nodeHistory.getChanges(0).getAttributesList()).containsExactly("Name", "Deleted", "Order");
+        List<ChangeSummary> timeline = history(ListHistoryRequest.newBuilder().setDocumentId(id.toString())).getRowsList()
+                .stream().flatMap(row -> row.getSession().getChangesList().stream()).toList();
+        assertThat(timeline).filteredOn(c -> c.getLostAttributesCount() > 0).extracting(ChangeSummary::getLabel)
+                .containsExactly("Mark");
+    }
+
+    @Test
     void aColdChangeOfAnUnboundReplicaHasNoAuthorInTheTimeline() {
         UUID id = document(ALICE);
         share(id, carol, "viewer");

@@ -223,6 +223,8 @@ message ChangeSummary {
   // Register names written, for blame ("Fill", "Position"): derived from field paths through
   // the merge table's display names.
   repeated string attributes = 6;
+  // Of those, the ones whose write lost to a concurrent write ("did not apply", COLLAB-023).
+  repeated string lost_attributes = 7;
 }
 message NamedNode { wiretuner.doc.v1.OpId id = 1; string name = 2; }
 
@@ -322,7 +324,8 @@ everything up to and including my change", which is the closest faithful meaning
 
 Blame::
 `ListNodeHistory` reads the retained log by node id (the server indexes `change_log` by
-touched node ids, COLLAB-020).  Losing writes appear too, marked, since the log retains them.
+touched node ids, COLLAB-020).  Losing writes appear too, marked, since the log retains them:
+a change's `lost_attributes` are the registers it wrote whose write lost to a concurrent write.
 
 Read-time normalization: none.
 
@@ -401,15 +404,24 @@ As built (COLLAB-020, `api/.../history`: `ChangeIndex`, `History`; V11):
   still a snapshot at exactly its seq.  Blob references are per document (`document_blob`) and
   outlive every change, so a pinned version's blobs stay; nothing yet releases a blob a document
   no longer uses at any retained seq.
-  Deviation: the team window is a column only -- `team.proto` has no field for it, so
-  `UpdateTeam` cannot set it yet (proposed: `optional uint32 history_retention_days` on
-  `UpdateTeamRequest` and `uint32 history_retention_days` on `Team`, at least 30).
-* *Losing writes are not marked* in node history.  The data allows it -- the log holds every write
-  with its OpId, and `change_node` finds the node's other changes, so the server can tell a register
-  write that arrived under a newer one for the same path -- but `ChangeSummary` has no field to carry
-  the mark.  Proposed for `version.proto`: `repeated string lost_attributes = 7` on
-  `ChangeSummary`, the registers (by the `attributes` names) this change wrote whose value lost to a
-  concurrent write, which the popover shows as "did not apply" (COLLAB-023).
+* *The team window.*  `Team.history_retention_days` reads the column (0 when unset: the default
+  window) and `UpdateTeam` sets it, admin or owner like the rest of `UpdateTeam`; protovalidate
+  holds a set value to 30 through 3650 days.
+* *Losing writes* (`LostWrites`).  Every `ChangeSummary` of `ListHistory` and `ListNodeHistory`
+  carries `lost_attributes`: the `attributes` whose write did not apply because a concurrent write
+  of the same register had a greater OpId -- whichever arrived first, since every replica converges
+  on the greater.  A write replaced by a later edit made knowing it applied and is not lost.  A
+  change knew another when the other's seq is at or below its `base_server_seq`, or it is the same
+  replica's earlier change; that is the whole causal context a change carries.  Registers come
+  from the merge table: each `SetFields` path is resolved on a scratch engine node of the path's
+  kind, so a struct path (`Common`) stands for every register beneath it and is lost only when all
+  of them lost; `SetDeleted` ("Deleted") and `MoveNode` ("Order") are one register per node.
+  Element, text and set ops merge by their own rules and never lose, and a `SetFields` path through
+  a sequence element or a paragraph is never marked (the scratch node holds no elements).  The other
+  writers are read from `change_node`: the changes naming the page's nodes above the oldest
+  `base_server_seq` among the page's changes, oldest first, at most `wt.history.scan` of them, hot or
+  cold.  A concurrent write sequenced beyond that scan is not seen, and a merged branch's replayed
+  change is judged by its `base_server_seq` on the branch.
 
 COLLAB-020 adds:
 `ListHistory` with server-side session grouping and search, a touched-node index on

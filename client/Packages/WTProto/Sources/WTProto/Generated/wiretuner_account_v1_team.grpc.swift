@@ -384,7 +384,7 @@ extension Wiretuner_Account_V1_TeamService {
         ///
         /// > Source IDL Documentation:
         /// >
-        /// > Change a team's name, slug or default document role.  Admin or owner.
+        /// > Change a team's name, slug, default document role or history window.  Admin or owner.
         ///
         /// - Parameters:
         ///   - request: A request containing a single `Wiretuner_Account_V1_UpdateTeamRequest` message.
@@ -872,7 +872,7 @@ extension Wiretuner_Account_V1_TeamService {
         ///
         /// > Source IDL Documentation:
         /// >
-        /// > Change a team's name, slug or default document role.  Admin or owner.
+        /// > Change a team's name, slug, default document role or history window.  Admin or owner.
         ///
         /// - Parameters:
         ///   - request: A request containing a single `Wiretuner_Account_V1_UpdateTeamRequest` message.
@@ -1491,7 +1491,7 @@ extension Wiretuner_Account_V1_TeamService.ClientProtocol {
     ///
     /// > Source IDL Documentation:
     /// >
-    /// > Change a team's name, slug or default document role.  Admin or owner.
+    /// > Change a team's name, slug, default document role or history window.  Admin or owner.
     ///
     /// - Parameters:
     ///   - request: A request containing a single `Wiretuner_Account_V1_UpdateTeamRequest` message.
@@ -2046,7 +2046,7 @@ extension Wiretuner_Account_V1_TeamService.ClientProtocol {
     ///
     /// > Source IDL Documentation:
     /// >
-    /// > Change a team's name, slug or default document role.  Admin or owner.
+    /// > Change a team's name, slug, default document role or history window.  Admin or owner.
     ///
     /// - Parameters:
     ///   - message: request message to send.
