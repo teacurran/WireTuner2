@@ -258,8 +258,12 @@ final class TypesetParagraph {
 
     var style: ParagraphStyle { key.style }
 
-    init(key: ParagraphKey) {
+    /// Resolves the run fonts (the layout engine's font manager).
+    let resolver: FontResolver
+
+    init(key: ParagraphKey, resolver: FontResolver = .shared) {
         self.key = key
+        self.resolver = resolver
         let scalars = Array(key.text.unicodeScalars)
         self.scalars = scalars
         length = scalars.count
@@ -293,7 +297,6 @@ final class TypesetParagraph {
         }
         self.attributes = attributes
         spanStarts = starts
-        let resolver = FontResolver.shared
         var report = FontReport()
         var lookups = 0
         var hits = 0
@@ -617,7 +620,7 @@ final class TypesetParagraph {
 
     private func emptyLine(at start: Int, boxLeft: Double, boxWidth: Double) -> TypesetLine {
         let attributes = length == 0 ? key.terminator : self.attributes[span(at: max(start - 1, 0))]
-        let font = FontResolver.shared.font(for: attributes)
+        let font = resolver.font(for: attributes)
         let shift: Double
         switch style.alignment {
         case .center: shift = boxWidth / 2

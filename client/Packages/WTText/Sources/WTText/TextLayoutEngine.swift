@@ -29,7 +29,15 @@ public final class TextLayoutEngine {
     public private(set) var fontLookups = 0
     public private(set) var fontHits = 0
 
-    public init() {}
+    /// The fonts layout resolves against (TXT-002).
+    public let fonts: FontManager
+    /// The font generation the cached paragraphs were typeset under.
+    private var fontGeneration: Int
+
+    public init(fonts: FontManager = .shared) {
+        self.fonts = fonts
+        fontGeneration = fonts.generation
+    }
 
     /// Lines broken so far across the cached paragraphs (memo misses).
     public var linesBroken: Int {
@@ -40,6 +48,13 @@ public final class TextLayoutEngine {
     /// earlier layouts.  When the first container asks for copyfit, the size and leading are
     /// scaled within its range to the largest scale at which nothing overflows.
     public func layout(_ content: TextContent, in containers: [TextContainer]) -> TextLayout {
+        // After fonts were activated or a substitution changed, the paragraphs whose faces now
+        // resolve differently are typeset again; the rest stay cached.
+        let generation = fonts.generation
+        if generation != fontGeneration {
+            cache = cache.filter { $0.value.fontReport.resolutions.allSatisfy { fonts.resolve($0.key) == $0.value } }
+            fontGeneration = generation
+        }
         var used: [ParagraphKey: TypesetParagraph] = [:]
         exclusionsUsed = [:]
         defer {
@@ -130,7 +145,7 @@ public final class TextLayoutEngine {
             return cached
         }
         paragraphsTypeset += 1
-        let typeset = TypesetParagraph(key: key)
+        let typeset = TypesetParagraph(key: key, resolver: fonts.resolver)
         fontLookups += typeset.fontLookups
         fontHits += typeset.fontHits
         cache[key] = typeset

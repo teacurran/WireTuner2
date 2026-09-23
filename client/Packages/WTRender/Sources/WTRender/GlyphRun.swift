@@ -63,6 +63,20 @@ public struct GlyphFont: Hashable, Sendable, CustomStringConvertible {
     public var description: String {
         "\(postScriptName) \(size)pt"
     }
+
+    /// Whether the PostScript name loads that very face rather than Core Text's stand-in (a
+    /// font that is neither installed nor activated).
+    public var isAvailable: Bool {
+        CTFontCopyPostScriptName(ctFont) as String == postScriptName
+    }
+
+    /// Drops every cached font and outline: after fonts were activated or deactivated (TXT-002)
+    /// a PostScript name may load a different face than the one cached.  Canvases repaint text
+    /// afterwards, since tiles keep what they drew.
+    public static func fontsChanged() {
+        FontCache.shared.removeAll()
+        GlyphOutlines.shared.removeAll()
+    }
 }
 
 /// One glyph at its place.
@@ -156,6 +170,10 @@ final class FontCache: @unchecked Sendable {
         }
         fonts[key] = font
         return font
+    }
+
+    func removeAll() {
+        lock.withLock { fonts.removeAll() }
     }
 }
 
@@ -251,6 +269,10 @@ final class GlyphOutlines: @unchecked Sendable {
         let table = FontTable(font: font.ctFont)
         tables[font] = table
         return table
+    }
+
+    func removeAll() {
+        lock.withLock { tables.removeAll() }
     }
 
     /// Nil for a glyph without an outline (a space, a bitmap-only glyph).

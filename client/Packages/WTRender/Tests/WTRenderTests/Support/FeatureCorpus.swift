@@ -46,7 +46,22 @@ enum FeatureCorpus {
         ReferenceCase(name: "chartPictographs", list: pictographs, viewSize: chartView),
         ReferenceCase(name: "connectorRoutes", list: connectors),
         ReferenceCase(name: "barcodes", list: barcodes, viewSize: Size(width: 160, height: 96)),
+        ReferenceCase(name: "placedFiles", list: placedFiles),
     ]
+
+    // MARK: Placed files
+
+    /// IMG-011's gray boxes (no renderer store, so a preview-bearing file draws its box too):
+    /// a file without a preview, a rotated file whose preview is not cached with a name longer
+    /// than its box, and a zero-area box read as one inch square.
+    static var placedFiles: DisplayList {
+        C.list([
+            PlacedFileDrawing.item(PlacedFile(bounds: Rect(x: 0, y: 0, width: 56, height: 40), name: "logo.eps", transform: .translation(x: 4, y: 4))),
+            PlacedFileDrawing.item(PlacedFile(bounds: Rect(x: 0, y: 0, width: 44, height: 30), previewAssetID: "cafe", previewWidth: 88, previewHeight: 60, name: "a long file name.eps",
+                                              transform: AffineTransform.rotation(radians: .pi / 12).concatenating(.translation(x: 70, y: 6)))),
+            PlacedFileDrawing.item(PlacedFile(bounds: Rect(x: 10, y: 0, width: 0, height: 20), name: "flat.eps", transform: AffineTransform.scale(x: 0.5, y: 0.5).concatenating(.translation(x: 0, y: 50)))),
+        ])
+    }
 
     // MARK: Layers
 

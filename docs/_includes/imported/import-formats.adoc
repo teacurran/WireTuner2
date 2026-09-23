@@ -13,7 +13,7 @@ command, dragging from the Finder, pasting -- are on xref:importing.adoc[Importi
 |Adobe Illustrator |`.ai` |Paths, text, images |Version 9 and later (PDF-based) fully; earlier versions through the PostScript reader.
 |SVG |`.svg`, `.svgz` |Paths, text, images |Options: text handling.
 |AutoCAD DXF |`.dxf` |Paths, text |Options: invisible attributes, white strokes and fills.
-|Encapsulated PostScript |`.eps` |Placed file with preview |Not editable; printed as PostScript on PostScript devices.
+|Encapsulated PostScript |`.eps` |Placed file with preview |Not editable; the PostScript is kept and written into EPS exports.
 |SVG animation |`.svg`, `.svgz` with animation |Placed animation |See xref:svg-animation.adoc[SVG animations and browser preview].
 |TIFF |`.tif`, `.tiff` |Image |Alpha, 16-bit, CMYK and LAB supported.
 |JPEG |`.jpg`, `.jpeg` |Image |RGB, CMYK and grayscale, 8-bit.
@@ -137,8 +137,8 @@ points.  Default inches.
 
 An EPS file is placed, not converted.  {product} shows the preview the file carries (a TIFF or
 EPSI preview, or a PDF-compatible stream when the EPS was written by a recent Illustrator) and
-keeps the PostScript for output: printing to a PostScript device sends it through unchanged,
-and exports to PDF and other formats use the preview.  An EPS with no preview shows as a gray
+keeps the PostScript for output: an EPS export writes it through unchanged, and printing and
+exports to PDF and other formats use the preview.  An EPS with no preview shows as a gray
 box of its bounding-box size with the file's name.
 
 You can move, scale, rotate and skew a placed EPS, and crop it with Paste Inside
@@ -448,6 +448,32 @@ previews, PDF-carrying and DCS files); the round trip exports through the EPS ex
 with a 72 and a 144 ppi TIFF preview and re-imports at 200 × 150 pt with the preview within 3%
 of the reference rendering.  Rendering the preview in the document, the conformance vectors and
 the merge test are the `WTModel`/`WTRender` half, still to do.
+
+NOTE: As built by IMG-011's `WTRender` half (`WTRender/Images/PlacedFileDrawing.swift`).
+`PlacedFileDrawing.item(_:)` turns a `PlacedFile` (the bounds, the preview's asset id and pixel
+size, `source_name` and the node's transform) into one display item: with a preview, an
+`ImageItem` over the bounds (RGB with alpha, so a PDF preview's transparent background shows
+through) whose new `fallback` is the gray box; without one, the gray box alone.  Both renderers
+draw an image's `fallback` in place of the grey placeholder whenever its pixels cannot draw --
+no store, blob missing or downloading, still decoding, or unreadable -- so "the preview if
+cached, else the gray box" needs nothing from the caller; the Metal renderer lowers the box
+natively without a store and through its reference texture with one.  The page does not give
+the box's look; as built it is the look `ImportedScene.exportScene()` already drew: an 85%-white
+fill, a 1 pt 50% border drawn inside the edge (a ring whose inner edge winds against the outer,
+so neither fill rule decides it and nothing paints outside the bounds), and the name in Helvetica 10 pt at 30% from 4 pt inside the top-left corner, one line
+clipped to the box, all one atomic group hit tested as its rectangle.  A bounds of zero (or not
+finite) area reads as 72 × 72 pt at its origin (`PlacedFile.effectiveBounds`).  Keyline and the
+fast modes draw the crossed box as for any image.  Deviation: the page said printing to a
+PostScript device sent the PostScript through unchanged, which cannot happen -- macOS prints
+every job as PDF and {product} writes no PostScript for printers (xref:output-devices.adoc[Output
+devices]) -- so it now says printing uses the preview, as PDF output does; passing the
+PostScript through is the EPS exporter's (IO-018, `WTInterchange`), which does not yet write
+placed files verbatim.
+The golden and parity case is `placedFiles` (the corpus has no image store, so it draws the
+boxes); `PlacedFileRenderingTests` covers the preview scaled into the bounds, the box for a
+missing blob, PDF output and Metal parity with a store.  Still to do in `WTModel`:
+`DocumentScene` builds the item for a `placed_file` node (the preview's hex SHA-256 as the
+asset id, as for images), and the conformance vectors and merge test.
 
 NOTE: As built by IMG-012 (`WTInterchange/Import/SVG/`).  User units are read at 96 px/in as
 this page says.  The SVG exporter (IO-019) writes one user unit per point, and by default also

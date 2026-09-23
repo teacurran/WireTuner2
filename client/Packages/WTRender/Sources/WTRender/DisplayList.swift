@@ -186,6 +186,9 @@ public struct ImageItem: Hashable, Sendable {
     public var intent: WTColor.RenderingIntent?
     /// `source_name`, for the placeholder.
     public var name: String
+    /// What draws, in the image's local space (under `transform`), whenever its pixels cannot:
+    /// a placed file's gray box (IMG-011, `PlacedFileDrawing`).  Nil draws the placeholder.
+    public var fallback: DisplayItem?
 
     public init(
         assetID: String,
@@ -200,7 +203,8 @@ public struct ImageItem: Hashable, Sendable {
         tint: Color? = nil,
         sourceProfile: WTColor.ProfileRef? = nil,
         intent: WTColor.RenderingIntent? = nil,
-        name: String = ""
+        name: String = "",
+        fallback: DisplayItem? = nil
     ) {
         self.assetID = assetID
         self.rect = rect
@@ -215,6 +219,7 @@ public struct ImageItem: Hashable, Sendable {
         self.sourceProfile = sourceProfile
         self.intent = intent
         self.name = name
+        self.fallback = fallback
     }
 
     /// The natural frame of a `pixelWidth` × `pixelHeight` image at `dpiX` × `dpiY` pixels per

@@ -122,6 +122,45 @@ feature specified with sharing.
 * Preferences pane *Text > Font substitutions* table; *Default substitute* row; *Remember this
   substitution* toggle in the sheet (on by default).
 
+NOTE: As built by TXT-002 (`WTText/FontManager.swift`, `FontResolver.swift`,
+`TextLayoutEngine.swift`; `WTRender/GlyphRun.swift`).  `FontManager.resolve(_:)` answers a
+`FaceName` with a `FontResolution` (the `FontSource` step -- `installed`, `embedded`,
+`teamLibrary`, `substitution`, `defaultSubstitute` -- and the face laid out).  A substitution row
+(`FontSubstitution`) is keyed by the missing *face*: a row naming the style (ignoring case) wins
+over one naming only the family, and a substitute without a style keeps the run's style, so
+`Preferences.font_substitutions`' `missing` wants the style beside the family when DOC-024 fills
+it in.  The document's rows (`documentSubstitutions`: the sheet without *Remember*, and the
+per-Mac record of them) come before the remembered ones (`substitutions`), and a row whose
+substitute is not available is skipped.  The default substitute is Helvetica Neue, or
+Helvetica if it is missing too; a run that names no family is the document default, Helvetica,
+and is not reported.  Availability is matched by family descriptor, because
+`CTFontManagerCopyAvailableFontFamilyNames` leaves out system families such as Courier and
+Times (which were read as missing before).  Embedded and team fonts are *activated*:
+`activate(fontsAt:source:)` (or `activate(_:source:)` for bytes, written once by content hash)
+registers the file with Core Text for the process only, so WTText's lookup, WTRender's glyph
+runs (by PostScript name) and PDF output all find it and nothing is installed; faces an
+installed font already provides are skipped (installed wins), an embedded face whose `OS/2.fsType`
+is restricted or bitmap-only is refused (`FontActivationError.notLicensedForEmbedding`), and an
+embedded face wins over a team-library one.  `FontEmbedding` reads `fsType` (the least
+restrictive usage bit applies): `allowsDocumentEmbedding` (installable or editable, with
+outlines) is the test for *where licensed* before a font is embedded in a document, and
+`allowsPrintEmbedding` the print check's.  `fileURL(of:)` names the file to upload;
+`families()` and `styles(of:)` feed the pickers.  `teamLibraryFamilies` is the library's
+catalog: a missing family in it is reported in `FontReport.teamLibraryPending` and left out of
+`facesNeedingSheet`, which lists the faces the default substitute answered.  Every layout's
+`FontReport` now carries `resolutions` for every named face (`substitutedFaces` for the badge),
+and `FontManager.report(for:)` gives the same report for a set of faces without laying out,
+for the sheet before a document's first render and for PRINT-014.  Anything that changes an
+answer bumps `generation`: the resolver drops its fonts, the layout engine
+(`TextLayoutEngine(fonts:)`, one manager per document or `FontManager.shared`) typesets again
+the paragraphs whose faces now resolve differently, and activation calls
+`GlyphFont.fontsChanged()` so WTRender drops cached fonts and outlines (`GlyphFont.isAvailable`
+says whether a PostScript name loads that face).  Tests write their own TrueType fixtures.
+Still to do elsewhere: the sheet, the preference table and the badge (DOC-024, `WTApp`); the
+team library's catalog and fetch through `AccountService` and caching fetched fonts as blobs
+(server and `WTSync`/`WTApp`); embedding a document's fonts as blobs and activating them on open
+(`WTModel`/`WTApp`); and repainting canvases after an activation, since tiles keep what they drew.
+
 === Build tasks
 
 [[DOC-024]]

@@ -195,6 +195,10 @@ struct PaintListBuilder: Sendable {
                 addImageBox(image, transform: transform, color: Color(white: 0.45), lineWidth: nil, state: state, into: &result)
             } else if reference.imageStore != nil {
                 addReferenceTexture(item, region: DisplayPath(rect: image.visibleRect), transform: transform, base: base, state: state, into: &result)
+            } else if let fallback = image.fallback {
+                // With a store, the reference texture above draws the fallback when the pixels
+                // are not there; it lies inside the visible frame.
+                lower(fallback.transformed(by: image.transform), base: base, state: state, cull: cull, into: &result)
             } else {
                 addFill(DisplayPath(rect: image.visibleRect), transform: transform, rule: .nonZero, color: Color(white: 0.75), state: state, into: &result)
                 addImageBox(image, transform: transform, color: Color(white: 0.45), lineWidth: 1, state: state, into: &result)

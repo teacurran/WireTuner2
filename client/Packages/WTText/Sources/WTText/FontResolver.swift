@@ -1,19 +1,20 @@
 // Character attributes to Core Text fonts (type-specifications, "Layout" and "Axes and
 // features"; TYPE-021, TYPE-047).  The family and face by descriptor; a face the family lacks
 // by its traits, and failing those synthesized (a slant in the font matrix, a heavier stroke
-// drawn by WTText); a family that is not installed falls back to the default family until
-// TXT-002's substitution table.  Variation axes go through `kCTFontVariationAttribute` --
+// drawn by WTText); a family that is neither installed nor activated is laid out in the face
+// `FontManager` substitutes (TXT-002).  Variation axes go through `kCTFontVariationAttribute` --
 // clamped to the resolved font's ranges, tags it lacks dropped -- with automatic optical size
 // while `opsz` is unset; OpenType features go through `kCTFontFeatureSettingsAttribute`, OFF
 // writing value 0 so an on-by-default feature turns off, tags the font lacks dropped.  What
 // was dropped, synthesized or substituted is reported for the Missing Fonts sheet.
 //
-// Fonts are cached by (family, style, size, horizontal scale, axis tuple, feature set).
+// Fonts are cached by (family, style, size, horizontal scale, axis tuple, feature set), and
+// dropped whenever the manager's `generation` moves.
 
 import CoreText
 import Foundation
 
-/// The family laid out when a run names none, or names one that is not installed.
+/// The family laid out when a run names none.
 let defaultFontFamily = "Helvetica"
 
 /// A family and face as the document names them.
@@ -30,13 +31,18 @@ public struct FaceName: Hashable, Sendable, CustomStringConvertible {
 }
 
 /// What layout could not honour in the fonts a flow names (the Missing Fonts sheet, TXT-002):
-/// families not installed, faces drawn synthesized, and variation axes and OpenType features
-/// the resolved (or substitute) font lacks.  The marks themselves are untouched.
+/// families neither installed nor activated, faces drawn synthesized, and variation axes and
+/// OpenType features the resolved (or substitute) font lacks; and how every named face was
+/// resolved.  The marks themselves are untouched.
 public struct FontReport: Hashable, Sendable {
     public var missingFamilies: Set<String> = []
     public var synthesizedFaces: Set<FaceName> = []
     public var droppedAxes: [FaceName: Set<String>] = [:]
     public var droppedFeatures: [FaceName: Set<String>] = [:]
+    /// Every face a run names, with the step that answered it and the face laid out.
+    public var resolutions: [FaceName: FontResolution] = [:]
+    /// Missing families the team library offers but this Mac has not fetched yet.
+    public var teamLibraryPending: Set<String> = []
 
     public init() {}
 
@@ -44,11 +50,34 @@ public struct FontReport: Hashable, Sendable {
         missingFamilies.isEmpty && synthesizedFaces.isEmpty && droppedAxes.isEmpty && droppedFeatures.isEmpty
     }
 
+    /// The faces laid out in a stand-in, by the face named.
+    public var substitutedFaces: [FaceName: FontResolution] {
+        resolutions.filter { $0.value.source.isSubstitute }
+    }
+
+    /// The faces the Missing Fonts sheet asks about: substituted by the default substitute (no
+    /// row covers them) and not waiting for the team library.
+    public var facesNeedingSheet: Set<FaceName> {
+        Set(resolutions.filter { $0.value.source == .defaultSubstitute && !teamLibraryPending.contains($0.key.family) }.keys)
+    }
+
+    mutating func record(_ face: FaceName, _ resolution: FontResolution, teamLibrary: Set<String>) {
+        resolutions[face] = resolution
+        if resolution.source.isSubstitute {
+            missingFamilies.insert(face.family)
+            if teamLibrary.contains(face.family) {
+                teamLibraryPending.insert(face.family)
+            }
+        }
+    }
+
     mutating func merge(_ other: FontReport) {
         missingFamilies.formUnion(other.missingFamilies)
         synthesizedFaces.formUnion(other.synthesizedFaces)
         droppedAxes.merge(other.droppedAxes) { $0.union($1) }
         droppedFeatures.merge(other.droppedFeatures) { $0.union($1) }
+        resolutions.merge(other.resolutions) { _, newer in newer }
+        teamLibraryPending.formUnion(other.teamLibraryPending)
     }
 }
 
@@ -61,7 +90,14 @@ struct ResolvedFont: @unchecked Sendable {
 }
 
 final class FontResolver: @unchecked Sendable {
-    static let shared = FontResolver()
+    /// The shared manager's resolver.
+    static var shared: FontResolver { FontManager.shared.resolver }
+
+    unowned let manager: FontManager
+
+    init(manager: FontManager) {
+        self.manager = manager
+    }
 
     /// A synthesized oblique's slant: tan 12°.
     static let syntheticObliqueness = 0.2126
@@ -70,6 +106,8 @@ final class FontResolver: @unchecked Sendable {
 
     private struct Key: Hashable {
         let family: String
+        /// Whether the run names its family (an unnamed one is the document default, unreported).
+        let named: Bool
         let style: String?
         let size: Double
         let horizontalScale: Double
@@ -83,7 +121,8 @@ final class FontResolver: @unchecked Sendable {
     /// in the font registry's XPC reply (observed under parallel tests), and misses are rare.
     private let creation = NSLock()
     private var fonts: [Key: ResolvedFont] = [:]
-    private var families: Set<String>?
+    /// The manager generation `fonts` was resolved under.
+    private var generation: Int?
     private var featureTags: [String: Set<String>] = [:]
 
     /// The font for `attributes` and whether it came from the cache; `upright` adds the `vert`
@@ -91,6 +130,7 @@ final class FontResolver: @unchecked Sendable {
     func resolve(_ attributes: TextAttributes, upright: Bool = false) -> (font: ResolvedFont, hit: Bool) {
         let key = Key(
             family: attributes.fontFamily ?? defaultFontFamily,
+            named: attributes.fontFamily != nil,
             style: attributes.fontStyle,
             size: attributes.size,
             horizontalScale: attributes.horizontalScale > 0 ? attributes.horizontalScale / 100 : 1,
@@ -98,7 +138,12 @@ final class FontResolver: @unchecked Sendable {
             axes: attributes.axes,
             upright: upright
         )
+        let current = manager.generation
         lock.lock()
+        if generation != current {
+            fonts.removeAll()
+            generation = current
+        }
         if let font = fonts[key] {
             lock.unlock()
             return (font, true)
@@ -129,20 +174,24 @@ final class FontResolver: @unchecked Sendable {
     private func make(_ key: Key) -> ResolvedFont {
         var report = FontReport()
         let name = FaceName(family: key.family, style: key.style)
+        // The face laid out: the named one, or its stand-in (TXT-002).
         var family = key.family
-        if !isInstalled(family) {
-            report.missingFamilies.insert(family)
-            family = defaultFontFamily
+        var faceStyle = key.style
+        if key.named {
+            let resolution = manager.resolve(name)
+            report.record(name, resolution, teamLibrary: manager.teamLibraryFamilies)
+            family = resolution.face.family
+            faceStyle = resolution.face.style
         }
         // The named face, or the family's default face and its traits.
         var base: CTFont
         var obliqueness = 0.0
         var emboldening = 0.0
-        if let style = key.style, let face = FontResolver.face(family: family, style: style, size: key.size) {
+        if let style = faceStyle, let face = FontResolver.face(family: family, style: style, size: key.size) {
             base = face
         } else {
             base = CTFontCreateWithFontDescriptor(CTFontDescriptorCreateWithAttributes([kCTFontFamilyNameAttribute: family] as CFDictionary), CGFloat(key.size), nil)
-            if let style = key.style?.lowercased() {
+            if let style = faceStyle?.lowercased() {
                 var wanted: CTFontSymbolicTraits = []
                 if style.contains("bold") || style.contains("black") || style.contains("heavy") {
                     wanted.insert(.traitBold)
@@ -213,19 +262,11 @@ final class FontResolver: @unchecked Sendable {
 
     /// The face of `family` whose style name is `style` (ignoring case), if installed: the font
     /// the descriptor asks for, when Core Text found that very face.
-    private static func face(family: String, style: String, size: Double) -> CTFont? {
+    static func face(family: String, style: String, size: Double) -> CTFont? {
         let descriptor = CTFontDescriptorCreateWithAttributes([kCTFontFamilyNameAttribute: family, kCTFontStyleNameAttribute: style] as CFDictionary)
         let font = CTFontCreateWithFontDescriptor(descriptor, CGFloat(size), nil)
         let found = (CTFontCopyName(font, kCTFontStyleNameKey) as String?)?.lowercased()
         return CTFontCopyFamilyName(font) as String == family && found == style.lowercased() ? font : nil
-    }
-
-    /// Whether `family` is among the families macOS can load (read once).
-    private func isInstalled(_ family: String) -> Bool {
-        if families == nil {
-            families = Set(CTFontManagerCopyAvailableFontFamilyNames() as? [String] ?? [])
-        }
-        return families?.contains(family) ?? false
     }
 
     // MARK: Axes and features

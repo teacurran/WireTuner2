@@ -305,7 +305,7 @@ public struct CoreGraphicsRenderer: WTRender {
             if viewMode.drawsImagesAsBoxes {
                 drawImageBox(image, color: Color(white: 0.45), into: context)
             } else {
-                drawImage(image, into: context)
+                drawImage(image, state: state, cull: cull, into: context)
             }
         case .text(let text):
             if shouldGreek(text, in: context) {
@@ -423,10 +423,14 @@ public struct CoreGraphicsRenderer: WTRender {
     }
 
     /// The decoded image (IMG-004) when the renderer has an `imageStore` that holds it, else
-    /// the placeholder.
-    private func drawImage(_ item: ImageItem, into context: CGContext) {
+    /// the item's fallback (a placed file's gray box, IMG-011) or the placeholder.
+    private func drawImage(_ item: ImageItem, state: DrawState, cull: Rect, into context: CGContext) {
         guard let imageStore, let image = ImageDrawing.image(for: item, store: imageStore, renderer: self, in: context) else {
-            drawImagePlaceholder(item, into: context)
+            if let fallback = item.fallback {
+                draw(fallback.transformed(by: item.transform), state: state, cull: cull, into: context)
+            } else {
+                drawImagePlaceholder(item, into: context)
+            }
             return
         }
         ImageDrawing.draw(image, item: item, renderer: self, into: context)

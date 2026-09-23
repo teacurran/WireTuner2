@@ -22,6 +22,19 @@ import Testing
         #expect(back.postScriptName == "Helvetica" && back.size == 20 && back.horizontalScale == 1)
     }
 
+    /// TXT-002: a PostScript name that loads only Core Text's stand-in is not available, and
+    /// activating fonts drops the cached fonts and outlines so names load afresh.
+    @Test func availabilityAndCacheFlushAfterFontActivation() throws {
+        let helvetica = GlyphFont(postScriptName: "Helvetica", size: 12)
+        #expect(helvetica.isAvailable)
+        #expect(!GlyphFont(postScriptName: "NoSuchFont-Regular", size: 12).isAvailable)
+        let before = helvetica.ctFont
+        let outline = GlyphOutlines.shared.table(for: helvetica)
+        GlyphFont.fontsChanged()
+        #expect(GlyphOutlines.shared.table(for: helvetica) !== outline, "outline tables are rebuilt")
+        #expect(CTFontCopyPostScriptName(helvetica.ctFont) as String == CTFontCopyPostScriptName(before) as String)
+    }
+
     @Test func variationsReachTheFont() throws {
         // Skia ships with macOS as a variable font with a weight axis.
         let weightTag: UInt32 = 0x7767_6874  // 'wght'

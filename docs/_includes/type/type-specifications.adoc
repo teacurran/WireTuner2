@@ -390,8 +390,9 @@ like any other.  *Faces*: the face is looked up by style name among the family's
 its bold and italic traits; failing both it is synthesized -- a slant of tan 12° in the font
 matrix (`GlyphFont.obliqueness`) and a bold weight drawn as a `RoundOutline` region 4% of the size
 wide in the fill colour -- and listed in `TextLayout.fontReport.synthesizedFaces` for the Object
-panel's warning.  A family that is not installed lays out in Helvetica until TXT-002 and is listed
-in `fontReport.missingFamilies`.  *Greeking* is renderer state: `greekTypeBelow` (device pixels,
+panel's warning.  A family that is neither installed nor activated lays out in the face TXT-002's
+`FontManager` substitutes (xref:font-substitution.adoc[Font substitution]) and is listed in
+`fontReport.missingFamilies`.  *Greeking* is renderer state: `greekTypeBelow` (device pixels,
 0 off) on both renderers and `MetalTileCanvas.setGreekTypeBelow`, applied to runs whose type size
 under the tile's transform is smaller, never in PDF; `TextRunItem.greekable` is how the builder
 keeps selected and edited text whole (WTApp supplies the preference, 8 by default); the fast modes'
