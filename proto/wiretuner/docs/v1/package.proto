@@ -1,0 +1,68 @@
+// proto/wiretuner/docs/v1/package.proto
+//
+// The `.wiretuner` package (docs/_includes/io/saving.adoc, "Data model"; decisions.adoc D-038):
+// a zip archive whose `manifest.json` is a PackageManifest in the protobuf JSON encoding, beside
+// the zstd snapshot, the cached blobs, a thumbnail and a Quick Look preview.  Never merged: a
+// package is a file, not document state, so nothing here carries wt.crdt options.  No service
+// sends these messages; the client writes and reads them (WTInterchange's PackageWriter and
+// PackageReader).
+syntax = "proto3";
+
+package wiretuner.docs.v1;
+
+import "buf/validate/validate.proto";
+
+option java_multiple_files = true;
+option java_package = "com.villagecompute.wiretuner.docs.v1";
+option optimize_for = SPEED;
+
+// The package manifest, `manifest.json`: what the package holds and what a reader needs before
+// it opens the snapshot.
+message PackageManifest {
+  // Always "wiretuner-package"; anything else is not a package.
+  string format = 1 [(buf.validate.field).string.const = "wiretuner-package"];
+  // The package layout version, 1.  Additive entries (preview.pdf) keep it at 1.
+  uint32 format_version = 2 [(buf.validate.field).uint32.const = 1];
+  // UUIDv7 of the document this was exported from.
+  string origin_document_id = 3 [(buf.validate.field).string.uuid = true];
+  // The document title at export time.
+  string title = 4 [(buf.validate.field).string.max_len = 256];
+  // The exporting user's id; the display name goes in exported_by_name.  Empty when exported
+  // without an account.
+  string exported_by = 5 [
+    (buf.validate.field).string.uuid = true,
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+  // The exporting user's display name, informational.
+  string exported_by_name = 6 [(buf.validate.field).string.max_len = 256];
+  // Wall time of the export in Unix milliseconds, informational.
+  int64 exported_at_ms = 7 [(buf.validate.field).int64.gte = 0];
+  // The exporting client's version (the wt-client value).
+  string app_version = 8 [(buf.validate.field).string.max_len = 64];
+  // The document's feature level; importers below it refuse.
+  uint32 feature_level = 9;
+  // The version of the merge table the snapshot was written with.
+  uint32 merge_table_version = 10;
+  // The last server_seq applied on the exporting replica.
+  uint64 head_server_seq = 11;
+  // Local changes not yet acked when exported; 0 = clean.
+  uint32 unsynced_changes = 12;
+  // SHA-256 of the snapshot's state (crdt-model.adoc, "Snapshots").
+  bytes state_hash = 13 [(buf.validate.field).bytes.len = 32];
+  // The blobs in the package, one `blobs/<sha256 hex>` entry each.
+  repeated PackageBlob blobs = 14 [(buf.validate.field).repeated.max_items = 100000];
+  // Blobs the snapshot references that were not in the local cache at export.
+  repeated PackageBlob missing_blobs = 15 [(buf.validate.field).repeated.max_items = 100000];
+}
+
+// One blob a package lists.
+message PackageBlob {
+  // The blob's SHA-256, which is also its entry name in hex.
+  bytes sha256 = 1 [(buf.validate.field).bytes.len = 32];
+  // The size in bytes; 0 for a missing blob.
+  uint64 size = 2;
+  // The media type: "image/png", "font/otf", ...
+  string media_type = 3 [(buf.validate.field).string.max_len = 128];
+  // The asset node's display name, informational.
+  string name = 4 [(buf.validate.field).string.max_len = 256];
+}

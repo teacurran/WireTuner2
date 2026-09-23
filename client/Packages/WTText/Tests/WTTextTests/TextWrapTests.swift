@@ -64,6 +64,12 @@ import struct WTRender.StrokeStyle
         #expect(approx(under.bounds.width, 40, 0.5))
         let gone = ExclusionRegion(TextExclusion(contours: [circle], standoff: -40))
         #expect(gone.isEmpty)
+        // An offset GEO-003 cannot compute keeps text out of the object without the standoff,
+        // in both the similarity and the general case.
+        struct Unresolved: Error {}
+        let failed = ExclusionRegion(similar) { _, _, _ in throw Unresolved() }
+        #expect(approx(failed.bounds.width, 120, 0.5) && approx(failed.bounds.midX, 150, 0.5))
+        #expect(approx(ExclusionRegion(skewed) { _, _, _ in throw Unresolved() }.bounds.height, 60, 0.5))
         let wrapped = layout([similar, TextExclusion(contours: [circle], standoff: -40)])
         #expect(!wrapped.overflows)
         // Text flows on both sides of the circle.

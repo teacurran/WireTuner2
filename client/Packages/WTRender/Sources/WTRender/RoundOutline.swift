@@ -5,9 +5,9 @@
 // region never exceeds the stroke's (a Minkowski sum with a disc); on the inner side of a turn
 // sharper than the adjacent segments are long it can fall short of it by a sliver, which the
 // glyph drawn over an inline ring or a bold weight covers.  No boolean operations, so it cannot
-// fail on awkward outlines; the text effects that ring glyphs (inline) and synthesized bold use
-// it (TYPE-021, TYPE-036), since GEO-003's stroker drops the outline of some glyphs at some
-// widths.
+// fail on awkward outlines: the text effects that ring glyphs (inline) and synthesized bold
+// (TYPE-021, TYPE-036) stroke glyphs with GEO-003's `Offset.checkedStrokeOutline` and fall back to
+// this region where it throws (`GlyphOutlines.FontTable.roundOutline`).
 
 import WTGeometry
 import Foundation

@@ -194,6 +194,17 @@ struct PackageTests {
         #expect(String(decoding: PackageManifest(format: "").jsonData(), as: UTF8.self) == "{\"formatVersion\":1}")
     }
 
+    @Test func manifestIsTheGeneratedMessage() throws {
+        // The package.proto message: its binary form round-trips too, and the bare generated
+        // initializer is the empty message while the labelled one fills in the format.
+        let manifest = PackageFixtures.manifest
+        #expect(try PackageManifest(serializedBytes: manifest.serializedData()) == manifest)
+        #expect(PackageManifest().format.isEmpty && PackageManifest(title: "x").format == PackageManifest.formatName)
+        // Fields a later client adds are ignored rather than refused.
+        let later = try PackageManifest(jsonData: Data("{\"format\":\"wiretuner-package\",\"formatVersion\":1,\"somethingNew\":{\"a\":1}}".utf8))
+        #expect(later.format == PackageManifest.formatName && later.formatVersion == 1)
+    }
+
     @Test func manifestParsingAcceptsEitherSpelling() throws {
         let hash = Data(repeating: 0xFB, count: 32)
         let urlSafe = hash.base64EncodedString().replacingOccurrences(of: "+", with: "-").replacingOccurrences(of: "/", with: "_").replacingOccurrences(of: "=", with: "")
@@ -218,7 +229,6 @@ struct PackageTests {
         for text in bad {
             #expect(throws: PackageError.self, "\(text)") { try PackageManifest(jsonData: Data(text.utf8)) }
         }
-        #expect(PackageManifest.standardBase64("YQ") == "YQ==")
     }
 
     // MARK: Writing
@@ -341,8 +351,8 @@ struct PackageTests {
         #expect(throws: PackageError.malformedManifest("the package has no manifest.json")) { try PackageFixtures.reader.open(package(nil)) }
         #expect(throws: PackageError.notAPackage("other")) { try PackageFixtures.reader.open(package(PackageManifest(format: "other"))) }
         #expect(throws: PackageError.unsupportedFormatVersion(2)) { try PackageFixtures.reader.open(package(PackageManifest(formatVersion: 2))) }
-        #expect(throws: PackageError.missingSnapshot) { try PackageFixtures.reader.open(package(PackageManifest(), snapshot: nil)) }
-        #expect(throws: PackageError.missingSnapshot) { try PackageFixtures.reader.open(package(PackageManifest(), snapshot: Data())) }
+        #expect(throws: PackageError.missingSnapshot) { try PackageFixtures.reader.open(package(PackageManifest(format: PackageManifest.formatName), snapshot: nil)) }
+        #expect(throws: PackageError.missingSnapshot) { try PackageFixtures.reader.open(package(PackageManifest(format: PackageManifest.formatName), snapshot: Data())) }
         // A blob whose bytes do not hash to its name.
         let bytes = Data("pixels".utf8)
         let listed = PackageBlob(sha256: ImportedBlob.hash(bytes), size: 6, mediaType: "image/png", name: "a.png")

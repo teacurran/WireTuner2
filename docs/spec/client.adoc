@@ -431,14 +431,20 @@ and text effects are built, and vertical forms are substituted per glyph.  *WTRe
 gained `hiddenInKeyline`, which both renderers skip in Keyline (WTText puts text effects, glyph
 strokes and synthesized bold there); `GlyphFont` gained `obliqueness` (a synthesized slant in the
 font matrix); both renderers gained `greekTypeBelow` (device pixels, never in PDF) and
-`MetalTileCanvas` `setGreekTypeBelow`; `RoundOutline` builds a round stroke's region from a quad
-per flattened segment and the arc on the outer side of each turn, without boolean operations
-(`GlyphRun.roundOutlineItems` places the cached per-glyph regions as items without copying them),
-for the inline effect and synthesized bold (GEO-003's stroker now handles glyph outlines, see
-`GlyphStrokeTests`; moving these effects onto `Offset.checkedStrokeOutline` with `RoundOutline`
-as the fallback is still to do); glyph outlines are cached per font with their bounds
-(`GlyphOutlines.table(for:)`), which cut building a 10,000-character text's display items about
-sixfold.  There is still no glyph atlas.  *WTText* draws the block's fill, border and
+`MetalTileCanvas` `setGreekTypeBelow`; the inline effect and synthesized bold fill each glyph's
+round stroke region, GEO-003's `Offset.checkedStrokeOutline` (round cap and join, which handles
+glyph outlines since b867581, see `GlyphStrokeTests`) wrapped as a `DisplayPath`, cached per
+glyph, width and tolerance in the font's table (`GlyphRun.roundOutlineItems` places the cached
+regions as items without copying them); where the stroker throws, the region is `RoundOutline`'s,
+a quad per flattened segment and the arc on the outer side of each turn, without boolean
+operations.  Glyph outlines are cached per font with their bounds (`GlyphOutlines.table(for:)`),
+which cut building a 10,000-character text's display items about sixfold; with the checked stroker
+the first build of `tenThousandEffectedCharactersStayWithinTheBudget` takes 68--71 ms in release
+(32--37 ms with `RoundOutline` alone, M-series, five runs each), inside its 100 ms budget.  WTText's
+text-wrap standoff and WTRender's Expand Path Inside/Outside use `Offset.checkedInset`: when it
+throws, a wrap keeps text out of the object's outline without the standoff, and an Expand Path band
+is built from the region and its stroke outline at twice the width, rather than reading the failure
+as an empty offset.  There is still no glyph atlas.  *WTText* draws the block's fill, border and
 column and row rules itself (`TextBlock.appearance`, `displayBorder`), takes exclusions for text
 wrap (`TextBlock.exclusions`) and inline graphics (`TextAttributes.inlineGraphic`) as input from
 WTModel, and reports what its fonts could not honour (`TextLayout.fontReport`).

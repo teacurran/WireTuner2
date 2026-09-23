@@ -178,6 +178,19 @@ import struct WTRender.StrokeStyle
         #expect(LiveEffect.ExpandPath(miterLimit: 99).effectiveMiterLimit == 57)
     }
 
+    @Test func expandBandsSurviveAnInsetGEO003CannotCompute() {
+        struct Unresolved: Error {}
+        let failing: ExpandKernel.Inset = { _, _, _, _, _ in throw Unresolved() }
+        // Built from the stroke outline instead: not the whole region, not nothing.
+        let inside = FilledPath(contours: ExpandKernel.apply(.init(direction: .inside, width: 8), to: [Self.square], inset: failing)[0].contours)
+        #expect(inside.contains(Point(x: 4, y: 20)) && !inside.contains(Point(x: 20, y: 20)) && !inside.contains(Point(x: -4, y: 20)))
+        let outside = FilledPath(contours: ExpandKernel.apply(.init(direction: .outside, width: 8, join: .round), to: [Self.square], inset: failing)[0].contours)
+        #expect(outside.contains(Point(x: -4, y: 20)) && !outside.contains(Point(x: 4, y: 20)) && !outside.contains(Point(x: 20, y: 20)))
+        // The checked inset agrees with the fallback where both work.
+        let checked = FilledPath(contours: ExpandKernel.apply(.init(direction: .inside, width: 8), to: [Self.square])[0].contours)
+        #expect(abs(checked.signedArea() - inside.signedArea()) < 1e-6)
+    }
+
     // MARK: Ragged and Sketch
 
     @Test func splitMix64MatchesTheReferenceStream() {

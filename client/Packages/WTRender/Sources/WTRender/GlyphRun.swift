@@ -184,7 +184,9 @@ final class GlyphOutlines: @unchecked Sendable {
         private var entries: [CGGlyph: Entry] = [:]
         private var rounds: [RoundKey: DisplayPath] = [:]
 
-        /// The glyph's `RoundOutline` region at `width`, cached.
+        /// The region a round-capped, round-joined stroke `width` wide along the glyph's outline
+        /// paints, cached: GEO-003's `Offset.checkedStrokeOutline`, or the `RoundOutline` region
+        /// where the stroker cannot resolve the outline.
         func roundOutline(_ glyph: CGGlyph, width: Double, tolerance: Double) -> DisplayPath {
             let key = RoundKey(glyph: glyph, width: width, tolerance: tolerance)
             lock.lock()
@@ -193,7 +195,7 @@ final class GlyphOutlines: @unchecked Sendable {
                 return cached
             }
             lock.unlock()
-            let region = entry(glyph).path.map { RoundOutline.region(of: $0, width: width, tolerance: tolerance) } ?? DisplayPath()
+            let region = entry(glyph).path.map { FontTable.strokeRegion(of: $0, width: width, tolerance: tolerance) } ?? DisplayPath()
             lock.lock()
             rounds[key] = region
             lock.unlock()
@@ -202,6 +204,22 @@ final class GlyphOutlines: @unchecked Sendable {
 
         init(font: CTFont) {
             self.font = font
+        }
+
+        /// The round stroke region of `outline`: the checked GEO-003 stroke outline, falling
+        /// back to `RoundOutline` when it throws.  `stroke` is the stroker (replaced in tests).
+        static func strokeRegion(
+            of outline: DisplayPath, width: Double, tolerance: Double,
+            stroke: ([Contour], WTGeometry.StrokeStyle, Double) throws -> FilledPath = { try Offset.checkedStrokeOutline($0, style: $1, tolerance: $2) }
+        ) -> DisplayPath {
+            guard width > 0, width.isFinite, tolerance > 0 else {
+                return DisplayPath()
+            }
+            do {
+                return DisplayPath(contours: try stroke(outline.contours, WTGeometry.StrokeStyle(width: width, cap: .round, join: .round), tolerance).contours)
+            } catch {
+                return RoundOutline.region(of: outline, width: width, tolerance: tolerance)
+            }
         }
 
         func entry(_ glyph: CGGlyph) -> Entry {

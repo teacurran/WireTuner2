@@ -106,8 +106,11 @@ collects repeated styles into a `<style>` block, smaller for files with many sim
 *Inline style* writes `style="…"` attributes.
 
 |*Size*
-|*Responsive* writes only a `viewBox`, so the SVG scales to its container.  *Fixed* adds
-`width` and `height` in the chosen unit (px, pt, mm, in).
+|*Fixed* (the default) writes `width` and `height` in the chosen unit (pt, the default, px, mm,
+in) as well as the `viewBox`, so the file opens at its true size in any application.
+*Responsive* writes only a `viewBox`, so the SVG scales to its container; applications that
+need a size then read the view box at 96 pixels per inch (xref:import-formats.adoc[SVG
+import]), which is 75% of the artwork's size in points.
 
 |*Images*
 |*Embed* writes placed images as data URLs inside the file.  *Link* writes them as separate
@@ -294,8 +297,8 @@ message SvgOptions {
   Ids ids = 3;
   enum Styling { PRESENTATION_ATTRIBUTES = 0; CSS_CLASSES = 1; INLINE_STYLE = 2; }
   Styling styling = 4;
-  bool responsive = 5;               // default true; false writes width/height
-  string size_unit = 6;              // "px", "pt", "mm", "in" when not responsive
+  bool responsive = 5;               // default false: width/height are written
+  string size_unit = 6;              // "pt" (default), "px", "mm", "in" when not responsive
   enum Images { EMBED = 0; LINK = 1; LINK_ORIGINALS = 2; }
   Images images = 7;
   uint32 raster_ppi = 8;             // 0 = document raster effects resolution
@@ -392,7 +395,10 @@ and composited in sRGB over the page colour or white; everything else translucen
 with what lies beneath by the `FlatRenderer` (the debug view, which also serves tests) and placed
 clipped to its outline.  *SVG*: geometry is written in page space (similarity transforms applied to
 the coordinates, others as `transform`); one user unit is one point and `px` is a point, as in
-Illustrator; `<text>` is written when a run's glyphs map one to one onto its characters and it has
+Illustrator (so a `px`-sized file keeps its pixel dimensions on the web and reads at 75% of its
+point size in applications that honour CSS units, ours included); the default size is *Fixed* in
+`pt` so that a default file keeps its true size everywhere (reconciled with IMG-012's 96 px/in
+reading of a bare `viewBox`, below); `<text>` is written when a run's glyphs map one to one onto its characters and it has
 no per-glyph transforms or horizontal scale, otherwise outlines with a note; *Keep as text, embed
 fonts* embeds TrueType subsets (`glyf` fonts that allow embedding, not variable instances) as
 `@font-face` data URLs and outlines the rest; gradients are written as sRGB stops sampled from

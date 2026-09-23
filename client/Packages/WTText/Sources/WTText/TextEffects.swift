@@ -5,13 +5,14 @@
 // * Highlight, underline and strikethrough: a stroke (with the effect's dash) along the line's
 //   run of effected glyphs -- straight on a line, glyph by glyph on a path.
 // * Inline: rings around the glyph outlines, widest first, alternating the outline colour and
-//   the background band, under the glyphs -- filled `RoundOutline` regions rather than strokes,
-//   because GEO-003's stroker drops the outline of some glyphs at some widths.
+//   the background band, under the glyphs -- filled round stroke regions
+//   (`GlyphRun.roundOutlineItems`: GEO-003's checked stroke outline per glyph, cached, with a
+//   `RoundOutline` region where it throws).
 // * Shadow: a second fill of the outlines, offset, in the colour tinted over white.
 // * Zoom: fills of the outlines stepping from the back copy (scaled, offset, in `to`) toward
 //   the glyphs (in `from`), one step per point of offset.
 // * Glyph strokes (`TextMarkValue.stroke`, stroked like any path) and a synthesized bold's
-//   heavier weight (a `RoundOutline` region in the fill colour).
+//   heavier weight (the same round stroke region in the fill colour).
 //
 // Effects draw behind (highlight, inline, shadow, zoom) or over (underline, strikethrough) the
 // glyphs, in groups Keyline never draws (text-effects: "Keyline view never shows them").

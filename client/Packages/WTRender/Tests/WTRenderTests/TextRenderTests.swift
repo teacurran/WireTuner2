@@ -99,7 +99,8 @@ import Testing
         let disc = try #require(RoundOutline.region(of: dot, width: 4, tolerance: 0.01).controlBounds)
         #expect(approx(disc.width, 4, tolerance: 1e-3))
         #expect(RoundOutline.region(of: line, width: 0, tolerance: 0.01).isEmpty)
-        // A glyph GEO-003's stroker drops (Helvetica Bold's t at 5 pt) still gets its ring.
+        // Helvetica Bold's t at 5 pt, which GEO-003's stroker dropped before b867581, gets its
+        // ring from the checked stroker.
         let t = ReferenceCorpus.makeGlyphRun("t", font: GlyphFont(postScriptName: "Helvetica-Bold", size: 24), at: .zero)
         let ring = try #require(t.roundOutline(width: 5).controlBounds)
         let ink = try #require(t.inkBounds)
@@ -113,6 +114,27 @@ import Testing
         #expect(item.path == t.roundOutline(width: 5) && item.transform == .translation(x: 3, y: 0))
         let space = ReferenceCorpus.makeGlyphRun(" ", font: GlyphFont(postScriptName: "Helvetica-Bold", size: 24), at: .zero)
         #expect(space.roundOutline(width: 5).isEmpty)
+    }
+
+    @Test func glyphRingsUseTheCheckedStrokerWithRoundOutlineAsFallback() throws {
+        let t = ReferenceCorpus.makeGlyphRun("t", font: GlyphFont(postScriptName: "Helvetica-Bold", size: 24), at: .zero)
+        let outline = try #require(GlyphOutlines.shared.table(for: t.font).entry(t.glyphs[0].glyph).path)
+        // The checked stroke outline: normalized, so its non-zero and even-odd fills agree.
+        let stroked = GlyphOutlines.FontTable.strokeRegion(of: outline, width: 5, tolerance: 0.05)
+        let expected = try Offset.checkedStrokeOutline(outline.contours, style: WTGeometry.StrokeStyle(width: 5, cap: .round, join: .round), tolerance: 0.05)
+        #expect(stroked == DisplayPath(contours: expected.contours))
+        #expect(stroked == t.roundOutline(width: 5, tolerance: 0.05))
+        let ring = FilledPath(contours: stroked.contours)
+        let inside = Point(x: try #require(t.inkBounds).minX - 1, y: try #require(t.inkBounds).midY)
+        #expect(ring.contains(inside) == FilledPath(contours: stroked.contours, fillRule: .evenOdd).contains(inside))
+        // A stroker that throws falls back to the RoundOutline region.
+        struct Unresolved: Error {}
+        let fallback = GlyphOutlines.FontTable.strokeRegion(of: outline, width: 5, tolerance: 0.05) { _, _, _ in throw Unresolved() }
+        #expect(fallback == RoundOutline.region(of: outline, width: 5, tolerance: 0.05))
+        // No width or tolerance: nothing, without calling the stroker.
+        for (width, tolerance) in [(0.0, 0.05), (.infinity, 0.05), (5, 0)] {
+            #expect(GlyphOutlines.FontTable.strokeRegion(of: outline, width: width, tolerance: tolerance) { _, _, _ in throw Unresolved() }.isEmpty)
+        }
     }
 
     @Test func obliqueFontsSlantTheirOutlines() throws {

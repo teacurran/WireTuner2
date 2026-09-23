@@ -12,13 +12,33 @@ import WTRender
 
 @Suite("SVG import round trips")
 struct SVGImportRoundTripTests {
-    /// Points-sized output, so one user unit is one point both ways (the default responsive
-    /// export writes only a view box, which reads at 96 px/in).
+    /// Points-sized output (the default size), so one user unit is one point both ways.
     static let options = SVGOptions(precision: 4, responsive: false, sizeUnit: "pt")
 
     static func roundTrip(_ scene: ExportScene, options: SVGOptions = options, importOptions: SVGImportOptions = SVGImportOptions()) throws -> ImportedScene {
         let document = SVGExporter().documents(scene: scene, options: options)[0]
         return try SVGImporter().convert(Data(document.text.utf8), name: "round.svg", format: .svg, options: importOptions.values, context: ImportContext())
+    }
+
+    /// The default export states its size in points, so it re-imports 1:1; so do the other
+    /// physical units.  A responsive file (view box only) reads at 96 px/in, 75%.
+    @Test func defaultExportReimportsAtTrueSize() throws {
+        let items: [DisplayItem] = [Corpus.path(Corpus.rect(10, 20, 60, 40), [Corpus.fill(.solid(Corpus.red))])]
+        let scene = Corpus.scene([Corpus.page(items)])
+        let text = SVGExporter().documents(scene: scene, options: .defaults)[0].text
+        #expect(text.contains("width=\"200pt\"") && text.contains("height=\"150pt\"") && text.contains("viewBox=\"0 0 200 150\""))
+        let imported = try SVGImportRoundTripTests.roundTrip(scene, options: .defaults)
+        #expect(imported.bounds == Rect(x: 0, y: 0, width: 200, height: 150))
+        #expect(SVGImportConverter.bounds(of: imported.scenePaths[0].contours) == Rect(x: 10, y: 20, width: 60, height: 40))
+        // Millimetres and inches are rounded to the precision (2.778in is 200.016 pt).
+        for unit in ["mm", "in"] {
+            let other = try SVGImportRoundTripTests.roundTrip(scene, options: SVGOptions(responsive: false, sizeUnit: unit))
+            #expect(abs(other.bounds.width - 200) < 0.05 && abs(other.bounds.height - 150) < 0.05, "\(unit)")
+            let bounds = SVGImportConverter.bounds(of: other.scenePaths[0].contours)
+            #expect(abs(bounds.minX - 10) < 0.05 && abs(bounds.width - 60) < 0.05, "\(unit)")
+        }
+        let responsive = try SVGImportRoundTripTests.roundTrip(scene, options: SVGOptions(responsive: true))
+        #expect(responsive.bounds == Rect(x: 0, y: 0, width: 150, height: 112.5))
     }
 
     @Test func geometryNamesAndPaints() throws {

@@ -379,10 +379,11 @@ two imports of the same bytes share one blob (content addressing).
 |===
 
 NOTE: As built by IMG-012 (`WTInterchange/Import/SVG/`).  User units are read at 96 px/in as
-this page says, but the SVG exporter (IO-019) writes one user unit per point and, when
-*Responsive* (its default), only a `viewBox`, so a default {product} SVG re-imports at 75%; the
-round-trip tests export with fixed size in points.  One of the two pages must be reconciled
-(an open question for the SVG export owner).  Radial gradients become WTRender radials with
+this page says.  The SVG exporter (IO-019) writes one user unit per point, and by default also
+`width` and `height` in `pt` (xref:export-vector.adoc[Vector export], *Size*), so the view box is
+mapped onto the stated size and a default {product} SVG re-imports at 1:1 (the round-trip test
+`defaultExportReimportsAtTrueSize` asserts it); only a *Responsive* file, which has a bare
+`viewBox`, reads at 75%.  Radial gradients become WTRender radials with
 `start` the centre, `end` and `end2` the radii along x and y, all under `gradientTransform`;
 `fx`/`fy` are dropped with a note; `spreadMethod` repeat and reflect map to *Repeat* and
 *Reflect* with a count of 1, which is not SVG's endless repetition.  The CSS subset: type,

@@ -322,7 +322,9 @@ preview.pdf            the first page as a one-page PDF (Screen preset, fonts em
 
 [source,protobuf]
 ----
-// docs/v1/package.proto -- never merged; a package is a file, not document state.
+// proto/wiretuner/docs/v1/package.proto -- never merged; a package is a file, not document
+// state.  (The file adds protovalidate rules: `format` const, `format_version` const 1,
+// `origin_document_id` and a non-empty `exported_by` UUIDs, 32-byte hashes, length caps.)
 message PackageManifest {
   string format = 1;               // always "wiretuner-package"
   uint32 format_version = 2;       // 1
@@ -597,10 +599,15 @@ blob with its bytes or nil when not cached, and page 1 as an `ExportScene`.  It 
 `format_version`, `blobs` and `missing_blobs` (a cached blob whose bytes do not hash to its name
 is listed as missing too), writes the entries in the listed order with the snapshot stored and
 the rest deflated when that is smaller, and returns the notes the export sheet shows.
-`PackageManifest` is a Swift struct that writes and reads the protobuf JSON mapping by hand
+`PackageManifest` and `PackageBlob` are the generated `wiretuner.docs.v1` messages from
+`proto/wiretuner/docs/v1/package.proto` (WTInterchange imports WTProto, which sits above it in
+the client's package table, so there is no cycle), with convenience initializers and
+`PackageBlob.hex`; `manifest.json` is written and read by SwiftProtobuf's protobuf JSON
 (lowerCamelCase keys, 64-bit integers as strings, bytes as base64, defaults omitted; either key
-spelling, numbers or strings, and URL-safe base64 on read): `docs/v1/package.proto` is not in
-`proto/` yet, and the JSON is what swift-protobuf will write once it is.  `thumbnail.png` is
+spelling, numbers or strings, and URL-safe base64 on read; unknown fields are ignored so a later
+additive field does not make a package unreadable).  The protovalidate rules are not evaluated by
+the reader, which checks `format`, `format_version`, the feature level, the merge table and the
+hashes itself.  `thumbnail.png` is
 drawn directly by the reference renderer at 1024 px on the long edge (transparent background)
 rather than through the export rasterizer's supersampling; `preview.pdf` uses
 `PackageWriter.previewOptions`, the *Screen* preset as export-pdf.adoc describes it (images

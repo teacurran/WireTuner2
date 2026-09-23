@@ -270,7 +270,7 @@ page; the zoom's `from` is the colour at the front (beside the glyphs) and `to` 
 which is scaled to `zoom_to` about the run's ink centre and offset, with one step per point the
 copies travel (1 to 200).  The shadow's colour is its tint over white.  *Text wrap*:
 `TextBlock.exclusions` carries each wrapping object's outline in its own space, its transform
-into the block and its standoff; the region is GEO-003's `Offset.inset` by minus the standoff
+into the block and its standoff; the region is GEO-003's `Offset.checkedInset` by minus the standoff
 with round joins (in the object's space for a similarity transform, so a moved object re-uses
 it); each line's band (its ascent to descent) is split into the spans the regions leave free,
 filled left to right, each at least twice the type size wide, and a band too narrow for the next
@@ -278,7 +278,9 @@ word is passed over a point at a time.  Keeps, balance and modify leading do not
 with exclusions; vertical blocks and paths ignore them; collecting the objects in front, and
 refusing groups and blends, is WTModel's.  Moving the object re-lays a page in 2 ms in a release
 build (8--9 ms in debug).  10,000 effected characters in paragraphs lay out and build their display
-items in 78 ms in release, the first time (the per-glyph ring regions are cached after that).  *Vertical*: Core Text substitutes vertical forms only under `kCTVerticalFormsAttributeName`
+items in 68--71 ms in release, the first time (the per-glyph ring regions, GEO-003's checked
+round stroke outlines, are cached after that).  When GEO-003 cannot compute a standoff
+(`Offset.checkedInset` throws), the object's outline without the standoff is used.  *Vertical*: Core Text substitutes vertical forms only under `kCTVerticalFormsAttributeName`
 (the `vert` feature setting changes nothing), so each upright character's glyph is swapped for the
 one Core Text gives it alone under that attribute; the advance stays the em box.  Columns, rows
 and tab stops are ignored in vertical blocks; `TextLayout.selection(from:to:)` gives selections

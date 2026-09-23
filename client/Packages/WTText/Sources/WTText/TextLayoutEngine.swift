@@ -541,24 +541,34 @@ struct LayoutPass {
 /// The region an exclusion keeps text out of: the object's outline grown by the standoff
 /// (GEO-003's `Offset.inset` with a negative distance, round joins), flattened to polygons in
 /// block space.  A similarity transform offsets in the object's own space, so moving the object
-/// re-uses the offset outline.
+/// re-uses the offset outline.  The offset is `Offset.checkedInset`: where GEO-003 cannot compute
+/// it, the region is the object's outline without the standoff, so text still keeps out of the
+/// object rather than running over it.
 struct ExclusionRegion: @unchecked Sendable {
+    /// The outset `(outline, distance, join)`; replaced in tests.
+    typealias Inset = (FilledPath, Double, WTGeometry.LineJoin) throws -> FilledPath
+
     let polygons: [[Point]]
     let bounds: Rect
 
     var isEmpty: Bool { polygons.isEmpty }
 
-    init(_ exclusion: TextExclusion) {
+    init(_ exclusion: TextExclusion, inset: Inset = { try Offset.checkedInset($0, by: $1, join: $2) }) {
         let transform = exclusion.transform
         let path = FilledPath(contours: exclusion.contours, fillRule: .nonZero)
         let similarity = abs(transform.a - transform.d) < 1e-9 && abs(transform.b + transform.c) < 1e-9
             || abs(transform.a + transform.d) < 1e-9 && abs(transform.b - transform.c) < 1e-9
         let scale = abs(transform.determinant).squareRoot()
-        let region: FilledPath
-        if similarity && scale > 0 {
-            region = Offset.inset(path, by: -exclusion.standoff / scale, join: .round).applying(transform)
-        } else {
-            region = Offset.inset(path.applying(transform), by: -exclusion.standoff, join: .round)
+        let local = similarity && scale > 0
+        let outline = local ? path : path.applying(transform)
+        var region: FilledPath
+        do {
+            region = try inset(outline, -exclusion.standoff / (local ? scale : 1), .round)
+        } catch {
+            region = outline
+        }
+        if local {
+            region = region.applying(transform)
         }
         polygons = region.contours.map(flattenContour).filter { $0.count >= 3 }
         var bounds = Rect.null

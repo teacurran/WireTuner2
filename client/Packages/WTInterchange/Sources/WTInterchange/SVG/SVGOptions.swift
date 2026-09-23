@@ -45,9 +45,11 @@ public struct SVGOptions: ExportOptions, Hashable {
     public var text: Text
     public var ids: Ids
     public var styling: Styling
-    /// Only a `viewBox`; otherwise `width` and `height` in `sizeUnit` too.
+    /// Only a `viewBox`; otherwise `width` and `height` in `sizeUnit` too.  Off by default: a
+    /// view box alone is read at 96 user units per inch (CSS pixels), which would shrink the
+    /// points-based view box to 75%, so the default file states its size in points.
     public var responsive: Bool
-    /// `px`, `pt`, `mm` or `in`.
+    /// `pt` (the default), `px`, `mm` or `in`.
     public var sizeUnit: String
     public var images: Images
     /// Pixels per inch for regions SVG cannot express; 0 uses the document's raster resolution.
@@ -64,8 +66,8 @@ public struct SVGOptions: ExportOptions, Hashable {
         text: Text = .asText,
         ids: Ids = .fromNames,
         styling: Styling = .presentationAttributes,
-        responsive: Bool = true,
-        sizeUnit: String = "px",
+        responsive: Bool = false,
+        sizeUnit: String = "pt",
         images: Images = .embed,
         rasterPPI: Double = 0,
         pageBackground: Bool = false,
@@ -102,8 +104,10 @@ public struct SVGOptions: ExportOptions, Hashable {
         }
     }
 
-    /// Units per point for the fixed-size units.  A pixel is one point, as in Illustrator and
-    /// every design tool (one SVG user unit per point).
+    /// Units per point for the fixed-size units.  The view box is always in points (one SVG user
+    /// unit per point); `pt`, `mm` and `in` give the true physical size to any reader.  A pixel
+    /// is one point, as in Illustrator and every design tool, so a `px`-sized file keeps its
+    /// pixel dimensions on the web and reads at 75% of its point size elsewhere.
     static let unitScale: [String: Double] = ["px": 1, "pt": 1, "mm": 25.4 / 72, "in": 1 / 72]
 }
 

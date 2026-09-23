@@ -806,7 +806,8 @@ sides bulge or cave, then turns the handles of anchors that were smooth back ont
 Duet's Rotate `copies` counts the original ("two copies give a 180° pair") and mirror images are
 reversed so the non-zero fill is the union; Transform copy k is the step applied k times, k = 1
 ... `copies`; Expand Path Inside and Outside are the bands between the region and its GEO-003
-inset or outset, not the inset or outset region; Ragged adds `floor(length × frequency / 72)`
+inset or outset (`Offset.checkedInset`; where it throws, the region's intersection with, or the
+difference from, its stroke outline at twice the width), not the inset or outset region; Ragged adds `floor(length × frequency / 72)`
 points inside each segment at equal arc length, keeps the anchors, displaces the added points
 along the normal by `size × (2u − 1)` with u the top 53 bits of the stream over 2⁵³ (Uniform:
 ±size alternating), draws Rough as straight segments and Smooth as a Catmull-Rom spline with the

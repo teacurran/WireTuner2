@@ -277,7 +277,7 @@ enum PathDataParser {
         #expect(fixed.root.all("dc:subject").count == 3)
         #expect(fixed.root.all("rect")[0].attributes["fill"] == "#e6e6e6")
         #expect(fixed.document.text.contains("<!-- Generator: WireTuner -->"))
-        let responsive = Self.write(Corpus.basics, options: SVGOptions(minify: true, includeDocumentInfo: false), scene: info)
+        let responsive = Self.write(Corpus.basics, options: SVGOptions(responsive: true, minify: true, includeDocumentInfo: false), scene: info)
         #expect(responsive.root.attributes["width"] == nil)
         #expect(responsive.root.all("metadata").isEmpty)
         #expect(!responsive.document.text.contains("\n"))
