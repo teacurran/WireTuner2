@@ -106,7 +106,7 @@ Same stack as `dissipate-server`, so the two can share runbooks, CI pools and pe
 |Merge engines |`WTCRDT` (Swift package) and `wt-crdt` (Java module), generated merge tables from `wt.crdt` options, one conformance suite
 |Docs |AsciiDoc, rendered by `asciidoctor-maven-plugin` (this book); proto reference by `protoc-gen-doc` through buf
 |CI |GitHub Actions on the self-hosted `ci` pool: buf lint/breaking, server tests, client tests (macOS runner), conformance on both engines, docs render
-|Quality |SonarQube at `https://sonar.villagecompute.com`, projects `wiretuner-server` (JaCoCo) and `wiretuner-client` (llvm-cov → generic coverage); quality gate 95% line and 95% branch coverage on both (xref:testing.adoc[Testing])
+|Quality |SonarQube at `https://sonar.villagecompute.com`, projects `wiretuner-server` (JaCoCo) and `wiretuner-client` (llvm-cov → generic coverage); quality gate 95% line and 95% branch coverage on both, the client's branch figure being llvm-cov region coverage (xref:testing.adoc[Testing], xref:decisions.adoc#D-066[D-066])
 |===
 
 == Repository layout

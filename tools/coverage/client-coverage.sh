@@ -4,13 +4,25 @@
 # `llvm-cov export -format=lcov`, merges them and writes client/build/coverage/sonar.xml in
 # SonarQube's generic coverage format (docs/spec/testing.adoc, "Coverage and SonarQube").
 #
-#     tools/coverage/client-coverage.sh              # test everything, then export
+#     tools/coverage/client-coverage.sh               # test everything, then export
 #     tools/coverage/client-coverage.sh --export-only # reuse the artifacts of an earlier run
+#     tools/coverage/client-coverage.sh --gate        # ... and fail below the client gate
+#     tools/coverage/client-coverage.sh --gate-only   # gate an existing regions.json (CI)
+#
+# The client gate (docs/spec/decisions.adoc D-066) is 95% lines AND 95% llvm-cov *regions*:
+# Swift's coverage mapping has no branch records, and regions (each if/guard/switch arm, ?:/??
+# operand, loop body, closure) are the closest proxy.  tools/coverage/regions-gate.swift
+# computes both over the same files Sonar measures (client sources, minus tests, generated
+# code, dependency checkouts and build output) and exits 1 below either bar.
 #
 # Outputs, all under client/build/coverage/:
 #     <Package>.lcov, WireTuner.lcov   per-binary lcov exports
 #     client.lcov                      the merged tracefile
-#     sonar.xml                        what sonar-scanner uploads (TEST-003)
+#     sonar.xml                        what sonar-scanner uploads; paths relative to client/,
+#                                      the scanner's base dir (client/sonar-project.properties)
+#     client.profdata                  every package's profile and the app's, merged
+#     regions.json                     `llvm-cov export -summary-only` over client.profdata and
+#                                      every instrumented binary: the region gate's input
 #     WireTuner.xcresult               the app test result bundle
 # The app build lives in client/build/DerivedData so the .profdata is at a known path.
 set -euo pipefail
@@ -22,16 +34,41 @@ derived="$client/build/DerivedData"
 project="$client/WireTuner.xcodeproj"
 scheme="WireTuner"
 export_only=false
+gate=false
+gate_only=false
 
 for argument in "$@"; do
     case "$argument" in
         --export-only) export_only=true ;;
+        --gate) gate=true ;;
+        --gate-only) gate_only=true ;;
         *) echo "unknown argument: $argument" >&2; exit 2 ;;
     esac
 done
 
+# The files the gate measures: what sonar-project.properties lists as sources, nothing else.
+# Substrings of absolute paths; --relative-to drops everything outside client/.
+run_gate() {
+    swift "$root/tools/coverage/regions-gate.swift" "$out/regions.json" \
+        --relative-to "$client" \
+        --exclude /.build/ --exclude /client/build/ \
+        --exclude /Tests/ --exclude /WTAppTests/ --exclude /WTAppUITests/ \
+        --exclude /Generated/ \
+        --minimum 95 --minimum-lines 95
+}
+
+if [ "$gate_only" = true ]; then
+    test -s "$out/regions.json" || { echo "no $out/regions.json; run without --gate-only first" >&2; exit 2; }
+    run_gate
+    exit $?
+fi
+
 mkdir -p "$out"
-rm -f "$out"/*.lcov "$out/sonar.xml"
+rm -f "$out"/*.lcov "$out/sonar.xml" "$out/regions.json" "$out/client.profdata"
+
+# Every (profile, binary) pair that exported, for the merged region export below.
+profiles=()
+binaries=()
 
 # --- Packages -------------------------------------------------------------------------------
 for package in "$client"/Packages/*/; do
@@ -42,11 +79,20 @@ for package in "$client"/Packages/*/; do
     fi
     profdata="$package/.build/debug/codecov/default.profdata"
     binary="$package/.build/debug/${name}PackageTests.xctest/Contents/MacOS/${name}PackageTests"
+    # A package whose artifacts are missing (not built yet, or its tests were not run with
+    # coverage) is reported and skipped rather than aborting every other package's report.
+    # The gate still sees its sources as uncovered through the app binary, which links them.
     if [ ! -f "$profdata" ] || [ ! -x "$binary" ]; then
-        echo "missing coverage artifacts for $name ($profdata, $binary)" >&2
-        exit 1
+        echo "warning: skipping $name: missing coverage artifacts ($profdata, $binary)" >&2
+        continue
     fi
-    xcrun llvm-cov export -format=lcov -instr-profile "$profdata" "$binary" > "$out/$name.lcov"
+    if ! xcrun llvm-cov export -format=lcov -instr-profile "$profdata" "$binary" > "$out/$name.lcov"; then
+        echo "warning: skipping $name: llvm-cov export failed" >&2
+        rm -f "$out/$name.lcov"
+        continue
+    fi
+    profiles+=("$profdata")
+    binaries+=("$binary")
 done
 
 # --- App ------------------------------------------------------------------------------------
@@ -107,9 +153,33 @@ for object in "${objects[@]:1}"; do
     args+=(-object "$object")
 done
 xcrun llvm-cov export -format=lcov -instr-profile "$profdata" "${objects[0]}" "${args[@]}" > "$out/WireTuner.lcov"
+profiles+=("$profdata")
+binaries+=("${objects[@]}")
 
 # --- Merge and convert ----------------------------------------------------------------------
 cat "$out"/*.lcov > "$out/client.lcov"
 swift "$root/tools/coverage/lcov-to-sonar.swift" "$out/client.lcov" "$out/sonar.xml" \
-    --relative-to "$root" --exclude /.build/ --exclude client/build/
+    --relative-to "$client" --exclude /.build/ --exclude /client/build/
 echo "coverage report: $out/sonar.xml"
+
+# --- Regions --------------------------------------------------------------------------------
+# One profile and one export over every binary, so a source compiled into several test
+# binaries appears once with the union of their counts (the per-binary lcov files are merged
+# line by line by lcov-to-sonar instead; regions cannot be merged that way because their
+# boundaries are not in the lcov).  Functions whose hash differs between two builds of the same
+# source are reported by llvm-cov as mismatched and counted from one of them.
+xcrun llvm-profdata merge -sparse -o "$out/client.profdata" "${profiles[@]}"
+args=()
+for object in "${binaries[@]:1}"; do
+    args+=(-object "$object")
+done
+xcrun llvm-cov export -format=text -summary-only -instr-profile "$out/client.profdata" \
+    "${binaries[0]}" "${args[@]}" > "$out/regions.json" 2> "$out/regions-export.log" || {
+    cat "$out/regions-export.log" >&2
+    exit 1
+}
+echo "region export: $out/regions.json"
+
+if [ "$gate" = true ]; then
+    run_gate
+fi

@@ -83,9 +83,11 @@ service, plus the ingest load test (`SRV-004`) and the conformance run against `
 
 == Coverage and SonarQube
 
-Every build reports to SonarQube at `https://sonar.villagecompute.com`, and the quality gate
-requires *95% line coverage and 95% branch (condition) coverage* on new and overall code, for
-the server and for the client alike.  A pull request whose gate fails does not merge.
+Every build reports to SonarQube at `https://sonar.villagecompute.com`, and the coverage gate
+requires *95% line coverage and 95% branch coverage* on new and overall code, for the server
+and for the client alike.  For the client, "branch" means llvm-cov *region* coverage, because
+the Swift toolchain produces no branch data (xref:decisions.adoc#D-066[D-066], below).  A pull
+request whose gate fails does not merge.
 
 [cols="1,3"]
 |===
@@ -103,33 +105,89 @@ analysis and from the denominator.
 
 |Client (Swift)
 |Every `swift test` and `xcodebuild test` run is built with `-enable-code-coverage` and produces
-a `.profdata`; `llvm-cov export -format=lcov` (Xcode's toolchain) emits line *and branch*
-records, which `tools/coverage/lcov-to-sonar.swift` converts into Sonar's generic coverage XML
-(`lineToCover`, `coveredBranches`/`branchesToCover`).  `sonar-scanner` (CLI) uploads it with
-`sonar.coverageReportPaths`, `sonar.sources=client/Packages/*/Sources,client/WTApp`,
-`sonar.tests=client/Packages/*/Tests,client/WTAppTests`.  Generated protobuf Swift
-(`WTProto/Sources/WTProto/Generated`) is excluded.  Xcode's own `xccov` is not used for the
-upload because it reports no branch data.
+a `.profdata`.  `tools/coverage/client-coverage.sh` exports each binary with `llvm-cov export
+-format=lcov` (Xcode's toolchain) and `tools/coverage/lcov-to-sonar.swift` converts the merged
+tracefile into Sonar's generic coverage XML, `client/build/coverage/sonar.xml`, with paths
+relative to `client/` (`lineToCover`; `coveredBranches`/`branchesToCover` whenever `BRDA`
+records exist, which for Swift they do not).  The same script merges every profile and writes
+one `llvm-cov export -format=text -summary-only` over all binaries, `regions.json`, which
+`tools/coverage/regions-gate.swift` sums into line and region coverage.  `sonar-scanner` (CLI)
+runs from `client/` with `client/sonar-project.properties`: `sonar.sources=Packages,WTApp` with
+`sonar.inclusions=Packages/*/Sources/**,WTApp/**`, `sonar.tests=Packages,WTAppTests,WTAppUITests`
+with the matching `sonar.test.inclusions` (the scanner takes directories, not wildcards, in
+`sonar.sources`), `sonar.coverageReportPaths=build/coverage/sonar.xml`.  Generated Swift
+(`WTProto/Sources/WTProto/Generated`, `WTCRDT/Sources/WTCRDTSchema/Generated`) is excluded, from
+Sonar and from the region gate alike.  Xcode's own `xccov` is not used: it reports nothing
+llvm-cov does not.
+
+|Server gate in CI
+|`tools/coverage/jacoco-gate.sh` sums the modules' report-level `LINE` and `BRANCH` counters and
+fails the `verify` job below 95% of either, independently of Sonar.
+
+|Client gate in CI
+|`tools/coverage/client-coverage.sh --gate-only` runs `regions-gate.swift` over `regions.json`
+and fails the client workflow's `sonar` job below 95% lines or 95% regions, before the upload;
+the figures and the ten files with the most uncovered regions go to the job summary.
 
 |Projects
-|Two Sonar projects, `wiretuner-server` and `wiretuner-client`, each with the same gate.  The
-proto module contributes no measurable code; the docs contribute none.
+|Two Sonar projects, `wiretuner-server` and `wiretuner-client`, created with gates of the same
+names by `tools/sonar/configure-gates.sh` (idempotent; `--dry-run` prints the Web API calls).
+`wiretuner-server`: `new_line_coverage`, `line_coverage`, `new_branch_coverage`,
+`branch_coverage`, each failing below 95.  `wiretuner-client`: `new_line_coverage` and
+`line_coverage` only.  The proto module contributes no measurable code; the docs contribute
+none.
+
+|CI
+|The `sonar` job of `.github/workflows/server.yml` (after `verify`) runs `./mvnw -B -ntp
+-DskipTests -Djacoco.skip=true test-compile sonar:sonar` over the downloaded JaCoCo reports; the
+`sonar` job of `.github/workflows/client.yml` (after `test`) runs the region gate, then
+`sonar-scanner`.  Both pass `-Dsonar.qualitygate.wait=true` (so a red Sonar gate fails the job)
+and `-Dsonar.projectVersion=$(git describe --tags --always)` (the new-code baseline), run only
+when the `SONAR_TOKEN` secret is set (a preflight step, as in dissipate-server), refuse to scan
+without a coverage report (a report-less scan publishes 0%), and run
+`tools/sonar/check-no-token.sh` first.
 |===
 
-NOTE: Deviation recorded by APP-001.  The Swift compiler's coverage mapping (Xcode 26.4,
-Swift 6.3) emits line and function regions but no branch regions: `llvm-cov export
--format=lcov` on a Swift binary writes `BRF:0` and no `BRDA` records, so the client's Sonar
-report carries line coverage only and Sonar reports no branch-coverage measure for
-`wiretuner-client` (the 95% branch condition is then vacuously met, not measured).
-`tools/coverage/lcov-to-sonar.swift` converts `BRDA` records whenever they are present, so the
-pipeline needs no change once the compiler emits them; until then, TEST-003 should decide
-whether to approximate branches from llvm-cov's per-line region counts or to leave the client
-gate at lines only.
+[[client-branch-gate]]
+The client's branch gate is llvm-cov region coverage (xref:decisions.adoc#D-066[D-066]).  The
+Swift compiler's coverage mapping (Xcode 26.4, Swift 6.3) emits line and function regions but no
+branch regions: `llvm-cov export -format=lcov` on a Swift binary writes `BRF:0` and no `BRDA`
+records (APP-001 found this), so Sonar never has a branch or condition measure for
+`wiretuner-client`, and a `branch_coverage` condition there would be vacuously met rather than
+measured.  What llvm-cov does count for Swift is *regions*: every `if`/`guard`/`switch` arm,
+each operand of `?:` and `??`, every loop body and closure has its own counter, so an untaken
+arm is an uncovered region exactly as it would be an uncovered branch.  The client gate is
+therefore 95% lines *and* 95% regions, enforced in CI by `regions-gate.swift`, with Sonar's
+`wiretuner-client` gate carrying the line conditions only.  Sonar's generic coverage format has
+no field for regions, so the region figure lives in the job summary, not on the Sonar
+dashboard.  `lcov-to-sonar.swift` still converts `BRDA` records whenever they are present, so if
+a future toolchain emits them the client gate can gain the branch conditions without a pipeline
+change.  The converter also reads a line count above `Int64.max` as 0 hits: Xcode's llvm-cov
+emits wrapped-negative counters for some Swift pattern-matching loops (for example
+`DA:262,18446744073709551588`), and one such line used to reject the whole tracefile.
 
-The token is read from `~/.sonar-token` for local runs (`make sonar`) and from the `SONAR_TOKEN`
-secret in CI; it is never written into the repository, a `pom.xml`, or a log.
+Two limits of the server as installed (SonarQube Community Build 26.9) shape the pipeline:
 
-Design consequences of the 95% branch target:
+* *No pull-request analysis.*  A PR scan would publish the PR's figures as main's, so both
+  `sonar` jobs skip the upload on pull requests unless the repository variable
+  `SONAR_PR_ANALYSIS` is `true` (set it once the server supports PR analysis, through a
+  commercial edition or the community branch plugin; the jobs then pass
+  `sonar.pullrequest.key`/`branch`/`base` from the event).  Until then a PR is blocked by the CI
+  gates above, which apply the same 95% bars to the same files, not by Sonar's status check.
+* *No Swift analyzer.*  The Community Build's language list has no Swift, so the scanner may not
+  index `.swift` files and the generic coverage report may then attach to nothing; the client
+  line gate is enforced by `regions-gate.swift` (`--minimum-lines 95`) regardless.  Verify on
+  the first CI run that `wiretuner-client` shows a coverage measure; if it does not, the options
+  are a commercial edition or the community `sonar-swift` plugin.
+
+The token is read from `SONAR_TOKEN` or, when that is unset, `~/.sonar-token` for local runs
+(`make sonar-server`, `make sonar-client`, `configure-gates.sh`) and from the `SONAR_TOKEN`
+secret in CI, where it appears only as `${{ secrets.SONAR_TOKEN }}` in a step's `env:` and
+reaches the scanners through that environment variable, never a command-line flag.  It is never
+written into the repository, a `pom.xml`, or a log: `tools/sonar/check-no-token.sh` fails both
+workflows if any file holds a `squ_`/`sqp_`/`sqa_` token, printing only file and line.
+
+Design consequences of the 95% branch (client: region) target:
 
 * Client UI code is written so it is testable without a screen: view models and tools are
   plain types driven by `CanvasEvent`s and observed state; AppKit views are thin.  XCUITest

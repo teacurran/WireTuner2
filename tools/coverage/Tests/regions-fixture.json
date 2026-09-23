@@ -1,0 +1,84 @@
+{
+  "data": [
+    {
+      "files": [
+        {
+          "filename": "/repo/client/Packages/WTGeometry/Sources/WTGeometry/Bezier.swift",
+          "summary": {
+            "branches": {"count": 0, "covered": 0, "notcovered": 0, "percent": 0},
+            "functions": {"count": 12, "covered": 12, "percent": 100},
+            "instantiations": {"count": 12, "covered": 12, "percent": 100},
+            "lines": {"count": 100, "covered": 96, "percent": 96},
+            "mcdc": {"count": 0, "covered": 0, "notcovered": 0, "percent": 0},
+            "regions": {"count": 100, "covered": 90, "notcovered": 10, "percent": 90}
+          }
+        },
+        {
+          "filename": "/repo/client/WTApp/AppDelegate.swift",
+          "summary": {
+            "branches": {"count": 0, "covered": 0, "notcovered": 0, "percent": 0},
+            "functions": {"count": 2, "covered": 2, "percent": 100},
+            "instantiations": {"count": 2, "covered": 2, "percent": 100},
+            "lines": {"count": 20, "covered": 20, "percent": 100},
+            "mcdc": {"count": 0, "covered": 0, "notcovered": 0, "percent": 0},
+            "regions": {"count": 10, "covered": 10, "notcovered": 0, "percent": 100}
+          }
+        },
+        {
+          "filename": "/repo/client/Packages/WTGeometry/Tests/WTGeometryTests/BezierTests.swift",
+          "summary": {
+            "branches": {"count": 0, "covered": 0, "notcovered": 0, "percent": 0},
+            "functions": {"count": 5, "covered": 5, "percent": 100},
+            "instantiations": {"count": 5, "covered": 5, "percent": 100},
+            "lines": {"count": 50, "covered": 50, "percent": 100},
+            "mcdc": {"count": 0, "covered": 0, "notcovered": 0, "percent": 0},
+            "regions": {"count": 50, "covered": 50, "notcovered": 0, "percent": 100}
+          }
+        },
+        {
+          "filename": "/repo/client/Packages/WTProto/Sources/WTProto/Generated/wiretuner_blob_v1_blob.pb.swift",
+          "summary": {
+            "branches": {"count": 0, "covered": 0, "notcovered": 0, "percent": 0},
+            "functions": {"count": 40, "covered": 0, "percent": 0},
+            "instantiations": {"count": 40, "covered": 0, "percent": 0},
+            "lines": {"count": 400, "covered": 0, "percent": 0},
+            "mcdc": {"count": 0, "covered": 0, "notcovered": 0, "percent": 0},
+            "regions": {"count": 427, "covered": 0, "notcovered": 427, "percent": 0}
+          }
+        },
+        {
+          "filename": "/repo/client/Packages/WTProto/.build/checkouts/swift-protobuf/Sources/SwiftProtobuf/Message.swift",
+          "summary": {
+            "branches": {"count": 0, "covered": 0, "notcovered": 0, "percent": 0},
+            "functions": {"count": 100, "covered": 1, "percent": 1},
+            "instantiations": {"count": 100, "covered": 1, "percent": 1},
+            "lines": {"count": 1000, "covered": 10, "percent": 1},
+            "mcdc": {"count": 0, "covered": 0, "notcovered": 0, "percent": 0},
+            "regions": {"count": 1000, "covered": 10, "notcovered": 990, "percent": 1}
+          }
+        },
+        {
+          "filename": "/Applications/Xcode.app/Contents/Developer/Toolchains/runner.swift",
+          "summary": {
+            "branches": {"count": 0, "covered": 0, "notcovered": 0, "percent": 0},
+            "functions": {"count": 1, "covered": 1, "percent": 100},
+            "instantiations": {"count": 1, "covered": 1, "percent": 100},
+            "lines": {"count": 10, "covered": 10, "percent": 100},
+            "mcdc": {"count": 0, "covered": 0, "notcovered": 0, "percent": 0},
+            "regions": {"count": 5, "covered": 5, "notcovered": 0, "percent": 100}
+          }
+        }
+      ],
+      "totals": {
+        "branches": {"count": 0, "covered": 0, "notcovered": 0, "percent": 0},
+        "functions": {"count": 160, "covered": 21, "percent": 13.125},
+        "instantiations": {"count": 160, "covered": 21, "percent": 13.125},
+        "lines": {"count": 1580, "covered": 186, "percent": 11.77},
+        "mcdc": {"count": 0, "covered": 0, "notcovered": 0, "percent": 0},
+        "regions": {"count": 1592, "covered": 165, "notcovered": 1427, "percent": 10.36}
+      }
+    }
+  ],
+  "type": "llvm.coverage.json.export",
+  "version": "3.0.1"
+}

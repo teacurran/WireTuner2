@@ -6,12 +6,17 @@ on:
     paths:
       - "client/**"
       - "tools/coverage/**"
+      - "tools/sonar/**"
       - ".github/workflows/client.yml"
   pull_request:
     paths:
       - "client/**"
       - "tools/coverage/**"
+      - "tools/sonar/**"
       - ".github/workflows/client.yml"
+
+permissions:
+  contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.sha }}
@@ -36,8 +41,9 @@ jobs:
         # Newest Xcode 26 on the image, else the newest 16.x; the project needs a Swift 6 toolchain
         # and the macOS 15 SDK.
         run: |
-          xcode="$(ls -d /Applications/Xcode_26*.app /Applications/Xcode_16*.app 2>/dev/null | sort -V | tail -1)"
-          test -n "$xcode" || { ls /Applications | grep Xcode; exit 1; }
+          # Unmatched globs stay literal ("*"), so they are filtered out before sorting.
+          xcode="$(printf '%s\n' /Applications/Xcode_26*.app /Applications/Xcode_16*.app | grep -v '[*]' | sort -V | tail -1)"
+          test -n "$xcode" || { printf '%s\n' /Applications/Xcode*; exit 1; }
           sudo xcode-select -s "$xcode"
           xcodebuild -version
           swift --version
@@ -70,7 +76,9 @@ jobs:
             CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO \
             | tee client/build/xcodebuild-test.log | grep -E '^(Test Suite|Test Case|\*\*|Executed|error:)'
 
-      - name: Coverage report (lcov -> Sonar generic XML)
+      # Writes sonar.xml (lcov -> Sonar generic XML, lines) and regions.json (the merged
+      # llvm-cov summary export the region gate reads in the sonar job).
+      - name: Coverage report
         run: tools/coverage/Tests/run.sh && tools/coverage/client-coverage.sh --export-only
 
       - name: Upload coverage
@@ -81,7 +89,9 @@ jobs:
           path: |
             client/build/coverage/sonar.xml
             client/build/coverage/client.lcov
+            client/build/coverage/regions.json
           if-no-files-found: error
+          retention-days: 2
 
       - name: Upload test results
         if: failure()
@@ -93,12 +103,82 @@ jobs:
             client/build/xcodebuild-test.log
 
   sonar:
-    name: SonarQube (placeholder)
-    # TEST-003 fills this in: sonar-scanner uploads client/build/coverage/sonar.xml as
-    # sonar.coverageReportPaths to project `wiretuner-client` on https://sonar.villagecompute.com
-    # with the SONAR_TOKEN secret and sonar.qualitygate.wait=true.  Until then the job is a no-op
-    # so the status check name is already reserved.
+    name: Coverage gate and SonarQube
     needs: test
-    runs-on: ubuntu-latest
+    # macOS: the region gate is a Swift script.  sonar-scanner comes from Homebrew, the same CLI
+    # `make sonar-client` runs.
+    runs-on: macos-15
+    timeout-minutes: 30
     steps:
-      - run: echo "SonarQube upload is wired by TEST-003 (docs/spec/backlog.adoc)."
+      - uses: actions/checkout@v4
+        with:
+          # git describe for sonar.projectVersion, and blame data for new-code detection.
+          fetch-depth: 0
+
+      - name: No Sonar token in the repository
+        run: tools/sonar/check-no-token.sh
+
+      - name: Download coverage
+        id: coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: client-coverage
+          path: client/build/coverage
+
+      # The client's gate (decisions.adoc D-066): 95% lines AND 95% llvm-cov regions over the
+      # sources Sonar measures.  Regions stand in for branches because Swift's coverage mapping
+      # has no branch records; Sonar's generic format has no field for them, so the figures go to
+      # the job summary.  This step fails the job (and so blocks the PR) below either bar,
+      # whatever Sonar says.
+      - name: Coverage gate (95% lines and regions)
+        run: tools/coverage/client-coverage.sh --gate-only
+
+      # The `secrets` context is not allowed in `if:`, so a step decides (dissipate-server's
+      # preflight).  Pull requests are uploaded only with vars.SONAR_PR_ANALYSIS=true: the server
+      # is a Community Build without PR analysis, where a PR scan would overwrite main's figures.
+      - name: Preflight
+        id: preflight
+        if: ${{ !cancelled() }}
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          PR_ANALYSIS: ${{ vars.SONAR_PR_ANALYSIS }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          if [ -z "$SONAR_TOKEN" ]; then
+            echo "::notice::SONAR_TOKEN secret is not set; skipping the SonarQube upload."
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          elif [ "$EVENT" = pull_request ] && [ "$PR_ANALYSIS" != true ]; then
+            echo "::notice::Pull-request analysis is off (vars.SONAR_PR_ANALYSIS); the coverage gate above gates this PR."
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install sonar-scanner
+        if: ${{ !cancelled() && steps.preflight.outputs.enabled == 'true' && steps.coverage.outcome == 'success' }}
+        run: brew install sonar-scanner
+
+      # Runs even when the coverage gate above failed, so Sonar shows the red figure rather than
+      # a stale green one; the job still fails.  Settings come from client/sonar-project.properties;
+      # the token reaches the scanner through the SONAR_TOKEN environment variable only.
+      - name: SonarQube scan
+        if: ${{ !cancelled() && steps.preflight.outputs.enabled == 'true' && steps.coverage.outcome == 'success' }}
+        working-directory: client
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          EVENT: ${{ github.event_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_BRANCH: ${{ github.head_ref }}
+          PR_BASE: ${{ github.base_ref }}
+        run: |
+          test -s build/coverage/sonar.xml
+          version="$(git describe --tags --always)"
+          echo "Publishing analysis as sonar.projectVersion=$version"
+          pr=()
+          if [ "$EVENT" = pull_request ]; then
+            pr=(-Dsonar.pullrequest.key="$PR_NUMBER" -Dsonar.pullrequest.branch="$PR_BRANCH" -Dsonar.pullrequest.base="$PR_BASE")
+          fi
+          sonar-scanner \
+            -Dsonar.qualitygate.wait=true \
+            -Dsonar.projectVersion="$version" \
+            "${pr[@]}"

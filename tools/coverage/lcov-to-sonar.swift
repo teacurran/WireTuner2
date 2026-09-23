@@ -12,7 +12,8 @@
 // Several records for one file (the same source compiled into more than one test binary, or one
 // tracefile concatenated from several exports) are merged: a line is covered if any record
 // covered it, a branch is taken if any record took it.  Branch attributes are written only for
-// lines that carry BRDA records.  With `--relative-to`, paths under that directory are written
+// lines that carry BRDA records.  A DA hit count above Int64.max is a wrapped-negative llvm
+// counter (see `hitCount`) and is read as 0 hits.  With `--relative-to`, paths under that directory are written
 // relative to it and paths outside it (toolchain sources, derived test runners) are dropped.
 // `--exclude <substring>` (repeatable) drops every file whose path contains the substring; the
 // client script uses it to keep dependency checkouts (`/.build/`, `client/build/`) out of the
@@ -47,6 +48,20 @@ enum ConversionError: Error, CustomStringConvertible {
     }
 }
 
+/// The execution count of a DA record.  llvm-cov stores counters as unsigned 64-bit values and
+/// Xcode's Swift toolchain emits wrapped-negative counts for some pattern-matching loops
+/// (`DA:262,18446744073709551588`, i.e. -28 as UInt64, seen in WTGeometry's Contour.swift): the
+/// counter expression subtracts a sibling region's count and the result underflows.  Such a
+/// value is not a hit count; llvm-cov's own line summary treats it as unexecuted, so the
+/// converter does too rather than reject the whole tracefile (one such line used to break the
+/// entire client sonar.xml).  Anything that is not an unsigned integer is still malformed.
+func hitCount(_ text: Substring) -> Int? {
+    guard let raw = UInt64(text) else {
+        return nil
+    }
+    return raw > UInt64(Int64.max) ? 0 : Int(raw)
+}
+
 func parse(lcov: String) throws -> [String: FileCoverage] {
     var files: [String: FileCoverage] = [:]
     var current: String?
@@ -77,7 +92,7 @@ func parse(lcov: String) throws -> [String: FileCoverage] {
                 throw ConversionError.malformed(line: lineNumber, text: line)
             }
             let fields = value.split(separator: ",")
-            guard fields.count >= 2, let number = Int(fields[0]), let hits = Int(fields[1]) else {
+            guard fields.count >= 2, let number = Int(fields[0]), let hits = hitCount(fields[1]) else {
                 throw ConversionError.malformed(line: lineNumber, text: line)
             }
             files[path]!.lines[number, default: LineCoverage()].hits += hits

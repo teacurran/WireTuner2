@@ -37,14 +37,11 @@ proto-plugins:
 proto-gen: proto-plugins
 	buf generate
 
-.PHONY: client-test client-build
+.PHONY: client-build
 
 # Every package's `swift test --enable-code-coverage`, then `xcodebuild test -enableCodeCoverage YES`,
 # then client/build/coverage/sonar.xml (docs/spec/building.adoc).  XCUITest is skipped when macOS
 # Automation Mode is off: sudo automationmodetool enable-automationmode-without-authentication
-client-test:
-	tools/coverage/Tests/run.sh
-	tools/coverage/client-coverage.sh
 
 # Debug build, ad-hoc signed unless DEVELOPMENT_TEAM (and optionally CODE_SIGN_IDENTITY) are exported.
 client-build:
@@ -52,17 +49,41 @@ client-build:
 		-derivedDataPath build/DerivedData \
 		DEVELOPMENT_TEAM="$(DEVELOPMENT_TEAM)" CODE_SIGN_IDENTITY="$(or $(CODE_SIGN_IDENTITY),-)" build
 
-.PHONY: server-test sonar-server up down
+.PHONY: server-test up down
 
 server-test:
 	cd server && JAVA_HOME=$$(sdk home java 25-amzn) ./mvnw -q verify
 
-sonar-server:
-	@test -n "$(SONAR_TOKEN)" || (echo 'SONAR_TOKEN unset; try: export SONAR_TOKEN=$$(cat ~/.sonar-token)' >&2; exit 2)
-	cd server && ./mvnw -B -ntp sonar:sonar
 
 up:
 	docker compose up -d
 
 down:
 	docker compose down
+
+.PHONY: client-test sonar-server sonar-client sonar-gates sonar-tools-test
+
+# SONAR_TOKEN from the environment, else ~/.sonar-token (docs/spec/testing.adoc).  Exported to
+# the scanner's environment only; never echoed or passed as a -D flag.
+SONAR_TOKEN_SHELL = token="$${SONAR_TOKEN:-$$(cat "$$HOME/.sonar-token" 2>/dev/null | tr -d '[:space:]')}"; \
+	test -n "$$token" || { echo 'no Sonar token: export SONAR_TOKEN or write it to ~/.sonar-token' >&2; exit 2; }; \
+	export SONAR_TOKEN="$$token"
+
+client-test:
+	tools/coverage/Tests/run.sh
+	tools/coverage/client-coverage.sh --gate
+
+sonar-server:
+	@$(SONAR_TOKEN_SHELL); cd server && ./mvnw -B -ntp sonar:sonar -Dsonar.projectVersion="$$(git describe --tags --always)"
+
+sonar-client:
+	@$(SONAR_TOKEN_SHELL); cd client && sonar-scanner -Dsonar.projectVersion="$$(git describe --tags --always)"
+
+# Creates or converges the two projects and their gates (idempotent; DRY_RUN=1 prints the calls).
+sonar-gates:
+	tools/sonar/configure-gates.sh $(if $(DRY_RUN),--dry-run)
+
+sonar-tools-test:
+	tools/coverage/Tests/run.sh
+	tools/sonar/Tests/run.sh
+	tools/sonar/check-no-token.sh

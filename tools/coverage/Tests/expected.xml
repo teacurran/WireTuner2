@@ -6,6 +6,7 @@
     <lineToCover lineNumber="5" covered="true" branchesToCover="2" coveredBranches="2"/>
     <lineToCover lineNumber="6" covered="true"/>
     <lineToCover lineNumber="7" covered="true"/>
+    <lineToCover lineNumber="8" covered="false"/>
   </file>
   <file path="client/WTApp/Menu&amp;Items.swift">
     <lineToCover lineNumber="1" covered="false"/>

@@ -25,8 +25,9 @@ contract they work under.
   wrong), the deviation is recorded on the page in the same change, under the relevant
   subsection, and named in the report.  The book and the code move together.
 * Every task ends green: its own tests pass with the commands named below, the previous tests
-  still pass, and the SonarQube quality gate -- 95% line and 95% branch coverage on both server
-  and client (xref:testing.adoc[Testing]) -- stays green.  Code that is hard to cover is
+  still pass, and the coverage gate -- 95% line and 95% branch coverage on the server, 95% line
+  and 95% region coverage on the client (xref:testing.adoc[Testing], xref:decisions.adoc#D-066[D-066])
+  -- stays green, in CI and on SonarQube.  Code that is hard to cover is
   restructured until it is not; exclusions are for generated code only.
 * No temporal words in file names.  Match the surrounding code's idiom.
 
@@ -40,10 +41,10 @@ contract they work under.
 |`buf format --diff --exit-code && buf lint && buf breaking --against '.git#branch=main' && buf generate`
 
 |server
-|`cd server && JAVA_HOME=$(sdk home java 25-amzn) ./mvnw -q verify` (Testcontainers need Docker running); coverage lands in `target/site/jacoco/jacoco.xml`; `make sonar-server` uploads it
+|`cd server && JAVA_HOME=$(sdk home java 25-amzn) ./mvnw -q verify` (Testcontainers need Docker running); coverage lands in each module's `target/site/jacoco/jacoco.xml`; `tools/coverage/jacoco-gate.sh server/*/target/site/jacoco/jacoco.xml` applies the 95% line and branch gate; `make sonar-server` uploads it (token from `SONAR_TOKEN` or `~/.sonar-token`)
 
 |client
-|`make client-test` (every package's `swift test --enable-code-coverage`, then `xcodebuild test -enableCodeCoverage YES`), which also writes `client/build/coverage/sonar.xml`; `make sonar-client` uploads it
+|`make client-test` (every package's `swift test --enable-code-coverage`, then `xcodebuild test -enableCodeCoverage YES`), which also writes `client/build/coverage/sonar.xml` and `regions.json` and fails below 95% lines or 95% llvm-cov regions (the client's branch gate, D-066); `make sonar-client` uploads it (token from `SONAR_TOKEN` or `~/.sonar-token`)
 
 |crdt
 |Both engines' tests plus `make conformance`

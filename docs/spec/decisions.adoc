@@ -490,6 +490,21 @@ had to name (`DocumentProps`, `SettingsProps`, `PageProps`, `MasterPageProps`, `
 Per-kind and per-settings numbers inside those messages are allocated by the task that fills
 each message in, in a comment at its top, the same way.
 
+[[D-066]]
+=== D-066 Client branch gate is llvm-cov region coverage
+The Swift toolchain (Xcode 26.4, Swift 6.3) emits no branch records in its coverage mapping, so
+the client cannot be held to a branch or condition figure: Sonar would show none for
+`wiretuner-client` and a branch condition would pass vacuously.  The client's gate is 95% lines
+*and* 95% llvm-cov *regions* -- each `if`/`guard`/`switch` arm and `?:`/`??` operand is its own
+region, so an untaken arm counts against the gate as an untaken branch would.  CI enforces both
+with `tools/coverage/regions-gate.swift` before the Sonar upload and prints the figures in the
+job summary, since Sonar's generic coverage format cannot carry regions; the `wiretuner-client`
+Sonar gate has line conditions only.  Approximating branches from per-line region counts and
+feeding them to Sonar as `branchesToCover` was rejected: a line's regions are not its branches,
+and the fabricated figure would read as a measured one.  If a toolchain starts emitting `BRDA`
+records, the converter passes them through and the client gate can gain Sonar's branch
+conditions (xref:testing.adoc[Testing]).
+
 == Open questions
 
 [[Q-001]]
