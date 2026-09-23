@@ -27,6 +27,29 @@ Each open document lives in a SQLite database (GRDB) under
 Opening a document loads the snapshot, replays `changes`, and connects.  If the network is down
 the document is simply open.  The title bar shows the sync state (xref:saving.adoc[Saving]).
 
+NOTE: As built by SYNC-001 (`WTSync.LocalStore`, `StoreSchema`).  The database runs in WAL mode
+with `synchronous = FULL`.  `meta` also holds `next_seq` (the replica's next change seq, which
+must survive the snapshot dropping the rows that would tell it).  `snapshot` holds the
+zstd-compressed `DocumentSnapshot` with its uncompressed size.  A `changes` row carries its
+`(replica, seq)` (unique, so a remote change delivered twice is stored once), `server_seq`,
+`local`, `sent_at` (set with `server_seq` when the change is acknowledged, or when its echo
+arrives on the subscription), its label, the serialized `Change`, and `in_snapshot`.  The rewrite
+(on close, and every `Options.snapshotInterval`, 5 minutes by default) deletes the rows before
+the oldest unacknowledged local change and marks the rest `in_snapshot`, so the outbox -- and the
+remote changes between its changes, which coalescing judges against -- survive it while opening
+replays only what the snapshot lacks; the state is encoded and compressed off the store's actor
+(1.6 s at the design point), so changes keep applying during a rewrite and are simply not marked.
+`undo` rows are `(stack, label, inverse, updated_at)` in
+id order per stack, the inverse in `WTSync.InverseCodec`'s encoding; `blobs_pending` adds each
+blob's size (the upload order is by size) and allows one row per tag.  The store is bound to the
+Mac by the IOKit `IOPlatformUUID`; opened on another Mac it takes a new replica id from seq 1 and
+reports the old one (`OpenReport.rotatedFrom`); `rotateReplica()` is the same rotation for
+`REPLICA_CONFLICT`, and the unsent changes of a retired id are listed by `retiredOutbox()` for
+the salvage below.  A write that fails after its change was applied in memory leaves the store
+refusing writes (`Failure.diverged`) until it is reopened from the file, which the transaction
+left as it was.  The design-point document opens in 0.77 s (release, M-series; snapshot plus a
+1,000-change tail, `DesignPointTests`).
+
 == Outbox and coalescing
 
 A local change is appended to `changes` in the same transaction that applies it to the
@@ -45,6 +68,23 @@ change the merged result:
 Coalescing is applied at send time to changes that are not yet acked, preserving change
 boundaries (labels) so history remains readable.  It typically shrinks a day's work by 10× or
 more.  Undo state is unaffected because the undo stack holds inverses, not the sent ops.
+
+NOTE: Deviations recorded by SYNC-002 (`WTSync.Coalescer`).  Every change keeps its seq, label and
+counter range and at least one op: `Change.ops` has `min_items: 1`, and seqs are dense and
+acknowledged one by one, so changes are never emptied or merged.  Consequently adjacent
+`TextInsert`s join within one change, or across two changes when the second insert opens a change
+that has other ops (its `start_counter` moves past the characters it gave up); typing that emits
+one single-insert change per keystroke is not joined and is left to compression.  "No other
+replica's writes between them" is judged per register path: a `SetFields` by any other change in
+between to the same node and path keeps the earlier write; an earlier op that loses only some of
+its paths keeps the rest.  *Create-then-delete is off by default* (`Coalescer.Rules.createThenDelete`):
+the creating replica keeps the tombstone, which its state hash covers, so dropping the ops would
+leave its hash different from every other replica's until garbage collection removes such
+tombstones locally; the rule is implemented (a node whose last `deleted` write in the outbox is
+`true` and whose id no other op mentions, all its ops taking one counter) for when CRDT-010 does.
+With the standard rules an engine fed the coalesced outbox has the raw outbox's state hash; a
+minute of dragging (3,600 one-register changes) sends one substantive op, and a 20,000-op outbox
+coalesces and encodes in 16 ms (release).
 
 == Reconnecting with a backlog
 

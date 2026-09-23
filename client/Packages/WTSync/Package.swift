@@ -20,13 +20,20 @@ let package = Package(
             dependencies: [
                 .product(name: "WTModel", package: "WTModel"),
                 .product(name: "WTCRDT", package: "WTCRDT"),
+                .product(name: "WTCRDTSchema", package: "WTCRDT"),
                 .product(name: "WTProto", package: "WTProto"),
                 .product(name: "GRDB", package: "GRDB.swift"),
             ]
         ),
         .testTarget(
             name: "WTSyncTests",
-            dependencies: ["WTSync"]
+            dependencies: [
+                "WTSync",
+                .product(name: "WTModel", package: "WTModel"),
+                .product(name: "WTCRDT", package: "WTCRDT"),
+                .product(name: "WTProto", package: "WTProto"),
+                .product(name: "GRDB", package: "GRDB.swift"),
+            ]
         ),
     ],
     swiftLanguageModes: [.v6]

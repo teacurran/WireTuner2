@@ -22,7 +22,11 @@ let package = Package(
         ),
         .testTarget(
             name: "WTModelTests",
-            dependencies: ["WTModel"]
+            dependencies: [
+                "WTModel",
+                .product(name: "WTCRDT", package: "WTCRDT"),
+                .product(name: "WTProto", package: "WTProto"),
+            ]
         ),
     ],
     swiftLanguageModes: [.v6]

@@ -1,0 +1,553 @@
+import Foundation
+import GRDB
+import WTCRDT
+import WTCRDTSchema
+import WTModel
+import WTProto
+
+/// One open document's local store (docs/spec/offline.adoc, "Local store"; SYNC-001, SYNC-002):
+/// a SQLite database (GRDB, WAL, synchronous = FULL) holding the newest snapshot, every change
+/// since it (the outbox is the unacknowledged local ones), the undo stack, pending blobs and view
+/// state.  The actor also holds the document's merge state (`DocumentCore`): a local change is
+/// applied and appended to the outbox inside one database transaction, so a change that was
+/// applied is on disk, and a transaction that fails leaves no trace in the file.
+///
+/// Opening loads the snapshot and replays the changes after it; the snapshot is rewritten on close
+/// and every `Options.snapshotInterval` while open.  The store records the Mac it was created on:
+/// opened on another Mac (a backup restore, a copy), it rotates to a new replica id.
+public actor LocalStore: DocumentBackend {
+    /// How a store opens.
+    public struct Options: Sendable {
+        /// How often the snapshot is rewritten while the store is open (offline.adoc: 5 minutes).
+        public var snapshotInterval: Duration
+        /// The Mac's hardware UUID.
+        public var hardwareUUID: @Sendable () -> String
+        /// A new random replica id (never 0).
+        public var makeReplicaID: @Sendable () -> UInt64
+        /// The merge table.
+        public var schema: Schema
+        /// Written to `meta` when the store is created.
+        public var featureLevel: Int
+        public var mergeTableVersion: String
+        /// Test hook: called inside the transaction after a change has been applied in memory and
+        /// before it is written; throwing aborts the transaction as a crash would.
+        var fault: (@Sendable () throws -> Void)?
+
+        /// Options; `hardwareUUID` defaults to `HardwareIdentity.platformUUID`, `makeReplicaID` to a
+        /// random non-zero id.
+        public init(snapshotInterval: Duration = .seconds(300), hardwareUUID: (@Sendable () -> String)? = nil,
+                    makeReplicaID: (@Sendable () -> UInt64)? = nil,
+                    schema: Schema = .generated, featureLevel: Int = 1, mergeTableVersion: String = WTMergeTable.version) {
+            self.snapshotInterval = snapshotInterval
+            self.hardwareUUID = hardwareUUID ?? HardwareIdentity.platformUUID
+            self.makeReplicaID = makeReplicaID ?? { UInt64.random(in: 1...UInt64.max) }
+            self.schema = schema
+            self.featureLevel = featureLevel
+            self.mergeTableVersion = mergeTableVersion
+        }
+    }
+
+    /// What opening found.
+    public struct OpenReport: Sendable, Hashable {
+        /// The store did not exist and was created.
+        public var created: Bool
+        /// The replica id the store had before it rotated (opened on another Mac), else nil.
+        public var rotatedFrom: UInt64?
+        /// Changes replayed on top of the snapshot.
+        public var replayed: Int
+        /// Wall-clock time the open took.
+        public var seconds: Double
+    }
+
+    /// Why a store operation failed.
+    public enum Failure: Error, Equatable {
+        /// The store at the path belongs to another document.
+        case wrongDocument(String)
+        /// The store is closed.
+        case closed
+        /// A write failed after its change was applied in memory: the in-memory state is ahead of
+        /// the file and the store refuses further writes.  Reopening restores the stored state.
+        case diverged
+        /// A stored row could not be read.
+        case corrupt(String)
+    }
+
+    /// A pending blob upload (docs/spec/offline.adoc, `blobs_pending`).
+    public struct PendingBlob: Sendable, Hashable {
+        public var hash: String
+        public var path: String
+        public var tag: String?
+        public var size: Int64
+
+        public init(hash: String, path: String, tag: String? = nil, size: Int64) {
+            self.hash = hash
+            self.path = path
+            self.tag = tag
+            self.size = size
+        }
+    }
+
+    /// The tag of the document's thumbnail in `blobs_pending`.
+    public static let thumbnailTag = "THUMBNAIL"
+
+    public nonisolated let documentID: String
+    public nonisolated let url: URL
+    /// What opening found.
+    public nonisolated let report: OpenReport
+
+    private let options: Options
+    private var database: DatabaseQueue?
+    private var core: DocumentCore
+    private var diverged = false
+    private var timer: Task<Void, Never>?
+    /// Snapshots written since the store opened (the periodic rewrite's test observable).
+    private(set) var snapshotsWritten = 0
+    /// The snapshot rewrite in flight, which the next one waits for.
+    private var rewriting: Task<Void, Error>?
+
+    /// The store file of `documentID`:
+    /// `~/Library/Application Support/WireTuner/Documents/<document id>/store.sqlite`.
+    public static func defaultURL(documentID: String) throws -> URL {
+        try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
+            .appending(components: "WireTuner", "Documents", documentID, "store.sqlite")
+    }
+
+    /// Opens (creating when absent) the store of `documentID` at `url` and starts the periodic
+    /// snapshot rewrite.
+    public static func open(documentID: String, at url: URL, options: Options = Options()) async throws -> LocalStore {
+        let store = try LocalStore(documentID: documentID, url: url, options: options)
+        await store.startTimer()
+        return store
+    }
+
+    private init(documentID: String, url: URL, options: Options) throws {
+        let start = DispatchTime.now().uptimeNanoseconds
+        self.documentID = documentID
+        self.url = url
+        self.options = options
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        var configuration = Configuration()
+        configuration.prepareDatabase { db in
+            try db.execute(sql: "PRAGMA journal_mode = WAL")
+            try db.execute(sql: "PRAGMA synchronous = FULL")
+        }
+        let database = try DatabaseQueue(path: url.path, configuration: configuration)
+        try StoreSchema.migrator.migrate(database)
+        let hardware = options.hardwareUUID()
+        let (loaded, created, rotatedFrom) = try database.write { db in
+            try Self.load(db, documentID: documentID, hardware: hardware, options: options)
+        }
+        var core = loaded
+        var replayed = 0
+        try database.read { db in
+            let rows = try Row.fetchCursor(db, sql: "SELECT server_seq, data FROM changes WHERE in_snapshot = 0 ORDER BY id")
+            while let row = try rows.next() {
+                core.replay(try Self.change(row["data"]), serverSeq: (row["server_seq"] as Int64?).map(UInt64.init(sql:)))
+                replayed += 1
+            }
+        }
+        self.database = database
+        self.core = core
+        report = OpenReport(created: created, rotatedFrom: rotatedFrom, replayed: replayed,
+                            seconds: Double(DispatchTime.now().uptimeNanoseconds - start) / 1e9)
+    }
+
+    // Reads (or writes, for a new store) `meta`, rotates the replica when the store is on another
+    // Mac, and loads the snapshot and the undo stack.
+    private static func load(_ db: Database, documentID: String, hardware: String, options: Options) throws
+        -> (DocumentCore, created: Bool, rotatedFrom: UInt64?) {
+        guard let meta = try Row.fetchOne(db, sql: "SELECT * FROM meta WHERE id = 1") else {
+            let replica = options.makeReplicaID()
+            try db.execute(sql: """
+                INSERT INTO meta (id, document_id, replica_id, hardware_uuid, last_server_seq, next_seq, feature_level,
+                                  merge_table_version)
+                VALUES (1, ?, ?, ?, 0, 1, ?, ?)
+                """, arguments: [documentID, replica.sql, hardware, options.featureLevel, options.mergeTableVersion])
+            return (DocumentCore(state: EngineState(schema: options.schema), replica: replica), true, nil)
+        }
+        let stored: String = meta["document_id"]
+        guard stored == documentID else { throw Failure.wrongDocument(stored) }
+        var replica = UInt64(sql: meta["replica_id"])
+        var nextSeq = UInt64(sql: meta["next_seq"])
+        var rotatedFrom: UInt64?
+        if meta["hardware_uuid"] != hardware {
+            rotatedFrom = replica
+            replica = options.makeReplicaID()
+            nextSeq = 1
+            try db.execute(sql: "UPDATE meta SET replica_id = ?, hardware_uuid = ?, next_seq = 1 WHERE id = 1",
+                           arguments: [replica.sql, hardware])
+        }
+        var state = EngineState(schema: options.schema)
+        if let snapshot = try Row.fetchOne(db, sql: "SELECT raw_size, data FROM snapshot WHERE id = 1") {
+            let raw = try Zstd.decompress(Array(snapshot["data"] as Data), size: snapshot["raw_size"])
+            state = try Snapshot.decode(raw, schema: options.schema)
+        }
+        var undo: [UndoEntry] = []
+        var redo: [UndoEntry] = []
+        for row in try Row.fetchAll(db, sql: "SELECT stack, label, inverse, updated_at FROM undo ORDER BY id") {
+            let entry = UndoEntry(label: row["label"], inverse: try InverseCodec.decode(Array(row["inverse"] as Data)),
+                                  updatedAt: Date(timeIntervalSince1970: row["updated_at"]))
+            if row["stack"] == "undo" {
+                undo.append(entry)
+            } else {
+                redo.append(entry)
+            }
+        }
+        let core = DocumentCore(state: state, replica: replica, nextSeq: nextSeq, lastServerSeq: UInt64(sql: meta["last_server_seq"]),
+                                undoStack: UndoStack(undo: undo, redo: redo))
+        return (core, false, rotatedFrom)
+    }
+
+    private static func change(_ data: Data) throws -> Wiretuner_Doc_V1_Change {
+        do {
+            return try Wiretuner_Doc_V1_Change(serializedBytes: data)
+        } catch {
+            throw Failure.corrupt("a stored change: \(error)")
+        }
+    }
+
+    private func startTimer() {
+        let interval = options.snapshotInterval
+        timer = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: interval)
+                guard !Task.isCancelled, let self else { return }
+                await self.periodicSnapshot()
+            }
+        }
+    }
+
+    private func periodicSnapshot() async {
+        try? await rewriteSnapshot()
+    }
+
+    // MARK: Writing
+
+    // Runs `body` in one write transaction.  `body` reports through `applied` once it has changed
+    // the in-memory state: a failure after that point marks the store diverged.
+    private func write<T>(_ body: (Database, inout Bool) throws -> T) throws -> T {
+        guard let database else { throw Failure.closed }
+        guard !diverged else { throw Failure.diverged }
+        var applied = false
+        do {
+            return try database.write { db in try body(db, &applied) }
+        } catch {
+            if applied {
+                diverged = true
+            }
+            throw error
+        }
+    }
+
+    private func checkFault() throws {
+        try options.fault?()
+    }
+
+    private func appendLocal(_ change: Wiretuner_Doc_V1_Change, _ db: Database) throws {
+        try db.execute(sql: "INSERT INTO changes (replica, seq, local, label, data) VALUES (?, ?, 1, ?, ?)",
+                       arguments: [change.replica.sql, change.seq.sql, change.label, try change.serializedData()])
+        try db.execute(sql: "UPDATE meta SET next_seq = ? WHERE id = 1", arguments: [core.nextSeq.sql])
+    }
+
+    private func persist(_ edit: UndoEdit?, _ db: Database) throws {
+        switch edit {
+        case nil:
+            break
+        case .push(let entry, let limit):
+            try db.execute(sql: "DELETE FROM undo WHERE stack = 'redo'")
+            try insert(entry, stack: "undo", db)
+            try trim(limit, db)
+        case .replaceTop(let entry):
+            try db.execute(sql: "DELETE FROM undo WHERE stack = 'redo'")
+            try db.execute(sql: """
+                UPDATE undo SET label = ?, inverse = ?, updated_at = ?
+                WHERE id = (SELECT MAX(id) FROM undo WHERE stack = 'undo')
+                """, arguments: [entry.label, Data(InverseCodec.encode(entry.inverse)), entry.updatedAt.timeIntervalSince1970])
+        case .undo(let entry):
+            try db.execute(sql: "DELETE FROM undo WHERE id = (SELECT MAX(id) FROM undo WHERE stack = 'undo')")
+            try insert(entry, stack: "redo", db)
+            try rewriteStack(db)
+        case .redo(let entry, let limit):
+            try db.execute(sql: "DELETE FROM undo WHERE id = (SELECT MAX(id) FROM undo WHERE stack = 'redo')")
+            try insert(entry, stack: "undo", db)
+            try trim(limit, db)
+            try rewriteStack(db)
+        }
+    }
+
+    private func insert(_ entry: UndoEntry, stack: String, _ db: Database) throws {
+        try db.execute(sql: "INSERT INTO undo (stack, label, inverse, updated_at) VALUES (?, ?, ?, ?)",
+                       arguments: [stack, entry.label, Data(InverseCodec.encode(entry.inverse)), entry.updatedAt.timeIntervalSince1970])
+    }
+
+    private func trim(_ limit: Int, _ db: Database) throws {
+        try db.execute(sql: """
+            DELETE FROM undo WHERE stack = 'undo' AND id NOT IN
+                (SELECT id FROM undo WHERE stack = 'undo' ORDER BY id DESC LIMIT ?)
+            """, arguments: [max(1, limit)])
+    }
+
+    // An undo or redo rebases the other steps (WTModel's UndoRebase): their stored inverses are
+    // rewritten from the in-memory stack, which lists them in the same order as the rows.
+    private func rewriteStack(_ db: Database) throws {
+        for (stack, entries) in [("undo", core.undoStack.undo), ("redo", core.undoStack.redo)] {
+            let ids = try Int64.fetchAll(db, sql: "SELECT id FROM undo WHERE stack = ? ORDER BY id", arguments: [stack])
+            for (id, entry) in zip(ids, entries) {
+                try db.execute(sql: "UPDATE undo SET inverse = ? WHERE id = ?", arguments: [Data(InverseCodec.encode(entry.inverse)), id])
+            }
+        }
+    }
+
+    // MARK: DocumentBackend
+
+    public func summary() -> DocumentUpdate {
+        update(nil)
+    }
+
+    public func perform(_ command: any Command, recording: DocumentCore.Recording) throws -> DocumentUpdate {
+        let change = try write { db, applied -> Wiretuner_Doc_V1_Change? in
+            guard let outcome = try core.perform(command, recording: recording) else { return nil }
+            applied = true
+            try checkFault()
+            try appendLocal(outcome.change!, db)
+            try persist(outcome.edit, db)
+            return outcome.change
+        }
+        return update(change)
+    }
+
+    public func undo(recording: DocumentCore.Recording) throws -> DocumentUpdate {
+        try reverse { $0.undo(recording: recording) }
+    }
+
+    public func redo(recording: DocumentCore.Recording) throws -> DocumentUpdate {
+        try reverse { $0.redo(recording: recording) }
+    }
+
+    private func reverse(_ body: (inout DocumentCore) -> DocumentCore.Outcome?) throws -> DocumentUpdate {
+        let change = try write { db, applied -> Wiretuner_Doc_V1_Change? in
+            guard let outcome = body(&core) else { return nil }
+            applied = true
+            try checkFault()
+            if let change = outcome.change {
+                try appendLocal(change, db)
+            }
+            try persist(outcome.edit, db)
+            return outcome.change
+        }
+        return update(change)
+    }
+
+    /// Applies a change from the server's log at `serverSeq`, recording it (or, for the echo of
+    /// this replica's own change, its ack) and the new `last_server_seq` in the same transaction.
+    public func receive(_ change: Wiretuner_Doc_V1_Change, serverSeq: UInt64) throws -> DocumentUpdate {
+        try write { db, applied in
+            core.receive(change, serverSeq: serverSeq)
+            applied = true
+            try checkFault()
+            if change.replica == core.replica {
+                try markAcknowledged(seq: change.seq, serverSeq: serverSeq, db)
+            } else {
+                try db.execute(sql: """
+                    INSERT OR IGNORE INTO changes (replica, seq, server_seq, local, label, data) VALUES (?, ?, ?, 0, ?, ?)
+                    """, arguments: [change.replica.sql, change.seq.sql, serverSeq.sql, change.label, try change.serializedData()])
+            }
+            try db.execute(sql: "UPDATE meta SET last_server_seq = ? WHERE id = 1", arguments: [core.lastServerSeq.sql])
+        }
+        return update(change)
+    }
+
+    public func read<T: Sendable>(_ body: @Sendable (EngineState) throws -> T) rethrows -> T {
+        try body(core.state)
+    }
+
+    private func update(_ change: Wiretuner_Doc_V1_Change?) -> DocumentUpdate {
+        DocumentUpdate(change: change, undo: UndoSummary(core.undoStack), replica: core.replica)
+    }
+
+    // MARK: Outbox (SYNC-002)
+
+    /// The unacknowledged local changes of the current replica, in order: the outbox.
+    public func outbox() throws -> [Wiretuner_Doc_V1_Change] {
+        try changes(sql: "SELECT data FROM changes WHERE local = 1 AND server_seq IS NULL AND replica = ? ORDER BY id",
+                    arguments: [core.replica.sql])
+    }
+
+    /// Unacknowledged local changes of replicas this store has rotated away from, in order: what
+    /// replica salvage (offline.adoc, "Replica expiry and salvage") re-issues.
+    public func retiredOutbox() throws -> [Wiretuner_Doc_V1_Change] {
+        try changes(sql: "SELECT data FROM changes WHERE local = 1 AND server_seq IS NULL AND replica != ? ORDER BY id",
+                    arguments: [core.replica.sql])
+    }
+
+    /// The outbox coalesced for sending (`Coalescer`), judged against everything applied since
+    /// its first change.
+    public func pendingUpload(rules: Coalescer.Rules = .standard) throws -> [Wiretuner_Doc_V1_Change] {
+        guard let database else { throw Failure.closed }
+        let replica = core.replica
+        let log = try database.read { db in
+            let rows = try Row.fetchAll(db, sql: """
+                SELECT replica, local, server_seq, data FROM changes
+                WHERE id >= (SELECT MIN(id) FROM changes WHERE local = 1 AND server_seq IS NULL AND replica = ?)
+                ORDER BY id
+                """, arguments: [replica.sql])
+            return try rows.map { row -> Coalescer.Entry in
+                let change = try Self.change(row["data"])
+                let local: Bool = row["local"]
+                let serverSeq: Int64? = row["server_seq"]
+                let rowReplica: Int64 = row["replica"]
+                let unsent = local && serverSeq == nil && UInt64(sql: rowReplica) == replica
+                return unsent ? .outbox(change) : .other(change)
+            }
+        }
+        return Coalescer.coalesce(log, rules: rules)
+    }
+
+    /// Records the server's acknowledgement of this replica's change `seq` at `serverSeq`.
+    public func acknowledge(seq: UInt64, serverSeq: UInt64) throws {
+        try write { db, applied in
+            core.acknowledge(seq: seq, serverSeq: serverSeq)
+            applied = true
+            try markAcknowledged(seq: seq, serverSeq: serverSeq, db)
+        }
+    }
+
+    private func markAcknowledged(seq: UInt64, serverSeq: UInt64, _ db: Database) throws {
+        try db.execute(sql: """
+            UPDATE changes SET server_seq = ?, sent_at = ? WHERE replica = ? AND seq = ? AND local = 1
+            """, arguments: [serverSeq.sql, Date().timeIntervalSince1970, core.replica.sql, seq.sql])
+    }
+
+    private func changes(sql: String, arguments: StatementArguments) throws -> [Wiretuner_Doc_V1_Change] {
+        guard let database else { throw Failure.closed }
+        return try database.read { db in
+            try Data.fetchAll(db, sql: sql, arguments: arguments).map(Self.change)
+        }
+    }
+
+    // MARK: Snapshot, replica, close (SYNC-001)
+
+    /// Rewrites the snapshot from the current state and drops the changes it now contains, keeping
+    /// every row from the oldest unacknowledged local change on (the outbox, and what coalescing
+    /// judges it against), marked as already in the snapshot.  The state is encoded and compressed
+    /// off the actor (1.6 s at the design point), so changes keep applying meanwhile; they are not
+    /// in this snapshot and stay unmarked.  Rewrites run one after another.
+    public func rewriteSnapshot() async throws {
+        let previous = rewriting
+        let current = Task {
+            _ = await previous?.result
+            try await writeSnapshot()
+        }
+        rewriting = current
+        try await current.value
+    }
+
+    private func lastRow(_ database: DatabaseQueue) throws -> Int64 {
+        try database.read { db in try Int64.fetchOne(db, sql: "SELECT MAX(id) FROM changes") } ?? 0
+    }
+
+    private func writeSnapshot() async throws {
+        guard let database else { throw Failure.closed }
+        let state = core.state
+        let serverSeq = core.lastServerSeq
+        // Read without suspending: every applied change is committed, so the rows up to here are
+        // exactly what `state` holds.
+        let through = try lastRow(database)
+        let (size, compressed) = await Task.detached(priority: .utility) {
+            let snapshot = Snapshot.encode(state, serverSeq: serverSeq)
+            return (snapshot.count, Zstd.compress(snapshot))
+        }.value
+        try write { db, _ in
+            try db.execute(sql: """
+                INSERT OR REPLACE INTO snapshot (id, server_seq, raw_size, data, written_at) VALUES (1, ?, ?, ?, ?)
+                """, arguments: [serverSeq.sql, size, Data(compressed), Date().timeIntervalSince1970])
+            let oldest = try Int64.fetchOne(db, sql: "SELECT MIN(id) FROM changes WHERE local = 1 AND server_seq IS NULL")
+            try db.execute(sql: "DELETE FROM changes WHERE id < ? AND id <= ?", arguments: [oldest ?? Int64.max, through])
+            try db.execute(sql: "UPDATE changes SET in_snapshot = 1 WHERE id <= ?", arguments: [through])
+        }
+        snapshotsWritten += 1
+    }
+
+    /// The current replica id.
+    public var replica: UInt64 { core.replica }
+
+    /// The seq the next local change takes.
+    public var nextSeq: UInt64 { core.nextSeq }
+
+    /// The highest server sequence applied from the server's log.
+    public var lastServerSeq: UInt64 { core.lastServerSeq }
+
+    /// Rotates to a new replica id (`REPLICA_CONFLICT`, `REPLICA_EXPIRED`; offline.adoc "Replica
+    /// expiry and salvage") and returns it.  Unsent changes of the old id stay in `retiredOutbox`.
+    @discardableResult
+    public func rotateReplica() throws -> UInt64 {
+        let replica = options.makeReplicaID()
+        try write { db, applied in
+            core.rotate(to: replica)
+            applied = true
+            try db.execute(sql: "UPDATE meta SET replica_id = ?, next_seq = 1, hardware_uuid = ? WHERE id = 1",
+                           arguments: [replica.sql, options.hardwareUUID()])
+        }
+        return replica
+    }
+
+    /// Stops the periodic rewrite, writes the snapshot and closes the database.
+    public func close() async throws {
+        timer?.cancel()
+        timer = nil
+        guard database != nil else { return }
+        if !diverged {
+            try await rewriteSnapshot()
+        }
+        try database?.close()
+        database = nil
+    }
+
+    // MARK: Blobs and view state
+
+    /// Queues a blob upload; a tagged blob replaces the pending blob with the same tag (a newer
+    /// thumbnail replaces the pending one).
+    public func addPendingBlob(_ blob: PendingBlob) throws {
+        try write { db, _ in
+            if let tag = blob.tag {
+                try db.execute(sql: "DELETE FROM blobs_pending WHERE tag = ?", arguments: [tag])
+            }
+            try db.execute(sql: "INSERT OR REPLACE INTO blobs_pending (hash, path, tag, size) VALUES (?, ?, ?, ?)",
+                           arguments: [blob.hash, blob.path, blob.tag, blob.size])
+        }
+    }
+
+    /// Pending blobs in upload order: the thumbnail first, then the rest, largest last.
+    public func pendingBlobs() throws -> [PendingBlob] {
+        guard let database else { throw Failure.closed }
+        return try database.read { db in
+            try Row.fetchAll(db, sql: """
+                SELECT hash, path, tag, size FROM blobs_pending
+                ORDER BY (CASE WHEN tag = ? THEN 0 ELSE 1 END), size, hash
+                """, arguments: [Self.thumbnailTag])
+                .map { PendingBlob(hash: $0["hash"], path: $0["path"], tag: $0["tag"], size: $0["size"]) }
+        }
+    }
+
+    /// Removes an uploaded blob from the queue.
+    public func removePendingBlob(hash: String) throws {
+        try write { db, _ in
+            try db.execute(sql: "DELETE FROM blobs_pending WHERE hash = ?", arguments: [hash])
+        }
+    }
+
+    /// Stores a `local_only` view value (zoom, scroll, open panels, current page).
+    public func setViewValue(_ value: Data, forKey key: String) throws {
+        try write { db, _ in
+            try db.execute(sql: "INSERT OR REPLACE INTO view (key, value) VALUES (?, ?)", arguments: [key, value])
+        }
+    }
+
+    /// The view value stored for `key`.
+    public func viewValue(forKey key: String) throws -> Data? {
+        guard let database else { throw Failure.closed }
+        return try database.read { db in
+            try Data.fetchOne(db, sql: "SELECT value FROM view WHERE key = ?", arguments: [key])
+        }
+    }
+}
