@@ -630,3 +630,17 @@ QR and Code 128 in v1; EAN-13/UPC and Data Matrix when retail or logistics custo
 === Q-026 Where script data sources run
 On the client, with `wt.fetch` proxied; running them server-side would give identical results
 for every collaborator at the cost of hosting a JavaScript runtime on the server.
+
+[[Q-027]]
+=== Q-027 Apple's form_post response in front of Keycloak
+Keycloak 26.4's generic OIDC broker endpoint accepts only GET, and Apple answers with
+`response_mode=form_post` whenever `name` or `email` is requested.  SEC-004 relays the POST as a 303
+GET at the reverse proxy and lets review-profile ask for the name Apple sends only once
+(xref:security.adoc[Accounts, teams and security]).  If the relay proves fragile, or losing the
+first-authorization name matters, revisit D-064 (the community Apple provider handles both).
+
+[[Q-028]]
+=== Q-028 A reason for restricted sharing
+A workspace's restrict-sharing refusals reuse `TEAM_ROLE_INVALID` and `ROLE_INSUFFICIENT`
+(SEC-002); a `SHARING_RESTRICTED` value of `sync.v1.ErrorReason` would let the Share sheet explain
+the refusal precisely.  A proto-track addition.

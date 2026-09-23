@@ -33,7 +33,9 @@ import jakarta.inject.Inject;
  * {@code TOKEN_EXPIRED} when the token's {@code exp} has passed), reads the {@link TokenClaims},
  * and inside one transaction creates the {@code account} row on first sight of a subject, keeps
  * {@code account_identity} in step with the identity the token carries, and records the calling
- * device with the sign-in method it arrived with. The result is memoised for the request.
+ * device with the sign-in method it arrived with. A first sight of any of them is a sign-in, which
+ * runs the {@link SignInEffects} (auto-admit, pending invitations). The result is memoised for the
+ * request.
  */
 @RequestScoped
 public class Principals {
@@ -57,6 +59,9 @@ public class Principals {
 
     @Inject
     DeviceRepository devices;
+
+    @Inject
+    SignInEffects signIn;
 
     private Uni<Principal> current;
 
@@ -85,27 +90,53 @@ public class Principals {
         return Panache.withTransaction(() -> register(claims));
     }
 
+    /** Rows this resolution inserted (account, identity, device): any makes the call a sign-in. */
+    static final class Sighting {
+        int inserted;
+    }
+
     /** Runs inside the request's transaction (joining the RPC's own when it opened one). */
     Uni<Principal> register(TokenClaims claims) {
-        return accounts.findBySubject(claims.subject())
-                .flatMap(existing -> existing != null ? Uni.createFrom().item(existing) : createAccount(claims))
-                .flatMap(account -> upkeepIdentity(account, claims).replaceWith(account))
-                .flatMap(account -> touchDevice(account, claims)
+        Sighting seen = new Sighting();
+        return account(claims, seen)
+                .call(account -> upkeepIdentity(account, claims, seen))
+                .flatMap(account -> touchDevice(account, claims, seen)
+                        .call(deviceId -> seen.inserted > 0 ? signIn.apply(account.id, claims.authMethod())
+                                : Uni.createFrom().voidItem())
                         .map(deviceId -> new Principal(account.id, account.subject, deviceId, claims.authMethod(),
                                 callMetadata.clientVersion(), callMetadata.requestId())));
     }
 
-    private Uni<Account> createAccount(TokenClaims claims) {
-        Account account = new Account();
-        account.id = UUID.randomUUID();
-        account.subject = claims.subject();
-        account.email = claims.email();
-        account.displayName = claims.displayName();
-        LOG.infof("first sight of subject %s: creating account %s", claims.subject(), account.id);
-        return accounts.persist(account);
+    /**
+     * The subject's account, created on first sight. Concurrent first calls of a new person race to
+     * create it; the insert does nothing when another call's row is there, and the row is read back.
+     */
+    private Uni<Account> account(TokenClaims claims, Sighting seen) {
+        return accounts.findBySubject(claims.subject()).flatMap(existing -> {
+            if (existing != null) {
+                return Uni.createFrom().item(existing);
+            }
+            Account account = new Account();
+            account.id = UUID.randomUUID();
+            account.subject = claims.subject();
+            account.email = claims.email();
+            account.displayName = claims.displayName();
+            return accounts.insertIfAbsent(account)
+                    .invoke(inserted -> {
+                        LOG.infof("first sight of subject %s: account %s inserted %d", claims.subject(), account.id, inserted);
+                        seen.inserted += inserted;
+                    })
+                    .chain(() -> accounts.findBySubject(claims.subject()));
+        });
     }
 
-    private Uni<Void> upkeepIdentity(Account account, TokenClaims claims) {
+    /**
+     * Links the identity the token signed in with on first sight (docs/spec/security.adoc, Account
+     * linking). An identity whose provider did not assert the email verified never links to an
+     * account that already has another identity: {@code EMAIL_NOT_VERIFIED}, and the person signs in
+     * the existing way and adds the method from the account page.
+     */
+    private Uni<Void> upkeepIdentity(Account account, TokenClaims claims, Sighting seen) {
         return AuthMethods.identityProvider(claims.authMethod())
                 .map(provider -> {
                     AccountIdentityId id = new AccountIdentityId(provider, claims.subject());
@@ -113,21 +144,27 @@ public class Principals {
                         if (existing != null) {
                             return Uni.createFrom().voidItem();
                         }
-                        AccountIdentity identity = new AccountIdentity();
-                        identity.id = id;
-                        identity.accountId = account.id;
-                        identity.email = claims.email();
-                        identity.emailVerified = claims.emailVerified();
-                        identity.relay = claims.isRelayEmail();
-                        LOG.infof("linking identity %s to account %s", provider, account.id);
-                        return identities.persist(identity).replaceWithVoid();
+                        return identities.count("accountId", account.id).flatMap(others -> {
+                            if (others > 0 && !claims.emailVerified()) {
+                                return Uni.createFrom().failure(StatusExceptions.emailNotVerified());
+                            }
+                            AccountIdentity identity = new AccountIdentity();
+                            identity.id = id;
+                            identity.accountId = account.id;
+                            identity.email = claims.email();
+                            identity.emailVerified = claims.emailVerified();
+                            identity.relay = claims.isRelayEmail();
+                            LOG.infof("linking identity %s to account %s", provider, account.id);
+                            return identities.insertIfAbsent(identity).invoke(inserted -> seen.inserted += inserted)
+                                    .replaceWithVoid();
+                        });
                     });
                 })
                 .orElseGet(() -> Uni.createFrom().voidItem());
     }
 
     /** Creates or refreshes the device row; a revoked device is refused. Returns the device id, or null. */
-    private Uni<UUID> touchDevice(Account account, TokenClaims claims) {
+    private Uni<UUID> touchDevice(Account account, TokenClaims claims, Sighting seen) {
         UUID deviceId = callMetadata.deviceUuid();
         if (deviceId == null) {
             return Uni.createFrom().nullItem();
@@ -141,7 +178,7 @@ public class Principals {
                 device.platform = platformOf(callMetadata.clientVersion());
                 LOG.infof("first sight of device %s for account %s, signed in by %s", deviceId, account.id,
                         claims.authMethod());
-                return devices.insertIfAbsent(device).replaceWith(deviceId);
+                return devices.insertIfAbsent(device).invoke(inserted -> seen.inserted += inserted).replaceWith(deviceId);
             }
             if (existing.revokedAt != null) {
                 return Uni.createFrom().failure(StatusExceptions.unauthenticated("device revoked"));

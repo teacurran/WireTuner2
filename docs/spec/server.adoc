@@ -81,6 +81,14 @@ All services are `@Blocking`-free: Hibernate Reactive with the reactive PG clien
 dissipate-server.  Interceptors (in order): request id, OIDC token, principal resolution,
 protovalidate, rate limit, OpenTelemetry span.
 
+As built (SRV-014): the rate limit is not an interceptor.  Principal resolution is lazy (the token
+is validated when the RPC first asks for the caller, inside its reactive session), so an
+interceptor does not know the account; the limits are taken in `RoleGuard` instead, which every RPC
+already calls -- `authenticated()` against the account's bucket, `require(document, role)` against
+the account's and the document's -- and per change on the push path.  Quarkus's own gRPC tracing
+interceptor starts the server span at the default priority (0), after the WireTuner interceptors;
+`SpanRequestIdInterceptor` runs after it (priority -100) and puts `wt-request-id` on the span.
+
 The protovalidate interceptor (`ValidationInterceptor`, delivered with SRV-009) checks every
 inbound message, each frame of a client stream included, and closes the call with
 `INVALID_ARGUMENT / VALIDATION_FAILED` and the violations in `google.rpc.BadRequest` (field path
@@ -111,6 +119,13 @@ bad upload never becomes visible.  A blob the server already holds is still hash
 before the document gets its reference (a hash alone must not grant access) but is not stored
 again.
 
+`ShareService` (SRV-010, `api/.../share`) is specified as built on
+xref:sharing.adoc[Sharing] (Server): members by account or by email (a pending invitation
+for an unknown address, bound at the invitee's sign-in), roles, removal, links with role, expiry,
+argon2id password and team restriction, access requests, ownership transfer, and the document events
+every change sends.  `SetTeamAccess` (the per-document team override) is COLLAB-011's and answers
+`UNIMPLEMENTED` until then.
+
 SRV-008 and SRV-009 added the reasons `DOCUMENT_EXISTS`, `SPACE_NOT_FOUND`, `FOLDER_NOT_FOUND`,
 `HISTORY_UNAVAILABLE`, `BLOB_NOT_FOUND` and `BLOB_MISMATCH`; they are rows of the Errors table in
 xref:api-conventions.adoc[API conventions] and values of `sync.v1.ErrorReason`.
@@ -130,11 +145,12 @@ Postgres holds the truth; object storage holds bulk.
 |`replica` |`(document_id, replica_id)`, account, device, `last_seq`, `last_ack_seq`, `last_seen_at`, `retired_at`.
 |`snapshot` |`(document_id, server_seq)`, object key, `state_hash`, size, node count.
 |`cold_segment` |`(document_id, from_seq, to_seq)`, object key, compressed size.
-|`document_member`, `share_link`, `share_link_use` |Roles; `share_link_use(share_link_id, account_id, used_at)` records who used a link, which the effective-role rule needs.
+|`document_member`, `share_link`, `share_link_use` |Roles; `share_link_use(share_link_id, account_id, used_at)` records who used a link, which the effective-role rule needs.  V7 (SRV-010, SRV-012): `document_member.role` may be `none` -- a row that grants nothing and only holds `color_index`, the presence color (0-11) assigned on the account's first Subscribe; `share_link` gains `password_hash` (argon2id PHC string), `revoke_on_expiry` and `team_members_only`.
+|`document_invite`, `access_request` |V7 (SRV-010): an invitation by email to an address no account has yet (`document_id`, lower-case-unique `email`, role, inviter); a request for access (`document_id`, `account_id`, message, `resolved_at`, `granted_role`), one pending per person and document.
 |`branch` |Child document id, parent document id, fork `server_seq`, merged at.
 |`version` |`(document_id, server_seq)`, name, author, created.
 |`blob`, `document_blob` |sha256, size, media type, storage key (`blobs/<first byte>/<sha256>`), `tag` the blob was first uploaded with (`content` or `thumbnail`); references per document.  A thumbnail upload sets `document.thumbnail_blob` and adds no reference.
-|`account`, `account_identity`, `device`, `team`, `team_member`, `team_invite`, `workspace`, `workspace_domain` |xref:security.adoc[Accounts, teams and security].
+|`account`, `account_identity`, `device`, `team`, `team_member`, `team_invite`, `workspace`, `workspace_domain` |xref:security.adoc[Accounts, teams and security].  V7 adds `workspace_domain.checked_at` and `failed_checks` for the Domains job.
 |===
 
 Migrations are Flyway, applied by the `main-db-migrations` compose job before the API starts,
@@ -185,13 +201,17 @@ As built (SRV-004, SRV-005; `api/.../sync`):
   authorisation (principal, role of editor or above, author) is resolved concurrently as the call
   arrives, and memoised per node for 2 s (`wt.sync.grant-ttl`) under the exact bearer token, device
   and document (`PushGrants`): a revoked device, an expired token or a downgraded role is seen by
-  pushes within that time.  A `commenter` may not push yet: the comments-collection rule of
+  pushes within that time.  A sharing change made on a node forgets that node's decisions for the
+  document at once (SRV-010), so a downgrade is refused on the person's next push there; another
+  node still honours its memo for up to the 2 s.  A `commenter` may not push yet: the comments-collection rule of
   xref:security.adoc[Accounts, teams and security] arrives with the comments tasks.
 * *Fan-out.*  `SyncBus` holds one dedicated Valkey connection per node for every channel
   subscription (the Quarkus data source would open one connection per subscription); a channel
   `doc:<id>` is subscribed with a document's first local listener and unsubscribed with its last.
   Every frame -- change, presence update, document event -- is published as the node's 16-byte id
-  followed by the encoded `ServerFrame`; the publishing node delivers to its own listeners at once
+  and a 16-byte audience (the account a `RoleChanged` or `AccessRemoved` is for, all zeros for
+  everyone; SRV-010) followed by the encoded `ServerFrame`; a subscription takes the frames for
+  everyone and those for its own account.  The publishing node delivers to its own listeners at once
   and drops its own echo.  The ingest does not wait for the Valkey publish.  Each subscription puts
   changes back into `server_seq` order (`LiveFeed`): it registers before reading the head, drops
   what the replay covered, holds changes behind a gap, and fills a gap still open after 200 ms
@@ -226,6 +246,17 @@ As built (SRV-004, SRV-005; `api/.../sync`):
 |===
 
 Jobs use `quarkus-scheduler` with a Postgres advisory lock per job so only one node runs each.
+
+As built (SEC-002, SEC-004): `JobLocks` takes `pg_try_advisory_xact_lock` on the job's name in a
+transaction of its own held for the run; a node that cannot take it skips the run.  *Domains*
+(`DomainJob`, hourly, first run a minute after start) looks every workspace domain up through
+`DomainVerifier`: a claimed domain whose record appears is verified unless another team holds it; a
+verified domain whose record is missing (or whose lookup fails) three runs in a row loses its
+verification, so one DNS outage does not end auto-admit or require-SSO.  *Apple secret*
+(`AppleSecretJob`, every 30 days and 30 s after start) is specified on
+xref:security.adoc[Accounts, teams and security] (Accounts); without its four settings it does
+nothing.  *Invitations* is not built yet: pending document invitations have no expiry, and a link's
+expiry is applied when roles are read.
 
 Until the Stability job exists, `SyncService.Ack` computes it for the one document: it records
 the replica's `last_ack_seq` (never backwards, clamped to the head; an unbound replica is bound
@@ -320,12 +351,43 @@ searchable at once.  Nothing here is on the ingest path.
 * Logs: JSON, one line per accepted change at DEBUG, one per subscription at INFO.
 * Dashboard: `server/grafana/wiretuner.json` committed and loaded in compose.
 
+As built (SRV-014, `api/.../observability`):
+
+* *Per RPC*: Quarkus's gRPC binder (`quarkus.micrometer.binder.grpc-server.enabled`):
+  `grpc_server_processing_duration_seconds`, `grpc_server_requests_received_messages_total` and
+  `grpc_server_responses_sent_messages_total` per `service`, `method` and `statusCode`.
+* *Per document* (`document` tag): `wt_changes_accepted_total`, `wt_subscriptions_open` (live
+  Subscribe streams on the node), `wt_backlog_bytes` (a summary of `PushChanges` upload sizes) and
+  `wt_stable_lag_seq` (head − stable after each `Ack`).  A document's gauges are registered with its
+  first subscription on the node and removed with its last, so idle documents cost no series.
+* *Node-wide*: `wt_ingest_seconds` and `wt_search_seconds` (with histogram buckets for quantiles),
+  `wt_seq_gap_total`, `wt_rate_limited_total`, and `wt_push_inflight` -- the replica queue's size,
+  without the `replica` tag the list above names (a tag per replica would be unbounded).
+  `wt_snapshot_seconds`, `wt_search_extract_seconds` and `wt_replica_retired_total` arrive with the
+  snapshotter (SRV-007) and the Stability job.
+* *Rate limits* (`RateLimiter`): a token bucket per account and one per document in Valkey
+  (`rl:a:<account>`, `rl:d:<document>`), refilled continuously at `wt.limits.*.rate` per second up
+  to `wt.limits.*.burst` (5,000 and 20,000 for both), taken from by one Lua script that uses Valkey's
+  clock and takes from both buckets or neither.  Every RPC costs 1, a push one per change.  A node
+  leases 32 tokens at a time per (account, document) and spends them locally for up to a second, so a
+  pipelined window costs one Valkey round trip rather than 32 (the load test's rate would otherwise
+  drop by a third); near the limit it falls back to the exact cost.  Refusal is
+  `RESOURCE_EXHAUSTED / RATE_LIMITED` with `RetryInfo`: the time until the emptier bucket holds the
+  cost again.  The Valkey client pool is raised to 24 connections and 8,192 waiters for it.
+* *Compose*: `prometheus` (`server/grafana/prometheus.yml`, scraping `/q/metrics` of the `api`
+  service and of an API on the host every 5 s, port 9090) and `grafana` (port 3300, anonymous
+  viewer, the data source and the dashboard provisioned from `server/grafana/provisioning`).  The
+  dashboard's rows: overview, per document (changes/s, sessions, backlog bytes/s, stable lag),
+  ingest (latency quantiles, gaps), and RPCs (calls, errors and latency per method).
+
 == Local development
 
 `docker compose up` brings up postgres (+ migrations, with `pg_trgm`), valkey, keycloak (realm
 file with a test user, a passkey-enabled browser flow, a stub Apple identity provider pointed at
 a local mock and a workspace IdP), minio (+ bucket init), jaeger, mailpit, and the API in
-`quarkus:dev` with debug on 5005.  `make seed` creates a team, three users and a sample document by
+`quarkus:dev` with debug on 5005.  As built (SEC-004, SRV-014): the mock is `apple-mock`
+(`mock-oauth2-server`, issuers `/apple` and `/acme`, port 8190), and compose also runs prometheus
+and grafana (Observability, above).  `make seed` creates a team, three users and a sample document by
 replaying a conformance vector through `grpcurl`, as dissipate-server's seed jobs do.
 
 == Build tasks

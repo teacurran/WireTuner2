@@ -7,10 +7,13 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 
 import com.villagecompute.wiretuner.api.grpc.CallerContext;
+import com.villagecompute.wiretuner.api.observability.WtMetrics;
 
 import io.smallrye.mutiny.Uni;
 
+import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 
 /**
  * The per-replica ingest queue of docs/spec/server.adoc (Ingest path): pushes from one replica of
@@ -29,6 +32,15 @@ public class ReplicaQueue {
     }
 
     private final Map<Key, CompletableFuture<Void>> tails = new ConcurrentHashMap<>();
+
+    @Inject
+    WtMetrics metrics;
+
+    /** Exports the queue's size as {@code wt_push_inflight}. */
+    @PostConstruct
+    void register() {
+        metrics.pushInflight(tails::size);
+    }
 
     /** Runs {@code work} after every earlier submission for the replica; the result is re-emitted on the caller's context. */
     public <T> Uni<T> submit(UUID document, long replica, Supplier<Uni<T>> work) {

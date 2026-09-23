@@ -23,6 +23,8 @@ public final class ErrorReasons {
     public static final String RESPONSE_TOO_LARGE = "RESPONSE_TOO_LARGE";
     public static final String UPSTREAM_ERROR = "UPSTREAM_ERROR";
     public static final String VALIDATION_FAILED = "VALIDATION_FAILED";
+    public static final String LINK_PASSWORD_REQUIRED = "LINK_PASSWORD_REQUIRED";
+    public static final String LINK_INVALID = "LINK_INVALID";
 
     // Added by SRV-008, SRV-009 and SEC-001.
     public static final String DOCUMENT_EXISTS = "DOCUMENT_EXISTS";

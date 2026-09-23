@@ -20,11 +20,13 @@ import io.smallrye.mutiny.subscription.MultiEmitter;
  * the first seq the subscriber has not had from the replay; from then on changes below that are
  * dropped, changes above a gap wait for it, and a gap still open after {@code gapWait} is filled
  * from the log (a frame can overtake another between nodes, or be lost with a Valkey connection).
- * Frames other than changes pass straight through, after the replay.
+ * Frames other than changes pass straight through, after the replay; an {@code AccessRemoved} event
+ * (sent to this subscription's account only) ends the subscription after it is delivered.
  */
 final class LiveFeed implements SyncBus.Listener {
 
     private final UUID documentId;
+    private final UUID account;
     private final ChangeReader reader;
     private final Duration gapWait;
     private final TreeMap<Long, ServerFrame> pending = new TreeMap<>();
@@ -34,8 +36,9 @@ final class LiveFeed implements SyncBus.Listener {
     private long next = Long.MAX_VALUE;
     private boolean filling;
 
-    LiveFeed(UUID documentId, ChangeReader reader, Duration gapWait) {
+    LiveFeed(UUID documentId, UUID account, ChangeReader reader, Duration gapWait) {
         this.documentId = documentId;
+        this.account = account;
         this.reader = reader;
         this.gapWait = gapWait;
     }
@@ -44,9 +47,27 @@ final class LiveFeed implements SyncBus.Listener {
     synchronized void start(long next, MultiEmitter<? super ServerFrame> out) {
         this.next = next;
         this.out = out;
-        early.forEach(out::emit);
+        early.forEach(this::emit);
         early.clear();
         drain();
+    }
+
+    @Override
+    public UUID account() {
+        return account;
+    }
+
+    /** A heartbeat frame; only called after {@link #start}. */
+    synchronized void heartbeat(ServerFrame pong) {
+        out.emit(pong);
+    }
+
+    /** Emits a frame; {@code AccessRemoved} is the subscription's last. */
+    private void emit(ServerFrame frame) {
+        out.emit(frame);
+        if (frame.getEvent().hasAccessRemoved()) {
+            out.complete();
+        }
     }
 
     @Override
@@ -59,7 +80,7 @@ final class LiveFeed implements SyncBus.Listener {
         } else if (out == null) {
             early.add(frame);
         } else {
-            out.emit(frame);
+            emit(frame);
         }
     }
 

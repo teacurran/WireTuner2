@@ -8,7 +8,10 @@ import jakarta.persistence.EmbeddedId;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
 
-/** An explicit per-document role (docs/spec/security.adoc, Document roles). */
+/**
+ * An explicit per-document role (docs/spec/security.adoc, Document roles), or with role {@code none}
+ * a row that only holds the account's presence color on the document (presence.adoc, Data model).
+ */
 @Entity
 @Table(name = "document_member")
 public class DocumentMember {
@@ -24,4 +27,8 @@ public class DocumentMember {
 
     @Column(name = "added_at", nullable = false)
     public Instant addedAt = Instant.now();
+
+    /** Presence color, an index into the 12-color palette; null until the account first subscribes. */
+    @Column(name = "color_index")
+    public Short colorIndex;
 }

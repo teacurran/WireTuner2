@@ -38,7 +38,8 @@ import jakarta.inject.Inject;
  * connection drops, the bus reconnects, resubscribes every channel and asks every listener to
  * resynchronise from the log, since frames published meanwhile are gone.
  *
- * <p>The payload is the publishing node's 16-byte id followed by the encoded {@code ServerFrame}.
+ * <p>The payload is the publishing node's 16-byte id, the 16-byte audience (the account the frame is
+ * for, all zeros for everyone), and the encoded {@code ServerFrame}.
  */
 @ApplicationScoped
 public class SyncBus {
@@ -51,8 +52,11 @@ public class SyncBus {
 
     /** A local consumer of one document's frames. */
     public interface Listener {
-        /** A frame published about the document. */
+        /** A frame published about the document, for everyone or for this listener's account. */
         void frame(ServerFrame frame);
+
+        /** The account whose frames this listener takes besides the ones for everyone; null for none. */
+        UUID account();
 
         /** Frames may have been lost (the Valkey connection dropped): reread the log. */
         void resync();
@@ -67,6 +71,11 @@ public class SyncBus {
     @Inject
     Redis redis;
 
+    /** The audience of a frame for everyone, on the wire. */
+    static final UUID EVERYONE = new UUID(0, 0);
+    /** Node id and audience, 16 bytes each, before the frame. */
+    static final int HEADER = 32;
+
     final byte[] node = uuidBytes(UUID.randomUUID());
 
     private final Map<UUID, Channel> channels = new ConcurrentHashMap<>();
@@ -75,12 +84,26 @@ public class SyncBus {
 
     /** Delivers the frame to this node's listeners, then publishes it for every other node. */
     public Uni<Void> publish(UUID documentId, ServerFrame frame) {
-        deliver(documentId, frame);
+        return publish(documentId, frame, null);
+    }
+
+    /**
+     * As {@link #publish(UUID, ServerFrame)}, for the subscriptions of one account only ({@code audience};
+     * null = everyone): a {@code RoleChanged} or {@code AccessRemoved} is about the one person.
+     */
+    public Uni<Void> publish(UUID documentId, ServerFrame frame, UUID audience) {
+        deliver(documentId, frame, audience);
         byte[] body = frame.toByteArray();
-        byte[] payload = Arrays.copyOf(node, node.length + body.length);
-        System.arraycopy(body, 0, payload, node.length, body.length);
+        byte[] payload = Arrays.copyOf(node, HEADER + body.length);
+        System.arraycopy(uuidBytes(audience == null ? EVERYONE : audience), 0, payload, node.length, 16);
+        System.arraycopy(body, 0, payload, HEADER, body.length);
         return redis.send(Request.cmd(Command.PUBLISH).arg(PREFIX + documentId).arg(Buffer.buffer(payload)))
                 .replaceWithVoid();
+    }
+
+    /** The documents this node holds a channel for: the ones with a subscription here. */
+    public Set<UUID> documents() {
+        return channels.keySet();
     }
 
     /** Registers the listener; completes once Valkey has confirmed the document's channel. */
@@ -144,8 +167,10 @@ public class SyncBus {
         if (SUBSCRIBE.equals(kind)) {
             channel.ready.complete(null);
         } else if (MESSAGE.equals(kind) && !Arrays.equals(node, 0, node.length, payload, 0, node.length)) {
-            ServerFrame frame = Protos.parse(ServerFrame.parser(), Arrays.copyOfRange(payload, node.length, payload.length));
-            channel.listeners.forEach(listener -> listener.frame(frame));
+            ByteBuffer header = ByteBuffer.wrap(payload, node.length, 16);
+            UUID audience = new UUID(header.getLong(), header.getLong());
+            ServerFrame frame = Protos.parse(ServerFrame.parser(), Arrays.copyOfRange(payload, HEADER, payload.length));
+            deliver(channel, frame, EVERYONE.equals(audience) ? null : audience);
         }
     }
 
@@ -159,11 +184,19 @@ public class SyncBus {
         channels.values().forEach(channel -> channel.listeners.forEach(Listener::resync));
     }
 
-    private void deliver(UUID documentId, ServerFrame frame) {
+    private void deliver(UUID documentId, ServerFrame frame, UUID audience) {
         Channel channel = channels.get(documentId);
         if (channel != null) {
-            channel.listeners.forEach(listener -> listener.frame(frame));
+            deliver(channel, frame, audience);
         }
+    }
+
+    private static void deliver(Channel channel, ServerFrame frame, UUID audience) {
+        channel.listeners.forEach(listener -> {
+            if (audience == null || audience.equals(listener.account())) {
+                listener.frame(frame);
+            }
+        });
     }
 
     static byte[] uuidBytes(UUID id) {

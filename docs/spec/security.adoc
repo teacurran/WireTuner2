@@ -56,6 +56,59 @@ The rules, implemented as Keycloak's first-broker-login flow plus a server-side 
   refused.  The device list shows the method; the account page lists the identities and lets
   the person add or remove them.
 
+.As built (SEC-004)
+* *The realm* (`server/keycloak/wiretuner-realm.json`, imported by compose and by the tests' Keycloak
+  Dev Service) has the browser flow `wiretuner browser`: a cookie, an identity-provider hint, or the
+  username followed by the passwordless WebAuthn execution (platform authenticator, resident key,
+  user verification required) with the password form as "Try another way".  Keycloak 26.4's
+  conditional-UI passkeys inside the password form are left off: a passkey used there would be
+  recorded as the password execution.  Email and password: registration on, `verifyEmail` on (mail
+  through mailpit), brute-force protection on.  The WebAuthn passwordless registration required
+  action is enabled but not a default action; the app offers it after a first sign-in by any other
+  means through Keycloak's application-initiated action (`kc_action=webauthn-register-passwordless`).
+* *`wt_auth_method`* is two mappers on every client, because Keycloak has no single mapper that
+  knows both brokered and local sign-ins: a user-session-note mapper copies the note
+  `wt_auth_method` into the claim, and each identity provider sets that note with a
+  hardcoded-user-session-attribute mapper (`apple`, `sso:acme`); a local sign-in sets no note, and
+  Keycloak's AMR mapper writes `amr` from the reference values the realm gives the executions
+  (`passkey` on the passwordless WebAuthn execution, `password` on the password ones).  The server
+  (`TokenClaims`) takes `wt_auth_method`, else the first `amr` value that is a method, else
+  `password`.  The test client `wiretuner-test-passkey` runs a password grant through a flow whose
+  password execution carries the `passkey` reference, so the real mapping is tested end to end;
+  `wiretuner-test-sso` keeps a hardcoded `sso:acme` claim (no browser brokering in tests).
+* *Sign in with Apple* is the generic OIDC identity provider `apple` (client_secret_post, scopes
+  `openid name email`, `trustEmail`, user info off -- Apple has none -- signature checked against
+  Apple's JWKS).  In the committed realm it points at the compose mock `apple-mock` (issuer
+  `http://apple-mock:8080/apple`, authorize at `localhost:8190`); production points it at
+  `https://appleid.apple.com`.  Deviation: Keycloak 26.4's generic OIDC broker endpoint answers
+  only GET, and Apple returns with `response_mode=form_post` whenever `name` or `email` is
+  requested, so in production the reverse proxy in front of Keycloak turns the POST to
+  `/realms/wiretuner/broker/apple/endpoint` into a 303 to the same URL with the form fields as query
+  parameters.  Apple's first-authorization `user` field (the name) is then ignored by Keycloak and
+  the review-profile step of first-broker-login asks for the name when the ID token has none
+  (xref:decisions.adoc#Q-027[Q-027]).
+* *The Apple secret job* (`AppleSecretJob`) signs the client secret as an ES256 JWT with the
+  `.p8` key (`kid` = key id, `iss` = team id, `sub` = Services ID, `aud` =
+  `https://appleid.apple.com`, valid 180 days, never more than Apple's 15,777,000 s) and writes
+  it, with the Services ID as `clientId`, into the `apple` provider by a read-modify-write of its
+  representation through the admin API (password grant on `master`'s `admin-cli`).  Settings:
+  `WT_APPLE_TEAM_ID`, `WT_APPLE_KEY_ID`, `WT_APPLE_CLIENT_ID`, `WT_APPLE_PRIVATE_KEY` (the PEM
+  contents), `WT_KEYCLOAK_URL`, `WT_KEYCLOAK_ADMIN_USERNAME` / `_PASSWORD`.  Tested against a
+  fake admin endpoint (what was written, signature and claims) and against the test realm, after
+  which a sign-in succeeds.
+* *Linking.*  The first-broker-login flow `wiretuner first broker login` reviews the profile only
+  for missing fields, creates the account when the email is unique, and otherwise detects the
+  existing user and links automatically; both identity providers trust their providers' emails as
+  verified.  Keycloak cannot make that automatic link depend on the *existing* user's email being
+  verified, so the "unverified never links" rule rests on two other things: `verifyEmail` (an
+  unverified email+password account cannot sign in, so it never gets a WireTuner account) and the
+  server-side check -- `Principals` refuses to link a new identity whose token does not assert a
+  verified email to an account that already has another identity (`FAILED_PRECONDITION /
+  EMAIL_NOT_VERIFIED`, no row).  Relay addresses link and are recorded `is_relay`.
+* *First sight is race-free.*  The account and identity rows are inserted with `ON CONFLICT DO
+  NOTHING` and read back, as the device row already was, so the pipelined first calls of a new
+  person make one account.
+
 An account owns: a personal space of documents, a list of devices, its linked identities,
 preferences, and its team memberships.  Personal documents can be shared with anyone by
 invitation or link (xref:sharing.adoc[Sharing]).
@@ -168,6 +221,28 @@ on xref:api-conventions.adoc[API conventions].
   `wiretuner-test-sso` (hardcoded `wt_auth_method = sso:acme`); the realm also gains the test
   people alice, bob, carol, dave and erin.
 
+.As built (SEC-002)
+* *Domains job*: hourly re-verification with `DomainVerifier`; a verified domain survives two
+  missed lookups and loses its verification at the third (xref:server.adoc[Server], Jobs).
+* *Auto-admit* runs at sign-in -- when the principal resolution sees a new account, a newly linked
+  identity or a Mac it has not seen for the account (`SignInEffects`): the account joins, as a
+  member, every live team whose workspace auto-admits and has verified the domain of one of the
+  account's identities whose provider asserted the address verified.  Relay addresses never count.
+  A workspace that also requires SSO admits only a session signed in through its connection.
+  Turning auto-admit on does not admit existing accounts until they next sign in on a new Mac or
+  link an identity.
+* *Require-SSO* is checked on every call that reaches the team's documents (`RoleGuard`) or its
+  library space (`Spaces`): a member (owner, admin or member; not a guest, and not an outsider a
+  document was shared with) whose token's `wt_auth_method` is not `sso:<alias>` gets
+  `FAILED_PRECONDITION / SSO_REQUIRED` -- a password or passkey session alike.  TeamService is not
+  held to it, so an admin can always turn the switch off.
+* *Restrict-sharing* is enforced by ShareService: invitations of anyone who is not a member of the
+  team (a pending invitation by email included), links that are not team-members-only, and opening
+  any link as an outsider are refused.  Deviation: `sync.v1.ErrorReason` has no reason for it yet,
+  so the first two answer `FAILED_PRECONDITION / TEAM_ROLE_INVALID` and an outsider opening a link
+  `PERMISSION_DENIED / ROLE_INSUFFICIENT`; a `SHARING_RESTRICTED` reason is proposed for the proto
+  track (xref:decisions.adoc#Q-028[Q-028]).
+
 SEC-001 added the reasons `TEAM_NOT_FOUND`, `MEMBER_NOT_FOUND`, `INVITE_INVALID`, `DOMAIN_NOT_FOUND`,
 `SLUG_TAKEN`, `ALREADY_MEMBER`, `DOMAIN_TAKEN`, `OWNER_MUST_TRANSFER`, `TEAM_ROLE_INVALID`,
 `EMAIL_NOT_VERIFIED`, `SSO_REQUIRED` and `DOMAIN_UNVERIFIED`; they are rows of the Errors table in
@@ -203,7 +278,8 @@ fails and its outbox is offered for export as a package.
   on every call, not only at sign-in.
 * TLS everywhere; the compose stack terminates TLS at the API for parity with production.
 * Server-side rate limits per account and per document (SRV-014), `RESOURCE_EXHAUSTED` with
-  `RetryInfo`.
+  `RetryInfo`.  As built: token buckets in Valkey, taken in `RoleGuard` and per pushed change
+  (xref:server.adoc[Server], Observability).
 
 == Data protection
 

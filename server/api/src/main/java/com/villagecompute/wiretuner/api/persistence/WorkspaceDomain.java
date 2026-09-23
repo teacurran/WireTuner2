@@ -20,4 +20,12 @@ public class WorkspaceDomain {
 
     @Column(name = "verified_at")
     public Instant verifiedAt;
+
+    /** When the hourly job last looked the record up. */
+    @Column(name = "checked_at")
+    public Instant checkedAt;
+
+    /** Lookups in a row that did not find the record. */
+    @Column(name = "failed_checks", nullable = false)
+    public int failedChecks;
 }

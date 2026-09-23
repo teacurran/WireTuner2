@@ -333,7 +333,7 @@ class SubscribeTest extends SyncTestSupport {
     @Test
     void framesBeforeTheReplayEndsWaitForIt() throws InterruptedException {
         UUID doc = document(ALICE);
-        LiveFeed feed = new LiveFeed(doc, reader, Duration.ofSeconds(1));
+        LiveFeed feed = new LiveFeed(doc, null, reader, Duration.ofSeconds(1));
         feed.resync();
         feed.frame(ServerFrame.newBuilder().setEvent(DocumentEvent.newBuilder()
                 .setRenamed(com.villagecompute.wiretuner.sync.v1.Renamed.newBuilder().setName("buffered"))).build());
@@ -367,7 +367,7 @@ class SubscribeTest extends SyncTestSupport {
         PresenceUpdate seenByBob = bobs.next(FrameCase.PRESENCE).getPresence().getParticipants(0);
         assertThat(seenByBob.getTool()).isEqualTo("pen");
         assertThat(seenByBob.getUser().getRole()).isEqualTo(DocumentRole.DOCUMENT_ROLE_OWNER);
-        assertThat(seenByBob.getColorIndex()).isBetween(0, 11);
+        assertThat(seenByBob.getColorIndex()).isZero();
 
         long carolReplica = replicaId();
         blocking(CAROL, null).updatePresence(UpdatePresenceRequest.newBuilder().setDocumentId(doc.toString())
@@ -378,9 +378,10 @@ class SubscribeTest extends SyncTestSupport {
         assertThat(carols.getBranchId()).isEmpty();
         assertThat(carols.getUser().getUserId()).isEqualTo(carol.toString());
         assertThat(carols.getUser().getRole()).isEqualTo(DocumentRole.DOCUMENT_ROLE_VIEWER);
-        long ttl = redis.send(Request.cmd(Command.TTL).arg(PresenceStore.entry(doc, carolReplica)))
-                .await().atMost(WAIT).toLong();
-        assertThat(ttl).isBetween(1L, 15L);
+        assertThat(carols.getColorIndex()).isEqualTo(2);
+        long deadline = redis.send(Request.cmd(Command.ZSCORE).arg(PresenceStore.deadlines(doc))
+                .arg(PresenceStore.member(carolReplica))).await().atMost(WAIT).toLong();
+        assertThat(deadline - System.currentTimeMillis()).isBetween(1L, 3_000L);
 
         blocking(CAROL, null).updatePresence(UpdatePresenceRequest.newBuilder().setDocumentId(doc.toString())
                 .setReplica(carolReplica).setPresence(PresenceUpdate.newBuilder()
@@ -404,21 +405,32 @@ class SubscribeTest extends SyncTestSupport {
     }
 
     @Test
-    void anExpiredEntryLeavesTheSnapshot() {
+    void anExpiredEntryLeavesTheSnapshotAndIsAnnouncedGone() {
         UUID doc = document(ALICE);
+        share(doc, bob, "viewer");
+        Subscription bobs = subscribe(BOB, null, doc, replicaId(), 0);
+        bobs.next(FrameCase.PRESENCE);
         long replica = replicaId();
         blocking(ALICE, null).updatePresence(UpdatePresenceRequest.newBuilder().setDocumentId(doc.toString())
                 .setReplica(replica).setPresence(tool("pen")).build());
+        assertThat(presenceOf(bobs, alice).getTool()).isEqualTo("pen");
         long other = replicaId();
         blocking(ALICE, null).updatePresence(UpdatePresenceRequest.newBuilder().setDocumentId(doc.toString())
                 .setReplica(other).setPresence(tool("zoom")).build());
-        redis.send(Request.cmd(Command.DEL).arg(PresenceStore.entry(doc, replica))).await().atMost(WAIT);
+        assertThat(presenceOf(bobs, alice).getTool()).isEqualTo("zoom");
+        // The first replica's entry expires: the next sweep removes it and says so.
+        redis.send(Request.cmd(Command.ZADD).arg(PresenceStore.deadlines(doc)).arg(1).arg(PresenceStore.member(replica)))
+                .await().atMost(WAIT);
+        PresenceUpdate gone = presenceOf(bobs, alice);
+        assertThat(gone.getState()).isEqualTo(PresenceState.PRESENCE_STATE_GONE);
+        assertThat(gone.getTool()).isEmpty();
         Subscription s = subscribe(ALICE, null, doc, replicaId(), 0);
         assertThat(s.next(FrameCase.PRESENCE).getPresence().getParticipantsList())
                 .extracting(PresenceUpdate::getTool).containsExactly("zoom");
-        assertThat(redis.send(Request.cmd(Command.SCARD).arg(PresenceStore.members(doc))).await().atMost(WAIT).toInteger())
-                .isEqualTo(1);
+        assertThat(redis.send(Request.cmd(Command.HEXISTS).arg(PresenceStore.states(doc)).arg(PresenceStore.member(replica)))
+                .await().atMost(WAIT).toBoolean()).isFalse();
         s.cancel();
+        bobs.cancel();
     }
 
     @Test
@@ -519,9 +531,9 @@ class SubscribeTest extends SyncTestSupport {
         // A frame from another node arrives through the resubscribed channel.
         logRow(doc, 3, 5, 2);
         byte[] frame = changeFrame(3, 5, 2).toByteArray();
-        byte[] payload = new byte[16 + frame.length];
+        byte[] payload = new byte[SyncBus.HEADER + frame.length];
         payload[0] = 1;
-        System.arraycopy(frame, 0, payload, 16, frame.length);
+        System.arraycopy(frame, 0, payload, SyncBus.HEADER, frame.length);
         ServerFrame received = null;
         for (int attempt = 0; attempt < 50 && received == null; attempt++) {
             redis.send(Request.cmd(Command.PUBLISH).arg(SyncBus.PREFIX + doc)
@@ -551,6 +563,11 @@ class SubscribeTest extends SyncTestSupport {
             @Override
             public void resync() {
             }
+
+            @Override
+            public UUID account() {
+                return null;
+            }
         };
         int before = bus.channelCount();
         bus.listen(doc, listener).await().atMost(WAIT);
@@ -563,6 +580,11 @@ class SubscribeTest extends SyncTestSupport {
 
             @Override
             public void resync() {
+            }
+
+            @Override
+            public UUID account() {
+                return null;
             }
         });
         assertThat(bus.channelCount()).isEqualTo(before + 1);

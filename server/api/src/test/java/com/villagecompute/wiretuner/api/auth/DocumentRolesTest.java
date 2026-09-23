@@ -14,6 +14,7 @@ import org.junit.jupiter.params.provider.EnumSource;
 
 import com.google.rpc.ErrorInfo;
 import com.villagecompute.wiretuner.api.grpc.StatusExceptions;
+import com.villagecompute.wiretuner.api.observability.RateLimiter;
 import com.villagecompute.wiretuner.api.persistence.Account;
 import com.villagecompute.wiretuner.api.persistence.AccountRepository;
 import com.villagecompute.wiretuner.api.persistence.Document;
@@ -66,6 +67,8 @@ class DocumentRolesTest {
 
     @Inject DocumentRoles roles;
     @Inject RoleGuard guard;
+    @Inject RateLimiter limits;
+    @Inject WorkspacePolicy workspaces;
     @Inject AccountRepository accounts;
     @Inject TeamRepository teams;
     @Inject TeamMemberRepository teamMembers;
@@ -146,40 +149,41 @@ class DocumentRolesTest {
     }
 
     @Test
-    void onlyUsedLiveShareLinksCount() {
+    void onlyUsedShareLinksThatStillGrantCount() {
         ShareLink editor = link(personal.id, "editor", null, null);
-        ShareLink expired = link(personal.id, "editor", Instant.now().minusSeconds(60), null);
+        ShareLink expiredKeeping = link(personal.id, "commenter", Instant.now().minusSeconds(60), null);
+        ShareLink expiredRevoking = link(personal.id, "editor", Instant.now().minusSeconds(60), null, true);
         ShareLink revoked = link(personal.id, "editor", null, Instant.now());
-        ShareLink viewer = link(personal.id, "viewer", Instant.now().plusSeconds(3600), null);
+        ShareLink viewer = link(personal.id, "viewer", Instant.now().plusSeconds(3600), null, true);
 
         assertThat(role(personal.id, stranger)).isEqualTo(Role.NONE);
-        use(expired, stranger);
+        use(expiredRevoking, stranger);
         use(revoked, stranger);
         assertThat(role(personal.id, stranger)).isEqualTo(Role.NONE);
         use(viewer, stranger);
         assertThat(role(personal.id, stranger)).isEqualTo(Role.VIEWER);
+        // Past its expiry a link that does not revoke on expiry keeps granting to those who opened it.
+        use(expiredKeeping, stranger);
+        assertThat(role(personal.id, stranger)).isEqualTo(Role.COMMENTER);
         use(editor, stranger);
         assertThat(role(personal.id, stranger)).isEqualTo(Role.EDITOR);
     }
 
     @Test
-    void usingALinkRecordsItOnce() {
-        String token = "tok-" + UUID.randomUUID();
-        ShareLink link = link(personal.id, "commenter", null, null, DocumentRoles.tokenHash(token));
-        assertThat(tx(() -> roles.useShareLink(token, stranger))).isEqualTo(Role.COMMENTER);
-        assertThat(tx(() -> roles.useShareLink(token, stranger))).isEqualTo(Role.COMMENTER);
-        assertThat(tx(() -> linkUses.count("id.shareLinkId", link.id))).isEqualTo(1L);
-        assertThat(role(personal.id, stranger)).isEqualTo(Role.COMMENTER);
+    void aLinkOpensUntilItExpiresOrIsRevoked() {
+        Instant now = Instant.now();
+        assertThat(DocumentRoles.opens(link(personal.id, "viewer", null, null), now)).isTrue();
+        assertThat(DocumentRoles.opens(link(personal.id, "viewer", now.plusSeconds(5), null), now)).isTrue();
+        assertThat(DocumentRoles.opens(link(personal.id, "viewer", now, null), now)).isFalse();
+        assertThat(DocumentRoles.opens(link(personal.id, "viewer", null, now), now)).isFalse();
     }
 
     @Test
-    void anUnknownOrDeadLinkIsDocumentNotFound() {
-        String token = "dead-" + UUID.randomUUID();
-        link(personal.id, "editor", Instant.now().minusSeconds(1), null, DocumentRoles.tokenHash(token));
-        for (String t : new String[] {token, "never-issued-" + UUID.randomUUID()}) {
-            assertThatThrownBy(() -> tx(() -> roles.useShareLink(t, stranger)))
-                    .satisfies(e -> assertThat(StatusExceptions.reasonOf(e)).contains("DOCUMENT_NOT_FOUND"));
-        }
+    void aColorOnlyRowGrantsNothing() {
+        member(personal.id, stranger, "none");
+        assertThat(role(personal.id, stranger)).isEqualTo(Role.NONE);
+        DocumentRoles.Access access = tx(() -> documents.findById(personal.id).flatMap(d -> roles.access(d, stranger)));
+        assertThat(access).isEqualTo(new DocumentRoles.Access(Role.NONE, Role.NONE, Role.NONE, false));
     }
 
     @Test
@@ -223,6 +227,8 @@ class DocumentRolesTest {
         Principal principal = principal(owner);
         RoleGuard resolving = new RoleGuard();
         resolving.documentRoles = roles;
+        resolving.limits = limits;
+        resolving.workspaces = workspaces;
         resolving.principals = new Principals() {
             @Override
             public Uni<Principal> current() {
@@ -298,8 +304,18 @@ class DocumentRolesTest {
         return link(doc, role, expires, revoked, DocumentRoles.tokenHash(UUID.randomUUID().toString()));
     }
 
+    ShareLink link(UUID doc, String role, Instant expires, Instant revoked, boolean revokeOnExpiry) {
+        return link(doc, role, expires, revoked, DocumentRoles.tokenHash(UUID.randomUUID().toString()), revokeOnExpiry);
+    }
+
     ShareLink link(UUID doc, String role, Instant expires, Instant revoked, String hash) {
+        return link(doc, role, expires, revoked, hash, false);
+    }
+
+    ShareLink link(UUID doc, String role, Instant expires, Instant revoked, String hash, boolean revokeOnExpiry) {
         ShareLink link = new ShareLink();
+        link.revokeOnExpiry = revokeOnExpiry;
+        link.createdBy = owner;
         link.id = UUID.randomUUID();
         link.documentId = doc;
         link.tokenHash = hash;

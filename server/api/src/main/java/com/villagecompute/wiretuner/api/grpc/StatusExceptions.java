@@ -141,6 +141,18 @@ public final class StatusExceptions {
         return StatusProto.toStatusRuntimeException(status);
     }
 
+    /** {@code PERMISSION_DENIED / LINK_PASSWORD_REQUIRED}: the share link needs a password, or the one given is wrong. */
+    public static StatusRuntimeException linkPasswordRequired() {
+        return withReason(Code.PERMISSION_DENIED, ErrorReasons.LINK_PASSWORD_REQUIRED,
+                "the share link needs its password", Map.of());
+    }
+
+    /** {@code NOT_FOUND / LINK_INVALID}: the share link is unknown, expired or revoked. */
+    public static StatusRuntimeException linkInvalid() {
+        return withReason(Code.NOT_FOUND, ErrorReasons.LINK_INVALID, "the share link is unknown, expired or revoked",
+                Map.of());
+    }
+
     /** {@code ALREADY_EXISTS / DOCUMENT_EXISTS}: the client-chosen document id is taken by a different document. */
     public static StatusRuntimeException documentExists() {
         return withReason(Code.ALREADY_EXISTS, ErrorReasons.DOCUMENT_EXISTS,

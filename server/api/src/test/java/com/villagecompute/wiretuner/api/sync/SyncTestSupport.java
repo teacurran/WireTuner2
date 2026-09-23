@@ -60,6 +60,19 @@ abstract class SyncTestSupport extends ServiceTestSupport {
         carol = TestUsers.accountId(account, TestUsers.CAROL);
     }
 
+    /** Waits up to {@link #WAIT} for the condition. */
+    static void await(java.util.function.BooleanSupplier condition) {
+        long end = System.nanoTime() + WAIT.toNanos();
+        while (!condition.getAsBoolean()) {
+            assertThat(System.nanoTime()).as("condition within " + WAIT).isLessThan(end);
+            try {
+                Thread.sleep(50);
+            } catch (InterruptedException e) {
+                throw new IllegalStateException(e);
+            }
+        }
+    }
+
     /** A new personal document of {@code user}, with no changes. */
     UUID document(String user) {
         UUID id = uuid7();

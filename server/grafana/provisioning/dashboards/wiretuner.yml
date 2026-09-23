@@ -1,0 +1,10 @@
+# Loads server/grafana/*.json (mounted at /var/lib/grafana/dashboards) into the WireTuner folder.
+apiVersion: 1
+providers:
+  - name: wiretuner
+    folder: WireTuner
+    type: file
+    disableDeletion: true
+    allowUiUpdates: false
+    options:
+      path: /var/lib/grafana/dashboards

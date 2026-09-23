@@ -82,6 +82,12 @@
       <artifactId>quarkus-mailer</artifactId>
     </dependency>
 
+    <!-- argon2id for share-link passwords (sharing.adoc, Share links); the JDK has no argon2. -->
+    <dependency>
+      <groupId>org.bouncycastle</groupId>
+      <artifactId>bcprov-jdk18on</artifactId>
+    </dependency>
+
     <!-- Object storage: R2 in production, MinIO locally, through the AWS SDK v2 S3 client. -->
     <dependency>
       <groupId>software.amazon.awssdk</groupId>

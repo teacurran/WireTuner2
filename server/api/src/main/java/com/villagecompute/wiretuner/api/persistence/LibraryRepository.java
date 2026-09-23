@@ -15,8 +15,8 @@ import jakarta.enterprise.context.ApplicationScoped;
  * List and Search from ever returning a document the caller cannot open.
  *
  * <p>{@link #VISIBLE} is the SQL form of {@code DocumentRoles.effectiveRole(...) != NONE}: the
- * personal owner, an explicit {@code document_member} row, team owner or admin, a team member of a
- * live team, or a live share link the account has used. The service still asks
+ * personal owner, an explicit {@code document_member} row (not a color-only {@code none} row), team
+ * owner or admin, a team member of a live team, or a used share link that still grants. The service still asks
  * {@code DocumentRoles} for each returned row's {@code caller_role}, so the two cannot drift
  * without a test noticing.
  */
@@ -77,10 +77,11 @@ public class LibraryRepository {
             """;
 
     static final String NAMED_ACCESS = """
-            (EXISTS (SELECT 1 FROM document_member dm WHERE dm.document_id = d.id AND dm.account_id = ?1)
+            (EXISTS (SELECT 1 FROM document_member dm WHERE dm.document_id = d.id AND dm.account_id = ?1
+                     AND dm.role <> 'none')
              OR EXISTS (SELECT 1 FROM share_link l JOIN share_link_use u ON u.share_link_id = l.id
                         WHERE l.document_id = d.id AND u.account_id = ?1 AND l.revoked_at IS NULL
-                          AND (l.expires_at IS NULL OR l.expires_at > now())))
+                          AND (NOT l.revoke_on_expiry OR l.expires_at IS NULL OR l.expires_at > now())))
             """;
 
     /** Documents account {@code ?1} can open. */

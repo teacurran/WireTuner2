@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<html>
+<body style="font-family: -apple-system, Helvetica, Arial, sans-serif; line-height: 1.5;">
+{#if role}
+<p>Your request for <strong>{documentName}</strong> was granted: you are now {role}.</p>
+<p><a href="{link}">Open the document</a></p>
+{#else}
+<p>Your request for <strong>{documentName}</strong> was declined.</p>
+{/if}
+</body>
+</html>

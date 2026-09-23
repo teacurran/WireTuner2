@@ -23,15 +23,16 @@ import jakarta.inject.Inject;
  * and their role for every one of them costs several database round trips. The decision is kept
  * for {@code wt.sync.grant-ttl} (2 s) under the exact bearer token, device and document it was made
  * for, so a token, device or role change is seen by pushes within that time; a new token is a new
- * key, and anything else resolves afresh.
+ * key, and anything else resolves afresh. A role change made on this node forgets the document's
+ * decisions at once ({@link #forget}).
  */
 @ApplicationScoped
 public class PushGrants {
 
-    record Key(String authorization, String device, UUID document) {
+    record Key(String authorization, String device, UUID document, String purpose) {
     }
 
-    record Grant(Pusher pusher, long expiresAt) {
+    record Grant(Object value, long expiresAt) {
     }
 
     @ConfigProperty(name = "wt.sync.grant-ttl", defaultValue = "2S")
@@ -44,13 +45,30 @@ public class PushGrants {
 
     /** The remembered pusher for this call's token, device and document, or {@code resolve}'s, remembered. */
     public Uni<Pusher> pusher(UUID documentId, Supplier<Uni<Pusher>> resolve) {
-        Key key = new Key(callMetadata.authorization(), callMetadata.deviceId(), documentId);
+        return memo(documentId, "push", resolve);
+    }
+
+    /**
+     * The value remembered for this call's token, device and document under {@code purpose}, or
+     * {@code resolve}'s, remembered for the TTL: a pusher, or who a caller is in presence.
+     */
+    @SuppressWarnings("unchecked")
+    public <T> Uni<T> memo(UUID documentId, String purpose, Supplier<Uni<T>> resolve) {
+        Key key = new Key(callMetadata.authorization(), callMetadata.deviceId(), documentId, purpose);
         long now = System.nanoTime();
         Grant grant = grants.get(key);
         if (grant != null && grant.expiresAt() - now > 0) {
-            return Uni.createFrom().item(grant.pusher());
+            return Uni.createFrom().item((T) grant.value());
         }
-        return resolve.get().invoke(pusher -> grants.put(key, new Grant(pusher, now + ttl.toNanos())));
+        return resolve.get().invoke(value -> grants.put(key, new Grant(value, now + ttl.toNanos())));
+    }
+
+    /**
+     * Forgets every decision about the document on this node: ShareService calls it when a role
+     * changes, so the next push here is checked afresh. Other nodes see the change within the TTL.
+     */
+    public void forget(UUID documentId) {
+        grants.keySet().removeIf(key -> key.document().equals(documentId));
     }
 
     /** Drops expired grants. */

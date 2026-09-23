@@ -1,0 +1,8 @@
+{inviterName} shared "{documentName}" with you on WireTuner as {role}.
+{#if note}
+"{note}"
+{/if}
+Open it on your Mac:
+{link}
+
+Sign in with this address to see it in your library. If you did not expect it, ignore this mail.

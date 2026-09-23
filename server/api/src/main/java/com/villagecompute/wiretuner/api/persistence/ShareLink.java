@@ -37,4 +37,16 @@ public class ShareLink {
 
     @Column(name = "revoked_at")
     public Instant revokedAt;
+
+    /** argon2id PHC string of the link password; null when the link has none. */
+    @Column(name = "password_hash")
+    public String passwordHash;
+
+    /** Whether the access the link granted ends when it expires. */
+    @Column(name = "revoke_on_expiry", nullable = false)
+    public boolean revokeOnExpiry;
+
+    /** Whether only members of the document's team may open it. */
+    @Column(name = "team_members_only", nullable = false)
+    public boolean teamMembersOnly;
 }

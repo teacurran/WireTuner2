@@ -8,16 +8,12 @@ import java.util.HexFormat;
 import java.util.List;
 import java.util.UUID;
 
-import com.villagecompute.wiretuner.api.grpc.StatusExceptions;
 import com.villagecompute.wiretuner.api.persistence.Document;
 import com.villagecompute.wiretuner.api.persistence.DocumentMemberId;
 import com.villagecompute.wiretuner.api.persistence.DocumentMemberRepository;
 import com.villagecompute.wiretuner.api.persistence.DocumentRepository;
 import com.villagecompute.wiretuner.api.persistence.ShareLink;
 import com.villagecompute.wiretuner.api.persistence.ShareLinkRepository;
-import com.villagecompute.wiretuner.api.persistence.ShareLinkUse;
-import com.villagecompute.wiretuner.api.persistence.ShareLinkUseId;
-import com.villagecompute.wiretuner.api.persistence.ShareLinkUseRepository;
 import com.villagecompute.wiretuner.api.persistence.TeamMemberId;
 import com.villagecompute.wiretuner.api.persistence.TeamMemberRepository;
 import com.villagecompute.wiretuner.api.persistence.TeamRepository;
@@ -31,7 +27,8 @@ import jakarta.inject.Inject;
  * The effective document role (docs/spec/security.adoc, Document roles): the maximum of the explicit
  * {@code document_member} row, the team default for team members (team owners and admins hold the
  * owner's powers on team documents; guests hold nothing by membership alone), and the role of any
- * live share link the account has used.
+ * share link the account has used that still grants (not revoked; not expired, when it revokes on
+ * expiry). A {@code document_member} row with role {@code none} only holds a presence color.
  *
  * <p>Exactly one owner: a personal document's owner is {@code document.owner_account_id}; a team
  * document's owner is its single {@code document_member} row with role {@code owner}, which the
@@ -62,22 +59,35 @@ public class DocumentRoles {
     @Inject
     ShareLinkRepository shareLinks;
 
-    @Inject
-    ShareLinkUseRepository shareLinkUses;
+    /**
+     * Where one account's access to one document comes from (the People list shows it): the named
+     * role ({@code NONE} for none, or a color-only row), the role through the team, the best role
+     * through a used link that still grants, and whether the account is a personal document's owner.
+     */
+    public record Access(Role named, Role team, Role link, boolean personalOwner) {
+
+        /** The effective role: the maximum over the sources; a personal owner is always the owner. */
+        public Role effective() {
+            return personalOwner ? Role.OWNER : Role.max(Role.max(named, team), link);
+        }
+    }
+
+    static final Access NO_ACCESS = new Access(Role.NONE, Role.NONE, Role.NONE, false);
 
     /** {@link Role#NONE} for an unknown document, so callers cannot tell "deleted" from "never yours". */
     public Uni<Role> effectiveRole(UUID documentId, UUID accountId) {
         return documents.findById(documentId)
-                .flatMap(document -> document == null ? Uni.createFrom().item(Role.NONE) : roleOn(document, accountId));
+                .flatMap(document -> document == null ? Uni.createFrom().item(Role.NONE)
+                        : access(document, accountId).map(Access::effective));
     }
 
-    private Uni<Role> roleOn(Document document, UUID accountId) {
-        if (accountId.equals(document.ownerAccountId)) {
-            return Uni.createFrom().item(Role.OWNER);
-        }
+    /** Every source of the account's access to the document. */
+    public Uni<Access> access(Document document, UUID accountId) {
+        boolean personalOwner = accountId.equals(document.ownerAccountId);
         return explicitRole(document.id, accountId)
-                .flatMap(explicit -> teamRole(document.teamId, accountId).map(team -> Role.max(explicit, team)))
-                .flatMap(sofar -> shareLinkRole(document.id, accountId).map(link -> Role.max(sofar, link)));
+                .flatMap(named -> teamRole(document.teamId, accountId)
+                        .flatMap(team -> shareLinkRole(document.id, accountId)
+                                .map(link -> new Access(named, team, link, personalOwner))));
     }
 
     private Uni<Role> explicitRole(UUID documentId, UUID accountId) {
@@ -85,7 +95,8 @@ public class DocumentRoles {
                 .map(member -> member == null ? Role.NONE : Role.fromDb(member.role));
     }
 
-    private Uni<Role> teamRole(UUID teamId, UUID accountId) {
+    /** The account's role on the team's documents through its membership; NONE for a personal document. */
+    public Uni<Role> teamRole(UUID teamId, UUID accountId) {
         if (teamId == null) {
             return Uni.createFrom().item(Role.NONE);
         }
@@ -104,46 +115,34 @@ public class DocumentRoles {
 
     private Uni<Role> shareLinkRole(UUID documentId, UUID accountId) {
         Instant now = Instant.now();
-        return shareLinks.listUsedBy(documentId, accountId).map(links -> maxLive(links, now));
+        return shareLinks.listUsedBy(documentId, accountId).map(links -> maxGranted(links, now));
     }
 
-    static Role maxLive(List<ShareLink> links, Instant now) {
+    static Role maxGranted(List<ShareLink> links, Instant now) {
         Role best = Role.NONE;
         for (ShareLink link : links) {
-            if (isLive(link, now)) {
+            if (grants(link, now)) {
                 best = Role.max(best, Role.fromDb(link.role));
             }
         }
         return best;
     }
 
-    static boolean isLive(ShareLink link, Instant now) {
-        return link.revokedAt == null && (link.expiresAt == null || link.expiresAt.isAfter(now));
+    /**
+     * Whether a link still grants its role to the accounts that opened it: until it is revoked, and
+     * past its expiry only when it does not revoke on expiry (sharing.adoc, Share links).
+     */
+    public static boolean grants(ShareLink link, Instant now) {
+        return link.revokedAt == null && (!link.revokeOnExpiry || !expired(link, now));
     }
 
-    /**
-     * Records that the account opened the link named by {@code token}, so the link's role becomes
-     * part of its effective role from now on. A link that does not exist, has expired or was
-     * revoked is {@code DOCUMENT_NOT_FOUND}: the link is the only thing the caller knows about the
-     * document. Returns the link's role.
-     */
-    public Uni<Role> useShareLink(String token, UUID accountId) {
-        Instant now = Instant.now();
-        return shareLinks.findByTokenHash(tokenHash(token)).flatMap(link -> {
-            if (link == null || !isLive(link, now)) {
-                return Uni.createFrom().failure(StatusExceptions.documentNotFound());
-            }
-            ShareLinkUseId id = new ShareLinkUseId(link.id, accountId);
-            Role role = Role.fromDb(link.role);
-            return shareLinkUses.findById(id).flatMap(use -> {
-                if (use != null) {
-                    return Uni.createFrom().item(role);
-                }
-                ShareLinkUse fresh = new ShareLinkUse();
-                fresh.id = id;
-                return shareLinkUses.persist(fresh).replaceWith(role);
-            });
-        });
+    /** Whether the link still opens: neither revoked nor expired. */
+    public static boolean opens(ShareLink link, Instant now) {
+        return link.revokedAt == null && !expired(link, now);
+    }
+
+    static boolean expired(ShareLink link, Instant now) {
+        return link.expiresAt != null && !link.expiresAt.isAfter(now);
     }
 
     /** sha256 of a link or invitation token as lower-case hex, the form the schema stores. */

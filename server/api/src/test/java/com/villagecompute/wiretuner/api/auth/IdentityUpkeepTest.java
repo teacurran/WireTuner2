@@ -27,6 +27,7 @@ class IdentityUpkeepTest {
     @Inject AccountRepository accounts;
     @Inject AccountIdentityRepository identities;
     @Inject DeviceRepository devices;
+    @Inject SignInEffects signIn;
 
     @Test
     void anUnseenIdentityIsLinkedOnceToTheSameAccount() {
@@ -69,6 +70,7 @@ class IdentityUpkeepTest {
         principals.accounts = accounts;
         principals.identities = identities;
         principals.devices = devices;
+        principals.signIn = signIn;
         principals.callMetadata = new CallMetadata();
         principals.callMetadata.deviceId(device);
         principals.callMetadata.clientVersion(client);

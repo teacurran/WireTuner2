@@ -3,7 +3,6 @@ package com.villagecompute.wiretuner.api.sync;
 import java.time.Duration;
 import java.util.HexFormat;
 import java.util.List;
-import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.LongConsumer;
@@ -18,6 +17,8 @@ import com.villagecompute.wiretuner.api.blob.BlobGrpcService.Rechunker;
 import com.villagecompute.wiretuner.api.blob.BlobStore;
 import com.villagecompute.wiretuner.api.docs.DocumentMessages;
 import com.villagecompute.wiretuner.api.grpc.StatusExceptions;
+import com.villagecompute.wiretuner.api.observability.RateLimiter;
+import com.villagecompute.wiretuner.api.observability.WtMetrics;
 import com.villagecompute.wiretuner.api.persistence.Snapshot;
 import com.villagecompute.wiretuner.api.persistence.SnapshotRepository;
 import com.villagecompute.wiretuner.api.sync.ChangeIngest.Pusher;
@@ -54,6 +55,7 @@ import io.quarkus.grpc.GrpcService;
 import io.quarkus.hibernate.reactive.panache.Panache;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
+import io.smallrye.mutiny.subscription.Cancellable;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
 import io.vertx.mutiny.sqlclient.Tuple;
@@ -91,7 +93,7 @@ public class SyncGrpcService extends MutinySyncServiceGrpc.SyncServiceImplBase {
     static final String STABLE = """
             UPDATE document SET stable_seq = GREATEST(stable_seq,
                 (SELECT COALESCE(min(last_ack_seq), 0) FROM replica WHERE document_id = $1 AND retired_at IS NULL))
-            WHERE id = $1 RETURNING stable_seq
+            WHERE id = $1 RETURNING stable_seq, head_seq
             """;
 
     static final String LAST_ACCEPTED = """
@@ -143,11 +145,24 @@ public class SyncGrpcService extends MutinySyncServiceGrpc.SyncServiceImplBase {
     @Inject
     Pool pool;
 
+    @Inject
+    Colors colors;
+
+    @Inject
+    RateLimiter limits;
+
+    @Inject
+    WtMetrics metrics;
+
     // ------------------------------------------------------------------------------------ Subscribe
 
     /** Where a new subscription stands: the caller, and the document and replica as read after listening. */
     record Standing(Principal principal, Role role, Participant participant, long head, int featureLevel,
-            long snapshotSeq, long lastAccepted) {
+            long snapshotSeq, long lastAccepted, int color) {
+    }
+
+    /** A subscription registered on the bus, and where it stands. */
+    record Opened(LiveFeed feed, Standing standing) {
     }
 
     /** An authorised caller and how collaborators see them. */
@@ -158,12 +173,15 @@ public class SyncGrpcService extends MutinySyncServiceGrpc.SyncServiceImplBase {
     public Multi<ServerFrame> subscribe(SubscribeRequest request) {
         UUID documentId = UUID.fromString(request.getDocumentId());
         long replica = request.getReplica();
-        LiveFeed feed = new LiveFeed(documentId, reader, gapWait);
         return caller(documentId, Role.VIEWER)
-                .chain(caller -> bus.listen(documentId, feed)
-                        .chain(() -> standing(documentId, replica, caller.grant(), caller.participant())))
-                .onFailure().invoke(() -> bus.unlisten(documentId, feed))
-                .onItem().transformToMulti(standing -> frames(request, documentId, feed, standing));
+                .chain(caller -> {
+                    LiveFeed feed = new LiveFeed(documentId, caller.grant().principal().accountId(), reader, gapWait);
+                    return bus.listen(documentId, feed)
+                            .chain(() -> standing(documentId, replica, caller.grant(), caller.participant()))
+                            .onFailure().invoke(() -> bus.unlisten(documentId, feed))
+                            .map(standing -> new Opened(feed, standing));
+                })
+                .onItem().transformToMulti(opened -> frames(request, documentId, opened.feed(), opened.standing()));
     }
 
     /** The caller, checked for {@code minimum} on the document, with their participant. */
@@ -173,14 +191,15 @@ public class SyncGrpcService extends MutinySyncServiceGrpc.SyncServiceImplBase {
     }
 
     private Uni<Standing> standing(UUID documentId, long replica, RoleGuard.Grant grant, Participant participant) {
-        return pool.preparedQuery(STANDING).execute(Tuple.of(documentId, replica)).map(rows -> {
+        return pool.preparedQuery(STANDING).execute(Tuple.of(documentId, replica)).chain(rows -> {
             Row row = rows.iterator().next();
             UUID boundAccount = row.getUUID(3);
             ReplicaBinding binding = boundAccount == null ? null
                     : new ReplicaBinding(boundAccount, row.getUUID(4), row.getLong(5), row.getBoolean(6));
             ReplicaBinding.check(binding, grant.principal(), replica);
-            return new Standing(grant.principal(), grant.role(), participant, row.getLong(0), row.getInteger(1),
-                    row.getLong(2), binding == null ? 0 : binding.lastSeq());
+            return colors.of(documentId, grant.principal().accountId()).map(color -> new Standing(grant.principal(),
+                    grant.role(), participant, row.getLong(0), row.getInteger(1), row.getLong(2),
+                    binding == null ? 0 : binding.lastSeq(), color));
         });
     }
 
@@ -198,7 +217,7 @@ public class SyncGrpcService extends MutinySyncServiceGrpc.SyncServiceImplBase {
                 .build();
         Multi<ServerFrame> replay = hint ? Multi.createFrom().empty()
                 : reader.range(documentId, after, standing.head()).map(change -> ServerFrame.newBuilder().setChange(change).build());
-        PresenceUpdate self = presenceOf(documentId, standing);
+        PresenceUpdate self = presenceOf(standing);
         Uni<Void> joined = request.hasPresence()
                 ? presence.update(documentId, replica, filled(request.getPresence(), self))
                 : Uni.createFrom().voidItem();
@@ -206,27 +225,33 @@ public class SyncGrpcService extends MutinySyncServiceGrpc.SyncServiceImplBase {
                 .map(snapshot -> ServerFrame.newBuilder().setPresence(snapshot).build());
         long first = standing.head() + 1;
         AtomicLong lastSent = new AtomicLong(System.nanoTime());
-        Multi<ServerFrame> live = Multi.createFrom().emitter(emitter -> feed.start(first, emitter), liveBuffer);
-        Multi<ServerFrame> pongs = Multi.createFrom().ticks().every(pongAfter.dividedBy(3))
-                .onOverflow().drop()
-                .select().where(tick -> System.nanoTime() - lastSent.get() >= pongAfter.toNanos())
-                .map(tick -> ServerFrame.newBuilder()
-                        .setPong(Pong.newBuilder().setServerTimeMs(System.currentTimeMillis())).build());
+        // Heartbeats go through the feed, so the end of the feed (an AccessRemoved) ends the stream.
+        Multi<ServerFrame> live = Multi.createFrom().emitter(emitter -> {
+            feed.start(first, emitter);
+            Cancellable ticks = Multi.createFrom().ticks().every(pongAfter.dividedBy(3))
+                    .onOverflow().drop()
+                    .select().where(tick -> System.nanoTime() - lastSent.get() >= pongAfter.toNanos())
+                    .subscribe().with(tick -> feed.heartbeat(ServerFrame.newBuilder()
+                            .setPong(Pong.newBuilder().setServerTimeMs(System.currentTimeMillis())).build()));
+            emitter.onTermination(ticks::cancel);
+        }, liveBuffer);
         PresenceUpdate gone = self.toBuilder().setState(PresenceState.PRESENCE_STATE_GONE).build();
+        metrics.subscribed(documentId);
         return Multi.createBy().concatenating().streams(Multi.createFrom().item(ServerFrame.newBuilder().setWelcome(welcome).build()),
-                        replay, present.toMulti(), Multi.createBy().merging().streams(live, pongs))
+                        replay, present.toMulti(), live)
                 .invoke(frame -> lastSent.set(System.nanoTime()))
                 .onTermination().invoke(() -> {
+                    metrics.unsubscribed(documentId);
                     bus.unlisten(documentId, feed);
                     presence.leave(documentId, replica, gone).subscribe().with(ignored -> { }, failure -> { });
                 });
     }
 
-    /** The server-filled part of the caller's presence on the document. */
-    static PresenceUpdate presenceOf(UUID documentId, Standing standing) {
+    /** The server-filled part of the caller's presence on the document: who, with role, and their color. */
+    static PresenceUpdate presenceOf(Standing standing) {
         return PresenceUpdate.newBuilder()
                 .setUser(standing.participant().toBuilder().setRole(DocumentMessages.role(standing.role())))
-                .setColorIndex(Math.floorMod(Objects.hash(documentId, standing.principal().accountId()), 12))
+                .setColorIndex(standing.color())
                 .build();
     }
 
@@ -241,7 +266,7 @@ public class SyncGrpcService extends MutinySyncServiceGrpc.SyncServiceImplBase {
     public Uni<PushChangeResponse> pushChange(PushChangeRequest request) {
         UUID documentId = UUID.fromString(request.getDocumentId());
         Change change = request.getChange();
-        Uni<Pusher> pusher = pusher(documentId);
+        Uni<Pusher> pusher = allowed(pusher(documentId), documentId, 1);
         return queue.submit(documentId, change.getReplica(), () -> pusher.chain(p -> ingest.accept(p, documentId, change)))
                 .map(serverSeq -> PushChangeResponse.newBuilder().setServerSeq(serverSeq).build());
     }
@@ -250,7 +275,7 @@ public class SyncGrpcService extends MutinySyncServiceGrpc.SyncServiceImplBase {
     public Uni<PushChangeBatchResponse> pushChangeBatch(PushChangeBatchRequest request) {
         UUID documentId = UUID.fromString(request.getDocumentId());
         List<Change> changes = request.getChangesList();
-        Uni<Pusher> pusher = pusher(documentId);
+        Uni<Pusher> pusher = allowed(pusher(documentId), documentId, changes.size());
         PushChangeBatchResponse.Builder response = PushChangeBatchResponse.newBuilder();
         return queue.submit(documentId, changes.get(0).getReplica(),
                         () -> acceptAll(pusher, documentId, changes, 0, response::addServerSeqs))
@@ -262,6 +287,7 @@ public class SyncGrpcService extends MutinySyncServiceGrpc.SyncServiceImplBase {
         UUID documentId;
         Uni<Pusher> pusher;
         long replica;
+        long bytes;
         ChangeRejected rejected;
     }
 
@@ -273,7 +299,8 @@ public class SyncGrpcService extends MutinySyncServiceGrpc.SyncServiceImplBase {
                 .collect().last()
                 .chain(() -> bulk.documentId == null ? Uni.createFrom().item(0L)
                         : bulk.pusher.chain(p -> lastAccepted(bulk.documentId, bulk.replica, p.principal()))
-                                .onFailure().recoverWithItem(0L))
+                                .onFailure().recoverWithItem(0L)
+                                .invoke(() -> metrics.backlog(bulk.documentId, bulk.bytes)))
                 .map(last -> {
                     PushChangesResponse.Builder response = PushChangesResponse.newBuilder().setLastAcceptedSeq(last);
                     return bulk.rejected == null ? response.build() : response.setRejected(bulk.rejected).build();
@@ -296,7 +323,9 @@ public class SyncGrpcService extends MutinySyncServiceGrpc.SyncServiceImplBase {
         if (changes.size() > 1 && frame.getSerializedSize() > ChangeRules.MAX_FRAME_BYTES) {
             return stop(bulk, head, "a frame holding more than one change is at most " + ChangeRules.MAX_FRAME_BYTES + " bytes");
         }
-        return queue.submit(documentId, head.getReplica(), () -> acceptAll(bulk.pusher, documentId, changes, 0, seq -> { }))
+        bulk.bytes += frame.getSerializedSize();
+        Uni<Pusher> allowed = allowed(bulk.pusher, documentId, changes.size());
+        return queue.submit(documentId, head.getReplica(), () -> acceptAll(allowed, documentId, changes, 0, seq -> { }))
                 .map(rejected -> {
                     bulk.rejected = rejected;
                     return rejected == null;
@@ -343,6 +372,17 @@ public class SyncGrpcService extends MutinySyncServiceGrpc.SyncServiceImplBase {
         return pusher;
     }
 
+    /**
+     * The pusher once the account's and the document's rate limits have given {@code cost} changes,
+     * checked at once, concurrently with the call's wait in its replica's queue.
+     */
+    private Uni<Pusher> allowed(Uni<Pusher> pusher, UUID documentId, int cost) {
+        Uni<Pusher> allowed = pusher.call(p -> limits.check(p.principal().accountId(), documentId, cost))
+                .memoize().indefinitely();
+        allowed.subscribe().with(ignored -> { }, failure -> { });
+        return allowed;
+    }
+
     private Uni<Long> lastAccepted(UUID documentId, long replica, Principal principal) {
         return pool.preparedQuery(LAST_ACCEPTED).execute(Tuple.of(documentId, replica, principal.accountId()))
                 .map(rows -> rows.iterator().next().getLong(0));
@@ -354,10 +394,12 @@ public class SyncGrpcService extends MutinySyncServiceGrpc.SyncServiceImplBase {
     public Uni<UpdatePresenceResponse> updatePresence(UpdatePresenceRequest request) {
         UUID documentId = UUID.fromString(request.getDocumentId());
         long replica = request.getReplica();
-        return caller(documentId, Role.VIEWER)
-                .chain(caller -> standing(documentId, replica, caller.grant(), caller.participant()))
-                .chain(standing -> presence.update(documentId, replica,
-                        filled(request.getPresence(), presenceOf(documentId, standing))))
+        // Up to 20 calls a second per replica: who the caller is on the document is remembered for the
+        // grant TTL (2 s), like a pusher.
+        return grants.memo(documentId, "presence:" + Long.toUnsignedString(replica), () -> caller(documentId, Role.VIEWER)
+                        .chain(caller -> standing(documentId, replica, caller.grant(), caller.participant()))
+                        .map(SyncGrpcService::presenceOf))
+                .chain(self -> presence.update(documentId, replica, filled(request.getPresence(), self)))
                 .replaceWith(UpdatePresenceResponse.getDefaultInstance());
     }
 
@@ -371,7 +413,11 @@ public class SyncGrpcService extends MutinySyncServiceGrpc.SyncServiceImplBase {
                         standing.principal().accountId(), ReplicaBinding.device(standing.principal()),
                         request.getAppliedServerSeq()})))
                 .chain(() -> pool.preparedQuery(STABLE).execute(Tuple.of(documentId)))
-                .map(rows -> AckResponse.newBuilder().setStableSeq(rows.iterator().next().getLong(0)).build());
+                .map(rows -> {
+                    Row row = rows.iterator().next();
+                    metrics.stableLag(documentId, row.getLong(1), row.getLong(0));
+                    return AckResponse.newBuilder().setStableSeq(row.getLong(0)).build();
+                });
     }
 
     // --------------------------------------------------------------------------------------- Catch-up

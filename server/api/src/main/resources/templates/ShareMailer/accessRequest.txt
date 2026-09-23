@@ -1,0 +1,6 @@
+{requesterName} ({requesterEmail}) asks for access to "{documentName}".
+{#if note}
+"{note}"
+{/if}
+Open the document and grant or decline the request from the Share sheet:
+{link}

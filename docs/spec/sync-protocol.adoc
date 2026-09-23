@@ -242,10 +242,23 @@ As built (SRV-005, SRV-006):
   that falls 4,096 frames behind what it has taken (`wt.sync.live-buffer`) has its stream failed
   and resubscribes from its applied `server_seq`; the replay itself is read page by page as the
   client takes it.
-* Presence is minimal until SRV-012: `UpdatePresence` and `SubscribeRequest.presence` store the
-  replica's last state in Valkey with a 15 s time to live and fan it out with the server-filled
-  user (with role), color index and no branch id; `GONE`, or the end of the subscription, removes
-  the entry and fans out `GONE`.  There is no 20 Hz limit yet.
+* Presence (SRV-012, `PresenceStore`): `UpdatePresence` and `SubscribeRequest.presence` store the
+  replica's last state in Valkey (the state in the hash `presence:<doc>:state`, its expiry time in the
+  sorted set `presence:<doc>`) and fan it out with the server-filled user (with role) and color
+  index, and no branch id.  A replica's updates go out at most once per 50 ms (20 Hz) on the node that
+  receives them; one that arrives sooner waits for the end of the interval and is replaced by any
+  newer one meanwhile, so the newest state always goes out and the call always succeeds.  An entry
+  expires 15 s after its last update: every second each node sweeps the documents it has
+  subscriptions on and fans out `GONE` (user and color only) for every expired entry, the node that
+  removes it from the set announcing it.  A client that stays connected keeps its entry alive by
+  sending its state (`IDLE` included) more often than every 15 s.  `GONE`, or the end of the
+  subscription, removes the entry at once.  The `PresenceSnapshot` after the replay lists the
+  unexpired entries.  Who the caller is on the document (role, color) is memoised for the push grant
+  TTL (2 s).  Colors are specified on xref:presence.adoc[Presence].  Branch relay (COLLAB-005) is
+  not built: there is no BranchService yet.
+* Document events for one person -- `RoleChanged`, `AccessRemoved` -- reach only that account's
+  subscriptions: the bus payload carries an audience (xref:server.adoc[Server], Ingest path), and an
+  `AccessRemoved` ends the subscription after it is delivered.
 * `FetchChanges` reads the hot log only: a range not contiguous there (compacted, pending the cold
   segments of SRV-007) is `FAILED_PRECONDITION / HISTORY_UNAVAILABLE`, sent before any frame of
   the missing part.  `until_server_seq` above the head is clamped to it.

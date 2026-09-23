@@ -1,0 +1,8 @@
+{#if role}
+Your request for "{documentName}" was granted: you are now {role}.
+
+Open it on your Mac:
+{link}
+{#else}
+Your request for "{documentName}" was declined.
+{/if}

@@ -14,7 +14,7 @@ import jakarta.inject.Inject;
 
 /**
  * Document events on live subscriptions ({@code ServerFrame.event}, docs/spec/sync-protocol.adoc):
- * what DocumentService (and later ShareService and BranchService) tells every session on a
+ * what DocumentService, ShareService (and later BranchService) tell the sessions on a
  * document when something other than its content changes. Built inside the RPC's transaction,
  * published after it commits.
  */
@@ -35,5 +35,10 @@ public class DocumentEvents {
     /** Sends the event to every subscription on the document, on every node. */
     public Uni<Void> publish(UUID documentId, DocumentEvent event) {
         return bus.publish(documentId, ServerFrame.newBuilder().setEvent(event).build());
+    }
+
+    /** Sends the event to the subscriptions of one account on the document ({@code RoleChanged}, {@code AccessRemoved}). */
+    public Uni<Void> publishTo(UUID documentId, UUID account, DocumentEvent event) {
+        return bus.publish(documentId, ServerFrame.newBuilder().setEvent(event).build(), account);
     }
 }

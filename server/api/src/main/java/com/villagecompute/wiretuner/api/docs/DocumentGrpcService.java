@@ -14,6 +14,7 @@ import com.villagecompute.wiretuner.api.auth.Role;
 import com.villagecompute.wiretuner.api.auth.RoleGuard;
 import com.villagecompute.wiretuner.api.grpc.Cursors;
 import com.villagecompute.wiretuner.api.grpc.StatusExceptions;
+import com.villagecompute.wiretuner.api.observability.WtMetrics;
 import com.villagecompute.wiretuner.api.persistence.Document;
 import com.villagecompute.wiretuner.api.persistence.DocumentMember;
 import com.villagecompute.wiretuner.api.persistence.DocumentMemberId;
@@ -112,6 +113,9 @@ public class DocumentGrpcService extends MutinyDocumentServiceGrpc.DocumentServi
 
     @Inject
     DocumentEvents events;
+
+    @Inject
+    WtMetrics metrics;
 
     @Override
     public Uni<CreateResponse> create(CreateRequest request) {
@@ -353,8 +357,10 @@ public class DocumentGrpcService extends MutinyDocumentServiceGrpc.DocumentServi
         }
         float rank = afterRank;
         UUID after = afterId;
+        long started = System.nanoTime();
         return tx(() -> guard.authenticated().flatMap(principal -> spaces.member(principal, spaceId)
-                .flatMap(space -> search.search(principal, spaceId, request.getQuery(), rank, after, pageSize))));
+                .flatMap(space -> search.search(principal, spaceId, request.getQuery(), rank, after, pageSize))))
+                .invoke(() -> metrics.search(System.nanoTime() - started));
     }
 
     @Override

@@ -519,6 +519,53 @@ COLLAB-012 adds `LibraryService` and the read-access rule for libraries.  Effect
 recomputed per RPC and pushed as `RoleChanged` to open sessions whenever a member row, link,
 team membership or team default changes.
 
+As built (SRV-010, `api/.../share/ShareGrpcService`; it also delivers COLLAB-011's access
+requests, transfer, link passwords, `team_members_only` and `revoke_on_expiry` at read time):
+
+* *Events.*  Every RPC that changes something sends, once committed, `MembersChanged` to every
+  session on the document and, to each person whose effective role it may have changed, their new
+  role as `RoleChanged` -- or `AccessRemoved`, which ends that subscription.  These two reach only
+  the person's own sessions.  A downgrade is refused on the person's next push: the node that made
+  the change forgets its memoised push decisions for the document at once; another node honours
+  its memo for up to 2 s (`wt.sync.grant-ttl`, xref:server.adoc[Server]).  Team membership and
+  team-default changes do not push events yet (TeamService).
+* *ListMembers* (any role): the owner, named members, and people with access through the team or a
+  link who have opened the document (their color row or their link use), owner first, then by
+  display name, then pending invitations by address; emails for owners (team admins included)
+  only; the team access row on a team document's first page, its override always unset.
+* *Invite* (editor or owner): by account id (which must exist, else `NOT_FOUND /
+  MEMBER_NOT_FOUND`) or by email -- an address that is an account's email or one of its verified
+  identities names that account, any other becomes a pending `document_invite` (inviting it again
+  replaces the role) that becomes a named role when an account with a verified identity for the
+  address signs in.  A person who already has a named role, or is the owner, is `ALREADY_EXISTS /
+  ALREADY_MEMBER`.  The mail (`templates/ShareMailer/invite`) links to
+  `<wt.links.base-url>/d/<document>`; no token is needed.  A role above the caller's cannot be
+  asked for: the request's roles top out at editor, which is the least an inviter holds.
+* *SetRole* (editor or owner): a named member only (`MEMBER_NOT_FOUND` otherwise); the owner is
+  `FAILED_PRECONDITION / OWNER_MUST_TRANSFER`; only the owner lowers an editor.  *RemoveMember*:
+  the owner removes anyone, an editor the viewers and commenters they invited, anyone themselves;
+  the row keeps its color as a `none` row; the response names what access remains.
+* *Links*: the token is 16 random bytes (base64url, 22 characters), stored as its sha256.  The
+  password is an argon2id PHC string (19 MiB, 2 iterations, 1 lane, 16-byte salt), hashed off the
+  event loop, asked for only the first time a person opens the link.  A link opens until it
+  expires or is revoked (`NOT_FOUND / LINK_INVALID` afterwards).  Past its expiry it keeps granting
+  its role to the people who opened it unless `revoke_on_expiry` is set; revoking it always ends
+  the access it granted (the guide's Share links table).  `team_members_only` links open only for
+  members of the document's team, guests included (`PERMISSION_DENIED / ROLE_INSUFFICIENT`; on a
+  personal document, for nobody).  Only the owner creates, updates, revokes and lists links.
+* *Access requests*: `RequestAccess` needs a signed-in caller and an existing document; one
+  pending request per person (a repeat answers it); every owner -- the personal owner, or the
+  owner row and the team's owners and admins -- is mailed.  `ResolveAccessRequest` grants a named
+  role (the owner stays the owner) or declines, mails the requester either way, and a resolved or
+  unknown request is `NOT_FOUND / DOCUMENT_NOT_FOUND`.
+* *TransferOwnership* (owner): the new owner must be a named member.  A personal document moves
+  to the new owner's personal space, at its root, and every session is told `Moved`; a team
+  document passes its `owner` row.  The previous owner becomes an editor.
+* *Restrict-sharing* (SEC-002): see xref:security.adoc[Accounts, teams and security].
+* Not built: `SetTeamAccess` and the named-role-wins rule of COLLAB-011 (`UNIMPLEMENTED`), the
+  expiry of pending invitations, and the "editors may create links when the workspace allows"
+  switch.
+
 === Client
 
 * `WTApp/Sharing`: `ShareSheet` (SwiftUI sheet: People, Invite, Links, Actions menu),

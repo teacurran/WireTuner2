@@ -1,0 +1,18 @@
+# Prometheus for the local stack (docs/spec/server.adoc, Observability): scrapes the API's Micrometer
+# endpoint every 5 s. Two targets: the api service of docker-compose.yml, and an API running on the
+# host (./mvnw quarkus:dev, or the packaged jar) against the compose stores. Whichever is down shows
+# as down; the dashboard sums over both.
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+scrape_configs:
+  - job_name: wiretuner-api
+    metrics_path: /q/metrics
+    static_configs:
+      - targets: ["api:8080"]
+        labels:
+          instance: compose
+      - targets: ["host.docker.internal:8080"]
+        labels:
+          instance: host

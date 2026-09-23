@@ -5,6 +5,7 @@ import java.util.UUID;
 
 import com.villagecompute.wiretuner.api.auth.Principal;
 import com.villagecompute.wiretuner.api.grpc.StatusExceptions;
+import com.villagecompute.wiretuner.api.observability.WtMetrics;
 import com.villagecompute.wiretuner.crdt.Schema;
 import com.villagecompute.wiretuner.doc.v1.Change;
 import com.villagecompute.wiretuner.sync.v1.Participant;
@@ -88,14 +89,18 @@ public class ChangeIngest {
     @Inject
     SyncBus bus;
 
+    @Inject
+    WtMetrics metrics;
+
     /** Accepts one change; the result is its {@code server_seq}. */
     public Uni<Long> accept(Pusher pusher, UUID documentId, Change change) {
+        long started = System.nanoTime();
         return Uni.createFrom().item(change)
                 .invoke(c -> ChangeRules.check(schema, c))
-                .chain(c -> write(pusher, documentId, c));
+                .chain(c -> write(pusher, documentId, c, started));
     }
 
-    private Uni<Long> write(Pusher pusher, UUID documentId, Change change) {
+    private Uni<Long> write(Pusher pusher, UUID documentId, Change change, long started) {
         byte[] bytes = change.toByteArray();
         Principal principal = pusher.principal();
         Tuple args = Tuple.from(new Object[] {documentId, change.getReplica(), principal.accountId(),
@@ -106,6 +111,8 @@ public class ChangeIngest {
             }
             LOG.debugf("accepted %s replica %s seq %d as server_seq %d", documentId,
                     Long.toUnsignedString(change.getReplica()), change.getSeq(), serverSeq);
+            metrics.accepted(documentId);
+            metrics.ingest(System.nanoTime() - started);
             ServerFrame frame = ServerFrame.newBuilder().setChange(SequencedChange.newBuilder()
                     .setServerSeq(serverSeq).setChange(change).setAuthor(pusher.author())).build();
             // This node's subscribers have the frame once publish returns; the Valkey leg is not
@@ -124,6 +131,7 @@ public class ChangeIngest {
             ReplicaBinding.check(binding, principal, replica);
             long last = binding == null ? 0 : binding.lastSeq();
             if (seq > last) {
+                metrics.seqGap();
                 return Uni.createFrom().failure(StatusExceptions.seqGap(last + 1, seq));
             }
             return pool.preparedQuery(LOGGED).execute(Tuple.of(documentId, replica, seq)).map(logged -> {

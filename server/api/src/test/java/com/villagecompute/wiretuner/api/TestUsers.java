@@ -44,6 +44,8 @@ public final class TestUsers {
     public static final String MAC = "wiretuner-mac";
     /** The test client whose tokens claim a workspace SSO sign-in ({@code sso:acme}). */
     public static final String SSO = "wiretuner-test-sso";
+    /** The test client whose password grants run the passkey-referenced flow: {@code amr = [passkey]}. */
+    public static final String PASSKEY = "wiretuner-test-passkey";
 
     public static String token(String user) {
         return token(user, MAC);

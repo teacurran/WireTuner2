@@ -4,6 +4,7 @@ import java.util.UUID;
 import java.util.function.Supplier;
 
 import com.villagecompute.wiretuner.api.auth.Principal;
+import com.villagecompute.wiretuner.api.auth.WorkspacePolicy;
 import com.villagecompute.wiretuner.api.grpc.StatusExceptions;
 import com.villagecompute.wiretuner.api.persistence.Folder;
 import com.villagecompute.wiretuner.api.persistence.FolderRepository;
@@ -22,7 +23,8 @@ import jakarta.inject.Inject;
  * account or a team. Any member of a team -- a guest included -- may list and search it (and sees
  * only the documents they can open); creating documents and folders in it needs team member or
  * above on a live team. A space the caller does not belong to is {@code SPACE_NOT_FOUND}, so
- * existence is never revealed.
+ * existence is never revealed. A workspace that requires SSO holds its members to it here too
+ * ({@link WorkspacePolicy}).
  */
 @ApplicationScoped
 public class Spaces {
@@ -45,6 +47,9 @@ public class Spaces {
     @Inject
     FolderRepository folders;
 
+    @Inject
+    WorkspacePolicy workspaces;
+
     /** The space, if the caller belongs to it; {@code SPACE_NOT_FOUND} otherwise. */
     public Uni<Space> member(Principal principal, UUID spaceId) {
         return member(principal, spaceId, StatusExceptions::spaceNotFound);
@@ -59,7 +64,8 @@ public class Spaces {
             if (member == null) {
                 return Uni.createFrom().failure(notFound.get());
             }
-            return teams.findById(spaceId).map(team -> new Space(spaceId, true, member.role, team.deletedAt != null));
+            return workspaces.requireSso(principal, spaceId).chain(() -> teams.findById(spaceId))
+                    .map(team -> new Space(spaceId, true, member.role, team.deletedAt != null));
         });
     }
 

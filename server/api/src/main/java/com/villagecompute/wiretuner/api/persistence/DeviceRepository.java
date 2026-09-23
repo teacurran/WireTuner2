@@ -20,9 +20,9 @@ public class DeviceRepository implements PanacheRepositoryBase<Device, DeviceId>
 
     /**
      * Records a device seen for the first time. Pipelined calls from a new device race to do this,
-     * so a row another call inserted first wins and this is a no-op.
+     * so a row another call inserted first wins and this is a no-op. The number of rows inserted.
      */
-    public Uni<Void> insertIfAbsent(Device device) {
+    public Uni<Integer> insertIfAbsent(Device device) {
         // Flush first: the account row this device references may still be pending in the session.
         return Panache.getSession().chain(session -> session.flush().chain(() -> session.createNativeQuery("""
                         INSERT INTO device (account_id, id, name, platform, auth_method, last_seen_at)
@@ -34,7 +34,6 @@ public class DeviceRepository implements PanacheRepositoryBase<Device, DeviceId>
                 .setParameter(4, device.platform)
                 .setParameter(5, device.authMethod)
                 .setParameter(6, device.lastSeenAt)
-                .executeUpdate()))
-                .replaceWithVoid();
+                .executeUpdate()));
     }
 }

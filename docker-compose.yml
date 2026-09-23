@@ -5,8 +5,9 @@
 #   docker compose up -d              everything; the api answers on :8080 (gRPC + /q/health)
 #   docker compose up -d main-db valkey   just the stores, for `./mvnw quarkus:dev` on the host
 #
-# Host ports: postgres 5433, valkey 6379, keycloak 8180, minio 9300/9301, jaeger 16686 (UI) and
-# 4317 (OTLP), mailpit 8025 (UI) and 1025 (SMTP), api 8080 and 5005 (debugger).
+# Host ports: postgres 5433, valkey 6379, keycloak 8180, apple-mock 8190, minio 9300/9301, jaeger 16686
+# (UI) and 4317 (OTLP), mailpit 8025 (UI) and 1025 (SMTP), prometheus 9090, grafana 3300, api 8080 and
+# 5005 (debugger).
 
 services:
   main-db:
@@ -76,10 +77,14 @@ services:
       timeout: 5s
       retries: 5
 
-  # Identity. The realm file declares the `wiretuner` realm, the `wiretuner-mac` public PKCE
-  # client and one test user (testuser / testpass).
-  # TODO(SEC-004): add the passkey-enabled browser flow, the stub Apple identity provider pointed
-  # at a local mock, and a workspace IdP to server/keycloak/wiretuner-realm.json.
+  # Identity. server/keycloak/wiretuner-realm.json declares the `wiretuner` realm (docs/spec/security.adoc,
+  # Accounts; SEC-004): the `wiretuner-mac` public PKCE client, the passkey-first browser flow (username,
+  # then the passwordless WebAuthn execution, the password as the other way), email+password with
+  # verification (mail to mailpit), the wt_auth_method mappers, the linking first-broker-login flow, and
+  # two OIDC identity providers pointed at apple-mock below: `apple` (Sign in with Apple as a generic
+  # OIDC provider, D-064) and `acme` (a workspace SSO connection). The test people (testuser, alice,
+  # bob, carol, dave, erin) all use the password testpass. Admin console: http://localhost:8180 (admin
+  # / admin); the API's Apple secret job writes through the same admin account (WT_KEYCLOAK_*).
   keycloak:
     image: quay.io/keycloak/keycloak:26.4
     command: start-dev --import-realm
@@ -90,8 +95,26 @@ services:
       KC_HEALTH_ENABLED: "true"
     volumes:
       - ./server/keycloak:/opt/keycloak/data/import:ro
+    depends_on:
+      - apple-mock
     ports:
       - "8180:8080"
+
+  # Stand-in for Apple's (and a workspace IdP's) OIDC endpoints: issuers /apple and /acme. The browser
+  # reaches it as localhost:8190, Keycloak as apple-mock:8080 (the issuer the realm expects). Its login
+  # page takes any user name; the id token carries a verified email (a relay address for /apple).
+  apple-mock:
+    image: ghcr.io/navikt/mock-oauth2-server:2.1.10
+    environment:
+      SERVER_PORT: 8080
+      JSON_CONFIG: >-
+        {"interactiveLogin": true, "tokenCallbacks": [
+        {"issuerId": "apple", "tokenExpiry": 600, "requestMappings": [{"requestParam": "grant_type", "match": "*",
+        "claims": {"email": "local-user@privaterelay.appleid.com", "email_verified": true, "is_private_email": true}}]},
+        {"issuerId": "acme", "tokenExpiry": 600, "requestMappings": [{"requestParam": "grant_type", "match": "*",
+        "claims": {"email": "ada@acme.example", "email_verified": true, "name": "Ada Acme"}}]}]}
+    ports:
+      - "8190:8080"
 
   # S3-compatible object storage for snapshots, cold segments and blobs. Host ports are
   # 9300/9301 because 9000/9001 are a common collision; in-network the api uses http://minio:9000.
@@ -133,6 +156,37 @@ services:
       - "16686:16686"
       - "4317:4317"
       - "4318:4318"
+
+  # Metrics (docs/spec/server.adoc, Observability): Prometheus scrapes the API's /q/metrics (the api
+  # service, or an API on the host), Grafana shows server/grafana/wiretuner.json, provisioned with the
+  # data source. Grafana: http://localhost:3300 (anonymous viewer; admin / admin). Prometheus: :9090.
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=7d
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./server/grafana/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+
+  grafana:
+    image: grafana/grafana:12.1.1
+    depends_on:
+      - prometheus
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/wiretuner.json
+    volumes:
+      - ./server/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./server/grafana/wiretuner.json:/var/lib/grafana/dashboards/wiretuner.json:ro
+    ports:
+      - "3300:3000"
 
   # Share-invitation mail lands here (UI on 8025).
   mailpit:
@@ -182,6 +236,7 @@ services:
       - maven_target_api:/app/server/api/target
       - maven_target_crdt:/app/server/wt-crdt/target
     environment:
+      WT_KEYCLOAK_URL: http://keycloak:8080
       # No Docker socket in here: never let Dev Services try to start containers.
       QUARKUS_DEVSERVICES_ENABLED: "false"
       QUARKUS_HTTP_HOST: 0.0.0.0

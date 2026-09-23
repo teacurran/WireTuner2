@@ -296,6 +296,16 @@ truncation of the caps above, filling of the server-owned fields, relaying betwe
 session and its parent's sessions, and `author` on every `SequencedChange`.  Spotlight is an
 ordinary presence field; the server does nothing special with it.
 
+As built (SRV-012): the rate limit, coalescing, expiry and snapshot are specified on
+xref:sync-protocol.adoc[Sync protocol].  Colors are assigned by SRV-012 already (`Colors`): on the
+account's first Subscribe (or first `UpdatePresence`), under a per-document advisory lock, as the
+lowest index no one who has opened the document holds, and once all twelve are taken as the count
+of people who have opened it modulo twelve (so the thirteenth gets 0 and the fourteenth 1).  The
+index lives on `document_member.color_index`; someone with access only through the team or a link
+gets a row with role `none`, which grants nothing.  `user`, `color_index` and `branch_id` are
+always overwritten by the server (`branch_id` cleared).  Branch relay is deferred: BranchService
+is not built.
+
 === Client
 
 * `WTSync.PresenceModel` (SYNC-009): an observable dictionary `session id → PresenceUpdate`

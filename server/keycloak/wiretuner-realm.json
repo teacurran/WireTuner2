@@ -3,7 +3,7 @@
   "displayName": "WireTuner (local development)",
   "enabled": true,
   "sslRequired": "none",
-  "registrationAllowed": false,
+  "registrationAllowed": true,
   "loginWithEmailAllowed": true,
   "duplicateEmailsAllowed": false,
   "accessTokenLifespan": 900,
@@ -17,7 +17,9 @@
       }
     ]
   },
-  "defaultRoles": ["user"],
+  "defaultRoles": [
+    "user"
+  ],
   "clients": [
     {
       "clientId": "wiretuner-mac",
@@ -36,14 +38,51 @@
         "http://127.0.0.1/*",
         "http://localhost/*"
       ],
-      "webOrigins": ["+"],
+      "webOrigins": [
+        "+"
+      ],
       "attributes": {
         "pkce.code.challenge.method": "S256",
         "post.logout.redirect.uris": "wiretuner://auth/signed-out",
         "oauth2.device.authorization.grant.enabled": "false"
       },
-      "defaultClientScopes": ["basic", "profile", "email", "roles"],
-      "optionalClientScopes": ["offline_access"]
+      "defaultClientScopes": [
+        "basic",
+        "profile",
+        "email",
+        "roles"
+      ],
+      "optionalClientScopes": [
+        "offline_access"
+      ],
+      "protocolMappers": [
+        {
+          "name": "wt_auth_method",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usersessionmodel-note-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.session.note": "wt_auth_method",
+            "claim.name": "wt_auth_method",
+            "jsonType.label": "String",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "userinfo.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        },
+        {
+          "name": "amr",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-amr-mapper",
+          "consentRequired": false,
+          "config": {
+            "access.token.claim": "true",
+            "id.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
     },
     {
       "clientId": "wiretuner-test-expiring",
@@ -60,12 +99,45 @@
       "attributes": {
         "access.token.lifespan": "1"
       },
-      "defaultClientScopes": ["basic", "profile", "email", "roles"]
+      "defaultClientScopes": [
+        "basic",
+        "profile",
+        "email",
+        "roles"
+      ],
+      "protocolMappers": [
+        {
+          "name": "wt_auth_method",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usersessionmodel-note-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.session.note": "wt_auth_method",
+            "claim.name": "wt_auth_method",
+            "jsonType.label": "String",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "userinfo.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        },
+        {
+          "name": "amr",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-amr-mapper",
+          "consentRequired": false,
+          "config": {
+            "access.token.claim": "true",
+            "id.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
     },
     {
       "clientId": "wiretuner-test-passkey",
       "name": "WireTuner tests: passkey-claimed tokens",
-      "description": "Test-only (SRV-002): password-grant tokens carrying a hardcoded wt_auth_method=passkey claim, standing in for the SEC-004 protocol mapper so device auth-method recording is tested end to end. Not a sign-in client.",
+      "description": "Test-only (SRV-002, SEC-004): password grants through a flow whose password step carries the passkey AMR reference, so the real wt_auth_method mapping of a passkey sign-in is tested end to end.",
       "enabled": true,
       "protocol": "openid-connect",
       "publicClient": true,
@@ -74,20 +146,40 @@
       "directAccessGrantsEnabled": true,
       "serviceAccountsEnabled": false,
       "fullScopeAllowed": true,
-      "defaultClientScopes": ["basic", "profile", "email", "roles"],
+      "defaultClientScopes": [
+        "basic",
+        "profile",
+        "email",
+        "roles"
+      ],
+      "authenticationFlowBindingOverrides": {
+        "direct_grant": "7e5a3c52-2f0a-4c7e-9a51-5a3e0b6f1c01"
+      },
       "protocolMappers": [
         {
-          "name": "wt_auth_method (hardcoded, test only)",
+          "name": "wt_auth_method",
           "protocol": "openid-connect",
-          "protocolMapper": "oidc-hardcoded-claim-mapper",
+          "protocolMapper": "oidc-usersessionmodel-note-mapper",
           "consentRequired": false,
           "config": {
+            "user.session.note": "wt_auth_method",
             "claim.name": "wt_auth_method",
-            "claim.value": "passkey",
             "jsonType.label": "String",
             "access.token.claim": "true",
             "id.token.claim": "false",
-            "userinfo.token.claim": "false"
+            "userinfo.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        },
+        {
+          "name": "amr",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-amr-mapper",
+          "consentRequired": false,
+          "config": {
+            "access.token.claim": "true",
+            "id.token.claim": "true",
+            "introspection.token.claim": "true"
           }
         }
       ]
@@ -95,7 +187,7 @@
     {
       "clientId": "wiretuner-test-sso",
       "name": "WireTuner tests: workspace-SSO-claimed tokens",
-      "description": "Test-only (SEC-001): password-grant tokens carrying a hardcoded wt_auth_method=sso:acme claim, standing in for a workspace SSO sign-in so require-SSO checks are tested end to end. Not a sign-in client.",
+      "description": "Test-only (SEC-001/002): password grants with a hardcoded wt_auth_method=sso:acme, standing in for a sign-in through the acme workspace IdP (whose mapper sets the same value) to test require-SSO.",
       "enabled": true,
       "protocol": "openid-connect",
       "publicClient": true,
@@ -104,8 +196,39 @@
       "directAccessGrantsEnabled": true,
       "serviceAccountsEnabled": false,
       "fullScopeAllowed": true,
-      "defaultClientScopes": ["basic", "profile", "email", "roles"],
+      "defaultClientScopes": [
+        "basic",
+        "profile",
+        "email",
+        "roles"
+      ],
       "protocolMappers": [
+        {
+          "name": "wt_auth_method",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usersessionmodel-note-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.session.note": "wt_auth_method",
+            "claim.name": "wt_auth_method",
+            "jsonType.label": "String",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "userinfo.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        },
+        {
+          "name": "amr",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-amr-mapper",
+          "consentRequired": false,
+          "config": {
+            "access.token.claim": "true",
+            "id.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        },
         {
           "name": "wt_auth_method (hardcoded, test only)",
           "protocol": "openid-connect",
@@ -138,7 +261,9 @@
           "temporary": false
         }
       ],
-      "realmRoles": ["user"]
+      "realmRoles": [
+        "user"
+      ]
     },
     {
       "username": "alice",
@@ -154,7 +279,9 @@
           "temporary": false
         }
       ],
-      "realmRoles": ["user"]
+      "realmRoles": [
+        "user"
+      ]
     },
     {
       "username": "bob",
@@ -170,7 +297,9 @@
           "temporary": false
         }
       ],
-      "realmRoles": ["user"]
+      "realmRoles": [
+        "user"
+      ]
     },
     {
       "username": "carol",
@@ -186,7 +315,9 @@
           "temporary": false
         }
       ],
-      "realmRoles": ["user"]
+      "realmRoles": [
+        "user"
+      ]
     },
     {
       "username": "dave",
@@ -202,7 +333,9 @@
           "temporary": false
         }
       ],
-      "realmRoles": ["user"]
+      "realmRoles": [
+        "user"
+      ]
     },
     {
       "username": "erin",
@@ -218,7 +351,358 @@
           "temporary": false
         }
       ],
-      "realmRoles": ["user"]
+      "realmRoles": [
+        "user"
+      ]
+    }
+  ],
+  "verifyEmail": true,
+  "resetPasswordAllowed": true,
+  "bruteForceProtected": true,
+  "permanentLockout": false,
+  "failureFactor": 10,
+  "smtpServer": {
+    "host": "mailpit",
+    "port": "1025",
+    "from": "no-reply@wiretuner.local",
+    "fromDisplayName": "WireTuner"
+  },
+  "webAuthnPolicyPasswordlessRpEntityName": "WireTuner",
+  "webAuthnPolicyPasswordlessSignatureAlgorithms": [
+    "ES256",
+    "RS256"
+  ],
+  "webAuthnPolicyPasswordlessRpId": "",
+  "webAuthnPolicyPasswordlessAttestationConveyancePreference": "not specified",
+  "webAuthnPolicyPasswordlessAuthenticatorAttachment": "platform",
+  "webAuthnPolicyPasswordlessRequireResidentKey": "Yes",
+  "webAuthnPolicyPasswordlessUserVerificationRequirement": "required",
+  "webAuthnPolicyPasswordlessCreateTimeout": 0,
+  "webAuthnPolicyPasswordlessAvoidSameAuthenticatorRegister": true,
+  "webAuthnPolicyPasswordlessAcceptableAaguids": [],
+  "webAuthnPolicyPasswordlessExtraOrigins": [],
+  "webAuthnPolicyPasswordlessPasskeysEnabled": false,
+  "browserFlow": "wiretuner browser",
+  "directGrantFlow": "wiretuner direct grant",
+  "firstBrokerLoginFlow": "wiretuner first broker login",
+  "authenticationFlows": [
+    {
+      "alias": "wiretuner browser",
+      "description": "Passkey first (docs/spec/security.adoc, Accounts): a cookie, an identity-provider hint (Apple, a workspace), or the username then a passkey, with the password as the other way.",
+      "providerId": "basic-flow",
+      "topLevel": true,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "requirement": "ALTERNATIVE",
+          "priority": 10,
+          "userSetupAllowed": false,
+          "authenticator": "auth-cookie",
+          "authenticatorFlow": false
+        },
+        {
+          "requirement": "ALTERNATIVE",
+          "priority": 20,
+          "userSetupAllowed": false,
+          "authenticator": "identity-provider-redirector",
+          "authenticatorFlow": false
+        },
+        {
+          "requirement": "ALTERNATIVE",
+          "priority": 30,
+          "userSetupAllowed": false,
+          "authenticatorFlow": true,
+          "flowAlias": "wiretuner browser forms"
+        }
+      ]
+    },
+    {
+      "alias": "wiretuner browser forms",
+      "description": "Username, then a passkey or the password.",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "userSetupAllowed": false,
+          "authenticator": "auth-username-form",
+          "authenticatorFlow": false
+        },
+        {
+          "requirement": "REQUIRED",
+          "priority": 20,
+          "userSetupAllowed": false,
+          "authenticatorFlow": true,
+          "flowAlias": "wiretuner passkey or password"
+        }
+      ]
+    },
+    {
+      "alias": "wiretuner passkey or password",
+      "description": "The passwordless WebAuthn execution first; the password is 'Try another way'. Each carries its AMR reference, which the wt_auth_method fallback reads.",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "requirement": "ALTERNATIVE",
+          "priority": 10,
+          "userSetupAllowed": false,
+          "authenticator": "webauthn-authenticator-passwordless",
+          "authenticatorFlow": false,
+          "authenticatorConfig": "amr passkey"
+        },
+        {
+          "requirement": "ALTERNATIVE",
+          "priority": 20,
+          "userSetupAllowed": false,
+          "authenticator": "auth-password-form",
+          "authenticatorFlow": false,
+          "authenticatorConfig": "amr password"
+        }
+      ]
+    },
+    {
+      "alias": "wiretuner direct grant",
+      "description": "Password grant (tests and tooling only; the Mac uses the browser flow), with the password's AMR reference.",
+      "providerId": "basic-flow",
+      "topLevel": true,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "userSetupAllowed": false,
+          "authenticator": "direct-grant-validate-username",
+          "authenticatorFlow": false
+        },
+        {
+          "requirement": "REQUIRED",
+          "priority": 20,
+          "userSetupAllowed": false,
+          "authenticator": "direct-grant-validate-password",
+          "authenticatorFlow": false,
+          "authenticatorConfig": "amr password direct"
+        }
+      ]
+    },
+    {
+      "alias": "wiretuner test passkey direct grant",
+      "description": "Test only (SRV-002, SEC-004): a password grant whose password execution carries the passkey AMR reference, so the wt_auth_method mapping of a passkey sign-in is tested end to end with a password-grant token.",
+      "providerId": "basic-flow",
+      "topLevel": true,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "userSetupAllowed": false,
+          "authenticator": "direct-grant-validate-username",
+          "authenticatorFlow": false
+        },
+        {
+          "requirement": "REQUIRED",
+          "priority": 20,
+          "userSetupAllowed": false,
+          "authenticator": "direct-grant-validate-password",
+          "authenticatorFlow": false,
+          "authenticatorConfig": "amr passkey stand-in"
+        }
+      ],
+      "id": "7e5a3c52-2f0a-4c7e-9a51-5a3e0b6f1c01"
+    },
+    {
+      "alias": "wiretuner first broker login",
+      "description": "Account linking (docs/spec/security.adoc, Account linking): a brokered identity (Apple, a workspace) whose provider's email is trusted as verified links to the existing account with that email; otherwise a new account.",
+      "providerId": "basic-flow",
+      "topLevel": true,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "userSetupAllowed": false,
+          "authenticator": "idp-review-profile",
+          "authenticatorFlow": false,
+          "authenticatorConfig": "review profile missing"
+        },
+        {
+          "requirement": "REQUIRED",
+          "priority": 20,
+          "userSetupAllowed": false,
+          "authenticatorFlow": true,
+          "flowAlias": "wiretuner user creation or linking"
+        }
+      ]
+    },
+    {
+      "alias": "wiretuner user creation or linking",
+      "description": "A new account when the email is unique, else link.",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "requirement": "ALTERNATIVE",
+          "priority": 10,
+          "userSetupAllowed": false,
+          "authenticator": "idp-create-user-if-unique",
+          "authenticatorFlow": false,
+          "authenticatorConfig": "create unique user"
+        },
+        {
+          "requirement": "ALTERNATIVE",
+          "priority": 20,
+          "userSetupAllowed": false,
+          "authenticatorFlow": true,
+          "flowAlias": "wiretuner link existing account"
+        }
+      ]
+    },
+    {
+      "alias": "wiretuner link existing account",
+      "description": "Link to the account that has the verified email.",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "userSetupAllowed": false,
+          "authenticator": "idp-detect-existing-broker-user",
+          "authenticatorFlow": false
+        },
+        {
+          "requirement": "REQUIRED",
+          "priority": 20,
+          "userSetupAllowed": false,
+          "authenticator": "idp-auto-link",
+          "authenticatorFlow": false
+        }
+      ]
+    }
+  ],
+  "authenticatorConfig": [
+    {
+      "alias": "amr passkey",
+      "config": {
+        "default.reference.value": "passkey",
+        "default.reference.maxAge": "0"
+      }
+    },
+    {
+      "alias": "amr password",
+      "config": {
+        "default.reference.value": "password",
+        "default.reference.maxAge": "0"
+      }
+    },
+    {
+      "alias": "amr password direct",
+      "config": {
+        "default.reference.value": "password",
+        "default.reference.maxAge": "0"
+      }
+    },
+    {
+      "alias": "amr passkey stand-in",
+      "config": {
+        "default.reference.value": "passkey",
+        "default.reference.maxAge": "0"
+      }
+    },
+    {
+      "alias": "review profile missing",
+      "config": {
+        "update.profile.on.first.login": "missing"
+      }
+    },
+    {
+      "alias": "create unique user",
+      "config": {
+        "require.password.update.after.registration": "false"
+      }
+    }
+  ],
+  "identityProviders": [
+    {
+      "alias": "apple",
+      "displayName": "Sign in with Apple",
+      "providerId": "oidc",
+      "enabled": true,
+      "trustEmail": true,
+      "storeToken": false,
+      "addReadTokenRoleOnCreate": false,
+      "firstBrokerLoginFlowAlias": "wiretuner first broker login",
+      "linkOnly": false,
+      "hideOnLogin": false,
+      "config": {
+        "clientId": "app.wiretuner.signin",
+        "clientSecret": "replaced-by-the-apple-secret-job",
+        "clientAuthMethod": "client_secret_post",
+        "authorizationUrl": "http://localhost:8190/apple/authorize",
+        "tokenUrl": "http://apple-mock:8080/apple/token",
+        "jwksUrl": "http://apple-mock:8080/apple/jwks",
+        "issuer": "http://apple-mock:8080/apple",
+        "useJwksUrl": "true",
+        "validateSignature": "true",
+        "defaultScope": "openid name email",
+        "syncMode": "IMPORT",
+        "pkceEnabled": "false",
+        "disableUserInfo": "true"
+      }
+    },
+    {
+      "alias": "acme",
+      "displayName": "Acme (workspace SSO)",
+      "providerId": "oidc",
+      "enabled": true,
+      "trustEmail": true,
+      "storeToken": false,
+      "addReadTokenRoleOnCreate": false,
+      "firstBrokerLoginFlowAlias": "wiretuner first broker login",
+      "linkOnly": false,
+      "hideOnLogin": false,
+      "config": {
+        "clientId": "wiretuner",
+        "clientSecret": "acme-local-secret",
+        "clientAuthMethod": "client_secret_post",
+        "authorizationUrl": "http://localhost:8190/acme/authorize",
+        "tokenUrl": "http://apple-mock:8080/acme/token",
+        "jwksUrl": "http://apple-mock:8080/acme/jwks",
+        "issuer": "http://apple-mock:8080/acme",
+        "useJwksUrl": "true",
+        "validateSignature": "true",
+        "defaultScope": "openid email profile",
+        "syncMode": "IMPORT",
+        "pkceEnabled": "false",
+        "disableUserInfo": "true"
+      }
+    }
+  ],
+  "identityProviderMappers": [
+    {
+      "name": "wt_auth_method apple",
+      "identityProviderAlias": "apple",
+      "identityProviderMapper": "hardcoded-user-session-attribute-idp-mapper",
+      "config": {
+        "syncMode": "FORCE",
+        "attribute": "wt_auth_method",
+        "attribute.value": "apple"
+      }
+    },
+    {
+      "name": "wt_auth_method sso:acme",
+      "identityProviderAlias": "acme",
+      "identityProviderMapper": "hardcoded-user-session-attribute-idp-mapper",
+      "config": {
+        "syncMode": "FORCE",
+        "attribute": "wt_auth_method",
+        "attribute.value": "sso:acme"
+      }
     }
   ]
 }
