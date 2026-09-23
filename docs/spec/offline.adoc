@@ -104,6 +104,21 @@ coalesces and encodes in 16 ms (release).
   coalescing and compression) takes seconds.
 . Blobs in `blobs_pending` upload afterwards on a background queue with retry: the thumbnail
   first (it is small and the library is waiting for it), then the rest, largest last.
++
+NOTE: As built by SYNC-008 (`WTSync.BlobQueue`, `BlobCache`).  The cache is content-addressed
+and shared by every document: `~/Library/Application Support/WireTuner/Blobs/<first two hex
+digits>/<hex sha256>`, written through a scratch file and moved into place.  Adding a file hashes
+and copies it in 1 MiB reads off the store's actor; `blobs_pending` gains `media_type`
+(migration `offline-2`).  While the session is up (after the reconcile step) the queue takes the
+thumbnail, then the rest by size, asks `Stat` first and streams the cached file in 1 MiB chunks
+as the upload asks for them; a failure backs off exponentially per blob (1 s to 5 min,
+jittered), `UNAUTHENTICATED` refreshes the token once until a call succeeds, and `STORAGE_QUOTA`
+parks untagged blobs (`SyncState.storageFull(n)`) until *Retry now* while the exempt thumbnail
+still goes up.  A referenced blob not in the cache is downloaded once however often it is asked
+for (`BlobQueue.blob(hash)` answers `.pending`, the renderer draws a placeholder), retried while
+the server does not have it yet, verified against its hash and announced as
+`BlobEvent.available`.  A 100 MiB image placed offline uploads after reconnecting while edits
+keep committing in a few milliseconds (`BlobTests`).
 * The subscription stays open during upload; other users see the backlog arrive as it is
   sequenced, which is preferable to a stall followed by a single huge burst.
 
@@ -130,6 +145,29 @@ proceed (xref:crdt-model.adoc[CRDT model]).  A retired replica that reconnects g
 
 `REPLICA_CONFLICT` (a store restored from backup onto a second Mac while the first is still in
 use) takes the same rotation path without the salvage prose.
+
+NOTE: As built by SYNC-010 (`WTSync.SalvageRebase`, `LocalStore.beginSalvage` / `applySalvage`).
+The old replica's ops are already applied locally under ids the server never accepted (and, for a
+copied store, ids the other Mac may be using for different ops), so re-issuing them on top of the
+local state would leave its ids behind.  Salvage therefore starts from the server's state:
+`beginSalvage` rotates to a new replica, moves every unacknowledged local change (the retired
+replicas' and the current one's) to a `salvage` table, and empties the store in one transaction;
+the next session subscribes from 0 and downloads the server's state (snapshot or replay); then,
+before anything is pushed, `applySalvage` re-issues each salvaged change as one change of the new
+replica through `DocumentCore.perform` (numbered, applied, written to the outbox and undoable).
+Its ops take the same counter offsets, so every id a salvaged change created maps by one delta
+per change, and a later op naming it -- as target, parent, text origin, field-path element or
+anywhere in its values -- is rewritten; a text delete range is split where it crosses changes.  An
+op naming something the state lacks (a tombstone garbage collection removed, or what a dropped op
+would have created) is dropped, its counters kept by `Noop`s, and listed with the change's label
+and the missing id; a change left with nothing is not issued.  After `REPLICA_EXPIRED`, or when
+anything was dropped, the outbox is held and `SyncEvent.reviewNeeded` carries a recovered
+`ReviewModel` (send, or keep the set as a branch); a `REPLICA_CONFLICT` that dropped nothing just
+sends.  A store opened on another Mac (rotated at open) with unsent changes of the old replica is
+salvaged the same way when its first session starts.  Deviations: a change the server accepted
+whose acknowledgement never arrived before the replica was retired cannot be told from an unsent
+one and is re-issued; `Document` has no reload yet, so after `SyncEvent.stateReplaced` WTApp
+reopens the window's façade over the store (WTModel follow-up: `Document.reload()`).
 
 == What needs the network
 

@@ -121,4 +121,14 @@ public enum SyncEvent: Sendable {
     case stable(UInt64)
     /// A collection point (C, T) the last `Ack` answered (D-067): the replica may collect at it.
     case collectionPoint(seq: UInt64, timeMs: Int64)
+    /// The subscription came up (after `Welcome`) or ended: presence freezes and clears on false.
+    case connection(Bool)
+    /// A reconnect merged without holding the outbox (SYNC-006): the toast, and the read-only
+    /// review *Review what changed* opens (`SyncClient.lastMerge`).
+    case merged(ReviewModel)
+    /// The divergence rules, or salvage, hold the outbox until `SyncClient.resolveReview`: open the
+    /// review sheet (`SyncClient.pendingReview`).
+    case reviewNeeded(ReviewModel)
+    /// Salvage re-issued a retired replica's unsent changes (SYNC-010).
+    case salvaged(SalvageReport)
 }

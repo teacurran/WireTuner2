@@ -209,14 +209,26 @@ import WTProto
             harness.events.all.contains { if case .replicaRotated(42, 43) = $0 { true } else { false } }
         }
         try await eventually("resubscribed as the new replica") { await server.subscribes.last?.replica == 43 }
-        #expect(try await harness.store.retiredOutbox().map(\.seq) == [1, 2])
-        // A conflict for the new replica before anything was accepted is an error.
-        await server.update { $0.reject = [1: conflict] }
-        try await harness.edit(1, from: 10)
-        try await eventually("error") { if case .error = await harness.client.state { true } else { false } }
-        await harness.client.retry()
-        try await harness.waitFor(.saved)
+        // The unsent changes were salvaged: re-issued by the new replica on the server's state.
+        try await harness.waitForEvent("salvaged") { if case .salvaged(let report) = $0 { report.recoveredChanges == 2 } else { false } }
+        #expect(try await harness.store.retiredOutbox().isEmpty)
+        try await harness.expectConverged()
+        #expect(await server.acceptedSeqs(43) == [1, 2])
+        #expect(await server.acceptedSeqs(42).isEmpty)
         try await harness.stop()
+        // A refusal for the new replica before anything of it was accepted is an error.
+        await server.update { $0.retired = [60, 61] }
+        let rotated = try await Harness(server: server, name: "second", replicas: Replicas(from: 60))
+        try await rotated.edit(1, from: 10)
+        await rotated.client.start()
+        try await eventually("error") { if case .error = await rotated.client.state { true } else { false } }
+        await server.update { $0.retired = [] }
+        await rotated.client.retry()
+        // Expiry salvage waits for the review before sending.
+        try await rotated.waitFor(.needsReview)
+        try await rotated.client.resolveReview(.upload)
+        try await rotated.expectConverged()
+        try await rotated.stop()
     }
 
     @Test func subscribeRefusalsAreClassified() async throws {
@@ -420,23 +432,13 @@ import WTProto
         try await harness.stop()
     }
 
-    @Test func collectionPointsAreReadDefensively() throws {
-        func response(_ extra: [UInt8]) throws -> Wiretuner_Sync_V1_AckResponse {
-            try Wiretuner_Sync_V1_AckResponse(serializedBytes: [0x08, 0x05] + extra)
-        }
-        #expect(CollectionPoint(try response([])) == nil)                                      // absent
-        #expect(CollectionPoint(try response([0x10, 0x00])) == nil)                            // zero
-        #expect(CollectionPoint(try response([0x10, 0x07]))?.timeMs == 0)                      // no clock
-        let skipped = try response([0x21] + [UInt8](repeating: 1, count: 8) + [0x2A, 0x02, 9, 9] + [0x35, 1, 2, 3, 4]
-                                   + [0x10, 0x96, 0x01, 0x18, 0x02])
-        #expect(CollectionPoint(skipped) == CollectionPoint(seq: 150, timeMs: 2))              // other wire types skipped
-        #expect(CollectionPoint(unknownFields: [0x10]) == nil)                                 // value missing
-        #expect(CollectionPoint(unknownFields: [0x2A]) == nil)                                 // length missing
-        #expect(CollectionPoint(try response([0x13, 0x14])) == nil)                            // group wire type
-        var bytes: ArraySlice<UInt8> = [0x80]
-        #expect(CollectionPoint.varint(&bytes) == nil)                                         // truncated
-        bytes = ArraySlice([UInt8](repeating: 0xFF, count: 11))
-        #expect(CollectionPoint.varint(&bytes) == nil)                                         // too long
+    @Test func collectionPointsAreReadFromTheAckResponse() {
+        #expect(CollectionPoint(Wiretuner_Sync_V1_AckResponse.with { $0.stableSeq = 5 }) == nil)
+        #expect(CollectionPoint(Wiretuner_Sync_V1_AckResponse.with { $0.collectSeq = 7 })?.timeMs == 0)
+        #expect(CollectionPoint(Wiretuner_Sync_V1_AckResponse.with {
+            $0.collectSeq = 150
+            $0.collectTimeMs = 2
+        }) == CollectionPoint(seq: 150, timeMs: 2))
     }
 
     @Test func aClosedStoreCountsNothingAndAnAbsentPresenceSendsNothing() async throws {

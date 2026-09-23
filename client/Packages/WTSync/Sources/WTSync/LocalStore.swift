@@ -78,12 +78,15 @@ public actor LocalStore: DocumentBackend {
         public var path: String
         public var tag: String?
         public var size: Int64
+        /// The blob's media type, as its upload header declares it.
+        public var mediaType: String
 
-        public init(hash: String, path: String, tag: String? = nil, size: Int64) {
+        public init(hash: String, path: String, tag: String? = nil, size: Int64, mediaType: String = "") {
             self.hash = hash
             self.path = path
             self.tag = tag
             self.size = size
+            self.mediaType = mediaType
         }
     }
 
@@ -576,6 +579,160 @@ public actor LocalStore: DocumentBackend {
         database = nil
     }
 
+    // MARK: Reconcile (SYNC-006)
+
+    /// A review holding the outbox, kept across relaunches until the user chooses.
+    public struct ReviewHold: Sendable, Hashable {
+        public enum Kind: String, Sendable, Hashable {
+            /// A divergence review measured from `baseSeq`, the head before the reconnect.
+            case merge
+            /// A salvage review.
+            case recovered
+        }
+
+        public var kind: Kind
+        public var baseSeq: UInt64
+        public var report: SalvageReport?
+
+        public init(kind: Kind, baseSeq: UInt64, report: SalvageReport? = nil) {
+            self.kind = kind
+            self.baseSeq = baseSeq
+            self.report = report
+        }
+    }
+
+    /// The review holding the outbox, if any.
+    public func reviewHold() throws -> ReviewHold? {
+        guard let database else { throw Failure.closed }
+        return try database.read { db in
+            guard let row = try Row.fetchOne(db, sql: "SELECT review_kind, review_base_seq, salvage_report FROM meta WHERE id = 1"),
+                  let kind = (row["review_kind"] as String?).flatMap(ReviewHold.Kind.init) else { return nil }
+            let report = (row["salvage_report"] as Data?).flatMap { try? JSONDecoder().decode(SalvageReport.self, from: $0) }
+            return ReviewHold(kind: kind, baseSeq: UInt64(sql: (row["review_base_seq"] as Int64?) ?? 0), report: report)
+        }
+    }
+
+    /// Records (or, with nil, clears) the review holding the outbox.
+    public func setReviewHold(_ hold: ReviewHold?) throws {
+        let report = try hold?.report.map { try JSONEncoder().encode($0) }
+        try write { db, _ in
+            try db.execute(sql: "UPDATE meta SET review_kind = ?, review_base_seq = ?, salvage_report = ? WHERE id = 1",
+                           arguments: [hold?.kind.rawValue, hold.map { $0.baseSeq.sql }, report])
+        }
+    }
+
+    /// When a session last caught up (the divergence measurement's gap).
+    public func lastSyncedAt() throws -> Date? {
+        guard let database else { throw Failure.closed }
+        return try database.read { db in
+            try Double.fetchOne(db, sql: "SELECT last_synced_at FROM meta WHERE id = 1").map(Date.init(timeIntervalSince1970:))
+        }
+    }
+
+    /// Records that a session caught up at `date`.
+    public func markSynced(at date: Date) throws {
+        try write { db, _ in
+            try db.execute(sql: "UPDATE meta SET last_synced_at = ? WHERE id = 1", arguments: [date.timeIntervalSince1970])
+        }
+    }
+
+    /// Other replicas' changes sequenced after `serverSeq`, in log order.
+    public func remoteChanges(after serverSeq: UInt64) throws -> [Wiretuner_Doc_V1_Change] {
+        try changes(sql: "SELECT data FROM changes WHERE local = 0 AND server_seq > ? ORDER BY server_seq",
+                    arguments: [serverSeq.sql])
+    }
+
+    /// Measures the outbox against the remote changes sequenced after `baseSeq`
+    /// (`Divergence.measure`), off the actor on a copy of the state.
+    public func divergence(since baseSeq: UInt64, gap: Duration, remoteComplete: Bool = true) async throws -> Divergence {
+        let local = try outbox()
+        let remote = try remoteChanges(after: baseSeq)
+        let state = core.state
+        return await Task.detached(priority: .userInitiated) {
+            Divergence.measure(local: local, remote: remote, state: state, gap: gap, remoteComplete: remoteComplete)
+        }.value
+    }
+
+    // MARK: Salvage (SYNC-010)
+
+    /// Whether any local change, of this replica or a retired one, waits for an acknowledgement.
+    public func hasUnsentChanges() throws -> Bool {
+        guard let database else { throw Failure.closed }
+        return try database.read { db in
+            try Bool.fetchOne(db, sql: "SELECT EXISTS (SELECT 1 FROM changes WHERE local = 1 AND server_seq IS NULL)")!
+        }
+    }
+
+    /// Starts replica salvage (offline.adoc, "Replica expiry and salvage"): rotates to a new replica,
+    /// moves every unacknowledged local change -- the retired replicas' and the current one's -- to
+    /// the `salvage` table, and empties the store (snapshot, changes, undo, applied sequence), so
+    /// that the next session downloads the server's state, on which `applySalvage` re-issues them.
+    /// The old ids never reach the server, and a store copied to another Mac holds none of them.
+    /// Returns the new replica id.
+    @discardableResult
+    public func beginSalvage(reason: SalvageReport.Reason) throws -> UInt64 {
+        let replica = options.makeReplicaID()
+        try write { db, applied in
+            try db.execute(sql: """
+                INSERT INTO salvage (reason, data)
+                SELECT ?, data FROM changes WHERE local = 1 AND server_seq IS NULL ORDER BY id
+                """, arguments: [reason.rawValue])
+            applied = true
+            try reset(to: replica, db)
+        }
+        return replica
+    }
+
+    /// Drops every unacknowledged local change and the local state, rotating to a new replica:
+    /// the document reverts to the server's state on the next session (*Save my version as a
+    /// copy…* and *Keep my changes on a branch*, reconcile.adoc).  Returns the new replica id.
+    @discardableResult
+    public func discardLocalChanges() throws -> UInt64 {
+        let replica = options.makeReplicaID()
+        try write { db, applied in
+            applied = true
+            try reset(to: replica, db)
+        }
+        return replica
+    }
+
+    private func reset(to replica: UInt64, _ db: Database) throws {
+        try db.execute(sql: "DELETE FROM changes; DELETE FROM snapshot; DELETE FROM undo")
+        try db.execute(sql: """
+            UPDATE meta SET replica_id = ?, next_seq = 1, last_server_seq = 0, hardware_uuid = ?,
+                            review_kind = NULL, review_base_seq = NULL, salvage_report = NULL WHERE id = 1
+            """, arguments: [replica.sql, options.hardwareUUID()])
+        core = DocumentCore(state: EngineState(schema: options.schema), replica: replica)
+    }
+
+    /// How many salvaged changes wait to be re-issued.
+    public func pendingSalvageCount() throws -> Int {
+        guard let database else { throw Failure.closed }
+        return try database.read { db in try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM salvage")! }
+    }
+
+    /// Re-issues the salvaged changes against the current state as local changes of the current
+    /// replica (`SalvageRebase`), in one transaction, and returns what was recovered and dropped;
+    /// nil when nothing waits.
+    public func applySalvage(recording: DocumentCore.Recording) throws -> SalvageReport? {
+        guard let database else { throw Failure.closed }
+        let rows = try database.read { db in try Row.fetchAll(db, sql: "SELECT reason, data FROM salvage ORDER BY id") }
+        guard let first = rows.first else { return nil }
+        let reason = SalvageReport.Reason(rawValue: first["reason"]) ?? .conflict
+        let shared = SalvageCommand.Shared(SalvageRebase(replica: core.replica, reason: reason))
+        let changes = try rows.map { try Self.change($0["data"]) }
+        try write { db, applied in
+            for change in changes {
+                guard let outcome = try core.perform(SalvageCommand(change: change, shared: shared), recording: recording) else { continue }
+                applied = true
+                try appendLocal(outcome.change!, db)
+                try persist(outcome.edit, db)
+            }
+            try db.execute(sql: "DELETE FROM salvage")
+        }
+        return shared.report
+    }
+
     // MARK: Blobs and view state
 
     /// Queues a blob upload; a tagged blob replaces the pending blob with the same tag (a newer
@@ -585,8 +742,8 @@ public actor LocalStore: DocumentBackend {
             if let tag = blob.tag {
                 try db.execute(sql: "DELETE FROM blobs_pending WHERE tag = ?", arguments: [tag])
             }
-            try db.execute(sql: "INSERT OR REPLACE INTO blobs_pending (hash, path, tag, size) VALUES (?, ?, ?, ?)",
-                           arguments: [blob.hash, blob.path, blob.tag, blob.size])
+            try db.execute(sql: "INSERT OR REPLACE INTO blobs_pending (hash, path, tag, size, media_type) VALUES (?, ?, ?, ?, ?)",
+                           arguments: [blob.hash, blob.path, blob.tag, blob.size, blob.mediaType])
         }
     }
 
@@ -595,10 +752,10 @@ public actor LocalStore: DocumentBackend {
         guard let database else { throw Failure.closed }
         return try database.read { db in
             try Row.fetchAll(db, sql: """
-                SELECT hash, path, tag, size FROM blobs_pending
+                SELECT hash, path, tag, size, media_type FROM blobs_pending
                 ORDER BY (CASE WHEN tag = ? THEN 0 ELSE 1 END), size, hash
                 """, arguments: [Self.thumbnailTag])
-                .map { PendingBlob(hash: $0["hash"], path: $0["path"], tag: $0["tag"], size: $0["size"]) }
+                .map { PendingBlob(hash: $0["hash"], path: $0["path"], tag: $0["tag"], size: $0["size"], mediaType: $0["media_type"]) }
         }
     }
 

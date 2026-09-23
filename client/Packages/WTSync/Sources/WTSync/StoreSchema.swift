@@ -57,6 +57,23 @@ enum StoreSchema {
                 );
                 """)
         }
+        // SYNC-006, SYNC-008, SYNC-010: when the store last synced, a review holding the outbox
+        // (the head it measures from, its kind, a salvage report), blob media types, and the
+        // changes waiting to be re-issued by salvage.
+        migrator.registerMigration("offline-2") { db in
+            try db.execute(sql: """
+                ALTER TABLE meta ADD COLUMN last_synced_at REAL;
+                ALTER TABLE meta ADD COLUMN review_base_seq INTEGER;
+                ALTER TABLE meta ADD COLUMN review_kind TEXT;
+                ALTER TABLE meta ADD COLUMN salvage_report BLOB;
+                ALTER TABLE blobs_pending ADD COLUMN media_type TEXT NOT NULL DEFAULT '';
+                CREATE TABLE salvage (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    reason TEXT NOT NULL,
+                    data BLOB NOT NULL
+                );
+                """)
+        }
         return migrator
     }
 }

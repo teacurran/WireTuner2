@@ -78,6 +78,39 @@ xref:font-info.adoc[]).
 The thresholds are preferences with these defaults, and a team can raise the ask threshold to
 "always ask when anything overlaps" (xref:preferences.adoc[Preferences]).
 
+NOTE: As built by SYNC-006 (`WTSync.Divergence`, `ReconcilePreferences`, `ReviewModel`).  The
+measurement runs once per session, after the download has reached `Welcome.head_seq` and before
+the pusher starts (the pusher waits for it even with nothing to measure), off the store's actor
+on a copy of the merged state.  _Touched_ is read from the ops: `CreateNode` (the new node),
+`SetFields` (its field paths; a STRUCT path covers its fields), `MoveNode`, `SetDeleted`, the
+element ops (the element's position and `deleted` flag), set ops, and the text ops, whose
+characters -- an insert's run, a delete's range, a mark's anchors, a paragraph register's newline
+-- are mapped to paragraphs in the merged state (a character belongs to the paragraph its next
+newline, tombstones included, ends).  `Noop`s count for nothing.  Objects under `comments (0:12)`
+are left out of both sets; on the settings node, `output_area`, `print` and the `local_only`
+fields are left out, `color` and `document_kind`/`font` writes are recorded as always-listed
+settings, and every other settings field is an ordinary register.  Beyond the literal overlap
+two cases are listed as `edit vs delete`: an object with an open (unresolved, not deleted)
+thread anchored to it that the remote side deleted (comments.adoc), and an object edited on one
+side whose ancestor the other side deleted (the entry names the ancestor).  Kinds are all
+recorded; the list shows the most severe (`edit vs delete`, `same register`, `same text`, `move vs
+move`, `both edited`).  `same register` compares field paths (one covering the other) and, for the
+`deleted` flag and elements, differing values; each conflicting register lists the newest local
+and remote writes from the change log and the merged value, and "the local write lost" means the
+merged value is not the local one and differs from it.  The decision rules are applied as
+written, with two readings: *Always ask when anything overlaps* sets the ask threshold to zero
+(any overlap opens the whole-document review), and the 25% share is of either side's object count,
+so a small session with one object in common is asked about as a whole.  Always-listed settings
+with no object overlap open the per-object review.  A catch-up that installed a snapshot knows
+only the remote tail after it, so such a merge always offers *Review what changed*.  The *gap* is
+the time since the store last caught up (`meta.last_synced_at`, SYNC-006's migration
+`offline-2`).  A review that holds the outbox is recorded in `meta` (`review_kind`,
+`review_base_seq`), so a relaunch shows it again -- offline too -- and a reconnect measures again
+from the head before the first reconnect.  Measuring the design-point document with a day's
+20,000 unsent ops against 5,000 remote ones (1,000 objects overlapping) takes 97 ms in a release
+build -- 56 ms reading and decoding both sets from the store, 57 ms measuring -- and up to 170 ms
+on a heavily loaded machine (`DesignPointTests`, enforced under 200 ms in release builds).
+
 == The review sheet
 
 A sheet over the document window, resizable, that the user can dismiss and reopen from
@@ -133,6 +166,23 @@ Whole document::
 Every choice is a normal change and is undoable.  The sheet is optional: dismissing it uploads
 the merge, and *Review Merge…* remains available while the merged-from state is in the local
 log (30 days).
+
+NOTE: As built by SYNC-006 for SYNC-007.  `SyncClient` publishes `SyncEvent.reviewNeeded(ReviewModel)`
+and holds the outbox (`SyncState.needsReview`, `SyncClient.pendingReview`) or, for a merge that
+needs no decision, `SyncEvent.merged(ReviewModel)` with the toast text (`SyncClient.lastMerge` is
+what *Review what changed* opens).  A `ReviewModel` carries the mode (read-only, per-object,
+whole-document, recovered), the volume and authors (names from `SequencedChange.author`), and one
+`ReviewEntry` per object: its kinds, each conflicting property with mine, theirs and merged values
+and which side the merge kept, the paragraphs both sides touched, and the actions offered
+(`useMine`, `useTheirs`, `keepBoth`, `restore`).  `ReviewModel.useMine(entry)` and
+`ReviewModel.restore(entry)` build the change the sheet performs through `Document.perform`;
+*Keep both copies* is the sheet's own (WTModel's node copier).  The sheet ends the hold with
+`SyncClient.resolveReview(.upload)` (*Keep the merged result*, *Done*, dismissing) or
+`.discardLocalChanges` after *Save my version as a copy…* or *Keep my changes on a branch* has
+the local work elsewhere: the store drops its unsent changes and its state, rotates the replica,
+and the next session downloads the server's state.  Deviation: *Review Merge…* is available while
+the review is pending or until the next merge replaces `lastMerge`, not for 30 days; keeping every
+merged-from state is left to the history work.
 
 == Branches
 

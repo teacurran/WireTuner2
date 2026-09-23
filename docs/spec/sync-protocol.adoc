@@ -103,7 +103,7 @@ message ChangeRejected { fixed64 replica = 1; uint64 seq = 2; ErrorReason reason
 message UpdatePresenceRequest { string document_id = 1; fixed64 replica = 2; PresenceUpdate presence = 3; }
 message UpdatePresenceResponse {}
 message AckRequest { string document_id = 1; fixed64 replica = 2; uint64 applied_server_seq = 3; }
-message AckResponse { uint64 stable_seq = 1; }
+message AckResponse { uint64 stable_seq = 1; uint64 collect_seq = 2; int64 collect_time_ms = 3; }
 ----
 
 As built by PROTO-006 (`proto/wiretuner/sync/v1/sync.proto`), with these settled details:
@@ -299,9 +299,10 @@ or the `LocalStore` itself for a headless upload.  The settled details:
   prefix.  The bulk threshold is checked whenever the window is empty, so a backlog made while
   connected also goes up through `PushChanges`.
 * *Rejections.*  `REPLICA_CONFLICT` and `REPLICA_EXPIRED` (on a push or on `Subscribe`) rotate the
-  replica (`LocalStore.rotateReplica()`) and resubscribe at once, reporting
-  `SyncEvent.replicaRotated`; a second one before any push of the new replica is accepted is the
-  `error` state.  `ROLE_INSUFFICIENT` makes the document read-only with the outbox kept (salvage is
+  replica and resubscribe at once, reporting `SyncEvent.replicaRotated`: with no unsent change
+  through `LocalStore.rotateReplica()`, otherwise through salvage (`LocalStore.beginSalvage`,
+  SYNC-010, xref:offline.adoc#expiry[Offline]); a second one before any push of the new replica is
+  accepted is the `error` state.  `ROLE_INSUFFICIENT` makes the document read-only with the outbox kept (salvage is
   SYNC-010); an editor role in a later `Welcome` or `RoleChanged` lifts it.  `PERMISSION_DENIED` on
   `Subscribe` is `readOnly(accessRemoved)` and `NOT_FOUND` is `error`, both halted until *Retry
   now*.  Deviation: a `VALIDATION_FAILED` change is not reverted locally -- WTSync has the change,
@@ -329,14 +330,24 @@ or the `LocalStore` itself for a headless upload.  The settled details:
   client cancels it.  An unreadable snapshot twice in a row is the `error` state.
 * *Horizon (D-067).*  Each `AckResponse.stable_seq` goes to the sink's `advanceHorizon(to:)`
   (the `Document` forwards it to its `LocalStore`, whose `DocumentCore` holds the horizon, in
-  memory: every `Ack` republishes it).  The proposed `collect_seq = 2` / `collect_time_ms = 3` are
-  read from the response's unknown fields until the proto has them and reported as
-  `SyncEvent.collectionPoint`; absent or zero means no collection.  Collecting at the point needs a
+  memory: every `Ack` republishes it).  `AckResponse.collect_seq` / `collect_time_ms` are reported
+  as `SyncEvent.collectionPoint`; zero means no collection.  Collecting at the point needs a
   `DocumentCore` entry point WTModel does not have yet.
 * *Timers.*  `Ack` every 2 s when the applied seq moved, and on stop; presence read at 20 Hz and sent
   when it changed or 10 s after the last send (the server expires an entry after 15 s), `GONE` on
   stop; 45 s of silence ends the session; reconnects back off exponentially from 0.5 s to 30 s,
   scaled by a random 0.5-1.
+* *Reconcile (SYNC-006, SYNC-010).*  The pusher starts only once the session has applied everything
+  up to `Welcome.head_seq`: then salvaged changes are re-issued, or the divergence of the outbox
+  from the remote changes since the previous head is measured and the decision rules applied
+  (xref:reconcile.adoc[Reconciling]); a review that holds the outbox keeps pushes off until
+  `SyncClient.resolveReview`.  The blob queue goes online at the same point.
+* *Presence (SYNC-009).*  `SyncEvent.connection(Bool)` reports the subscription coming up (after
+  `Welcome`) and ending; `WTSync.PresenceModel` consumes it with the presence frames
+  (xref:presence.adoc[Presence]).  `WTSync.LocalPresence` is the `PresenceSource` WTApp writes the
+  caller's cursor, viewport, selection, editing set and caret into.
+* *Blobs (SYNC-008).*  `GRPCSyncTransport` is also the `BlobTransport` (`Stat`, a client-streaming
+  `Upload` fed chunk by chunk from the cached file, `Download`) on the document's connection.
 
 == Blobs
 

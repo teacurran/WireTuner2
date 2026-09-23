@@ -17,7 +17,7 @@ enum FakeGRPCService {
         let metadata = Mutex<[Metadata]>([])
     }
 
-    static func router(_ server: FakeSyncServer, calls: Calls) -> RPCRouter<InProcessTransport.Server> {
+    static func router(_ server: FakeSyncServer, calls: Calls, blobs: FakeBlobServer? = nil) -> RPCRouter<InProcessTransport.Server> {
         let fake = FakeTransport(server: server)
         var router = RPCRouter<InProcessTransport.Server>()
 
@@ -106,7 +106,56 @@ enum FakeGRPCService {
                 return [:]
             }
         }
+        if let blobs {
+            register(blobs, on: &router, token: token)
+        }
         return router
+    }
+
+    typealias BlobMethod = Wiretuner_Blob_V1_BlobService.Method
+
+    /// `BlobService` onto a `FakeBlobServer`.
+    static func register(_ blobs: FakeBlobServer, on router: inout RPCRouter<InProcessTransport.Server>,
+                         token: @escaping @Sendable (Metadata) -> String) {
+        let fake = FakeBlobTransport(server: blobs)
+        router.registerHandler(forMethod: BlobMethod.Stat.descriptor, deserializer: ProtobufDeserializer<BlobMethod.Stat.Input>(),
+                               serializer: ProtobufSerializer<BlobMethod.Stat.Output>()) { request, _ in
+            let single = try await ServerRequest(stream: request)
+            return try await unary { try await fake.stat(single.message, token: token(single.metadata)) }
+        }
+        router.registerHandler(forMethod: BlobMethod.Upload.descriptor, deserializer: ProtobufDeserializer<BlobMethod.Upload.Input>(),
+                               serializer: ProtobufSerializer<BlobMethod.Upload.Output>()) { request, _ in
+            let bearer = token(request.metadata)
+            var header = Wiretuner_Blob_V1_UploadHeader()
+            var chunks: [Data] = []
+            for try await frame in request.messages {
+                switch frame.frame {
+                case .header(let value)?: header = value
+                case .chunk(let chunk)?: chunks.append(chunk)
+                case nil: break
+                }
+            }
+            let stream = AsyncThrowingStream<Data, any Error> { continuation in
+                for chunk in chunks { continuation.yield(chunk) }
+                continuation.finish()
+            }
+            return try await unary { [header] in try await fake.upload(header, chunks: stream, token: bearer) }
+        }
+        router.registerHandler(forMethod: BlobMethod.Download.descriptor, deserializer: ProtobufDeserializer<BlobMethod.Download.Input>(),
+                               serializer: ProtobufSerializer<BlobMethod.Download.Output>()) { request, _ in
+            let single = try await ServerRequest(stream: request)
+            let bearer = token(single.metadata)
+            return StreamingServerResponse { writer in
+                do {
+                    for try await message in fake.download(single.message, token: bearer) {
+                        try await writer.write(message)
+                    }
+                } catch let error as SyncCallError {
+                    throw status(error)
+                }
+                return [:]
+            }
+        }
     }
 
     private static func unary<Output: Sendable>(_ body: () async throws -> Output) async throws -> StreamingServerResponse<Output> {
@@ -139,11 +188,11 @@ enum FakeGRPCService {
 
     /// Runs `body` with a `GRPCSyncTransport` connected in-process to `server`.
     static func withTransport<Result: Sendable>(
-        _ server: FakeSyncServer, calls: Calls = Calls(),
+        _ server: FakeSyncServer, calls: Calls = Calls(), blobs: FakeBlobServer? = nil,
         _ body: @Sendable (GRPCSyncTransport<InProcessTransport.Client>) async throws -> Result
     ) async throws -> Result {
         let inProcess = InProcessTransport()
-        let grpcServer = GRPCServer(transport: inProcess.server, router: router(server, calls: calls))
+        let grpcServer = GRPCServer(transport: inProcess.server, router: router(server, calls: calls, blobs: blobs))
         return try await withThrowingTaskGroup(of: Void.self) { group in
             group.addTask { try await grpcServer.serve() }
             let transport = GRPCSyncTransport(transport: inProcess.client,

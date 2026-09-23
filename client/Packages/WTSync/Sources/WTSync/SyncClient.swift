@@ -18,9 +18,16 @@ import WTProto
 /// starts after a jittered exponential backoff and resolves the pushes that were in flight from
 /// `Welcome.last_accepted_seq`.
 ///
+/// Once a session has downloaded up to `Welcome.head_seq` and before anything is pushed, it
+/// reconciles (SYNC-006, SYNC-010): salvaged changes of a retired replica are re-issued, or the
+/// outbox's divergence from the remote changes is measured, and a review may hold the outbox
+/// until `resolveReview`.
+///
 /// WTApp opens the store, creates the `Document` over it, creates the client with the document as
-/// its sink, calls `start()`, calls `localChangesAvailable()` after each local change, observes
-/// `states()`, `transitions()` and `events()`, and calls `stop()` when the window closes.
+/// its sink (with a `LocalPresence` and a `BlobQueue`), calls `start()`, calls
+/// `localChangesAvailable()` after each local change, observes `states()`, `transitions()` and
+/// `events()` (a `PresenceModel` binds to the latter; `reviewNeeded` opens the review sheet),
+/// and calls `stop()` when the window closes.
 public actor SyncClient {
     /// Limits and timings (docs/spec/sync-protocol.adoc); tests shorten the timings.
     public struct Options: Sendable {
@@ -54,6 +61,12 @@ public actor SyncClient {
         public var rules: Coalescer.Rules = .standard
         /// Uniform in 0..<1: the backoff jitter.
         public var random: @Sendable () -> Double = { Double.random(in: 0..<1) }
+        /// The review thresholds (preferences.adoc), read at each reconcile (SYNC-006).
+        public var reconcile: @Sendable () -> ReconcilePreferences = { .standard }
+        /// Wall-clock time: the gap since the previous sync, and the time salvaged changes take.
+        public var clock: @Sendable () -> Date = { Date() }
+        /// *Undo levels* for the changes salvage re-issues.
+        public var undoLevels = 100
 
         public init() {}
     }
@@ -66,6 +79,7 @@ public actor SyncClient {
         case rotated
         case signIn
         case halted
+        case restarted
         case violation(String)
         case failed(String)
 
@@ -77,6 +91,7 @@ public actor SyncClient {
             case .rotated: "replica rotated"
             case .signIn: "sign-in required"
             case .halted: "halted"
+            case .restarted: "restarted from the server's state"
             case .violation(let what): "protocol violation: \(what)"
             case .failed(let what): what
             }
@@ -96,6 +111,8 @@ public actor SyncClient {
     let transport: any SyncTransport
     let tokens: any TokenProvider
     let presenceSource: (any PresenceSource)?
+    /// The document's blob queue, online while a session is (SYNC-008).
+    public nonisolated let blobs: BlobQueue?
     let options: Options
     private let logger = Logger(subsystem: "app.wiretuner", category: "sync")
 
@@ -123,6 +140,22 @@ public actor SyncClient {
     private var rotatedWithoutAccept = false
     private var snapshotFailures = 0
     private var featureLevel: UInt32 = 0
+    private var blobWatcher: Task<Void, Never>?
+
+    // Reconcile (SYNC-006, SYNC-010).
+    /// The review holding the outbox until `resolveReview`, if any.
+    public private(set) var pendingReview: ReviewModel?
+    /// The last merge that did not hold the outbox: what *Review what changed* opens read-only.
+    public private(set) var lastMerge: ReviewModel?
+    /// Display names of remote replicas, from `SequencedChange.author`.
+    private var authors: [UInt64: String] = [:]
+    private var reconciled: Signal?
+    private var restart: Signal?
+    private var welcomeHead: UInt64 = 0
+    private var sessionBase: UInt64 = 0
+    private var snapshotInstalled = false
+    /// Counts `resolveReview` calls: a measurement that started before one does not hold again.
+    private var reviewEpoch = 0
 
     // The session.
     private var sessionUp = false
@@ -151,13 +184,15 @@ public actor SyncClient {
     /// A client for the document in `store`; remote changes go to `sink`, whose backend must be
     /// `store` (the store itself for a headless upload).
     public init(store: LocalStore, sink: (any RemoteChangeSink)? = nil, transport: any SyncTransport,
-                tokens: any TokenProvider, presence: (any PresenceSource)? = nil, options: Options = Options()) {
+                tokens: any TokenProvider, presence: (any PresenceSource)? = nil, blobs: BlobQueue? = nil,
+                options: Options = Options()) {
         documentID = store.documentID
         self.store = store
         self.sink = sink ?? store
         self.transport = transport
         self.tokens = tokens
         presenceSource = presence
+        self.blobs = blobs
         self.options = options
     }
 
@@ -167,6 +202,15 @@ public actor SyncClient {
     public func start() {
         guard runner == nil else { return }
         runner = Task { await run() }
+        if let blobs {
+            let events = blobs.events()
+            blobWatcher = Task { [weak self] in
+                for await _ in events {
+                    await self?.schedulePublish("blob queue")
+                }
+            }
+            Task { await blobs.start() }
+        }
     }
 
     /// Acknowledges what was applied, says `GONE`, and ends the session.
@@ -183,7 +227,47 @@ public actor SyncClient {
         await runner.value
         self.runner = nil
         sessionUp = false
+        blobWatcher?.cancel()
+        blobWatcher = nil
+        await blobs?.stop()
         await publish("stopped")
+    }
+
+    // MARK: Review (SYNC-006, SYNC-010)
+
+    /// How the user settled the review holding the outbox.
+    public enum ReviewResolution: Sendable, Hashable {
+        /// Upload the merge -- *Keep the merged result*, *Done* after per-object choices (which
+        /// were performed as ordinary changes), dismissing the sheet, or *Send* after salvage.
+        case upload
+        /// Revert the document to the server's state and upload nothing: *Save my version as a
+        /// copy…* or *Keep my changes on a branch*, after the fork or branch holds the local work.
+        case discardLocalChanges
+    }
+
+    /// Settles the pending review; does nothing when none is pending.
+    public func resolveReview(_ resolution: ReviewResolution) async throws {
+        guard let review = pendingReview else { return }
+        reviewEpoch += 1
+        switch resolution {
+        case .upload:
+            try await store.setReviewHold(nil)
+            pendingReview = nil
+            if review.mode != .recovered {
+                lastMerge = review
+            }
+            nudge.fire()
+            await publish("review resolved")
+        case .discardLocalChanges:
+            let old = replica
+            replica = try await store.discardLocalChanges()
+            pendingReview = nil
+            resetOutboxTracking()
+            report(.replicaRotated(from: old, to: replica))
+            report(.stateReplaced(serverSeq: 0))
+            restart?.fire()
+            await publish("local changes discarded")
+        }
     }
 
     /// Tells the pusher the outbox grew.
@@ -235,12 +319,14 @@ public actor SyncClient {
         if let errorDetail { return .error(errorDetail) }
         if needsSignIn { return .needsSignIn }
         if let readOnly { return .readOnly(readOnly) }
+        if pendingReview?.holdsOutbox == true { return .needsReview }
         let outbox = (try? await store.outboxCount()) ?? 0
         guard sessionUp else { return attempted ? .offline(outbox) : .opening }
         if let backlog { return .uploadingBacklog(backlog.percent(acked: acked)) }
         if outbox > 0 { return .syncing(outbox) }
-        let blobs = (try? await store.pendingBlobCount()) ?? 0
-        return blobs > 0 ? .uploadingBlobs(blobs) : .saved
+        let pending = (try? await store.pendingBlobCount()) ?? 0
+        if pending > 0, await blobs?.isStorageFull == true { return .storageFull(pending) }
+        return pending > 0 ? .uploadingBlobs(pending) : .saved
     }
 
     /// Recomputes and publishes the state now.
@@ -285,6 +371,7 @@ public actor SyncClient {
 
     private func run() async {
         var attempt = 0
+        await restoreHold()
         await publish("started")
         while !Task.isCancelled {
             if parked {
@@ -295,8 +382,13 @@ public actor SyncClient {
             let wasUp = sessionUp
             sessionUp = false
             attempted = true
+            await blobs?.setOnline(false)
+            if wasUp {
+                report(.connection(false))
+                try? await store.markSynced(at: options.clock())
+            }
             guard !Task.isCancelled else { break }
-            if wasUp || end == .rotated {
+            if wasUp || end == .rotated || end == .restarted {
                 attempt = 0
             }
             if end == .signIn || end == .halted {
@@ -304,7 +396,7 @@ public actor SyncClient {
                 parked = needsSignIn || errorDetail != nil || readOnly != nil
             }
             await publish(end.cause)
-            if end == .rotated || parked {
+            if end == .rotated || end == .restarted || parked {
                 continue
             }
             await wake.wait(timeout: backoff(attempt))
@@ -320,10 +412,26 @@ public actor SyncClient {
 
     private func session() async -> SessionEnd {
         let welcome = Signal(latching: true)
+        let reconciled = Signal(latching: true)
+        let restart = Signal(latching: true)
         self.welcome = welcome
+        self.reconciled = reconciled
+        self.restart = restart
+        snapshotInstalled = false
+        // A store opened on another Mac rotated with unsent changes of the old replica: salvage
+        // them onto the server's state (offline.adoc, "Replica expiry and salvage").
+        if (try? await store.retiredOutbox())?.isEmpty == false {
+            let old = await store.replica
+            if let fresh = try? await store.beginSalvage(reason: .conflict) {
+                resetOutboxTracking()
+                report(.replicaRotated(from: old, to: fresh))
+                report(.stateReplaced(serverSeq: 0))
+            }
+        }
         replica = await store.replica
         applied = await store.lastServerSeq
         ackedServerSeq = applied
+        sessionBase = applied
         do {
             let token = try await accessToken()
             sessionToken = token
@@ -342,8 +450,12 @@ public actor SyncClient {
                 group.addTask { try await self.read(frames) }
                 group.addTask { try await self.watchdog() }
                 group.addTask {
-                    await welcome.wait()
+                    await reconciled.wait()
                     return try await self.pushLoop()
+                }
+                group.addTask {
+                    await restart.wait()
+                    return .restarted
                 }
                 group.addTask {
                     await welcome.wait()
@@ -374,7 +486,7 @@ public actor SyncClient {
             case .tokenExpired?:
                 try await refreshToken(replacing: sessionToken)
             case .replicaConflict?, .replicaExpired?:
-                try await rotate()
+                try await rotate(error.reason == .replicaExpired ? .expired : .conflict)
             case .roleInsufficient?, .clientTooOld?:
                 readOnly = error.reason == .clientTooOld ? .clientTooOld : .roleInsufficient
                 return .halted
@@ -452,9 +564,13 @@ public actor SyncClient {
             try await catchUp(head: welcome.headSeq)
         }
         sessionUp = true
+        welcomeHead = welcome.headSeq
         self.welcome?.fire()
-        nudge.fire()
+        report(.connection(true))
         await publish("session up")
+        if applied >= welcomeHead {
+            await reconcile()
+        }
     }
 
     /// The `version` of a serialized merge table (docs/spec/crdt-model.adoc, "Schema evolution").
@@ -502,6 +618,12 @@ public actor SyncClient {
     private func deliver(_ change: Wiretuner_Sync_V1_SequencedChange) async throws {
         try await sink.applyRemote(change.change, serverSeq: change.serverSeq)
         applied = change.serverSeq
+        if !change.author.displayName.isEmpty {
+            authors[change.change.replica] = change.author.displayName
+        }
+        if sessionUp, reconciled?.isFired == false, applied >= welcomeHead {
+            await reconcile()
+        }
         if change.change.replica == replica {
             // The echo of this replica's own change: its ops are already applied; it keeps the
             // applied sequence contiguous, acknowledges the change, and is the backlog's progress.
@@ -564,6 +686,7 @@ public actor SyncClient {
             snapshotFailures = 0
             if snapshot.serverSeq > applied {
                 try await store.installSnapshot(snapshot.state, serverSeq: snapshot.serverSeq)
+                snapshotInstalled = true
                 applied = snapshot.serverSeq
                 report(.stateReplaced(serverSeq: snapshot.serverSeq))
             }
@@ -685,7 +808,7 @@ public actor SyncClient {
 
     // MARK: Pushing (SYNC-003, SYNC-005)
 
-    private var canPush: Bool { readOnly == nil && errorDetail == nil }
+    private var canPush: Bool { readOnly == nil && errorDetail == nil && pendingReview?.holdsOutbox != true }
 
     /// Sends the outbox for as long as the session lasts.
     private func pushLoop() async throws -> SessionEnd {
@@ -805,7 +928,7 @@ public actor SyncClient {
             pausedUntil = .now + (error.retryAfter ?? .seconds(1))
             draining = true
         case .replicaConflict?, .replicaExpired?:
-            try await rotate()
+            try await rotate(error.reason == .replicaExpired ? .expired : .conflict)
         case .roleInsufficient?:
             readOnly = .roleInsufficient
             draining = true
@@ -834,23 +957,110 @@ public actor SyncClient {
         report(.changeDropped(seq: change.seq, message: message))
     }
 
-    /// Replica rotation (docs/spec/offline.adoc, "Replica expiry and salvage"); a second conflict
-    /// without an accepted push in between is an error.
-    private func rotate() async throws {
+    /// Replica rotation (docs/spec/offline.adoc, "Replica expiry and salvage"): with unsent
+    /// changes the store starts salvage -- they are set aside, the local state is dropped, and the
+    /// next session re-issues them on the server's state (`reconcile`); a second conflict without an
+    /// accepted push in between is an error.
+    private func rotate(_ reason: SalvageReport.Reason) async throws {
         guard !rotatedWithoutAccept else {
             errorDetail = "This document's replica is in use elsewhere, even after rotating it."
             throw SessionEnd.halted
         }
         let old = replica
-        replica = try await store.rotateReplica()
+        let salvaging = try await store.hasUnsentChanges()
+        replica = salvaging ? try await store.beginSalvage(reason: reason) : try await store.rotateReplica()
         rotatedWithoutAccept = true
+        resetOutboxTracking()
+        report(.replicaRotated(from: old, to: replica))
+        if salvaging {
+            report(.stateReplaced(serverSeq: 0))
+        }
+        throw SessionEnd.rotated
+    }
+
+    /// Forgets what was sent: the replica changed.
+    private func resetOutboxTracking() {
         acked = 0
         highestSent = 0
         nextSeq = 1
         sent = [:]
         queue = []
-        report(.replicaRotated(from: old, to: replica))
-        throw SessionEnd.rotated
+    }
+
+    /// Runs once a session has caught up to the head `Welcome` named, before anything is pushed
+    /// (offline.adoc, "Reconnecting with a backlog"): re-issues salvaged changes, or measures the
+    /// divergence of the outbox from the remote changes since the previous head and applies the
+    /// decision rules (reconcile.adoc) -- a review that holds the outbox, or a merge reported for
+    /// the toast.  Then the pusher and the blob queue start.
+    /// A store that cannot be read (closed, diverged) reconciles nothing; its failure surfaces
+    /// through the outbox and the state like any other.
+    private func reconcile() async {
+        let now = options.clock()
+        let epoch = reviewEpoch
+        let recording = DocumentCore.Recording(limit: options.undoLevels, now: now)
+        if let salvage = try? await store.applySalvage(recording: recording) {
+            report(.stateReplaced(serverSeq: applied))
+            report(.salvaged(salvage))
+            if salvage.needsReview {
+                try? await store.setReviewHold(LocalStore.ReviewHold(kind: .recovered, baseSeq: applied, report: salvage))
+                hold(ReviewModel(recovered: salvage))
+            }
+        } else {
+            let held = try? await store.reviewHold()
+            if let report = held?.report, held?.kind == .recovered {
+                hold(ReviewModel(recovered: report))
+            } else if (try? await store.outboxCount()) ?? 0 == 0 {
+                try? await store.setReviewHold(nil)
+                pendingReview = nil
+            } else {
+                let base = min(held?.baseSeq ?? sessionBase, sessionBase)
+                if applied > base || held != nil {
+                    await measure(since: base, now: now, epoch: epoch)
+                }
+            }
+        }
+        try? await store.markSynced(at: now)
+        reconciled?.fire()
+        nudge.fire()
+        await blobs?.setOnline(true)
+        await publish("reconciled")
+    }
+
+    private func measure(since base: UInt64, now: Date, epoch: Int) async {
+        guard let divergence = try? await store.divergence(since: base, gap: gap(now), remoteComplete: !snapshotInstalled),
+              epoch == reviewEpoch else { return }
+        let decision = divergence.decision(options.reconcile())
+        let review = ReviewModel(divergence, decision: decision, names: authors)
+        if decision.holdsOutbox {
+            try? await store.setReviewHold(LocalStore.ReviewHold(kind: .merge, baseSeq: base))
+            hold(review)
+        } else {
+            try? await store.setReviewHold(nil)
+            pendingReview = nil
+            lastMerge = review
+            report(.merged(review))
+        }
+    }
+
+    /// The time since the previous sync.
+    private func gap(_ now: Date) async -> Duration {
+        let last = (try? await store.lastSyncedAt()) ?? nil
+        return .seconds(max(0, now.timeIntervalSince(last ?? now)))
+    }
+
+    /// A review still holding the outbox from an earlier run: the sheet can open offline.
+    private func restoreHold() async {
+        guard let held = try? await store.reviewHold() else { return }
+        if let report = held.report, held.kind == .recovered {
+            hold(ReviewModel(recovered: report))
+        } else {
+            await measure(since: held.baseSeq, now: options.clock(), epoch: reviewEpoch)
+        }
+    }
+
+    private func hold(_ review: ReviewModel) {
+        pendingReview = review
+        report(.reviewNeeded(review))
     }
 
     /// Everything accepted through `seq`: the server accepts a replica's changes in seq order.

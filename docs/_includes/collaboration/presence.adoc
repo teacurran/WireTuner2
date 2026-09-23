@@ -310,6 +310,24 @@ is not built.
 
 * `WTSync.PresenceModel` (SYNC-009): an observable dictionary `session id → PresenceUpdate`
   with the local user excluded, published on the main actor.
++
+NOTE: As built by SYNC-009.  `PresenceModel` (`@MainActor @Observable`, conforming to
+`WTSync.PresenceObservable`, which WTApp's `PresenceProviding` adapts) holds `participants`, newest
+arrival last, as `PresenceParticipant` values (the frame in Swift types: user, color index, idle,
+page, cursor, viewport and zoom, tool, selection and its count, sub-selection, editing set, caret,
+spotlight, following, branch, and `frozen`), and `isOffline`.  `bind(to: SyncClient.events())`
+feeds it: a `PresenceSnapshot` replaces the list (people already listed keep their place), a
+`PresenceUpdate` replaces one participant and `GONE` removes them, and `SyncEvent.connection(false)`
+freezes everyone, clearing them and setting `isOffline` after 5 s unless the session comes back
+first.  A frame reaches the model in a few milliseconds (`PresenceTests`: 20 cursor moves through
+the fake server, at most 11 ms).  Outgoing presence is `WTSync.LocalPresence`: WTApp writes into
+it, the sync client reads it at 20 Hz and sends it when it changed or every 10 s, two minutes
+without input reads as `IDLE`, and with *Show my cursor and selection to others* off
+(`LocalPresence.sharing`) pointer, tool, selection, sub-selection and caret are left out.
+Deviation: `PresenceUpdate` carries no session id, so participants are keyed by account -- two
+Macs of one person show as one participant (the newest frame wins) and the local user's other
+Mac is excluded with the local user.  A `session` field on `PresenceUpdate` (server-filled from
+the subscription's replica) would restore the specified keying; proposed for COLLAB-004.
 * `WTRender`: a `PresenceOverlayLayer` above the tiled canvas draws cursors, labels,
   selection outlines, point highlights, carets and attribution flashes.  It is redrawn on
   presence changes and on scroll/zoom, never invalidating document tiles.  Hit testing

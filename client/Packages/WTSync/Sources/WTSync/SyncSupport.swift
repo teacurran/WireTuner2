@@ -58,6 +58,9 @@ final class Signal: Sendable {
         }
     }
 
+    /// Whether a latching signal has fired.
+    var isFired: Bool { state.withLock { $0.latched } }
+
     /// Waits for `fire` or `timeout`, whichever comes first.
     func wait(timeout: Duration) async {
         await withTaskGroup(of: Void.self) { group in
@@ -227,9 +230,7 @@ func encodedSize(_ message: some SwiftProtobuf.Message) -> Int {
     try! message.serializedData().count
 }
 
-/// The collection point D-067 adds to `AckResponse` as `collect_seq = 2` and
-/// `collect_time_ms = 3`, read from the fields this build does not know yet: absent (or zero)
-/// means no collection.
+/// The collection point (C, T) an `AckResponse` carries (D-067): absent (zero) means no collection.
 struct CollectionPoint: Equatable {
     let seq: UInt64
     let timeMs: Int64
@@ -240,40 +241,7 @@ struct CollectionPoint: Equatable {
     }
 
     init?(_ response: Wiretuner_Sync_V1_AckResponse) {
-        self.init(unknownFields: [UInt8](response.unknownFields.data))
-    }
-
-    /// The point in `unknownFields`, the encoded fields a message did not know.
-    init?(unknownFields: [UInt8]) {
-        var fields: [UInt64: UInt64] = [:]
-        var bytes = unknownFields[...]
-        while let key = Self.varint(&bytes) {
-            switch key & 7 {
-            case 0:
-                guard let value = Self.varint(&bytes) else { return nil }
-                fields[key >> 3] = value
-            case 1: bytes = bytes.dropFirst(8)
-            case 2:
-                guard let length = Self.varint(&bytes) else { return nil }
-                bytes = bytes.dropFirst(Int(clamping: length))
-            case 5: bytes = bytes.dropFirst(4)
-            default: return nil
-            }
-        }
-        guard let seq = fields[2], seq > 0 else { return nil }
-        self.seq = seq
-        timeMs = Int64(bitPattern: fields[3] ?? 0)
-    }
-
-    static func varint(_ bytes: inout ArraySlice<UInt8>) -> UInt64? {
-        var value: UInt64 = 0
-        var shift: UInt64 = 0
-        while let byte = bytes.popFirst() {
-            guard shift < 64 else { return nil }
-            value |= UInt64(byte & 0x7F) << shift
-            if byte & 0x80 == 0 { return value }
-            shift += 7
-        }
-        return nil
+        guard response.collectSeq > 0 else { return nil }
+        self.init(seq: response.collectSeq, timeMs: response.collectTimeMs)
     }
 }

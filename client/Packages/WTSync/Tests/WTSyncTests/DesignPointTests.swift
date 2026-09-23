@@ -124,4 +124,71 @@ import WTProto
             #expect(seconds < 2)
         }
     }
+
+    /// SYNC-006's budget: measuring the divergence of the design-point document -- a day offline
+    /// (20,000 ops in 2,000 unsent changes) against 5,000 remote ops, 1% of the objects overlapping
+    /// -- takes under 200 ms, reading and decoding both sets from the store included.
+    @Test func theDesignPointDivergenceIsMeasuredInUnderTwoHundredMilliseconds() async throws {
+        let scratch = Scratch()
+        var (state, _) = Self.designPoint()
+        let base = state.store.replicaState(Self.r)!.ackedServerSeq
+        let nodes = UInt64(50_000 / Self.scale)
+        let store = try await LocalStore.open(documentID: "D1", at: scratch.url(), options: options())
+        try await store.close()
+        var rows: [(replica: UInt64, seq: UInt64, serverSeq: UInt64?, change: Wiretuner_Doc_V1_Change)] = []
+        for index in 0..<(2_000 / Self.scale) {
+            let ops = (0..<10).map { op in
+                Fixture.rename(OpID(counter: 1 + UInt64(index * 10 + op) % nodes, replica: Self.r), "mine \(index)")
+            }
+            let change = Fixture.change(42, seq: UInt64(index + 1), start: 20_000_000 + UInt64(index * 10), ops)
+            _ = state.applyLocal(change)
+            rows.append((42, change.seq, nil, change))
+        }
+        for index in 0..<(500 / Self.scale) {
+            let ops = (0..<10).map { op in
+                let node = index % 5 == 0 ? UInt64(index * 10 + op) : nodes / 2 + UInt64(index * 10 + op)
+                return Fixture.note(OpID(counter: 1 + node % nodes, replica: Self.r), "theirs \(index)")
+            }
+            let change = Fixture.change(99, seq: UInt64(index + 1), start: 30_000_000 + UInt64(index * 10), ops)
+            let serverSeq = base + UInt64(index + 1)
+            state.apply(change, serverSeq: serverSeq)
+            rows.append((99, change.seq, serverSeq, change))
+        }
+        let snapshot = Snapshot.encode(state, serverSeq: base + UInt64(500 / Self.scale))
+        let queue = try DatabaseQueue(path: scratch.url().path)
+        let seeded = rows
+        try await queue.write { db in
+            try db.execute(sql: "INSERT OR REPLACE INTO snapshot (id, server_seq, raw_size, data, written_at) VALUES (1, ?, ?, ?, 0)",
+                           arguments: [base + UInt64(500 / Self.scale), snapshot.count, Data(Zstd.compress(snapshot))])
+            for row in seeded {
+                try db.execute(sql: """
+                    INSERT INTO changes (replica, seq, server_seq, local, in_snapshot, label, data) VALUES (?, ?, ?, ?, 1, '', ?)
+                    """, arguments: [row.replica, row.seq, row.serverSeq.map(Int64.init), row.serverSeq == nil, try row.change.serializedData()])
+            }
+            try db.execute(sql: "UPDATE meta SET last_server_seq = ?, next_seq = ? WHERE id = 1",
+                           arguments: [base + UInt64(500 / Self.scale), 2_000 / Self.scale + 1])
+        }
+        try queue.close()
+        let reopened = try await LocalStore.open(documentID: "D1", at: scratch.url(), options: options())
+        let readStart = ContinuousClock.now
+        let (local, remote) = (try await reopened.outbox(), try await reopened.remoteChanges(after: base))
+        let read = ContinuousClock.now - readStart
+        let pure = ContinuousClock.now
+        let cpu = clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID)
+        _ = Divergence.measure(local: local, remote: remote, state: state, gap: .zero)
+        let cpuMs = Double(clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID) - cpu) / 1e6
+        print("Divergence: design point / \(Self.scale): reading \(read), measuring \(ContinuousClock.now - pure) (\(cpuMs) ms on the CPU)")
+        let start = ContinuousClock.now
+        let divergence = try await reopened.divergence(since: base, gap: .seconds(20 * 3600))
+        let review = ReviewModel(divergence, decision: divergence.decision(.standard))
+        let elapsed = ContinuousClock.now - start
+        print("Divergence: design point / \(Self.scale): \(divergence.localOps) local and \(divergence.remoteOps) remote ops, "
+            + "\(divergence.overlapCount) overlapping objects (\(review.mode)); measured in \(elapsed)")
+        #expect(divergence.localOps == 20_000 / Self.scale && divergence.remoteOps == 5_000 / Self.scale)
+        #expect(divergence.overlapCount > 0 && review.mode == .wholeDocument)
+        if Self.enforced {
+            #expect(elapsed < .milliseconds(200))
+        }
+        try await reopened.close()
+    }
 }

@@ -25,6 +25,7 @@ public final class GRPCSyncTransport<Transport: ClientTransport>: SyncTransport 
 
     private let client: GRPCClient<Transport>
     private let service: Wiretuner_Sync_V1_SyncService.Client<Transport>
+    private let blobService: Wiretuner_Blob_V1_BlobService.Client<Transport>
     private let identity: Identity
     private let connections: Task<Void, Never>
 
@@ -33,6 +34,7 @@ public final class GRPCSyncTransport<Transport: ClientTransport>: SyncTransport 
         let client = GRPCClient(transport: transport)
         self.client = client
         service = Wiretuner_Sync_V1_SyncService.Client(wrapping: client)
+        blobService = Wiretuner_Blob_V1_BlobService.Client(wrapping: client)
         self.identity = identity
         connections = Task { try? await client.runConnections() }
     }
@@ -142,6 +144,37 @@ public final class GRPCSyncTransport<Transport: ClientTransport>: SyncTransport 
         let metadata = metadata(token)
         return stream { [service] continuation in
             try await service.fetchSnapshot(request, metadata: metadata) { response in
+                for try await message in response.messages {
+                    continuation.yield(message)
+                }
+            }
+        }
+    }
+}
+
+/// The blob service on the same connection (SYNC-008).
+extension GRPCSyncTransport: BlobTransport {
+    public func stat(_ request: Wiretuner_Blob_V1_StatRequest, token: String) async throws -> Wiretuner_Blob_V1_StatResponse {
+        try await unary { try await blobService.stat(request, metadata: metadata(token)) }
+    }
+
+    public func upload(_ header: Wiretuner_Blob_V1_UploadHeader, chunks: AsyncThrowingStream<Data, any Error>, token: String) async throws
+        -> Wiretuner_Blob_V1_UploadResponse {
+        try await unary {
+            try await blobService.upload(metadata: metadata(token)) { writer in
+                try await writer.write(.with { $0.header = header })
+                for try await chunk in chunks {
+                    try await writer.write(.with { $0.chunk = chunk })
+                }
+            }
+        }
+    }
+
+    public func download(_ request: Wiretuner_Blob_V1_DownloadRequest, token: String)
+        -> AsyncThrowingStream<Wiretuner_Blob_V1_DownloadResponse, any Error> {
+        let metadata = metadata(token)
+        return stream { [blobService] continuation in
+            try await blobService.download(request, metadata: metadata) { response in
                 for try await message in response.messages {
                     continuation.yield(message)
                 }

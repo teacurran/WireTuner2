@@ -132,6 +132,9 @@ actor FakeSyncServer {
         if faults, let rejection = reject.removeValue(forKey: change.seq) {
             throw rejection
         }
+        if retired.contains(change.replica) {
+            throw SyncCallError(code: SyncCallError.failedPrecondition, reason: .replicaExpired, message: "retired")
+        }
         try checkWriter()
         let bytes = try change.serializedData()
         let last = UInt64(accepted[change.replica]?.count ?? 0)
@@ -150,12 +153,18 @@ actor FakeSyncServer {
         let entry = Wiretuner_Sync_V1_SequencedChange.with {
             $0.serverSeq = head + 1
             $0.change = change
+            if let name = authors[change.replica] {
+                $0.author.displayName = name
+            }
         }
         log.append(entry)
         serverSeqOf[change.replica, default: [:]][change.seq] = entry.serverSeq
         broadcast(entry)
         return entry.serverSeq
     }
+
+    /// Display names the server attaches as `SequencedChange.author`, by replica.
+    var authors: [UInt64: String] = [:]
 
     /// Another client's change, accepted and fanned out.
     @discardableResult
@@ -165,6 +174,9 @@ actor FakeSyncServer {
         defer { role = saved }
         return try accept(change, faults: false)
     }
+
+    /// Retires `replica`: its pushes and subscriptions are refused with `REPLICA_EXPIRED`.
+    var retired: Set<UInt64> = []
 
     private func broadcast(_ entry: Wiretuner_Sync_V1_SequencedChange) {
         guard !dropLive.contains(entry.serverSeq) else { return }
@@ -214,6 +226,9 @@ actor FakeSyncServer {
             try check(token)
             if !subscribeFailures.isEmpty {
                 throw subscribeFailures.removeFirst()
+            }
+            if retired.contains(request.replica) {
+                throw SyncCallError(code: SyncCallError.failedPrecondition, reason: .replicaExpired, message: "retired")
             }
         } catch {
             continuation.finish(throwing: error)
@@ -343,10 +358,11 @@ actor FakeSyncServer {
         try check(token)
         if let ackFailure { throw ackFailure }
         acks.append(request.appliedServerSeq)
-        let response = Wiretuner_Sync_V1_AckResponse.with { $0.stableSeq = min(request.appliedServerSeq, head) }
-        guard let collectionPoint else { return response }
-        return try Wiretuner_Sync_V1_AckResponse(serializedBytes: try response.serializedBytes() as [UInt8]
-            + [0x10] + varint(collectionPoint.seq) + [0x18] + varint(UInt64(bitPattern: collectionPoint.timeMs)))
+        return .with {
+            $0.stableSeq = min(request.appliedServerSeq, head)
+            $0.collectSeq = collectionPoint?.seq ?? 0
+            $0.collectTimeMs = collectionPoint?.timeMs ?? 0
+        }
     }
 
     func fetchChanges(_ request: Wiretuner_Sync_V1_FetchChangesRequest, token: String,
@@ -475,15 +491,4 @@ final class FakePresence: PresenceSource {
             $0 = update
         }
     }
-}
-
-/// The protobuf varint of `value`.
-func varint(_ value: UInt64) -> [UInt8] {
-    var value = value
-    var bytes: [UInt8] = []
-    while value >= 0x80 {
-        bytes.append(UInt8(value & 0x7F) | 0x80)
-        value >>= 7
-    }
-    return bytes + [UInt8(value)]
 }
