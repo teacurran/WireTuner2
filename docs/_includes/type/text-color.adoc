@@ -81,7 +81,7 @@ ifdef::spec[]
 
 === Data model
 
-`TextMarkValue.fill` (`ColorRef`) and `TextMarkValue.stroke` (`StrokeProps`) on
+`TextMarkValue.fill` (`ColorRef`) and `TextMarkValue.stroke` (`BasicStroke`) on
 xref:creating-text.adoc[Creating text]; `TextProps.block_appearance` for the block, using the
 ATTR epic's `AppearanceProps` sequence of strokes, fills and effects exactly as on a path.
 `ColorRef` is the COLOR epic's message: a swatch `NodeRef` with `on_dangling =
@@ -90,7 +90,7 @@ toggles rendering of `block_appearance`.
 
 === Merge semantics
 
-Character fill and stroke are marks (expanding at the end).  `stroke` is a `StrokeProps`
+Character fill and stroke are marks (expanding at the end).  `stroke` is a `BasicStroke`
 inside a mark: the whole mark value is one register (a mark is written whole), so two people
 editing the weight and the color of the same glyph stroke concurrently resolve to one mark by
 OpId -- the review sheet shows both.  This is the one place where text formatting is coarser

@@ -12,13 +12,13 @@
 //
 //   Block     Epic    Cases so far
 //   1-19      DOC     1 document, 2 settings, 3 page, 4 master_page
-//   20-49     DRAW    (path, rectangle, ellipse, polygon, ... DRAW-001 onward)
+//   20-49     DRAW    20 path, 21 rect, 22 ellipse, 23 polygon, 24 chart
 //   50-69     OBJ     50 group
-//   70-79     COLOR   (swatch, COLOR-001)
-//   80-99     ATTR    (graphic style, brush, ... ATTR epic)
+//   70-79     COLOR   70 swatch
+//   80-99     ATTR    80 brush
 //   100-129   FX      (blend, path effect, envelope, perspective, extrude, ... FX epic)
-//   130-149   TYPE    (text, text_style, TYPE-001)
-//   150-169   LIB     150 layer; (symbol, symbol instance, LIB epic)
+//   130-149   TYPE    130 text (text styles are `style` nodes of kind PARAGRAPH/CHARACTER)
+//   150-169   LIB     150 layer, 151 symbol, 152 symbol_folder, 153 instance, 154 style
 //   170-189   IMG     (image, placed_file, ... IMG epic)
 //   190-209   WEB     (svg_animation, ... WEB epic)
 //   210-219   COLLAB  (comment_thread, COLLAB-025)
@@ -30,10 +30,18 @@ syntax = "proto3";
 package wiretuner.doc.v1;
 
 import "buf/validate/validate.proto";
+import "wiretuner/doc/v1/chart.proto";
+import "wiretuner/doc/v1/color.proto";
 import "wiretuner/doc/v1/common.proto";
 import "wiretuner/doc/v1/document.proto";
 import "wiretuner/doc/v1/group.proto";
 import "wiretuner/doc/v1/layer.proto";
+import "wiretuner/doc/v1/path.proto";
+import "wiretuner/doc/v1/shape.proto";
+import "wiretuner/doc/v1/stroke.proto";
+import "wiretuner/doc/v1/style.proto";
+import "wiretuner/doc/v1/symbol.proto";
+import "wiretuner/doc/v1/text.proto";
 
 option java_multiple_files = true;
 option java_package = "com.villagecompute.wiretuner.doc.v1";
@@ -112,9 +120,33 @@ message NodeProps {
     PageProps page = 3;
     // A master page under 0:3 (DOC block).
     MasterPageProps master_page = 4;
+    // A vector path (DRAW block, path.proto).
+    PathProps path = 20;
+    // A live rectangle (DRAW block, shape.proto).
+    RectProps rect = 21;
+    // A live ellipse (DRAW block, shape.proto).
+    EllipseProps ellipse = 22;
+    // A live polygon or star (DRAW block, shape.proto).
+    PolygonProps polygon = 23;
+    // A chart regenerated from its data (DRAW block, chart.proto).
+    ChartProps chart = 24;
     // A group of objects (OBJ block).
     GroupProps group = 50;
+    // A color or tint swatch under 0:5 (COLOR block, color.proto).
+    SwatchProps swatch = 70;
+    // A brush under 0:8 (ATTR block, stroke.proto).
+    BrushProps brush = 80;
+    // A text block, text on a path or text in a path (TYPE block, text.proto).
+    TextProps text = 130;
     // A layer under 0:4 (LIB block).
     LayerProps layer = 150;
+    // A symbol under 0:7 or under a symbol folder (LIB block, symbol.proto).
+    SymbolProps symbol = 151;
+    // A folder of symbols under 0:7 (LIB block, symbol.proto).
+    SymbolFolderProps symbol_folder = 152;
+    // An instance of a symbol, on a layer (LIB block, symbol.proto).
+    InstanceProps instance = 153;
+    // A graphic, paragraph or character style under 0:6 (LIB block, style.proto).
+    StyleProps style = 154;
   }
 }

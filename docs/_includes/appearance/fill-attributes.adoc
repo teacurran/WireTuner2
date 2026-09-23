@@ -211,14 +211,14 @@ ifdef::spec[]
 // proto/wiretuner/doc/v1/fill.proto (sketch)
 
 message BasicFill {
-  ColorRef color = 1;                  // ATOMIC; None paints nothing
+  ColorRef color = 1 [(wt.crdt.field).merge = MERGE_ATOMIC];   // None paints nothing
   bool overprint = 2;
 }
 
 message CustomFill {
   CustomFillPattern pattern = 1;
-  ColorRef color = 2;                  // Bricks, Circles, Hatch, Squares, Tiger Teeth
-  ColorRef color2 = 3;                 // Bricks mortar; Tiger Teeth background
+  ColorRef color = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];    // Bricks, Circles, Hatch, Squares, Tiger Teeth
+  ColorRef color2 = 3 [(wt.crdt.field).merge = MERGE_ATOMIC];   // Bricks mortar; Tiger Teeth background
   double width = 4;                    // Bricks width; Hatch line width; Squares outline width
   double height = 5;                   // Bricks
   double radius = 6;                   // Circles
@@ -231,7 +231,7 @@ message CustomFill {
   fixed64 seed = 13;                   // Random Grass / Leaves placement; fixed at creation
   bool overprint = 14;
 }
-enum CustomFillPattern {
+enum CustomFillPattern {   // values carry the CUSTOM_FILL_PATTERN_ prefix in fill.proto
   CUSTOM_FILL_PATTERN_UNSPECIFIED = 0; BLACK_WHITE_NOISE = 1; BRICKS = 2; CIRCLES = 3;
   HATCH = 4; NOISE = 5; RANDOM_GRASS = 6; RANDOM_LEAVES = 7; SQUARES = 8; TIGER_TEETH = 9;
   TOP_NOISE = 10;
@@ -239,7 +239,7 @@ enum CustomFillPattern {
 
 message LensFill {
   LensType type = 1;
-  ColorRef color = 2;                  // Transparency, Monochrome
+  ColorRef color = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];   // Transparency, Monochrome
   double amount = 3;                   // Transparency opacity, Lighten, Darken: 0 .. 100
   double magnification = 4;            // Magnify: 1 .. 20
   bool centerpoint_shown = 5;
@@ -250,21 +250,23 @@ message LensFill {
   // The captured contents as an embedded subtree, in object-local coordinates.  One picture.
   Subtree snapshot_contents = 9 [(wt.crdt.field).merge = MERGE_ATOMIC];
 }
-enum LensType { LENS_TYPE_UNSPECIFIED = 0; TRANSPARENCY = 1; MAGNIFY = 2; INVERT = 3;
+enum LensType { LENS_TYPE_UNSPECIFIED = 0; TRANSPARENCY = 1;   // LENS_TYPE_ prefix in fill.proto
+  MAGNIFY = 2; INVERT = 3;
   LIGHTEN = 4; DARKEN = 5; MONOCHROME = 6; }
 
 message PatternFill {
-  ColorRef color = 1;
+  ColorRef color = 1 [(wt.crdt.field).merge = MERGE_ATOMIC];
   PatternBitmap bitmap = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];  // stroke.proto
   bool overprint = 3;
 }
 
 message TexturedFill {
   Texture texture = 1;
-  ColorRef color = 2;
+  ColorRef color = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];
   bool overprint = 3;
 }
-enum Texture { TEXTURE_UNSPECIFIED = 0; BURLAP = 1; DENIM = 2; GRAVEL = 3; MARBLE = 4;
+enum Texture { TEXTURE_UNSPECIFIED = 0; BURLAP = 1;   // TEXTURE_ prefix in fill.proto
+  DENIM = 2; GRAVEL = 3; MARBLE = 4;
   MESH = 5; OAK = 6; SAND = 7; STUCCO = 8; }
 
 message TiledFill {
@@ -285,11 +287,14 @@ message TiledFill {
 // `parent` indexes into `nodes` (0-based) or is -1 for a root.  Bounded so a change stays
 // within the 4 MiB limit.
 message Subtree {
-  repeated SubtreeNode nodes = 1 [(buf.validate.field).repeated.max_items = 20000];
+  repeated SubtreeNode nodes = 1 [(wt.crdt.field).merge = MERGE_ATOMIC,
+                                  (buf.validate.field).repeated.max_items = 20000];
 }
 message SubtreeNode {
   int32 parent = 1;
-  NodeProps props = 2;
+  // An encoded NodeProps.  Bytes, not the message: NodeProps imports every kind, including the
+  // appearance stack that imports fill.proto, and protobuf forbids import cycles.
+  bytes props = 2 [(buf.validate.field).bytes.max_len = 2097152];
 }
 ----
 
@@ -381,7 +386,7 @@ Undo:: Paste In, Copy Out (no change), Snapshot and every option edit are single
 Track:: proto
 Depends on:: ATTR-001, ATTR-005
 Size:: M
-Delivers:: `fill.proto`: `BasicFill`, `CustomFill`, `LensFill`, `PatternFill`, `TexturedFill`, `TiledFill`, `Subtree`, `SubtreeNode` and enums with validation rules.
+Delivers:: `fill.proto`: `BasicFill`, `CustomFill`, `LensFill`, `PatternFill`, `TexturedFill`, `TiledFill`, `Subtree`, `SubtreeNode` and enums with validation rules (implemented in `fill.proto`).
 Done when::
 * `buf lint` passes with every field commented; `Subtree` size limits enforced by protovalidate.
 * Conformance vectors: concurrent option edits on one custom fill; concurrent tile pastes; lens type change vs. concurrent objects-only toggle; snapshot vs. concurrent snapshot.

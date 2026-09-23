@@ -1,9 +1,9 @@
 /// proto/wiretuner/doc/v1/layer.proto
 ///
-/// The layer node kind (docs/_includes/library/layers.adoc).  PROTO-003 creates the message
-/// with only `common` so NodeProps can name it; LIB-001 fills in `LayerRole` and the layer
-/// flags here, in this file, because the FILE breaking rules pin a message to the file it
-/// first appeared in.
+/// The layer node kind (docs/_includes/library/layers.adoc, LIB-001).  PROTO-003 created the
+/// message with only `common` so NodeProps could name it; LIB-001 filled in `LayerRole` and the
+/// layer flags here, in this file, because the FILE breaking rules pin a message to the file it
+/// first appeared in.  `CommonProps.origin_layer` (Remember layer info) is in common.proto.
 
 // DO NOT EDIT.
 // swift-format-ignore-file

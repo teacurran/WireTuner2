@@ -1,0 +1,212 @@
+// proto/wiretuner/doc/v1/chart.proto
+//
+// The `chart` node kind (docs/_includes/drawing/charts.adoc, DRAW-031).  Charts regenerate on
+// read: everything visible is derived by WTModel from ChartProps, and a chart's only real
+// children are pictograph sources.  Styling is a sequence of overrides keyed by (series, index),
+// which is stable while the row or column an element belongs to exists.
+syntax = "proto3";
+
+package wiretuner.doc.v1;
+
+import "buf/validate/validate.proto";
+import "wiretuner/doc/v1/appearance.proto";
+import "wiretuner/doc/v1/common.proto";
+import "wt/crdt/options.proto";
+
+option java_multiple_files = true;
+option java_package = "com.villagecompute.wiretuner.doc.v1";
+option optimize_for = SPEED;
+
+// NodeProps.kind case `chart`: a data table and the options that draw it.
+message ChartProps {
+  // Transform places the chart; name, notes and the other shared registers.
+  CommonProps common = 1;
+  // The plot area, local units.  ATOMIC.  Non-positive renders nothing.
+  Size size = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // The data table's columns: identity and order for cells across rows.  SEQUENCE.
+  repeated ChartColumn columns = 3 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  // The data table's rows.  SEQUENCE.
+  repeated ChartRow rows = 4 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  // Transpose: a view flag; never rewrites cells.
+  bool transposed = 5;
+  // Scatter only: swap the x and y columns.
+  bool switch_xy = 6;
+  // Decimal places shown for data numbers, 0 .. 10.
+  uint32 decimal_precision = 7 [(buf.validate.field).uint32.lte = 10];
+  // Group thousands with a separator.
+  bool thousands_separator = 8;
+  // The chart type.
+  ChartType type = 9;
+  // Type options.  STRUCT.
+  ChartOptions options = 10;
+  // X-axis options.  STRUCT.
+  AxisOptions x_axis = 11;
+  // Y-axis options.  STRUCT.
+  AxisOptions y_axis = 12;
+  // Styling and pictographs per series or element.  SEQUENCE so concurrent overrides of
+  // different elements never collide; duplicates per (series, index) resolve to the greatest
+  // element id on read.
+  repeated ChartOverride overrides = 13 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+}
+
+// A data column: identity and order only.  Element of ChartProps.columns.
+message ChartColumn {
+  // Element id (MERGE_SEQUENCE); cells name their column by it.
+  ElementId id = 1;
+}
+
+// A data row.  Element of ChartProps.rows.
+message ChartRow {
+  // Element id (MERGE_SEQUENCE).
+  ElementId id = 1;
+  // One cell per column, keyed by column id.  SEQUENCE for identity; order is irrelevant (the
+  // column sequence orders them on read).  A missing cell is empty (0); several live cells for
+  // one column resolve to the greatest cell element id.
+  repeated ChartCell cells = 2 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+}
+
+// One cell of a row.  Element of ChartRow.cells.
+message ChartCell {
+  // Element id (MERGE_SEQUENCE).
+  ElementId id = 1;
+  // Which column (a ChartColumn element id).  ATOMIC: counter and replica are one id.
+  ElementId column = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // The cell as typed: "12.5", "Q1", "\"2024\"".  Non-numeric text in a numeric position reads
+  // as 0; quoted text is a label wherever it sits.
+  string text = 3 [(buf.validate.field).string.max_len = 1024];
+}
+
+// The six chart types.
+enum ChartType {
+  // Reads as GROUPED_COLUMN.
+  CHART_TYPE_UNSPECIFIED = 0;
+  // Side-by-side columns per category.
+  CHART_TYPE_GROUPED_COLUMN = 1;
+  // Stacked columns per category.
+  CHART_TYPE_STACKED_COLUMN = 2;
+  // Lines through the values.
+  CHART_TYPE_LINE = 3;
+  // One pie per row.
+  CHART_TYPE_PIE = 4;
+  // Stacked filled areas.
+  CHART_TYPE_AREA = 5;
+  // Points at (x, y) pairs.
+  CHART_TYPE_SCATTER = 6;
+}
+
+// Data point markers for line and scatter charts.
+enum ChartMarker {
+  // Reads as SQUARE.
+  CHART_MARKER_UNSPECIFIED = 0;
+  // No markers.
+  CHART_MARKER_NONE = 1;
+  // Squares.
+  CHART_MARKER_SQUARE = 2;
+  // Diamonds.
+  CHART_MARKER_DIAMOND = 3;
+  // Triangles.
+  CHART_MARKER_TRIANGLE = 4;
+  // Circles.
+  CHART_MARKER_CIRCLE = 5;
+}
+
+// Which side the value axis is drawn on.
+enum ChartAxisDisplay {
+  // Reads as LEFT.
+  CHART_AXIS_DISPLAY_UNSPECIFIED = 0;
+  // Left side.
+  CHART_AXIS_DISPLAY_LEFT = 1;
+  // Right side.
+  CHART_AXIS_DISPLAY_RIGHT = 2;
+  // Both sides.
+  CHART_AXIS_DISPLAY_BOTH = 3;
+}
+
+// How axis tick marks are drawn.
+enum ChartTickStyle {
+  // Reads as NONE.
+  CHART_TICK_STYLE_UNSPECIFIED = 0;
+  // No ticks.
+  CHART_TICK_STYLE_NONE = 1;
+  // Across the plot area (gridlines).
+  CHART_TICK_STYLE_ACROSS = 2;
+  // Short ticks inside the plot area.
+  CHART_TICK_STYLE_INSIDE = 3;
+  // Short ticks outside the plot area.
+  CHART_TICK_STYLE_OUTSIDE = 4;
+}
+
+// Chart type options.  STRUCT: every field independent.
+message ChartOptions {
+  // Column width in percent; 0 reads as 80.
+  double column_width = 1 [(buf.validate.field).double = {
+    gte: 0
+    lte: 1000
+  }];
+  // Cluster width in percent; 0 reads as 80.
+  double cluster_width = 2 [(buf.validate.field).double = {
+    gte: 0
+    lte: 1000
+  }];
+  // Pie wedge separation, 0 .. 50.
+  double pie_separation = 3 [(buf.validate.field).double = {
+    gte: 0
+    lte: 50
+  }];
+  // Line and scatter markers.
+  ChartMarker markers = 4;
+  // Draw the values as data numbers.
+  bool data_numbers = 5;
+  // Draw a drop shadow.
+  bool drop_shadow = 6;
+  // Put the legend across the top.
+  bool legends_across_top = 7;
+  // Value axis side; unset reads as LEFT.
+  ChartAxisDisplay axis_display = 8;
+  // Vertical gridlines.
+  bool gridlines_x = 9;
+  // Horizontal gridlines.
+  bool gridlines_y = 10;
+}
+
+// One axis's options.  STRUCT: every field independent.
+message AxisOptions {
+  // False = calculate the range from the data.
+  bool manual = 1;
+  // Manual minimum.
+  double minimum = 2;
+  // Manual maximum.
+  double maximum = 3;
+  // Manual step between labels.
+  double between = 4;
+  // Major tick style.
+  ChartTickStyle major = 5;
+  // Minor tick style.
+  ChartTickStyle minor = 6;
+  // Minor ticks between major ticks.
+  uint32 minor_count = 7 [(buf.validate.field).uint32.lte = 100];
+  // Label prefix.
+  string prefix = 8 [(buf.validate.field).string.max_len = 16];
+  // Label suffix.
+  string suffix = 9 [(buf.validate.field).string.max_len = 16];
+}
+
+// Styling or a pictograph for one series (index unset) or one element of it.  Element of
+// ChartProps.overrides.  An override whose series or index dangles is ignored on read.
+message ChartOverride {
+  // Element id (MERGE_SEQUENCE).
+  ElementId id = 1;
+  // A column id, or a row id for pies and stacked charts.  ATOMIC.
+  ElementId series = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // A row id (or column id); unset = the whole series.  ATOMIC.
+  ElementId index = 3 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Strokes, fills and effects; unset = the chart default.
+  AppearanceProps appearance = 4;
+  // Extra transform of the element.  ATOMIC.
+  Transform transform = 5 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Pictograph: a child node of the chart (a group) drawn in place of the column.  Dangling
+  // reads as no pictograph.
+  NodeRef pictograph = 6 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
+  // Repeat the pictograph rather than stretch it.
+  bool repeating = 7;
+}

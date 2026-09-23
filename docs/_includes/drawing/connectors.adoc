@@ -66,7 +66,7 @@ message ConnectorProps {
   // with one person's node and another's side would attach to a side nobody chose.
   ConnectorEnd start = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];
   ConnectorEnd end = 3 [(wt.crdt.field).merge = MERGE_ATOMIC];
-  Appearance appearance = 4;                  // strokes only; fills ignored
+  AppearanceProps appearance = 4;                  // strokes only; fills ignored
   // Manual reshape: sideways offset of each intermediate straight run of the routed line, in
   // pasteboard units, in route order.  ATOMIC: the list only makes sense as a whole for one
   // route shape.  Read as automatic when its length differs from the current route's run

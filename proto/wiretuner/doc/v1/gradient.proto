@@ -1,0 +1,92 @@
+// proto/wiretuner/doc/v1/gradient.proto
+//
+// The gradient fill kind (docs/_includes/appearance/gradients.adoc, ATTR-023).  The ramp order
+// is by stop `offset` at read time, not by sequence position.
+syntax = "proto3";
+
+package wiretuner.doc.v1;
+
+import "buf/validate/validate.proto";
+import "wiretuner/doc/v1/common.proto";
+import "wt/crdt/options.proto";
+
+option java_multiple_files = true;
+option java_package = "com.villagecompute.wiretuner.doc.v1";
+option optimize_for = SPEED;
+
+// The gradient's geometry.
+enum GradientType {
+  // Reads as LINEAR.
+  GRADIENT_TYPE_UNSPECIFIED = 0;
+  // Along a line.
+  GRADIENT_TYPE_LINEAR = 1;
+  // Along a line on a logarithmic ramp.
+  GRADIENT_TYPE_LOGARITHMIC = 2;
+  // Elliptical, around a center.
+  GRADIENT_TYPE_RADIAL = 3;
+  // Rectangular, around a center.
+  GRADIENT_TYPE_RECTANGLE = 4;
+  // Following the object's contour.
+  GRADIENT_TYPE_CONTOUR = 5;
+  // Sweeping around a center.
+  GRADIENT_TYPE_CONE = 6;
+}
+
+// What the ramp does beyond its axis.
+enum GradientBehavior {
+  // Reads as NORMAL.
+  GRADIENT_BEHAVIOR_UNSPECIFIED = 0;
+  // End colors extend.
+  GRADIENT_BEHAVIOR_NORMAL = 1;
+  // The ramp repeats `repeat_count` times.
+  GRADIENT_BEHAVIOR_REPEAT = 2;
+  // The ramp repeats mirrored `repeat_count` times.
+  GRADIENT_BEHAVIOR_REFLECT = 3;
+  // The axis is computed from the object's bounds; `axis` is ignored.
+  GRADIENT_BEHAVIOR_AUTO_SIZE = 4;
+}
+
+// A gradient fill.  STRUCT: type, behavior and count are independent registers; the axis is
+// ATOMIC; the stops are a SEQUENCE.
+message GradientFill {
+  // The geometry.
+  GradientType type = 1;
+  // Unset reads NORMAL.
+  GradientBehavior behavior = 2;
+  // REPEAT, REFLECT: 1 .. 100; 0 reads 1; ignored for NORMAL and AUTO_SIZE.
+  uint32 repeat_count = 3 [(buf.validate.field).uint32.lte = 100];
+  // The handles, object-local.  ATOMIC: a start from one user and an end from another is a
+  // shape nobody drew.  Unset reads as AUTO_SIZE geometry regardless of `behavior`.
+  GradientAxis axis = 4 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Color stops.  SEQUENCE: add, move (an `offset` write), recolor and remove of different
+  // stops all merge.  Fewer than two live stops: one stop reads as that color at both ends; none
+  // reads as a Basic fill of the object's default fill color.
+  repeated GradientStop stops = 5 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  // Print-time overprint.
+  bool overprint = 6;
+}
+
+// A gradient's handles in object-local coordinates.  ATOMIC wherever used.
+message GradientAxis {
+  // First color / center.
+  Point start = 1 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // LINEAR, LOGARITHMIC, CONTOUR: end; RADIAL, RECTANGLE: first axis end; CONE: angle point.
+  // Equal to `start` reads as a 1 pt axis.
+  Point end = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // RADIAL, RECTANGLE: second axis end.  Unset reads as `start` plus `end - start` rotated
+  // 90 degrees (a circle or square).
+  Point end2 = 3 [(wt.crdt.field).merge = MERGE_ATOMIC];
+}
+
+// One color stop.  Element of GradientFill.stops; `offset` and `color` are separate registers.
+message GradientStop {
+  // Element id (MERGE_SEQUENCE).
+  ElementId id = 1;
+  // Position along the ramp, 0 .. 1; out-of-range values clamp on read.
+  double offset = 2 [(buf.validate.field).double = {
+    gte: 0
+    lte: 1
+  }];
+  // Swatch reference or inline color.  ATOMIC.
+  ColorRef color = 3 [(wt.crdt.field).merge = MERGE_ATOMIC];
+}

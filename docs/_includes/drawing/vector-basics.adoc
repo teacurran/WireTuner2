@@ -156,7 +156,9 @@ chapters, build on `PathProps` as defined here.
 
 === Data model
 
-`doc/v1/path.proto`.  Coordinates are pasteboard points (y down).  A path's own
+`doc/v1/path.proto` (`PathProps`) and `doc/v1/contour.proto` (`Contour`, `PathPoint`, `PointKind`,
+which strokes reuse for arrowheads and nibs, so they cannot share path.proto without an import
+cycle).  Coordinates are pasteboard points (y down).  A path's own
 `CommonProps.transform` applies on top of the point coordinates, so moving or rotating a whole
 path writes one register and never touches the points.
 
@@ -169,7 +171,7 @@ message PathProps {
   // (Combine, Split, Join) and each contour's fields merge as STRUCT.
   repeated Contour contours = 2 [(wt.crdt.field).merge = MERGE_SEQUENCE];
   // Strokes, fills and effects: the attribute stack (see attribute-stack).
-  Appearance appearance = 3;
+  AppearanceProps appearance = 3;
   bool even_odd = 4;                          // Object panel "Even/odd fill"; false = winding
   double flatness = 5 [(buf.validate.field).double.gte = 0];   // 0 = device default
   // Whether an open contour paints its fill.  Copied from the "Show fill for new open paths"
@@ -189,20 +191,21 @@ message Contour {
   // The point at which an open contour begins, as a cyclic rotation of the stored order.
   // Unset = the first stored point.  Lets "open a closed path at segment k" be one register
   // write instead of a reorder.  Ignored while closed.
-  ElementId start = 5;
+  ElementId start = 5 [(wt.crdt.field).merge = MERGE_ATOMIC];
 }
 
 // One anchor point with its two control handles.
 message PathPoint {
   ElementId id = 1;
-  // Point is ATOMIC (common.proto): x and y only make sense together.
-  Point anchor = 2;
+  // ATOMIC: x and y only make sense together.  Every Point use is annotated; a message field
+  // defaults to STRUCT.
+  Point anchor = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];
   // Handles are OFFSETS from the anchor, not absolute positions, so that moving the anchor
   // (one register) carries the handles along and a concurrent handle drag still merges.
   // Unset = retracted (the handle sits on the anchor).  in_handle shapes the segment arriving
   // at this point in stored order; out_handle shapes the segment leaving it.
-  Point in_handle = 3;
-  Point out_handle = 4;
+  Point in_handle = 3 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  Point out_handle = 4 [(wt.crdt.field).merge = MERGE_ATOMIC];
   PointKind kind = 5;                         // corner, curve, connector
   // Object panel "Automatic": handles are recomputed from the neighbors on read and on edit.
   bool automatic = 6;
@@ -223,8 +226,8 @@ writes both registers and can merge with a concurrent drag of the other handle i
 non-collinear pair; that case is handled on read (below) rather than by making every handle
 edit all-or-nothing.
 
-`Point`, `CommonProps`, `ElementId` come from `common.proto` (PROTO-003); `Appearance` from the
-Strokes and fills chapter.  The Line tool produces a `PathProps` with two corner points; the
+`Point`, `CommonProps`, `ElementId` come from `common.proto` (PROTO-003); `AppearanceProps` from
+the Strokes and fills chapter (`appearance.proto`).  The Line tool produces a `PathProps` with two corner points; the
 Spiral and Arc tools produce ordinary paths; rectangles, ellipses and polygons are their own
 node kinds that read as paths (xref:rectangles-ellipses-lines.adoc[Rectangles, ellipses and
 lines], xref:polygons-stars.adoc[Polygons and stars]).
@@ -370,7 +373,7 @@ group.
 Track:: proto
 Depends on:: PROTO-003, PROTO-005
 Size:: S
-Delivers:: `doc/v1/path.proto` with `PathProps`, `Contour`, `PathPoint`, `PointKind` exactly as in the Data model, registered in `NodeProps.kind` as `path`, with protovalidate rules (`flatness >= 0`, at most 32,000 points per insert) and every field commented.
+Delivers:: `doc/v1/path.proto` with `PathProps`, `Contour`, `PathPoint`, `PointKind` exactly as in the Data model, registered in `NodeProps.kind` as `path`, with protovalidate rules (`flatness >= 0`, at most 32,000 points per insert) and every field commented (implemented in `path.proto` and `contour.proto`).
 Done when::
 * `buf lint` and `buf breaking` pass; the wtcrdt merge table lists `contours` and `points` as SEQUENCE and `anchor`, `in_handle`, `out_handle` as ATOMIC.
 * Conformance vector: a path with two contours, one reversed with a `start`, round-trips both engines with identical `state_hash`.

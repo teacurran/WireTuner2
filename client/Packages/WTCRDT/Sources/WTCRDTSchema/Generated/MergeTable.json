@@ -1,5 +1,1575 @@
 {
   "messages": {
+    "wiretuner.doc.v1.AdjustColumns": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "balance",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "modify_leading",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "threshold_percent",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "copyfit_min_percent",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "copyfit_max_percent",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "6": {
+          "element_message": null,
+          "local_only": false,
+          "name": "first_line_leading",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Leading"
+        }
+      }
+    },
+    "wiretuner.doc.v1.Anchor": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "char",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ElementId"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "before",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.AppearanceProps": {
+      "fields": {
+        "1": {
+          "element_message": "wiretuner.doc.v1.Fill",
+          "local_only": false,
+          "name": "fills",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "SEQUENCE",
+          "repeated": true,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Fill"
+        },
+        "2": {
+          "element_message": "wiretuner.doc.v1.Stroke",
+          "local_only": false,
+          "name": "strokes",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "SEQUENCE",
+          "repeated": true,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Stroke"
+        },
+        "3": {
+          "element_message": "wiretuner.doc.v1.Effect",
+          "local_only": false,
+          "name": "effects",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "SEQUENCE",
+          "repeated": true,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Effect"
+        }
+      }
+    },
+    "wiretuner.doc.v1.Arrowhead": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "name",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "contours",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": true,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Contour"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "filled",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "path_trim",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.Axis": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "tag",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "value",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.AxisOptions": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "manual",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "minimum",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "maximum",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "between",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "major",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.ChartTickStyle"
+        },
+        "6": {
+          "element_message": null,
+          "local_only": false,
+          "name": "minor",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.ChartTickStyle"
+        },
+        "7": {
+          "element_message": null,
+          "local_only": false,
+          "name": "minor_count",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "uint32",
+          "type_name": null
+        },
+        "8": {
+          "element_message": null,
+          "local_only": false,
+          "name": "prefix",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "9": {
+          "element_message": null,
+          "local_only": false,
+          "name": "suffix",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.BasicFill": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "color",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ColorRef"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "overprint",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.BasicStroke": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "color",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ColorRef"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "width",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "cap",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.LineCap"
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "join",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.LineJoin"
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "miter_limit",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "6": {
+          "element_message": null,
+          "local_only": false,
+          "name": "dash",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.DashPattern"
+        },
+        "7": {
+          "element_message": null,
+          "local_only": false,
+          "name": "start_arrowhead",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Arrowhead"
+        },
+        "8": {
+          "element_message": null,
+          "local_only": false,
+          "name": "end_arrowhead",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Arrowhead"
+        },
+        "9": {
+          "element_message": null,
+          "local_only": false,
+          "name": "overprint",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.BrushProps": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "common",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.CommonProps"
+        },
+        "10": {
+          "element_message": null,
+          "local_only": false,
+          "name": "scaling",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.BrushVariation"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "mode",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.BrushMode"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "count",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "uint32",
+          "type_name": null
+        },
+        "4": {
+          "element_message": "wiretuner.doc.v1.BrushSymbol",
+          "local_only": false,
+          "name": "symbols",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "SEQUENCE",
+          "repeated": true,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.BrushSymbol"
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "orient_on_path",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "6": {
+          "element_message": null,
+          "local_only": false,
+          "name": "fold_corners",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "7": {
+          "element_message": null,
+          "local_only": false,
+          "name": "spacing",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.BrushVariation"
+        },
+        "8": {
+          "element_message": null,
+          "local_only": false,
+          "name": "angle",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.BrushVariation"
+        },
+        "9": {
+          "element_message": null,
+          "local_only": false,
+          "name": "offset",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.BrushVariation"
+        }
+      }
+    },
+    "wiretuner.doc.v1.BrushStroke": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "brush",
+          "on_dangling": "CACHED",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.NodeRef"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "width_percent",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "color",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ColorRef"
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "seed",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "fixed64",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.BrushSymbol": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "id",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ElementId"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "symbol",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.NodeRef"
+        }
+      }
+    },
+    "wiretuner.doc.v1.BrushVariation": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "mode",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.VariationMode"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "value",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "min",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "max",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.CalligraphicStroke": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "color",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ColorRef"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "width",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "height",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "angle",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "nib",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": true,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Contour"
+        }
+      }
+    },
+    "wiretuner.doc.v1.CharacterSettings": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "font_family",
+          "on_dangling": "UNSET",
+          "oneof": "_font_family",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "10": {
+          "element_message": null,
+          "local_only": false,
+          "name": "effect",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.TextEffect"
+        },
+        "11": {
+          "element_message": null,
+          "local_only": false,
+          "name": "case",
+          "on_dangling": "UNSET",
+          "oneof": "_case",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.CaseStyle"
+        },
+        "12": {
+          "element_message": null,
+          "local_only": false,
+          "name": "language",
+          "on_dangling": "UNSET",
+          "oneof": "_language",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "13": {
+          "element_message": null,
+          "local_only": false,
+          "name": "overprint",
+          "on_dangling": "UNSET",
+          "oneof": "_overprint",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "14": {
+          "element_message": null,
+          "local_only": false,
+          "name": "axes",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.FontVariation"
+        },
+        "15": {
+          "element_message": null,
+          "local_only": false,
+          "name": "features",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.FeatureSettings"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "font_style",
+          "on_dangling": "UNSET",
+          "oneof": "_font_style",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "size",
+          "on_dangling": "UNSET",
+          "oneof": "_size",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "leading",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Leading"
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "range_kerning",
+          "on_dangling": "UNSET",
+          "oneof": "_range_kerning",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "6": {
+          "element_message": null,
+          "local_only": false,
+          "name": "baseline_shift",
+          "on_dangling": "UNSET",
+          "oneof": "_baseline_shift",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "7": {
+          "element_message": null,
+          "local_only": false,
+          "name": "horizontal_scale",
+          "on_dangling": "UNSET",
+          "oneof": "_horizontal_scale",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "8": {
+          "element_message": null,
+          "local_only": false,
+          "name": "fill",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ColorRef"
+        },
+        "9": {
+          "element_message": null,
+          "local_only": false,
+          "name": "stroke",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.BasicStroke"
+        }
+      }
+    },
+    "wiretuner.doc.v1.ChartCell": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "id",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ElementId"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "column",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ElementId"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "text",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.ChartColumn": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "id",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ElementId"
+        }
+      }
+    },
+    "wiretuner.doc.v1.ChartOptions": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "column_width",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "10": {
+          "element_message": null,
+          "local_only": false,
+          "name": "gridlines_y",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "cluster_width",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "pie_separation",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "markers",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.ChartMarker"
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "data_numbers",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "6": {
+          "element_message": null,
+          "local_only": false,
+          "name": "drop_shadow",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "7": {
+          "element_message": null,
+          "local_only": false,
+          "name": "legends_across_top",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "8": {
+          "element_message": null,
+          "local_only": false,
+          "name": "axis_display",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.ChartAxisDisplay"
+        },
+        "9": {
+          "element_message": null,
+          "local_only": false,
+          "name": "gridlines_x",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.ChartOverride": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "id",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ElementId"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "series",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ElementId"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "index",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ElementId"
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "appearance",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.AppearanceProps"
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "transform",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Transform"
+        },
+        "6": {
+          "element_message": null,
+          "local_only": false,
+          "name": "pictograph",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.NodeRef"
+        },
+        "7": {
+          "element_message": null,
+          "local_only": false,
+          "name": "repeating",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.ChartProps": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "common",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.CommonProps"
+        },
+        "10": {
+          "element_message": null,
+          "local_only": false,
+          "name": "options",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ChartOptions"
+        },
+        "11": {
+          "element_message": null,
+          "local_only": false,
+          "name": "x_axis",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.AxisOptions"
+        },
+        "12": {
+          "element_message": null,
+          "local_only": false,
+          "name": "y_axis",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.AxisOptions"
+        },
+        "13": {
+          "element_message": "wiretuner.doc.v1.ChartOverride",
+          "local_only": false,
+          "name": "overrides",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "SEQUENCE",
+          "repeated": true,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ChartOverride"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "size",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Size"
+        },
+        "3": {
+          "element_message": "wiretuner.doc.v1.ChartColumn",
+          "local_only": false,
+          "name": "columns",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "SEQUENCE",
+          "repeated": true,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ChartColumn"
+        },
+        "4": {
+          "element_message": "wiretuner.doc.v1.ChartRow",
+          "local_only": false,
+          "name": "rows",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "SEQUENCE",
+          "repeated": true,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ChartRow"
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "transposed",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "6": {
+          "element_message": null,
+          "local_only": false,
+          "name": "switch_xy",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "7": {
+          "element_message": null,
+          "local_only": false,
+          "name": "decimal_precision",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "uint32",
+          "type_name": null
+        },
+        "8": {
+          "element_message": null,
+          "local_only": false,
+          "name": "thousands_separator",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "9": {
+          "element_message": null,
+          "local_only": false,
+          "name": "type",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.ChartType"
+        }
+      }
+    },
+    "wiretuner.doc.v1.ChartRow": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "id",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ElementId"
+        },
+        "2": {
+          "element_message": "wiretuner.doc.v1.ChartCell",
+          "local_only": false,
+          "name": "cells",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "SEQUENCE",
+          "repeated": true,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ChartCell"
+        }
+      }
+    },
+    "wiretuner.doc.v1.Cmyk": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "c",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "m",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "y",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "k",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.Color": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "cmyk",
+          "on_dangling": "UNSET",
+          "oneof": "components",
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Cmyk"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "rgb",
+          "on_dangling": "UNSET",
+          "oneof": "components",
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Rgb"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "lab",
+          "on_dangling": "UNSET",
+          "oneof": "components",
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Lab"
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "space",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.ColorSpace"
+        }
+      }
+    },
+    "wiretuner.doc.v1.ColorRef": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "none",
+          "on_dangling": "UNSET",
+          "oneof": "ref",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "swatch",
+          "on_dangling": "CACHED",
+          "oneof": "ref",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.NodeRef"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "inline",
+          "on_dangling": "UNSET",
+          "oneof": "ref",
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Color"
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "tint",
+          "on_dangling": "UNSET",
+          "oneof": "ref",
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.InlineTint"
+        }
+      }
+    },
+    "wiretuner.doc.v1.ColumnsRows": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "columns",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "uint32",
+          "type_name": null
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "column_height",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "column_spacing",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "column_rules",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.RuleExtent"
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "rows",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "uint32",
+          "type_name": null
+        },
+        "6": {
+          "element_message": null,
+          "local_only": false,
+          "name": "row_width",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "7": {
+          "element_message": null,
+          "local_only": false,
+          "name": "row_spacing",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "8": {
+          "element_message": null,
+          "local_only": false,
+          "name": "row_rules",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.RuleExtent"
+        },
+        "9": {
+          "element_message": null,
+          "local_only": false,
+          "name": "flow",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.FlowOrder"
+        }
+      }
+    },
     "wiretuner.doc.v1.CommonProps": {
       "fields": {
         "1": {
@@ -158,6 +1728,441 @@
         }
       }
     },
+    "wiretuner.doc.v1.Contour": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "id",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ElementId"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "closed",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "3": {
+          "element_message": "wiretuner.doc.v1.PathPoint",
+          "local_only": false,
+          "name": "points",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "SEQUENCE",
+          "repeated": true,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.PathPoint"
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "reversed",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "start",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ElementId"
+        }
+      }
+    },
+    "wiretuner.doc.v1.CornerRadii": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "uniform",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "top_left",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "top_right",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "bottom_right",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "bottom_left",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.CustomFill": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "pattern",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.CustomFillPattern"
+        },
+        "10": {
+          "element_message": null,
+          "local_only": false,
+          "name": "angle2",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "11": {
+          "element_message": null,
+          "local_only": false,
+          "name": "whiteness",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "12": {
+          "element_message": null,
+          "local_only": false,
+          "name": "count",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "uint32",
+          "type_name": null
+        },
+        "13": {
+          "element_message": null,
+          "local_only": false,
+          "name": "seed",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "fixed64",
+          "type_name": null
+        },
+        "14": {
+          "element_message": null,
+          "local_only": false,
+          "name": "overprint",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "color",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ColorRef"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "color2",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ColorRef"
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "width",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "height",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "6": {
+          "element_message": null,
+          "local_only": false,
+          "name": "radius",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "7": {
+          "element_message": null,
+          "local_only": false,
+          "name": "side",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "8": {
+          "element_message": null,
+          "local_only": false,
+          "name": "spacing",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "9": {
+          "element_message": null,
+          "local_only": false,
+          "name": "angle",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.CustomPageSize": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "id",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ElementId"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "name",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "size",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Size"
+        }
+      }
+    },
+    "wiretuner.doc.v1.CustomStroke": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "pattern",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.CustomStrokePattern"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "color",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ColorRef"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "width",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "length",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "spacing",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.CustomUnit": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "id",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ElementId"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "name",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "definition",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.UnitDefinition"
+        }
+      }
+    },
+    "wiretuner.doc.v1.DashPattern": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "name",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "lengths",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": true,
+          "type": "double",
+          "type_name": null
+        }
+      }
+    },
     "wiretuner.doc.v1.DataBinding": {
       "fields": {
         "1": {
@@ -184,6 +2189,43 @@
         }
       }
     },
+    "wiretuner.doc.v1.Defaults": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "appearance",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.AppearanceProps"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "style",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.NodeRef"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "text",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.TextStyleAttrs"
+        }
+      }
+    },
     "wiretuner.doc.v1.DocumentProps": {
       "fields": {
         "1": {
@@ -196,6 +2238,32 @@
           "repeated": false,
           "type": "message",
           "type_name": "wiretuner.doc.v1.CommonProps"
+        }
+      }
+    },
+    "wiretuner.doc.v1.Effect": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "id",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ElementId"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "hidden",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
         }
       }
     },
@@ -225,6 +2293,728 @@
         }
       }
     },
+    "wiretuner.doc.v1.EllipseProps": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "common",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.CommonProps"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "size",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Size"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "appearance",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.AppearanceProps"
+        }
+      }
+    },
+    "wiretuner.doc.v1.FeatureSetting": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "tag",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "state",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.FeatureState"
+        }
+      }
+    },
+    "wiretuner.doc.v1.FeatureSettings": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "liga",
+          "on_dangling": "UNSET",
+          "oneof": "_liga",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.FeatureState"
+        },
+        "10": {
+          "element_message": null,
+          "local_only": false,
+          "name": "swsh",
+          "on_dangling": "UNSET",
+          "oneof": "_swsh",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.FeatureState"
+        },
+        "11": {
+          "element_message": null,
+          "local_only": false,
+          "name": "calt",
+          "on_dangling": "UNSET",
+          "oneof": "_calt",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.FeatureState"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "dlig",
+          "on_dangling": "UNSET",
+          "oneof": "_dlig",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.FeatureState"
+        },
+        "21": {
+          "element_message": null,
+          "local_only": false,
+          "name": "ss01",
+          "on_dangling": "UNSET",
+          "oneof": "_ss01",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.FeatureState"
+        },
+        "22": {
+          "element_message": null,
+          "local_only": false,
+          "name": "ss02",
+          "on_dangling": "UNSET",
+          "oneof": "_ss02",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.FeatureState"
+        },
+        "23": {
+          "element_message": null,
+          "local_only": false,
+          "name": "ss03",
+          "on_dangling": "UNSET",
+          "oneof": "_ss03",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.FeatureState"
+        },
+        "24": {
+          "element_message": null,
+          "local_only": false,
+          "name": "ss04",
+          "on_dangling": "UNSET",
+          "oneof": "_ss04",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.FeatureState"
+        },
+        "25": {
+          "element_message": null,
+          "local_only": false,
+          "name": "ss05",
+          "on_dangling": "UNSET",
+          "oneof": "_ss05",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.FeatureState"
+        },
+        "26": {
+          "element_message": null,
+          "local_only": false,
+          "name": "ss06",
+          "on_dangling": "UNSET",
+          "oneof": "_ss06",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.FeatureState"
+        },
+        "27": {
+          "element_message": null,
+          "local_only": false,
+          "name": "ss07",
+          "on_dangling": "UNSET",
+          "oneof": "_ss07",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.FeatureState"
+        },
+        "28": {
+          "element_message": null,
+          "local_only": false,
+          "name": "ss08",
+          "on_dangling": "UNSET",
+          "oneof": "_ss08",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.FeatureState"
+        },
+        "29": {
+          "element_message": null,
+          "local_only": false,
+          "name": "ss09",
+          "on_dangling": "UNSET",
+          "oneof": "_ss09",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.FeatureState"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "smcp",
+          "on_dangling": "UNSET",
+          "oneof": "_smcp",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.FeatureState"
+        },
+        "30": {
+          "element_message": null,
+          "local_only": false,
+          "name": "ss10",
+          "on_dangling": "UNSET",
+          "oneof": "_ss10",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.FeatureState"
+        },
+        "31": {
+          "element_message": null,
+          "local_only": false,
+          "name": "ss11",
+          "on_dangling": "UNSET",
+          "oneof": "_ss11",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.FeatureState"
+        },
+        "32": {
+          "element_message": null,
+          "local_only": false,
+          "name": "ss12",
+          "on_dangling": "UNSET",
+          "oneof": "_ss12",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.FeatureState"
+        },
+        "33": {
+          "element_message": null,
+          "local_only": false,
+          "name": "ss13",
+          "on_dangling": "UNSET",
+          "oneof": "_ss13",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.FeatureState"
+        },
+        "34": {
+          "element_message": null,
+          "local_only": false,
+          "name": "ss14",
+          "on_dangling": "UNSET",
+          "oneof": "_ss14",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.FeatureState"
+        },
+        "35": {
+          "element_message": null,
+          "local_only": false,
+          "name": "ss15",
+          "on_dangling": "UNSET",
+          "oneof": "_ss15",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.FeatureState"
+        },
+        "36": {
+          "element_message": null,
+          "local_only": false,
+          "name": "ss16",
+          "on_dangling": "UNSET",
+          "oneof": "_ss16",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.FeatureState"
+        },
+        "37": {
+          "element_message": null,
+          "local_only": false,
+          "name": "ss17",
+          "on_dangling": "UNSET",
+          "oneof": "_ss17",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.FeatureState"
+        },
+        "38": {
+          "element_message": null,
+          "local_only": false,
+          "name": "ss18",
+          "on_dangling": "UNSET",
+          "oneof": "_ss18",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.FeatureState"
+        },
+        "39": {
+          "element_message": null,
+          "local_only": false,
+          "name": "ss19",
+          "on_dangling": "UNSET",
+          "oneof": "_ss19",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.FeatureState"
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "c2sc",
+          "on_dangling": "UNSET",
+          "oneof": "_c2sc",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.FeatureState"
+        },
+        "40": {
+          "element_message": null,
+          "local_only": false,
+          "name": "ss20",
+          "on_dangling": "UNSET",
+          "oneof": "_ss20",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.FeatureState"
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "onum",
+          "on_dangling": "UNSET",
+          "oneof": "_onum",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.FeatureState"
+        },
+        "6": {
+          "element_message": null,
+          "local_only": false,
+          "name": "lnum",
+          "on_dangling": "UNSET",
+          "oneof": "_lnum",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.FeatureState"
+        },
+        "7": {
+          "element_message": null,
+          "local_only": false,
+          "name": "tnum",
+          "on_dangling": "UNSET",
+          "oneof": "_tnum",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.FeatureState"
+        },
+        "8": {
+          "element_message": null,
+          "local_only": false,
+          "name": "pnum",
+          "on_dangling": "UNSET",
+          "oneof": "_pnum",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.FeatureState"
+        },
+        "9": {
+          "element_message": null,
+          "local_only": false,
+          "name": "frac",
+          "on_dangling": "UNSET",
+          "oneof": "_frac",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.FeatureState"
+        }
+      }
+    },
+    "wiretuner.doc.v1.Fill": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "id",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ElementId"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "hidden",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "settings",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "VARIANT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.FillSettings"
+        }
+      }
+    },
+    "wiretuner.doc.v1.FillSettings": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "kind",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.FillKind"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "basic",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.BasicFill"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "gradient",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.GradientFill"
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "lens",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.LensFill"
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "custom",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.CustomFill"
+        },
+        "6": {
+          "element_message": null,
+          "local_only": false,
+          "name": "pattern",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.PatternFill"
+        },
+        "7": {
+          "element_message": null,
+          "local_only": false,
+          "name": "textured",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.TexturedFill"
+        },
+        "8": {
+          "element_message": null,
+          "local_only": false,
+          "name": "tiled",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.TiledFill"
+        }
+      }
+    },
+    "wiretuner.doc.v1.FontVariation": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "axes",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": true,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Axis"
+        }
+      }
+    },
+    "wiretuner.doc.v1.GradientAxis": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "start",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Point"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "end",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Point"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "end2",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Point"
+        }
+      }
+    },
+    "wiretuner.doc.v1.GradientFill": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "type",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.GradientType"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "behavior",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.GradientBehavior"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "repeat_count",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "uint32",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "axis",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.GradientAxis"
+        },
+        "5": {
+          "element_message": "wiretuner.doc.v1.GradientStop",
+          "local_only": false,
+          "name": "stops",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "SEQUENCE",
+          "repeated": true,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.GradientStop"
+        },
+        "6": {
+          "element_message": null,
+          "local_only": false,
+          "name": "overprint",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.GradientStop": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "id",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ElementId"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "offset",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "color",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ColorRef"
+        }
+      }
+    },
+    "wiretuner.doc.v1.GridSettings": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "size",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "relative",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        }
+      }
+    },
     "wiretuner.doc.v1.GroupProps": {
       "fields": {
         "1": {
@@ -237,6 +3027,98 @@
           "repeated": false,
           "type": "message",
           "type_name": "wiretuner.doc.v1.CommonProps"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "kind",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.GroupKind"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "transform_as_unit",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "clip_path",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.NodeRef"
+        },
+        "5": {
+          "element_message": "wiretuner.doc.v1.LayerOrigin",
+          "local_only": false,
+          "name": "layer_origins",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "SEQUENCE",
+          "repeated": true,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.LayerOrigin"
+        },
+        "6": {
+          "element_message": null,
+          "local_only": false,
+          "name": "appearance",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.AppearanceProps"
+        }
+      }
+    },
+    "wiretuner.doc.v1.Guide": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "id",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ElementId"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "axis",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.GuideAxis"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "position",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
         }
       }
     },
@@ -277,6 +3159,250 @@
         }
       }
     },
+    "wiretuner.doc.v1.Hyphenation": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "enabled",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "language",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "consecutive",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "uint32",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "skip_capitalized",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.InlineTint": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "base",
+          "on_dangling": "CACHED",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.NodeRef"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "percent",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.Inset": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "left",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "right",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "top",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "bottom",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.InstanceProps": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "common",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.CommonProps"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "symbol",
+          "on_dangling": "PLACEHOLDER",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.NodeRef"
+        },
+        "3": {
+          "element_message": "wiretuner.doc.v1.Override",
+          "local_only": false,
+          "name": "overrides",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "SEQUENCE",
+          "repeated": true,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Override"
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "appearance",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.AppearanceProps"
+        }
+      }
+    },
+    "wiretuner.doc.v1.Lab": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "l",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "a",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "b",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.LayerOrigin": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "id",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ElementId"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "child",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.NodeRef"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "layer",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.NodeRef"
+        }
+      }
+    },
     "wiretuner.doc.v1.LayerProps": {
       "fields": {
         "1": {
@@ -289,6 +3415,249 @@
           "repeated": false,
           "type": "message",
           "type_name": "wiretuner.doc.v1.CommonProps"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "role",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.LayerRole"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "visible",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "locked",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "printing",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "6": {
+          "element_message": null,
+          "local_only": false,
+          "name": "keyline",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "7": {
+          "element_message": null,
+          "local_only": false,
+          "name": "highlight",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Color"
+        },
+        "8": {
+          "element_message": null,
+          "local_only": false,
+          "name": "merged_into",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.NodeRef"
+        }
+      }
+    },
+    "wiretuner.doc.v1.Leading": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "mode",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.LeadingMode"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "value",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.LensFill": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "type",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.LensType"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "color",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ColorRef"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "amount",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "magnification",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "centerpoint_shown",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "6": {
+          "element_message": null,
+          "local_only": false,
+          "name": "centerpoint",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Point"
+        },
+        "7": {
+          "element_message": null,
+          "local_only": false,
+          "name": "objects_only",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "8": {
+          "element_message": null,
+          "local_only": false,
+          "name": "snapshot",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "9": {
+          "element_message": null,
+          "local_only": false,
+          "name": "snapshot_contents",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Subtree"
+        }
+      }
+    },
+    "wiretuner.doc.v1.LibrarySource": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "document_id",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "symbol",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.OpId"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "server_seq",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "uint64",
+          "type_name": null
         }
       }
     },
@@ -304,6 +3673,39 @@
           "repeated": false,
           "type": "message",
           "type_name": "wiretuner.doc.v1.CommonProps"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "geometry",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.PageGeometry"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "bleed",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "4": {
+          "element_message": "wiretuner.doc.v1.Guide",
+          "local_only": false,
+          "name": "guides",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "SEQUENCE",
+          "repeated": true,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Guide"
         }
       }
     },
@@ -416,6 +3818,17 @@
           "type": "message",
           "type_name": "wiretuner.doc.v1.DocumentProps"
         },
+        "130": {
+          "element_message": null,
+          "local_only": false,
+          "name": "text",
+          "on_dangling": "UNSET",
+          "oneof": "kind",
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.TextProps"
+        },
         "150": {
           "element_message": null,
           "local_only": false,
@@ -427,6 +3840,50 @@
           "type": "message",
           "type_name": "wiretuner.doc.v1.LayerProps"
         },
+        "151": {
+          "element_message": null,
+          "local_only": false,
+          "name": "symbol",
+          "on_dangling": "UNSET",
+          "oneof": "kind",
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.SymbolProps"
+        },
+        "152": {
+          "element_message": null,
+          "local_only": false,
+          "name": "symbol_folder",
+          "on_dangling": "UNSET",
+          "oneof": "kind",
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.SymbolFolderProps"
+        },
+        "153": {
+          "element_message": null,
+          "local_only": false,
+          "name": "instance",
+          "on_dangling": "UNSET",
+          "oneof": "kind",
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.InstanceProps"
+        },
+        "154": {
+          "element_message": null,
+          "local_only": false,
+          "name": "style",
+          "on_dangling": "UNSET",
+          "oneof": "kind",
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.StyleProps"
+        },
         "2": {
           "element_message": null,
           "local_only": false,
@@ -437,6 +3894,61 @@
           "repeated": false,
           "type": "message",
           "type_name": "wiretuner.doc.v1.SettingsProps"
+        },
+        "20": {
+          "element_message": null,
+          "local_only": false,
+          "name": "path",
+          "on_dangling": "UNSET",
+          "oneof": "kind",
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.PathProps"
+        },
+        "21": {
+          "element_message": null,
+          "local_only": false,
+          "name": "rect",
+          "on_dangling": "UNSET",
+          "oneof": "kind",
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.RectProps"
+        },
+        "22": {
+          "element_message": null,
+          "local_only": false,
+          "name": "ellipse",
+          "on_dangling": "UNSET",
+          "oneof": "kind",
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.EllipseProps"
+        },
+        "23": {
+          "element_message": null,
+          "local_only": false,
+          "name": "polygon",
+          "on_dangling": "UNSET",
+          "oneof": "kind",
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.PolygonProps"
+        },
+        "24": {
+          "element_message": null,
+          "local_only": false,
+          "name": "chart",
+          "on_dangling": "UNSET",
+          "oneof": "kind",
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ChartProps"
         },
         "3": {
           "element_message": null,
@@ -470,6 +3982,28 @@
           "repeated": false,
           "type": "message",
           "type_name": "wiretuner.doc.v1.GroupProps"
+        },
+        "70": {
+          "element_message": null,
+          "local_only": false,
+          "name": "swatch",
+          "on_dangling": "UNSET",
+          "oneof": "kind",
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.SwatchProps"
+        },
+        "80": {
+          "element_message": null,
+          "local_only": false,
+          "name": "brush",
+          "on_dangling": "UNSET",
+          "oneof": "kind",
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.BrushProps"
         }
       }
     },
@@ -525,6 +4059,146 @@
         }
       }
     },
+    "wiretuner.doc.v1.Override": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "id",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ElementId"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "master_node",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.OpId"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "property",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.OverrideProperty"
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "text",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "TEXT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.RichText"
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "fill",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ColorRef"
+        },
+        "6": {
+          "element_message": null,
+          "local_only": false,
+          "name": "stroke",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ColorRef"
+        },
+        "7": {
+          "element_message": null,
+          "local_only": false,
+          "name": "hidden",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "8": {
+          "element_message": null,
+          "local_only": false,
+          "name": "image",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.NodeRef"
+        }
+      }
+    },
+    "wiretuner.doc.v1.PageGeometry": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "preset",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "width",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "height",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "orientation",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.Orientation"
+        }
+      }
+    },
     "wiretuner.doc.v1.PageProps": {
       "fields": {
         "1": {
@@ -537,6 +4211,1052 @@
           "repeated": false,
           "type": "message",
           "type_name": "wiretuner.doc.v1.CommonProps"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "origin",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Point"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "geometry",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.PageGeometry"
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "bleed",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "master",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.NodeRef"
+        },
+        "6": {
+          "element_message": null,
+          "local_only": false,
+          "name": "ruler_origin",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Point"
+        },
+        "7": {
+          "element_message": "wiretuner.doc.v1.Guide",
+          "local_only": false,
+          "name": "guides",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "SEQUENCE",
+          "repeated": true,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Guide"
+        }
+      }
+    },
+    "wiretuner.doc.v1.ParagraphProps": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "alignment",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.Alignment"
+        },
+        "10": {
+          "element_message": null,
+          "local_only": false,
+          "name": "hyphenation",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Hyphenation"
+        },
+        "11": {
+          "element_message": null,
+          "local_only": false,
+          "name": "rule",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ParagraphRule"
+        },
+        "12": {
+          "element_message": null,
+          "local_only": false,
+          "name": "hang_punctuation",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "13": {
+          "element_message": null,
+          "local_only": false,
+          "name": "keep_lines",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "uint32",
+          "type_name": null
+        },
+        "14": {
+          "element_message": null,
+          "local_only": false,
+          "name": "keep_with_next",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "15": {
+          "element_message": null,
+          "local_only": false,
+          "name": "word_spacing",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.SpacingRange"
+        },
+        "16": {
+          "element_message": null,
+          "local_only": false,
+          "name": "letter_spacing",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.SpacingRange"
+        },
+        "17": {
+          "element_message": null,
+          "local_only": false,
+          "name": "style",
+          "on_dangling": "CACHED",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.NodeRef"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "ragged_width",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "flush_zone",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "left_indent",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "right_indent",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "6": {
+          "element_message": null,
+          "local_only": false,
+          "name": "first_line_indent",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "7": {
+          "element_message": null,
+          "local_only": false,
+          "name": "space_above",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "8": {
+          "element_message": null,
+          "local_only": false,
+          "name": "space_below",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "9": {
+          "element_message": "wiretuner.doc.v1.TabStop",
+          "local_only": false,
+          "name": "tabs",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "SEQUENCE",
+          "repeated": true,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.TabStop"
+        }
+      }
+    },
+    "wiretuner.doc.v1.ParagraphRule": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "mode",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.RuleMode"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "width_percent",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "basis",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.RuleBasis"
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "position",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "above",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "6": {
+          "element_message": null,
+          "local_only": false,
+          "name": "stroke",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.BasicStroke"
+        }
+      }
+    },
+    "wiretuner.doc.v1.ParagraphSettings": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "alignment",
+          "on_dangling": "UNSET",
+          "oneof": "_alignment",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.Alignment"
+        },
+        "10": {
+          "element_message": null,
+          "local_only": false,
+          "name": "tabs_set",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "11": {
+          "element_message": null,
+          "local_only": false,
+          "name": "hyphenation",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Hyphenation"
+        },
+        "12": {
+          "element_message": null,
+          "local_only": false,
+          "name": "rule",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ParagraphRule"
+        },
+        "13": {
+          "element_message": null,
+          "local_only": false,
+          "name": "hang_punctuation",
+          "on_dangling": "UNSET",
+          "oneof": "_hang_punctuation",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "14": {
+          "element_message": null,
+          "local_only": false,
+          "name": "keep_lines",
+          "on_dangling": "UNSET",
+          "oneof": "_keep_lines",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "uint32",
+          "type_name": null
+        },
+        "15": {
+          "element_message": null,
+          "local_only": false,
+          "name": "keep_with_next",
+          "on_dangling": "UNSET",
+          "oneof": "_keep_with_next",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "16": {
+          "element_message": null,
+          "local_only": false,
+          "name": "word_spacing",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.SpacingRange"
+        },
+        "17": {
+          "element_message": null,
+          "local_only": false,
+          "name": "letter_spacing",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.SpacingRange"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "ragged_width",
+          "on_dangling": "UNSET",
+          "oneof": "_ragged_width",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "flush_zone",
+          "on_dangling": "UNSET",
+          "oneof": "_flush_zone",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "left_indent",
+          "on_dangling": "UNSET",
+          "oneof": "_left_indent",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "right_indent",
+          "on_dangling": "UNSET",
+          "oneof": "_right_indent",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "6": {
+          "element_message": null,
+          "local_only": false,
+          "name": "first_line_indent",
+          "on_dangling": "UNSET",
+          "oneof": "_first_line_indent",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "7": {
+          "element_message": null,
+          "local_only": false,
+          "name": "space_above",
+          "on_dangling": "UNSET",
+          "oneof": "_space_above",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "8": {
+          "element_message": null,
+          "local_only": false,
+          "name": "space_below",
+          "on_dangling": "UNSET",
+          "oneof": "_space_below",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "9": {
+          "element_message": "wiretuner.doc.v1.TabStop",
+          "local_only": false,
+          "name": "tabs",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "SEQUENCE",
+          "repeated": true,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.TabStop"
+        }
+      }
+    },
+    "wiretuner.doc.v1.PathPoint": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "id",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ElementId"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "anchor",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Point"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "in_handle",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Point"
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "out_handle",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Point"
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "kind",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.PointKind"
+        },
+        "6": {
+          "element_message": null,
+          "local_only": false,
+          "name": "automatic",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.PathProps": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "common",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.CommonProps"
+        },
+        "2": {
+          "element_message": "wiretuner.doc.v1.Contour",
+          "local_only": false,
+          "name": "contours",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "SEQUENCE",
+          "repeated": true,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Contour"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "appearance",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.AppearanceProps"
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "even_odd",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "flatness",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "6": {
+          "element_message": null,
+          "local_only": false,
+          "name": "fill_when_open",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.PatternBitmap": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "rows",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bytes",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.PatternFill": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "color",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ColorRef"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "bitmap",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.PatternBitmap"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "overprint",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.PatternStroke": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "color",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ColorRef"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "width",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "bitmap",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.PatternBitmap"
+        }
+      }
+    },
+    "wiretuner.doc.v1.Point": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "x",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "y",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.PolygonProps": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "common",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.CommonProps"
+        },
+        "10": {
+          "element_message": null,
+          "local_only": false,
+          "name": "appearance",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.AppearanceProps"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "sides",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "uint32",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "star",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "radius",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "inner_radius",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "6": {
+          "element_message": null,
+          "local_only": false,
+          "name": "auto_inner",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "7": {
+          "element_message": null,
+          "local_only": false,
+          "name": "sharpness",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "8": {
+          "element_message": null,
+          "local_only": false,
+          "name": "rotation",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "9": {
+          "element_message": null,
+          "local_only": false,
+          "name": "valley_offset",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.RectProps": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "common",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.CommonProps"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "size",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Size"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "corners",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.CornerRadii"
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "appearance",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.AppearanceProps"
+        }
+      }
+    },
+    "wiretuner.doc.v1.Rgb": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "r",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "g",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "b",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.RichText": {
+      "fields": {
+        "1": {
+          "element_message": "wiretuner.doc.v1.TextChar",
+          "local_only": false,
+          "name": "chars",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "SEQUENCE",
+          "repeated": true,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.TextChar"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "marks",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": true,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.RichTextMark"
+        }
+      }
+    },
+    "wiretuner.doc.v1.RichTextMark": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "id",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.OpId"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "start",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Anchor"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "end",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Anchor"
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "value",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.TextMarkValue"
         }
       }
     },
@@ -552,6 +5272,1491 @@
           "repeated": false,
           "type": "message",
           "type_name": "wiretuner.doc.v1.CommonProps"
+        },
+        "10": {
+          "element_message": null,
+          "local_only": false,
+          "name": "defaults",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Defaults"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "units",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.UnitChoice"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "printer_resolution",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "uint32",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "grid",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.GridSettings"
+        },
+        "5": {
+          "element_message": "wiretuner.doc.v1.CustomPageSize",
+          "local_only": false,
+          "name": "custom_page_sizes",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "SEQUENCE",
+          "repeated": true,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.CustomPageSize"
+        },
+        "6": {
+          "element_message": "wiretuner.doc.v1.CustomUnit",
+          "local_only": false,
+          "name": "custom_units",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "SEQUENCE",
+          "repeated": true,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.CustomUnit"
+        },
+        "7": {
+          "element_message": null,
+          "local_only": false,
+          "name": "guides_locked",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.Size": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "width",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "height",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.SpacingRange": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "min",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "opt",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "max",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.Stroke": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "id",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ElementId"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "hidden",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "settings",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "VARIANT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.StrokeSettings"
+        }
+      }
+    },
+    "wiretuner.doc.v1.StrokeSettings": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "kind",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.StrokeKind"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "basic",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.BasicStroke"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "brush",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.BrushStroke"
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "calligraphic",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.CalligraphicStroke"
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "custom",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.CustomStroke"
+        },
+        "6": {
+          "element_message": null,
+          "local_only": false,
+          "name": "pattern",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.PatternStroke"
+        }
+      }
+    },
+    "wiretuner.doc.v1.StyleBehavior": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "fills",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "strokes",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "effects",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "halftone",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.StyleProps": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "common",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.CommonProps"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "role",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.StyleRole"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "kind",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.StyleKind"
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "based_on",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.NodeRef"
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "behavior",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.StyleBehavior"
+        },
+        "6": {
+          "element_message": null,
+          "local_only": false,
+          "name": "appearance",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.AppearanceProps"
+        },
+        "7": {
+          "element_message": null,
+          "local_only": false,
+          "name": "text",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.TextStyleAttrs"
+        }
+      }
+    },
+    "wiretuner.doc.v1.Subtree": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "nodes",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": true,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.SubtreeNode"
+        }
+      }
+    },
+    "wiretuner.doc.v1.SubtreeNode": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "parent",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "int32",
+          "type_name": null
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "props",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bytes",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.SwatchProps": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "common",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.CommonProps"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "value",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Color"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "spot",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "parent",
+          "on_dangling": "CACHED",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.NodeRef"
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "tint_percent",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "6": {
+          "element_message": null,
+          "local_only": false,
+          "name": "role",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.SwatchRole"
+        },
+        "7": {
+          "element_message": null,
+          "local_only": false,
+          "name": "group",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "8": {
+          "element_message": null,
+          "local_only": false,
+          "name": "library",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "9": {
+          "element_message": null,
+          "local_only": false,
+          "name": "library_key",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.SymbolFolderProps": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "common",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.CommonProps"
+        }
+      }
+    },
+    "wiretuner.doc.v1.SymbolProps": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "common",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.CommonProps"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "usage",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.SymbolUsage"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "source",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.LibrarySource"
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "origin",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Point"
+        }
+      }
+    },
+    "wiretuner.doc.v1.TabStop": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "id",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ElementId"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "kind",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.TabKind"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "position",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "leader",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.TextBlockProps": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "auto_width",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "auto_height",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "width",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "height",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "inset",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Inset"
+        },
+        "6": {
+          "element_message": null,
+          "local_only": false,
+          "name": "display_border",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "7": {
+          "element_message": null,
+          "local_only": false,
+          "name": "columns",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ColumnsRows"
+        },
+        "8": {
+          "element_message": null,
+          "local_only": false,
+          "name": "adjust",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.AdjustColumns"
+        },
+        "9": {
+          "element_message": null,
+          "local_only": false,
+          "name": "direction",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.WritingDirection"
+        }
+      }
+    },
+    "wiretuner.doc.v1.TextChar": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "id",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ElementId"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "codepoint",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "uint32",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "deleted",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "left_origin",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ElementId"
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "right_origin",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ElementId"
+        },
+        "6": {
+          "element_message": null,
+          "local_only": false,
+          "name": "paragraph",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ParagraphProps"
+        }
+      }
+    },
+    "wiretuner.doc.v1.TextEffect": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "highlight",
+          "on_dangling": "UNSET",
+          "oneof": "effect",
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.TextLineEffect"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "underline",
+          "on_dangling": "UNSET",
+          "oneof": "effect",
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.TextLineEffect"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "strikethrough",
+          "on_dangling": "UNSET",
+          "oneof": "effect",
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.TextLineEffect"
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "inline",
+          "on_dangling": "UNSET",
+          "oneof": "effect",
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.TextInlineEffect"
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "shadow",
+          "on_dangling": "UNSET",
+          "oneof": "effect",
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.TextShadowEffect"
+        },
+        "6": {
+          "element_message": null,
+          "local_only": false,
+          "name": "zoom",
+          "on_dangling": "UNSET",
+          "oneof": "effect",
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.TextZoomEffect"
+        }
+      }
+    },
+    "wiretuner.doc.v1.TextInlineEffect": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "count",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "uint32",
+          "type_name": null
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "stroke_width",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "stroke_color",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ColorRef"
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "background_width",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "background_color",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ColorRef"
+        }
+      }
+    },
+    "wiretuner.doc.v1.TextLineEffect": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "position",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "dash",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.DashPattern"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "width",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "color",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ColorRef"
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "overprint",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.TextMarkValue": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "font_family",
+          "on_dangling": "UNSET",
+          "oneof": "value",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "10": {
+          "element_message": null,
+          "local_only": false,
+          "name": "stroke",
+          "on_dangling": "UNSET",
+          "oneof": "value",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.BasicStroke"
+        },
+        "11": {
+          "element_message": null,
+          "local_only": false,
+          "name": "effect",
+          "on_dangling": "UNSET",
+          "oneof": "value",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.TextEffect"
+        },
+        "12": {
+          "element_message": null,
+          "local_only": false,
+          "name": "style",
+          "on_dangling": "CACHED",
+          "oneof": "value",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.NodeRef"
+        },
+        "14": {
+          "element_message": null,
+          "local_only": false,
+          "name": "language",
+          "on_dangling": "UNSET",
+          "oneof": "value",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "15": {
+          "element_message": null,
+          "local_only": false,
+          "name": "no_break",
+          "on_dangling": "UNSET",
+          "oneof": "value",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "16": {
+          "element_message": null,
+          "local_only": false,
+          "name": "case",
+          "on_dangling": "UNSET",
+          "oneof": "value",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.CaseStyle"
+        },
+        "17": {
+          "element_message": null,
+          "local_only": false,
+          "name": "inline_graphic",
+          "on_dangling": "UNSET",
+          "oneof": "value",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.NodeRef"
+        },
+        "18": {
+          "element_message": null,
+          "local_only": false,
+          "name": "overprint",
+          "on_dangling": "UNSET",
+          "oneof": "value",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "19": {
+          "element_message": null,
+          "local_only": false,
+          "name": "no_hyphen",
+          "on_dangling": "UNSET",
+          "oneof": "value",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "font_style",
+          "on_dangling": "UNSET",
+          "oneof": "value",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "20": {
+          "element_message": null,
+          "local_only": false,
+          "name": "axes",
+          "on_dangling": "UNSET",
+          "oneof": "value",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.FontVariation"
+        },
+        "21": {
+          "element_message": null,
+          "local_only": false,
+          "name": "feature",
+          "on_dangling": "UNSET",
+          "oneof": "value",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.FeatureSetting"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "size",
+          "on_dangling": "UNSET",
+          "oneof": "value",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "leading",
+          "on_dangling": "UNSET",
+          "oneof": "value",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Leading"
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "kerning",
+          "on_dangling": "UNSET",
+          "oneof": "value",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "6": {
+          "element_message": null,
+          "local_only": false,
+          "name": "range_kerning",
+          "on_dangling": "UNSET",
+          "oneof": "value",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "7": {
+          "element_message": null,
+          "local_only": false,
+          "name": "baseline_shift",
+          "on_dangling": "UNSET",
+          "oneof": "value",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "8": {
+          "element_message": null,
+          "local_only": false,
+          "name": "horizontal_scale",
+          "on_dangling": "UNSET",
+          "oneof": "value",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "9": {
+          "element_message": null,
+          "local_only": false,
+          "name": "fill",
+          "on_dangling": "UNSET",
+          "oneof": "value",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ColorRef"
+        }
+      }
+    },
+    "wiretuner.doc.v1.TextOnPathProps": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "mode",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.PathTextMode"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "orientation",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.PathOrientation"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "show_path",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "top",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.PathAlignment"
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "bottom",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.PathAlignment"
+        },
+        "6": {
+          "element_message": null,
+          "local_only": false,
+          "name": "offset_start",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "7": {
+          "element_message": null,
+          "local_only": false,
+          "name": "offset_end",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.TextProps": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "common",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.CommonProps"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "text",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "TEXT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.RichText"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "block",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.TextBlockProps"
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "next_link",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.NodeRef"
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "prev_link",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.NodeRef"
+        },
+        "6": {
+          "element_message": null,
+          "local_only": false,
+          "name": "on_path",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.TextOnPathProps"
+        },
+        "7": {
+          "element_message": null,
+          "local_only": false,
+          "name": "block_appearance",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.AppearanceProps"
+        },
+        "8": {
+          "element_message": null,
+          "local_only": false,
+          "name": "tail_paragraph",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ParagraphProps"
+        }
+      }
+    },
+    "wiretuner.doc.v1.TextShadowEffect": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "offset_x",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "offset_y",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "color",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ColorRef"
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "tint",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.TextStyleAttrs": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "next",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.NodeRef"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "character",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.CharacterSettings"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "paragraph",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ParagraphSettings"
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "affects_color",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
         }
       }
     },
@@ -577,6 +6782,172 @@
           "policy": "ATOMIC",
           "repeated": false,
           "type": "double",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.TextZoomEffect": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "zoom_to",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "offset_x",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "offset_y",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "from",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ColorRef"
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "to",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ColorRef"
+        }
+      }
+    },
+    "wiretuner.doc.v1.TexturedFill": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "texture",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.Texture"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "color",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ColorRef"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "overprint",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.TiledFill": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "tile",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Subtree"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "angle",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "scale_x",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "scale_y",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "offset",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Point"
+        },
+        "6": {
+          "element_message": null,
+          "local_only": false,
+          "name": "overprint",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
           "type_name": null
         }
       }
@@ -650,8 +7021,83 @@
           "type_name": null
         }
       }
+    },
+    "wiretuner.doc.v1.UnitChoice": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "unit",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.Unit"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "custom",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ElementId"
+        }
+      }
+    },
+    "wiretuner.doc.v1.UnitDefinition": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "amount",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "base",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.Unit"
+        }
+      }
     }
   },
-  "variants": {},
-  "version": "0897b60ae2842b2307cadc1f53ee7b47cff864ef788a2df548429152c99fbe70"
+  "variants": {
+    "wiretuner.doc.v1.FillSettings": {
+      "case_fields": [
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ],
+      "kind_field": 1
+    },
+    "wiretuner.doc.v1.StrokeSettings": {
+      "case_fields": [
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "kind_field": 1
+    }
+  },
+  "version": "02790b0e1a7df61c0dc890802cc0961ef22e430f33b47f9abaecf57739848fac"
 }

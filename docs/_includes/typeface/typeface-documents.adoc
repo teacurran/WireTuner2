@@ -220,7 +220,7 @@ proposes the reserved counter `11` for it:
 [listing]
 ....
 document (0:0)
-├── settings (0:1)   DocumentSettings.document_kind, DocumentSettings.font (FontProps)
+├── settings (0:1)   SettingsProps.document_kind, SettingsProps.font (FontProps)
 ├── pages    (0:2)   the Sketches pages of a typeface document
 ├── layers   (0:4)   objects; a glyph's artwork carries CommonProps.canvas = the glyph node
 └── glyphs   (0:11)  ── glyph … (order = custom grid order)
@@ -238,7 +238,7 @@ enum DocumentKind {
   DOCUMENT_KIND_TYPEFACE = 3;
 }
 
-// Added to DocumentSettings (document-panel page).  ATOMIC scalar: later wins.
+// Added to SettingsProps (document.proto; FONT block 20-29).  ATOMIC scalar: later wins.
 //   DocumentKind document_kind = 20;
 //   FontProps font = 21;               // STRUCT; see font-info
 

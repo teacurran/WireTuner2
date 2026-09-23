@@ -162,12 +162,12 @@ message CommonProps {
 
 // page.proto -- extension of PageProps
 message PageProps {
-  // ... fields 1-6 on document-panel.adoc ...
+  // ... fields 1-7 on document-panel.adoc; 10-19 is this epic's block (document.proto) ...
   // Reading order override.  Empty (the default) means stacking order: layers bottom to top,
   // each layer's children back to front, groups read as one figure when they carry `alt`.
   // Listed nodes are read first, in sequence order; every other readable node on the page
   // follows in stacking order.
-  repeated ReadingOrderEntry reading_order = 7 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  repeated ReadingOrderEntry reading_order = 10 [(wt.crdt.field).merge = MERGE_SEQUENCE];
 }
 message ReadingOrderEntry {
   ElementId id = 1;

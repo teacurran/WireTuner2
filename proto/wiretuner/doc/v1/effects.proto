@@ -1,0 +1,26 @@
+// proto/wiretuner/doc/v1/effects.proto
+//
+// Live effects in the attribute stack (docs/_includes/effects/live-effects.adoc, FX epic).
+// ATTR-001 creates `Effect` with only the two fields every stack element shares so
+// AppearanceProps can reserve its `effects` sequence; the FX epic fills it in here, in this
+// file, because the FILE breaking rules pin a message to the file it first appeared in.  Like
+// Fill and Stroke, the kind and its settings go in a MERGE_VARIANT message (`EffectSettings
+// settings = 4`, after `attached_to = 3`), so a concurrent kind switch keeps every case.
+syntax = "proto3";
+
+package wiretuner.doc.v1;
+
+import "wiretuner/doc/v1/common.proto";
+
+option java_multiple_files = true;
+option java_package = "com.villagecompute.wiretuner.doc.v1";
+option optimize_for = SPEED;
+
+// One effect in the stack.  Element of AppearanceProps.effects; its position shares one
+// fractional-index space with the fills and strokes.  Filled in by the FX epic.
+message Effect {
+  // Element id (MERGE_SEQUENCE).
+  ElementId id = 1;
+  // Eye toggle: kept but not rendered, printed or exported.  ATOMIC.
+  bool hidden = 2;
+}

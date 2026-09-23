@@ -1,9 +1,10 @@
 /// proto/wiretuner/doc/v1/group.proto
 ///
-/// The group node kind (docs/_includes/objects/grouping.adoc).  PROTO-003 creates the message
-/// with only `common` so NodeProps can name it; OBJ-016 fills in `GroupKind`, the clip path and
-/// the layer origins here, in this file, because the FILE breaking rules pin a message to the
-/// file it first appeared in.
+/// The group node kind (docs/_includes/objects/grouping.adoc, OBJ-016; clip groups are
+/// objects/clipping-paths.adoc).  PROTO-003 created the message with only `common` so NodeProps
+/// could name it; OBJ-016's schema filled in `GroupKind`, the clip path and the layer origins
+/// here, in this file, because the FILE breaking rules pin a message to the file it first
+/// appeared in.
 
 // DO NOT EDIT.
 // swift-format-ignore-file

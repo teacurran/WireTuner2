@@ -11,9 +11,11 @@
 /// proto/wiretuner/doc/v1/document.proto
 ///
 /// The document-level node kinds: the root, the settings node, pages and master pages
-/// (docs/_includes/document/document-panel.adoc and the other DOC pages).  PROTO-003 creates
-/// the kind messages empty so NodeProps can name them; DOC-001 fills them in here, in this
-/// file, because the FILE breaking rules pin a message to the file it first appeared in.
+/// (docs/_includes/document/document-panel.adoc and the other DOC pages: pages, master-pages,
+/// rulers, grid-guides).  PROTO-003 created the kind messages empty so NodeProps could name them;
+/// DOC-001 filled them in here, in this file, because the FILE breaking rules pin a message to
+/// the file it first appeared in.  Everything is in points on the pasteboard, y down, origin at
+/// the pasteboard's top left (docs/spec/crdt-model.adoc).
 
 import SwiftProtobuf
 
@@ -27,9 +29,186 @@ fileprivate nonisolated struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobu
   typealias Version = _2
 }
 
+/// A length unit for display and entry (document-panel.adoc, "Document units").  Stored values
+/// are always points; the unit only changes how numbers are shown and typed.
+public nonisolated enum Wiretuner_Doc_V1_Unit: SwiftProtobuf.Enum, Swift.CaseIterable {
+  public typealias RawValue = Int
+
+  /// Never set: reads as POINTS.
+  case unspecified // = 0
+
+  /// Points, 1/72 inch.
+  case points // = 1
+
+  /// Picas and points (12 pt to the pica).
+  case picas // = 2
+
+  /// Inches shown as fractions.
+  case inches // = 3
+
+  /// Inches shown as decimals rather than fractions.
+  case decimalInches // = 4
+
+  /// Millimeters.
+  case millimeters // = 5
+
+  /// Centimeters.
+  case centimeters // = 6
+
+  /// Kyus, 0.25 mm.
+  case kyus // = 7
+
+  /// Pixels: 1 px = 1 pt at 72 dpi.
+  case pixels // = 8
+
+  /// A custom unit: see UnitChoice.custom.
+  case custom // = 9
+  case UNRECOGNIZED(Int)
+
+  public init() {
+    self = .unspecified
+  }
+
+  public init?(rawValue: Int) {
+    switch rawValue {
+    case 0: self = .unspecified
+    case 1: self = .points
+    case 2: self = .picas
+    case 3: self = .inches
+    case 4: self = .decimalInches
+    case 5: self = .millimeters
+    case 6: self = .centimeters
+    case 7: self = .kyus
+    case 8: self = .pixels
+    case 9: self = .custom
+    default: self = .UNRECOGNIZED(rawValue)
+    }
+  }
+
+  public var rawValue: Int {
+    switch self {
+    case .unspecified: return 0
+    case .points: return 1
+    case .picas: return 2
+    case .inches: return 3
+    case .decimalInches: return 4
+    case .millimeters: return 5
+    case .centimeters: return 6
+    case .kyus: return 7
+    case .pixels: return 8
+    case .custom: return 9
+    case .UNRECOGNIZED(let i): return i
+    }
+  }
+
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static let allCases: [Wiretuner_Doc_V1_Unit] = [
+    .unspecified,
+    .points,
+    .picas,
+    .inches,
+    .decimalInches,
+    .millimeters,
+    .centimeters,
+    .kyus,
+    .pixels,
+    .custom,
+  ]
+
+}
+
+/// Page orientation, as chosen in the Document panel.
+public nonisolated enum Wiretuner_Doc_V1_Orientation: SwiftProtobuf.Enum, Swift.CaseIterable {
+  public typealias RawValue = Int
+
+  /// Never set: reads from the width and height (portrait when height >= width).
+  case unspecified // = 0
+
+  /// Taller than wide.
+  case portrait // = 1
+
+  /// Wider than tall.
+  case landscape // = 2
+  case UNRECOGNIZED(Int)
+
+  public init() {
+    self = .unspecified
+  }
+
+  public init?(rawValue: Int) {
+    switch rawValue {
+    case 0: self = .unspecified
+    case 1: self = .portrait
+    case 2: self = .landscape
+    default: self = .UNRECOGNIZED(rawValue)
+    }
+  }
+
+  public var rawValue: Int {
+    switch self {
+    case .unspecified: return 0
+    case .portrait: return 1
+    case .landscape: return 2
+    case .UNRECOGNIZED(let i): return i
+    }
+  }
+
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static let allCases: [Wiretuner_Doc_V1_Orientation] = [
+    .unspecified,
+    .portrait,
+    .landscape,
+  ]
+
+}
+
+/// The axis a ruler guide lies along (grid-guides.adoc).
+public nonisolated enum Wiretuner_Doc_V1_GuideAxis: SwiftProtobuf.Enum, Swift.CaseIterable {
+  public typealias RawValue = Int
+
+  /// Reads as HORIZONTAL.
+  case unspecified // = 0
+
+  /// A horizontal line: `Guide.position` is a y offset.
+  case horizontal // = 1
+
+  /// A vertical line: `Guide.position` is an x offset.
+  case vertical // = 2
+  case UNRECOGNIZED(Int)
+
+  public init() {
+    self = .unspecified
+  }
+
+  public init?(rawValue: Int) {
+    switch rawValue {
+    case 0: self = .unspecified
+    case 1: self = .horizontal
+    case 2: self = .vertical
+    default: self = .UNRECOGNIZED(rawValue)
+    }
+  }
+
+  public var rawValue: Int {
+    switch self {
+    case .unspecified: return 0
+    case .horizontal: return 1
+    case .vertical: return 2
+    case .UNRECOGNIZED(let i): return i
+    }
+  }
+
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static let allCases: [Wiretuner_Doc_V1_GuideAxis] = [
+    .unspecified,
+    .horizontal,
+    .vertical,
+  ]
+
+}
+
 /// NodeProps.kind case `document`: the root node 0:0.  It carries nothing yet; the document's
 /// user-visible settings live on the settings node so the root stays a pure container.
-/// Filled in by DOC-001 (document.proto).
 public nonisolated struct Wiretuner_Doc_V1_DocumentProps: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -53,36 +232,98 @@ public nonisolated struct Wiretuner_Doc_V1_DocumentProps: Sendable {
   fileprivate var _common: Wiretuner_Doc_V1_CommonProps? = nil
 }
 
-/// NodeProps.kind case `settings`: the well-known settings node 0:1.  Units, default
-/// attributes, print and export settings, document info and every other document-wide choice.
-/// STRUCT: each field is an independent register.  Every epic that owns settings fields adds
-/// them here; the DOC epic (DOC-001) allocates their number blocks in a comment at the top of
-/// this message when it fills it in.  Filled in by DOC-001.
-public nonisolated struct Wiretuner_Doc_V1_SettingsProps: Sendable {
+/// The document's display unit.  ATOMIC wherever used: a custom-unit choice is meaningless
+/// without the element id.
+public nonisolated struct Wiretuner_Doc_V1_UnitChoice: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  /// Shared registers.  Unused by the panel; present so every kind has `common = 1`.
-  public var common: Wiretuner_Doc_V1_CommonProps {
-    get {_common ?? Wiretuner_Doc_V1_CommonProps()}
-    set {_common = newValue}
+  /// The unit.  A `custom` pointing at a deleted custom unit reads as POINTS.
+  public var unit: Wiretuner_Doc_V1_Unit = .unspecified
+
+  /// Element of SettingsProps.custom_units when `unit` is UNIT_CUSTOM; ignored otherwise.
+  public var custom: Wiretuner_Doc_V1_ElementId {
+    get {_custom ?? Wiretuner_Doc_V1_ElementId()}
+    set {_custom = newValue}
   }
-  /// Returns true if `common` has been explicitly set.
-  public var hasCommon: Bool {self._common != nil}
-  /// Clears the value of `common`. Subsequent reads from it will return its default value.
-  public mutating func clearCommon() {self._common = nil}
+  /// Returns true if `custom` has been explicitly set.
+  public var hasCustom: Bool {self._custom != nil}
+  /// Clears the value of `custom`. Subsequent reads from it will return its default value.
+  public mutating func clearCustom() {self._custom = nil}
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
-  fileprivate var _common: Wiretuner_Doc_V1_CommonProps? = nil
+  fileprivate var _custom: Wiretuner_Doc_V1_ElementId? = nil
+}
+
+/// Width, height, orientation and the preset they came from.  ATOMIC wherever used: a width from
+/// one user and a height from another is a page nobody asked for; the whole geometry is one
+/// choice.
+public nonisolated struct Wiretuner_Doc_V1_PageGeometry: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// "Letter", "A4", a custom size name, or "" for Custom.  A name no longer known reads as "".
+  public var preset: String = String()
+
+  /// Width in points, as oriented (222 in maximum).
+  public var width: Double = 0
+
+  /// Height in points, as oriented.
+  public var height: Double = 0
+
+  /// The orientation the user chose.
+  public var orientation: Wiretuner_Doc_V1_Orientation = .unspecified
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// A ruler guide.  Element of the `guides` SEQUENCE on PageProps and MasterPageProps; `axis` and
+/// `position` are separate registers.
+public nonisolated struct Wiretuner_Doc_V1_Guide: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Element id (MERGE_SEQUENCE).
+  public var id: Wiretuner_Doc_V1_ElementId {
+    get {_id ?? Wiretuner_Doc_V1_ElementId()}
+    set {_id = newValue}
+  }
+  /// Returns true if `id` has been explicitly set.
+  public var hasID: Bool {self._id != nil}
+  /// Clears the value of `id`. Subsequent reads from it will return its default value.
+  public mutating func clearID() {self._id = nil}
+
+  /// Which way the guide runs.
+  public var axis: Wiretuner_Doc_V1_GuideAxis = .unspecified
+
+  /// Points from the page's top-left corner along the axis (not from the zero point, so moving
+  /// the zero point does not move guides).
+  public var position: Double = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _id: Wiretuner_Doc_V1_ElementId? = nil
 }
 
 /// NodeProps.kind case `page`: a child of the well-known pages node 0:2, whose sibling position
-/// is the page order.  Origin and geometry on the pasteboard, bleed, master, ruler origin,
-/// guides (document-panel.adoc) and reading order (names-notes.adoc).  Filled in by DOC-001.
+/// is the page order.  STRUCT: geometry, bleed and master are independent registers.
+///
+/// PageProps field-number blocks (DOC-001; a task adds its row here in the same change):
+///    1      common          crdt-model.adoc
+///    2-9    DOC             document-panel.adoc, rulers.adoc, grid-guides.adoc
+///   10-19   OBJ             objects/names-notes.adoc (reading_order 10)
+///   20-29   FX              effects/perspective.adoc (perspective_grid, ...)
+///   30-     free; an epic takes the next block of ten and adds a row here.
 public nonisolated struct Wiretuner_Doc_V1_PageProps: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -98,16 +339,69 @@ public nonisolated struct Wiretuner_Doc_V1_PageProps: Sendable {
   /// Clears the value of `common`. Subsequent reads from it will return its default value.
   public mutating func clearCommon() {self._common = nil}
 
+  /// The page's top-left corner on the pasteboard.  ATOMIC.
+  public var origin: Wiretuner_Doc_V1_Point {
+    get {_origin ?? Wiretuner_Doc_V1_Point()}
+    set {_origin = newValue}
+  }
+  /// Returns true if `origin` has been explicitly set.
+  public var hasOrigin: Bool {self._origin != nil}
+  /// Clears the value of `origin`. Subsequent reads from it will return its default value.
+  public mutating func clearOrigin() {self._origin = nil}
+
+  /// Size and orientation.  ATOMIC: the later write wins whole.  Masked while `master` resolves.
+  public var geometry: Wiretuner_Doc_V1_PageGeometry {
+    get {_geometry ?? Wiretuner_Doc_V1_PageGeometry()}
+    set {_geometry = newValue}
+  }
+  /// Returns true if `geometry` has been explicitly set.
+  public var hasGeometry: Bool {self._geometry != nil}
+  /// Clears the value of `geometry`. Subsequent reads from it will return its default value.
+  public mutating func clearGeometry() {self._geometry = nil}
+
+  /// Points beyond every edge.  Masked while `master` resolves.
+  public var bleed: Double = 0
+
+  /// The master page (a child of 0:3), or unset.  Dangling or wrong kind reads as unset: the
+  /// page shows its own geometry.
+  public var master: Wiretuner_Doc_V1_NodeRef {
+    get {_master ?? Wiretuner_Doc_V1_NodeRef()}
+    set {_master = newValue}
+  }
+  /// Returns true if `master` has been explicitly set.
+  public var hasMaster: Bool {self._master != nil}
+  /// Clears the value of `master`. Subsequent reads from it will return its default value.
+  public mutating func clearMaster() {self._master = nil}
+
+  /// The rulers' zero point relative to the page's top-left, points, y down.  ATOMIC.  Unset =
+  /// the bottom-left corner (0, height) (rulers.adoc).
+  public var rulerOrigin: Wiretuner_Doc_V1_Point {
+    get {_rulerOrigin ?? Wiretuner_Doc_V1_Point()}
+    set {_rulerOrigin = newValue}
+  }
+  /// Returns true if `rulerOrigin` has been explicitly set.
+  public var hasRulerOrigin: Bool {self._rulerOrigin != nil}
+  /// Clears the value of `rulerOrigin`. Subsequent reads from it will return its default value.
+  public mutating func clearRulerOrigin() {self._rulerOrigin = nil}
+
+  /// Ruler guides.  SEQUENCE: added, moved and deleted individually.
+  public var guides: [Wiretuner_Doc_V1_Guide] = []
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
   fileprivate var _common: Wiretuner_Doc_V1_CommonProps? = nil
+  fileprivate var _origin: Wiretuner_Doc_V1_Point? = nil
+  fileprivate var _geometry: Wiretuner_Doc_V1_PageGeometry? = nil
+  fileprivate var _master: Wiretuner_Doc_V1_NodeRef? = nil
+  fileprivate var _rulerOrigin: Wiretuner_Doc_V1_Point? = nil
 }
 
 /// NodeProps.kind case `master_page`: a child of the well-known masters node 0:3.  A separate
-/// canvas: its objects live under layers with `CommonProps.canvas` naming this node.  Geometry,
-/// bleed and guides (document-panel.adoc, master-pages.adoc).  Filled in by DOC-001.
+/// canvas: its objects live under layers with `CommonProps.canvas` naming this node, in
+/// coordinates relative to the master's top-left corner (master-pages.adoc).  Master pages have
+/// no ruler origin; the master canvas uses its bottom-left corner.
 public nonisolated struct Wiretuner_Doc_V1_MasterPageProps: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -123,16 +417,302 @@ public nonisolated struct Wiretuner_Doc_V1_MasterPageProps: Sendable {
   /// Clears the value of `common`. Subsequent reads from it will return its default value.
   public mutating func clearCommon() {self._common = nil}
 
+  /// Size and orientation, which every child page follows.  ATOMIC.
+  public var geometry: Wiretuner_Doc_V1_PageGeometry {
+    get {_geometry ?? Wiretuner_Doc_V1_PageGeometry()}
+    set {_geometry = newValue}
+  }
+  /// Returns true if `geometry` has been explicitly set.
+  public var hasGeometry: Bool {self._geometry != nil}
+  /// Clears the value of `geometry`. Subsequent reads from it will return its default value.
+  public mutating func clearGeometry() {self._geometry = nil}
+
+  /// Points beyond every edge, for every child page.
+  public var bleed: Double = 0
+
+  /// The master's own ruler guides.  SEQUENCE.
+  public var guides: [Wiretuner_Doc_V1_Guide] = []
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
   fileprivate var _common: Wiretuner_Doc_V1_CommonProps? = nil
+  fileprivate var _geometry: Wiretuner_Doc_V1_PageGeometry? = nil
+}
+
+/// Grid settings (grid-guides.adoc).  STRUCT: size and relative are independent choices.
+public nonisolated struct Wiretuner_Doc_V1_GridSettings: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Points between grid lines; 0 (never set) reads as the default.
+  public var size: Double = 0
+
+  /// Snap to the same offset within the destination cell rather than to intersections.
+  public var relative: Bool = false
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// A named page size (the Page Sizes sheet).  Element of SettingsProps.custom_page_sizes;
+/// rename and resize are separate registers.
+public nonisolated struct Wiretuner_Doc_V1_CustomPageSize: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Element id (MERGE_SEQUENCE).
+  public var id: Wiretuner_Doc_V1_ElementId {
+    get {_id ?? Wiretuner_Doc_V1_ElementId()}
+    set {_id = newValue}
+  }
+  /// Returns true if `id` has been explicitly set.
+  public var hasID: Bool {self._id != nil}
+  /// Clears the value of `id`. Subsequent reads from it will return its default value.
+  public mutating func clearID() {self._id = nil}
+
+  /// The name shown in the Page Size pop-up.
+  public var name: String = String()
+
+  /// Portrait width and height in points.  ATOMIC.
+  public var size: Wiretuner_Doc_V1_Size {
+    get {_size ?? Wiretuner_Doc_V1_Size()}
+    set {_size = newValue}
+  }
+  /// Returns true if `size` has been explicitly set.
+  public var hasSize: Bool {self._size != nil}
+  /// Clears the value of `size`. Subsequent reads from it will return its default value.
+  public mutating func clearSize() {self._size = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _id: Wiretuner_Doc_V1_ElementId? = nil
+  fileprivate var _size: Wiretuner_Doc_V1_Size? = nil
+}
+
+/// One custom unit equals `amount` of `base`.  ATOMIC wherever used, so amount and base cannot
+/// come from two writers.
+public nonisolated struct Wiretuner_Doc_V1_UnitDefinition: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// How many `base` units make one custom unit.
+  public var amount: Double = 0
+
+  /// The unit the amount is in; UNIT_CUSTOM is not allowed and reads as POINTS.
+  public var base: Wiretuner_Doc_V1_Unit = .unspecified
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// A user-defined unit (View > Page Rulers > Edit Units).  Element of
+/// SettingsProps.custom_units; rename and redefine are separate registers.
+public nonisolated struct Wiretuner_Doc_V1_CustomUnit: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Element id (MERGE_SEQUENCE).
+  public var id: Wiretuner_Doc_V1_ElementId {
+    get {_id ?? Wiretuner_Doc_V1_ElementId()}
+    set {_id = newValue}
+  }
+  /// Returns true if `id` has been explicitly set.
+  public var hasID: Bool {self._id != nil}
+  /// Clears the value of `id`. Subsequent reads from it will return its default value.
+  public mutating func clearID() {self._id = nil}
+
+  /// The unit's name, also its field suffix.  Duplicate names resolve to the smaller element id.
+  public var name: String = String()
+
+  /// What the unit measures.  ATOMIC.
+  public var definition: Wiretuner_Doc_V1_UnitDefinition {
+    get {_definition ?? Wiretuner_Doc_V1_UnitDefinition()}
+    set {_definition = newValue}
+  }
+  /// Returns true if `definition` has been explicitly set.
+  public var hasDefinition: Bool {self._definition != nil}
+  /// Clears the value of `definition`. Subsequent reads from it will return its default value.
+  public mutating func clearDefinition() {self._definition = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _id: Wiretuner_Doc_V1_ElementId? = nil
+  fileprivate var _definition: Wiretuner_Doc_V1_UnitDefinition? = nil
+}
+
+/// What a newly drawn object receives (objects/default-attributes.adoc, OBJ epic; the appearance
+/// is ATTR's message, the text defaults TYPE's).  STRUCT: the stroke, fill and text defaults are
+/// independent choices and merge independently.
+public nonisolated struct Wiretuner_Doc_V1_Defaults: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The appearance stack copied onto every new drawable node; its stacks are SEQUENCEs.
+  public var appearance: Wiretuner_Doc_V1_AppearanceProps {
+    get {_appearance ?? Wiretuner_Doc_V1_AppearanceProps()}
+    set {_appearance = newValue}
+  }
+  /// Returns true if `appearance` has been explicitly set.
+  public var hasAppearance: Bool {self._appearance != nil}
+  /// Clears the value of `appearance`. Subsequent reads from it will return its default value.
+  public mutating func clearAppearance() {self._appearance = nil}
+
+  /// The graphic style the defaults currently mirror; unset = "Normal".  Dangling reads as unset.
+  public var style: Wiretuner_Doc_V1_NodeRef {
+    get {_style ?? Wiretuner_Doc_V1_NodeRef()}
+    set {_style = newValue}
+  }
+  /// Returns true if `style` has been explicitly set.
+  public var hasStyle: Bool {self._style != nil}
+  /// Clears the value of `style`. Subsequent reads from it will return its default value.
+  public mutating func clearStyle() {self._style = nil}
+
+  /// Text defaults: font, size, leading, alignment and the rest, with the text-style
+  /// optionality ("no selection" = the application default).
+  public var text: Wiretuner_Doc_V1_TextStyleAttrs {
+    get {_text ?? Wiretuner_Doc_V1_TextStyleAttrs()}
+    set {_text = newValue}
+  }
+  /// Returns true if `text` has been explicitly set.
+  public var hasText: Bool {self._text != nil}
+  /// Clears the value of `text`. Subsequent reads from it will return its default value.
+  public mutating func clearText() {self._text = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _appearance: Wiretuner_Doc_V1_AppearanceProps? = nil
+  fileprivate var _style: Wiretuner_Doc_V1_NodeRef? = nil
+  fileprivate var _text: Wiretuner_Doc_V1_TextStyleAttrs? = nil
+}
+
+/// NodeProps.kind case `settings`: the well-known settings node 0:1.  Units, default attributes,
+/// print and export settings, document info and every other document-wide choice.  STRUCT: each
+/// field is an independent register.  Every epic that owns settings fields adds them here, in
+/// its own block, and records them below.
+///
+/// SettingsProps field-number blocks (DOC-001):
+///     1      common          crdt-model.adoc
+///     2-9    DOC             document-panel.adoc, rulers.adoc, grid-guides.adoc
+///    10-19   OBJ             objects/default-attributes.adoc (defaults 10)
+///    20-29   FONT            typeface/typeface-documents.adoc (document_kind 20, font 21)
+///    30-39   PRINT           printing/output-area.adoc (output_area 30), printing/printing.adoc
+///    40-49   BASIC           basics/document-view.adoc (view 40, local_only)
+///    50-59   CMS             cms/color-management.adoc (color)
+///    60-69   WEB             web/publish-html.adoc (html_settings 60, html_setting_selected 61)
+///    70-79   WEB             web/animation.adoc (animation 70)
+///    80-89   DATA            automation/data-merge.adoc (data_fields 80 ... data_preview 83)
+///    90-99   FX              effects/raster-effects.adoc, effects/perspective.adoc
+///   100-119  free
+///   120-129  IO              io/saving.adoc (snapshot_interval_override_s 120)
+///   130-139  IO              io/file-info.adoc (info 130), io/exporting.adoc (last_export 131)
+///   140-     free; an epic takes the next block of ten and adds a row here.
+public nonisolated struct Wiretuner_Doc_V1_SettingsProps: @unchecked Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Shared registers.  Unused by the panel; present so every kind has `common = 1`.
+  public var common: Wiretuner_Doc_V1_CommonProps {
+    get {_storage._common ?? Wiretuner_Doc_V1_CommonProps()}
+    set {_uniqueStorage()._common = newValue}
+  }
+  /// Returns true if `common` has been explicitly set.
+  public var hasCommon: Bool {_storage._common != nil}
+  /// Clears the value of `common`. Subsequent reads from it will return its default value.
+  public mutating func clearCommon() {_uniqueStorage()._common = nil}
+
+  /// The document's display unit.  ATOMIC.  Changing it never changes a stored value.
+  public var units: Wiretuner_Doc_V1_UnitChoice {
+    get {_storage._units ?? Wiretuner_Doc_V1_UnitChoice()}
+    set {_uniqueStorage()._units = newValue}
+  }
+  /// Returns true if `units` has been explicitly set.
+  public var hasUnits: Bool {_storage._units != nil}
+  /// Clears the value of `units`. Subsequent reads from it will return its default value.
+  public mutating func clearUnits() {_uniqueStorage()._units = nil}
+
+  /// Printer resolution in dpi, 72..9600; 0 (never set) reads as 300.
+  public var printerResolution: UInt32 {
+    get {_storage._printerResolution}
+    set {_uniqueStorage()._printerResolution = newValue}
+  }
+
+  /// Grid size and snapping mode.  STRUCT.
+  public var grid: Wiretuner_Doc_V1_GridSettings {
+    get {_storage._grid ?? Wiretuner_Doc_V1_GridSettings()}
+    set {_uniqueStorage()._grid = newValue}
+  }
+  /// Returns true if `grid` has been explicitly set.
+  public var hasGrid: Bool {_storage._grid != nil}
+  /// Clears the value of `grid`. Subsequent reads from it will return its default value.
+  public mutating func clearGrid() {_uniqueStorage()._grid = nil}
+
+  /// Named page sizes.  SEQUENCE.
+  public var customPageSizes: [Wiretuner_Doc_V1_CustomPageSize] {
+    get {_storage._customPageSizes}
+    set {_uniqueStorage()._customPageSizes = newValue}
+  }
+
+  /// User-defined units.  SEQUENCE.
+  public var customUnits: [Wiretuner_Doc_V1_CustomUnit] {
+    get {_storage._customUnits}
+    set {_uniqueStorage()._customUnits = newValue}
+  }
+
+  /// View > Guides > Lock.  Shared: a lock only binding its setter would not protect a layout.
+  /// Advisory; never enforced against remote ops.
+  public var guidesLocked: Bool {
+    get {_storage._guidesLocked}
+    set {_uniqueStorage()._guidesLocked = newValue}
+  }
+
+  /// What newly drawn objects receive (OBJ block).  STRUCT.
+  public var defaults: Wiretuner_Doc_V1_Defaults {
+    get {_storage._defaults ?? Wiretuner_Doc_V1_Defaults()}
+    set {_uniqueStorage()._defaults = newValue}
+  }
+  /// Returns true if `defaults` has been explicitly set.
+  public var hasDefaults: Bool {_storage._defaults != nil}
+  /// Clears the value of `defaults`. Subsequent reads from it will return its default value.
+  public mutating func clearDefaults() {_uniqueStorage()._defaults = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _storage = _StorageClass.defaultInstance
 }
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
 fileprivate nonisolated let _protobuf_package = "wiretuner.doc.v1"
+
+nonisolated extension Wiretuner_Doc_V1_Unit: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0UNIT_UNSPECIFIED\0\u{1}UNIT_POINTS\0\u{1}UNIT_PICAS\0\u{1}UNIT_INCHES\0\u{1}UNIT_DECIMAL_INCHES\0\u{1}UNIT_MILLIMETERS\0\u{1}UNIT_CENTIMETERS\0\u{1}UNIT_KYUS\0\u{1}UNIT_PIXELS\0\u{1}UNIT_CUSTOM\0")
+}
+
+nonisolated extension Wiretuner_Doc_V1_Orientation: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0ORIENTATION_UNSPECIFIED\0\u{1}ORIENTATION_PORTRAIT\0\u{1}ORIENTATION_LANDSCAPE\0")
+}
+
+nonisolated extension Wiretuner_Doc_V1_GuideAxis: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0GUIDE_AXIS_UNSPECIFIED\0\u{1}GUIDE_AXIS_HORIZONTAL\0\u{1}GUIDE_AXIS_VERTICAL\0")
+}
 
 nonisolated extension Wiretuner_Doc_V1_DocumentProps: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".DocumentProps"
@@ -168,9 +748,9 @@ nonisolated extension Wiretuner_Doc_V1_DocumentProps: SwiftProtobuf.Message, Swi
   }
 }
 
-nonisolated extension Wiretuner_Doc_V1_SettingsProps: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".SettingsProps"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}common\0")
+nonisolated extension Wiretuner_Doc_V1_UnitChoice: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".UnitChoice"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}unit\0\u{1}custom\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -178,7 +758,8 @@ nonisolated extension Wiretuner_Doc_V1_SettingsProps: SwiftProtobuf.Message, Swi
       // allocates stack space for every case branch when no optimizations are
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
-      case 1: try { try decoder.decodeSingularMessageField(value: &self._common) }()
+      case 1: try { try decoder.decodeSingularEnumField(value: &self.unit) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._custom) }()
       default: break
       }
     }
@@ -189,14 +770,107 @@ nonisolated extension Wiretuner_Doc_V1_SettingsProps: SwiftProtobuf.Message, Swi
     // allocates stack space for every if/case branch local when no optimizations
     // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
     // https://github.com/apple/swift-protobuf/issues/1182
-    try { if let v = self._common {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    if self.unit != .unspecified {
+      try visitor.visitSingularEnumField(value: self.unit, fieldNumber: 1)
+    }
+    try { if let v = self._custom {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
     } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Wiretuner_Doc_V1_SettingsProps, rhs: Wiretuner_Doc_V1_SettingsProps) -> Bool {
-    if lhs._common != rhs._common {return false}
+  public static func ==(lhs: Wiretuner_Doc_V1_UnitChoice, rhs: Wiretuner_Doc_V1_UnitChoice) -> Bool {
+    if lhs.unit != rhs.unit {return false}
+    if lhs._custom != rhs._custom {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Doc_V1_PageGeometry: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".PageGeometry"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}preset\0\u{1}width\0\u{1}height\0\u{1}orientation\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.preset) }()
+      case 2: try { try decoder.decodeSingularDoubleField(value: &self.width) }()
+      case 3: try { try decoder.decodeSingularDoubleField(value: &self.height) }()
+      case 4: try { try decoder.decodeSingularEnumField(value: &self.orientation) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.preset.isEmpty {
+      try visitor.visitSingularStringField(value: self.preset, fieldNumber: 1)
+    }
+    if self.width.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.width, fieldNumber: 2)
+    }
+    if self.height.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.height, fieldNumber: 3)
+    }
+    if self.orientation != .unspecified {
+      try visitor.visitSingularEnumField(value: self.orientation, fieldNumber: 4)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Wiretuner_Doc_V1_PageGeometry, rhs: Wiretuner_Doc_V1_PageGeometry) -> Bool {
+    if lhs.preset != rhs.preset {return false}
+    if lhs.width != rhs.width {return false}
+    if lhs.height != rhs.height {return false}
+    if lhs.orientation != rhs.orientation {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Doc_V1_Guide: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".Guide"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}axis\0\u{1}position\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._id) }()
+      case 2: try { try decoder.decodeSingularEnumField(value: &self.axis) }()
+      case 3: try { try decoder.decodeSingularDoubleField(value: &self.position) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._id {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    if self.axis != .unspecified {
+      try visitor.visitSingularEnumField(value: self.axis, fieldNumber: 2)
+    }
+    if self.position.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.position, fieldNumber: 3)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Wiretuner_Doc_V1_Guide, rhs: Wiretuner_Doc_V1_Guide) -> Bool {
+    if lhs._id != rhs._id {return false}
+    if lhs.axis != rhs.axis {return false}
+    if lhs.position != rhs.position {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -204,7 +878,7 @@ nonisolated extension Wiretuner_Doc_V1_SettingsProps: SwiftProtobuf.Message, Swi
 
 nonisolated extension Wiretuner_Doc_V1_PageProps: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".PageProps"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}common\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}common\0\u{1}origin\0\u{1}geometry\0\u{1}bleed\0\u{1}master\0\u{3}ruler_origin\0\u{1}guides\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -213,6 +887,12 @@ nonisolated extension Wiretuner_Doc_V1_PageProps: SwiftProtobuf.Message, SwiftPr
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularMessageField(value: &self._common) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._origin) }()
+      case 3: try { try decoder.decodeSingularMessageField(value: &self._geometry) }()
+      case 4: try { try decoder.decodeSingularDoubleField(value: &self.bleed) }()
+      case 5: try { try decoder.decodeSingularMessageField(value: &self._master) }()
+      case 6: try { try decoder.decodeSingularMessageField(value: &self._rulerOrigin) }()
+      case 7: try { try decoder.decodeRepeatedMessageField(value: &self.guides) }()
       default: break
       }
     }
@@ -226,11 +906,35 @@ nonisolated extension Wiretuner_Doc_V1_PageProps: SwiftProtobuf.Message, SwiftPr
     try { if let v = self._common {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
     } }()
+    try { if let v = self._origin {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try { if let v = self._geometry {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    } }()
+    if self.bleed.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.bleed, fieldNumber: 4)
+    }
+    try { if let v = self._master {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
+    } }()
+    try { if let v = self._rulerOrigin {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 6)
+    } }()
+    if !self.guides.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.guides, fieldNumber: 7)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Wiretuner_Doc_V1_PageProps, rhs: Wiretuner_Doc_V1_PageProps) -> Bool {
     if lhs._common != rhs._common {return false}
+    if lhs._origin != rhs._origin {return false}
+    if lhs._geometry != rhs._geometry {return false}
+    if lhs.bleed != rhs.bleed {return false}
+    if lhs._master != rhs._master {return false}
+    if lhs._rulerOrigin != rhs._rulerOrigin {return false}
+    if lhs.guides != rhs.guides {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -238,7 +942,7 @@ nonisolated extension Wiretuner_Doc_V1_PageProps: SwiftProtobuf.Message, SwiftPr
 
 nonisolated extension Wiretuner_Doc_V1_MasterPageProps: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".MasterPageProps"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}common\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}common\0\u{1}geometry\0\u{1}bleed\0\u{1}guides\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -247,6 +951,9 @@ nonisolated extension Wiretuner_Doc_V1_MasterPageProps: SwiftProtobuf.Message, S
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularMessageField(value: &self._common) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._geometry) }()
+      case 3: try { try decoder.decodeSingularDoubleField(value: &self.bleed) }()
+      case 4: try { try decoder.decodeRepeatedMessageField(value: &self.guides) }()
       default: break
       }
     }
@@ -260,11 +967,344 @@ nonisolated extension Wiretuner_Doc_V1_MasterPageProps: SwiftProtobuf.Message, S
     try { if let v = self._common {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
     } }()
+    try { if let v = self._geometry {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    if self.bleed.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.bleed, fieldNumber: 3)
+    }
+    if !self.guides.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.guides, fieldNumber: 4)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Wiretuner_Doc_V1_MasterPageProps, rhs: Wiretuner_Doc_V1_MasterPageProps) -> Bool {
     if lhs._common != rhs._common {return false}
+    if lhs._geometry != rhs._geometry {return false}
+    if lhs.bleed != rhs.bleed {return false}
+    if lhs.guides != rhs.guides {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Doc_V1_GridSettings: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".GridSettings"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}size\0\u{1}relative\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularDoubleField(value: &self.size) }()
+      case 2: try { try decoder.decodeSingularBoolField(value: &self.relative) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.size.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.size, fieldNumber: 1)
+    }
+    if self.relative != false {
+      try visitor.visitSingularBoolField(value: self.relative, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Wiretuner_Doc_V1_GridSettings, rhs: Wiretuner_Doc_V1_GridSettings) -> Bool {
+    if lhs.size != rhs.size {return false}
+    if lhs.relative != rhs.relative {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Doc_V1_CustomPageSize: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".CustomPageSize"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}name\0\u{1}size\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._id) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.name) }()
+      case 3: try { try decoder.decodeSingularMessageField(value: &self._size) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._id {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    if !self.name.isEmpty {
+      try visitor.visitSingularStringField(value: self.name, fieldNumber: 2)
+    }
+    try { if let v = self._size {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Wiretuner_Doc_V1_CustomPageSize, rhs: Wiretuner_Doc_V1_CustomPageSize) -> Bool {
+    if lhs._id != rhs._id {return false}
+    if lhs.name != rhs.name {return false}
+    if lhs._size != rhs._size {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Doc_V1_UnitDefinition: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".UnitDefinition"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}amount\0\u{1}base\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularDoubleField(value: &self.amount) }()
+      case 2: try { try decoder.decodeSingularEnumField(value: &self.base) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.amount.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.amount, fieldNumber: 1)
+    }
+    if self.base != .unspecified {
+      try visitor.visitSingularEnumField(value: self.base, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Wiretuner_Doc_V1_UnitDefinition, rhs: Wiretuner_Doc_V1_UnitDefinition) -> Bool {
+    if lhs.amount != rhs.amount {return false}
+    if lhs.base != rhs.base {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Doc_V1_CustomUnit: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".CustomUnit"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}name\0\u{1}definition\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._id) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.name) }()
+      case 3: try { try decoder.decodeSingularMessageField(value: &self._definition) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._id {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    if !self.name.isEmpty {
+      try visitor.visitSingularStringField(value: self.name, fieldNumber: 2)
+    }
+    try { if let v = self._definition {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Wiretuner_Doc_V1_CustomUnit, rhs: Wiretuner_Doc_V1_CustomUnit) -> Bool {
+    if lhs._id != rhs._id {return false}
+    if lhs.name != rhs.name {return false}
+    if lhs._definition != rhs._definition {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Doc_V1_Defaults: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".Defaults"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}appearance\0\u{1}style\0\u{1}text\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._appearance) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._style) }()
+      case 3: try { try decoder.decodeSingularMessageField(value: &self._text) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._appearance {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._style {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try { if let v = self._text {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Wiretuner_Doc_V1_Defaults, rhs: Wiretuner_Doc_V1_Defaults) -> Bool {
+    if lhs._appearance != rhs._appearance {return false}
+    if lhs._style != rhs._style {return false}
+    if lhs._text != rhs._text {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Doc_V1_SettingsProps: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".SettingsProps"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}common\0\u{1}units\0\u{3}printer_resolution\0\u{1}grid\0\u{3}custom_page_sizes\0\u{3}custom_units\0\u{3}guides_locked\0\u{2}\u{3}defaults\0")
+
+  fileprivate class _StorageClass {
+    var _common: Wiretuner_Doc_V1_CommonProps? = nil
+    var _units: Wiretuner_Doc_V1_UnitChoice? = nil
+    var _printerResolution: UInt32 = 0
+    var _grid: Wiretuner_Doc_V1_GridSettings? = nil
+    var _customPageSizes: [Wiretuner_Doc_V1_CustomPageSize] = []
+    var _customUnits: [Wiretuner_Doc_V1_CustomUnit] = []
+    var _guidesLocked: Bool = false
+    var _defaults: Wiretuner_Doc_V1_Defaults? = nil
+
+      // This property is used as the initial default value for new instances of the type.
+      // The type itself is protecting the reference to its storage via CoW semantics.
+      // This will force a copy to be made of this reference when the first mutation occurs;
+      // hence, it is safe to mark this as `nonisolated(unsafe)`.
+      static nonisolated(unsafe) let defaultInstance = _StorageClass()
+
+    private init() {}
+
+    init(copying source: _StorageClass) {
+      _common = source._common
+      _units = source._units
+      _printerResolution = source._printerResolution
+      _grid = source._grid
+      _customPageSizes = source._customPageSizes
+      _customUnits = source._customUnits
+      _guidesLocked = source._guidesLocked
+      _defaults = source._defaults
+    }
+  }
+
+  fileprivate mutating func _uniqueStorage() -> _StorageClass {
+    if !isKnownUniquelyReferenced(&_storage) {
+      _storage = _StorageClass(copying: _storage)
+    }
+    return _storage
+  }
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    _ = _uniqueStorage()
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      while let fieldNumber = try decoder.nextFieldNumber() {
+        // The use of inline closures is to circumvent an issue where the compiler
+        // allocates stack space for every case branch when no optimizations are
+        // enabled. https://github.com/apple/swift-protobuf/issues/1034
+        switch fieldNumber {
+        case 1: try { try decoder.decodeSingularMessageField(value: &_storage._common) }()
+        case 2: try { try decoder.decodeSingularMessageField(value: &_storage._units) }()
+        case 3: try { try decoder.decodeSingularUInt32Field(value: &_storage._printerResolution) }()
+        case 4: try { try decoder.decodeSingularMessageField(value: &_storage._grid) }()
+        case 5: try { try decoder.decodeRepeatedMessageField(value: &_storage._customPageSizes) }()
+        case 6: try { try decoder.decodeRepeatedMessageField(value: &_storage._customUnits) }()
+        case 7: try { try decoder.decodeSingularBoolField(value: &_storage._guidesLocked) }()
+        case 10: try { try decoder.decodeSingularMessageField(value: &_storage._defaults) }()
+        default: break
+        }
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every if/case branch local when no optimizations
+      // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+      // https://github.com/apple/swift-protobuf/issues/1182
+      try { if let v = _storage._common {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+      } }()
+      try { if let v = _storage._units {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+      } }()
+      if _storage._printerResolution != 0 {
+        try visitor.visitSingularUInt32Field(value: _storage._printerResolution, fieldNumber: 3)
+      }
+      try { if let v = _storage._grid {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
+      } }()
+      if !_storage._customPageSizes.isEmpty {
+        try visitor.visitRepeatedMessageField(value: _storage._customPageSizes, fieldNumber: 5)
+      }
+      if !_storage._customUnits.isEmpty {
+        try visitor.visitRepeatedMessageField(value: _storage._customUnits, fieldNumber: 6)
+      }
+      if _storage._guidesLocked != false {
+        try visitor.visitSingularBoolField(value: _storage._guidesLocked, fieldNumber: 7)
+      }
+      try { if let v = _storage._defaults {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 10)
+      } }()
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Wiretuner_Doc_V1_SettingsProps, rhs: Wiretuner_Doc_V1_SettingsProps) -> Bool {
+    if lhs._storage !== rhs._storage {
+      let storagesAreEqual: Bool = withExtendedLifetime((lhs._storage, rhs._storage)) { (_args: (_StorageClass, _StorageClass)) in
+        let _storage = _args.0
+        let rhs_storage = _args.1
+        if _storage._common != rhs_storage._common {return false}
+        if _storage._units != rhs_storage._units {return false}
+        if _storage._printerResolution != rhs_storage._printerResolution {return false}
+        if _storage._grid != rhs_storage._grid {return false}
+        if _storage._customPageSizes != rhs_storage._customPageSizes {return false}
+        if _storage._customUnits != rhs_storage._customUnits {return false}
+        if _storage._guidesLocked != rhs_storage._guidesLocked {return false}
+        if _storage._defaults != rhs_storage._defaults {return false}
+        return true
+      }
+      if !storagesAreEqual {return false}
+    }
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

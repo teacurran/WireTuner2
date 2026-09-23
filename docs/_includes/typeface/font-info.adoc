@@ -212,7 +212,7 @@ ifdef::spec[]
 
 [source,protobuf]
 ----
-// FontProps: STRUCT on DocumentSettings.font.  Each field is an independent register.
+// FontProps: STRUCT on SettingsProps.font.  Each field is an independent register.
 
 message FontNames {
   string family = 1 [(buf.validate.field).string = {min_len: 1, max_len: 63}];

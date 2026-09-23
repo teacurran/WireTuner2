@@ -1,0 +1,80 @@
+// proto/wiretuner/doc/v1/style.proto
+//
+// Graphic and text styles (docs/_includes/library/styles.adoc, LIB-017; text styles'
+// attributes are TYPE's TextStyleAttrs, type/text-styles.adoc).  Styles are children of the
+// well-known `styles` node 0:6.  Objects reference a graphic style through `CommonProps.style`;
+// paragraphs and characters reference text styles through `ParagraphProps.style` and
+// `TextMarkValue.style`.  An object's effective appearance is resolved on read, never baked.
+syntax = "proto3";
+
+package wiretuner.doc.v1;
+
+import "buf/validate/validate.proto";
+import "wiretuner/doc/v1/appearance.proto";
+import "wiretuner/doc/v1/common.proto";
+import "wiretuner/doc/v1/text.proto";
+import "wt/crdt/options.proto";
+
+option java_multiple_files = true;
+option java_package = "com.villagecompute.wiretuner.doc.v1";
+option optimize_for = SPEED;
+
+// Fixed roles.  The document template creates one NORMAL and one NORMAL_TEXT style; clients
+// never delete them or give them a parent.  Duplicates: the smallest node id holds the role and
+// the rest read as ordinary; a deleted Normal reads as live.
+enum StyleRole {
+  // An ordinary style.
+  STYLE_ROLE_UNSPECIFIED = 0;
+  // The default graphic style.
+  STYLE_ROLE_NORMAL = 1;
+  // The default text style (a paragraph style).
+  STYLE_ROLE_NORMAL_TEXT = 2;
+}
+
+// What a style styles.  Fixed at creation.
+enum StyleKind {
+  // Reads as GRAPHIC.
+  STYLE_KIND_UNSPECIFIED = 0;
+  // A graphic style: `appearance` and `behavior`.
+  STYLE_KIND_GRAPHIC = 1;
+  // A paragraph text style: `text` with character and paragraph settings.
+  STYLE_KIND_PARAGRAPH = 2;
+  // A character text style: `text` with character settings only.
+  STYLE_KIND_CHARACTER = 3;
+}
+
+// Which attribute categories a graphic style governs.  STRUCT: each category is an independent
+// choice, so two people toggling different boxes keep both.  Create writes all four explicitly.
+// All-false reads as all-true.
+message StyleBehavior {
+  // The style governs fills.
+  bool fills = 1;
+  // The style governs strokes.
+  bool strokes = 2;
+  // The style governs effects.
+  bool effects = 3;
+  // The style governs the halftone screen.
+  bool halftone = 4;
+}
+
+// NodeProps.kind case `style`: a graphic, paragraph or character style under 0:6.  Name lives in
+// CommonProps.name.
+message StyleProps {
+  // The style's name and the other shared registers.
+  CommonProps common = 1;
+  // Fixed at creation.
+  StyleRole role = 2 [(buf.validate.field).enum.defined_only = true];
+  // Fixed at creation.
+  StyleKind kind = 3 [(buf.validate.field).enum.defined_only = true];
+  // Parent style.  Unset = no parent (an ordinary style with no parent falls back to the
+  // document defaults for anything it does not set).  Loops are cut on read at the smallest
+  // node id; dangling reads as unset.
+  NodeRef based_on = 4 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
+  // Graphic styles only: the categories governed.  STRUCT.
+  StyleBehavior behavior = 5;
+  // Graphic styles only: fills, strokes, effects as on objects; unset registers inherit from
+  // `based_on`.  Merges per the ATTR epic's policies.
+  AppearanceProps appearance = 6;
+  // Text styles only: character and paragraph settings (text.proto).  STRUCT.
+  TextStyleAttrs text = 7;
+}

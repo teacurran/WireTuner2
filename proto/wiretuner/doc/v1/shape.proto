@@ -1,0 +1,97 @@
+// proto/wiretuner/doc/v1/shape.proto
+//
+// Live shape node kinds (docs/_includes/drawing/rectangles-ellipses-lines.adoc, DRAW-006, and
+// polygons-stars.adoc, DRAW-010).  A shape's geometry is derived on read: WTModel exposes every
+// `rect`, `ellipse` and `polygon` node as a Path so every consumer sees a path; only the shape
+// editors care about the kind.  Lines, spirals and arcs are ordinary paths (path.proto).
+syntax = "proto3";
+
+package wiretuner.doc.v1;
+
+import "buf/validate/validate.proto";
+import "wiretuner/doc/v1/appearance.proto";
+import "wiretuner/doc/v1/common.proto";
+import "wt/crdt/options.proto";
+
+option java_multiple_files = true;
+option java_package = "com.villagecompute.wiretuner.doc.v1";
+option optimize_for = SPEED;
+
+// NodeProps.kind case `rect`: a live rectangle.  Its local frame has its top-left corner at the
+// origin; CommonProps.transform places, rotates and skews it on the pasteboard.
+message RectProps {
+  // Name, transform and the other shared registers.
+  CommonProps common = 1;
+  // Width and height.  ATOMIC: a Shift-constrained resize sets both together and a concurrent
+  // resize by someone else replaces both.  A zero dimension renders nothing.
+  Size size = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Corner radii.  STRUCT: each corner is its own decision.
+  CornerRadii corners = 3;
+  // Strokes, fills and effects.
+  AppearanceProps appearance = 4;
+}
+
+// A rectangle's corner radii, local units.  Each radius clamps on read to half of
+// min(width, height); a live Corners effect in the appearance reads them all as 0.
+message CornerRadii {
+  // Object panel "Uniform": all corners read as `top_left`.  The Object panel writes all four
+  // radii while it is on.
+  bool uniform = 1;
+  // Top-left radius.
+  double top_left = 2 [(buf.validate.field).double.gte = 0];
+  // Top-right radius.
+  double top_right = 3 [(buf.validate.field).double.gte = 0];
+  // Bottom-right radius.
+  double bottom_right = 4 [(buf.validate.field).double.gte = 0];
+  // Bottom-left radius.
+  double bottom_left = 5 [(buf.validate.field).double.gte = 0];
+}
+
+// NodeProps.kind case `ellipse`: a live ellipse inscribed in its local frame.
+message EllipseProps {
+  // Name, transform and the other shared registers.
+  CommonProps common = 1;
+  // Width and height of the frame.  ATOMIC.
+  Size size = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Strokes, fills and effects.
+  AppearanceProps appearance = 3;
+}
+
+// NodeProps.kind case `polygon`: a live regular polygon or star.  Local space: center at the
+// origin, first vertex at angle 0 (pointing +x) before `rotation`; CommonProps.transform places
+// the shape.  Every field is its own register (polygons-stars.adoc, "Merge semantics").
+message PolygonProps {
+  // Name, transform and the other shared registers.
+  CommonProps common = 1;
+  // Number of sides (or star points), 3 .. 360; a value outside that range (0 included, from a
+  // sparse write or an older client) clamps on read.
+  uint32 sides = 2 [
+    (buf.validate.field).uint32 = {
+      gte: 3
+      lte: 360
+    },
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+  // A star rather than a polygon.  Off hides the inner points; `inner_radius` is kept.
+  bool star = 3;
+  // Outer radius (vertex distance from center), local units.  0 or less renders nothing.
+  double radius = 4 [(buf.validate.field).double.gte = 0];
+  // Inner radius for stars.  Ignored when `star` is false or `auto_inner` is true.  May exceed
+  // `radius` (an inside-out star).
+  double inner_radius = 5 [(buf.validate.field).double.gte = 0];
+  // "Automatic" star points: `inner_radius` reads as the automatic value for `sides`.
+  bool auto_inner = 6;
+  // Manual star sharpness, 0 (acute) .. 1 (obtuse); the Acute/Obtuse slider.  Only seeds
+  // `inner_radius` when the tool draws; stored so the Object panel can show the slider.
+  double sharpness = 7 [(buf.validate.field).double = {
+    gte: 0
+    lte: 1
+  }];
+  // Rotation of the first vertex, radians, applied before common.transform, so a vertex-handle
+  // drag never collides with a Pointer-tool move.
+  double rotation = 8;
+  // Angular offset of the valleys from their default (halfway between peaks), radians.
+  double valley_offset = 9;
+  // Strokes, fills and effects.
+  AppearanceProps appearance = 10;
+}

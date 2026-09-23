@@ -220,7 +220,7 @@ message ChartRow {
 }
 message ChartCell {
   ElementId id = 1;
-  ElementId column = 2;                       // which column; ATOMIC scalar pair
+  ElementId column = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];   // which column
   string text = 3;                            // as typed: "12.5", "Q1", "\"2024\""
 }
 
@@ -229,23 +229,30 @@ enum ChartType {
   CHART_TYPE_GROUPED_COLUMN = 1; CHART_TYPE_STACKED_COLUMN = 2; CHART_TYPE_LINE = 3;
   CHART_TYPE_PIE = 4; CHART_TYPE_AREA = 5; CHART_TYPE_SCATTER = 6;
 }
+// Each reads its UNSPECIFIED zero as the default named in ChartOptions / AxisOptions.
+enum ChartMarker { CHART_MARKER_UNSPECIFIED = 0; CHART_MARKER_NONE = 1; CHART_MARKER_SQUARE = 2;
+  CHART_MARKER_DIAMOND = 3; CHART_MARKER_TRIANGLE = 4; CHART_MARKER_CIRCLE = 5; }
+enum ChartAxisDisplay { CHART_AXIS_DISPLAY_UNSPECIFIED = 0; CHART_AXIS_DISPLAY_LEFT = 1;
+  CHART_AXIS_DISPLAY_RIGHT = 2; CHART_AXIS_DISPLAY_BOTH = 3; }
+enum ChartTickStyle { CHART_TICK_STYLE_UNSPECIFIED = 0; CHART_TICK_STYLE_NONE = 1;
+  CHART_TICK_STYLE_ACROSS = 2; CHART_TICK_STYLE_INSIDE = 3; CHART_TICK_STYLE_OUTSIDE = 4; }
 message ChartOptions {
   double column_width = 1;                    // percent; 0 reads as 80
   double cluster_width = 2;                   // percent; 0 reads as 80
   double pie_separation = 3 [(buf.validate.field).double = {gte: 0, lte: 50}];
-  Marker markers = 4;                         // NONE, SQUARE, DIAMOND, TRIANGLE, CIRCLE
+  ChartMarker markers = 4;                    // NONE, SQUARE, DIAMOND, TRIANGLE, CIRCLE
   bool data_numbers = 5;
   bool drop_shadow = 6;
   bool legends_across_top = 7;
-  AxisDisplay axis_display = 8;               // LEFT (default), RIGHT, BOTH
+  ChartAxisDisplay axis_display = 8;          // LEFT (default), RIGHT, BOTH
   bool gridlines_x = 9;
   bool gridlines_y = 10;
 }
 message AxisOptions {
   bool manual = 1;                            // false = calculate from data
   double minimum = 2; double maximum = 3; double between = 4;
-  TickStyle major = 5;                        // NONE, ACROSS, INSIDE, OUTSIDE
-  TickStyle minor = 6;
+  ChartTickStyle major = 5;                   // NONE, ACROSS, INSIDE, OUTSIDE
+  ChartTickStyle minor = 6;
   uint32 minor_count = 7;
   string prefix = 8 [(buf.validate.field).string.max_len = 16];
   string suffix = 9 [(buf.validate.field).string.max_len = 16];
@@ -254,9 +261,9 @@ message AxisOptions {
 // Styling or a pictograph for one series (index unset) or one element of it.
 message ChartOverride {
   ElementId id = 1;
-  ElementId series = 2;                       // a column id, or a row id for pies/stacked
-  ElementId index = 3;                        // a row id (or column id); unset = whole series
-  Appearance appearance = 4;                  // strokes/fills/effects; unset = chart default
+  ElementId series = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];   // a column id, or a row id for pies/stacked
+  ElementId index = 3 [(wt.crdt.field).merge = MERGE_ATOMIC];    // a row id (or column id); unset = whole series
+  AppearanceProps appearance = 4;                  // strokes/fills/effects; unset = chart default
   Transform transform = 5 [(wt.crdt.field).merge = MERGE_ATOMIC];  // extra transform
   // Pictograph: a child node of the chart (a group) used in place of the column.
   NodeRef pictograph = 6 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
@@ -372,7 +379,7 @@ ungroup.
 Track:: proto
 Depends on:: PROTO-003, PROTO-005
 Size:: M
-Delivers:: `doc/v1/chart.proto` as in the Data model, the `chart` kind in `NodeProps`, validation rules, comments.
+Delivers:: `doc/v1/chart.proto` as in the Data model, the `chart` kind in `NodeProps`, validation rules, comments (implemented in `chart.proto`).
 Done when::
 * Lints clean; merge table: `columns`, `rows`, `cells`, `overrides` SEQUENCE; `size` and `transform` ATOMIC.
 * Conformance vectors: concurrent cell creation for one slot; column insert vs. row insert; import (delete all + insert) vs. cell edit; converge with identical hashes.

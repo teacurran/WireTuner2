@@ -138,34 +138,35 @@ ifdef::spec[]
 
 === Data model
 
-A style is a node of kind `text_style` under `styles (0:6)`.  Paragraphs reference it through
-`ParagraphProps.style`, characters through `TextMarkValue.style`, both with
-`on_dangling = REF_FALLBACK_CACHED`: the `NodeRef.cached` bytes hold a `TextStyleProps`
-snapshot of the resolved settings at apply time, so a dangling reference renders unchanged.
+A text style is a `style` node under `styles (0:6)` (xref:styles.adoc[Styles], `style.proto`)
+of kind `STYLE_KIND_PARAGRAPH` or `STYLE_KIND_CHARACTER`: its name is `CommonProps.name`, its
+parent `StyleProps.based_on`, and its text attributes `StyleProps.text`, a `TextStyleAttrs`
+(`text.proto`).  Paragraphs reference it through `ParagraphProps.style`, characters through
+`TextMarkValue.style`, both with `on_dangling = REF_FALLBACK_CACHED`: the `NodeRef.cached` bytes
+hold a `TextStyleAttrs` snapshot of the resolved settings at apply time, so a dangling reference
+renders unchanged.
 
 [source,protobuf]
 ----
-// NodeProps.kind case `text_style`.
-message TextStyleProps {
-  string name = 1 [(buf.validate.field).string.max_len = 256];
-  StyleKind kind = 2;                          // paragraph or character; immutable
-  NodeRef based_on = 3 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
-  NodeRef next = 4 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
+// StyleProps.text (style.proto); name, kind and based_on are StyleProps' `common.name`,
+// `kind` (PARAGRAPH or CHARACTER, immutable) and `based_on`.
+message TextStyleAttrs {
+  NodeRef next = 1 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
   // Character settings.  Each is optional: unset = "no selection" (leave the text alone,
   // or inherit from based_on).  STRUCT.
-  CharacterSettings character = 5;
+  CharacterSettings character = 2;
   // Paragraph settings, same optionality.  STRUCT.  Absent for character styles.
-  ParagraphSettings paragraph = 6;
-  bool affects_color = 7;                      // "Style affects text color"
+  ParagraphSettings paragraph = 3;
+  bool affects_color = 4;                      // "Style affects text color"
 }
-enum StyleKind { STYLE_KIND_PARAGRAPH = 0; STYLE_KIND_CHARACTER = 1; }
 
 message CharacterSettings {
   optional string font_family = 1;  optional string font_style = 2;  optional double size = 3;
   Leading leading = 4 [(wt.crdt.field).merge = MERGE_ATOMIC];       // unset = no selection
   optional double range_kerning = 5;  optional double baseline_shift = 6;
   optional double horizontal_scale = 7;
-  ColorRef fill = 8;  StrokeProps stroke = 9;  TextEffect effect = 10;
+  ColorRef fill = 8 [(wt.crdt.field).merge = MERGE_ATOMIC];  BasicStroke stroke = 9;
+  TextEffect effect = 10 [(wt.crdt.field).merge = MERGE_ATOMIC];
   optional CaseStyle case = 11;  optional string language = 12;  optional bool overprint = 13;
   FontVariation axes = 14 [(wt.crdt.field).merge = MERGE_ATOMIC];  // unset = no selection
   FeatureSettings features = 15;    // STRUCT: one tri-state register per feature (creating-text)
@@ -190,11 +191,12 @@ what the style chain resolves to.  Applying a style writes the `style` reference
 the paragraph's own registers and the character marks it governs (so re-clicking the style
 removes overrides); marks and registers the style leaves as "no selection" are kept.
 
-`Normal Text` is a well-known style node (replica 0, a counter reserved by the LIB epic).
+`Normal Text` is the style with `role = STYLE_ROLE_NORMAL_TEXT` that the document template
+creates (xref:styles.adoc[Styles]); it is not a well-known node.
 
 === Merge semantics
 
-Style edits:: `TextStyleProps` is STRUCT; two people editing different settings merge, the
+Style edits:: `TextStyleAttrs` is STRUCT; two people editing different settings merge, the
 same setting is LWW and reviewed as *same register* on the style node.  A style edit is one
 change ("Edit style Heading") and, since text references the style, every paragraph updates
 on read with no ops to the text.
@@ -212,7 +214,7 @@ Delete vs. apply:: A style deleted while someone applies it: the reference dangl
 resolves through the cache; the paragraph looks as intended and shows *Normal Text +* once
 the deletion is seen.  Restoring the style (undo, or the review's *Restore*) re-links it.
 
-Rename vs. rename:: LWW on `name`; both shown in the review.  Duplicate names are allowed by
+Rename vs. rename:: LWW on `CommonProps.name`; both shown in the review.  Duplicate names are allowed by
 the model; the panel disambiguates with the node id suffix until one is renamed.
 
 `based_on` cycles:: Normalize on read as for flows: the `based_on` of the cycle member with the
@@ -222,7 +224,8 @@ Next style:: `next` is consulted only at split time by the client; it is never w
 text.
 
 Read-time normalizations::
-* A `style` reference to a `text_style` of the wrong `kind` (character style on a paragraph)
+* A `style` reference to a style of the wrong `kind` (character style on a paragraph, or a
+  graphic style)
   reads as unset with the cache applied.
 * `based_on` dangling: the style behaves as a root.
 
@@ -251,16 +254,16 @@ mode are TYPE tasks.  Undo: one step per style edit, apply, redefine, rename or 
 Track:: client-model
 Depends on:: TYPE-001, TYPE-002
 Size:: M
-Delivers:: `text_style` node wrapper, resolution chain with cache, override detection, apply
+Delivers:: Text style wrapper over `style` nodes of kind PARAGRAPH/CHARACTER, resolution chain with cache, override detection, apply
 (reference + covering marks + register clears), remove with re-parenting and cached fallback,
-`next` at split, cycle normalization, Normal Text well-known node.
+`next` at split, cycle normalization, the Normal Text style (role `NORMAL_TEXT`).
 Done when::
 * Editing a style updates 10,000 paragraphs' resolved attributes under 20 ms.
 * Removing a style leaves every affected paragraph rendering identically.
 * Merge test: apply style vs. concurrent bold on the same paragraph converges; the later OpId
   shows on the overlap.
 * Merge test: delete style vs. apply style converges with the cached appearance.
-* Conformance vectors for `TextStyleProps` STRUCT and the CACHED fallback.
+* Conformance vectors for `TextStyleAttrs` STRUCT and the CACHED fallback.
 
 [[TYPE-035]]
 ==== TYPE-035 Styles panel text operations

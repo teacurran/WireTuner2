@@ -87,7 +87,7 @@ ifdef::spec[]
 === Data model
 
 `PageProps.ruler_origin` (ATOMIC `Point`, relative to the page's top-left in points, y down) and
-`DocumentSettings.custom_units` are on xref:document-panel.adoc[The Document panel].  Master
+`SettingsProps.custom_units` are on xref:document-panel.adoc[The Document panel].  Master
 pages have no `ruler_origin`; the master canvas uses the bottom-left corner of the master.
 
 Default (`ruler_origin` unset) is `(0, height)` -- the bottom-left corner.  The rulers display

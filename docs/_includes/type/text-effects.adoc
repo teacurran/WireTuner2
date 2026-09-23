@@ -164,8 +164,8 @@ ifdef::spec[]
 === Data model
 
 `TextMarkValue.effect`, `TextMarkValue.inline_graphic`, `TextBlockProps.direction` on
-xref:creating-text.adoc[Creating text]; `CommonProps.text_wrap` added to `common.proto` by
-TYPE-001.
+xref:creating-text.adoc[Creating text]; `CommonProps.text_wrap` in `common.proto` (PROTO-003
+placed it there for TYPE-001).
 
 [source,protobuf]
 ----
@@ -173,20 +173,22 @@ TYPE-001.
 // register), so the kind and its options never mix between users.
 message TextEffect {
   oneof effect {
-    LineEffect highlight = 1;
-    LineEffect underline = 2;
-    LineEffect strikethrough = 3;
-    InlineEffect inline = 4;
-    ShadowEffect shadow = 5;
-    ZoomEffect zoom = 6;
+    TextLineEffect highlight = 1;
+    TextLineEffect underline = 2;
+    TextLineEffect strikethrough = 3;
+    TextInlineEffect inline = 4;
+    TextShadowEffect shadow = 5;
+    TextZoomEffect zoom = 6;
   }
 }
-message LineEffect { double position = 1; NodeRef dash = 2; double width = 3; ColorRef color = 4; bool overprint = 5; }
-message InlineEffect { uint32 count = 1; double stroke_width = 2; ColorRef stroke_color = 3; double background_width = 4; ColorRef background_color = 5; }
-message ShadowEffect { double offset_x = 1; double offset_y = 2; ColorRef color = 3; double tint = 4; }
-message ZoomEffect { double zoom_to = 1; double offset_x = 2; double offset_y = 3; ColorRef from = 4; ColorRef to = 5; }
+// `Text` prefix: ShadowEffect is the FX epic's raster effect.  The dash is stored inline, as
+// stroke dashes are (stroke-attributes); every ColorRef is ATOMIC.
+message TextLineEffect { double position = 1; DashPattern dash = 2; double width = 3; ColorRef color = 4; bool overprint = 5; }
+message TextInlineEffect { uint32 count = 1; double stroke_width = 2; ColorRef stroke_color = 3; double background_width = 4; ColorRef background_color = 5; }
+message TextShadowEffect { double offset_x = 1; double offset_y = 2; ColorRef color = 3; double tint = 4; }
+message TextZoomEffect { double zoom_to = 1; double offset_x = 2; double offset_y = 3; ColorRef from = 4; ColorRef to = 5; }
 
-// On CommonProps (any object): text behind this object flows around it.
+// On CommonProps (any object; common.proto, field 13): text behind this object flows around it.
 message TextWrap {
   bool enabled = 1;
   double standoff = 2;              // points; negative overlaps

@@ -1,0 +1,299 @@
+// proto/wiretuner/doc/v1/stroke.proto
+//
+// The stroke kinds of the attribute stack and the `brush` node kind
+// (docs/_includes/appearance/stroke-attributes.adoc, ATTR-005).  All widths and lengths are in
+// points.  Colors are ATOMIC `ColorRef`s (color/applying-color.adoc).  The built-in dash,
+// arrowhead and pattern presets are application resources; a stroke copies the chosen preset
+// into its own field so a document is self-contained.
+syntax = "proto3";
+
+package wiretuner.doc.v1;
+
+import "buf/validate/validate.proto";
+import "wiretuner/doc/v1/common.proto";
+import "wiretuner/doc/v1/contour.proto";
+import "wt/crdt/options.proto";
+
+option java_multiple_files = true;
+// The default outer class would be `Stroke`, which collides with the Stroke message in this package.
+option java_outer_classname = "StrokeProto";
+option java_package = "com.villagecompute.wiretuner.doc.v1";
+option optimize_for = SPEED;
+
+// How an open end of a stroke is drawn.
+enum LineCap {
+  // Reads as BUTT.
+  LINE_CAP_UNSPECIFIED = 0;
+  // Square end at the endpoint.
+  LINE_CAP_BUTT = 1;
+  // Semicircular end.
+  LINE_CAP_ROUND = 2;
+  // Square end projecting half the width beyond the endpoint.
+  LINE_CAP_SQUARE = 3;
+}
+
+// How a stroke turns a corner.
+enum LineJoin {
+  // Reads as MITER.
+  LINE_JOIN_UNSPECIFIED = 0;
+  // Pointed corner, limited by the miter limit.
+  LINE_JOIN_MITER = 1;
+  // Rounded corner.
+  LINE_JOIN_ROUND = 2;
+  // Cut-off corner.
+  LINE_JOIN_BEVEL = 3;
+}
+
+// A plain stroke.  STRUCT: width, cap, join, miter limit and overprint are independent
+// registers; the dash and the arrowheads are each one ATOMIC value.
+message BasicStroke {
+  // The stroke color; None paints nothing.  ATOMIC.
+  ColorRef color = 1 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Width, 0 (hairline) .. 16,164; out-of-range values clamp on read.
+  double width = 2 [(buf.validate.field).double = {
+    gte: 0
+    lte: 16164
+  }];
+  // End caps.
+  LineCap cap = 3 [(buf.validate.field).enum.defined_only = true];
+  // Corner joins.
+  LineJoin join = 4 [(buf.validate.field).enum.defined_only = true];
+  // Miter limit, 1 .. 57; 0 (never set) reads as 4.
+  double miter_limit = 5 [
+    (buf.validate.field).double = {
+      gte: 1
+      lte: 57
+    },
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+  // The dash; unset = solid.  ATOMIC: the on/off lengths only mean something together.
+  DashPattern dash = 6 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Arrowhead at the path's start; unset = none.  ATOMIC.
+  Arrowhead start_arrowhead = 7 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Arrowhead at the path's end; unset = none.  ATOMIC.
+  Arrowhead end_arrowhead = 8 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Print-time overprint.
+  bool overprint = 9;
+}
+
+// A dash pattern.  ATOMIC wherever used.  An odd count of lengths repeats its cycle (PDF
+// semantics); all-zero lengths read as solid.
+message DashPattern {
+  // Preset name, informational.
+  string name = 1 [(buf.validate.field).string.max_len = 64];
+  // On, off, on, off ... lengths in points.
+  repeated double lengths = 2 [(buf.validate.field).repeated = {
+    max_items: 8
+    items: {
+      double: {gte: 0}
+    }
+  }];
+}
+
+// An arrowhead, stored inline so every replica draws the same head.  ATOMIC wherever used.
+message Arrowhead {
+  // Preset or user name, informational.
+  string name = 1 [(buf.validate.field).string.max_len = 64];
+  // Outline in arrowhead units (1 unit = the stroke width); origin at the path endpoint, +x
+  // pointing beyond the end of the path.  Part of the one ATOMIC value.
+  repeated Contour contours = 2 [
+    (wt.crdt.field).merge = MERGE_ATOMIC,
+    (buf.validate.field).repeated.max_items = 64
+  ];
+  // Filled with the stroke color; otherwise stroked at width 1 unit.
+  bool filled = 3;
+  // How far, in units, the path is shortened under the head.
+  double path_trim = 4 [(buf.validate.field).double.gte = 0];
+}
+
+// A stroke painted with a brush node's symbols.
+message BrushStroke {
+  // The brush node in the `brushes` collection (0:8).  `cached` holds an encoded BasicStroke
+  // drawn while the brush is gone, so a stroke never disappears when someone removes a brush.
+  NodeRef brush = 1 [(wt.crdt.field).on_dangling = REF_FALLBACK_CACHED];
+  // Brush size as a percentage of its natural width, 1 .. 400; 0 (never set) reads as 100.
+  double width_percent = 2 [
+    (buf.validate.field).double = {
+      gte: 1
+      lte: 400
+    },
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+  // Fallback color; brushes paint their symbols' colors.  ATOMIC.
+  ColorRef color = 3 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Seed for Random and Variable variation; chosen at creation, new value on duplicate.
+  fixed64 seed = 4;
+}
+
+// How a brush lays out its symbols.
+enum BrushMode {
+  // Reads as SPRAY.
+  BRUSH_MODE_UNSPECIFIED = 0;
+  // Symbols scattered along the path.
+  BRUSH_MODE_SPRAY = 1;
+  // Symbols stretched along the path, `count` copies.
+  BRUSH_MODE_PAINT = 2;
+}
+
+// How one brush variation (spacing, angle, offset, scaling) varies along the path.
+enum VariationMode {
+  // Reads as FIXED.
+  VARIATION_MODE_UNSPECIFIED = 0;
+  // `value` everywhere.
+  VARIATION_MODE_FIXED = 1;
+  // Seeded random between `min` and `max`.
+  VARIATION_MODE_RANDOM = 2;
+  // From `min` to `max` along the path.
+  VARIATION_MODE_VARIABLE = 3;
+  // From `min` to `max` and back.
+  VARIATION_MODE_FLARE = 4;
+}
+
+// NodeProps.kind case `brush`: a node in the `brushes` collection (0:8).  Name = brush name.
+// STRUCT: mode, count and the flags are registers; each variation is ATOMIC.
+message BrushProps {
+  // The brush name (CommonProps.name) and the other shared registers.
+  CommonProps common = 1;
+  // PAINT or SPRAY.
+  BrushMode mode = 2 [(buf.validate.field).enum.defined_only = true];
+  // PAINT: 1 .. 500 copies; 0 (never set) reads as 1.
+  uint32 count = 3 [(buf.validate.field).uint32.lte = 500];
+  // Symbols painted, bottom first.  SEQUENCE: element order is the stacking order.
+  repeated BrushSymbol symbols = 4 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  // Rotate symbols to follow the path.
+  bool orient_on_path = 5;
+  // Fold symbols around corners.
+  bool fold_corners = 6;
+  // Spacing variation.  ATOMIC: mode and values are one choice.
+  BrushVariation spacing = 7 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Angle variation.  ATOMIC.
+  BrushVariation angle = 8 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Offset variation.  ATOMIC.
+  BrushVariation offset = 9 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Scaling variation.  ATOMIC.
+  BrushVariation scaling = 10 [(wt.crdt.field).merge = MERGE_ATOMIC];
+}
+
+// One symbol a brush paints.  Element of BrushProps.symbols.
+message BrushSymbol {
+  // Element id (MERGE_SEQUENCE).
+  ElementId id = 1;
+  // A symbol node under 0:7.  Skipped when gone; a brush with no live symbols renders its
+  // strokes as the cached basic stroke.
+  NodeRef symbol = 2 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
+}
+
+// One brush variation.  ATOMIC wherever used.
+message BrushVariation {
+  // Fixed, random, variable or flare.
+  VariationMode mode = 1 [(buf.validate.field).enum.defined_only = true];
+  // The value for FIXED.
+  double value = 2;
+  // The lower value for RANDOM, VARIABLE and FLARE.
+  double min = 3;
+  // The upper value for RANDOM, VARIABLE and FLARE.
+  double max = 4;
+}
+
+// A stroke drawn with a calligraphic nib.
+message CalligraphicStroke {
+  // Nib color.  ATOMIC.
+  ColorRef color = 1 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Nib width.
+  double width = 2 [(buf.validate.field).double.gte = 0];
+  // Nib height.
+  double height = 3 [(buf.validate.field).double.gte = 0];
+  // Nib angle in degrees.
+  double angle = 4;
+  // Custom nib: one closed contour in nib units (1 = width/height before scaling).  Unset =
+  // ellipse; anything but a single closed contour reads as the ellipse.  ATOMIC: half a nib is
+  // meaningless.
+  repeated Contour nib = 5 [
+    (wt.crdt.field).merge = MERGE_ATOMIC,
+    (buf.validate.field).repeated.max_items = 1
+  ];
+}
+
+// The procedural custom stroke patterns.  An unknown value (a newer client's) renders as a
+// Basic stroke of the same width.
+enum CustomStrokePattern {
+  // Never chosen: renders as a Basic stroke of the same width, like an unknown value.
+  CUSTOM_STROKE_PATTERN_UNSPECIFIED = 0;
+  // Arrow.
+  CUSTOM_STROKE_PATTERN_ARROW = 1;
+  // Ball.
+  CUSTOM_STROKE_PATTERN_BALL = 2;
+  // Braid.
+  CUSTOM_STROKE_PATTERN_BRAID = 3;
+  // Cartographer.
+  CUSTOM_STROKE_PATTERN_CARTOGRAPHER = 4;
+  // Checker.
+  CUSTOM_STROKE_PATTERN_CHECKER = 5;
+  // Crepe.
+  CUSTOM_STROKE_PATTERN_CREPE = 6;
+  // Diamond.
+  CUSTOM_STROKE_PATTERN_DIAMOND = 7;
+  // Dot.
+  CUSTOM_STROKE_PATTERN_DOT = 8;
+  // Heart.
+  CUSTOM_STROKE_PATTERN_HEART = 9;
+  // Left diagonal.
+  CUSTOM_STROKE_PATTERN_LEFT_DIAGONAL = 10;
+  // Neon (ignores the color).
+  CUSTOM_STROKE_PATTERN_NEON = 11;
+  // Rectangle.
+  CUSTOM_STROKE_PATTERN_RECTANGLE = 12;
+  // Right diagonal.
+  CUSTOM_STROKE_PATTERN_RIGHT_DIAGONAL = 13;
+  // Roman.
+  CUSTOM_STROKE_PATTERN_ROMAN = 14;
+  // Snowflake.
+  CUSTOM_STROKE_PATTERN_SNOWFLAKE = 15;
+  // Squiggle.
+  CUSTOM_STROKE_PATTERN_SQUIGGLE = 16;
+  // Star.
+  CUSTOM_STROKE_PATTERN_STAR = 17;
+  // Swirl.
+  CUSTOM_STROKE_PATTERN_SWIRL = 18;
+  // Teeth.
+  CUSTOM_STROKE_PATTERN_TEETH = 19;
+  // Three waves.
+  CUSTOM_STROKE_PATTERN_THREE_WAVES = 20;
+  // Two waves.
+  CUSTOM_STROKE_PATTERN_TWO_WAVES = 21;
+  // Wedge.
+  CUSTOM_STROKE_PATTERN_WEDGE = 22;
+  // Zigzag.
+  CUSTOM_STROKE_PATTERN_ZIGZAG = 23;
+}
+
+// A procedural custom stroke.
+message CustomStroke {
+  // One of the 23 named patterns.
+  CustomStrokePattern pattern = 1;
+  // Pattern color; ignored by NEON.  ATOMIC.
+  ColorRef color = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Stroke width.
+  double width = 3 [(buf.validate.field).double.gte = 0];
+  // Length of one tile along the path.
+  double length = 4 [(buf.validate.field).double.gte = 0];
+  // Gap between tiles.
+  double spacing = 5 [(buf.validate.field).double.gte = 0];
+}
+
+// An 8 x 8 one-bit pattern.  Shared with PatternFill (fill.proto).  ATOMIC wherever used: a
+// pattern is one picture.
+message PatternBitmap {
+  // 8 rows, MSB = left pixel, 1 = painted.
+  bytes rows = 1 [(buf.validate.field).bytes.len = 8];
+}
+
+// A stroke painted with a bitmap pattern.
+message PatternStroke {
+  // Pattern color.  ATOMIC.
+  ColorRef color = 1 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Stroke width.
+  double width = 2 [(buf.validate.field).double.gte = 0];
+  // The pattern.  ATOMIC.
+  PatternBitmap bitmap = 3 [(wt.crdt.field).merge = MERGE_ATOMIC];
+}

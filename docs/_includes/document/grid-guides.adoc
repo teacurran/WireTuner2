@@ -152,10 +152,10 @@ ifdef::spec[]
 
 === Data model
 
-`Guide`, `PageProps.guides`, `MasterProps.guides`, `GridSettings` and
-`DocumentSettings.guides_locked` are on xref:document-panel.adoc[The Document panel].
+`Guide`, `PageProps.guides`, `MasterPageProps.guides`, `GridSettings` and
+`SettingsProps.guides_locked` are on xref:document-panel.adoc[The Document panel].
 
-Guide positions are stored in points from the page's top-left corner (`axis = HORIZONTAL` →
+Guide positions are stored in points from the page's top-left corner (`axis = GUIDE_AXIS_HORIZONTAL` →
 `position` is a y offset, `VERTICAL` → an x offset), *not* from the zero point, so moving the zero
 point does not move guides.  The Guides sheet converts to zero-point coordinates for display.
 
@@ -194,7 +194,7 @@ Read-time normalizations:
 
 * A guide whose position lies outside the page (after a resize) is kept and drawn clipped to the
   bleed rectangle; it is listed in the sheet.
-* A guide with `AXIS_UNSPECIFIED` reads as horizontal.
+* A guide with `GUIDE_AXIS_UNSPECIFIED` reads as horizontal.
 
 === Offline behavior
 

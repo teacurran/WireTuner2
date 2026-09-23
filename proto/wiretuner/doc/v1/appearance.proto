@@ -1,0 +1,135 @@
+// proto/wiretuner/doc/v1/appearance.proto
+//
+// The attribute stack (docs/_includes/appearance/attribute-stack.adoc, ATTR-001): every
+// drawable node kind carries an `AppearanceProps`, and so do the settings node's default
+// attributes and graphic styles.  The kind messages are in fill.proto, gradient.proto,
+// stroke.proto and effects.proto.
+//
+// A stack element's kind and its settings are a MERGE_VARIANT message (`settings`): the kind is
+// an enum register and every kind's settings are sibling STRUCT messages rather than a `oneof`,
+// so switching Basic -> Gradient -> Basic gets the old basic color back and a concurrent kind
+// change and edit of the old kind's settings both survive (docs/spec/decisions.adoc D-020).
+// The variant is one level below the element because a SEQUENCE element cannot itself be
+// declared MERGE_VARIANT.
+syntax = "proto3";
+
+package wiretuner.doc.v1;
+
+import "wiretuner/doc/v1/common.proto";
+import "wiretuner/doc/v1/effects.proto";
+import "wiretuner/doc/v1/fill.proto";
+import "wiretuner/doc/v1/gradient.proto";
+import "wiretuner/doc/v1/stroke.proto";
+import "wt/crdt/options.proto";
+
+option java_multiple_files = true;
+option java_package = "com.villagecompute.wiretuner.doc.v1";
+option optimize_for = SPEED;
+
+// The attribute stack.  Three sequences, one order: the positions of all three share one
+// fractional-index space (D-021), so the stack the user sees is every live element of `fills`,
+// `strokes` and `effects` sorted by position (bytewise), then element id.  A fill can therefore
+// sit above a stroke.  Painting order is ascending position: bottom first.
+message AppearanceProps {
+  // The fills.  SEQUENCE.
+  repeated Fill fills = 1 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  // The strokes.  SEQUENCE.
+  repeated Stroke strokes = 2 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  // The live effects, owned by the FX epic (effects.proto); here so every consumer sees one
+  // stack.  SEQUENCE.
+  repeated Effect effects = 3 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+}
+
+// Which fill settings message is live.  Unset or unknown (a newer client's value) reads as
+// BASIC; the unknown kind's registers are preserved for other clients.
+enum FillKind {
+  // Reads as BASIC.
+  FILL_KIND_UNSPECIFIED = 0;
+  // BasicFill.
+  FILL_KIND_BASIC = 1;
+  // GradientFill.
+  FILL_KIND_GRADIENT = 2;
+  // LensFill.
+  FILL_KIND_LENS = 3;
+  // CustomFill.
+  FILL_KIND_CUSTOM = 4;
+  // PatternFill.
+  FILL_KIND_PATTERN = 5;
+  // TexturedFill.
+  FILL_KIND_TEXTURED = 6;
+  // TiledFill.
+  FILL_KIND_TILED = 7;
+}
+
+// Which stroke settings message is live.  Unset or unknown reads as BASIC.
+enum StrokeKind {
+  // Reads as BASIC.
+  STROKE_KIND_UNSPECIFIED = 0;
+  // BasicStroke.
+  STROKE_KIND_BASIC = 1;
+  // BrushStroke.
+  STROKE_KIND_BRUSH = 2;
+  // CalligraphicStroke.
+  STROKE_KIND_CALLIGRAPHIC = 3;
+  // CustomStroke.
+  STROKE_KIND_CUSTOM = 4;
+  // PatternStroke.
+  STROKE_KIND_PATTERN = 5;
+}
+
+// One fill in the stack.  Element of AppearanceProps.fills.
+message Fill {
+  // Element id (MERGE_SEQUENCE).
+  ElementId id = 1;
+  // Skipped when painting; settings kept.  ATOMIC.
+  bool hidden = 2;
+  // The kind and every kind's settings.  MERGE_VARIANT.
+  FillSettings settings = 3 [(wt.crdt.field).merge = MERGE_VARIANT];
+}
+
+// A fill's kind and its per-kind settings (MERGE_VARIANT).  An element whose live kind message
+// has never been written reads with that kind's defaults.
+message FillSettings {
+  // Which case is live.  ATOMIC.
+  FillKind kind = 1;
+  // fill-attributes.adoc.  STRUCT.
+  BasicFill basic = 2;
+  // gradients.adoc.  STRUCT.
+  GradientFill gradient = 3;
+  // fill-attributes.adoc.  STRUCT.
+  LensFill lens = 4;
+  // fill-attributes.adoc.  STRUCT.
+  CustomFill custom = 5;
+  // fill-attributes.adoc.  STRUCT.
+  PatternFill pattern = 6;
+  // fill-attributes.adoc.  STRUCT.
+  TexturedFill textured = 7;
+  // fill-attributes.adoc.  STRUCT.
+  TiledFill tiled = 8;
+}
+
+// One stroke in the stack; same shape as Fill.  Element of AppearanceProps.strokes.
+message Stroke {
+  // Element id (MERGE_SEQUENCE).
+  ElementId id = 1;
+  // Skipped when painting; settings kept.  ATOMIC.
+  bool hidden = 2;
+  // The kind and every kind's settings.  MERGE_VARIANT.
+  StrokeSettings settings = 3 [(wt.crdt.field).merge = MERGE_VARIANT];
+}
+
+// A stroke's kind and its per-kind settings (MERGE_VARIANT).
+message StrokeSettings {
+  // Which case is live.  ATOMIC.
+  StrokeKind kind = 1;
+  // stroke-attributes.adoc.  STRUCT.
+  BasicStroke basic = 2;
+  // stroke-attributes.adoc.  STRUCT.
+  BrushStroke brush = 3;
+  // stroke-attributes.adoc.  STRUCT.
+  CalligraphicStroke calligraphic = 4;
+  // stroke-attributes.adoc.  STRUCT.
+  CustomStroke custom = 5;
+  // stroke-attributes.adoc.  STRUCT.
+  PatternStroke pattern = 6;
+}

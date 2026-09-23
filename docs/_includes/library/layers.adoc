@@ -383,35 +383,37 @@ syntax = "proto3";
 package wiretuner.doc.v1;
 
 // Roles a layer can play.  Exactly one Guides layer exists per document; the document
-// template creates it.  Every other layer is ORDINARY.
+// template creates it.  Every other layer is ORDINARY (`LAYER_ROLE_UNSPECIFIED`).
 enum LayerRole {
-  LAYER_ROLE_ORDINARY = 0;
+  LAYER_ROLE_UNSPECIFIED = 0;  // an ordinary layer (buf lint: the zero value is UNSPECIFIED)
   LAYER_ROLE_GUIDES = 1;     // ruler guides and guide paths; not renameable, mergeable or deletable
 }
 
 // Properties of a node of kind `layer`.  Name lives in CommonProps.name.
 // The whole message is STRUCT (the default): each flag is an independent choice, so one person
-// hiding a layer while another locks it keeps both.
+// hiding a layer while another locks it keeps both.  Field blocks: 1 common, 2-19 LIB, 20-29 WEB
+// (animation).
 message LayerProps {
+  CommonProps common = 1;
   // Fixed at creation; readers ignore later writes (the client never issues them).
-  LayerRole role = 1;
+  LayerRole role = 2;
   // Objects on the layer are drawn and selectable.  Shared.
-  bool visible = 2;
+  bool visible = 3;
   // Objects on the layer cannot be selected or edited from the canvas.  Advisory: it constrains
   // each client's own tools and is never enforced against remote ops (see Merge semantics).
-  bool locked = 3;
+  bool locked = 4;
   // True above the separator line.  False = background layer: never printed or exported,
   // drawn dimmed.  A property of the layer, not a position, so it moves with the layer
   // through any reorder.
-  bool printing = 4;
+  bool printing = 5;
   // Draw this layer as outlines regardless of the document view mode.  Screen only.
-  bool keyline = 5;
-  // Selection highlight color for objects on this layer.  ATOMIC by default (Color is a
-  // message annotated ATOMIC in common.proto).
-  Color highlight = 6;
+  bool keyline = 6;
+  // Selection highlight color for objects on this layer.  ATOMIC (annotated: a message field
+  // defaults to STRUCT).
+  Color highlight = 7 [(wt.crdt.field).merge = MERGE_ATOMIC];
   // Set when this layer is deleted by a merge: the layer its objects were moved onto.  Readers
   // route objects that arrive on this layer afterwards to the target (see Merge semantics).
-  NodeRef merged_into = 7 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
+  NodeRef merged_into = 8 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
 }
 
 // Extension to CommonProps (common.proto, owned by PROTO-003), on every object:
@@ -543,7 +545,7 @@ Clients never rename, merge, delete or write `role` on the Guides layer.  Read-t
 normalization guards the tree anyway: if the Guides layer node is deleted it is treated as
 live; if more than one layer carries `LAYER_ROLE_GUIDES` (possible only through a bug or a
 malicious client), the one with the smallest node id is the Guides layer and the rest read as
-ORDINARY.
+ORDINARY (`LAYER_ROLE_UNSPECIFIED`).
 
 Remember layer info::
 `origin_layer` is written by group, join, clip and path-to-guide commands when the preference is
@@ -610,7 +612,7 @@ xref:grid-guides.adoc[grid and guides].
 Track:: proto
 Depends on:: PROTO-003
 Size:: S
-Delivers:: `doc/v1/layer.proto` with `LayerRole`, `LayerProps` as sketched, the `layer` case in `NodeProps.kind`, and the `CommonProps.origin_layer` field.
+Delivers:: `doc/v1/layer.proto` with `LayerRole`, `LayerProps` as sketched, the `layer` case in `NodeProps.kind`, and the `CommonProps.origin_layer` field (implemented in `layer.proto`; `origin_layer` is in `common.proto`).
 Done when::
 * `buf lint` with `COMMENTS` passes; `buf breaking` passes against main.
 * The generated merge table shows every `LayerProps` field ATOMIC within a STRUCT message and `merged_into` with `REF_FALLBACK_UNSET`.

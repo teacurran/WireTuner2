@@ -268,11 +268,11 @@ ifdef::spec[]
 // proto/wiretuner/doc/v1/stroke.proto (sketch).  All widths and lengths in points.
 
 message BasicStroke {
-  ColorRef color = 1;                  // ATOMIC (applying-color.adoc); None paints nothing
+  ColorRef color = 1 [(wt.crdt.field).merge = MERGE_ATOMIC];   // (applying-color.adoc); None paints nothing
   double width = 2;                    // 0 (hairline) .. 16164
   LineCap cap = 3;                     // BUTT (default), ROUND, SQUARE
   LineJoin join = 4;                   // MITER (default), ROUND, BEVEL
-  double miter_limit = 5;              // 1 .. 57; unset reads as 4
+  double miter_limit = 5;              // 1 .. 57; unset (0) reads as 4
   // The dash is one value: its on/off lengths only mean something together.
   DashPattern dash = 6 [(wt.crdt.field).merge = MERGE_ATOMIC];   // unset = solid
   Arrowhead start_arrowhead = 7 [(wt.crdt.field).merge = MERGE_ATOMIC];
@@ -293,8 +293,8 @@ message Arrowhead {
   string name = 1;                     // preset or user name, informational
   // Outline in arrowhead units: 1 unit = the stroke width; origin at the path endpoint,
   // +x pointing beyond the end of the path.  Contour is the path schema's contour message
-  // (vector-basics.adoc).
-  repeated Contour contours = 2;
+  // (contour.proto, vector-basics.adoc).
+  repeated Contour contours = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];   // part of the ATOMIC head
   bool filled = 3;                     // filled with the stroke color; else stroked at width 1
   double path_trim = 4;                // how far (units) the path is shortened under the head
 }
@@ -304,7 +304,7 @@ message BrushStroke {
   // the brush is gone, so a stroke never disappears when someone removes a brush.
   NodeRef brush = 1 [(wt.crdt.field).on_dangling = REF_FALLBACK_CACHED];
   double width_percent = 2;            // 1 .. 400
-  ColorRef color = 3;                  // fallback color; brushes paint their symbols' colors
+  ColorRef color = 3 [(wt.crdt.field).merge = MERGE_ATOMIC];   // fallback color; brushes paint their symbols' colors
   // Seed for Random/Variable variation; chosen at creation, new value on duplicate.
   fixed64 seed = 4;
 }
@@ -325,7 +325,7 @@ message BrushProps {
   BrushVariation offset = 9 [(wt.crdt.field).merge = MERGE_ATOMIC];
   BrushVariation scaling = 10 [(wt.crdt.field).merge = MERGE_ATOMIC];
 }
-enum BrushMode { BRUSH_MODE_UNSPECIFIED = 0; BRUSH_MODE_SPRAY = 1; BRUSH_MODE_PAINT = 2; }
+enum BrushMode { BRUSH_MODE_UNSPECIFIED = 0; BRUSH_MODE_SPRAY = 1; BRUSH_MODE_PAINT = 2; }   // unspecified reads as SPRAY
 message BrushSymbol {
   ElementId id = 1;
   NodeRef symbol = 2 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];  // skipped if gone
@@ -340,7 +340,7 @@ enum VariationMode { VARIATION_MODE_UNSPECIFIED = 0; VARIATION_MODE_FIXED = 1;
   VARIATION_MODE_RANDOM = 2; VARIATION_MODE_VARIABLE = 3; VARIATION_MODE_FLARE = 4; }
 
 message CalligraphicStroke {
-  ColorRef color = 1;
+  ColorRef color = 1 [(wt.crdt.field).merge = MERGE_ATOMIC];
   double width = 2;                    // nib width
   double height = 3;                   // nib height
   double angle = 4;                    // degrees
@@ -351,12 +351,13 @@ message CalligraphicStroke {
 
 message CustomStroke {
   CustomStrokePattern pattern = 1;     // the 23 named patterns
-  ColorRef color = 2;                  // ignored by NEON
+  ColorRef color = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];   // ignored by NEON
   double width = 3;
   double length = 4;                   // one tile along the path
   double spacing = 5;                  // gap between tiles
 }
 enum CustomStrokePattern {
+  // Each value carries the CUSTOM_STROKE_PATTERN_ prefix in stroke.proto (buf lint).
   CUSTOM_STROKE_PATTERN_UNSPECIFIED = 0; ARROW = 1; BALL = 2; BRAID = 3; CARTOGRAPHER = 4;
   CHECKER = 5; CREPE = 6; DIAMOND = 7; DOT = 8; HEART = 9; LEFT_DIAGONAL = 10; NEON = 11;
   RECTANGLE = 12; RIGHT_DIAGONAL = 13; ROMAN = 14; SNOWFLAKE = 15; SQUIGGLE = 16; STAR = 17;
@@ -368,7 +369,7 @@ message PatternBitmap {
   bytes rows = 1 [(buf.validate.field).bytes.len = 8];  // 8 rows, MSB = left pixel, 1 = painted
 }
 message PatternStroke {
-  ColorRef color = 1;
+  ColorRef color = 1 [(wt.crdt.field).merge = MERGE_ATOMIC];
   double width = 2;
   PatternBitmap bitmap = 3 [(wt.crdt.field).merge = MERGE_ATOMIC];  // a pattern is one picture
 }
@@ -475,7 +476,7 @@ per mouse-up; Create Brush and Remove Brush are one step each including their si
 Track:: proto
 Depends on:: ATTR-001
 Size:: M
-Delivers:: `stroke.proto`: `BasicStroke`, `DashPattern`, `Arrowhead`, `BrushStroke`, `CalligraphicStroke`, `CustomStroke`, `PatternBitmap`, `PatternStroke`, the enums, and the `BrushProps` node kind with `BrushSymbol` and `BrushVariation`, with validation rules.
+Delivers:: `stroke.proto`: `BasicStroke`, `DashPattern`, `Arrowhead`, `BrushStroke`, `CalligraphicStroke`, `CustomStroke`, `PatternBitmap`, `PatternStroke`, the enums, and the `BrushProps` node kind (`brush` = 80, ATTR block) with `BrushSymbol` and `BrushVariation`, with validation rules (implemented in `stroke.proto`).
 Done when::
 * `buf lint` passes with every field commented; `brushes` well-known node accepts `BrushProps` children.
 * Conformance vectors: concurrent width and join edits; concurrent dash choices; concurrent nib pastes; concurrent bitmap edits; brush symbol reorder vs. add; brush node deleted while a stroke references it (cached fallback read-out).

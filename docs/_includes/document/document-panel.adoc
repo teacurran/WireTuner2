@@ -201,10 +201,10 @@ the pasteboard, y down, origin at the pasteboard's top left (xref:crdt-model.ado
 
 [source,protobuf]
 ----
-// proto/wiretuner/doc/v1/document.proto (DOC epic sketch)
+// proto/wiretuner/doc/v1/document.proto (DOC epic; the file is normative)
 
 enum Unit {
-  UNIT_UNSPECIFIED = 0;
+  UNIT_UNSPECIFIED = 0;      // reads as POINTS
   UNIT_POINTS = 1;
   UNIT_PICAS = 2;
   UNIT_INCHES = 3;
@@ -217,11 +217,12 @@ enum Unit {
 }
 
 enum Orientation { ORIENTATION_UNSPECIFIED = 0; ORIENTATION_PORTRAIT = 1; ORIENTATION_LANDSCAPE = 2; }
+enum GuideAxis { GUIDE_AXIS_UNSPECIFIED = 0; GUIDE_AXIS_HORIZONTAL = 1; GUIDE_AXIS_VERTICAL = 2; }
 
 // The document's unit.  ATOMIC: a custom-unit choice is meaningless without the element id.
 message UnitChoice {
   Unit unit = 1;
-  ElementId custom = 2;      // element in DocumentSettings.custom_units when unit == UNIT_CUSTOM
+  ElementId custom = 2;      // element in SettingsProps.custom_units when unit == UNIT_CUSTOM
 }
 
 // Width, height, orientation and the preset they came from.  ATOMIC because a width from one
@@ -233,35 +234,38 @@ message PageGeometry {
   Orientation orientation = 4;
 }
 
-// A ruler guide.  Element of a SEQUENCE on PageProps / MasterProps.
+// A ruler guide.  Element of a SEQUENCE on PageProps / MasterPageProps.
 message Guide {
   ElementId id = 1;
-  Axis axis = 2;             // AXIS_HORIZONTAL: a y position; AXIS_VERTICAL: an x position
+  GuideAxis axis = 2;        // HORIZONTAL: a y position; VERTICAL: an x position
   double position = 3;       // points from the page's top-left corner along the axis
 }
 
+// Field blocks: 1 common, 2-9 DOC, 10-19 OBJ (names-notes), 20-29 FX (perspective).
 message PageProps {
-  Point origin = 1 [(wt.crdt.field).merge = MERGE_ATOMIC];     // page top-left on the pasteboard
-  PageGeometry geometry = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];
-  double bleed = 3 [(buf.validate.field).double = {gte: 0, lte: 720}];   // points beyond every edge
-  NodeRef master = 4 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];  // master node under 0:3, or unset
-  Point ruler_origin = 5 [(wt.crdt.field).merge = MERGE_ATOMIC];  // zero point relative to the page's top-left; see the rulers page
-  repeated Guide guides = 6 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  CommonProps common = 1;                                     // name = the page's label
+  Point origin = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];     // page top-left on the pasteboard
+  PageGeometry geometry = 3 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  double bleed = 4 [(buf.validate.field).double = {gte: 0, lte: 720}];   // points beyond every edge
+  NodeRef master = 5 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];  // master node under 0:3, or unset
+  Point ruler_origin = 6 [(wt.crdt.field).merge = MERGE_ATOMIC];  // zero point relative to the page's top-left; see the rulers page
+  repeated Guide guides = 7 [(wt.crdt.field).merge = MERGE_SEQUENCE];
 }
 
-message MasterProps {
-  PageGeometry geometry = 1 [(wt.crdt.field).merge = MERGE_ATOMIC];
-  double bleed = 2 [(buf.validate.field).double = {gte: 0, lte: 720}];
-  repeated Guide guides = 3 [(wt.crdt.field).merge = MERGE_SEQUENCE];
-  // Name: CommonProps.name.  Contents: objects under layers with CommonProps.canvas = this node.
+message MasterPageProps {
+  CommonProps common = 1;    // name = the master's label
+  PageGeometry geometry = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  double bleed = 3 [(buf.validate.field).double = {gte: 0, lte: 720}];
+  repeated Guide guides = 4 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  // Contents: objects under layers with CommonProps.canvas = this node.
 }
 
 message GridSettings {
-  double size = 1 [(buf.validate.field).double = {gt: 0, lte: 7200}];   // points between grid lines
+  double size = 1 [(buf.validate.field).double = {gt: 0, lte: 7200}, (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE];   // points between grid lines
   bool relative = 2;         // snap to the same offset within the destination cell rather than to intersections
 }
 
-message Size { double width = 1; double height = 2; }   // points; ATOMIC wherever used
+// Size (width, height in points; ATOMIC wherever used) is in common.proto.
 
 message CustomPageSize {
   ElementId id = 1;
@@ -278,14 +282,17 @@ message CustomUnit {
   UnitDefinition definition = 3 [(wt.crdt.field).merge = MERGE_ATOMIC];
 }
 
-// Fields this chapter adds to the settings node (0:1).  Other chapters add their own.
-message DocumentSettings {
-  UnitChoice units = 1 [(wt.crdt.field).merge = MERGE_ATOMIC];
-  uint32 printer_resolution = 2 [(buf.validate.field).uint32 = {gte: 72, lte: 9600}];   // dpi
-  GridSettings grid = 3;     // STRUCT by default: size and relative are independent choices
-  repeated CustomPageSize custom_page_sizes = 4 [(wt.crdt.field).merge = MERGE_SEQUENCE];
-  repeated CustomUnit custom_units = 5 [(wt.crdt.field).merge = MERGE_SEQUENCE];
-  bool guides_locked = 6;    // View > Guides > Lock; shared, see the grid and guides page
+// The fields this chapter adds to the settings node (0:1).  Other epics add their own, each in
+// the block recorded at the top of SettingsProps in document.proto.
+message SettingsProps {
+  CommonProps common = 1;
+  UnitChoice units = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  uint32 printer_resolution = 3 [(buf.validate.field).uint32 = {gte: 72, lte: 9600}, (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE];   // dpi
+  GridSettings grid = 4;     // STRUCT by default: size and relative are independent choices
+  repeated CustomPageSize custom_page_sizes = 5 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  repeated CustomUnit custom_units = 6 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  bool guides_locked = 7;    // View > Guides > Lock; shared, see the grid and guides page
+  Defaults defaults = 10;    // OBJ block (default-attributes)
 }
 ----
 
@@ -327,12 +334,12 @@ review sheet shows the objects' `move vs move` overlap as well.
 |ATOMIC scalar
 |Independent of geometry: one person's bleed and another's size both apply.
 
-|`DocumentSettings.units`
+|`SettingsProps.units`
 |ATOMIC
 |Later wins.  Changing units never changes a stored value (everything is points), so a concurrent
 edit typed in the other unit is still the number the typist saw.
 
-|`DocumentSettings.printer_resolution`
+|`SettingsProps.printer_resolution`
 |ATOMIC scalar
 |Later wins; listed in review when both sides wrote it.
 
@@ -392,7 +399,7 @@ Nothing beyond storing and relaying changes.  The server validates the ranges ab
 Track:: proto
 Depends on:: PROTO-003
 Size:: M
-Delivers:: `doc/v1/document.proto` with `PageProps`, `MasterProps`, `Guide`, `PageGeometry`, `GridSettings`, `CustomPageSize`, `CustomUnit`, `UnitChoice`, the setup fields of `DocumentSettings`, and the `page` and `master` cases in `NodeProps.kind` in the DOC block; protovalidate ranges as sketched.
+Delivers:: `doc/v1/document.proto` with `PageProps`, `MasterPageProps`, `Guide`, `PageGeometry`, `GridSettings`, `CustomPageSize`, `CustomUnit`, `UnitChoice`, the setup fields of `SettingsProps` and its field-number blocks, and the `page` and `master_page` cases in `NodeProps.kind` in the DOC block; protovalidate ranges as sketched (implemented in `document.proto`).
 Done when::
 * `buf lint` and `buf breaking` pass; every field commented.
 * `protoc-gen-wtcrdt` emits ATOMIC for `origin`, `geometry`, `ruler_origin`, `units`, `CustomPageSize.size`, `CustomUnit.definition`, SEQUENCE for `guides`, `custom_page_sizes`, `custom_units`.

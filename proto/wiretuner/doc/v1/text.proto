@@ -1,19 +1,145 @@
 // proto/wiretuner/doc/v1/text.proto
 //
-// Rich text: the Fugue character sequence and Peritext marks (docs/_includes/type/
-// creating-text.adoc).  PROTO-003 creates only what ops.proto's TextMark needs, `Anchor` and
-// `TextMarkValue`; TYPE-001 adds `TextProps`, `RichText`, `TextChar`, `TextMark`, the mark
-// vocabulary and the paragraph messages here, in this file, because the FILE breaking rules
-// pin a message to the file it first appeared in.
+// Text blocks and rich text: the Fugue character sequence, Peritext marks, the character-mark
+// vocabulary, paragraph properties and text styles' attributes (docs/_includes/type/
+// creating-text.adoc, TYPE-001, with the fields documented on paragraphs.adoc,
+// tabs-indents.adoc, columns-tables.adoc, text-on-path.adoc, text-effects.adoc, text-styles.adoc
+// and type-specifications.adoc, TYPE-045).  PROTO-003 created `Anchor` and `TextMarkValue` here
+// so ops.proto's TextMark could name them; TYPE-001 filled in the rest in this file because the
+// FILE breaking rules pin a message to the file it first appeared in.
+//
+// TextMarkValue field numbers: 1-12 and 14-21 type/creating-text.adoc (TYPE-001, TYPE-045);
+// 13 reserved (a `url` mark superseded by `link`); 40 `link` (web/urls.adoc, WEB-001); 41
+// `field` (automation/data-merge.adoc, DATA epic); `mention` (collaboration/comments.adoc)
+// takes the next free number from 42.
 syntax = "proto3";
 
 package wiretuner.doc.v1;
 
+import "buf/validate/validate.proto";
+import "wiretuner/doc/v1/appearance.proto";
 import "wiretuner/doc/v1/common.proto";
+import "wiretuner/doc/v1/stroke.proto";
+import "wt/crdt/options.proto";
 
 option java_multiple_files = true;
 option java_package = "com.villagecompute.wiretuner.doc.v1";
 option optimize_for = SPEED;
+
+// NodeProps.kind case `text`: a text block, text on a path or text inside a path.
+message TextProps {
+  // Name, transform and the other shared registers.
+  CommonProps common = 1;
+  // The characters and their formatting marks.  Paragraph properties ride on newline elements
+  // inside this field (TextChar.paragraph).  MERGE_TEXT: Fugue + Peritext (crdt-model.adoc).
+  RichText text = 2 [(wt.crdt.field).merge = MERGE_TEXT];
+  // Geometry and container settings.  STRUCT: width, inset and column count merge
+  // independently.
+  TextBlockProps block = 3;
+  // The next block of a linked flow.  The whole flow's text lives on the chain's head; members
+  // other than the head keep their own `text` dormant while linked.  Dangling reads as unset
+  // and ends the chain; a chain that forms a loop is cut at the link with the smallest node id.
+  NodeRef next_link = 4 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
+  // The previous block of a linked flow.  Dangling reads as unset.
+  NodeRef prev_link = 5 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
+  // Set when the text is attached to, or flowed inside, a path (text-on-path.adoc).  The path is
+  // this node's child of kind `path`.  Unset for an ordinary block.  STRUCT.
+  TextOnPathProps on_path = 6;
+  // Fill and stroke drawn on the block's rectangle, not on the glyphs (text-color.adoc).
+  AppearanceProps block_appearance = 7;
+  // Paragraph properties of the last paragraph, which has no terminating newline element to
+  // carry them.  STRUCT.  Governs the whole text when it contains no U+000A.
+  ParagraphProps tail_paragraph = 8;
+}
+
+// Horizontal or vertical writing (text-effects.adoc).
+enum WritingDirection {
+  // Reads as HORIZONTAL.
+  WRITING_DIRECTION_UNSPECIFIED = 0;
+  // Lines run left to right and stack downward.
+  WRITING_DIRECTION_HORIZONTAL = 1;
+  // Lines run top to bottom and stack right to left.
+  WRITING_DIRECTION_VERTICAL = 2;
+}
+
+// A text block's geometry and container settings.  STRUCT.
+message TextBlockProps {
+  // Hollow side handles: the block grows with its longest line.
+  bool auto_width = 1;
+  // Hollow bottom handle: the block grows with its line count.
+  bool auto_height = 2;
+  // Width in points; the value shown while `auto_width` is false.
+  double width = 3 [(buf.validate.field).double.gte = 0];
+  // Height in points; the value shown while `auto_height` is false.
+  double height = 4 [(buf.validate.field).double.gte = 0];
+  // Inset of the text from the block's rectangle.  STRUCT: the four sides are edited
+  // independently.
+  Inset inset = 5;
+  // Show the block's stroke and fill.  Off hides them without deleting them.
+  bool display_border = 6;
+  // Columns, rows, rules and flow order (columns-tables.adoc).  STRUCT.
+  ColumnsRows columns = 7;
+  // Balance, modify-leading, copyfit and first-line leading (columns-tables.adoc).  STRUCT.
+  AdjustColumns adjust = 8;
+  // Horizontal (default) or vertical writing (text-effects.adoc).
+  WritingDirection direction = 9 [(buf.validate.field).enum.defined_only = true];
+}
+
+// Inset of text from its block, points.  STRUCT: four independent registers.
+message Inset {
+  // Left inset.
+  double left = 1;
+  // Right inset.
+  double right = 2;
+  // Top inset.
+  double top = 3;
+  // Bottom inset.
+  double bottom = 4;
+}
+
+// The snapshot encoding of a MERGE_TEXT field.  Clients read it through the engine as an
+// attributed string; it is not edited field by field.
+message RichText {
+  // The characters in Fugue order, unstable tombstones included.  SEQUENCE-shaped: each
+  // character is an element whose `paragraph` registers merge as STRUCT.
+  repeated TextChar chars = 1 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  // The Peritext marks anchored to character ids.  A mark is written whole and never edited in
+  // place, so each is one value.
+  repeated RichTextMark marks = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];
+}
+
+// One character of a RichText.
+message TextChar {
+  // The id of the TextInsert op that created it, plus its index in the insert.
+  ElementId id = 1;
+  // One Unicode scalar; U+000A ends a paragraph, U+FFFC is an inline graphic.
+  uint32 codepoint = 2 [(buf.validate.field).uint32.lte = 1114111];
+  // A tombstone, kept until causally stable.
+  bool deleted = 3;
+  // Fugue tree position: the left origin; all zero = the start of the text.  ATOMIC.
+  ElementId left_origin = 4 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Fugue tree position: the right origin; all zero = the end of the text.  ATOMIC.
+  ElementId right_origin = 5 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Present only on U+000A: the paragraph this newline terminates.  STRUCT: each field is its
+  // own register.  A split copies the terminator's values onto the new newline.
+  ParagraphProps paragraph = 6;
+}
+
+// One formatting mark as a snapshot stores it (the op that creates it is ops.proto's TextMark,
+// whose name this message cannot share).  A mark's value is one attribute; a bold red word
+// carries two marks.
+// Later marks of the same attribute win where they overlap (by OpId).  A mark whose start sorts
+// after its end covers nothing.
+message RichTextMark {
+  // The TextMark op's id.  ATOMIC.
+  OpId id = 1 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Where the span starts: before or after a character.
+  Anchor start = 2;
+  // Where the span ends: before or after a character.
+  Anchor end = 3;
+  // The attribute and its value.
+  TextMarkValue value = 4;
+}
 
 // A Peritext anchor: a position immediately before or after one character.  Marks are bounded
 // by anchors so a span grows as text is typed inside it and follows its characters when others
@@ -26,11 +152,632 @@ message Anchor {
   bool before = 2;
 }
 
-// The value of one formatting mark: exactly one attribute (font, size, color, style
-// reference, link, ...).  A bold red word carries two marks.  A mark's value is written whole
-// and is one register (marks are never edited in place; a new mark supersedes by OpId), so the
-// `oneof value` TYPE-001 adds here is correct and MERGE_VARIANT is not needed.  Numbers already
-// claimed by feature pages: 1-21 type/creating-text.adoc, 40 `link` (web/urls.adoc), 41
-// `field` (automation/data-merge.adoc), `mention` (collaboration/comments.adoc, next free).
-// Filled in by TYPE-001.
-message TextMarkValue {}
+// The value of one formatting mark: exactly one attribute.  A mark's value is written whole and
+// is one register (marks are never edited in place; a new mark supersedes by OpId), so a plain
+// `oneof` is correct and MERGE_VARIANT is not needed; the message-typed cases are annotated
+// ATOMIC to say so.  Field numbers are allocated at the top of this file.
+message TextMarkValue {
+  // The attribute; exactly one is set per mark.
+  oneof value {
+    // PostScript family name (font-substitution.adoc).
+    string font_family = 1 [(buf.validate.field).string.max_len = 256];
+    // Face name within the family ("Bold Italic").
+    string font_style = 2 [(buf.validate.field).string.max_len = 256];
+    // Size in points, above 0 and at most 10,000.
+    double size = 3 [(buf.validate.field).double = {
+      gt: 0
+      lte: 10000
+    }];
+    // Mode and value (type-specifications.adoc).  ATOMIC.
+    Leading leading = 4 [(wt.crdt.field).merge = MERGE_ATOMIC];
+    // Percent of an em between this character and the next; the span is one character.
+    double kerning = 5;
+    // Percent of an em applied across the span.
+    double range_kerning = 6;
+    // Points; positive raises.
+    double baseline_shift = 7;
+    // Percent; 100 = normal.
+    double horizontal_scale = 8 [(buf.validate.field).double.gt = 0];
+    // Glyph fill: a swatch reference or an inline color.  ATOMIC.
+    ColorRef fill = 9 [(wt.crdt.field).merge = MERGE_ATOMIC];
+    // Glyph stroke (stroke.proto); a mark with no stroke means none.  ATOMIC.
+    BasicStroke stroke = 10 [(wt.crdt.field).merge = MERGE_ATOMIC];
+    // Highlight, inline, shadow, strikethrough, underline or zoom (text-effects.adoc).  ATOMIC.
+    TextEffect effect = 11 [(wt.crdt.field).merge = MERGE_ATOMIC];
+    // Character style: a `style` node of kind CHARACTER under 0:6 (text-styles.adoc).
+    // `cached` holds an encoded TextStyleAttrs of the resolved settings at apply time.
+    NodeRef style = 12 [(wt.crdt.field).on_dangling = REF_FALLBACK_CACHED];
+    // BCP 47 language tag for spelling and hyphenation (editing-text.adoc).
+    string language = 14 [(buf.validate.field).string.max_len = 35];
+    // "Selected words": never break a line inside the span.
+    bool no_break = 15;
+    // Small caps rendering (editing-text.adoc, Convert Case).
+    CaseStyle case = 16;
+    // The child node drawn in place of U+FFFC (text-effects.adoc).  Dangling draws nothing.
+    NodeRef inline_graphic = 17 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
+    // Print-time overprint of the glyph fill (PRINT epic).
+    bool overprint = 18;
+    // "Inhibit hyphens in selection" (paragraphs.adoc).
+    bool no_hyphen = 19;
+    // Variable-font axis values (type-specifications.adoc).  ATOMIC: the whole tuple wins.
+    FontVariation axes = 20 [(wt.crdt.field).merge = MERGE_ATOMIC];
+    // One OpenType feature's state; the attribute identity is (feature, tag).  ATOMIC.
+    FeatureSetting feature = 21 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  }
+
+  reserved 13;
+  reserved "url";
+}
+
+// A point in a variable font's design space.  ATOMIC wherever used: a named instance is one
+// choice, and a slider drag rewrites the whole list.  Tags the font lacks are ignored on read and
+// values are clamped to the axis range.
+message FontVariation {
+  // The axis values.  Part of the one ATOMIC value.
+  repeated Axis axes = 1 [
+    (wt.crdt.field).merge = MERGE_ATOMIC,
+    (buf.validate.field).repeated.max_items = 64
+  ];
+}
+
+// One variable-font axis value.
+message Axis {
+  // Four-character axis tag: "wght", "wdth", "slnt", "opsz" or a custom tag.
+  string tag = 1 [(buf.validate.field).string.len = 4];
+  // The axis value in the font's design units.
+  double value = 2;
+}
+
+// An OpenType feature's tri-state.  DEFAULT is a value: writing it returns the text to the
+// font's own default and competes with concurrent ON/OFF writes by OpId instead of vanishing.
+enum FeatureState {
+  // Reads as DEFAULT.
+  FEATURE_STATE_UNSPECIFIED = 0;
+  // The font's own default for this feature.
+  FEATURE_STATE_DEFAULT = 1;
+  // Feature on.
+  FEATURE_STATE_ON = 2;
+  // Feature off.
+  FEATURE_STATE_OFF = 3;
+}
+
+// One OpenType feature as a tri-state mark.  A mark carries one tag; marks with different tags
+// stack, and overlapping marks of the same tag resolve by OpId.
+message FeatureSetting {
+  // Four-character feature tag: "liga", "smcp", "ss01", ...
+  string tag = 1 [(buf.validate.field).string.len = 4];
+  // The state.
+  FeatureState state = 2 [(buf.validate.field).enum.defined_only = true];
+}
+
+// The feature tri-states on a text style, where they are STRUCT registers rather than marks.
+// One optional field per feature the Character section offers; an absent field is "no
+// selection" (leave the text alone), DEFAULT forces the font's default.
+message FeatureSettings {
+  // Standard ligatures.
+  optional FeatureState liga = 1;
+  // Discretionary ligatures.
+  optional FeatureState dlig = 2;
+  // Small capitals.
+  optional FeatureState smcp = 3;
+  // Capitals to small capitals.
+  optional FeatureState c2sc = 4;
+  // Oldstyle figures.
+  optional FeatureState onum = 5;
+  // Lining figures.
+  optional FeatureState lnum = 6;
+  // Tabular figures.
+  optional FeatureState tnum = 7;
+  // Proportional figures.
+  optional FeatureState pnum = 8;
+  // Fractions.
+  optional FeatureState frac = 9;
+  // Swashes.
+  optional FeatureState swsh = 10;
+  // Contextual alternates.
+  optional FeatureState calt = 11;
+  // Stylistic set 1.
+  optional FeatureState ss01 = 21;
+  // Stylistic set 2.
+  optional FeatureState ss02 = 22;
+  // Stylistic set 3.
+  optional FeatureState ss03 = 23;
+  // Stylistic set 4.
+  optional FeatureState ss04 = 24;
+  // Stylistic set 5.
+  optional FeatureState ss05 = 25;
+  // Stylistic set 6.
+  optional FeatureState ss06 = 26;
+  // Stylistic set 7.
+  optional FeatureState ss07 = 27;
+  // Stylistic set 8.
+  optional FeatureState ss08 = 28;
+  // Stylistic set 9.
+  optional FeatureState ss09 = 29;
+  // Stylistic set 10.
+  optional FeatureState ss10 = 30;
+  // Stylistic set 11.
+  optional FeatureState ss11 = 31;
+  // Stylistic set 12.
+  optional FeatureState ss12 = 32;
+  // Stylistic set 13.
+  optional FeatureState ss13 = 33;
+  // Stylistic set 14.
+  optional FeatureState ss14 = 34;
+  // Stylistic set 15.
+  optional FeatureState ss15 = 35;
+  // Stylistic set 16.
+  optional FeatureState ss16 = 36;
+  // Stylistic set 17.
+  optional FeatureState ss17 = 37;
+  // Stylistic set 18.
+  optional FeatureState ss18 = 38;
+  // Stylistic set 19.
+  optional FeatureState ss19 = 39;
+  // Stylistic set 20.
+  optional FeatureState ss20 = 40;
+}
+
+// How `Leading.value` is read.
+enum LeadingMode {
+  // Reads as EXTRA.
+  LEADING_MODE_UNSPECIFIED = 0;
+  // "+": size + value points (value 0 = solid).
+  LEADING_MODE_EXTRA = 1;
+  // "=": exactly value points.
+  LEADING_MODE_FIXED = 2;
+  // "%": size x value / 100 (auto = 120).
+  LEADING_MODE_PERCENT = 3;
+}
+
+// Leading: a mode plus a number.  ATOMIC wherever used: the number is meaningless without the
+// mode.
+message Leading {
+  // How `value` is read.
+  LeadingMode mode = 1 [(buf.validate.field).enum.defined_only = true];
+  // Points or percent, per `mode`.
+  double value = 2;
+}
+
+// Case rendering of a span.
+enum CaseStyle {
+  // Reads as NONE.
+  CASE_STYLE_UNSPECIFIED = 0;
+  // As typed.
+  CASE_STYLE_NONE = 1;
+  // Lowercase letters drawn as small capitals.
+  CASE_STYLE_SMALL_CAPS = 2;
+}
+
+// Paragraph alignment.
+enum Alignment {
+  // Reads as LEFT.
+  ALIGNMENT_UNSPECIFIED = 0;
+  // Flush left.
+  ALIGNMENT_LEFT = 1;
+  // Centered.
+  ALIGNMENT_CENTER = 2;
+  // Flush right.
+  ALIGNMENT_RIGHT = 3;
+  // Justified.
+  ALIGNMENT_JUSTIFIED = 4;
+}
+
+// A paragraph's properties.  STRUCT: each field is its own register on the paragraph's
+// terminating newline (TextChar.paragraph) or on TextProps.tail_paragraph.  Documented on
+// paragraphs.adoc, tabs-indents.adoc and text-styles.adoc.
+message ParagraphProps {
+  // Alignment.
+  Alignment alignment = 1 [(buf.validate.field).enum.defined_only = true];
+  // Percent of column width non-justified lines may spread to; clamps to 0-100 on read.
+  double ragged_width = 2;
+  // Percent of column width the last line must reach to justify; clamps to 0-100 on read.
+  double flush_zone = 3;
+  // Points; negative hangs outside the column.
+  double left_indent = 4;
+  // Points from the right edge.
+  double right_indent = 5;
+  // Points, relative to `left_indent`.
+  double first_line_indent = 6;
+  // Points above the paragraph.
+  double space_above = 7;
+  // Points below the paragraph.
+  double space_below = 8;
+  // Tab stops.  SEQUENCE; layout orders them by `position`.
+  repeated TabStop tabs = 9 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  // Hyphenation.  STRUCT.
+  Hyphenation hyphenation = 10;
+  // Paragraph rule.  STRUCT.
+  ParagraphRule rule = 11;
+  // Hang punctuation outside the column.
+  bool hang_punctuation = 12;
+  // 0 = off; 2 or more prevents widows and orphans.
+  uint32 keep_lines = 13 [(buf.validate.field).uint32.lte = 1000];
+  // Keep this paragraph on the same column as the next.
+  bool keep_with_next = 14;
+  // Word spacing min/opt/max.  ATOMIC: only meaningful as a triple.
+  SpacingRange word_spacing = 15 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Letter spacing min/opt/max.  ATOMIC.
+  SpacingRange letter_spacing = 16 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Paragraph style: a `style` node of kind PARAGRAPH under 0:6.  `cached` holds an encoded
+  // TextStyleAttrs of the style's settings at apply time.
+  NodeRef style = 17 [(wt.crdt.field).on_dangling = REF_FALLBACK_CACHED];
+}
+
+// Hyphenation settings.  STRUCT.
+message Hyphenation {
+  // Hyphenate this paragraph.
+  bool enabled = 1;
+  // BCP 47 language; empty = the document language.
+  string language = 2 [(buf.validate.field).string.max_len = 35];
+  // Consecutive hyphenated lines allowed; 0 = unlimited.
+  uint32 consecutive = 3 [(buf.validate.field).uint32.lte = 100];
+  // Do not hyphenate capitalized words.
+  bool skip_capitalized = 4;
+}
+
+// Where a paragraph rule is drawn.
+enum RuleMode {
+  // Reads as NONE.
+  RULE_MODE_UNSPECIFIED = 0;
+  // No rule.
+  RULE_MODE_NONE = 1;
+  // Centered on the basis.
+  RULE_MODE_CENTERED = 2;
+  // Following the paragraph's indents.
+  RULE_MODE_PARAGRAPH = 3;
+}
+
+// What a paragraph rule's width is measured against.
+enum RuleBasis {
+  // Reads as LAST_LINE.
+  RULE_BASIS_UNSPECIFIED = 0;
+  // The paragraph's last line.
+  RULE_BASIS_LAST_LINE = 1;
+  // The column.
+  RULE_BASIS_COLUMN = 2;
+}
+
+// A paragraph rule.  STRUCT.  A mode other than NONE with no block stroke and no override
+// stroke draws nothing.
+message ParagraphRule {
+  // None, centered or paragraph.
+  RuleMode mode = 1 [(buf.validate.field).enum.defined_only = true];
+  // Width in percent of the basis; 0 (never set) reads as 100.
+  double width_percent = 2 [(buf.validate.field).double.gte = 0];
+  // Last line or column.
+  RuleBasis basis = 3 [(buf.validate.field).enum.defined_only = true];
+  // Points below the last baseline (or above the first, with `above`).
+  double position = 4;
+  // Draw above the paragraph instead of below.
+  bool above = 5;
+  // Optional override of the block's stroke (stroke.proto).  STRUCT like any stroke.
+  BasicStroke stroke = 6;
+}
+
+// Minimum, optimum and maximum spacing in percent.  ATOMIC wherever used.  A range with
+// min > opt or opt > max reads as (opt, opt, opt).
+message SpacingRange {
+  // Minimum.
+  double min = 1;
+  // Optimum.
+  double opt = 2;
+  // Maximum.
+  double max = 3;
+}
+
+// A tab stop's alignment.
+enum TabKind {
+  // Reads as LEFT.
+  TAB_KIND_UNSPECIFIED = 0;
+  // Text starts at the stop.
+  TAB_KIND_LEFT = 1;
+  // Text ends at the stop.
+  TAB_KIND_RIGHT = 2;
+  // Text centers on the stop.
+  TAB_KIND_CENTER = 3;
+  // The decimal point aligns on the stop.
+  TAB_KIND_DECIMAL = 4;
+  // Text wraps within the tab column; a leader is ignored.
+  TAB_KIND_WRAPPING = 5;
+}
+
+// One tab stop.  Element of ParagraphProps.tabs; `kind`, `position` and `leader` are separate
+// registers.  Moving a stop is a `position` write, not an element move.
+message TabStop {
+  // Element id (MERGE_SEQUENCE).
+  ElementId id = 1;
+  // Alignment.
+  TabKind kind = 2 [(buf.validate.field).enum.defined_only = true];
+  // Points from the column's left edge after inset; negative reads as 0.
+  double position = 3;
+  // Empty = none; one grapheme repeated.
+  string leader = 4 [(buf.validate.field).string.max_len = 16];
+}
+
+// Column and row rules.
+enum RuleExtent {
+  // Reads as NONE.
+  RULE_EXTENT_UNSPECIFIED = 0;
+  // No rules.
+  RULE_EXTENT_NONE = 1;
+  // Rules within the inset.
+  RULE_EXTENT_INSET = 2;
+  // Rules across the full block.
+  RULE_EXTENT_FULL = 3;
+}
+
+// The order text flows through a grid of columns and rows.
+enum FlowOrder {
+  // Reads as DOWN.
+  FLOW_ORDER_UNSPECIFIED = 0;
+  // Down each column, then across.
+  FLOW_ORDER_DOWN = 1;
+  // Across each row, then down.
+  FLOW_ORDER_ACROSS = 2;
+}
+
+// Columns and rows of a text block (columns-tables.adoc).  STRUCT: every field independent.
+message ColumnsRows {
+  // Column count, at least 1; 0 (never set) reads as 1.
+  uint32 columns = 1 [(buf.validate.field).uint32.lte = 100];
+  // Column height in points.
+  double column_height = 2 [(buf.validate.field).double.gte = 0];
+  // Space between columns in points.
+  double column_spacing = 3;
+  // Rules between columns.
+  RuleExtent column_rules = 4 [(buf.validate.field).enum.defined_only = true];
+  // Row count, at least 1; 0 (never set) reads as 1.
+  uint32 rows = 5 [(buf.validate.field).uint32.lte = 100];
+  // Row width in points.
+  double row_width = 6 [(buf.validate.field).double.gte = 0];
+  // Space between rows in points.
+  double row_spacing = 7;
+  // Rules between rows.
+  RuleExtent row_rules = 8 [(buf.validate.field).enum.defined_only = true];
+  // Flow order through the grid.
+  FlowOrder flow = 9 [(buf.validate.field).enum.defined_only = true];
+}
+
+// Column adjustment and copyfit (columns-tables.adoc).  STRUCT.  Copyfit results are never
+// stored: the fitted size is derived at layout time.
+message AdjustColumns {
+  // Balance the columns.
+  bool balance = 1;
+  // Modify leading to balance.
+  bool modify_leading = 2;
+  // Balance threshold in percent; 0 (never set) reads as 50.
+  double threshold_percent = 3 [(buf.validate.field).double = {
+    gte: 0
+    lte: 100
+  }];
+  // Copyfit minimum in percent; 0 (never set) reads as 100.
+  double copyfit_min_percent = 4 [(buf.validate.field).double.gte = 0];
+  // Copyfit maximum in percent; 0 (never set) reads as 100.
+  double copyfit_max_percent = 5 [(buf.validate.field).double.gte = 0];
+  // Leading of each column's first line.  ATOMIC.
+  Leading first_line_leading = 6 [(wt.crdt.field).merge = MERGE_ATOMIC];
+}
+
+// Along a path or inside it.
+enum PathTextMode {
+  // Reads as ALONG.
+  PATH_TEXT_MODE_UNSPECIFIED = 0;
+  // Text runs along the path.
+  PATH_TEXT_MODE_ALONG = 1;
+  // Text flows inside the closed path.
+  PATH_TEXT_MODE_INSIDE = 2;
+}
+
+// How glyphs sit on a path.
+enum PathOrientation {
+  // Reads as ROTATE.
+  PATH_ORIENTATION_UNSPECIFIED = 0;
+  // Glyphs rotate with the path.
+  PATH_ORIENTATION_ROTATE = 1;
+  // Glyphs stay upright.
+  PATH_ORIENTATION_VERTICAL = 2;
+  // Glyphs skew horizontally.
+  PATH_ORIENTATION_SKEW_HORIZONTAL = 3;
+  // Glyphs skew vertically.
+  PATH_ORIENTATION_SKEW_VERTICAL = 4;
+}
+
+// Which part of a run touches the path.
+enum PathAlignment {
+  // Reads as NONE.
+  PATH_ALIGNMENT_UNSPECIFIED = 0;
+  // No run on this side.
+  PATH_ALIGNMENT_NONE = 1;
+  // The baseline.
+  PATH_ALIGNMENT_BASELINE = 2;
+  // The ascent.
+  PATH_ALIGNMENT_ASCENT = 3;
+  // The descent.
+  PATH_ALIGNMENT_DESCENT = 4;
+}
+
+// Text attached to, or flowed inside, the text node's child path (text-on-path.adoc).  STRUCT.
+message TextOnPathProps {
+  // Along the path, or inside it.
+  PathTextMode mode = 1 [(buf.validate.field).enum.defined_only = true];
+  // How glyphs sit on the path.
+  PathOrientation orientation = 2 [(buf.validate.field).enum.defined_only = true];
+  // Draw the path itself.
+  bool show_path = 3;
+  // Which part of the top run touches the path.
+  PathAlignment top = 4 [(buf.validate.field).enum.defined_only = true];
+  // Which part of the bottom run touches the path.
+  PathAlignment bottom = 5 [(buf.validate.field).enum.defined_only = true];
+  // "Left": points from the path start.
+  double offset_start = 6;
+  // "Right": points from the path end.
+  double offset_end = 7;
+}
+
+// One text effect with its options (text-effects.adoc).  Written whole inside a TextMark (a mark
+// value is one register), so the kind and its options never mix between users.
+message TextEffect {
+  // The effect; exactly one.
+  oneof effect {
+    // Highlight behind the span.
+    TextLineEffect highlight = 1;
+    // Underline.
+    TextLineEffect underline = 2;
+    // Strikethrough.
+    TextLineEffect strikethrough = 3;
+    // Inline (outlined) glyphs.
+    TextInlineEffect inline = 4;
+    // Drop shadow.
+    TextShadowEffect shadow = 5;
+    // Zoom (extruded) glyphs.
+    TextZoomEffect zoom = 6;
+  }
+}
+
+// Options of a highlight, underline or strikethrough.
+message TextLineEffect {
+  // Offset of the line from the baseline, points.
+  double position = 1;
+  // The line's dash (stroke.proto); unset = solid.  ATOMIC.
+  DashPattern dash = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Line width, points.
+  double width = 3 [(buf.validate.field).double.gte = 0];
+  // Line color.  ATOMIC.
+  ColorRef color = 4 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Print-time overprint.
+  bool overprint = 5;
+}
+
+// Options of the inline effect.
+message TextInlineEffect {
+  // Number of outlines.
+  uint32 count = 1 [(buf.validate.field).uint32.lte = 100];
+  // Outline width, points.
+  double stroke_width = 2 [(buf.validate.field).double.gte = 0];
+  // Outline color.  ATOMIC.
+  ColorRef stroke_color = 3 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Background band width, points.
+  double background_width = 4 [(buf.validate.field).double.gte = 0];
+  // Background band color.  ATOMIC.
+  ColorRef background_color = 5 [(wt.crdt.field).merge = MERGE_ATOMIC];
+}
+
+// Options of the text shadow effect.
+message TextShadowEffect {
+  // Horizontal offset, percent of the size.
+  double offset_x = 1;
+  // Vertical offset, percent of the size.
+  double offset_y = 2;
+  // Shadow color.  ATOMIC.
+  ColorRef color = 3 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Shadow tint, percent.
+  double tint = 4 [(buf.validate.field).double = {
+    gte: 0
+    lte: 100
+  }];
+}
+
+// Options of the zoom effect.
+message TextZoomEffect {
+  // Size the extrusion zooms to, percent.
+  double zoom_to = 1;
+  // Horizontal offset, percent of the size.
+  double offset_x = 2;
+  // Vertical offset, percent of the size.
+  double offset_y = 3;
+  // Color at the front.  ATOMIC.
+  ColorRef from = 4 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Color at the back.  ATOMIC.
+  ColorRef to = 5 [(wt.crdt.field).merge = MERGE_ATOMIC];
+}
+
+// The text attributes of a paragraph or character style (text-styles.adoc): `StyleProps.text`
+// on a `style` node (style.proto), and the text defaults on the settings node.  The style's
+// name, kind and parent are StyleProps' `common.name`, `kind` and `based_on`.  STRUCT.
+message TextStyleAttrs {
+  // The style applied to the next paragraph after a Return.  Dangling reads as unset.
+  NodeRef next = 1 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
+  // Character settings; each unset field is "no selection".  STRUCT.
+  CharacterSettings character = 2;
+  // Paragraph settings, same optionality.  STRUCT.  Absent for character styles.
+  ParagraphSettings paragraph = 3;
+  // "Style affects text color".
+  bool affects_color = 4;
+}
+
+// A style's character settings.  Each field is optional: unset = "no selection" (leave the text
+// alone, or inherit from the parent style).  STRUCT.
+message CharacterSettings {
+  // PostScript family name.
+  optional string font_family = 1 [(buf.validate.field).string.max_len = 256];
+  // Face name within the family.
+  optional string font_style = 2 [(buf.validate.field).string.max_len = 256];
+  // Size in points.
+  optional double size = 3 [(buf.validate.field).double = {
+    gt: 0
+    lte: 10000
+  }];
+  // Leading; unset = no selection.  ATOMIC.
+  Leading leading = 4 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Percent of an em applied across the text.
+  optional double range_kerning = 5;
+  // Points; positive raises.
+  optional double baseline_shift = 6;
+  // Percent; 100 = normal.
+  optional double horizontal_scale = 7 [(buf.validate.field).double.gt = 0];
+  // Glyph fill; unset = no selection.  ATOMIC.
+  ColorRef fill = 8 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Glyph stroke; unset = no selection.  STRUCT.
+  BasicStroke stroke = 9;
+  // Text effect; unset = no selection.  ATOMIC: kind and options together.
+  TextEffect effect = 10 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Case rendering.
+  optional CaseStyle case = 11;
+  // BCP 47 language tag.
+  optional string language = 12 [(buf.validate.field).string.max_len = 35];
+  // Print-time overprint of the glyph fill.
+  optional bool overprint = 13;
+  // Variable-font axis values; unset = no selection.  ATOMIC.
+  FontVariation axes = 14 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // OpenType feature tri-states.  STRUCT: one register per feature.
+  FeatureSettings features = 15;
+}
+
+// A style's paragraph settings.  Each field is optional: unset = "no selection".  STRUCT.
+message ParagraphSettings {
+  // Alignment.
+  optional Alignment alignment = 1;
+  // Percent of column width non-justified lines may spread to.
+  optional double ragged_width = 2;
+  // Percent of column width the last line must reach to justify.
+  optional double flush_zone = 3;
+  // Points.
+  optional double left_indent = 4;
+  // Points.
+  optional double right_indent = 5;
+  // Points, relative to `left_indent`.
+  optional double first_line_indent = 6;
+  // Points above.
+  optional double space_above = 7;
+  // Points below.
+  optional double space_below = 8;
+  // Tab stops.  SEQUENCE.
+  repeated TabStop tabs = 9 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  // False = "no selection" for tabs and indents.
+  bool tabs_set = 10;
+  // Hyphenation.  STRUCT.
+  Hyphenation hyphenation = 11;
+  // Paragraph rule.  STRUCT.
+  ParagraphRule rule = 12;
+  // Hang punctuation.
+  optional bool hang_punctuation = 13;
+  // 0 = off; 2 or more prevents widows and orphans.
+  optional uint32 keep_lines = 14 [(buf.validate.field).uint32.lte = 1000];
+  // Keep with the next paragraph.
+  optional bool keep_with_next = 15;
+  // Word spacing; unset = no selection.  ATOMIC.
+  SpacingRange word_spacing = 16 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Letter spacing; unset = no selection.  ATOMIC.
+  SpacingRange letter_spacing = 17 [(wt.crdt.field).merge = MERGE_ATOMIC];
+}

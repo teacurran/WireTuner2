@@ -144,31 +144,32 @@ package wiretuner.doc.v1;
 
 // NodeProps.kind case `text`.
 message TextProps {
+  CommonProps common = 1;
   // The characters and their formatting marks.  Paragraph properties ride on newline
   // elements inside this field (see ParagraphProps).  Fugue + Peritext, see crdt-model.
-  RichText text = 1 [(wt.crdt.field).merge = MERGE_TEXT];
+  RichText text = 2 [(wt.crdt.field).merge = MERGE_TEXT];
 
   // Geometry and container settings.  STRUCT: width, inset and column count are
   // independent choices and merge independently.
-  TextBlockProps block = 2;
+  TextBlockProps block = 3;
 
   // Linked flow.  The whole flow's text lives on the chain's head; members other than
   // the head keep their own `text` dormant while linked.  Both links are ATOMIC registers;
   // a dangling link reads as unset and ends the chain (see text-blocks).
-  NodeRef next_link = 3 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
-  NodeRef prev_link = 4 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
+  NodeRef next_link = 4 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
+  NodeRef prev_link = 5 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
 
   // Set when the text is attached to, or flowed inside, a path (text-on-path).  The path
   // is this node's child of kind `path`.  Unset for an ordinary block.
-  TextOnPathProps on_path = 5;
+  TextOnPathProps on_path = 6;
 
   // Fill and stroke drawn on the *block* (its rectangle), not on the glyphs.  Same
   // AppearanceProps sequence the ATTR epic defines for paths; text-color describes it.
-  AppearanceProps block_appearance = 6;
+  AppearanceProps block_appearance = 7;
 
   // Paragraph properties of the final paragraph, which has no terminating newline element
   // to carry them.  STRUCT.
-  ParagraphProps tail_paragraph = 7;
+  ParagraphProps tail_paragraph = 8;
 }
 
 message TextBlockProps {
@@ -191,9 +192,12 @@ message TextBlockProps {
 
 message Inset { double left = 1; double right = 2; double top = 3; double bottom = 4; }
 
+// Enums whose zero was meaningful gain an UNSPECIFIED zero that reads as that value (buf
+// lint's ENUM_ZERO_VALUE_SUFFIX); text.proto is normative for the numbers.
 enum WritingDirection {
-  WRITING_DIRECTION_HORIZONTAL = 0;   // lines run left to right, stack downward
-  WRITING_DIRECTION_VERTICAL = 1;     // lines run top to bottom, stack right to left
+  WRITING_DIRECTION_UNSPECIFIED = 0;  // reads as HORIZONTAL
+  WRITING_DIRECTION_HORIZONTAL = 1;   // lines run left to right, stack downward
+  WRITING_DIRECTION_VERTICAL = 2;     // lines run top to bottom, stack right to left
 }
 ----
 
@@ -204,8 +208,8 @@ state, read out as an attributed string.  Its wire form is only needed in snapsh
 ----
 // The snapshot encoding of a MERGE_TEXT field.  Clients read it through the engine.
 message RichText {
-  repeated TextChar chars = 1;      // Fugue order; includes unstable tombstones
-  repeated TextMark marks = 2;      // Peritext marks anchored to character ids
+  repeated TextChar chars = 1 [(wt.crdt.field).merge = MERGE_SEQUENCE];   // Fugue order; includes unstable tombstones
+  repeated RichTextMark marks = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];  // Peritext marks anchored to character ids
 }
 
 message TextChar {
@@ -213,17 +217,18 @@ message TextChar {
   uint32 codepoint = 2;             // one Unicode scalar; U+000A ends a paragraph,
                                     // U+FFFC is an inline graphic (see marks)
   bool deleted = 3;
-  ElementId left_origin = 4;        // Fugue tree position; needed to place late inserts
-  ElementId right_origin = 5;
+  ElementId left_origin = 4 [(wt.crdt.field).merge = MERGE_ATOMIC];   // Fugue tree position; needed to place late inserts
+  ElementId right_origin = 5 [(wt.crdt.field).merge = MERGE_ATOMIC];
   // Present only on U+000A: the paragraph this newline terminates.  Each field is its own
   // register; the ParagraphProps message is STRUCT.
   ParagraphProps paragraph = 6;
 }
 
-// One formatting mark.  A mark's value is one attribute; a bold red word carries two
-// marks.  Later marks of the same attribute win where they overlap (by OpId).
-message TextMark {
-  OpId id = 1;
+// One formatting mark as the snapshot stores it (ops.proto's TextMark is the op that creates
+// it, so this message cannot share its name).  A mark's value is one attribute; a bold red word
+// carries two marks.  Later marks of the same attribute win where they overlap (by OpId).
+message RichTextMark {
+  OpId id = 1 [(wt.crdt.field).merge = MERGE_ATOMIC];
   Anchor start = 2;                 // before/after a character id
   Anchor end = 3;
   TextMarkValue value = 4;
@@ -253,11 +258,11 @@ message TextMarkValue {
     double baseline_shift = 7;      // points, positive raises
     double horizontal_scale = 8;    // percent, 100 = normal
     ColorRef fill = 9;              // glyph fill; a swatch reference or literal (COLOR epic)
-    StrokeProps stroke = 10;        // glyph stroke, from the ATTR epic; unset = none
+    BasicStroke stroke = 10;        // glyph stroke, the ATTR epic's stroke.proto; unset = none
     TextEffect effect = 11;         // highlight, inline, shadow, strikethrough, underline, zoom
     NodeRef style = 12 [(wt.crdt.field).on_dangling = REF_FALLBACK_CACHED];
                                     // character style (text-styles); cached = resolved attrs
-    string url = 13;                // attached link (WEB epic)
+    // 13 reserved: a range link is the WEB epic's `string link = 40` (web/urls.adoc).
     string language = 14;           // BCP 47; spelling and hyphenation (editing-text)
     bool no_break = 15;             // "Selected words": never break a line inside the span
     CaseStyle case = 16;            // small caps rendering (editing-text, Convert Case)
@@ -278,7 +283,7 @@ message TextMarkValue {
 // one choice, and a slider drag rewrites the whole list.  Tags the font lacks are ignored on
 // read and values are clamped to the axis range (type-specifications).
 message FontVariation {
-  repeated Axis axes = 1;
+  repeated Axis axes = 1 [(wt.crdt.field).merge = MERGE_ATOMIC];   // part of the one ATOMIC value
 }
 message Axis {
   string tag = 1 [(buf.validate.field).string = {len: 4}];   // "wght", "wdth", "slnt", "opsz", custom
@@ -295,9 +300,10 @@ message FeatureSetting {
   FeatureState state = 2;
 }
 enum FeatureState {
-  FEATURE_STATE_DEFAULT = 0;        // the font's own default for this feature
-  FEATURE_STATE_ON = 1;
-  FEATURE_STATE_OFF = 2;
+  FEATURE_STATE_UNSPECIFIED = 0;    // reads as DEFAULT
+  FEATURE_STATE_DEFAULT = 1;        // the font's own default for this feature
+  FEATURE_STATE_ON = 2;
+  FEATURE_STATE_OFF = 3;
 }
 
 // The same tri-states on a text style, where they are STRUCT registers rather than marks
@@ -320,11 +326,12 @@ message Leading {
   double value = 2;
 }
 enum LeadingMode {
-  LEADING_MODE_EXTRA = 0;           // "+": size + value points   (value 0 = solid)
-  LEADING_MODE_FIXED = 1;           // "=": exactly value points
-  LEADING_MODE_PERCENT = 2;         // "%": size × value / 100    (auto = 120)
+  LEADING_MODE_UNSPECIFIED = 0;     // reads as EXTRA
+  LEADING_MODE_EXTRA = 1;           // "+": size + value points   (value 0 = solid)
+  LEADING_MODE_FIXED = 2;           // "=": exactly value points
+  LEADING_MODE_PERCENT = 3;         // "%": size × value / 100    (auto = 120)
 }
-enum CaseStyle { CASE_STYLE_NONE = 0; CASE_STYLE_SMALL_CAPS = 1; }
+enum CaseStyle { CASE_STYLE_UNSPECIFIED = 0; CASE_STYLE_NONE = 1; CASE_STYLE_SMALL_CAPS = 2; }
 ----
 
 `ParagraphProps` registers on a paragraph's terminating newline (`TextChar.paragraph`) and,
@@ -385,7 +392,7 @@ Expansion rules per attribute:
 |start `before`, end `before` the next char
 |Typing at the end of the span extends it (bold stays bold); typing at the start does not.
 
-|`url`, `no_break`, `no_hyphen`, `inline_graphic`, `kerning`
+|`link` (web/urls.adoc), `no_break`, `no_hyphen`, `inline_graphic`, `kerning`
 |start `before`, end `after` the last char
 |Neither edge grows: a link and a kerning pair cover exactly their characters.
 |===
@@ -469,10 +476,11 @@ Track:: proto
 Depends on:: PROTO-003, PROTO-005
 Size:: M
 Delivers:: `doc/v1/text.proto` with `TextProps`, `TextBlockProps`, `RichText`, `TextChar`,
-`TextMark`, `Anchor`, `TextMarkValue`, `Leading`, `ParagraphProps`, `TabStop`, `Hyphenation`,
+`RichTextMark`, `Anchor`, `TextMarkValue`, `Leading`, `ParagraphProps`, `TabStop`, `Hyphenation`,
 `ParagraphRule`, `SpacingRange`, `ColumnsRows`, `AdjustColumns`, `TextOnPathProps`,
-`TextEffect`, `TextStyleProps`; `CommonProps.text_wrap`; the `text` and `text_style` kind cases
-with reserved number blocks; every field commented with its merge policy.
+`TextEffect`, `TextStyleAttrs` (text styles are `style` nodes, xref:styles.adoc[Styles]);
+`CommonProps.text_wrap`; the `text` kind case (130) in the TYPE block; every field commented with
+its merge policy (implemented in `text.proto`; `text_wrap` is in `common.proto`).
 Done when::
 * `buf lint` (with `COMMENTS`) and `buf breaking` pass; `protoc-gen-wtcrdt` emits the merge
   table with `MERGE_TEXT` for `text`, `MERGE_SEQUENCE` for `tabs`, ATOMIC for `Leading`,

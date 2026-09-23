@@ -12,13 +12,13 @@
 ///
 ///   Block     Epic    Cases so far
 ///   1-19      DOC     1 document, 2 settings, 3 page, 4 master_page
-///   20-49     DRAW    (path, rectangle, ellipse, polygon, ... DRAW-001 onward)
+///   20-49     DRAW    20 path, 21 rect, 22 ellipse, 23 polygon, 24 chart
 ///   50-69     OBJ     50 group
-///   70-79     COLOR   (swatch, COLOR-001)
-///   80-99     ATTR    (graphic style, brush, ... ATTR epic)
+///   70-79     COLOR   70 swatch
+///   80-99     ATTR    80 brush
 ///   100-129   FX      (blend, path effect, envelope, perspective, extrude, ... FX epic)
-///   130-149   TYPE    (text, text_style, TYPE-001)
-///   150-169   LIB     150 layer; (symbol, symbol instance, LIB epic)
+///   130-149   TYPE    130 text (text styles are `style` nodes of kind PARAGRAPH/CHARACTER)
+///   150-169   LIB     150 layer, 151 symbol, 152 symbol_folder, 153 instance, 154 style
 ///   170-189   IMG     (image, placed_file, ... IMG epic)
 ///   190-209   WEB     (svg_animation, ... WEB epic)
 ///   210-219   COLLAB  (comment_thread, COLLAB-025)

@@ -10,10 +10,10 @@
 
 /// proto/wiretuner/doc/v1/layer.proto
 ///
-/// The layer node kind (docs/_includes/library/layers.adoc).  PROTO-003 creates the message
-/// with only `common` so NodeProps can name it; LIB-001 fills in `LayerRole` and the layer
-/// flags here, in this file, because the FILE breaking rules pin a message to the file it
-/// first appeared in.
+/// The layer node kind (docs/_includes/library/layers.adoc, LIB-001).  PROTO-003 created the
+/// message with only `common` so NodeProps could name it; LIB-001 filled in `LayerRole` and the
+/// layer flags here, in this file, because the FILE breaking rules pin a message to the file it
+/// first appeared in.  `CommonProps.origin_layer` (Remember layer info) is in common.proto.
 
 import SwiftProtobuf
 
@@ -27,17 +27,64 @@ fileprivate nonisolated struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobu
   typealias Version = _2
 }
 
+/// Roles a layer can play.  Exactly one Guides layer exists per document; the document template
+/// creates it.  If more than one layer carries GUIDES, the smallest node id is the Guides layer
+/// and the rest read as ordinary.
+public nonisolated enum Wiretuner_Doc_V1_LayerRole: SwiftProtobuf.Enum, Swift.CaseIterable {
+  public typealias RawValue = Int
+
+  /// An ordinary layer.
+  case unspecified // = 0
+
+  /// Ruler guides and guide paths; not renameable, mergeable or deletable.
+  case guides // = 1
+  case UNRECOGNIZED(Int)
+
+  public init() {
+    self = .unspecified
+  }
+
+  public init?(rawValue: Int) {
+    switch rawValue {
+    case 0: self = .unspecified
+    case 1: self = .guides
+    default: self = .UNRECOGNIZED(rawValue)
+    }
+  }
+
+  public var rawValue: Int {
+    switch self {
+    case .unspecified: return 0
+    case .guides: return 1
+    case .UNRECOGNIZED(let i): return i
+    }
+  }
+
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static let allCases: [Wiretuner_Doc_V1_LayerRole] = [
+    .unspecified,
+    .guides,
+  ]
+
+}
+
 /// NodeProps.kind case `layer`: a child of the well-known layers node 0:4, whose sibling
 /// position is the stacking order (bottom first).  Its children are the top-level objects of
-/// every canvas.  STRUCT: each flag is an independent choice, so one person hiding a layer
-/// while another locks it keeps both.  Filled in by LIB-001.
+/// every canvas.  STRUCT: each flag is an independent choice, so one person hiding a layer while
+/// another locks it keeps both.
+///
+/// LayerProps field-number blocks (LIB-001):
+///    1      common          crdt-model.adoc
+///    2-19   LIB             library/layers.adoc
+///   20-29   WEB             web/animation.adoc (frame 20)
+///   30-     free; an epic takes the next block of ten and adds a row here.
 public nonisolated struct Wiretuner_Doc_V1_LayerProps: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  /// The layer's name and the other shared registers.  `CommonProps.locked` is not the layer
-  /// lock; LIB-001 adds a layer-level `locked` flag beside `visible` and `printing`.
+  /// The layer's name (CommonProps.name) and the other shared registers.  `CommonProps.locked`
+  /// is not the layer lock; `locked` below is.
   public var common: Wiretuner_Doc_V1_CommonProps {
     get {_common ?? Wiretuner_Doc_V1_CommonProps()}
     set {_common = newValue}
@@ -47,20 +94,65 @@ public nonisolated struct Wiretuner_Doc_V1_LayerProps: Sendable {
   /// Clears the value of `common`. Subsequent reads from it will return its default value.
   public mutating func clearCommon() {self._common = nil}
 
+  /// Fixed at creation; readers ignore later writes (the client never issues them).
+  public var role: Wiretuner_Doc_V1_LayerRole = .unspecified
+
+  /// Objects on the layer are drawn and selectable.  Shared.
+  public var visible: Bool = false
+
+  /// Objects on the layer cannot be selected or edited from the canvas.  Advisory: it constrains
+  /// each client's own tools and is never enforced against remote ops.
+  public var locked: Bool = false
+
+  /// True above the separator line.  False = background layer: never printed or exported, drawn
+  /// dimmed.  A property of the layer, not a position, so it moves with the layer through any
+  /// reorder; the panel and renderer order layers by (printing desc, position, node id).
+  public var printing: Bool = false
+
+  /// Draw this layer as outlines regardless of the document view mode.  Screen only.
+  public var keyline: Bool = false
+
+  /// Selection highlight color for objects on this layer.  ATOMIC.
+  public var highlight: Wiretuner_Doc_V1_Color {
+    get {_highlight ?? Wiretuner_Doc_V1_Color()}
+    set {_highlight = newValue}
+  }
+  /// Returns true if `highlight` has been explicitly set.
+  public var hasHighlight: Bool {self._highlight != nil}
+  /// Clears the value of `highlight`. Subsequent reads from it will return its default value.
+  public mutating func clearHighlight() {self._highlight = nil}
+
+  /// Set when this layer is deleted by a merge: the layer its objects were moved onto.  Live
+  /// objects arriving on this layer afterwards read as being on the target.
+  public var mergedInto: Wiretuner_Doc_V1_NodeRef {
+    get {_mergedInto ?? Wiretuner_Doc_V1_NodeRef()}
+    set {_mergedInto = newValue}
+  }
+  /// Returns true if `mergedInto` has been explicitly set.
+  public var hasMergedInto: Bool {self._mergedInto != nil}
+  /// Clears the value of `mergedInto`. Subsequent reads from it will return its default value.
+  public mutating func clearMergedInto() {self._mergedInto = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
   fileprivate var _common: Wiretuner_Doc_V1_CommonProps? = nil
+  fileprivate var _highlight: Wiretuner_Doc_V1_Color? = nil
+  fileprivate var _mergedInto: Wiretuner_Doc_V1_NodeRef? = nil
 }
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
 fileprivate nonisolated let _protobuf_package = "wiretuner.doc.v1"
 
+nonisolated extension Wiretuner_Doc_V1_LayerRole: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0LAYER_ROLE_UNSPECIFIED\0\u{1}LAYER_ROLE_GUIDES\0")
+}
+
 nonisolated extension Wiretuner_Doc_V1_LayerProps: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".LayerProps"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}common\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}common\0\u{1}role\0\u{1}visible\0\u{1}locked\0\u{1}printing\0\u{1}keyline\0\u{1}highlight\0\u{3}merged_into\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -69,6 +161,13 @@ nonisolated extension Wiretuner_Doc_V1_LayerProps: SwiftProtobuf.Message, SwiftP
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularMessageField(value: &self._common) }()
+      case 2: try { try decoder.decodeSingularEnumField(value: &self.role) }()
+      case 3: try { try decoder.decodeSingularBoolField(value: &self.visible) }()
+      case 4: try { try decoder.decodeSingularBoolField(value: &self.locked) }()
+      case 5: try { try decoder.decodeSingularBoolField(value: &self.printing) }()
+      case 6: try { try decoder.decodeSingularBoolField(value: &self.keyline) }()
+      case 7: try { try decoder.decodeSingularMessageField(value: &self._highlight) }()
+      case 8: try { try decoder.decodeSingularMessageField(value: &self._mergedInto) }()
       default: break
       }
     }
@@ -82,11 +181,39 @@ nonisolated extension Wiretuner_Doc_V1_LayerProps: SwiftProtobuf.Message, SwiftP
     try { if let v = self._common {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
     } }()
+    if self.role != .unspecified {
+      try visitor.visitSingularEnumField(value: self.role, fieldNumber: 2)
+    }
+    if self.visible != false {
+      try visitor.visitSingularBoolField(value: self.visible, fieldNumber: 3)
+    }
+    if self.locked != false {
+      try visitor.visitSingularBoolField(value: self.locked, fieldNumber: 4)
+    }
+    if self.printing != false {
+      try visitor.visitSingularBoolField(value: self.printing, fieldNumber: 5)
+    }
+    if self.keyline != false {
+      try visitor.visitSingularBoolField(value: self.keyline, fieldNumber: 6)
+    }
+    try { if let v = self._highlight {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 7)
+    } }()
+    try { if let v = self._mergedInto {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 8)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Wiretuner_Doc_V1_LayerProps, rhs: Wiretuner_Doc_V1_LayerProps) -> Bool {
     if lhs._common != rhs._common {return false}
+    if lhs.role != rhs.role {return false}
+    if lhs.visible != rhs.visible {return false}
+    if lhs.locked != rhs.locked {return false}
+    if lhs.printing != rhs.printing {return false}
+    if lhs.keyline != rhs.keyline {return false}
+    if lhs._highlight != rhs._highlight {return false}
+    if lhs._mergedInto != rhs._mergedInto {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

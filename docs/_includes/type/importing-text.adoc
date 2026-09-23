@@ -85,7 +85,7 @@ ifdef::spec[]
 
 No new fields.  An import produces one `CreateNode` (kind `text`) plus `TextInsert` and
 `TextMark` ops building the `RichText` on xref:creating-text.adoc[Creating text], plus
-`CreateNode` for each `text_style` the RTF names that the document lacks and for each inline
+`CreateNode` for each text style (a `style` node of kind PARAGRAPH or CHARACTER) the RTF names that the document lacks and for each inline
 graphic's child node.
 
 === Merge semantics

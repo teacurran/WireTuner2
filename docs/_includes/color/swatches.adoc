@@ -233,7 +233,8 @@ a node: it is the `none` case of `ColorRef` (xref:applying-color.adoc[Applying c
 
 [source,protobuf]
 ----
-// proto/wiretuner/doc/v1/color.proto
+// proto/wiretuner/doc/v1/common.proto (ColorSpace, Color, Cmyk, Rgb, Lab live there for good,
+// decisions.adoc D-065; ColorRef and InlineTint too) and color.proto (SwatchRole, SwatchProps).
 
 // The space a Color's components are in.  Zero is sRGB, so an `rgb` written before this tag
 // existed -- every earlier sketch and every earlier document -- reads exactly as it did.
@@ -282,6 +283,7 @@ message Lab {
   double b = 3 [(buf.validate.field).double = {gte: -128, lte: 128}];
 }
 
+// proto/wiretuner/doc/v1/color.proto
 enum SwatchRole {
   SWATCH_ROLE_UNSPECIFIED = 0;  // an ordinary swatch
   SWATCH_ROLE_WHITE = 1;        // the document's White: protected
@@ -292,25 +294,26 @@ enum SwatchRole {
 // NodeProps.kind case `swatch`.  STRUCT: name, value, spot and grouping are independent
 // choices, so a rename and a recolor from two people both survive.
 message SwatchProps {
+  CommonProps common = 1;       // name = the swatch name
   // The color.  Unused (and ignored) when `parent` is set: a tint's color is computed.
-  Color value = 1 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  Color value = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];
   // Spot (true) or process (false).  Independent of the color space.
-  bool spot = 2;
+  bool spot = 3;
   // Set on a tint: the base swatch.  ATOMIC (a NodeRef always is).  `cached` holds the base's
   // Color at write time so a tint whose base was deleted still resolves.
-  NodeRef parent = 3 [(wt.crdt.field).on_dangling = REF_FALLBACK_CACHED];
-  // Tint strength, 1..100.  Meaningful only with `parent`.
-  double tint_percent = 4 [(buf.validate.field).double = {gte: 1, lte: 100}];
+  NodeRef parent = 4 [(wt.crdt.field).on_dangling = REF_FALLBACK_CACHED];
+  // Tint strength, 1..100.  Meaningful only with `parent`; 0 (never set) reads as 100.
+  double tint_percent = 5 [(buf.validate.field).double = {gte: 1, lte: 100}, (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE];
   // Protected defaults.  Set once at document creation; the client never writes it afterwards.
-  SwatchRole role = 5;
+  SwatchRole role = 6;
   // Group header this swatch is listed under; empty = ungrouped.  Groups are names, not nodes:
   // a group exists while any swatch names it, so there is nothing to delete concurrently.
-  string group = 6 [(buf.validate.field).string.max_len = 128];
+  string group = 7 [(buf.validate.field).string.max_len = 128];
   // Origin, when the swatch came from a color library: library name and the color's key in
   // it ("PANTONE 300 C").  Lets Update from Library re-sync values by key
   // (xref:exporting-colors.adoc[Exporting and sharing colors]).
-  string library = 7 [(buf.validate.field).string.max_len = 128];
-  string library_key = 8 [(buf.validate.field).string.max_len = 128];
+  string library = 8 [(buf.validate.field).string.max_len = 128];
+  string library_key = 9 [(buf.validate.field).string.max_len = 128];
 }
 ----
 
@@ -444,7 +447,7 @@ Nothing beyond storing and relaying changes.
 Track:: proto
 Depends on:: PROTO-003
 Size:: M
-Delivers:: `doc/v1/color.proto` with `ColorSpace`, `Color` (the `components` oneof plus the `space` tag), `Cmyk`, `Rgb`, `Lab`, `SwatchRole`, `SwatchProps`, `ColorRef`, `InlineTint` (xref:applying-color.adoc[Applying color]) exactly as sketched, the `swatch` case in `NodeProps.kind` in the COLOR block, and `Color` moved from `common.proto` if PROTO-003 placed a stub there.
+Delivers:: `doc/v1/color.proto` with `SwatchRole` and `SwatchProps` exactly as sketched and the `swatch` case in `NodeProps.kind` in the COLOR block; `ColorSpace`, `Color` (the `components` oneof plus the `space` tag), `Cmyk`, `Rgb`, `Lab`, `ColorRef` and `InlineTint` (xref:applying-color.adoc[Applying color]) stay in `common.proto`, where PROTO-003 put them and the FILE breaking rules keep them (xref:decisions.adoc#D-065[D-065]) (implemented in `color.proto`).
 Done when::
 * `buf lint` with COMMENTS passes; every field carries its `wt.crdt` option where the default is wrong and its protovalidate range; `Color` is ATOMIC in the generated merge table with `space` inside the register.
 * Conformance vectors: STRUCT merge of `SwatchProps` with concurrent `name` and `value` writes keeping both; ATOMIC replacement of `value` across spaces (CMYK → P3, P3 → sRGB, OKLab → CMYK); `ColorRef` oneof case replacement.

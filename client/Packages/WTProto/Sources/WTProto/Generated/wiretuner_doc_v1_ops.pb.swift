@@ -201,7 +201,7 @@ public nonisolated struct Wiretuner_Doc_V1_Op: Sendable {
 /// op's OpId.  Creating a node under a deleted parent is allowed (the child is simply not
 /// rendered); creating one under an unknown parent is a no-op.  A CreateNode is also a tree op
 /// and goes through the move algorithm (crdt-model.adoc, "Tree moves").
-public nonisolated struct Wiretuner_Doc_V1_CreateNode: Sendable {
+public nonisolated struct Wiretuner_Doc_V1_CreateNode: @unchecked Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -209,34 +209,36 @@ public nonisolated struct Wiretuner_Doc_V1_CreateNode: Sendable {
   /// The parent node.  Required: only the well-known nodes have no parent, and they are never
   /// created.
   public var parent: Wiretuner_Doc_V1_OpId {
-    get {_parent ?? Wiretuner_Doc_V1_OpId()}
-    set {_parent = newValue}
+    get {_storage._parent ?? Wiretuner_Doc_V1_OpId()}
+    set {_uniqueStorage()._parent = newValue}
   }
   /// Returns true if `parent` has been explicitly set.
-  public var hasParent: Bool {self._parent != nil}
+  public var hasParent: Bool {_storage._parent != nil}
   /// Clears the value of `parent`. Subsequent reads from it will return its default value.
-  public mutating func clearParent() {self._parent = nil}
+  public mutating func clearParent() {_uniqueStorage()._parent = nil}
 
   /// Fractional index among the parent's children (bytewise order, ties by node id).
-  public var position: Data = Data()
+  public var position: Data {
+    get {_storage._position}
+    set {_uniqueStorage()._position = newValue}
+  }
 
   /// The kind (the set oneof case) and initial values.  Required: a node without a kind cannot
   /// be created.
   public var props: Wiretuner_Doc_V1_NodeProps {
-    get {_props ?? Wiretuner_Doc_V1_NodeProps()}
-    set {_props = newValue}
+    get {_storage._props ?? Wiretuner_Doc_V1_NodeProps()}
+    set {_uniqueStorage()._props = newValue}
   }
   /// Returns true if `props` has been explicitly set.
-  public var hasProps: Bool {self._props != nil}
+  public var hasProps: Bool {_storage._props != nil}
   /// Clears the value of `props`. Subsequent reads from it will return its default value.
-  public mutating func clearProps() {self._props = nil}
+  public mutating func clearProps() {_uniqueStorage()._props = nil}
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
-  fileprivate var _parent: Wiretuner_Doc_V1_OpId? = nil
-  fileprivate var _props: Wiretuner_Doc_V1_NodeProps? = nil
+  fileprivate var _storage = _StorageClass.defaultInstance
 }
 
 /// Writes registers on one node.  Each path in `paths` is written with this op's OpId; the
@@ -248,41 +250,43 @@ public nonisolated struct Wiretuner_Doc_V1_CreateNode: Sendable {
 /// ATOMIC message as a whole); a path into a SEQUENCE names the element, then the element's
 /// field.  A write whose OpId is smaller than the register's is ignored but retained in the
 /// change log for the conflict review.
-public nonisolated struct Wiretuner_Doc_V1_SetFields: Sendable {
+public nonisolated struct Wiretuner_Doc_V1_SetFields: @unchecked Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   /// The node whose registers are written.
   public var node: Wiretuner_Doc_V1_OpId {
-    get {_node ?? Wiretuner_Doc_V1_OpId()}
-    set {_node = newValue}
+    get {_storage._node ?? Wiretuner_Doc_V1_OpId()}
+    set {_uniqueStorage()._node = newValue}
   }
   /// Returns true if `node` has been explicitly set.
-  public var hasNode: Bool {self._node != nil}
+  public var hasNode: Bool {_storage._node != nil}
   /// Clears the value of `node`. Subsequent reads from it will return its default value.
-  public mutating func clearNode() {self._node = nil}
+  public mutating func clearNode() {_uniqueStorage()._node = nil}
 
   /// The registers written by this op, at least one.
-  public var paths: [Wiretuner_Doc_V1_FieldPath] = []
+  public var paths: [Wiretuner_Doc_V1_FieldPath] {
+    get {_storage._paths}
+    set {_uniqueStorage()._paths = newValue}
+  }
 
   /// A sparse NodeProps in the node's kind holding the new values.  Absent at a listed path =
   /// clear that register.  Absent entirely = every listed path is cleared.
   public var values: Wiretuner_Doc_V1_NodeProps {
-    get {_values ?? Wiretuner_Doc_V1_NodeProps()}
-    set {_values = newValue}
+    get {_storage._values ?? Wiretuner_Doc_V1_NodeProps()}
+    set {_uniqueStorage()._values = newValue}
   }
   /// Returns true if `values` has been explicitly set.
-  public var hasValues: Bool {self._values != nil}
+  public var hasValues: Bool {_storage._values != nil}
   /// Clears the value of `values`. Subsequent reads from it will return its default value.
-  public mutating func clearValues() {self._values = nil}
+  public mutating func clearValues() {_uniqueStorage()._values = nil}
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
-  fileprivate var _node: Wiretuner_Doc_V1_OpId? = nil
-  fileprivate var _values: Wiretuner_Doc_V1_NodeProps? = nil
+  fileprivate var _storage = _StorageClass.defaultInstance
 }
 
 /// Moves a node under a new parent and/or to a new sibling position.  Applied in OpId order
@@ -356,56 +360,57 @@ public nonisolated struct Wiretuner_Doc_V1_SetDeleted: Sendable {
 /// with counter `+ i`, so an insert of n elements takes n consecutive counters (the enclosing
 /// Change accounts for them in `start_counter`).  Each element's fields are registers stamped
 /// with the element's own id.
-public nonisolated struct Wiretuner_Doc_V1_ElementInsert: Sendable {
+public nonisolated struct Wiretuner_Doc_V1_ElementInsert: @unchecked Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   /// The node owning the sequence.
   public var node: Wiretuner_Doc_V1_OpId {
-    get {_node ?? Wiretuner_Doc_V1_OpId()}
-    set {_node = newValue}
+    get {_storage._node ?? Wiretuner_Doc_V1_OpId()}
+    set {_uniqueStorage()._node = newValue}
   }
   /// Returns true if `node` has been explicitly set.
-  public var hasNode: Bool {self._node != nil}
+  public var hasNode: Bool {_storage._node != nil}
   /// Clears the value of `node`. Subsequent reads from it will return its default value.
-  public mutating func clearNode() {self._node = nil}
+  public mutating func clearNode() {_uniqueStorage()._node = nil}
 
   /// The SEQUENCE field, addressed from NodeProps (for a nested sequence, through its parent
   /// element).
   public var sequence: Wiretuner_Doc_V1_FieldPath {
-    get {_sequence ?? Wiretuner_Doc_V1_FieldPath()}
-    set {_sequence = newValue}
+    get {_storage._sequence ?? Wiretuner_Doc_V1_FieldPath()}
+    set {_uniqueStorage()._sequence = newValue}
   }
   /// Returns true if `sequence` has been explicitly set.
-  public var hasSequence: Bool {self._sequence != nil}
+  public var hasSequence: Bool {_storage._sequence != nil}
   /// Clears the value of `sequence`. Subsequent reads from it will return its default value.
-  public mutating func clearSequence() {self._sequence = nil}
+  public mutating func clearSequence() {_uniqueStorage()._sequence = nil}
 
   /// One fractional position per inserted element, in element order; at least one.  Positions
   /// are generated between the intended neighbors with a random suffix (crdt-model.adoc,
   /// "Sibling order").
-  public var positions: [Data] = []
+  public var positions: [Data] {
+    get {_storage._positions}
+    set {_uniqueStorage()._positions = newValue}
+  }
 
   /// A sparse NodeProps holding the inserted elements at `sequence`, in the same order as
   /// `positions`, each with its initial field values.  An element's `id` field (always field 1)
   /// is ignored on ingest: the id is derived from this op.
   public var values: Wiretuner_Doc_V1_NodeProps {
-    get {_values ?? Wiretuner_Doc_V1_NodeProps()}
-    set {_values = newValue}
+    get {_storage._values ?? Wiretuner_Doc_V1_NodeProps()}
+    set {_uniqueStorage()._values = newValue}
   }
   /// Returns true if `values` has been explicitly set.
-  public var hasValues: Bool {self._values != nil}
+  public var hasValues: Bool {_storage._values != nil}
   /// Clears the value of `values`. Subsequent reads from it will return its default value.
-  public mutating func clearValues() {self._values = nil}
+  public mutating func clearValues() {_uniqueStorage()._values = nil}
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
-  fileprivate var _node: Wiretuner_Doc_V1_OpId? = nil
-  fileprivate var _sequence: Wiretuner_Doc_V1_FieldPath? = nil
-  fileprivate var _values: Wiretuner_Doc_V1_NodeProps? = nil
+  fileprivate var _storage = _StorageClass.defaultInstance
 }
 
 /// Moves one sequence element by writing its position register.  Concurrent moves of the same
@@ -582,162 +587,154 @@ public nonisolated struct Wiretuner_Doc_V1_TextDelete: Sendable {
 /// op's OpId; marks of the same attribute resolve by OpId where they overlap, marks of different
 /// attributes stack.  Which anchor sides an attribute uses (whether the span grows when text is
 /// typed at its edges) is fixed per attribute on type/creating-text.adoc.
-public nonisolated struct Wiretuner_Doc_V1_TextMark: Sendable {
+public nonisolated struct Wiretuner_Doc_V1_TextMark: @unchecked Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   /// The node owning the text.
   public var node: Wiretuner_Doc_V1_OpId {
-    get {_node ?? Wiretuner_Doc_V1_OpId()}
-    set {_node = newValue}
+    get {_storage._node ?? Wiretuner_Doc_V1_OpId()}
+    set {_uniqueStorage()._node = newValue}
   }
   /// Returns true if `node` has been explicitly set.
-  public var hasNode: Bool {self._node != nil}
+  public var hasNode: Bool {_storage._node != nil}
   /// Clears the value of `node`. Subsequent reads from it will return its default value.
-  public mutating func clearNode() {self._node = nil}
+  public mutating func clearNode() {_uniqueStorage()._node = nil}
 
   /// The TEXT field, addressed from NodeProps.
   public var text: Wiretuner_Doc_V1_FieldPath {
-    get {_text ?? Wiretuner_Doc_V1_FieldPath()}
-    set {_text = newValue}
+    get {_storage._text ?? Wiretuner_Doc_V1_FieldPath()}
+    set {_uniqueStorage()._text = newValue}
   }
   /// Returns true if `text` has been explicitly set.
-  public var hasText: Bool {self._text != nil}
+  public var hasText: Bool {_storage._text != nil}
   /// Clears the value of `text`. Subsequent reads from it will return its default value.
-  public mutating func clearText() {self._text = nil}
+  public mutating func clearText() {_uniqueStorage()._text = nil}
 
   /// Where the span starts.
   public var start: Wiretuner_Doc_V1_Anchor {
-    get {_start ?? Wiretuner_Doc_V1_Anchor()}
-    set {_start = newValue}
+    get {_storage._start ?? Wiretuner_Doc_V1_Anchor()}
+    set {_uniqueStorage()._start = newValue}
   }
   /// Returns true if `start` has been explicitly set.
-  public var hasStart: Bool {self._start != nil}
+  public var hasStart: Bool {_storage._start != nil}
   /// Clears the value of `start`. Subsequent reads from it will return its default value.
-  public mutating func clearStart() {self._start = nil}
+  public mutating func clearStart() {_uniqueStorage()._start = nil}
 
   /// Where the span ends.
   public var end: Wiretuner_Doc_V1_Anchor {
-    get {_end ?? Wiretuner_Doc_V1_Anchor()}
-    set {_end = newValue}
+    get {_storage._end ?? Wiretuner_Doc_V1_Anchor()}
+    set {_uniqueStorage()._end = newValue}
   }
   /// Returns true if `end` has been explicitly set.
-  public var hasEnd: Bool {self._end != nil}
+  public var hasEnd: Bool {_storage._end != nil}
   /// Clears the value of `end`. Subsequent reads from it will return its default value.
-  public mutating func clearEnd() {self._end = nil}
+  public mutating func clearEnd() {_uniqueStorage()._end = nil}
 
   /// The attribute and its value; exactly one attribute per mark.
   public var value: Wiretuner_Doc_V1_TextMarkValue {
-    get {_value ?? Wiretuner_Doc_V1_TextMarkValue()}
-    set {_value = newValue}
+    get {_storage._value ?? Wiretuner_Doc_V1_TextMarkValue()}
+    set {_uniqueStorage()._value = newValue}
   }
   /// Returns true if `value` has been explicitly set.
-  public var hasValue: Bool {self._value != nil}
+  public var hasValue: Bool {_storage._value != nil}
   /// Clears the value of `value`. Subsequent reads from it will return its default value.
-  public mutating func clearValue() {self._value = nil}
+  public mutating func clearValue() {_uniqueStorage()._value = nil}
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
-  fileprivate var _node: Wiretuner_Doc_V1_OpId? = nil
-  fileprivate var _text: Wiretuner_Doc_V1_FieldPath? = nil
-  fileprivate var _start: Wiretuner_Doc_V1_Anchor? = nil
-  fileprivate var _end: Wiretuner_Doc_V1_Anchor? = nil
-  fileprivate var _value: Wiretuner_Doc_V1_TextMarkValue? = nil
+  fileprivate var _storage = _StorageClass.defaultInstance
 }
 
 /// Adds a member to a SET field (add-wins observed-remove set; members compare by value).
 /// A concurrent add and remove of the same member keeps it.
-public nonisolated struct Wiretuner_Doc_V1_SetAdd: Sendable {
+public nonisolated struct Wiretuner_Doc_V1_SetAdd: @unchecked Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   /// The node owning the set.
   public var node: Wiretuner_Doc_V1_OpId {
-    get {_node ?? Wiretuner_Doc_V1_OpId()}
-    set {_node = newValue}
+    get {_storage._node ?? Wiretuner_Doc_V1_OpId()}
+    set {_uniqueStorage()._node = newValue}
   }
   /// Returns true if `node` has been explicitly set.
-  public var hasNode: Bool {self._node != nil}
+  public var hasNode: Bool {_storage._node != nil}
   /// Clears the value of `node`. Subsequent reads from it will return its default value.
-  public mutating func clearNode() {self._node = nil}
+  public mutating func clearNode() {_uniqueStorage()._node = nil}
 
   /// The SET field, addressed from NodeProps.
   public var set: Wiretuner_Doc_V1_FieldPath {
-    get {_set ?? Wiretuner_Doc_V1_FieldPath()}
-    set {_set = newValue}
+    get {_storage._set ?? Wiretuner_Doc_V1_FieldPath()}
+    set {_uniqueStorage()._set = newValue}
   }
   /// Returns true if `set` has been explicitly set.
-  public var hasSet: Bool {self._set != nil}
+  public var hasSet: Bool {_storage._set != nil}
   /// Clears the value of `set`. Subsequent reads from it will return its default value.
-  public mutating func clearSet() {self._set = nil}
+  public mutating func clearSet() {_uniqueStorage()._set = nil}
 
   /// A sparse NodeProps holding, at `set`, the member (or members) to add.
   public var values: Wiretuner_Doc_V1_NodeProps {
-    get {_values ?? Wiretuner_Doc_V1_NodeProps()}
-    set {_values = newValue}
+    get {_storage._values ?? Wiretuner_Doc_V1_NodeProps()}
+    set {_uniqueStorage()._values = newValue}
   }
   /// Returns true if `values` has been explicitly set.
-  public var hasValues: Bool {self._values != nil}
+  public var hasValues: Bool {_storage._values != nil}
   /// Clears the value of `values`. Subsequent reads from it will return its default value.
-  public mutating func clearValues() {self._values = nil}
+  public mutating func clearValues() {_uniqueStorage()._values = nil}
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
-  fileprivate var _node: Wiretuner_Doc_V1_OpId? = nil
-  fileprivate var _set: Wiretuner_Doc_V1_FieldPath? = nil
-  fileprivate var _values: Wiretuner_Doc_V1_NodeProps? = nil
+  fileprivate var _storage = _StorageClass.defaultInstance
 }
 
 /// Removes a member from a SET field.  Removes only the adds the remover had observed: an add
 /// concurrent with the remove survives.
-public nonisolated struct Wiretuner_Doc_V1_SetRemove: Sendable {
+public nonisolated struct Wiretuner_Doc_V1_SetRemove: @unchecked Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   /// The node owning the set.
   public var node: Wiretuner_Doc_V1_OpId {
-    get {_node ?? Wiretuner_Doc_V1_OpId()}
-    set {_node = newValue}
+    get {_storage._node ?? Wiretuner_Doc_V1_OpId()}
+    set {_uniqueStorage()._node = newValue}
   }
   /// Returns true if `node` has been explicitly set.
-  public var hasNode: Bool {self._node != nil}
+  public var hasNode: Bool {_storage._node != nil}
   /// Clears the value of `node`. Subsequent reads from it will return its default value.
-  public mutating func clearNode() {self._node = nil}
+  public mutating func clearNode() {_uniqueStorage()._node = nil}
 
   /// The SET field, addressed from NodeProps.
   public var set: Wiretuner_Doc_V1_FieldPath {
-    get {_set ?? Wiretuner_Doc_V1_FieldPath()}
-    set {_set = newValue}
+    get {_storage._set ?? Wiretuner_Doc_V1_FieldPath()}
+    set {_uniqueStorage()._set = newValue}
   }
   /// Returns true if `set` has been explicitly set.
-  public var hasSet: Bool {self._set != nil}
+  public var hasSet: Bool {_storage._set != nil}
   /// Clears the value of `set`. Subsequent reads from it will return its default value.
-  public mutating func clearSet() {self._set = nil}
+  public mutating func clearSet() {_uniqueStorage()._set = nil}
 
   /// A sparse NodeProps holding, at `set`, the member (or members) to remove.
   public var values: Wiretuner_Doc_V1_NodeProps {
-    get {_values ?? Wiretuner_Doc_V1_NodeProps()}
-    set {_values = newValue}
+    get {_storage._values ?? Wiretuner_Doc_V1_NodeProps()}
+    set {_uniqueStorage()._values = newValue}
   }
   /// Returns true if `values` has been explicitly set.
-  public var hasValues: Bool {self._values != nil}
+  public var hasValues: Bool {_storage._values != nil}
   /// Clears the value of `values`. Subsequent reads from it will return its default value.
-  public mutating func clearValues() {self._values = nil}
+  public mutating func clearValues() {_uniqueStorage()._values = nil}
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
-  fileprivate var _node: Wiretuner_Doc_V1_OpId? = nil
-  fileprivate var _set: Wiretuner_Doc_V1_FieldPath? = nil
-  fileprivate var _values: Wiretuner_Doc_V1_NodeProps? = nil
+  fileprivate var _storage = _StorageClass.defaultInstance
 }
 
 /// Does nothing.  Keeps a counter slot when the outbox coalesces an op away (a swatch
@@ -1014,41 +1011,81 @@ nonisolated extension Wiretuner_Doc_V1_CreateNode: SwiftProtobuf.Message, SwiftP
   public static let protoMessageName: String = _protobuf_package + ".CreateNode"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}parent\0\u{1}position\0\u{1}props\0")
 
+  fileprivate class _StorageClass {
+    var _parent: Wiretuner_Doc_V1_OpId? = nil
+    var _position: Data = Data()
+    var _props: Wiretuner_Doc_V1_NodeProps? = nil
+
+      // This property is used as the initial default value for new instances of the type.
+      // The type itself is protecting the reference to its storage via CoW semantics.
+      // This will force a copy to be made of this reference when the first mutation occurs;
+      // hence, it is safe to mark this as `nonisolated(unsafe)`.
+      static nonisolated(unsafe) let defaultInstance = _StorageClass()
+
+    private init() {}
+
+    init(copying source: _StorageClass) {
+      _parent = source._parent
+      _position = source._position
+      _props = source._props
+    }
+  }
+
+  fileprivate mutating func _uniqueStorage() -> _StorageClass {
+    if !isKnownUniquelyReferenced(&_storage) {
+      _storage = _StorageClass(copying: _storage)
+    }
+    return _storage
+  }
+
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularMessageField(value: &self._parent) }()
-      case 2: try { try decoder.decodeSingularBytesField(value: &self.position) }()
-      case 3: try { try decoder.decodeSingularMessageField(value: &self._props) }()
-      default: break
+    _ = _uniqueStorage()
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      while let fieldNumber = try decoder.nextFieldNumber() {
+        // The use of inline closures is to circumvent an issue where the compiler
+        // allocates stack space for every case branch when no optimizations are
+        // enabled. https://github.com/apple/swift-protobuf/issues/1034
+        switch fieldNumber {
+        case 1: try { try decoder.decodeSingularMessageField(value: &_storage._parent) }()
+        case 2: try { try decoder.decodeSingularBytesField(value: &_storage._position) }()
+        case 3: try { try decoder.decodeSingularMessageField(value: &_storage._props) }()
+        default: break
+        }
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    // The use of inline closures is to circumvent an issue where the compiler
-    // allocates stack space for every if/case branch local when no optimizations
-    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
-    // https://github.com/apple/swift-protobuf/issues/1182
-    try { if let v = self._parent {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
-    } }()
-    if !self.position.isEmpty {
-      try visitor.visitSingularBytesField(value: self.position, fieldNumber: 2)
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every if/case branch local when no optimizations
+      // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+      // https://github.com/apple/swift-protobuf/issues/1182
+      try { if let v = _storage._parent {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+      } }()
+      if !_storage._position.isEmpty {
+        try visitor.visitSingularBytesField(value: _storage._position, fieldNumber: 2)
+      }
+      try { if let v = _storage._props {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+      } }()
     }
-    try { if let v = self._props {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
-    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Wiretuner_Doc_V1_CreateNode, rhs: Wiretuner_Doc_V1_CreateNode) -> Bool {
-    if lhs._parent != rhs._parent {return false}
-    if lhs.position != rhs.position {return false}
-    if lhs._props != rhs._props {return false}
+    if lhs._storage !== rhs._storage {
+      let storagesAreEqual: Bool = withExtendedLifetime((lhs._storage, rhs._storage)) { (_args: (_StorageClass, _StorageClass)) in
+        let _storage = _args.0
+        let rhs_storage = _args.1
+        if _storage._parent != rhs_storage._parent {return false}
+        if _storage._position != rhs_storage._position {return false}
+        if _storage._props != rhs_storage._props {return false}
+        return true
+      }
+      if !storagesAreEqual {return false}
+    }
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -1058,41 +1095,81 @@ nonisolated extension Wiretuner_Doc_V1_SetFields: SwiftProtobuf.Message, SwiftPr
   public static let protoMessageName: String = _protobuf_package + ".SetFields"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}node\0\u{1}paths\0\u{1}values\0")
 
+  fileprivate class _StorageClass {
+    var _node: Wiretuner_Doc_V1_OpId? = nil
+    var _paths: [Wiretuner_Doc_V1_FieldPath] = []
+    var _values: Wiretuner_Doc_V1_NodeProps? = nil
+
+      // This property is used as the initial default value for new instances of the type.
+      // The type itself is protecting the reference to its storage via CoW semantics.
+      // This will force a copy to be made of this reference when the first mutation occurs;
+      // hence, it is safe to mark this as `nonisolated(unsafe)`.
+      static nonisolated(unsafe) let defaultInstance = _StorageClass()
+
+    private init() {}
+
+    init(copying source: _StorageClass) {
+      _node = source._node
+      _paths = source._paths
+      _values = source._values
+    }
+  }
+
+  fileprivate mutating func _uniqueStorage() -> _StorageClass {
+    if !isKnownUniquelyReferenced(&_storage) {
+      _storage = _StorageClass(copying: _storage)
+    }
+    return _storage
+  }
+
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularMessageField(value: &self._node) }()
-      case 2: try { try decoder.decodeRepeatedMessageField(value: &self.paths) }()
-      case 3: try { try decoder.decodeSingularMessageField(value: &self._values) }()
-      default: break
+    _ = _uniqueStorage()
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      while let fieldNumber = try decoder.nextFieldNumber() {
+        // The use of inline closures is to circumvent an issue where the compiler
+        // allocates stack space for every case branch when no optimizations are
+        // enabled. https://github.com/apple/swift-protobuf/issues/1034
+        switch fieldNumber {
+        case 1: try { try decoder.decodeSingularMessageField(value: &_storage._node) }()
+        case 2: try { try decoder.decodeRepeatedMessageField(value: &_storage._paths) }()
+        case 3: try { try decoder.decodeSingularMessageField(value: &_storage._values) }()
+        default: break
+        }
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    // The use of inline closures is to circumvent an issue where the compiler
-    // allocates stack space for every if/case branch local when no optimizations
-    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
-    // https://github.com/apple/swift-protobuf/issues/1182
-    try { if let v = self._node {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
-    } }()
-    if !self.paths.isEmpty {
-      try visitor.visitRepeatedMessageField(value: self.paths, fieldNumber: 2)
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every if/case branch local when no optimizations
+      // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+      // https://github.com/apple/swift-protobuf/issues/1182
+      try { if let v = _storage._node {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+      } }()
+      if !_storage._paths.isEmpty {
+        try visitor.visitRepeatedMessageField(value: _storage._paths, fieldNumber: 2)
+      }
+      try { if let v = _storage._values {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+      } }()
     }
-    try { if let v = self._values {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
-    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Wiretuner_Doc_V1_SetFields, rhs: Wiretuner_Doc_V1_SetFields) -> Bool {
-    if lhs._node != rhs._node {return false}
-    if lhs.paths != rhs.paths {return false}
-    if lhs._values != rhs._values {return false}
+    if lhs._storage !== rhs._storage {
+      let storagesAreEqual: Bool = withExtendedLifetime((lhs._storage, rhs._storage)) { (_args: (_StorageClass, _StorageClass)) in
+        let _storage = _args.0
+        let rhs_storage = _args.1
+        if _storage._node != rhs_storage._node {return false}
+        if _storage._paths != rhs_storage._paths {return false}
+        if _storage._values != rhs_storage._values {return false}
+        return true
+      }
+      if !storagesAreEqual {return false}
+    }
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -1185,46 +1262,88 @@ nonisolated extension Wiretuner_Doc_V1_ElementInsert: SwiftProtobuf.Message, Swi
   public static let protoMessageName: String = _protobuf_package + ".ElementInsert"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}node\0\u{1}sequence\0\u{1}positions\0\u{1}values\0")
 
+  fileprivate class _StorageClass {
+    var _node: Wiretuner_Doc_V1_OpId? = nil
+    var _sequence: Wiretuner_Doc_V1_FieldPath? = nil
+    var _positions: [Data] = []
+    var _values: Wiretuner_Doc_V1_NodeProps? = nil
+
+      // This property is used as the initial default value for new instances of the type.
+      // The type itself is protecting the reference to its storage via CoW semantics.
+      // This will force a copy to be made of this reference when the first mutation occurs;
+      // hence, it is safe to mark this as `nonisolated(unsafe)`.
+      static nonisolated(unsafe) let defaultInstance = _StorageClass()
+
+    private init() {}
+
+    init(copying source: _StorageClass) {
+      _node = source._node
+      _sequence = source._sequence
+      _positions = source._positions
+      _values = source._values
+    }
+  }
+
+  fileprivate mutating func _uniqueStorage() -> _StorageClass {
+    if !isKnownUniquelyReferenced(&_storage) {
+      _storage = _StorageClass(copying: _storage)
+    }
+    return _storage
+  }
+
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularMessageField(value: &self._node) }()
-      case 2: try { try decoder.decodeSingularMessageField(value: &self._sequence) }()
-      case 3: try { try decoder.decodeRepeatedBytesField(value: &self.positions) }()
-      case 4: try { try decoder.decodeSingularMessageField(value: &self._values) }()
-      default: break
+    _ = _uniqueStorage()
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      while let fieldNumber = try decoder.nextFieldNumber() {
+        // The use of inline closures is to circumvent an issue where the compiler
+        // allocates stack space for every case branch when no optimizations are
+        // enabled. https://github.com/apple/swift-protobuf/issues/1034
+        switch fieldNumber {
+        case 1: try { try decoder.decodeSingularMessageField(value: &_storage._node) }()
+        case 2: try { try decoder.decodeSingularMessageField(value: &_storage._sequence) }()
+        case 3: try { try decoder.decodeRepeatedBytesField(value: &_storage._positions) }()
+        case 4: try { try decoder.decodeSingularMessageField(value: &_storage._values) }()
+        default: break
+        }
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    // The use of inline closures is to circumvent an issue where the compiler
-    // allocates stack space for every if/case branch local when no optimizations
-    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
-    // https://github.com/apple/swift-protobuf/issues/1182
-    try { if let v = self._node {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
-    } }()
-    try { if let v = self._sequence {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
-    } }()
-    if !self.positions.isEmpty {
-      try visitor.visitRepeatedBytesField(value: self.positions, fieldNumber: 3)
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every if/case branch local when no optimizations
+      // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+      // https://github.com/apple/swift-protobuf/issues/1182
+      try { if let v = _storage._node {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+      } }()
+      try { if let v = _storage._sequence {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+      } }()
+      if !_storage._positions.isEmpty {
+        try visitor.visitRepeatedBytesField(value: _storage._positions, fieldNumber: 3)
+      }
+      try { if let v = _storage._values {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
+      } }()
     }
-    try { if let v = self._values {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
-    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Wiretuner_Doc_V1_ElementInsert, rhs: Wiretuner_Doc_V1_ElementInsert) -> Bool {
-    if lhs._node != rhs._node {return false}
-    if lhs._sequence != rhs._sequence {return false}
-    if lhs.positions != rhs.positions {return false}
-    if lhs._values != rhs._values {return false}
+    if lhs._storage !== rhs._storage {
+      let storagesAreEqual: Bool = withExtendedLifetime((lhs._storage, rhs._storage)) { (_args: (_StorageClass, _StorageClass)) in
+        let _storage = _args.0
+        let rhs_storage = _args.1
+        if _storage._node != rhs_storage._node {return false}
+        if _storage._sequence != rhs_storage._sequence {return false}
+        if _storage._positions != rhs_storage._positions {return false}
+        if _storage._values != rhs_storage._values {return false}
+        return true
+      }
+      if !storagesAreEqual {return false}
+    }
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -1420,51 +1539,95 @@ nonisolated extension Wiretuner_Doc_V1_TextMark: SwiftProtobuf.Message, SwiftPro
   public static let protoMessageName: String = _protobuf_package + ".TextMark"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}node\0\u{1}text\0\u{1}start\0\u{1}end\0\u{1}value\0")
 
+  fileprivate class _StorageClass {
+    var _node: Wiretuner_Doc_V1_OpId? = nil
+    var _text: Wiretuner_Doc_V1_FieldPath? = nil
+    var _start: Wiretuner_Doc_V1_Anchor? = nil
+    var _end: Wiretuner_Doc_V1_Anchor? = nil
+    var _value: Wiretuner_Doc_V1_TextMarkValue? = nil
+
+      // This property is used as the initial default value for new instances of the type.
+      // The type itself is protecting the reference to its storage via CoW semantics.
+      // This will force a copy to be made of this reference when the first mutation occurs;
+      // hence, it is safe to mark this as `nonisolated(unsafe)`.
+      static nonisolated(unsafe) let defaultInstance = _StorageClass()
+
+    private init() {}
+
+    init(copying source: _StorageClass) {
+      _node = source._node
+      _text = source._text
+      _start = source._start
+      _end = source._end
+      _value = source._value
+    }
+  }
+
+  fileprivate mutating func _uniqueStorage() -> _StorageClass {
+    if !isKnownUniquelyReferenced(&_storage) {
+      _storage = _StorageClass(copying: _storage)
+    }
+    return _storage
+  }
+
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularMessageField(value: &self._node) }()
-      case 2: try { try decoder.decodeSingularMessageField(value: &self._text) }()
-      case 3: try { try decoder.decodeSingularMessageField(value: &self._start) }()
-      case 4: try { try decoder.decodeSingularMessageField(value: &self._end) }()
-      case 5: try { try decoder.decodeSingularMessageField(value: &self._value) }()
-      default: break
+    _ = _uniqueStorage()
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      while let fieldNumber = try decoder.nextFieldNumber() {
+        // The use of inline closures is to circumvent an issue where the compiler
+        // allocates stack space for every case branch when no optimizations are
+        // enabled. https://github.com/apple/swift-protobuf/issues/1034
+        switch fieldNumber {
+        case 1: try { try decoder.decodeSingularMessageField(value: &_storage._node) }()
+        case 2: try { try decoder.decodeSingularMessageField(value: &_storage._text) }()
+        case 3: try { try decoder.decodeSingularMessageField(value: &_storage._start) }()
+        case 4: try { try decoder.decodeSingularMessageField(value: &_storage._end) }()
+        case 5: try { try decoder.decodeSingularMessageField(value: &_storage._value) }()
+        default: break
+        }
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    // The use of inline closures is to circumvent an issue where the compiler
-    // allocates stack space for every if/case branch local when no optimizations
-    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
-    // https://github.com/apple/swift-protobuf/issues/1182
-    try { if let v = self._node {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
-    } }()
-    try { if let v = self._text {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
-    } }()
-    try { if let v = self._start {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
-    } }()
-    try { if let v = self._end {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
-    } }()
-    try { if let v = self._value {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
-    } }()
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every if/case branch local when no optimizations
+      // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+      // https://github.com/apple/swift-protobuf/issues/1182
+      try { if let v = _storage._node {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+      } }()
+      try { if let v = _storage._text {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+      } }()
+      try { if let v = _storage._start {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+      } }()
+      try { if let v = _storage._end {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
+      } }()
+      try { if let v = _storage._value {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
+      } }()
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Wiretuner_Doc_V1_TextMark, rhs: Wiretuner_Doc_V1_TextMark) -> Bool {
-    if lhs._node != rhs._node {return false}
-    if lhs._text != rhs._text {return false}
-    if lhs._start != rhs._start {return false}
-    if lhs._end != rhs._end {return false}
-    if lhs._value != rhs._value {return false}
+    if lhs._storage !== rhs._storage {
+      let storagesAreEqual: Bool = withExtendedLifetime((lhs._storage, rhs._storage)) { (_args: (_StorageClass, _StorageClass)) in
+        let _storage = _args.0
+        let rhs_storage = _args.1
+        if _storage._node != rhs_storage._node {return false}
+        if _storage._text != rhs_storage._text {return false}
+        if _storage._start != rhs_storage._start {return false}
+        if _storage._end != rhs_storage._end {return false}
+        if _storage._value != rhs_storage._value {return false}
+        return true
+      }
+      if !storagesAreEqual {return false}
+    }
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -1474,41 +1637,81 @@ nonisolated extension Wiretuner_Doc_V1_SetAdd: SwiftProtobuf.Message, SwiftProto
   public static let protoMessageName: String = _protobuf_package + ".SetAdd"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}node\0\u{1}set\0\u{1}values\0")
 
+  fileprivate class _StorageClass {
+    var _node: Wiretuner_Doc_V1_OpId? = nil
+    var _set: Wiretuner_Doc_V1_FieldPath? = nil
+    var _values: Wiretuner_Doc_V1_NodeProps? = nil
+
+      // This property is used as the initial default value for new instances of the type.
+      // The type itself is protecting the reference to its storage via CoW semantics.
+      // This will force a copy to be made of this reference when the first mutation occurs;
+      // hence, it is safe to mark this as `nonisolated(unsafe)`.
+      static nonisolated(unsafe) let defaultInstance = _StorageClass()
+
+    private init() {}
+
+    init(copying source: _StorageClass) {
+      _node = source._node
+      _set = source._set
+      _values = source._values
+    }
+  }
+
+  fileprivate mutating func _uniqueStorage() -> _StorageClass {
+    if !isKnownUniquelyReferenced(&_storage) {
+      _storage = _StorageClass(copying: _storage)
+    }
+    return _storage
+  }
+
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularMessageField(value: &self._node) }()
-      case 2: try { try decoder.decodeSingularMessageField(value: &self._set) }()
-      case 3: try { try decoder.decodeSingularMessageField(value: &self._values) }()
-      default: break
+    _ = _uniqueStorage()
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      while let fieldNumber = try decoder.nextFieldNumber() {
+        // The use of inline closures is to circumvent an issue where the compiler
+        // allocates stack space for every case branch when no optimizations are
+        // enabled. https://github.com/apple/swift-protobuf/issues/1034
+        switch fieldNumber {
+        case 1: try { try decoder.decodeSingularMessageField(value: &_storage._node) }()
+        case 2: try { try decoder.decodeSingularMessageField(value: &_storage._set) }()
+        case 3: try { try decoder.decodeSingularMessageField(value: &_storage._values) }()
+        default: break
+        }
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    // The use of inline closures is to circumvent an issue where the compiler
-    // allocates stack space for every if/case branch local when no optimizations
-    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
-    // https://github.com/apple/swift-protobuf/issues/1182
-    try { if let v = self._node {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
-    } }()
-    try { if let v = self._set {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
-    } }()
-    try { if let v = self._values {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
-    } }()
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every if/case branch local when no optimizations
+      // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+      // https://github.com/apple/swift-protobuf/issues/1182
+      try { if let v = _storage._node {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+      } }()
+      try { if let v = _storage._set {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+      } }()
+      try { if let v = _storage._values {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+      } }()
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Wiretuner_Doc_V1_SetAdd, rhs: Wiretuner_Doc_V1_SetAdd) -> Bool {
-    if lhs._node != rhs._node {return false}
-    if lhs._set != rhs._set {return false}
-    if lhs._values != rhs._values {return false}
+    if lhs._storage !== rhs._storage {
+      let storagesAreEqual: Bool = withExtendedLifetime((lhs._storage, rhs._storage)) { (_args: (_StorageClass, _StorageClass)) in
+        let _storage = _args.0
+        let rhs_storage = _args.1
+        if _storage._node != rhs_storage._node {return false}
+        if _storage._set != rhs_storage._set {return false}
+        if _storage._values != rhs_storage._values {return false}
+        return true
+      }
+      if !storagesAreEqual {return false}
+    }
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -1518,41 +1721,81 @@ nonisolated extension Wiretuner_Doc_V1_SetRemove: SwiftProtobuf.Message, SwiftPr
   public static let protoMessageName: String = _protobuf_package + ".SetRemove"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}node\0\u{1}set\0\u{1}values\0")
 
+  fileprivate class _StorageClass {
+    var _node: Wiretuner_Doc_V1_OpId? = nil
+    var _set: Wiretuner_Doc_V1_FieldPath? = nil
+    var _values: Wiretuner_Doc_V1_NodeProps? = nil
+
+      // This property is used as the initial default value for new instances of the type.
+      // The type itself is protecting the reference to its storage via CoW semantics.
+      // This will force a copy to be made of this reference when the first mutation occurs;
+      // hence, it is safe to mark this as `nonisolated(unsafe)`.
+      static nonisolated(unsafe) let defaultInstance = _StorageClass()
+
+    private init() {}
+
+    init(copying source: _StorageClass) {
+      _node = source._node
+      _set = source._set
+      _values = source._values
+    }
+  }
+
+  fileprivate mutating func _uniqueStorage() -> _StorageClass {
+    if !isKnownUniquelyReferenced(&_storage) {
+      _storage = _StorageClass(copying: _storage)
+    }
+    return _storage
+  }
+
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularMessageField(value: &self._node) }()
-      case 2: try { try decoder.decodeSingularMessageField(value: &self._set) }()
-      case 3: try { try decoder.decodeSingularMessageField(value: &self._values) }()
-      default: break
+    _ = _uniqueStorage()
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      while let fieldNumber = try decoder.nextFieldNumber() {
+        // The use of inline closures is to circumvent an issue where the compiler
+        // allocates stack space for every case branch when no optimizations are
+        // enabled. https://github.com/apple/swift-protobuf/issues/1034
+        switch fieldNumber {
+        case 1: try { try decoder.decodeSingularMessageField(value: &_storage._node) }()
+        case 2: try { try decoder.decodeSingularMessageField(value: &_storage._set) }()
+        case 3: try { try decoder.decodeSingularMessageField(value: &_storage._values) }()
+        default: break
+        }
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    // The use of inline closures is to circumvent an issue where the compiler
-    // allocates stack space for every if/case branch local when no optimizations
-    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
-    // https://github.com/apple/swift-protobuf/issues/1182
-    try { if let v = self._node {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
-    } }()
-    try { if let v = self._set {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
-    } }()
-    try { if let v = self._values {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
-    } }()
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every if/case branch local when no optimizations
+      // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+      // https://github.com/apple/swift-protobuf/issues/1182
+      try { if let v = _storage._node {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+      } }()
+      try { if let v = _storage._set {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+      } }()
+      try { if let v = _storage._values {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+      } }()
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Wiretuner_Doc_V1_SetRemove, rhs: Wiretuner_Doc_V1_SetRemove) -> Bool {
-    if lhs._node != rhs._node {return false}
-    if lhs._set != rhs._set {return false}
-    if lhs._values != rhs._values {return false}
+    if lhs._storage !== rhs._storage {
+      let storagesAreEqual: Bool = withExtendedLifetime((lhs._storage, rhs._storage)) { (_args: (_StorageClass, _StorageClass)) in
+        let _storage = _args.0
+        let rhs_storage = _args.1
+        if _storage._node != rhs_storage._node {return false}
+        if _storage._set != rhs_storage._set {return false}
+        if _storage._values != rhs_storage._values {return false}
+        return true
+      }
+      if !storagesAreEqual {return false}
+    }
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

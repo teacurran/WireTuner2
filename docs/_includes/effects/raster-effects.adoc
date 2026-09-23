@@ -263,7 +263,7 @@ ifdef::spec[]
 ----
 // Additions to proto/wiretuner/doc/v1/effects.proto
 
-// Document-level settings, a field of the settings node's DocumentSettings (DOC epic):
+// Document-level settings, a field of the settings node's SettingsProps (FX block 90-99):
 //   RasterEffectSettings raster_effects = …;   // STRUCT
 message RasterEffectSettings {
   uint32 resolution_ppi = 1 [(buf.validate.field).uint32 = {gte: 1, lte: 2400}];  // default 72

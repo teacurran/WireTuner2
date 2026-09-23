@@ -123,7 +123,7 @@ ifdef::spec[]
 
 No fields.  The panel is a query over `WTModel` plus commands from other pages: color
 replacement writes `Color` registers and swatch references (COLOR), stroke width writes
-`StrokeProps.width` (ATTR), rotate and scale write `CommonProps.transform`, simplify writes
+`BasicStroke.width` (ATTR), rotate and scale write `CommonProps.transform`, simplify writes
 contours (GEO-004), blend steps writes `BlendProps.steps` (FX), remove writes
 `SetDeleted`/stack elements.
 

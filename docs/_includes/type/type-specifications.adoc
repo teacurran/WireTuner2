@@ -434,7 +434,7 @@ Delivers:: `FontVariation`, `Axis`, `FeatureSetting`, `FeatureState` and `Featur
 `doc/v1/text.proto` as sketched on xref:creating-text.adoc[Creating text]; the `axes` and
 `feature` cases on `TextMarkValue`; `axes` and `features` on `CharacterSettings`
 (xref:text-styles.adoc[Text styles]); the `(feature, tag)` attribute identity declared for mark
-resolution.
+resolution (implemented in `text.proto`).
 Done when::
 * `buf lint` (with `COMMENTS`) and `buf breaking` pass; tags validated to four characters;
   the merge table shows `axes` ATOMIC in both places and `FeatureSettings` STRUCT.

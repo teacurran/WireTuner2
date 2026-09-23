@@ -154,6 +154,7 @@ message GradientFill {
   repeated GradientStop stops = 5 [(wt.crdt.field).merge = MERGE_SEQUENCE];
   bool overprint = 6;
 }
+// Enum values carry their GRADIENT_TYPE_ / GRADIENT_BEHAVIOR_ prefixes in gradient.proto.
 enum GradientType { GRADIENT_TYPE_UNSPECIFIED = 0; LINEAR = 1; LOGARITHMIC = 2; RADIAL = 3;
   RECTANGLE = 4; CONTOUR = 5; CONE = 6; }
 enum GradientBehavior { GRADIENT_BEHAVIOR_UNSPECIFIED = 0; NORMAL = 1; REPEAT = 2;
@@ -169,7 +170,7 @@ message GradientAxis {
 message GradientStop {
   ElementId id = 1;
   double offset = 2;                   // 0 .. 1 along the ramp
-  ColorRef color = 3;                  // ATOMIC; swatch reference or inline color
+  ColorRef color = 3 [(wt.crdt.field).merge = MERGE_ATOMIC];   // swatch reference or inline color
 }
 ----
 
@@ -259,7 +260,7 @@ Undo:: Each stop gesture (add, move, recolor, remove) and each handle drag is on
 Track:: proto
 Depends on:: ATTR-001
 Size:: S
-Delivers:: `gradient.proto`: `GradientFill`, `GradientAxis`, `GradientStop`, enums, validation rules.
+Delivers:: `gradient.proto`: `GradientFill`, `GradientAxis`, `GradientStop`, enums, validation rules (implemented in `gradient.proto`).
 Done when::
 * `buf lint` passes with every field commented.
 * Conformance vectors: concurrent axis writes; concurrent stop add at one offset; stop remove vs. recolor; type change vs. axis write.

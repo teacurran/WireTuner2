@@ -301,14 +301,18 @@ package wiretuner.doc.v1;
 // Fixed roles.  The document template creates one NORMAL and one NORMAL_TEXT style; clients
 // never delete them or give them a parent.
 enum StyleRole {
-  STYLE_ROLE_ORDINARY = 0;
+  STYLE_ROLE_UNSPECIFIED = 0;   // an ordinary style
   STYLE_ROLE_NORMAL = 1;        // default graphic style
   STYLE_ROLE_NORMAL_TEXT = 2;   // default text style
 }
 
+// One kind of node for every style: text styles are `style` nodes whose `text` carries TYPE's
+// attributes (text-styles), not a kind of their own.
 enum StyleKind {
-  STYLE_KIND_GRAPHIC = 0;
-  STYLE_KIND_TEXT = 1;
+  STYLE_KIND_UNSPECIFIED = 0;   // reads as GRAPHIC
+  STYLE_KIND_GRAPHIC = 1;
+  STYLE_KIND_PARAGRAPH = 2;     // paragraph text style
+  STYLE_KIND_CHARACTER = 3;     // character text style
 }
 
 // Which attribute categories a graphic style governs.  STRUCT (the default): each category
@@ -323,20 +327,21 @@ message StyleBehavior {
 
 // Properties of a node of kind `style`.  Name lives in CommonProps.name.
 message StyleProps {
-  StyleRole role = 1;             // fixed at creation
-  StyleKind kind = 2;             // fixed at creation
+  CommonProps common = 1;
+  StyleRole role = 2;             // fixed at creation
+  StyleKind kind = 3;             // fixed at creation
   // Parent style.  Unset = no parent (Normal is not implicitly the parent: an ordinary style
   // with no parent falls back to the document defaults for anything it does not set).
-  NodeRef based_on = 3 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
-  StyleBehavior behavior = 4;     // graphic styles only
+  NodeRef based_on = 4 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
+  StyleBehavior behavior = 5;     // graphic styles only
   // The style's own attributes: fills, strokes, effects and halftone as the ATTR epic defines
   // them on objects (see the attribute-stack page).  Fields the style does not set are inherited
   // from based_on.  Merges per the ATTR epic's policies: the stacks are SEQUENCEs, colors
   // ATOMIC, and so on.
-  AppearanceProps appearance = 5;
+  AppearanceProps appearance = 6;
   // Text attributes for text styles; message and policies owned by the TYPE epic
-  // (see the text-styles page).
-  TextStyleAttrs text = 6;
+  // (see the text-styles page, text.proto).
+  TextStyleAttrs text = 7;
 }
 ----
 
@@ -455,7 +460,7 @@ Read-time normalizations::
 * A style ref to a node that is not a style, or to a text style from a graphic object (or the
   reverse), reads as unset.
 * More than one style with `STYLE_ROLE_NORMAL` (or `NORMAL_TEXT`): the smallest node id is
-  Normal; the rest read as ORDINARY.  A deleted Normal reads as live.
+  Normal; the rest read as ordinary (`STYLE_ROLE_UNSPECIFIED`).  A deleted Normal reads as live.
 
 What the review sheet shows::
 Style rows carry a preview swatch rendered from each side's resolution; per-attribute rows use
@@ -511,7 +516,7 @@ Preferences:: *Auto-apply new styles to selection* (Object, default on).
 Track:: proto
 Depends on:: PROTO-003
 Size:: S
-Delivers:: `doc/v1/style.proto` with `StyleRole`, `StyleKind`, `StyleBehavior`, `StyleProps` (importing `AppearanceProps` from the ATTR epic's `appearance.proto` and `TextStyleAttrs` from the TYPE epic's `text.proto`; stubs if they do not exist yet), and the `style` case in `NodeProps.kind`.
+Delivers:: `doc/v1/style.proto` with `StyleRole`, `StyleKind`, `StyleBehavior`, `StyleProps` (importing `AppearanceProps` from the ATTR epic's `appearance.proto` and `TextStyleAttrs` from the TYPE epic's `text.proto`; stubs if they do not exist yet), and the `style` case in `NodeProps.kind` (implemented in `style.proto`; `style` = 154).
 Done when::
 * `buf lint` with `COMMENTS` passes; merge table shows `based_on` with `REF_FALLBACK_UNSET` and `behavior` STRUCT.
 * Conformance vector: concurrent writes to `behavior.fills` and `behavior.strokes` keep both; concurrent `based_on` writes resolve LWW.

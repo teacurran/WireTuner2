@@ -22,13 +22,13 @@
 ///
 ///   Block     Epic    Cases so far
 ///   1-19      DOC     1 document, 2 settings, 3 page, 4 master_page
-///   20-49     DRAW    (path, rectangle, ellipse, polygon, ... DRAW-001 onward)
+///   20-49     DRAW    20 path, 21 rect, 22 ellipse, 23 polygon, 24 chart
 ///   50-69     OBJ     50 group
-///   70-79     COLOR   (swatch, COLOR-001)
-///   80-99     ATTR    (graphic style, brush, ... ATTR epic)
+///   70-79     COLOR   70 swatch
+///   80-99     ATTR    80 brush
 ///   100-129   FX      (blend, path effect, envelope, perspective, extrude, ... FX epic)
-///   130-149   TYPE    (text, text_style, TYPE-001)
-///   150-169   LIB     150 layer; (symbol, symbol instance, LIB epic)
+///   130-149   TYPE    130 text (text styles are `style` nodes of kind PARAGRAPH/CHARACTER)
+///   150-169   LIB     150 layer, 151 symbol, 152 symbol_folder, 153 instance, 154 style
 ///   170-189   IMG     (image, placed_file, ... IMG epic)
 ///   190-209   WEB     (svg_animation, ... WEB epic)
 ///   210-219   COLLAB  (comment_thread, COLLAB-025)
@@ -169,7 +169,7 @@ public nonisolated enum Wiretuner_Doc_V1_WellKnown: SwiftProtobuf.Enum, Swift.Ca
 /// A node as a plain value: its identity, place in the tree, deletion flag and properties,
 /// without the per-register OpIds the merge engines keep (those are in snapshot.proto's
 /// NodeState).  The shape exporters, the clipboard and tests exchange.
-public nonisolated struct Wiretuner_Doc_V1_Node: Sendable {
+public nonisolated struct Wiretuner_Doc_V1_Node: @unchecked Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -177,49 +177,53 @@ public nonisolated struct Wiretuner_Doc_V1_Node: Sendable {
   /// The node's id: the OpId of the CreateNode that made it, or a WellKnown counter with
   /// replica 0.
   public var id: Wiretuner_Doc_V1_OpId {
-    get {_id ?? Wiretuner_Doc_V1_OpId()}
-    set {_id = newValue}
+    get {_storage._id ?? Wiretuner_Doc_V1_OpId()}
+    set {_uniqueStorage()._id = newValue}
   }
   /// Returns true if `id` has been explicitly set.
-  public var hasID: Bool {self._id != nil}
+  public var hasID: Bool {_storage._id != nil}
   /// Clears the value of `id`. Subsequent reads from it will return its default value.
-  public mutating func clearID() {self._id = nil}
+  public mutating func clearID() {_uniqueStorage()._id = nil}
 
   /// The parent's id.  Unset only for the root 0:0.
   public var parent: Wiretuner_Doc_V1_OpId {
-    get {_parent ?? Wiretuner_Doc_V1_OpId()}
-    set {_parent = newValue}
+    get {_storage._parent ?? Wiretuner_Doc_V1_OpId()}
+    set {_uniqueStorage()._parent = newValue}
   }
   /// Returns true if `parent` has been explicitly set.
-  public var hasParent: Bool {self._parent != nil}
+  public var hasParent: Bool {_storage._parent != nil}
   /// Clears the value of `parent`. Subsequent reads from it will return its default value.
-  public mutating func clearParent() {self._parent = nil}
+  public mutating func clearParent() {_uniqueStorage()._parent = nil}
 
   /// Fractional index among the parent's children, compared bytewise; ties break by node id.
   /// Empty only for the root and the well-known collections.
-  public var position: Data = Data()
+  public var position: Data {
+    get {_storage._position}
+    set {_uniqueStorage()._position = newValue}
+  }
 
   /// A deleted node keeps its properties, children and history; it is not rendered or
   /// selectable, and edits to it still apply so restoring it restores them too.
-  public var deleted: Bool = false
+  public var deleted: Bool {
+    get {_storage._deleted}
+    set {_uniqueStorage()._deleted = newValue}
+  }
 
   /// The kind and its properties.
   public var props: Wiretuner_Doc_V1_NodeProps {
-    get {_props ?? Wiretuner_Doc_V1_NodeProps()}
-    set {_props = newValue}
+    get {_storage._props ?? Wiretuner_Doc_V1_NodeProps()}
+    set {_uniqueStorage()._props = newValue}
   }
   /// Returns true if `props` has been explicitly set.
-  public var hasProps: Bool {self._props != nil}
+  public var hasProps: Bool {_storage._props != nil}
   /// Clears the value of `props`. Subsequent reads from it will return its default value.
-  public mutating func clearProps() {self._props = nil}
+  public mutating func clearProps() {_uniqueStorage()._props = nil}
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
-  fileprivate var _id: Wiretuner_Doc_V1_OpId? = nil
-  fileprivate var _parent: Wiretuner_Doc_V1_OpId? = nil
-  fileprivate var _props: Wiretuner_Doc_V1_NodeProps? = nil
+  fileprivate var _storage = _StorageClass.defaultInstance
 }
 
 /// The typed properties of a node.  The set `kind` case is the node's kind, fixed at creation;
@@ -271,6 +275,51 @@ public nonisolated struct Wiretuner_Doc_V1_NodeProps: Sendable {
     set {kind = .masterPage(newValue)}
   }
 
+  /// A vector path (DRAW block, path.proto).
+  public var path: Wiretuner_Doc_V1_PathProps {
+    get {
+      if case .path(let v)? = kind {return v}
+      return Wiretuner_Doc_V1_PathProps()
+    }
+    set {kind = .path(newValue)}
+  }
+
+  /// A live rectangle (DRAW block, shape.proto).
+  public var rect: Wiretuner_Doc_V1_RectProps {
+    get {
+      if case .rect(let v)? = kind {return v}
+      return Wiretuner_Doc_V1_RectProps()
+    }
+    set {kind = .rect(newValue)}
+  }
+
+  /// A live ellipse (DRAW block, shape.proto).
+  public var ellipse: Wiretuner_Doc_V1_EllipseProps {
+    get {
+      if case .ellipse(let v)? = kind {return v}
+      return Wiretuner_Doc_V1_EllipseProps()
+    }
+    set {kind = .ellipse(newValue)}
+  }
+
+  /// A live polygon or star (DRAW block, shape.proto).
+  public var polygon: Wiretuner_Doc_V1_PolygonProps {
+    get {
+      if case .polygon(let v)? = kind {return v}
+      return Wiretuner_Doc_V1_PolygonProps()
+    }
+    set {kind = .polygon(newValue)}
+  }
+
+  /// A chart regenerated from its data (DRAW block, chart.proto).
+  public var chart: Wiretuner_Doc_V1_ChartProps {
+    get {
+      if case .chart(let v)? = kind {return v}
+      return Wiretuner_Doc_V1_ChartProps()
+    }
+    set {kind = .chart(newValue)}
+  }
+
   /// A group of objects (OBJ block).
   public var group: Wiretuner_Doc_V1_GroupProps {
     get {
@@ -280,6 +329,33 @@ public nonisolated struct Wiretuner_Doc_V1_NodeProps: Sendable {
     set {kind = .group(newValue)}
   }
 
+  /// A color or tint swatch under 0:5 (COLOR block, color.proto).
+  public var swatch: Wiretuner_Doc_V1_SwatchProps {
+    get {
+      if case .swatch(let v)? = kind {return v}
+      return Wiretuner_Doc_V1_SwatchProps()
+    }
+    set {kind = .swatch(newValue)}
+  }
+
+  /// A brush under 0:8 (ATTR block, stroke.proto).
+  public var brush: Wiretuner_Doc_V1_BrushProps {
+    get {
+      if case .brush(let v)? = kind {return v}
+      return Wiretuner_Doc_V1_BrushProps()
+    }
+    set {kind = .brush(newValue)}
+  }
+
+  /// A text block, text on a path or text in a path (TYPE block, text.proto).
+  public var text: Wiretuner_Doc_V1_TextProps {
+    get {
+      if case .text(let v)? = kind {return v}
+      return Wiretuner_Doc_V1_TextProps()
+    }
+    set {kind = .text(newValue)}
+  }
+
   /// A layer under 0:4 (LIB block).
   public var layer: Wiretuner_Doc_V1_LayerProps {
     get {
@@ -287,6 +363,42 @@ public nonisolated struct Wiretuner_Doc_V1_NodeProps: Sendable {
       return Wiretuner_Doc_V1_LayerProps()
     }
     set {kind = .layer(newValue)}
+  }
+
+  /// A symbol under 0:7 or under a symbol folder (LIB block, symbol.proto).
+  public var symbol: Wiretuner_Doc_V1_SymbolProps {
+    get {
+      if case .symbol(let v)? = kind {return v}
+      return Wiretuner_Doc_V1_SymbolProps()
+    }
+    set {kind = .symbol(newValue)}
+  }
+
+  /// A folder of symbols under 0:7 (LIB block, symbol.proto).
+  public var symbolFolder: Wiretuner_Doc_V1_SymbolFolderProps {
+    get {
+      if case .symbolFolder(let v)? = kind {return v}
+      return Wiretuner_Doc_V1_SymbolFolderProps()
+    }
+    set {kind = .symbolFolder(newValue)}
+  }
+
+  /// An instance of a symbol, on a layer (LIB block, symbol.proto).
+  public var instance: Wiretuner_Doc_V1_InstanceProps {
+    get {
+      if case .instance(let v)? = kind {return v}
+      return Wiretuner_Doc_V1_InstanceProps()
+    }
+    set {kind = .instance(newValue)}
+  }
+
+  /// A graphic, paragraph or character style under 0:6 (LIB block, style.proto).
+  public var style: Wiretuner_Doc_V1_StyleProps {
+    get {
+      if case .style(let v)? = kind {return v}
+      return Wiretuner_Doc_V1_StyleProps()
+    }
+    set {kind = .style(newValue)}
   }
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
@@ -301,10 +413,34 @@ public nonisolated struct Wiretuner_Doc_V1_NodeProps: Sendable {
     case page(Wiretuner_Doc_V1_PageProps)
     /// A master page under 0:3 (DOC block).
     case masterPage(Wiretuner_Doc_V1_MasterPageProps)
+    /// A vector path (DRAW block, path.proto).
+    case path(Wiretuner_Doc_V1_PathProps)
+    /// A live rectangle (DRAW block, shape.proto).
+    case rect(Wiretuner_Doc_V1_RectProps)
+    /// A live ellipse (DRAW block, shape.proto).
+    case ellipse(Wiretuner_Doc_V1_EllipseProps)
+    /// A live polygon or star (DRAW block, shape.proto).
+    case polygon(Wiretuner_Doc_V1_PolygonProps)
+    /// A chart regenerated from its data (DRAW block, chart.proto).
+    case chart(Wiretuner_Doc_V1_ChartProps)
     /// A group of objects (OBJ block).
     case group(Wiretuner_Doc_V1_GroupProps)
+    /// A color or tint swatch under 0:5 (COLOR block, color.proto).
+    case swatch(Wiretuner_Doc_V1_SwatchProps)
+    /// A brush under 0:8 (ATTR block, stroke.proto).
+    case brush(Wiretuner_Doc_V1_BrushProps)
+    /// A text block, text on a path or text in a path (TYPE block, text.proto).
+    case text(Wiretuner_Doc_V1_TextProps)
     /// A layer under 0:4 (LIB block).
     case layer(Wiretuner_Doc_V1_LayerProps)
+    /// A symbol under 0:7 or under a symbol folder (LIB block, symbol.proto).
+    case symbol(Wiretuner_Doc_V1_SymbolProps)
+    /// A folder of symbols under 0:7 (LIB block, symbol.proto).
+    case symbolFolder(Wiretuner_Doc_V1_SymbolFolderProps)
+    /// An instance of a symbol, on a layer (LIB block, symbol.proto).
+    case instance(Wiretuner_Doc_V1_InstanceProps)
+    /// A graphic, paragraph or character style under 0:6 (LIB block, style.proto).
+    case style(Wiretuner_Doc_V1_StyleProps)
 
   }
 
@@ -323,51 +459,95 @@ nonisolated extension Wiretuner_Doc_V1_Node: SwiftProtobuf.Message, SwiftProtobu
   public static let protoMessageName: String = _protobuf_package + ".Node"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}parent\0\u{1}position\0\u{1}deleted\0\u{1}props\0")
 
+  fileprivate class _StorageClass {
+    var _id: Wiretuner_Doc_V1_OpId? = nil
+    var _parent: Wiretuner_Doc_V1_OpId? = nil
+    var _position: Data = Data()
+    var _deleted: Bool = false
+    var _props: Wiretuner_Doc_V1_NodeProps? = nil
+
+      // This property is used as the initial default value for new instances of the type.
+      // The type itself is protecting the reference to its storage via CoW semantics.
+      // This will force a copy to be made of this reference when the first mutation occurs;
+      // hence, it is safe to mark this as `nonisolated(unsafe)`.
+      static nonisolated(unsafe) let defaultInstance = _StorageClass()
+
+    private init() {}
+
+    init(copying source: _StorageClass) {
+      _id = source._id
+      _parent = source._parent
+      _position = source._position
+      _deleted = source._deleted
+      _props = source._props
+    }
+  }
+
+  fileprivate mutating func _uniqueStorage() -> _StorageClass {
+    if !isKnownUniquelyReferenced(&_storage) {
+      _storage = _StorageClass(copying: _storage)
+    }
+    return _storage
+  }
+
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularMessageField(value: &self._id) }()
-      case 2: try { try decoder.decodeSingularMessageField(value: &self._parent) }()
-      case 3: try { try decoder.decodeSingularBytesField(value: &self.position) }()
-      case 4: try { try decoder.decodeSingularBoolField(value: &self.deleted) }()
-      case 5: try { try decoder.decodeSingularMessageField(value: &self._props) }()
-      default: break
+    _ = _uniqueStorage()
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      while let fieldNumber = try decoder.nextFieldNumber() {
+        // The use of inline closures is to circumvent an issue where the compiler
+        // allocates stack space for every case branch when no optimizations are
+        // enabled. https://github.com/apple/swift-protobuf/issues/1034
+        switch fieldNumber {
+        case 1: try { try decoder.decodeSingularMessageField(value: &_storage._id) }()
+        case 2: try { try decoder.decodeSingularMessageField(value: &_storage._parent) }()
+        case 3: try { try decoder.decodeSingularBytesField(value: &_storage._position) }()
+        case 4: try { try decoder.decodeSingularBoolField(value: &_storage._deleted) }()
+        case 5: try { try decoder.decodeSingularMessageField(value: &_storage._props) }()
+        default: break
+        }
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    // The use of inline closures is to circumvent an issue where the compiler
-    // allocates stack space for every if/case branch local when no optimizations
-    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
-    // https://github.com/apple/swift-protobuf/issues/1182
-    try { if let v = self._id {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
-    } }()
-    try { if let v = self._parent {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
-    } }()
-    if !self.position.isEmpty {
-      try visitor.visitSingularBytesField(value: self.position, fieldNumber: 3)
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every if/case branch local when no optimizations
+      // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+      // https://github.com/apple/swift-protobuf/issues/1182
+      try { if let v = _storage._id {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+      } }()
+      try { if let v = _storage._parent {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+      } }()
+      if !_storage._position.isEmpty {
+        try visitor.visitSingularBytesField(value: _storage._position, fieldNumber: 3)
+      }
+      if _storage._deleted != false {
+        try visitor.visitSingularBoolField(value: _storage._deleted, fieldNumber: 4)
+      }
+      try { if let v = _storage._props {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
+      } }()
     }
-    if self.deleted != false {
-      try visitor.visitSingularBoolField(value: self.deleted, fieldNumber: 4)
-    }
-    try { if let v = self._props {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
-    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Wiretuner_Doc_V1_Node, rhs: Wiretuner_Doc_V1_Node) -> Bool {
-    if lhs._id != rhs._id {return false}
-    if lhs._parent != rhs._parent {return false}
-    if lhs.position != rhs.position {return false}
-    if lhs.deleted != rhs.deleted {return false}
-    if lhs._props != rhs._props {return false}
+    if lhs._storage !== rhs._storage {
+      let storagesAreEqual: Bool = withExtendedLifetime((lhs._storage, rhs._storage)) { (_args: (_StorageClass, _StorageClass)) in
+        let _storage = _args.0
+        let rhs_storage = _args.1
+        if _storage._id != rhs_storage._id {return false}
+        if _storage._parent != rhs_storage._parent {return false}
+        if _storage._position != rhs_storage._position {return false}
+        if _storage._deleted != rhs_storage._deleted {return false}
+        if _storage._props != rhs_storage._props {return false}
+        return true
+      }
+      if !storagesAreEqual {return false}
+    }
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -375,7 +555,7 @@ nonisolated extension Wiretuner_Doc_V1_Node: SwiftProtobuf.Message, SwiftProtobu
 
 nonisolated extension Wiretuner_Doc_V1_NodeProps: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".NodeProps"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}document\0\u{1}settings\0\u{1}page\0\u{3}master_page\0\u{2}.group\0\u{2}d\u{1}layer\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}document\0\u{1}settings\0\u{1}page\0\u{3}master_page\0\u{2}\u{10}path\0\u{1}rect\0\u{1}ellipse\0\u{1}polygon\0\u{1}chart\0\u{2}\u{1a}group\0\u{2}\u{14}swatch\0\u{2}\u{a}brush\0\u{2}2text\0\u{2}\u{14}layer\0\u{1}symbol\0\u{3}symbol_folder\0\u{1}instance\0\u{1}style\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -435,6 +615,71 @@ nonisolated extension Wiretuner_Doc_V1_NodeProps: SwiftProtobuf.Message, SwiftPr
           self.kind = .masterPage(v)
         }
       }()
+      case 20: try {
+        var v: Wiretuner_Doc_V1_PathProps?
+        var hadOneofValue = false
+        if let current = self.kind {
+          hadOneofValue = true
+          if case .path(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.kind = .path(v)
+        }
+      }()
+      case 21: try {
+        var v: Wiretuner_Doc_V1_RectProps?
+        var hadOneofValue = false
+        if let current = self.kind {
+          hadOneofValue = true
+          if case .rect(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.kind = .rect(v)
+        }
+      }()
+      case 22: try {
+        var v: Wiretuner_Doc_V1_EllipseProps?
+        var hadOneofValue = false
+        if let current = self.kind {
+          hadOneofValue = true
+          if case .ellipse(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.kind = .ellipse(v)
+        }
+      }()
+      case 23: try {
+        var v: Wiretuner_Doc_V1_PolygonProps?
+        var hadOneofValue = false
+        if let current = self.kind {
+          hadOneofValue = true
+          if case .polygon(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.kind = .polygon(v)
+        }
+      }()
+      case 24: try {
+        var v: Wiretuner_Doc_V1_ChartProps?
+        var hadOneofValue = false
+        if let current = self.kind {
+          hadOneofValue = true
+          if case .chart(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.kind = .chart(v)
+        }
+      }()
       case 50: try {
         var v: Wiretuner_Doc_V1_GroupProps?
         var hadOneofValue = false
@@ -448,6 +693,45 @@ nonisolated extension Wiretuner_Doc_V1_NodeProps: SwiftProtobuf.Message, SwiftPr
           self.kind = .group(v)
         }
       }()
+      case 70: try {
+        var v: Wiretuner_Doc_V1_SwatchProps?
+        var hadOneofValue = false
+        if let current = self.kind {
+          hadOneofValue = true
+          if case .swatch(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.kind = .swatch(v)
+        }
+      }()
+      case 80: try {
+        var v: Wiretuner_Doc_V1_BrushProps?
+        var hadOneofValue = false
+        if let current = self.kind {
+          hadOneofValue = true
+          if case .brush(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.kind = .brush(v)
+        }
+      }()
+      case 130: try {
+        var v: Wiretuner_Doc_V1_TextProps?
+        var hadOneofValue = false
+        if let current = self.kind {
+          hadOneofValue = true
+          if case .text(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.kind = .text(v)
+        }
+      }()
       case 150: try {
         var v: Wiretuner_Doc_V1_LayerProps?
         var hadOneofValue = false
@@ -459,6 +743,58 @@ nonisolated extension Wiretuner_Doc_V1_NodeProps: SwiftProtobuf.Message, SwiftPr
         if let v = v {
           if hadOneofValue {try decoder.handleConflictingOneOf()}
           self.kind = .layer(v)
+        }
+      }()
+      case 151: try {
+        var v: Wiretuner_Doc_V1_SymbolProps?
+        var hadOneofValue = false
+        if let current = self.kind {
+          hadOneofValue = true
+          if case .symbol(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.kind = .symbol(v)
+        }
+      }()
+      case 152: try {
+        var v: Wiretuner_Doc_V1_SymbolFolderProps?
+        var hadOneofValue = false
+        if let current = self.kind {
+          hadOneofValue = true
+          if case .symbolFolder(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.kind = .symbolFolder(v)
+        }
+      }()
+      case 153: try {
+        var v: Wiretuner_Doc_V1_InstanceProps?
+        var hadOneofValue = false
+        if let current = self.kind {
+          hadOneofValue = true
+          if case .instance(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.kind = .instance(v)
+        }
+      }()
+      case 154: try {
+        var v: Wiretuner_Doc_V1_StyleProps?
+        var hadOneofValue = false
+        if let current = self.kind {
+          hadOneofValue = true
+          if case .style(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.kind = .style(v)
         }
       }()
       default: break
@@ -488,13 +824,61 @@ nonisolated extension Wiretuner_Doc_V1_NodeProps: SwiftProtobuf.Message, SwiftPr
       guard case .masterPage(let v)? = self.kind else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
     }()
+    case .path?: try {
+      guard case .path(let v)? = self.kind else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 20)
+    }()
+    case .rect?: try {
+      guard case .rect(let v)? = self.kind else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 21)
+    }()
+    case .ellipse?: try {
+      guard case .ellipse(let v)? = self.kind else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 22)
+    }()
+    case .polygon?: try {
+      guard case .polygon(let v)? = self.kind else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 23)
+    }()
+    case .chart?: try {
+      guard case .chart(let v)? = self.kind else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 24)
+    }()
     case .group?: try {
       guard case .group(let v)? = self.kind else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 50)
     }()
+    case .swatch?: try {
+      guard case .swatch(let v)? = self.kind else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 70)
+    }()
+    case .brush?: try {
+      guard case .brush(let v)? = self.kind else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 80)
+    }()
+    case .text?: try {
+      guard case .text(let v)? = self.kind else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 130)
+    }()
     case .layer?: try {
       guard case .layer(let v)? = self.kind else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 150)
+    }()
+    case .symbol?: try {
+      guard case .symbol(let v)? = self.kind else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 151)
+    }()
+    case .symbolFolder?: try {
+      guard case .symbolFolder(let v)? = self.kind else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 152)
+    }()
+    case .instance?: try {
+      guard case .instance(let v)? = self.kind else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 153)
+    }()
+    case .style?: try {
+      guard case .style(let v)? = self.kind else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 154)
     }()
     case nil: break
     }

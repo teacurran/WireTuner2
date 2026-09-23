@@ -1,9 +1,11 @@
 /// proto/wiretuner/doc/v1/document.proto
 ///
 /// The document-level node kinds: the root, the settings node, pages and master pages
-/// (docs/_includes/document/document-panel.adoc and the other DOC pages).  PROTO-003 creates
-/// the kind messages empty so NodeProps can name them; DOC-001 fills them in here, in this
-/// file, because the FILE breaking rules pin a message to the file it first appeared in.
+/// (docs/_includes/document/document-panel.adoc and the other DOC pages: pages, master-pages,
+/// rulers, grid-guides).  PROTO-003 created the kind messages empty so NodeProps could name them;
+/// DOC-001 filled them in here, in this file, because the FILE breaking rules pin a message to
+/// the file it first appeared in.  Everything is in points on the pasteboard, y down, origin at
+/// the pasteboard's top left (docs/spec/crdt-model.adoc).
 
 // DO NOT EDIT.
 // swift-format-ignore-file

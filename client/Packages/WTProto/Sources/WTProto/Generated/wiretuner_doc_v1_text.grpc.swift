@@ -1,10 +1,17 @@
 /// proto/wiretuner/doc/v1/text.proto
 ///
-/// Rich text: the Fugue character sequence and Peritext marks (docs/_includes/type/
-/// creating-text.adoc).  PROTO-003 creates only what ops.proto's TextMark needs, `Anchor` and
-/// `TextMarkValue`; TYPE-001 adds `TextProps`, `RichText`, `TextChar`, `TextMark`, the mark
-/// vocabulary and the paragraph messages here, in this file, because the FILE breaking rules
-/// pin a message to the file it first appeared in.
+/// Text blocks and rich text: the Fugue character sequence, Peritext marks, the character-mark
+/// vocabulary, paragraph properties and text styles' attributes (docs/_includes/type/
+/// creating-text.adoc, TYPE-001, with the fields documented on paragraphs.adoc,
+/// tabs-indents.adoc, columns-tables.adoc, text-on-path.adoc, text-effects.adoc, text-styles.adoc
+/// and type-specifications.adoc, TYPE-045).  PROTO-003 created `Anchor` and `TextMarkValue` here
+/// so ops.proto's TextMark could name them; TYPE-001 filled in the rest in this file because the
+/// FILE breaking rules pin a message to the file it first appeared in.
+///
+/// TextMarkValue field numbers: 1-12 and 14-21 type/creating-text.adoc (TYPE-001, TYPE-045);
+/// 13 reserved (a `url` mark superseded by `link`); 40 `link` (web/urls.adoc, WEB-001); 41
+/// `field` (automation/data-merge.adoc, DATA epic); `mention` (collaboration/comments.adoc)
+/// takes the next free number from 42.
 
 // DO NOT EDIT.
 // swift-format-ignore-file

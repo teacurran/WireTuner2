@@ -1,0 +1,37 @@
+// proto/wiretuner/doc/v1/path.proto
+//
+// The `path` node kind (docs/_includes/drawing/vector-basics.adoc, DRAW-001).  A path's own
+// `CommonProps.transform` applies on top of the point coordinates, so moving or rotating a whole
+// path writes one register and never touches the points.  The contour messages are in
+// contour.proto.  Lines, spirals and arcs are ordinary paths.
+syntax = "proto3";
+
+package wiretuner.doc.v1;
+
+import "buf/validate/validate.proto";
+import "wiretuner/doc/v1/appearance.proto";
+import "wiretuner/doc/v1/common.proto";
+import "wiretuner/doc/v1/contour.proto";
+import "wt/crdt/options.proto";
+
+option java_multiple_files = true;
+option java_package = "com.villagecompute.wiretuner.doc.v1";
+option optimize_for = SPEED;
+
+// NodeProps.kind case `path`: a vector path of one or more contours.
+message PathProps {
+  // Name, note, lock, transform, canvas, style and the other shared registers.
+  CommonProps common = 1;
+  // The contours.  SEQUENCE: contours are inserted, deleted and reordered individually
+  // (Combine, Split, Join) and each contour's fields merge as STRUCT.
+  repeated Contour contours = 2 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  // Strokes, fills and effects: the attribute stack (appearance/attribute-stack.adoc).
+  AppearanceProps appearance = 3;
+  // Object panel "Even/odd fill"; false = nonzero winding.
+  bool even_odd = 4;
+  // Curve flatness for output; 0 = device default.
+  double flatness = 5 [(buf.validate.field).double.gte = 0];
+  // Whether an open contour paints its fill.  Copied from the "Show fill for new open paths"
+  // preference when the path is created; never changed by the preference afterwards.
+  bool fill_when_open = 6;
+}

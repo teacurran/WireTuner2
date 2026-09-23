@@ -1,0 +1,66 @@
+// proto/wiretuner/doc/v1/color.proto
+//
+// The `swatch` node kind (docs/_includes/color/swatches.adoc, COLOR-001).  Swatches are nodes
+// under the well-known `swatches` collection (0:5); a swatch's sibling position is the list
+// order and its `CommonProps.name` is the swatch name.  None is not a node: it is the `none`
+// case of ColorRef.  `ColorSpace`, `Color`, `Cmyk`, `Rgb`, `Lab`, `ColorRef` and `InlineTint`
+// are in common.proto for good (docs/spec/decisions.adoc D-065): every file references them.
+// `NodeRef.cached` on a swatch reference is an encoded `Color`, space included.
+syntax = "proto3";
+
+package wiretuner.doc.v1;
+
+import "buf/validate/validate.proto";
+import "wiretuner/doc/v1/common.proto";
+import "wt/crdt/options.proto";
+
+option java_multiple_files = true;
+// The default outer class would be `Color`, which collides with the Color message in this package.
+option java_outer_classname = "ColorProto";
+option java_package = "com.villagecompute.wiretuner.doc.v1";
+option optimize_for = SPEED;
+
+// The protected default swatches.  Set once at document creation (White, Black, Registration,
+// in that order); never written afterwards.
+enum SwatchRole {
+  // An ordinary swatch.
+  SWATCH_ROLE_UNSPECIFIED = 0;
+  // The document's White: protected.
+  SWATCH_ROLE_WHITE = 1;
+  // The document's Black: protected, prints on the K plate.
+  SWATCH_ROLE_BLACK = 2;
+  // Prints on every plate; protected; drawn black on screen.
+  SWATCH_ROLE_REGISTRATION = 3;
+}
+
+// NodeProps.kind case `swatch`: a color or tint swatch.  STRUCT: name, value, spot and grouping
+// are independent choices, so a rename and a recolor from two people both survive.
+message SwatchProps {
+  // The swatch name (CommonProps.name, ATOMIC) and the other shared registers.
+  CommonProps common = 1;
+  // The color.  ATOMIC: components and space together; a space conversion is a value change.
+  // Unused (and ignored) when `parent` is set: a tint's color is computed.
+  Color value = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Spot (true) or process (false).  Independent of the color space.
+  bool spot = 3;
+  // Set on a tint: the base swatch.  `cached` holds the base's Color at write time so a tint
+  // whose base was deleted still resolves.
+  NodeRef parent = 4 [(wt.crdt.field).on_dangling = REF_FALLBACK_CACHED];
+  // Tint strength, 1 .. 100.  Meaningful only with `parent`; 0 (never set) reads as 100.
+  double tint_percent = 5 [
+    (buf.validate.field).double = {
+      gte: 1
+      lte: 100
+    },
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+  // Protected defaults.  Set once at document creation; the client never writes it afterwards.
+  SwatchRole role = 6 [(buf.validate.field).enum.defined_only = true];
+  // Group header this swatch is listed under; empty = ungrouped.  Groups are names, not nodes:
+  // a group exists while any swatch names it.
+  string group = 7 [(buf.validate.field).string.max_len = 128];
+  // The color library the swatch came from, for Update from Library; empty = none.
+  string library = 8 [(buf.validate.field).string.max_len = 128];
+  // The color's key in that library ("PANTONE 300 C").
+  string library_key = 9 [(buf.validate.field).string.max_len = 128];
+}

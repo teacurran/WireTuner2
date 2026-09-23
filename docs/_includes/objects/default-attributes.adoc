@@ -48,7 +48,7 @@ Defaults are shared document data on the well-known `settings` node.
 
 [source,protobuf]
 ----
-// proto/wiretuner/doc/v1/settings.proto (the OBJ part)
+// proto/wiretuner/doc/v1/document.proto (the OBJ part; OBJ block 10-19)
 message SettingsProps {
   // What a newly drawn object receives.  STRUCT: the stroke, fill and text defaults are
   // independent choices and merge independently.
@@ -60,8 +60,8 @@ message Defaults {
   AppearanceProps appearance = 1;
   // The graphic style the defaults currently mirror; unset => "Normal".  Dangling => unset.
   NodeRef style = 2 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
-  // Text defaults: font, size, leading, alignment... (TYPE's message).
-  TextDefaults text = 3;
+  // Text defaults: font, size, leading, alignment... (TYPE's message, text.proto).
+  TextStyleAttrs text = 3;
 }
 ----
 

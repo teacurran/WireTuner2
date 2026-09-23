@@ -1,0 +1,72 @@
+// proto/wiretuner/doc/v1/contour.proto
+//
+// The contour geometry of vector paths (docs/_includes/drawing/vector-basics.adoc, DRAW-001):
+// `Contour`, `PathPoint` and `PointKind`.  They live in their own file rather than beside
+// `PathProps` in path.proto because strokes reuse them (arrowheads and calligraphic nibs,
+// stroke.proto) and path.proto imports the appearance stack, which imports stroke.proto: one
+// file would be an import cycle.  Coordinates are pasteboard points, y down.
+syntax = "proto3";
+
+package wiretuner.doc.v1;
+
+import "buf/validate/validate.proto";
+import "wiretuner/doc/v1/common.proto";
+import "wt/crdt/options.proto";
+
+option java_multiple_files = true;
+option java_package = "com.villagecompute.wiretuner.doc.v1";
+option optimize_for = SPEED;
+
+// How a point's handles behave when edited (Object panel point type).
+enum PointKind {
+  // Reads as CORNER.
+  POINT_KIND_UNSPECIFIED = 0;
+  // Handles move independently.
+  POINT_KIND_CORNER = 1;
+  // Handles collinear through the anchor.
+  POINT_KIND_CURVE = 2;
+  // One handle constrained to the straight side.  With both neighbors curved, or both
+  // straight, reads as CORNER.
+  POINT_KIND_CONNECTOR = 3;
+}
+
+// One contour of a path: a sequence of points, open or closed.  Element of
+// PathProps.contours; each field merges as its own register.
+message Contour {
+  // Element id (MERGE_SEQUENCE).
+  ElementId id = 1;
+  // Object panel "Closed".  ATOMIC.
+  bool closed = 2;
+  // Points in stored order.  SEQUENCE: each point has identity; positions are fractional
+  // indexes, so concurrent inserts anywhere in the contour merge without renumbering.  At most
+  // 32,000 points per insert (ops.proto); a contour over 32,000 live points still renders.
+  repeated PathPoint points = 3 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  // Direction flag.  The stored order never changes; readers iterate backwards and swap in/out
+  // handles when this is true.  ATOMIC.
+  bool reversed = 4;
+  // The point at which an open contour begins, as a cyclic rotation of the stored order.  Unset
+  // (all zero) = the first stored point.  Ignored while closed.  Dangling reads as the next
+  // surviving point in stored order.  ATOMIC: counter and replica are one id.
+  ElementId start = 5 [(wt.crdt.field).merge = MERGE_ATOMIC];
+}
+
+// One anchor point with its two control handles.  Element of Contour.points; `anchor`,
+// `in_handle`, `out_handle`, `kind` and `automatic` are each a register.
+message PathPoint {
+  // Element id (MERGE_SEQUENCE).
+  ElementId id = 1;
+  // The anchor.  ATOMIC: x and y only make sense together.
+  Point anchor = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Offset from the anchor of the handle shaping the segment arriving at this point in stored
+  // order.  Unset = retracted.  An offset, so moving the anchor carries the handle along.
+  // ATOMIC.  NaN or infinite reads as retracted.
+  Point in_handle = 3 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Offset from the anchor of the handle shaping the segment leaving this point.  Unset =
+  // retracted.  ATOMIC.
+  Point out_handle = 4 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Corner, curve or connector.  A CURVE with non-collinear handles renders as stored.
+  PointKind kind = 5 [(buf.validate.field).enum.defined_only = true];
+  // Object panel "Automatic": handles are recomputed from the neighbors on read and on edit;
+  // stored handles are ignored while true.
+  bool automatic = 6;
+}

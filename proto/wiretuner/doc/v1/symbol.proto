@@ -1,0 +1,123 @@
+// proto/wiretuner/doc/v1/symbol.proto
+//
+// Symbols, symbol folders and instances (docs/_includes/library/library.adoc, LIB-008, with the
+// instance overrides of LIB-024).  Symbols are children of the well-known `symbols` node 0:7; a
+// symbol's children are its master artwork.  Folders are also children of `symbols` (or of
+// another folder).  An instance is an object node on a layer.
+syntax = "proto3";
+
+package wiretuner.doc.v1;
+
+import "buf/validate/validate.proto";
+import "wiretuner/doc/v1/appearance.proto";
+import "wiretuner/doc/v1/common.proto";
+import "wiretuner/doc/v1/text.proto";
+import "wt/crdt/options.proto";
+
+option java_multiple_files = true;
+option java_package = "com.villagecompute.wiretuner.doc.v1";
+option optimize_for = SPEED;
+
+// How a symbol is used.  Informational: the Library panel filters and badges by it.  A brush
+// (brushes collection) or a hose references symbols by NodeRef and sets this when it creates
+// them.
+enum SymbolUsage {
+  // Reads as GRAPHIC.
+  SYMBOL_USAGE_UNSPECIFIED = 0;
+  // An ordinary graphic symbol.
+  SYMBOL_USAGE_GRAPHIC = 1;
+  // A brush tip.
+  SYMBOL_USAGE_BRUSH_TIP = 2;
+  // A graphic hose element.
+  SYMBOL_USAGE_HOSE_ELEMENT = 3;
+}
+
+// Where an imported symbol came from, so "Update from Library" can fetch it again.  ATOMIC
+// wherever used: the three fields identify one revision together.
+message LibrarySource {
+  // The library document (UUIDv7).
+  string document_id = 1 [(buf.validate.field).string.max_len = 36];
+  // The symbol node there.
+  OpId symbol = 2;
+  // The library's server_seq when this copy was taken.
+  uint64 server_seq = 3;
+}
+
+// NodeProps.kind case `symbol`: a symbol under 0:7 or under a symbol folder.  Name lives in
+// CommonProps.name.  STRUCT: usage, source and origin are independent.
+message SymbolProps {
+  // The symbol's name and the other shared registers.
+  CommonProps common = 1;
+  // How the symbol is used.
+  SymbolUsage usage = 2 [(buf.validate.field).enum.defined_only = true];
+  // Set on copies taken from a team library; unset for symbols made here.  ATOMIC.
+  LibrarySource source = 3 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Local origin of the symbol's coordinate space: instances place this point at their
+  // transform's translation.  Convert to Symbol writes the selection's bounds center.  ATOMIC.
+  Point origin = 4 [(wt.crdt.field).merge = MERGE_ATOMIC];
+}
+
+// NodeProps.kind case `symbol_folder`.  Name lives in CommonProps.name; children are symbols
+// and folders.  A symbol or folder whose parent folder is deleted is listed at the top level.
+message SymbolFolderProps {
+  // The folder's name and the other shared registers.
+  CommonProps common = 1;
+}
+
+// NodeProps.kind case `instance`.  Transform, name, note, url, style and layer (parent) come
+// from CommonProps and the tree.
+message InstanceProps {
+  // The instance's transform and the other shared registers.
+  CommonProps common = 1;
+  // The symbol this instance draws.  A deleted, unknown or non-symbol target renders as a
+  // hatched placeholder labelled with the symbol's name.
+  NodeRef symbol = 2 [(wt.crdt.field).on_dangling = REF_FALLBACK_PLACEHOLDER];
+  // Per-instance overrides of the symbol's artwork.  SEQUENCE (not a map keyed by
+  // (master_node, property)): one element per overridden property, inserted when the user first
+  // changes it, deleted by the reset arrow.  Order is irrelevant and never edited.
+  repeated Override overrides = 3 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  // The instance's own strokes, fills and effects, drawn over the symbol's artwork.
+  AppearanceProps appearance = 4;
+}
+
+// Which property an Override replaces.
+enum OverrideProperty {
+  // Reads as no override: the element is ignored.
+  OVERRIDE_PROPERTY_UNSPECIFIED = 0;
+  // `text` replaces a text block's text.
+  OVERRIDE_PROPERTY_TEXT = 1;
+  // `fill` recolors the node's basic fills.
+  OVERRIDE_PROPERTY_FILL = 2;
+  // `stroke` recolors the node's basic strokes.
+  OVERRIDE_PROPERTY_STROKE = 3;
+  // `hidden` hides the node's subtree.
+  OVERRIDE_PROPERTY_HIDDEN = 4;
+  // `image` replaces an image node's asset.
+  OVERRIDE_PROPERTY_IMAGE = 5;
+}
+
+// One overridden property of one node in the symbol's artwork.  Element of
+// InstanceProps.overrides; element fields merge as STRUCT.  `master_node` and `property` are
+// written at creation and never again; the client only edits the one value field `property`
+// names.  Two live overrides with the same (master_node, property): the greater element id wins.
+message Override {
+  // Element id (MERGE_SEQUENCE).
+  ElementId id = 1;
+  // A node in the symbol's subtree, by node id: survives edits to the symbol.  Not a NodeRef: a
+  // dangling id is a read-time rule (the override contributes nothing until the node is
+  // restored), not an on_dangling fallback.  ATOMIC.
+  OpId master_node = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Which property.
+  OverrideProperty property = 3;
+  // TEXT: replaces the block's text; created by copying the master's characters and marks as
+  // fresh inserts.  MERGE_TEXT.
+  RichText text = 4 [(wt.crdt.field).merge = MERGE_TEXT];
+  // FILL: color of the node's basic fills.  ATOMIC.
+  ColorRef fill = 5 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // STROKE: color of the node's basic strokes.  ATOMIC.
+  ColorRef stroke = 6 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // HIDDEN: true hides the node's subtree.
+  bool hidden = 7;
+  // IMAGE: an `assets` node; dangling reads as the master's image.
+  NodeRef image = 8 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
+}

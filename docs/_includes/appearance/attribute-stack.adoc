@@ -152,17 +152,23 @@ message AppearanceProps {
 // its discriminator and would discard the other cases' values, whereas here switching
 // Basic -> Gradient -> Basic gets the old basic color back, and a concurrent kind change
 // and a concurrent edit of the old kind's settings both survive (see Merge semantics).
+// The kind and the cases sit in a MERGE_VARIANT message one level down, because a
+// SEQUENCE element cannot itself be declared MERGE_VARIANT.
 message Fill {
   ElementId id = 1;                 // required first field for MERGE_SEQUENCE
   bool hidden = 2;                  // skipped when painting; settings kept
-  FillKind kind = 3;                // which sibling message is live
-  BasicFill basic = 4;              // fill-attributes.adoc
-  GradientFill gradient = 5;        // gradients.adoc
-  LensFill lens = 6;                // fill-attributes.adoc
-  CustomFill custom = 7;            // fill-attributes.adoc
-  PatternFill pattern = 8;          // fill-attributes.adoc
-  TexturedFill textured = 9;        // fill-attributes.adoc
-  TiledFill tiled = 10;             // fill-attributes.adoc
+  FillSettings settings = 3 [(wt.crdt.field).merge = MERGE_VARIANT];
+}
+
+message FillSettings {
+  FillKind kind = 1;                // which sibling message is live
+  BasicFill basic = 2;              // fill-attributes.adoc
+  GradientFill gradient = 3;        // gradients.adoc
+  LensFill lens = 4;                // fill-attributes.adoc
+  CustomFill custom = 5;            // fill-attributes.adoc
+  PatternFill pattern = 6;          // fill-attributes.adoc
+  TexturedFill textured = 7;        // fill-attributes.adoc
+  TiledFill tiled = 8;              // fill-attributes.adoc
 }
 
 enum FillKind {
@@ -180,12 +186,16 @@ enum FillKind {
 message Stroke {
   ElementId id = 1;
   bool hidden = 2;
-  StrokeKind kind = 3;
-  BasicStroke basic = 4;            // stroke-attributes.adoc
-  BrushStroke brush = 5;            // stroke-attributes.adoc
-  CalligraphicStroke calligraphic = 6;
-  CustomStroke custom = 7;
-  PatternStroke pattern = 8;
+  StrokeSettings settings = 3 [(wt.crdt.field).merge = MERGE_VARIANT];
+}
+
+message StrokeSettings {
+  StrokeKind kind = 1;
+  BasicStroke basic = 2;            // stroke-attributes.adoc
+  BrushStroke brush = 3;            // stroke-attributes.adoc
+  CalligraphicStroke calligraphic = 4;
+  CustomStroke custom = 5;
+  PatternStroke pattern = 6;
 }
 
 enum StrokeKind {
@@ -197,8 +207,10 @@ enum StrokeKind {
   STROKE_KIND_PATTERN = 5;
 }
 
-// Effect is specified in live-effects.adoc.  Its first two fields are the same:
+// Effect is specified in live-effects.adoc (effects.proto, where ATTR-001 creates it with
+// these two fields).  Its first two fields are the same:
 //   ElementId id = 1;  bool hidden = 2;
+// and its kind and settings are likewise an `EffectSettings settings` MERGE_VARIANT.
 ----
 
 Colors inside every kind message are `ColorRef` (xref:applying-color.adoc[Applying color]): an
@@ -221,7 +233,7 @@ ATOMIC boolean.  Concurrent hide and show: later wins; the review sheet lists it
 conflict only if the local write lost.
 
 `kind` and the kind messages::
-`kind` is an ATOMIC enum; each kind message is STRUCT.  A changes a fill from Basic to Gradient
+`settings` is MERGE_VARIANT: `kind` is an ATOMIC enum; each kind message is STRUCT.  A changes a fill from Basic to Gradient
 while B changes the basic color: both registers apply; the fill renders as a gradient, and B's
 color is stored in `basic` and shows again if anyone switches back.  The review sheet shows B
 "Fill type changed to Gradient by A; your color change is kept but not visible" and offers *Use
@@ -288,7 +300,7 @@ Undo:: One command, one undo step.  A drag reorder is a single step at drop time
 Track:: proto
 Depends on:: PROTO-003, PROTO-005
 Size:: S
-Delivers:: `appearance.proto` with `AppearanceProps`, `Fill`, `Stroke`, `FillKind`, `StrokeKind`, the reserved `effects` field, and `AppearanceProps` added to every drawable kind's props and to the settings node's default attributes.
+Delivers:: `appearance.proto` with `AppearanceProps`, `Fill`, `FillSettings`, `Stroke`, `StrokeSettings`, `FillKind`, `StrokeKind`, the reserved `effects` field (an `Effect` stub in `effects.proto`), and `AppearanceProps` added to every drawable kind's props and to the settings node's default attributes (implemented in `appearance.proto`).
 Done when::
 * `buf lint` passes with every field commented; the sequence element types begin with `ElementId id = 1` and the generator accepts them.
 * Conformance vectors: insert a fill and a stroke at the same gap from two replicas; concurrent `hidden` writes; concurrent `kind` change and sibling-message edit.

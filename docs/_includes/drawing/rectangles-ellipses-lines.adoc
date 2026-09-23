@@ -132,7 +132,7 @@ message RectProps {
   // resize by someone else should replace both, not produce a shape nobody dragged.
   Size size = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];
   CornerRadii corners = 3;                    // STRUCT: each corner is its own decision
-  Appearance appearance = 4;
+  AppearanceProps appearance = 4;
 }
 
 message CornerRadii {
@@ -147,10 +147,10 @@ message CornerRadii {
 message EllipseProps {
   CommonProps common = 1;
   Size size = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];
-  Appearance appearance = 3;
+  AppearanceProps appearance = 3;
 }
 
-message Size { double width = 1; double height = 2; }   // ATOMIC where used
+// Size (width, height; ATOMIC where used) is in common.proto.
 ----
 
 A line is a `PathProps` with one open contour of two corner points, so it needs nothing here.
@@ -233,7 +233,7 @@ Undo:: One group per drag; one per Object panel field commit; Ungroup is one gro
 Track:: proto
 Depends on:: PROTO-003, PROTO-005
 Size:: S
-Delivers:: `doc/v1/shape.proto` with `RectProps`, `EllipseProps`, `CornerRadii`, `Size`; `rect` and `ellipse` kinds in `NodeProps`; validation rules as above.
+Delivers:: `doc/v1/shape.proto` with `RectProps`, `EllipseProps`, `CornerRadii` (`Size` is in `common.proto`); `rect` and `ellipse` kinds in `NodeProps`; validation rules as above (implemented in `shape.proto`).
 Done when::
 * Lints clean; merge table shows `size` ATOMIC and `corners` STRUCT.
 * Conformance vector: concurrent `size` writes and concurrent per-corner writes converge with identical hashes in both engines.

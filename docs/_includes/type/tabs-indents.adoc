@@ -146,8 +146,9 @@ message TabStop {
   string leader = 4;               // empty = none; one grapheme repeated
 }
 enum TabKind {
-  TAB_KIND_LEFT = 0; TAB_KIND_RIGHT = 1; TAB_KIND_CENTER = 2;
-  TAB_KIND_DECIMAL = 3; TAB_KIND_WRAPPING = 4;
+  TAB_KIND_UNSPECIFIED = 0;        // reads as LEFT
+  TAB_KIND_LEFT = 1; TAB_KIND_RIGHT = 2; TAB_KIND_CENTER = 3;
+  TAB_KIND_DECIMAL = 4; TAB_KIND_WRAPPING = 5;
 }
 ----
 

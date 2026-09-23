@@ -147,7 +147,7 @@ ifdef::spec[]
 === Data model
 
 A fill, stroke, text run, guide or anything else that carries a color holds a `ColorRef`.
-The ATTR epic's `BasicFill.color`, `StrokeProps.color` and the TYPE epic's text marks use it.
+The ATTR epic's `BasicFill.color`, `BasicStroke.color` and the TYPE epic's text marks use it.
 
 [source,protobuf]
 ----

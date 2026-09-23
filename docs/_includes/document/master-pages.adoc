@@ -127,7 +127,7 @@ ifdef::spec[]
 
 === Data model
 
-`MasterProps` and `PageProps.master` are on xref:document-panel.adoc[The Document panel].  A
+`MasterPageProps` and `PageProps.master` are on xref:document-panel.adoc[The Document panel].  A
 master's objects are ordinary objects under `layers` with `CommonProps.canvas` set to the master's
 node id (xref:crdt-model.adoc[CRDT model]); coordinates on a master canvas are relative to the
 master's top-left corner (the master has no pasteboard position).  A master's guides are its own

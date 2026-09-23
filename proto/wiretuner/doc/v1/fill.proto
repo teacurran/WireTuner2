@@ -1,0 +1,218 @@
+// proto/wiretuner/doc/v1/fill.proto
+//
+// The fill kinds of the attribute stack other than gradients
+// (docs/_includes/appearance/fill-attributes.adoc, ATTR-016; gradients are gradient.proto).
+// Every scalar option is its own register; points, bitmaps, tiles and snapshots are ATOMIC.
+// Colors are ATOMIC `ColorRef`s (color/applying-color.adoc).
+syntax = "proto3";
+
+package wiretuner.doc.v1;
+
+import "buf/validate/validate.proto";
+import "wiretuner/doc/v1/common.proto";
+import "wiretuner/doc/v1/stroke.proto";
+import "wt/crdt/options.proto";
+
+option java_multiple_files = true;
+// The default outer class would be `Fill`, which collides with the Fill message in this package.
+option java_outer_classname = "FillProto";
+option java_package = "com.villagecompute.wiretuner.doc.v1";
+option optimize_for = SPEED;
+
+// A flat color fill.
+message BasicFill {
+  // The fill color; None paints nothing.  ATOMIC.
+  ColorRef color = 1 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Print-time overprint.
+  bool overprint = 2;
+}
+
+// The procedural custom fill patterns.  An unknown value (a newer client's) renders as a Basic
+// fill of `color`.
+enum CustomFillPattern {
+  // Never chosen: renders as a Basic fill of `color`, like an unknown value.
+  CUSTOM_FILL_PATTERN_UNSPECIFIED = 0;
+  // Black and white noise.
+  CUSTOM_FILL_PATTERN_BLACK_WHITE_NOISE = 1;
+  // Bricks.
+  CUSTOM_FILL_PATTERN_BRICKS = 2;
+  // Circles.
+  CUSTOM_FILL_PATTERN_CIRCLES = 3;
+  // Hatch.
+  CUSTOM_FILL_PATTERN_HATCH = 4;
+  // Noise.
+  CUSTOM_FILL_PATTERN_NOISE = 5;
+  // Random grass.
+  CUSTOM_FILL_PATTERN_RANDOM_GRASS = 6;
+  // Random leaves.
+  CUSTOM_FILL_PATTERN_RANDOM_LEAVES = 7;
+  // Squares.
+  CUSTOM_FILL_PATTERN_SQUARES = 8;
+  // Tiger teeth.
+  CUSTOM_FILL_PATTERN_TIGER_TEETH = 9;
+  // Top noise.
+  CUSTOM_FILL_PATTERN_TOP_NOISE = 10;
+}
+
+// A procedural custom fill.  Which options apply depends on `pattern`; the others are kept.
+message CustomFill {
+  // One of the ten named patterns.
+  CustomFillPattern pattern = 1;
+  // Bricks, Circles, Hatch, Squares, Tiger Teeth color.  ATOMIC.
+  ColorRef color = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Bricks mortar; Tiger Teeth background.  ATOMIC.
+  ColorRef color2 = 3 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Bricks width; Hatch line width; Squares outline width.
+  double width = 4 [(buf.validate.field).double.gte = 0];
+  // Bricks height.
+  double height = 5 [(buf.validate.field).double.gte = 0];
+  // Circles radius.
+  double radius = 6 [(buf.validate.field).double.gte = 0];
+  // Squares side.
+  double side = 7 [(buf.validate.field).double.gte = 0];
+  // Circles, Hatch, Squares spacing.
+  double spacing = 8 [(buf.validate.field).double.gte = 0];
+  // Degrees, clockwise positive.
+  double angle = 9;
+  // Hatch second set, degrees.
+  double angle2 = 10;
+  // Noise, Top Noise: 0 .. 100.
+  double whiteness = 11 [(buf.validate.field).double = {
+    gte: 0
+    lte: 100
+  }];
+  // Grass/Leaves 1 .. 32000; Tiger Teeth 1 .. 700.
+  uint32 count = 12 [(buf.validate.field).uint32.lte = 32000];
+  // Random Grass / Leaves placement; fixed at creation.
+  fixed64 seed = 13;
+  // Print-time overprint.
+  bool overprint = 14;
+}
+
+// The lens composites.
+enum LensType {
+  // Reads as TRANSPARENCY.
+  LENS_TYPE_UNSPECIFIED = 0;
+  // Tinted see-through at `amount` opacity.
+  LENS_TYPE_TRANSPARENCY = 1;
+  // Magnified backdrop.
+  LENS_TYPE_MAGNIFY = 2;
+  // Inverted backdrop colors.
+  LENS_TYPE_INVERT = 3;
+  // Lightened backdrop by `amount`.
+  LENS_TYPE_LIGHTEN = 4;
+  // Darkened backdrop by `amount`.
+  LENS_TYPE_DARKEN = 5;
+  // Backdrop in shades of `color`.
+  LENS_TYPE_MONOCHROME = 6;
+}
+
+// A lens fill: the object shows a transformed view of what lies beneath it.
+message LensFill {
+  // Which composite.
+  LensType type = 1;
+  // Transparency and Monochrome color.  ATOMIC.
+  ColorRef color = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Transparency opacity, Lighten, Darken: 0 .. 100.
+  double amount = 3 [(buf.validate.field).double = {
+    gte: 0
+    lte: 100
+  }];
+  // Magnify: 1 .. 20; below 1 reads 1.
+  double magnification = 4 [(buf.validate.field).double = {
+    gte: 0
+    lte: 20
+  }];
+  // Show the centerpoint handle.
+  bool centerpoint_shown = 5;
+  // Object-local coordinates; unset = the object's bounds center.  ATOMIC: a point is one value.
+  Point centerpoint = 6 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Apply the lens to objects only, not the page background.
+  bool objects_only = 7;
+  // Render the captured `snapshot_contents` instead of the live backdrop.
+  bool snapshot = 8;
+  // The captured contents in object-local coordinates.  ATOMIC: one picture.  With `snapshot`
+  // true but no contents, the lens renders live.
+  Subtree snapshot_contents = 9 [(wt.crdt.field).merge = MERGE_ATOMIC];
+}
+
+// A fill painted with a bitmap pattern.
+message PatternFill {
+  // Pattern color.  ATOMIC.
+  ColorRef color = 1 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // The pattern (stroke.proto).  ATOMIC.
+  PatternBitmap bitmap = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Print-time overprint.
+  bool overprint = 3;
+}
+
+// The built-in textures.  An unknown value renders as a Basic fill of `color`.
+enum Texture {
+  // Never chosen: renders as a Basic fill of `color`, like an unknown value.
+  TEXTURE_UNSPECIFIED = 0;
+  // Burlap.
+  TEXTURE_BURLAP = 1;
+  // Denim.
+  TEXTURE_DENIM = 2;
+  // Gravel.
+  TEXTURE_GRAVEL = 3;
+  // Marble.
+  TEXTURE_MARBLE = 4;
+  // Mesh.
+  TEXTURE_MESH = 5;
+  // Oak.
+  TEXTURE_OAK = 6;
+  // Sand.
+  TEXTURE_SAND = 7;
+  // Stucco.
+  TEXTURE_STUCCO = 8;
+}
+
+// A fill painted with a built-in texture.
+message TexturedFill {
+  // Which texture.
+  Texture texture = 1;
+  // Texture color.  ATOMIC.
+  ColorRef color = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Print-time overprint.
+  bool overprint = 3;
+}
+
+// A fill tiled with private artwork.
+message TiledFill {
+  // The tile artwork, embedded.  Not a node reference: the tile is a private copy edited by
+  // Copy Out / Paste In.  ATOMIC: one picture.  No tile renders as None.
+  Subtree tile = 1 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Tile angle in degrees.
+  double angle = 2;
+  // Horizontal scale in percent; 0 (never set) reads 100.
+  double scale_x = 3 [(buf.validate.field).double.gte = 0];
+  // Vertical scale in percent; 0 (never set) reads 100.
+  double scale_y = 4 [(buf.validate.field).double.gte = 0];
+  // Shift of the pattern in object-local points; dragged as one value.  ATOMIC.
+  Point offset = 5 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Print-time overprint.
+  bool overprint = 6;
+}
+
+// A detached copy of nodes, used for tiles and lens snapshots.  Node ids are stripped.  Always
+// inside an ATOMIC register.  Bounded so a change stays within the 4 MiB limit: a capture over
+// 20,000 nodes or 2 MiB encoded is refused, never truncated.
+message Subtree {
+  // The nodes, parents before children.
+  repeated SubtreeNode nodes = 1 [
+    (wt.crdt.field).merge = MERGE_ATOMIC,
+    (buf.validate.field).repeated.max_items = 20000
+  ];
+}
+
+// One node of a Subtree.
+message SubtreeNode {
+  // Index into Subtree.nodes (0-based) of the parent, or -1 for a root.  A cycle or an index
+  // out of range renders only the well-formed prefix.
+  int32 parent = 1 [(buf.validate.field).int32.gte = -1];
+  // The node's kind and properties: an encoded NodeProps.  Bytes rather than the message
+  // because NodeProps (node.proto) imports every kind, including the appearance stack that
+  // imports this file, and protobuf forbids import cycles.  Readers decode it as NodeProps.
+  bytes props = 2 [(buf.validate.field).bytes.max_len = 2097152];
+}

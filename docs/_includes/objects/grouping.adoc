@@ -114,7 +114,7 @@ ifdef::spec[]
 ----
 // proto/wiretuner/doc/v1/group.proto
 enum GroupKind {
-  GROUP_KIND_UNSPECIFIED = 0;
+  GROUP_KIND_UNSPECIFIED = 0;   // reads as GROUP
   GROUP_KIND_GROUP = 1;   // ordinary group
   GROUP_KIND_CLIP = 2;    // clipping path: see clipping-paths
 }
@@ -123,19 +123,21 @@ enum GroupKind {
 // CommonProps.transform is relative to the group; the group's own CommonProps.transform
 // maps group space to the parent's space.
 message GroupProps {
+  CommonProps common = 1;
   // Immutable after creation; the client never writes it twice.
-  GroupKind kind = 1;
+  GroupKind kind = 2;
   // When true, the group's transform also scales member stroke widths, fill geometry and
   // effect parameters (rendered as "transform as unit").  When false, members are stroked at
   // nominal width after their geometry is transformed.
-  bool transform_as_unit = 2;
+  bool transform_as_unit = 3;
   // Clip groups only: the child that clips.  Dangling => contents render unclipped.
-  NodeRef clip_path = 3 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
+  NodeRef clip_path = 4 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
   // Where each member came from, for "Remember layer info" on ungroup.  Written once at
   // grouping time; entries whose child or layer is gone read as unset.
-  repeated LayerOrigin layer_origins = 4 [(wt.crdt.field).merge = MERGE_SEQUENCE];
-  // The group's own appearance stack lives in the shared AppearanceProps (ATTR), as for any
-  // drawable node.
+  repeated LayerOrigin layer_origins = 5 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  // The group's own appearance stack: the shared AppearanceProps (ATTR), as for any drawable
+  // node.
+  AppearanceProps appearance = 6;
 }
 message LayerOrigin {
   ElementId id = 1;
@@ -230,7 +232,7 @@ Nothing beyond storing and relaying changes.
 Track:: client-model
 Depends on:: CRDT-002, CRDT-004, APP-011, GEO-005
 Size:: M
-Delivers:: `group.proto` (`GroupProps`, `LayerOrigin`), `GroupCommand` and `UngroupCommand` with cross-layer collection, z-order preservation, transform baking on ungroup, *Remember layer info*, menu items and shortcuts.
+Delivers:: `group.proto` (`GroupProps`, `LayerOrigin`; schema implemented in `group.proto`), `GroupCommand` and `UngroupCommand` with cross-layer collection, z-order preservation, transform baking on ungroup, *Remember layer info*, menu items and shortcuts.
 Done when::
 * Grouping members from two layers moves them under one group on the active layer in their original relative order.
 * Ungroup bakes `G.transform × C.transform` into each member; a rotated group ungroups with members visually unchanged (pixel test).

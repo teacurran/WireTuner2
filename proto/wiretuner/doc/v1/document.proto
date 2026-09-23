@@ -1,14 +1,20 @@
 // proto/wiretuner/doc/v1/document.proto
 //
 // The document-level node kinds: the root, the settings node, pages and master pages
-// (docs/_includes/document/document-panel.adoc and the other DOC pages).  PROTO-003 creates
-// the kind messages empty so NodeProps can name them; DOC-001 fills them in here, in this
-// file, because the FILE breaking rules pin a message to the file it first appeared in.
+// (docs/_includes/document/document-panel.adoc and the other DOC pages: pages, master-pages,
+// rulers, grid-guides).  PROTO-003 created the kind messages empty so NodeProps could name them;
+// DOC-001 filled them in here, in this file, because the FILE breaking rules pin a message to
+// the file it first appeared in.  Everything is in points on the pasteboard, y down, origin at
+// the pasteboard's top left (docs/spec/crdt-model.adoc).
 syntax = "proto3";
 
 package wiretuner.doc.v1;
 
+import "buf/validate/validate.proto";
+import "wiretuner/doc/v1/appearance.proto";
 import "wiretuner/doc/v1/common.proto";
+import "wiretuner/doc/v1/text.proto";
+import "wt/crdt/options.proto";
 
 option java_multiple_files = true;
 option java_package = "com.villagecompute.wiretuner.doc.v1";
@@ -16,35 +22,248 @@ option optimize_for = SPEED;
 
 // NodeProps.kind case `document`: the root node 0:0.  It carries nothing yet; the document's
 // user-visible settings live on the settings node so the root stays a pure container.
-// Filled in by DOC-001 (document.proto).
 message DocumentProps {
   // Name, note and the other shared registers.  The root's name is not the document's title
   // (that is `document.name` on the server); the DOC epic decides whether it is used at all.
   CommonProps common = 1;
 }
 
-// NodeProps.kind case `settings`: the well-known settings node 0:1.  Units, default
-// attributes, print and export settings, document info and every other document-wide choice.
-// STRUCT: each field is an independent register.  Every epic that owns settings fields adds
-// them here; the DOC epic (DOC-001) allocates their number blocks in a comment at the top of
-// this message when it fills it in.  Filled in by DOC-001.
-message SettingsProps {
-  // Shared registers.  Unused by the panel; present so every kind has `common = 1`.
-  CommonProps common = 1;
+// A length unit for display and entry (document-panel.adoc, "Document units").  Stored values
+// are always points; the unit only changes how numbers are shown and typed.
+enum Unit {
+  // Never set: reads as POINTS.
+  UNIT_UNSPECIFIED = 0;
+  // Points, 1/72 inch.
+  UNIT_POINTS = 1;
+  // Picas and points (12 pt to the pica).
+  UNIT_PICAS = 2;
+  // Inches shown as fractions.
+  UNIT_INCHES = 3;
+  // Inches shown as decimals rather than fractions.
+  UNIT_DECIMAL_INCHES = 4;
+  // Millimeters.
+  UNIT_MILLIMETERS = 5;
+  // Centimeters.
+  UNIT_CENTIMETERS = 6;
+  // Kyus, 0.25 mm.
+  UNIT_KYUS = 7;
+  // Pixels: 1 px = 1 pt at 72 dpi.
+  UNIT_PIXELS = 8;
+  // A custom unit: see UnitChoice.custom.
+  UNIT_CUSTOM = 9;
+}
+
+// Page orientation, as chosen in the Document panel.
+enum Orientation {
+  // Never set: reads from the width and height (portrait when height >= width).
+  ORIENTATION_UNSPECIFIED = 0;
+  // Taller than wide.
+  ORIENTATION_PORTRAIT = 1;
+  // Wider than tall.
+  ORIENTATION_LANDSCAPE = 2;
+}
+
+// The axis a ruler guide lies along (grid-guides.adoc).
+enum GuideAxis {
+  // Reads as HORIZONTAL.
+  GUIDE_AXIS_UNSPECIFIED = 0;
+  // A horizontal line: `Guide.position` is a y offset.
+  GUIDE_AXIS_HORIZONTAL = 1;
+  // A vertical line: `Guide.position` is an x offset.
+  GUIDE_AXIS_VERTICAL = 2;
+}
+
+// The document's display unit.  ATOMIC wherever used: a custom-unit choice is meaningless
+// without the element id.
+message UnitChoice {
+  // The unit.  A `custom` pointing at a deleted custom unit reads as POINTS.
+  Unit unit = 1 [(buf.validate.field).enum.defined_only = true];
+  // Element of SettingsProps.custom_units when `unit` is UNIT_CUSTOM; ignored otherwise.
+  ElementId custom = 2;
+}
+
+// Width, height, orientation and the preset they came from.  ATOMIC wherever used: a width from
+// one user and a height from another is a page nobody asked for; the whole geometry is one
+// choice.
+message PageGeometry {
+  // "Letter", "A4", a custom size name, or "" for Custom.  A name no longer known reads as "".
+  string preset = 1 [(buf.validate.field).string.max_len = 64];
+  // Width in points, as oriented (222 in maximum).
+  double width = 2 [(buf.validate.field).double = {
+    gt: 0
+    lte: 15984
+  }];
+  // Height in points, as oriented.
+  double height = 3 [(buf.validate.field).double = {
+    gt: 0
+    lte: 15984
+  }];
+  // The orientation the user chose.
+  Orientation orientation = 4 [(buf.validate.field).enum.defined_only = true];
+}
+
+// A ruler guide.  Element of the `guides` SEQUENCE on PageProps and MasterPageProps; `axis` and
+// `position` are separate registers.
+message Guide {
+  // Element id (MERGE_SEQUENCE).
+  ElementId id = 1;
+  // Which way the guide runs.
+  GuideAxis axis = 2 [(buf.validate.field).enum.defined_only = true];
+  // Points from the page's top-left corner along the axis (not from the zero point, so moving
+  // the zero point does not move guides).
+  double position = 3;
 }
 
 // NodeProps.kind case `page`: a child of the well-known pages node 0:2, whose sibling position
-// is the page order.  Origin and geometry on the pasteboard, bleed, master, ruler origin,
-// guides (document-panel.adoc) and reading order (names-notes.adoc).  Filled in by DOC-001.
+// is the page order.  STRUCT: geometry, bleed and master are independent registers.
+//
+// PageProps field-number blocks (DOC-001; a task adds its row here in the same change):
+//    1      common          crdt-model.adoc
+//    2-9    DOC             document-panel.adoc, rulers.adoc, grid-guides.adoc
+//   10-19   OBJ             objects/names-notes.adoc (reading_order 10)
+//   20-29   FX              effects/perspective.adoc (perspective_grid, ...)
+//   30-     free; an epic takes the next block of ten and adds a row here.
 message PageProps {
   // Name (the page's label in the Document panel) and the other shared registers.
   CommonProps common = 1;
+  // The page's top-left corner on the pasteboard.  ATOMIC.
+  Point origin = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Size and orientation.  ATOMIC: the later write wins whole.  Masked while `master` resolves.
+  PageGeometry geometry = 3 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Points beyond every edge.  Masked while `master` resolves.
+  double bleed = 4 [(buf.validate.field).double = {
+    gte: 0
+    lte: 720
+  }];
+  // The master page (a child of 0:3), or unset.  Dangling or wrong kind reads as unset: the
+  // page shows its own geometry.
+  NodeRef master = 5 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
+  // The rulers' zero point relative to the page's top-left, points, y down.  ATOMIC.  Unset =
+  // the bottom-left corner (0, height) (rulers.adoc).
+  Point ruler_origin = 6 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Ruler guides.  SEQUENCE: added, moved and deleted individually.
+  repeated Guide guides = 7 [(wt.crdt.field).merge = MERGE_SEQUENCE];
 }
 
 // NodeProps.kind case `master_page`: a child of the well-known masters node 0:3.  A separate
-// canvas: its objects live under layers with `CommonProps.canvas` naming this node.  Geometry,
-// bleed and guides (document-panel.adoc, master-pages.adoc).  Filled in by DOC-001.
+// canvas: its objects live under layers with `CommonProps.canvas` naming this node, in
+// coordinates relative to the master's top-left corner (master-pages.adoc).  Master pages have
+// no ruler origin; the master canvas uses its bottom-left corner.
 message MasterPageProps {
   // Name (the master's label) and the other shared registers.
   CommonProps common = 1;
+  // Size and orientation, which every child page follows.  ATOMIC.
+  PageGeometry geometry = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Points beyond every edge, for every child page.
+  double bleed = 3 [(buf.validate.field).double = {
+    gte: 0
+    lte: 720
+  }];
+  // The master's own ruler guides.  SEQUENCE.
+  repeated Guide guides = 4 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+}
+
+// Grid settings (grid-guides.adoc).  STRUCT: size and relative are independent choices.
+message GridSettings {
+  // Points between grid lines; 0 (never set) reads as the default.
+  double size = 1 [
+    (buf.validate.field).double = {
+      gt: 0
+      lte: 7200
+    },
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+  // Snap to the same offset within the destination cell rather than to intersections.
+  bool relative = 2;
+}
+
+// A named page size (the Page Sizes sheet).  Element of SettingsProps.custom_page_sizes;
+// rename and resize are separate registers.
+message CustomPageSize {
+  // Element id (MERGE_SEQUENCE).
+  ElementId id = 1;
+  // The name shown in the Page Size pop-up.
+  string name = 2 [(buf.validate.field).string.max_len = 64];
+  // Portrait width and height in points.  ATOMIC.
+  Size size = 3 [(wt.crdt.field).merge = MERGE_ATOMIC];
+}
+
+// One custom unit equals `amount` of `base`.  ATOMIC wherever used, so amount and base cannot
+// come from two writers.
+message UnitDefinition {
+  // How many `base` units make one custom unit.
+  double amount = 1 [(buf.validate.field).double.gt = 0];
+  // The unit the amount is in; UNIT_CUSTOM is not allowed and reads as POINTS.
+  Unit base = 2 [(buf.validate.field).enum.defined_only = true];
+}
+
+// A user-defined unit (View > Page Rulers > Edit Units).  Element of
+// SettingsProps.custom_units; rename and redefine are separate registers.
+message CustomUnit {
+  // Element id (MERGE_SEQUENCE).
+  ElementId id = 1;
+  // The unit's name, also its field suffix.  Duplicate names resolve to the smaller element id.
+  string name = 2 [(buf.validate.field).string.max_len = 32];
+  // What the unit measures.  ATOMIC.
+  UnitDefinition definition = 3 [(wt.crdt.field).merge = MERGE_ATOMIC];
+}
+
+// What a newly drawn object receives (objects/default-attributes.adoc, OBJ epic; the appearance
+// is ATTR's message, the text defaults TYPE's).  STRUCT: the stroke, fill and text defaults are
+// independent choices and merge independently.
+message Defaults {
+  // The appearance stack copied onto every new drawable node; its stacks are SEQUENCEs.
+  AppearanceProps appearance = 1;
+  // The graphic style the defaults currently mirror; unset = "Normal".  Dangling reads as unset.
+  NodeRef style = 2 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
+  // Text defaults: font, size, leading, alignment and the rest, with the text-style
+  // optionality ("no selection" = the application default).
+  TextStyleAttrs text = 3;
+}
+
+// NodeProps.kind case `settings`: the well-known settings node 0:1.  Units, default attributes,
+// print and export settings, document info and every other document-wide choice.  STRUCT: each
+// field is an independent register.  Every epic that owns settings fields adds them here, in
+// its own block, and records them below.
+//
+// SettingsProps field-number blocks (DOC-001):
+//     1      common          crdt-model.adoc
+//     2-9    DOC             document-panel.adoc, rulers.adoc, grid-guides.adoc
+//    10-19   OBJ             objects/default-attributes.adoc (defaults 10)
+//    20-29   FONT            typeface/typeface-documents.adoc (document_kind 20, font 21)
+//    30-39   PRINT           printing/output-area.adoc (output_area 30), printing/printing.adoc
+//    40-49   BASIC           basics/document-view.adoc (view 40, local_only)
+//    50-59   CMS             cms/color-management.adoc (color)
+//    60-69   WEB             web/publish-html.adoc (html_settings 60, html_setting_selected 61)
+//    70-79   WEB             web/animation.adoc (animation 70)
+//    80-89   DATA            automation/data-merge.adoc (data_fields 80 ... data_preview 83)
+//    90-99   FX              effects/raster-effects.adoc, effects/perspective.adoc
+//   100-119  free
+//   120-129  IO              io/saving.adoc (snapshot_interval_override_s 120)
+//   130-139  IO              io/file-info.adoc (info 130), io/exporting.adoc (last_export 131)
+//   140-     free; an epic takes the next block of ten and adds a row here.
+message SettingsProps {
+  // Shared registers.  Unused by the panel; present so every kind has `common = 1`.
+  CommonProps common = 1;
+  // The document's display unit.  ATOMIC.  Changing it never changes a stored value.
+  UnitChoice units = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Printer resolution in dpi, 72..9600; 0 (never set) reads as 300.
+  uint32 printer_resolution = 3 [
+    (buf.validate.field).uint32 = {
+      gte: 72
+      lte: 9600
+    },
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+  // Grid size and snapping mode.  STRUCT.
+  GridSettings grid = 4;
+  // Named page sizes.  SEQUENCE.
+  repeated CustomPageSize custom_page_sizes = 5 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  // User-defined units.  SEQUENCE.
+  repeated CustomUnit custom_units = 6 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  // View > Guides > Lock.  Shared: a lock only binding its setter would not protect a layout.
+  // Advisory; never enforced against remote ops.
+  bool guides_locked = 7;
+  // What newly drawn objects receive (OBJ block).  STRUCT.
+  Defaults defaults = 10;
 }

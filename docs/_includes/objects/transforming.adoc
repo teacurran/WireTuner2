@@ -231,7 +231,7 @@ Consequences::
 * Hit testing, snapping, alignment and the Object panel's X/Y/W/H all go through the
   transform chain (GEO-005).  Point editing inverse-maps mouse positions into node space.
 * Stroke widths are nominal and *not* scaled by the matrix unless the command bakes them
-  (leaf objects, *Strokes* ticked: each `StrokeProps.width` is multiplied by
+  (leaf objects, *Strokes* ticked: each `BasicStroke.width` is multiplied by
   `sqrt(|det|)`) or the group's *Transform as unit* says so at render time.  Fills and
   effects are in node space and follow the matrix; *Fills* unticked makes the command write
   a compensating inverse onto the fill's axis/origin registers (ATTR fields), so the fill

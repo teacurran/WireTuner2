@@ -92,10 +92,10 @@ at angle 0 (pointing +x) before `rotation`; `CommonProps.transform` places the s
 // A live regular polygon or star.
 message PolygonProps {
   CommonProps common = 1;
-  uint32 sides = 2 [(buf.validate.field).uint32 = {gte: 3, lte: 360}];
+  uint32 sides = 2 [(buf.validate.field).uint32 = {gte: 3, lte: 360}, (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE];
   bool star = 3;
   // Outer radius (vertex distance from center), local units.
-  double radius = 4 [(buf.validate.field).double.gt = 0];
+  double radius = 4 [(buf.validate.field).double.gte = 0];   // 0 allowed: a sparse write omits it
   // Inner radius for stars.  Ignored when star is false or auto_inner is true.  May exceed
   // radius (an inside-out star).
   double inner_radius = 5 [(buf.validate.field).double.gte = 0];
@@ -110,7 +110,7 @@ message PolygonProps {
   // Angular offset of the valleys from their default (halfway between peaks), radians; set
   // by dragging the circle handle without Shift.
   double valley_offset = 9;
-  Appearance appearance = 10;
+  AppearanceProps appearance = 10;
 }
 ----
 
@@ -180,7 +180,7 @@ Undo:: One group per drag or field commit.
 Track:: client-render
 Depends on:: DRAW-006, DRAW-003
 Size:: S
-Delivers:: `PolygonProps` added to `doc/v1/shape.proto` (this task carries the proto change with its geometry because it is a single message; `buf` gates apply), `polygonPath` in `WTGeometry`, the automatic inner-radius rule and clamps in `WTModel`'s path view.
+Delivers:: `PolygonProps` added to `doc/v1/shape.proto` (this task carries the proto change with its geometry because it is a single message; `buf` gates apply), `polygonPath` in `WTGeometry`, the automatic inner-radius rule and clamps in `WTModel`'s path view (schema implemented in `shape.proto`, kind `polygon` = 23).
 Done when::
 * Lints clean; conformance vector with concurrent `radius` and `rotation` writes converges in both engines.
 * Derived outlines for 3, 5, 6, 12 and 360 sides and for automatic 5- and 6-point stars match reference coordinates within 0.01 pt.

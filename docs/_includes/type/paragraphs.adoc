@@ -166,8 +166,11 @@ inside a paragraph rather than to the paragraph.
 
 [source,protobuf]
 ----
+// Each UNSPECIFIED zero reads as the value that was zero in earlier sketches (LEFT, NONE,
+// LAST_LINE); text.proto is normative for the numbers.
 enum Alignment {
-  ALIGNMENT_LEFT = 0; ALIGNMENT_CENTER = 1; ALIGNMENT_RIGHT = 2; ALIGNMENT_JUSTIFIED = 3;
+  ALIGNMENT_UNSPECIFIED = 0; ALIGNMENT_LEFT = 1; ALIGNMENT_CENTER = 2; ALIGNMENT_RIGHT = 3;
+  ALIGNMENT_JUSTIFIED = 4;
 }
 
 message Hyphenation {                // STRUCT
@@ -183,10 +186,10 @@ message ParagraphRule {              // STRUCT
   RuleBasis basis = 3;               // last line or column
   double position = 4;               // points below the last baseline (or above the first)
   bool above = 5;
-  StrokeProps stroke = 6;            // optional override of the block's stroke (ATTR epic)
+  BasicStroke stroke = 6;            // optional override of the block's stroke (ATTR epic, stroke.proto)
 }
-enum RuleMode { RULE_MODE_NONE = 0; RULE_MODE_CENTERED = 1; RULE_MODE_PARAGRAPH = 2; }
-enum RuleBasis { RULE_BASIS_LAST_LINE = 0; RULE_BASIS_COLUMN = 1; }
+enum RuleMode { RULE_MODE_UNSPECIFIED = 0; RULE_MODE_NONE = 1; RULE_MODE_CENTERED = 2; RULE_MODE_PARAGRAPH = 3; }
+enum RuleBasis { RULE_BASIS_UNSPECIFIED = 0; RULE_BASIS_LAST_LINE = 1; RULE_BASIS_COLUMN = 2; }
 
 // ATOMIC at the field: min ≤ opt ≤ max only makes sense as a triple.
 message SpacingRange { double min = 1; double opt = 2; double max = 3; }

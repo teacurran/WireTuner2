@@ -10,10 +10,11 @@
 
 /// proto/wiretuner/doc/v1/group.proto
 ///
-/// The group node kind (docs/_includes/objects/grouping.adoc).  PROTO-003 creates the message
-/// with only `common` so NodeProps can name it; OBJ-016 fills in `GroupKind`, the clip path and
-/// the layer origins here, in this file, because the FILE breaking rules pin a message to the
-/// file it first appeared in.
+/// The group node kind (docs/_includes/objects/grouping.adoc, OBJ-016; clip groups are
+/// objects/clipping-paths.adoc).  PROTO-003 created the message with only `common` so NodeProps
+/// could name it; OBJ-016's schema filled in `GroupKind`, the clip path and the layer origins
+/// here, in this file, because the FILE breaking rules pin a message to the file it first
+/// appeared in.
 
 import SwiftProtobuf
 
@@ -27,9 +28,55 @@ fileprivate nonisolated struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobu
   typealias Version = _2
 }
 
+/// What kind of group.  Written at creation and never again.
+public nonisolated enum Wiretuner_Doc_V1_GroupKind: SwiftProtobuf.Enum, Swift.CaseIterable {
+  public typealias RawValue = Int
+
+  /// Reads as GROUP.
+  case unspecified // = 0
+
+  /// An ordinary group.
+  case group // = 1
+
+  /// A clipping group: `clip_path` names the child that clips the others.
+  case clip // = 2
+  case UNRECOGNIZED(Int)
+
+  public init() {
+    self = .unspecified
+  }
+
+  public init?(rawValue: Int) {
+    switch rawValue {
+    case 0: self = .unspecified
+    case 1: self = .group
+    case 2: self = .clip
+    default: self = .UNRECOGNIZED(rawValue)
+    }
+  }
+
+  public var rawValue: Int {
+    switch self {
+    case .unspecified: return 0
+    case .group: return 1
+    case .clip: return 2
+    case .UNRECOGNIZED(let i): return i
+    }
+  }
+
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static let allCases: [Wiretuner_Doc_V1_GroupKind] = [
+    .unspecified,
+    .group,
+    .clip,
+  ]
+
+}
+
 /// NodeProps.kind case `group`: a container object.  Its children are the members in stacking
 /// order (bottom first); their `CommonProps.transform` is relative to the group, and the group's
-/// own transform maps group space to the parent's space.  Filled in by OBJ-016.
+/// own transform maps group space to the parent's space.  A group with no live children renders
+/// nothing and is not selectable.
 public nonisolated struct Wiretuner_Doc_V1_GroupProps: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -45,20 +92,105 @@ public nonisolated struct Wiretuner_Doc_V1_GroupProps: Sendable {
   /// Clears the value of `common`. Subsequent reads from it will return its default value.
   public mutating func clearCommon() {self._common = nil}
 
+  /// Immutable after creation; if a malformed change writes it again, readers use the value at
+  /// creation.
+  public var kind: Wiretuner_Doc_V1_GroupKind = .unspecified
+
+  /// When true, the group's transform also scales member stroke widths, fill geometry and effect
+  /// parameters ("transform as unit").  When false, members are stroked at nominal width after
+  /// their geometry is transformed.
+  public var transformAsUnit: Bool = false
+
+  /// Clip groups only: the child that clips.  Dangling: the contents render unclipped.
+  public var clipPath: Wiretuner_Doc_V1_NodeRef {
+    get {_clipPath ?? Wiretuner_Doc_V1_NodeRef()}
+    set {_clipPath = newValue}
+  }
+  /// Returns true if `clipPath` has been explicitly set.
+  public var hasClipPath: Bool {self._clipPath != nil}
+  /// Clears the value of `clipPath`. Subsequent reads from it will return its default value.
+  public mutating func clearClipPath() {self._clipPath = nil}
+
+  /// Where each member came from, for "Remember layer info" on ungroup.  Written once at grouping
+  /// time.  SEQUENCE.
+  public var layerOrigins: [Wiretuner_Doc_V1_LayerOrigin] = []
+
+  /// The group's own strokes, fills and effects.
+  public var appearance: Wiretuner_Doc_V1_AppearanceProps {
+    get {_appearance ?? Wiretuner_Doc_V1_AppearanceProps()}
+    set {_appearance = newValue}
+  }
+  /// Returns true if `appearance` has been explicitly set.
+  public var hasAppearance: Bool {self._appearance != nil}
+  /// Clears the value of `appearance`. Subsequent reads from it will return its default value.
+  public mutating func clearAppearance() {self._appearance = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
   fileprivate var _common: Wiretuner_Doc_V1_CommonProps? = nil
+  fileprivate var _clipPath: Wiretuner_Doc_V1_NodeRef? = nil
+  fileprivate var _appearance: Wiretuner_Doc_V1_AppearanceProps? = nil
+}
+
+/// The layer a group member was on before grouping.  Element of GroupProps.layer_origins;
+/// entries whose child or layer is gone read as unset.
+public nonisolated struct Wiretuner_Doc_V1_LayerOrigin: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Element id (MERGE_SEQUENCE).
+  public var id: Wiretuner_Doc_V1_ElementId {
+    get {_id ?? Wiretuner_Doc_V1_ElementId()}
+    set {_id = newValue}
+  }
+  /// Returns true if `id` has been explicitly set.
+  public var hasID: Bool {self._id != nil}
+  /// Clears the value of `id`. Subsequent reads from it will return its default value.
+  public mutating func clearID() {self._id = nil}
+
+  /// The member.
+  public var child: Wiretuner_Doc_V1_NodeRef {
+    get {_child ?? Wiretuner_Doc_V1_NodeRef()}
+    set {_child = newValue}
+  }
+  /// Returns true if `child` has been explicitly set.
+  public var hasChild: Bool {self._child != nil}
+  /// Clears the value of `child`. Subsequent reads from it will return its default value.
+  public mutating func clearChild() {self._child = nil}
+
+  /// The layer it came from.
+  public var layer: Wiretuner_Doc_V1_NodeRef {
+    get {_layer ?? Wiretuner_Doc_V1_NodeRef()}
+    set {_layer = newValue}
+  }
+  /// Returns true if `layer` has been explicitly set.
+  public var hasLayer: Bool {self._layer != nil}
+  /// Clears the value of `layer`. Subsequent reads from it will return its default value.
+  public mutating func clearLayer() {self._layer = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _id: Wiretuner_Doc_V1_ElementId? = nil
+  fileprivate var _child: Wiretuner_Doc_V1_NodeRef? = nil
+  fileprivate var _layer: Wiretuner_Doc_V1_NodeRef? = nil
 }
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
 fileprivate nonisolated let _protobuf_package = "wiretuner.doc.v1"
 
+nonisolated extension Wiretuner_Doc_V1_GroupKind: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0GROUP_KIND_UNSPECIFIED\0\u{1}GROUP_KIND_GROUP\0\u{1}GROUP_KIND_CLIP\0")
+}
+
 nonisolated extension Wiretuner_Doc_V1_GroupProps: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GroupProps"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}common\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}common\0\u{1}kind\0\u{3}transform_as_unit\0\u{3}clip_path\0\u{3}layer_origins\0\u{1}appearance\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -67,6 +199,11 @@ nonisolated extension Wiretuner_Doc_V1_GroupProps: SwiftProtobuf.Message, SwiftP
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularMessageField(value: &self._common) }()
+      case 2: try { try decoder.decodeSingularEnumField(value: &self.kind) }()
+      case 3: try { try decoder.decodeSingularBoolField(value: &self.transformAsUnit) }()
+      case 4: try { try decoder.decodeSingularMessageField(value: &self._clipPath) }()
+      case 5: try { try decoder.decodeRepeatedMessageField(value: &self.layerOrigins) }()
+      case 6: try { try decoder.decodeSingularMessageField(value: &self._appearance) }()
       default: break
       }
     }
@@ -80,11 +217,75 @@ nonisolated extension Wiretuner_Doc_V1_GroupProps: SwiftProtobuf.Message, SwiftP
     try { if let v = self._common {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
     } }()
+    if self.kind != .unspecified {
+      try visitor.visitSingularEnumField(value: self.kind, fieldNumber: 2)
+    }
+    if self.transformAsUnit != false {
+      try visitor.visitSingularBoolField(value: self.transformAsUnit, fieldNumber: 3)
+    }
+    try { if let v = self._clipPath {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
+    } }()
+    if !self.layerOrigins.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.layerOrigins, fieldNumber: 5)
+    }
+    try { if let v = self._appearance {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 6)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Wiretuner_Doc_V1_GroupProps, rhs: Wiretuner_Doc_V1_GroupProps) -> Bool {
     if lhs._common != rhs._common {return false}
+    if lhs.kind != rhs.kind {return false}
+    if lhs.transformAsUnit != rhs.transformAsUnit {return false}
+    if lhs._clipPath != rhs._clipPath {return false}
+    if lhs.layerOrigins != rhs.layerOrigins {return false}
+    if lhs._appearance != rhs._appearance {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Doc_V1_LayerOrigin: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".LayerOrigin"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}child\0\u{1}layer\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._id) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._child) }()
+      case 3: try { try decoder.decodeSingularMessageField(value: &self._layer) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._id {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._child {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try { if let v = self._layer {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Wiretuner_Doc_V1_LayerOrigin, rhs: Wiretuner_Doc_V1_LayerOrigin) -> Bool {
+    if lhs._id != rhs._id {return false}
+    if lhs._child != rhs._child {return false}
+    if lhs._layer != rhs._layer {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

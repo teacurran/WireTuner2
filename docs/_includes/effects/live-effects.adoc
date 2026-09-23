@@ -462,18 +462,26 @@ xref:transparency.adoc[Transparency] define the rest.
 ----
 // proto/wiretuner/doc/v1/effects.proto (sketch)
 
-// One entry in Appearance.effects (MERGE_SEQUENCE: inserted, moved, deleted individually;
-// order = fractional position).  Kind-specific settings are plain STRUCT fields rather than a
-// oneof: `kind` selects which one renders, the others are retained.  A oneof would turn
+// One entry in AppearanceProps.effects (MERGE_SEQUENCE: inserted, moved, deleted individually;
+// order = fractional position).  Kind-specific settings are plain STRUCT fields of the
+// MERGE_VARIANT `settings` rather than a oneof: `kind` selects which one renders, the others are
+// retained.  A oneof would turn
 // "change this effect's type" into a write that discards every concurrent edit to the old
 // settings, and would need a rule for two replicas setting different cases.
 message Effect {
   ElementId id = 1;              // required by MERGE_SEQUENCE
   bool hidden = 2;               // eye toggle: kept but not rendered/printed/exported
-  // Fill or stroke element (in the same Appearance) this effect applies to.  Unset: the whole
-  // object.  ATOMIC by default.  Reads as unset when the element is deleted (see Merge).
-  ElementId attached_to = 3;
-  EffectKind kind = 4;           // which settings message is live
+  // Fill or stroke element (in the same AppearanceProps) this effect applies to.  Unset: the whole
+  // object.  ATOMIC (annotated: a message field defaults to STRUCT).  Reads as unset when the
+  // element is deleted (see Merge).
+  ElementId attached_to = 3 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Kind and settings, MERGE_VARIANT (as Fill and Stroke, attribute-stack.adoc): a concurrent
+  // kind switch keeps every case's settings.
+  EffectSettings settings = 4 [(wt.crdt.field).merge = MERGE_VARIANT];
+}
+
+message EffectSettings {
+  EffectKind kind = 1;           // which settings message is live
   BendEffect bend = 10;
   DuetEffect duet = 11;
   ExpandPathEffect expand_path = 12;
@@ -527,7 +535,7 @@ message ExpandPathEffect {
   enum Direction { DIRECTION_UNSPECIFIED = 0; DIRECTION_BOTH = 1; DIRECTION_INSIDE = 2; DIRECTION_OUTSIDE = 3; }
   Direction direction = 1;
   double width = 2 [(buf.validate.field).double = {gte: 0, lte: 50}];   // points
-  LineCap cap = 3;               // BUTT / ROUND / SQUARE, shared with StrokeProps (ATTR)
+  LineCap cap = 3;               // BUTT / ROUND / SQUARE, shared with BasicStroke (ATTR)
   LineJoin join = 4;             // MITER / ROUND / BEVEL
   double miter_limit = 5 [(buf.validate.field).double = {gte: 1, lte: 57}];
 }
@@ -607,7 +615,7 @@ Adding a *new effect kind* later bumps the document's feature level
 
 === Merge semantics
 
-Sequence:: `Appearance.effects` is a SEQUENCE, so adding, removing, hiding, reordering and
+Sequence:: `AppearanceProps.effects` is a SEQUENCE, so adding, removing, hiding, reordering and
 editing effects are independent registers.  Two concurrent *Add Effect* calls on one object
 produce two elements; their relative order is their fractional positions (both appended after
 the same last element, so the tie is broken by element id -- deterministic, and shown to the
@@ -767,7 +775,7 @@ Depends on:: PROTO-003, PROTO-005
 Size:: S
 Delivers:: `doc/v1/effects.proto` with `Effect`, `EffectKind`, `BendEffect`, `DuetEffect`,
 `ExpandPathEffect`, `RaggedEffect`, `SketchEffect`, `TransformEffect` exactly as sketched, wired
-into the `Appearance.effects` sequence reserved by the ATTR epic.
+into the `AppearanceProps.effects` sequence reserved by the ATTR epic.
 Done when::
 * `buf lint` and `buf breaking` pass; every field commented; validation ranges as documented.
 * The merge table marks `effects` as SEQUENCE, `center`/`move` as ATOMIC, everything else

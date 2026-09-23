@@ -172,7 +172,7 @@ perspective appearance is computed on read from the wrapper and the page's grid.
 ----
 // proto/wiretuner/doc/v1/perspective.proto (sketch)
 
-// On DocumentSettings (DOC epic):  repeated PerspectiveGrid perspective_grids = …; (SEQUENCE)
+// On SettingsProps (FX block 90-99):  repeated PerspectiveGrid perspective_grids = …; (SEQUENCE)
 message PerspectiveGrid {
   ElementId id = 1;
   string name = 2 [(buf.validate.field).string.max_len = 64];   // unique per document (model enforces)
@@ -194,7 +194,7 @@ message PerspectiveGrid {
   bool floor_hidden = 17;        // double-click the horizon
 }
 
-// On PageProps (DOC epic):
+// On PageProps (FX block 20-29, document.proto):
 //   ElementId perspective_grid = …;   // which grid; unset or dangling → the default grid
 //   bool perspective_grid_visible = … [(wt.crdt.field).local_only = true];
 

@@ -334,9 +334,10 @@ package wiretuner.doc.v1;
 // (brushes collection, ATTR epic) or a hose (DRAW epic) references symbols by NodeRef and
 // sets this when it creates them.
 enum SymbolUsage {
-  SYMBOL_USAGE_GRAPHIC = 0;
-  SYMBOL_USAGE_BRUSH_TIP = 1;
-  SYMBOL_USAGE_HOSE_ELEMENT = 2;
+  SYMBOL_USAGE_UNSPECIFIED = 0;   // reads as GRAPHIC
+  SYMBOL_USAGE_GRAPHIC = 1;
+  SYMBOL_USAGE_BRUSH_TIP = 2;
+  SYMBOL_USAGE_HOSE_ELEMENT = 3;
 }
 
 // Where an imported symbol came from, so "Update from Library" can fetch it again.
@@ -350,29 +351,33 @@ message LibrarySource {
 // Properties of a node of kind `symbol`.  Name lives in CommonProps.name.
 // STRUCT: usage, source and origin are independent.
 message SymbolProps {
-  SymbolUsage usage = 1;
+  CommonProps common = 1;
+  SymbolUsage usage = 2;
   // Set on copies taken from a team library; unset for symbols made here.
-  LibrarySource source = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  LibrarySource source = 3 [(wt.crdt.field).merge = MERGE_ATOMIC];
   // Local origin of the symbol's coordinate space: instances place this point at their
   // transform's translation.  Convert to Symbol writes the selection's bounds center.
-  Point origin = 3;
+  Point origin = 4 [(wt.crdt.field).merge = MERGE_ATOMIC];
 }
 
 // Properties of a node of kind `symbol_folder`.  Name lives in CommonProps.name.  No other
 // fields; children are symbols and folders.
-message SymbolFolderProps {}
+message SymbolFolderProps { CommonProps common = 1; }
 
 // Properties of a node of kind `instance`.  Transform, name, note, url, style and layer
 // (parent) come from CommonProps and the tree.
 message InstanceProps {
+  CommonProps common = 1;
   // The symbol this instance draws.  A deleted or unknown symbol renders as a hatched
   // placeholder labelled with the symbol's name (read from the deleted node while it exists).
-  NodeRef symbol = 1 [(wt.crdt.field).on_dangling = REF_FALLBACK_PLACEHOLDER];
+  NodeRef symbol = 2 [(wt.crdt.field).on_dangling = REF_FALLBACK_PLACEHOLDER];
   // Per-instance overrides of the symbol's artwork.  SEQUENCE (not a map keyed by
   // (master_node, property) -- see Merge semantics): one element per overridden property,
   // inserted when the user first changes it, deleted by the reset arrow.  Order is irrelevant
   // and never edited.
-  repeated Override overrides = 2 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  repeated Override overrides = 3 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  // The instance's own strokes, fills and effects (attribute-stack: symbol instances are drawable).
+  AppearanceProps appearance = 4;
 }
 
 // One overridden property of one node in the symbol's artwork.  `master_node` and `property`
@@ -383,11 +388,11 @@ message Override {
   // A node in the symbol's subtree, by node id.  Keyed by id, not position, so the override
   // survives edits to the symbol.  Not a NodeRef: a dangling id is a read-time rule (below),
   // not an on_dangling fallback, because the override must return when the node is restored.
-  OpId master_node = 2;
+  OpId master_node = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];
   OverrideProperty property = 3;
   RichText text = 4 [(wt.crdt.field).merge = MERGE_TEXT];   // TEXT: replaces the block's text
-  ColorRef fill = 5;                                          // FILL: color of the node's basic fills
-  ColorRef stroke = 6;                                        // STROKE: color of the node's basic strokes
+  ColorRef fill = 5 [(wt.crdt.field).merge = MERGE_ATOMIC];     // FILL: color of the node's basic fills
+  ColorRef stroke = 6 [(wt.crdt.field).merge = MERGE_ATOMIC];   // STROKE: color of the node's basic strokes
   bool hidden = 7;                                            // HIDDEN: true hides the node's subtree
   NodeRef image = 8 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];  // IMAGE: an `assets` node
 }
@@ -642,7 +647,7 @@ each: "Override text", "Override fill", "Hide Star", "Reset override", "Reset al
 Track:: proto
 Depends on:: PROTO-003
 Size:: S
-Delivers:: `doc/v1/symbol.proto` with `SymbolUsage`, `LibrarySource`, `SymbolProps`, `SymbolFolderProps`, `InstanceProps`, and the three `NodeProps.kind` cases.
+Delivers:: `doc/v1/symbol.proto` with `SymbolUsage`, `LibrarySource`, `SymbolProps`, `SymbolFolderProps`, `InstanceProps`, and the three `NodeProps.kind` cases (implemented in `symbol.proto`: `symbol` 151, `symbol_folder` 152, `instance` 153).
 Done when::
 * `buf lint` with `COMMENTS` passes; the generated merge table shows `source` ATOMIC and `InstanceProps.symbol` with `REF_FALLBACK_PLACEHOLDER`.
 * Conformance vector: two replicas concurrently swap one instance to different symbols; both engines agree.
@@ -744,7 +749,7 @@ Depends on:: CRDT-004, CRDT-006, LIB-008
 Size:: S
 Delivers:: `InstanceProps.overrides` as `MERGE_SEQUENCE`, the `Override` message and
 `OverrideProperty` enum in `doc/v1/symbol.proto` as sketched, with `text` marked `MERGE_TEXT`
-and `image` with `REF_FALLBACK_UNSET`.
+and `image` with `REF_FALLBACK_UNSET` (implemented in `symbol.proto`).
 Done when::
 * `buf lint` with `COMMENTS` and `buf breaking` pass; the merge table shows `overrides`
   SEQUENCE, `Override.text` TEXT, the other value fields ATOMIC.

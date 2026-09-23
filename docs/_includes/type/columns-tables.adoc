@@ -121,8 +121,9 @@ message ColumnsRows {                 // STRUCT: every field independent
   RuleExtent row_rules = 8;
   FlowOrder flow = 9;
 }
-enum RuleExtent { RULE_EXTENT_NONE = 0; RULE_EXTENT_INSET = 1; RULE_EXTENT_FULL = 2; }
-enum FlowOrder { FLOW_ORDER_DOWN = 0; FLOW_ORDER_ACROSS = 1; }
+// UNSPECIFIED reads as NONE and DOWN respectively.
+enum RuleExtent { RULE_EXTENT_UNSPECIFIED = 0; RULE_EXTENT_NONE = 1; RULE_EXTENT_INSET = 2; RULE_EXTENT_FULL = 3; }
+enum FlowOrder { FLOW_ORDER_UNSPECIFIED = 0; FLOW_ORDER_DOWN = 1; FLOW_ORDER_ACROSS = 2; }
 
 message AdjustColumns {               // STRUCT
   bool balance = 1;
