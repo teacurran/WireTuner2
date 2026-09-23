@@ -73,7 +73,7 @@ import WTRender
 
     @Test func unimplementedToolsShowTheHUDAndWriteNothing() async throws {
         let environment = TestEnvironment()
-        let controller = DocumentWindowController(document: .placeholder(title: "HUD"), environment: environment.document)
+        let controller = DocumentWindowController(document: .memory(title: "HUD"), environment: environment.document)
         defer { controller.close() }
         for descriptor in ToolCatalog.all {
             controller.toolManager.select(descriptor.id)
@@ -91,7 +91,7 @@ import WTRender
     }
 
     @Test func theHUDHidesItselfAfterAWhile() async throws {
-        let canvas = CanvasView(document: .placeholder(title: "H"))
+        let canvas = CanvasView(document: .memory(title: "H"))
         canvas.showHUD("Hello")
         canvas.showHUD("Again")
         #expect(canvas.hudMessage == "Again")
@@ -182,7 +182,7 @@ import WTRender
         #expect(presented == [.pointer])
 
         let environment = TestEnvironment()
-        let controller = DocumentWindowController(document: .placeholder(title: "Options"), environment: environment.document)
+        let controller = DocumentWindowController(document: .memory(title: "Options"), environment: environment.document)
         defer { controller.close() }
         let sheet = controller.presentToolOptions(ToolCatalog.all[0])
         #expect(sheet?.identifier?.rawValue == "tool-options.pointer")
@@ -234,7 +234,7 @@ import WTRender
 
     @Test func snapTogglesChangeViewStateOnly() {
         let environment = TestEnvironment()
-        let controller = DocumentWindowController(document: .placeholder(title: "Snap"), environment: environment.document)
+        let controller = DocumentWindowController(document: .memory(title: "Snap"), environment: environment.document)
         defer { controller.close() }
         var changes = 0
         controller.onViewStateChange = { _ in changes += 1 }

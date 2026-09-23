@@ -300,7 +300,7 @@ private func catalogRegistry(tools: Bool = true) -> PanelRegistry {
 @Suite @MainActor struct PanelAppearanceTests {
     @Test func labelStylesAndTooltipsApplyLiveWithoutClosingPanels() {
         let environment = TestEnvironment()
-        let controller = DocumentWindowController(document: .placeholder(title: "Look"), environment: environment.document)
+        let controller = DocumentWindowController(document: .memory(title: "Look"), environment: environment.document)
         defer { controller.close() }
         let preferences = environment.preferences
         let body = controller.dock.body(for: "object")
@@ -362,7 +362,7 @@ private func catalogRegistry(tools: Bool = true) -> PanelRegistry {
         environment.layout.update { layout in
             layout.movePanel("layers", toNewGroupAt: .top)
         }
-        let controller = DocumentWindowController(document: .placeholder(title: "Docks"), environment: environment.document)
+        let controller = DocumentWindowController(document: .memory(title: "Docks"), environment: environment.document)
         defer { controller.close() }
         controller.window?.contentView?.layoutSubtreeIfNeeded()
         #expect(controller.docks.count == 4)

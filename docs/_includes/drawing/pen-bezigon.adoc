@@ -169,6 +169,16 @@ Snapping:: Points snap through GEO-005 (grid, guides, points) before the constra
 Undo:: One group per placed point, one per close, one per join.  Undoing every point of a new
 path also undoes the creation (the create is grouped with the first point).
 
+NOTE: As built by DRAW-021 (deviations).  `PenTool` and `PathBuildingSession` are in
+`WTApp/Tools/PenTool.swift`.  The first click creates the path with its first point in one change
+("Pen"), each later point is an `InsertPoints` after (or before) the session's active element in
+drawing order, a close is `SetClosed`; commits are chained so a fast second click sees the session
+the first one left.  A drag at the point that closes the path does not reshape its handles.  The
+cursors are drawn from SF Symbols (pen, pen with plus, pen with circle); the minus and caret
+variants come with editing-paths.adoc's point insertion and deletion.  Snapping goes through the
+`SnappingContext` placeholder (identity until GEO-005).  The UI tests are unit tests of the tool
+against a memory document (`WTAppTests/PenToolTests.swift`); the merge tests are WTModel's.
+
 === Build tasks
 
 [[DRAW-021]]

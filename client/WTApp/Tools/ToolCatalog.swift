@@ -33,22 +33,29 @@ enum ToolCatalog {
         // Text
         stub("text", "Text", "textformat", [key("t")], help: "creating-text"),
         // Pen flyout
-        stub("pen", "Pen", "pencil.tip", [key("p"), key("6")], group: .pen, help: "pen-bezigon"),
+        ToolDescriptor(
+            id: .pen, title: "Pen", symbolName: "pencil.tip", shortcuts: [key("p"), key("6")], group: .pen, helpSlug: "pen-bezigon"
+        ) { PenTool() },
         stub("bezigon", "Bezigon", "point.topleft.down.to.point.bottomright.curvepath", [key("b"), key("5")], group: .pen, help: "pen-bezigon"),
         // Pencil flyout
         stub("pencil", "Pencil", "pencil", [key("y"), key("9")], group: .pencil, options: true, help: "freeform"),
         stub("variableStrokePen", "Variable Stroke Pen", "scribble.variable", group: .pencil, options: true, help: "freeform"),
         stub("calligraphicPen", "Calligraphic Pen", "paintbrush.pointed", group: .pencil, options: true, help: "freeform"),
         // Line
-        stub("line", "Line", "line.diagonal", [key("n"), key("4")], help: "rectangles-ellipses-lines"),
-        // Rectangle flyout: APP-003's sketch tool until the OBJ epic.
+        ToolDescriptor(
+            id: .line, title: "Line", symbolName: "line.diagonal", shortcuts: [key("n"), key("4")], helpSlug: "rectangles-ellipses-lines"
+        ) { LineTool() },
+        // Rectangle flyout.
         ToolDescriptor(
             id: .rectangle, title: "Rectangle", symbolName: "rectangle", shortcuts: [key("r"), key("2")], group: .rectangle,
             helpSlug: "rectangles-ellipses-lines"
-        ) { RectangleSketchTool() },
+        ) { RectangleTool() },
         stub("polygon", "Polygon", "pentagon", [key("g")], group: .rectangle, options: true, help: "polygons-stars"),
         // Ellipse flyout
-        stub("ellipse", "Ellipse", "circle", [key("o"), key("3")], group: .ellipse, help: "rectangles-ellipses-lines"),
+        ToolDescriptor(
+            id: .ellipse, title: "Ellipse", symbolName: "circle", shortcuts: [key("o"), key("3")], group: .ellipse,
+            helpSlug: "rectangles-ellipses-lines"
+        ) { EllipseTool() },
         stub("spiral", "Spiral", "hurricane", group: .ellipse, options: true, help: "spirals-arcs"),
         stub("arc", "Arc", "rainbow", group: .ellipse, options: true, help: "spirals-arcs"),
         // Freeform flyout

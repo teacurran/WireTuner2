@@ -365,6 +365,39 @@ one change each; the panel shows mixed state for multi-contour and multi-object 
 Undo:: Each drag is one undo group (mouse down to mouse up).  Each Object panel edit is one
 group.
 
+NOTE: As built by DRAW-002, DRAW-003 and DRAW-004 (deviations).  *Names*: the typed values are
+`VectorPath`, `VectorContour`, `VectorPoint` and `VectorSegment` (`WTModel/PathModel.swift`):
+`Path` collides with SwiftUI's in every panel file and `Contour` and `PathPoint` with WTGeometry's
+and WTRender's in every file importing them.  A contour's points are read in *drawing order*
+(`VectorContour.drawn`: reversed and swapped when `reversed`, an open contour rotated to `start`,
+automatic handles as Catmull-Rom sixths of the neighbour chord -- a third of the one neighbour at an
+open end --, a connector without exactly one straight side read as a corner, a NaN handle
+retracted), and the commands (`PathCommands.swift`, `NodeCommands.swift`) name points and
+placements in drawing order and orientation and translate to stored order.  Deleting a middle
+segment of an *open* contour splits it: the points after the segment move, as copies, to a new
+contour of the same path.  Splitting a closed contour at a point opens it there and inserts a copy
+of the point so the path still starts and ends on it.  Join maps the absorbed points through both
+paths' transforms.  *Conversion*: the contour-to-segment conversion is `VectorContour.segments` in
+WTModel rather than a WTGeometry function (WTGeometry has no type with point ids), and
+`DocumentDisplayListBuilder.display(_:include:)` turns the renderable contours into a
+`DisplayPath`, recording which point each element ends at so REND-003's hits on points, handles and
+segments map back to element ids.  Fills of a path with open contours that does not show them
+(`fill_when_open` false) are drawn over its closed contours only: the node's item becomes a group of
+one item per attribute, keeping the stack's order.  *Appearance*: only basic fills and basic strokes
+with inline colours (or a swatch's cached colour; CMYK and Lab converted naively) resolve until the
+attribute-stack epic; other kinds are skipped.  *Glyphs*: drawn by WTApp's `SelectionOverlay` in the
+canvas overlay (not by WTRender): squares, and for *selected* curve and connector points circles and
+triangles; *Smaller handles* halves them; with *Show solid points* unselected points are filled and
+selected ones hollow, without it the reverse; selected points show their handles as 1 px lines
+ending in a 2 pt circle.  Remote selections still draw as outlined rectangles with name tags, not
+glyphs.  *Object panel*: the path and point sections are SwiftUI views in the Object panel's body
+(`WTApp/Panels/ObjectPanel.swift`) until APP-007's inspector registry exists; an edit applied to
+several selected paths is one change (`CommandBatch`).  *Not done here*: the conformance vectors
+under `crdt-conformance/path/` (another track's directory), the path golden corpus renders, and the
+UI tests toggling the glyph preferences.  The merge cases run as WTModel unit tests through two
+in-process replicas (`PathMergeTests.swift`); point, handle and segment hits at the pick distance
+are WTApp unit tests at 100% and 1600% (`SelectionTests.swift`).
+
 === Build tasks
 
 [[DRAW-001]]

@@ -45,7 +45,7 @@ import WTRender
 
 @Suite @MainActor struct DocumentWindowTests {
     private func window(_ environment: TestEnvironment, title: String = "Doc", id: String = UUID().uuidString) -> DocumentWindowController {
-        DocumentWindowController(document: .placeholder(id: id, title: title), environment: environment.document)
+        DocumentWindowController(document: .memory(id: id, title: title), environment: environment.document)
     }
 
     @Test func opensFittedToThePageWithRulersCanvasStatusBarAndDock() {
@@ -251,7 +251,7 @@ import WTRender
 @Suite @MainActor struct CanvasViewTests {
     private func canvas() -> (CanvasView, ToolManager) {
         let environment = TestEnvironment()
-        let canvas = CanvasView(document: .placeholder(title: "Canvas"), frame: NSRect(x: 0, y: 0, width: 400, height: 300))
+        let canvas = CanvasView(document: .memory(title: "Canvas"), frame: NSRect(x: 0, y: 0, width: 400, height: 300))
         let manager = ToolManager(registry: environment.tools, context: ToolContext(document: canvas.document, host: canvas))
         canvas.toolManager = manager
         canvas.setViewport(Viewport(scrollOrigin: Point(x: 7000, y: 7000), zoom: 1, size: Size(width: 400, height: 300)))
@@ -290,7 +290,7 @@ import WTRender
         #expect(canvas.acceptsFirstMouse(for: nil))
     }
 
-    @Test func pointerAndKeyEventsReachTheToolManager() throws {
+    @Test func pointerAndKeyEventsReachTheToolManager() async throws {
         let (canvas, manager) = canvas()
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 400, height: 300), styleMask: [.titled], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
@@ -308,10 +308,11 @@ import WTRender
         let flags = NSEvent.keyEvent(with: .flagsChanged, location: .zero, modifierFlags: .shift, timestamp: 1, windowNumber: window.windowNumber, context: nil, characters: "", charactersIgnoringModifiers: "", isARepeat: false, keyCode: 56)!
         canvas.flagsChanged(with: flags)
         canvas.mouseUp(with: mouse(.leftMouseUp, 60, 240, flags: .shift))
-        let content = try #require(canvas.document.commandSink as? PlaceholderDocumentContent)
-        #expect(content.edits.count == 1)
-        let rect = try #require(content.edits.first?.dirtyRect)
-        #expect(abs(rect.width - rect.height) < 1.5, "Shift made it square")
+        await canvas.document.settle()
+        let id = try #require(canvas.document.selectableIDs().first)
+        let size = canvas.document.state.props(id.opID).rect.size
+        #expect(canvas.document.selectableIDs().count == 1)
+        #expect(abs(size.width - size.height) < 1e-9, "Shift made it square")
 
         canvas.keyDown(with: TestEvents.space)
         #expect(manager.activeToolID == .hand)
@@ -374,7 +375,7 @@ import WTRender
     @Test func viewCommandsActOnTheTargetWindow() {
         let environment = TestEnvironment()
         StandardCommands.register(into: environment.commands)
-        let window = DocumentWindowController(document: .placeholder(title: "Commands"), environment: environment.document)
+        let window = DocumentWindowController(document: .memory(title: "Commands"), environment: environment.document)
         defer { window.close() }
         let target = TargetBox()
         let created = CommandState()
@@ -440,28 +441,27 @@ final class TargetBox {
 }
 
 @Suite @MainActor struct DocumentContentTests {
-    @Test func placeholderContentAppendsEditsAndNotifies() {
-        let content = PlaceholderDocumentContent.blank(canvas: "c")
-        #expect(content.items.count == 1, "every page is in one group")
-        let document = DocumentHandle.placeholder(title: "T", content: content)
-        var seen: [Rect?] = []
+    @Test func aMemoryDocumentDrawsItsChangesAndNotifies() async throws {
+        let document = DocumentHandle.memory(title: "T")
+        #expect(document.displayList.count == 1, "every page is in one group")
+        var seen: [ContentChange] = []
         let token = document.observe { seen.append($0) }
-        let items = RectangleSketchTool.items(for: Rect(x: 0, y: 0, width: 5, height: 5))
-        document.commandSink.submit(DocumentEdit(label: "Rectangle", insertedItems: items))
-        #expect(content.edits.count == 1)
-        #expect(document.displayList.count == 2, "the pages group plus the rectangle's one path")
+        let ids = await document.addRectangles([Rect(x: 0, y: 0, width: 5, height: 5)])
+        #expect(document.displayList.count == 2, "the pages group plus the rectangle")
+        #expect(document.displayList.nodeIDs.last == ids.first?.node)
         #expect(seen.count == 1)
+        #expect(seen[0].summary.touchedNodes.contains(try #require(ids.first).node))
+        #expect(seen[0].summary.isStructural)
+        #expect(seen[0].before.count == 1 && seen[0].after.count == 2)
+        #expect(document.changeCount == 1)
         document.stopObserving(token)
-        document.contentDidChange(dirty: nil)
+        _ = await document.undo().value
         #expect(seen.count == 1)
+        #expect(document.displayList.count == 1)
         #expect(document.allPagesBounds == Pasteboard.letterPage)
         #expect(document.currentPage == Pasteboard.letterPage)
-        #expect(DocumentEdit(label: "Empty", insertedItems: []).dirtyRect == nil)
         #expect(Pasteboard.side == 15_984)
         #expect(Pasteboard.letterPage.center.isApproximatelyEqual(to: Pasteboard.bounds.center))
-        let detached = PlaceholderDocumentContent(canvas: "d", items: [])
-        detached.submit(DocumentEdit(label: "Nothing", insertedItems: []))
-        #expect(detached.edits.count == 1)
     }
 
     @Test func geometryBridgesToCoreGraphics() {

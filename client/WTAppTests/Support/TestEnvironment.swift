@@ -1,6 +1,8 @@
 import AppKit
 import Foundation
 import WTGeometry
+import WTModel
+import WTProto
 import WTRender
 @testable import WireTuner
 
@@ -85,11 +87,16 @@ final class RecordingHost: CanvasHost {
     func showStatusMessage(_ message: String) { messages.append(message) }
 }
 
-/// A command sink that records edits.
+/// A command sink that records commands and performs nothing.
 @MainActor
 final class RecordingSink: CommandSink {
-    private(set) var edits: [DocumentEdit] = []
-    func submit(_ edit: DocumentEdit) { edits.append(edit) }
+    private(set) var commands: [any WTModel.Command] = []
+
+    @discardableResult
+    func perform(_ command: any WTModel.Command) -> Task<Wiretuner_Doc_V1_Change?, Never> {
+        commands.append(command)
+        return Task { nil }
+    }
 }
 
 /// A tool that records every call.

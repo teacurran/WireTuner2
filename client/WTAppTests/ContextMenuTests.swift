@@ -169,16 +169,16 @@ import WTRender
         for kind in ContextObjectKind.allCases { #expect(kind.context.rawValue == kind.rawValue) }
     }
 
-    @Test func controlClickingSelectsAnUnselectedObjectFirstAndLeavesThePasteboardAlone() throws {
+    @Test func controlClickingSelectsAnUnselectedObjectFirstAndLeavesThePasteboardAlone() async throws {
         let environment = TestEnvironment()
         StandardCommands.register(into: environment.commands)
         PanelCommands.sync(into: environment.commands, panels: environment.panels, layout: environment.layout)
-        let controller = DocumentWindowController(document: .placeholder(title: "Context"), environment: environment.document)
+        let controller = DocumentWindowController(document: .memory(title: "Context"), environment: environment.document)
         defer { controller.close() }
         let document = controller.documentHandle
         let a = Rect(x: 7500, y: 7500, width: 40, height: 40)
         let b = Rect(x: 7600, y: 7500, width: 40, height: 40)
-        document.commandSink.submit(DocumentEdit(label: "R", insertedItems: RectangleSketchTool.items(for: a) + RectangleSketchTool.items(for: b)))
+        await document.addRectangles([a, b])
         controller.canvas.setViewport(controller.viewport.scrolled(byViewDelta: controller.viewport.toView(a.center) - controller.viewport.viewCenter))
         let viewport = controller.viewport
         // An unselected object: selected first, the menu is for it alone.

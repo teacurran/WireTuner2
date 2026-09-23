@@ -106,14 +106,9 @@ struct Selection: Equatable, Sendable {
         return result
     }
 
-    /// The selection after the top-level items at `removed` were deleted: objects in them
-    /// leave, the rest keep being selected at their new index paths.
-    func removingItems(at removed: IndexSet) -> Selection {
-        remapped({ $0.shifted(afterRemoving: removed) }, sub: { $0.shifted(afterRemoving: removed) })
-    }
-
-    /// Only the objects for which `isValid` holds (an object that vanished is dropped).
-    func filtered(_ isValid: (SelectionID) -> Bool) -> Selection {
-        remapped { isValid($0) ? $0 : nil }
+    /// Only the objects for which `isValid` holds (an object that vanished is dropped), and in
+    /// the sub-selections only the points and segments `sub` keeps.
+    func filtered(_ isValid: (SelectionID) -> Bool, sub: (SubSelection) -> SubSelection = { $0 }) -> Selection {
+        remapped({ isValid($0) ? $0 : nil }, sub: sub)
     }
 }

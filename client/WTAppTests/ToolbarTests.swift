@@ -278,7 +278,7 @@ final class FakeDraggingInfo: NSObject, @preconcurrency NSDraggingInfo {
     @Test func infoReadoutsFromTheStubTools() {
         let environment = TestEnvironment()
         let host = RecordingHost()
-        let manager = ToolManager(registry: environment.tools, context: ToolContext(document: .placeholder(title: "Info"), host: host), initialTool: .pointer)
+        let manager = ToolManager(registry: environment.tools, context: ToolContext(document: .memory(title: "Info"), host: host), initialTool: .pointer)
         let fixture = ToolbarFixture()
         fixture.controller.attach(infoSource: manager)
 
@@ -301,7 +301,7 @@ final class FakeDraggingInfo: NSObject, @preconcurrency NSDraggingInfo {
         #expect(fixture.controller.info.info.sides == 5)
         #expect(fixture.controller.info.info.delta == Vector(dx: 3, dy: 4))
         // Any other stub: the delta.
-        manager.select("pen")
+        manager.select("bezigon")
         manager.mouseDown(TestEvents.point(1, 1))
         manager.mouseDragged(TestEvents.point(2, 3))
         #expect(fixture.controller.info.info.delta == Vector(dx: 1, dy: 2) && fixture.controller.info.info.sides == nil)

@@ -2,6 +2,8 @@ import AppKit
 import QuartzCore
 import Testing
 import WTGeometry
+import WTModel
+import WTProto
 import WTRender
 @testable import WireTuner
 
@@ -13,11 +15,11 @@ import WTRender
 
     /// A canvas scrolled to the pasteboard origin at 100%, with a 20-point red square at
     /// pasteboard (0, 0).
-    private func makeCanvas(size: CGSize = CGSize(width: 200, height: 120)) -> CanvasView {
-        let content = PlaceholderDocumentContent(canvas: "orientation", items: [
-            .fill(FillItem(path: DisplayPath(rect: Rect(x: 0, y: 0, width: 20, height: 20)), paint: .solid(Self.red))),
-        ])
-        let document = DocumentHandle.placeholder(title: "Orientation", content: content)
+    private func makeCanvas(size: CGSize = CGSize(width: 200, height: 120)) async -> CanvasView {
+        let document = DocumentHandle.memory(title: "Orientation")
+        var appearance = Wiretuner_Doc_V1_AppearanceProps()
+        appearance.fills = [Appearances.basicFill(red: 1, green: 0, blue: 0)]
+        _ = await document.perform(CreateShape(.rectangle(CornerRadii()), size: Size(width: 20, height: 20), appearance: appearance)).value
         let canvas = CanvasView(document: document, frame: NSRect(origin: .zero, size: size))
         canvas.setViewport(Viewport(scrollOrigin: .zero, zoom: 1, size: Size(size)))
         return canvas
@@ -35,7 +37,7 @@ import WTRender
     private func isRed(_ pixel: RGBA8) -> Bool { pixel.red > 200 && pixel.green < 60 && pixel.blue < 60 && pixel.alpha > 200 }
 
     @Test func pasteboardOriginAppearsAtTheTopLeft() async {
-        let canvas = makeCanvas()
+        let canvas = await makeCanvas()
         #expect(!canvas.isFlipped)
         #expect(canvas.layer?.isGeometryFlipped == false)
         #expect(canvas.tiles.layer.isGeometryFlipped == false)
@@ -54,7 +56,7 @@ import WTRender
     }
 
     @Test func scrollingMovesTheSquareUpAndLeft() async {
-        let canvas = makeCanvas()
+        let canvas = await makeCanvas()
         canvas.setViewport(canvas.viewport.scrolled(byViewDelta: Vector(dx: 10, dy: 10)))
         await canvas.tiles.settle()
         let image = snapshot(canvas)
@@ -64,7 +66,7 @@ import WTRender
     }
 
     @Test func theOverlayDrawsInYDownViewPoints() async {
-        let canvas = makeCanvas()
+        let canvas = await makeCanvas()
         let environment = TestEnvironment()
         let tool = OverlayProbeTool()
         environment.tools.replace(ToolDescriptor(id: OverlayProbeTool.id, title: "Probe", symbolName: "circle", helpSlug: "probe") { tool })

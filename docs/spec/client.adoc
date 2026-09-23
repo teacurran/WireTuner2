@@ -441,17 +441,17 @@ current `EngineState`; `Document.perform` has the backend number the change, app
 `UndoCoalescing.typing` commands join one entry until a keystroke ends a word or a pause of 1 s.
 An undo or redo emits `EngineState.undoChange` of the top entry (labelled `Undo <label>` or
 `Redo <label>`) and moves the entry even when nothing was left to change.  Deviation: after
-every undo and redo the rest of the stack is *rebased* (`UndoRebase.swift`).  The engine restores
-a target only where it still holds the exact OpId the inverse recorded, and an undo is itself a
-new write, so without the rebase a second consecutive undo of the same register (or placement,
-flag, element, member, or of typing after its deletion was undone) would be skipped as if someone
-else had written it.  The rebase makes each step name the reversal's write where the reversal
-restored that step's value, counts an un-deletion by the reversal as the creating step's own,
-adds a re-added member's tag to the steps that added it, and maps re-inserted characters to the
-originals in the steps that typed them.  WTCRDT gives `Inverse` (and `MemberField`,
-`DeletedChar`, `ParagraphRegister`, `PriorFormat`) no public initialiser, so `WTModel` assembles
-them from their public fields (`InverseAssembly.swift`, checked field for field against recorded
-values) to join a group's inverses and to read the persisted stack back.
+every undo and redo the rest of the stack is *rebased* (`UndoRebase.swift`), now only for text:
+since CRDT-010 the engine undoes a step wherever no *other* replica has written its target since,
+so consecutive undos of one register, placement, flag, element or member need no bookkeeping, but
+an undone text deletion re-inserts its characters as new characters, and the rebase maps them to
+the originals in the steps that typed them.  Groups join inverses with WTCRDT's
+`Inverse.followed(by:)`; `InverseCompatibility.swift` keeps `assembled(...)` forwarding shims to
+WTCRDT's public initialisers only until WTSync's `InverseCodec` calls them directly.
+`DocumentCore.horizon` (advanced with `advanceHorizon(to:)` when the server publishes a stable
+point; not persisted) keeps undo from offering the re-insertion of deleted characters whose
+tombstones are stable at the horizon or already collected (crdt-model.adoc, "Stable points,
+horizons and collection points").
 
 == Help
 

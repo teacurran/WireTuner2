@@ -1,5 +1,7 @@
 // swift-tools-version: 6.0
-// WTModel: see docs/spec/client.adoc, "Packages".  Dependencies point strictly downward in that table.
+// WTModel: see docs/spec/client.adoc, "Packages".  Dependencies point strictly downward in that table,
+// except that WTModel builds WTRender's display list and change summaries, so it depends on WTRender
+// (and WTGeometry below it); neither of those imports WTModel (client.adoc, "Packages", deviation).
 import PackageDescription
 
 let package = Package(
@@ -11,6 +13,8 @@ let package = Package(
     dependencies: [
         .package(path: "../WTCRDT"),
         .package(path: "../WTProto"),
+        .package(path: "../WTGeometry"),
+        .package(path: "../WTRender"),
     ],
     targets: [
         .target(
@@ -18,6 +22,8 @@ let package = Package(
             dependencies: [
                 .product(name: "WTCRDT", package: "WTCRDT"),
                 .product(name: "WTProto", package: "WTProto"),
+                .product(name: "WTGeometry", package: "WTGeometry"),
+                .product(name: "WTRender", package: "WTRender"),
             ]
         ),
         .testTarget(
@@ -26,6 +32,8 @@ let package = Package(
                 "WTModel",
                 .product(name: "WTCRDT", package: "WTCRDT"),
                 .product(name: "WTProto", package: "WTProto"),
+                .product(name: "WTGeometry", package: "WTGeometry"),
+                .product(name: "WTRender", package: "WTRender"),
             ]
         ),
     ],

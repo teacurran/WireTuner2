@@ -87,6 +87,7 @@ final class ToolManager {
     /// The pointer moved with no button down: the Info toolbar follows it.
     func pointerMoved(_ event: CanvasEvent) {
         publishInfo(event)
+        (activeTool as? any PointerTracking)?.pointerMoved(event)
     }
 
     private func publishInfo(_ event: CanvasEvent) {
@@ -139,6 +140,11 @@ final class ToolManager {
     @discardableResult
     func keyDown(_ event: NSEvent) -> Bool {
         if event.keyCode == CanvasEventTranslator.spaceKeyCode {
+            if let tool = activeTool as? any SpaceDragging, tool.isDragging {
+                if !event.isARepeat { tool.spaceChanged(down: true) }
+                context.host.setNeedsOverlayDisplay()
+                return true
+            }
             if !event.isARepeat { perform(machine.spaceChanged(down: true)) }
             return true
         }
@@ -159,6 +165,11 @@ final class ToolManager {
     @discardableResult
     func keyUp(_ event: NSEvent) -> Bool {
         guard event.keyCode == CanvasEventTranslator.spaceKeyCode else { return false }
+        if let tool = activeTool as? any SpaceDragging, tool.isDragging {
+            tool.spaceChanged(down: false)
+            context.host.setNeedsOverlayDisplay()
+            return true
+        }
         perform(machine.spaceChanged(down: false))
         return true
     }

@@ -13,7 +13,7 @@ import WTRender
     static let frameBudget = 1.0 / 120
 
     @Test func theFallbackCanvasDrawsWithCoreGraphics() {
-        let canvas = CanvasView(document: .placeholder(title: "CG"), tiles: CanvasView.makeFallbackTiles())
+        let canvas = CanvasView(document: .memory(title: "CG"), tiles: CanvasView.makeFallbackTiles())
         guard case .coreGraphics = canvas.backend else { Issue.record("expected the fallback"); return }
         #expect(canvas.measureFrame() == nil)
         #expect(canvas.tiles.fallbackCanvas != nil)
@@ -26,7 +26,7 @@ import WTRender
 
     @Test(.enabled(if: CanvasMetalTests.hasMetal, "needs an Apple-family GPU"))
     func theMetalCanvasRunsItsDisplayLinkOnlyInAWindow() throws {
-        let canvas = CanvasView(document: .placeholder(title: "Metal"), tiles: CanvasView.makeTiles(), frame: NSRect(x: 0, y: 0, width: 400, height: 300))
+        let canvas = CanvasView(document: .memory(title: "Metal"), tiles: CanvasView.makeTiles(), frame: NSRect(x: 0, y: 0, width: 400, height: 300))
         #expect(canvas.backend == .metal)
         #expect(!canvas.tiles.isDisplayLinkRunning)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 400, height: 300), styleMask: [.titled], backing: .buffered, defer: false)
@@ -84,7 +84,7 @@ import WTRender
 @Suite(.serialized) @MainActor struct CanvasGestureEventTests {
     @Test func pointerMovesReachTheCanvas() throws {
         let environment = TestEnvironment()
-        let controller = DocumentWindowController(document: .placeholder(title: "Gestures"), environment: environment.document)
+        let controller = DocumentWindowController(document: .memory(title: "Gestures"), environment: environment.document)
         defer { controller.close() }
         let canvas = controller.canvas
         let before = canvas.viewport

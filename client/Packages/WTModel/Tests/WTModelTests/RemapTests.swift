@@ -11,27 +11,12 @@ import WTProto
     @Test func reinsertedCharactersWithoutATextMapToNothing() {
         #expect(Remap.originals(of: [Self.id(1)], in: nil).isEmpty)
         #expect(Remap.originals(of: [], in: TextSequence()).isEmpty)
-        let remap = Remap(reverted: .assembled([]), reversal: .assembled([.textInserted(node: Self.id(1), text: Fixture.text, chars: [Self.id(9)])]),
+        let remap = Remap(reversal: Inverse(steps: [.textInserted(node: Self.id(1), text: Fixture.text, chars: [Self.id(9)])]),
                           state: EngineState())
         #expect(remap.isEmpty)
-    }
-
-    @Test func stepsOfOtherTargetsAreLeftAlone() {
-        let node = Self.id(1)
-        let remap = Remap(
-            reverted: .assembled([.register(node: node, path: Fixture.name, prior: Register(value: [1], op: Self.id(2)), wrote: Self.id(3))]),
-            reversal: .assembled([.register(node: node, path: Fixture.name, prior: Register(value: [2], op: Self.id(3)), wrote: Self.id(4))]),
-            state: EngineState())
-        #expect(!remap.isEmpty)
-        let other = Inverse.assembled([
-            .textInserted(node: node, text: Fixture.text, chars: [Self.id(5)]),
-            .register(node: node, path: Fixture.name, prior: nil, wrote: Self.id(2)),
-            .register(node: node, path: Fixture.note, prior: nil, wrote: Self.id(2)),
-            .created(node: Self.id(8)),
-        ])
-        let rebased = remap.apply(to: other)
-        #expect(rebased.steps[0] == other.steps[0] && rebased.steps[2] == other.steps[2] && rebased.steps[3] == other.steps[3])
-        #expect(rebased.steps[1] == .register(node: node, path: Fixture.name, prior: nil, wrote: Self.id(4)))
+        // Steps other than typing, and typing into a field the reversal did not touch, stay as they are.
+        let steps: [Inverse.Step] = [.created(node: Self.id(8)), .textInserted(node: Self.id(1), text: Fixture.text, chars: [Self.id(5)])]
+        #expect(remap.apply(to: Inverse(steps: steps)).steps == steps)
     }
 
     struct Plain: Command {

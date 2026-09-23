@@ -26,7 +26,7 @@ import WTProto
 
     @Test func anEmptyInverseRecordsNothing() {
         let stack = UndoStack()
-        #expect(stack.recording(.assembled([]), label: "x", key: nil, stillOpen: true, now: Self.t0, limit: 5) == nil)
+        #expect(stack.recording(Inverse(steps: []), label: "x", key: nil, stillOpen: true, now: Self.t0, limit: 5) == nil)
     }
 
     @Test func aNewStepClearsRedoAndClosesTheStepBelow() {

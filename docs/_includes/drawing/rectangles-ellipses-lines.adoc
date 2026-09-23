@@ -225,6 +225,20 @@ live Corners effect they drive that effect's `radius` instead (FX-047), and the 
 Undo:: One group per drag; one per Object panel field commit; Ungroup is one group labelled
 "Convert to path".
 
+NOTE: As built by DRAW-007 and DRAW-008 (deviations).  The tools (`WTApp/Tools/ShapeTools.swift`)
+follow client.adoc's "preview during a drag and emit exactly one change on mouse-up": the shape is
+previewed in the overlay and created by one `CreateShape` (or `CreatePath.line`) on mouse-up, then
+selected; a drag under 1 pt creates nothing, so nothing reaches the outbox without creating and
+undoing a node.  kbd:[Space] mid-drag is routed to the tool instead of the temporary Hand
+(`SpaceDragging`).  The constrain angle is read from the *Constrain angle* preference (Object) until
+the document setting exists.  The default attributes are the built-in 1 pt black stroke and no fill
+until they are read from the settings node (default-attributes.adoc).  The three tools keep the Tools panel slots toolbars.adoc gives
+them (Line on its own, Rectangle with Polygon, Ellipse with Spiral and Arc).  `rectPath` and
+`ellipsePath` are `WTModel.ShapeGeometry` functions returning a `VectorPath` (a rounded corner
+becomes two corner points joined by a quarter-circle cubic, kappa 0.5522847498), not WTGeometry's.
+A live Corners effect does not override the radius yet.  The UI tests of each modifier combination
+are unit tests of the tools (`WTAppTests/ShapeToolTests.swift`); XCUITest was not run.
+
 === Build tasks
 
 [[DRAW-006]]

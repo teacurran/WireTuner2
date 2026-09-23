@@ -1,69 +1,59 @@
 import Foundation
+import WTCRDT
+import WTModel
+import WTRender
 
-/// Names one selected object.  Today objects are addressed by their display-list index path
-/// (REND-003's hit results carry nothing else); when `WTModel` gives display items node ids
-/// the `Key` gains `.node(OpId)`, `SelectionModel` and every caller keep working unchanged,
-/// and `shifted(afterRemoving:)` becomes the identity (a node id does not move when its
-/// neighbours are deleted).
+/// Names one selected object: its node id (the `OpId` of the `CreateNode` that made it), so a
+/// selection survives other objects being added, deleted or restacked (selecting.adoc, "Merge
+/// semantics").
 struct SelectionID: Hashable, Sendable, Comparable, CustomStringConvertible {
-    enum Key: Hashable, Sendable {
-        /// `DisplayList.items` then `GroupItem.children` downward.
-        case indexPath([Int])
-    }
+    let node: NodeID
 
-    let key: Key
+    init(_ node: NodeID) { self.node = node }
 
-    init(_ key: Key) { self.key = key }
+    init(_ node: OpID) { self.node = NodeID(node) }
 
-    /// The object at `path` in the display list.
-    static func item(_ path: [Int]) -> SelectionID { SelectionID(.indexPath(path)) }
+    /// The merge-engine id.
+    var opID: OpID { OpID(node) }
 
-    /// The display-list index path, while ids are index paths.
-    var indexPath: [Int] {
-        switch key {
-        case let .indexPath(path): path
-        }
-    }
-
-    /// The top-level display item the object is, or is inside.
-    var topLevelIndex: Int? { indexPath.first }
-
-    /// The id after the top-level items at `removed` left the list: nil when the object was
-    /// one of them (or inside one), otherwise the same object at its shifted index.
-    func shifted(afterRemoving removed: IndexSet) -> SelectionID? {
-        guard let top = topLevelIndex else { return nil }
-        guard !removed.contains(top) else { return nil }
-        let shift = removed.count(in: 0..<top)
-        guard shift > 0 else { return self }
-        return .item([top - shift] + indexPath.dropFirst())
-    }
-
-    /// Draw order: an index path sorts before the paths below it and after the ones above.
+    /// A stable order (by node id), for sets rendered in a fixed order.
     static func < (lhs: SelectionID, rhs: SelectionID) -> Bool {
-        lhs.indexPath.lexicographicallyPrecedes(rhs.indexPath)
+        lhs.node < rhs.node
     }
 
-    var description: String { indexPath.map(String.init).joined(separator: ".") }
+    var description: String { node.description }
 }
 
-/// An anchor of a selected path: the primitive (index path) and the element ending there.
+/// An anchor of a selected path: the object, its contour and the point element (a derived shape
+/// point's id is synthetic, `ShapeGeometry`).
 struct PointReference: Hashable, Sendable, Comparable {
-    let leafPath: [Int]
-    let element: Int
+    let node: NodeID
+    let contour: OpID
+    let point: OpID
+
+    init(node: NodeID, contour: OpID, point: OpID) {
+        self.node = node
+        self.contour = contour
+        self.point = point
+    }
+
+    init(node: NodeID, _ ref: PointRef) {
+        self.init(node: node, contour: ref.contour, point: ref.point)
+    }
 
     static func < (lhs: PointReference, rhs: PointReference) -> Bool {
-        lhs.leafPath == rhs.leafPath ? lhs.element < rhs.element : lhs.leafPath.lexicographicallyPrecedes(rhs.leafPath)
+        (lhs.node, lhs.contour, lhs.point) < (rhs.node, rhs.contour, rhs.point)
     }
 }
 
-/// A segment of a selected path: primitive, contour and the segment within the contour.
+/// A segment of a selected path: the object, its contour and the drawn point the segment starts at.
 struct SegmentReference: Hashable, Sendable, Comparable {
-    let leafPath: [Int]
-    let contour: Int
-    let segment: Int
+    let node: NodeID
+    let contour: OpID
+    let from: OpID
 
     static func < (lhs: SegmentReference, rhs: SegmentReference) -> Bool {
-        lhs.leafPath == rhs.leafPath ? (lhs.contour, lhs.segment) < (rhs.contour, rhs.segment) : lhs.leafPath.lexicographicallyPrecedes(rhs.leafPath)
+        (lhs.node, lhs.contour, lhs.from) < (rhs.node, rhs.contour, rhs.from)
     }
 }
 
@@ -72,7 +62,7 @@ struct SegmentReference: Hashable, Sendable, Comparable {
 enum SubSelection: Hashable, Sendable {
     case points(Set<PointReference>)
     case segments(Set<SegmentReference>)
-    /// Character offsets; `TXT-001` replaces them with character ids.
+    /// Character offsets; the text epic replaces them with character ids.
     case textRange(Range<Int>)
 
     var isEmpty: Bool {
@@ -103,19 +93,12 @@ enum SubSelection: Hashable, Sendable {
         }
     }
 
-    /// The sub-selection with every reference under the top-level items at `removed` dropped
-    /// and the rest shifted, as `SelectionID.shifted(afterRemoving:)` does for objects.
-    func shifted(afterRemoving removed: IndexSet) -> SubSelection {
-        func shift(_ path: [Int]) -> [Int]? { SelectionID.item(path).shifted(afterRemoving: removed)?.indexPath }
+    /// Only the points and segments `isLive` accepts (a point deleted by someone else leaves).
+    func filtered(points isLive: (PointReference) -> Bool, segments isLiveSegment: (SegmentReference) -> Bool) -> SubSelection {
         switch self {
-        case let .points(points):
-            return .points(Set(points.compactMap { point in shift(point.leafPath).map { PointReference(leafPath: $0, element: point.element) } }))
-        case let .segments(segments):
-            return .segments(Set(segments.compactMap { segment in
-                shift(segment.leafPath).map { SegmentReference(leafPath: $0, contour: segment.contour, segment: segment.segment) }
-            }))
-        case .textRange:
-            return self
+        case let .points(points): .points(points.filter(isLive))
+        case let .segments(segments): .segments(segments.filter(isLiveSegment))
+        case .textRange: self
         }
     }
 }

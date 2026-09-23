@@ -10,7 +10,7 @@ import WTRender
 /// writes a change.
 @Suite(.serialized) @MainActor struct ZoomCommandTests {
     private func window(_ environment: TestEnvironment) -> DocumentWindowController {
-        let controller = DocumentWindowController(document: .placeholder(title: "Zoom"), environment: environment.document)
+        let controller = DocumentWindowController(document: .memory(title: "Zoom"), environment: environment.document)
         ViewCommands.install(into: environment.commands, target: { controller }, newDocument: {})
         return controller
     }
@@ -89,7 +89,7 @@ import WTRender
     @Test func aShiftDragOpensTheNewViewSheet() throws {
         let host = RecordingHost(viewport: CanvasNavigation().clamped(Viewport(scrollOrigin: Point(x: 7000, y: 7000), size: Size(width: 400, height: 300))))
         let tool = ZoomTool()
-        let document = DocumentHandle.placeholder(title: "Zoom")
+        let document = DocumentHandle.memory(title: "Zoom")
         tool.activate(in: ToolContext(document: document, host: host))
         tool.mouseDown(TestEvents.point(10, 10))
         tool.mouseDragged(TestEvents.point(110, 85))
@@ -122,7 +122,7 @@ import WTRender
 
     @Test func dragsAtTheEdgeScrollTheView() {
         let environment = TestEnvironment()
-        let canvas = CanvasView(document: .placeholder(title: "Scroll"), frame: NSRect(x: 0, y: 0, width: 400, height: 300))
+        let canvas = CanvasView(document: .memory(title: "Scroll"), frame: NSRect(x: 0, y: 0, width: 400, height: 300))
         let manager = ToolManager(registry: environment.tools, context: ToolContext(document: canvas.document, host: canvas))
         canvas.toolManager = manager
         canvas.setViewport(Viewport(scrollOrigin: Point(x: 7000, y: 7000), zoom: 1, size: Size(width: 400, height: 300)))
@@ -153,7 +153,7 @@ import WTRender
 @Suite(.serialized) @MainActor struct DrawingModeTests {
     @Test func keylineFromFastKeylineYieldsFastPreviewAndCheckMarksFollow() {
         let environment = TestEnvironment()
-        let controller = DocumentWindowController(document: .placeholder(title: "Modes"), environment: environment.document)
+        let controller = DocumentWindowController(document: .memory(title: "Modes"), environment: environment.document)
         defer { controller.close() }
         ViewCommands.install(into: environment.commands, target: { controller }, newDocument: {})
         let registry = environment.commands
@@ -198,7 +198,7 @@ import WTRender
         #expect(settings.imageDisplay == .gray && settings.rasterEffectPreview == "draft")
         #expect(RedrawSettings.isRedrawPreference(keys.previewDrag.id))
         #expect(!RedrawSettings.isRedrawPreference(PreferenceCatalog.General.pickDistance.id))
-        let controller = DocumentWindowController(document: .placeholder(title: "Redraw"), environment: environment.document)
+        let controller = DocumentWindowController(document: .memory(title: "Redraw"), environment: environment.document)
         defer { controller.close() }
         #expect(controller.redraw == settings)
         #expect(controller.toolManager.context.redraw() == settings)
@@ -210,12 +210,12 @@ import WTRender
 
 /// BASIC-016: several views of one document, and the primary view's state.
 @Suite(.serialized) @MainActor struct MultipleViewTests {
-    @Test func eightViewsOpenTheNinthBeepsAndEditsReachEveryView() throws {
+    @Test func eightViewsOpenTheNinthBeepsAndEditsReachEveryView() async throws {
         let environment = TestEnvironment()
         let documents = DocumentController(environment: environment.document)
         let beeps = SnapSoundTests.Speaker()
         documents.beep = { beeps.played.append("beep") }
-        let first = documents.open(.placeholder(id: "multi", title: "Multi"), show: false)
+        let first = documents.open(.memory(id: "multi", title: "Multi"), show: false)
         ViewCommands.install(into: environment.commands, target: { documents.activeWindowController }, hooks: ViewCommands.Hooks(documents: documents))
         first.setViewMode(.keyline)
         for _ in 1..<DocumentController.maximumViews {
@@ -232,7 +232,7 @@ import WTRender
         #expect(documents.documents.count == 1)
 
         // An edit in one view appears in all of them.
-        first.documentHandle.commandSink.submit(DocumentEdit(label: "R", insertedItems: RectangleSketchTool.items(for: Rect(x: 7000, y: 7000, width: 10, height: 10))))
+        await first.documentHandle.addRectangles([Rect(x: 7000, y: 7000, width: 10, height: 10)])
         for view in views { #expect(view.canvas.tiles.displayList == first.documentHandle.displayList) }
 
         // Closing the primary view promotes the next one.
@@ -252,14 +252,14 @@ import WTRender
     @Test func newWindowCommandOpensAnotherView() {
         let environment = TestEnvironment()
         let documents = DocumentController(environment: environment.document)
-        let first = documents.open(.placeholder(id: "cmd", title: "Cmd"), show: false)
+        let first = documents.open(.memory(id: "cmd", title: "Cmd"), show: false)
         defer { documents.close("cmd") }
         ViewCommands.install(into: environment.commands, target: { first }, hooks: ViewCommands.Hooks(documents: documents))
         #expect(environment.commands.validate(StandardCommands.ID.newWindow)?.isEnabled == true)
         #expect(environment.commands.perform(StandardCommands.ID.newWindow))
         #expect(documents.views(of: "cmd").count == 2)
         #expect(!documents.views(of: "cmd")[1].isPrimaryView)
-        let single = DocumentWindowController(document: .placeholder(title: "Lone"), environment: environment.document)
+        let single = DocumentWindowController(document: .memory(title: "Lone"), environment: environment.document)
         defer { single.close() }
         #expect(single.windowShouldClose(single.window!), "a plain close closes one view")
     }
@@ -268,7 +268,7 @@ import WTRender
         let environment = TestEnvironment()
         let id = UUID().uuidString
         let documents = DocumentController(environment: environment.document)
-        let document = DocumentHandle.placeholder(id: id, title: "Persist")
+        let document = DocumentHandle.memory(id: id, title: "Persist")
         document.addPage()
         let primary = documents.open(document, show: false)
         primary.goToPage(1)
@@ -285,7 +285,7 @@ import WTRender
         documents.close(id)
 
         // Reopened with the preference on: zoom, scroll, mode and current page come back.
-        let reopenedDocument = DocumentHandle.placeholder(id: id, title: "Persist")
+        let reopenedDocument = DocumentHandle.memory(id: id, title: "Persist")
         reopenedDocument.addPage()
         let reopened = DocumentWindowController(document: reopenedDocument, environment: environment.document)
         #expect(reopened.viewport.zoom == 3 && reopened.viewMode == .fastPreview)
@@ -294,14 +294,14 @@ import WTRender
         reopened.close()
 
         // The saved page was deleted meanwhile: the nearest remaining page.
-        let shrunk = DocumentHandle.placeholder(id: id, title: "Persist")
+        let shrunk = DocumentHandle.memory(id: id, title: "Persist")
         let fallback = DocumentWindowController(document: shrunk, environment: environment.document)
         #expect(fallback.documentHandle.currentPageIndex == 0)
         fallback.close()
 
         // With the preference off: Fit to Page on page 1.
         environment.preferences.set(false, for: PreferenceCatalog.Document.restoreView)
-        let fresh = DocumentHandle.placeholder(id: id, title: "Persist")
+        let fresh = DocumentHandle.memory(id: id, title: "Persist")
         fresh.addPage()
         fresh.selectPage(1)
         let unrestored = DocumentWindowController(document: fresh, environment: environment.document)
@@ -354,7 +354,7 @@ import WTRender
 
     @Test func disabledWithAReasonUntilTheExporterExists() throws {
         let environment = TestEnvironment()
-        let controller = DocumentWindowController(document: .placeholder(title: "Web"), environment: environment.document)
+        let controller = DocumentWindowController(document: .memory(title: "Web"), environment: environment.document)
         defer { controller.close() }
         ViewCommands.install(into: environment.commands, target: { controller }, newDocument: {})
         let id = StandardCommands.ID.previewInBrowser
@@ -367,7 +367,7 @@ import WTRender
 
     @Test func exportsIntoTheTemporaryFolderOpensAndCleansUp() throws {
         let environment = TestEnvironment()
-        let controller = DocumentWindowController(document: .placeholder(id: "web", title: "Web"), environment: environment.document)
+        let controller = DocumentWindowController(document: .memory(id: "web", title: "Web"), environment: environment.document)
         defer { controller.close() }
         let exporter = StubExporter()
         let root = TestEnvironment.temporaryDirectory()
@@ -397,7 +397,7 @@ import WTRender
 @Suite(.serialized) @MainActor struct ViewMenuCommandTests {
     @Test func rulersLockAndPageCommands() {
         let environment = TestEnvironment()
-        let controller = DocumentWindowController(document: .placeholder(title: "Menu"), environment: environment.document)
+        let controller = DocumentWindowController(document: .memory(title: "Menu"), environment: environment.document)
         defer { controller.close() }
         ViewCommands.install(into: environment.commands, target: { controller }, newDocument: {})
         let registry = environment.commands
@@ -405,7 +405,7 @@ import WTRender
         #expect(registry.perform(StandardCommands.ID.pageRulers))
         #expect(!controller.pageRulersVisible && registry.validate(StandardCommands.ID.pageRulers)?.isChecked == false)
         #expect(registry.validate(ContextMenuCatalog.ID.lock) == .disabled(ViewCommands.nothingSelected))
-        controller.selection.model.set(Selection([.item([0])]))
+        controller.selection.model.set(Selection([SelectionID(NodeID(counter: 999, replica: 1))]))
         #expect(registry.validate(ContextMenuCatalog.ID.unlock) == .disabled(ViewCommands.lockPending))
         let pages = controller.documentHandle.pages.count
         #expect(registry.perform(ContextMenuCatalog.ID.addPage))
@@ -423,9 +423,9 @@ import WTRender
     @Test func closeOtherTabsClosesTheOtherTabsOfTheWindow() {
         let environment = TestEnvironment()
         let documents = DocumentController(environment: environment.document)
-        let a = documents.open(.placeholder(id: "tab-a", title: "A"))
-        let b = documents.open(.placeholder(id: "tab-b", title: "B"))
-        let c = documents.open(.placeholder(id: "tab-c", title: "C"))
+        let a = documents.open(.memory(id: "tab-a", title: "A"))
+        let b = documents.open(.memory(id: "tab-b", title: "B"))
+        let c = documents.open(.memory(id: "tab-c", title: "C"))
         defer { for id in ["tab-a", "tab-b", "tab-c"] { documents.close(id) } }
         #expect(b.window?.tabbedWindows?.count == 3)
         b.closeOtherTabs()

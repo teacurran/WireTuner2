@@ -56,6 +56,8 @@ final class CanvasView: NSView, CanvasHost {
     var presence: (any PresenceProviding)?
     /// *Show others' selections*.
     var showsRemoteSelections: @MainActor () -> Bool = { true }
+    /// *Smaller handles* and *Show solid points* (the point glyphs).
+    var glyphStyle: @MainActor () -> SelectionOverlay.GlyphStyle = { SelectionOverlay.GlyphStyle() }
     /// *Rotate canvas with trackpad*: gates the two-finger rotate gesture only.
     var rotatesWithTrackpad: @MainActor () -> Bool = { true }
     /// Extra state for UI tests, appended to the accessibility value (the socket audit's
@@ -97,7 +99,8 @@ final class CanvasView: NSView, CanvasHost {
         setAccessibilityIdentifier(Self.accessibilityIdentifier)
         setAccessibilityLabel("Canvas")
 
-        documentObservation = document.observe { [weak self] dirty in self?.documentDidChange(dirty: dirty) }
+        document.invalidation.add(tiles)
+        documentObservation = document.observe { [weak self] _ in self?.documentDidChange() }
         viewport = navigation.clamped(viewport)
         updateAccessibilityValue()
         render()
@@ -184,9 +187,11 @@ final class CanvasView: NSView, CanvasHost {
         return tiles.renderFrame(into: texture)
     }
 
-    private func documentDidChange(dirty: Rect?) {
+    /// The document changed: the tiles were already told through the document's invalidation
+    /// batcher; the overlay (selection, glyphs) and the accessibility value follow.
+    private func documentDidChange() {
         updateAccessibilityValue()
-        render()
+        overlay.setNeedsDisplay()
     }
 
     /// The selection or a collaborator's selection changed.
@@ -280,7 +285,7 @@ final class CanvasView: NSView, CanvasHost {
 
     func drawOverlay(in ctx: CGContext) {
         if let selectionController {
-            SelectionOverlay(document: document, viewport: viewport).draw(
+            SelectionOverlay(document: document, viewport: viewport, glyphs: glyphStyle()).draw(
                 in: ctx, selection: selectionController.selection, participants: presence?.participants ?? [],
                 showsRemote: showsRemoteSelections(), accent: NSColor.controlAccentColor.cgColor
             )

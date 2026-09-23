@@ -1,11 +1,16 @@
 import AppKit
 import CoreText
+import WTCRDT
 import WTGeometry
+import WTModel
 import WTRender
 
 /// Draws the selection into the canvas overlay, under the active tool's own overlay: the
-/// local selection as outlines in the accent colour with its anchors (sub-selected ones
-/// filled), and every collaborator's selection as a 1 px rectangle in their colour, outset
+/// local selection as outlines in the accent colour with its point glyphs (vector-basics.adoc,
+/// "Client", DRAW-003: squares, and for selected curve and connector points circles and
+/// triangles; half size with *Smaller handles*; filled or outlined by *Show solid points*; the
+/// handles of selected points as 1 px lines ending in a small circle), all in screen space so
+/// they keep their size at any zoom, and every collaborator's selection as a 1 px rectangle in their colour, outset
 /// from the object's bounds so it never covers handles, with a name tag at its top-right
 /// corner (selecting.adoc, "Client"; presence.adoc, "Selections and carets").  Several people
 /// on one object get nested rectangles, 2 px apart, their tags stacked upward.  Objects that do
@@ -13,26 +18,62 @@ import WTRender
 /// from the drawing so tests assert on it.
 @MainActor
 struct SelectionOverlay {
-    static let anchorSize = 5.0
+    nonisolated static let anchorSize = 5.0
     static let remoteOutset = 3.0
     static let nestSpacing = 2.0
     static let tagFontSize = 10.0
     static let tagPadding = 3.0
 
+    static let handleEndRadius = 2.0
+
     let document: DocumentHandle
     let viewport: Viewport
+    var glyphs = GlyphStyle()
 
-    /// One locally selected object: its outline in view points and its anchors.
+    /// How point glyphs look (the *Smaller handles* and *Show solid points* preferences).
+    struct GlyphStyle: Equatable, Sendable {
+        var smallerHandles = false
+        var solidPoints = true
+
+        /// The glyph's side (or diameter), view points.
+        var size: Double { smallerHandles ? SelectionOverlay.anchorSize / 2 : SelectionOverlay.anchorSize }
+    }
+
+    /// The shape a point is drawn as.
+    enum GlyphShape: Equatable, Sendable {
+        case square, circle, triangle
+    }
+
+    /// One locally selected object: its outline in view points, its anchors and the handles of
+    /// its selected points.
     struct Outline: Equatable {
         let id: SelectionID
         let path: CGPath
         let anchors: [Anchor]
+        let handles: [Handle]
     }
 
     struct Anchor: Equatable {
         let reference: PointReference
         let viewPoint: Point
+        let kind: PointKind
         let isSelected: Bool
+
+        /// Unselected curve and connector points draw as squares like corners.
+        var shape: GlyphShape {
+            guard isSelected else { return .square }
+            switch kind {
+            case .corner: return .square
+            case .curve: return .circle
+            case .connector: return .triangle
+            }
+        }
+    }
+
+    /// A handle line from an anchor to its control point, view points.
+    struct Handle: Equatable {
+        let anchor: Point
+        let end: Point
     }
 
     /// One collaborator's mark on one object.
@@ -95,25 +136,56 @@ struct SelectionOverlay {
         }
     }
 
-    /// The local selection's outlines, in selection order.
+    /// The local selection's outlines, in selection order.  A path, rectangle or ellipse is
+    /// outlined from its model geometry with a glyph per point; a group by its members' items.
     func outlines(for selection: Selection) -> [Outline] {
         let toView = viewport.pasteboardToView
         return selection.ids.compactMap { id -> Outline? in
-            guard let item = document.item(for: id) else { return nil }
+            guard let object = document.object(for: id), let item = document.item(for: id) else { return nil }
             let selectedPoints: Set<PointReference>
             if case let .points(points) = selection.subSelection(of: id) { selectedPoints = points } else { selectedPoints = [] }
             let cgPath = CGMutablePath()
             var anchors: [Anchor] = []
-            for leaf in Self.leaves(of: item, path: id.indexPath) {
-                let shape = Self.shape(of: leaf.item)
-                let transform = shape.transform.concatenating(toView)
-                Self.add(shape.path, transform: transform, to: cgPath)
-                for anchor in Self.anchorPoints(of: shape.path) {
-                    let reference = PointReference(leafPath: leaf.path, element: anchor.element)
-                    anchors.append(Anchor(reference: reference, viewPoint: transform.apply(anchor.point), isSelected: selectedPoints.contains(reference)))
+            var handles: [Handle] = []
+            guard let path = object.path else {
+                for leaf in Self.leaves(of: item, path: object.itemPath) {
+                    let shape = Self.shape(of: leaf.item)
+                    Self.add(shape.path, transform: shape.transform.concatenating(toView), to: cgPath)
+                }
+                return Outline(id: id, path: cgPath, anchors: [], handles: [])
+            }
+            let transform = object.transform.concatenating(toView)
+            for contour in path.contours where contour.isRenderable {
+                Self.add(DocumentDisplayListBuilder.display(VectorPath(contours: [contour])) { _ in true }.path, transform: transform, to: cgPath)
+                for point in contour.drawn {
+                    let reference = PointReference(node: id.node, contour: contour.id, point: point.id)
+                    let selected = selectedPoints.contains(reference)
+                    let anchor = transform.apply(point.anchor)
+                    anchors.append(Anchor(reference: reference, viewPoint: anchor, kind: point.kind, isSelected: selected))
+                    guard selected else { continue }
+                    for handle in [point.inHandle, point.outHandle] where handle != .zero {
+                        handles.append(Handle(anchor: anchor, end: transform.apply(point.anchor + handle)))
+                    }
                 }
             }
-            return Outline(id: id, path: cgPath, anchors: anchors)
+            return Outline(id: id, path: cgPath, anchors: anchors, handles: handles)
+        }
+    }
+
+    /// The glyph path of `anchor` at `size` (view points).
+    static func glyphPath(_ anchor: Anchor, size: Double) -> CGPath {
+        let half = size / 2
+        let rect = CGRect(x: anchor.viewPoint.x - half, y: anchor.viewPoint.y - half, width: size, height: size)
+        switch anchor.shape {
+        case .square:
+            return CGPath(rect: rect, transform: nil)
+        case .circle:
+            return CGPath(ellipseIn: rect, transform: nil)
+        case .triangle:
+            let path = CGMutablePath()
+            path.addLines(between: [CGPoint(x: rect.midX, y: rect.minY), CGPoint(x: rect.maxX, y: rect.maxY), CGPoint(x: rect.minX, y: rect.maxY)])
+            path.closeSubpath()
+            return path
         }
     }
 
@@ -169,12 +241,21 @@ struct SelectionOverlay {
         for outline in outlines(for: selection) {
             ctx.addPath(outline.path)
             ctx.strokePath()
+            for handle in outline.handles {
+                ctx.move(to: handle.anchor.cgPoint)
+                ctx.addLine(to: handle.end.cgPoint)
+                ctx.strokePath()
+                let r = Self.handleEndRadius
+                ctx.strokeEllipse(in: CGRect(x: handle.end.x - r, y: handle.end.y - r, width: 2 * r, height: 2 * r))
+            }
             for anchor in outline.anchors {
-                let half = Self.anchorSize / 2
-                let square = CGRect(x: anchor.viewPoint.x - half, y: anchor.viewPoint.y - half, width: Self.anchorSize, height: Self.anchorSize)
-                ctx.setFillColor(anchor.isSelected ? accent : CGColor.white)
-                ctx.fill(square)
-                ctx.stroke(square)
+                let glyph = Self.glyphPath(anchor, size: glyphs.size)
+                // Solid points: unselected points filled, selected ones hollow; outlined points
+                // the other way round, so a selected point always stands out.
+                let filled = anchor.isSelected != glyphs.solidPoints
+                ctx.setFillColor(filled ? accent : CGColor.white)
+                ctx.addPath(glyph)
+                ctx.drawPath(using: .fillStroke)
             }
         }
     }

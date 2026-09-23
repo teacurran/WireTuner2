@@ -1,5 +1,6 @@
 import AppKit
 import WTGeometry
+import WTModel
 import WTRender
 
 /// What every document window shares: the app's registries, preferences and stores.
@@ -28,6 +29,15 @@ struct DocumentEnvironment {
     var makeSyncStatus: @MainActor (DocumentHandle) -> any SyncStatusProviding = { _ in StubSyncStatus() }
     /// *Help for <panel>* (the Help panel, BASIC-007).
     var showHelp: @MainActor (PanelDescriptor) -> Void = { _ in }
+    /// Opens a document id's model: its local store in the app (`DocumentOpener.localStore`), a
+    /// memory document by default (tests).
+    var openModel: @MainActor (String) async throws -> WTModel.Document = DocumentOpener.memory
+
+    /// A document `id` titled `title` whose model `openModel` opens.
+    func makeDocument(id: String = UUID().uuidString, title: String) -> DocumentHandle {
+        let open = openModel
+        return DocumentHandle(id: id, title: title) { try await open(id) }
+    }
 
     /// The command bound to `key` in the active set, run through the registry.
     func runShortcut(_ key: KeyEquivalent) -> Bool {
@@ -177,6 +187,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         ), selection: selection)
         context.redraw = { RedrawSettings(preferences: preferences) }
         context.optionDragCopies = { preferences[PreferenceCatalog.Object.optionDragCopies] }
+        context.drawing = { DrawingSettings(preferences: preferences) }
         let manager = ToolManager(registry: environment.tools, context: context, initialTool: initialTool) { [environment] key in
             environment.runShortcut(key)
         }
@@ -189,6 +200,11 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         canvas.selectionController = selection
         canvas.presence = presence
         canvas.showsRemoteSelections = { preferences[PreferenceCatalog.Sync.showSelections] }
+        canvas.glyphStyle = {
+            SelectionOverlay.GlyphStyle(
+                smallerHandles: preferences[PreferenceCatalog.General.smallerHandles], solidPoints: preferences[PreferenceCatalog.General.solidPoints]
+            )
+        }
         canvas.rotatesWithTrackpad = { preferences[PreferenceCatalog.General.trackpadRotate] }
         canvas.autoscrolls = { [weak manager] in manager?.activeToolID != .hand }
         canvas.onContextMenu = { [weak self] _, point in self?.contextMenu(at: point) }
@@ -205,6 +221,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         document.observeStructure { [weak self] in self?.structureDidChange() }
         preferences.observe { [weak self] change in
             if PanelAppearance.isAppearancePreference(change.id) { self?.panelAppearanceDidChange() }
+            if Self.glyphPreferences.contains(change.id) { self?.canvas.setNeedsOverlayDisplay() }
         }
         interaction.floatingFrame = { [weak window] in Self.floatingFrame(near: window?.frame) }
         canvas.onViewportChange = { [weak self] viewport in self?.viewportDidChange(viewport) }
@@ -280,6 +297,9 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         guard let frame else { return LayoutRect(x: 200, y: 200, width: 260, height: 320) }
         return LayoutRect(x: frame.maxX - 300, y: frame.maxY - 420, width: 260, height: 320)
     }
+
+    /// The preferences that change how point glyphs are drawn: a change repaints the overlay.
+    static let glyphPreferences: Set<String> = [PreferenceCatalog.General.smallerHandles.id, PreferenceCatalog.General.solidPoints.id]
 
     /// Every dock of the window, right first.
     var docks: [PanelDockController] { [dock, leftDock, topDock, bottomDock] }
@@ -482,6 +502,27 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
     // MARK: Select commands (responder chain; `SelectionCommands`)
 
     override func selectAll(_ sender: Any?) { selection.selectAll() }
+
+    /// menu:Edit[Clear] (kbd:[Delete]): selected points leave their paths (which heal across the
+    /// gap); otherwise the selected objects are deleted.  One change.
+    @objc func delete(_ sender: Any?) {
+        guard let command = deletionCommand() else { return }
+        documentHandle.perform(command)
+    }
+
+    /// What Clear deletes, as one command; nil when nothing is selected.
+    func deletionCommand() -> (any WTModel.Command)? {
+        let current = selection.model.selection
+        var pointCommands: [any WTModel.Command] = []
+        for id in current.ids {
+            if case let .points(points) = current.subSelection(of: id), !points.isEmpty {
+                pointCommands.append(DeletePoints(node: id.opID, points: points.sorted().map { ($0.contour, $0.point) }))
+            }
+        }
+        if !pointCommands.isEmpty { return CommandBatch(pointCommands.count == 1 ? pointCommands[0].label : "Delete Points", pointCommands) }
+        guard !current.isEmpty else { return nil }
+        return DeleteNodes(current.ids.map(\.opID))
+    }
     @objc func selectNone(_ sender: Any?) { selection.selectNone() }
     @objc func invertSelection(_ sender: Any?) { selection.invert() }
 
@@ -496,6 +537,8 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         case #selector(selectAll(_:)), #selector(invertSelection(_:)):
             return selection.canSelectAll
         case #selector(selectNone(_:)):
+            return !isEditingText && !selection.model.isEmpty
+        case #selector(delete(_:)):
             return !isEditingText && !selection.model.isEmpty
         default:
             return true

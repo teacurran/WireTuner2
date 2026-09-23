@@ -17,21 +17,15 @@ import WTRender
     /// 50,000 small rectangles on a 250 × 200 grid over a 7,500 × 6,000 point area of the
     /// pasteboard, alternately filled and stroked.
     static func denseDocument() -> DocumentHandle {
-        var items: [DisplayItem] = []
+        var items: [DenseRectangles.Item] = []
         items.reserveCapacity(objectCount)
         for index in 0..<objectCount {
             let column = Double(index % 250)
             let row = Double(index / 250)
             let rect = Rect(x: 4000 + column * 30, y: 4000 + row * 30, width: 22, height: 22)
-            let path = DisplayPath(rect: rect)
-            if index.isMultiple(of: 2) {
-                items.append(.fill(FillItem(path: path, paint: .solid(Color(red: column / 250, green: row / 200, blue: 0.5)))))
-            } else {
-                items.append(.stroke(StrokeItem(path: path, paint: .solid(.black))))
-            }
+            items.append(DenseRectangles.Item(rect: rect, fill: index.isMultiple(of: 2) ? (column / 250, row / 200, 0.5) : nil))
         }
-        let content = PlaceholderDocumentContent(canvas: "dense", items: items)
-        return DocumentHandle.placeholder(title: "Dense", content: content)
+        return try! DenseRectangles.document(title: "Dense", items)
     }
 
     struct Stats: CustomStringConvertible {
@@ -46,7 +40,7 @@ import WTRender
 
     @Test func panning50000RectanglesFitsTheFrameBudget() async {
         let document = Self.denseDocument()
-        #expect(document.displayList.count == Self.objectCount)
+        #expect(document.displayList.count == Self.objectCount + 1, "the objects after the pages group")
         let canvas = CanvasView(document: document, frame: NSRect(x: 0, y: 0, width: 1200, height: 800))
         canvas.tiles.backingScale = 2
         canvas.setViewport(Viewport(scrollOrigin: Point(x: 5000, y: 5000), zoom: 1, size: Size(width: 1200, height: 800)))

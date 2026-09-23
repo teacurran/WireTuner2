@@ -67,7 +67,7 @@ final class DocumentController {
     /// menu:File[New]: a blank document in a new tab.
     @discardableResult
     func newDocument(show: Bool = true) -> DocumentWindowController {
-        open(DocumentHandle.placeholder(title: nextUntitledTitle()), show: show)
+        open(environment.makeDocument(title: nextUntitledTitle()), show: show)
     }
 
     /// Where a newly opened document's window goes.
@@ -205,7 +205,7 @@ final class DocumentController {
                 }
                 continue
             }
-            let controller = open(DocumentHandle.placeholder(id: state.documentID, title: state.title), placement: placement)
+            let controller = open(environment.makeDocument(id: state.documentID, title: state.title), placement: placement)
             if firstOfGroup[state.tabGroup] == nil, let window = controller.window {
                 firstOfGroup[state.tabGroup] = window
                 if let frame = state.frame { window.setFrame(NSRect(x: frame.x, y: frame.y, width: frame.width, height: frame.height), display: false) }
@@ -239,6 +239,7 @@ final class DocumentController {
         list.remove(at: index)
         if list.isEmpty {
             views[id] = nil
+            controller.documentHandle.close()
             documents.removeAll { $0.id == id }
             if activeDocumentID == id { activeDocumentID = documents.last?.id }
         } else {

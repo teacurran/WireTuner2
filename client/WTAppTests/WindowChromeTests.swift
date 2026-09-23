@@ -21,7 +21,7 @@ import WTRender
         let status = StubSyncStatus()
         var document = environment.document
         document.makeSyncStatus = { _ in status }
-        let controller = DocumentWindowController(document: .placeholder(title: "Poster"), environment: document)
+        let controller = DocumentWindowController(document: .memory(title: "Poster"), environment: document)
         defer { controller.close() }
         #expect(controller.window?.title == "Poster")
         status.state = .syncing
@@ -53,7 +53,7 @@ import WTRender
 
 @Suite @MainActor struct StatusBarTests {
     private func window(_ environment: TestEnvironment = TestEnvironment()) -> DocumentWindowController {
-        DocumentWindowController(document: .placeholder(title: "Pages"), environment: environment.document)
+        DocumentWindowController(document: .memory(title: "Pages"), environment: environment.document)
     }
 
     @Test func addPageAndThePageSelector() {
@@ -69,7 +69,6 @@ import WTRender
         bar.addPageClicked(nil)
         #expect(document.pages.count == 2 && document.currentPageIndex == 1)
         #expect(bar.pageField.stringValue == "2" && bar.previousPage.isEnabled && !bar.nextPage.isEnabled)
-        #expect((document.commandSink as? PlaceholderDocumentContent)?.edits.last?.label == "Add Page")
         #expect(document.changeCount == 1)
         #expect(bar.pageField.numberOfItems == 2 && bar.pageField.itemObjectValue(at: 1) as? String == "Page 2")
         let viewport = controller.viewport
@@ -116,8 +115,8 @@ import WTRender
         #expect(document.currentPageIndex == 0)
         document.removePage(at: 5)
         document.selectPage(0)
-        // A document whose display list is not the placeholder's still counts the change.
-        let custom = DocumentHandle(title: "C", commandSink: RecordingSink()) { DisplayList(canvas: "c", items: []) }
+        // Page changes count as content changes of any document.
+        let custom = DocumentHandle.memory(title: "C")
         custom.addPage()
         custom.removePage(at: 0)
         #expect(custom.changeCount == 2 && custom.pages.count == 1)
@@ -136,7 +135,6 @@ import WTRender
         bar.units.selectItem(withTitle: "Millimeters")
         bar.unitsChosen(bar.units)
         #expect(document.units == .millimeters)
-        #expect((document.commandSink as? PlaceholderDocumentContent)?.edits.map(\.label) == ["Change Units"])
         document.setUnits(.millimeters)
         #expect(document.changeCount == 1)
 
@@ -152,8 +150,8 @@ import WTRender
     }
 
     @Test func twoClientsSettingUnitsConverge() {
-        let a = DocumentHandle.placeholder(title: "A")
-        let b = DocumentHandle.placeholder(title: "B")
+        let a = DocumentHandle.memory(title: "A")
+        let b = DocumentHandle.memory(title: "B")
         a.setUnits(.inches)
         b.setUnits(.centimeters)
         let fromA = a.unitsRegister, fromB = b.unitsRegister
@@ -189,7 +187,7 @@ import WTRender
         let presence = StubPresenceModel()
         var document = environment.document
         document.makePresence = { _ in presence }
-        let controller = DocumentWindowController(document: .placeholder(title: "Busy"), environment: document)
+        let controller = DocumentWindowController(document: .memory(title: "Busy"), environment: document)
         defer { controller.close() }
         #expect(controller.window?.tab.accessoryView == nil)
         presence.participants = [RemoteParticipant(id: "p1", name: "Priya Shah", colorIndex: 0), RemoteParticipant(id: "p2", name: "Sam", colorIndex: 3)]
@@ -229,9 +227,9 @@ import WTRender
     @Test func threeDocumentsAreThreeTabsAndTheSessionComesBack() throws {
         let environment = TestEnvironment()
         let controller = DocumentController(environment: environment.document)
-        let a = controller.open(.placeholder(id: "a", title: "A"))
-        let b = controller.open(.placeholder(id: "b", title: "B"))
-        let c = controller.open(.placeholder(id: "c", title: "C"))
+        let a = controller.open(.memory(id: "a", title: "A"))
+        let b = controller.open(.memory(id: "b", title: "B"))
+        let c = controller.open(.memory(id: "c", title: "C"))
         #expect(a.window?.tabbedWindows?.count == 3)
         let session = controller.sessionState()
         #expect(session.map(\.documentID) == ["a", "b", "c"])

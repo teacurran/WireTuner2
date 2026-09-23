@@ -144,7 +144,7 @@ import Testing
 
     @Test func documentWindowHostsCanvasAndDock() {
         let environment = TestEnvironment()
-        let controller = DocumentWindowController(document: .placeholder(title: "Dock"), environment: environment.document)
+        let controller = DocumentWindowController(document: .memory(title: "Dock"), environment: environment.document)
         let window = controller.window!
         #expect(window.title == "Dock")
         #expect(window.identifier == DocumentWindowController.windowIdentifier)

@@ -5,11 +5,11 @@ import SwiftUI
 enum PlaceholderPanels {
     static let object = objectPanel(selection: nil)
 
-    /// The Object panel stand-in; with `selection` it publishes the front window's selection
-    /// ("3 objects selected"), which is what APP-007's inspector will observe.
+    /// The Object panel; with `selection` it publishes the front window's selection ("3 objects
+    /// selected") and the path and point sections (DRAW-004) until APP-007's inspector hosts them.
     static func objectPanel(selection: ActiveSelection?) -> PanelDescriptor {
         PanelDescriptor(id: "object", title: "Object", icon: "slider.horizontal.3", defaultGroup: "Properties", menuOrder: 10, helpSlug: "object-panel") {
-            SelectionSummaryBody(selection: selection)
+            ObjectPanelBody(selection: selection)
         }
     }
 
@@ -42,7 +42,7 @@ struct SelectionSummaryBody: View {
                 .accessibilityIdentifier("object.selection-summary")
         }
         .padding()
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
     }
 }
 

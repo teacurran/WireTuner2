@@ -116,6 +116,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
         environment.showHelp = { [weak self] descriptor in self?.showHelp(for: descriptor) }
         environment.snapSounds = snapSounds
+        environment.openModel = DocumentOpener.opener(for: launchEnvironment, preferences: preferences)
         if let socketMonitor {
             environment.diagnostics = { socketMonitor.counts.accessibilityText }
         }
@@ -149,7 +150,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let documents = documents!
         let library = library
         library.onOpen = { opened in
-            for document in opened { documents.open(DocumentHandle.placeholder(id: document.id, title: document.name)) }
+            for document in opened { documents.open(documents.environment.makeDocument(id: document.id, title: document.name)) }
         }
         let preferences = preferences
         ViewCommands.install(
@@ -230,6 +231,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
         for command in toolCommands { commands.replace(command) }
         ToolPanelCommands.install(into: commands, palette: palette) { documents.activeWindowController }
+        UndoCommands.install(into: commands) { documents.activeWindowController }
         WindowTabCommands.install(into: commands)
         toolPalette.reload(from: tools)
         toolPalette.select = { id in documents.activeWindowController?.toolManager.select(id) }
@@ -263,6 +265,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         toolPalette.snap = window?.snap
         toolPalette.selectionWells = window?.selectionWells
         activeSelection.model = window?.selection.model
+        activeSelection.document = window?.documentHandle
         floatingPanels.reattach()
         toolbarsDocumentsDidChange()
     }

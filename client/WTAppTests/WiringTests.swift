@@ -15,7 +15,7 @@ private func mouse(_ type: NSEvent.EventType, x: CGFloat, in window: NSWindow) -
 }
 
 @Suite(.serialized) @MainActor struct AppWiringTests {
-    @Test func helpPreferencesAndThePalettesHooksReachTheFrontWindow() {
+    @Test func helpPreferencesAndThePalettesHooksReachTheFrontWindow() async {
         let suite = TestDefaults()
         let delegate = AppDelegate(layoutStore: nil, defaults: suite.defaults)
         delegate.applicationDidFinishLaunching(Notification(name: NSApplication.didFinishLaunchingNotification))
@@ -56,10 +56,10 @@ private func mouse(_ type: NSEvent.EventType, x: CGFloat, in window: NSWindow) -
         #expect(delegate.menuTarget?.perform(ToolPanelCommands.ID.swap) == true)
 
         // The selection's colours reach the wells.
-        window.selection.model.set(Selection([.item([0])]))
-        #expect(delegate.toolPalette.selectionWells == nil, "page furniture is not an object")
-        window.documentHandle.commandSink.submit(DocumentEdit(label: "R", insertedItems: RectangleSketchTool.items(for: Rect(x: 0, y: 0, width: 5, height: 5))))
-        window.selection.model.set(Selection([.item([1])]))
+        window.selection.model.set(Selection([SelectionID(NodeID(counter: 999, replica: 1))]))
+        #expect(delegate.toolPalette.selectionWells == nil, "an id that names no object has no colours")
+        let added = await window.documentHandle.addRectangles([Rect(x: 0, y: 0, width: 5, height: 5)])
+        window.selection.model.set(Selection(added))
         #expect(delegate.toolPalette.selectionWells != nil)
         #expect(window.selectionWells == delegate.toolPalette.selectionWells)
 
@@ -73,15 +73,15 @@ private func mouse(_ type: NSEvent.EventType, x: CGFloat, in window: NSWindow) -
         let controller = DocumentController(environment: environment.document)
         var changes = 0
         controller.onChange = { changes += 1 }
-        let back = controller.open(.placeholder(id: "back", title: "Back"), show: false)
-        let front = controller.open(.placeholder(id: "front", title: "Front"), show: false)
+        let back = controller.open(.memory(id: "back", title: "Back"), show: false)
+        let front = controller.open(.memory(id: "front", title: "Front"), show: false)
         changes = 0
         front.toggleSnap(.point)
         #expect(changes == 1)
         back.toggleSnap(.point)
         back.setViewMode(.keyline)
         #expect(changes == 1)
-        front.selection.model.set(Selection([.item([0])]))
+        front.selection.model.set(Selection([SelectionID(NodeID(counter: 999, replica: 1))]))
         #expect(changes == 2)
         for id in ["back", "front"] { controller.close(id) }
     }
@@ -91,7 +91,7 @@ private func mouse(_ type: NSEvent.EventType, x: CGFloat, in window: NSWindow) -
         #expect(DocumentWindowController.floatingFrame(near: NSRect(x: 0, y: 0, width: 1000, height: 800)) == LayoutRect(x: 700, y: 380, width: 260, height: 320))
         let environment = TestEnvironment()
         try environment.windowStates.save(DocumentWindowState(zoom: 2), for: "old")
-        let controller = DocumentWindowController(document: .placeholder(id: "old", title: "Old"), environment: environment.document)
+        let controller = DocumentWindowController(document: .memory(id: "old", title: "Old"), environment: environment.document)
         defer { controller.close() }
         #expect(controller.snap == SnapSettings(), "a state saved before the snap toggles restores the defaults")
         #expect(controller.panelInteraction.floatingFrame().width == 260)
@@ -140,7 +140,7 @@ private func mouse(_ type: NSEvent.EventType, x: CGFloat, in window: NSWindow) -
         PanelTabButton(panelID: "x", title: "X").mouseDown(with: mouse(.leftMouseDown, x: 0, in: window))
     }
 
-    @Test func dragsAndTheOptionsMenuGoThroughTheirHooks() {
+    @Test func dragsAndTheOptionsMenuGoThroughTheirHooks() async {
         let registry = PanelRegistry()
         PanelCatalog.register(into: registry)
         let layout = PanelLayoutController(registry: registry)
@@ -214,7 +214,7 @@ private func mouse(_ type: NSEvent.EventType, x: CGFloat, in window: NSWindow) -
         server.setHits([LibrarySearchHit(documentID: "d1", snippets: [SearchSnippet(field: .text, highlighted: "<b>Spring</b> Sale")])])
         await model.show(.folder(nil))
         model.searchText = "Spring"
-        await model.pendingSearch?.value
+        _ = await model.pendingSearch?.value
         _ = render(LibraryView(model: model))
         let pending = model.createDocument()
         _ = render(LibraryDocumentTile(model: model, row: LibraryRow(document: pending), renaming: .constant(nil)))

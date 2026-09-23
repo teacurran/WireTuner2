@@ -11,7 +11,7 @@ import WTRender
         StandardCommands.register(into: environment.commands)
         PanelCatalog.register(into: environment.panels)
         PanelCommands.sync(into: environment.commands, panels: environment.panels, layout: environment.layout)
-        let controller = DocumentWindowController(document: .placeholder(title: "Toolbar"), environment: environment.document)
+        let controller = DocumentWindowController(document: .memory(title: "Toolbar"), environment: environment.document)
         ViewCommands.install(into: environment.commands, target: { controller }, newDocument: {})
         environment.shortcuts = ShortcutSet.builtInDefault(commands: environment.commands.commands)
         return (environment, controller, controller.mainToolbar!)

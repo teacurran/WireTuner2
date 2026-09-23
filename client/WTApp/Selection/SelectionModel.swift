@@ -54,9 +54,12 @@ final class SelectionModel {
 @Observable
 final class ActiveSelection {
     var model: SelectionModel?
+    /// The front window's document (the Object panel's sections read it).
+    var document: DocumentHandle?
 
-    init(model: SelectionModel? = nil) {
+    init(model: SelectionModel? = nil, document: DocumentHandle? = nil) {
         self.model = model
+        self.document = document
     }
 
     /// "Nothing selected", "1 object selected", "3 objects selected".

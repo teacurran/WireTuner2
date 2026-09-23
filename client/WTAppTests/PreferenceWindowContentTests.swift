@@ -179,7 +179,7 @@ import Testing
         document.snapSounds = player
         environment.preferences.set("Morse", for: PreferenceCatalog.Sounds.snapObject)
         speaker.played = []
-        let controller = DocumentWindowController(document: .placeholder(title: "Snap"), environment: document)
+        let controller = DocumentWindowController(document: .memory(title: "Snap"), environment: document)
         defer { controller.close() }
         controller.toolManager.context.snapping.didSnap(.object)
         #expect(speaker.played == ["Morse"])

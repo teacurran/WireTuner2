@@ -17,6 +17,9 @@ struct ToolID: RawRepresentable, Hashable, Codable, Sendable, ExpressibleByStrin
     static let hand: ToolID = "hand"
     static let zoom: ToolID = "zoom"
     static let rectangle: ToolID = "rectangle"
+    static let ellipse: ToolID = "ellipse"
+    static let line: ToolID = "line"
+    static let pen: ToolID = "pen"
 }
 
 /// One pointer event on the canvas, already translated into both coordinate spaces.
@@ -96,6 +99,33 @@ enum SnapKind: String, CaseIterable, Sendable {
     case point, object, grid, guide
 }
 
+/// The preferences the drawing tools read at each use (rectangles-ellipses-lines.adoc,
+/// pen-bezigon.adoc, vector-basics.adoc).
+struct DrawingSettings: Equatable, Sendable {
+    /// *Constrain angle*, degrees: Shift snaps to it and every 45° from it; shapes drawn with it
+    /// are rotated by it.
+    var constrainAngle: Double = 0
+    /// *Show fill for new open paths*: copied into `fill_when_open` when a path is created.
+    var fillWhenOpen = false
+    /// *Pen tool preview*: the rubber-band segment.
+    var penPreview = true
+
+    init(constrainAngle: Double = 0, fillWhenOpen: Bool = false, penPreview: Bool = true) {
+        self.constrainAngle = constrainAngle
+        self.fillWhenOpen = fillWhenOpen
+        self.penPreview = penPreview
+    }
+
+    @MainActor init(preferences: PreferenceStore) {
+        constrainAngle = preferences[PreferenceCatalog.Object.constrainAngle]
+        fillWhenOpen = preferences[PreferenceCatalog.Object.showFillOpenPaths]
+        penPreview = preferences[PreferenceCatalog.General.penPreview]
+    }
+
+    /// Shift's rule: the constrain angle and every 45° from it.
+    var constraint: AngleConstraint { .degrees(constrainAngle) }
+}
+
 /// Everything a tool gets when activated (client.adoc, "Tools"): the document, the view
 /// transform, snapping and the `CommandSink` it emits its change through.
 @MainActor
@@ -109,16 +139,34 @@ struct ToolContext {
     var redraw: @MainActor () -> RedrawSettings = { RedrawSettings() }
     /// *Option-drag copies paths*: with it off, Option-drag previews the dragged objects fully.
     var optionDragCopies: @MainActor () -> Bool = { true }
+    /// The drawing preferences (constrain angle, open-path fill, pen preview).
+    var drawing: @MainActor () -> DrawingSettings = { DrawingSettings() }
+    /// Where the tools' commands go: the document unless a test records them.
+    var commandSink: CommandSink
 
     init(document: DocumentHandle, host: any CanvasHost, snapping: SnappingContext = SnappingContext(), selection: SelectionController? = nil) {
         self.document = document
         self.host = host
         self.snapping = snapping
         self.selection = selection ?? SelectionController(document: document)
+        commandSink = document
     }
-
-    var commandSink: CommandSink { document.commandSink }
     var viewport: Viewport { host.viewport }
+}
+
+/// A tool that takes Space mid-drag for itself (the shape tools' "reposition while dragging")
+/// instead of the temporary Hand.
+@MainActor
+protocol SpaceDragging: AnyObject {
+    /// Whether a drag is in progress that Space should reposition.
+    var isDragging: Bool { get }
+    func spaceChanged(down: Bool)
+}
+
+/// A tool that follows the pointer while no button is down (the Pen's cursor and preview).
+@MainActor
+protocol PointerTracking: AnyObject {
+    func pointerMoved(_ e: CanvasEvent)
 }
 
 /// A canvas tool (client.adoc, "Tools").  Tools preview during a drag by drawing an overlay

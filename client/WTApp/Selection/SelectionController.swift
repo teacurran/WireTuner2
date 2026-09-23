@@ -1,5 +1,7 @@
 import Foundation
+import WTCRDT
 import WTGeometry
+import WTModel
 import WTRender
 
 /// The selection of one document window and everything that changes it: clicks and marquees
@@ -29,24 +31,24 @@ final class SelectionController {
         self.model = model
         self.contactSensitive = contactSensitive
         self.pickDistance = pickDistance
-        document.observeRemovals { [weak self] removed in self?.itemsRemoved(removed) }
-        document.observe { [weak self] _ in self?.documentDidChange() }
+        document.observe { [weak self] change in self?.documentDidChange(change) }
     }
 
     var selection: Selection { model.selection }
 
     // MARK: Following the document
 
-    private func itemsRemoved(_ removed: IndexSet) {
-        cachedTester = nil
-        model.set(model.selection.removingItems(at: removed))
-    }
-
-    /// Any change: objects that no longer resolve leave the selection, quietly.
-    private func documentDidChange() {
-        cachedTester = nil
+    /// Any change: objects that no longer resolve leave the selection, quietly, and so do points
+    /// that were deleted; the hit tester follows the change in place.
+    private func documentDidChange(_ change: ContentChange) {
+        if var tester = cachedTester {
+            tester.update(displayList: change.after, changes: change.summary)
+            cachedTester = tester
+        }
         let document = document
-        model.set(model.selection.filtered { document.isSelectable($0) })
+        model.set(model.selection.filtered({ document.isSelectable($0) }, sub: { sub in
+            sub.filtered(points: { document.contains($0) }, segments: { document.contains($0) })
+        }))
     }
 
     // MARK: Hit testing
@@ -69,17 +71,23 @@ final class SelectionController {
     /// The top-most object under `viewPoint` and, when subselecting, the point or segment hit.
     func pick(at viewPoint: Point, viewport: Viewport, subselect: Bool) -> (id: SelectionID, sub: SubSelection?)? {
         let hits = hitTester(viewport: viewport, subselect: subselect).hitTest(viewPoint: viewPoint)
-        guard let hit = hits.first(where: { document.isSelectable(.item($0.itemPath)) }) else { return nil }
-        return (.item(hit.itemPath), subselect ? Self.subSelection(for: hit) : nil)
+        for hit in hits {
+            guard let id = document.selectionID(atItemPath: hit.itemPath), document.isSelectable(id) else { continue }
+            return (id, subselect ? subSelection(for: hit, in: id) : nil)
+        }
+        return nil
     }
 
-    /// What a subselect click on `hit` selects inside the object.
-    static func subSelection(for hit: HitResult) -> SubSelection? {
+    /// What a subselect click on `hit` selects inside the object `id`.
+    func subSelection(for hit: HitResult, in id: SelectionID) -> SubSelection? {
+        guard let object = document.object(for: id) else { return nil }
         switch hit.kind {
         case let .point(element), let .handle(element, _):
-            return .points([PointReference(leafPath: hit.leafPath, element: element)])
+            return object.point(leafPath: hit.leafPath, element: element).map { .points([PointReference(node: id.node, $0)]) }
         case let .segment(location), let .stroke(location?):
-            return .segments([SegmentReference(leafPath: hit.leafPath, contour: location.contour, segment: location.segment)])
+            guard let contour = object.contour(leafPath: hit.leafPath, index: location.contour),
+                  let segments = object.path?.contour(contour)?.segments, segments.indices.contains(location.segment) else { return nil }
+            return .segments([SegmentReference(node: id.node, contour: contour, from: segments[location.segment].from.id)])
         default:
             return nil
         }
@@ -109,10 +117,12 @@ final class SelectionController {
         let hits = hitTester(viewport: viewport, subselect: subselect).hitTest(marquee: viewRect)
         var picked: [SelectionID] = []
         var sub: [SelectionID: SubSelection] = [:]
-        for hit in hits.reversed() where document.isSelectable(.item(hit.itemPath)) {
-            let id = SelectionID.item(hit.itemPath)
-            if subselect, !hit.anchors.isEmpty {
-                sub[id] = .points(Set(hit.anchors.map { PointReference(leafPath: $0.leafPath, element: $0.element) }))
+        for hit in hits.reversed() {
+            guard let id = document.selectionID(atItemPath: hit.itemPath), document.isSelectable(id) else { continue }
+            let object = document.object(for: id)
+            let anchors = hit.anchors.compactMap { object?.point(leafPath: $0.leafPath, element: $0.element) }
+            if subselect, !anchors.isEmpty {
+                sub[id] = .points(Set(anchors.map { PointReference(node: id.node, $0) }))
                 picked.append(id)
             } else if hit.selected {
                 picked.append(id)

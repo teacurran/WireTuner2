@@ -18,15 +18,40 @@ public struct DocumentCore: Sendable {
     public private(set) var lastServerSeq: UInt64
     /// The undo and redo lists.
     public private(set) var undoStack: UndoStack
+    /// The newest stable point the server has published to this replica (its horizon,
+    /// crdt-model.adoc "Stable points, horizons and collection points"): an undo never names a
+    /// tombstone whose delete is stable here, since another replica may have collected it.
+    public private(set) var horizon: UInt64
 
     public init(state: EngineState, replica: UInt64, nextSeq: UInt64 = 1, lastServerSeq: UInt64 = 0,
-                undoStack: UndoStack = UndoStack()) {
+                undoStack: UndoStack = UndoStack(), horizon: UInt64 = 0) {
         precondition(replica != 0)   // replica 0 is reserved for the well-known nodes
         self.state = state
         self.replica = replica
         self.nextSeq = nextSeq
         self.lastServerSeq = lastServerSeq
         self.undoStack = undoStack
+        self.horizon = horizon
+    }
+
+    /// Records a stable point the server published; the horizon only moves forward.
+    public mutating func advanceHorizon(to stableSeq: UInt64) {
+        horizon = max(horizon, stableSeq)
+    }
+
+    /// `inverse` without what undoing it may no longer name: the re-insertion of deleted text is
+    /// not offered for characters whose tombstones are stable at the horizon (or already
+    /// collected), since the re-inserted run would be placed after such a tombstone.
+    func offered(_ inverse: Inverse) -> Inverse {
+        Inverse(steps: inverse.steps.compactMap { step in
+            guard case .textDeleted(let node, let path, let chars) = step else { return step }
+            let text = state.text(node, path)
+            let kept = chars.filter { char in
+                guard let deleter = text?.deletedOp(char.id) else { return false }
+                return !state.isStable(deleter, at: horizon)
+            }
+            return kept.isEmpty ? nil : .textDeleted(node: node, text: path, chars: kept)
+        })
     }
 
     /// How a local change is recorded on the undo stack.
@@ -101,14 +126,14 @@ public struct DocumentCore: Sendable {
     }
 
     private mutating func reverse(_ entry: UndoEntry, verb: String, now: Date) -> (Wiretuner_Doc_V1_Change?, Inverse) {
-        guard var change = state.undoChange(entry.inverse, replica: replica, seq: nextSeq, startCounter: state.clock.peek,
+        guard var change = state.undoChange(offered(entry.inverse), replica: replica, seq: nextSeq, startCounter: state.clock.peek,
                                             baseServerSeq: lastServerSeq, label: UndoStack.title(verb, entry.label)) else {
-            return (nil, .assembled([]))
+            return (nil, Inverse(steps: []))
         }
         change.wallTimeMs = Self.milliseconds(now)
         nextSeq += 1
         let reversal = state.applyLocal(change)
-        undoStack.rebase(reverted: entry.inverse, reversal: reversal, state: state)
+        undoStack.rebase(reversal: reversal, state: state)
         return (change, reversal)
     }
 

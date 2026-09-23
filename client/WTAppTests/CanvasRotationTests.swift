@@ -91,7 +91,7 @@ import WTRender
 /// BASIC-034 on a real canvas view and window.
 @Suite(.serialized) @MainActor struct CanvasRotationTests {
     private func window(_ environment: TestEnvironment) -> DocumentWindowController {
-        let controller = DocumentWindowController(document: .placeholder(title: "Rotate"), environment: environment.document)
+        let controller = DocumentWindowController(document: .memory(title: "Rotate"), environment: environment.document)
         controller.canvas.rotationAnimationDuration = 0
         return controller
     }
@@ -137,7 +137,7 @@ import WTRender
         #expect(canvas.viewport.rotationDegrees.truncatingRemainder(dividingBy: 15) == 0)
     }
 
-    @Test func rotateClockwiseThreeTimesReadsFortyFiveAndThePreferenceGatesOnlyTheGesture() {
+    @Test func rotateClockwiseThreeTimesReadsFortyFiveAndThePreferenceGatesOnlyTheGesture() async {
         let environment = TestEnvironment()
         let controller = window(environment)
         defer { controller.close() }
@@ -172,25 +172,25 @@ import WTRender
         #expect(task != nil)
         #expect(canvas.gestures.active.contains(.animation))
         #expect(canvas.tiles.isGesturing)
-        await task?.value
+        _ = await task?.value
         #expect(abs(canvas.viewport.rotationDegrees - 15) < 1e-9)
         #expect(!canvas.tiles.isGesturing, "the settled angle is rasterised once at the end")
         #expect(canvas.viewport.toView(centreBefore).isApproximatelyEqual(to: canvas.viewport.viewCenter, tolerance: 1e-6))
         // A second rotation cancels a running one.
         let first = controller.rotateCanvas(steps: 1)
         let second = controller.resetRotation()
-        await first?.value
-        await second?.value
+        _ = await first?.value
+        _ = await second?.value
         #expect(abs(canvas.viewport.rotationDegrees) < 1e-9)
     }
 
-    @Test func atFortyFiveDegreesAClickSelectsTheObjectUnderIt() throws {
+    @Test func atFortyFiveDegreesAClickSelectsTheObjectUnderIt() async throws {
         let environment = TestEnvironment()
         let controller = window(environment)
         defer { controller.close() }
         let document = controller.documentHandle
         let rect = Rect(x: 7500, y: 7500, width: 100, height: 60)
-        document.commandSink.submit(DocumentEdit(label: "R", insertedItems: RectangleSketchTool.items(for: rect)))
+        await document.addRectangles([rect])
         controller.setViewport(Viewport(scrollOrigin: .zero, rotationDegrees: 45, zoom: 1, size: controller.viewport.size))
         controller.canvas.setViewport(controller.viewport.scrolled(byViewDelta: controller.viewport.toView(rect.center) - controller.viewport.viewCenter))
         let viewport = controller.viewport
@@ -204,7 +204,7 @@ import WTRender
         #expect(abs(viewport.toPasteboard(along).y - rect.center.y) < 1e-6)
     }
 
-    @Test func smartZoomAndForceClickReachTheCanvas() throws {
+    @Test func smartZoomAndForceClickReachTheCanvas() async throws {
         let environment = TestEnvironment()
         SelectionCommands.install(commands: environment.commands, tools: environment.tools)
         let controller = window(environment)
@@ -212,7 +212,7 @@ import WTRender
         let canvas = controller.canvas
         let document = controller.documentHandle
         let rect = Rect(x: 7500, y: 7500, width: 40, height: 40)
-        document.commandSink.submit(DocumentEdit(label: "R", insertedItems: RectangleSketchTool.items(for: rect)))
+        await document.addRectangles([rect])
         canvas.setViewport(canvas.viewport.scrolled(byViewDelta: canvas.viewport.toView(rect.center) - canvas.viewport.viewCenter))
         let start = canvas.viewport
         let over = canvas.viewport.toView(rect.center)
@@ -240,13 +240,13 @@ import WTRender
     @Test func theAngleIsSavedAndRestoredWithTheViewState() {
         let environment = TestEnvironment()
         let id = UUID().uuidString
-        let first = DocumentWindowController(document: .placeholder(id: id, title: "A"), environment: environment.document)
+        let first = DocumentWindowController(document: .memory(id: id, title: "A"), environment: environment.document)
         first.canvas.rotationAnimationDuration = 0
         first.rotateCanvas(steps: 2)
         first.saveState()
         first.close()
         #expect(environment.windowStates.state(for: id)?.rotationDegrees == 30)
-        let again = DocumentWindowController(document: .placeholder(id: id, title: "A"), environment: environment.document)
+        let again = DocumentWindowController(document: .memory(id: id, title: "A"), environment: environment.document)
         defer { again.close() }
         #expect(again.viewport.rotationDegrees == 30)
         #expect(again.statusBar.compass.title == "30°")

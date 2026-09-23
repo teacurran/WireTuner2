@@ -84,7 +84,7 @@ import Testing
         model.query = "lay bg"
         #expect(model.results.first?.item.id == "layer.bg")
 
-        let document = DocumentHandle.placeholder(title: "Poster")
+        let document = DocumentHandle.memory(title: "Poster")
         document.addPage()
         var pages: [Int] = []
         model.register(PagePaletteSource(document: { document }, goToPage: { pages.append($0) }), id: "pages")

@@ -10,7 +10,7 @@ import WTRender
     final class Fixture {
         let registry = ToolRegistry()
         let host = RecordingHost()
-        let document = DocumentHandle.placeholder(title: "Tools")
+        let document = DocumentHandle.memory(title: "Tools")
         var tools: [ToolID: RecordingTool] = [:]
         var shortcuts: [KeyEquivalent] = []
         let manager: ToolManager
