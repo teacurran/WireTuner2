@@ -165,6 +165,8 @@ Nothing beyond storing and relaying changes.
 
 === Client
 
+* `WTGeometry.Boolean` provides `union`, `intersection`, `subtracting`/`punch`, `crop`, `transparency`, `divide` (returning `DividedPiece` with covering operand indices), `exclusiveOr` and `normalize`.  Open contours are closed by their chord for filling; open paths as cutting lines in Divide are not supported by GEO-002.
+
 * `CombineCommand(operation:, keepOriginals:)` in `WTModel/Commands/Combine.swift` over
   `WTGeometry.Boolean` (GEO-002): `union`, `divide`, `intersect`, `punch`, `crop`,
   `transparency`.  Inputs are flattened to pasteboard space through their transform chains

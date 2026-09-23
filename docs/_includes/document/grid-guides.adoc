@@ -206,6 +206,8 @@ Nothing beyond storing and relaying changes.
 
 === Client
 
+* Guide objects snap as `SnapCandidate.guideObject(Contour)`: along the path, at guide priority.
+
 * Grid rendering (`WTRender`): dots at intersections, drawn as a tiled pattern layer below the
   pages' content and above the page background; skipped when dots would be closer than 4 px on
   screen (subdivision hidden, every k-th line kept so the visible lattice is at least 8 px).

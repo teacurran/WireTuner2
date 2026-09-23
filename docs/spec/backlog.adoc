@@ -654,7 +654,7 @@ Done when:: Property tests against numeric references; no allocation in hot path
 Track:: client-render
 Depends on:: GEO-001
 Size:: L
-Delivers:: Union, intersect, punch, divide, crop, transparency (the Combine commands) on multi-contour paths with even-odd and non-zero fills; `CGPath` operations where available, own implementation for the rest.
+Delivers:: Union, intersect, punch, divide, crop, transparency (the Combine commands) on multi-contour paths with even-odd and non-zero fills; own implementation for all operations (curves kept exact, both fill rules, multi-contour); `CGPath` booleans serve only as a cross-check in the test suite, because they take one fill rule for both operands and need macOS 14.
 Done when:: Corpus of 200 cases including tangencies and self-intersections passes; degenerate input never crashes.
 
 [[GEO-003]]

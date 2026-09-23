@@ -163,6 +163,8 @@ Nothing beyond storing and relaying changes.
 
 === Client
 
+* `PrecisionSetting`: tolerance `12/precision` pt divided by zoom; smoothing σ `(10−precision)/3` samples; corners (≥ 60°, two samples each side) are detected before smoothing and each run between corners is smoothed separately.
+
 Input pipeline:: `WTApp.StrokeCapture` collects `NSEvent` samples (position, `pressure`,
 `timestamp`, and `tabletPoint` data when present) at the event rate, drawing the preview trail
 (solid or dotted per the setting) in the tool overlay.  On mouse-up the samples go to GEO-004's
