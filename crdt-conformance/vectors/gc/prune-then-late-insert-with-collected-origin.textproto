@@ -1,0 +1,41 @@
+# crdt-conformance/vectors/gc/prune-then-late-insert-with-collected-origin.textproto (CRDT-010; schema: crdt-conformance/schema/vector.proto)
+name: "gc/prune-then-late-insert-with-collected-origin"
+description: "Replica 7 types \"abc\" and deletes the c; collecting at stable point 2 drops it (a tombstone no character hangs from).  Replica 1's late change types X between b and the collected c, Y after c and marks from c: an origin or anchor that is not a character makes each a no-op (CRDT-005's drop rule).  Replica 2, which knows the stable point, types Z after b with the end as right origin (it skips the stable tombstone): abZ in every delivery."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Type"
+    ops { create { parent { counter: 4 } position: "\x80" props { test { label: "T" } } } }
+    ops { text_insert { node { counter: 1 replica: 7 } text { segments { field: 1000 } segments { field: 9 } } chars: "abc" } }
+  }
+  change {
+    replica: 7 seq: 2 start_counter: 5 base_server_seq: 1 label: "Delete c"
+    ops { text_delete { node { counter: 1 replica: 7 } text { segments { field: 1000 } segments { field: 9 } } ranges { first { counter: 4 replica: 7 } count: 1 } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 6 server_seq: 3 label: "Late typing"
+    ops { text_insert { node { counter: 1 replica: 7 } text { segments { field: 1000 } segments { field: 9 } } left_origin { counter: 3 replica: 7 } right_origin { counter: 4 replica: 7 } chars: "X" } }
+    ops { text_insert { node { counter: 1 replica: 7 } text { segments { field: 1000 } segments { field: 9 } } left_origin { counter: 4 replica: 7 } chars: "Y" } }
+    ops { text_mark { node { counter: 1 replica: 7 } text { segments { field: 1000 } segments { field: 9 } } start { char { counter: 4 replica: 7 } before: true } end { } value { bold: true } } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 6 base_server_seq: 2 server_seq: 4 label: "Type Z"
+    ops { text_insert { node { counter: 1 replica: 7 } text { segments { field: 1000 } segments { field: 9 } } left_origin { counter: 3 replica: 7 } chars: "Z" } }
+  }
+}
+deliveries { order: [1, 2] collect { stable_seq: 2 } }
+deliveries { order: [2, 1] collect { stable_seq: 2 } }
+deliveries { order: [2, 1] collect { after: 1 stable_seq: 2 } }
+expect {
+  state_hash: "5380066e1c8b7a8b61ec5cae9cd0c23e4c5255695b0df59942caf7c63cd6b3bc"
+  snapshot_hash: "0c0140973b0e42c152b714632cfa3e677fc25b7838c98275647ad09cc0f42a45"
+  node {
+    id { counter: 1 replica: 7 }
+    text { path { segments { field: 1000 } segments { field: 9 } } text: "abZ" chars { counter: 2 replica: 7 } chars { counter: 3 replica: 7 } chars { counter: 6 replica: 2 } runs { start: 0 length: 3 } }
+  }
+}

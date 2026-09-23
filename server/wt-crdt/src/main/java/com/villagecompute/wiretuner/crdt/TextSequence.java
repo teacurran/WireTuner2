@@ -152,12 +152,18 @@ public final class TextSequence {
 
     // The Fugue rule, from the origins alone.
     private void insertChar(OpId id, int scalar, OpId left, OpId right) {
+        insertChar(id, scalar, left, right, left, right);
+    }
+
+    // The Fugue rule placing by `left` and `right`; the character records `leftOrigin` and
+    // `rightOrigin` (its own, when restoring beside a collected origin).
+    private void insertChar(OpId id, int scalar, OpId left, OpId right, OpId leftOrigin, OpId rightOrigin) {
         Char leftChar = chars.get(left);
         Char rightChar = chars.get(right);
         int leftDepth = leftChar == null ? 0 : leftChar.depth;
         boolean underRight = rightChar != null && rightChar.depth > leftDepth;
         Char parent = underRight ? rightChar : leftChar;
-        Char c = new Char(id, scalar, left, right, parent == null ? 1 : parent.depth + 1);
+        Char c = new Char(id, scalar, leftOrigin, rightOrigin, parent == null ? 1 : parent.depth + 1);
         chars.put(id, c);
         List<Char> siblings;
         if (underRight) {
@@ -412,6 +418,20 @@ public final class TextSequence {
         return new Origins(left, successor(left));
     }
 
+    /**
+     * {@link #insertionOrigins(int)} for a replica that knows a stable point: the right origin
+     * skips tombstones deleted by a {@code stable} op, which a replica that collected there no
+     * longer holds (crdt-model.adoc, "Garbage collection").
+     */
+    public Origins insertionOrigins(int offset, java.util.function.Predicate<OpId> stable) {
+        Origins origins = insertionOrigins(offset);
+        OpId right = origins.right();
+        for (OpId deleted = deletedOp(right); deleted != null && stable.test(deleted); deleted = deletedOp(right)) {
+            right = successor(right);
+        }
+        return new Origins(origins.left(), right);
+    }
+
     /** The document-order index of every character, by id. */
     Map<OpId, Integer> orderIndex() {
         Map<OpId, Integer> index = new HashMap<>(chars.size() * 2);
@@ -600,29 +620,88 @@ public final class TextSequence {
         TextSequence text = new TextSequence();
         List<RestoredChar> pending = new ArrayList<>(restored);
         pending.sort(Comparator.comparing(RestoredChar::id));
-        boolean progress = true;
-        while (progress && !pending.isEmpty()) {
-            progress = false;
-            List<RestoredChar> waiting = new ArrayList<>();
-            for (RestoredChar c : pending) {
-                if (text.chars.containsKey(c.id())) {
-                    continue;
+        while (!pending.isEmpty()) {
+            boolean progress = true;
+            while (progress && !pending.isEmpty()) {
+                progress = false;
+                List<RestoredChar> waiting = new ArrayList<>();
+                for (RestoredChar c : pending) {
+                    if (text.chars.containsKey(c.id())) {
+                        continue;
+                    }
+                    if (!text.known(c.left()) || !text.known(c.right())) {
+                        waiting.add(c);
+                        continue;
+                    }
+                    text.restore(c, c.left(), c.right());
+                    progress = true;
                 }
-                if (!text.known(c.left()) || !text.known(c.right())) {
-                    waiting.add(c);
-                    continue;
-                }
-                text.insertChar(c.id(), c.scalar(), c.left(), c.right());
-                if (c.deleted() != null) {
-                    text.delete(c.id(), c.deleted());
-                }
-                progress = true;
+                pending = waiting;
             }
-            pending = waiting;
+            RestoredChar orphan = pending.stream()
+                    .filter(c -> !c.left().equals(OpId.ZERO) && !c.right().equals(OpId.ZERO)
+                            && text.known(c.left()) != text.known(c.right()))
+                    .findFirst().orElse(null);
+            if (orphan == null) {
+                break;
+            }
+            pending.remove(orphan);
+            text.restore(orphan, text.known(orphan.left()) ? orphan.left() : OpId.ZERO,
+                    text.known(orphan.right()) ? orphan.right() : OpId.ZERO);
         }
         for (TextMark mark : marks) {
             text.mark(mark);
         }
         return text;
+    }
+
+    private void restore(RestoredChar c, OpId left, OpId right) {
+        insertChar(c.id(), c.scalar(), left, right, c.left(), c.right());
+        if (c.deleted() != null) {
+            delete(c.id(), c.deleted());
+        }
+    }
+
+    // ---- Garbage collection
+
+    /**
+     * The tombstones garbage collection can drop (CRDT-010): each character deleted by a
+     * {@code stable} op that no mark anchors and that has no character left below it in the Fugue
+     * tree; mirrors {@code WTCRDT.TextSequence.collectable}.
+     */
+    java.util.Set<OpId> collectable(java.util.function.Predicate<OpId> stable) {
+        java.util.Set<OpId> anchored = new java.util.HashSet<>();
+        for (TextMark mark : marks.values()) {
+            anchored.add(mark.start().character());
+            anchored.add(mark.end().character());
+        }
+        List<Char> deepestFirst = new ArrayList<>(chars.values());
+        deepestFirst.sort((a, b) -> Integer.compare(b.depth, a.depth));
+        java.util.Set<Char> gone = new java.util.HashSet<>();
+        java.util.Set<OpId> out = new java.util.HashSet<>();
+        for (Char c : deepestFirst) {
+            if (c.live() || !stable.test(c.deletedBy) || anchored.contains(c.id)
+                    || !gone(c.leftChildren, gone) || !gone(c.rightChildren, gone)) {
+                continue;
+            }
+            gone.add(c);
+            out.add(c.id);
+        }
+        return out;
+    }
+
+    private static boolean gone(List<Char> children, java.util.Set<Char> gone) {
+        return children == null || gone.containsAll(children);
+    }
+
+    /** This field without the characters {@code gone}, rebuilt as a snapshot restores it. */
+    TextSequence removing(java.util.Set<OpId> gone) {
+        List<RestoredChar> remaining = new ArrayList<>();
+        for (Char c : chars.values()) {
+            if (!gone.contains(c.id)) {
+                remaining.add(new RestoredChar(c.id, c.codepoint, c.left, c.right, c.deletedBy));
+            }
+        }
+        return restore(remaining, List.copyOf(marks.values()));
     }
 }

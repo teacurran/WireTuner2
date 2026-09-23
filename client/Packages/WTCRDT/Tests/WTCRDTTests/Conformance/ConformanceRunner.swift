@@ -20,6 +20,8 @@ enum ConformanceRunner {
         let name: String
         let failures: [String]
         let stateHash: String
+        /// The hex SHA-256 of the reference delivery's snapshot ("" when nothing was replayed).
+        var snapshotHash = ""
 
         var passed: Bool { failures.isEmpty }
         var report: String { "\(name):\n  " + failures.joined(separator: "\n  ") }
@@ -61,8 +63,9 @@ enum ConformanceRunner {
         return run(vector, expectedName: expectedName(root, file))
     }
 
-    /// Replays `vector`, which must be named `expectedName`.
-    static func run(_ vector: Vector, expectedName: String) -> Outcome {
+    /// Replays `vector`, which must be named `expectedName`; with `expectations` false the hashes
+    /// and read-outs of `expect` are not compared (the fuzzer records them from the outcome).
+    static func run(_ vector: Vector, expectedName: String, expectations: Bool = true) -> Outcome {
         var failures: [String] = []
         if vector.name != expectedName {
             failures.append("name is \"\(vector.name)\" but the file says \"\(expectedName)\"")
@@ -70,13 +73,19 @@ enum ConformanceRunner {
         let schema = schema(vector, &failures)
         let orders = deliveryOrders(vector, &failures)
         checkPositions(vector, &failures)
+        for (index, order) in orders.enumerated() where index < vector.deliveries.count {
+            for point in vector.deliveries[index].collect where Int(point.after) > order.count {
+                failures.append("delivery \(describe(vector, index)) collects after change \(point.after) of \(order.count)")
+            }
+        }
         guard failures.isEmpty else { return Outcome(name: expectedName, failures: failures, stateHash: "") }
         var reference: EngineState?
         var referenceSnapshot: [UInt8] = []
         var referenceOrder = ""
         let serverSeq = greatestServerSeq(vector)
         for (index, order) in orders.enumerated() {
-            let engine = replay(schema, vector, order)
+            let collects = index < vector.deliveries.count ? vector.deliveries[index].collect : []
+            let engine = replay(schema, vector, order, collects)
             let snapshot = Snapshot.encode(engine, serverSeq: serverSeq)
             let described = describe(vector, index)
             if let reference {
@@ -92,9 +101,12 @@ enum ConformanceRunner {
                 referenceOrder = described
             }
         }
-        checkExpectations(vector, reference!, &failures)
-        checkSnapshot(vector, schema, referenceSnapshot, &failures)
-        return Outcome(name: expectedName, failures: failures, stateHash: StateHash.hex(reference!.stateHash))
+        if expectations {
+            checkExpectations(vector, reference!, &failures)
+        }
+        checkSnapshot(vector, schema, referenceSnapshot, &failures, hash: expectations)
+        return Outcome(name: expectedName, failures: failures, stateHash: StateHash.hex(reference!.stateHash),
+                       snapshotHash: StateHash.hex(Array(SHA256.hash(data: referenceSnapshot))))
     }
 
     /// The greatest server_seq the vector gives a change (setup changes default to index + 1).
@@ -107,10 +119,10 @@ enum ConformanceRunner {
     /// The snapshot of the merged state: its hash, and a lossless round trip (decoding it gives
     /// the same state hash and encodes to the same bytes).
     static func checkSnapshot(
-        _ vector: Vector, _ schema: Schema, _ snapshot: [UInt8], _ failures: inout [String]
+        _ vector: Vector, _ schema: Schema, _ snapshot: [UInt8], _ failures: inout [String], hash compare: Bool = true
     ) {
         let hash = StateHash.hex(Array(SHA256.hash(data: snapshot)))
-        if hash != vector.expect.snapshotHash {
+        if compare && hash != vector.expect.snapshotHash {
             failures.append("snapshot_hash: expected \"\(vector.expect.snapshotHash)\", got \"\(hash)\"")
         }
         do {
@@ -220,13 +232,23 @@ enum ConformanceRunner {
         return changes
     }
 
-    private static func replay(_ schema: Schema, _ vector: Vector, _ order: [Change]) -> EngineState {
+    /// The state one delivery reaches: the setup, then `order`, collecting as `collects` say.
+    static func replay(
+        _ schema: Schema, _ vector: Vector, _ order: [Change], _ collects: [Wiretuner_Conformance_V1_Collect] = []
+    ) -> EngineState {
         var engine = EngineState(schema: schema)
         for (index, change) in vector.setup.change.enumerated() {
             engine.apply(docChange(change), serverSeq: change.serverSeq == 0 ? UInt64(index + 1) : change.serverSeq)
         }
-        for change in order {
+        func collect(after applied: Int) {
+            for point in collects where Int(point.after) == applied {
+                engine.collect(stableSeq: point.stableSeq, now: point.nowMs)
+            }
+        }
+        collect(after: 0)
+        for (index, change) in order.enumerated() {
             engine.apply(docChange(change), serverSeq: change.serverSeq == 0 ? nil : change.serverSeq)
+            collect(after: index + 1)
         }
         return engine
     }

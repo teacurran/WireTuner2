@@ -490,7 +490,8 @@ already present is not inserted again.  `TextDelete` names runs of consecutive i
 of the field among them becomes a tombstone that keeps the greatest delete OpId.  Read-outs: the
 plain string of live characters, character id <-> live offset (a tombstone's offset is where it
 would be), and the origins a client gives an insert at an offset (the live character before it and
-that character's successor, tombstones included).  The order is kept in blocks of at most 512
+that character's successor, tombstones included -- except tombstones stable at the replica's horizon,
+which the right origin skips, <<gc>>).  The order is kept in blocks of at most 512
 characters with live counts: an insert into a 200,000-character text takes 0.57 µs (Swift,
 release, M-series) and 1.0 µs (Java), against the 50 µs budget.
 +
@@ -556,9 +557,10 @@ Undo is per user and local.  Undoing never rewinds the shared document; it write
 * When `WTModel` applies a local command, it records the inverse of each op against the state
   just before: the prior `(value, OpId)` of each register written, the prior parent and
   position of each moved node, the inserted element ids, the deleted characters.
-* *Undo* emits a change restoring each prior value *only where the register still holds the
-  value this user wrote*.  If someone else has since changed it, that part of the undo is
-  skipped: undo never reverts other people's work.  Redo is symmetric.
+* *Undo* emits a change restoring each prior value *only where nobody else has written the
+  register since*: it still holds the value this user wrote, or a later one of this replica's own
+  (its undo of a later change, say).  If someone else has since changed it, that part of the undo
+  is skipped: undo never reverts other people's work.  Redo is symmetric.
 * Undo of a creation sets `deleted = true`; undo of a deletion sets it back to `false`.  Undo of
   typed text deletes the inserted character ids; undo of a deletion re-inserts the text as new
   characters at the original anchor.
@@ -572,9 +574,11 @@ attribute values they showed and a newline's paragraph registers, and for a mark
 character's prior value of its attribute.  `undoChange(inverse, replica, seq, startCounter, ...)`
 returns the change that undoes it against the current state, or none when nothing is left: the
 change is undone as a unit, so where several of its ops touched one target the value before the
-first is restored if the state still holds the last write; a creation or insert is undone unless
-someone else wrote its `deleted` flag since; a member is re-added only if it is absent now and
-removed only if the change's own adds are all that hold it; deleted text goes back as new
+first is restored if no other replica has written the target since the last write (the state holds
+that write or a later one by `replica`, CRDT-010); a creation or insert is undone unless another
+replica wrote its `deleted` flag since; a member is re-added only if it is absent now and removed
+only if the change's own adds and `replica`'s are all that hold it; a target garbage collection
+dropped is skipped; deleted text goes back as new
 characters after the last tombstone of each adjacent run, with marks restoring its attributes
 (anchored `before` the first and `after` the last new character) and its newlines' paragraph
 registers; a mark is undone by marks restoring the prior values (or a cleared value) on the
@@ -595,10 +599,10 @@ elements including unstable tombstones, the unstable part of the move log (`Move
 each replica's highest applied seq and acknowledged server sequence (`ReplicaState`).  Snapshots
 are zstd-compressed protobuf, chunked to 1 MiB for transfer (`SnapshotFrame`: a `SnapshotHeader`
 first, then `bytes chunk` frames, mirroring the blob service), and carry a `state_hash` (SHA-256
-over a canonical encoding -- nodes by id, stamps and elements by path, the hash field itself
-empty; CRDT-009 fixes the rest) that both engines compute identically.  Clients compare their own hash to the server's at the same
-sequence number whenever their outbox is empty.  A mismatch is a bug report plus an automatic
-re-bootstrap from the snapshot.
+over the canonical encoding of the state, <<canonical-encoding>>) that both engines compute
+identically.  Clients compare their own hash to the server's at the same sequence number and
+collection point (<<gc>>) whenever their outbox is empty.  A mismatch is a bug report plus an
+automatic re-bootstrap from the snapshot.
 
 [[snapshot-encoding]]
 === Snapshot encoding
@@ -618,22 +622,27 @@ independent of delivery order; every conformance vector pins them (`snapshot_has
   a stamp and no value.  `elements` holds every sequence element and every character by path (a
   character's position is empty; its `deleted_op` is its greatest delete).  `tree_op` and
   `deleted_op` as the proto describes.
-* `move_log` in OpId order, `replicas` by id (highest seq, greatest `base_server_seq`),
-  `max_counter` (the clock), `stable_seq` and `feature_level` 0 until CRDT-010 and the feature
-  levels exist.
+* `move_log` in OpId order, `replicas` by id (highest seq, greatest `base_server_seq`, stable
+  counter), `stable_seq` (the stable point last collected at, <<gc>>), `max_counter` (the clock);
+  `feature_level` 0 until the feature levels exist.
 * `state_hash` is `StateHash` of the state (<<canonical-encoding>>), not a hash of the snapshot's
-  own bytes as snapshot.proto's comment has it: the client compares it with the hash of its own
-  state without encoding a snapshot, and it does not change with the move log's pruning
-  (CRDT-010) or replica bookkeeping.  Decoding recomputes it and refuses a snapshot that differs.
-* Deviation (CRDT-009): snapshot.proto has no place for four things decoding needs, so the
-  engines write them at field numbers proposed for doc.v1 (snapshot.proto is owned by the proto
-  track): `NodeState.sets = 6` (`repeated SetState`: path; members, each its canonical value and
-  every add and remove with op, seq and, for removes, `base_server_seq` -- presence is computed
-  from the history), `NodeState.texts = 7` (`repeated FieldPath`: the node's TEXT fields),
-  `MoveLogEntry.old_op = 8` (the op of the placement the entry replaced, which undoing it
-  restores) and `DocumentSnapshot.sequenced = 9` (`repeated SequencedChange`: replica, seq,
-  server_seq of every sequenced change, which set removes are judged by).  A logged `CreateNode`
-  is the entry whose `op` equals its `node` (*Operations*, CRDT-008).
+  own bytes: the client compares it with the hash of its own state without encoding a snapshot,
+  and it does not change with the move log's pruning or replica bookkeeping.  Decoding recomputes
+  it and refuses a snapshot that differs.
+* The engine bookkeeping CRDT-009 wrote at proposed numbers is declared in snapshot.proto since
+  CRDT-010, which added what garbage collection needs: `NodeState.sets` (`SetState`: path;
+  `SetMemberState`s, each its canonical value and every `SetTag` add and remove with op, seq and,
+  for removes, `base_server_seq` -- presence is computed from the history), `NodeState.texts`
+  (the node's TEXT fields), `NodeState.deleted_wall_time_ms` (the wall time of the change that
+  wrote the current `deleted` value, which starts the 30 days before compaction; 0 when unknown),
+  `MoveLogEntry.old_op` (the op of the placement the entry replaced, which undoing it restores),
+  `ReplicaState.stable_counter` (every op of the replica below it is stable) and
+  `DocumentSnapshot.sequenced` (`SequencedChange`: replica, seq, the server_seq when known, which
+  set removes are judged by, and `end_counter`, one past the change's last counter, which
+  collection folds into the replica's stable counter; every change the state records, sequenced
+  or not).  A logged `CreateNode` is the entry whose `op` equals its `node` (*Operations*,
+  CRDT-008).  The generated classes read every field the engines write (`CollectionTests` /
+  `CollectionTest`).
 * The change log (losing writes) is not in a snapshot; a decoded state logs only what it applies
   afterwards.  Round trips are lossless for everything else: decoding and re-encoding gives the
   same bytes, and the decoded state merges any later change exactly as the original does.
@@ -644,7 +653,7 @@ snapshot's `state_hash`) and the zstd-compressed snapshot in chunks of at most 1
 header names the snapshot's hash and decodes.  zstd is zstd 1.5.7 on both sides: zstd-jni in
 wt-crdt, and in WTCRDT the upstream single-file library vendored as the `CZstd` C target
 (`client/Packages/WTCRDT/Sources/CZstd`, BSD licence; Compression.framework has no zstd), built
-without coverage instrumentation.  Both compress the design point to the same 3,661,516 bytes.
+without coverage instrumentation.  Both compress the design point to the same 3,843,456 bytes (3,661,516 before CRDT-010 added the change records' end counters).
 
 The design point -- 50,000 nodes with 20 registers each (1,000,000) and five sequence elements,
 plus a 200,000-character text; a 75 MB snapshot -- bootstraps (decompress, decode, verify the
@@ -660,7 +669,10 @@ CRDT-001 fixed the register part of the canonical encoding; CRDT-002, CRDT-004 a
 added the tree placement, the `deleted` register, sequence elements and set members, and
 CRDT-005/006 the TEXT fields (and every conformance vector's expected hash was re-recorded).
 CRDT-009 left the move log and replica state out: they are bookkeeping of how the state was
-reached, and CRDT-010's pruning must not change the hash.  `StateHash` in both engines is SHA-256
+reached, and CRDT-010's pruning of them must not change the hash.  The tombstones, set tags and
+deleted nodes a collection drops are part of the state and leave the hash with it; the collected
+state, and so its hash, depends only on the changes and the collection points, never on when a
+collection ran (<<gc>>).  `StateHash` in both engines is SHA-256
 over these bytes.  All integers are big-endian and fixed width:
 
 [listing]
@@ -705,6 +717,7 @@ The empty state hashes to `df3f6198…b81119` (SHA-256 of four zero bytes); `Sta
 engines pins a sample encoding (placement, `deleted`, a register, an element, a set member and a
 text with a tombstone and a mark) byte for byte.
 
+[[gc]]
 == Garbage collection
 
 Tombstones (deleted characters, deleted sequence elements) and move-log entries can be dropped
@@ -718,6 +731,93 @@ sequence and publishes the stable point.
   the window and never triggers this.
 * Deleted *nodes* are not purged by stability alone: they stay restorable for 30 days, then are
   compacted out of new snapshots.  They remain in the cold change log for version history.
+
+[[collection-points]]
+=== Stable points, horizons and collection points
+
+As built by CRDT-010.  A server sequence number _S_ is a *stable point* when every change
+sequenced after it, and every change any replica will still push, has `base_server_seq` at least
+_S_: all of them are causally after everything sequenced at or before _S_.  The smallest
+acknowledged server_seq over the replicas that are not retired (`stablePoint(retired:)` in both
+engines, from the `base_server_seq`s the state has seen; the server also counts the acks of
+replicas that only subscribed) bounds every future change, but not a change pushed before its
+author acknowledged further: min(acks) alone is *not* a stable point.  An op is *stable at* _S_
+when its change was sequenced at or before _S_; a replica's changes are sequenced in seq order
+and take increasing counters, so that is "its counter is below the replica's stable counter at
+_S_" (`isStable(op, at:)`, `stableCounters(at:)`).
+
+Replicas collect at different moments, so a collection must drop nothing that a change some
+replica has not applied yet still names.  The protocol that guarantees it has two parts.
+
+* *Horizon.*  Each replica keeps the newest stable point and clock the server has published to
+  it, its horizon, and never writes an op that names something collectable there: the right
+  origin of a text insert skips tombstones whose delete is stable at the horizon
+  (`insertionOrigins(node, path, at:, stableSeq:)`; `TextSequence.insertionOrigins(at:skippingStable:)`),
+  and no op names a stable tombstone (a delete, restore, move, edit or mark anchor) or a node that
+  would compact at the horizon, or one below it (`isCompactable(node, stableSeq:, now:)`).  A
+  change's horizon is the publication its author last received before pushing it.
+* *Collection point.*  The server publishes a collection point (_C_, _T_): the stable point and
+  clock it published at the moment every replica had received them (the smallest horizon over the
+  replicas), lowered until no change sequenced after _C_ has a horizon below _C_ (or a clock below
+  _T_).  Every replica collects at the collection points it receives, and so does the server's
+  snapshotter; _C_ never exceeds what the collecting replica has applied.
+
+A change some replica has not applied is either a future one (its horizon is at least the
+smallest horizon) or one sequenced after _C_ (lowered past), so its author knew _C_ and _T_ and
+named nothing a collection at (_C_, _T_) drops; and _C_ is a stable point, since a change's
+`base_server_seq` is at least its horizon.  `FuzzGenerator.collectionPoint` in `WTCRDTTests` is
+the reference computation; the fuzzer (xref:testing.adoc#fuzzing[Testing]) runs every replica
+under this protocol.  (Deviation, CRDT-010: server.adoc's Stability job publishes min(acks); it
+needs the two numbers above and each change's horizon, and the sync protocol's `AckResponse` a
+place for the collection point.)
+
+[[collect]]
+=== Collecting
+
+`collect(stableSeq: C, now: T)` (`Engine.collect(stableSeq, Clock)` in wt-crdt; `now` defaults
+to the system clock and is injectable) drops what _C_ makes stable, in this order:
+
+. *Set history.*  A stable add that some remove observed is dead for good; a stable remove observes
+  no add that is not stable (an add it observes was sequenced before it); both go.  A stable add no
+  remove observed stays, and is judged from then on as sequenced at the stable point: every later
+  remove's causal past reaches it.  A member left with no history goes.
+. *Sequence tombstones* whose `deleted` write is stable go, with every register, nested element,
+  set and text beneath them.
+. *Character tombstones* whose greatest delete is stable go when no mark anchors them and no
+  character hangs below them in the Fugue tree (`TextSequence.collectable`), deepest first, with
+  their paragraph registers.  Dropping a childless character moves, re-orders and re-depths
+  nothing, so the tree stays the one the remaining characters' origins build; a snapshot restores a
+  character whose other origin was dropped from the origin that remains (only a character whose
+  right origin was skipped as a stable tombstone can lose one).  A tombstone that later characters
+  hang from stays until they go -- the interior tombstones of a run typed in one go are kept (the
+  Eg-walker note under *Performance budget* is the way out if that ever matters).
+. *Move-log entries* whose op is stable go.  Every later tree op is causally after them and has a
+  greater OpId, so they are never undone again; the entries left keep the placement each replaced
+  (`old_op`), which is all undoing them needs.
+. *Change records* sequenced at or before _C_ go, folded into each replica's stable counter.
+. *Deleted nodes* whose `deleted` write is stable and whose deletion's wall time (the writing
+  change's `wall_time_ms`) is at least 30 days before _T_ are compacted with their subtree --
+  unless an unstable move-log entry still names one of them (a node moved out of the subtree by a
+  move not yet stable keeps the subtree until it is).
+
+A point below the last one collects nothing; the same point again only compacts, by a later clock.
+After a collection, an op below its replica's stable counter, and a change sequenced at or before
+_C_, is a replay and is ignored (its effects are already in the state), and a late op naming a
+dropped tombstone or node is a deterministic no-op by the rules above: an unknown text origin or
+mark anchor drops the op (*Text*), an element segment naming no element makes the path a no-op
+(<<field-paths>>), and ops on a node that does not exist are no-ops (*Totality*).  Only a replica
+outside the protocol (a retired one bypassing salvage) sends such ops.
+
+The state a collection reaches depends only on the changes applied and the collection points, not
+on when each collection ran: collecting at _C_ and then applying more changes gives the same state,
+snapshot bytes included, as applying them and then collecting
+(`gc/hash-unaffected-by-prune-timing`).  Hashes are compared at the same server_seq *and*
+collection point.  Vectors: `gc/prune-then-late-delete`, `gc/prune-then-late-insert-with-collected-origin`.
+
+A node created and deleted within one replica's outbox stays in that replica's state -- deleted,
+with its registers, in the hash -- until a collection compacts it, which needs the deletion to be
+sequenced and stable: an outbox that coalesces the pair away never sends the deletion, so the
+creating replica's hash keeps the node while every other replica's lacks it.
 
 == Schema evolution [[evolution]]
 

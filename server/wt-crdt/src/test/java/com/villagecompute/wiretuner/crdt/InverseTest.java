@@ -140,6 +140,86 @@ class InverseTest {
         assertThat(engine.undoChange(inverse, 9, 2, engine.clock().peek(), 2, "")).as(name).isNull();
     }
 
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("contested")
+    void thisReplicasOwnLaterWritesDoNotBlockAnUndo(String name, List<String> local, List<String> later) {
+        Engine engine = base();
+        List<String> before = View.of(engine);
+        Inverse inverse = engine.applyLocal(Scenario.change(9, 1, 13, 2, local));
+        engine.applyLocal(Scenario.change(9, 2, 50, 2, later));
+        Change undo = engine.undoChange(inverse, 9, 3, engine.clock().peek(), 2, "");
+        if (undo != null) {
+            engine.applyLocal(undo);
+        }
+        assertThat(View.of(engine)).as(name).isEqualTo(before);
+    }
+
+    @Test
+    void undoSkipsWhatACollectionDropped() {
+        Engine engine = base();
+        Inverse inverse = engine.applyLocal(Scenario.change(9, 1, 13, 2, List.of(
+                "create { parent { counter: 4 } position: \"\\x90\" props { test { label: \"N\" } } }",
+                "element_insert { " + N + " sequence { segments { field: 1000 } segments { field: 8 } } positions: \"\\x82\""
+                        + " values { test { stops { offset: 5 } } } }",
+                Scenario.insert("X", new OpId(9, 7), null),
+                "set { " + N + " " + LABEL + " values { test { label: \"L\" } } }",
+                "set { " + N + " paths { segments { field: 1000 } segments { field: 8 } segments { element { counter: 14 replica: 9 } }"
+                        + " segments { field: 2 } } values { test { stops { offset: 6 } } } }",
+                "move { " + OTHER + " parent { counter: 4 } position: \"\\xA0\" }",
+                "set_deleted { " + OTHER + " deleted: false }",
+                "element_move { " + N + " element { " + STOP3 + " } position: \"\\x83\" }",
+                "element_delete { " + N + " elements { " + STOP3 + " } deleted: false }")));
+        engine.acknowledge(9, 1, 3);
+        engine.apply(Scenario.change(5, 1, 30, 3, List.of(
+                "set_deleted { " + OTHER + " deleted: true }",
+                "element_delete { " + N + " elements { " + STOP3 + " } deleted: true }",
+                "set_deleted { node { counter: 13 replica: 9 } deleted: true }",
+                "element_delete { " + N + " elements { segments { field: 1000 } segments { field: 8 } segments { element { counter: 14 replica: 9 } } }"
+                        + " deleted: true }",
+                "text_delete { " + N + " " + T + " ranges { first { counter: 15 replica: 9 } count: 1 } }")), 4L);
+        Collected collected = engine.collect(4, java.time.Clock.fixed(java.time.Instant.ofEpochMilli(Engine.DELETED_NODE_RETENTION_MS),
+                java.time.ZoneOffset.UTC));
+        assertThat(collected.nodes()).isEqualTo(2);
+        assertThat(collected.elements()).isEqualTo(2);
+        assertThat(collected.characters()).isEqualTo(1);
+        Change undo = engine.undoChange(inverse, 9, 2, engine.clock().peek(), 0, "");
+        assertThat(undo.getOpsList()).hasSize(1);
+        assertThat(undo.getOps(0).getSet().getPathsList()).containsExactly(Scenario.LABEL.toProto());
+        // The text itself dropped (every character collected, or its node compacted): nothing of a
+        // text step is left either.
+        Engine emptied = Scenario.engine();
+        Inverse typed = emptied.applyLocal(Scenario.change(9, 1, 2, 1, List.of(Scenario.insert("ab", null, null))));
+        Inverse deleted = emptied.applyLocal(Scenario.change(9, 2, 4, 1, List.of(
+                "text_delete { " + N + " " + T + " ranges { first { counter: 2 replica: 9 } count: 2 } }")));
+        emptied.acknowledge(9, 1, 2);
+        emptied.acknowledge(9, 2, 3);
+        assertThat(emptied.collect(3, java.time.Clock.systemUTC()).characters()).isEqualTo(2);
+        assertThat(emptied.text(Scenario.NODE, Scenario.TEXT)).isNull();
+        assertThat(emptied.undoChange(typed, 9, 3, emptied.clock().peek(), 3, "")).isNull();
+        assertThat(emptied.undoChange(deleted, 9, 3, emptied.clock().peek(), 3, "")).isNull();
+        Engine compacted = Scenario.engine();
+        Inverse marked = compacted.applyLocal(Scenario.change(9, 1, 2, 1, List.of(Scenario.insert("ab", null, null),
+                Scenario.mark(null, true, null, false, "size: 3"))));
+        compacted.acknowledge(9, 1, 2);
+        compacted.apply(Scenario.change(5, 1, 10, 2, List.of("set_deleted { " + N + " deleted: true }")), 3L);
+        assertThat(compacted.collect(3, java.time.Clock.fixed(java.time.Instant.ofEpochMilli(Engine.DELETED_NODE_RETENTION_MS),
+                java.time.ZoneOffset.UTC)).nodes()).isEqualTo(1);
+        assertThat(compacted.undoChange(marked, 9, 2, compacted.clock().peek(), 3, "")).isNull();
+    }
+
+    @Test
+    void joinedInversesUndoAsOne() {
+        Engine engine = base();
+        Inverse first = engine.applyLocal(Scenario.change(9, 1, 13, 2, List.of(
+                "text_delete { " + N + " " + T + " ranges { first { counter: 6 replica: 7 } count: 2 } }")));
+        Inverse second = engine.applyLocal(Scenario.change(9, 2, 14, 2, List.of(
+                "set_remove { " + N + " " + TAGS + " values { test { tags: \"t\" } } }", Scenario.mark(null, true, null, false, "size: 12"))));
+        Inverse joined = first.followed(second);
+        assertThat(joined.steps()).hasSize(first.steps().size() + second.steps().size());
+        engine.applyLocal(engine.undoChange(joined, 9, 3, engine.clock().peek(), 2, ""));
+        assertThat(View.of(engine)).isEqualTo(View.of(base()));
+    }
+
     @Test
     void aMoveOfAnUnplacedNodeHasNothingToMoveBackTo() {
         Engine engine = base();

@@ -15,14 +15,16 @@ import java.util.TreeMap;
  * themselves, field by field in number order with proto3 defaults left out: a register's value is
  * its records exactly as they arrived, which protobuf-java and swift-protobuf would reorder
  * differently when re-serialising unknown fields. See {@code WTCRDT.Snapshot} for the layout,
- * including the fields doc.v1 does not declare yet ({@code NodeState.sets = 6},
- * {@code NodeState.texts = 7}, {@code MoveLogEntry.old_op = 8},
- * {@code DocumentSnapshot.sequenced = 9}). The change log is not part of a snapshot.
+ * including the engine bookkeeping ({@code NodeState.sets}, {@code NodeState.texts},
+ * {@code NodeState.deleted_wall_time_ms}, {@code MoveLogEntry.old_op},
+ * {@code ReplicaState.stable_counter}, {@code DocumentSnapshot.stable_seq} and
+ * {@code DocumentSnapshot.sequenced}). The change log is not part of a snapshot.
  */
 public final class Snapshot {
 
     static final int NODE_SETS = 6;
     static final int NODE_TEXTS = 7;
+    static final int NODE_DELETED_TIME = 8;
     static final int MOVE_OLD_OP = 8;
     static final int SEQUENCED = 9;
 
@@ -57,8 +59,10 @@ public final class Snapshot {
             inner.fixed64Field(1, replica);
             inner.varintField(2, state.seq());
             inner.varintField(3, state.ackedServerSeq());
+            inner.varintField(4, state.stableCounter());
             out.lenField(4, inner.bytes());
         });
+        out.varintField(5, store.stableSeq());
         out.varintField(6, engine.clock().max());
         out.lenField(8, StateHash.of(store));
         for (NodeStore.Sequenced change : store.sequencedChanges()) {
@@ -66,6 +70,7 @@ public final class Snapshot {
             inner.fixed64Field(1, change.replica());
             inner.varintField(2, change.seq());
             inner.varintField(3, change.serverSeq());
+            inner.varintField(4, change.endCounter());
             out.lenField(SEQUENCED, inner.bytes());
         }
         return out.bytes();
@@ -118,6 +123,7 @@ public final class Snapshot {
         for (RegisterPath path : store.textPaths(node)) {
             out.lenField(NODE_TEXTS, WireWriter.path(path));
         }
+        out.varintField(NODE_DELETED_TIME, store.deletedTime(node));
         return out.bytes();
     }
 
@@ -308,12 +314,14 @@ public final class Snapshot {
         }
         for (byte[] replica : snapshot.payloads(4)) {
             WireMessage entry = message(replica);
-            store.restoreReplica(entry.lastFixed64(1), new ReplicaState(entry.lastVarint(2), entry.lastVarint(3)));
+            store.restoreReplica(entry.lastFixed64(1),
+                    new ReplicaState(entry.lastVarint(2), entry.lastVarint(3), entry.lastVarint(4)));
         }
         for (byte[] sequenced : snapshot.payloads(SEQUENCED)) {
             WireMessage entry = message(sequenced);
-            store.sequence(entry.lastFixed64(1), entry.lastVarint(2), entry.lastVarint(3));
+            store.restoreChange(entry.lastFixed64(1), entry.lastVarint(2), entry.lastVarint(3), entry.lastVarint(4));
         }
+        store.restoreStableSeq(snapshot.lastVarint(5));
         engine.restoreClock(snapshot.lastVarint(6));
         store.restoreTree(new Tree(log, placements, store.createdNodes()));
         byte[] hash = snapshot.lastPayload(8);
@@ -345,7 +353,7 @@ public final class Snapshot {
             placements.put(id, new Placement(id(plain, 2), payload(plain, 3), id(state, 2)));
         }
         if (state.has(3)) {
-            store.restoreDeleted(id, plain.lastVarint(4) != 0, id(state, 3));
+            store.restoreDeleted(id, plain.lastVarint(4) != 0, id(state, 3), state.lastVarint(NODE_DELETED_TIME));
         }
         Set<RegisterPath> textPaths = new HashSet<>();
         for (byte[] path : state.payloads(NODE_TEXTS)) {

@@ -20,7 +20,7 @@ replica {
 }
 expect {
   state_hash: "a392ae802828f6135002b9246684063dbd8233fcd29806020f94a2d295d9ad7a"
-  snapshot_hash: "0749817de3df5f3afc4f42495f099a1986864965534ef66c719d0675d45ed7de"
+  snapshot_hash: "3a4e8ab2fc72a91f0a96164ba7499c16605c9cfa5103f86f3e98007107522117"
   node {
     id { counter: 1 replica: 7 }
     node_hash: ""

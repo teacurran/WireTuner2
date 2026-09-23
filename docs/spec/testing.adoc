@@ -24,6 +24,8 @@ deliveries { order: [1, 2] }               # each occurrence delivers that repli
 deliveries { order: [2, 1] }               #   every order must converge to the same hash
 deliveries { picks { replica: 2 seq: 1 } picks { replica: 1 seq: 1 } picks { replica: 2 seq: 1 } }
                                            # or: changes by replica and seq, any order, repeats allowed
+deliveries { order: [2, 1] collect { after: 1 stable_seq: 2 now_ms: 0 } }
+                                           # garbage collection after that many changes (CRDT-010)
 position { lo: "\x80" seed: 2 expect: "\x81\xce\x0f" }   # fractional positions, byte for byte
 append_run { seed: 1 count: 1000 max_length: 40 last: "..." }
 expect {
@@ -79,10 +81,61 @@ of CRDT-001 declares `NavigationProps` a variant because doc.v1 has none yet).  
 `-0.0` and NaN payloads: swift-protobuf omits `-0.0` where protobuf-java writes it, so the two
 languages encode the same text differently.
 
+A delivery's `collect` entries (CRDT-010) run `collect(stableSeq:now:)` after `after` of its
+changes (0: right after the setup); since every delivery must reach one state, a vector that
+collects collects the same points in every delivery, at different moments.
+
 Every task that adds a field or a merge rule adds vectors.  Both engines run every vector in
-CI (CRDT-011); a divergence names the vector and the first differing node.  The vectors are
-also the seed corpus for the fuzzer (CRDT-012), which runs nightly over a million random ops and
-minimises any failure into a new vector.
+CI (CRDT-011); a divergence names the vector and the first differing node.  The fuzzer
+(<<fuzzing>>) writes vectors in the same format and minimises any failure into a new one.
+
+[[fuzzing]]
+== Fuzzing
+
+As built by CRDT-012.  One generator, in Swift, writes a corpus of conformance vectors; WTCRDT
+replays every delivery of each and records the hashes it reached; wt-crdt replays the corpus and
+must reach the same hashes.  A shared seed with a generator in each language was the other
+choice; a corpus was chosen because there is then one generator to keep right (two would drift,
+and a drift reads as a divergence), the Java side is the conformance runner unchanged, and every
+case -- and every failure -- is already a vector anyone can read, replay in either engine and
+commit.
+
+* `FuzzGenerator` (`WTCRDTTests/Fuzz`): from one `SplitMix64` seed, each vector simulates two to
+  four replicas (random 64-bit ids) editing a document of test-kind nodes through a hub.  A
+  replica edits against its own state (creates, moves, deletes and restores nodes; sets, clears
+  and struct-writes registers; inserts, moves, deletes, restores and edits flat and nested sequence
+  elements; types, deletes and marks text, sets paragraph registers; adds and removes string and
+  scalar set members), pushes and pulls in random interleavings, drops off the network for a while
+  and keeps editing, and collects at the points the hub publishes under the garbage-collection
+  protocol (crdt-model.adoc, "Stable points, horizons and collection points"), with a clock that
+  moves on by up to three days a step so deleted nodes compact.  Each replica's own application
+  order (its changes as it made them, the others' as it pulled them, its collections) and the
+  server log's become the deliveries, which must all reach one state and one snapshot; the
+  simulated replicas' own states must hash the same.
+* `FuzzTests.generatedVectorsConvergeInWTCRDT` runs `WT_FUZZ_OPS` ops (default 20,000) from
+  `WT_FUZZ_SEED` (default 1) in vectors of `WT_FUZZ_ROUND_OPS` (250), writing
+  `fuzz/<seed>-<index>.textproto` into `WT_FUZZ_CORPUS` when set; `FuzzCorpusTest`
+  (server/conformance) replays such a corpus and lists what failed in `<corpus>-java-failures.txt`.
+  `make -C crdt-conformance fuzz` runs both (part of `make conformance`); the nightly job runs
+  `make -C crdt-conformance fuzz FUZZ_OPS=1000000 FUZZ_SWIFT='-c release -Xswiftc -enable-testing'`.
+* Minimising: `FuzzMinimizer` shrinks a failing vector by delta debugging over its deliveries,
+  changes, collections and ops (an op becomes as many `Noop`s as it took counters, so later ids
+  hold).  A vector WTCRDT's own deliveries disagree on is minimised at once into
+  `<corpus>-minimized`; one wt-crdt disagrees on is minimised by `make -C crdt-conformance
+  fuzz-minimize` (run by `fuzz` on failure), which asks the Java oracle (`FuzzOracle`, run with the
+  test classpath server/conformance writes to `target/test-classpath.txt`) about every candidate.
+  A minimised vector is committed under `crdt-conformance/vectors/fuzz/` with a description once
+  the bug is fixed.
+* Run times on the development Mac (M-series, debug Swift build, JDK 25): 20,000 ops -- 80
+  vectors, about 2,200 collections -- take 8.3 s in WTCRDT (generation and replay) and 1.9 s in
+  wt-crdt; `make -C crdt-conformance fuzz` takes 43 s end to end with the Maven build.  The nightly million
+  (3,990 vectors, 111,257 collections, no divergence) takes 210 s in WTCRDT (release build,
+  writing the corpus included) and 73 s in wt-crdt, 6.5 minutes end to end with both builds.  A
+  cross-engine minimisation costs about 20 s per vector (one JVM start per candidate).
+
+Both engines were checked against the fuzzer by breaking them on purpose (collecting interior
+tombstones): WTCRDT failed its own run, and wt-crdt, broken alone, failed the corpus and was
+minimised against the oracle to vectors of a few changes.
 
 == Multi-client simulation
 

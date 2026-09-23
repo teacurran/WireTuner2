@@ -25,7 +25,7 @@ deliveries { picks { replica: 1 seq: 2 } picks { replica: 2 seq: 1 } picks { rep
 deliveries { picks { replica: 2 seq: 1 } picks { replica: 1 seq: 1 } picks { replica: 2 seq: 1 } picks { replica: 1 seq: 2 } }
 expect {
   state_hash: "33dcfd9d79c53522ec7030a03c8528bfa27766765048bcde0d5445cfdcc130ab"
-  snapshot_hash: "6739ab4a534498acadfcd9f9fc8140504c88b395945e0d6db2c177cd1c899fd4"
+  snapshot_hash: "22bab5b9f61a2f63e2a8e220105f17515a8101be0accfd01f291aee214e709a6"
   node {
     id { counter: 1 replica: 7 }
     node_hash: ""

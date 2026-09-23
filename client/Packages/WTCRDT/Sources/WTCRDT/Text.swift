@@ -172,14 +172,17 @@ public struct TextSequence: Sendable {
     }
 
     // The Fugue rule, from the origins alone: the left child of `right` when it is deeper than
-    // `left` (the start has depth 0), else the right child of `left` (or of the start).
-    private mutating func insertChar(_ id: OpID, scalar: UInt32, left: OpID, right: OpID) {
+    // `left` (the start has depth 0), else the right child of `left` (or of the start).  The
+    // character records `origins` (its own, when restoring beside a collected origin) or else
+    // the ones it is placed by.
+    private mutating func insertChar(_ id: OpID, scalar: UInt32, left: OpID, right: OpID, origins: (OpID, OpID)? = nil) {
+        let (leftOrigin, rightOrigin) = origins ?? (left, right)
         let leftDepth = left == .zero ? 0 : depths[Int(handles[left]!)]
         if right != .zero, depths[Int(handles[right]!)] > leftDepth {
-            add(id, scalar: scalar, parent: handles[right]!, right: false, leftOrigin: left, rightOrigin: right)
+            add(id, scalar: scalar, parent: handles[right]!, right: false, leftOrigin: leftOrigin, rightOrigin: rightOrigin)
         } else {
             add(id, scalar: scalar, parent: left == .zero ? Self.root : handles[left]!, right: true,
-                leftOrigin: left, rightOrigin: right)
+                leftOrigin: leftOrigin, rightOrigin: rightOrigin)
         }
     }
 
@@ -401,6 +404,17 @@ public struct TextSequence: Sendable {
         return (left: left, right: successor(of: left))
     }
 
+    /// `insertionOrigins(at:)` for a replica that knows a stable point: the right origin skips
+    /// tombstones deleted by a `stable` op, which a replica that collected there no longer holds
+    /// (crdt-model.adoc, "Garbage collection").
+    public func insertionOrigins(at offset: Int, skippingStable stable: (OpID) -> Bool) -> (left: OpID, right: OpID) {
+        var (left, right) = insertionOrigins(at: offset)
+        while let deleted = deletedOp(right), stable(deleted) {
+            right = successor(of: right)
+        }
+        return (left: left, right: right)
+    }
+
     /// The document-order index of every character, by id.
     func orderIndex() -> [OpID: Int] {
         var index: [OpID: Int] = [:]
@@ -564,38 +578,90 @@ public struct TextSequence: Sendable {
         return out
     }
 
+    // MARK: Garbage collection
+
+    /// The tombstones garbage collection can drop (CRDT-010): each character deleted by a
+    /// `stable` op that no mark anchors and that has no character left below it in the Fugue tree,
+    /// so dropping it moves and re-orders nothing and changes no depth -- the tree stays the one
+    /// the remaining characters' origins build.  A character's children always come after it, so
+    /// one pass from the newest decides them all.
+    func collectable(_ stable: (OpID) -> Bool) -> Set<OpID> {
+        var anchored: Set<OpID> = []
+        for mark in marks.values {
+            anchored.insert(mark.start.char)
+            anchored.insert(mark.end.char)
+        }
+        var gone = [Bool](repeating: false, count: ids.count)
+        var out: Set<OpID> = []
+        for handle in stride(from: ids.count - 1, through: 0, by: -1) {
+            let deleted = deletedBy[handle]
+            guard deleted != .zero, stable(deleted), !anchored.contains(ids[handle]) else { continue }
+            let below = (leftChildren[Int32(handle)] ?? []) + (rightChildren[Int32(handle)] ?? [])
+            guard below.allSatisfy({ gone[Int($0)] }) else { continue }
+            gone[handle] = true
+            out.insert(ids[handle])
+        }
+        return out
+    }
+
+    /// This field without the characters `gone`, rebuilt as a snapshot restores it.
+    func removing(_ gone: Set<OpID>) -> TextSequence {
+        let chars = ids.indices.compactMap { handle -> RestoredChar? in
+            gone.contains(ids[handle]) ? nil : RestoredChar(
+                id: ids[handle], scalar: codepoints[handle], left: leftOrigins[handle], right: rightOrigins[handle],
+                deleted: deletedBy[handle] == .zero ? nil : deletedBy[handle])
+        }
+        return Self.restore(chars: chars, marks: Array(marks.values))
+    }
+
     // MARK: Restoring
 
     /// Rebuilds a field from its characters (id, scalar, origins, greatest delete) and marks, as a
     /// snapshot holds them.  The tree is a function of the characters' origins alone, so they are
     /// inserted in id order (a character's origins always have smaller counters), with any whose
-    /// origins are still missing retried until none progress; one whose origins never appear is
-    /// dropped, as the op that made it would have been a no-op.
+    /// origins are still missing retried until none progress.  Then the first character (by id)
+    /// with exactly one origin missing -- one garbage collection dropped, which was never its
+    /// parent since only childless characters are dropped -- hangs from the other origin as it did
+    /// (the left child of its right origin, else the right child of its left origin), and the
+    /// retries resume.  (Only a character with two character origins can lose one that way: a
+    /// character whose other origin is the start or the end hangs from its character origin, which
+    /// therefore has a child and is never dropped.)  Any other character whose origins do not
+    /// appear is dropped, as the op that made it would have been a no-op.
     static func restore(chars: [RestoredChar], marks: [TextMark]) -> TextSequence {
         var text = TextSequence()
         var pending = chars.sorted { $0.id < $1.id }
-        var progress = true
-        while progress && !pending.isEmpty {
-            progress = false
-            var waiting: [RestoredChar] = []
-            for char in pending {
-                guard text.handles[char.id] == nil else { continue }
-                guard text.known(char.left), text.known(char.right) else {
-                    waiting.append(char)
-                    continue
+        while !pending.isEmpty {
+            var progress = true
+            while progress && !pending.isEmpty {
+                progress = false
+                var waiting: [RestoredChar] = []
+                for char in pending where text.handles[char.id] == nil {
+                    guard text.known(char.left), text.known(char.right) else {
+                        waiting.append(char)
+                        continue
+                    }
+                    text.restore(char, left: char.left, right: char.right)
+                    progress = true
                 }
-                text.insertChar(char.id, scalar: char.scalar, left: char.left, right: char.right)
-                if let deleted = char.deleted {
-                    text.delete(char.id, op: deleted)
-                }
-                progress = true
+                pending = waiting
             }
-            pending = waiting
+            guard let index = pending.firstIndex(where: {
+                $0.left != .zero && $0.right != .zero && text.known($0.left) != text.known($0.right)
+            }) else { break }
+            let char = pending.remove(at: index)
+            text.restore(char, left: text.known(char.left) ? char.left : .zero, right: text.known(char.right) ? char.right : .zero)
         }
         for mark in marks {
             text.mark(mark)
         }
         return text
+    }
+
+    private mutating func restore(_ char: RestoredChar, left: OpID, right: OpID) {
+        insertChar(char.id, scalar: char.scalar, left: left, right: right, origins: (char.left, char.right))
+        if let deleted = char.deleted {
+            delete(char.id, op: deleted)
+        }
     }
 }
 

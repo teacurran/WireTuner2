@@ -24,6 +24,16 @@ import java.util.function.Predicate;
  */
 public record Inverse(List<Step> steps) {
 
+    /**
+     * This inverse followed by {@code later}: the inverse of this change and then {@code later}
+     * applied as one unit, which {@link Engine#undoChange} undoes together.
+     */
+    public Inverse followed(Inverse later) {
+        List<Step> joined = new ArrayList<>(steps);
+        joined.addAll(later.steps());
+        return new Inverse(List.copyOf(joined));
+    }
+
     /** Whether the change changed nothing undoable. */
     public boolean isEmpty() {
         return steps.isEmpty();
@@ -135,8 +145,10 @@ public record Inverse(List<Step> steps) {
 
     /**
      * The change undoing {@code inverse} (see {@code WTCRDT.EngineState.undoChange}): undone as a
-     * unit, where several ops wrote one target the value before the first is restored if the
-     * state still holds the last; characters the change inserted are not re-inserted.
+     * unit, where several ops wrote one target the value before the first is restored if no other
+     * replica has written it since the last (the state holds that write or a later one of this
+     * replica's); characters the change inserted are not re-inserted; a target that no longer
+     * exists (collected, CRDT-010) is skipped.
      */
     static Change undoChange(Engine engine, Inverse inverse, long replica, long seq, long startCounter, long baseServerSeq,
             String label) {
@@ -210,6 +222,15 @@ public record Inverse(List<Step> steps) {
             counter += Engine.counters(op);
         }
 
+        // Whether the write holding a target is `wrote` or a later one by this replica.
+        private boolean ours(OpId holder, OpId wrote) {
+            return holder.equals(wrote) || holder.replica() == replica;
+        }
+
+        private boolean oursOrThisChange(Cell<Boolean> flag) {
+            return flag == null || wrote.contains(flag.current().op()) || flag.current().op().replica() == replica;
+        }
+
         void undo(Step step, int index) {
             StepKey key = StepKey.of(step);
             if (key != null) {
@@ -220,20 +241,20 @@ public record Inverse(List<Step> steps) {
             }
             switch (step) {
                 case Created created -> {
-                    Cell<Boolean> deleted = store.deleted(created.node());
-                    if (deleted == null || wrote.contains(deleted.current().op())) {
+                    if (store.isCreated(created.node()) && oursOrThisChange(store.deleted(created.node()))) {
                         add(Ops.setDeleted(created.node(), true));
                     }
                 }
                 case ElementInserted elementInserted -> {
                     Element element = store.element(elementInserted.node(), elementInserted.element());
-                    if (element.deleted() == null || wrote.contains(element.deleted().current().op())) {
+                    if (element != null && oursOrThisChange(element.deleted())) {
                         add(Ops.elementDelete(elementInserted.node(), elementInserted.element(), true));
                     }
                 }
                 case TextInserted textInserted -> {
                     TextSequence text = store.text(textInserted.node(), textInserted.text());
-                    List<OpId> live = textInserted.chars().stream().filter(c -> text.contains(c) && !text.isDeleted(c)).toList();
+                    List<OpId> live = text == null ? List.of()
+                            : textInserted.chars().stream().filter(c -> text.contains(c) && !text.isDeleted(c)).toList();
                     if (!live.isEmpty()) {
                         add(Ops.textDelete(textInserted.node(), textInserted.text(), live));
                     }
@@ -254,7 +275,7 @@ public record Inverse(List<Step> steps) {
                 case RegisterStep register -> {
                     Register current = store.register(register.node(), register.path());
                     Register prior = ((RegisterStep) earliest).prior();
-                    if (current.op().equals(register.wrote())) {
+                    if (current != null && ours(current.op(), register.wrote())) {
                         add(Ops.setFields(register.node(), register.path(),
                                 values(register.node(), register.path(), prior == null ? null : prior.value())));
                     }
@@ -262,26 +283,27 @@ public record Inverse(List<Step> steps) {
                 case PlacementStep placement -> {
                     Placement current = store.placement(placement.node());
                     Placement prior = ((PlacementStep) earliest).prior();
-                    if (current != null && current.op().equals(placement.wrote()) && prior != null) {
+                    if (current != null && ours(current.op(), placement.wrote()) && prior != null) {
                         add(Ops.move(placement.node(), prior.parent(), prior.position()));
                     }
                 }
                 case Deleted deleted -> {
                     Stamped<Boolean> prior = ((Deleted) earliest).prior();
-                    if (store.deleted(deleted.node()).current().op().equals(deleted.wrote())) {
+                    Cell<Boolean> flag = store.deleted(deleted.node());
+                    if (flag != null && ours(flag.current().op(), deleted.wrote())) {
                         add(Ops.setDeleted(deleted.node(), prior != null && prior.value()));
                     }
                 }
                 case ElementPosition position -> {
                     Element element = store.element(position.node(), position.element());
-                    if (element.position().current().op().equals(position.wrote())) {
+                    if (element != null && ours(element.position().current().op(), position.wrote())) {
                         add(Ops.elementMove(position.node(), position.element(), ((ElementPosition) earliest).prior().value()));
                     }
                 }
                 case ElementDeleted deleted -> {
                     Element element = store.element(deleted.node(), deleted.element());
                     Stamped<Boolean> prior = ((ElementDeleted) earliest).prior();
-                    if (element.deleted().current().op().equals(deleted.wrote())) {
+                    if (element != null && ours(element.deleted().current().op(), deleted.wrote())) {
                         add(Ops.elementDelete(deleted.node(), deleted.element(), prior != null && prior.value()));
                     }
                 }
@@ -302,7 +324,8 @@ public record Inverse(List<Step> steps) {
             byte[] values = values(node, set, field.record(member));
             if (wasPresent && live.isEmpty()) {
                 add(Ops.setAdd(node, set, values));
-            } else if (!wasPresent && !live.isEmpty() && tags.getOrDefault(key, java.util.Set.of()).containsAll(live)) {
+            } else if (!wasPresent && !live.isEmpty() && live.stream().allMatch(
+                    tag -> tags.getOrDefault(key, java.util.Set.of()).contains(tag) || tag.replica() == replica)) {
                 add(Ops.setRemove(node, set, values));
             }
         }
@@ -310,6 +333,9 @@ public record Inverse(List<Step> steps) {
         // Re-inserts deleted characters as new ones, run by run.
         private void reinsert(OpId node, RegisterPath path, List<DeletedChar> chars) {
             TextSequence text = store.text(node, path);
+            if (text == null) {
+                return;
+            }
             Map<OpId, Integer> index = text.orderIndex();
             List<DeletedChar> present = new ArrayList<>(chars.stream().filter(c -> index.containsKey(c.id())).toList());
             present.sort((a, b) -> Integer.compare(index.get(a.id()), index.get(b.id())));
@@ -365,10 +391,13 @@ public record Inverse(List<Step> steps) {
         // Re-applies the prior value of a mark's attribute on the characters the mark still wins.
         private void remark(TextMarked marked) {
             TextSequence text = store.text(marked.node(), marked.text());
+            if (text == null) {
+                return;
+            }
             Map<OpId, TextMark> winners = text.winners(marked.key(),
                     marked.prior().stream().map(PriorFormat::character).toList());
             List<PriorFormat> still = new ArrayList<>(marked.prior().stream()
-                    .filter(p -> winners.containsKey(p.character()) && winners.get(p.character()).id().equals(marked.mark())
+                    .filter(p -> winners.containsKey(p.character()) && ours(winners.get(p.character()).id(), marked.mark())
                             && !text.isDeleted(p.character()))
                     .toList());
             still.sort((a, b) -> Integer.compare(text.offset(a.character()), text.offset(b.character())));

@@ -4,6 +4,7 @@ import com.google.protobuf.TextFormat;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.villagecompute.wiretuner.conformance.v1.AppendRun;
 import com.villagecompute.wiretuner.conformance.v1.Change;
+import com.villagecompute.wiretuner.conformance.v1.Collect;
 import com.villagecompute.wiretuner.conformance.v1.Delivery;
 import com.villagecompute.wiretuner.conformance.v1.ExpectNode;
 import com.villagecompute.wiretuner.conformance.v1.ExpectRegister;
@@ -41,6 +42,9 @@ import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.HexFormat;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -147,8 +151,15 @@ public final class ConformanceRunner {
         return run(load(file), expectedName(root, file));
     }
 
-    /** One change to apply, with the server_seq it was sequenced at ({@code null}: not sequenced). */
-    record Delivered(com.villagecompute.wiretuner.doc.v1.Change change, Long serverSeq) {
+    /**
+     * One step of a delivery: a change to apply, with the server_seq it was sequenced at
+     * ({@code null}: not sequenced), or else ({@code change} null) a garbage collection.
+     */
+    record Delivered(com.villagecompute.wiretuner.doc.v1.Change change, Long serverSeq, Collect collect) {
+
+        Delivered(com.villagecompute.wiretuner.doc.v1.Change change, Long serverSeq) {
+            this(change, serverSeq, null);
+        }
     }
 
     /** Turns the changes of one delivery order (setup first) into a merged state. */
@@ -159,7 +170,14 @@ public final class ConformanceRunner {
     /** The replayer vectors run with: a fresh {@link Engine} applying every change in order. */
     static final Replayer ENGINE = (schema, changes) -> {
         Engine engine = new Engine(schema);
-        changes.forEach(delivered -> engine.apply(delivered.change(), delivered.serverSeq()));
+        for (Delivered delivered : changes) {
+            if (delivered.collect() != null) {
+                engine.collect(delivered.collect().getStableSeq(),
+                        Clock.fixed(Instant.ofEpochMilli(delivered.collect().getNowMs()), ZoneOffset.UTC));
+            } else {
+                engine.apply(delivered.change(), delivered.serverSeq());
+            }
+        }
         return engine;
     };
 
@@ -195,6 +213,14 @@ public final class ConformanceRunner {
         Schema schema = schema(vector, failures);
         List<List<Change>> orders = deliveryOrders(vector, failures);
         checkPositions(vector, failures);
+        for (int i = 0; i < orders.size() && i < vector.getDeliveriesCount(); i++) {
+            for (Collect collect : vector.getDeliveries(i).getCollectList()) {
+                if (collect.getAfter() > orders.get(i).size()) {
+                    failures.add("delivery " + describe(vector, i) + " collects after change " + collect.getAfter()
+                            + " of " + orders.get(i).size());
+                }
+            }
+        }
         if (!failures.isEmpty()) {
             return new Outcome(expectedName, failures, "");
         }
@@ -209,26 +235,40 @@ public final class ConformanceRunner {
                 Change change = setup.get(s);
                 changes.add(new Delivered(docChange(change), change.getServerSeq() == 0 ? s + 1 : change.getServerSeq()));
             }
-            for (Change change : orders.get(i)) {
+            List<Collect> collects = i < vector.getDeliveriesCount() ? vector.getDeliveries(i).getCollectList() : List.of();
+            collectAfter(collects, 0, changes);
+            List<Change> order = orders.get(i);
+            for (int c = 0; c < order.size(); c++) {
+                Change change = order.get(c);
                 changes.add(new Delivered(docChange(change), change.getServerSeq() == 0 ? null : change.getServerSeq()));
+                collectAfter(collects, c + 1, changes);
             }
             Engine engine = replayer.replay(schema, changes);
             byte[] snapshot = Snapshot.encode(engine, serverSeq);
-            String order = describe(vector, i);
+            String described = describe(vector, i);
             if (reference == null) {
                 reference = engine;
                 referenceSnapshot = snapshot;
-                referenceOrder = order;
+                referenceOrder = described;
             } else if (!Arrays.equals(engine.stateHash(), reference.stateHash())) {
-                failures.add("delivery " + order + " diverges from " + referenceOrder
+                failures.add("delivery " + described + " diverges from " + referenceOrder
                         + " at node " + firstDifference(reference, engine));
             } else if (!Arrays.equals(snapshot, referenceSnapshot)) {
-                failures.add("delivery " + order + " writes a different snapshot from " + referenceOrder);
+                failures.add("delivery " + described + " writes a different snapshot from " + referenceOrder);
             }
         }
         checkExpectations(vector, reference, failures);
         checkSnapshot(vector, schema, referenceSnapshot, failures);
         return new Outcome(expectedName, failures, StateHash.hex(reference.stateHash()));
+    }
+
+    // The collections of a delivery that come after `applied` of its changes.
+    private static void collectAfter(List<Collect> collects, int applied, List<Delivered> steps) {
+        for (Collect collect : collects) {
+            if (collect.getAfter() == applied) {
+                steps.add(new Delivered(null, null, collect));
+            }
+        }
     }
 
     /** The greatest server_seq the vector gives a change (setup changes default to index + 1). */

@@ -96,6 +96,20 @@ message Delivery {
   // replayed out of order and again).  Every change of every replica must be picked at least
   // once.
   repeated Pick picks = 2;
+  // Garbage collections during the delivery (CRDT-010), in order.  Every delivery must reach the
+  // same state, so a vector that collects collects the same stable points in every delivery,
+  // only at different moments ("hash unaffected by prune timing").
+  repeated Collect collect = 3;
+}
+
+// One garbage collection: `EngineState.collect` / `Engine.collect` at a stable point.
+message Collect {
+  // How many of the delivery's changes are applied before it (0: right after the setup).
+  uint32 after = 1;
+  // The stable point collected at.
+  uint64 stable_seq = 2;
+  // The collector's clock, ms since the epoch: deleted nodes compact 30 days after deletion.
+  int64 now_ms = 3;
 }
 
 // One change of one replica.

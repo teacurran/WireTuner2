@@ -1,3 +1,4 @@
+import Foundation
 import WTProto
 
 /// The merge state of one document replica (docs/spec/crdt-model.adoc): a `LamportClock`, the
@@ -8,19 +9,27 @@ import WTProto
 /// Implemented: registers (`SetFields`, CRDT-001), the node tree (`CreateNode`, `MoveNode`,
 /// `SetDeleted`, CRDT-002), sets (`SetAdd`, `SetRemove`, CRDT-007), sequences (`ElementInsert`,
 /// `ElementMove`, `ElementDelete`, CRDT-004), changes with their inverses (CRDT-008), text
-/// (`TextInsert`, `TextDelete`, CRDT-005) and formatting marks (`TextMark`, CRDT-006).
+/// (`TextInsert`, `TextDelete`, CRDT-005), formatting marks (`TextMark`, CRDT-006), snapshots
+/// (CRDT-009) and garbage collection (`collect`, CRDT-010).
 public struct EngineState: Sendable {
     /// Version of the merge semantics this engine implements, as wt-crdt's `Engine.VERSION`.
-    public static let version = "0.3.0"
+    public static let version = "0.4.0"
 
-    /// The change an op belongs to: its seq and causal past (0 for an op applied on its own).
+    /// How long a deleted node stays restorable before garbage collection compacts it: 30 days
+    /// (crdt-model.adoc, "Garbage collection").
+    public static let deletedNodeRetentionMs: Int64 = 30 * 24 * 60 * 60 * 1_000
+
+    /// The change an op belongs to: its seq, causal past and wall time (0 for an op applied on
+    /// its own).
     public struct Context: Sendable {
         public var seq: UInt64
         public var baseServerSeq: UInt64
+        public var wallTimeMs: Int64
 
-        public init(seq: UInt64 = 0, baseServerSeq: UInt64 = 0) {
+        public init(seq: UInt64 = 0, baseServerSeq: UInt64 = 0, wallTimeMs: Int64 = 0) {
             self.seq = seq
             self.baseServerSeq = baseServerSeq
+            self.wallTimeMs = wallTimeMs
         }
     }
 
@@ -46,18 +55,23 @@ public struct EngineState: Sendable {
     /// seq, highest `base_server_seq`).  A change applied again changes nothing: every op is
     /// recognised by its id.  `serverSeq` is the server's sequence number for the change when known
     /// (a remote change, or a local one already acknowledged): sets judge a concurrent remove by
-    /// it.
+    /// it.  A change the state has already collected as stable -- sequenced at or before the stable
+    /// point, or starting below its replica's stable counter -- is a replay and changes nothing.
     public mutating func apply(_ change: Wiretuner_Doc_V1_Change, serverSeq: UInt64? = nil) {
+        let stable = store.replicaState(change.replica)?.stableCounter ?? 0
+        if change.startCounter < stable || serverSeq.map({ $0 != 0 && $0 <= store.stableSeq }) == true {
+            return
+        }
         if let serverSeq {
             acknowledge(replica: change.replica, seq: change.seq, serverSeq: serverSeq)
         }
-        let context = Context(seq: change.seq, baseServerSeq: change.baseServerSeq)
+        let context = Context(seq: change.seq, baseServerSeq: change.baseServerSeq, wallTimeMs: change.wallTimeMs)
         var counter = change.startCounter
         for op in change.ops {
             apply(op, id: OpID(counter: counter, replica: change.replica), context: context)
             counter &+= Self.counters(op)
         }
-        store.recordChange(replica: change.replica, seq: change.seq, baseServerSeq: change.baseServerSeq)
+        store.recordChange(replica: change.replica, seq: change.seq, baseServerSeq: change.baseServerSeq, endCounter: counter)
     }
 
     /// Applies a local change (one this replica just made) and returns its inverse: the prior
@@ -90,9 +104,11 @@ public struct EngineState: Sendable {
         recording?.append(step)
     }
 
-    /// Applies one op with id `id` (its first counter).
+    /// Applies one op with id `id` (its first counter).  An op below its replica's stable counter
+    /// is a replay of one garbage collection already folded in, and is ignored.
     public mutating func apply(_ op: Wiretuner_Doc_V1_Op, id: OpID, context: Context = Context()) {
         clock.observe(id.counter &+ Self.counters(op) &- 1)
+        guard !store.isStable(id) else { return }
         switch op.op {
         case .create(let create):
             self.create(create, id: id)
@@ -110,7 +126,7 @@ public struct EngineState: Sendable {
         case .setDeleted(let setDeleted):
             let node = OpID(setDeleted.node)
             let prior = store.deleted(node)?.current
-            store.setDeleted(node, setDeleted.deleted, id)
+            store.setDeleted(node, setDeleted.deleted, id, wallTime: context.wallTimeMs)
             if store.deleted(node)?.current.op == id {
                 record(.deleted(node: node, prior: prior, wrote: id))
             }
@@ -361,6 +377,67 @@ public struct EngineState: Sendable {
 
     /// The state hash of the merged state (32 bytes, `StateHash`).
     public var stateHash: [UInt8] { StateHash.of(store) }
+
+    // MARK: Garbage collection
+
+    /// The stable point this state's replica acks give (crdt-model.adoc, "Garbage collection"):
+    /// the smallest server_seq acknowledged by a replica not `retired`.  A replica the state has
+    /// never seen a change from holds nothing back here; the server, which also knows the replicas
+    /// that only subscribed, publishes the stable point the replicas collect at.
+    public func stablePoint(retired: Set<UInt64> = []) -> UInt64 {
+        store.stablePoint(retired: retired)
+    }
+
+    /// Whether `op` is causally stable at stable point `stableSeq` (at or above the one collected):
+    /// its change was sequenced at or before it.  A replica never writes an op that names a
+    /// tombstone deleted by an op stable at the newest stable point it knows, since another
+    /// replica may already have collected it.
+    public func isStable(_ op: OpID, at stableSeq: UInt64) -> Bool {
+        op.counter < (store.stableCounters(at: max(stableSeq, store.stableSeq))[op.replica] ?? 0)
+    }
+
+    /// Whether a collection at stable point `stableSeq` and clock `now` would compact `node`: it or
+    /// an ancestor is deleted by a write stable there, `deletedNodeRetentionMs` or more before
+    /// `now`.  A replica never writes an op naming such a node at the newest point it knows.
+    public func isCompactable(_ node: OpID, stableSeq: UInt64, now: Int64) -> Bool {
+        let counters = store.stableCounters(at: max(stableSeq, store.stableSeq))
+        let (cutoff, overflow) = now.subtractingReportingOverflow(Self.deletedNodeRetentionMs)
+        var current: OpID? = node
+        while let at = current {
+            if let flag = store.deleted(at)?.current, flag.value, flag.op.counter < (counters[flag.op.replica] ?? 0),
+               !overflow, store.deletedTime(at) <= cutoff {
+                return true
+            }
+            current = store.placement(at)?.parent
+        }
+        return false
+    }
+
+    /// The origins a client gives a `TextInsert` at live offset `offset` of the TEXT field `path`
+    /// of `node` when it knows stable point `stableSeq` (`TextSequence.insertionOrigins(at:skippingStable:)`).
+    public func insertionOrigins(_ node: OpID, _ path: RegisterPath, at offset: Int, stableSeq: UInt64) -> (left: OpID, right: OpID) {
+        let counters = store.stableCounters(at: max(stableSeq, store.stableSeq))
+        return (store.text(node, path) ?? TextSequence()).insertionOrigins(at: offset) {
+            $0.counter < (counters[$0.replica] ?? 0)
+        }
+    }
+
+    /// Collects the state at stable point `stableSeq` (CRDT-010; `NodeStore.collect`): the server
+    /// sequence number every replica that could still send an op has acknowledged, which must not
+    /// exceed what this state has applied.  Deleted nodes are compacted once their deletion is
+    /// stable and `deletedNodeRetentionMs` older than `now` (ms since the epoch; the clock is the
+    /// caller's, so replicas collecting at the same point with the same `now` stay equal).  The
+    /// state hash is that of the collected state, however many changes arrived between the stable
+    /// point and the collection.
+    @discardableResult
+    public mutating func collect(stableSeq: UInt64, now: Int64 = EngineState.wallClock()) -> Collected {
+        store.collect(stableSeq: stableSeq, now: now, retention: Self.deletedNodeRetentionMs)
+    }
+
+    /// Milliseconds since the epoch by the system clock: `collect`'s default time source.
+    public static func wallClock() -> Int64 {
+        Int64(Date().timeIntervalSince1970 * 1_000)
+    }
 }
 
 /// The merge engine actor (docs/spec/client.adoc, "Concurrency"): serialises every change a
@@ -372,6 +449,11 @@ public actor Engine {
     /// An engine over `schema` (the generated merge table by default).
     public init(schema: Schema = .generated) {
         state = EngineState(schema: schema)
+    }
+
+    /// An engine holding `state`, such as one `Snapshot.decode` or `SnapshotTransfer.state` gave.
+    public init(state: EngineState) {
+        self.state = state
     }
 
     /// Applies a change, local or remote (`serverSeq` when the server has sequenced it).
@@ -398,6 +480,12 @@ public actor Engine {
     /// Records the server_seq of a local change once the server acknowledges it.
     public func acknowledge(replica: UInt64, seq: UInt64, serverSeq: UInt64) {
         state.acknowledge(replica: replica, seq: seq, serverSeq: serverSeq)
+    }
+
+    /// Collects the state at stable point `stableSeq` (`EngineState.collect`).
+    @discardableResult
+    public func collect(stableSeq: UInt64, now: Int64 = EngineState.wallClock()) -> Collected {
+        state.collect(stableSeq: stableSeq, now: now)
     }
 
     /// Takes counters for a local change of `count` counters and returns the first.

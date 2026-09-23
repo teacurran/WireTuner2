@@ -27,7 +27,7 @@ replica {
 }
 expect {
   state_hash: "c484abb132624d2b7fa6dd481c4e8df5a522dd4f843beccc8815aec0b78e51a6"
-  snapshot_hash: "04617e00880513ef5b888e93cff508344b27798bec541ea37136ffb4bf3db8c9"
+  snapshot_hash: "20515bcfba743e421bd35c25d30ef04e9546d4aa55050acb00f8a58eb7327c44"
   node { id { counter: 4 } tree { parent { } children { counter: 1 replica: 7 } } }
   node { id { } tree { children { counter: 1 } children { counter: 2 } children { counter: 3 } children { counter: 4 }
     children { counter: 5 } children { counter: 6 } children { counter: 7 } children { counter: 8 } children { counter: 9 }

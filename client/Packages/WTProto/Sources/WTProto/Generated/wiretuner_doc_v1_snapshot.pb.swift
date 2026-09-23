@@ -13,9 +13,10 @@
 /// The full merge state of a document at a server sequence number (docs/spec/crdt-model.adoc,
 /// "Snapshots"): every node with its registers and their OpIds, sequence elements including
 /// unstable tombstones, the unstable part of the move log, and each replica's highest applied
-/// seq.  Both engines encode a snapshot identically and hash it (`state_hash`); a snapshot is
-/// zstd-compressed and chunked to 1 MiB for transfer (SnapshotFrame).  CRDT-009 implements the
-/// encoding and the canonical order it hashes.
+/// seq.  Both engines write a snapshot byte for byte alike and carry the state hash
+/// (`state_hash`); a snapshot is zstd-compressed and chunked to 1 MiB for transfer
+/// (SnapshotFrame).  CRDT-009 implements the encoding (crdt-model.adoc, "Snapshot encoding") and
+/// CRDT-010 the garbage collection whose bookkeeping it carries.
 
 #if canImport(FoundationEssentials)
 import FoundationEssentials
@@ -73,10 +74,10 @@ public nonisolated enum Wiretuner_Doc_V1_SnapshotCompression: SwiftProtobuf.Enum
 
 }
 
-/// The complete merge state at `server_seq`.  Canonical encoding (what `state_hash` covers):
-/// `nodes` sorted by node id, each node's `registers` and `elements` sorted by path, `move_log`
-/// in OpId order, `replicas` by replica id, every message field in field-number order, and
-/// `state_hash` itself empty.  Both engines produce the same bytes for the same state.
+/// The complete merge state at `server_seq`.  The engines write it field by field in field-number
+/// order with proto3 defaults left out: `nodes` sorted by node id, each node's `registers` and
+/// `elements` sorted by path, `move_log` in OpId order, `replicas` by replica id, `sequenced` by
+/// replica then seq.  Both engines produce the same bytes for the same state.
 public nonisolated struct Wiretuner_Doc_V1_DocumentSnapshot: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -97,8 +98,9 @@ public nonisolated struct Wiretuner_Doc_V1_DocumentSnapshot: Sendable {
   /// Each replica's highest applied seq and acknowledged server_seq, by replica id.
   public var replicas: [Wiretuner_Doc_V1_ReplicaState] = []
 
-  /// The causally stable server_seq at snapshot time: tombstones and move-log entries at or
-  /// below it have been dropped.
+  /// The stable point the state was last collected at (crdt-model.adoc, "Garbage collection"):
+  /// tombstones, move-log entries and set history made stable by it have been dropped; 0 when
+  /// the state was never collected.
   public var stableSeq: UInt64 = 0
 
   /// The largest Lamport counter in the state, so a bootstrapping replica can continue the clock
@@ -108,10 +110,42 @@ public nonisolated struct Wiretuner_Doc_V1_DocumentSnapshot: Sendable {
   /// The document's feature level: the highest schema feature any change in it has used.
   public var featureLevel: UInt32 = 0
 
-  /// SHA-256 over the canonical encoding of this message with this field empty; 32 bytes.
-  /// Clients compare their own hash to the server's at the same server_seq whenever their outbox
-  /// is empty; a mismatch is a bug report plus a re-bootstrap.
+  /// The state hash: SHA-256 over the canonical encoding of the state (crdt-model.adoc,
+  /// "Canonical encoding"), not over this message's bytes; 32 bytes.  The move log, replica
+  /// bookkeeping and garbage collection leave it unchanged.  Clients compare their own hash to
+  /// the server's at the same server_seq and stable_seq whenever their outbox is empty; a
+  /// mismatch is a bug report plus a re-bootstrap.  Decoding refuses a snapshot whose state
+  /// hashes differently.
   public var stateHash: Data = Data()
+
+  /// Every change the state records by replica and seq: the server_seq it was sequenced at
+  /// (which set removes are judged by) and the counters it took (which garbage collection turns
+  /// into each replica's stable counter).  Entries at or below `stable_seq` are dropped.
+  public var sequenced: [Wiretuner_Doc_V1_SequencedChange] = []
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// One change the state has applied or seen sequenced.
+public nonisolated struct Wiretuner_Doc_V1_SequencedChange: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The change's replica.
+  public var replica: UInt64 = 0
+
+  /// The change's seq.
+  public var seq: UInt64 = 0
+
+  /// The server_seq the server gave the change; 0 while it is not known to be sequenced.
+  public var serverSeq: UInt64 = 0
+
+  /// One past the last counter the change's ops took (start_counter plus their counters); 0 when
+  /// only the change's server_seq is known.
+  public var endCounter: UInt64 = 0
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -163,6 +197,19 @@ public nonisolated struct Wiretuner_Doc_V1_NodeState: Sendable {
   /// Every element of every SEQUENCE and TEXT field, tombstones included, sorted by path.
   public var elements: [Wiretuner_Doc_V1_ElementState] = []
 
+  /// Every SET field with any add or remove history, sorted by path.  Membership is computed from
+  /// the history (crdt-model.adoc, "Sets"), so the history is the state.
+  public var sets: [Wiretuner_Doc_V1_SetState] = []
+
+  /// The node's TEXT fields that hold a character or a mark, sorted by path; their characters
+  /// and marks are in `node.props`.
+  public var texts: [Wiretuner_Doc_V1_FieldPath] = []
+
+  /// The wall time of the change that wrote the current `deleted` value (Change.wall_time_ms),
+  /// which starts the 30 days a deleted node stays restorable before garbage collection
+  /// compacts it; 0 when unknown.
+  public var deletedWallTimeMs: Int64 = 0
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -170,6 +217,81 @@ public nonisolated struct Wiretuner_Doc_V1_NodeState: Sendable {
   fileprivate var _node: Wiretuner_Doc_V1_Node? = nil
   fileprivate var _treeOp: Wiretuner_Doc_V1_OpId? = nil
   fileprivate var _deletedOp: Wiretuner_Doc_V1_OpId? = nil
+}
+
+/// The add and remove history of one SET field.
+public nonisolated struct Wiretuner_Doc_V1_SetState: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The SET field's path from NodeProps.
+  public var set: Wiretuner_Doc_V1_FieldPath {
+    get {_set ?? Wiretuner_Doc_V1_FieldPath()}
+    set {_set = newValue}
+  }
+  /// Returns true if `set` has been explicitly set.
+  public var hasSet: Bool {self._set != nil}
+  /// Clears the value of `set`. Subsequent reads from it will return its default value.
+  public mutating func clearSet() {self._set = nil}
+
+  /// Every member with any history, ascending bytewise by value.
+  public var members: [Wiretuner_Doc_V1_SetMemberState] = []
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _set: Wiretuner_Doc_V1_FieldPath? = nil
+}
+
+/// One member of a SET field and every add and remove of it that is not yet collected.
+public nonisolated struct Wiretuner_Doc_V1_SetMemberState: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The member in its canonical form (crdt-model.adoc, "Sets").
+  public var value: Data = Data()
+
+  /// The SetAdd ops of the member, ascending by op.
+  public var adds: [Wiretuner_Doc_V1_SetTag] = []
+
+  /// The SetRemove ops of the member, ascending by op.
+  public var removes: [Wiretuner_Doc_V1_SetTag] = []
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// One SetAdd or SetRemove of a member.
+public nonisolated struct Wiretuner_Doc_V1_SetTag: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The op.
+  public var op: Wiretuner_Doc_V1_OpId {
+    get {_op ?? Wiretuner_Doc_V1_OpId()}
+    set {_op = newValue}
+  }
+  /// Returns true if `op` has been explicitly set.
+  public var hasOp: Bool {self._op != nil}
+  /// Clears the value of `op`. Subsequent reads from it will return its default value.
+  public mutating func clearOp() {self._op = nil}
+
+  /// The seq of the op's change; 0 for an op applied on its own.
+  public var seq: UInt64 = 0
+
+  /// For a remove, the base_server_seq of its change (its causal past); 0 for an add.
+  public var baseServerSeq: UInt64 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _op: Wiretuner_Doc_V1_OpId? = nil
 }
 
 /// The OpId of the last write to one register.
@@ -318,6 +440,17 @@ public nonisolated struct Wiretuner_Doc_V1_MoveLogEntry: Sendable {
   /// named an unknown parent); undoing a skipped entry changes nothing.
   public var applied: Bool = false
 
+  /// The op of the placement the entry replaced (with `old_parent` and `old_position`), which
+  /// undoing the entry restores; unset when the op created the node or was skipped.
+  public var oldOp: Wiretuner_Doc_V1_OpId {
+    get {_oldOp ?? Wiretuner_Doc_V1_OpId()}
+    set {_oldOp = newValue}
+  }
+  /// Returns true if `oldOp` has been explicitly set.
+  public var hasOldOp: Bool {self._oldOp != nil}
+  /// Clears the value of `oldOp`. Subsequent reads from it will return its default value.
+  public mutating func clearOldOp() {self._oldOp = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -326,6 +459,7 @@ public nonisolated struct Wiretuner_Doc_V1_MoveLogEntry: Sendable {
   fileprivate var _node: Wiretuner_Doc_V1_OpId? = nil
   fileprivate var _oldParent: Wiretuner_Doc_V1_OpId? = nil
   fileprivate var _newParent: Wiretuner_Doc_V1_OpId? = nil
+  fileprivate var _oldOp: Wiretuner_Doc_V1_OpId? = nil
 }
 
 /// What the state knows about one replica.
@@ -343,6 +477,11 @@ public nonisolated struct Wiretuner_Doc_V1_ReplicaState: Sendable {
   /// The highest server_seq the replica has acknowledged, which drives causal stability; 0 when
   /// it has never acknowledged.
   public var ackedServerSeq: UInt64 = 0
+
+  /// Every op of the replica with a counter below this is causally stable: garbage collection
+  /// folded the replica's changes sequenced at or below `stable_seq` into it, and an op below
+  /// it arriving again is ignored as a replay.  0 until the state is collected.
+  public var stableCounter: UInt64 = 0
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -437,7 +576,7 @@ nonisolated extension Wiretuner_Doc_V1_SnapshotCompression: SwiftProtobuf._Proto
 
 nonisolated extension Wiretuner_Doc_V1_DocumentSnapshot: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".DocumentSnapshot"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}server_seq\0\u{1}nodes\0\u{3}move_log\0\u{1}replicas\0\u{3}stable_seq\0\u{3}max_counter\0\u{3}feature_level\0\u{3}state_hash\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}server_seq\0\u{1}nodes\0\u{3}move_log\0\u{1}replicas\0\u{3}stable_seq\0\u{3}max_counter\0\u{3}feature_level\0\u{3}state_hash\0\u{1}sequenced\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -453,6 +592,7 @@ nonisolated extension Wiretuner_Doc_V1_DocumentSnapshot: SwiftProtobuf.Message, 
       case 6: try { try decoder.decodeSingularUInt64Field(value: &self.maxCounter) }()
       case 7: try { try decoder.decodeSingularUInt32Field(value: &self.featureLevel) }()
       case 8: try { try decoder.decodeSingularBytesField(value: &self.stateHash) }()
+      case 9: try { try decoder.decodeRepeatedMessageField(value: &self.sequenced) }()
       default: break
       }
     }
@@ -483,6 +623,9 @@ nonisolated extension Wiretuner_Doc_V1_DocumentSnapshot: SwiftProtobuf.Message, 
     if !self.stateHash.isEmpty {
       try visitor.visitSingularBytesField(value: self.stateHash, fieldNumber: 8)
     }
+    if !self.sequenced.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.sequenced, fieldNumber: 9)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -495,6 +638,52 @@ nonisolated extension Wiretuner_Doc_V1_DocumentSnapshot: SwiftProtobuf.Message, 
     if lhs.maxCounter != rhs.maxCounter {return false}
     if lhs.featureLevel != rhs.featureLevel {return false}
     if lhs.stateHash != rhs.stateHash {return false}
+    if lhs.sequenced != rhs.sequenced {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Doc_V1_SequencedChange: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".SequencedChange"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}replica\0\u{1}seq\0\u{3}server_seq\0\u{3}end_counter\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularFixed64Field(value: &self.replica) }()
+      case 2: try { try decoder.decodeSingularUInt64Field(value: &self.seq) }()
+      case 3: try { try decoder.decodeSingularUInt64Field(value: &self.serverSeq) }()
+      case 4: try { try decoder.decodeSingularUInt64Field(value: &self.endCounter) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.replica != 0 {
+      try visitor.visitSingularFixed64Field(value: self.replica, fieldNumber: 1)
+    }
+    if self.seq != 0 {
+      try visitor.visitSingularUInt64Field(value: self.seq, fieldNumber: 2)
+    }
+    if self.serverSeq != 0 {
+      try visitor.visitSingularUInt64Field(value: self.serverSeq, fieldNumber: 3)
+    }
+    if self.endCounter != 0 {
+      try visitor.visitSingularUInt64Field(value: self.endCounter, fieldNumber: 4)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Wiretuner_Doc_V1_SequencedChange, rhs: Wiretuner_Doc_V1_SequencedChange) -> Bool {
+    if lhs.replica != rhs.replica {return false}
+    if lhs.seq != rhs.seq {return false}
+    if lhs.serverSeq != rhs.serverSeq {return false}
+    if lhs.endCounter != rhs.endCounter {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -502,7 +691,7 @@ nonisolated extension Wiretuner_Doc_V1_DocumentSnapshot: SwiftProtobuf.Message, 
 
 nonisolated extension Wiretuner_Doc_V1_NodeState: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".NodeState"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}node\0\u{3}tree_op\0\u{3}deleted_op\0\u{1}registers\0\u{1}elements\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}node\0\u{3}tree_op\0\u{3}deleted_op\0\u{1}registers\0\u{1}elements\0\u{1}sets\0\u{1}texts\0\u{3}deleted_wall_time_ms\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -515,6 +704,9 @@ nonisolated extension Wiretuner_Doc_V1_NodeState: SwiftProtobuf.Message, SwiftPr
       case 3: try { try decoder.decodeSingularMessageField(value: &self._deletedOp) }()
       case 4: try { try decoder.decodeRepeatedMessageField(value: &self.registers) }()
       case 5: try { try decoder.decodeRepeatedMessageField(value: &self.elements) }()
+      case 6: try { try decoder.decodeRepeatedMessageField(value: &self.sets) }()
+      case 7: try { try decoder.decodeRepeatedMessageField(value: &self.texts) }()
+      case 8: try { try decoder.decodeSingularInt64Field(value: &self.deletedWallTimeMs) }()
       default: break
       }
     }
@@ -540,6 +732,15 @@ nonisolated extension Wiretuner_Doc_V1_NodeState: SwiftProtobuf.Message, SwiftPr
     if !self.elements.isEmpty {
       try visitor.visitRepeatedMessageField(value: self.elements, fieldNumber: 5)
     }
+    if !self.sets.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.sets, fieldNumber: 6)
+    }
+    if !self.texts.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.texts, fieldNumber: 7)
+    }
+    if self.deletedWallTimeMs != 0 {
+      try visitor.visitSingularInt64Field(value: self.deletedWallTimeMs, fieldNumber: 8)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -549,6 +750,132 @@ nonisolated extension Wiretuner_Doc_V1_NodeState: SwiftProtobuf.Message, SwiftPr
     if lhs._deletedOp != rhs._deletedOp {return false}
     if lhs.registers != rhs.registers {return false}
     if lhs.elements != rhs.elements {return false}
+    if lhs.sets != rhs.sets {return false}
+    if lhs.texts != rhs.texts {return false}
+    if lhs.deletedWallTimeMs != rhs.deletedWallTimeMs {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Doc_V1_SetState: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".SetState"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}set\0\u{1}members\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._set) }()
+      case 2: try { try decoder.decodeRepeatedMessageField(value: &self.members) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._set {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    if !self.members.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.members, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Wiretuner_Doc_V1_SetState, rhs: Wiretuner_Doc_V1_SetState) -> Bool {
+    if lhs._set != rhs._set {return false}
+    if lhs.members != rhs.members {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Doc_V1_SetMemberState: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".SetMemberState"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}value\0\u{1}adds\0\u{1}removes\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularBytesField(value: &self.value) }()
+      case 2: try { try decoder.decodeRepeatedMessageField(value: &self.adds) }()
+      case 3: try { try decoder.decodeRepeatedMessageField(value: &self.removes) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.value.isEmpty {
+      try visitor.visitSingularBytesField(value: self.value, fieldNumber: 1)
+    }
+    if !self.adds.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.adds, fieldNumber: 2)
+    }
+    if !self.removes.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.removes, fieldNumber: 3)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Wiretuner_Doc_V1_SetMemberState, rhs: Wiretuner_Doc_V1_SetMemberState) -> Bool {
+    if lhs.value != rhs.value {return false}
+    if lhs.adds != rhs.adds {return false}
+    if lhs.removes != rhs.removes {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Doc_V1_SetTag: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".SetTag"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}op\0\u{1}seq\0\u{3}base_server_seq\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._op) }()
+      case 2: try { try decoder.decodeSingularUInt64Field(value: &self.seq) }()
+      case 3: try { try decoder.decodeSingularUInt64Field(value: &self.baseServerSeq) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._op {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    if self.seq != 0 {
+      try visitor.visitSingularUInt64Field(value: self.seq, fieldNumber: 2)
+    }
+    if self.baseServerSeq != 0 {
+      try visitor.visitSingularUInt64Field(value: self.baseServerSeq, fieldNumber: 3)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Wiretuner_Doc_V1_SetTag, rhs: Wiretuner_Doc_V1_SetTag) -> Bool {
+    if lhs._op != rhs._op {return false}
+    if lhs.seq != rhs.seq {return false}
+    if lhs.baseServerSeq != rhs.baseServerSeq {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -649,7 +976,7 @@ nonisolated extension Wiretuner_Doc_V1_ElementState: SwiftProtobuf.Message, Swif
 
 nonisolated extension Wiretuner_Doc_V1_MoveLogEntry: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".MoveLogEntry"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}op\0\u{1}node\0\u{3}old_parent\0\u{3}old_position\0\u{3}new_parent\0\u{3}new_position\0\u{1}applied\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}op\0\u{1}node\0\u{3}old_parent\0\u{3}old_position\0\u{3}new_parent\0\u{3}new_position\0\u{1}applied\0\u{3}old_op\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -664,6 +991,7 @@ nonisolated extension Wiretuner_Doc_V1_MoveLogEntry: SwiftProtobuf.Message, Swif
       case 5: try { try decoder.decodeSingularMessageField(value: &self._newParent) }()
       case 6: try { try decoder.decodeSingularBytesField(value: &self.newPosition) }()
       case 7: try { try decoder.decodeSingularBoolField(value: &self.applied) }()
+      case 8: try { try decoder.decodeSingularMessageField(value: &self._oldOp) }()
       default: break
       }
     }
@@ -695,6 +1023,9 @@ nonisolated extension Wiretuner_Doc_V1_MoveLogEntry: SwiftProtobuf.Message, Swif
     if self.applied != false {
       try visitor.visitSingularBoolField(value: self.applied, fieldNumber: 7)
     }
+    try { if let v = self._oldOp {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 8)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -706,6 +1037,7 @@ nonisolated extension Wiretuner_Doc_V1_MoveLogEntry: SwiftProtobuf.Message, Swif
     if lhs._newParent != rhs._newParent {return false}
     if lhs.newPosition != rhs.newPosition {return false}
     if lhs.applied != rhs.applied {return false}
+    if lhs._oldOp != rhs._oldOp {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -713,7 +1045,7 @@ nonisolated extension Wiretuner_Doc_V1_MoveLogEntry: SwiftProtobuf.Message, Swif
 
 nonisolated extension Wiretuner_Doc_V1_ReplicaState: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ReplicaState"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}replica\0\u{1}seq\0\u{3}acked_server_seq\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}replica\0\u{1}seq\0\u{3}acked_server_seq\0\u{3}stable_counter\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -724,6 +1056,7 @@ nonisolated extension Wiretuner_Doc_V1_ReplicaState: SwiftProtobuf.Message, Swif
       case 1: try { try decoder.decodeSingularFixed64Field(value: &self.replica) }()
       case 2: try { try decoder.decodeSingularUInt64Field(value: &self.seq) }()
       case 3: try { try decoder.decodeSingularUInt64Field(value: &self.ackedServerSeq) }()
+      case 4: try { try decoder.decodeSingularUInt64Field(value: &self.stableCounter) }()
       default: break
       }
     }
@@ -739,6 +1072,9 @@ nonisolated extension Wiretuner_Doc_V1_ReplicaState: SwiftProtobuf.Message, Swif
     if self.ackedServerSeq != 0 {
       try visitor.visitSingularUInt64Field(value: self.ackedServerSeq, fieldNumber: 3)
     }
+    if self.stableCounter != 0 {
+      try visitor.visitSingularUInt64Field(value: self.stableCounter, fieldNumber: 4)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -746,6 +1082,7 @@ nonisolated extension Wiretuner_Doc_V1_ReplicaState: SwiftProtobuf.Message, Swif
     if lhs.replica != rhs.replica {return false}
     if lhs.seq != rhs.seq {return false}
     if lhs.ackedServerSeq != rhs.ackedServerSeq {return false}
+    if lhs.stableCounter != rhs.stableCounter {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

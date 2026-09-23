@@ -1,0 +1,54 @@
+# crdt-conformance/vectors/gc/hash-unaffected-by-prune-timing.textproto (CRDT-010; schema: crdt-conformance/schema/vector.proto)
+name: "gc/hash-unaffected-by-prune-timing"
+description: "Replica 7 creates two nodes, text, a stop and a tag, then moves node 2 under node 1, deletes b, the stop, the tag and node 2 (at wall time 1000).  Replicas 1 and 2 go on editing without naming anything collected (replica 2's remove of y is concurrent with its add, so y stays).  Every delivery collects at stable point 2 at a different moment (before, between or after the replicas' changes, once twice) and at 4 once it has everything (both replicas' changes have base 2, so 3 is no stable point: replica 2's change is concurrent with replica 1's), with a clock 30 days and a second past the deletion: tombstones, stable move-log entries, set history and the deleted node are dropped, and every delivery reaches the same state and writes the same snapshot."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Create"
+    ops { create { parent { counter: 4 } position: "\x80" props { test { label: "T" } } } }
+    ops { create { parent { counter: 4 } position: "\x90" props { test { label: "D" } } } }
+    ops { text_insert { node { counter: 1 replica: 7 } text { segments { field: 1000 } segments { field: 9 } } chars: "ab" } }
+    ops { element_insert { node { counter: 1 replica: 7 } sequence { segments { field: 1000 } segments { field: 8 } } positions: "\x80" values { test { stops { offset: 1 } } } } }
+    ops { set_add { node { counter: 1 replica: 7 } set { segments { field: 1000 } segments { field: 3 } } values { test { tags: "x" } } } }
+  }
+  change {
+    replica: 7 seq: 2 start_counter: 7 base_server_seq: 1 wall_time_ms: 1000 label: "Move and delete"
+    ops { move { node { counter: 2 replica: 7 } parent { counter: 1 replica: 7 } position: "\x80" } }
+    ops { text_delete { node { counter: 1 replica: 7 } text { segments { field: 1000 } segments { field: 9 } } ranges { first { counter: 4 replica: 7 } count: 1 } } }
+    ops { element_delete { node { counter: 1 replica: 7 } elements { segments { field: 1000 } segments { field: 8 } segments { element { counter: 5 replica: 7 } } } deleted: true } }
+    ops { set_remove { node { counter: 1 replica: 7 } set { segments { field: 1000 } segments { field: 3 } } values { test { tags: "x" } } } }
+    ops { set_deleted { node { counter: 2 replica: 7 } deleted: true } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 12 base_server_seq: 2 server_seq: 3 label: "Edit"
+    ops { set { node { counter: 1 replica: 7 } paths { segments { field: 1000 } segments { field: 2 } } values { test { label: "U" } } } }
+    ops { text_insert { node { counter: 1 replica: 7 } text { segments { field: 1000 } segments { field: 9 } } left_origin { counter: 3 replica: 7 } chars: "c" } }
+    ops { set_add { node { counter: 1 replica: 7 } set { segments { field: 1000 } segments { field: 3 } } values { test { tags: "y" } } } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 12 base_server_seq: 2 server_seq: 4 label: "Edit"
+    ops { create { parent { counter: 4 } position: "\xA0" props { test { label: "N" } } } }
+    ops { set_add { node { counter: 1 replica: 7 } set { segments { field: 1000 } segments { field: 3 } } values { test { tags: "x" } } } }
+    ops { set_remove { node { counter: 1 replica: 7 } set { segments { field: 1000 } segments { field: 3 } } values { test { tags: "y" } } } }
+  }
+}
+deliveries { order: [1, 2] collect { stable_seq: 2 now_ms: 2592001000 } collect { after: 2 stable_seq: 4 now_ms: 2592001000 } }
+deliveries { order: [1, 2] collect { after: 1 stable_seq: 2 now_ms: 2592001000 } collect { after: 2 stable_seq: 4 now_ms: 2592001000 } }
+deliveries { order: [2, 1] collect { after: 1 stable_seq: 2 now_ms: 2592001000 } collect { after: 2 stable_seq: 4 now_ms: 2592001000 } }
+deliveries { order: [2, 1] collect { stable_seq: 2 now_ms: 2592001000 } collect { after: 2 stable_seq: 2 now_ms: 2592001000 } collect { after: 2 stable_seq: 4 now_ms: 2592001000 } }
+expect {
+  state_hash: "0cd04131534d97d8525de89fbc755f7bbd55813f411a1a6e7ebe46ae3d34de5e"
+  snapshot_hash: "f8124a9a4c327ed45b8dcf5dd1faa75749b563f5946ee14b923da19023fef90e"
+  node {
+    id { counter: 1 replica: 7 }
+    tree { parent { counter: 4 } position: "\x80" }
+    text { path { segments { field: 1000 } segments { field: 9 } } text: "ac" chars { counter: 3 replica: 7 } chars { counter: 13 replica: 1 } runs { start: 0 length: 2 } }
+    sequence { path { segments { field: 1000 } segments { field: 8 } } }
+    set { path { segments { field: 1000 } segments { field: 3 } } members { test { tags: "x" tags: "y" } } }
+  }
+}

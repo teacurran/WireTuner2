@@ -3,9 +3,10 @@
 // The full merge state of a document at a server sequence number (docs/spec/crdt-model.adoc,
 // "Snapshots"): every node with its registers and their OpIds, sequence elements including
 // unstable tombstones, the unstable part of the move log, and each replica's highest applied
-// seq.  Both engines encode a snapshot identically and hash it (`state_hash`); a snapshot is
-// zstd-compressed and chunked to 1 MiB for transfer (SnapshotFrame).  CRDT-009 implements the
-// encoding and the canonical order it hashes.
+// seq.  Both engines write a snapshot byte for byte alike and carry the state hash
+// (`state_hash`); a snapshot is zstd-compressed and chunked to 1 MiB for transfer
+// (SnapshotFrame).  CRDT-009 implements the encoding (crdt-model.adoc, "Snapshot encoding") and
+// CRDT-010 the garbage collection whose bookkeeping it carries.
 syntax = "proto3";
 
 package wiretuner.doc.v1;
@@ -18,10 +19,10 @@ option java_multiple_files = true;
 option java_package = "com.villagecompute.wiretuner.doc.v1";
 option optimize_for = SPEED;
 
-// The complete merge state at `server_seq`.  Canonical encoding (what `state_hash` covers):
-// `nodes` sorted by node id, each node's `registers` and `elements` sorted by path, `move_log`
-// in OpId order, `replicas` by replica id, every message field in field-number order, and
-// `state_hash` itself empty.  Both engines produce the same bytes for the same state.
+// The complete merge state at `server_seq`.  The engines write it field by field in field-number
+// order with proto3 defaults left out: `nodes` sorted by node id, each node's `registers` and
+// `elements` sorted by path, `move_log` in OpId order, `replicas` by replica id, `sequenced` by
+// replica then seq.  Both engines produce the same bytes for the same state.
 message DocumentSnapshot {
   // The server sequence number the state includes everything up to.  0 for a snapshot of a
   // document that has never been synced (tests, packages).
@@ -34,18 +35,39 @@ message DocumentSnapshot {
   repeated MoveLogEntry move_log = 3;
   // Each replica's highest applied seq and acknowledged server_seq, by replica id.
   repeated ReplicaState replicas = 4;
-  // The causally stable server_seq at snapshot time: tombstones and move-log entries at or
-  // below it have been dropped.
+  // The stable point the state was last collected at (crdt-model.adoc, "Garbage collection"):
+  // tombstones, move-log entries and set history made stable by it have been dropped; 0 when
+  // the state was never collected.
   uint64 stable_seq = 5;
   // The largest Lamport counter in the state, so a bootstrapping replica can continue the clock
   // without scanning every OpId.
   uint64 max_counter = 6;
   // The document's feature level: the highest schema feature any change in it has used.
   uint32 feature_level = 7;
-  // SHA-256 over the canonical encoding of this message with this field empty; 32 bytes.
-  // Clients compare their own hash to the server's at the same server_seq whenever their outbox
-  // is empty; a mismatch is a bug report plus a re-bootstrap.
+  // The state hash: SHA-256 over the canonical encoding of the state (crdt-model.adoc,
+  // "Canonical encoding"), not over this message's bytes; 32 bytes.  The move log, replica
+  // bookkeeping and garbage collection leave it unchanged.  Clients compare their own hash to
+  // the server's at the same server_seq and stable_seq whenever their outbox is empty; a
+  // mismatch is a bug report plus a re-bootstrap.  Decoding refuses a snapshot whose state
+  // hashes differently.
   bytes state_hash = 8 [(buf.validate.field).bytes.len = 32];
+  // Every change the state records by replica and seq: the server_seq it was sequenced at
+  // (which set removes are judged by) and the counters it took (which garbage collection turns
+  // into each replica's stable counter).  Entries at or below `stable_seq` are dropped.
+  repeated SequencedChange sequenced = 9;
+}
+
+// One change the state has applied or seen sequenced.
+message SequencedChange {
+  // The change's replica.
+  fixed64 replica = 1 [(buf.validate.field).fixed64.gt = 0];
+  // The change's seq.
+  uint64 seq = 2;
+  // The server_seq the server gave the change; 0 while it is not known to be sequenced.
+  uint64 server_seq = 3;
+  // One past the last counter the change's ops took (start_counter plus their counters); 0 when
+  // only the change's server_seq is known.
+  uint64 end_counter = 4;
 }
 
 // One node with the merge metadata the engines keep beside its values.
@@ -63,6 +85,44 @@ message NodeState {
   repeated RegisterStamp registers = 4;
   // Every element of every SEQUENCE and TEXT field, tombstones included, sorted by path.
   repeated ElementState elements = 5;
+  // Every SET field with any add or remove history, sorted by path.  Membership is computed from
+  // the history (crdt-model.adoc, "Sets"), so the history is the state.
+  repeated SetState sets = 6;
+  // The node's TEXT fields that hold a character or a mark, sorted by path; their characters
+  // and marks are in `node.props`.
+  repeated FieldPath texts = 7;
+  // The wall time of the change that wrote the current `deleted` value (Change.wall_time_ms),
+  // which starts the 30 days a deleted node stays restorable before garbage collection
+  // compacts it; 0 when unknown.
+  int64 deleted_wall_time_ms = 8;
+}
+
+// The add and remove history of one SET field.
+message SetState {
+  // The SET field's path from NodeProps.
+  FieldPath set = 1 [(buf.validate.field).required = true];
+  // Every member with any history, ascending bytewise by value.
+  repeated SetMemberState members = 2;
+}
+
+// One member of a SET field and every add and remove of it that is not yet collected.
+message SetMemberState {
+  // The member in its canonical form (crdt-model.adoc, "Sets").
+  bytes value = 1;
+  // The SetAdd ops of the member, ascending by op.
+  repeated SetTag adds = 2;
+  // The SetRemove ops of the member, ascending by op.
+  repeated SetTag removes = 3;
+}
+
+// One SetAdd or SetRemove of a member.
+message SetTag {
+  // The op.
+  OpId op = 1 [(buf.validate.field).required = true];
+  // The seq of the op's change; 0 for an op applied on its own.
+  uint64 seq = 2;
+  // For a remove, the base_server_seq of its change (its causal past); 0 for an add.
+  uint64 base_server_seq = 3;
 }
 
 // The OpId of the last write to one register.
@@ -109,6 +169,9 @@ message MoveLogEntry {
   // False when the op was skipped because it would have made the node its own ancestor (or
   // named an unknown parent); undoing a skipped entry changes nothing.
   bool applied = 7;
+  // The op of the placement the entry replaced (with `old_parent` and `old_position`), which
+  // undoing the entry restores; unset when the op created the node or was skipped.
+  OpId old_op = 8;
 }
 
 // What the state knows about one replica.
@@ -120,6 +183,10 @@ message ReplicaState {
   // The highest server_seq the replica has acknowledged, which drives causal stability; 0 when
   // it has never acknowledged.
   uint64 acked_server_seq = 3;
+  // Every op of the replica with a counter below this is causally stable: garbage collection
+  // folded the replica's changes sequenced at or below `stable_seq` into it, and an op below
+  // it arriving again is ignored as a replay.  0 until the state is collected.
+  uint64 stable_counter = 4;
 }
 
 // How a snapshot's bytes are compressed on the wire and in object storage.

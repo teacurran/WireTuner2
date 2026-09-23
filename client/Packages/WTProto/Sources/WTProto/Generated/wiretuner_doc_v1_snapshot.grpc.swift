@@ -3,9 +3,10 @@
 /// The full merge state of a document at a server sequence number (docs/spec/crdt-model.adoc,
 /// "Snapshots"): every node with its registers and their OpIds, sequence elements including
 /// unstable tombstones, the unstable part of the move log, and each replica's highest applied
-/// seq.  Both engines encode a snapshot identically and hash it (`state_hash`); a snapshot is
-/// zstd-compressed and chunked to 1 MiB for transfer (SnapshotFrame).  CRDT-009 implements the
-/// encoding and the canonical order it hashes.
+/// seq.  Both engines write a snapshot byte for byte alike and carry the state hash
+/// (`state_hash`); a snapshot is zstd-compressed and chunked to 1 MiB for transfer
+/// (SnapshotFrame).  CRDT-009 implements the encoding (crdt-model.adoc, "Snapshot encoding") and
+/// CRDT-010 the garbage collection whose bookkeeping it carries.
 
 // DO NOT EDIT.
 // swift-format-ignore-file

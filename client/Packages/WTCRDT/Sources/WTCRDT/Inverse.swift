@@ -13,6 +13,14 @@ public struct MemberField: Hashable, Sendable {
         typeName = row.typeName
     }
 
+    /// A SET field's encoding: its field number, protobuf type and message type name (a stored
+    /// or joined inverse is rebuilt from these).
+    public init(number: UInt32, type: String, typeName: String?) {
+        self.number = number
+        self.type = type
+        self.typeName = typeName
+    }
+
     /// The protobuf record holding `member` (a canonical member, crdt-model.adoc "Sets").
     func record(_ member: [UInt8]) -> [UInt8] {
         var out = WireWriter()
@@ -43,6 +51,11 @@ public struct MemberField: Hashable, Sendable {
 public struct ParagraphRegister: Hashable, Sendable {
     public let suffix: [RegisterPath.Segment]
     public let value: [UInt8]?
+
+    public init(suffix: [RegisterPath.Segment], value: [UInt8]?) {
+        self.suffix = suffix
+        self.value = value
+    }
 }
 
 /// A character a local `TextDelete` deleted, with what re-inserting it needs: its scalar, the
@@ -52,6 +65,13 @@ public struct DeletedChar: Hashable, Sendable {
     public let scalar: UInt32
     public let attributes: [[UInt8]]
     public let paragraph: [ParagraphRegister]
+
+    public init(id: OpID, scalar: UInt32, attributes: [[UInt8]], paragraph: [ParagraphRegister]) {
+        self.id = id
+        self.scalar = scalar
+        self.attributes = attributes
+        self.paragraph = paragraph
+    }
 }
 
 /// What formatted a character before a local mark: the winning value of the mark's attribute
@@ -59,6 +79,11 @@ public struct DeletedChar: Hashable, Sendable {
 public struct PriorFormat: Hashable, Sendable {
     public let char: OpID
     public let value: [UInt8]?
+
+    public init(char: OpID, value: [UInt8]?) {
+        self.char = char
+        self.value = value
+    }
 }
 
 /// The inverse of a local change (crdt-model.adoc, "Undo"; CRDT-008), recorded against the state
@@ -96,14 +121,28 @@ public struct Inverse: Hashable, Sendable {
 
     public let steps: [Step]
 
+    /// The inverse made of `steps`, in application order: one recorded by `applyLocal`, several
+    /// joined into one undo step, or one read back from the local store.
+    public init(steps: [Step]) {
+        self.steps = steps
+    }
+
+    /// This inverse followed by `later`: the inverse of this change and then `later` applied as
+    /// one unit, which `undoChange` undoes together.
+    public func followed(by later: Inverse) -> Inverse {
+        Inverse(steps: steps + later.steps)
+    }
+
     /// Whether the change changed nothing undoable.
     public var isEmpty: Bool { steps.isEmpty }
 }
 
 extension EngineState {
     /// The change undoing `inverse` against the current state, or nil when nothing of it is left
-    /// to undo.  Each step is undone only where the state still holds what this replica wrote:
-    /// undo never reverts other people's work (crdt-model.adoc, "Undo").  The change is undone as
+    /// to undo.  Each step is undone only where no other replica has written its target since
+    /// (the state holds this replica's write, or a later one of this replica's, such as its undo of
+    /// a later change): undo never reverts other people's work (crdt-model.adoc, "Undo").  A target
+    /// that no longer exists (collected, CRDT-010) is skipped.  The change is undone as
     /// a unit: where several of its ops wrote one register (or placement, flag, member), the value
     /// before the first is restored if the state still holds the last; characters it inserted are
     /// not re-inserted.  The ops are numbered from `startCounter` (the clock's next counter);
@@ -195,6 +234,11 @@ private struct UndoBuilder {
 
     private var store: NodeStore { state.store }
 
+    // Whether the write holding a target is `wrote` or a later one by this replica.
+    private func ours(_ holder: OpID?, _ wrote: OpID) -> Bool {
+        holder == wrote || holder?.replica == replica
+    }
+
     mutating func add(_ op: Wiretuner_Doc_V1_Op) {
         ops.append(op)
         counter &+= EngineState.counters(op)
@@ -208,15 +252,17 @@ private struct UndoBuilder {
         }
         switch step {
         case .created(let node):
-            if store.deleted(node).map({ wrote.contains($0.current.op) }) ?? true {
+            if store.isCreated(node),
+               store.deleted(node).map({ wrote.contains($0.current.op) || $0.current.op.replica == replica }) ?? true {
                 add(Ops.setDeleted(node, true))
             }
         case .elementInserted(let node, let element):
-            if store.element(node, element)?.deleted.map({ wrote.contains($0.current.op) }) ?? true {
+            if let inserted = store.element(node, element),
+               inserted.deleted.map({ wrote.contains($0.current.op) || $0.current.op.replica == replica }) ?? true {
                 add(Ops.elementDelete(node, element, true))
             }
         case .textInserted(let node, let path, let chars):
-            let text = store.text(node, path) ?? TextSequence()
+            guard let text = store.text(node, path) else { break }
             let live = chars.filter { text.contains($0) && !text.isDeleted($0) }
             if !live.isEmpty {
                 add(Ops.textDelete(node, path, live))
@@ -236,23 +282,23 @@ private struct UndoBuilder {
         let earliest = first[key]!
         switch (step, earliest) {
         case (.register(let node, let path, _, let wrote), .register(_, _, let prior, _)):
-            if store.register(node, path)?.op == wrote {
+            if let holder = store.register(node, path)?.op, ours(holder, wrote) {
                 add(Ops.setFields(node, path, values(node, path, prior?.value)))
             }
         case (.placement(let node, _, let wrote), .placement(_, let prior, _)):
-            if store.placement(node)?.op == wrote, let prior {
+            if let holder = store.placement(node)?.op, ours(holder, wrote), let prior {
                 add(Ops.move(node, prior.parent, prior.position))
             }
         case (.deleted(let node, _, let wrote), .deleted(_, let prior, _)):
-            if store.deleted(node)?.current.op == wrote {
+            if let holder = store.deleted(node)?.current.op, ours(holder, wrote) {
                 add(Ops.setDeleted(node, prior?.value ?? false))
             }
         case (.elementPosition(let node, let element, _, let wrote), .elementPosition(_, _, let prior, _)):
-            if store.element(node, element)?.position.current.op == wrote {
+            if let holder = store.element(node, element)?.position.current.op, ours(holder, wrote) {
                 add(Ops.elementMove(node, element, prior.value))
             }
         case (.elementDeleted(let node, let element, _, let wrote), .elementDeleted(_, _, let prior, _)):
-            if store.element(node, element)?.deleted?.current.op == wrote {
+            if let holder = store.element(node, element)?.deleted?.current.op, ours(holder, wrote) {
                 add(Ops.elementDelete(node, element, prior?.value ?? false))
             }
         case (.memberAdded(let node, let set, let member, _, _, let field), _),
@@ -276,7 +322,7 @@ private struct UndoBuilder {
         let values = values(node, set, field.record(member))
         if wasPresent && live.isEmpty {
             add(Ops.setAdd(node, set, values))
-        } else if !wasPresent && !live.isEmpty && live.isSubset(of: tags[key] ?? []) {
+        } else if !wasPresent && !live.isEmpty && live.allSatisfy({ tags[key]?.contains($0) == true || $0.replica == replica }) {
             add(Ops.setRemove(node, set, values))
         }
     }
@@ -285,7 +331,7 @@ private struct UndoBuilder {
     // document order goes right after its last (still a tombstone), then gets its attributes back
     // as marks covering exactly the new characters, then its newlines' paragraph registers.
     private mutating func reinsert(_ node: OpID, _ path: RegisterPath, _ chars: [DeletedChar]) {
-        let text = store.text(node, path) ?? TextSequence()
+        guard let text = store.text(node, path) else { return }
         let index = text.orderIndex()
         let present = chars.filter { index[$0.id] != nil }.sorted { index[$0.id]! < index[$1.id]! }
         var runs: [[DeletedChar]] = []
@@ -334,9 +380,9 @@ private struct UndoBuilder {
     private mutating func remark(
         _ node: OpID, _ path: RegisterPath, _ mark: OpID, _ key: MarkKey, _ value: [UInt8], _ prior: [PriorFormat]
     ) {
-        let text = store.text(node, path) ?? TextSequence()
+        guard let text = store.text(node, path) else { return }
         let winners = text.winners(of: key, for: prior.map(\.char))
-        let still = prior.filter { winners[$0.char]?.id == mark && !text.isDeleted($0.char) }
+        let still = prior.filter { winners[$0.char].map { ours($0.id, mark) } == true && !text.isDeleted($0.char) }
             .map { (offset: text.offset(of: $0.char)!, format: $0) }
             .sorted { $0.offset < $1.offset }
         var index = 0

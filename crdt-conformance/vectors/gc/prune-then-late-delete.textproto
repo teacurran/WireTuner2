@@ -1,0 +1,46 @@
+# crdt-conformance/vectors/gc/prune-then-late-delete.textproto (CRDT-010; schema: crdt-conformance/schema/vector.proto)
+name: "gc/prune-then-late-delete"
+description: "Replica 7 types \"abc\", inserts two stops and deletes the c and the second stop; the state is collected at stable point 2, which drops both tombstones.  Replica 1's late change (a retired replica's salvage bypassed, base 0) deletes b and c, restores, moves and edits the collected stop: only b is deleted, everything naming a collected tombstone is a no-op.  Replica 2 renames the node.  Collecting before or after replica 2's change gives the same state."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Type and insert stops"
+    ops { create { parent { counter: 4 } position: "\x80" props { test { label: "T" } } } }
+    ops { text_insert { node { counter: 1 replica: 7 } text { segments { field: 1000 } segments { field: 9 } } chars: "abc" } }
+    ops { element_insert { node { counter: 1 replica: 7 } sequence { segments { field: 1000 } segments { field: 8 } } positions: "\x80" positions: "\x90" values { test { stops { offset: 1 } stops { offset: 2 } } } } }
+  }
+  change {
+    replica: 7 seq: 2 start_counter: 7 base_server_seq: 1 label: "Delete c and the second stop"
+    ops { text_delete { node { counter: 1 replica: 7 } text { segments { field: 1000 } segments { field: 9 } } ranges { first { counter: 4 replica: 7 } count: 1 } } }
+    ops { element_delete { node { counter: 1 replica: 7 } elements { segments { field: 1000 } segments { field: 8 } segments { element { counter: 6 replica: 7 } } } deleted: true } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 9 server_seq: 3 label: "Late edits"
+    ops { text_delete { node { counter: 1 replica: 7 } text { segments { field: 1000 } segments { field: 9 } } ranges { first { counter: 3 replica: 7 } count: 2 } } }
+    ops { element_delete { node { counter: 1 replica: 7 } elements { segments { field: 1000 } segments { field: 8 } segments { element { counter: 6 replica: 7 } } } } }
+    ops { element_move { node { counter: 1 replica: 7 } element { segments { field: 1000 } segments { field: 8 } segments { element { counter: 6 replica: 7 } } } position: "\x70" } }
+    ops { set { node { counter: 1 replica: 7 } paths { segments { field: 1000 } segments { field: 8 } segments { element { counter: 6 replica: 7 } } segments { field: 2 } } values { test { stops { offset: 9 } } } } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 9 base_server_seq: 2 server_seq: 4 label: "Rename"
+    ops { set { node { counter: 1 replica: 7 } paths { segments { field: 1000 } segments { field: 2 } } values { test { label: "U" } } } }
+  }
+}
+deliveries { order: [1, 2] collect { stable_seq: 2 } }
+deliveries { order: [2, 1] collect { stable_seq: 2 } }
+deliveries { order: [2, 1] collect { after: 1 stable_seq: 2 } }
+expect {
+  state_hash: "6feb86c6fc98006a755b949fea0292b56d07579fb692d59be09d40242135ae9d"
+  snapshot_hash: "93784dd9010a3454319089940bb428e7c0231510b9d17bb7e885d3163c4c3381"
+  node {
+    id { counter: 1 replica: 7 }
+    text { path { segments { field: 1000 } segments { field: 9 } } text: "a" chars { counter: 2 replica: 7 } deleted { counter: 3 replica: 7 } runs { start: 0 length: 1 } }
+    sequence { path { segments { field: 1000 } segments { field: 8 } } elements { counter: 5 replica: 7 } }
+    register { path { segments { field: 1000 } segments { field: 2 } } value { test { label: "U" } } op { counter: 9 replica: 2 } losing { counter: 1 replica: 7 } }
+  }
+}

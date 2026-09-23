@@ -77,6 +77,25 @@
           </execution>
         </executions>
       </plugin>
+      <!-- The test classpath in a file, for the fuzzer's Java oracle (FuzzOracle; crdt-conformance
+           `make fuzz`), which runs outside Maven once per candidate while a failure minimises. -->
+      <plugin>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <version>3.8.1</version>
+        <executions>
+          <execution>
+            <id>fuzz-oracle-classpath</id>
+            <phase>generate-test-resources</phase>
+            <goals>
+              <goal>build-classpath</goal>
+            </goals>
+            <configuration>
+              <includeScope>test</includeScope>
+              <outputFile>${project.build.directory}/test-classpath.txt</outputFile>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
       <plugin>
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>

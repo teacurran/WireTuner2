@@ -31,7 +31,7 @@ deliveries { order: [1, 2] }
 deliveries { order: [2, 1] }
 expect {
   state_hash: "0862b318eb7677ef8d21acd8d2ce02a8fc986f6629230ff030d1665919d7888f"
-  snapshot_hash: "3560bf7522f1b21db5bab18138a78f92d12ae40817726f220aa9d4b3c85df77d"
+  snapshot_hash: "b643ae1066dcd096bedc5aa922737d757f8a3834fdfaf374a3df496d3fbe6b82"
   node {
     id { counter: 1 replica: 7 }
     node_hash: "10901971f18a3150d1d0d099b996cc435d1811073bb19118bec13eccfd1d56d0"

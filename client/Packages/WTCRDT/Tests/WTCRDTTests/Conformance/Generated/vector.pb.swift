@@ -148,6 +148,31 @@ nonisolated struct Wiretuner_Conformance_V1_Delivery: Sendable {
   /// once.
   var picks: [Wiretuner_Conformance_V1_Pick] = []
 
+  /// Garbage collections during the delivery (CRDT-010), in order.  Every delivery must reach the
+  /// same state, so a vector that collects collects the same stable points in every delivery,
+  /// only at different moments ("hash unaffected by prune timing").
+  var collect: [Wiretuner_Conformance_V1_Collect] = []
+
+  var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  init() {}
+}
+
+/// One garbage collection: `EngineState.collect` / `Engine.collect` at a stable point.
+nonisolated struct Wiretuner_Conformance_V1_Collect: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// How many of the delivery's changes are applied before it (0: right after the setup).
+  var after: UInt32 = 0
+
+  /// The stable point collected at.
+  var stableSeq: UInt64 = 0
+
+  /// The collector's clock, ms since the epoch: deleted nodes compact 30 days after deletion.
+  var nowMs: Int64 = 0
+
   var unknownFields = SwiftProtobuf.UnknownStorage()
 
   init() {}
@@ -1926,7 +1951,7 @@ nonisolated extension Wiretuner_Conformance_V1_Replica: SwiftProtobuf.Message, S
 
 nonisolated extension Wiretuner_Conformance_V1_Delivery: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   static let protoMessageName: String = _protobuf_package + ".Delivery"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}order\0\u{1}picks\0")
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}order\0\u{1}picks\0\u{1}collect\0")
 
   mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -1936,6 +1961,7 @@ nonisolated extension Wiretuner_Conformance_V1_Delivery: SwiftProtobuf.Message, 
       switch fieldNumber {
       case 1: try { try decoder.decodeRepeatedFixed64Field(value: &self.order) }()
       case 2: try { try decoder.decodeRepeatedMessageField(value: &self.picks) }()
+      case 3: try { try decoder.decodeRepeatedMessageField(value: &self.collect) }()
       default: break
       }
     }
@@ -1948,12 +1974,56 @@ nonisolated extension Wiretuner_Conformance_V1_Delivery: SwiftProtobuf.Message, 
     if !self.picks.isEmpty {
       try visitor.visitRepeatedMessageField(value: self.picks, fieldNumber: 2)
     }
+    if !self.collect.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.collect, fieldNumber: 3)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   static func ==(lhs: Wiretuner_Conformance_V1_Delivery, rhs: Wiretuner_Conformance_V1_Delivery) -> Bool {
     if lhs.order != rhs.order {return false}
     if lhs.picks != rhs.picks {return false}
+    if lhs.collect != rhs.collect {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Conformance_V1_Collect: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  static let protoMessageName: String = _protobuf_package + ".Collect"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}after\0\u{3}stable_seq\0\u{3}now_ms\0")
+
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularUInt32Field(value: &self.after) }()
+      case 2: try { try decoder.decodeSingularUInt64Field(value: &self.stableSeq) }()
+      case 3: try { try decoder.decodeSingularInt64Field(value: &self.nowMs) }()
+      default: break
+      }
+    }
+  }
+
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.after != 0 {
+      try visitor.visitSingularUInt32Field(value: self.after, fieldNumber: 1)
+    }
+    if self.stableSeq != 0 {
+      try visitor.visitSingularUInt64Field(value: self.stableSeq, fieldNumber: 2)
+    }
+    if self.nowMs != 0 {
+      try visitor.visitSingularInt64Field(value: self.nowMs, fieldNumber: 3)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  static func ==(lhs: Wiretuner_Conformance_V1_Collect, rhs: Wiretuner_Conformance_V1_Collect) -> Bool {
+    if lhs.after != rhs.after {return false}
+    if lhs.stableSeq != rhs.stableSeq {return false}
+    if lhs.nowMs != rhs.nowMs {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

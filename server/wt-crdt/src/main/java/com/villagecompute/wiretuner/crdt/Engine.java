@@ -29,19 +29,31 @@ import java.util.Map;
  * {@code MoveNode}, {@code SetDeleted}, CRDT-002), sets ({@code SetAdd}, {@code SetRemove},
  * CRDT-007), sequences ({@code ElementInsert}, {@code ElementMove}, {@code ElementDelete},
  * CRDT-004), changes with their inverses (CRDT-008), text ({@code TextInsert},
- * {@code TextDelete}, CRDT-005) and formatting marks ({@code TextMark}, CRDT-006). Not
- * thread-safe: the snapshotter gives each document its own engine.
+ * {@code TextDelete}, CRDT-005), formatting marks ({@code TextMark}, CRDT-006), snapshots
+ * (CRDT-009) and garbage collection ({@link #collect}, CRDT-010). Not thread-safe: the
+ * snapshotter gives each document its own engine.
  */
 public final class Engine {
 
     /** Version of the merge semantics this engine implements (docs/spec/crdt-model.adoc). */
-    public static final String VERSION = "0.3.0";
+    public static final String VERSION = "0.4.0";
 
-    /** The change an op belongs to: its seq and causal past (0 for an op applied on its own). */
-    public record Context(long seq, long baseServerSeq) {
+    /** How long a deleted node stays restorable before garbage collection compacts it: 30 days. */
+    public static final long DELETED_NODE_RETENTION_MS = 30L * 24 * 60 * 60 * 1000;
+
+    /**
+     * The change an op belongs to: its seq, causal past and wall time (0 for an op applied on its
+     * own).
+     */
+    public record Context(long seq, long baseServerSeq, long wallTimeMs) {
 
         /** The context of an op applied on its own. */
-        public static final Context NONE = new Context(0, 0);
+        public static final Context NONE = new Context(0, 0, 0);
+
+        /** A context without a wall time. */
+        public Context(long seq, long baseServerSeq) {
+            this(seq, baseServerSeq, 0);
+        }
     }
 
     private final Schema schema;
@@ -105,19 +117,27 @@ public final class Engine {
      * {@code start_counter} plus the counters the ops before it took (change.proto), then records
      * the change against its replica (highest seq, highest {@code base_server_seq}). A change
      * applied again changes nothing. {@code serverSeq} is the server's sequence number for the
-     * change when known, else {@code null}: sets judge a concurrent remove by it.
+     * change when known, else {@code null}: sets judge a concurrent remove by it. A change the
+     * state has already collected as stable -- sequenced at or before the stable point, or
+     * starting below its replica's stable counter -- is a replay and changes nothing.
      */
     public void apply(Change change, Long serverSeq) {
+        ReplicaState known = store.replicaState(change.getReplica());
+        long stable = known == null ? 0 : known.stableCounter();
+        if (Long.compareUnsigned(change.getStartCounter(), stable) < 0
+                || serverSeq != null && serverSeq != 0 && Long.compareUnsigned(serverSeq, store.stableSeq()) <= 0) {
+            return;
+        }
         if (serverSeq != null) {
             acknowledge(change.getReplica(), change.getSeq(), serverSeq);
         }
-        Context context = new Context(change.getSeq(), change.getBaseServerSeq());
+        Context context = new Context(change.getSeq(), change.getBaseServerSeq(), change.getWallTimeMs());
         long counter = change.getStartCounter();
         for (Op op : change.getOpsList()) {
             apply(op, new OpId(counter, change.getReplica()), context);
             counter += counters(op);
         }
-        store.recordChange(change.getReplica(), change.getSeq(), change.getBaseServerSeq());
+        store.recordChange(change.getReplica(), change.getSeq(), change.getBaseServerSeq(), counter);
     }
 
     /**
@@ -188,9 +208,16 @@ public final class Engine {
         apply(op, id, Context.NONE);
     }
 
-    /** Applies one op with id {@code id} (its first counter) in {@code context}. */
+    /**
+     * Applies one op with id {@code id} (its first counter) in {@code context}. An op below its
+     * replica's stable counter is a replay of one garbage collection already folded in, and is
+     * ignored.
+     */
     public void apply(Op op, OpId id, Context context) {
         clock.observe(id.counter() + counters(op) - 1);
+        if (store.isStable(id)) {
+            return;
+        }
         switch (op.getOpCase()) {
             case CREATE -> create(op.getCreate(), id);
             case SET -> set(op.getSet(), id);
@@ -199,7 +226,7 @@ public final class Engine {
                 OpId node = OpId.of(op.getSetDeleted().getNode());
                 Cell<Boolean> before = store.deleted(node);
                 Stamped<Boolean> prior = before == null ? null : before.current();
-                store.setDeleted(node, op.getSetDeleted().getDeleted(), id);
+                store.setDeleted(node, op.getSetDeleted().getDeleted(), id, context.wallTimeMs());
                 Cell<Boolean> after = store.deleted(node);
                 if (after != null && after.current().op().equals(id)) {
                     record(new Inverse.Deleted(node, prior, id));
@@ -513,5 +540,80 @@ public final class Engine {
     /** The state hash of the merged state (32 bytes, {@link StateHash}). */
     public byte[] stateHash() {
         return StateHash.of(store);
+    }
+
+    // ---- Garbage collection
+
+    /**
+     * The stable point this state's replica acks give (crdt-model.adoc, "Garbage collection"):
+     * the smallest server_seq acknowledged by a replica not {@code retired}.
+     */
+    public long stablePoint(java.util.Set<Long> retired) {
+        return store.stablePoint(retired);
+    }
+
+    /** Whether {@code op} is causally stable at stable point {@code stableSeq}: its change was sequenced at or before it. */
+    public boolean isStable(OpId op, long stableSeq) {
+        long at = Long.compareUnsigned(stableSeq, store.stableSeq()) >= 0 ? stableSeq : store.stableSeq();
+        Long counter = store.stableCounters(at).get(op.replica());
+        return counter != null && Long.compareUnsigned(op.counter(), counter) < 0;
+    }
+
+    /**
+     * Whether a collection at stable point {@code stableSeq} and clock {@code now} would compact
+     * {@code node}: it or an ancestor is deleted by a write stable there,
+     * {@link #DELETED_NODE_RETENTION_MS} or more before {@code now}. A replica never writes an op
+     * naming such a node at the newest point it knows.
+     */
+    public boolean isCompactable(OpId node, long stableSeq, long now) {
+        long at = Long.compareUnsigned(stableSeq, store.stableSeq()) >= 0 ? stableSeq : store.stableSeq();
+        Map<Long, Long> counters = store.stableCounters(at);
+        long cutoff;
+        try {
+            cutoff = Math.subtractExact(now, DELETED_NODE_RETENTION_MS);
+        } catch (ArithmeticException overflow) {
+            return false;
+        }
+        for (OpId current = node; current != null;) {
+            Cell<Boolean> flag = store.deleted(current);
+            if (flag != null && flag.current().value()) {
+                Long counter = counters.get(flag.current().op().replica());
+                if (counter != null && Long.compareUnsigned(flag.current().op().counter(), counter) < 0
+                        && store.deletedTime(current) <= cutoff) {
+                    return true;
+                }
+            }
+            Placement placement = store.placement(current);
+            current = placement == null ? null : placement.parent();
+        }
+        return false;
+    }
+
+    /**
+     * The origins a client gives a {@code TextInsert} at live offset {@code offset} of the TEXT
+     * field {@code path} of {@code node} when it knows stable point {@code stableSeq}
+     * ({@link TextSequence#insertionOrigins(int, java.util.function.Predicate)}).
+     */
+    public TextSequence.Origins insertionOrigins(OpId node, RegisterPath path, int offset, long stableSeq) {
+        long at = Long.compareUnsigned(stableSeq, store.stableSeq()) >= 0 ? stableSeq : store.stableSeq();
+        Map<Long, Long> counters = store.stableCounters(at);
+        TextSequence text = store.text(node, path);
+        return (text == null ? new TextSequence() : text).insertionOrigins(offset, op -> {
+            Long counter = counters.get(op.replica());
+            return counter != null && Long.compareUnsigned(op.counter(), counter) < 0;
+        });
+    }
+
+    /**
+     * Collects the state at stable point {@code stableSeq} (CRDT-010), compacting deleted nodes
+     * by {@code clock}; mirrors {@code WTCRDT.EngineState.collect}.
+     */
+    public Collected collect(long stableSeq, java.time.Clock clock) {
+        return store.collect(stableSeq, clock.millis(), DELETED_NODE_RETENTION_MS);
+    }
+
+    /** Collects the state at stable point {@code stableSeq} by the system clock. */
+    public Collected collect(long stableSeq) {
+        return collect(stableSeq, java.time.Clock.systemUTC());
     }
 }

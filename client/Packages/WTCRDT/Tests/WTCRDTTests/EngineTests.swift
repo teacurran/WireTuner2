@@ -56,7 +56,7 @@ import WTProto
     }
 
     @Test func versionMatchesWtCrdt() {
-        #expect(EngineState.version == "0.3.0")
+        #expect(EngineState.version == "0.4.0")
         #expect(EngineState().schema.kinds == Schema.generated.kinds)
     }
 

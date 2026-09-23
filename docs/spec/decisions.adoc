@@ -505,6 +505,17 @@ and the fabricated figure would read as a measured one.  If a toolchain starts e
 records, the converter passes them through and the client gate can gain Sonar's branch
 conditions (xref:testing.adoc[Testing]).
 
+[[D-067]]
+=== D-067 Garbage collection runs at a published collection point, not min(acks)
+`min(acks)` is unsafe: a change pushed before its author acknowledged further can be sequenced
+after that point, be concurrent with a deletion, and still name the tombstone.  Each replica
+keeps a *horizon* (the newest stable point and clock the server published to it) and never
+writes an op naming something collectable there; the server stores each change's horizon and
+publishes a collection point (C, T) lowered until no change sequenced after C has a lower
+horizon.  Every replica and the snapshotter collect at (C, T).  `AckResponse` gains
+`collect_seq` and `collect_time_ms`; SRV-007 and SRV-013 implement the server side
+(xref:crdt-model.adoc[CRDT model]).
+
 == Open questions
 
 [[Q-001]]

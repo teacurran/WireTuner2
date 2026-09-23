@@ -14,14 +14,15 @@ import WTProto
 ///   deleted, origins and the paragraph registers; `marks` by id).  `registers` stamps every
 ///   written register by path (an unset one has a stamp and no value); `elements` holds every
 ///   sequence element and character by path (a character's position is empty).
-/// * `move_log`, `replicas` (highest seq, greatest `base_server_seq`), `max_counter` (the clock),
-///   `state_hash` (`StateHash` of the state, verified on decode).
-/// * Fields doc.v1 does not declare yet, written at numbers proposed for snapshot.proto (see
-///   the CRDT-009 notes on the page): `NodeState.sets = 6` (every set member's add and remove
-///   history, which presence is computed from), `NodeState.texts = 7` (the paths of the node's
-///   TEXT fields), `MoveLogEntry.old_op = 8` (the op of the placement an entry replaced), and
-///   `DocumentSnapshot.sequenced = 9` (the server_seq of every sequenced change, which set
-///   removes are judged by).
+/// * `move_log`, `replicas` (highest seq, greatest `base_server_seq`, stable counter),
+///   `stable_seq` (the stable point last collected at), `max_counter` (the clock), `state_hash`
+///   (`StateHash` of the state, verified on decode).
+/// * `NodeState.sets` (every set member's add and remove history, which presence is computed
+///   from), `NodeState.texts` (the paths of the node's TEXT fields), `NodeState.deleted_wall_time_ms`
+///   (when the current `deleted` value was written, for compaction), `MoveLogEntry.old_op` (the op
+///   of the placement an entry replaced), and `DocumentSnapshot.sequenced` (every change record:
+///   the server_seq set removes are judged by and the end counter collection folds into the
+///   replica's stable counter).
 ///
 /// The change log -- the losing writes -- is not part of a snapshot; a decoded state retains the
 /// writes applied after it.
@@ -33,6 +34,7 @@ public enum Snapshot {
 
     static let nodeSets: UInt32 = 6
     static let nodeTexts: UInt32 = 7
+    static let nodeDeletedTime: UInt32 = 8
     static let moveOldOp: UInt32 = 8
     static let sequencedField: UInt32 = 9
 
@@ -54,15 +56,18 @@ public enum Snapshot {
             inner.fixed64Field(1, replica)
             inner.varintField(2, replicaState.seq)
             inner.varintField(3, replicaState.ackedServerSeq)
+            inner.varintField(4, replicaState.stableCounter)
             out.lenField(4, inner.bytes)
         }
+        out.varintField(5, store.stableSeq)
         out.varintField(6, state.clock.max)
         out.lenField(8, StateHash.of(store))
         for change in store.sequencedChanges {
             var inner = WireWriter()
             inner.fixed64Field(1, change.replica)
             inner.varintField(2, change.seq)
-            inner.varintField(3, change.serverSeq)
+            inner.varintField(3, change.record.serverSeq)
+            inner.varintField(4, change.record.endCounter)
             out.lenField(sequencedField, inner.bytes)
         }
         return out.bytes
@@ -115,6 +120,7 @@ public enum Snapshot {
         for path in store.textPaths(node) {
             out.lenField(nodeTexts, WireWriter.path(path))
         }
+        out.varintField(nodeDeletedTime, UInt64(bitPattern: store.deletedTime(node)))
         return out.bytes
     }
 
@@ -296,8 +302,9 @@ public enum Snapshot {
         var nodes: [Range<Int>] = []
         var log: [MoveLogEntry] = []
         var replicas: [UInt64: ReplicaState] = [:]
-        var sequenced: [(replica: UInt64, seq: UInt64, serverSeq: UInt64)] = []
+        var sequenced: [(replica: UInt64, seq: UInt64, record: ChangeRecord)] = []
         var maxCounter: UInt64 = 0
+        var stableSeq: UInt64 = 0
         var hash: [UInt8]?
         try Scan.each(bytes[...]) { (record: Scan.Record) throws(Failure) in
             switch record.number {
@@ -311,19 +318,22 @@ public enum Snapshot {
                     case 1: replica = field.value
                     case 2: state.seq = field.value
                     case 3: state.ackedServerSeq = field.value
+                    case 4: state.stableCounter = field.value
                     default: break
                     }
                 }
                 replicas[replica] = state
+            case 5: stableSeq = record.value
             case 6: maxCounter = record.value
             case 8: hash = Array(record.payload)
             case sequencedField:
-                var change: (replica: UInt64, seq: UInt64, serverSeq: UInt64) = (0, 0, 0)
+                var change: (replica: UInt64, seq: UInt64, record: ChangeRecord) = (0, 0, ChangeRecord())
                 try Scan.each(record.payload) { (field: Scan.Record) throws(Failure) in
                     switch field.number {
                     case 1: change.replica = field.value
                     case 2: change.seq = field.value
-                    case 3: change.serverSeq = field.value
+                    case 3: change.record.serverSeq = field.value
+                    case 4: change.record.endCounter = field.value
                     default: break
                     }
                 }
@@ -337,7 +347,8 @@ public enum Snapshot {
         state.store.restore(created: decoder.created, registers: decoder.registers, deleted: decoder.deleted,
                             elements: decoder.elements, sets: decoder.sets, texts: decoder.texts, sequenced: sequenced,
                             replicas: replicas,
-                            tree: Tree(log: log, placements: decoder.placements, live: Set(decoder.created.keys)))
+                            tree: Tree(log: log, placements: decoder.placements, live: Set(decoder.created.keys)),
+                            deletedTimes: decoder.deletedTimes, stableSeq: stableSeq)
         if let hash, hash != state.stateHash {
             throw Failure(description: "state_hash \(Bytes.hex(hash)) does not match the decoded state's \(Bytes.hex(state.stateHash))")
         }
@@ -535,6 +546,7 @@ private struct Decoder {
     var created: [OpID: UInt32] = [:]
     var registers: [OpID: [RegisterPath: Register]] = [:]
     var deleted: [OpID: Cell<Bool>] = [:]
+    var deletedTimes: [OpID: Int64] = [:]
     var elements: [OpID: [RegisterPath: Element]] = [:]
     var sets: [OpID: [RegisterPath: [[UInt8]: MemberHistory]]] = [:]
     var texts: [OpID: [RegisterPath: TextSequence]] = [:]
@@ -564,6 +576,7 @@ private struct Decoder {
         created.merge(other.created) { a, _ in a }
         registers.merge(other.registers) { a, _ in a }
         deleted.merge(other.deleted) { a, _ in a }
+        deletedTimes.merge(other.deletedTimes) { a, _ in a }
         elements.merge(other.elements) { a, _ in a }
         sets.merge(other.sets) { a, _ in a }
         texts.merge(other.texts) { a, _ in a }
@@ -591,6 +604,7 @@ private struct Decoder {
         var elementStates: [ArraySlice<UInt8>] = []
         var setStates: [ArraySlice<UInt8>] = []
         var textPaths: Set<RegisterPath> = []
+        var deletedTime: Int64 = 0
         try Scan.each(bytes) { (field: Scan.Record) throws(Snapshot.Failure) in
             switch field.number {
             case 1: plain = field.payload
@@ -606,6 +620,7 @@ private struct Decoder {
             case 5: elementStates.append(field.payload)
             case Snapshot.nodeSets: setStates.append(field.payload)
             case Snapshot.nodeTexts: textPaths.insert(try path(field.payload))
+            case Snapshot.nodeDeletedTime: deletedTime = Int64(bitPattern: field.value)
             default: break
             }
         }
@@ -635,6 +650,9 @@ private struct Decoder {
         }
         if let deletedOp {
             deleted[id] = Cell(isDeleted, deletedOp)
+            if deletedTime != 0 {
+                deletedTimes[id] = deletedTime
+            }
         }
         let reader = PropsReader(props: props, texts: textPaths)
         var nodeRegisters: [RegisterPath: Register] = [:]

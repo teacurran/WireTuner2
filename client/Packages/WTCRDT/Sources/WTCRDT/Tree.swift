@@ -42,7 +42,7 @@ public struct MoveLogEntry: Hashable, Sendable {
 /// The well-known nodes (replica 0, counters 0..15) always exist; 1..15 sit under the document
 /// (0:0) with an empty position, so they sort by id.  wt-crdt's `Tree` is this type in Java.
 struct Tree: Sendable {
-    /// The unstable move log, ascending by op (every tree op until CRDT-010 prunes stable ones).
+    /// The unstable move log, ascending by op: every tree op not yet pruned as stable (CRDT-010).
     private(set) var log: [MoveLogEntry] = []
     private var live: Set<OpID> = []
     private var placements: [OpID: Placement] = [:]
@@ -143,6 +143,45 @@ struct Tree: Sendable {
         }
         if entry.creates {
             live.remove(entry.node)
+        }
+    }
+
+    // MARK: Garbage collection
+
+    /// Drops the entries whose op is stable; returns how many.  Every later tree op is causally
+    /// after a stable one and so has a greater OpId: a stable entry is never undone again, and the
+    /// entries left keep the placement each replaced (`old`), which is all undoing them needs.
+    mutating func prune(_ stable: (OpID) -> Bool) -> Int {
+        let before = log.count
+        log.removeAll { stable($0.op) }
+        return before - log.count
+    }
+
+    /// `node` and every node placed below it.
+    func subtree(_ node: OpID) -> [OpID] {
+        var out = [node]
+        var index = 0
+        while index < out.count {
+            out += children[out[index]] ?? []
+            index += 1
+        }
+        return out
+    }
+
+    /// Whether a logged entry names one of `nodes` as its node, its parent or its old parent.
+    func names(_ nodes: [OpID]) -> Bool {
+        let set = Set(nodes)
+        return log.contains { set.contains($0.node) || set.contains($0.parent) || $0.old.map { set.contains($0.parent) } == true }
+    }
+
+    /// Forgets `nodes`: they no longer exist, sit anywhere or have children.
+    mutating func remove(_ nodes: [OpID]) {
+        for node in nodes {
+            if let placement = placements.removeValue(forKey: node) {
+                children[placement.parent]?.remove(node)
+            }
+            children[node] = nil
+            live.remove(node)
         }
     }
 

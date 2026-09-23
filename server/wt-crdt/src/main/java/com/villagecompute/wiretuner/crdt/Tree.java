@@ -113,6 +113,47 @@ final class Tree {
         }
     }
 
+    // ---- Garbage collection
+
+    /**
+     * Drops the entries whose op is stable; returns how many. Every later tree op is causally
+     * after a stable one and so has a greater OpId: a stable entry is never undone again, and the
+     * entries left keep the placement each replaced, which is all undoing them needs.
+     */
+    int prune(java.util.function.Predicate<OpId> stable) {
+        int before = log.size();
+        log.removeIf(entry -> stable.test(entry.op()));
+        return before - log.size();
+    }
+
+    /** {@code node} and every node placed below it. */
+    List<OpId> subtree(OpId node) {
+        List<OpId> out = new ArrayList<>();
+        out.add(node);
+        for (int index = 0; index < out.size(); index++) {
+            out.addAll(children.getOrDefault(out.get(index), Set.of()));
+        }
+        return out;
+    }
+
+    /** Whether a logged entry names one of {@code nodes} as its node, its parent or its old parent. */
+    boolean names(List<OpId> nodes) {
+        Set<OpId> set = new HashSet<>(nodes);
+        return log.stream().anyMatch(entry -> set.contains(entry.node()) || set.contains(entry.parent())
+                || entry.old() != null && set.contains(entry.old().parent()));
+    }
+
+    /** Forgets {@code nodes}: they no longer exist, sit anywhere or have children. */
+    void remove(List<OpId> nodes) {
+        for (OpId node : nodes) {
+            place(node, null);
+            live.remove(node);
+        }
+        for (OpId node : nodes) {
+            children.remove(node);
+        }
+    }
+
     // Whether `ancestor` is `node` or above it.
     private boolean isAncestor(OpId ancestor, OpId node) {
         OpId current = node;

@@ -30,11 +30,32 @@ struct MemberHistory: Sendable {
 }
 
 /// What the state knows about one replica (`ReplicaState` in doc/v1/snapshot.proto): the highest
-/// change seq applied from it, and the highest server_seq it has acknowledged -- the greatest
-/// `base_server_seq` among its changes, which says everything up to there had reached it.
+/// change seq applied from it, the highest server_seq it has acknowledged -- the greatest
+/// `base_server_seq` among its changes, which says everything up to there had reached it -- and
+/// its stable counter: every op of the replica below it is causally stable (CRDT-010).
 public struct ReplicaState: Hashable, Sendable {
     public internal(set) var seq: UInt64
     public internal(set) var ackedServerSeq: UInt64
+    public internal(set) var stableCounter: UInt64 = 0
+}
+
+/// One change the state records (`SequencedChange` in doc/v1/snapshot.proto): the server_seq it
+/// was sequenced at and one past the last counter its ops took, each 0 while unknown.
+struct ChangeRecord: Hashable, Sendable {
+    var serverSeq: UInt64 = 0
+    var endCounter: UInt64 = 0
+}
+
+/// What one garbage collection dropped (CRDT-010), for logs and tests.
+public struct Collected: Hashable, Sendable {
+    public internal(set) var characters = 0
+    public internal(set) var elements = 0
+    public internal(set) var moveLogEntries = 0
+    public internal(set) var setTags = 0
+    public internal(set) var nodes = 0
+    public internal(set) var changes = 0
+
+    public init() {}
 }
 
 /// The merged state: which nodes exist and of what kind, the node tree, every register keyed by
@@ -60,8 +81,12 @@ public struct NodeStore: Sendable {
     private var elements: [OpID: [RegisterPath: Element]] = [:]
     /// Set members by node, set path and member value.
     private var sets: [OpID: [RegisterPath: [[UInt8]: MemberHistory]]] = [:]
-    /// The server_seq of each sequenced change, by replica and seq.
-    private var sequenced: [ChangeKey: UInt64] = [:]
+    /// The server_seq and end counter of each change, by replica and seq; dropped once stable.
+    private var changeRecords: [ChangeKey: ChangeRecord] = [:]
+    /// The wall time of the change that wrote each node's current `deleted` value.
+    private var deletedTimes: [OpID: Int64] = [:]
+    /// The stable point the state was last collected at (0: never).
+    public private(set) var stableSeq: UInt64 = 0
     /// TEXT fields by node, then by the field's path; only fields holding a character or a mark.
     private var texts: [OpID: [RegisterPath: TextSequence]] = [:]
     /// What is known of each replica, by id.
@@ -115,14 +140,22 @@ public struct NodeStore: Sendable {
     public var moveLog: [MoveLogEntry] { tree.log }
 
     /// Writes the `deleted` register of a created node; well-known and unknown nodes are left
-    /// alone.
-    mutating func setDeleted(_ node: OpID, _ deleted: Bool, _ op: OpID) {
+    /// alone.  `wallTime` is the writing change's `wall_time_ms`, kept while the write holds.
+    mutating func setDeleted(_ node: OpID, _ deleted: Bool, _ op: OpID, wallTime: Int64 = 0) {
         guard created[node] != nil else { return }
         if deletedFlags[node] == nil {
             deletedFlags[node] = Cell(deleted, op)
         } else {
             deletedFlags[node]!.write(deleted, op)
         }
+        if deletedFlags[node]!.current.op == op {
+            deletedTimes[node] = wallTime
+        }
+    }
+
+    /// The wall time of the change that wrote the current `deleted` value of `node` (0: unknown).
+    public func deletedTime(_ node: OpID) -> Int64 {
+        deletedTimes[node] ?? 0
     }
 
     /// The `deleted` register of `node`, or nil when it was never written.
@@ -218,9 +251,11 @@ public struct NodeStore: Sendable {
     // MARK: Sets
 
     /// Records the server_seq the server gave change `seq` of `replica`: the causal context a set
-    /// remove is judged by.
+    /// remove is judged by.  A server_seq at or below the stable point is already folded into the
+    /// replica's stable counter.
     mutating func sequence(replica: UInt64, seq: UInt64, serverSeq: UInt64) {
-        sequenced[ChangeKey(replica: replica, seq: seq)] = serverSeq
+        guard serverSeq > stableSeq else { return }
+        changeRecords[ChangeKey(replica: replica, seq: seq), default: ChangeRecord()].serverSeq = serverSeq
     }
 
     /// Records an add of `member` to the set at `path`; replays are ignored.  Returns whether the
@@ -242,6 +277,16 @@ public struct NodeStore: Sendable {
         sets[node, default: [:]][path, default: [:]][member] = history
     }
 
+    /// The server_seq of an add's change; for a stable add whose record was collected, the stable
+    /// point (it was sequenced at or before it, and every remove it has not been judged against
+    /// yet has a causal past reaching the stable point).
+    private func serverSeq(of add: SetAddition) -> UInt64? {
+        if let record = changeRecords[ChangeKey(replica: add.op.replica, seq: add.seq)], record.serverSeq != 0 {
+            return record.serverSeq
+        }
+        return add.seq != 0 && isStable(add.op) ? stableSeq : nil
+    }
+
     /// Whether `removal` observed `add`: the add is in the remove's causal past, i.e. an earlier op
     /// of the same replica, or in a change the server sequenced at or before the remove's
     /// `base_server_seq` (crdt-model.adoc, "Sets").
@@ -249,7 +294,7 @@ public struct NodeStore: Sendable {
         if add.op.replica == removal.op.replica {
             return add.op < removal.op
         }
-        guard let serverSeq = sequenced[ChangeKey(replica: add.op.replica, seq: add.seq)] else { return false }
+        guard let serverSeq = serverSeq(of: add) else { return false }
         return serverSeq <= removal.base
     }
 
@@ -307,12 +352,16 @@ public struct NodeStore: Sendable {
 
     // MARK: Replicas
 
-    /// Records that change `seq` of `replica`, made with causal past `baseServerSeq`, was applied.
-    mutating func recordChange(replica: UInt64, seq: UInt64, baseServerSeq: UInt64) {
+    /// Records that change `seq` of `replica`, made with causal past `baseServerSeq` and taking
+    /// counters up to `endCounter` (exclusive), was applied.
+    mutating func recordChange(replica: UInt64, seq: UInt64, baseServerSeq: UInt64, endCounter: UInt64 = 0) {
         var state = replicaStates[replica] ?? ReplicaState(seq: 0, ackedServerSeq: 0)
         state.seq = max(state.seq, seq)
         state.ackedServerSeq = max(state.ackedServerSeq, baseServerSeq)
         replicaStates[replica] = state
+        if endCounter > state.stableCounter {
+            changeRecords[ChangeKey(replica: replica, seq: seq), default: ChangeRecord()].endCounter = endCounter
+        }
     }
 
     /// What is known of `replica`, or nil when no change of it was applied.
@@ -325,9 +374,9 @@ public struct NodeStore: Sendable {
         replicaStates.sorted { $0.key < $1.key }.map { (replica: $0.key, state: $0.value) }
     }
 
-    /// The server_seq of every sequenced change, ascending by replica then seq.
-    var sequencedChanges: [(replica: UInt64, seq: UInt64, serverSeq: UInt64)] {
-        sequenced.map { (replica: $0.key.replica, seq: $0.key.seq, serverSeq: $0.value) }
+    /// Every change record (server_seq and end counter), ascending by replica then seq.
+    var sequencedChanges: [(replica: UInt64, seq: UInt64, record: ChangeRecord)] {
+        changeRecords.map { (replica: $0.key.replica, seq: $0.key.seq, record: $0.value) }
             .sorted { ($0.replica, $0.seq) < ($1.replica, $1.seq) }
     }
 
@@ -349,8 +398,8 @@ public struct NodeStore: Sendable {
     mutating func restore(
         created: [OpID: UInt32], registers: [OpID: [RegisterPath: Register]], deleted: [OpID: Cell<Bool>],
         elements: [OpID: [RegisterPath: Element]], sets: [OpID: [RegisterPath: [[UInt8]: MemberHistory]]],
-        texts: [OpID: [RegisterPath: TextSequence]], sequenced: [(replica: UInt64, seq: UInt64, serverSeq: UInt64)],
-        replicas: [UInt64: ReplicaState], tree: Tree
+        texts: [OpID: [RegisterPath: TextSequence]], sequenced: [(replica: UInt64, seq: UInt64, record: ChangeRecord)],
+        replicas: [UInt64: ReplicaState], tree: Tree, deletedTimes: [OpID: Int64] = [:], stableSeq: UInt64 = 0
     ) {
         self.created = created
         self.registers = registers
@@ -358,10 +407,170 @@ public struct NodeStore: Sendable {
         self.elements = elements
         self.sets = sets
         self.texts = texts
-        self.sequenced = Dictionary(sequenced.map { (ChangeKey(replica: $0.replica, seq: $0.seq), $0.serverSeq) },
-                                    uniquingKeysWith: { a, _ in a })
+        changeRecords = Dictionary(sequenced.map { (ChangeKey(replica: $0.replica, seq: $0.seq), $0.record) },
+                                   uniquingKeysWith: { a, _ in a })
         replicaStates = replicas
         self.tree = tree
+        self.deletedTimes = deletedTimes
+        self.stableSeq = stableSeq
+    }
+
+    // MARK: Garbage collection
+
+    /// Whether `op` is causally stable in this state: below its replica's stable counter, which
+    /// garbage collection advances (CRDT-010).
+    public func isStable(_ op: OpID) -> Bool {
+        op.counter < (replicaStates[op.replica]?.stableCounter ?? 0)
+    }
+
+    /// Each replica's stable counter at stable point `stableSeq`: one past the last counter of its
+    /// changes sequenced at or before it (a replica's changes are sequenced in seq order and take
+    /// increasing counters), and at least the counter a collection already reached.
+    public func stableCounters(at stableSeq: UInt64) -> [UInt64: UInt64] {
+        var out: [UInt64: UInt64] = [:]
+        for (replica, state) in replicaStates where state.stableCounter > 0 {
+            out[replica] = state.stableCounter
+        }
+        for (key, record) in changeRecords where record.serverSeq != 0 && record.serverSeq <= stableSeq {
+            out[key.replica] = max(out[key.replica] ?? 0, record.endCounter)
+        }
+        return out
+    }
+
+    /// The stable point the replica acks give: the smallest server_seq acknowledged by a replica
+    /// that is not `retired` (0 when there is none).
+    public func stablePoint(retired: Set<UInt64> = []) -> UInt64 {
+        replicaStates.filter { !retired.contains($0.key) }.map(\.value.ackedServerSeq).min() ?? 0
+    }
+
+    /// Drops what stable point `target` makes causally stable (crdt-model.adoc, "Garbage
+    /// collection"): set history that can no longer change a member's presence, sequence element
+    /// and character tombstones whose delete is stable (a character only while no mark anchors it
+    /// and no character hangs below it in the Fugue tree), stable move-log entries, and the change
+    /// records at or below `target`, which become each replica's stable counter; then compacts
+    /// every node deleted by a stable write at least `retention` ms before `now`, with its
+    /// subtree, unless an unstable move-log entry still names one of them.  A target below the
+    /// last one collects nothing; the same one again only compacts (by a later `now`).
+    mutating func collect(stableSeq target: UInt64, now: Int64, retention: Int64) -> Collected {
+        var collected = Collected()
+        guard target >= stableSeq else { return collected }
+        let counters = stableCounters(at: target)
+        let stable: (OpID) -> Bool = { $0.counter < (counters[$0.replica] ?? 0) }
+        collectSets(stable, &collected)
+        collectElements(stable, &collected)
+        collectTexts(stable, &collected)
+        collected.moveLogEntries = tree.prune(stable)
+        for (key, record) in changeRecords where record.serverSeq != 0 && record.serverSeq <= target {
+            changeRecords[key] = nil
+            collected.changes += 1
+        }
+        for (replica, counter) in counters {
+            replicaStates[replica]?.stableCounter = counter
+        }
+        stableSeq = target
+        let (cutoff, overflow) = now.subtractingReportingOverflow(retention)
+        compactNodes(stable, cutoff: overflow ? Int64.min : cutoff, &collected)
+        return collected
+    }
+
+    // A stable add some remove observed is dead for good, and a stable remove observes no add
+    // that is not stable (an add it observes is sequenced before it); both go.  A stable live add
+    // stays, judged from now on as sequenced at the stable point.
+    private mutating func collectSets(_ stable: (OpID) -> Bool, _ collected: inout Collected) {
+        for (node, fields) in sets {
+            for (path, members) in fields {
+                for (member, history) in members {
+                    let adds = history.adds.filter { add in
+                        !(stable(add.op) && history.removes.contains { observed(add, by: $0) })
+                    }
+                    let removes = history.removes.filter { !stable($0.op) }
+                    collected.setTags += history.adds.count - adds.count + history.removes.count - removes.count
+                    sets[node]![path]![member] = adds.isEmpty && removes.isEmpty ? nil
+                        : MemberHistory(adds: adds, removes: removes)
+                }
+                if sets[node]![path]!.isEmpty {
+                    sets[node]![path] = nil
+                }
+            }
+            if sets[node]!.isEmpty {
+                sets[node] = nil
+            }
+        }
+    }
+
+    // Sequence tombstones whose `deleted` write is stable go with everything beneath them.
+    private mutating func collectElements(_ stable: (OpID) -> Bool, _ collected: inout Collected) {
+        for (node, nodeElements) in elements {
+            let gone = Set(nodeElements.compactMap { path, element in
+                element.isDeleted && stable(element.deleted!.current.op) ? path : nil
+            })
+            if !gone.isEmpty {
+                collected.elements += removeUnder(node, gone)
+            }
+        }
+    }
+
+    // Character tombstones the text can drop (`TextSequence.collectable`) go with their
+    // paragraph registers.
+    private mutating func collectTexts(_ stable: (OpID) -> Bool, _ collected: inout Collected) {
+        for (node, fields) in texts {
+            for (path, text) in fields {
+                let gone = text.collectable(stable)
+                guard !gone.isEmpty else { continue }
+                collected.characters += gone.count
+                let remaining = text.removing(gone)
+                texts[node]![path] = remaining.isEmpty ? nil : remaining
+                removeUnder(node, Set(gone.map(path.element)))
+            }
+            if texts[node]?.isEmpty == true {
+                texts[node] = nil
+            }
+        }
+    }
+
+    // Removes every register, change log, element, set and text of `node` at or below one of
+    // `prefixes` (element or character paths); returns how many elements went.
+    @discardableResult
+    private mutating func removeUnder(_ node: OpID, _ prefixes: Set<RegisterPath>) -> Int {
+        func under(_ path: RegisterPath) -> Bool {
+            for index in path.segments.indices where index > 0 {
+                if case .element = path.segments[index],
+                   prefixes.contains(RegisterPath(segments: Array(path.segments[...index]))) {
+                    return true
+                }
+            }
+            return false
+        }
+        registers[node] = registers[node]?.filter { !under($0.key) }.nilIfEmpty
+        log[node] = log[node]?.filter { !under($0.key) }.nilIfEmpty
+        sets[node] = sets[node]?.filter { !under($0.key) }.nilIfEmpty
+        texts[node] = texts[node]?.filter { !under($0.key) }.nilIfEmpty
+        let before = elements[node]?.count ?? 0
+        elements[node] = elements[node]?.filter { !under($0.key) }.nilIfEmpty
+        return before - (elements[node]?.count ?? 0)
+    }
+
+    // Nodes deleted by a stable write at or before `cutoff`, each with its subtree.
+    private mutating func compactNodes(_ stable: (OpID) -> Bool, cutoff: Int64, _ collected: inout Collected) {
+        let candidates = deletedFlags.compactMap { node, flag -> OpID? in
+            flag.current.value && stable(flag.current.op) && (deletedTimes[node] ?? 0) <= cutoff ? node : nil
+        }
+        for node in candidates.sorted() where created[node] != nil {
+            let subtree = tree.subtree(node)
+            guard !tree.names(subtree) else { continue }
+            for member in subtree {
+                created[member] = nil
+                registers[member] = nil
+                log[member] = nil
+                deletedFlags[member] = nil
+                deletedTimes[member] = nil
+                elements[member] = nil
+                sets[member] = nil
+                texts[member] = nil
+            }
+            tree.remove(subtree)
+            collected.nodes += subtree.count
+        }
     }
 
     // MARK: Hashing
@@ -372,4 +581,9 @@ public struct NodeStore: Sendable {
         Set(created.keys).union(registers.keys).union(deletedFlags.keys).union(elements.keys).union(sets.keys)
             .union(texts.keys).sorted()
     }
+}
+
+extension Dictionary {
+    /// The dictionary, or nil when it is empty.
+    var nilIfEmpty: Self? { isEmpty ? nil : self }
 }

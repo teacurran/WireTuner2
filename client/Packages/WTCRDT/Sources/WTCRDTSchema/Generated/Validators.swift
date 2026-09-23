@@ -2245,6 +2245,9 @@ public enum WTValidators {
                 out.append(ValidationViolation(fieldPath: "\(path)state_hash", ruleID: "bytes.len", message: "value length must be 32 bytes"))
             }
         }
+        for (i, v) in m.sequenced.enumerated() {
+            out += validate(v, path: "\(path)sequenced[\(i)].")
+        }
         return out
     }
 
@@ -3905,6 +3908,12 @@ public enum WTValidators {
         for (i, v) in m.elements.enumerated() {
             out += validate(v, path: "\(path)elements[\(i)].")
         }
+        for (i, v) in m.sets.enumerated() {
+            out += validate(v, path: "\(path)sets[\(i)].")
+        }
+        for (i, v) in m.texts.enumerated() {
+            out += validate(v, path: "\(path)texts[\(i)].")
+        }
         return out
     }
 
@@ -4842,6 +4851,18 @@ public enum WTValidators {
         return out
     }
 
+    /// Validates `wiretuner.doc.v1.SequencedChange`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_SequencedChange, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        do {
+            let v = m.replica
+            if !(v > 0) {
+                out.append(ValidationViolation(fieldPath: "\(path)replica", ruleID: "fixed64.gt", message: "value must be greater than 0"))
+            }
+        }
+        return out
+    }
+
     /// Validates `wiretuner.doc.v1.SetAdd`; `path` prefixes every violation's field path.
     public static func validate(_ m: Wiretuner_Doc_V1_SetAdd, path: String = "") -> [ValidationViolation] {
         var out: [ValidationViolation] = []
@@ -4894,6 +4915,18 @@ public enum WTValidators {
         return out
     }
 
+    /// Validates `wiretuner.doc.v1.SetMemberState`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_SetMemberState, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        for (i, v) in m.adds.enumerated() {
+            out += validate(v, path: "\(path)adds[\(i)].")
+        }
+        for (i, v) in m.removes.enumerated() {
+            out += validate(v, path: "\(path)removes[\(i)].")
+        }
+        return out
+    }
+
     /// Validates `wiretuner.doc.v1.SetRemove`; `path` prefixes every violation's field path.
     public static func validate(_ m: Wiretuner_Doc_V1_SetRemove, path: String = "") -> [ValidationViolation] {
         var out: [ValidationViolation] = []
@@ -4911,6 +4944,30 @@ public enum WTValidators {
             out += validate(v, path: "\(path)values.")
         } else {
             out.append(ValidationViolation(fieldPath: "\(path)values", ruleID: "required", message: "value is required"))
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.doc.v1.SetState`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_SetState, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if m.hasSet {
+            let v = m.set
+            out += validate(v, path: "\(path)set.")
+        } else {
+            out.append(ValidationViolation(fieldPath: "\(path)set", ruleID: "required", message: "value is required"))
+        }
+        for (i, v) in m.members.enumerated() {
+            out += validate(v, path: "\(path)members[\(i)].")
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.doc.v1.SetTag`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_SetTag, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if !m.hasOp {
+            out.append(ValidationViolation(fieldPath: "\(path)op", ruleID: "required", message: "value is required"))
         }
         return out
     }

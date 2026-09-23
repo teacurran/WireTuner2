@@ -119,6 +119,88 @@ import WTProto
         #expect(engine.undoChange(inverse, replica: 9, seq: 2, startCounter: engine.clock.peek) == nil, "\(name)")
     }
 
+    /// The same writes made by this replica itself -- its own later edits, such as its undo of a
+    /// later change -- do not stop an undo: only other replicas' work does.
+    @Test(arguments: contested)
+    func thisReplicasOwnLaterWritesDoNotBlockAnUndo(_ name: String, _ local: [String], _ later: [String]) {
+        var engine = Self.base()
+        let before = View.of(engine)
+        let inverse = engine.applyLocal(Scenario.change(9, 1, 13, base: 2, local))
+        engine.applyLocal(Scenario.change(9, 2, 50, base: 2, later))
+        if let undo = engine.undoChange(inverse, replica: 9, seq: 3, startCounter: engine.clock.peek) {
+            engine.applyLocal(undo)
+        }
+        #expect(View.of(engine) == before, "\(name)")
+    }
+
+    /// Targets a garbage collection dropped (a compacted node, a collected element or character)
+    /// are skipped; what is left is still undone.
+    @Test func undoSkipsWhatACollectionDropped() {
+        var engine = Self.base()
+        let inverse = engine.applyLocal(Scenario.change(9, 1, 13, base: 2, [
+            #"create { parent { counter: 4 } position: "\x90" props { test { label: "N" } } }"#,
+            #"element_insert { \#(Self.n) sequence { segments { field: 1000 } segments { field: 8 } } positions: "\x82" values { test { stops { offset: 5 } } } }"#,
+            Scenario.insert("X", left: OpID(counter: 9, replica: 7)),
+            #"set { \#(Self.n) \#(Self.label) values { test { label: "L" } } }"#,
+            #"set { \#(Self.n) paths { segments { field: 1000 } segments { field: 8 } segments { element { counter: 14 replica: 9 } } segments { field: 2 } } values { test { stops { offset: 6 } } } }"#,
+        ]))
+        engine.acknowledge(replica: 9, seq: 1, serverSeq: 3)
+        engine.apply(Scenario.change(5, 1, 30, base: 3, [
+            "set_deleted { node { counter: 13 replica: 9 } deleted: true }",
+            "element_delete { \(Self.n) elements { segments { field: 1000 } segments { field: 8 } segments { element { counter: 14 replica: 9 } } } deleted: true }",
+            "text_delete { \(Self.n) \(Self.t) ranges { first { counter: 15 replica: 9 } count: 1 } }",
+        ]), serverSeq: 4)
+        let collected = engine.collect(stableSeq: 4, now: EngineState.deletedNodeRetentionMs)
+        #expect(collected.nodes == 1 && collected.elements == 1 && collected.characters == 1)
+        let undo = engine.undoChange(inverse, replica: 9, seq: 2, startCounter: engine.clock.peek)
+        #expect(undo?.ops.count == 1 && undo?.ops.first?.set.paths == [Scenario.label.proto])
+        // The text itself dropped (every character collected, or its node compacted): nothing of a
+        // text step is left either.
+        var emptied = Scenario.engine()
+        let typed = emptied.applyLocal(Scenario.change(9, 1, 2, base: 1, [Scenario.insert("ab")]))
+        let deleted = emptied.applyLocal(Scenario.change(9, 2, 4, base: 1, ["text_delete { \(Self.n) \(Self.t) ranges { first { counter: 2 replica: 9 } count: 2 } }"]))
+        emptied.acknowledge(replica: 9, seq: 1, serverSeq: 2)
+        emptied.acknowledge(replica: 9, seq: 2, serverSeq: 3)
+        #expect(emptied.collect(stableSeq: 3).characters == 2 && emptied.text(Scenario.node, Scenario.text) == nil)
+        #expect(emptied.undoChange(typed, replica: 9, seq: 3, startCounter: emptied.clock.peek) == nil)
+        #expect(emptied.undoChange(deleted, replica: 9, seq: 3, startCounter: emptied.clock.peek) == nil)
+        var compacted = Scenario.engine()
+        let marked = compacted.applyLocal(Scenario.change(9, 1, 2, base: 1, [Scenario.insert("ab"), Scenario.mark(nil, true, nil, false, "size: 3")]))
+        compacted.acknowledge(replica: 9, seq: 1, serverSeq: 2)
+        compacted.apply(Scenario.change(5, 1, 10, base: 2, ["set_deleted { \(Self.n) deleted: true }"]), serverSeq: 3)
+        #expect(compacted.collect(stableSeq: 3, now: EngineState.deletedNodeRetentionMs).nodes == 1)
+        #expect(compacted.undoChange(marked, replica: 9, seq: 2, startCounter: compacted.clock.peek) == nil)
+    }
+
+    @Test func inversesAndTheirValuesAreBuiltFromTheirFields() {
+        var engine = Self.base()
+        let first = engine.applyLocal(Scenario.change(9, 1, 13, base: 2, ["text_delete { \(Self.n) \(Self.t) ranges { first { counter: 6 replica: 7 } count: 2 } }"]))
+        let second = engine.applyLocal(Scenario.change(9, 2, 14, base: 2, [#"set_remove { \#(Self.n) \#(Self.tags) values { test { tags: "t" } } }"#,
+                                                                           Scenario.mark(nil, true, nil, false, "size: 12")]))
+        #expect(Inverse(steps: first.steps) == first && first.followed(by: second).steps == first.steps + second.steps)
+        guard case .textDeleted(_, _, let chars) = first.steps[0],
+              case .memberRemoved(_, _, _, let field) = second.steps[0],
+              case .textMarked(_, _, _, _, _, let prior) = second.steps[1] else {
+            Issue.record("unexpected steps \(first.steps) \(second.steps)")
+            return
+        }
+        #expect(chars.map { DeletedChar(id: $0.id, scalar: $0.scalar, attributes: $0.attributes,
+                                        paragraph: $0.paragraph.map { ParagraphRegister(suffix: $0.suffix, value: $0.value) }) } == chars)
+        #expect(chars.contains { !$0.paragraph.isEmpty })
+        #expect(MemberField(number: field.number, type: field.type, typeName: field.typeName) == field)
+        #expect(prior.map { PriorFormat(char: $0.char, value: $0.value) } == prior)
+        // A joined inverse undoes both changes as one.
+        let undo = engine.undoChange(first.followed(by: second), replica: 9, seq: 3, startCounter: engine.clock.peek)
+        engine.applyLocal(undo!)
+        #expect(View.of(engine) == View.of(Self.base()))
+    }
+
+    @Test func anEngineCanStartFromADecodedState() async throws {
+        let state = try Snapshot.decode(Snapshot.encode(Self.base(), serverSeq: 2), schema: Scenario.schema)
+        let engine = Engine(state: state)
+        #expect(await engine.stateHash == Self.base().stateHash)
+    }
+
     @Test func aMoveOfAnUnplacedNodeHasNothingToMoveBackTo() {
         var engine = Self.base()
         engine.apply(Scenario.change(7, 3, 20, #"create { parent { counter: 99 replica: 9 } position: "\x80" props { test { } } }"#))
