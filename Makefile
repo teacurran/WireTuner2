@@ -27,6 +27,7 @@ proto-lint:
 	buf format --diff --exit-code
 	buf lint
 	tools/proto/check-no-bidi.sh
+	$(MAKE) -C tools/protoc-gen-wtcrdt test check
 	buf breaking --against '.git#branch=main'
 
 # Builds tools/bin/protoc-gen-grpc-swift-2 at the version WTProto pins (docs/spec/decisions.adoc D-014).

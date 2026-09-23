@@ -81,3 +81,6 @@ if [ "$installed" != "$plugin $version" ]; then
     exit 1
 fi
 echo "install-plugins: $installed installed in $bin"
+
+# protoc-gen-wtcrdt (PROTO-005): merge tables and Swift validators; needs Go.
+make -C "$root/tools/protoc-gen-wtcrdt" build

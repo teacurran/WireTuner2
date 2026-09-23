@@ -436,7 +436,21 @@ sequence and publishes the stable point.
 * Fields and kinds are only added, never renumbered or retyped (`buf breaking`).
 * `protoc-gen-wtcrdt` emits a merge table (field path → policy) that is also serialized into
   every `Welcome`, so a client that meets a field newer than itself still merges it correctly
-  and preserves it for others.
+  and preserves it for others.  The serialized form is JSON, not a protobuf message, so no
+  schema of its own has to be versioned beside `doc.v1`: `Welcome.merge_table` carries the
+  UTF-8 bytes of `MergeTable.json` (Swift) / `merge-table.json` (Java resource), the same
+  document the generated `WTMergeTable` and `MergeTable` embed.  Its shape is
+  `{"version", "messages": {"<message fqn>": {"fields": {"<field number>": {"name", "policy",
+  "on_dangling", "local_only", "type", "repeated", "type_name", "element_message", "oneof"}}}},
+  "variants": {"<message fqn>": {"kind_field", "case_fields"}}}`, with policies and fallbacks
+  spelled as the `wt.crdt` enum value names without their `MERGE_` / `REF_FALLBACK_` prefix and
+  field numbers as decimal strings.  `version` is the hex SHA-256 of the canonical encoding (keys
+  sorted, no whitespace, `version` itself left out), so replicas compare tables without parsing
+  them; readers ignore keys they do not know, and keys are only ever added.  The generator
+  walks every message reachable from `NodeProps`, `CommonProps` and `Node` and fails on a policy
+  that does not fit its field (a SEQUENCE element without `ElementId id = 1`, TEXT on anything
+  but `RichText`, VARIANT without an enum `kind`, SET on anything but repeated scalars or ids, an
+  unannotated repeated message or map).
 * A feature whose *rendering* matters (a new effect type) bumps the document's feature level
   when first used; clients below it open the document read-only with an update prompt.
 

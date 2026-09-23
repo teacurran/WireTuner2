@@ -79,7 +79,7 @@ plugins:
       - FileNaming=PathToUnderscores
   # merge tables + client-side validators generated from wt.crdt and buf.validate options
   # (commented out until PROTO-005 delivers the plugin)
-  - local: tools/protoc-gen-wtcrdt/bin/protoc-gen-wtcrdt
+  - local: tools/bin/protoc-gen-wtcrdt
     out: .
     opt:
       - swift_out=client/Packages/WTCRDT/Sources/WTCRDTSchema/Generated

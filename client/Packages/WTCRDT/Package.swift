@@ -17,7 +17,12 @@ let package = Package(
             name: "WTCRDTSchema",
             dependencies: [
                 .product(name: "WTProto", package: "WTProto"),
-            ]
+            ],
+            // Generated/ is written by protoc-gen-wtcrdt (tools/protoc-gen-wtcrdt, PROTO-005):
+            // the JSON table is the same document Welcome.merge_table carries; SkippedRules.md
+            // is for reviewers.
+            exclude: ["Generated/SkippedRules.md"],
+            resources: [.copy("Generated/MergeTable.json")]
         ),
         .target(
             name: "WTCRDT",
@@ -28,7 +33,7 @@ let package = Package(
         ),
         .testTarget(
             name: "WTCRDTTests",
-            dependencies: ["WTCRDT"]
+            dependencies: ["WTCRDT", "WTCRDTSchema"]
         ),
     ],
     swiftLanguageModes: [.v6]

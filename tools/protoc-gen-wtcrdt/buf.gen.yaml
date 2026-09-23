@@ -1,0 +1,14 @@
+# Runs only protoc-gen-wtcrdt over the module, from the repository root:
+#     buf generate --template tools/protoc-gen-wtcrdt/buf.gen.yaml
+# (`make -C tools/protoc-gen-wtcrdt generate` does exactly that).  The root buf.gen.yaml gets the
+# same entry once PROTO-005 is merged; this copy lets the plugin be run and checked alone.
+# `strategy: all` is required: the merge table is one document over the whole schema, and buf's
+# default per-directory strategy would invoke the plugin once per proto package.
+version: v2
+plugins:
+  - local: tools/bin/protoc-gen-wtcrdt
+    strategy: all
+    out: .
+    opt:
+      - swift_out=client/Packages/WTCRDT/Sources/WTCRDTSchema/Generated
+      - java_out=server/wt-crdt/target/generated-sources/wtcrdt
