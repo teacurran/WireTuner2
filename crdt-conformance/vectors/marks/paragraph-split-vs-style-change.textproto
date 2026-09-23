@@ -1,0 +1,40 @@
+# crdt-conformance/vectors/marks/paragraph-split-vs-style-change.textproto (CRDT-006; schema: crdt-conformance/schema/vector.proto)
+name: "marks/paragraph-split-vs-style-change"
+description: "Paragraph properties live on the terminating newline.  Replica 1 splits the first paragraph of \"ab\\ncd\" by typing a newline after a and copies the terminator's alignment (1) onto it; replica 2 concurrently changes the paragraph's alignment to 2 on the original terminator.  After the merge the first half keeps the copy and the second half has the new alignment."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Type"
+    ops { create { parent { counter: 4 } position: "\x80" props { test { label: "T" } } } }
+    ops { text_insert { node { counter: 1 replica: 7 } text { segments { field: 1000 } segments { field: 9 } } chars: "ab\ncd" } }
+    ops { set { node { counter: 1 replica: 7 } paths { segments { field: 1000 } segments { field: 9 } segments { element { counter: 4 replica: 7 } } segments { field: 6 } segments { field: 1 } } values { test { text { chars { paragraph { alignment: 1 } } } } } } }
+    ops { set { node { counter: 1 replica: 7 } paths { segments { field: 1000 } segments { field: 10 } segments { field: 1 } } values { test { tail { alignment: 1 } } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 9 base_server_seq: 1 label: "Split paragraph"
+    ops { text_insert { node { counter: 1 replica: 7 } text { segments { field: 1000 } segments { field: 9 } } left_origin { counter: 2 replica: 7 } right_origin { counter: 3 replica: 7 } chars: "\n" } }
+    ops { set { node { counter: 1 replica: 7 } paths { segments { field: 1000 } segments { field: 9 } segments { element { counter: 9 replica: 1 } } segments { field: 6 } segments { field: 1 } } values { test { text { chars { paragraph { alignment: 1 } } } } } } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 9 base_server_seq: 1 label: "Align"
+    ops { set { node { counter: 1 replica: 7 } paths { segments { field: 1000 } segments { field: 9 } segments { element { counter: 4 replica: 7 } } segments { field: 6 } segments { field: 1 } } values { test { text { chars { paragraph { alignment: 2 } } } } } } }
+  }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "37ea3bef7a554c07b69e56df390ca1cf1c4ec76b3178cd80bdca5ff150477ddb"
+  snapshot_hash: "c2e3d68e9734a8891ab52e5a4382a24e01ee269971508512a3b63e4f4fe084cb"
+  node {
+    id { counter: 1 replica: 7 }
+    node_hash: ""
+    register { path { segments { field: 1000 } segments { field: 9 } segments { element { counter: 9 replica: 1 } } segments { field: 6 } segments { field: 1 } } value { test { text { chars { paragraph { alignment: 1 } } } } } op { counter: 10 replica: 1 } }
+    register { path { segments { field: 1000 } segments { field: 9 } segments { element { counter: 4 replica: 7 } } segments { field: 6 } segments { field: 1 } } value { test { text { chars { paragraph { alignment: 2 } } } } } op { counter: 9 replica: 2 } losing { counter: 7 replica: 7 } }
+    text { path { segments { field: 1000 } segments { field: 9 } } text: "a\nb\ncd" chars { counter: 2 replica: 7 } chars { counter: 9 replica: 1 } chars { counter: 3 replica: 7 } chars { counter: 4 replica: 7 } chars { counter: 5 replica: 7 } chars { counter: 6 replica: 7 }  runs { start: 0 length: 6 } }
+  }
+}

@@ -263,13 +263,20 @@ reached so far, and an element segment may follow only a SEQUENCE field.
   <elem 91:12>, anchor]` addresses one register of a nested element.  `ElementInsert` names the
   SEQUENCE field itself; `ElementMove` and `ElementDelete` name elements; `SetAdd` and `SetRemove`
   name a SET field.  Each op uses only the targets its kind takes.
+* A TEXT field is entered only through an element segment naming one of its newline characters
+  (CRDT-006): `[kind, text, <char 40:3>, paragraph=6, alignment=1]` addresses one paragraph
+  register.  Inside a character, fields 1--5 (`id`, `codepoint`, `deleted` and the two origins
+  of `TextChar`) belong to the engine and are never registers; the character message is the
+  type of field 1 (`chars`) of the TEXT field's message in the table.  `TextInsert`, `TextDelete`
+  and `TextMark` name the TEXT field itself.
 * A path is a no-op when a segment is unknown, runs past an ATOMIC or SET field, names an element
-  that does not exist, puts an element segment anywhere but directly after a SEQUENCE field, or
-  names a field the op does not take (a whole SEQUENCE or a SET in `SetFields`, a TEXT field or a
-  repeated or untyped message anywhere until CRDT-005).  The other paths of the same op still
-  apply.
+  that does not exist (or a character that is not a newline), puts an element segment anywhere
+  but directly after a SEQUENCE or TEXT field, or names a field the op does not take (a whole
+  SEQUENCE, SET or TEXT field in `SetFields`, a repeated or untyped message anywhere).  The other
+  paths of the same op still apply.
 * Element segments are transparent in `values`: at a SEQUENCE field the sparse message holds only
-  the element the path names (its `id` is not checked), and the walk reads it like a STRUCT.
+  the element the path names (its `id` is not checked), and the walk reads it like a STRUCT; at a
+  TEXT field it holds a `RichText` whose `chars` hold only the character the path names.
 * The engines walk `values` at the wire level with the table, not through generated classes, so a
   field newer than the replica still merges and is kept byte for byte.  `values` that are not
   well-formed protobuf (for example an unknown group) make the whole op a no-op.
@@ -380,6 +387,20 @@ replicas came from the server's log in order, so a change's causal past is exact
 log up to `base_server_seq`, plus this replica's earlier changes".  No vector clocks or hash
 DAGs travel with changes (xref:sync-protocol.adoc[Sync protocol]).
 
+[[changes]]
+In detail (CRDT-008; `apply(change, serverSeq)` in both engines): a change applies as a unit --
+its ops in order, op _i_ at `start_counter` plus the counters the ops before it took -- and is
+then recorded against its replica: the highest `seq` applied and the greatest `base_server_seq`
+seen, which is how far the replica has acknowledged the server's log (`ReplicaState`).  Every op
+is recognised by its OpId, so a change delivered again, or a replica's changes delivered out of
+seq order when they do not depend on each other, converge with one in-order delivery
+(`changes/replay-whole-changes-out-of-order`).  A `Noop` takes one counter and changes nothing.
+A `MoveNode` whose own id is the node it names is a no-op: a node's id is the id of the
+`CreateNode` that made it, so only a malformed change can say that (and a snapshot can then tell
+a logged create from a logged move by `op == node` alone).  Losing writes stay in each register's
+change log (the conflict review's source); they are not part of the state, the hash or a
+snapshot.
+
 == Merge rules
 
 Registers:: A register holds `(value, OpId)`.  Applying a write whose OpId is greater than the
@@ -450,6 +471,45 @@ is a set of marks anchored to character ids (Peritext): a mark's span grows as t
 inside it and follows its characters when others edit nearby.  Paragraph properties (alignment,
 indents, tabs, rules, spacing, paragraph style) are STRUCT registers on the paragraph's
 terminating newline element, so they travel with the paragraph.
++
+In detail (CRDT-005; `TextSequence` in both engines): a `TextInsert` of _n_ Unicode scalars takes
+_n_ counters; character _i_ has id `(counter + i, replica)` and origins (`left_origin`,
+`right_origin`) for the first, (character _i_ - 1, `right_origin`) for the rest.  Each character
+is placed in the Fugue tree from its origins alone, so every replica places it alike: it becomes
+the *left child* of its right origin when that character is deeper in the tree than its left
+origin (the start of the text has depth 0), otherwise the *right child* of its left origin (or of
+the start).  For origins a client took from adjacent characters this is exactly Fugue's rule (one
+origin is always an ancestor of the other), and a typed run becomes one chain, so two runs typed
+at one spot never interleave; comparing depths instead of walking ancestors keeps an insert
+constant-time in a deep chain.  Siblings order by id, ascending, and the text reads in order:
+left children, the character, right children -- so concurrent runs at one spot read in the order
+of their first characters' OpIds (`text/concurrent-forward-typing`, `text/concurrent-backward-typing`,
+`text/concurrent-typing-into-empty-text`).  An origin that is not a character of the field makes
+the op a no-op (the hub delivers causally, so a legitimate origin always exists); a character
+already present is not inserted again.  `TextDelete` names runs of consecutive ids; each character
+of the field among them becomes a tombstone that keeps the greatest delete OpId.  Read-outs: the
+plain string of live characters, character id <-> live offset (a tombstone's offset is where it
+would be), and the origins a client gives an insert at an offset (the live character before it and
+that character's successor, tombstones included).  The order is kept in blocks of at most 512
+characters with live counts: an insert into a 200,000-character text takes 0.57 µs (Swift,
+release, M-series) and 1.0 µs (Java), against the 50 µs budget.
++
+In detail (CRDT-006): a `TextMark` is kept by its OpId with its two anchors and its
+`TextMarkValue` bytes; an anchor naming a character the field does not hold makes the op a no-op.
+A character is covered when it lies between the anchors, each anchor sitting just before or just
+after its character (the zero id is the start with `before` and the end with `after`), so an
+anchor `before` the next character grows with typing at the end of the span and one `after` the
+last character does not -- the per-attribute choice on xref:creating-text.adoc[Creating text] is
+the client's, made when it writes the anchors.  A mark formats one attribute, its *key*: the field
+number of the value's last record (a oneof case), and for the case named `feature` in the table
+(`RichText.marks` -> `TextMark.value` -> the row named `feature`) also that message's `tag`
+records, so features of different tags stack.  Each character shows, per key, the value of the
+covering mark with the greatest OpId; a value whose payload is its default (a zero scalar, an empty
+string, a feature with nothing but its tag) reads as the attribute *cleared* and is left out.
+*Runs* are the maximal ranges of live characters with the same winning marks, with their
+attributes ascending by key (`marks/typing-inside-and-at-the-edges`, `marks/overlapping-marks`).
+Paragraph registers live under the newline's element segment (<<field-paths>>) and merge like any
+register (`marks/paragraph-split-vs-style-change`, `marks/paragraph-join-vs-style-change`).
 
 Sets:: Add-wins: a concurrent add and remove of the same member keeps it.
 +
@@ -502,6 +562,27 @@ Undo is per user and local.  Undoing never rewinds the shared document; it write
 * Undo of a creation sets `deleted = true`; undo of a deletion sets it back to `false`.  Undo of
   typed text deletes the inserted character ids; undo of a deletion re-inserts the text as new
   characters at the original anchor.
++
+The engines record and build this (CRDT-008): `applyLocal(change)` applies a local change and
+returns its `Inverse`, one step per effect in application order -- a register's prior
+`(value, OpId)` and the OpId written, a node's prior placement, a `deleted` flag's prior write, an
+inserted element, an element's prior position or flag, a set member added (and whether it was a
+member before) or removed, the characters inserted, the characters deleted with their scalars, the
+attribute values they showed and a newline's paragraph registers, and for a mark each covered
+character's prior value of its attribute.  `undoChange(inverse, replica, seq, startCounter, ...)`
+returns the change that undoes it against the current state, or none when nothing is left: the
+change is undone as a unit, so where several of its ops touched one target the value before the
+first is restored if the state still holds the last write; a creation or insert is undone unless
+someone else wrote its `deleted` flag since; a member is re-added only if it is absent now and
+removed only if the change's own adds are all that hold it; deleted text goes back as new
+characters after the last tombstone of each adjacent run, with marks restoring its attributes
+(anchored `before` the first and `after` the last new character) and its newlines' paragraph
+registers; a mark is undone by marks restoring the prior values (or a cleared value) on the
+characters it still wins; characters the change itself inserted are not re-inserted.  Applying the
+undo with `applyLocal` gives the inverse that redoes it.  `InverseTest`/`InverseTests` apply every
+op kind, undo and redo, and compare the document a user sees (values, live nodes, elements,
+members, strings, runs, paragraphs -- not OpIds, which an undo writes anew), and check that undo
+skips each kind of target someone else changed.
 * The undo stack survives relaunch (it is kept in the local store) and is capped by the
   *Undo levels* preference (xref:undo.adoc[Undoing actions]).
 
@@ -519,26 +600,84 @@ empty; CRDT-009 fixes the rest) that both engines compute identically.  Clients 
 sequence number whenever their outbox is empty.  A mismatch is a bug report plus an automatic
 re-bootstrap from the snapshot.
 
+[[snapshot-encoding]]
+=== Snapshot encoding
+
+As built by CRDT-009 (`Snapshot` and `SnapshotTransfer` in both engines).  The engines write the
+`DocumentSnapshot` themselves, field by field in field-number order with proto3 defaults left
+out, rather than through generated classes: a register's value is its records exactly as they
+arrived, which swift-protobuf and protobuf-java re-serialise differently when fields are unknown
+to them.  The bytes are therefore canonical, the same in both engines for the same state, and
+independent of delivery order; every conformance vector pins them (`snapshot_hash`).
+
+* `nodes`: every node the state hash covers, by id.  `Node.props` is assembled from the register
+  paths: the kind case, fields in number order, a SEQUENCE field as one occurrence per element
+  (tombstones included, in sequence order, `id` first), a TEXT field as its `RichText` (`chars`
+  in document order with `id`, `codepoint`, `deleted`, the origins and the paragraph registers,
+  then `marks` by id).  `registers` stamps every written register by path; an unset register has
+  a stamp and no value.  `elements` holds every sequence element and every character by path (a
+  character's position is empty; its `deleted_op` is its greatest delete).  `tree_op` and
+  `deleted_op` as the proto describes.
+* `move_log` in OpId order, `replicas` by id (highest seq, greatest `base_server_seq`),
+  `max_counter` (the clock), `stable_seq` and `feature_level` 0 until CRDT-010 and the feature
+  levels exist.
+* `state_hash` is `StateHash` of the state (<<canonical-encoding>>), not a hash of the snapshot's
+  own bytes as snapshot.proto's comment has it: the client compares it with the hash of its own
+  state without encoding a snapshot, and it does not change with the move log's pruning
+  (CRDT-010) or replica bookkeeping.  Decoding recomputes it and refuses a snapshot that differs.
+* Deviation (CRDT-009): snapshot.proto has no place for four things decoding needs, so the
+  engines write them at field numbers proposed for doc.v1 (snapshot.proto is owned by the proto
+  track): `NodeState.sets = 6` (`repeated SetState`: path; members, each its canonical value and
+  every add and remove with op, seq and, for removes, `base_server_seq` -- presence is computed
+  from the history), `NodeState.texts = 7` (`repeated FieldPath`: the node's TEXT fields),
+  `MoveLogEntry.old_op = 8` (the op of the placement the entry replaced, which undoing it
+  restores) and `DocumentSnapshot.sequenced = 9` (`repeated SequencedChange`: replica, seq,
+  server_seq of every sequenced change, which set removes are judged by).  A logged `CreateNode`
+  is the entry whose `op` equals its `node` (*Operations*, CRDT-008).
+* The change log (losing writes) is not in a snapshot; a decoded state logs only what it applies
+  afterwards.  Round trips are lossless for everything else: decoding and re-encoding gives the
+  same bytes, and the decoded state merges any later change exactly as the original does.
+
+Transfer: `SnapshotTransfer.frames` writes the header (sizes, chunk and node counts, the
+snapshot's `state_hash`) and the zstd-compressed snapshot in chunks of at most 1 MiB;
+`assemble` checks the frames against the header and decompresses; `state` also checks that the
+header names the snapshot's hash and decodes.  zstd is zstd 1.5.7 on both sides: zstd-jni in
+wt-crdt, and in WTCRDT the upstream single-file library vendored as the `CZstd` C target
+(`client/Packages/WTCRDT/Sources/CZstd`, BSD licence; Compression.framework has no zstd), built
+without coverage instrumentation.  Both compress the design point to the same 3,661,516 bytes.
+
+The design point -- 50,000 nodes with 20 registers each (1,000,000) and five sequence elements,
+plus a 200,000-character text; a 75 MB snapshot -- bootstraps (decompress, decode, verify the
+hash) in 0.76 s (Swift, release, M-series; the decoder takes each node on its own, in parallel
+across cores, and interns the register paths nodes share) and loads in 2.2 s on the JVM (the
+server's snapshotter, not the budget).  `PerformanceTests` enforces the 1.5 s budget in release
+builds.
+
 [[canonical-encoding]]
 === Canonical encoding
 
 CRDT-001 fixed the register part of the canonical encoding; CRDT-002, CRDT-004 and CRDT-007
-added the tree placement, the `deleted` register, sequence elements and set members (and every
-conformance vector's expected hash was re-recorded); CRDT-009 may add the move log and replica
-state.  `StateHash` in both engines is SHA-256 over these bytes.  All integers are big-endian and
-fixed width:
+added the tree placement, the `deleted` register, sequence elements and set members, and
+CRDT-005/006 the TEXT fields (and every conformance vector's expected hash was re-recorded).
+CRDT-009 left the move log and replica state out: they are bookkeeping of how the state was
+reached, and CRDT-010's pruning must not change the hash.  `StateHash` in both engines is SHA-256
+over these bytes.  All integers are big-endian and fixed width:
 
 [listing]
 ....
 state    = u32 node_count, node*                                   nodes ascending by OpId
 node     = id, u32 kind, tree, flag, u32 register_count, register*,
-           u32 element_count, element*, u32 set_count, set*
+           u32 element_count, element*, u32 set_count, set*, u32 text_count, text*
 tree     = u8 placed, [id parent, block position, id op]          placed = 1 iff it has a parent
 flag     = u8 written, [u8 value, id op]                          the deleted register; written = 1 iff set
 register = block path, id, u8 set, [block value]                  ascending by path; set = 1 iff not unset
 element  = block path, block position, id position_op, flag       ascending by path
 set      = block path, u32 member_count, member*                  ascending by path; non-empty sets only
 member   = block value, u32 tag_count, id*                        ascending bytewise; live tags ascending
+text     = block path, u32 char_count, char*, u32 mark_count, mark*   ascending by path; non-empty only
+char     = id, u32 codepoint, id left_origin, id right_origin, u8 deleted, [id op]   document order
+mark     = id, anchor start, anchor end, block value              ascending by id
+anchor   = id, u8 before
 path     = segment*
 segment  = 0x01, u32 field_number | 0x02, id                      0x02: an element id
 block    = u32 length, bytes
@@ -546,7 +685,7 @@ id       = u64 counter, u64 replica
 ....
 
 * The nodes are every node created by an op plus every well-known node holding a register, a
-  `deleted` write, an element or a set member's history.  `kind` is the field number of the
+  `deleted` write, an element, a set member's history or a TEXT field.  `kind` is the field number of the
   node's `NodeProps.kind` case (0 for none).  A well-known node 1..15 encodes as placed under 0:0
   with an empty position and op 0:0; the document root and a node without a parent as not placed.
 * Paths order by their encoding compared bytewise, which equals comparing segments in order,
@@ -558,9 +697,13 @@ id       = u64 counter, u64 replica
 * The hash of one node is SHA-256 of its `node` encoding; the conformance runners use it to name
   the first differing node.
 
+* A character's origins are the ones it was inserted with; `deleted` is 1 for a tombstone,
+  followed by its greatest delete.  A mark's value is its `TextMarkValue` bytes.  A paragraph
+  register is an ordinary register under its newline's path.
+
 The empty state hashes to `df3f6198…b81119` (SHA-256 of four zero bytes); `StateHashTest` in both
-engines pins a sample encoding (placement, `deleted`, a register, an element and a set member)
-byte for byte.
+engines pins a sample encoding (placement, `deleted`, a register, an element, a set member and a
+text with a tombstone and a mark) byte for byte.
 
 == Garbage collection
 

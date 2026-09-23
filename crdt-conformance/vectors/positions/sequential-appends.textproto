@@ -3,4 +3,4 @@ name: "positions/sequential-appends"
 description: "1,000 sequential appends to an empty list stay under 40 bytes (11 at most with these seeds: one byte per ~128 appends plus the two suffix bytes), and both engines generate the same last key."
 append_run { seed: 1 count: 1000 max_length: 40 last: "\xff\xff\xff\xff\xff\xff\xff\xff\x17\xb7\x4f" }
 append_run { seed: 2 count: 1000 max_length: 40 last: "\xff\xff\xff\xff\xff\xff\xff\xff\x27\xd8\xec" }
-expect { state_hash: "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119" }
+expect { state_hash: "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119" snapshot_hash: "3fedba9a5f923bf59191b5ebfb69e016de6cbe277a21aefcf3ca83c93ae0348b" }

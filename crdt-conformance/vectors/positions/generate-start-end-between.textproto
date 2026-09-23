@@ -23,4 +23,4 @@ position { lo: "\x80\x10\x07" hi: "\x80\x12" seed: 9 expect: "\x80\x11\x64\x40" 
 position { lo: "\x80" hi: "\x80\x00\x03" seed: 10 expect: "\x80\x00\x01\xca\x73" }
 # between, adjacent digits with lo exhausted
 position { lo: "\x80" hi: "\x80\x01" seed: 11 expect: "\x80\x00\x01\x9d\xfc" }
-expect { state_hash: "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119" }
+expect { state_hash: "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119" snapshot_hash: "3fedba9a5f923bf59191b5ebfb69e016de6cbe277a21aefcf3ca83c93ae0348b" }

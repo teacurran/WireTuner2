@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import SwiftProtobuf
 import WTCRDT
@@ -71,22 +72,55 @@ enum ConformanceRunner {
         checkPositions(vector, &failures)
         guard failures.isEmpty else { return Outcome(name: expectedName, failures: failures, stateHash: "") }
         var reference: EngineState?
+        var referenceSnapshot: [UInt8] = []
         var referenceOrder = ""
+        let serverSeq = greatestServerSeq(vector)
         for (index, order) in orders.enumerated() {
             let engine = replay(schema, vector, order)
+            let snapshot = Snapshot.encode(engine, serverSeq: serverSeq)
             let described = describe(vector, index)
             if let reference {
                 if engine.stateHash != reference.stateHash {
                     failures.append("delivery \(described) diverges from \(referenceOrder) at node "
                         + "\(firstDifference(reference, engine).map(String.init(describing:)) ?? "?")")
+                } else if snapshot != referenceSnapshot {
+                    failures.append("delivery \(described) writes a different snapshot from \(referenceOrder)")
                 }
             } else {
                 reference = engine
+                referenceSnapshot = snapshot
                 referenceOrder = described
             }
         }
         checkExpectations(vector, reference!, &failures)
+        checkSnapshot(vector, schema, referenceSnapshot, &failures)
         return Outcome(name: expectedName, failures: failures, stateHash: StateHash.hex(reference!.stateHash))
+    }
+
+    /// The greatest server_seq the vector gives a change (setup changes default to index + 1).
+    static func greatestServerSeq(_ vector: Vector) -> UInt64 {
+        let setup = vector.setup.change.enumerated().map { $0.element.serverSeq == 0 ? UInt64($0.offset + 1) : $0.element.serverSeq }
+        let replicas = vector.replica.flatMap { $0.change.map(\.serverSeq) }
+        return (setup + replicas).max() ?? 0
+    }
+
+    /// The snapshot of the merged state: its hash, and a lossless round trip (decoding it gives
+    /// the same state hash and encodes to the same bytes).
+    static func checkSnapshot(
+        _ vector: Vector, _ schema: Schema, _ snapshot: [UInt8], _ failures: inout [String]
+    ) {
+        let hash = StateHash.hex(Array(SHA256.hash(data: snapshot)))
+        if hash != vector.expect.snapshotHash {
+            failures.append("snapshot_hash: expected \"\(vector.expect.snapshotHash)\", got \"\(hash)\"")
+        }
+        do {
+            let decoded = try Snapshot.decode(snapshot, schema: schema)
+            if Snapshot.encode(decoded, serverSeq: greatestServerSeq(vector)) != snapshot {
+                failures.append("snapshot round trip: the decoded state encodes differently")
+            }
+        } catch {
+            failures.append("snapshot round trip: \(error)")
+        }
     }
 
     /// The generated merge table with the test kinds and the vector's overrides applied.
@@ -137,21 +171,53 @@ enum ConformanceRunner {
         if deliveries.isEmpty {
             deliveries = [replicas.flatMap { replica in replica.change.map { _ in replica.id } }]
         }
-        return deliveries.map { order in
-            var pending = Dictionary(replicas.map { ($0.id, ArraySlice($0.change)) }, uniquingKeysWith: { a, _ in a })
-            var changes: [Change] = []
-            for id in order {
-                if let next = pending[id]?.popFirst() {
-                    changes.append(next)
-                } else {
-                    failures.append("delivery \(order) names replica \(id) more often than it has changes")
-                }
+        return vector.deliveries.isEmpty ? deliveries.map { order(replicas, $0, &failures) }
+            : vector.deliveries.map { delivery in
+                delivery.picks.isEmpty ? order(replicas, delivery.order, &failures) : picked(replicas, delivery, &failures)
             }
-            if pending.values.contains(where: { !$0.isEmpty }) {
-                failures.append("delivery \(order) leaves changes undelivered")
-            }
-            return changes
+    }
+
+    // The changes `picks` name, in that order; every change must be picked at least once.
+    private static func picked(
+        _ replicas: [Wiretuner_Conformance_V1_Replica], _ delivery: Wiretuner_Conformance_V1_Delivery,
+        _ failures: inout [String]
+    ) -> [Change] {
+        if !delivery.order.isEmpty {
+            failures.append("a delivery has both order and picks")
         }
+        var unpicked = Set(replicas.flatMap { replica in replica.change.map { "\(replica.id)/\($0.seq)" } })
+        var changes: [Change] = []
+        for pick in delivery.picks {
+            let change = replicas.first { $0.id == pick.replica }?.change.first { $0.seq == pick.seq }
+            if let change {
+                changes.append(change)
+                unpicked.remove("\(pick.replica)/\(pick.seq)")
+            } else {
+                failures.append("pick \(pick.replica)/\(pick.seq) names no change")
+            }
+        }
+        if !unpicked.isEmpty {
+            failures.append("picks leave \(unpicked.sorted()) undelivered")
+        }
+        return changes
+    }
+
+    private static func order(
+        _ replicas: [Wiretuner_Conformance_V1_Replica], _ order: [UInt64], _ failures: inout [String]
+    ) -> [Change] {
+        var pending = Dictionary(replicas.map { ($0.id, ArraySlice($0.change)) }, uniquingKeysWith: { a, _ in a })
+        var changes: [Change] = []
+        for id in order {
+            if let next = pending[id]?.popFirst() {
+                changes.append(next)
+            } else {
+                failures.append("delivery \(order) names replica \(id) more often than it has changes")
+            }
+        }
+        if pending.values.contains(where: { !$0.isEmpty }) {
+            failures.append("delivery \(order) leaves changes undelivered")
+        }
+        return changes
     }
 
     private static func replay(_ schema: Schema, _ vector: Vector, _ order: [Change]) -> EngineState {
@@ -243,6 +309,9 @@ enum ConformanceRunner {
             for set in node.set {
                 checkSet(engine, id, set, &failures)
             }
+            for text in node.text {
+                checkText(engine, id, text, &failures)
+            }
         }
     }
 
@@ -298,6 +367,36 @@ enum ConformanceRunner {
         }
     }
 
+    private static func checkText(
+        _ engine: EngineState, _ node: OpID, _ expected: Wiretuner_Conformance_V1_ExpectText, _ failures: inout [String]
+    ) {
+        guard let path = RegisterPath(expected.path) else {
+            failures.append("node \(node): expected text has an empty path")
+            return
+        }
+        let text = engine.text(node, path) ?? TextSequence()
+        if text.string != expected.text {
+            failures.append("node \(node) text \(path): expected \"\(expected.text)\", got \"\(text.string)\"")
+        }
+        let want = expected.chars.map { OpID(counter: $0.counter, replica: $0.replica) }
+        let wantDeleted = expected.deleted.map { OpID(counter: $0.counter, replica: $0.replica) }
+        let deleted = text.order.filter(text.isDeleted)
+        if text.liveChars != want || deleted != wantDeleted {
+            failures.append("node \(node) text \(path): expected chars \(want) deleted \(wantDeleted), got \(text.liveChars) deleted \(deleted)")
+        }
+        let wantRuns = expected.runs.map { run in
+            "\(run.start)+\(run.length)" + run.attributes.map { attribute in
+                " \(hex(try! attribute.value.serializedBytes() as [UInt8]))@\(OpID(attribute.mark))"
+            }.joined()
+        }
+        let runs = text.runs.map { run in
+            "\(run.start)+\(run.length)" + run.attributes.map { " \(hex($0.value))@\($0.mark)" }.joined()
+        }
+        if runs != wantRuns {
+            failures.append("node \(node) text \(path): expected runs \(wantRuns), got \(runs)")
+        }
+    }
+
     private static func firstNamedDifference(_ vector: Vector, _ engine: EngineState) -> String {
         for node in vector.expect.node {
             let id = OpID(node.id)
@@ -319,7 +418,8 @@ enum ConformanceRunner {
             return
         }
         let actual = engine.register(node, path)
-        let value = expected.hasValue ? path.value(in: bytes(expected.value)) : nil
+        let values = try! Wiretuner_Doc_V1_NodeProps(serializedBytes: bytes(expected.value))
+        let value = expected.hasValue ? engine.registerValue(in: values, kind: engine.store.kind(node), path: path) : nil
         let want = Register(value: value, op: OpID(expected.op))
         if want != actual {
             failures.append("node \(node) register \(path): expected \(want), got \(actual.map(String.init(describing:)) ?? "null")")

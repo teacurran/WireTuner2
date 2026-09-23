@@ -48,3 +48,37 @@ override { field { message: "wiretuner.conformance.v1.TestStop" field: 2 name: "
   type: "double" } }
 override { field { message: "wiretuner.conformance.v1.TestStop" field: 3 name: "color" policy: "ATOMIC"
   type: "string" } }
+
+override { field { message: "wiretuner.conformance.v1.TestProps" field: 9 name: "text" policy: "TEXT"
+  type: "message" type_name: "wiretuner.conformance.v1.TestRichText" } }
+override { field { message: "wiretuner.conformance.v1.TestProps" field: 10 name: "tail" policy: "STRUCT"
+  type: "message" type_name: "wiretuner.conformance.v1.TestParagraph" } }
+
+# The RichText shape: the engines find the character message (chars = 1), the paragraph inside
+# it, and the mark value's `feature` case through these rows.
+override { field { message: "wiretuner.conformance.v1.TestRichText" field: 1 name: "chars" policy: "SEQUENCE"
+  type: "message" repeated: true type_name: "wiretuner.conformance.v1.TestChar" } }
+override { field { message: "wiretuner.conformance.v1.TestRichText" field: 2 name: "marks" policy: "ATOMIC"
+  type: "message" repeated: true type_name: "wiretuner.conformance.v1.TestTextMark" } }
+override { field { message: "wiretuner.conformance.v1.TestChar" field: 1 name: "id" policy: "STRUCT"
+  type: "message" type_name: "wiretuner.doc.v1.ElementId" } }
+override { field { message: "wiretuner.conformance.v1.TestChar" field: 2 name: "codepoint" policy: "ATOMIC"
+  type: "uint32" } }
+override { field { message: "wiretuner.conformance.v1.TestChar" field: 3 name: "deleted" policy: "ATOMIC"
+  type: "bool" } }
+override { field { message: "wiretuner.conformance.v1.TestChar" field: 4 name: "left_origin" policy: "ATOMIC"
+  type: "message" type_name: "wiretuner.doc.v1.ElementId" } }
+override { field { message: "wiretuner.conformance.v1.TestChar" field: 5 name: "right_origin" policy: "ATOMIC"
+  type: "message" type_name: "wiretuner.doc.v1.ElementId" } }
+override { field { message: "wiretuner.conformance.v1.TestChar" field: 6 name: "paragraph" policy: "STRUCT"
+  type: "message" type_name: "wiretuner.conformance.v1.TestParagraph" } }
+override { field { message: "wiretuner.conformance.v1.TestParagraph" field: 1 name: "alignment" policy: "ATOMIC"
+  type: "uint32" } }
+override { field { message: "wiretuner.conformance.v1.TestParagraph" field: 4 name: "left_indent" policy: "ATOMIC"
+  type: "double" } }
+override { field { message: "wiretuner.conformance.v1.TestParagraph" field: 7 name: "space_above" policy: "ATOMIC"
+  type: "double" } }
+override { field { message: "wiretuner.conformance.v1.TestTextMark" field: 4 name: "value" policy: "ATOMIC"
+  type: "message" type_name: "wiretuner.conformance.v1.TestMarkValue" } }
+override { field { message: "wiretuner.conformance.v1.TestMarkValue" field: 21 name: "feature" policy: "ATOMIC"
+  type: "message" type_name: "wiretuner.conformance.v1.TestFeature" oneof: "value" } }

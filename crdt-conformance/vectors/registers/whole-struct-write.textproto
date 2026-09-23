@@ -39,10 +39,11 @@ deliveries { order: [1, 2, 3] }
 deliveries { order: [3, 2, 1] }
 deliveries { order: [2, 3, 1] }
 expect {
-  state_hash: "a85e0a344f4bc44efcc7421f1345ac59dbdb9fbebea0096cb49ff5031c99e085"
+  state_hash: "809d19ea7ecb5495efffca8f7c4f7eb6314ef61f28789118e39bdf459fc16078"
+  snapshot_hash: "e2ad83fd9e65f758c8137842fe72a716462faba8923139e108c6ac966650f29c"
   node {
     id { counter: 1 replica: 7 }
-    node_hash: "8ec1b8f6efbb228e9b9a25d8dd1bf9715a8e1431c68ffb513933126869da9ff9"
+    node_hash: "60aa694721502885cd9cb755000a73f0e4697e5cefda3e84b5264fa44e3c54a3"
     register {
       path { segments { field: 150 } segments { field: 1 } segments { field: 13 } segments { field: 1 } }
       value { layer { common { text_wrap { enabled: true } } } }

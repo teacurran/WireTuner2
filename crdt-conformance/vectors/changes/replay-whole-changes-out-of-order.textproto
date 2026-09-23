@@ -1,0 +1,35 @@
+# crdt-conformance/vectors/changes/replay-whole-changes-out-of-order.textproto (CRDT-008; schema: crdt-conformance/schema/vector.proto)
+name: "changes/replay-whole-changes-out-of-order"
+description: "Changes apply as units and are idempotent: delivering replica 1's second change before its first, and delivering changes again, converges with delivering each once in seq order.  Replica 2's label wins by OpId; replica 1's tag survives replica 2's concurrent remove (add-wins); the snapshot records each replica's highest seq."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Create"
+    ops { create { parent { counter: 4 } position: "\x80" props { test { label: "T" } } } }
+  }
+}
+replica {
+  id: 1
+  change { replica: 1 seq: 1 start_counter: 2 base_server_seq: 1 label: "Rename" ops { set { node { counter: 1 replica: 7 } paths { segments { field: 1000 } segments { field: 2 } } values { test { label: "one" } } } } }
+  change { replica: 1 seq: 2 start_counter: 3 base_server_seq: 1 label: "Tag" ops { set_add { node { counter: 1 replica: 7 } set { segments { field: 1000 } segments { field: 3 } } values { test { tags: "x" } } } } }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 2 base_server_seq: 1 label: "Rename, untag"
+    ops { set { node { counter: 1 replica: 7 } paths { segments { field: 1000 } segments { field: 2 } } values { test { label: "two" } } } }
+    ops { set_remove { node { counter: 1 replica: 7 } set { segments { field: 1000 } segments { field: 3 } } values { test { tags: "x" } } } }
+  }
+}
+deliveries { order: [1, 1, 2] }
+deliveries { picks { replica: 1 seq: 2 } picks { replica: 2 seq: 1 } picks { replica: 1 seq: 1 } picks { replica: 1 seq: 2 } picks { replica: 1 seq: 1 } }
+deliveries { picks { replica: 2 seq: 1 } picks { replica: 1 seq: 1 } picks { replica: 2 seq: 1 } picks { replica: 1 seq: 2 } }
+expect {
+  state_hash: "33dcfd9d79c53522ec7030a03c8528bfa27766765048bcde0d5445cfdcc130ab"
+  snapshot_hash: "6739ab4a534498acadfcd9f9fc8140504c88b395945e0d6db2c177cd1c899fd4"
+  node {
+    id { counter: 1 replica: 7 }
+    node_hash: ""
+    register { path { segments { field: 1000 } segments { field: 2 } } value { test { label: "two" } } op { counter: 2 replica: 2 } losing { counter: 1 replica: 7 } losing { counter: 2 replica: 1 } }
+    set { path { segments { field: 1000 } segments { field: 3 } } members { test { tags: "x" } } }
+  }
+}

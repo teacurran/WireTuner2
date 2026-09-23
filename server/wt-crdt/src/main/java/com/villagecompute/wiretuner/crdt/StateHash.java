@@ -16,13 +16,17 @@ import java.util.NavigableSet;
  * <pre>
  * state    = u32 node_count, node*                                  nodes ascending by OpId
  * node     = id, u32 kind, tree, flag, u32 register_count, register*,
- *            u32 element_count, element*, u32 set_count, set*
+ *            u32 element_count, element*, u32 set_count, set*, u32 text_count, text*
  * tree     = u8 placed, [id parent, block position, id op]          placed = 1 iff it has a parent
  * flag     = u8 written, [u8 value, id op]                          a deleted register
  * register = block path, id, u8 set, [block value]                  ascending by path
  * element  = block path, block position, id position_op, flag       ascending by path
  * set      = block path, u32 member_count, member*                  ascending by path
  * member   = block value, u32 tag_count, id*                        ascending bytewise; tags ascending
+ * text     = block path, u32 char_count, char*, u32 mark_count, mark*   ascending by path
+ * char     = id, u32 codepoint, id left_origin, id right_origin, u8 deleted, [id op]   document order
+ * mark     = id, anchor start, anchor end, block value              ascending by id
+ * anchor   = id, u8 before
  * path     = (0x01, u32 field | 0x02, id)*
  * block    = u32 length, bytes
  * id       = u64 counter, u64 replica
@@ -104,7 +108,40 @@ public final class StateHash {
                 }
             }
         }
+        List<RegisterPath> texts = store.textPaths(node);
+        Bytes.writeU32(out, texts.size());
+        for (RegisterPath path : texts) {
+            TextSequence text = store.text(node, path);
+            Bytes.writeBlock(out, path.canonicalBytes());
+            List<OpId> order = text.order();
+            Bytes.writeU32(out, order.size());
+            for (OpId c : order) {
+                TextSequence.Origins origins = text.origins(c);
+                Bytes.writeId(out, c);
+                Bytes.writeU32(out, text.codepoint(c));
+                Bytes.writeId(out, origins.left());
+                Bytes.writeId(out, origins.right());
+                OpId deleted = text.deletedOp(c);
+                out.write(deleted == null ? 0 : 1);
+                if (deleted != null) {
+                    Bytes.writeId(out, deleted);
+                }
+            }
+            List<TextMark> marks = text.sortedMarks();
+            Bytes.writeU32(out, marks.size());
+            for (TextMark mark : marks) {
+                Bytes.writeId(out, mark.id());
+                writeAnchor(out, mark.start());
+                writeAnchor(out, mark.end());
+                Bytes.writeBlock(out, mark.valueBytes());
+            }
+        }
         return out.toByteArray();
+    }
+
+    private static void writeAnchor(ByteArrayOutputStream out, Anchor anchor) {
+        Bytes.writeId(out, anchor.character());
+        out.write(anchor.before() ? 1 : 0);
     }
 
     private static void writeFlag(ByteArrayOutputStream out, Cell<Boolean> cell) {

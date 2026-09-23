@@ -1,0 +1,24 @@
+# crdt-conformance/vectors/text/concurrent-typing-into-empty-text.textproto (CRDT-005; schema: crdt-conformance/schema/vector.proto)
+name: "text/concurrent-typing-into-empty-text"
+description: "Fugue: three replicas each type a word into the same empty text with zero origins (the start and the end).  Every delivery order reads onetwosix: whole runs, ordered by their first character's OpId."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Create"
+    ops { create { parent { counter: 4 } position: "\x80" props { test { label: "T" } } } }
+  }
+}
+replica { id: 1 change { replica: 1 seq: 1 start_counter: 2 base_server_seq: 1 label: "Type" ops { text_insert { node { counter: 1 replica: 7 } text { segments { field: 1000 } segments { field: 9 } } chars: "one" } } } }
+replica { id: 2 change { replica: 2 seq: 1 start_counter: 2 base_server_seq: 1 label: "Type" ops { text_insert { node { counter: 1 replica: 7 } text { segments { field: 1000 } segments { field: 9 } } chars: "two" } } } }
+replica { id: 3 change { replica: 3 seq: 1 start_counter: 2 base_server_seq: 1 label: "Type" ops { text_insert { node { counter: 1 replica: 7 } text { segments { field: 1000 } segments { field: 9 } } chars: "six" } } } }
+deliveries { order: [1, 2, 3] }
+deliveries { order: [3, 2, 1] }
+deliveries { order: [2, 3, 1] }
+expect {
+  state_hash: "ed326006967a3335917c1eef842753af4344082aac10703560ca79b2c3d87ef6"
+  snapshot_hash: "6995fc84638200a1f64e81b1c29fc1e1a0e4bd8ef3f77b228d6505fac51626d3"
+  node {
+    id { counter: 1 replica: 7 }
+    node_hash: ""
+    text { path { segments { field: 1000 } segments { field: 9 } } text: "onetwosix" chars { counter: 2 replica: 1 } chars { counter: 3 replica: 1 } chars { counter: 4 replica: 1 } chars { counter: 2 replica: 2 } chars { counter: 3 replica: 2 } chars { counter: 4 replica: 2 } chars { counter: 2 replica: 3 } chars { counter: 3 replica: 3 } chars { counter: 4 replica: 3 }  runs { start: 0 length: 9 } }
+  }
+}

@@ -6,12 +6,12 @@ import WTProto
 /// wt-crdt's `Engine` is this type in Java.
 ///
 /// Implemented: registers (`SetFields`, CRDT-001), the node tree (`CreateNode`, `MoveNode`,
-/// `SetDeleted`, CRDT-002), sets (`SetAdd`, `SetRemove`, CRDT-007) and sequences
-/// (`ElementInsert`, `ElementMove`, `ElementDelete`, CRDT-004).  Text ops only advance the clock
-/// until CRDT-005/006.
+/// `SetDeleted`, CRDT-002), sets (`SetAdd`, `SetRemove`, CRDT-007), sequences (`ElementInsert`,
+/// `ElementMove`, `ElementDelete`, CRDT-004), changes with their inverses (CRDT-008), text
+/// (`TextInsert`, `TextDelete`, CRDT-005) and formatting marks (`TextMark`, CRDT-006).
 public struct EngineState: Sendable {
     /// Version of the merge semantics this engine implements, as wt-crdt's `Engine.VERSION`.
-    public static let version = "0.2.0"
+    public static let version = "0.3.0"
 
     /// The change an op belongs to: its seq and causal past (0 for an op applied on its own).
     public struct Context: Sendable {
@@ -30,7 +30,9 @@ public struct EngineState: Sendable {
     /// This replica's Lamport clock; every applied op advances it.
     public var clock = LamportClock()
     /// The merged state.
-    public private(set) var store = NodeStore()
+    public internal(set) var store = NodeStore()
+    /// The inverse steps of the local change being applied (`applyLocal`), else nil.
+    private var recording: [Inverse.Step]?
 
     /// An engine over `schema` (the generated merge table by default).
     public init(schema: Schema = .generated) {
@@ -38,10 +40,13 @@ public struct EngineState: Sendable {
         resolver = PathResolver(schema: schema)
     }
 
-    /// Applies every op of `change`.  Op `i` has counter `start_counter` plus the counters the ops
-    /// before it took: one each, or one per element or character for inserts (change.proto).
-    /// `serverSeq` is the server's sequence number for the change when known (a remote change, or
-    /// a local one already acknowledged): sets judge a concurrent remove by it.
+    /// Applies `change` as a unit (CRDT-008): every op in order, op `i` with counter
+    /// `start_counter` plus the counters the ops before it took (one each, or one per element or
+    /// character for inserts, change.proto), then records the change against its replica (highest
+    /// seq, highest `base_server_seq`).  A change applied again changes nothing: every op is
+    /// recognised by its id.  `serverSeq` is the server's sequence number for the change when known
+    /// (a remote change, or a local one already acknowledged): sets judge a concurrent remove by
+    /// it.
     public mutating func apply(_ change: Wiretuner_Doc_V1_Change, serverSeq: UInt64? = nil) {
         if let serverSeq {
             acknowledge(replica: change.replica, seq: change.seq, serverSeq: serverSeq)
@@ -52,6 +57,18 @@ public struct EngineState: Sendable {
             apply(op, id: OpID(counter: counter, replica: change.replica), context: context)
             counter &+= Self.counters(op)
         }
+        store.recordChange(replica: change.replica, seq: change.seq, baseServerSeq: change.baseServerSeq)
+    }
+
+    /// Applies a local change (one this replica just made) and returns its inverse: the prior
+    /// value of everything it changed, from which `undoChange` builds the change that undoes it
+    /// (crdt-model.adoc, "Undo").
+    public mutating func applyLocal(_ change: Wiretuner_Doc_V1_Change) -> Inverse {
+        recording = []
+        apply(change)
+        let steps = recording!
+        recording = nil
+        return Inverse(steps: steps)
     }
 
     /// Records the server_seq of change `seq` of `replica` (the ack of a local change).
@@ -69,6 +86,10 @@ public struct EngineState: Sendable {
         }
     }
 
+    private mutating func record(_ step: Inverse.Step) {
+        recording?.append(step)
+    }
+
     /// Applies one op with id `id` (its first counter).
     public mutating func apply(_ op: Wiretuner_Doc_V1_Op, id: OpID, context: Context = Context()) {
         clock.observe(id.counter &+ Self.counters(op) &- 1)
@@ -78,40 +99,73 @@ public struct EngineState: Sendable {
         case .set(let set):
             self.set(set, id: id)
         case .move(let move):
-            store.applyTree(op: id, node: OpID(move.node), parent: OpID(move.parent), position: Array(move.position),
-                            creates: false)
+            let node = OpID(move.node)
+            // A node's id is the id of the CreateNode that made it, so no move is its own node.
+            guard node != id else { return }
+            let prior = store.placement(node)
+            store.applyTree(op: id, node: node, parent: OpID(move.parent), position: Array(move.position), creates: false)
+            if store.placement(node)?.op == id {
+                record(.placement(node: node, prior: prior, wrote: id))
+            }
         case .setDeleted(let setDeleted):
-            store.setDeleted(OpID(setDeleted.node), setDeleted.deleted, id)
+            let node = OpID(setDeleted.node)
+            let prior = store.deleted(node)?.current
+            store.setDeleted(node, setDeleted.deleted, id)
+            if store.deleted(node)?.current.op == id {
+                record(.deleted(node: node, prior: prior, wrote: id))
+            }
         case .elementInsert(let insert):
             self.insert(insert, id: id)
         case .elementMove(let move):
             let node = OpID(move.node)
-            if case .element(let path, _, _)? = walk(node, move.element, values: nil) {
+            if case .element(let path, _, _, _)? = walk(node, move.element, values: nil),
+               let prior = store.element(node, path)?.position.current {
                 store.moveElement(node, path, position: Array(move.position), op: id)
+                if store.element(node, path)?.position.current.op == id {
+                    record(.elementPosition(node: node, element: path, prior: prior, wrote: id))
+                }
             }
         case .elementDelete(let delete):
             let node = OpID(delete.node)
             for element in delete.elements {
-                if case .element(let path, _, _)? = walk(node, element, values: nil) {
+                if case .element(let path, _, _, _)? = walk(node, element, values: nil), store.element(node, path) != nil {
+                    let prior = store.element(node, path)?.deleted?.current
                     store.deleteElement(node, path, deleted: delete.deleted, op: id)
+                    if store.element(node, path)?.deleted?.current.op == id {
+                        record(.elementDeleted(node: node, element: path, prior: prior, wrote: id))
+                    }
                 }
             }
         case .setAdd(let add):
             let node = OpID(add.node)
-            if let (path, members) = members(node, add.set, add.values) {
+            if let (path, row, members) = members(node, add.set, add.values) {
                 for member in members {
-                    store.addMember(node, path, member, SetAddition(op: id, seq: context.seq))
+                    let present = !store.liveTags(node, path, member).isEmpty
+                    if store.addMember(node, path, member, SetAddition(op: id, seq: context.seq)) {
+                        record(.memberAdded(node: node, set: path, member: member, tag: id, wasPresent: present,
+                                            field: MemberField(row)))
+                    }
                 }
             }
         case .setRemove(let remove):
             let node = OpID(remove.node)
-            if let (path, members) = members(node, remove.set, remove.values) {
+            if let (path, row, members) = members(node, remove.set, remove.values) {
                 for member in members {
+                    let present = !store.liveTags(node, path, member).isEmpty
                     store.removeMember(node, path, member, SetRemoval(op: id, seq: context.seq, base: context.baseServerSeq))
+                    if present && store.liveTags(node, path, member).isEmpty {
+                        record(.memberRemoved(node: node, set: path, member: member, field: MemberField(row)))
+                    }
                 }
             }
+        case .textInsert(let insert):
+            self.insertText(insert, id: id)
+        case .textDelete(let delete):
+            self.deleteText(delete, id: id)
+        case .textMark(let mark):
+            self.mark(mark, id: id)
         default:
-            break  // Text ops arrive with CRDT-005/006; Noop only keeps its counter.
+            break  // Noop only keeps its counter.
         }
     }
 
@@ -119,6 +173,7 @@ public struct EngineState: Sendable {
         guard let props = WireMessage.parse(Self.bytes(create.props)) else { return }
         let kind = props.lastMessage(of: schema.kinds)
         guard kind != 0, store.create(id, kind: kind) else { return }
+        record(.created(node: id))
         for write in resolver.initial(kind: kind, props: props) {
             store.write(id, write.path, write.value, id)
         }
@@ -130,9 +185,12 @@ public struct EngineState: Sendable {
         let kind = store.kind(node)
         guard kind != 0, let values = WireMessage.parse(Self.bytes(set.values)) else { return }
         for path in set.paths {
-            let writes = resolver.resolve(kind: kind, path: path, values: values) { self.store.element(node, $0) != nil }
+            let writes = resolver.resolve(kind: kind, path: path, values: values) { exists(node, $0) }
             for write in writes ?? [] {
-                store.write(node, write.path, write.value, id)
+                let prior = store.register(node, write.path)
+                if store.write(node, write.path, write.value, id) {
+                    record(.register(node: node, path: write.path, prior: prior, wrote: id))
+                }
             }
         }
     }
@@ -149,6 +207,7 @@ public struct EngineState: Sendable {
             let element = OpID(counter: id.counter &+ UInt64(index), replica: id.replica)
             let path = sequence.element(element)
             guard store.insertElement(node, path, position: Array(position), op: element) else { continue }
+            record(.elementInserted(node: node, element: path))
             let value = index < occurrences.count ? occurrences[index] : nil
             for write in resolver.initial(element: message, at: path, values: value) {
                 store.write(node, write.path, write.value, element)
@@ -156,25 +215,112 @@ public struct EngineState: Sendable {
         }
     }
 
-    // The SET field `path` names on `node` and the members `props` holds there.
+    // The SET field `path` names on `node`, its row, and the members `props` holds there.
     private func members(
         _ node: OpID, _ path: Wiretuner_Doc_V1_FieldPath, _ props: Wiretuner_Doc_V1_NodeProps
-    ) -> (RegisterPath, [[UInt8]])? {
+    ) -> (RegisterPath, Schema.FieldPolicy, [[UInt8]])? {
         guard let values = WireMessage.parse(Self.bytes(props)) else { return nil }
         return members(walk(node, path, values: values))
     }
 
-    private func members(_ target: PathResolver.Target?) -> (RegisterPath, [[UInt8]])? {
+    private func members(_ target: PathResolver.Target?) -> (RegisterPath, Schema.FieldPolicy, [[UInt8]])? {
         guard case .field(let at, let row, let container)? = target, row.policy == .set,
               let members = (container ?? WireMessage.parse([])!).members(
                   UInt32(row.fieldNumber), type: row.type, typeName: row.typeName) else { return nil }
-        return (at, members)
+        return (at, row, members)
+    }
+
+    // Whether the element or newline character at `path` of `node` exists.
+    private func exists(_ node: OpID, _ path: RegisterPath) -> Bool {
+        store.element(node, path) != nil || store.isNewline(node, path)
     }
 
     private func walk(_ node: OpID, _ path: Wiretuner_Doc_V1_FieldPath, values: WireMessage?) -> PathResolver.Target? {
         let kind = store.kind(node)
         guard kind != 0 else { return nil }
-        return resolver.walk(kind: kind, path: path, values: values) { store.element(node, $0) != nil }
+        return resolver.walk(kind: kind, path: path, values: values) { exists(node, $0) }
+    }
+
+    // The TEXT field `path` names on `node` and its row.
+    private func textField(_ node: OpID, _ path: Wiretuner_Doc_V1_FieldPath) -> (RegisterPath, Schema.FieldPolicy)? {
+        guard case .field(let at, let row, _)? = walk(node, path, values: nil), row.policy == .text else { return nil }
+        return (at, row)
+    }
+
+    // Characters take this op's counter, counter + 1, ..., one per Unicode scalar (CRDT-005).
+    private mutating func insertText(_ insert: Wiretuner_Doc_V1_TextInsert, id: OpID) {
+        let node = OpID(insert.node)
+        guard let (path, _) = textField(node, insert.text) else { return }
+        let scalars = insert.chars.unicodeScalars.map(\.value)
+        let left = OpID(counter: insert.leftOrigin.counter, replica: insert.leftOrigin.replica)
+        let right = OpID(counter: insert.rightOrigin.counter, replica: insert.rightOrigin.replica)
+        let inserted = store.editText(node, path) { $0.insert(scalars, first: id, left: left, right: right) }
+        if !inserted.isEmpty {
+            record(.textInserted(node: node, text: path, chars: inserted))
+        }
+    }
+
+    // Each range names consecutive character ids; a tombstone keeps the greatest delete.
+    private mutating func deleteText(_ delete: Wiretuner_Doc_V1_TextDelete, id: OpID) {
+        let node = OpID(delete.node)
+        guard let (path, _) = textField(node, delete.text), let text = store.text(node, path) else { return }
+        var chars: [OpID] = []
+        for range in delete.ranges {
+            chars += text.ids(from: OpID(counter: range.first.counter, replica: range.first.replica), count: range.count)
+        }
+        let content = recording == nil ? [:] : deletedContent(node, path, text, chars)
+        var deleted: [DeletedChar] = []
+        for char in chars where store.editText(node, path, { $0.delete(char, op: id) }) {
+            if let removed = content[char] {
+                deleted.append(removed)
+            }
+        }
+        if !deleted.isEmpty {
+            record(.textDeleted(node: node, text: path, chars: deleted))
+        }
+    }
+
+    // What undoing the deletion of `chars` needs: each live one's scalar, attributes and, for a
+    // newline, its paragraph registers.
+    private func deletedContent(_ node: OpID, _ path: RegisterPath, _ text: TextSequence, _ chars: [OpID]) -> [OpID: DeletedChar] {
+        let live = chars.filter { !text.isDeleted($0) }
+        let attributes = text.attributes(of: live)
+        var out: [OpID: DeletedChar] = [:]
+        for char in live {
+            let prefix = path.element(char)
+            let paragraph = text.codepoint(char) == 0x0A
+                ? store.registers(node).filter { $0.path.segments.starts(with: prefix.segments) && $0.path != prefix }
+                    .map { ParagraphRegister(suffix: Array($0.path.segments.dropFirst(prefix.segments.count)), value: $0.register.value) }
+                : []
+            out[char] = DeletedChar(id: char, scalar: text.codepoint(char)!, attributes: attributes[char]!.map(\.value),
+                                    paragraph: paragraph)
+        }
+        return out
+    }
+
+    // A mark's id is this op's id; its key is the attribute it formats (CRDT-006).
+    private mutating func mark(_ op: Wiretuner_Doc_V1_TextMark, id: OpID) {
+        let node = OpID(op.node)
+        guard let (path, row) = textField(node, op.text) else { return }
+        let value: [UInt8] = try! op.value.serializedBytes()
+        let mark = TextMark(id: id, start: Self.anchor(op.start), end: Self.anchor(op.end), value: value,
+                            key: MarkValue.key(value, featureField: schema.featureField(text: row)))
+        var prior: [PriorFormat] = []
+        if recording != nil, let key = mark.key, let text = store.text(node, path), text.known(mark.start), text.known(mark.end) {
+            let index = text.orderIndex()
+            if let range = TextSequence.covered(mark, index, count: text.count) {
+                let chars = text.order[range].filter { !text.isDeleted($0) }
+                let winners = text.winners(of: key, for: chars)
+                prior = chars.map { PriorFormat(char: $0, value: winners[$0]?.value) }
+            }
+        }
+        if store.editText(node, path, { $0.mark(mark) }), let key = mark.key {
+            record(.textMarked(node: node, text: path, mark: id, key: key, value: value, prior: prior))
+        }
+    }
+
+    private static func anchor(_ anchor: Wiretuner_Doc_V1_Anchor) -> Anchor {
+        Anchor(char: OpID(counter: anchor.char.counter, replica: anchor.char.replica), before: anchor.before)
     }
 
     // Proto3 messages without Any fields cannot fail to encode (swift-protobuf only throws for
@@ -196,7 +342,21 @@ public struct EngineState: Sendable {
     /// The members `values` (a sparse `NodeProps`) holds at the SET field `path` names on a node
     /// of `kind`, in their canonical form, or nil when the path does not name a SET field.
     public func members(in values: Wiretuner_Doc_V1_NodeProps, kind: UInt32, path: Wiretuner_Doc_V1_FieldPath) -> [[UInt8]]? {
-        members(resolver.walk(kind: kind, path: path, values: WireMessage.parse(Self.bytes(values))) { _ in true })?.1
+        members(resolver.walk(kind: kind, path: path, values: WireMessage.parse(Self.bytes(values))) { _ in true })?.2
+    }
+
+    /// The value `values` (a sparse `NodeProps`) holds for the register at `path` on a node of
+    /// `kind` -- the bytes a `SetFields` carrying `values` writes there -- or nil when absent or
+    /// when `path` does not name a register field.
+    public func registerValue(in values: Wiretuner_Doc_V1_NodeProps, kind: UInt32, path: RegisterPath) -> [UInt8]? {
+        guard case .field(_, let row, let container)? = resolver.walk(
+            kind: kind, path: path.proto, values: WireMessage.parse(Self.bytes(values)), elementExists: { _ in true }) else { return nil }
+        return container?.records(UInt32(row.fieldNumber))
+    }
+
+    /// The TEXT field `path` names on `node`, or nil when it holds nothing.
+    public func text(_ node: OpID, _ path: RegisterPath) -> TextSequence? {
+        store.text(node, path)
     }
 
     /// The state hash of the merged state (32 bytes, `StateHash`).
@@ -217,6 +377,22 @@ public actor Engine {
     /// Applies a change, local or remote (`serverSeq` when the server has sequenced it).
     public func apply(_ change: Wiretuner_Doc_V1_Change, serverSeq: UInt64? = nil) {
         state.apply(change, serverSeq: serverSeq)
+    }
+
+    /// Applies a local change and returns its inverse (`EngineState.applyLocal`).
+    public func applyLocal(_ change: Wiretuner_Doc_V1_Change) -> Inverse {
+        state.applyLocal(change)
+    }
+
+    /// Undoes `inverse` as change `seq` of `replica`: builds the undo change from the clock's next
+    /// counter (`EngineState.undoChange`), applies it locally, and returns it with the inverse that
+    /// redoes it; nil when nothing is left to undo.
+    public func undo(
+        _ inverse: Inverse, replica: UInt64, seq: UInt64, baseServerSeq: UInt64 = 0, label: String = ""
+    ) -> (change: Wiretuner_Doc_V1_Change, redo: Inverse)? {
+        guard let change = state.undoChange(inverse, replica: replica, seq: seq, startCounter: state.clock.peek,
+                                            baseServerSeq: baseServerSeq, label: label) else { return nil }
+        return (change: change, redo: state.applyLocal(change))
     }
 
     /// Records the server_seq of a local change once the server acknowledges it.

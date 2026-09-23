@@ -110,6 +110,26 @@ public final class Schema {
         return messages.getOrDefault(message, Map.of()).values();
     }
 
+    /**
+     * The field of the {@code TextMarkValue} a TEXT field's marks carry that is keyed by its
+     * {@code tag} as well as its case (the {@code feature} case, CRDT-006), or {@code null}: found
+     * through the table as {@code RichText.marks} (2) -> {@code TextMark.value} (4) -> the row
+     * named {@code feature}.
+     */
+    public Integer featureField(FieldPolicy text) {
+        FieldPolicy marks = text.typeName() == null ? null : field(text.typeName(), 2);
+        FieldPolicy value = marks == null || marks.typeName() == null ? null : field(marks.typeName(), 4);
+        if (value == null || value.typeName() == null) {
+            return null;
+        }
+        for (FieldPolicy row : fields(value.typeName())) {
+            if ("feature".equals(row.name())) {
+                return row.fieldNumber();
+            }
+        }
+        return null;
+    }
+
     /** The variant declaration of {@code message}, or {@code null} when it is not a variant. */
     public VariantPolicy variant(String message) {
         return variants.get(message);

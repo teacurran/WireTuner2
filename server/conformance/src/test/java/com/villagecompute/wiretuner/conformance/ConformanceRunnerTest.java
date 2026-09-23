@@ -43,7 +43,14 @@ class ConformanceRunnerTest {
     }
 
     private static ConformanceRunner.Outcome run(String text) throws TextFormat.ParseException {
-        return ConformanceRunner.run(vector("name: \"t/v\"\n" + text), "t/v");
+        return withoutSnapshot(ConformanceRunner.run(vector("name: \"t/v\"\n" + text), "t/v"));
+    }
+
+    /** The outcome without its snapshot_hash failure: these vectors leave the hash out. */
+    private static ConformanceRunner.Outcome withoutSnapshot(ConformanceRunner.Outcome outcome) {
+        return new ConformanceRunner.Outcome(outcome.name(),
+                outcome.failures().stream().filter(failure -> !failure.startsWith("snapshot_hash: expected \"\"")).toList(),
+                outcome.stateHash());
     }
 
     @Test
@@ -68,7 +75,7 @@ class ConformanceRunnerTest {
     void loadsAndRunsAFile(@TempDir Path root) throws IOException {
         Path file = Files.writeString(Files.createDirectories(root.resolve("t")).resolve("v.textproto"),
                 "name: \"t/v\"\n" + CREATE);
-        ConformanceRunner.Outcome outcome = ConformanceRunner.run(root, file);
+        ConformanceRunner.Outcome outcome = withoutSnapshot(ConformanceRunner.run(root, file));
 
         assertThat(outcome.failures()).singleElement().asString().startsWith("state_hash: expected \"\", got");
         assertThat(outcome.stateHash()).hasSize(64);
@@ -162,7 +169,7 @@ class ConformanceRunnerTest {
             assertThat(changes.get(0).serverSeq()).isEqualTo(1L);
             return ConformanceRunner.ENGINE.replay(schema, changes);
         };
-        assertThat(ConformanceRunner.run(vector("name: \"t/v\"\n" + CREATE), "t/v", checking).failures()).hasSize(1);
+        assertThat(withoutSnapshot(ConformanceRunner.run(vector("name: \"t/v\"\n" + CREATE), "t/v", checking)).failures()).hasSize(1);
     }
 
     @Test
@@ -344,5 +351,60 @@ class ConformanceRunnerTest {
             assertThat(twin.getMessageType().getFullName()).isEqualTo(field.getMessageType().getFullName());
             assertThat(twin.getContainingOneof().getName()).isEqualTo(field.getContainingOneof().getName());
         }
+    }
+
+    @Test
+    void picksDeliverChangesInAnyOrderAndReportMistakes() throws IOException {
+        String replicas = "replica { id: 1 " + rename(1, 2, "A") + " }\n";
+        ConformanceRunner.Outcome good = run(CREATE + replicas
+                + "deliveries { picks { replica: 1 seq: 1 } picks { replica: 1 seq: 1 } }\n");
+        assertThat(good.failures()).singleElement().asString().startsWith("state_hash:");
+        ConformanceRunner.Outcome bad = run(CREATE + replicas
+                + "deliveries { order: [1] picks { replica: 1 seq: 7 } }\n");
+        assertThat(bad.failures()).containsExactly("a delivery has both order and picks", "pick 1/7 names no change",
+                "picks leave [1/1] undelivered");
+    }
+
+    @Test
+    void theSnapshotIsHashedAndComparedAcrossDeliveries() throws IOException {
+        String text = CREATE + "replica { id: 1 " + rename(1, 2, "A") + " }\n";
+        ConformanceRunner.Outcome outcome = ConformanceRunner.run(vector("name: \"t/v\"\n" + text
+                + "expect { snapshot_hash: \"00\" }"), "t/v");
+        assertThat(outcome.failures()).last().asString().startsWith("snapshot_hash: expected \"00\", got \"");
+        // A replayer that acknowledges an extra change on its second order changes the snapshot
+        // (the server-seq map) but not the state hash.
+        int[] calls = {0};
+        ConformanceRunner.Replayer faulty = (schema, changes) -> {
+            com.villagecompute.wiretuner.crdt.Engine engine = ConformanceRunner.ENGINE.replay(schema, changes);
+            if (calls[0]++ > 0) {
+                engine.acknowledge(9, 9, 9);
+            }
+            return engine;
+        };
+        ConformanceRunner.Outcome diverging = ConformanceRunner.run(vector("name: \"t/v\"\n" + text
+                + "deliveries { order: [1] }\ndeliveries { order: [1] }\n"), "t/v", faulty);
+        assertThat(diverging.failures()).contains("delivery [1] writes a different snapshot from [1]");
+    }
+
+    @Test
+    void textReadOutsAreCompared() throws IOException {
+        String node = "setup { change { replica: 7 seq: 1 start_counter: 1 ops { create { parent { counter: 4 } position: \"\\x80\""
+                + " props { test { } } } } ops { text_insert { node { counter: 1 replica: 7 }"
+                + " text { segments { field: 1000 } segments { field: 9 } } chars: \"ab\" } }"
+                + " ops { text_mark { node { counter: 1 replica: 7 } text { segments { field: 1000 } segments { field: 9 } }"
+                + " start { before: true } end { } value { bold: true } } } } }\n";
+        String path = "path { segments { field: 1000 } segments { field: 9 } }";
+        assertThat(run(node + "expect { node { id { counter: 1 replica: 7 } text { " + path + " text: \"ab\""
+                + " chars { counter: 2 replica: 7 } chars { counter: 3 replica: 7 }"
+                + " runs { start: 0 length: 2 attributes { value { bold: true } mark { counter: 4 replica: 7 } } } } } }")
+                .failures()).singleElement().asString().startsWith("state_hash:");
+        assertThat(run(node + "expect { node { id { counter: 1 replica: 7 } text { " + path + " text: \"x\" } } }").failures())
+                .hasSize(4).anyMatch(failure -> failure.contains("expected \"x\", got \"ab\""))
+                .anyMatch(failure -> failure.contains("expected chars [] deleted [], got [2:7, 3:7] deleted []"))
+                .anyMatch(failure -> failure.contains("expected runs [], got [0+2 f00101@4:7]"));
+        assertThat(run(node + "expect { node { id { counter: 1 replica: 7 } text { path { } } } }").failures())
+                .contains("node 1:7: expected text has an empty path");
+        assertThat(run(node + "expect { node { id { counter: 1 replica: 7 } text { path { segments { field: 1000 } segments { field: 2 } } } } }")
+                .failures()).hasSize(1);
     }
 }

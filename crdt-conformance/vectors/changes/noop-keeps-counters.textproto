@@ -1,0 +1,31 @@
+# crdt-conformance/vectors/changes/noop-keeps-counters.textproto (CRDT-008; schema: crdt-conformance/schema/vector.proto)
+name: "changes/noop-keeps-counters"
+description: "A Noop takes one counter and does nothing, so the ops after it keep the ids the replica gave them: the label is 2:7, the characters 4:7 and 5:7 (after the Noop at 3:7), the name 7:7 (after the Noop at 6:7)."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Create"
+    ops { create { parent { counter: 4 } position: "\x80" props { test { label: "T" } } } }
+  }
+}
+replica {
+  id: 7
+  change {
+    replica: 7 seq: 2 start_counter: 2 base_server_seq: 1 label: "Edit"
+    ops { set { node { counter: 1 replica: 7 } paths { segments { field: 1000 } segments { field: 2 } } values { test { label: "L" } } } }
+    ops { noop { } }
+    ops { text_insert { node { counter: 1 replica: 7 } text { segments { field: 1000 } segments { field: 9 } } chars: "ab" } }
+    ops { noop { } }
+    ops { set { node { counter: 1 replica: 7 } paths { segments { field: 1000 } segments { field: 1 } segments { field: 1 } } values { test { common { name: "N" } } } } }
+  }
+}
+expect {
+  state_hash: "a392ae802828f6135002b9246684063dbd8233fcd29806020f94a2d295d9ad7a"
+  snapshot_hash: "0749817de3df5f3afc4f42495f099a1986864965534ef66c719d0675d45ed7de"
+  node {
+    id { counter: 1 replica: 7 }
+    node_hash: ""
+    register { path { segments { field: 1000 } segments { field: 2 } } value { test { label: "L" } } op { counter: 2 replica: 7 } losing { counter: 1 replica: 7 } }
+    register { path { segments { field: 1000 } segments { field: 1 } segments { field: 1 } } value { test { common { name: "N" } } } op { counter: 7 replica: 7 } }
+    text { path { segments { field: 1000 } segments { field: 9 } } text: "ab" chars { counter: 4 replica: 7 } chars { counter: 5 replica: 7 }  runs { start: 0 length: 2 } }
+  }
+}

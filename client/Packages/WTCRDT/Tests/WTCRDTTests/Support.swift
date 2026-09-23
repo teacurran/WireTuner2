@@ -156,3 +156,126 @@ enum Tables {
         variants: ["t.V": Schema.VariantPolicy(kindField: 1, caseFields: [2, 3])]
     )
 }
+
+/// Scenarios on the conformance test kind (`TestProps`, NodeProps field 1000, with its TEXT field
+/// at 9), written as the vectors write changes: `Wiretuner_Conformance_V1_Change` in text format.
+enum Scenario {
+    /// The generated merge table plus crdt-conformance/schema/test-kinds.textproto.
+    static let schema: Schema = {
+        var failures: [String] = []
+        return ConformanceRunner.schema(ConformanceRunner.Vector(), &failures)
+    }()
+
+    static let node = OpID(counter: 1, replica: 7)
+    static let text = RegisterPath([1000, 9])
+    static let label = RegisterPath([1000, 2])
+    static let tags = RegisterPath([1000, 3])
+    static let stops = RegisterPath([1000, 8])
+    static let nodeText = "node { counter: 1 replica: 7 }"
+    static let textPath = "text { segments { field: 1000 } segments { field: 9 } }"
+
+    /// A change parsed from text format and converted to doc.v1.
+    static func change(_ text: String) -> Wiretuner_Doc_V1_Change {
+        ConformanceRunner.docChange(try! Wiretuner_Conformance_V1_Change(textFormatString: text))
+    }
+
+    /// An op of `change(...)` with the given body, for replica `replica` at `counter`.
+    static func change(_ replica: UInt64, _ seq: UInt64, _ counter: UInt64, _ ops: String...) -> Wiretuner_Doc_V1_Change {
+        change(replica, seq, counter, base: 0, ops)
+    }
+
+    /// A change of `ops` whose causal past is the server log up to `base`.
+    static func change(_ replica: UInt64, _ seq: UInt64, _ counter: UInt64, base: UInt64, _ ops: [String]) -> Wiretuner_Doc_V1_Change {
+        change("replica: \(replica) seq: \(seq) start_counter: \(counter) base_server_seq: \(base) "
+            + ops.map { "ops { \($0) }" }.joined(separator: " "))
+    }
+
+    /// An engine over `schema` with the test node 1:7 created (label "T") and `extra` applied.
+    static func engine(_ extra: Wiretuner_Doc_V1_Change...) -> EngineState {
+        var engine = EngineState(schema: schema)
+        engine.apply(change(7, 1, 1, #"create { parent { counter: 4 } position: "\x80" props { test { label: "T" } } }"#),
+                     serverSeq: 1)
+        for change in extra {
+            engine.apply(change)
+        }
+        return engine
+    }
+
+    static func insert(_ chars: String, left: OpID? = nil, right: OpID? = nil) -> String {
+        var op = "text_insert { \(nodeText) \(textPath)"
+        if let left { op += " left_origin { counter: \(left.counter) replica: \(left.replica) }" }
+        if let right { op += " right_origin { counter: \(right.counter) replica: \(right.replica) }" }
+        return op + " chars: \"\(chars)\" }"
+    }
+
+    static func anchor(_ id: OpID?, before: Bool) -> String {
+        (id.map { "char { counter: \($0.counter) replica: \($0.replica) } " } ?? "") + (before ? "before: true" : "")
+    }
+
+    static func mark(_ start: OpID?, _ startBefore: Bool, _ end: OpID?, _ endBefore: Bool, _ value: String) -> String {
+        "text_mark { \(nodeText) \(textPath) start { \(anchor(start, before: startBefore)) } end { \(anchor(end, before: endBefore)) } value { \(value) } }"
+    }
+}
+
+/// The observable document (what a user sees), for apply-then-invert identity: live nodes with
+/// their placement and register values, live sequence elements, set members, and each text's
+/// string, attributed runs and live newlines' paragraph values.  No OpIds: an undo writes new ones.
+enum View {
+    static func of(_ engine: EngineState) -> [String] {
+        let store = engine.store
+        var out: [String] = []
+        for node in store.nodes where store.deleted(node)?.current.value != true {
+            let placement = store.placement(node)
+            out.append("node \(node) kind \(store.kind(node)) parent \(placement.map { "\($0.parent)/\(Bytes.hex($0.position))" } ?? "none")")
+            let texts = store.textPaths(node)
+            for (path, register) in store.registers(node) {
+                guard let value = register.value, !hidden(store, node, path, texts) else { continue }
+                out.append("  \(path) = \(Bytes.hex(value))")
+            }
+            var sequences: Set<RegisterPath> = []
+            for (path, _) in store.elements(node) where !hidden(store, node, path, texts) {
+                sequences.insert(path.parent!)
+            }
+            for sequence in sequences.sorted() {
+                let live = store.elementOrder(node, sequence).filter { !store.element(node, sequence.element($0))!.isDeleted }
+                out.append("  \(sequence): " + live.map { "\($0)@\(Bytes.hex(store.element(node, sequence.element($0))!.position.current.value))" }
+                    .joined(separator: " "))
+            }
+            for path in store.setPaths(node) {
+                out.append("  \(path) members " + store.members(node, path).map(Bytes.hex).joined(separator: " "))
+            }
+            for path in texts {
+                let text = store.text(node, path)!
+                var runs: [(length: Int, values: [String])] = []
+                for run in text.runs {
+                    let values = run.attributes.map { Bytes.hex($0.value) }
+                    if let last = runs.last, last.values == values {
+                        runs[runs.count - 1].length += run.length
+                    } else {
+                        runs.append((length: run.length, values: values))
+                    }
+                }
+                out.append("  \(path) \"\(text.string)\" " + runs.map { "[\($0.length)" + $0.values.map { " " + $0 }.joined() + "]" }.joined())
+                for char in text.liveChars where text.codepoint(char) == 0x0A {
+                    let prefix = path.element(char)
+                    let values = store.registers(node).filter { $0.path.segments.starts(with: prefix.segments) && $0.path != prefix }
+                        .compactMap { entry in entry.register.value.map { "\(entry.path.segments.dropFirst(prefix.segments.count).map(\.description).joined(separator: "."))=\(Bytes.hex($0))" } }
+                    out.append("  paragraph at \(text.offset(of: char)!): " + values.joined(separator: " "))
+                }
+            }
+        }
+        return out
+    }
+
+    // Registers and elements under a tombstoned element or any character are not shown directly.
+    private static func hidden(_ store: NodeStore, _ node: OpID, _ path: RegisterPath, _ texts: [RegisterPath]) -> Bool {
+        for index in path.segments.indices {
+            guard case .element = path.segments[index], index > 0 else { continue }
+            let prefix = RegisterPath(segments: Array(path.segments[...index]))
+            if texts.contains(prefix.parent!) || store.element(node, prefix)?.isDeleted == true && prefix != path {
+                return true
+            }
+        }
+        return false
+    }
+}

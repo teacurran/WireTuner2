@@ -26,7 +26,8 @@ replica {
   }
 }
 expect {
-  state_hash: "dd29f57ea7026328d3ce276545dcc0b583b676d7a17471af48ce9705c8701df7"
+  state_hash: "c484abb132624d2b7fa6dd481c4e8df5a522dd4f843beccc8815aec0b78e51a6"
+  snapshot_hash: "04617e00880513ef5b888e93cff508344b27798bec541ea37136ffb4bf3db8c9"
   node { id { counter: 4 } tree { parent { } children { counter: 1 replica: 7 } } }
   node { id { } tree { children { counter: 1 } children { counter: 2 } children { counter: 3 } children { counter: 4 }
     children { counter: 5 } children { counter: 6 } children { counter: 7 } children { counter: 8 } children { counter: 9 }
@@ -34,9 +35,9 @@ expect {
     children { counter: 15 } } }
   node {
     id { counter: 1 replica: 7 }
-    node_hash: "84bddb19cfc8e52a96b4205be5f1b4cc5f605bda898cba76616632f75692263b"
+    node_hash: "08593f05687ca21a7a3f7156778c1a971df0157b5bae992a0f4ca7c748886a57"
     tree { parent { counter: 4 } position: "\x80" children { counter: 2 replica: 7 } children { counter: 4 replica: 7 } }
   }
-  node { id { counter: 2 replica: 7 } node_hash: "10916882dd1690e4dfe8211536362d7826cf0d2cd138c3a8a1b25ebc535a603f" tree { parent { counter: 1 replica: 7 } position: "\x80" children { counter: 3 replica: 7 } } }
-  node { id { counter: 4 replica: 7 } node_hash: "8da72667ee4e746aaf5c076294cd21958955fcfb14daf5639ed15af2505981f1" tree { parent { counter: 1 replica: 7 } position: "\x90" } }
+  node { id { counter: 2 replica: 7 } node_hash: "c77cb7a0b018a65aff13089e28a0cf2f77d29b859b2e4e9c837dd7e959e6ba21" tree { parent { counter: 1 replica: 7 } position: "\x80" children { counter: 3 replica: 7 } } }
+  node { id { counter: 4 replica: 7 } node_hash: "d8431d5e8756f0f7928fc229c07a3c98463bde0934b8e3f80455da71cb828a54" tree { parent { counter: 1 replica: 7 } position: "\x90" } }
 }

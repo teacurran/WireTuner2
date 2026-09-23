@@ -9,6 +9,8 @@ import com.villagecompute.wiretuner.conformance.v1.ExpectNode;
 import com.villagecompute.wiretuner.conformance.v1.ExpectRegister;
 import com.villagecompute.wiretuner.conformance.v1.ExpectSequence;
 import com.villagecompute.wiretuner.conformance.v1.ExpectSet;
+import com.villagecompute.wiretuner.conformance.v1.ExpectText;
+import com.villagecompute.wiretuner.conformance.v1.Pick;
 import com.villagecompute.wiretuner.conformance.v1.ExpectTree;
 import com.villagecompute.wiretuner.conformance.v1.FieldRow;
 import com.villagecompute.wiretuner.conformance.v1.PositionCase;
@@ -23,6 +25,9 @@ import com.villagecompute.wiretuner.crdt.Placement;
 import com.villagecompute.wiretuner.crdt.Register;
 import com.villagecompute.wiretuner.crdt.RegisterPath;
 import com.villagecompute.wiretuner.crdt.Schema;
+import com.villagecompute.wiretuner.crdt.Snapshot;
+import com.villagecompute.wiretuner.crdt.TextSequence;
+import com.villagecompute.wiretuner.crdt.TextRun;
 import com.villagecompute.wiretuner.crdt.SplitMix64;
 import com.villagecompute.wiretuner.crdt.StateHash;
 import com.villagecompute.wiretuner.crdt.Write;
@@ -34,6 +39,8 @@ import com.villagecompute.wiretuner.doc.v1.NodeProps;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -192,7 +199,9 @@ public final class ConformanceRunner {
             return new Outcome(expectedName, failures, "");
         }
         Engine reference = null;
+        byte[] referenceSnapshot = null;
         String referenceOrder = "";
+        long serverSeq = greatestServerSeq(vector);
         for (int i = 0; i < orders.size(); i++) {
             List<Delivered> changes = new ArrayList<>();
             List<Change> setup = vector.getSetup().getChangeList();
@@ -204,17 +213,66 @@ public final class ConformanceRunner {
                 changes.add(new Delivered(docChange(change), change.getServerSeq() == 0 ? null : change.getServerSeq()));
             }
             Engine engine = replayer.replay(schema, changes);
+            byte[] snapshot = Snapshot.encode(engine, serverSeq);
             String order = describe(vector, i);
             if (reference == null) {
                 reference = engine;
+                referenceSnapshot = snapshot;
                 referenceOrder = order;
             } else if (!Arrays.equals(engine.stateHash(), reference.stateHash())) {
                 failures.add("delivery " + order + " diverges from " + referenceOrder
                         + " at node " + firstDifference(reference, engine));
+            } else if (!Arrays.equals(snapshot, referenceSnapshot)) {
+                failures.add("delivery " + order + " writes a different snapshot from " + referenceOrder);
             }
         }
         checkExpectations(vector, reference, failures);
+        checkSnapshot(vector, schema, referenceSnapshot, failures);
         return new Outcome(expectedName, failures, StateHash.hex(reference.stateHash()));
+    }
+
+    /** The greatest server_seq the vector gives a change (setup changes default to index + 1). */
+    static long greatestServerSeq(Vector vector) {
+        long greatest = 0;
+        List<Change> setup = vector.getSetup().getChangeList();
+        for (int i = 0; i < setup.size(); i++) {
+            long serverSeq = setup.get(i).getServerSeq() == 0 ? i + 1 : setup.get(i).getServerSeq();
+            greatest = Long.compareUnsigned(serverSeq, greatest) > 0 ? serverSeq : greatest;
+        }
+        for (Replica replica : vector.getReplicaList()) {
+            for (Change change : replica.getChangeList()) {
+                greatest = Long.compareUnsigned(change.getServerSeq(), greatest) > 0 ? change.getServerSeq() : greatest;
+            }
+        }
+        return greatest;
+    }
+
+    /**
+     * The snapshot of the merged state: its hash, and a lossless round trip (decoding it gives the
+     * same state hash and encodes to the same bytes).
+     */
+    static void checkSnapshot(Vector vector, Schema schema, byte[] snapshot, List<String> failures) {
+        String hash = hex(sha256(snapshot));
+        if (!hash.equals(vector.getExpect().getSnapshotHash())) {
+            failures.add("snapshot_hash: expected \"" + vector.getExpect().getSnapshotHash() + "\", got \"" + hash + "\"");
+        }
+        try {
+            Engine decoded = Snapshot.decode(snapshot, schema);
+            if (!Arrays.equals(Snapshot.encode(decoded, greatestServerSeq(vector)), snapshot)) {
+                failures.add("snapshot round trip: the decoded state encodes differently");
+            }
+        } catch (Snapshot.SnapshotException e) {
+            failures.add("snapshot round trip: " + e.getMessage());
+        }
+    }
+
+    static byte[] sha256(byte[] data) {
+        try {
+            return MessageDigest.getInstance("SHA-256").digest(data);
+        } catch (NoSuchAlgorithmException e) {
+            // Every Java platform is required to provide SHA-256.
+            throw new IllegalStateException(e);
+        }
     }
 
     /** The generated merge table with the test kinds and the vector's overrides applied. */
@@ -303,6 +361,10 @@ public final class ConformanceRunner {
         }
         List<List<Change>> orders = new ArrayList<>();
         for (Delivery delivery : deliveries) {
+            if (delivery.getPicksCount() > 0) {
+                orders.add(picked(vector, delivery, failures));
+                continue;
+            }
             Map<Long, ArrayDeque<Change>> pending = new LinkedHashMap<>();
             byReplica.forEach((id, changes) -> pending.put(id, new ArrayDeque<>(changes)));
             List<Change> order = new ArrayList<>();
@@ -321,6 +383,36 @@ public final class ConformanceRunner {
             orders.add(order);
         }
         return orders;
+    }
+
+    // The changes `picks` name, in that order; every change must be picked at least once.
+    private static List<Change> picked(Vector vector, Delivery delivery, List<String> failures) {
+        if (delivery.getOrderCount() > 0) {
+            failures.add("a delivery has both order and picks");
+        }
+        java.util.Set<String> unpicked = new java.util.TreeSet<>();
+        for (Replica replica : vector.getReplicaList()) {
+            for (Change change : replica.getChangeList()) {
+                unpicked.add(Long.toUnsignedString(replica.getId()) + "/" + Long.toUnsignedString(change.getSeq()));
+            }
+        }
+        List<Change> changes = new ArrayList<>();
+        for (Pick pick : delivery.getPicksList()) {
+            Change found = vector.getReplicaList().stream().filter(replica -> replica.getId() == pick.getReplica())
+                    .flatMap(replica -> replica.getChangeList().stream())
+                    .filter(change -> change.getSeq() == pick.getSeq()).findFirst().orElse(null);
+            String key = Long.toUnsignedString(pick.getReplica()) + "/" + Long.toUnsignedString(pick.getSeq());
+            if (found == null) {
+                failures.add("pick " + key + " names no change");
+            } else {
+                changes.add(found);
+                unpicked.remove(key);
+            }
+        }
+        if (!unpicked.isEmpty()) {
+            failures.add("picks leave " + unpicked + " undelivered");
+        }
+        return changes;
     }
 
     private static void checkReplica(Replica replica, List<String> failures) {
@@ -373,6 +465,9 @@ public final class ConformanceRunner {
             }
             for (ExpectSet set : node.getSetList()) {
                 checkSet(engine, id, set, failures);
+            }
+            for (ExpectText text : node.getTextList()) {
+                checkText(engine, id, text, failures);
             }
         }
     }
@@ -433,6 +528,42 @@ public final class ConformanceRunner {
         }
     }
 
+    private static void checkText(Engine engine, OpId node, ExpectText expected, List<String> failures) {
+        RegisterPath path = RegisterPath.of(expected.getPath());
+        if (path == null) {
+            failures.add("node " + node + ": expected text has an empty path");
+            return;
+        }
+        TextSequence text = engine.text(node, path);
+        TextSequence actual = text == null ? new TextSequence() : text;
+        if (!actual.string().equals(expected.getText())) {
+            failures.add("node " + node + " text " + path + ": expected \"" + expected.getText() + "\", got \""
+                    + actual.string() + "\"");
+        }
+        List<OpId> want = expected.getCharsList().stream().map(ConformanceRunner::id).toList();
+        List<OpId> wantDeleted = expected.getDeletedList().stream().map(ConformanceRunner::id).toList();
+        List<OpId> deleted = actual.order().stream().filter(actual::isDeleted).toList();
+        if (!actual.liveChars().equals(want) || !deleted.equals(wantDeleted)) {
+            failures.add("node " + node + " text " + path + ": expected chars " + want + " deleted " + wantDeleted
+                    + ", got " + actual.liveChars() + " deleted " + deleted);
+        }
+        List<String> wantRuns = expected.getRunsList().stream().map(run -> {
+            StringBuilder out = new StringBuilder(run.getStart() + "+" + run.getLength());
+            run.getAttributesList().forEach(attribute -> out.append(' ').append(hex(attribute.getValue().toByteArray()))
+                    .append('@').append(OpId.of(attribute.getMark())));
+            return out.toString();
+        }).toList();
+        List<String> runs = new ArrayList<>();
+        for (TextRun run : actual.runs()) {
+            StringBuilder out = new StringBuilder(run.start() + "+" + run.length());
+            run.attributes().forEach(attribute -> out.append(' ').append(hex(attribute.value())).append('@').append(attribute.mark()));
+            runs.add(out.toString());
+        }
+        if (!runs.equals(wantRuns)) {
+            failures.add("node " + node + " text " + path + ": expected runs " + wantRuns + ", got " + runs);
+        }
+    }
+
     private static String firstNamedDifference(Vector vector, Engine engine) {
         for (ExpectNode node : vector.getExpect().getNodeList()) {
             OpId id = OpId.of(node.getId());
@@ -455,7 +586,8 @@ public final class ConformanceRunner {
             return;
         }
         Register actual = engine.register(node, path);
-        byte[] value = expected.hasValue() ? path.valueIn(expected.getValue().toByteArray()) : null;
+        byte[] value = expected.hasValue()
+                ? engine.registerValue(docProps(expected.getValue()), engine.store().kind(node), path) : null;
         Register want = new Register(value, OpId.of(expected.getOp()));
         if (!want.equals(actual)) {
             failures.add("node " + node + " register " + path + ": expected " + want + ", got " + actual);

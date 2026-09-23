@@ -1,0 +1,23 @@
+# crdt-conformance/vectors/text/concurrent-inserts-at-start.textproto (CRDT-005; schema: crdt-conformance/schema/vector.proto)
+name: "text/concurrent-inserts-at-start"
+description: "Two replicas insert before the first character (left origin zero = the start): both become left children of it, in OpId order, 12ab."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Type"
+    ops { create { parent { counter: 4 } position: "\x80" props { test { label: "T" } } } }
+    ops { text_insert { node { counter: 1 replica: 7 } text { segments { field: 1000 } segments { field: 9 } } chars: "ab" } }
+  }
+}
+replica { id: 1 change { replica: 1 seq: 1 start_counter: 4 base_server_seq: 1 label: "Type" ops { text_insert { node { counter: 1 replica: 7 } text { segments { field: 1000 } segments { field: 9 } } right_origin { counter: 2 replica: 7 } chars: "1" } } } }
+replica { id: 2 change { replica: 2 seq: 1 start_counter: 4 base_server_seq: 1 label: "Type" ops { text_insert { node { counter: 1 replica: 7 } text { segments { field: 1000 } segments { field: 9 } } right_origin { counter: 2 replica: 7 } chars: "2" } } } }
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "28788ee98cd52974fb4ed8f854aba09ddd451e3de0a7819da7516878c7954108"
+  snapshot_hash: "60f084a1a8301df2134a523f92ba3289a9704fa13d97b75ca13ee9e9c4ea2e41"
+  node {
+    id { counter: 1 replica: 7 }
+    node_hash: ""
+    text { path { segments { field: 1000 } segments { field: 9 } } text: "12ab" chars { counter: 4 replica: 1 } chars { counter: 4 replica: 2 } chars { counter: 2 replica: 7 } chars { counter: 3 replica: 7 }  runs { start: 0 length: 4 } }
+  }
+}

@@ -1,0 +1,37 @@
+# crdt-conformance/vectors/marks/paragraph-join-vs-style-change.textproto (CRDT-006; schema: crdt-conformance/schema/vector.proto)
+name: "marks/paragraph-join-vs-style-change"
+description: "Replica 1 joins the paragraphs of \"ab\\ncd\" by deleting the newline while replica 2 changes that paragraph's alignment.  The change lands on the tombstone: its register is kept (and shown by the review sheet) but no live newline carries it."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Type"
+    ops { create { parent { counter: 4 } position: "\x80" props { test { label: "T" } } } }
+    ops { text_insert { node { counter: 1 replica: 7 } text { segments { field: 1000 } segments { field: 9 } } chars: "ab\ncd" } }
+    ops { set { node { counter: 1 replica: 7 } paths { segments { field: 1000 } segments { field: 9 } segments { element { counter: 4 replica: 7 } } segments { field: 6 } } values { test { text { chars { paragraph { alignment: 1 space_above: 6 } } } } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 8 base_server_seq: 1 label: "Delete text"
+    ops { text_delete { node { counter: 1 replica: 7 } text { segments { field: 1000 } segments { field: 9 } } ranges { first { counter: 4 replica: 7 } count: 1 } } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 8 base_server_seq: 1 label: "Align"
+    ops { set { node { counter: 1 replica: 7 } paths { segments { field: 1000 } segments { field: 9 } segments { element { counter: 4 replica: 7 } } segments { field: 6 } segments { field: 1 } } values { test { text { chars { paragraph { alignment: 2 } } } } } } }
+  }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "9e960aa6e8e5cdb761ceeb75eb686cd4cd75fc51e77325b23fa4592a24400f62"
+  snapshot_hash: "4dde62885c6f2b77ba128b71bff59c64980be87603a16dc324fa4563ff03fd2c"
+  node {
+    id { counter: 1 replica: 7 }
+    node_hash: ""
+    register { path { segments { field: 1000 } segments { field: 9 } segments { element { counter: 4 replica: 7 } } segments { field: 6 } segments { field: 1 } } value { test { text { chars { paragraph { alignment: 2 } } } } } op { counter: 8 replica: 2 } losing { counter: 7 replica: 7 } }
+    text { path { segments { field: 1000 } segments { field: 9 } } text: "abcd" chars { counter: 2 replica: 7 } chars { counter: 3 replica: 7 } chars { counter: 5 replica: 7 } chars { counter: 6 replica: 7 } deleted { counter: 4 replica: 7 } runs { start: 0 length: 4 } }
+  }
+}

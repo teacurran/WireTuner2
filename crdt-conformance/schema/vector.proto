@@ -20,11 +20,32 @@ syntax = "proto3";
 
 package wiretuner.conformance.v1;
 
+import "wiretuner/doc/v1/asset.proto";
+import "wiretuner/doc/v1/barcode.proto";
+import "wiretuner/doc/v1/blend.proto";
+import "wiretuner/doc/v1/chart.proto";
+import "wiretuner/doc/v1/color.proto";
+import "wiretuner/doc/v1/comments.proto";
 import "wiretuner/doc/v1/common.proto";
 import "wiretuner/doc/v1/document.proto";
+import "wiretuner/doc/v1/envelope.proto";
+import "wiretuner/doc/v1/extrude.proto";
+import "wiretuner/doc/v1/glyph.proto";
 import "wiretuner/doc/v1/group.proto";
+import "wiretuner/doc/v1/image.proto";
 import "wiretuner/doc/v1/layer.proto";
 import "wiretuner/doc/v1/ops.proto";
+import "wiretuner/doc/v1/path.proto";
+import "wiretuner/doc/v1/perspective.proto";
+import "wiretuner/doc/v1/placed_file.proto";
+import "wiretuner/doc/v1/script.proto";
+import "wiretuner/doc/v1/shape.proto";
+import "wiretuner/doc/v1/stroke.proto";
+import "wiretuner/doc/v1/style.proto";
+import "wiretuner/doc/v1/svg_animation.proto";
+import "wiretuner/doc/v1/symbol.proto";
+import "wiretuner/doc/v1/text.proto";
+import "wiretuner/doc/v1/view.proto";
 
 option java_multiple_files = true;
 option java_package = "com.villagecompute.wiretuner.conformance.v1";
@@ -66,11 +87,21 @@ message Replica {
   repeated Change change = 2;
 }
 
-// One delivery order.
+// One delivery order: `order` or `picks`, not both.
 message Delivery {
   // Replica ids; each occurrence delivers that replica's next undelivered change.  Every change
   // of every replica must be named exactly once.
   repeated fixed64 order = 1;
+  // Changes by replica and seq, in any order and as often as wanted (CRDT-008: whole changes
+  // replayed out of order and again).  Every change of every replica must be picked at least
+  // once.
+  repeated Pick picks = 2;
+}
+
+// One change of one replica.
+message Pick {
+  fixed64 replica = 1;
+  uint64 seq = 2;
 }
 
 // wiretuner.doc.v1.Change, field for field, with test-kind values and the server's sequence
@@ -101,7 +132,7 @@ message Op {
     wiretuner.doc.v1.ElementDelete element_delete = 7;
     wiretuner.doc.v1.TextInsert text_insert = 8;
     wiretuner.doc.v1.TextDelete text_delete = 9;
-    wiretuner.doc.v1.TextMark text_mark = 10;
+    TextMark text_mark = 10;
     SetAdd set_add = 11;
     SetRemove set_remove = 12;
     wiretuner.doc.v1.Noop noop = 13;
@@ -130,6 +161,15 @@ message ElementInsert {
   NodeProps values = 4;
 }
 
+// wiretuner.doc.v1.TextMark, with a test-kind value.
+message TextMark {
+  wiretuner.doc.v1.OpId node = 1;
+  wiretuner.doc.v1.FieldPath text = 2;
+  wiretuner.doc.v1.Anchor start = 3;
+  wiretuner.doc.v1.Anchor end = 4;
+  TestMarkValue value = 5;
+}
+
 // wiretuner.doc.v1.SetAdd.
 message SetAdd {
   wiretuner.doc.v1.OpId node = 1;
@@ -153,8 +193,33 @@ message NodeProps {
     wiretuner.doc.v1.SettingsProps settings = 2;
     wiretuner.doc.v1.PageProps page = 3;
     wiretuner.doc.v1.MasterPageProps master_page = 4;
+    wiretuner.doc.v1.AssetProps asset = 5;
+    wiretuner.doc.v1.PathProps path = 20;
+    wiretuner.doc.v1.RectProps rect = 21;
+    wiretuner.doc.v1.EllipseProps ellipse = 22;
+    wiretuner.doc.v1.PolygonProps polygon = 23;
+    wiretuner.doc.v1.ChartProps chart = 24;
     wiretuner.doc.v1.GroupProps group = 50;
+    wiretuner.doc.v1.SwatchProps swatch = 70;
+    wiretuner.doc.v1.BrushProps brush = 80;
+    wiretuner.doc.v1.BlendProps blend = 100;
+    wiretuner.doc.v1.ExtrudeProps extrude = 101;
+    wiretuner.doc.v1.EnvelopeProps envelope = 102;
+    wiretuner.doc.v1.PerspectiveProps perspective = 103;
+    wiretuner.doc.v1.TextProps text = 130;
     wiretuner.doc.v1.LayerProps layer = 150;
+    wiretuner.doc.v1.SymbolProps symbol = 151;
+    wiretuner.doc.v1.SymbolFolderProps symbol_folder = 152;
+    wiretuner.doc.v1.InstanceProps instance = 153;
+    wiretuner.doc.v1.StyleProps style = 154;
+    wiretuner.doc.v1.ImageProps image = 170;
+    wiretuner.doc.v1.PlacedFileProps placed_file = 171;
+    wiretuner.doc.v1.SvgAnimationProps svg_animation = 190;
+    wiretuner.doc.v1.CommentThreadProps comment_thread = 210;
+    wiretuner.doc.v1.GlyphProps glyph = 220;
+    wiretuner.doc.v1.BarcodeProps barcode = 240;
+    wiretuner.doc.v1.ScriptProps script = 241;
+    wiretuner.doc.v1.CustomViewProps custom_view = 260;
     // Test kind; its merge table is in test-kinds.textproto.
     TestProps test = 1000;
   }
@@ -170,6 +235,58 @@ message TestProps {
   repeated wiretuner.doc.v1.OpId nodes = 6;                 // SET of OpIds
   repeated TestContour contours = 7;                        // SEQUENCE, with a nested SEQUENCE
   repeated TestStop stops = 8;                              // SEQUENCE
+  TestRichText text = 9;                                    // TEXT (CRDT-005, CRDT-006)
+  TestParagraph tail = 10;                                  // STRUCT: the last paragraph's properties
+}
+
+// The shape of doc.v1 RichText (type/creating-text.adoc), for the test kind's TEXT field.  Ops
+// never write it; vectors use it to address paragraph registers ([..., text, <char>, 6, ...])
+// and the engines write it in snapshots.
+message TestRichText {
+  repeated TestChar chars = 1;
+  repeated TestTextMark marks = 2;
+}
+
+// The shape of doc.v1 TextChar.
+message TestChar {
+  wiretuner.doc.v1.ElementId id = 1;
+  uint32 codepoint = 2;
+  bool deleted = 3;
+  wiretuner.doc.v1.ElementId left_origin = 4;
+  wiretuner.doc.v1.ElementId right_origin = 5;
+  TestParagraph paragraph = 6;                              // STRUCT, on newlines only
+}
+
+// A few ParagraphProps fields, at their doc.v1 numbers.
+message TestParagraph {
+  uint32 alignment = 1;                                     // ATOMIC
+  double left_indent = 4;                                   // ATOMIC
+  double space_above = 7;                                   // ATOMIC
+}
+
+// The shape of doc.v1 TextMark (the RichText entry).
+message TestTextMark {
+  wiretuner.doc.v1.OpId id = 1;
+  wiretuner.doc.v1.Anchor start = 2;
+  wiretuner.doc.v1.Anchor end = 3;
+  TestMarkValue value = 4;
+}
+
+// A few TextMarkValue cases, at their doc.v1 numbers where doc.v1 has them.
+message TestMarkValue {
+  oneof value {
+    bool bold = 30;                                         // a test attribute (doc.v1 uses font_style)
+    string font_family = 1;
+    double size = 3;
+    string url = 13;
+    TestFeature feature = 21;                               // keyed by (feature, tag)
+  }
+}
+
+// The shape of doc.v1 FeatureSetting.
+message TestFeature {
+  string tag = 1;
+  uint32 state = 2;
 }
 
 // A sequence element holding a nested sequence (contour -> points).
@@ -202,6 +319,10 @@ message Expect {
   string state_hash = 1;
   // Expected read-outs.  Nodes not listed are only checked through `state_hash`.
   repeated ExpectNode node = 2;
+  // Lower-case hex SHA-256 of the encoded DocumentSnapshot (CRDT-009) at the greatest server_seq
+  // the vector gives: both engines must write the same bytes, and decoding them must give the
+  // same state back.
+  string snapshot_hash = 3;
 }
 
 // Read-outs of one node.
@@ -219,6 +340,8 @@ message ExpectNode {
   repeated ExpectSequence sequence = 5;
   // Expected sets.
   repeated ExpectSet set = 6;
+  // Expected TEXT fields.
+  repeated ExpectText text = 7;
 }
 
 // One expected register.
@@ -265,6 +388,37 @@ message ExpectSet {
   // A sparse NodeProps holding exactly the expected members at `path`, in any order; leave it out
   // for an empty set.
   NodeProps members = 2;
+}
+
+// One expected TEXT field (CRDT-005, CRDT-006).
+message ExpectText {
+  // The TEXT field's path.
+  wiretuner.doc.v1.FieldPath path = 1;
+  // The live characters as a string.
+  string text = 2;
+  // The live character ids, in document order.
+  repeated wiretuner.doc.v1.ElementId chars = 3;
+  // The tombstones, in document order.
+  repeated wiretuner.doc.v1.ElementId deleted = 4;
+  // Exactly the attributed runs: maximal ranges of live characters with the same winning marks.
+  repeated ExpectRun runs = 5;
+}
+
+// One attributed run.
+message ExpectRun {
+  // Live offset of the run's first character.
+  uint32 start = 1;
+  uint32 length = 2;
+  // The attributes, ascending by field (then tag); cleared values are left out.
+  repeated ExpectAttribute attributes = 3;
+}
+
+// One resolved attribute.
+message ExpectAttribute {
+  // The winning mark's value.
+  TestMarkValue value = 1;
+  // The winning mark.
+  wiretuner.doc.v1.OpId mark = 2;
 }
 
 // One change to the merge table, applied before the vector runs.

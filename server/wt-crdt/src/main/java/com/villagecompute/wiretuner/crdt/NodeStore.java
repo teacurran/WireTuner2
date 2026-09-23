@@ -14,7 +14,8 @@ import java.util.TreeSet;
 /**
  * The merged state: which nodes exist and of what kind, the node tree, every register keyed by
  * node and {@link RegisterPath} with the change log of every write -- winning or losing -- per
- * register, {@code deleted} flags, sequence elements and set members. Mirrors
+ * register, {@code deleted} flags, sequence elements, set members, TEXT fields and what is known
+ * of each replica. Mirrors
  * {@code WTCRDT.NodeStore}. Not thread-safe; the owning {@link Engine} serialises access.
  */
 public final class NodeStore {
@@ -36,9 +37,21 @@ public final class NodeStore {
     }
 
     /** Every add and remove of one member of one set. */
-    private static final class MemberHistory {
-        private final List<SetAddition> adds = new ArrayList<>();
-        private final List<SetRemoval> removes = new ArrayList<>();
+    static final class MemberHistory {
+        final List<SetAddition> adds = new ArrayList<>();
+        final List<SetRemoval> removes = new ArrayList<>();
+    }
+
+    /** One set member with its history, as a snapshot holds it. */
+    record MemberEntry(byte[] member, List<SetAddition> adds, List<SetRemoval> removes) {
+    }
+
+    /** One set with the history of every member, as a snapshot holds it. */
+    record SetEntry(RegisterPath path, List<MemberEntry> members) {
+    }
+
+    /** The server_seq of one sequenced change. */
+    record Sequenced(long replica, long seq, long serverSeq) {
     }
 
     private record ChangeKey(long replica, long seq) {
@@ -51,7 +64,9 @@ public final class NodeStore {
     private final Map<OpId, Map<RegisterPath, Element>> elements = new HashMap<>();
     private final Map<OpId, Map<RegisterPath, Map<ByteBuffer, MemberHistory>>> sets = new HashMap<>();
     private final Map<ChangeKey, Long> sequenced = new HashMap<>();
-    private final Tree tree = new Tree();
+    private final Map<OpId, Map<RegisterPath, TextSequence>> texts = new HashMap<>();
+    private final Map<Long, ReplicaState> replicaStates = new HashMap<>();
+    private Tree tree = new Tree();
 
     // ---- Nodes and the tree
 
@@ -65,6 +80,11 @@ public final class NodeStore {
             kind = WELL_KNOWN_KINDS.get(node);
         }
         return kind == null ? 0 : kind;
+    }
+
+    /** Whether {@code node} was created by a {@code CreateNode}. */
+    public boolean isCreated(OpId node) {
+        return created.containsKey(node);
     }
 
     /** Whether {@code node} was created or is a well-known node. */
@@ -236,12 +256,14 @@ public final class NodeStore {
                 .computeIfAbsent(ByteBuffer.wrap(member.clone()), m -> new MemberHistory());
     }
 
-    /** Records an add of {@code member} to the set at {@code path}; replays are ignored. */
-    void addMember(OpId node, RegisterPath path, byte[] member, SetAddition add) {
+    /** Records an add of {@code member} to the set at {@code path}; replays are ignored. Returns whether it is new. */
+    boolean addMember(OpId node, RegisterPath path, byte[] member, SetAddition add) {
         MemberHistory history = history(node, path, member);
-        if (history.adds.stream().noneMatch(seen -> seen.op().equals(add.op()))) {
-            history.adds.add(add);
+        if (history.adds.stream().anyMatch(seen -> seen.op().equals(add.op()))) {
+            return false;
         }
+        history.adds.add(add);
+        return true;
     }
 
     /** Records a remove of {@code member} from the set at {@code path}; replays are ignored. */
@@ -299,11 +321,146 @@ public final class NodeStore {
                 .toList();
     }
 
+    // ---- Text
+
+    /** The TEXT field at {@code path} of {@code node}, or {@code null} when it holds nothing. */
+    public TextSequence text(OpId node, RegisterPath path) {
+        return texts.getOrDefault(node, Map.of()).get(path);
+    }
+
+    /** The paths of the TEXT fields of {@code node} that hold something, in path order. */
+    public List<RegisterPath> textPaths(OpId node) {
+        return texts.getOrDefault(node, Map.of()).keySet().stream().sorted().toList();
+    }
+
+    /** Whether {@code path} (a TEXT field's path plus a character id) names a newline character. */
+    boolean isNewline(OpId node, RegisterPath path) {
+        RegisterPath field = path.parent();
+        if (!path.last().isElement() || field == null) {
+            return false;
+        }
+        TextSequence text = text(node, field);
+        return text != null && Integer.valueOf(0x0A).equals(text.codepoint(path.last().element()));
+    }
+
+    /** Changes one TEXT field in place, dropping it again if it is left holding nothing. */
+    <R> R editText(OpId node, RegisterPath path, java.util.function.Function<TextSequence, R> edit) {
+        Map<RegisterPath, TextSequence> nodeTexts = texts.computeIfAbsent(node, n -> new HashMap<>());
+        TextSequence text = nodeTexts.computeIfAbsent(path, p -> new TextSequence());
+        R result = edit.apply(text);
+        if (text.isEmpty()) {
+            nodeTexts.remove(path);
+            if (nodeTexts.isEmpty()) {
+                texts.remove(node);
+            }
+        }
+        return result;
+    }
+
+    // ---- Replicas
+
+    /** Records that change {@code seq} of {@code replica}, made with causal past {@code baseServerSeq}, was applied. */
+    void recordChange(long replica, long seq, long baseServerSeq) {
+        ReplicaState state = replicaStates.getOrDefault(replica, new ReplicaState(0, 0));
+        replicaStates.put(replica, new ReplicaState(
+                Long.compareUnsigned(seq, state.seq()) > 0 ? seq : state.seq(),
+                Long.compareUnsigned(baseServerSeq, state.ackedServerSeq()) > 0 ? baseServerSeq : state.ackedServerSeq()));
+    }
+
+    /** What is known of {@code replica}, or {@code null} when no change of it was applied. */
+    public ReplicaState replicaState(long replica) {
+        return replicaStates.get(replica);
+    }
+
+    /** Every replica with an applied change, ascending by id (unsigned). */
+    public NavigableMap<Long, ReplicaState> replicas() {
+        NavigableMap<Long, ReplicaState> out = new TreeMap<>(Long::compareUnsigned);
+        out.putAll(replicaStates);
+        return out;
+    }
+
+    /** The server_seq of every sequenced change, ascending by replica then seq. */
+    List<Sequenced> sequencedChanges() {
+        return sequenced.entrySet().stream()
+                .map(entry -> new Sequenced(entry.getKey().replica(), entry.getKey().seq(), entry.getValue()))
+                .sorted((a, b) -> a.replica() != b.replica() ? Long.compareUnsigned(a.replica(), b.replica())
+                        : Long.compareUnsigned(a.seq(), b.seq()))
+                .toList();
+    }
+
+    // ---- Snapshots
+
+    /**
+     * Every set of {@code node} with any history, in path order; members ascending bytewise, their
+     * adds and removes ascending by op.
+     */
+    List<SetEntry> setHistories(OpId node) {
+        List<SetEntry> out = new ArrayList<>();
+        new TreeMap<>(sets.getOrDefault(node, Map.of())).forEach((path, members) -> {
+            List<MemberEntry> entries = new ArrayList<>();
+            members.forEach((member, history) -> entries.add(new MemberEntry(member.array().clone(),
+                    history.adds.stream().sorted((a, b) -> a.op().compareTo(b.op())).toList(),
+                    history.removes.stream().sorted((a, b) -> a.op().compareTo(b.op())).toList())));
+            entries.sort((a, b) -> java.util.Arrays.compareUnsigned(a.member(), b.member()));
+            out.add(new SetEntry(path, entries));
+        });
+        return out;
+    }
+
+    /** Restores a created node (snapshot decoding). */
+    void restoreNode(OpId node, int kind) {
+        created.put(node, kind);
+    }
+
+    /** Restores a register without a change log (snapshot decoding). */
+    void restoreRegister(OpId node, RegisterPath path, Register register) {
+        registers.computeIfAbsent(node, n -> new TreeMap<>()).put(path, register);
+    }
+
+    /** Restores a node's {@code deleted} register (snapshot decoding). */
+    void restoreDeleted(OpId node, boolean deleted, OpId op) {
+        deletedFlags.put(node, new Cell<>(deleted, op));
+    }
+
+    /** Restores a sequence element (snapshot decoding). */
+    void restoreElement(OpId node, RegisterPath path, Element element) {
+        elements.computeIfAbsent(node, n -> new HashMap<>()).put(path, element);
+    }
+
+    /** Restores one set member's history (snapshot decoding). */
+    void restoreMember(OpId node, RegisterPath path, MemberEntry entry) {
+        MemberHistory history = history(node, path, entry.member());
+        history.adds.addAll(entry.adds());
+        history.removes.addAll(entry.removes());
+    }
+
+    /** Restores a TEXT field (snapshot decoding); an empty one is not kept. */
+    void restoreText(OpId node, RegisterPath path, TextSequence text) {
+        if (!text.isEmpty()) {
+            texts.computeIfAbsent(node, n -> new HashMap<>()).put(path, text);
+        }
+    }
+
+    /** Restores what is known of a replica (snapshot decoding). */
+    void restoreReplica(long replica, ReplicaState state) {
+        replicaStates.put(replica, state);
+    }
+
+    /** Restores the tree (snapshot decoding). */
+    void restoreTree(Tree restored) {
+        tree = restored;
+    }
+
+    /** The created nodes. */
+    java.util.Set<OpId> createdNodes() {
+        return created.keySet();
+    }
+
     // ---- Hashing
 
     /**
      * The nodes the state hash covers: every created node and every node holding a register, a
-     * {@code deleted} flag, an element or a set member's history.
+     * {@code deleted} flag, an element, a set member's history or a TEXT field.
      */
     public NavigableSet<OpId> nodes() {
         NavigableSet<OpId> nodes = new TreeSet<>(created.keySet());
@@ -311,6 +468,7 @@ public final class NodeStore {
         nodes.addAll(deletedFlags.keySet());
         nodes.addAll(elements.keySet());
         nodes.addAll(sets.keySet());
+        nodes.addAll(texts.keySet());
         return nodes;
     }
 }

@@ -39,16 +39,17 @@ deliveries { order: [1, 2, 2] }
 deliveries { order: [2, 2, 1] }
 deliveries { order: [2, 1, 2] }
 expect {
-  state_hash: "31b95206a4aebf92c477b7ac6f0a0b368d6be5ed012938a0b443c95c440af199"
-  node { id { counter: 1 replica: 7 } node_hash: "84bddb19cfc8e52a96b4205be5f1b4cc5f605bda898cba76616632f75692263b" tree { parent { counter: 4 } position: "\x80" children { counter: 5 replica: 7 } } }
+  state_hash: "384067365d5d5f3ee41a68a5536cadc3ec4e579b684328193f21464ed1687972"
+  snapshot_hash: "3b60f6f308020ed3631def44db757778993d9759df4c5a9ca9584c199759f491"
+  node { id { counter: 1 replica: 7 } node_hash: "08593f05687ca21a7a3f7156778c1a971df0157b5bae992a0f4ca7c748886a57" tree { parent { counter: 4 } position: "\x80" children { counter: 5 replica: 7 } } }
   node {
     id { counter: 2 replica: 7 }
-    node_hash: "7ca9694435edb22e9c72f05f0cc276223a85c3bcf4be6af0896ac35ecaed2033"
+    node_hash: "a0ecbf47e6123465d7544cb6ce34f815b928565ab574c636be60de697934aa5c"
     tree { parent { counter: 4 } position: "\x81" children { counter: 4 replica: 7 } children { counter: 3 replica: 7 } }
   }
   node {
     id { counter: 3 replica: 7 }
-    node_hash: "4b9164c92af97c177b247c2a033498ddae6b88a8befa03004e7324d4ba2e4c50"
+    node_hash: "7f468340f5a4259764ab5c70696231340f5c5a7de1ecd42d5f35b75c79b4fb37"
     tree { parent { counter: 2 replica: 7 } position: "\x81" }
     register {
       path { segments { field: 50 } segments { field: 1 } segments { field: 1 } }

@@ -22,6 +22,16 @@ final class Tree {
     private final Map<OpId, Placement> placements = new HashMap<>();
     private final Map<OpId, Set<OpId>> children = new HashMap<>();
 
+    Tree() {
+    }
+
+    /** A tree as a snapshot holds it: the move log, every placed node's placement, and the created nodes. */
+    Tree(List<MoveLogEntry> log, Map<OpId, Placement> placements, Set<OpId> live) {
+        this.log.addAll(log);
+        this.live.addAll(live);
+        placements.forEach(this::place);
+    }
+
     static boolean isWellKnown(OpId node) {
         return node.replica() == 0 && Long.compareUnsigned(node.counter(), NodeStore.WELL_KNOWN_LIMIT) < 0;
     }

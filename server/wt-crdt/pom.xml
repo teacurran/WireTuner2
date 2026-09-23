@@ -40,6 +40,12 @@
       <groupId>build.buf</groupId>
       <artifactId>protovalidate</artifactId>
     </dependency>
+    <!-- Snapshots are zstd-compressed (docs/spec/crdt-model.adoc, "Snapshots"); the Quarkus BOM
+         manages the version.  WTCRDT vendors the zstd C library for the same frame format. -->
+    <dependency>
+      <groupId>com.github.luben</groupId>
+      <artifactId>zstd-jni</artifactId>
+    </dependency>
     <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter</artifactId>
@@ -85,6 +91,23 @@
             <goals>
               <goal>compile</goal>
             </goals>
+          </execution>
+          <!-- The conformance vector messages (crdt-conformance/schema/vector.proto), for tests
+               that write changes on the test kind in text format as the vectors do. -->
+          <execution>
+            <id>vector-messages</id>
+            <goals>
+              <goal>test-compile</goal>
+            </goals>
+            <configuration>
+              <protoTestSourceRoot>${project.basedir}/../../crdt-conformance/schema</protoTestSourceRoot>
+              <includes combine.self="override">
+                <include>vector.proto</include>
+              </includes>
+              <additionalProtoPathElements>
+                <additionalProtoPathElement>${wtcrdt.proto.root}</additionalProtoPathElement>
+              </additionalProtoPathElements>
+            </configuration>
           </execution>
         </executions>
       </plugin>

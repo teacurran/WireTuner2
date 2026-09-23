@@ -1,3 +1,4 @@
+import Foundation
 import WTProto
 
 /// The address of one register, element or set inside a node: segments from `NodeProps` down,
@@ -37,16 +38,39 @@ public struct RegisterPath: Hashable, Comparable, Sendable, CustomStringConverti
         var out: [UInt8] = []
         out.reserveCapacity(segments.count * 5)
         for segment in segments {
-            switch segment {
-            case .field(let number):
-                out.append(Self.fieldTag)
-                Bytes.u32(number, into: &out)
-            case .element(let id):
-                out.append(Self.elementTag)
-                Bytes.id(id, into: &out)
-            }
+            Self.append(segment, to: &out)
         }
         canonical = out
+    }
+
+    private init(segments: [Segment], canonical: [UInt8]) {
+        self.segments = segments
+        self.canonical = canonical
+    }
+
+    private static func append(_ segment: Segment, to out: inout [UInt8]) {
+        switch segment {
+        case .field(let number):
+            out.append(fieldTag)
+            Bytes.u32(number, into: &out)
+        case .element(let id):
+            out.append(elementTag)
+            Bytes.id(id, into: &out)
+        }
+    }
+
+    private func appending(_ segment: Segment) -> RegisterPath {
+        var out = canonical
+        Self.append(segment, to: &out)
+        return RegisterPath(segments: segments + [segment], canonical: out)
+    }
+
+    public static func == (lhs: RegisterPath, rhs: RegisterPath) -> Bool {
+        lhs.canonical == rhs.canonical
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        canonical.withUnsafeBytes { hasher.combine(bytes: $0) }
     }
 
     /// A path of field numbers, outermost first; at least one.
@@ -94,17 +118,20 @@ public struct RegisterPath: Hashable, Comparable, Sendable, CustomStringConverti
 
     /// This path with `field` appended.
     public func child(_ field: UInt32) -> RegisterPath {
-        RegisterPath(segments: segments + [.field(field)])
+        appending(.field(field))
     }
 
     /// This path with the element segment `id` appended.
     public func element(_ id: OpID) -> RegisterPath {
-        RegisterPath(segments: segments + [.element(id)])
+        appending(.element(id))
     }
 
     /// The path without its last segment, or nil for a one-segment path.
     public var parent: RegisterPath? {
-        segments.count > 1 ? RegisterPath(segments: Array(segments.dropLast())) : nil
+        guard segments.count > 1 else { return nil }
+        let last: Int
+        if case .element = segments.last! { last = 17 } else { last = 5 }
+        return RegisterPath(segments: Array(segments.dropLast()), canonical: Array(canonical.dropLast(last)))
     }
 
     /// The value this path addresses inside an encoded message of the root type (a sparse
@@ -123,7 +150,12 @@ public struct RegisterPath: Hashable, Comparable, Sendable, CustomStringConverti
     }
 
     public static func < (lhs: RegisterPath, rhs: RegisterPath) -> Bool {
-        lhs.canonical.lexicographicallyPrecedes(rhs.canonical)
+        lhs.canonical.withUnsafeBytes { left in
+            rhs.canonical.withUnsafeBytes { right in
+                let order = memcmp(left.baseAddress!, right.baseAddress!, min(left.count, right.count))
+                return order != 0 ? order < 0 : left.count < right.count
+            }
+        }
     }
 
     /// The segments joined by dots, e.g. `150.1.6` or `1000.7.<3:1>.2`.

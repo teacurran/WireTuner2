@@ -29,10 +29,11 @@ setup {
   }
 }
 expect {
-  state_hash: "64f08178fa6fb1af290bb123ac0f9b12d68920853bb7a7261c2435b03bb8892d"
+  state_hash: "1c1a94d9e0a652bddc65e4e24ceb075f9a9a86b0abb9f528569f7095bc0627a5"
+  snapshot_hash: "0de63425b8ee8a2b6b28e14d100a7e9d7d691083c31e77c271e244f573374c26"
   node {
     id { counter: 1 replica: 7 }
-    node_hash: "b524cb073a7e7abb9f10ee99725f8a640c012e36dbcd6e6a120f8d938df90d7e"
+    node_hash: "a61d39437127adb2bf6b5758261c36e6c17224776433c36ad00de9295b63bc46"
     sequence { path { segments { field: 1000 } segments { field: 8 } } elements { counter: 2 replica: 7 } }
     register { path { segments { field: 1000 } segments { field: 8 } segments { element { counter: 2 replica: 7 } } segments { field: 3 } } value { test { stops { color: "b" } } } op { counter: 6 replica: 7 }
       losing { counter: 2 replica: 7 } }

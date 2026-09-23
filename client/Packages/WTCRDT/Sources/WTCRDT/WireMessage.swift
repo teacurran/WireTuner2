@@ -74,6 +74,34 @@ struct WireMessage {
             .map { Self.parse(Array(bytes[$0.payloadStart..<$0.end])) }
     }
 
+    /// The payload of each LEN record of `number`, in order.
+    func payloads(_ number: UInt32) -> [[UInt8]] {
+        fields.filter { $0.number == number && $0.wireType == Self.len }
+            .map { Array(bytes[$0.payloadStart..<$0.end]) }
+    }
+
+    /// The payload of the last LEN record of `number`, or nil when there is none.
+    func lastPayload(_ number: UInt32) -> [UInt8]? {
+        guard let field = fields.last(where: { $0.number == number && $0.wireType == Self.len }) else { return nil }
+        return Array(bytes[field.payloadStart..<field.end])
+    }
+
+    /// The field number of the last record, or nil for an empty message.
+    var lastField: UInt32? { fields.last?.number }
+
+    /// The wire type of the last record, or nil for an empty message.
+    var lastWireType: Int? { fields.last?.wireType }
+
+    /// The value bytes of the last record as on the wire (a VARINT's varint, a fixed value's
+    /// bytes, a LEN record's payload), or nil for an empty message.
+    var lastRecordPayload: [UInt8]? {
+        guard let field = fields.last else { return nil }
+        guard field.wireType == Self.varint else { return Array(bytes[field.payloadStart..<field.end]) }
+        var cursor = Cursor(bytes: Array(bytes[field.start..<field.end]))
+        _ = cursor.varint()  // the tag
+        return Array(cursor.bytes[cursor.pos...])
+    }
+
     /// The protobuf scalar types by the wire type of one unpacked value.
     private static let varintTypes: Set<String> = ["int32", "int64", "uint32", "uint64", "sint32", "sint64", "bool", "enum"]
     private static let fixed64Types: Set<String> = ["fixed64", "sfixed64", "double"]

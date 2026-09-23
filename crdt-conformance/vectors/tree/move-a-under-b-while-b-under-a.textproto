@@ -47,9 +47,10 @@ deliveries { order: [4, 3, 2, 1] }
 deliveries { order: [2, 4, 1, 3] }
 deliveries { order: [3, 1, 4, 2] }
 expect {
-  state_hash: "07b2c812294fabbe6797cb132637a1858f9d7ce4455f193298da50db58aa84c2"
-  node { id { counter: 2 replica: 7 } node_hash: "9298637977ee03614e1b212abd6b366171a5271de768b82844ea314caeebd0c3" tree { parent { counter: 3 replica: 7 } position: "\x80" } }
-  node { id { counter: 3 replica: 7 } node_hash: "e9a11ab5132f70117fb413c2736f4e7e854981693e3689d1c00594b55ce11bf9" tree { parent { counter: 5 replica: 7 } position: "\x80" children { counter: 2 replica: 7 } } }
-  node { id { counter: 5 replica: 7 } node_hash: "2769c40b43aa02e569eb29e3a84e496683165a3fa2d4dabca7c4bc60c3d979ba" tree { parent { counter: 1 replica: 7 } position: "\x82" children { counter: 3 replica: 7 } } }
+  state_hash: "c42b29acfe484fde72e3ce4afd8425a9843914a17f4049ac8a03cc6f011c5d75"
+  snapshot_hash: "2d193dbffc42325aabd967f7a6e82f898d00380b4974093036b0de57542603f0"
+  node { id { counter: 2 replica: 7 } node_hash: "f1d929fc6f6479029bae327742164ef1e6c85dc7612c48c5e66cff1f64a44cfd" tree { parent { counter: 3 replica: 7 } position: "\x80" } }
+  node { id { counter: 3 replica: 7 } node_hash: "82a81e58b6b1f0418824c2f5c4155e5246bbb69fe0dd9495bac158186ab1c572" tree { parent { counter: 5 replica: 7 } position: "\x80" children { counter: 2 replica: 7 } } }
+  node { id { counter: 5 replica: 7 } node_hash: "11ed0cf5fe451494f549882c8b79948f9dd0d909a981419545d88dc339846b0a" tree { parent { counter: 1 replica: 7 } position: "\x82" children { counter: 3 replica: 7 } } }
   node { id { counter: 1 replica: 7 } tree { parent { counter: 4 } position: "\x80" children { counter: 5 replica: 7 } } }
 }

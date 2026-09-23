@@ -26,10 +26,11 @@ replica {
   }
 }
 expect {
-  state_hash: "69fde3122dd93b42e265277c4f58b6838d294418dbc7412b90c4a5992339b350"
+  state_hash: "a958585d749fea658b14956ad02e8610493792d3a05858635656367d55903f26"
+  snapshot_hash: "cea3f3d7c3997b643b0cac6113b48474013dbb976ff349ee2fed3e753ad9adb8"
   node {
     id { counter: 1 replica: 7 }
-    node_hash: "ad4bdc75faa0b2911a8e7ae42a6e2aca6074abc9fbce7007ab77956f7fb8a91b"
+    node_hash: "7e3771007875c2967fcf5c6aeaf41049a28db7f6d1cf8bd911c5fd15eef5f887"
     sequence { path { segments { field: 1000 } segments { field: 8 } }
       elements { counter: 2 replica: 7 } elements { counter: 10 replica: 1 } elements { counter: 11 replica: 1 }
       elements { counter: 3 replica: 7 } elements { counter: 4 replica: 7 } elements { counter: 6 replica: 7 }

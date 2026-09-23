@@ -1,0 +1,38 @@
+# crdt-conformance/vectors/text/scalars-take-one-counter-each.textproto (CRDT-005; schema: crdt-conformance/schema/vector.proto)
+name: "text/scalars-take-one-counter-each"
+description: "A TextInsert takes one counter per Unicode scalar, not per UTF-8 byte or UTF-16 unit: e-acute, an emoji and z take 2:7, 3:7 and 4:7, so the SetFields after them in the same change is 5:7.  A delete of the emoji by id leaves the others; a delete range much longer than the text is matched against its characters."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Type"
+    ops { create { parent { counter: 4 } position: "\x80" props { test { label: "T" } } } }
+    ops { text_insert { node { counter: 1 replica: 7 } text { segments { field: 1000 } segments { field: 9 } } chars: "\u00e9\U0001F600z" } }
+    ops { set { node { counter: 1 replica: 7 } paths { segments { field: 1000 } segments { field: 2 } } values { test { label: "after" } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 6 base_server_seq: 1 label: "Delete text"
+    ops { text_delete { node { counter: 1 replica: 7 } text { segments { field: 1000 } segments { field: 9 } } ranges { first { counter: 3 replica: 7 } count: 1 } } }
+    ops { text_insert { node { counter: 1 replica: 7 } text { segments { field: 1000 } segments { field: 9 } } left_origin { counter: 4 replica: 7 } chars: "!" } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 6 base_server_seq: 1 label: "Delete text"
+    ops { text_delete { node { counter: 1 replica: 7 } text { segments { field: 1000 } segments { field: 9 } } ranges { first { counter: 4 replica: 7 } count: 1000000 } } }
+  }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "996b5fb41056d6270d50eb38c7741b3bb94ba7dc4984bfc909a155c01f51abc8"
+  snapshot_hash: "3cb0cb3855a1f74914f7ea5476304daa9d115fe9f827e715ca0835c6a529e265"
+  node {
+    id { counter: 1 replica: 7 }
+    node_hash: ""
+    register { path { segments { field: 1000 } segments { field: 2 } } value { test { label: "after" } } op { counter: 5 replica: 7 } losing { counter: 1 replica: 7 } }
+    text { path { segments { field: 1000 } segments { field: 9 } } text: "\u00e9!" chars { counter: 2 replica: 7 } chars { counter: 7 replica: 1 } deleted { counter: 3 replica: 7 } deleted { counter: 4 replica: 7 } runs { start: 0 length: 2 } }
+  }
+}

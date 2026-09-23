@@ -27,11 +27,24 @@ let package = Package(
             exclude: ["Generated/SkippedRules.md"],
             resources: [.copy("Generated/MergeTable.json")]
         ),
+        // zstd 1.5.7 (BSD, Meta), vendored as the upstream single-file library
+        // (build/single_file_libs/combine.py over lib/, without dictBuilder and multithreading):
+        // snapshots are zstd-compressed (docs/spec/crdt-model.adoc, "Snapshots") and
+        // Compression.framework has no zstd.  Third-party code: built without coverage
+        // instrumentation so it stays out of the region gate.
+        .target(
+            name: "CZstd",
+            exclude: ["LICENSE"],
+            cSettings: [
+                .unsafeFlags(["-w", "-fno-profile-instr-generate", "-fno-coverage-mapping"]),
+            ]
+        ),
         .target(
             name: "WTCRDT",
             dependencies: [
                 .product(name: "WTProto", package: "WTProto"),
                 "WTCRDTSchema",
+                "CZstd",
             ]
         ),
         .testTarget(

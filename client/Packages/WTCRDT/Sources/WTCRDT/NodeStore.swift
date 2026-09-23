@@ -29,9 +29,18 @@ struct MemberHistory: Sendable {
     var removes: [SetRemoval] = []
 }
 
+/// What the state knows about one replica (`ReplicaState` in doc/v1/snapshot.proto): the highest
+/// change seq applied from it, and the highest server_seq it has acknowledged -- the greatest
+/// `base_server_seq` among its changes, which says everything up to there had reached it.
+public struct ReplicaState: Hashable, Sendable {
+    public internal(set) var seq: UInt64
+    public internal(set) var ackedServerSeq: UInt64
+}
+
 /// The merged state: which nodes exist and of what kind, the node tree, every register keyed by
 /// node and `RegisterPath` with the change log of every write -- winning or losing -- per
-/// register, `deleted` flags, sequence elements and set members.
+/// register, `deleted` flags, sequence elements, set members, TEXT fields and what is known of
+/// each replica.
 public struct NodeStore: Sendable {
     /// Kinds of the well-known nodes that carry properties: document (0:0) and settings (0:1).
     private static let wellKnownKinds: [OpID: UInt32] = [.wellKnown(0): 1, .wellKnown(1): 2]
@@ -53,6 +62,10 @@ public struct NodeStore: Sendable {
     private var sets: [OpID: [RegisterPath: [[UInt8]: MemberHistory]]] = [:]
     /// The server_seq of each sequenced change, by replica and seq.
     private var sequenced: [ChangeKey: UInt64] = [:]
+    /// TEXT fields by node, then by the field's path; only fields holding a character or a mark.
+    private var texts: [OpID: [RegisterPath: TextSequence]] = [:]
+    /// What is known of each replica, by id.
+    private var replicaStates: [UInt64: ReplicaState] = [:]
     /// The node tree and its move log.
     private(set) var tree = Tree()
 
@@ -64,6 +77,11 @@ public struct NodeStore: Sendable {
     /// not exist or is a well-known collection without properties.
     public func kind(_ node: OpID) -> UInt32 {
         created[node] ?? Self.wellKnownKinds[node] ?? 0
+    }
+
+    /// Whether `node` was created by a `CreateNode`.
+    public func isCreated(_ node: OpID) -> Bool {
+        created[node] != nil
     }
 
     /// Whether `node` was created or is a well-known node.
@@ -205,12 +223,15 @@ public struct NodeStore: Sendable {
         sequenced[ChangeKey(replica: replica, seq: seq)] = serverSeq
     }
 
-    /// Records an add of `member` to the set at `path`; replays are ignored.
-    mutating func addMember(_ node: OpID, _ path: RegisterPath, _ member: [UInt8], _ add: SetAddition) {
+    /// Records an add of `member` to the set at `path`; replays are ignored.  Returns whether the
+    /// add is new.
+    @discardableResult
+    mutating func addMember(_ node: OpID, _ path: RegisterPath, _ member: [UInt8], _ add: SetAddition) -> Bool {
         var history = sets[node]?[path]?[member] ?? MemberHistory()
-        guard !history.adds.contains(where: { $0.op == add.op }) else { return }
+        guard !history.adds.contains(where: { $0.op == add.op }) else { return false }
         history.adds.append(add)
         sets[node, default: [:]][path, default: [:]][member] = history
+        return true
     }
 
     /// Records a remove of `member` from the set at `path`; replays are ignored.
@@ -253,11 +274,102 @@ public struct NodeStore: Sendable {
         (sets[node] ?? [:]).keys.filter { !members(node, $0).isEmpty }.sorted()
     }
 
+    // MARK: Text
+
+    /// The TEXT field at `path` of `node`, or nil when it holds nothing.
+    public func text(_ node: OpID, _ path: RegisterPath) -> TextSequence? {
+        texts[node]?[path]
+    }
+
+    /// The paths of the TEXT fields of `node` that hold something, in path order.
+    public func textPaths(_ node: OpID) -> [RegisterPath] {
+        (texts[node] ?? [:]).keys.sorted()
+    }
+
+    /// Whether `path` (a TEXT field's path plus a character id) names a newline character, the
+    /// element that carries its paragraph's registers.
+    func isNewline(_ node: OpID, _ path: RegisterPath) -> Bool {
+        guard case .element(let id)? = path.segments.last, let field = path.parent else { return false }
+        return texts[node]?[field]?.codepoint(id) == 0x0A
+    }
+
+    /// Changes one TEXT field in place, dropping it again if it is left holding nothing.
+    mutating func editText<Result>(_ node: OpID, _ path: RegisterPath, _ edit: (inout TextSequence) -> Result) -> Result {
+        let result = edit(&texts[node, default: [:]][path, default: TextSequence()])
+        if texts[node]![path]!.isEmpty {
+            texts[node]![path] = nil
+            if texts[node]!.isEmpty {
+                texts[node] = nil
+            }
+        }
+        return result
+    }
+
+    // MARK: Replicas
+
+    /// Records that change `seq` of `replica`, made with causal past `baseServerSeq`, was applied.
+    mutating func recordChange(replica: UInt64, seq: UInt64, baseServerSeq: UInt64) {
+        var state = replicaStates[replica] ?? ReplicaState(seq: 0, ackedServerSeq: 0)
+        state.seq = max(state.seq, seq)
+        state.ackedServerSeq = max(state.ackedServerSeq, baseServerSeq)
+        replicaStates[replica] = state
+    }
+
+    /// What is known of `replica`, or nil when no change of it was applied.
+    public func replicaState(_ replica: UInt64) -> ReplicaState? {
+        replicaStates[replica]
+    }
+
+    /// Every replica with an applied change, ascending by id.
+    public var replicas: [(replica: UInt64, state: ReplicaState)] {
+        replicaStates.sorted { $0.key < $1.key }.map { (replica: $0.key, state: $0.value) }
+    }
+
+    /// The server_seq of every sequenced change, ascending by replica then seq.
+    var sequencedChanges: [(replica: UInt64, seq: UInt64, serverSeq: UInt64)] {
+        sequenced.map { (replica: $0.key.replica, seq: $0.key.seq, serverSeq: $0.value) }
+            .sorted { ($0.replica, $0.seq) < ($1.replica, $1.seq) }
+    }
+
+    // MARK: Snapshots
+
+    /// Every set of `node` with any history, in path order; members ascending bytewise, their adds
+    /// and removes ascending by op.
+    func setHistories(_ node: OpID) -> [(path: RegisterPath, members: [(member: [UInt8], history: MemberHistory)])] {
+        (sets[node] ?? [:]).sorted { $0.key < $1.key }.map { path, members in
+            (path: path, members: members.sorted { FractionalIndex.less($0.key, $1.key) }.map { member, history in
+                (member: member, history: MemberHistory(adds: history.adds.sorted { $0.op < $1.op },
+                                                        removes: history.removes.sorted { $0.op < $1.op }))
+            })
+        }
+    }
+
+    /// The pieces of a state as a snapshot holds them (`Snapshot.decode`); the change log starts
+    /// empty.
+    mutating func restore(
+        created: [OpID: UInt32], registers: [OpID: [RegisterPath: Register]], deleted: [OpID: Cell<Bool>],
+        elements: [OpID: [RegisterPath: Element]], sets: [OpID: [RegisterPath: [[UInt8]: MemberHistory]]],
+        texts: [OpID: [RegisterPath: TextSequence]], sequenced: [(replica: UInt64, seq: UInt64, serverSeq: UInt64)],
+        replicas: [UInt64: ReplicaState], tree: Tree
+    ) {
+        self.created = created
+        self.registers = registers
+        deletedFlags = deleted
+        self.elements = elements
+        self.sets = sets
+        self.texts = texts
+        self.sequenced = Dictionary(sequenced.map { (ChangeKey(replica: $0.replica, seq: $0.seq), $0.serverSeq) },
+                                    uniquingKeysWith: { a, _ in a })
+        replicaStates = replicas
+        self.tree = tree
+    }
+
     // MARK: Hashing
 
     /// The nodes the state hash covers, ascending: every created node and every node holding a
-    /// register, a `deleted` flag, an element or a set member's history.
+    /// register, a `deleted` flag, an element, a set member's history or a TEXT field.
     public var nodes: [OpID] {
-        Set(created.keys).union(registers.keys).union(deletedFlags.keys).union(elements.keys).union(sets.keys).sorted()
+        Set(created.keys).union(registers.keys).union(deletedFlags.keys).union(elements.keys).union(sets.keys)
+            .union(texts.keys).sorted()
     }
 }

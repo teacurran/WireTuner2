@@ -114,6 +114,55 @@ final class WireMessage {
         return out;
     }
 
+    /** The payload of each LEN record of {@code number}, in order. */
+    List<byte[]> payloads(int number) {
+        List<byte[]> out = new ArrayList<>();
+        for (Field field : fields) {
+            if (field.number() == number && field.wireType() == LEN) {
+                out.add(Arrays.copyOfRange(bytes, field.payloadStart(), field.end()));
+            }
+        }
+        return out;
+    }
+
+    /** The payload of the last LEN record of {@code number}, or {@code null} when there is none. */
+    byte[] lastPayload(int number) {
+        byte[] found = null;
+        for (Field field : fields) {
+            if (field.number() == number && field.wireType() == LEN) {
+                found = Arrays.copyOfRange(bytes, field.payloadStart(), field.end());
+            }
+        }
+        return found;
+    }
+
+    /** The field number of the last record, or {@code null} for an empty message. */
+    Integer lastField() {
+        return fields.isEmpty() ? null : fields.get(fields.size() - 1).number();
+    }
+
+    /** The wire type of the last record, or {@code null} for an empty message. */
+    Integer lastWireType() {
+        return fields.isEmpty() ? null : fields.get(fields.size() - 1).wireType();
+    }
+
+    /**
+     * The value bytes of the last record as on the wire (a VARINT's varint, a fixed value's bytes,
+     * a LEN record's payload), or {@code null} for an empty message.
+     */
+    byte[] lastRecordPayload() {
+        if (fields.isEmpty()) {
+            return null;
+        }
+        Field field = fields.get(fields.size() - 1);
+        if (field.wireType() != VARINT) {
+            return Arrays.copyOfRange(bytes, field.payloadStart(), field.end());
+        }
+        Cursor cursor = new Cursor(Arrays.copyOfRange(bytes, field.start(), field.end()));
+        cursor.varint(); // the tag
+        return Arrays.copyOfRange(cursor.bytes, cursor.pos, cursor.bytes.length);
+    }
+
     private static final Set<String> VARINT_TYPES = Set.of("int32", "int64", "uint32", "uint64", "sint32", "sint64", "bool", "enum");
     private static final Set<String> FIXED64_TYPES = Set.of("fixed64", "sfixed64", "double");
     private static final Set<String> FIXED32_TYPES = Set.of("fixed32", "sfixed32", "float");

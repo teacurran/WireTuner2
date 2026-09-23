@@ -178,7 +178,8 @@ import WTProto
 @Suite struct StateHashTests {
     static let node = OpID(counter: 1, replica: 7)
 
-    /// A node with a placement, a deleted flag, a register, an element and a set member.
+    /// A node with a placement, a deleted flag, a register, an element, a set member and a text
+    /// (two characters, one deleted, and a mark).
     static func sample() -> NodeStore {
         var store = NodeStore()
         _ = store.create(node, kind: 1000)
@@ -189,6 +190,12 @@ import WTProto
         _ = store.insertElement(node, stop, position: [0x80], op: OpID(counter: 3, replica: 1))
         store.deleteElement(node, stop, deleted: true, op: OpID(counter: 4, replica: 1))
         store.addMember(node, RegisterPath([1000, 3]), [0x61], SetAddition(op: OpID(counter: 6, replica: 1), seq: 1))
+        store.editText(node, RegisterPath([1000, 9])) { text in
+            text.insert([0x61, 0x62], first: OpID(counter: 7, replica: 1), left: .zero, right: .zero)
+            text.delete(OpID(counter: 8, replica: 1), op: OpID(counter: 9, replica: 1))
+            text.mark(TextMark(id: OpID(counter: 10, replica: 1), start: Anchor(char: OpID(counter: 7, replica: 1), before: true),
+                               end: .end, value: [0xF0, 0x01, 0x01], key: MarkKey(field: 30)))
+        }
         return store
     }
 
@@ -212,12 +219,24 @@ import WTProto
             + "0000000a" + "01000003e8" + "0100000003"                                  //   1000.3
             + "00000001" + "00000001" + "61"                                             //   member "a"
             + "00000001" + "0000000000000006" + "0000000000000001"                      //   tag 6:1
+            + "00000001"                                                                 // one text
+            + "0000000a" + "01000003e8" + "0100000009" + "00000002"                     //   1000.9, two chars
+            + "0000000000000007" + "0000000000000001" + "00000061"                      //   7:1 "a"
+            + String(repeating: "0", count: 64) + "00"                                   //   from the start to the end, live
+            + "0000000000000008" + "0000000000000001" + "00000062"                      //   8:1 "b"
+            + "0000000000000007" + "0000000000000001" + String(repeating: "0", count: 32)   //   after 7:1
+            + "01" + "0000000000000009" + "0000000000000001"                            //   deleted @9:1
+            + "00000001"                                                                 //   one mark
+            + "000000000000000a" + "0000000000000001"                                   //   10:1
+            + "0000000000000007" + "0000000000000001" + "01"                            //   before 7:1
+            + String(repeating: "0", count: 32) + "00"                                   //   to the end
+            + "00000003" + "f00101"                                                      //   bold
         #expect(StateHash.hex(StateHash.encode(Self.sample(), Self.node)) == expected)
     }
 
     @Test func pinnedHashesMatchTheJavaEngine() {
-        #expect(StateHash.hex(StateHash.of(Self.sample())) == "fa626e18065a8a8bf711f66463d4aad23da553c67909eb15af84f9aa60137674")
+        #expect(StateHash.hex(StateHash.of(Self.sample())) == "4004fb1fa0af4aa95f482c4f549107a9298978111af99879d0a1e7e99a22f3e6")
         #expect(StateHash.hex(StateHash.of(Self.sample(), node: Self.node))
-            == "7297a45276ef41d03f6356188e303a3fed4178d6bf0dba2930f6d6da2a9c71fc")
+            == "8868c0597b66c5609243bea2afe1712b6cf2cdd9ef849fba2e2ea2caea69e3b7")
     }
 }

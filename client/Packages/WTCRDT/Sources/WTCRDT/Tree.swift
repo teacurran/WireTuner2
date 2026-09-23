@@ -48,6 +48,19 @@ struct Tree: Sendable {
     private var placements: [OpID: Placement] = [:]
     private var children: [OpID: Set<OpID>] = [:]
 
+    init() {}
+
+    /// A tree as a snapshot holds it: the move log, every placed node's placement, and the nodes
+    /// that exist (every created node).
+    init(log: [MoveLogEntry], placements: [OpID: Placement], live: Set<OpID>) {
+        self.log = log
+        self.live = live
+        self.placements = placements
+        for (node, placement) in placements {
+            children[placement.parent, default: []].insert(node)
+        }
+    }
+
     static func isWellKnown(_ node: OpID) -> Bool {
         node.replica == 0 && node.counter < NodeStore.wellKnownLimit
     }

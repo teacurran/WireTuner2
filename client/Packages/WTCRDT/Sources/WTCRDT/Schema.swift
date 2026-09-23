@@ -85,6 +85,15 @@ public struct Schema: Sendable {
         (messages[message] ?? [:]).values.sorted { $0.fieldNumber < $1.fieldNumber }
     }
 
+    /// The field of the `TextMarkValue` a TEXT field's marks carry that is keyed by its `tag` as
+    /// well as its case (the `feature` case, CRDT-006), or nil.  Found through the table as
+    /// `RichText.marks` (2) -> `TextMark.value` (4) -> the row named `feature`.
+    public func featureField(text row: FieldPolicy) -> UInt32? {
+        guard let richText = row.typeName, let mark = field(richText, 2)?.typeName,
+              let value = field(mark, 4)?.typeName else { return nil }
+        return fields(value).first { $0.name == "feature" }.map { UInt32($0.fieldNumber) }
+    }
+
     /// The variant declaration of `message`, or nil when it is not a variant.
     public func variant(_ message: String) -> VariantPolicy? {
         variants[message]

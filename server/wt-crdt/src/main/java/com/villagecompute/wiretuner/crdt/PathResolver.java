@@ -23,12 +23,15 @@ import java.util.function.Predicate;
  *   <li>beneath a MERGE_VARIANT message present in {@code values}, only the case messages present
  *       are written; a variant being cleared clears every case;</li>
  *   <li>a SEQUENCE field is entered only through an element segment naming an element that
- *       exists; its elements, a SET field's members and a TEXT field merge by their own ops;</li>
+ *       exists, and a TEXT field only through one naming a newline character (its paragraph
+ *       registers, CRDT-006); elements, characters, marks and a SET field's members merge by
+ *       their own ops;</li>
  *   <li>anything else makes the path a no-op.</li>
  * </ul>
  *
  * <p>Element segments are transparent in {@code values}: the sparse message holds, at a SEQUENCE
- * field, only the element the path names.
+ * field, only the element the path names, and at a TEXT field a {@code RichText} whose
+ * {@code chars} hold only the character the path names.
  */
 final class PathResolver {
 
@@ -36,13 +39,26 @@ final class PathResolver {
     record Assignment(RegisterPath path, byte[] value) {
     }
 
-    /** Where a path ends: at a field ({@code row} set) or at an existing element ({@code message} set). */
-    record Target(RegisterPath path, FieldPolicy row, String message, WireMessage value) {
+    /**
+     * Where a path ends: at a field ({@code row} set) or at an existing element ({@code message}
+     * set, with {@code reserved} the highest field number the engine owns in it: 1 for a sequence
+     * element, 5 for a character).
+     */
+    record Target(RegisterPath path, FieldPolicy row, String message, WireMessage value, int reserved) {
 
         boolean isField() {
             return row != null;
         }
     }
+
+    /** Engine-owned fields of a sequence element: its {@code id}. */
+    static final int ELEMENT_RESERVED = 1;
+
+    /** Engine-owned fields of a character: id, codepoint, deleted, left and right origin. */
+    static final int CHAR_RESERVED = 5;
+
+    /** {@code RichText.chars}: the field of a TEXT field's message holding its characters. */
+    static final int CHARS_FIELD = 1;
 
     private final Schema schema;
 
@@ -63,33 +79,41 @@ final class PathResolver {
         List<RegisterPath.Segment> segments = full.segments();
         String message = Schema.ROOT;
         WireMessage current = values;
-        boolean inElement = false;
-        FieldPolicy sequence = null;
-        Target target = null;
-        for (int index = 0; index < segments.size() && target == null; index++) {
+        int reserved = 0;
+        FieldPolicy container = null;
+        for (int index = 0; index < segments.size(); index++) {
             RegisterPath at = RegisterPath.of(segments.subList(0, index + 1));
             boolean last = index == segments.size() - 1;
             RegisterPath.Segment segment = segments.get(index);
             if (segment.isElement()) {
-                if (sequence == null || !elementExists.test(at)) {
+                if (container == null || !elementExists.test(at)) {
                     return null;
                 }
-                message = sequence.typeName();
-                sequence = null;
-                inElement = true;
+                if (container.policy() == Policy.TEXT) {
+                    FieldPolicy chars = schema.field(container.typeName(), CHARS_FIELD);
+                    if (chars == null || chars.typeName() == null) {
+                        return null;
+                    }
+                    message = chars.typeName();
+                    reserved = CHAR_RESERVED;
+                    current = current == null ? null : current.message(CHARS_FIELD);
+                } else {
+                    message = container.typeName();
+                    reserved = ELEMENT_RESERVED;
+                }
+                container = null;
                 if (last) {
-                    target = new Target(at, null, message, current);
+                    return new Target(at, null, message, current, reserved);
                 }
                 continue;
             }
             int number = segment.field();
-            FieldPolicy row = sequence == null ? schema.field(message, number) : null;
-            if (row == null || inElement && number == 1) {
+            FieldPolicy row = container == null ? schema.field(message, number) : null;
+            if (row == null || Integer.compareUnsigned(number, reserved) <= 0) {
                 return null;
             }
             if (last) {
-                target = new Target(at, row, null, current);
-                continue;
+                return new Target(at, row, null, current, 0);
             }
             if (row.typeName() == null || row.repeated() && row.policy() != Policy.SEQUENCE) {
                 return null;
@@ -97,16 +121,16 @@ final class PathResolver {
             switch (row.policy()) {
                 case STRUCT, VARIANT -> {
                     message = row.typeName();
-                    inElement = false;
+                    reserved = 0;
                 }
-                case SEQUENCE -> sequence = row;
+                case SEQUENCE, TEXT -> container = row;
                 default -> {
                     return null;
                 }
             }
             current = current == null ? null : current.message(number);
         }
-        return target;
+        return null;
     }
 
     /**
@@ -120,7 +144,7 @@ final class PathResolver {
         }
         List<Assignment> out = new ArrayList<>();
         if (!target.isField()) {
-            expand(target.message(), target.path(), target.value(), true, true, new HashSet<>(), out);
+            expand(target.message(), target.path(), target.value(), true, target.reserved(), new HashSet<>(), out);
             return out;
         }
         FieldPolicy row = target.row();
@@ -132,7 +156,7 @@ final class PathResolver {
         if (!isStruct(row)) {
             return null;
         }
-        expand(row.typeName(), target.path(), container == null ? null : container.message(number), true, false,
+        expand(row.typeName(), target.path(), container == null ? null : container.message(number), true, 0,
                 new HashSet<>(), out);
         return out;
     }
@@ -141,14 +165,14 @@ final class PathResolver {
     List<Assignment> initial(int kind, WireMessage props) {
         FieldPolicy row = schema.field(Schema.ROOT, kind);
         List<Assignment> out = new ArrayList<>();
-        expand(row.typeName(), RegisterPath.of(kind), props.message(kind), false, false, new HashSet<>(), out);
+        expand(row.typeName(), RegisterPath.of(kind), props.message(kind), false, 0, new HashSet<>(), out);
         return out;
     }
 
     /** The registers a new element's values set: every leaf present except its id. */
     List<Assignment> initialElement(String message, RegisterPath path, WireMessage values) {
         List<Assignment> out = new ArrayList<>();
-        expand(message, path, values, false, true, new HashSet<>(), out);
+        expand(message, path, values, false, ELEMENT_RESERVED, new HashSet<>(), out);
         return out;
     }
 
@@ -168,7 +192,7 @@ final class PathResolver {
      * already on the current branch is not entered again.
      */
     private void expand(String message, RegisterPath prefix, WireMessage value, boolean absentAsUnset,
-            boolean inElement, Set<String> branch, List<Assignment> out) {
+            int reserved, Set<String> branch, List<Assignment> out) {
         if (!absentAsUnset && value == null || !branch.add(message)) {
             return;
         }
@@ -179,7 +203,7 @@ final class PathResolver {
             boolean skippedCase = variant != null && value != null && !present
                     && variant.caseFields().contains(number);
             boolean register = row.policy() == Policy.ATOMIC || isStruct(row);
-            if (inElement && number == 1 || !register || skippedCase || !absentAsUnset && !present) {
+            if (Integer.compareUnsigned(number, reserved) <= 0 || !register || skippedCase || !absentAsUnset && !present) {
                 continue;
             }
             RegisterPath path = prefix.child(number);
@@ -187,7 +211,7 @@ final class PathResolver {
                 out.add(new Assignment(path, records(value, number)));
             } else {
                 WireMessage sub = value == null ? null : value.message(number);
-                expand(row.typeName(), path, sub, absentAsUnset, false, branch, out);
+                expand(row.typeName(), path, sub, absentAsUnset, 0, branch, out);
             }
         }
         branch.remove(message);
