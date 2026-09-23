@@ -33,7 +33,7 @@ class SchemaTest {
             "share_link_use", "branch", "version", "document_search", "replica", "change_log", "snapshot",
             "cold_segment", "blob", "document_blob", "folder", "document_invite", "access_request", "data_credential",
             "data_allowed_host", "data_fetch_audit", "library", "comment_thread", "comment", "comment_read",
-            "comment_notification", "publish", "publish_file", "change_node", "node_name");
+            "comment_notification", "publish", "publish_file", "change_node", "node_name", "history_backfill");
 
     @Inject
     Flyway flyway;
@@ -42,8 +42,8 @@ class SchemaTest {
     DataSource dataSource;
 
     @Test
-    void flywayReachedV11() {
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("11");
+    void flywayReachedV12() {
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("12");
         assertThat(flyway.info().pending()).isEmpty();
     }
 

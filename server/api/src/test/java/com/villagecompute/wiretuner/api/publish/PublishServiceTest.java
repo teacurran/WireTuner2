@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -23,6 +24,8 @@ import java.util.concurrent.Future;
 import org.junit.jupiter.api.Test;
 
 import com.google.protobuf.ByteString;
+import com.villagecompute.wiretuner.api.PerfReport;
+import com.villagecompute.wiretuner.api.PerfTest;
 import com.villagecompute.wiretuner.api.TestUsers;
 import com.villagecompute.wiretuner.api.blob.BlobStore;
 import com.villagecompute.wiretuner.api.grpc.ErrorReasons;
@@ -279,30 +282,65 @@ class PublishServiceTest extends SyncTestSupport {
 
     // ---------------------------------------------------------------------------------- load
 
+    /** Every build: ten viewers at once each read the whole 200-file bundle, and every file is its own bytes. */
     @Test
+    void aTwoHundredFileBundleServesConcurrentViewersTheirFiles() throws Exception {
+        UUID doc = bundle();
+        List<Long> latencies = view(doc, 10);
+        assertThat(latencies).hasSize(10 * PAGES);
+    }
+
+    /** The perf run: 100 viewers, 200 requests each; the p95 is within 200 ms (WEB-012). */
+    @PerfTest
     void aTwoHundredFileBundleServesAHundredViewersQuickly() throws Exception {
+        UUID doc = bundle();
+        List<Long> sorted = new ArrayList<>(view(doc, 100));
+        Collections.sort(sorted);
+        long p95 = sorted.get((int) (sorted.size() * 0.95));
+        PerfReport.measured("Published 200-file bundle, 100 viewers, p95 (WEB-012)",
+                String.format(Locale.ROOT, "%.1f ms over %d requests", p95 / 1e6, sorted.size()), "< 200 ms",
+                p95 < P95_BUDGET_NANOS);
+        assertThat(p95).isLessThan(P95_BUDGET_NANOS);
+    }
+
+    static final int PAGES = 200;
+    static final long P95_BUDGET_NANOS = 200_000_000L;
+
+    /** A document published to anyone with the link with {@link #PAGES} SVG files, one read already. */
+    private UUID bundle() throws Exception {
         UUID doc = document(ALICE);
         List<PublishFile> files = new ArrayList<>();
-        for (int i = 0; i < 200; i++) {
-            files.add(file("pages/page-" + i + ".svg", blob(doc, "<svg>" + i + " " + doc + "</svg>", "image/svg+xml"),
-                    "image/svg+xml"));
+        for (int i = 0; i < PAGES; i++) {
+            files.add(file("pages/page-" + i + ".svg", blob(doc, page(doc, i), "image/svg+xml"), "image/svg+xml"));
         }
         create(ALICE, request(doc).setAccess(PublishAccess.PUBLISH_ACCESS_ANYONE_WITH_LINK)
                 .setManifest(PublishManifest.newBuilder().addAllFiles(files)));
         get("/d/" + doc + "/pages/page-0.svg");
+        return doc;
+    }
 
+    private static String page(UUID doc, int i) {
+        return "<svg>" + i + " " + doc + "</svg>";
+    }
+
+    /**
+     * {@code viewers} concurrent viewers each read every page once, starting at their own; each response is
+     * the page's bytes. The result is every request's latency.
+     */
+    private List<Long> view(UUID doc, int viewers) throws Exception {
         List<Long> latencies = Collections.synchronizedList(new ArrayList<>());
-        try (ExecutorService viewers = Executors.newFixedThreadPool(100)) {
+        try (ExecutorService pool = Executors.newFixedThreadPool(viewers)) {
             List<Future<?>> running = new ArrayList<>();
-            for (int v = 0; v < 100; v++) {
+            for (int v = 0; v < viewers; v++) {
                 int viewer = v;
-                running.add(viewers.submit(() -> {
-                    for (int i = 0; i < 200; i++) {
-                        int page = (i + viewer) % 200;
+                running.add(pool.submit(() -> {
+                    for (int i = 0; i < PAGES; i++) {
+                        int page = (i + viewer) % PAGES;
                         long started = System.nanoTime();
                         HttpResponse<String> response = get("/d/" + doc + "/pages/page-" + page + ".svg");
                         latencies.add(System.nanoTime() - started);
                         assertThat(response.statusCode()).isEqualTo(200);
+                        assertThat(response.body()).isEqualTo(page(doc, page));
                     }
                     return null;
                 }));
@@ -311,10 +349,6 @@ class PublishServiceTest extends SyncTestSupport {
                 future.get();
             }
         }
-        List<Long> sorted = new ArrayList<>(latencies);
-        Collections.sort(sorted);
-        long p95 = sorted.get((int) (sorted.size() * 0.95));
-        System.out.printf("WEB-012 load: %d requests from 100 viewers, p95 %.1f ms%n", sorted.size(), p95 / 1e6);
-        assertThat(p95).isLessThan(200_000_000L);
+        return latencies;
     }
 }

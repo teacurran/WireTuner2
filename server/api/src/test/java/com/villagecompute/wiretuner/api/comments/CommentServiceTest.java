@@ -27,6 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -57,6 +58,8 @@ import com.villagecompute.wiretuner.sync.v1.DocumentEvent;
 import com.villagecompute.wiretuner.sync.v1.PushChangeRequest;
 import com.villagecompute.wiretuner.sync.v1.SequencedChange;
 import com.villagecompute.wiretuner.sync.v1.ServerFrame.FrameCase;
+import com.villagecompute.wiretuner.api.PerfReport;
+import com.villagecompute.wiretuner.api.PerfTest;
 
 import io.grpc.Status;
 import io.quarkus.grpc.GrpcClient;
@@ -155,6 +158,20 @@ class CommentServiceTest extends SyncTestSupport {
 
     @Test
     void mentionsRepliesAndResolvesNotifyAndReachLiveSessions() {
+        mentionsAndReplies();
+    }
+
+    /** The perf run: a mention reaches the mentioned person's live session within a second (COLLAB-030). */
+    @PerfTest
+    void aMentionReachesTheLiveSessionWithinASecond() {
+        long elapsed = mentionsAndReplies();
+        PerfReport.measured("Mention to a live session (COLLAB-030)",
+                String.format(Locale.ROOT, "%.0f ms", elapsed / 1e6), "< 1000 ms",
+                elapsed < TimeUnit.MILLISECONDS.toNanos(1000));
+        assertThat(elapsed).isLessThan(TimeUnit.MILLISECONDS.toNanos(1000));
+    }
+
+    private long mentionsAndReplies() {
         UUID doc = shared();
         UUID team = team(erin, "viewer");
         teamMember(team, dave, "member");
@@ -167,7 +184,7 @@ class CommentServiceTest extends SyncTestSupport {
         long started = System.nanoTime();
         push(CAROL, doc, thread(carols, 1, 100, bob.toString(), "team:" + team, "not-an-account", carol.toString()));
         DocumentEvent mentioned = commentEvent(bobs);
-        assertThat(System.nanoTime() - started).isLessThan(TimeUnit.SECONDS.toNanos(1));
+        long elapsed = System.nanoTime() - started;
         assertThat(mentioned.getComment().getKind()).isEqualTo(CommentEventKind.COMMENT_EVENT_KIND_MENTION);
         assertThat(mentioned.getComment().getThread()).isEqualTo(thread.opId());
         assertThat(mentioned.getComment().getComment()).isEqualTo(opening.elementId());
@@ -208,6 +225,7 @@ class CommentServiceTest extends SyncTestSupport {
         push(ALICE, doc, changeOf(alices, 2, 790, resolve(thread, true)));
         assertThat(value("SELECT resolved FROM comment_thread WHERE document_id = ?", doc)).isEqualTo(false);
         bobs.cancel();
+        return elapsed;
     }
 
     @Test
@@ -295,7 +313,21 @@ class CommentServiceTest extends SyncTestSupport {
     // ------------------------------------------------------------------------------ CommentService
 
     @Test
-    void unreadCountsOthersLiveCommentsPastTheMarkAndIsFast() {
+    void unreadCountsOthersLiveCommentsPastTheMark() {
+        unreadPastTheMark();
+    }
+
+    /** The perf run: GetUnread over 1,000 comments with a mark at 990 answers within 50 ms, warm (COLLAB-030). */
+    @PerfTest
+    void getUnreadWithAThousandCommentsIsFast() {
+        long elapsed = unreadPastTheMark();
+        PerfReport.measured("GetUnread, 1,000 comments, mark at 990 (COLLAB-030)",
+                String.format(Locale.ROOT, "%.0f ms", elapsed / 1e6), "< 50 ms",
+                elapsed < TimeUnit.MILLISECONDS.toNanos(50));
+        assertThat(elapsed).isLessThan(TimeUnit.MILLISECONDS.toNanos(50));
+    }
+
+    private long unreadPastTheMark() {
         UUID doc = shared();
         long carols = replicaId();
         Id thread = new Id(100, carols);
@@ -323,7 +355,6 @@ class CommentServiceTest extends SyncTestSupport {
         assertThat(rest.getTotal()).isEqualTo(10);
         assertThat(rest.getThreads(0).getUnreadList()).first().isEqualTo(new Id(1990, alices).elementId());
         assertThat(rest.getThreads(0).getMentionsMe()).isFalse();
-        assertThat(elapsed).as("GetUnread with a mark at 990 of 1,000").isLessThan(TimeUnit.MILLISECONDS.toNanos(50));
         // A lower mark never lowers the stored one.
         markRead(BOB, doc, thread, new Id(1, alices));
         assertThat(unread(BOB, doc).getTotal()).isEqualTo(10);
@@ -334,6 +365,7 @@ class CommentServiceTest extends SyncTestSupport {
         assertThat(unread(ALICE, doc).getTotal()).isZero();
         assertThat(unread(CAROL, doc).getTotal()).isEqualTo(1000);
         assertFails(() -> unread(ERIN, doc), Status.Code.NOT_FOUND, ErrorReasons.DOCUMENT_NOT_FOUND);
+        return elapsed;
     }
 
     @Test

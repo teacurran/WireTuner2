@@ -370,6 +370,7 @@ class SubscribeTest extends SyncTestSupport {
         assertThat(seenByBob.getColorIndex()).isZero();
 
         long carolReplica = replicaId();
+        long updated = System.currentTimeMillis();
         blocking(CAROL, null).updatePresence(UpdatePresenceRequest.newBuilder().setDocumentId(doc.toString())
                 .setReplica(carolReplica).setPresence(tool("hand").toBuilder()
                         .setBranchId(UUID.randomUUID().toString()).setSession(99)).build());
@@ -382,7 +383,8 @@ class SubscribeTest extends SyncTestSupport {
         assertThat(carols.getColorIndex()).isEqualTo(2);
         long deadline = redis.send(Request.cmd(Command.ZSCORE).arg(PresenceStore.deadlines(doc))
                 .arg(PresenceStore.member(doc, carolReplica))).await().atMost(WAIT).toLong();
-        assertThat(deadline - System.currentTimeMillis()).isBetween(1L, 3_000L);
+        // The 3 s test TTL from the update: a bound on the stored deadline, however long the calls took.
+        assertThat(deadline).isBetween(updated + 3_000L, System.currentTimeMillis() + 3_000L);
 
         blocking(CAROL, null).updatePresence(UpdatePresenceRequest.newBuilder().setDocumentId(doc.toString())
                 .setReplica(carolReplica).setPresence(PresenceUpdate.newBuilder()

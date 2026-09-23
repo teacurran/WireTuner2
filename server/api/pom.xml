@@ -180,6 +180,10 @@
       <plugin>
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
+          <!-- Performance budgets (@PerfTest, JUnit tag "perf") are not part of the default build:
+               a loaded machine would fail them for no fault of the code. The perf profile below
+               runs them (docs/spec/testing.adoc, Performance gates). -->
+          <excludedGroups>perf</excludedGroups>
           <systemPropertyVariables>
             <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>
             <!-- quarkus-jacoco reads these from the test JVM's system properties (Quarkus
@@ -251,4 +255,29 @@
       </plugin>
     </plugins>
   </build>
+
+  <profiles>
+    <!-- Performance budgets (docs/spec/testing.adoc, Performance gates): `./mvnw -Pperf -pl api -am
+         verify -Dgroups=perf` runs the @PerfTest methods only. Each skips itself, with the load it
+         measured, on a machine loaded past 1.5 x its cores (LoadGuard; -Dwt.perf.load-factor=0 turns
+         that off), and writes its figure to target/perf-results.md, which the CI perf job puts in the
+         job summary. The coverage gate does not apply to this run: it is taken over the default suite. -->
+    <profile>
+      <id>perf</id>
+      <build>
+        <plugins>
+          <plugin>
+            <artifactId>maven-surefire-plugin</artifactId>
+            <configuration>
+              <groups>perf</groups>
+              <excludedGroups combine.self="override" />
+              <systemPropertyVariables>
+                <wt.perf.report>${project.build.directory}/perf-results.md</wt.perf.report>
+              </systemPropertyVariables>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
 </project>

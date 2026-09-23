@@ -7,6 +7,7 @@ import static com.villagecompute.wiretuner.api.TestUsers.DAVE;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Duration;
+import java.util.Locale;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -37,6 +38,8 @@ import com.villagecompute.wiretuner.sync.v1.DocumentEvent;
 import com.villagecompute.wiretuner.sync.v1.PushChangeRequest;
 import com.villagecompute.wiretuner.sync.v1.ServerFrame;
 import com.villagecompute.wiretuner.sync.v1.ServerFrame.FrameCase;
+import com.villagecompute.wiretuner.api.PerfReport;
+import com.villagecompute.wiretuner.api.PerfTest;
 
 import io.grpc.Status;
 import io.quarkus.grpc.GrpcClient;
@@ -167,6 +170,20 @@ public class TeamAccessTest extends SyncTestSupport {
 
     @Test
     void loweringTheTeamAccessReachesLiveSessionsAndRefusesTheNextPush() {
+        lowerTeamAccess();
+    }
+
+    /** The perf run: the lowered access reaches the session within a second (COLLAB-011). */
+    @PerfTest
+    void loweringTheTeamAccessReachesLiveSessionsWithinASecond() {
+        long elapsed = lowerTeamAccess();
+        PerfReport.measured("Team access change to a live session (COLLAB-011)",
+                String.format(Locale.ROOT, "%.0f ms", elapsed / 1e6), "< 1000 ms",
+                elapsed < TimeUnit.MILLISECONDS.toNanos(1000));
+        assertThat(elapsed).isLessThan(TimeUnit.MILLISECONDS.toNanos(1000));
+    }
+
+    private long lowerTeamAccess() {
         Setup s = teamDoc("editor");
         long replica = replicaId();
         Subscription bobs = watching(BOB, s.doc());
@@ -176,7 +193,7 @@ public class TeamAccessTest extends SyncTestSupport {
         long started = System.nanoTime();
         setTeamAccess(ALICE, s.doc(), VIEWER);
         DocumentEvent changed = event(bobs, DocumentEvent.EventCase.ROLE_CHANGED);
-        assertThat(System.nanoTime() - started).isLessThan(TimeUnit.SECONDS.toNanos(1));
+        long elapsed = System.nanoTime() - started;
         assertThat(changed.getRoleChanged().getRole()).isEqualTo(VIEWER);
         assertThat(changed.getRoleChanged().getActor().getUserId()).isEqualTo(alice.toString());
         assertFails(() -> push(BOB, s.doc(), replica, 2), Status.Code.PERMISSION_DENIED, ErrorReasons.ROLE_INSUFFICIENT);
@@ -184,6 +201,7 @@ public class TeamAccessTest extends SyncTestSupport {
                 .isEqualTo(alice.toString());
         bobs.cancel();
         alices.cancel();
+        return elapsed;
     }
 
     // ------------------------------------------------------------------------------ TeamService

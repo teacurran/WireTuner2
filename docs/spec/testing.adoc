@@ -237,6 +237,16 @@ that run through REND-007's parity like the rest: text effects in Preview and in
 effects' groups hidden), overprinting glyphs under overprint preview, and greeking by device pixel
 size (not compared with PDF, which never greeks); the fill-rule self-test counts the effects cases
 among those whose rules decide pixels, since a `RoundOutline` region's polygons overlap.
++
+NOTE: As built by the derived-drawing render tasks (`WTRenderTests/Support/FeatureCorpus.swift`).  Fifteen
+golden-corpus cases -- layer rules on screen, in a fast mode and for output; symbol instances and
+every override kind; each chart type with its options and pictographs; connector routes; barcodes
+-- run through the goldens and REND-007's parity like the rest (the keyline-layer case compares
+bitmap and PDF at 1× only, for its hairlines).  Plates have their own references:
+`PlateTests.platesMatchTheirReferences` renders four process plates of four lists at 2× and holds
+them to `Goldens/plates*-<ink>@2x.png` (exact in flat areas, 16/255 on edges); each halftone shape
+has a 1-bit reference tile (`Goldens/screen-<shape>@1200dpi.png`, exact).  The screener, instance,
+chart, connector and animation budgets are enforced in release builds only and reported in debug.
 
 == Import and export
 
@@ -463,6 +473,51 @@ CI fails when any of these regress by more than 20% against the stored baseline:
 |Divergence measurement, design-point document |200 ms
 |Server ingest, single document |2,000 changes/s
 |===
+
+[[perf-runs]]
+=== Where budgets run
+
+A test that times something asserts two different things: that the work is right (dense
+`server_seq`, the right bytes, the event arrives) and that it was fast enough.  Only the first is a
+property of the code alone; the second is also a property of the machine, and a shared, loaded
+machine fails it for no fault of the code.  So the two are kept apart:
+
+* *Correctness in every build.*  A performance scenario's functional assertions run in the
+  default suite, at a smaller volume where the volume is only there for timing (the ingest
+  scenario pushes 2,000 changes rather than 20,000; ten viewers read the published bundle rather
+  than 100).  The coverage gate is taken over this suite.
+* *Budgets in the perf job and on idle machines.*  Every timing assertion is a `@PerfTest`
+  (JUnit tag `perf`), which the default surefire run excludes and the `perf` Maven profile
+  selects: `cd server && ./mvnw -Pperf -pl api -am verify -Dgroups=perf`.  Each writes its figure
+  (measure, measured value, budget, met or missed) to `api/target/perf-results.md`.  The `perf`
+  job of `.github/workflows/server.yml` runs it after `verify`, copies that table into the job
+  summary, and fails only on a missed budget.
+* *Skipped with the reason under load.*  Before it runs, a `@PerfTest` reads the one-minute load
+  average (`getloadavg`); above 1.5 times the machine's cores it is skipped with the measured load
+  as the reason -- "load 97.2 over 18.0 (12 cores x 1.5)" -- and listed as skipped in the table.
+  A loaded machine yields a skip, never a false failure.  `-Dwt.perf.load-factor=0` turns the
+  guard off to see the figures anyway.
+
+The server's budgets, each a `@PerfTest` beside the default-run test that checks the same scenario:
+
+[cols="3,1,2"]
+|===
+|Measure |Budget |Test
+
+|Server ingest, single document: 8 replicas pipelining 32 pushes each, 20,000 changes (SRV-004) |2,000 changes/s |`IngestLoadTest`
+|A published 200-file bundle read by 100 concurrent viewers, 200 requests each, p95 (WEB-012) |200 ms |`PublishServiceTest`
+|A role change reaches the person's live session (SRV-010) |1 s |`ShareEventsTest`
+|A lowered team access reaches a live session (COLLAB-011) |1 s |`TeamAccessTest`
+|A mention reaches the mentioned person's live session (COLLAB-030) |1 s |`CommentServiceTest`
+|`GetUnread` over 1,000 comments with the mark at 990, warm (COLLAB-030) |50 ms |`CommentServiceTest`
+|A crashed client's presence is gone, 3 s test TTL (SRV-012) |6 s |`PresenceTest`
+|===
+
+As built (server): each figure is held to its absolute budget; the 20% regression check against a
+stored baseline above is not built for the server (there is no baseline store).  The figures are
+taken with JaCoCo's agent on, as in the default build.  `wt-crdt`'s `PerformanceTest` and
+`TreeFuzzTest` still carry loose timing bounds (1 ms per text insert, 60 s to load the design
+point, a 20 ms median late move) in the default build; they are candidates for the same split.
 
 == Documentation
 

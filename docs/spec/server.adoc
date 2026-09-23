@@ -167,12 +167,12 @@ Postgres holds the truth; object storage holds bulk.
 |`cold_segment` |`(document_id, from_seq, to_seq)`, object key, compressed size.  V10: `change_count` and `min_horizon_seq` / `min_horizon_ms`, the smallest change horizon in the segment.
 |`document_member`, `share_link`, `share_link_use` |Roles (a branch has none: V11 dropped the copies, roles resolve through the parent, COLLAB-019); `share_link_use(share_link_id, account_id, used_at)` records who used a link, which the effective-role rule needs.  V7 (SRV-010, SRV-012): `document_member.role` may be `none` -- a row that grants nothing and only holds `color_index`, the presence color (0-11) assigned on the account's first Subscribe; `share_link` gains `password_hash` (argon2id PHC string), `revoke_on_expiry` and `team_members_only`.
 |`document_invite`, `access_request` |V7 (SRV-010): an invitation by email to an address no account has yet (`document_id`, lower-case-unique `email`, role, inviter); a request for access (`document_id`, `account_id`, message, `resolved_at`, `granted_role`), one pending per person and document.
-|`change_node`, `node_name` |V11 (COLLAB-020): the history index, written with each change -- the nodes a change names (not partitioned: routing through partitions would cost every ingest statement) and the names changes give nodes (kind and name at a `server_seq`).  Never compacted (xref:history.adoc[Version history], Server).
+|`change_node`, `node_name` |V11 (COLLAB-020): the history index, written with each change -- the nodes a change names (not partitioned: routing through partitions would cost every ingest statement) and the names changes give nodes (kind and name at a `server_seq`).  Never compacted; the History retention job deletes the `change_node` rows of the changes it deletes (xref:history.adoc[Version history], Server).  V12: `history_backfill` (document, `through_seq`), the documents whose changes predate the index, drained by the History index backfill job.
 |`branch` |Child document id, parent document id, fork `server_seq`, merged at.  V10 (SRV-011): name, state (`active`, `archived`, `merged`), `merged_branch_seq`, `merged_parent_seq`, `created_by_account_id`.
 |`version` |V10 (SRV-011) replaces the table: `id` (the client's UUIDv7) primary key, document, `server_seq`, name, note, author, `pinned`, created and updated; two versions may name one seq.
 |`blob`, `document_blob` |sha256, size, media type, storage key (`blobs/<first byte>/<sha256>`), `tag` the blob was first uploaded with (`content` or `thumbnail`); references per document.  A thumbnail upload sets `document.thumbnail_blob` and adds no reference.
 |`data_credential`, `data_allowed_host`, `data_fetch_audit` |V8 (DATA-005, DATA-007, DATA-008): the data service's envelope-encrypted credentials, permitted hosts and fetch audit trail, each in a team XOR one account's personal space (xref:data-merge.adoc#as-built-server[Data merge], As built).
-|`account`, `account_identity`, `device`, `team`, `team_member`, `team_invite`, `workspace`, `workspace_domain` |xref:security.adoc[Accounts, teams and security].  V7 adds `workspace_domain.checked_at` and `failed_checks` for the Domains job; V9 adds `account.preferences` (the synced preferences as JSON); V11 adds `account.storage_limit_bytes` and `team.storage_limit_bytes`, the space's blob quota (null: the configured default, IO-008).
+|`account`, `account_identity`, `device`, `team`, `team_member`, `team_invite`, `workspace`, `workspace_domain` |xref:security.adoc[Accounts, teams and security].  V7 adds `workspace_domain.checked_at` and `failed_checks` for the Domains job; V9 adds `account.preferences` (the synced preferences as JSON); V11 adds `account.storage_limit_bytes` and `team.storage_limit_bytes`, the space's blob quota (null: the configured default, IO-008); V12 adds `team.history_retention_days` (at least 30; null: the configured 30 days, COLLAB-020).
 |`library` |V9 (COLLAB-012): a team document marked as a team library, with its name, publisher and time; `document.is_library` mirrors it.  V9 also adds `document.team_access_override` and `share_link.expiry_announced_at` (COLLAB-011).
 |`comment_thread`, `comment`, `comment_read`, `comment_notification` |V9 (COLLAB-030): the server's record of comments kept from the ingested ops (opener, author, `resolved` and `deleted` by last-writer-wins, a 200-character preview), read marks, and mention / reply / resolve notifications with `seen_at` and `emailed_at` (xref:comments.adoc[Comments], As built).
 |`publish`, `publish_file` |V9 (WEB-012): published bundles (one current per document) and their files as blob references (xref:publish-html.adoc[Publish as HTML], As built).
@@ -260,7 +260,10 @@ As built (SRV-004, SRV-005; `api/.../sync`):
 * *Load test* (`IngestLoadTest`): 8 clients on their own connections, each one replica pipelining
   a window of 32 unary pushes, 20,000 changes into one document: about 3,400 accepted changes per
   second on the development Mac (Postgres and Valkey in Docker, JaCoCo on), with `server_seq` dense
-  from 1 and every replica's changes in seq order; the test fails below 2,000.
+  from 1 and every replica's changes in seq order.  The 2,000 floor is a performance budget: it is
+  checked by the `perf` profile and CI job, skipped with the measured load on a loaded machine, while
+  every build checks the same pipelined scenario at 2,000 changes for density and order
+  (xref:testing.adoc#perf-runs[Testing, Where budgets run]).
 * *Tests run one node.*  SRV-005's "three clients on two server nodes" is covered by three clients
   on one node plus a frame published to Valkey under another node's id, which reaches the
   subscription through the (resubscribed) channel; a two-node compose run is left to the
@@ -282,6 +285,8 @@ As built (SRV-004, SRV-005; `api/.../sync`):
 |Domains |hourly |Re-verify workspace DNS records.
 |Credential key rotation |2 min after start, then daily |Re-wrap the data key of every `data_credential` row wrapped with another master key than the current one (DATA-005); a no-op once every row is current.
 |Fetch audit retention |daily |Drop `data_fetch_audit` rows older than 90 days (DATA-008).
+|History retention |daily |Delete each document's history past its window -- 30 days, or the team's longer `history_retention_days` -- keeping pinned versions' snapshots (COLLAB-020; xref:history.adoc[Version history], Server).
+|History index backfill |2 min after start, then hourly |Index the changes logged before V11 (`change_node`, `node_name`) of the documents V12 queued in `history_backfill`, once; a no-op once the queue is empty (COLLAB-020).
 |===
 
 Jobs use `quarkus-scheduler` with a Postgres advisory lock per job so only one node runs each.

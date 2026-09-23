@@ -83,6 +83,61 @@ jobs:
       - name: Coverage gate (95% lines and branches)
         run: tools/coverage/jacoco-gate.sh server/*/target/site/jacoco/jacoco.xml
 
+  # Performance budgets (docs/spec/testing.adoc, Performance gates): the @PerfTest methods only,
+  # which the verify job's default suite excludes. Each writes its figure to
+  # server/api/target/perf-results.md, published below as the job summary; a budget test skips
+  # itself, with the measured load, when the runner's load average is over 1.5 x its cores, so the
+  # job fails only on a budget actually missed.
+  perf:
+    name: Performance budgets
+    needs: verify
+    runs-on: [self-hosted, Linux, X64, ci]
+    timeout-minutes: 45
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v5
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+
+      - name: Set up Go and protoc (wt-crdt generates its merge table and protobuf Java)
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: tools/protoc-gen-wtcrdt/go.mod
+      - uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker is available for Testcontainers
+        run: |
+          if ! docker info >/dev/null 2>&1; then
+            echo "::error::Docker is not running on this runner; @QuarkusTest needs it for Dev Services."
+            exit 1
+          fi
+
+      - name: Run the budgets
+        working-directory: server
+        run: ./mvnw -B -ntp -Pperf -pl api -am verify -Dgroups=perf
+
+      - name: Publish the measured figures
+        if: always()
+        run: |
+          report=server/api/target/perf-results.md
+          {
+            echo "## Server performance budgets"
+            echo
+            if [ -s "$report" ]; then
+              cat "$report"
+            else
+              echo "No figures were recorded: the run stopped before any budget test ran."
+            fi
+            echo
+            echo "A skipped row means the runner's load average was over 1.5 x its cores when the test started."
+          } >> "$GITHUB_STEP_SUMMARY"
+
   sonar:
     name: SonarQube
     needs: verify

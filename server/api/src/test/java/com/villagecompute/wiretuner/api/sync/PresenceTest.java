@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -17,6 +18,8 @@ import com.villagecompute.wiretuner.sync.v1.PresenceState;
 import com.villagecompute.wiretuner.sync.v1.PresenceUpdate;
 import com.villagecompute.wiretuner.sync.v1.ServerFrame.FrameCase;
 import com.villagecompute.wiretuner.sync.v1.UpdatePresenceRequest;
+import com.villagecompute.wiretuner.api.PerfReport;
+import com.villagecompute.wiretuner.api.PerfTest;
 
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.vertx.VertxContextSupport;
@@ -85,6 +88,20 @@ class PresenceTest extends SyncTestSupport {
 
     @Test
     void aCrashedClientDisappearsWithinTheTtl() {
+        crashedClient();
+    }
+
+    /** The perf run: the crashed client is gone within 6 s of its last update, twice the test TTL (SRV-012). */
+    @PerfTest
+    void aCrashedClientDisappearsWithinTwiceTheTtl() {
+        long elapsed = crashedClient();
+        PerfReport.measured("Crashed client gone, 3 s TTL (SRV-012)",
+                String.format(Locale.ROOT, "%.0f ms", elapsed / 1e6), "< 6000 ms",
+                elapsed < TimeUnit.MILLISECONDS.toNanos(6000));
+        assertThat(elapsed).isLessThan(TimeUnit.MILLISECONDS.toNanos(6000));
+    }
+
+    private long crashedClient() {
         UUID doc = document(ALICE);
         share(doc, bob, "viewer");
         Subscription bobs = subscribe(BOB, null, doc, replicaId(), 0);
@@ -97,10 +114,11 @@ class PresenceTest extends SyncTestSupport {
         long after = System.nanoTime() - sent;
         assertThat(gone.getState()).isEqualTo(PresenceState.PRESENCE_STATE_GONE);
         assertThat(gone.getUser().getUserId()).isEqualTo(alice.toString());
-        assertThat(after).isGreaterThan(TimeUnit.SECONDS.toNanos(2)).isLessThan(TimeUnit.SECONDS.toNanos(6));
+        assertThat(after).as("not before the 3 s TTL less a sweep").isGreaterThan(TimeUnit.SECONDS.toNanos(2));
         // Its rate-limit slot is forgotten by a later sweep.
         await(() -> store.slots.isEmpty() || store.slots.keySet().stream().noneMatch(k -> k.document().equals(doc)));
         bobs.cancel();
+        return after;
     }
 
     @Test

@@ -365,7 +365,12 @@ As built (COLLAB-020, `api/.../history`: `ChangeIndex`, `History`; V11):
   the log row; a branch merge's replay and a copy's extra changes write them in their own
   transaction, and a copy (Fork, Duplicate, branch, Restore as Copy) takes the source's `node_name`
   rows up to the fork point.  The index is not compacted, so it covers cold history.  Changes logged
-  before V11 are not indexed (no backfill: the log predates any production data).
+  before V11 are indexed once by the History index backfill job (`IndexBackfillJob`, under its
+  advisory lock, 2 minutes after start and hourly while its queue is not empty): V12 queued every
+  document with changes in `history_backfill` with its head, and the job reads each one's log, hot
+  and cold, from its oldest retained change through that head, writes the index rows (a row already
+  there is left alone) and takes the document off the queue; a document whose log cannot be read
+  stays queued.  A copy made before V11 does not get its source's names up to the fork point.
 * *Timeline across cold segments.*  `ListHistory` reads the hot rows, then the cold segments below
   them, as one log; `retained_from_seq` is the oldest seq either holds.  A cold change's time is its
   own `wall_time_ms` (the client's clock; the hot row's server time is not in the segment), and its
@@ -381,8 +386,30 @@ As built (COLLAB-020, `api/.../history`: `ChangeIndex`, `History`; V11):
 * *Search.*  `query` also matches a change that touched a node whose name, at any time, contains it.
 * *Node history.*  `ListNodeHistory` reads the node's seqs from `change_node` (newest first,
   `page_size` at a time) and fetches only those changes, hot or from their segments.
-* Not built here: the change retention job with the team window, and retaining pinned versions'
-  blobs past it (COLLAB-020's remaining items); losing writes are not marked in node history.
+* *Retention* (`RetentionJob`, daily, under its advisory lock).  A document keeps every change for
+  `wt.history.retention` (30 days) or, in a team space, for the team's `history_retention_days` when
+  that is longer (V12; a team may lengthen the window, never shorten it).  The cut is the newest
+  snapshot made before the window began -- every change at or below it was sequenced before then,
+  and the state at the cut stays whole in that snapshot -- held down to the document's `stable_seq`
+  (a live replica has not acknowledged the changes above it and may still fetch them) and, for an
+  active branch, to its fork or last merge point (a merge replays the branch's changes after it).
+  At or below the cut the job deletes the hot rows, the cold segments wholly below it (a segment
+  straddling the cut is kept whole, with the changes it holds), those changes' `change_node` rows,
+  and every snapshot below the cut that no pinned version names, then the deleted segments' and
+  snapshots' objects.  `node_name` is kept (a node's name at a later seq is its newest row at or
+  before it).  `ListHistory`'s `retained_from_seq` follows, and a pinned version below the cut is
+  still a snapshot at exactly its seq.  Blob references are per document (`document_blob`) and
+  outlive every change, so a pinned version's blobs stay; nothing yet releases a blob a document
+  no longer uses at any retained seq.
+  Deviation: the team window is a column only -- `team.proto` has no field for it, so
+  `UpdateTeam` cannot set it yet (proposed: `optional uint32 history_retention_days` on
+  `UpdateTeamRequest` and `uint32 history_retention_days` on `Team`, at least 30).
+* *Losing writes are not marked* in node history.  The data allows it -- the log holds every write
+  with its OpId, and `change_node` finds the node's other changes, so the server can tell a register
+  write that arrived under a newer one for the same path -- but `ChangeSummary` has no field to carry
+  the mark.  Proposed for `version.proto`: `repeated string lost_attributes = 7` on
+  `ChangeSummary`, the registers (by the `attributes` names) this change wrote whose value lost to a
+  concurrent write, which the popover shows as "did not apply" (COLLAB-023).
 
 COLLAB-020 adds:
 `ListHistory` with server-side session grouping and search, a touched-node index on
