@@ -92,7 +92,7 @@ Depends on:: OBJ-025, GEO-003, OBJ-016
 Size:: S
 Delivers:: The sheet, `InsetPathCommand` with the three spacing curves, group creation for multiple steps, consume/keep rules, degenerate-step handling, entry points.
 Done when::
-* A 100 pt square inset 10 pt with 3 uniform steps yields a group of three squares at 96.67, 93.33 and 90 pt; *farther* and *nearer* match the formulas.
+* A 100 pt square inset 10 pt with 3 uniform steps yields a group of three squares at 93.33, 86.67 and 80 pt; *farther* and *nearer* match the formulas.
 * Negative distance places paths outside; an inset larger than the half-width yields no path and reports it.
 * Merge test: inset concurrent with a remote edit of the original converges to deleted-with-edit-retained plus the group.
 endif::spec[]

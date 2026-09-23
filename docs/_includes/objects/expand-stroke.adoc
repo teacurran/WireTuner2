@@ -74,6 +74,8 @@ Nothing beyond storing and relaying changes.
 
 === Client
 
+* Outline tolerance: `Offset.defaultTolerance` = 0.01 pt.
+
 * `ExpandStrokeCommand(width:, cap:, join:, miterLimit:, keepOriginal:)` over
   `WTGeometry.Offset.strokeOutline` (GEO-003).  Dashed strokes are expanded as their dashes.
 * The sheet is an `NSAlert`-style sheet on the document window with a slider (0.1--500 pt)

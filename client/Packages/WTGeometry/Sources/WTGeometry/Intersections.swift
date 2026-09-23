@@ -133,9 +133,23 @@ extension CubicBezier {
         if (flat1 && flat2) || depth >= maxSubdivisionDepth {
             var t = (t0 + t1) / 2
             var u = (u0 + u1) / 2
-            if let hit = Line(start: c1.p0, end: c1.p3).intersection(with: Line(start: c2.p0, end: c2.p3), tolerance: 1e-12) {
+            let chord1 = Line(start: c1.p0, end: c1.p3)
+            let chord2 = Line(start: c2.p0, end: c2.p3)
+            if let hit = chord1.intersection(with: chord2, tolerance: 1e-12) {
                 t = t0 + (t1 - t0) * hit.t
                 u = u0 + (u1 - u0) * hit.u
+            } else if depth < maxSubdivisionDepth {
+                // Flat pieces whose chords neither cross nor come within reach of each other
+                // cannot meet.  Without this, a long straight segment (whose control hull is its
+                // whole bounding box, and which is never split) would take a candidate from every
+                // flat piece of the other curve inside that box, and the candidate limit would
+                // crowd out the real crossings.
+                let gap = min(
+                    chord1.distance(to: chord2.start), chord1.distance(to: chord2.end),
+                    chord2.distance(to: chord1.start), chord2.distance(to: chord1.end))
+                if gap > tolerance + 2 * flatness {
+                    return
+                }
             }
             out.append(Intersection(t: t, u: u, point: c1.evaluate(localParameter(t, t0, t1))))
             return

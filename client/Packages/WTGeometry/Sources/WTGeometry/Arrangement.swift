@@ -102,6 +102,9 @@ struct Arrangement {
                 guard hulls[i].intersects(hulls[j], tolerance: tolerance) else {
                     continue
                 }
+                if segments[i] == segments[j] || segments[i] == segments[j].reversed() {
+                    continue  // one curve twice: it needs no split of its own, and step 5 merges it
+                }
                 let (crossings, overlap) = segments[i].arrangementIntersections(with: segments[j], tolerance: tolerance)
                 for hit in crossings {
                     splits[i].append(hit.t)
@@ -173,10 +176,33 @@ struct Arrangement {
             }
         }
         let rules = operands.map(\.fillRule)
+        // Horizontal bands of the edges' control hulls: a ray toward +x from a point can only
+        // cross an edge whose hull spans the point's y, so each winding query visits one band.
+        let uniqueHulls = unique.map { $0.curve.controlBounds }
+        var span = Rect.null
+        for hull in uniqueHulls {
+            span.formUnion(hull)
+        }
+        let bandCount = max(1, min(512, unique.count / 4))
+        let bandHeight = span.height / Double(bandCount)
+        func band(_ y: Double) -> Int {
+            guard bandHeight > 0, bandHeight.isFinite else {
+                return 0
+            }
+            let position = ((y - span.minY) / bandHeight).rounded(.down)
+            return Int(min(Double(bandCount - 1), max(0, position)))
+        }
+        var bands = [[Int]](repeating: [], count: bandCount)
+        for (index, hull) in uniqueHulls.enumerated() {
+            for b in band(hull.minY)...band(hull.maxY) {
+                bands[b].append(index)
+            }
+        }
         func coverage(at point: Point) -> [Bool] {
             var winding = [Int](repeating: 0, count: rules.count)
-            for (index, edge) in unique.enumerated() {
-                let w = edge.curve.windingContribution(at: point)
+            let candidates = point.y >= span.minY && point.y <= span.maxY ? bands[band(point.y)] : []
+            for index in candidates {
+                let w = unique[index].curve.windingContribution(at: point)
                 if w != 0 {
                     for o in 0..<winding.count {
                         winding[o] += w * multiplicity[index][o]
@@ -187,7 +213,6 @@ struct Arrangement {
         }
 
         // 6. Classify.
-        let uniqueHulls = unique.map { $0.curve.controlBounds }
         edges.reserveCapacity(unique.count)
         for (index, edge) in unique.enumerated() {
             let curve = edge.curve
@@ -196,13 +221,22 @@ struct Arrangement {
             let length = curve.chordLength + curve.controlPolygonLength
             var offset = max(tolerance * 50, min(length * 1e-3, diagonal * 1e-3))
             let reach = Rect(minX: middle.x - offset, minY: middle.y - offset, maxX: middle.x + offset, maxY: middle.y + offset)
-            for (other, hull) in uniqueHulls.enumerated() where other != index && hull.intersects(reach) {
-                let d = unique[other].curve.nearestPoint(to: middle).distance
-                if d > mergeDistance {
-                    offset = min(offset, d / 2)
+            let firstBand = band(reach.minY)
+            for b in firstBand...band(reach.maxY) {
+                // Each nearby edge once: in the first band both it and the reach occupy.
+                for other in bands[b]
+                where other != index && uniqueHulls[other].intersects(reach) && max(firstBand, band(uniqueHulls[other].minY)) == b {
+                    // An edge nearer than the merge distance that was not merged (its ends went
+                    // to different vertices) still bounds the sample offset: stepping over it
+                    // would classify this edge by the far side of a sliver, and the unbalanced
+                    // vertices that leaves make whole contours unstitchable.
+                    let d = unique[other].curve.nearestPoint(to: middle).distance
+                    if d > tolerance * 1e-3 {
+                        offset = min(offset, d / 2)
+                    }
                 }
             }
-            offset = max(offset, tolerance * 4)
+            offset = max(offset, tolerance * 1e-3)
             let leftPoint = middle + normal * offset
             let rightPoint = middle - normal * offset
             edges.append(Edge(
