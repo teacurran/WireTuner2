@@ -84,14 +84,32 @@ extension CubicBezier {
         flatness: Double = 1e-4,
         maxCandidates: Int = 64
     ) -> [Intersection] {
-        var candidates: [Intersection] = []
+        var candidates: [Candidate] = []
         Self.collectCandidates(
             self, 0, 1, other, 0, 1,
             depth: 0, tolerance: pointTolerance, flatness: flatness, limit: maxCandidates, into: &candidates)
         var results: [Intersection] = []
         let mergeDistance = pointTolerance.squareRoot()
-        for candidate in candidates {
-            guard let refined = refineIntersection(candidate, with: other, rootTolerance: rootTolerance, pointTolerance: pointTolerance) else {
+        var pending = candidates.map { ($0, 0) }
+        var retries = 0
+        while !pending.isEmpty {
+            let (candidate, level) = pending.removeFirst()
+            guard let refined = refineIntersection(candidate.seed, with: other, rootTolerance: rootTolerance, pointTolerance: pointTolerance) else {
+                // Newton can miss a crossing its seed is not close enough to (a very shallow
+                // crossing, where the flat pieces' chords stand in poorly for the curves).  Look
+                // again inside the seed's pieces at a finer flatness, a bounded number of times.
+                if level == 0 && retries < maxCandidates && candidate.t1 > candidate.t0 && candidate.u1 > candidate.u0 {
+                    let piece1 = subdivide(from: candidate.t0, to: candidate.t1)
+                    let piece2 = other.subdivide(from: candidate.u0, to: candidate.u1)
+                    if Self.mayCross(piece1, piece2, tolerance: pointTolerance) {
+                        retries += 1
+                        var finer: [Candidate] = []
+                        Self.collectCandidates(
+                            piece1, candidate.t0, candidate.t1, piece2, candidate.u0, candidate.u1,
+                            depth: 0, tolerance: pointTolerance, flatness: flatness / 64, limit: 8, into: &finer)
+                        pending.append(contentsOf: finer.map { ($0, level + 1) })
+                    }
+                }
                 continue
             }
             let duplicate = results.contains { existing in
@@ -116,11 +134,20 @@ extension CubicBezier {
 
     static let maxSubdivisionDepth = 48
 
+    /// A seed for Newton iteration and the parameter ranges of the flat pieces it came from.
+    private struct Candidate {
+        var seed: Intersection
+        var t0: Double
+        var t1: Double
+        var u0: Double
+        var u1: Double
+    }
+
     private static func collectCandidates(
         _ c1: CubicBezier, _ t0: Double, _ t1: Double,
         _ c2: CubicBezier, _ u0: Double, _ u1: Double,
         depth: Int, tolerance: Double, flatness: Double, limit: Int,
-        into out: inout [Intersection]
+        into out: inout [Candidate]
     ) {
         if out.count >= limit {
             return
@@ -151,7 +178,7 @@ extension CubicBezier {
                     return
                 }
             }
-            out.append(Intersection(t: t, u: u, point: c1.evaluate(localParameter(t, t0, t1))))
+            out.append(Candidate(seed: Intersection(t: t, u: u, point: c1.evaluate(localParameter(t, t0, t1))), t0: t0, t1: t1, u0: u0, u1: u1))
             return
         }
         let tm = (t0 + t1) / 2
@@ -172,6 +199,33 @@ extension CubicBezier {
             collectCandidates(b, tm, t1, c, u0, um, depth: depth + 1, tolerance: tolerance, flatness: flatness, limit: limit, into: &out)
             collectCandidates(b, tm, t1, d, um, u1, depth: depth + 1, tolerance: tolerance, flatness: flatness, limit: limit, into: &out)
         }
+    }
+
+    /// Whether one piece passes from one side of the other to the other side (or comes within
+    /// `tolerance` of it): the signs of the distances of points of `b` from `a`, and of `a`
+    /// from `b`, measured from the nearest point and its tangent (beyond an end, from the
+    /// tangent line there, which is what a shallow crossing just past the end is judged by).
+    /// Cheap enough to decide whether a seed Newton lost deserves a finer look.
+    private static func mayCross(_ a: CubicBezier, _ b: CubicBezier, tolerance: Double) -> Bool {
+        func changesSide(_ reference: CubicBezier, _ moving: CubicBezier) -> Bool {
+            var positive = false
+            var negative = false
+            for k in 0...8 {
+                let q = moving.evaluate(Double(k) / 8)
+                let nearest = reference.nearestPoint(to: q, samples: 8)
+                let side = reference.tangent(nearest.t).cross(q - nearest.point)
+                if abs(side) <= tolerance {
+                    return true
+                }
+                if side > 0 {
+                    positive = true
+                } else {
+                    negative = true
+                }
+            }
+            return positive && negative
+        }
+        return changesSide(a, b) || changesSide(b, a)
     }
 
     /// Maps a parameter on a piece back to the local `0...1` of that piece (for evaluating the
@@ -215,8 +269,19 @@ extension CubicBezier {
                 dt = -alpha * gt
                 du = -alpha * gu
             }
-            let nt = min(1, max(0, t + dt))
-            let nu = min(1, max(0, u + du))
+            // Backtrack until the step reduces the distance.  At a shallow crossing near an end
+            // the full step overshoots by the reciprocal of the crossing angle, is clamped to
+            // the parameter box, and the iteration stalls on the box edge far from the root;
+            // halving it keeps every step inside the root's basin.
+            let current = f.lengthSquared
+            var nt = min(1, max(0, t + dt))
+            var nu = min(1, max(0, u + du))
+            for _ in 0..<30 where (evaluate(nt) - other.evaluate(nu)).lengthSquared >= current {
+                dt /= 2
+                du /= 2
+                nt = min(1, max(0, t + dt))
+                nu = min(1, max(0, u + du))
+            }
             let moved = abs(nt - t) + abs(nu - u)
             t = nt
             u = nu

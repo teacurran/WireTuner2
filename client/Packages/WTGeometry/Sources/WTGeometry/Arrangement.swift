@@ -14,7 +14,9 @@
 /// 4. Cluster piece end points within the merge distance into vertices and snap the ends onto
 ///    them, so pieces meet exactly.
 /// 5. Merge pieces that join the same two vertices along the same curve (the shared stretches
-///    of coincident edges, from either operand or both) into one edge.
+///    of coincident edges, from either operand or both) into one edge.  An edge whose pieces
+///    cancel (as many run one way as the other, for every operand) bounds nothing and is
+///    dropped.
 /// 6. Classify each edge: sample a point on each side of its midpoint, offset along the normal
 ///    by a distance kept below half the distance to any other edge, and record whether each
 ///    operand's fill (under its own rule) covers it.  Winding numbers are counted on the
@@ -215,6 +217,12 @@ struct Arrangement {
         // 6. Classify.
         edges.reserveCapacity(unique.count)
         for (index, edge) in unique.enumerated() {
+            // Pieces that cancel (a path running along itself and back: a retraced spike) have
+            // no multiplicity left and separate nothing: the coverage is the same on both
+            // sides.  Classifying them by samples would only let rounding give them sides.
+            if !multiplicity[index].contains(where: { $0 != 0 }) {
+                continue
+            }
             let curve = edge.curve
             let middle = curve.evaluate(0.5)
             let normal = curve.normal(0.5)
@@ -269,6 +277,12 @@ struct Arrangement {
 
     /// The region where `keep` holds for the operand coverage, as normalized contours.
     func extract(_ keep: ([Bool]) -> Bool) -> FilledPath {
+        extractReporting(keep).path
+    }
+
+    /// ``extract(_:)`` and the number of boundary edges left out because their chain could not
+    /// be closed (numerical trouble; 0 when the result is complete).
+    func extractReporting(_ keep: ([Bool]) -> Bool) -> (path: FilledPath, unclosed: Int) {
         var kept: [(curve: CubicBezier, from: Int, to: Int)] = []
         for edge in edges {
             let left = keep(edge.left)
@@ -282,7 +296,8 @@ struct Arrangement {
                 kept.append((edge.curve.reversed(), edge.to, edge.from))
             }
         }
-        return FilledPath(contours: stitch(kept), fillRule: .nonZero)
+        let (contours, unclosed) = stitch(kept)
+        return (FilledPath(contours: contours, fillRule: .nonZero), unclosed)
     }
 
     /// Every distinct coverage pattern with at least one operand covering, on either side of
@@ -300,9 +315,10 @@ struct Arrangement {
 
     // MARK: Stitching
 
-    private func stitch(_ kept: [(curve: CubicBezier, from: Int, to: Int)]) -> [Contour] {
+    /// The closed contours through `kept`, and how many edges were in chains that did not close.
+    private func stitch(_ kept: [(curve: CubicBezier, from: Int, to: Int)]) -> ([Contour], Int) {
         guard !kept.isEmpty else {
-            return []
+            return ([], 0)
         }
         var outgoing: [Int: [Int]] = [:]
         var incoming: [Int: [Int]] = [:]
@@ -351,6 +367,7 @@ struct Arrangement {
         }
         var used = [Bool](repeating: false, count: kept.count)
         var contours: [Contour] = []
+        var unclosed = 0
         for start in kept.indices where !used[start] {
             var chain: [CubicBezier] = []
             var current = start
@@ -377,9 +394,11 @@ struct Arrangement {
                 if abs(contour.signedArea()) > mergeDistance * mergeDistance {
                     contours.append(contour)
                 }
+            } else {
+                unclosed += chain.count
             }
         }
-        return contours
+        return (contours, unclosed)
     }
 
     /// Roughly how far the curve gets from `center`.

@@ -3,6 +3,16 @@ import Foundation
 // GEO-003: stroke outlines (Expand Stroke, the Expand Stroke live effect, and the outlines the
 // Pattern and Calligraphic strokes fill).
 
+/// Why an offset could not be computed.
+public enum OffsetError: Error, Hashable, Sendable {
+    /// The boolean cleanup could not close part of the outline, so the result would be missing
+    /// edges (numerical trouble in the arrangement, never a property of the input).
+    case unresolvedOutline
+    /// An inset or outset by more than the tolerance came out with the input's area: the band
+    /// it removes or adds was lost.
+    case unchanged
+}
+
 extension Offset {
     /// The region a stroke of `style` paints along `contour`, as a normalized filled path
     /// (non-crossing contours, outer ones positive, holes negative).
@@ -24,17 +34,40 @@ extension Offset {
     }
 
     /// The stroke of several contours as one region.
+    ///
+    /// Best effort: where the boolean cleanup cannot resolve part of the outline (see
+    /// ``checkedStrokeOutline(_:style:tolerance:)``) the rest is returned without it.
     public static func strokeOutline(_ contours: [Contour], style: StrokeStyle, tolerance: Double = defaultTolerance) -> FilledPath {
+        resolvedStrokeOutline(contours, style: style, tolerance: tolerance).path
+    }
+
+    /// ``strokeOutline(_:style:tolerance:)-([Contour],_,_)``, or ``OffsetError/unresolvedOutline``
+    /// when the boolean cleanup could not close part of the outline, which the unchecked call
+    /// would return with edges missing (an outline without its outer edge, or nothing).
+    public static func checkedStrokeOutline(
+        _ contours: [Contour], style: StrokeStyle, tolerance: Double = defaultTolerance
+    ) throws(OffsetError) -> FilledPath {
+        let (path, complete) = resolvedStrokeOutline(contours, style: style, tolerance: tolerance)
+        guard complete else {
+            throw .unresolvedOutline
+        }
+        return path
+    }
+
+    /// The stroke outline and whether the cleanup resolved all of it.
+    static func resolvedStrokeOutline(_ contours: [Contour], style: StrokeStyle, tolerance: Double) -> (path: FilledPath, complete: Bool) {
         let raw = rawStrokeOutline(contours, style: style, tolerance: tolerance)
         guard !raw.main.isEmpty else {
-            return .empty
+            return (.empty, true)
         }
         let options = booleanOptions(tolerance)
         let main = FilledPath(contours: raw.main, fillRule: .nonZero)
-        guard !raw.folds.isEmpty else {
-            return Boolean.normalize(main, options: options)
-        }
-        return Boolean.union(main, FilledPath(contours: raw.folds, fillRule: .nonZero), options: options)
+        let result = raw.folds.isEmpty
+            ? Arrangement(operands: [main], options: options).extractReporting { $0[0] }
+            : Arrangement(operands: [main, FilledPath(contours: raw.folds, fillRule: .nonZero)], options: options)
+                .extractReporting { $0[0] || $0[1] }
+        // A stroke of positive width always paints something.
+        return (result.path, result.unclosed == 0 && !result.path.isEmpty)
     }
 
     /// The boolean cleanup's tolerance: its default, lowered for artwork so small that the
@@ -134,11 +167,26 @@ extension Offset {
             let distance = sign * half
             var builder: Builder?
             var folds: [Contour] = []
+            // Whether the side is folded where a piece meets its neighbour (see
+            // `strokeSide(_:distance:tolerance:bridgesStart:bridgesEnd:)`); an open end has no
+            // neighbour to cover its normal.
+            func folded(_ index: Int, atStart: Bool) -> Bool {
+                guard pieces.indices.contains(index) else {
+                    return true
+                }
+                return foldFactor(pieces[index].curve, distance: distance, at: atStart ? 0 : 1) < 0
+            }
+            let count = pieces.count
             for (index, piece) in pieces.enumerated() {
-                let (offsets, pieceFolds) = strokeSide(piece, distance: distance, tolerance: tolerance)
+                let before = index > 0 ? index - 1 : (closed ? count - 1 : -1)
+                let after = index < count - 1 ? index + 1 : (closed ? 0 : count)
+                let (offsets, pieceFolds) = strokeSide(
+                    piece, distance: distance, tolerance: tolerance,
+                    bridgesStart: !folded(before, atStart: false), bridgesEnd: !folded(after, atStart: true))
                 folds.append(contentsOf: pieceFolds)
                 if builder == nil {
                     builder = Builder(start: offsets[0].p0)
+                    builder!.snap = tolerance / 2
                 } else {
                     let previous = pieces[index - 1]
                     addJoin(to: &builder!, at: piece.curve.p0, from: previous.endTangent, to: piece.startTangent, sign: sign, style: piece.join)
@@ -224,6 +272,10 @@ extension Offset {
         let start: Point
         private(set) var current: Point
         private(set) var segments: [CubicBezier] = []
+        /// Gaps up to this long are not drawn: a line that short is left out, and a curve
+        /// appended that close has its start moved onto the current point (the jump over a
+        /// skipped fold, see ``Offset/strokeSide(_:distance:tolerance:bridgesStart:bridgesEnd:)``).
+        var snap = 0.0
 
         init(start: Point) {
             self.start = start
@@ -231,7 +283,7 @@ extension Offset {
         }
 
         mutating func line(to point: Point) {
-            guard point != current else {
+            guard point != current, point.distance(to: current) > snap else {
                 return
             }
             segments.append(Line(start: current, end: point).elevated())
@@ -241,7 +293,7 @@ extension Offset {
         mutating func append(_ curves: [CubicBezier]) {
             for var curve in curves {
                 if curve.p0 != current {
-                    if curve.p0.distance(to: current) <= 1e-12 * max(1, curve.extent) {
+                    if curve.p0.distance(to: current) <= max(snap, 1e-12 * max(1, curve.extent)) {
                         curve.p1 = curve.p1 + (current - curve.p0)
                         curve.p0 = current
                     } else {

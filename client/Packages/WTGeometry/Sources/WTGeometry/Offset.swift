@@ -170,7 +170,13 @@ public enum Offset {
     /// curvature equals the distance.  Every part is swept with one orientation, so each fills
     /// correctly under the non-zero rule however it overlaps itself; `main` and `folds` have
     /// opposite orientations and are united, not filled together.
-    static func strokeSide(_ piece: SourcePiece, distance d: Double, tolerance: Double) -> (main: [CubicBezier], folds: [Contour]) {
+    ///
+    /// `bridgesStart` and `bridgesEnd` say whether a fold cut off by that end of the piece may be
+    /// bridged (see below): true only where the stroke on this side is covered along the end
+    /// normal without it, by the neighbouring piece (itself not folded there) or the join.
+    static func strokeSide(
+        _ piece: SourcePiece, distance d: Double, tolerance: Double, bridgesStart: Bool = false, bridgesEnd: Bool = false
+    ) -> (main: [CubicBezier], folds: [Contour]) {
         if let straight = straightOffset(piece, distance: d) {
             return ([straight], [])
         }
@@ -178,11 +184,26 @@ public enum Offset {
         let cuts = offsetCusps(curve, distance: d)
         var main: [CubicBezier] = []
         var folds: [Contour] = []
+        // Where the side continues from after a bridged fold (below), and the bridge itself in
+        // case nothing follows it in this piece.
+        var resumeAt: Point?
+        var bridge: CubicBezier?
+        func extendMain(_ segments: [CubicBezier]) {
+            var segments = segments
+            if let resume = resumeAt, !segments.isEmpty {
+                segments[0].p1 = segments[0].p1 + (resume - segments[0].p0)
+                segments[0].p0 = resume
+                resumeAt = nil
+            }
+            main.append(contentsOf: segments)
+        }
         for k in 1..<cuts.count {
             let u0 = cuts[k - 1]
             let u1 = cuts[k]
             guard foldFactor(curve, distance: d, at: (u0 + u1) / 2) < 0 else {
-                fitOffset(piece, distance: d, u0: u0, u1: u1, tolerance: tolerance, into: &main)
+                var offsets: [CubicBezier] = []
+                fitOffset(piece, distance: d, u0: u0, u1: u1, tolerance: tolerance, into: &offsets)
+                extendMain(offsets)
                 continue
             }
             // The signed radius of curvature |P′|³ / (P′ × P″), clamped between 0 and the
@@ -199,8 +220,45 @@ public enum Offset {
                 let rho = speed * speed * speed / cross
                 return d > 0 ? min(d, max(0, rho)) : max(d, min(0, rho))
             }
+            // At a cut inside the piece the radius of curvature equals the distance, so the
+            // evolute meets the offset there.  The cut is only known to bisection precision and
+            // the radius changes fast near it, so the formula can land 1e-5 away; the gap
+            // would be bridged by a sliver whose edges the boolean cleanup cannot resolve.
+            let meetsAtStart = k > 1
+            let meetsAtEnd = k < cuts.count - 1
             func evolute(_ u: Double) -> Point {
-                curve.evaluate(u) + normal(of: piece, at: u) * radius(u)
+                let r = (u == u0 && meetsAtStart) || (u == u1 && meetsAtEnd) ? d : radius(u)
+                return curve.evaluate(u) + normal(of: piece, at: u) * r
+            }
+            // A fold cut off by an end of the piece (the curvature jumping at a joint) across
+            // which the offset runs back less than half the tolerance is skipped, where that end
+            // allows it: the side jumps from the offset's end before the fold to the next part
+            // (the start of what follows is moved there, by at most that travel; the Tracer's
+            // builder snaps the next piece likewise), leaving out the fold region.  A straight
+            // bridge would run back along the offset and the next part forward over it again,
+            // a spike as unresolvable as the needle.  The
+            // region is the fan of normals from the evolute out to the offset; the end normal is
+            // covered by the neighbour or the join, and the fan spreads from it by at most the
+            // backward travel `∫(d − ρ)·κ ds` of the offset, so the bridge misses the stroke by
+            // less than that.  Traced, such a fold is a needle: the evolute runs in and the end
+            // normal runs back out beside it, within the boolean merge distance, and the cleanup
+            // cannot classify its edges.  A fold closed at both ends by the evolute meeting the
+            // offset keeps its evolute: bridged, the offset's two cusps and the bridge would run
+            // back and forth along one line instead.
+            let start = curve.evaluate(u0) + normal(of: piece, at: u0) * d
+            var travel = 0.0
+            var previous = start
+            for s in 1...16 {
+                let u = u0 + (u1 - u0) * Double(s) / 16
+                let next = curve.evaluate(u) + normal(of: piece, at: u) * d
+                travel += next.distance(to: previous)
+                previous = next
+            }
+            let bridgeable = (meetsAtStart || bridgesStart) && (meetsAtEnd || bridgesEnd) && !(meetsAtStart && meetsAtEnd)
+            guard travel > tolerance / 2 || !bridgeable else {
+                resumeAt = resumeAt ?? start
+                bridge = Line(start: start, end: previous).elevated()
+                continue
             }
             var centers: [CubicBezier] = []
             fit(u0: u0, u1: u1, tolerance: tolerance, depth: 0, into: &centers, point: evolute) { u in
@@ -208,12 +266,15 @@ public enum Offset {
             }
             var beyond: [CubicBezier] = []
             fitOffset(piece, distance: d, u0: u0, u1: u1, tolerance: tolerance, into: &beyond)
-            main.append(contentsOf: centers)
+            extendMain(centers)
             var boundary = Builder(start: centers[0].p0)
             boundary.append(centers)
             boundary.append(Contour(segments: beyond, closed: false).reversed().segments)
             boundary.line(to: boundary.start)
             folds.append(Contour(segments: boundary.segments, closed: true))
+        }
+        if main.isEmpty, let bridge {
+            main = [bridge]
         }
         return (main, folds)
     }
@@ -284,7 +345,7 @@ public enum Offset {
         _ piece: SourcePiece, distance d: Double, u0: Double, u1: Double, tolerance: Double, into result: inout [CubicBezier]
     ) {
         let curve = piece.curve
-        fit(u0: u0, u1: u1, tolerance: tolerance, depth: 0, into: &result) { u in
+        fit(u0: u0, u1: u1, tolerance: tolerance, depth: 0, into: &result, keepsDirection: true) { u in
             curve.evaluate(u) + normal(of: piece, at: u) * d
         } velocity: { u in
             // O′ = P′·(1 − d·κ), zero where the curve is stationary (its handle vanishes anyway).
@@ -305,9 +366,9 @@ public enum Offset {
 
     /// Hermite approximation of the curve `point` on `u0...u1` (with derivative `velocity`),
     /// halved until the samples at eighths are within `tolerance` of `point` at the same
-    /// parameters.
+    /// parameters (and, with `keepsDirection`, run the same way as `velocity` there).
     private static func fit(
-        u0: Double, u1: Double, tolerance: Double, depth: Int, into result: inout [CubicBezier],
+        u0: Double, u1: Double, tolerance: Double, depth: Int, into result: inout [CubicBezier], keepsDirection: Bool = false,
         point: (Double) -> Point, velocity: (Double) -> Vector
     ) {
         let o0 = point(u0)
@@ -323,17 +384,27 @@ public enum Offset {
             return
         }
         var error = 0.0
+        var reverses = false
         for k in 1...7 {
             let v = Double(k) / 8
-            error = max(error, point(u0 + (u1 - u0) * v).distance(to: candidate.evaluate(v)))
+            let u = u0 + (u1 - u0) * v
+            error = max(error, point(u).distance(to: candidate.evaluate(v)))
+            // A candidate close to the curve can still run back and forth along it where the
+            // end derivatives differ wildly (the outer offset past a short handle, whose normal
+            // swings round fast): a retrace of no area, within the tolerance, that the boolean
+            // cleanup cannot classify.  With `keepsDirection` (an exact `velocity`, as the
+            // offset's is) it must run the way the curve does.
+            if keepsDirection && candidate.derivative(v).dot(velocity(u)) < 0 {
+                reverses = true
+            }
         }
-        if error <= tolerance {
+        if error <= tolerance && !reverses {
             result.append(candidate)
             return
         }
         let mid = (u0 + u1) / 2
-        fit(u0: u0, u1: mid, tolerance: tolerance, depth: depth + 1, into: &result, point: point, velocity: velocity)
-        fit(u0: mid, u1: u1, tolerance: tolerance, depth: depth + 1, into: &result, point: point, velocity: velocity)
+        fit(u0: u0, u1: mid, tolerance: tolerance, depth: depth + 1, into: &result, keepsDirection: keepsDirection, point: point, velocity: velocity)
+        fit(u0: mid, u1: u1, tolerance: tolerance, depth: depth + 1, into: &result, keepsDirection: keepsDirection, point: point, velocity: velocity)
     }
 
     // MARK: Scale

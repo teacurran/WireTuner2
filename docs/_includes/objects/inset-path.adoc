@@ -79,6 +79,8 @@ Nothing beyond storing and relaying changes.
 * `InsetPathCommand(steps:, spacing:, distance:, join:, miterLimit:, keepOriginal:)` over
   `WTGeometry.Offset.inset` (GEO-003).  Spacing: uniform gives distances
   `d·k/n`; *farther* gives `d·(k/n)^0.5`; *nearer* gives `d·(k/n)^2`, for `k = 1…n`.
+* `Offset.inset` returns an empty path when the offset cannot be computed, never its input;
+  `Offset.checkedInset` throws `OffsetError` instead.
 * Degenerate steps (empty offset result) are skipped; if every step is empty the command
   does nothing and the sheet reports it.
 

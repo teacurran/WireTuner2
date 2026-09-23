@@ -37,15 +37,36 @@ extension Offset {
     /// ``FilledPath/empty``, and so do the slivers thinner than `tolerance` that rounding leaves
     /// where the region barely survives: a piece is kept only while its signed area exceeds half
     /// its perimeter times `tolerance`.
+    ///
+    /// Also ``FilledPath/empty`` when the offset cannot be computed (see
+    /// ``checkedInset(_:by:join:miterLimit:tolerance:)``, which says so): never the input
+    /// unchanged.
     public static func inset(
         _ path: FilledPath, by distance: Double, join: LineJoin = .miter, miterLimit: Double = 4,
         tolerance: Double = defaultTolerance
     ) -> FilledPath {
+        (try? checkedInset(path, by: distance, join: join, miterLimit: miterLimit, tolerance: tolerance)) ?? .empty
+    }
+
+    /// ``inset(_:by:join:miterLimit:tolerance:)``, throwing instead of returning an empty path
+    /// when the offset cannot be computed: ``OffsetError/unresolvedOutline`` when the boolean
+    /// work left part of the band or of the result unresolved, ``OffsetError/unchanged`` when a
+    /// distance larger than the tolerance changed the area by less than a hundredth of what the
+    /// band along the boundary adds or removes (about perimeter × distance).  A collapse is a
+    /// result, not an error: it returns ``FilledPath/empty``.
+    public static func checkedInset(
+        _ path: FilledPath, by distance: Double, join: LineJoin = .miter, miterLimit: Double = 4,
+        tolerance: Double = defaultTolerance
+    ) throws(OffsetError) -> FilledPath {
         guard distance.isFinite else {
             return .empty
         }
         let options = booleanOptions(tolerance)
-        let region = Boolean.normalize(path, options: options)
+        let normalized = Arrangement(operands: [path], options: options).extractReporting { $0[0] }
+        guard normalized.unclosed == 0 else {
+            throw .unresolvedOutline
+        }
+        let region = normalized.path
         guard !region.isEmpty else {
             return .empty
         }
@@ -56,18 +77,29 @@ extension Offset {
         if distance > 0 && 2 * distance >= min(bounds.width, bounds.height) {
             return .empty  // no disc of that radius fits inside
         }
-        let band = strokeOutline(
+        let band = try checkedStrokeOutline(
             region.contours,
             style: StrokeStyle(width: 2 * abs(distance), cap: .butt, join: join, miterLimit: miterLimit),
             tolerance: tolerance)
-        let result = distance > 0
-            ? Boolean.subtracting(region, band, options: options) : Boolean.union(region, band, options: options)
+        let combined = Arrangement(operands: [region, band], options: options)
+            .extractReporting { distance > 0 ? $0[0] && !$0[1] : $0[0] || $0[1] }
+        guard combined.unclosed == 0 else {
+            throw .unresolvedOutline
+        }
         let tol = effectiveTolerance(tolerance, extent: max(abs(bounds.minX), abs(bounds.maxX), abs(bounds.minY), abs(bounds.maxY)))
-        let kept = result.pieces().filter { piece in
+        let kept = combined.path.pieces().filter { piece in
             let perimeter = piece.contours.reduce(0) { $0 + $1.length(tolerance: tol) }
             return piece.signedArea() > perimeter * tol / 2
         }
-        return FilledPath(contours: kept.flatMap(\.contours), fillRule: .nonZero)
+        let result = FilledPath(contours: kept.flatMap(\.contours), fillRule: .nonZero)
+        if abs(distance) > tol && !result.isEmpty {
+            let perimeter = region.contours.reduce(0) { $0 + $1.length(tolerance: tol) }
+            let change = abs(result.signedArea() - region.signedArea())
+            if change < 0.01 * abs(distance) * perimeter {
+                throw .unchanged
+            }
+        }
+        return result
     }
 
     /// The paths of a multi-step inset: step `k` of `steps` (1-based, in order) inset by

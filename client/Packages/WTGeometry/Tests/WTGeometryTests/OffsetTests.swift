@@ -396,6 +396,35 @@ import Testing
 @Suite struct InsetTests {
     let square = FilledPath(squareContour(0, 0, 100))
 
+    @Test func checkedCallsAgreeWithTheUncheckedOnes() throws {
+        let checked = try Offset.checkedInset(square, by: 10)
+        #expect(checked == Offset.inset(square, by: 10))
+        // A collapse is a result, not a failure.
+        #expect(try Offset.checkedInset(square, by: 70).isEmpty)
+        #expect(try Offset.checkedInset(square, by: 0) == Boolean.normalize(square))
+        #expect(try Offset.checkedInset(.empty, by: 3).isEmpty)
+        #expect(try Offset.checkedInset(square, by: .infinity).isEmpty)
+        let ring = circle(center: Point(50, 50), radius: 30)
+        let style = StrokeStyle(width: 4, join: .round)
+        #expect(try Offset.checkedStrokeOutline([ring], style: style) == Offset.strokeOutline(ring, style: style))
+        #expect(try Offset.checkedStrokeOutline([], style: style).isEmpty)
+    }
+
+    /// When the boolean work cannot resolve the outline, the checked inset says so and the
+    /// unchecked one returns nothing rather than its input.  A long bar crossed by 140 teeth
+    /// puts 280 crossings on each long edge, past the arrangement's 256 splits per segment, so
+    /// the edges beyond the cap stay unsplit and their chains cannot close.
+    @Test func unresolvableOutlinesFailLoudly() {
+        var contours = [Contour(polygon: [Point(0, 0), Point(500, 0), Point(500, 1), Point(0, 1)])]
+        for k in 0..<140 {
+            let x = 1 + Double(k) * 3
+            contours.append(Contour(polygon: [Point(x, -5), Point(x + 1, -5), Point(x + 1, 6), Point(x, 6)]))
+        }
+        let comb = FilledPath(contours: contours)
+        #expect(throws: OffsetError.unresolvedOutline) { try Offset.checkedInset(comb, by: 0.2) }
+        #expect(Offset.inset(comb, by: 0.2).isEmpty)
+    }
+
     @Test func insetShrinksASquare() {
         let inset = Offset.inset(square, by: 10)
         #expect(relativeError(area(inset), 6400) < 1e-6)
