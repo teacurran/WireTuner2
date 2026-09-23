@@ -494,13 +494,17 @@ machine fails it for no fault of the code.  So the two are kept apart:
 * *Correctness in every build.*  A performance scenario's functional assertions run in the
   default suite, at a smaller volume where the volume is only there for timing (the ingest
   scenario pushes 2,000 changes rather than 20,000; ten viewers read the published bundle rather
-  than 100).  The coverage gate is taken over this suite.
+  than 100; `wt-crdt` types 200 characters into a 20,000-character text, round-trips a 2,000-node
+  document through snapshot frames, and checks that late moves on a 5,000-node tree land as
+  in-order delivery would).  The coverage gate is taken over this suite.
 * *Budgets in the perf job and on idle machines.*  Every timing assertion is a `@PerfTest`
   (JUnit tag `perf`), which the default surefire run excludes and the `perf` Maven profile
-  selects: `cd server && ./mvnw -Pperf -pl api -am verify -Dgroups=perf`.  Each writes its figure
-  (measure, measured value, budget, met or missed) to `api/target/perf-results.md`.  The `perf`
-  job of `.github/workflows/server.yml` runs it after `verify`, copies that table into the job
-  summary, and fails only on a missed budget.
+  selects: `cd server && ./mvnw -Pperf -pl wt-crdt,api -am verify -Dgroups=perf`.  Each writes its
+  figure (measure, measured value, budget, met or missed) to its module's
+  `target/perf-results.md`.  The `perf` job of `.github/workflows/server.yml` runs it after
+  `verify`, copies both tables into the job summary, and fails only on a missed budget.  Each
+  module carries its own `PerfTest`, `LoadGuard` and `PerfReport` test classes, alike: `wt-crdt` is
+  a pure library and does not depend on the api or its tests.
 * *Skipped with the reason under load.*  Before it runs, a `@PerfTest` reads the one-minute load
   average (`getloadavg`); above 1.5 times the machine's cores it is skipped with the measured load
   as the reason -- "load 97.2 over 18.0 (12 cores x 1.5)" -- and listed as skipped in the table.
@@ -520,13 +524,18 @@ The server's budgets, each a `@PerfTest` beside the default-run test that checks
 |A mention reaches the mentioned person's live session (COLLAB-030) |1 s |`CommentServiceTest`
 |`GetUnread` over 1,000 comments with the mark at 990, warm (COLLAB-030) |50 ms |`CommentServiceTest`
 |A crashed client's presence is gone, 3 s test TTL (SRV-012) |6 s |`PresenceTest`
+|`wt-crdt`: an insert into a 200,000-character text, mean of 2,000 typed one at a time |1 ms |`PerformanceTest`
+|`wt-crdt`: load the design point (50,000 nodes, 1,000,000 registers, 200,000 characters) from snapshot frames |60 s |`PerformanceTest`
+|`wt-crdt`: a late move, sorting before 1,000 tree ops, on a 50,000-node tree, median of 31 (CRDT-002) |20 ms |`TreeFuzzTest`
 |===
 
 As built (server): each figure is held to its absolute budget; the 20% regression check against a
 stored baseline above is not built for the server (there is no baseline store).  The figures are
-taken with JaCoCo's agent on, as in the default build.  `wt-crdt`'s `PerformanceTest` and
-`TreeFuzzTest` still carry loose timing bounds (1 ms per text insert, 60 s to load the design
-point, a 20 ms median late move) in the default build; they are candidates for the same split.
+taken with JaCoCo's agent on, as in the default build.  The `wt-crdt` bounds are loose JVM
+guards against a pathological regression, not the CRDT performance budget itself
+(xref:crdt-model.adoc[CRDT model], Performance budget: 1 ms per remote change, 1.5 s to bootstrap
+the design point on an M1), which is the client's and is enforced by WTCRDTTests'
+`PerformanceTests` in release builds.
 
 == Documentation
 

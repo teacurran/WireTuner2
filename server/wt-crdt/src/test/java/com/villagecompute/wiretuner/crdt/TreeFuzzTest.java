@@ -12,13 +12,16 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Random;
 import org.junit.jupiter.api.Test;
 
 /**
  * CRDT-002's done-when: random moves delivered out of order match a sequential oracle that
- * applies every tree op in OpId order, and a late move on a 50,000-node tree is fast. WTCRDTTests'
+ * applies every tree op in OpId order, and a late move on a 50,000-node tree is fast (the timing is
+ * a {@link PerfTest}; the default build checks that late moves on a large tree land as in-order
+ * delivery would). WTCRDTTests'
  * TreeFuzzTests is the Swift twin.
  */
 class TreeFuzzTest {
@@ -134,29 +137,62 @@ class TreeFuzzTest {
         assertMatches(engine, oracle(all));
     }
 
-    @Test
-    void aLateMoveOnAFiftyThousandNodeTreeIsFast() {
-        Random random = new Random(3);
+    /** A random tree of {@code nodes} groups (the first 100 under Layers) and 1,000 moves by replica 2 after the creates. */
+    private static Engine grownTree(Random random, int nodes, List<Map.Entry<OpId, Op>> log) {
         Engine engine = new Engine();
-        int nodes = 50_000;
         for (int i = 1; i <= nodes; i++) {
             OpId parent = i <= 100 ? LAYERS : new OpId(1 + random.nextInt(i - 1), 1);
-            engine.apply(createUnder(parent, 0x80, group()), new OpId(i, 1));
+            record(engine, log, createUnder(parent, 0x80, group()), new OpId(i, 1));
         }
         for (int k = 1; k <= 1_000; k++) {
             OpId node = new OpId(101 + random.nextInt(nodes - 100), 1);
-            engine.apply(move(node, new OpId(1 + random.nextInt(nodes), 1), 0x40), new OpId(nodes + 2L * k, 2));
+            record(engine, log, move(node, new OpId(1 + random.nextInt(nodes), 1), 0x40), new OpId(nodes + 2L * k, 2));
         }
+        return engine;
+    }
+
+    /** A move that sorts before every one of the 1,000 moves: it arrives late and undoes and redoes them. */
+    private static Op lateMove(Random random, int nodes) {
+        return move(new OpId(101 + random.nextInt(nodes - 100), 1), new OpId(1 + random.nextInt(nodes), 1), 0x20);
+    }
+
+    private static void record(Engine engine, List<Map.Entry<OpId, Op>> log, Op op, OpId id) {
+        engine.apply(op, id);
+        log.add(Map.entry(id, op));
+    }
+
+    @Test
+    void lateMovesOnALargeTreeMatchInOrderDelivery() {
+        Random random = new Random(3);
+        int nodes = 5_000;
+        List<Map.Entry<OpId, Op>> log = new ArrayList<>();
+        Engine engine = grownTree(random, nodes, log);
+        for (int j = 0; j < 31; j++) {
+            record(engine, log, lateMove(random, nodes), new OpId(nodes + 1L, 100 + j));
+        }
+        log.sort(Map.Entry.comparingByKey());
+        Engine inOrder = new Engine();
+        log.forEach(entry -> inOrder.apply(entry.getValue(), entry.getKey()));
+        assertThat(engine.stateHash()).isEqualTo(inOrder.stateHash());
+        assertThat(engine.store().moveLog()).hasSize(nodes + 1_031);
+    }
+
+    @PerfTest
+    void aLateMoveOnAFiftyThousandNodeTreeIsFast() {
+        Random random = new Random(3);
+        int nodes = 50_000;
+        Engine engine = grownTree(random, nodes, new ArrayList<>());
         long[] times = new long[31];
         for (int j = 0; j < times.length; j++) {
-            Op late = move(new OpId(101 + random.nextInt(nodes - 100), 1), new OpId(1 + random.nextInt(nodes), 1), 0x20);
+            Op late = lateMove(random, nodes);
             long start = System.nanoTime();
             engine.apply(late, new OpId(nodes + 1L, 100 + j));
             times[j] = System.nanoTime() - start;
         }
         Arrays.sort(times);
         long median = times[times.length / 2];
-        System.out.printf("late move (before 1,000 tree ops) on a %,d-node tree: median %.3f ms%n", nodes, median / 1e6);
+        PerfReport.measured("Late move (before 1,000 tree ops) on a 50,000-node tree, median (JVM)",
+                String.format(Locale.ROOT, "%.3f ms", median / 1e6), "< 20 ms", median < 20_000_000L);
         assertThat(median).isLessThan(20_000_000L);
     }
 }
