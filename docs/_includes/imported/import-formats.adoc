@@ -366,7 +366,9 @@ imported from a file (xref:linking-embedding.adoc[Linking and embedding]) and un
 that came inside a vector file or from the pasteboard.
 
 |`ImportedPlacedFile`
-|`.eps` → `placed_file` (`PLACED_FILE_FORMAT_EPS`, `blob_sha256`, `bounds`, `source_name`);
+|`.eps` → `placed_file` (`PLACED_FILE_FORMAT_EPS`, `blob_sha256`, `bounds`, `source_name`,
+and from `preview` -- the PNG blob and its pixel size -- `preview_sha256`, `preview_width` and
+`preview_height`, left empty when there is none);
 `.svgAnimation` → `svg_animation` with an `asset` node for the blob, `natural_size` from
 `bounds`, `duration_ms` and `kinds` from the case; the poster is WEB-025's.
 
@@ -400,10 +402,7 @@ file's modification date) is written only for a scene placed whole from a file (
 file); an SVG animation always has an asset for its blob (`LINK_KIND_EMBEDDED` without a file)
 and a second for its poster; identical blobs in one change share one asset.  `PlaceImportedScene
 .placedRoot(of:in:)` names the node to select.  IMG-011: the `placed_file` node is written from
-an `.eps` `ImportedPlacedFile`, but no importer produces one yet -- `ImportRegistry.standard` has
-no EPS importer (DSC parsing and preview extraction are `WTInterchange` work, still to do), so
-EPS files are refused as unsupported apart from legacy Illustrator files that fall back to
-placement.  In `WTApp`, `ImportController` runs menu:File[Import…] (kbd:[Cmd+R]): the panel
+an `.eps` `ImportedPlacedFile`, which `EPSImporter` produces (below).  In `WTApp`, `ImportController` runs menu:File[Import…] (kbd:[Cmd+R]): the panel
 accepts every registered type and its accessory shows the selected file's format with
 btn:[Options…], which opens the sheet (`ImportOptionsSheet`, rendered from the importer's
 schema, btn:[Defaults], Cancel, OK); values persist per format through `ImportOptionsStore` in
@@ -417,6 +416,38 @@ alert.  The import pointer (click and marquee placement, the counter, kbd:[Retur
 and pasting are the rest of IMG-005, still to do.  The merge test is
 `concurrentImportsOntoOneLayerConverge` (two replicas importing onto one layer converge with
 both groups in the same order).
+
+NOTE: As built by IMG-011's `WTInterchange` half (`WTInterchange/Import/EPS/`).  `EPSImporter`
+is in `ImportRegistry.standard`; a file is recognised by `%!PS-Adobe` or the DOS binary header
+`C5D0D3C6`, whose PostScript, Windows Metafile and TIFF sections are located from its offsets (a
+header pointing outside the file is refused as unreadable).  `EPSFile` reads the DSC header up
+to `%%EndComments`, the first line that is not a comment or the first `%%Begin` section, with
+`%%+` continuations, the first value of a key winning, and `(atend)` values from the last
+`%%Trailer`: the box is `%%HiResBoundingBox`, else `%%BoundingBox` (a box of zero area is none);
+`%%Title` and `%%Creator` with PostScript string escapes decoded; `%%DocumentProcessColors` and
+`%%DocumentCustomColors` as name lists (read, not yet used: `PlacedFileContent` has no field for
+them); DCS 1.0 plate comments and DCS 2.0 `%%PlateFile` mark a DCS file, placed like any EPS
+with a note that its plates are not separated.  The natural size is the box's size with its
+top-left at the origin, as for every placed file; the box's PostScript origin stays in the blob,
+which is the whole file verbatim (binary header included) for print pass-through.  Without a
+box the size is the preview's pixels at 72 ppi, else 612 × 792 pt, with a note.  Preview order:
+an embedded PDF (from `%PDF-` to the last `%%EOF` after it, page 1 rendered with
+`CGPDFDocument` at 144 ppi, at most 4,096 pixels a side, transparent where nothing is drawn) is
+preferred because it is exact; then the DOS header's TIFF (ImageIO, drawn opaque into sRGB so a
+CMYK preview fits a PNG); then the EPSI bitmap right after the header (depths 1, 2, 4 and 8, 0
+white and the largest value black, rows read top first as every producer writes them, although
+EPSF 3.0 describes the image's origin as lower left).  The preview is re-encoded as a PNG blob
+(`ImportedPlacedFile.preview`, an `ImportedPixels`) and listed in `ImportedScene.blobs` after the
+file's own blob; a Windows Metafile preview is not read.  A file with no preview gets a note and
+no preview blob, and `ImportedScene.exportScene()` draws it as a gray box with the file's name.
+A PostScript Illustrator EPS (`%%Creator` naming Adobe Illustrator, no embedded PDF) goes
+through the legacy Illustrator reader first and is converted when the reader can; otherwise it
+is placed as above, and a legacy `.ai` file that falls back to placement is placed the same way,
+preview included.  Fixtures are written in the tests (EPSI files, DOS files with ImageIO TIFF
+previews, PDF-carrying and DCS files); the round trip exports through the EPS exporter (IO-018)
+with a 72 and a 144 ppi TIFF preview and re-imports at 200 × 150 pt with the preview within 3%
+of the reference rendering.  Rendering the preview in the document, the conformance vectors and
+the merge test are the `WTModel`/`WTRender` half, still to do.
 
 NOTE: As built by IMG-012 (`WTInterchange/Import/SVG/`).  User units are read at 96 px/in as
 this page says.  The SVG exporter (IO-019) writes one user unit per point, and by default also

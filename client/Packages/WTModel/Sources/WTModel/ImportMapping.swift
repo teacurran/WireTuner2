@@ -276,6 +276,11 @@ struct ImportWriter {
             props.placedFile.content.blobSha256 = placed.blob.sha256
             props.placedFile.content.sourceName = String(name.prefix(256))
             props.placedFile.content.bounds = ImportMapping.rect(placed.bounds)
+            if let preview = placed.preview {
+                props.placedFile.content.previewSha256 = preview.blob.sha256
+                props.placedFile.content.previewWidth = Int32(preview.width)
+                props.placedFile.content.previewHeight = Int32(preview.height)
+            }
             if let source { props.placedFile.source.id = source.proto }
             return builder.append(Ops.create(parent: parent, position: position, props: props))
         case .svgAnimation(let css, let smil, let script, let durationMs):

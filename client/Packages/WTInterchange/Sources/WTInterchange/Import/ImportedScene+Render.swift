@@ -143,9 +143,16 @@ extension ImportedScene {
         case .image(let image):
             return [.image(ImageItem(assetID: image.pixels.blob.hex, rect: image.naturalRect, transform: image.transform.concatenating(parent), mode: image.pixels.mode.imageMode, hasAlpha: image.pixels.hasAlpha, name: image.name ?? ""))]
         case .placed(let placed):
-            // Drawn as its box, as the renderer draws a placed file without a preview.
-            let path = DisplayPath(rect: placed.bounds)
-            return [.path(PathItem(path: path, appearance: Appearance([.stroke(StrokePaint(paint: .solid(Color(white: 0.5)), style: StrokeStyle(width: 1)))]), transform: placed.transform.concatenating(parent)))]
+            let total = placed.transform.concatenating(parent)
+            if let preview = placed.preview {
+                // The preview scaled into the bounding box, as the renderer draws a placed EPS.
+                return [.image(ImageItem(assetID: preview.blob.hex, rect: placed.bounds, transform: total, mode: preview.mode.imageMode, hasAlpha: preview.hasAlpha, name: placed.name ?? ""))]
+            }
+            // Without a preview: a gray box of the bounding box's size with the file's name.
+            let box = DisplayItem.path(PathItem(path: DisplayPath(rect: placed.bounds), appearance: Appearance([.fill(FillPaint(paint: .solid(Color(white: 0.85)))), .stroke(StrokePaint(paint: .solid(Color(white: 0.5)), style: StrokeStyle(width: 1)))]), transform: total))
+            let label = ImportedTextRun(text: placed.name ?? "", fontName: "Helvetica", fontSize: 10, fill: .solid(Color(white: 0.3)), origin: Point(x: placed.bounds.minX + 4, y: placed.bounds.minY + 14))
+            let name = ImportedScene.glyphRun(label).map { DisplayItem.text(TextRunItem(text: label.text, glyphRun: $0, origin: label.origin, color: Color(white: 0.3), transform: total)) }
+            return [.group(GroupItem(children: [box] + (name.map { [$0] } ?? [])))]
         case .text(let text):
             let total = text.transform.concatenating(parent)
             return text.runs.compactMap { run -> DisplayItem? in

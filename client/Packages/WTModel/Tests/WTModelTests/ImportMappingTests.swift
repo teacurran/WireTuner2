@@ -181,6 +181,13 @@ enum ImportFixture {
                                                                     placement: .at(Point(x: 0, y: 0)))), a)
         #expect(!a.state.props(pasted).placedFile.hasSource)
 
+        let preview = ImportedPixels(blob: ImportFixture.poster, width: 400, height: 300, mode: .rgb, bitsPerChannel: 8, hasAlpha: false)
+        let previewed = ImportedScene(kind: .placed, name: "art.eps", bounds: Rect(x: 10, y: 20, width: 200, height: 100),
+                                      nodes: [.placed(ImportedPlacedFile(kind: .eps, blob: ImportFixture.eps, bounds: Rect(x: 10, y: 20, width: 200, height: 100), preview: preview))])
+        let withPreview = try Self.placed(a.perform(PlaceImportedScene(previewed, placement: .at(Point(x: 0, y: 0)))), a)
+        let content = a.state.props(withPreview).placedFile.content
+        #expect(content.previewSha256 == ImportFixture.poster.sha256 && content.previewWidth == 400 && content.previewHeight == 300)
+
         let animation = ImportedPlacedFile.Kind.svgAnimation(css: true, smil: false, script: true, durationMs: 1_500)
         let command = PlaceImportedScene(ImportFixture.placed(animation, blob: ImportFixture.svg, name: "wave.svg"), placement: .at(Point(x: 50, y: 50)),
                                          poster: ImportedPoster(blob: ImportFixture.poster, timeMs: 0))

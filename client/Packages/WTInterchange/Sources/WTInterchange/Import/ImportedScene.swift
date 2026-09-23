@@ -327,13 +327,18 @@ public struct ImportedPlacedFile: Hashable, Sendable {
     public var bounds: Rect
     public var transform: AffineTransform
     public var name: String?
+    /// An EPS file's preview re-encoded as a PNG blob, with its pixel size
+    /// (`PlacedFileContent.preview_sha256`, `preview_width`, `preview_height`); drawn scaled into
+    /// `bounds`.  Nil when the file carries none: the renderer draws a gray box with the name.
+    public var preview: ImportedPixels?
 
-    public init(kind: Kind, blob: ImportedBlob, bounds: Rect, transform: AffineTransform = .identity, name: String? = nil) {
+    public init(kind: Kind, blob: ImportedBlob, bounds: Rect, transform: AffineTransform = .identity, name: String? = nil, preview: ImportedPixels? = nil) {
         self.kind = kind
         self.blob = blob
         self.bounds = bounds
         self.transform = transform
         self.name = name
+        self.preview = preview
     }
 }
 
@@ -479,19 +484,20 @@ public struct ImportedScene: Hashable, Sendable {
         }
     }
 
-    /// Every blob the scene references, once each, in first-use order.
+    /// Every blob the scene references, once each, in first-use order (a placed file's own blob
+    /// before its preview's).
     public var blobs: [ImportedBlob] {
         var seen = Set<Data>()
         var result: [ImportedBlob] = []
         func visit(_ node: ImportedNode) {
-            var blob: ImportedBlob?
+            var found: [ImportedBlob] = []
             switch node {
-            case .image(let image): blob = image.pixels.blob
-            case .placed(let placed): blob = placed.blob
+            case .image(let image): found = [image.pixels.blob]
+            case .placed(let placed): found = [placed.blob] + (placed.preview.map { [$0.blob] } ?? [])
             case .group(let group): group.children.forEach(visit)
             case .path, .text: break
             }
-            if let blob, seen.insert(blob.sha256).inserted {
+            for blob in found where seen.insert(blob.sha256).inserted {
                 result.append(blob)
             }
         }

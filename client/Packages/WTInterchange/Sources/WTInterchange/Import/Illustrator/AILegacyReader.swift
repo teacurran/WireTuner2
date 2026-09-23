@@ -58,9 +58,9 @@ struct AILegacyReader {
             let nodes = try interpreter.run(data)
             return ImportedScene(kind: .vector, name: name, bounds: bounds, nodes: nodes, notes: interpreter.notes)
         } catch {
-            let blob = ImportedBlob(data: data, uti: "com.adobe.encapsulated-postscript")
+            // Placed as the EPS importer places a file: bounding box, preview, notes.
             let note = "“\(name)” was placed as EPS because it uses the PostScript operator “\(error.op)”, which the Illustrator reader does not interpret."
-            return ImportedScene(kind: .placed, name: name, bounds: bounds, nodes: [.placed(ImportedPlacedFile(kind: .eps, blob: blob, bounds: bounds))], notes: [note])
+            return EPSImporter.place(data, file: EPSFile(postscript: data), name: name, notes: [note])
         }
     }
 }

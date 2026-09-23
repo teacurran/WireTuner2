@@ -168,7 +168,9 @@ import WTRender
         #expect(placed.kind == .eps)
         #expect(placed.bounds == Rect(x: 0, y: 0, width: 100, height: 50))
         #expect(placed.blob.data == Data(file.utf8))
-        #expect(scene.notes == ["“art.ai” was placed as EPS because it uses the PostScript operator “moveto”, which the Illustrator reader does not interpret."])
+        #expect(scene.notes == ["“art.ai” was placed as EPS because it uses the PostScript operator “moveto”, which the Illustrator reader does not interpret.",
+                                "“art.ai” has no preview; it shows as a gray box of its bounding-box size."])
+        #expect(placed.preview == nil)
         let descriptor = try IllustratorImporter().probe(Data(file.utf8), name: "art.ai", format: .illustrator)
         #expect(descriptor.placed && descriptor.naturalSize == Rect(x: 0, y: 0, width: 100, height: 50))
         let readable = try IllustratorImporter().probe(Data(Self.legacy.utf8), name: "art.ai", format: .illustrator)

@@ -139,7 +139,8 @@ struct ImportFrameworkTests {
 
     @Test func theStandardRegistryReadsEveryShippedFormat() {
         let registry = ImportRegistry.standard
-        #expect(registry.availableFormats == ImportFormat.allCases.filter { $0 != .eps })
+        #expect(registry.availableFormats == ImportFormat.allCases)
+        #expect(registry.importer(for: .eps) is EPSImporter)
         #expect(registry.importer(for: .pdf)?.optionsSchema(for: .pdf) == PDFImportOptions.schema)
         #expect(registry.importer(for: .svg)?.optionsSchema(for: .svg) == SVGImportOptions.schema)
         #expect(registry.importer(for: .dxf)?.optionsSchema(for: .dxf) == DXFImportOptions.schema)
