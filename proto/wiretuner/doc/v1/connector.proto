@@ -1,0 +1,72 @@
+// proto/wiretuner/doc/v1/connector.proto
+//
+// The `connector` node kind (docs/_includes/drawing/connectors.adoc, DRAW-035): a line that
+// joins two objects and stays joined.  The connector stores *which* objects and sides it joins,
+// never its geometry: every replica derives the route on read from the two ends and the current
+// rendered bounds of the referenced nodes, so moving a connected object writes no connector op
+// and a connector can never lag or conflict with the objects it follows.
+syntax = "proto3";
+
+package wiretuner.doc.v1;
+
+import "buf/validate/validate.proto";
+import "wiretuner/doc/v1/appearance.proto";
+import "wiretuner/doc/v1/common.proto";
+import "wt/crdt/options.proto";
+
+option java_multiple_files = true;
+option java_package = "com.villagecompute.wiretuner.doc.v1";
+option optimize_for = SPEED;
+
+// The side of an object's rendered bounds a connector end leaves from or enters.  The end sits
+// at the midpoint of that side.
+enum ConnectorSide {
+  // No side chosen: the end takes the side of its object facing the other end.
+  CONNECTOR_SIDE_UNSPECIFIED = 0;
+  // The top edge (smallest y).
+  CONNECTOR_SIDE_TOP = 1;
+  // The bottom edge (largest y).
+  CONNECTOR_SIDE_BOTTOM = 2;
+  // The left edge (smallest x).
+  CONNECTOR_SIDE_LEFT = 3;
+  // The right edge (largest x).
+  CONNECTOR_SIDE_RIGHT = 4;
+}
+
+// NodeProps.kind case `connector` (DRAW block).  STRUCT.  The routed line is never stored.
+message ConnectorProps {
+  // Name, note and the other shared registers.  `transform` is unused and reads as the
+  // identity: the geometry comes from the ends.
+  CommonProps common = 1;
+  // The end the line leaves from.  ATOMIC: node, side and point are always written together by
+  // an attach, and a merged end with one person's node and another's side would attach to a
+  // side nobody chose.
+  ConnectorEnd start = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // The end the line arrives at (its arrowhead end).  ATOMIC, as `start`.
+  ConnectorEnd end = 3 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // The attribute stack; only strokes are drawn (fills are ignored).
+  AppearanceProps appearance = 4;
+  // Manual reshape: the sideways offset of each intermediate straight run of the routed line,
+  // in points, in route order, positive to the right of the run's direction.  ATOMIC: the list
+  // only makes sense as a whole for one route shape.  Reads as automatic routing when its
+  // length differs from the current route's intermediate run count; it stays in the register
+  // for the next route that matches.
+  repeated double run_offsets = 5 [
+    (wt.crdt.field).merge = MERGE_ATOMIC,
+    (buf.validate.field).repeated.max_items = 64
+  ];
+}
+
+// One end of a connector.  ATOMIC wherever it is used.
+message ConnectorEnd {
+  // The object this end is attached to.  Dangling (deleted, unknown, or a kind without bounds,
+  // such as a connector or a guide) reads as unset, making this a free end at `point`; the
+  // reference is kept, so restoring the object reconnects it.
+  NodeRef node = 1 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
+  // The side of `node` the end sits on; ignored while the end is free.
+  ConnectorSide side = 2 [(buf.validate.field).enum.defined_only = true];
+  // The free position, and the fallback while `node` dangles.  Written whenever the end is
+  // attached or moved (the attachment point at that moment), so a deleted object leaves the end
+  // where it was.
+  Point point = 3 [(wt.crdt.field).merge = MERGE_ATOMIC];
+}

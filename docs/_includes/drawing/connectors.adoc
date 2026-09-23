@@ -60,7 +60,7 @@ read from the two ends and the current bounds of the referenced nodes.
 
 [source,protobuf]
 ----
-message ConnectorProps {
+message ConnectorProps {                      // NodeProps.kind case `connector` = 25 (DRAW block)
   CommonProps common = 1;                     // transform is unused (identity); name, notes
   // ATOMIC: node, side and point are always written together by an attach, and a merged end
   // with one person's node and another's side would attach to a side nobody chose.
@@ -70,7 +70,7 @@ message ConnectorProps {
   // Manual reshape: sideways offset of each intermediate straight run of the routed line, in
   // pasteboard units, in route order.  ATOMIC: the list only makes sense as a whole for one
   // route shape.  Read as automatic when its length differs from the current route's run
-  // count.
+  // count.  At most 64 entries.
   repeated double run_offsets = 5 [(wt.crdt.field).merge = MERGE_ATOMIC];
 }
 
@@ -78,13 +78,16 @@ message ConnectorEnd {
   // The object this end is attached to.  Dangling (deleted, unknown, or a kind without
   // bounds) reads as unset, making this a free end at `point`.
   NodeRef node = 1 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
-  Side side = 2;                              // TOP, BOTTOM, LEFT, RIGHT; ignored when free
+  ConnectorSide side = 2;                     // TOP, BOTTOM, LEFT, RIGHT; ignored when free
   // Free position, and the fallback when `node` dangles.  Written whenever the end is
   // attached or moved (the attachment point at that moment), so a deleted object leaves the
   // end where it was.
-  Point point = 3;
+  Point point = 3 [(wt.crdt.field).merge = MERGE_ATOMIC];
 }
-enum Side { SIDE_UNSPECIFIED = 0; SIDE_TOP = 1; SIDE_BOTTOM = 2; SIDE_LEFT = 3; SIDE_RIGHT = 4; }
+enum ConnectorSide {
+  CONNECTOR_SIDE_UNSPECIFIED = 0;             // the side facing the other end
+  CONNECTOR_SIDE_TOP = 1; CONNECTOR_SIDE_BOTTOM = 2; CONNECTOR_SIDE_LEFT = 3; CONNECTOR_SIDE_RIGHT = 4;
+}
 ----
 
 The endpoint position for an attached end is the midpoint of the chosen side of the node's
@@ -171,11 +174,20 @@ touches every connector of a moved node so the builder rebuilds it and REND-004 
 tint).  Measured: 1,000 connectors of one node rerouted and invalidated in 11 ms in a release
 build (the one-frame budget is enforced in release builds only).
 
-NOTE: The model half of DRAW-035 and DRAW-037 is not built: `doc/v1/connector.proto` and the
-`connector` kind do not exist yet (DRAW-035's render half did not carry them and the proto track
-owns them), so WTModel has nothing to read into a `ConnectorSpec`.  When the schema lands, the
-connector's `ConnectorSpec.addDependencies(to:)` goes into `DocumentDisplayListBuilder`'s
-`DependencyIndex`, which already expands every change through it (symbols and charts use it).
+NOTE: As built by DRAW-035 (schema half): `doc/v1/connector.proto` with `ConnectorProps`,
+`ConnectorEnd` and `ConnectorSide`, registered as `NodeProps.kind` case `connector = 25` in the DRAW
+block.  The side enum is `ConnectorSide` (`CONNECTOR_SIDE_*`), not a package-wide `Side`, so a later
+feature's sides cannot collide with it; `SIDE_UNSPECIFIED` reads as the side facing the other end,
+as the render half already does.  `run_offsets` is capped at 64 entries.  No routing field was added:
+this page specifies orthogonal routing only, so WTRender's `.straight` and `.curved` stay unexposed
+until a page calls for them (the field would be additive: an enum register at number 6).
+Conformance vectors under `crdt-conformance/vectors/connectors/`: same-end concurrent re-attach
+(all three fields from one writer), both ends re-attached concurrently, attach vs. detach, delete
+vs. attach (the ref and `point` survive on a deleted target), concurrent `run_offsets` (one whole
+list wins), and Reverse Direction vs. a concurrent re-attach.  The WTModel half (reading props into
+a `ConnectorSpec` with the read normalizations above, the commands, and feeding
+`ConnectorSpec.addDependencies(to:)` into `DocumentDisplayListBuilder`'s `DependencyIndex`) is not
+built yet.
 
 === Build tasks
 

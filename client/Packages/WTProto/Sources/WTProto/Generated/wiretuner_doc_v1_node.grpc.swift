@@ -12,7 +12,7 @@
 ///
 ///   Block     Epic    Cases so far
 ///   1-19      DOC     1 document, 2 settings, 3 page, 4 master_page, 5 asset
-///   20-49     DRAW    20 path, 21 rect, 22 ellipse, 23 polygon, 24 chart
+///   20-49     DRAW    20 path, 21 rect, 22 ellipse, 23 polygon, 24 chart, 25 connector
 ///   50-69     OBJ     50 group
 ///   70-79     COLOR   70 swatch
 ///   80-99     ATTR    80 brush

@@ -93,7 +93,7 @@ public enum WTMergeTable {
     }
 
     /// SHA-256 (hex) of the canonical JSON table without its `version` key.
-    public static let version = "c3932ca67c82671779dcbaf75b48516af6f09d2d41718c0050173791f87cf23e"
+    public static let version = "1050a4cbdc9a346351d65a8f91f867d4d95fae80d2c5820c75bb48ea9e1d305a"
 
     /// The rows of every message, by fully qualified proto name.
     public static let messages: [String: MessagePolicy] = [
@@ -136,6 +136,8 @@ public enum WTMergeTable {
         "wiretuner.doc.v1.CommentThreadProps": wiretuner_doc_v1_CommentThreadProps,
         "wiretuner.doc.v1.CommonProps": wiretuner_doc_v1_CommonProps,
         "wiretuner.doc.v1.Component": wiretuner_doc_v1_Component,
+        "wiretuner.doc.v1.ConnectorEnd": wiretuner_doc_v1_ConnectorEnd,
+        "wiretuner.doc.v1.ConnectorProps": wiretuner_doc_v1_ConnectorProps,
         "wiretuner.doc.v1.Contour": wiretuner_doc_v1_Contour,
         "wiretuner.doc.v1.CornerRadii": wiretuner_doc_v1_CornerRadii,
         "wiretuner.doc.v1.CornersEffect": wiretuner_doc_v1_CornersEffect,
@@ -2920,6 +2922,102 @@ public enum WTMergeTable {
           "repeated": false,
           "type": "message",
           "type_name": "wiretuner.doc.v1.Transform"
+        }
+      }
+    },
+    "wiretuner.doc.v1.ConnectorEnd": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "node",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.NodeRef"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "side",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.ConnectorSide"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "point",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Point"
+        }
+      }
+    },
+    "wiretuner.doc.v1.ConnectorProps": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "common",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.CommonProps"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "start",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ConnectorEnd"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "end",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ConnectorEnd"
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "appearance",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.AppearanceProps"
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "run_offsets",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": true,
+          "type": "double",
+          "type_name": null
         }
       }
     },
@@ -8171,6 +8269,17 @@ public enum WTMergeTable {
           "repeated": false,
           "type": "message",
           "type_name": "wiretuner.doc.v1.ScriptProps"
+        },
+        "25": {
+          "element_message": null,
+          "local_only": false,
+          "name": "connector",
+          "on_dangling": "UNSET",
+          "oneof": "kind",
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ConnectorProps"
         },
         "260": {
           "element_message": null,
@@ -13738,7 +13847,7 @@ public enum WTMergeTable {
       "kind_field": 1
     }
   },
-  "version": "c3932ca67c82671779dcbaf75b48516af6f09d2d41718c0050173791f87cf23e"
+  "version": "1050a4cbdc9a346351d65a8f91f867d4d95fae80d2c5820c75bb48ea9e1d305a"
 }
 """#
 
@@ -15086,6 +15195,58 @@ public enum WTMergeTable {
             3: FieldPolicy(
                 fieldNumber: 3, name: "transform", policy: .atomic, onDangling: .unset,
                 localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.Transform",
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_ConnectorEnd = MessagePolicy(
+        name: "wiretuner.doc.v1.ConnectorEnd",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "node", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.NodeRef",
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "side", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "enum", repeated: false, typeName: "wiretuner.doc.v1.ConnectorSide",
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "point", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.Point",
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_ConnectorProps = MessagePolicy(
+        name: "wiretuner.doc.v1.ConnectorProps",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "common", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.CommonProps",
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "start", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ConnectorEnd",
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "end", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ConnectorEnd",
+                elementMessage: nil, oneof: nil
+            ),
+            4: FieldPolicy(
+                fieldNumber: 4, name: "appearance", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.AppearanceProps",
+                elementMessage: nil, oneof: nil
+            ),
+            5: FieldPolicy(
+                fieldNumber: 5, name: "run_offsets", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: true, typeName: nil,
                 elementMessage: nil, oneof: nil
             ),
         ]
@@ -17729,6 +17890,11 @@ public enum WTMergeTable {
             24: FieldPolicy(
                 fieldNumber: 24, name: "chart", policy: .structure, onDangling: .unset,
                 localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ChartProps",
+                elementMessage: nil, oneof: "kind"
+            ),
+            25: FieldPolicy(
+                fieldNumber: 25, name: "connector", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ConnectorProps",
                 elementMessage: nil, oneof: "kind"
             ),
             50: FieldPolicy(

@@ -12,6 +12,7 @@ mapping {
   proto_file_path: "wiretuner/doc/v1/color_management.proto"
   proto_file_path: "wiretuner/doc/v1/comments.proto"
   proto_file_path: "wiretuner/doc/v1/common.proto"
+  proto_file_path: "wiretuner/doc/v1/connector.proto"
   proto_file_path: "wiretuner/doc/v1/contour.proto"
   proto_file_path: "wiretuner/doc/v1/data.proto"
   proto_file_path: "wiretuner/doc/v1/document.proto"

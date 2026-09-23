@@ -2609,6 +2609,102 @@
         }
       }
     },
+    "wiretuner.doc.v1.ConnectorEnd": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "node",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.NodeRef"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "side",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.ConnectorSide"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "point",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Point"
+        }
+      }
+    },
+    "wiretuner.doc.v1.ConnectorProps": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "common",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.CommonProps"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "start",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ConnectorEnd"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "end",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ConnectorEnd"
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "appearance",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.AppearanceProps"
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "run_offsets",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": true,
+          "type": "double",
+          "type_name": null
+        }
+      }
+    },
     "wiretuner.doc.v1.Contour": {
       "fields": {
         "1": {
@@ -7857,6 +7953,17 @@
           "repeated": false,
           "type": "message",
           "type_name": "wiretuner.doc.v1.ScriptProps"
+        },
+        "25": {
+          "element_message": null,
+          "local_only": false,
+          "name": "connector",
+          "on_dangling": "UNSET",
+          "oneof": "kind",
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ConnectorProps"
         },
         "260": {
           "element_message": null,
@@ -13424,5 +13531,5 @@
       "kind_field": 1
     }
   },
-  "version": "c3932ca67c82671779dcbaf75b48516af6f09d2d41718c0050173791f87cf23e"
+  "version": "1050a4cbdc9a346351d65a8f91f867d4d95fae80d2c5820c75bb48ea9e1d305a"
 }

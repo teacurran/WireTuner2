@@ -2210,6 +2210,47 @@ public enum WTValidators {
         return out
     }
 
+    /// Validates `wiretuner.doc.v1.ConnectorEnd`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_ConnectorEnd, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if m.hasNode {
+            let v = m.node
+            out += validate(v, path: "\(path)node.")
+        }
+        do {
+            let v = m.side
+            if case .UNRECOGNIZED = v {
+                out.append(ValidationViolation(fieldPath: "\(path)side", ruleID: "enum.defined_only", message: "value must be one of the defined enum values"))
+            }
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.doc.v1.ConnectorProps`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_ConnectorProps, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if m.hasCommon {
+            let v = m.common
+            out += validate(v, path: "\(path)common.")
+        }
+        if m.hasStart {
+            let v = m.start
+            out += validate(v, path: "\(path)start.")
+        }
+        if m.hasEnd {
+            let v = m.end
+            out += validate(v, path: "\(path)end.")
+        }
+        if m.hasAppearance {
+            let v = m.appearance
+            out += validate(v, path: "\(path)appearance.")
+        }
+        if m.runOffsets.count > 64 {
+            out.append(ValidationViolation(fieldPath: "\(path)run_offsets", ruleID: "repeated.max_items", message: "value must contain no more than 64 item(s)"))
+        }
+        return out
+    }
+
     /// Validates `wiretuner.doc.v1.Contour`; `path` prefixes every violation's field path.
     public static func validate(_ m: Wiretuner_Doc_V1_Contour, path: String = "") -> [ValidationViolation] {
         var out: [ValidationViolation] = []
@@ -4275,6 +4316,9 @@ public enum WTValidators {
         }
         if case .chart(let v)? = m.kind {
             out += validate(v, path: "\(path)chart.")
+        }
+        if case .connector(let v)? = m.kind {
+            out += validate(v, path: "\(path)connector.")
         }
         if case .group(let v)? = m.kind {
             out += validate(v, path: "\(path)group.")
@@ -6744,6 +6788,23 @@ public enum WTValidators {
         return out
     }
 
+    /// Validates `wiretuner.docs.v1.FetchColorLibraryRequest`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Docs_V1_FetchColorLibraryRequest, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if m.documentID.isEmpty {
+            out.append(ValidationViolation(fieldPath: "\(path)document_id", ruleID: "required", message: "value is required"))
+        }
+        do {
+            let v = m.documentID
+            if v.isEmpty {
+                out.append(ValidationViolation(fieldPath: "\(path)document_id", ruleID: "string.uuid_empty", message: "value is empty, which is not a valid UUID"))
+            } else if v.wholeMatch(of: Self.pattern0) == nil {
+                out.append(ValidationViolation(fieldPath: "\(path)document_id", ruleID: "string.uuid", message: "value must be a valid UUID"))
+            }
+        }
+        return out
+    }
+
     /// Validates `wiretuner.docs.v1.ForkRequest`; `path` prefixes every violation's field path.
     public static func validate(_ m: Wiretuner_Docs_V1_ForkRequest, path: String = "") -> [ValidationViolation] {
         var out: [ValidationViolation] = []
@@ -6959,6 +7020,35 @@ public enum WTValidators {
                 out.append(ValidationViolation(fieldPath: "\(path)parent_document_id", ruleID: "string.uuid_empty", message: "value is empty, which is not a valid UUID"))
             } else if v.wholeMatch(of: Self.pattern0) == nil {
                 out.append(ValidationViolation(fieldPath: "\(path)parent_document_id", ruleID: "string.uuid", message: "value must be a valid UUID"))
+            }
+        }
+        do {
+            let v = m.cursor
+            if v.unicodeScalars.count > 1024 {
+                out.append(ValidationViolation(fieldPath: "\(path)cursor", ruleID: "string.max_len", message: "value length must be at most 1024 characters"))
+            }
+        }
+        do {
+            let v = m.pageSize
+            if !(v <= 50) {
+                out.append(ValidationViolation(fieldPath: "\(path)page_size", ruleID: "uint32.lte", message: "value must be less than or equal to 50"))
+            }
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.docs.v1.ListColorLibrariesRequest`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Docs_V1_ListColorLibrariesRequest, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if m.teamID.isEmpty {
+            out.append(ValidationViolation(fieldPath: "\(path)team_id", ruleID: "required", message: "value is required"))
+        }
+        do {
+            let v = m.teamID
+            if v.isEmpty {
+                out.append(ValidationViolation(fieldPath: "\(path)team_id", ruleID: "string.uuid_empty", message: "value is empty, which is not a valid UUID"))
+            } else if v.wholeMatch(of: Self.pattern0) == nil {
+                out.append(ValidationViolation(fieldPath: "\(path)team_id", ruleID: "string.uuid", message: "value must be a valid UUID"))
             }
         }
         do {
@@ -7369,6 +7459,43 @@ public enum WTValidators {
                 out.append(ValidationViolation(fieldPath: "\(path)version_id", ruleID: "string.uuid_empty", message: "value is empty, which is not a valid UUID"))
             } else if v.wholeMatch(of: Self.pattern0) == nil {
                 out.append(ValidationViolation(fieldPath: "\(path)version_id", ruleID: "string.uuid", message: "value must be a valid UUID"))
+            }
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.docs.v1.PublishColorLibraryRequest`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Docs_V1_PublishColorLibraryRequest, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if m.documentID.isEmpty {
+            out.append(ValidationViolation(fieldPath: "\(path)document_id", ruleID: "required", message: "value is required"))
+        }
+        do {
+            let v = m.documentID
+            if v.isEmpty {
+                out.append(ValidationViolation(fieldPath: "\(path)document_id", ruleID: "string.uuid_empty", message: "value is empty, which is not a valid UUID"))
+            } else if v.wholeMatch(of: Self.pattern0) == nil {
+                out.append(ValidationViolation(fieldPath: "\(path)document_id", ruleID: "string.uuid", message: "value must be a valid UUID"))
+            }
+        }
+        if !(m.teamID.isEmpty) {
+            let v = m.teamID
+            if v.isEmpty {
+                out.append(ValidationViolation(fieldPath: "\(path)team_id", ruleID: "string.uuid_empty", message: "value is empty, which is not a valid UUID"))
+            } else if v.wholeMatch(of: Self.pattern0) == nil {
+                out.append(ValidationViolation(fieldPath: "\(path)team_id", ruleID: "string.uuid", message: "value must be a valid UUID"))
+            }
+        }
+        do {
+            let v = m.name
+            if v.unicodeScalars.count > 256 {
+                out.append(ValidationViolation(fieldPath: "\(path)name", ruleID: "string.max_len", message: "value length must be at most 256 characters"))
+            }
+        }
+        do {
+            let v = m.mode
+            if case .UNRECOGNIZED = v {
+                out.append(ValidationViolation(fieldPath: "\(path)mode", ruleID: "enum.defined_only", message: "value must be one of the defined enum values"))
             }
         }
         return out
@@ -7819,6 +7946,23 @@ public enum WTValidators {
 
     /// Validates `wiretuner.docs.v1.TrashRequest`; `path` prefixes every violation's field path.
     public static func validate(_ m: Wiretuner_Docs_V1_TrashRequest, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if m.documentID.isEmpty {
+            out.append(ValidationViolation(fieldPath: "\(path)document_id", ruleID: "required", message: "value is required"))
+        }
+        do {
+            let v = m.documentID
+            if v.isEmpty {
+                out.append(ValidationViolation(fieldPath: "\(path)document_id", ruleID: "string.uuid_empty", message: "value is empty, which is not a valid UUID"))
+            } else if v.wholeMatch(of: Self.pattern0) == nil {
+                out.append(ValidationViolation(fieldPath: "\(path)document_id", ruleID: "string.uuid", message: "value must be a valid UUID"))
+            }
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.docs.v1.UnpublishColorLibraryRequest`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Docs_V1_UnpublishColorLibraryRequest, path: String = "") -> [ValidationViolation] {
         var out: [ValidationViolation] = []
         if m.documentID.isEmpty {
             out.append(ValidationViolation(fieldPath: "\(path)document_id", ruleID: "required", message: "value is required"))

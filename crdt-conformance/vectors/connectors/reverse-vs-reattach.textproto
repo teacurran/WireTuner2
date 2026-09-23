@@ -1,0 +1,63 @@
+# crdt-conformance/vectors/connectors/reverse-vs-reattach.textproto (DRAW-035; schema: crdt-conformance/schema/vector.proto)
+name: "connectors/reverse-vs-reattach"
+description: "Replica 1 reverses the connector (one op writing start, end and the reversed run offsets) while replica 2 re-attaches the end to the top of C.  Each register takes its greater OpId: start is replica 1's (B left), end is replica 2's (C top), so the concurrent re-attach lands on the end the reverse vacated; the review sheet lists the connector as both edited."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Create layer, boxes A, B, C and a connector A -> B"
+    ops { create { parent { counter: 4 } position: "\x80" props { layer { common { name: "Layer 1" } } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x80" props { rect { common { name: "A" } size { width: 10 height: 10 } } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x81" props { rect { common { name: "B" transform { a: 1 d: 1 tx: 40 } } size { width: 10 height: 10 } } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x82" props { rect { common { name: "C" transform { a: 1 d: 1 tx: 40 ty: 40 } } size { width: 10 height: 10 } } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x83" props { connector {
+      common { name: "A to B" }
+      start { node { id { counter: 2 replica: 7 } } side: CONNECTOR_SIDE_RIGHT point { x: 10 y: 5 } }
+      end { node { id { counter: 3 replica: 7 } } side: CONNECTOR_SIDE_LEFT point { x: 40 y: 5 } } } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 6 base_server_seq: 1 label: "Reverse Direction"
+    ops { set { node { counter: 5 replica: 7 }
+      paths { segments { field: 25 } segments { field: 2 } }
+      paths { segments { field: 25 } segments { field: 3 } }
+      paths { segments { field: 25 } segments { field: 5 } }
+      values { connector { start { node { id { counter: 3 replica: 7 } } side: CONNECTOR_SIDE_LEFT point { x: 40 y: 5 } } end { node { id { counter: 2 replica: 7 } } side: CONNECTOR_SIDE_RIGHT point { x: 10 y: 5 } } run_offsets: [4, 2] } } } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 6 base_server_seq: 1 label: "Attach end to C top"
+    ops { set { node { counter: 5 replica: 7 }
+      paths { segments { field: 25 } segments { field: 3 } }
+      values { connector { end { node { id { counter: 4 replica: 7 } } side: CONNECTOR_SIDE_TOP point { x: 45 y: 40 } } } } } }
+  }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "4db905994a087506d5535c734cb95ee067064394bc3f1af92b731cbebd877790"
+  snapshot_hash: "e7d115b57568bd5626e5534e49003d4fb6f39a9a6d0bcc7f78f4c6e5fce743d4"
+  node {
+    id { counter: 5 replica: 7 }
+    node_hash: "c6ef0af86b0526604e37b0cbacdb653ca2c627f1d9cd1b87eb8cb91d493e7d87"
+    register {
+      path { segments { field: 25 } segments { field: 2 } }
+      value { connector { start { node { id { counter: 3 replica: 7 } } side: CONNECTOR_SIDE_LEFT point { x: 40 y: 5 } } } }
+      op { counter: 6 replica: 1 }
+      losing { counter: 5 replica: 7 }
+    }
+    register {
+      path { segments { field: 25 } segments { field: 3 } }
+      value { connector { end { node { id { counter: 4 replica: 7 } } side: CONNECTOR_SIDE_TOP point { x: 45 y: 40 } } } }
+      op { counter: 6 replica: 2 }
+      losing { counter: 5 replica: 7 } losing { counter: 6 replica: 1 }
+    }
+    register {
+      path { segments { field: 25 } segments { field: 5 } }
+      value { connector { run_offsets: [4, 2] } }
+      op { counter: 6 replica: 1 }
+    }
+  }
+}

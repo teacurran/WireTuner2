@@ -1,0 +1,50 @@
+# crdt-conformance/vectors/connectors/concurrent-run-offsets.textproto (DRAW-035; schema: crdt-conformance/schema/vector.proto)
+name: "connectors/concurrent-run-offsets"
+description: "Two replicas reshape the same connector by hand at once: replica 1 writes run offsets [5, -3], replica 2 writes [12].  run_offsets is ATOMIC, so the greater OpId's whole list wins; the lists are never merged element by element into a route shape nobody drew."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Create layer, boxes A, B, C and a connector A -> B"
+    ops { create { parent { counter: 4 } position: "\x80" props { layer { common { name: "Layer 1" } } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x80" props { rect { common { name: "A" } size { width: 10 height: 10 } } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x81" props { rect { common { name: "B" transform { a: 1 d: 1 tx: 40 } } size { width: 10 height: 10 } } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x82" props { rect { common { name: "C" transform { a: 1 d: 1 tx: 40 ty: 40 } } size { width: 10 height: 10 } } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x83" props { connector {
+      common { name: "A to B" }
+      start { node { id { counter: 2 replica: 7 } } side: CONNECTOR_SIDE_RIGHT point { x: 10 y: 5 } }
+      end { node { id { counter: 3 replica: 7 } } side: CONNECTOR_SIDE_LEFT point { x: 40 y: 5 } } } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 6 base_server_seq: 1 label: "Reshape"
+    ops { set { node { counter: 5 replica: 7 }
+      paths { segments { field: 25 } segments { field: 5 } }
+      values { connector { run_offsets: [5, -3] } } } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 6 base_server_seq: 1 label: "Reshape"
+    ops { set { node { counter: 5 replica: 7 }
+      paths { segments { field: 25 } segments { field: 5 } }
+      values { connector { run_offsets: [12] } } } }
+  }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "12cb9638aaf4a06bc70fe8e345a908679b4408cbe4515fb6eb93604466261a9b"
+  snapshot_hash: "704c21f223ba345f903c9d997d38d97df5c303f459f1fb302a94e455aee6e1d4"
+  node {
+    id { counter: 5 replica: 7 }
+    node_hash: "5ed5a40136e87cdc3fbceeaff32e23cbee39b6b45392efdbb9ff952b6bc81dcd"
+    register {
+      path { segments { field: 25 } segments { field: 5 } }
+      value { connector { run_offsets: [12] } }
+      op { counter: 6 replica: 2 }
+      losing { counter: 6 replica: 1 }
+    }
+  }
+}

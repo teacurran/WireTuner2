@@ -1,0 +1,50 @@
+# crdt-conformance/vectors/connectors/attach-vs-detach.textproto (DRAW-035; schema: crdt-conformance/schema/vector.proto)
+name: "connectors/attach-vs-detach"
+description: "Replica 1 re-attaches the connector's end to the left side of C while replica 2 drags the same end to empty canvas, freeing it (an end with no node).  The detach has the greater OpId and wins the whole ConnectorEnd: the end is free at the dropped point with no node or side left over from the attach."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Create layer, boxes A, B, C and a connector A -> B"
+    ops { create { parent { counter: 4 } position: "\x80" props { layer { common { name: "Layer 1" } } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x80" props { rect { common { name: "A" } size { width: 10 height: 10 } } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x81" props { rect { common { name: "B" transform { a: 1 d: 1 tx: 40 } } size { width: 10 height: 10 } } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x82" props { rect { common { name: "C" transform { a: 1 d: 1 tx: 40 ty: 40 } } size { width: 10 height: 10 } } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x83" props { connector {
+      common { name: "A to B" }
+      start { node { id { counter: 2 replica: 7 } } side: CONNECTOR_SIDE_RIGHT point { x: 10 y: 5 } }
+      end { node { id { counter: 3 replica: 7 } } side: CONNECTOR_SIDE_LEFT point { x: 40 y: 5 } } } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 6 base_server_seq: 1 label: "Attach end to C left"
+    ops { set { node { counter: 5 replica: 7 }
+      paths { segments { field: 25 } segments { field: 3 } }
+      values { connector { end { node { id { counter: 4 replica: 7 } } side: CONNECTOR_SIDE_LEFT point { x: 40 y: 45 } } } } } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 6 base_server_seq: 1 label: "Free end"
+    ops { set { node { counter: 5 replica: 7 }
+      paths { segments { field: 25 } segments { field: 3 } }
+      values { connector { end { point { x: 60 y: 20 } } } } } }
+  }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "6b0b2d18ff8e06912d4d339a684661b1503ee3aac36e42e17c3e33582e9f412d"
+  snapshot_hash: "dd252ad968cc0abb1bdf4a04de04f2fa4c7225a48098e5b74acd35782c279c21"
+  node {
+    id { counter: 5 replica: 7 }
+    node_hash: "e39a80e404634d53848fed763368fab8fc1e2450174d6c95e0088c1fed8ddc15"
+    register {
+      path { segments { field: 25 } segments { field: 3 } }
+      value { connector { end { point { x: 60 y: 20 } } } }
+      op { counter: 6 replica: 2 }
+      losing { counter: 5 replica: 7 } losing { counter: 6 replica: 1 }
+    }
+  }
+}

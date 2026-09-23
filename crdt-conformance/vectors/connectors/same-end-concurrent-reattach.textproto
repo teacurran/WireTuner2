@@ -1,0 +1,55 @@
+# crdt-conformance/vectors/connectors/same-end-concurrent-reattach.textproto (DRAW-035; schema: crdt-conformance/schema/vector.proto)
+name: "connectors/same-end-concurrent-reattach"
+description: "Replica 1 drags the connector's end to the left side of C while replica 2 drags the same end to the top of B.  ConnectorEnd is ATOMIC, so the greater OpId (6:2) wins node, side and point together; no end attaches to one writer's object on the other writer's side.  Both writes are retained for the review sheet."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Create layer, boxes A, B, C and a connector A -> B"
+    ops { create { parent { counter: 4 } position: "\x80" props { layer { common { name: "Layer 1" } } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x80" props { rect { common { name: "A" } size { width: 10 height: 10 } } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x81" props { rect { common { name: "B" transform { a: 1 d: 1 tx: 40 } } size { width: 10 height: 10 } } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x82" props { rect { common { name: "C" transform { a: 1 d: 1 tx: 40 ty: 40 } } size { width: 10 height: 10 } } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x83" props { connector {
+      common { name: "A to B" }
+      start { node { id { counter: 2 replica: 7 } } side: CONNECTOR_SIDE_RIGHT point { x: 10 y: 5 } }
+      end { node { id { counter: 3 replica: 7 } } side: CONNECTOR_SIDE_LEFT point { x: 40 y: 5 } } } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 6 base_server_seq: 1 label: "Attach end to C left"
+    ops { set { node { counter: 5 replica: 7 }
+      paths { segments { field: 25 } segments { field: 3 } }
+      values { connector { end { node { id { counter: 4 replica: 7 } } side: CONNECTOR_SIDE_LEFT point { x: 40 y: 45 } } } } } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 6 base_server_seq: 1 label: "Attach end to B top"
+    ops { set { node { counter: 5 replica: 7 }
+      paths { segments { field: 25 } segments { field: 3 } }
+      values { connector { end { node { id { counter: 3 replica: 7 } } side: CONNECTOR_SIDE_TOP point { x: 45 y: 0 } } } } } }
+  }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "e3dd1933c49272c15fc7721e3c1d4299ac92b99cc5f0587a8b787364f808712c"
+  snapshot_hash: "c32719970f62b339950500812842ef2f787934dde09859e9c2baed0d51ee48b2"
+  node {
+    id { counter: 5 replica: 7 }
+    node_hash: "2cf1d76fc8c3c0a1b4236eb7360bc06a007b385aee395d117610a6257ec92f13"
+    register {
+      path { segments { field: 25 } segments { field: 3 } }
+      value { connector { end { node { id { counter: 3 replica: 7 } } side: CONNECTOR_SIDE_TOP point { x: 45 y: 0 } } } }
+      op { counter: 6 replica: 2 }
+      losing { counter: 5 replica: 7 } losing { counter: 6 replica: 1 }
+    }
+    register {
+      path { segments { field: 25 } segments { field: 2 } }
+      value { connector { start { node { id { counter: 2 replica: 7 } } side: CONNECTOR_SIDE_RIGHT point { x: 10 y: 5 } } } }
+      op { counter: 5 replica: 7 }
+    }
+  }
+}

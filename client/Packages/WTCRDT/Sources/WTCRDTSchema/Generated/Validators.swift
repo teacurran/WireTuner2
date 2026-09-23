@@ -2210,6 +2210,47 @@ public enum WTValidators {
         return out
     }
 
+    /// Validates `wiretuner.doc.v1.ConnectorEnd`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_ConnectorEnd, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if m.hasNode {
+            let v = m.node
+            out += validate(v, path: "\(path)node.")
+        }
+        do {
+            let v = m.side
+            if case .UNRECOGNIZED = v {
+                out.append(ValidationViolation(fieldPath: "\(path)side", ruleID: "enum.defined_only", message: "value must be one of the defined enum values"))
+            }
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.doc.v1.ConnectorProps`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_ConnectorProps, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if m.hasCommon {
+            let v = m.common
+            out += validate(v, path: "\(path)common.")
+        }
+        if m.hasStart {
+            let v = m.start
+            out += validate(v, path: "\(path)start.")
+        }
+        if m.hasEnd {
+            let v = m.end
+            out += validate(v, path: "\(path)end.")
+        }
+        if m.hasAppearance {
+            let v = m.appearance
+            out += validate(v, path: "\(path)appearance.")
+        }
+        if m.runOffsets.count > 64 {
+            out.append(ValidationViolation(fieldPath: "\(path)run_offsets", ruleID: "repeated.max_items", message: "value must contain no more than 64 item(s)"))
+        }
+        return out
+    }
+
     /// Validates `wiretuner.doc.v1.Contour`; `path` prefixes every violation's field path.
     public static func validate(_ m: Wiretuner_Doc_V1_Contour, path: String = "") -> [ValidationViolation] {
         var out: [ValidationViolation] = []
@@ -4275,6 +4316,9 @@ public enum WTValidators {
         }
         if case .chart(let v)? = m.kind {
             out += validate(v, path: "\(path)chart.")
+        }
+        if case .connector(let v)? = m.kind {
+            out += validate(v, path: "\(path)connector.")
         }
         if case .group(let v)? = m.kind {
             out += validate(v, path: "\(path)group.")

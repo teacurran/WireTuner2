@@ -1,0 +1,49 @@
+# crdt-conformance/vectors/connectors/delete-vs-attach.textproto (DRAW-035; schema: crdt-conformance/schema/vector.proto)
+name: "connectors/delete-vs-attach"
+description: "Replica 1 deletes box C while replica 2 attaches the connector's end to C's left side.  Both apply: C is deleted in place and the end register keeps the reference to C with its point, so readers see a free end at (40, 45) (on_dangling UNSET) and restoring C reconnects it without a connector op."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Create layer, boxes A, B, C and a connector A -> B"
+    ops { create { parent { counter: 4 } position: "\x80" props { layer { common { name: "Layer 1" } } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x80" props { rect { common { name: "A" } size { width: 10 height: 10 } } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x81" props { rect { common { name: "B" transform { a: 1 d: 1 tx: 40 } } size { width: 10 height: 10 } } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x82" props { rect { common { name: "C" transform { a: 1 d: 1 tx: 40 ty: 40 } } size { width: 10 height: 10 } } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x83" props { connector {
+      common { name: "A to B" }
+      start { node { id { counter: 2 replica: 7 } } side: CONNECTOR_SIDE_RIGHT point { x: 10 y: 5 } }
+      end { node { id { counter: 3 replica: 7 } } side: CONNECTOR_SIDE_LEFT point { x: 40 y: 5 } } } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 6 base_server_seq: 1 label: "Delete C"
+    ops { set_deleted { node { counter: 4 replica: 7 } deleted: true } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 6 base_server_seq: 1 label: "Attach end to C left"
+    ops { set { node { counter: 5 replica: 7 }
+      paths { segments { field: 25 } segments { field: 3 } }
+      values { connector { end { node { id { counter: 4 replica: 7 } } side: CONNECTOR_SIDE_LEFT point { x: 40 y: 45 } } } } } }
+  }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "e0c473af77c9094246a9d5f5e9a642a8ba9221313f708d736f6ad84115df0c01"
+  snapshot_hash: "f5ef1ae8968718822f8db9bd0d6462aa17585df783bd8b02fe4bc267e9cef1b9"
+  node {
+    id { counter: 5 replica: 7 }
+    node_hash: "4a3e0adf5d6e7f347e9fe3ecdee69c42dd386a147083b8ed0cc8f83ae576739f"
+    register {
+      path { segments { field: 25 } segments { field: 3 } }
+      value { connector { end { node { id { counter: 4 replica: 7 } } side: CONNECTOR_SIDE_LEFT point { x: 40 y: 45 } } } }
+      op { counter: 6 replica: 2 }
+      losing { counter: 5 replica: 7 }
+    }
+  }
+  node { id { counter: 4 replica: 7 } node_hash: "aef50d538ea864cdb070fa3407c5fe57d1c6e52bbced58f56ea62d241a845c7a" tree { parent { counter: 1 replica: 7 } position: "\x82" deleted: true } }
+}

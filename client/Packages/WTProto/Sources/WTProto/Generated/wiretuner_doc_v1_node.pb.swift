@@ -22,7 +22,7 @@
 ///
 ///   Block     Epic    Cases so far
 ///   1-19      DOC     1 document, 2 settings, 3 page, 4 master_page, 5 asset
-///   20-49     DRAW    20 path, 21 rect, 22 ellipse, 23 polygon, 24 chart
+///   20-49     DRAW    20 path, 21 rect, 22 ellipse, 23 polygon, 24 chart, 25 connector
 ///   50-69     OBJ     50 group
 ///   70-79     COLOR   70 swatch
 ///   80-99     ATTR    80 brush
@@ -330,6 +330,15 @@ public nonisolated struct Wiretuner_Doc_V1_NodeProps: Sendable {
     set {kind = .chart(newValue)}
   }
 
+  /// A connector line joining two objects (DRAW block, connector.proto).
+  public var connector: Wiretuner_Doc_V1_ConnectorProps {
+    get {
+      if case .connector(let v)? = kind {return v}
+      return Wiretuner_Doc_V1_ConnectorProps()
+    }
+    set {kind = .connector(newValue)}
+  }
+
   /// A group of objects (OBJ block).
   public var group: Wiretuner_Doc_V1_GroupProps {
     get {
@@ -543,6 +552,8 @@ public nonisolated struct Wiretuner_Doc_V1_NodeProps: Sendable {
     case polygon(Wiretuner_Doc_V1_PolygonProps)
     /// A chart regenerated from its data (DRAW block, chart.proto).
     case chart(Wiretuner_Doc_V1_ChartProps)
+    /// A connector line joining two objects (DRAW block, connector.proto).
+    case connector(Wiretuner_Doc_V1_ConnectorProps)
     /// A group of objects (OBJ block).
     case group(Wiretuner_Doc_V1_GroupProps)
     /// A color or tint swatch under 0:5 (COLOR block, color.proto).
@@ -699,7 +710,7 @@ nonisolated extension Wiretuner_Doc_V1_Node: SwiftProtobuf.Message, SwiftProtobu
 
 nonisolated extension Wiretuner_Doc_V1_NodeProps: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".NodeProps"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}document\0\u{1}settings\0\u{1}page\0\u{3}master_page\0\u{1}asset\0\u{2}\u{f}path\0\u{1}rect\0\u{1}ellipse\0\u{1}polygon\0\u{1}chart\0\u{2}\u{1a}group\0\u{2}\u{14}swatch\0\u{2}\u{a}brush\0\u{2}\u{14}blend\0\u{1}extrude\0\u{1}envelope\0\u{1}perspective\0\u{2}\u{1b}text\0\u{2}\u{14}layer\0\u{1}symbol\0\u{3}symbol_folder\0\u{1}instance\0\u{1}style\0\u{2}\u{10}image\0\u{3}placed_file\0\u{4}\u{13}svg_animation\0\u{4}\u{14}comment_thread\0\u{2}\u{a}glyph\0\u{2}\u{14}barcode\0\u{1}script\0\u{4}\u{13}custom_view\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}document\0\u{1}settings\0\u{1}page\0\u{3}master_page\0\u{1}asset\0\u{2}\u{f}path\0\u{1}rect\0\u{1}ellipse\0\u{1}polygon\0\u{1}chart\0\u{1}connector\0\u{2}\u{19}group\0\u{2}\u{14}swatch\0\u{2}\u{a}brush\0\u{2}\u{14}blend\0\u{1}extrude\0\u{1}envelope\0\u{1}perspective\0\u{2}\u{1b}text\0\u{2}\u{14}layer\0\u{1}symbol\0\u{3}symbol_folder\0\u{1}instance\0\u{1}style\0\u{2}\u{10}image\0\u{3}placed_file\0\u{4}\u{13}svg_animation\0\u{4}\u{14}comment_thread\0\u{2}\u{a}glyph\0\u{2}\u{14}barcode\0\u{1}script\0\u{4}\u{13}custom_view\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -835,6 +846,19 @@ nonisolated extension Wiretuner_Doc_V1_NodeProps: SwiftProtobuf.Message, SwiftPr
         if let v = v {
           if hadOneofValue {try decoder.handleConflictingOneOf()}
           self.kind = .chart(v)
+        }
+      }()
+      case 25: try {
+        var v: Wiretuner_Doc_V1_ConnectorProps?
+        var hadOneofValue = false
+        if let current = self.kind {
+          hadOneofValue = true
+          if case .connector(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.kind = .connector(v)
         }
       }()
       case 50: try {
@@ -1160,6 +1184,10 @@ nonisolated extension Wiretuner_Doc_V1_NodeProps: SwiftProtobuf.Message, SwiftPr
     case .chart?: try {
       guard case .chart(let v)? = self.kind else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 24)
+    }()
+    case .connector?: try {
+      guard case .connector(let v)? = self.kind else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 25)
     }()
     case .group?: try {
       guard case .group(let v)? = self.kind else { preconditionFailure() }

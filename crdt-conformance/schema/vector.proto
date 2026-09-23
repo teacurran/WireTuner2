@@ -27,6 +27,7 @@ import "wiretuner/doc/v1/chart.proto";
 import "wiretuner/doc/v1/color.proto";
 import "wiretuner/doc/v1/comments.proto";
 import "wiretuner/doc/v1/common.proto";
+import "wiretuner/doc/v1/connector.proto";
 import "wiretuner/doc/v1/document.proto";
 import "wiretuner/doc/v1/envelope.proto";
 import "wiretuner/doc/v1/extrude.proto";
@@ -213,6 +214,7 @@ message NodeProps {
     wiretuner.doc.v1.EllipseProps ellipse = 22;
     wiretuner.doc.v1.PolygonProps polygon = 23;
     wiretuner.doc.v1.ChartProps chart = 24;
+    wiretuner.doc.v1.ConnectorProps connector = 25;
     wiretuner.doc.v1.GroupProps group = 50;
     wiretuner.doc.v1.SwatchProps swatch = 70;
     wiretuner.doc.v1.BrushProps brush = 80;

@@ -12,7 +12,7 @@
 //
 //   Block     Epic    Cases so far
 //   1-19      DOC     1 document, 2 settings, 3 page, 4 master_page, 5 asset
-//   20-49     DRAW    20 path, 21 rect, 22 ellipse, 23 polygon, 24 chart
+//   20-49     DRAW    20 path, 21 rect, 22 ellipse, 23 polygon, 24 chart, 25 connector
 //   50-69     OBJ     50 group
 //   70-79     COLOR   70 swatch
 //   80-99     ATTR    80 brush
@@ -38,6 +38,7 @@ import "wiretuner/doc/v1/chart.proto";
 import "wiretuner/doc/v1/color.proto";
 import "wiretuner/doc/v1/comments.proto";
 import "wiretuner/doc/v1/common.proto";
+import "wiretuner/doc/v1/connector.proto";
 import "wiretuner/doc/v1/document.proto";
 import "wiretuner/doc/v1/envelope.proto";
 import "wiretuner/doc/v1/extrude.proto";
@@ -146,6 +147,8 @@ message NodeProps {
     PolygonProps polygon = 23;
     // A chart regenerated from its data (DRAW block, chart.proto).
     ChartProps chart = 24;
+    // A connector line joining two objects (DRAW block, connector.proto).
+    ConnectorProps connector = 25;
     // A group of objects (OBJ block).
     GroupProps group = 50;
     // A color or tint swatch under 0:5 (COLOR block, color.proto).

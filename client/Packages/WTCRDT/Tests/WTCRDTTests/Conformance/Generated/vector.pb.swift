@@ -707,6 +707,14 @@ nonisolated struct Wiretuner_Conformance_V1_NodeProps: Sendable {
     set {kind = .chart(newValue)}
   }
 
+  var connector: WTProto.Wiretuner_Doc_V1_ConnectorProps {
+    get {
+      if case .connector(let v)? = kind {return v}
+      return WTProto.Wiretuner_Doc_V1_ConnectorProps()
+    }
+    set {kind = .connector(newValue)}
+  }
+
   var group: WTProto.Wiretuner_Doc_V1_GroupProps {
     get {
       if case .group(let v)? = kind {return v}
@@ -897,6 +905,7 @@ nonisolated struct Wiretuner_Conformance_V1_NodeProps: Sendable {
     case ellipse(WTProto.Wiretuner_Doc_V1_EllipseProps)
     case polygon(WTProto.Wiretuner_Doc_V1_PolygonProps)
     case chart(WTProto.Wiretuner_Doc_V1_ChartProps)
+    case connector(WTProto.Wiretuner_Doc_V1_ConnectorProps)
     case group(WTProto.Wiretuner_Doc_V1_GroupProps)
     case swatch(WTProto.Wiretuner_Doc_V1_SwatchProps)
     case brush(WTProto.Wiretuner_Doc_V1_BrushProps)
@@ -2866,7 +2875,7 @@ nonisolated extension Wiretuner_Conformance_V1_SetRemove: SwiftProtobuf.Message,
 
 nonisolated extension Wiretuner_Conformance_V1_NodeProps: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   static let protoMessageName: String = _protobuf_package + ".NodeProps"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}document\0\u{1}settings\0\u{1}page\0\u{3}master_page\0\u{1}asset\0\u{2}\u{f}path\0\u{1}rect\0\u{1}ellipse\0\u{1}polygon\0\u{1}chart\0\u{2}\u{1a}group\0\u{2}\u{14}swatch\0\u{2}\u{a}brush\0\u{2}\u{14}blend\0\u{1}extrude\0\u{1}envelope\0\u{1}perspective\0\u{2}\u{1b}text\0\u{2}\u{14}layer\0\u{1}symbol\0\u{3}symbol_folder\0\u{1}instance\0\u{1}style\0\u{2}\u{10}image\0\u{3}placed_file\0\u{4}\u{13}svg_animation\0\u{4}\u{14}comment_thread\0\u{2}\u{a}glyph\0\u{2}\u{14}barcode\0\u{1}script\0\u{4}\u{13}custom_view\0\u{2}d\u{b}test\0")
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}document\0\u{1}settings\0\u{1}page\0\u{3}master_page\0\u{1}asset\0\u{2}\u{f}path\0\u{1}rect\0\u{1}ellipse\0\u{1}polygon\0\u{1}chart\0\u{1}connector\0\u{2}\u{19}group\0\u{2}\u{14}swatch\0\u{2}\u{a}brush\0\u{2}\u{14}blend\0\u{1}extrude\0\u{1}envelope\0\u{1}perspective\0\u{2}\u{1b}text\0\u{2}\u{14}layer\0\u{1}symbol\0\u{3}symbol_folder\0\u{1}instance\0\u{1}style\0\u{2}\u{10}image\0\u{3}placed_file\0\u{4}\u{13}svg_animation\0\u{4}\u{14}comment_thread\0\u{2}\u{a}glyph\0\u{2}\u{14}barcode\0\u{1}script\0\u{4}\u{13}custom_view\0\u{2}d\u{b}test\0")
 
   mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -3002,6 +3011,19 @@ nonisolated extension Wiretuner_Conformance_V1_NodeProps: SwiftProtobuf.Message,
         if let v = v {
           if hadOneofValue {try decoder.handleConflictingOneOf()}
           self.kind = .chart(v)
+        }
+      }()
+      case 25: try {
+        var v: WTProto.Wiretuner_Doc_V1_ConnectorProps?
+        var hadOneofValue = false
+        if let current = self.kind {
+          hadOneofValue = true
+          if case .connector(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.kind = .connector(v)
         }
       }()
       case 50: try {
@@ -3340,6 +3362,10 @@ nonisolated extension Wiretuner_Conformance_V1_NodeProps: SwiftProtobuf.Message,
     case .chart?: try {
       guard case .chart(let v)? = self.kind else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 24)
+    }()
+    case .connector?: try {
+      guard case .connector(let v)? = self.kind else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 25)
     }()
     case .group?: try {
       guard case .group(let v)? = self.kind else { preconditionFailure() }
