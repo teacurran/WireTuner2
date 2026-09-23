@@ -101,6 +101,7 @@ final class SVGBuild {
             ("width", options.responsive ? nil : number(width * unit) + options.sizeUnit),
             ("height", options.responsive ? nil : number(height * unit) + options.sizeUnit),
             ("viewBox", "0 0 \(number(width)) \(number(height))"),
+            ("xml:lang", options.includeDocumentInfo ? scene.info.effectiveLanguage : nil),
         ])
         if options.includeDocumentInfo && !scene.info.isEmpty {
             writeMetadata(into: &out)
@@ -142,6 +143,10 @@ final class SVGBuild {
 
     func writeMetadata(into out: inout XMLStream) {
         let info = scene.info
+        if let writer = info.metadataWriter(documentName: scene.name) {
+            out.raw(writer.svgMetadata)
+            return
+        }
         out.start("metadata")
         out.start("rdf:RDF", [("xmlns:rdf", "http://www.w3.org/1999/02/22-rdf-syntax-ns#"), ("xmlns:dc", "http://purl.org/dc/elements/1.1/")])
         out.start("rdf:Description", [("rdf:about", "")])

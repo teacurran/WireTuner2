@@ -206,6 +206,28 @@ Nothing beyond storing and relaying changes.
 * Image formats receive XMP through `CGImageDestination` properties
   (`kCGImagePropertyIPTCDictionary` for IIM, and the XMP packet through the destination's
   metadata `CGImageMetadata`).
++
+NOTE: As built by IO-012 (`WTInterchange/Metadata/MetadataWriter.swift`).  `DocumentMetadata`
+mirrors `DocumentInfo` field for field and applies the read-time normalizations;
+`ExportDocumentInfo.metadata` carries it into an export, and when it is set the PDF writer (Info
+entries, the XMP stream with PDF/X identification beside it, `/Lang`), the SVG writer
+(`<metadata>` RDF and `xml:lang` on the root), the PSD writer (resource 0x0424), the EPS writer
+(`%%Title`, `%%Creator`, `%%For`, `%%CreationDate`) and the ImageIO bitmap formats write the whole
+of it; without it they write the smaller set they wrote before.  Deviations: no IPTC dictionary
+is passed to ImageIO -- given one, ImageIO rewrites the XMP arrays from it and keeps only their
+first item -- and ImageIO writes the IIM record of JPEG and TIFF from the XMP itself (read back
+in the tests); PNG gets its packet as an `iTXt` chunk (`XML:com.adobe.xmp`) written by
+`MetadataWriter.png(_:)`, because ImageIO's PNG path loses array items the same way; other
+ImageIO formats get the packet through `CGImageDestinationCopyImageSource`, which does not
+re-encode pixels.  GIF, BMP and Targa carry no metadata.  `MetadataWriter.iptcIIM()` builds the
+IIM record for writers that embed it themselves (1:90 declares UTF-8; datasets are capped at the
+IIM lengths at character boundaries; a partial date has no 2:55).  The tests read every field
+back without `exiftool` (not installed on the build Macs): through ImageIO for JPEG and TIFF
+(XMP and IIM), through `CGPDFDocument` for PDF, and by parsing the file's own packet for PNG and
+PSD, whose ImageIO readers merge the XMP with the formats' text fields.  "A placed JPEG's own
+EXIF survives inside a PDF and TIFF export" is not covered: the PDF writer keeps a placed JPEG's
+bytes (and its EXIF) only when `ExportAsset.jpegData` is supplied, and a TIFF export is a
+rendering with no place for another image's EXIF.
 
 === Build tasks
 

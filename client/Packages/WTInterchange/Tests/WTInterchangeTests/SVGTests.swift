@@ -64,7 +64,7 @@ final class XMLTreeParser: NSObject, XMLParserDelegate {
 }
 
 enum SVGValidator {
-    static let core: Set<String> = ["id", "class", "style", "transform", "xml:space"]
+    static let core: Set<String> = ["id", "class", "style", "transform", "xml:space", "xml:lang"]
     static let presentation: Set<String> = [
         "fill", "fill-opacity", "fill-rule", "stroke", "stroke-width", "stroke-linecap", "stroke-linejoin", "stroke-miterlimit",
         "stroke-dasharray", "stroke-dashoffset", "stroke-opacity", "opacity", "clip-path", "clip-rule", "mask", "filter",

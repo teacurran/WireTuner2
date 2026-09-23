@@ -1,0 +1,180 @@
+// An imported scene as WTRender draws it: the display list the document would build once
+// `WTModel` has created the nodes.  The import sheet's preview of a converted file, the
+// round-trip tests (export, import, render both, compare) and IMG-009's "renders within tolerance
+// of the PDF" all draw through this, so the renderer that proves an import is the one that shows it.
+
+import CoreGraphics
+import CoreText
+import Foundation
+import ImageIO
+import WTGeometry
+import WTRender
+import struct WTRender.StrokeStyle
+
+extension ImportedContour {
+    /// The contour as display-path elements.
+    public var displayElements: [DisplayPath.Element] {
+        var elements: [DisplayPath.Element] = [.move(to: start)]
+        for segment in segments {
+            switch segment {
+            case .line(let end):
+                elements.append(.line(to: end))
+            case .cubic(let c1, let c2, let end):
+                elements.append(.cubicCurve(control1: c1, control2: c2, end: end))
+            }
+        }
+        if closed {
+            elements.append(.close)
+        }
+        return elements
+    }
+}
+
+extension ImportedPath {
+    /// The contours as one display path in the path's own space.
+    public var displayPath: DisplayPath {
+        DisplayPath(elements: contours.flatMap(\.displayElements))
+    }
+}
+
+extension ImportedPaint {
+    /// The display-list paint.
+    public var paint: Paint {
+        switch self {
+        case .none: return .none
+        case .solid(let color): return .solid(color)
+        case .gradient(let gradient): return .gradient(gradient)
+        }
+    }
+}
+
+/// A path of an imported scene with every enclosing transform applied, for geometry comparisons.
+public struct ImportedScenePath: Hashable, Sendable {
+    public var contours: [ImportedContour]
+    public var fill: ImportedPaint
+    public var fillRule: FillRule
+    public var stroke: ImportedStroke?
+    /// The product of the path's and its groups' opacities.
+    public var opacity: Double
+    public var name: String?
+    public var url: String?
+    /// The names of the enclosing groups, outermost first.
+    public var groupNames: [String]
+}
+
+extension ImportedScene {
+    /// Every path in scene space, back to front: transforms applied, opacities multiplied.
+    /// Clips and text are not included.
+    public var scenePaths: [ImportedScenePath] {
+        var result: [ImportedScenePath] = []
+        func visit(_ node: ImportedNode, _ transform: AffineTransform, _ opacity: Double, _ names: [String]) {
+            switch node {
+            case .path(let path):
+                let total = path.transform.concatenating(transform)
+                result.append(ImportedScenePath(contours: path.contours.map { $0.applying(total) }, fill: path.fill, fillRule: path.fillRule, stroke: path.stroke, opacity: opacity * path.opacity, name: path.name, url: path.url, groupNames: names))
+            case .group(let group):
+                let total = group.transform.concatenating(transform)
+                for child in group.children {
+                    visit(child, total, opacity * group.opacity, names + [group.name ?? ""])
+                }
+            case .text, .image, .placed:
+                break
+            }
+        }
+        for node in nodes {
+            visit(node, .identity, 1, [])
+        }
+        return result
+    }
+
+    /// Every text node's string in order.
+    public var texts: [String] {
+        nodes.flatMap(\.descendants).compactMap { node -> String? in
+            if case .text(let text) = node { return text.string }
+            return nil
+        }
+    }
+
+    /// Every image node, in order.
+    public var images: [ImportedImage] {
+        nodes.flatMap(\.descendants).compactMap { node -> ImportedImage? in
+            if case .image(let image) = node { return image }
+            return nil
+        }
+    }
+
+    /// The scene as one export page (its bounds, its display list) with the images' decoded
+    /// pixels as assets, ready for any exporter or rasterizer.
+    public func exportScene() -> ExportScene {
+        var items: [DisplayItem] = []
+        for node in nodes {
+            items += ImportedScene.displayItems(node, .identity)
+        }
+        var assets: [String: ExportAsset] = [:]
+        for blob in blobs {
+            if let source = CGImageSourceCreateWithData(blob.data as CFData, nil), let image = CGImageSourceCreateImageAtIndex(source, 0, nil) {
+                assets[blob.hex] = ExportAsset(image: image)
+            }
+        }
+        let page = ExportPage(name: name, bounds: bounds, displayList: DisplayList(canvas: "import", items: items))
+        return ExportScene(name: name, pages: [page], assets: assets)
+    }
+
+    static func displayItems(_ node: ImportedNode, _ parent: AffineTransform) -> [DisplayItem] {
+        switch node {
+        case .path(let path):
+            var appearance: [AppearanceItem] = []
+            if !path.fill.isNone {
+                appearance.append(.fill(FillPaint(paint: path.fill.paint, rule: path.fillRule)))
+            }
+            if let stroke = path.stroke, !stroke.paint.isNone {
+                appearance.append(.stroke(StrokePaint(paint: stroke.paint.paint, style: stroke.style)))
+            }
+            let item = DisplayItem.path(PathItem(path: path.displayPath, appearance: Appearance(appearance), transform: path.transform.concatenating(parent)))
+            return path.opacity < 1 ? [.group(GroupItem(children: [item], opacity: path.opacity))] : [item]
+        case .group(let group):
+            let total = group.transform.concatenating(parent)
+            let children = group.children.flatMap { displayItems($0, total) }
+            let clip = group.clip.map { clip in DisplayPath(elements: clip.contours.map { $0.applying(clip.transform.concatenating(total)) }.flatMap(\.displayElements)) }
+            if clip == nil && group.opacity >= 1 {
+                return children
+            }
+            return [.group(GroupItem(children: children, clip: clip, clipRule: group.clip?.fillRule ?? .nonZero, opacity: group.opacity))]
+        case .image(let image):
+            return [.image(ImageItem(assetID: image.pixels.blob.hex, rect: image.naturalRect, transform: image.transform.concatenating(parent), mode: image.pixels.mode.imageMode, hasAlpha: image.pixels.hasAlpha, name: image.name ?? ""))]
+        case .placed(let placed):
+            // Drawn as its box, as the renderer draws a placed file without a preview.
+            let path = DisplayPath(rect: placed.bounds)
+            return [.path(PathItem(path: path, appearance: Appearance([.stroke(StrokePaint(paint: .solid(Color(white: 0.5)), style: StrokeStyle(width: 1)))]), transform: placed.transform.concatenating(parent)))]
+        case .text(let text):
+            let total = text.transform.concatenating(parent)
+            return text.runs.compactMap { run -> DisplayItem? in
+                guard let glyphs = ImportedScene.glyphRun(run) else {
+                    return nil
+                }
+                return .text(TextRunItem(text: run.text, glyphRun: glyphs, origin: run.origin, color: run.fill.representativeColor ?? .black, transform: total))
+            }
+        }
+    }
+
+    /// `run` laid out left to right with Core Text in its font (or the system's substitute).
+    static func glyphRun(_ run: ImportedTextRun) -> GlyphRun? {
+        let characters = Array(run.text.utf16)
+        guard !characters.isEmpty, run.fontSize > 0 else {
+            return nil
+        }
+        let glyphFont = GlyphFont(postScriptName: run.fontName, size: run.fontSize)
+        let font = glyphFont.ctFont
+        var glyphs = [CGGlyph](repeating: 0, count: characters.count)
+        CTFontGetGlyphsForCharacters(font, characters, &glyphs, characters.count)
+        var advances = [CGSize](repeating: .zero, count: glyphs.count)
+        CTFontGetAdvancesForGlyphs(font, .horizontal, glyphs, &advances, glyphs.count)
+        var x = run.origin.x
+        var positioned: [PositionedGlyph] = []
+        for (glyph, advance) in zip(glyphs, advances) {
+            positioned.append(PositionedGlyph(glyph: glyph, position: Point(x: x, y: run.origin.y)))
+            x += Double(advance.width)
+        }
+        return GlyphRun(font: glyphFont, glyphs: positioned)
+    }
+}

@@ -57,8 +57,13 @@ public struct ExportDocumentInfo: Hashable, Sendable {
     /// BCP 47, e.g. `en-US`.
     public var language: String?
     public var creator: String
+    /// The whole of Document Info (IO-012).  When set, PDF, SVG, PSD and the ImageIO bitmap
+    /// formats write it through `MetadataWriter` -- every IPTC Core field, the IIM record where
+    /// the format has one -- instead of the fields above.
+    public var metadata: DocumentMetadata?
 
-    public init(title: String? = nil, author: String? = nil, subject: String? = nil, description: String? = nil, keywords: [String] = [], language: String? = nil, creator: String = "WireTuner") {
+    public init(title: String? = nil, author: String? = nil, subject: String? = nil, description: String? = nil, keywords: [String] = [], language: String? = nil, creator: String = "WireTuner", metadata: DocumentMetadata? = nil) {
+        self.metadata = metadata
         self.title = title
         self.author = author
         self.subject = subject
@@ -70,7 +75,17 @@ public struct ExportDocumentInfo: Hashable, Sendable {
 
     /// Whether any field a format would write is set.
     public var isEmpty: Bool {
-        title == nil && author == nil && subject == nil && description == nil && keywords.isEmpty && language == nil
+        title == nil && author == nil && subject == nil && description == nil && keywords.isEmpty && language == nil && metadata == nil
+    }
+
+    /// The writer for `metadata`, with the empty-title fallback to `documentName`.
+    func metadataWriter(documentName: String) -> MetadataWriter? {
+        metadata.map { MetadataWriter(metadata: $0, documentName: documentName, creatorTool: creator) }
+    }
+
+    /// The language written: Document Info's when set, else `language`.
+    var effectiveLanguage: String? {
+        metadata.flatMap { $0.normalized.language.isEmpty ? nil : $0.normalized.language } ?? language
     }
 }
 

@@ -161,7 +161,7 @@ public struct BitmapExporter: Exporter {
         for ((page, scale), url) in zip(jobs, urls) {
             let rendered = rasterizer.render(scene.pages[page], scale: scale, bitsPerComponent: layout.bitsPerComponent, alpha: layout.alpha)
             clipped = max(clipped, rendered.clipped)
-            try write(rendered.bitmap, options: options, pixelsPerInch: common.ppi * scale, to: url)
+            try write(rendered.bitmap, options: options, pixelsPerInch: common.ppi * scale, metadata: scene.info.metadataWriter(documentName: scene.name), to: url)
             summary.files.append(url)
         }
         if clipped > 0 {
@@ -204,15 +204,23 @@ public struct BitmapExporter: Exporter {
     }
 
     /// Encodes `bitmap` as this format.
-    func write(_ bitmap: RasterBitmap, options: any BitmapFormatOptions, pixelsPerInch: Double = 72, to url: URL) throws {
-        if let data = try ownEncoding(bitmap, options: options, pixelsPerInch: pixelsPerInch) {
-            do {
-                try data.write(to: url)
-            } catch {
-                throw ExportError.writeFailed(error.localizedDescription)
-            }
-            return
+    func write(_ bitmap: RasterBitmap, options: any BitmapFormatOptions, pixelsPerInch: Double = 72, metadata: MetadataWriter? = nil, to url: URL) throws {
+        var data = try ownEncoding(bitmap, options: options, pixelsPerInch: pixelsPerInch) ?? imageIOEncoding(bitmap, options: options, url: url)
+        // Document Info goes in as XMP added to the encoded file without re-encoding (IO-012):
+        // an iTXt chunk in PNG, ImageIO's metadata rewrite elsewhere (which also writes the IIM
+        // record of JPEG and TIFF).  BMP, Targa and GIF have nowhere standard to put it.
+        if let metadata, let embedded = format == .png ? metadata.png(data) : metadata.embed(in: data), ![.bmp, .targa, .gif].contains(format) {
+            data = embedded
         }
+        do {
+            try data.write(to: url)
+        } catch {
+            throw ExportError.writeFailed(error.localizedDescription)
+        }
+    }
+
+    /// `bitmap` encoded by ImageIO with the format's options.
+    func imageIOEncoding(_ bitmap: RasterBitmap, options: any BitmapFormatOptions, url: URL) throws -> Data {
         var properties: [CFString: Any] = [:]
         switch options {
         case let png as PNGOptions:
@@ -245,13 +253,15 @@ public struct BitmapExporter: Exporter {
         default:
             break
         }
-        guard let destination = CGImageDestinationCreateWithURL(url as CFURL, format.typeIdentifier as CFString, 1, nil) else {
+        let output = NSMutableData()
+        guard let destination = CGImageDestinationCreateWithData(output, format.typeIdentifier as CFString, 1, nil) else {
             throw ExportError.writeFailed("cannot create \(url.lastPathComponent)")
         }
         CGImageDestinationAddImage(destination, bitmap.image, properties as CFDictionary)
         guard CGImageDestinationFinalize(destination) else {
             throw ExportError.writeFailed("\(format.displayName) encoding failed for \(url.lastPathComponent)")
         }
+        return output as Data
     }
 }
 

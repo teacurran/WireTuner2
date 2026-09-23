@@ -254,6 +254,15 @@ Round-trip corpus per format: export then import must reproduce geometry within 
 preserve names, layers, colors and text.  Third-party fixtures (SVG test suite, PDF samples,
 UFO reference fonts) are vendored with their licences.
 
+NOTE: As built by IMG-008 to IMG-015.  The importers' round trips run the package's own
+exporters (PDF, Illustrator, SVG, DXF, every bitmap format) over the export corpus, import the
+result, and compare `ImportedScene.scenePaths` geometry, names, layer groups, colours and text,
+plus a rendering of `ImportedScene.exportScene()` against the original page.  Format fixtures
+that the exporters cannot produce (hand-written PDF operators, legacy Illustrator PostScript,
+AutoCAD/LibreCAD/Blender-style DXF, SVG features) are written inline in the tests; no
+third-party files are vendored yet, so the W3C SVG suite subset and the 50-PDF corpus named by
+IMG-012 and IMG-009 are still to add.
+
 == UI
 
 XCUITest through the harness in TEST-002.  Each feature page's tasks name their UI tests.  The

@@ -94,10 +94,14 @@ final class EPSBuild {
         var header = "%!PS-Adobe-3.0 EPSF-3.0\n"
         header += "%%BoundingBox: 0 0 \(Int(bounds.width.rounded(.up))) \(Int(bounds.height.rounded(.up)))\n"
         header += "%%HiResBoundingBox: 0 0 \(Numbers.format(bounds.width, places: 4)) \(Numbers.format(bounds.height, places: 4))\n"
-        header += "%%Creator: \(EPSBuild.dscText(scene.info.creator))\n"
         let info = scene.info
-        header += "%%Title: \(EPSBuild.dscText(options.includeDocumentInfo ? info.title ?? title : title))\n"
-        if options.includeDocumentInfo {
+        if options.includeDocumentInfo, let writer = info.metadataWriter(documentName: title) {
+            header += writer.epsComments.map { $0 + "\n" }.joined()
+        } else {
+            header += "%%Creator: \(EPSBuild.dscText(scene.info.creator))\n"
+            header += "%%Title: \(EPSBuild.dscText(options.includeDocumentInfo ? info.title ?? title : title))\n"
+        }
+        if options.includeDocumentInfo && info.metadata == nil {
             if let author = info.author {
                 header += "%%For: \(EPSBuild.dscText(author))\n"
             }

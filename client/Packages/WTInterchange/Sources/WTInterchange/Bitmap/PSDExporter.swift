@@ -51,7 +51,7 @@ public struct PSDExporter: Exporter {
         let profile = common.embedProfile ? render.bitmap.colorSpace.copyICCData() as Data? : nil
         return PSDWriter.data(
             width: width, height: height, depth: depth, mode: common.color, layers: layers, composite: compositeChannels,
-            resolution: common.ppi * scale, profile: profile, xmp: scene.info.isEmpty ? nil : XMPPacket.data(scene.info, format: "image/vnd.adobe.photoshop")
+            resolution: common.ppi * scale, profile: profile, xmp: scene.info.isEmpty ? nil : scene.info.metadataWriter(documentName: scene.name)?.xmpPacket(format: "image/vnd.adobe.photoshop") ?? XMPPacket.data(scene.info, format: "image/vnd.adobe.photoshop")
         )
     }
 

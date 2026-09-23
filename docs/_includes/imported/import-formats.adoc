@@ -288,6 +288,175 @@ Nothing beyond storing and relaying changes and blobs.
 * Bitmaps: ImageIO through IMG-002.  HEIC orientation is applied by re-encoding as PNG when
   the EXIF orientation is not identity, so `PixelSource` dimensions are the upright ones.
 
+NOTE: Deviation recorded by IMG-008.  The converters do not produce `WTModel` node prototypes:
+`WTInterchange` sits below `WTModel` for importing, so every converter returns a neutral
+`ImportedScene` (`WTInterchange/Import/ImportedScene.swift`) and `WTModel` turns it into ops
+(*Imported scene to document*, below).  The protocol works on bytes, so tests need no files:
+`Importer.probe(_ data:, name:, format:) -> ImportDescriptor` (natural size, pixel size and mode,
+page count, a preview, whether the file is placed) and `Importer.convert(_ data:, name:, format:,
+options:, context:) -> ImportedScene`; `optionsSchema(for:)` returns an `ImportOptionsSchema`
+(fields of kind toggle, choice or text with defaults) that the sheet renders.
+`ImportRegistry.convert(contentsOf:)` checks the 200 MiB limit before reading a file, and
+`ImportRegistry.format(of:name:)` recognises a file by its bytes before its extension (a PNG
+named `.jpg` imports as PNG; a PDF-compatible file named `.ai` stays Illustrator).  Option values
+persist per format through `ImportOptionsStore` (a JSON value per format in `UserDefaults`,
+normalized against the schema on read so a stale value never reaches a converter).  Converters
+read preferences from `ImportContext`: *Downsample images larger than* in pixels, the size
+limit, and *Keep both offset* (the gap between PDF pages placed in a row).
+`ImportedScene.exportScene()` draws a converted scene through WTRender's display list, which the
+sheet preview and the round-trip tests use.  The per-format typed options are
+`PDFImportOptions`, `SVGImportOptions` (with the *Animation* choice of
+xref:svg-animation.adoc[SVG animations]: automatic, place or convert) and `DXFImportOptions`
+(the three filters and *Units*); IMG-008's sheet, per-format persistence UI, "Import _file_"
+change assembly and merge test belong to the `WTApp`/`WTModel` half of the task, which is still
+to do.
+
+==== Imported scene to document
+
+What `WTModel` implements to place an `ImportedScene` (one change labelled "Import _file_", or
+"Place _file_" for bitmaps and placed files).  Coordinates are points with y down and the
+scene's `bounds` top-left at the origin; the placement transform (click point, or marquee fit)
+is applied to the top node only.
+
+[cols="1,3"]
+|===
+|`ImportedScene` |Document
+
+|`subtree`
+|The node created on the current layer (the fallback rule on xref:importing.adoc[Importing
+artwork]): for `kind == .vector` one `group` named after the file holding `nodes` in order; for
+`.bitmap` the single `image` node; for `.placed` the single placed node.  Siblings take
+fractional positions in order, back to front.
+
+|`layers`
+|Each `ImportedLayer` goes onto the document layer of that name (*Notes*, *URLs*), created at the
+top of the layer list when missing, in the same change.
+
+|`ImportedGroup`
+|`group` node, `GroupProps.kind` `GROUP_KIND_GROUP`; `name` → `CommonProps.name`, `transform`
+→ `CommonProps.transform`; `opacity` < 1 → a `TransparencyEffect` (Basic, 100 − opacity × 100)
+in `appearance.effects`.  With a `clip`: `GROUP_KIND_CLIP` whose first child is a `path` node
+made from the clip (no fills or strokes, `even_odd` from its rule, the clip's own `transform`)
+and `clip_path` referencing it (OBJ-027).  `role == .layer` is a group too (Illustrator, DXF and
+PDF optional-content layers arrive as groups named after the layer).
+
+|`ImportedPath`
+|`path` node: one `Contour` per `ImportedContour` (`closed`), its points from
+`ImportedContour.pathPoints` -- `anchor`, `in_handle` and `out_handle` as offsets (zero =
+retracted), `kind` `POINT_KIND_CURVE` when `smooth`, else `POINT_KIND_CORNER`; `even_odd` from
+`fillRule`; `fill` → one Basic fill (`.solid`) or one gradient fill (`.gradient`: WTRender's
+`Gradient` maps field for field onto `GradientFill` -- kind, behavior, repeat count, axis in the
+path's own coordinates, stops); `stroke` → one Basic stroke with width, cap, join, miter limit,
+dash and phase (a width of 0 is a hairline); `opacity` as for groups; `url` →
+`CommonProps.url`; `name`, `transform` as for groups.
+
+|`ImportedText`
+|`text` node (point text, `auto_width`): the runs' strings concatenated with a line break
+between runs whose baselines differ, each run's `fontName` (a PostScript name, resolved through
+font substitution when missing), `fontSize` and fill as character marks; `transform` →
+`CommonProps.transform`, the first run's `origin` the block's baseline origin.
+
+|`ImportedImage`
+|`image` node: `PixelSource` from `pixels` (`blob_sha256`, `format` = the blob's UTI,
+dimensions, `mode`, `bits_per_channel`, `has_alpha`), `dpi_x`/`dpi_y`, `source_name` and
+`CommonProps.name` from `name` (the file name for a bitmap import), `transform` →
+`CommonProps.transform` (it maps the natural rect).  The blob goes into the local cache and
+`blobs_pending` (SYNC-008).  `ImageProps.source` is the link record's `asset` node for a bitmap
+imported from a file (xref:linking-embedding.adoc[Linking and embedding]) and unset for images
+that came inside a vector file or from the pasteboard.
+
+|`ImportedPlacedFile`
+|`.eps` → `placed_file` (`PLACED_FILE_FORMAT_EPS`, `blob_sha256`, `bounds`, `source_name`);
+`.svgAnimation` → `svg_animation` with an `asset` node for the blob, `natural_size` from
+`bounds`, `duration_ms` and `kinds` from the case; the poster is WEB-025's.
+
+|`ImportedScene.blobs`
+|Every blob once, in first-use order: stored and queued before the change that references them;
+two imports of the same bytes share one blob (content addressing).
+
+|`notes`
+|Shown in the import notice after placement; nothing is stored.
+|===
+
+NOTE: As built by IMG-012 (`WTInterchange/Import/SVG/`).  User units are read at 96 px/in as
+this page says, but the SVG exporter (IO-019) writes one user unit per point and, when
+*Responsive* (its default), only a `viewBox`, so a default {product} SVG re-imports at 75%; the
+round-trip tests export with fixed size in points.  One of the two pages must be reconciled
+(an open question for the SVG export owner).  Radial gradients become WTRender radials with
+`start` the centre, `end` and `end2` the radii along x and y, all under `gradientTransform`;
+`fx`/`fy` are dropped with a note; `spreadMethod` repeat and reflect map to *Repeat* and
+*Reflect* with a count of 1, which is not SVG's endless repetition.  The CSS subset: type,
+class, id and universal selectors, compound selectors, descendant and child combinators,
+selector lists, specificity, order and `!important`; pseudo-classes, attribute selectors and
+at-rule contents are skipped.  A clip with several children is their nonzero union.  Nested
+`<svg>` clips to its viewport unless `overflow="visible"`.  Text runs are laid out from the
+first `x`/`y` (later per-glyph positions are ignored), `text-anchor` middle and end apply per
+chunk, and a family with no installed match is kept by name for font substitution.  `data:`
+images go through the image importer (so downsampling applies); relative references load only
+when the importer is given the file's `baseURL`, else they are skipped with a note;
+`preserveAspectRatio` *slice* makes a clip group.  Filters, masks, patterns (their fallback
+colour is used), markers and `foreignObject` are left out with a note.  `XMLParser` refuses a
+single text node or comment above about 10 MB, so such a file reads as unreadable.  The W3C
+suite subset is not vendored; a generated 10 MB file of about 98,000 paths imports in 2.7 s in a
+debug build (0.7 s release).
+
+NOTE: As built by IMG-009 and IMG-010 (`WTInterchange/Import/PDF/`, `Import/Illustrator/`).
+Deviation: content streams (pages, forms, glyph procedures) are read by the package's own lexer
+and interpreter rather than `CGPDFScanner`, which hides inline images, marked content and raw
+operands; `CGPDFDocument` still parses the file, resolves objects and decodes stream filters,
+and the same lexer reads ToUnicode CMaps, calculator functions and legacy Illustrator files.
+Geometry is baked into page space (y down from the crop box's top-left, `/Rotate` applied);
+paths carry an identity transform and stroke widths and dashes are scaled by the CTM's mean
+scale, so a non-uniformly scaled stroke is approximated; images and text keep a transform.
+Colour: device and ICC-based spaces by component count (Display P3 recognised by its profile
+bytes), CalRGB/CalGray as sRGB and gray, Lab as D50, Indexed/Separation/DeviceN through their
+tint transforms (function types 0, 2, 3, 4) -- spot identity is not kept.  Shadings: stops
+sampled at 33 points and simplified to within 1/255; a radial with a focal point is centred on
+its outer circle with a note; `/Extend` and `/Background` ignored; types 1 and 4–7 and tiling
+patterns become the 10% black fill (50% for Illustrator) with a note.  A luminosity soft mask
+painting one shading (how the PDF writer stores gradient opacity) is read back as gradient
+opacity; other soft masks are dropped and blend modes read as Normal, with notes.  Forms become
+groups (a transparency group keeps its `ca`, others clip to their `/BBox`), nested at most 16
+deep.  Text: a TJ gap over 0.2 em starts a new run (a forward gap adds a space); runs on one
+baseline join into one text node; text is outlined for *Convert to paths*, render modes 1 and 2,
+Type 3 fonts and any font with a code lacking Unicode, from the embedded program or else the
+installed font of that name; invisible text (modes 3, 7) is skipped; only Identity-style
+two-byte CMaps are decoded; a missing font is named in a note.  Inline images support AHx, A85,
+Fl, RL and DCT (others left out with a note).  Legacy Illustrator: the operator set is listed on
+`AILegacyReader` (paths, painting, compound paths, groups, clip groups, layers, `g k x Xa Xx`
+colours and their stroke forms, stroke attributes, `XR`, point text, `XI` rasters); gradients
+(`Bb`, `Bg`, `BB`) keep their fallback fill with a note; any other operator places the file as EPS
+(bounds from `%%BoundingBox`, else 612 × 792) with a note naming it.  `H`/`h` are read as no
+paint and the `XI` operand order is assumed; both want checking against real AI files.  The
+50-PDF corpus and real AI 8/10/CS/CC fixtures are not vendored: coverage comes from round trips
+through the PDF and Illustrator exporters (corpus pages render within 2% of the source), PDFs
+built in the tests and hand-written AI files.
+
+NOTE: As built by IMG-013 (`WTInterchange/Import/DXF/`).  Natural size is the drawing's exact
+extents with their top-left moved to the origin; `$EXTMIN`/`$EXTMAX` are not read.
+`$INSUNITS` 1–16 and 21 are honoured; 0, absent (all of R12) or another code uses the *Units*
+option, the last with a note.  Each layer with content becomes a `.layer` group in layer-table
+order (then unlisted layers in first-use order); layers that are off or frozen are skipped with
+a note; entities on layer 0 inside a block take the INSERT's layer.  ACI 7 reads black on paper
+and BYBLOCK at top level black; the white options convert index 255 and any colour ≥ 0.98 in
+every channel.  Lineweight 370 with BYLAYER/BYBLOCK resolved; default 0.25 mm (AutoCAD's
+LWDEFAULT), 0 a hairline; a constant polyline width (43/40) overrides it.  Entities are stroked
+with round caps and joins; HATCH fills even-odd, SOLID/TRACE fill in 1-2-4-3 corner order, text
+fills.  Arcs, circles, ellipses and bulges use as many Bézier pieces as keep the error under
+0.005 pt (the core builder's quarter turns alone are 2.7e-4 × radius).  Degree 1–3
+non-rational splines convert exactly (each span solved from samples rather than by Boehm knot
+insertion); rational and higher-degree splines flatten within 0.01 pt; fit-point-only splines
+pass through their points as Catmull-Rom curves.  Pattern hatches become solid fills with a
+note.  TEXT, ATTRIB and MTEXT set in Helvetica with the cap height equal to the DXF height,
+approximate justification, MTEXT formatting codes removed and stacked fractions as "a/b";
+STYLE-table fonts are not read.  INSERT handles scale, rotation, arrays, nesting (32 levels) and
+attributes (invisible ones only with the option); DIMENSION draws its `*D` block.  An extrusion
+of −Z mirrors x; any other tilt is drawn along its own axis with a note.  Meshes, 3DFACE, POINT,
+IMAGE and other entities without a 2D appearance are skipped and listed once in a note.  Files
+before 2007 that are not UTF-8 are read as Windows-1252 and `\U+XXXX` escapes are decoded.  The
+AutoCAD, LibreCAD and Blender fixtures are written in the tests in each program's style, and
+the round trips go through the DXF exporter; no third-party files are vendored.
+
 === Build tasks
 
 [[IMG-008]]

@@ -244,6 +244,16 @@ value (`wt.blob.max-size.svg-animation`, 50 MiB).
   placed size, capped at 4,096 px.  Stores both blobs through the SYNC-008 cache and creates the
   node in one change.  A file with no animation is handed to the SVG importer instead unless the
   options sheet says otherwise.
++
+NOTE: As built by IMG-012.  Detection and placement live in `WTInterchange.SVGImporter`
+rather than a separate `SvgAnimationImporter`: with the *Animation* option on *Automatic* (or
+*Place as animation*) an animated file converts to a placed `ImportedScene` whose node is
+`.svgAnimation(css:smil:script:durationMs:)` with the original bytes as a `public.svg-image`
+blob and the view box as its bounds; `SVGImporter.animationInfo(_:)` exposes the analysis for
+WEB-025.  The duration is the largest SMIL end (begin + dur × repeatCount, `end` or
+`repeatDur`) and CSS animation or transition end (delay + duration × count), 0 when any is
+indefinite or infinite.  Files over 50 MiB are refused.  The poster (`WKWebView`) and the node
+creation remain WEB-025's.
 * Rendering (`WTRender`): draws the poster blob like a bitmap (IMG epic's image drawing path)
   with a small play glyph overlay at the centre in the canvas only (never in exports or print);
   placeholder states as for images.  The canvas never evaluates the animation.

@@ -91,7 +91,7 @@ final class PDFDocumentBuild {
             info = objects.add(infoDictionary())
             catalog.append(("Metadata", .reference(objects.addStream([("Type", .name("Metadata")), ("Subtype", .name("XML"))], data: xmp(), raw: true))))
         }
-        if let language = scene.info.language {
+        if let language = scene.info.effectiveLanguage {
             catalog.append(("Lang", .string(language)))
         }
         if !layerGroups.isEmpty {
@@ -340,17 +340,22 @@ final class PDFDocumentBuild {
     func infoDictionary() -> PDFValue {
         let info = scene.info
         var entries: [(String, PDFValue)] = []
-        let fields: [(String, String?)] = [("Title", info.title), ("Author", info.author), ("Subject", info.subject ?? info.description)]
-        for (key, value) in fields {
-            if let value {
-                entries.append((key, .string(value)))
-            }
-        }
-        if !info.keywords.isEmpty {
-            entries.append(("Keywords", .string(info.keywords.joined(separator: ", "))))
-        }
         let now = pdfDate(Date())
-        entries += [("Creator", .string(info.creator)), ("Producer", .string("WireTuner PDF writer")), ("CreationDate", .string(now)), ("ModDate", .string(now))]
+        if let writer = info.metadataWriter(documentName: scene.name) {
+            entries = writer.pdfInfo.map { ($0.key, .string($0.value)) }
+            entries += [("Producer", .string("WireTuner PDF writer")), ("CreationDate", .string(now)), ("ModDate", .string(now))]
+        } else {
+            let fields: [(String, String?)] = [("Title", info.title), ("Author", info.author), ("Subject", info.subject ?? info.description)]
+            for (key, value) in fields {
+                if let value {
+                    entries.append((key, .string(value)))
+                }
+            }
+            if !info.keywords.isEmpty {
+                entries.append(("Keywords", .string(info.keywords.joined(separator: ", "))))
+            }
+            entries += [("Creator", .string(info.creator)), ("Producer", .string("WireTuner PDF writer")), ("CreationDate", .string(now)), ("ModDate", .string(now))]
+        }
         switch options.standard {
         case .none:
             break
@@ -359,7 +364,7 @@ final class PDFDocumentBuild {
         case .pdfX4_2010:
             entries += [("GTS_PDFXVersion", .string("PDF/X-4")), ("Trapped", .name("False"))]
         }
-        if options.standard != .none && info.title == nil {
+        if options.standard != .none && info.title == nil && info.metadata == nil {
             entries.insert(("Title", .string(scene.name)), at: 0)
         }
         return .dictionary(entries)
@@ -385,6 +390,11 @@ final class PDFDocumentBuild {
         if let language = info.language {
             dc += "<dc:language><rdf:Bag><rdf:li>\(escape(language))</rdf:li></rdf:Bag></dc:language>"
         }
+        var tool = "<xmp:CreatorTool>\(escape(info.creator))</xmp:CreatorTool>"
+        if let writer = info.metadataWriter(documentName: scene.name) {
+            dc = writer.xmpProperties(includeTool: false)
+            tool = "<xmp:CreatorTool>\(escape(writer.creatorTool))</xmp:CreatorTool>"
+        }
         let formatter = ISO8601DateFormatter()
         let now = formatter.string(from: Date())
         var standard = ""
@@ -405,9 +415,10 @@ final class PDFDocumentBuild {
         <?xpacket begin="\u{FEFF}" id="W5M0MpCehiHzreSzNTczkc9d"?>
         <x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">\
         <rdf:Description rdf:about="" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:xmp="http://ns.adobe.com/xap/1.0/" xmlns:pdf="http://ns.adobe.com/pdf/1.3/" \
-        xmlns:xmpMM="http://ns.adobe.com/xap/1.0/mm/" xmlns:pdfxid="http://www.npes.org/pdfx/ns/id/" xmlns:pdfx="http://ns.adobe.com/pdfx/1.3/">\
+        xmlns:xmpMM="http://ns.adobe.com/xap/1.0/mm/" xmlns:pdfxid="http://www.npes.org/pdfx/ns/id/" xmlns:pdfx="http://ns.adobe.com/pdfx/1.3/" \
+        xmlns:xmpRights="http://ns.adobe.com/xap/1.0/rights/" xmlns:photoshop="http://ns.adobe.com/photoshop/1.0/" xmlns:Iptc4xmpCore="http://iptc.org/std/Iptc4xmpCore/1.0/xmlns/">\
         <dc:format>application/pdf</dc:format>\(dc)\
-        <xmp:CreatorTool>\(escape(info.creator))</xmp:CreatorTool><xmp:CreateDate>\(now)</xmp:CreateDate><xmp:ModifyDate>\(now)</xmp:ModifyDate>\
+        \(tool)<xmp:CreateDate>\(now)</xmp:CreateDate><xmp:ModifyDate>\(now)</xmp:ModifyDate>\
         <pdf:Producer>WireTuner PDF writer</pdf:Producer>\(standard)</rdf:Description></rdf:RDF></x:xmpmeta>
         <?xpacket end="w"?>
         """

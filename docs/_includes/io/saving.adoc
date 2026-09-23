@@ -589,6 +589,33 @@ team the caller belongs to.
 * Zip through `Compression`/`libarchive` is not needed: the writer uses a minimal streaming
   zip encoder in `WTInterchange` (stored and deflate via `Compression.framework`); the reader
   tolerates any conforming zip.
++
+NOTE: As built by IO-005 and IO-006 (`WTInterchange/Package/`).  `PackageWriter.write(_:to:)`
+takes a `PackageContents`: the manifest's document fields, the zstd snapshot bytes and their
+state hash as `WTModel` produces them (WTInterchange never decodes a snapshot), every referenced
+blob with its bytes or nil when not cached, and page 1 as an `ExportScene`.  It fills `format`,
+`format_version`, `blobs` and `missing_blobs` (a cached blob whose bytes do not hash to its name
+is listed as missing too), writes the entries in the listed order with the snapshot stored and
+the rest deflated when that is smaller, and returns the notes the export sheet shows.
+`PackageManifest` is a Swift struct that writes and reads the protobuf JSON mapping by hand
+(lowerCamelCase keys, 64-bit integers as strings, bytes as base64, defaults omitted; either key
+spelling, numbers or strings, and URL-safe base64 on read): `docs/v1/package.proto` is not in
+`proto/` yet, and the JSON is what swift-protobuf will write once it is.  `thumbnail.png` is
+drawn directly by the reference renderer at 1024 px on the long edge (transparent background)
+rather than through the export rasterizer's supersampling; `preview.pdf` uses
+`PackageWriter.previewOptions`, the *Screen* preset as export-pdf.adoc describes it (images
+above 150 ppi to 100 ppi as JPEG, RGB, fonts embedded as subsets, no package attachment).
+`PackageReader.open(_:)` verifies the zip directory and every entry's CRC, then refuses a wrong
+`format`, a `format_version` other than 1, a `feature_level` above the client's (`needsUpdate`,
+for the update prompt), a `merge_table_version` above the client's, a missing or empty snapshot,
+and a blob whose bytes do not hash to its name; listed blobs absent from the zip are simply not
+restored.  It returns the manifest, the snapshot bytes, the verified blobs, the thumbnail and the
+preview (nil when absent).  `PackageReader.manifest(of:)` and `thumbnail(of:)` read one entry for
+Quick Look and Spotlight.  The zip has no zip64: a package over 4 GiB is refused.  The re-issue
+path, blob restoration into the cache, placeholder assets, the menu commands and UTI
+registration are the `WTModel`/`WTSync`/`WTApp` halves of IO-005 and IO-006, still to do, as are
+the design-point timing and `qpdf --check` (not installed; the tests open `preview.pdf` with
+`CGPDFDocument` and check its one page and box instead).
 * Quit sheet: `NSApplication.delegate.applicationShouldTerminate(_:)` returns
   `.terminateLater` while *Quit When Uploaded* waits; the wait shows a progress window and can
   be cancelled.
