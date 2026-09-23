@@ -8,7 +8,11 @@
 // WTText's resolver, WTRender's glyph runs, PDF output -- finds them, and nothing is installed
 // on the Mac.  Registration is process-wide, so activations are shared by every `FontManager`;
 // the substitution tables are per manager (one per document, or `shared`).  Whatever changes
-// the answer bumps `generation`, and the resolver and the layout engine drop what they cached.
+// the answer bumps `generation`.  A manager's own changes (its tables, the catalog, a refresh)
+// drop everything its resolver cached; an activation drops only what it can change -- fonts
+// laid out in the families it registered or unregistered, and faces that now resolve
+// differently -- so one document activating its embedded fonts leaves every other document's
+// cached fonts in place.
 
 import CoreText
 import CryptoKit
@@ -154,6 +158,8 @@ final class FontActivations: @unchecked Sendable {
     private let lock = NSLock()
     private var entries: [URL: Entry] = [:]
     private var counter = 0
+    /// The `counter` at which each family's activations last changed.
+    private var changes: [String: Int] = [:]
     /// Registers a font file for the process; the `CTFontManagerError` code when Core Text
     /// refuses it (replaced in tests).
     let register: @Sendable (URL) -> Int?
@@ -171,6 +177,11 @@ final class FontActivations: @unchecked Sendable {
     }
 
     var generation: Int { lock.withLock { counter } }
+
+    /// Whether any of `families` was activated or deactivated after `generation`.
+    func changed(_ families: some Sequence<String>, since generation: Int) -> Bool {
+        lock.withLock { families.contains { changes[$0, default: 0] > generation } }
+    }
 
     /// The source of the first activation that supplies `family`: embedded before team library.
     func source(of family: String) -> FontSource? {
@@ -227,6 +238,9 @@ final class FontActivations: @unchecked Sendable {
         lock.withLock {
             entries[url] = Entry(source: source, faces: fresh)
             counter += 1
+            for face in fresh {
+                changes[face.family] = counter
+            }
         }
         GlyphFont.fontsChanged()
         return fresh
@@ -236,11 +250,16 @@ final class FontActivations: @unchecked Sendable {
     @discardableResult
     func deactivate(_ url: URL) -> Bool {
         let url = url.standardizedFileURL
-        guard lock.withLock({ entries.removeValue(forKey: url) }) != nil else {
+        guard let entry = lock.withLock({ entries.removeValue(forKey: url) }) else {
             return false
         }
         CTFontManagerUnregisterFontsForURL(url as CFURL, .process, nil)
-        lock.withLock { counter += 1 }
+        lock.withLock {
+            counter += 1
+            for face in entry.faces {
+                changes[face.family] = counter
+            }
+        }
         GlyphFont.fontsChanged()
         return true
     }
@@ -292,7 +311,28 @@ public final class FontManager: @unchecked Sendable {
     /// Changes whenever a lookup could answer differently: a table, the catalog, an activation
     /// or `refreshInstalledFonts()`.
     public var generation: Int {
-        lock.withLock { counter } + FontActivations.shared.generation
+        epoch.sum
+    }
+
+    /// Where `generation` stands: this manager's own changes and the process's activations.
+    struct Epoch: Hashable {
+        let manager: Int
+        let activations: Int
+
+        var sum: Int { manager + activations }
+    }
+
+    var epoch: Epoch {
+        Epoch(manager: lock.withLock { counter }, activations: FontActivations.shared.generation)
+    }
+
+    /// Whether what `report` recorded, resolved at `epoch`, still holds: every named face
+    /// resolves as it did, and no family laid out in its place was activated or deactivated
+    /// since (a face added to an activated family changes the font laid out without changing
+    /// the resolution).
+    func stillHolds(_ report: FontReport, since epoch: Epoch) -> Bool {
+        report.resolutions.allSatisfy { resolve($0.key) == $0.value }
+            && !FontActivations.shared.changed(report.resolutions.values.map(\.face.family), since: epoch.activations)
     }
 
     /// Re-reads the installed families (after Font Book activated or removed fonts).

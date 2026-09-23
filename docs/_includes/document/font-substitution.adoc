@@ -204,9 +204,13 @@ catalog: a missing family in it is reported in `FontReport.teamLibraryPending` a
 `FontReport` now carries `resolutions` for every named face (`substitutedFaces` for the badge),
 and `FontManager.report(for:)` gives the same report for a set of faces without laying out,
 for the sheet before a document's first render and for PRINT-014.  Anything that changes an
-answer bumps `generation`: the resolver drops its fonts, the layout engine
+answer bumps `generation`.  A manager's own change (a table, the catalog,
+`refreshInstalledFonts()`) makes its resolver drop every font; an activation or deactivation,
+which is process-wide, drops only the fonts it can change -- those whose named face now
+resolves differently or whose laid-out family it registered or unregistered -- so one
+document's embedded fonts never empty another document's font cache.  The layout engine
 (`TextLayoutEngine(fonts:)`, one manager per document or `FontManager.shared`) typesets again
-the paragraphs whose faces now resolve differently, and activation calls
+the paragraphs whose faces now resolve differently or whose laid-out family changed, and activation calls
 `GlyphFont.fontsChanged()` so WTRender drops cached fonts and outlines (`GlyphFont.isAvailable`
 says whether a PostScript name loads that face).  Tests write their own TrueType fixtures.
 The sheet, the preference table, the team library's wiring into `WTApp`, activating a document's

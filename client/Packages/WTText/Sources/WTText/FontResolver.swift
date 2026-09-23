@@ -8,8 +8,9 @@
 // writing value 0 so an on-by-default feature turns off, tags the font lacks dropped.  What
 // was dropped, synthesized or substituted is reported for the Missing Fonts sheet.
 //
-// Fonts are cached by (family, style, size, horizontal scale, axis tuple, feature set), and
-// dropped whenever the manager's `generation` moves.
+// Fonts are cached by (family, style, size, horizontal scale, axis tuple, feature set).  A
+// change to the manager's own tables drops them all; an activation anywhere in the process
+// drops only the fonts it can change (`FontManager.stillHolds`).
 
 import CoreText
 import Foundation
@@ -121,8 +122,8 @@ final class FontResolver: @unchecked Sendable {
     /// in the font registry's XPC reply (observed under parallel tests), and misses are rare.
     private let creation = NSLock()
     private var fonts: [Key: ResolvedFont] = [:]
-    /// The manager generation `fonts` was resolved under.
-    private var generation: Int?
+    /// The manager epoch `fonts` was resolved under.
+    private var epoch: FontManager.Epoch?
     private var featureTags: [String: Set<String>] = [:]
 
     /// The font for `attributes` and whether it came from the cache; `upright` adds the `vert`
@@ -138,11 +139,12 @@ final class FontResolver: @unchecked Sendable {
             axes: attributes.axes,
             upright: upright
         )
-        let current = manager.generation
+        let current = manager.epoch
         lock.lock()
-        if generation != current {
-            fonts.removeAll()
-            generation = current
+        if epoch != current {
+            lock.unlock()
+            refresh(to: current)
+            lock.lock()
         }
         if let font = fonts[key] {
             lock.unlock()
@@ -162,6 +164,30 @@ final class FontResolver: @unchecked Sendable {
         fonts[key] = font
         lock.unlock()
         return (font, false)
+    }
+
+    /// Brings `fonts` up to `current`: everything goes when the manager's own tables changed,
+    /// only what an activation affected when the process's activations did.  Runs under
+    /// `creation`, like every other write to `fonts`, since the check matches fonts.
+    private func refresh(to current: FontManager.Epoch) {
+        creation.lock()
+        defer { creation.unlock() }
+        let previous = lock.withLock { epoch }
+        guard previous != current else {
+            return
+        }
+        guard let previous, previous.manager == current.manager else {
+            lock.withLock {
+                fonts.removeAll()
+                epoch = current
+            }
+            return
+        }
+        let kept = lock.withLock { fonts }.filter { manager.stillHolds($0.value.report, since: previous) }
+        lock.withLock {
+            fonts = kept
+            epoch = current
+        }
     }
 
     /// The Core Text font for `attributes`.

@@ -31,12 +31,12 @@ public final class TextLayoutEngine {
 
     /// The fonts layout resolves against (TXT-002).
     public let fonts: FontManager
-    /// The font generation the cached paragraphs were typeset under.
-    private var fontGeneration: Int
+    /// The font epoch the cached paragraphs were typeset under.
+    private var fontEpoch: FontManager.Epoch
 
     public init(fonts: FontManager = .shared) {
         self.fonts = fonts
-        fontGeneration = fonts.generation
+        fontEpoch = fonts.epoch
     }
 
     /// Lines broken so far across the cached paragraphs (memo misses).
@@ -49,11 +49,12 @@ public final class TextLayoutEngine {
     /// scaled within its range to the largest scale at which nothing overflows.
     public func layout(_ content: TextContent, in containers: [TextContainer]) -> TextLayout {
         // After fonts were activated or a substitution changed, the paragraphs whose faces now
-        // resolve differently are typeset again; the rest stay cached.
-        let generation = fonts.generation
-        if generation != fontGeneration {
-            cache = cache.filter { $0.value.fontReport.resolutions.allSatisfy { fonts.resolve($0.key) == $0.value } }
-            fontGeneration = generation
+        // resolve differently, or whose laid-out family was activated or deactivated, are
+        // typeset again; the rest stay cached.
+        let epoch = fonts.epoch
+        if epoch != fontEpoch {
+            cache = cache.filter { fonts.stillHolds($0.value.fontReport, since: fontEpoch) }
+            fontEpoch = epoch
         }
         var used: [ParagraphKey: TypesetParagraph] = [:]
         exclusionsUsed = [:]

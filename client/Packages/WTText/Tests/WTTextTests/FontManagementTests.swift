@@ -117,6 +117,57 @@ import WTRender
         #expect(!approx(try #require(Self.layout("B", attributes, engine: engine).glyphs().first).advance, 11), "laid out in the substitute again")
     }
 
+    /// Activation is process-wide, but it only changes the answer for the families it
+    /// registers: another document's (or the shared manager's) cached run fonts for installed
+    /// faces stay cached, so its relayout keeps its cache hit ratio.
+    @Test func activationKeepsUnrelatedFontsCached() throws {
+        let family = "WT Fixture Unrelated"
+        let fonts = FontManager()
+        let engine = TextLayoutEngine(fonts: fonts)
+        func content(editing index: Int?) -> TextContent {
+            TextContent(runs: (0..<20).map { number in
+                TextRun((number == index ? "Edited " : "") + "Paragraph \(number)\n", attributes: TextAttributes(fontFamily: number.isMultiple(of: 2) ? "Helvetica" : family, size: 10 + Double(number % 4)))
+            })
+        }
+        func relayout(editing index: Int) -> (lookups: Int, hits: Int) {
+            let lookups = engine.fontLookups
+            let hits = engine.fontHits
+            _ = engine.layout(content(editing: index), in: [Fixture.block(width: 400, height: 2000)])
+            return (engine.fontLookups - lookups, engine.fontHits - hits)
+        }
+        _ = engine.layout(content(editing: nil), in: [Fixture.block(width: 400, height: 2000)])
+        let substitute = fonts.resolver.resolve(TextAttributes(fontFamily: family, size: 11))
+        #expect(substitute.hit && substitute.font.report.resolutions[FaceName(family: family)]?.source == .defaultSubstitute)
+
+        // Another manager activates a family nothing here names: every run font stays cached.
+        let other = FontManager()
+        let unrelated = try other.activate(FontFixture.font(family: "WT Fixture Elsewhere"), source: .embedded, directory: FontFixture.directory())
+        #expect(unrelated.count == 1)
+        let edited = relayout(editing: 2)
+        #expect(edited.lookups > 0 && edited.hits == edited.lookups, "an unrelated activation keeps every run font cached")
+
+        // Activating the family the odd paragraphs name drops their fonts (now the embedded
+        // face) and keeps Helvetica's.
+        let faces = try other.activate(FontFixture.font(family: family), source: .embedded, directory: FontFixture.directory())
+        #expect(faces == [FaceName(family: family, style: "Regular")])
+        #expect(fonts.resolver.resolve(TextAttributes(fontFamily: "Helvetica", size: 10)).hit)
+        let activated = fonts.resolver.resolve(TextAttributes(fontFamily: family, size: 11))
+        #expect(!activated.hit && activated.font.report.resolutions[FaceName(family: family)]?.source == .embedded)
+        // A second face of an activated family replaces the fonts laid out in that family even
+        // though the family still resolves to itself.
+        let bold = try other.activate(FontFixture.font(family: family, style: "Bold", weight: 700), source: .embedded, directory: FontFixture.directory())
+        #expect(bold == [FaceName(family: family, style: "Bold")])
+        #expect(!fonts.resolver.resolve(TextAttributes(fontFamily: family, size: 11)).hit)
+        #expect(fonts.resolver.resolve(TextAttributes(fontFamily: "Helvetica", size: 10)).hit)
+
+        // A substitution change is this manager's own: everything it resolved is dropped.
+        fonts.documentSubstitutions = [FontSubstitution(missing: FaceName(family: "No Such Family"), substitute: FaceName(family: "Courier New"))]
+        #expect(!fonts.resolver.resolve(TextAttributes(fontFamily: "Helvetica", size: 10)).hit)
+        other.deactivateAll(from: .embedded)
+        #expect(fonts.resolve(FaceName(family: family)).source == .defaultSubstitute)
+        #expect(!fonts.resolver.resolve(TextAttributes(fontFamily: family, size: 11)).hit)
+    }
+
     @Test func teamLibraryFontsWaitForTheirFetchThenActivate() throws {
         let family = "WT Fixture Team"
         let fonts = FontManager()
