@@ -42,8 +42,55 @@
         "post.logout.redirect.uris": "wiretuner://auth/signed-out",
         "oauth2.device.authorization.grant.enabled": "false"
       },
-      "defaultClientScopes": ["openid", "profile", "email", "roles"],
+      "defaultClientScopes": ["basic", "profile", "email", "roles"],
       "optionalClientScopes": ["offline_access"]
+    },
+    {
+      "clientId": "wiretuner-test-expiring",
+      "name": "WireTuner tests: expiring tokens",
+      "description": "Test-only (SRV-002): password-grant tokens that live one second, so the TOKEN_EXPIRED path is tested with a real Keycloak token. Not a sign-in client.",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "fullScopeAllowed": true,
+      "attributes": {
+        "access.token.lifespan": "1"
+      },
+      "defaultClientScopes": ["basic", "profile", "email", "roles"]
+    },
+    {
+      "clientId": "wiretuner-test-passkey",
+      "name": "WireTuner tests: passkey-claimed tokens",
+      "description": "Test-only (SRV-002): password-grant tokens carrying a hardcoded wt_auth_method=passkey claim, standing in for the SEC-004 protocol mapper so device auth-method recording is tested end to end. Not a sign-in client.",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "fullScopeAllowed": true,
+      "defaultClientScopes": ["basic", "profile", "email", "roles"],
+      "protocolMappers": [
+        {
+          "name": "wt_auth_method (hardcoded, test only)",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-hardcoded-claim-mapper",
+          "consentRequired": false,
+          "config": {
+            "claim.name": "wt_auth_method",
+            "claim.value": "passkey",
+            "jsonType.label": "String",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "userinfo.token.claim": "false"
+          }
+        }
+      ]
     }
   ],
   "users": [

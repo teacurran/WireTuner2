@@ -86,14 +86,15 @@ A *team* is a named group of accounts with a shared document space, shared libra
 [listing]
 ....
 account(id, subject, email, display_name, created_at)
-account_identity(account_id, provider, provider_subject, email, email_verified, is_relay, linked_at)
-device(id, account_id, name, platform, auth_method, last_seen_at, revoked_at)
-team(id, name, slug, owner_account_id, created_at, deleted_at)
+account_identity(account_id, provider, provider_subject, email, email_verified, is_relay, linked_at)   -- unique (provider, provider_subject)
+device(id, account_id, name, platform, auth_method, last_seen_at, revoked_at   -- keyed (account_id, id): one Mac, two people
+team(id, name, slug, owner_account_id, default_document_role, created_at, deleted_at)
 team_member(team_id, account_id, role, joined_at)
 team_invite(id, team_id, email, role, token_hash, expires_at, accepted_at)
 workspace(team_id, sso_idp_alias, require_sso, auto_admit, restrict_sharing)
 workspace_domain(team_id, domain, verification_token, verified_at)
-space: a document row has owner_account_id XOR team_id
+space: a document row has owner_account_id XOR team_id; document also carries name
+hashes (blob, snapshot, thumbnail) are lower-case hex text
 ....
 
 [source,protobuf]
@@ -143,7 +144,7 @@ has exactly one owner, who can do everything on it (share, change roles, transfe
 spaces, manage its credentials, delete); an editor has every editing privilege, including
 fetching with the document's credentials and every command a script can run, but none of the
 owner's administrative ones.  In a team document the team's admins hold the owner's
-administrative powers.  `commenter` (may write only under the
+administrative powers; its single owner is its one `document_member` row with role `owner`.  `commenter` (may write only under the
 `comments (0:12)` collection: start threads, reply, mention, react, edit and delete own comments,
 resolve own threads -- xref:comments.adoc[Comments]), `viewer`.  A change from a `commenter`
 session is accepted only if every op targets a node under `0:12` and obeys the per-comment

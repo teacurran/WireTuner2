@@ -56,11 +56,11 @@ Postgres holds the truth; object storage holds bulk.
 
 |`document` |Identity, space (account XOR team), folder, feature level, `head_seq`, `stable_seq`, trash timestamp, document kind, `thumbnail_blob` (sha256 of the client-rendered thumbnail, nullable) and `thumbnail_at`.
 |`document_search` |`document_id` primary key, `server_seq` the record was extracted at, `names` (text: object names, swatch / style / symbol names, keywords, page names, one per line; trigram GIN index via `pg_trgm`), `body` (`tsvector` in the `simple` configuration: text block contents and notes; GIN index), `names_body` (a second `tsvector` over the names, so a name matches as a word as well as a substring).  Rewritten by the snapshotter; never read by sync.
-|`change_log` |`(document_id, server_seq)` primary key, replica, seq, `bytes` (the encoded `Change`), wall time, byte size.  Partitioned by document hash range.  Rows older than the newest snapshot minus a margin are moved to cold segments.
+|`change_log` |`(document_id, server_seq)` primary key, replica, seq, `bytes` (the encoded `Change`), wall time, byte size.  Hash-partitioned by `document_id`, 16 partitions.  Rows older than the newest snapshot minus a margin are moved to cold segments.
 |`replica` |`(document_id, replica_id)`, account, device, `last_seq`, `last_ack_seq`, `last_seen_at`, `retired_at`.
 |`snapshot` |`(document_id, server_seq)`, object key, `state_hash`, size, node count.
 |`cold_segment` |`(document_id, from_seq, to_seq)`, object key, compressed size.
-|`document_member`, `share_link` |Roles.
+|`document_member`, `share_link`, `share_link_use` |Roles; `share_link_use(share_link_id, account_id, used_at)` records who used a link, which the effective-role rule needs.
 |`branch` |Child document id, parent document id, fork `server_seq`, merged at.
 |`version` |`(document_id, server_seq)`, name, author, created.
 |`blob`, `document_blob` |sha256, size, media type, storage key; references per document.
