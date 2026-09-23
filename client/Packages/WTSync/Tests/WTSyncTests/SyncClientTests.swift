@@ -85,8 +85,11 @@ import WTProto
         let resumed = welcomes[1]
         #expect(resumed >= 5)
         // Nothing Welcome said got in was sent again, and no accepted change was sent twice.
+        // Under load the delayed seq 8 and everything after it can land before the resubscribe,
+        // leaving the second session nothing to send; it only has to push when Welcome is behind.
         let later = await server.pushes.filter { $0.session >= 2 }.map(\.seq)
-        #expect(!later.isEmpty && later.allSatisfy { $0 > resumed })
+        #expect(later.allSatisfy { $0 > resumed })
+        #expect(resumed == 12 || !later.isEmpty)
         #expect(await server.duplicates == 0)
         try await harness.stop()
     }
