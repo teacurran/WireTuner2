@@ -94,6 +94,7 @@ final class DocumentController {
         views[document.id] = [controller]
         present(controller, show: show, placement: placement, front: front)
         activate(controller)
+        environment.documentDidOpen(controller)
         return controller
     }
 

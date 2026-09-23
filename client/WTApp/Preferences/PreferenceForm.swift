@@ -12,6 +12,7 @@ struct PreferenceFormRow: Identifiable, Hashable, Sendable {
         case text(placeholder: String)
         case list
         case chooser(placeholder: String)
+        case substitutionTable
     }
 
     let key: AnyPreferenceKey
@@ -39,6 +40,7 @@ struct PreferenceFormRow: Identifiable, Hashable, Sendable {
         case let .text(placeholder): kind = .text(placeholder: placeholder)
         case .list: kind = .list
         case let .chooser(placeholder): kind = .chooser(placeholder: placeholder)
+        case .substitutionTable: kind = .substitutionTable
         }
     }
 }
@@ -135,6 +137,22 @@ struct PreferenceBindings {
         )
     }
 
+    /// The substitution table's rows, as the table shows them.
+    func substitutionRows(_ key: AnyPreferenceKey) -> [String] {
+        if case let .list(items) = store.value(for: key) { return items.compactMap(FontSubstitutionRows.decode).map(FontSubstitutionRows.title) }
+        return []
+    }
+
+    /// Removes the table's row `index` (the one `substitutionRows` shows there); the missing font
+    /// is asked about again next time.
+    func removeSubstitution(_ key: AnyPreferenceKey, at index: Int) {
+        guard case let .list(items) = store.value(for: key) else { return }
+        var rows = items.filter { FontSubstitutionRows.decode($0) != nil }
+        guard rows.indices.contains(index) else { return }
+        rows.remove(at: index)
+        commit(.list(rows), for: key)
+    }
+
     func color(_ key: AnyPreferenceKey) -> Binding<Color> {
         Binding(
             get: {
@@ -172,6 +190,11 @@ struct PreferenceRowView: View {
     let row: PreferenceFormRow
     let bindings: PreferenceBindings
 
+    /// A substitution row's Remove button.
+    static func removing(_ bindings: PreferenceBindings, _ key: AnyPreferenceKey, _ index: Int) -> () -> Void {
+        { bindings.removeSubstitution(key, at: index) }
+    }
+
     var body: some View {
         control
             .help(row.isLocalInSyncedCategory ? "Stored on this Mac only" : "")
@@ -206,6 +229,20 @@ struct PreferenceRowView: View {
             TextField(row.title, text: bindings.string(row.key), prompt: Text(placeholder))
         case .list:
             TextField(row.title, text: bindings.list(row.key))
+        case .substitutionTable:
+            LabeledContent(row.title) {
+                let rows = bindings.substitutionRows(row.key)
+                VStack(alignment: .trailing, spacing: 4) {
+                    if rows.isEmpty { Text("None").foregroundStyle(.secondary) }
+                    ForEach(Array(rows.enumerated()), id: \.offset) { index, title in
+                        HStack {
+                            Text(title)
+                            Button("Remove", action: Self.removing(bindings, row.key, index))
+                                .accessibilityIdentifier("\(row.accessibilityIdentifier).remove.\(index)")
+                        }
+                    }
+                }
+            }
         case let .chooser(placeholder):
             LabeledContent(row.title) {
                 HStack {

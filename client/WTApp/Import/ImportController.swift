@@ -163,13 +163,31 @@ final class ImportController {
         return panel
     }
 
-    /// menu:File[Import…]: the chosen files centred in the view, stacked.
+    /// menu:File[Import…]: the chosen files wait under the import pointer (nil when the panel was
+    /// cancelled).
     @discardableResult
-    func runImport(on window: DocumentWindowController) async -> ImportOutcome {
+    func runImport(on window: DocumentWindowController) async -> ImportPointerTool? {
         let urls = await runPanel(makePanel(), window.window)
         accessory = nil
-        guard !urls.isEmpty else { return ImportOutcome() }
-        return await place(urls, on: window, at: nil)
+        guard !urls.isEmpty else { return nil }
+        return beginPlacing(urls, on: window)
+    }
+
+    /// Pushes the import pointer for `urls` on `window`'s canvas (importing.adoc, "Importing with
+    /// the Import command"): each click or drag places the next file; it pops after the last one,
+    /// after kbd:[Return] or kbd:[Esc].
+    @discardableResult
+    func beginPlacing(_ urls: [URL], on window: DocumentWindowController) -> ImportPointerTool {
+        let tool = ImportPointerTool(files: urls, place: { [weak self, weak window] url, placement in
+            guard let self, let window else { return }
+            await self.place(url, on: window, placement: placement)
+        }, placeAll: { [weak self, weak window] urls, point in
+            guard let self, let window else { return }
+            await self.place(urls, on: window, at: point)
+        })
+        tool.onFinish = { [weak window] tool in window?.toolManager.pop(tool) }
+        window.toolManager.push(tool)
+        return tool
     }
 
     // MARK: Drops
@@ -190,32 +208,105 @@ final class ImportController {
     /// offset*.
     @discardableResult
     func place(_ urls: [URL], on window: DocumentWindowController, at point: Point?) async -> ImportOutcome {
+        let step = context.keepBothOffset
+        return await place(urls, on: window) { index, scene in
+            let offset = Double(index) * step
+            return .at(point.map { Point(x: $0.x + offset, y: $0.y + offset) }
+                ?? Self.centred(scene.bounds, in: window.objectEditing.visibleCenter() ?? Point(x: 0, y: 0), offset: offset))
+        }
+    }
+
+    /// Imports `url` into `window`'s document at `placement` (the import pointer's click or
+    /// marquee).
+    @discardableResult
+    func place(_ url: URL, on window: DocumentWindowController, placement: ImportPlacement) async -> ImportOutcome {
+        await place([url], on: window) { _, _ in placement }
+    }
+
+    /// Imports `urls` in order, each where `placement` says for its index and scene.
+    private func place(_ urls: [URL], on window: DocumentWindowController, placement: (Int, ImportedScene) -> ImportPlacement) async -> ImportOutcome {
         var outcome = ImportOutcome()
         let context = context
-        let document = window.documentHandle
         for (index, url) in urls.enumerated() {
             do {
                 let scene = try await convert(url, context: context)
-                let poster = try await storeBlobs(of: scene, for: document)
-                let step = Double(index) * context.keepBothOffset
-                let origin = point.map { Point(x: $0.x + step, y: $0.y + step) }
-                    ?? Self.centred(scene.bounds, in: window.objectEditing.visibleCenter() ?? Point(x: 0, y: 0), offset: step)
-                let command = PlaceImportedScene(scene, placement: .at(origin), layer: window.objectEditing.activeLayer,
-                                                 link: ImportLink(fileURL: url, device: device), poster: poster)
-                let target = ImportTarget.resolve(preferred: window.objectEditing.activeLayer, in: document.state)
-                guard let change = await window.objectEditing.perform(command).value,
-                      let root = PlaceImportedScene.placedRoot(of: change, in: document.state) else {
-                    outcome.failures.append("“\(url.lastPathComponent)” could not be placed.")
-                    continue
-                }
-                outcome.placed.append(root)
-                outcome.notes += scene.notes.map { "\(url.lastPathComponent): \($0)" }
-                if target.fellBack { outcome.movedTo = LayerOrder(document.state).layer(of: root, in: document.state) }
-            } catch let error as ImportError {
-                outcome.failures.append(error.description)
+                await place(scene, named: url.lastPathComponent, link: ImportLink(fileURL: url, device: device), on: window,
+                            placement: placement(index, scene), into: &outcome)
             } catch {
-                outcome.failures.append("“\(url.lastPathComponent)” could not be imported: \(error.localizedDescription)")
+                outcome.failures.append(Self.failure(error, name: url.lastPathComponent))
             }
+        }
+        report(outcome, in: window)
+        return outcome
+    }
+
+    /// Stores `scene`'s blobs and places it by one change, recording the result in `outcome`.
+    private func place(_ scene: ImportedScene, named name: String, link: ImportLink?, on window: DocumentWindowController,
+                       placement: ImportPlacement, into outcome: inout ImportOutcome) async {
+        let document = window.documentHandle
+        do {
+            let poster = try await storeBlobs(of: scene, for: document)
+            let command = PlaceImportedScene(scene, placement: placement, layer: window.objectEditing.activeLayer, link: link, poster: poster)
+            let target = ImportTarget.resolve(preferred: window.objectEditing.activeLayer, in: document.state)
+            guard let change = await window.objectEditing.perform(command).value,
+                  let root = PlaceImportedScene.placedRoot(of: change, in: document.state) else {
+                outcome.failures.append("“\(name)” could not be placed.")
+                return
+            }
+            outcome.placed.append(root)
+            outcome.notes += scene.notes.map { "\(name): \($0)" }
+            if target.fellBack { outcome.movedTo = LayerOrder(document.state).layer(of: root, in: document.state) }
+        } catch {
+            outcome.failures.append(Self.failure(error, name: name))
+        }
+    }
+
+    /// What the alert says about a file that could not be imported.
+    static func failure(_ error: any Error, name: String) -> String {
+        (error as? ImportError)?.description ?? "“\(name)” could not be imported: \(error.localizedDescription)"
+    }
+
+    // MARK: Pasting
+
+    /// The name pasted artwork gets (importing.adoc, "Pasting").
+    static let pastedName = "Pasted"
+
+    /// Whether `pasteboard` holds something to import (menu:Edit[Paste] when it holds no
+    /// WireTuner objects): importable files, PDF data, or image data.
+    func canPaste(from pasteboard: NSPasteboard) -> Bool {
+        if FileDrop.urls(from: pasteboard).contains(where: { ImportFormat(fileExtension: $0.pathExtension) != nil }) { return true }
+        return (pasteboard.types ?? []).contains { Self.isPastable($0.rawValue) }
+    }
+
+    /// Whether a pasteboard type is one the paste reader looks at: PDF or any image.
+    static func isPastable(_ type: String) -> Bool {
+        type == UTType.pdf.identifier || (UTType(type)?.conforms(to: .image) ?? false)
+    }
+
+    /// menu:Edit[Paste] of files, PDF data or image data (importing.adoc, "Pasting"): files are
+    /// placed as a drop would place them; PDF (preferred) or image data is converted with the
+    /// format's remembered options and placed centred in the view, or at `point`, named "Pasted"
+    /// with no link record.
+    @discardableResult
+    func paste(from pasteboard: NSPasteboard, on window: DocumentWindowController, at point: Point? = nil) async -> ImportOutcome {
+        let files = FileDrop.urls(from: pasteboard).filter { ImportFormat(fileExtension: $0.pathExtension) != nil }
+        if !files.isEmpty { return await place(files, on: window, at: point) }
+        let representations = (pasteboard.types ?? []).filter { Self.isPastable($0.rawValue) }.compactMap { type in
+            pasteboard.data(forType: type).map { (type: type.rawValue, data: $0) }
+        }
+        var outcome = ImportOutcome()
+        guard let (format, data) = ImportPasteboard.choose(representations), let importer = registry.importer(for: format) else { return outcome }
+        let values = options.options(for: format, schema: importer.optionsSchema(for: format))
+        let context = context
+        let name = Self.pastedName
+        do {
+            let scene = try await Task.detached(priority: .userInitiated) {
+                try importer.convert(data, name: name, format: format, options: values, context: context)
+            }.value
+            let origin = point ?? Self.centred(scene.bounds, in: window.objectEditing.visibleCenter() ?? Point(x: 0, y: 0), offset: 0)
+            await place(scene, named: Self.pastedName, link: nil, on: window, placement: .at(origin), into: &outcome)
+        } catch {
+            outcome.failures.append(Self.failure(error, name: Self.pastedName))
         }
         report(outcome, in: window)
         return outcome

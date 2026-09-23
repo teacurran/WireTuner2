@@ -209,12 +209,11 @@ answer bumps `generation`: the resolver drops its fonts, the layout engine
 the paragraphs whose faces now resolve differently, and activation calls
 `GlyphFont.fontsChanged()` so WTRender drops cached fonts and outlines (`GlyphFont.isAvailable`
 says whether a PostScript name loads that face).  Tests write their own TrueType fixtures.
-Still to do elsewhere: the sheet, the preference table and the badge (DOC-024, `WTApp`); wiring
-the team library into `WTApp` -- `FontLibraryClient.catalog(team:).families` as
-`teamLibraryFamilies` for a team document, and on `teamLibraryPending` the fetched
-`files(forFamily:team:)` into `activate(fontsAt:source:)` -- and a team settings pane for admins to
-upload and remove fonts (the server and `WTSync` halves are built, Server and Client above); embedding a document's fonts as blobs and activating them on open
-(`WTModel`/`WTApp`); and repainting canvases after an activation, since tiles keep what they drew.
+The sheet, the preference table, the team library's wiring into `WTApp`, activating a document's
+embedded fonts on open and laying text out again after an activation are DOC-024's (below).  Still
+to do elsewhere: the substitution badge; a team settings pane for admins to upload and remove
+fonts (the server and `WTSync` halves are built, Server and Client above); and embedding a
+document's fonts as blobs (`WTModel`/`WTApp`).
 
 NOTE: As built by TXT-002's `WTModel` glue (`WTModel/DocumentFontIndex.swift`).  `WTModel` does
 not lay text out yet -- the scene has no text branch, so text nodes draw nothing (the TYPE epic's
@@ -242,6 +241,47 @@ forward `Document.observe` events to `apply`, read `report()` for the sheet (or
 `DocumentFontIndex.namedFaces(in:)` in place of a hand-written reader), and after activating fonts
 or changing a table call `fontsChanged()` and pass the result to the canvas's builder
 `invalidate` so the tiles repaint.
+
+NOTE: As built by DOC-024 (`WTApp/Fonts/`; `DocumentHandle.relayout`).  `DocumentFonts` runs when a
+document's first view opens (`DocumentEnvironment.documentDidOpen`): it makes the document's
+`DocumentFontIndex` over a `FontManager` holding the preference's table and the document's rows,
+forwards `Document.observe` to `apply`, activates the document's embedded fonts -- live `asset`
+nodes under 0:9 whose media type is `font/ttf`, `font/otf`, `font/collection`, `font/sfnt` or an
+older `application/x-font-…` name, from the blob cache (a blob not cached yet, or a font whose
+licence forbids embedding, is skipped) -- and, for a document in a team's space (the library
+cache says which), sets the team catalog's families and fetches each pending family through
+`FontLibraryClient.files(forFamily:team:)` into `activate(fontsAt:source: .teamLibrary)` (offline,
+fonts fetched before still load from the blob cache).  After any activation or table change every
+open document's `fontsChanged()` goes to `DocumentHandle.relayout`, which calls the builder's
+`invalidate` and submits the summary, so the tiles repaint.  When `facesNeedingSheet` is not
+empty the sheet is shown as a sheet on the window; it lists those faces and the team library's
+faces still missing, sorted, each with its substitute (*(default)* or *(remembered)*) and *Keep
+original name*.  btn:[Substitute…] and btn:[Replace…] open a family list and a style list
+(`FontManager.families()` / `styles(of:)`; no style keeps each run's own) under the list;
+*Remember this substitution* applies to the substitutions chosen while it is on.  btn:[Open]
+remembers the remembered rows in the preference (a row for the same face, style ignoring case, is
+replaced), keeps the others as the document's rows on this Mac, and writes the replacements -- and
+the substitutions whose *Keep original name* is off, the default substitute's included -- as one
+change: `ReplaceFonts` ("Replace font _old_ with _new_", "Replace _N_ fonts") writes a
+`font_family` mark, and a `font_style` mark when the replacement names a style, over each run of
+drawn text whose own marks name the face (DOC-025's `WTModel.replaceFont` is not built, so this
+command lives in `WTApp` until it is, and it leaves runs whose face comes from a character style).
+btn:[Cancel] keeps the substitutions and closes the document without writing to it.  Closing a
+document stops its index and deactivates its embedded fonts unless another open document activated
+the same file.  `FontManager.shared` follows the preference.  *Font substitutions* in Preferences >
+Text is a table of "_missing_ → _substitute_" rows with btn:[Remove]; *Default substitute* stays the
+text field below it.  *Deviations*: `text.font_substitutions` is a list of strings, one row each --
+missing family, missing style, substitute family, substitute style, separated by tabs, a style empty
+when the row names none -- rather than the `(missing, substitute, style)` message, because the
+preference store holds strings and the rows are keyed by face; the document's rows are the local
+store's `view` value `font_substitutions` (a JSON list of the same strings; a memory document keeps
+them for the session); the sheet shows once the window is open rather than before its first
+render (the scene draws no text yet, so nothing reflows under it); the substitution badge in the
+Text panel and in presence is not built (there is no Text panel yet, and presence carries no such
+field); and the UI tests of *Done when* are unit tests hosted in the app (`MissingFontsTests`:
+substitute, replace, remember, cancel, reopening without the sheet, embedded fonts, and the team
+library through a fake), with a remembered substitution checked through the document's
+`FontManager` since text is not drawn yet.
 
 === Build tasks
 

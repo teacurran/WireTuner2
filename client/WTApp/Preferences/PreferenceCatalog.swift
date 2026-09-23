@@ -85,7 +85,7 @@ enum PreferenceCatalog {
         static let styleBasedOn = PreferenceKey<String>("text.style_based_on", "Build text styles based on", category: c, default: "first_paragraph", control: choices([("first_paragraph", "First paragraph"), ("shared", "Shared attributes")]), help: "text-styles")
         static let previewFonts = PreferenceKey<Bool>("text.preview_fonts", "Preview fonts in menus", category: c, default: true, control: .toggle, help: "type-specifications")
         static let toolRevertsToPointer = PreferenceKey<Bool>("text.tool_reverts", "Text tool reverts to Pointer", category: c, default: true, control: .toggle, help: "creating-text")
-        static let fontSubstitutions = PreferenceKey<[String]>("text.font_substitutions", "Font substitutions", category: c, default: [], control: .list, help: "font-substitution")
+        static let fontSubstitutions = PreferenceKey<[String]>("text.font_substitutions", "Font substitutions", category: c, default: [], control: .substitutionTable, help: "font-substitution")
         static let defaultSubstitute = PreferenceKey<String>("text.default_substitute", "Default substitute", category: c, default: "Helvetica Neue", control: .text(placeholder: "Helvetica Neue"), help: "font-substitution", pageRow: "Font substitutions")
 
         static let all: [AnyPreferenceKey] = [

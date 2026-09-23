@@ -295,8 +295,32 @@ every form the Mixer's field does.  `ApplyColor` writes the topmost Basic fill, 
 each object (groups expanded) in one change.  *Deviations*: *Add to Swatches…* is two changes (the
 swatch, then the reference) and two undo steps, because the editors commit a reference rather than
 a register path; the Tools panel wells, the canvas drop targets and the kbd:[Shift] / kbd:[Cmd] /
-kbd:[Option] drop rules are not built here (the Tools panel and canvas belong to other tasks), nor
-is COLOR-012's Eyedropper.
+kbd:[Option] drop rules are not built here (the Tools panel and canvas belong to other tasks; they
+are in the next note), nor is COLOR-012's Eyedropper.
+
+NOTE: As built by COLOR-011's canvas and Tools panel half (`WTApp/Color/CanvasColorDrop.swift`,
+`WTApp/Tools/ToolWellColoring.swift`, `ToolsPanel.swift`).  The canvas accepts the `ColorRef`
+payload and a plain `NSColor` (read by `ColorDrag`, so another application's colour lands in its
+own space or the default one).  While a colour is dragged over it, the object under the pointer is
+found with the window's hit tester (the layer rules of selecting apply) and outlined -- a solid
+line when its fill would take the colour, a dashed one for its stroke; over empty pasteboard the
+drag is refused and a drop does nothing.  What is coloured: kbd:[Shift] the fill, else kbd:[Cmd]
+the stroke, else the part under the pointer -- a stroke, or a path's own line within the pick
+distance, colours the stroke; a fill, text or an image the fill.  The top-level object is
+coloured (a group every object in it, through `ApplyColor`); with kbd:[Option] the hit is taken
+as a subselect click takes it, so only the group member under the pointer is.  The drop is one
+`ApplyColor` change (`Apply "Grape"`); a swatch dragged from another document is created here
+first (`ColorDrop`).  The Tools panel's stroke and fill wells show `ColorWellModel` chips (the
+selection's colour on its topmost Basic row, mixed `?` when the objects differ, else the current
+colour); clicking a well makes it active and opens the pop-up palette of the Object panel's wells
+(Swatches or Color Cubes); a pick, or a colour dropped on the well, colours the selection's fill or
+stroke as one change, or with nothing selected becomes the current colour.  *Deviations*: the
+current colours are still the Tools panel's own (`ToolPaletteModel`'s default wells: Swap, None and
+Default act on them), not the `CurrentColors` view state seeded from the document defaults, and
+the drawing tools do not read them yet; a swatch picked as the current colour is kept as its
+colour, not its reference.  The UI tests of *Done when* are unit tests hosted in the app
+(`ColorDropTests`: fill and stroke drops, each modifier, a group with and without kbd:[Option], the
+wells' picks and drops).
 
 NOTE: As built by COLOR-006's `WTModel` half (`ColorResolver.swift`, `ColorUses.swift`,
 `SwatchIndex.swift`).  `ColorResolver` is the ladder above over the swatches of one state, with

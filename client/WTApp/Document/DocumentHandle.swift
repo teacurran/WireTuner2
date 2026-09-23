@@ -246,6 +246,15 @@ final class DocumentHandle: Identifiable, CommandSink {
         notify(ContentChange(summary: summary, before: before, after: scene.displayList, change: event.change))
     }
 
+    /// Lays out and draws `nodes` again without a change to the document: text whose fonts now
+    /// resolve differently (`DocumentFontIndex.fontsChanged`, DOC-024).
+    func relayout(_ nodes: Set<OpID>) {
+        let before = builder.scene.displayList
+        let (scene, summary) = builder.invalidate(nodes, state: state)
+        invalidation.submit(summary, before: [before], after: [scene.displayList])
+        notify(ContentChange(summary: summary, before: before, after: scene.displayList, change: nil))
+    }
+
     private func drawPages() {
         let before = builder.scene.displayList
         let (scene, summary) = builder.setBackground([Self.pagesItem(pages)], state: state)

@@ -409,11 +409,11 @@ schema, btn:[Defaults], Cancel, OK); values persist per format through `ImportOp
 the preferences' defaults, so across launches.  The files are converted off the main actor,
 their blobs stored before the change (`BlobPlacement`: through the window's session's blob
 queue, else into the blob cache and the store's `blobs_pending`, else the cache alone for a
-memory document), and placed centred in the view at natural size, each next file down and right
-by the *Keep both offset*; the placed objects are selected, a fallback layer becomes current and
-is named in the status bar with the converters' notes, and refused files are named in one
-alert.  The import pointer (click and marquee placement, the counter, kbd:[Return] and kbd:[Esc])
-and pasting are the rest of IMG-005, still to do.  The merge test is
+memory document), and placed at natural size -- a drop from its drop point, the import pointer
+where it is clicked or fitted to its marquee (IMG-005, xref:importing.adoc[Importing artwork],
+"Client"), several files each down and right by the *Keep both offset*; the placed objects are
+selected, a fallback layer becomes current and is named in the status bar with the converters'
+notes, and refused files are named in one alert.  The merge test is
 `concurrentImportsOntoOneLayerConverge` (two replicas importing onto one layer converge with
 both groups in the same order).
 

@@ -99,6 +99,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// menu:File[Export a Package…], menu:File[Open Package…] and packages opened from the Finder
     /// (IO-005, IO-006).
     private(set) lazy var packages = PackageController()
+    /// The Missing Fonts sheet, the substitutions and each document's embedded fonts (DOC-024).
+    private(set) lazy var fonts = DocumentFonts(preferences: preferences)
 
     /// - Parameters:
     ///   - layoutStore: where the panel layout persists; `nil` keeps it in memory (tests).
@@ -172,8 +174,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         environment.makePasteboard = { SystemObjectPasteboard() }
         environment.importFiles = { [weak self] window, urls, point in self?.imports.drop(urls, on: window, at: point) ?? false }
+        environment.pasteImport = PasteImport(
+            canPaste: { [weak self] in self?.imports.canPaste(from: .general) ?? false },
+            paste: { [weak self] window in Task { await self?.imports.paste(from: .general, on: window) } }
+        )
         environment.session = { sessions.session(for: $0) }
-        environment.documentDidClose = { sessions.documentDidClose($0) }
+        environment.documentDidClose = { [weak self] document in
+            sessions.documentDidClose(document)
+            self?.fonts.documentDidClose(document)
+        }
+        environment.documentDidOpen = { [weak self] window in Task { await self?.fonts.documentDidOpen(window) } }
         environment.userName = { accountModel.profile?.displayName ?? "" }
         let reviewWork = launchEnvironment.makeReviewWork(account: accountModel, infoDictionary: Bundle.main.infoDictionary, defaults: defaults)
         environment.reviewWork = { accountModel.isSignedIn ? reviewWork : nil }
@@ -335,6 +345,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         toolPalette.perform = { [weak self] id in _ = self?.menuTarget?.perform(id) }
         let layout = layout
         toolPalette.slotStore = (get: { layout.flyoutSlot($0) }, set: { layout.setFlyoutSlot($0, to: $1) })
+        toolPalette.coloring = ToolWellColoring(swatches: colors.swatchesPanel)
     }
 
     /// Panel menus (BASIC-019) come from the registry with the active shortcut set.
@@ -437,6 +448,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         packages.blobs.queue = imports.blobs.queue
         packages.account = { (account.profile?.accountID ?? "", account.profile?.displayName ?? "") }
         packages.createDocument = { title in documents.document(id: library.createDocument(name: title).id) }
+        fonts.closeDocument = { documents.close($0.documentHandle.id) }
+        if let client = launchEnvironment.makeFontLibraryClient(account: account, infoDictionary: Bundle.main.infoDictionary, defaults: preferences.defaults) {
+            fonts.team = TeamFontLibraryConnection(client: client, library: library, account: account)
+        }
         ImportCommands.install(into: commands, hooks: ImportCommands.hooks(imports: imports, packages: packages) { documents.activeWindowController })
     }
 

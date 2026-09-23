@@ -25,6 +25,9 @@ final class ToolManager {
 
     private(set) var machine: TemporaryToolMachine
     private(set) var activeTool: any Tool
+    /// A tool pushed over the others until it pops itself (the import pointer, IMG-005): it gets
+    /// every event, and the temporary tools wait until it is gone.
+    private(set) var pushedTool: (any Tool)?
     private var instances: [ToolID: any Tool] = [:]
     private var lastEvent: CanvasEvent?
 
@@ -42,7 +45,7 @@ final class ToolManager {
 
     var baseToolID: ToolID { machine.baseTool }
     var activeToolID: ToolID { activeTool.toolID }
-    var isTemporary: Bool { machine.temporary != nil }
+    var isTemporary: Bool { machine.temporary != nil || pushedTool != nil }
     var cursor: NSCursor { activeTool.cursor }
 
     // MARK: Selection
@@ -50,7 +53,36 @@ final class ToolManager {
     /// Makes `id` the base tool (a click in the Tools panel, a tool shortcut).
     func select(_ id: ToolID) {
         guard registry.contains(id) else { return }
+        // Choosing a tool ends a pushed one (Esc's effect), then selects as usual.
+        if let pushedTool {
+            pushedTool.cancel()
+            pop(pushedTool)
+        }
         perform(machine.select(id))
+    }
+
+    /// Pushes `tool` over the current one (client.adoc, "Tools": the import pointer is pushed
+    /// temporarily); it runs until `pop`, which restores the tool the keys and the Tools panel say.
+    func push(_ tool: any Tool) {
+        activeTool.deactivate()
+        pushedTool = tool
+        switchTo(tool)
+    }
+
+    /// Removes the pushed `tool` (another tool is left alone) and restores the effective tool.
+    func pop(_ tool: any Tool) {
+        guard let pushedTool, pushedTool === tool else { return }
+        tool.deactivate()
+        self.pushedTool = nil
+        switchTo(self.tool(for: machine.effectiveTool))
+    }
+
+    private func switchTo(_ tool: any Tool) {
+        activeTool = tool
+        tool.activate(in: context)
+        context.host.toolCursorDidChange()
+        context.host.setNeedsOverlayDisplay()
+        onToolChange?(tool.toolID)
     }
 
     private func tool(for id: ToolID) -> any Tool {
@@ -66,12 +98,10 @@ final class ToolManager {
             case .finishDrag:
                 if let lastEvent { activeTool.mouseUp(lastEvent) }
             case let .activate(_, to):
+                // A pushed tool stays until it pops; `pop` then restores the machine's tool.
+                guard pushedTool == nil else { continue }
                 activeTool.deactivate()
-                activeTool = tool(for: to)
-                activeTool.activate(in: context)
-                context.host.toolCursorDidChange()
-                context.host.setNeedsOverlayDisplay()
-                onToolChange?(to)
+                switchTo(tool(for: to))
             }
         }
     }

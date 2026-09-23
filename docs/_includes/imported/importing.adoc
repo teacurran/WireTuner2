@@ -372,6 +372,33 @@ encoded once with `cwebp` from a generated PNG and embedded as base64.  The blob
 upload-queue half of IMG-002 ("one blob and one pending upload") is SYNC-008's store: the importer
 guarantees it by content addressing (two imports of the same bytes yield the same `sha256`).
 
+NOTE: As built by IMG-005's import pointer and pasting (`WTApp/Import/ImportPointer.swift`,
+`ImportController`).  menu:File[Import…] hands the chosen files to `ImportPointerTool`, which the
+window's `ToolManager` pushes over the current tool (`push`/`pop`: it gets every event, the
+kbd:[Space] and kbd:[Cmd] temporary tools wait until it pops, and choosing a tool in the Tools
+panel ends it like kbd:[Esc]).  Its overlay is the corner bracket at the pointer with the counter
+(`2 of 5`, shown only for several files) and the next file's name, and the dashed marquee while
+dragging; the status bar says what the keys do.  A press released within 3 view points of where it
+started is a click (`ImportPlacement.at`, the press point); a drag places the file fitted to the
+marquee (`.fit`, kbd:[Shift] `fillWidth`), kbd:[Option] drawing the marquee from the press as its
+centre; a drag with no area places at natural size.  Each placement is one change (placed in
+order, each selected when it lands); after the last file the pointer pops and the previous tool is
+back.  kbd:[Return] or kbd:[Enter] places every remaining file at natural size stacked from the
+pointer (the view's centre when the pointer has not been over the canvas) by the *Keep both
+offset*; kbd:[Esc] drops the rest.  Pasting (`DocumentWindowController.paste`): WireTuner objects
+first; otherwise importable files on the pasteboard are placed as a drop places them, centred in
+the view, and otherwise the PDF (preferred) or image data `ImportPasteboard.choose` picks is
+converted with the format's *remembered* options (so the app calls the importer itself rather than
+`ImportPasteboard.convert`, which uses the defaults), named "Pasted", with no link record, centred
+in the view, one change.  menu:Edit[Paste at Pointer] is not in the Edit menu yet, so pasting always
+centres.  The app's own objects are written as `com.wiretuner.objects` (`ClipboardPayload`), not the
+`com.villagecompute.wiretuner.objects` that `ImportPasteboard` declines on; the window checks for
+its objects first, so the mismatch changes nothing, but the two names should be made one.
+*Deviation*: the UI tests of *Done when* are unit tests hosted in the app that drive the same
+paths (`ImportPointerTests`: click, marquee, kbd:[Shift] and kbd:[Option], three files with
+kbd:[Esc] after the second, kbd:[Return] stacking, paste of image, PDF and file data;
+`ImportTests`: drops, the locked-layer rule); XCUITest runs need Automation Mode on this Mac.
+
 === Build tasks
 
 [[IMG-001]]

@@ -61,11 +61,15 @@ final class ImportWorld {
     let imports: ImportController
     private(set) var alerts: [(String, String)] = []
 
-    init(importFiles: Bool = false) {
+    init(importFiles: Bool = false, pasteboard: NSPasteboard? = nil) {
         var documentEnvironment = environment.document
         let imports = ImportController(preferences: environment.preferences)
         if importFiles {
             documentEnvironment.importFiles = { window, urls, point in imports.drop(urls, on: window, at: point) }
+        }
+        if let pasteboard {
+            documentEnvironment.pasteImport = PasteImport(canPaste: { imports.canPaste(from: pasteboard) },
+                                                          paste: { window in Task { await imports.paste(from: pasteboard, on: window) } })
         }
         documents = DocumentController(environment: documentEnvironment)
         window = documents.newDocument(show: false)
@@ -231,8 +235,12 @@ final class FileDragging: NSObject, @preconcurrency NSDraggingInfo {
             panels.append(panel)
             return [png, svg]
         }
-        let outcome = await world.imports.runImport(on: world.window)
-        #expect(panels.count == 1 && world.imports.accessory == nil)
+        // The panel's files wait under the import pointer (ImportPointerTests); placed at once
+        // they are centred and stacked.
+        let pointer = await world.imports.runImport(on: world.window)
+        #expect(panels.count == 1 && world.imports.accessory == nil && pointer?.pointer.files == [png, svg])
+        pointer?.cancel()
+        let outcome = await world.imports.place([png, svg], on: world.window, at: nil)
         #expect(outcome.placed.count == 2 && outcome.failures.isEmpty)
         #expect(world.window.selection.selection.ids.map(\.opID) == outcome.placed)
         let image = world.state.props(outcome.placed[0]).image
@@ -249,7 +257,7 @@ final class FileDragging: NSObject, @preconcurrency NSDraggingInfo {
         #expect(world.state.props(OpID(image.source.id)).asset.link.path == png.path)
 
         world.imports.runPanel = { _, _ in [] }
-        #expect(await world.imports.runImport(on: world.window) == ImportOutcome())
+        #expect(await world.imports.runImport(on: world.window) == nil)
         // Without a visible area the file is centred on the pasteboard's origin.
         world.window.objectEditing.visibleCenter = { nil }
         let centred = await world.imports.place([png], on: world.window, at: nil)

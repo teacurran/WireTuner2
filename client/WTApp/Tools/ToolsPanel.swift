@@ -1,6 +1,7 @@
 import AppKit
 import Observation
 import SwiftUI
+import WTProto
 import WTRender
 
 /// One slot of the Tools panel: a tool of its own, or a flyout showing one member.
@@ -97,6 +98,10 @@ final class ToolPaletteModel {
     /// The colours new objects get (Swap, None and Default act on them).
     private(set) var defaultWells = WellColors.standard
     var activeWell: ActiveWell = .fill
+    /// The well whose pop-up palette is open.
+    var paletteWell: ActiveWell?
+    /// The colour panels, for the wells' palettes and drops; nil until the app connects them.
+    @ObservationIgnored var coloring: ToolWellColoring?
     var showsTooltips = true
     /// Bumped when a flyout slot changes.
     private(set) var slotRevision = 0
@@ -205,6 +210,37 @@ final class ToolPaletteModel {
     func restoreDefaultWells() {
         guard canEditWells else { return }
         defaultWells = .standard
+    }
+
+    /// The model of `well`'s chip and pop-up palette; nil without the colour panels or a
+    /// document.
+    func wellModel(_ well: ActiveWell) -> ColorWellModel? {
+        coloring?.model(well, current: well == .fill ? defaultWells.fill : defaultWells.stroke)
+    }
+
+    /// Clicking a well: it becomes the active well and its palette opens.
+    func openPalette(_ well: ActiveWell) {
+        activeWell = well
+        paletteWell = well
+    }
+
+    /// A pick in `well`'s palette or a colour dropped on it (applying-color.adoc): the selection's
+    /// fill or stroke takes it as one change; with nothing selected it becomes the current colour.
+    func choose(_ ref: Wiretuner_Doc_V1_ColorRef, name: String = "", color: RenderColor? = nil, for well: ActiveWell) {
+        paletteWell = nil
+        if coloring?.apply(ref, name: name, to: well) == true { return }
+        let paint = (coloring?.color(of: ref) ?? color).map(Paint.solid) ?? .none
+        switch well {
+        case .stroke: defaultWells.stroke = paint
+        case .fill: defaultWells.fill = paint
+        }
+    }
+
+    /// A colour dragged onto `well` (from any panel's well, the Swatches list or another
+    /// application).  False when the drag carries no colour.
+    @discardableResult
+    func drop(from pasteboard: NSPasteboard, on well: ActiveWell) -> Bool {
+        coloring?.read(pasteboard) { [weak self] ref, name, color in self?.choose(ref, name: name, color: color, for: well) } ?? false
     }
 
     func tooltip(_ text: String) -> String? { showsTooltips ? text : nil }
@@ -356,16 +392,51 @@ struct ToolWellsView: View {
         }
     }
 
+    /// What a well shows: its model's chip (a colour, *None*, or mixed) when the colour panels
+    /// are connected, else the paint.
+    static func chip(_ paint: Paint, model: ColorWellModel?) -> ColorWellModel.Chip {
+        if let model { return model.chip }
+        return paint.color.map(ColorWellModel.Chip.color) ?? .none
+    }
+
+    /// The pop-up palette of `well`, when there is a document to list swatches from.
+    static func palette(_ model: ToolPaletteModel, _ well: ActiveWell) -> AnyView {
+        guard let wellModel = model.wellModel(well) else { return AnyView(EmptyView()) }
+        return AnyView(ColorPaletteView(model: wellModel, choose: Self.choosing(model, well)))
+    }
+
+    /// A pick in `well`'s palette.
+    static func choosing(_ model: ToolPaletteModel, _ well: ActiveWell) -> (Wiretuner_Doc_V1_ColorRef) -> Void {
+        { model.choose($0, for: well) }
+    }
+
+    /// Whether `well`'s palette shows.
+    static func showsPalette(_ model: ToolPaletteModel, _ well: ActiveWell) -> Binding<Bool> {
+        Binding(get: { model.paletteWell == well }, set: { if !$0, model.paletteWell == well { model.paletteWell = nil } })
+    }
+
+    /// A click on `well` (or VoiceOver's press): its palette opens.
+    static func opening(_ model: ToolPaletteModel, _ well: ActiveWell) -> () -> Void {
+        { model.openPalette(well) }
+    }
+
+    /// A drop on `well`, read from the drag pasteboard.
+    static func dropping(_ model: ToolPaletteModel, _ well: ActiveWell, pasteboard: NSPasteboard = NSPasteboard(name: .drag)) -> ([NSItemProvider]) -> Bool {
+        { _ in model.drop(from: pasteboard, on: well) }
+    }
+
     private func well(_ paint: Paint, well: ActiveWell) -> some View {
-        let color = paint.color.map { SwiftUI.Color(red: $0.red, green: $0.green, blue: $0.blue, opacity: $0.alpha) }
-        return RoundedRectangle(cornerRadius: 3)
-            .fill(color ?? SwiftUI.Color.clear)
-            .overlay(RoundedRectangle(cornerRadius: 3).stroke(model.activeWell == well ? SwiftUI.Color.accentColor : SwiftUI.Color.secondary, lineWidth: well == .stroke ? 4 : 1))
-            .overlay { if color == nil { Image(systemName: "line.diagonal").foregroundStyle(.red) } }
-            .frame(width: 24, height: 24)
-            .onTapGesture { model.activeWell = well }
+        let wellModel = model.wellModel(well)
+        return ColorChipView(chip: Self.chip(paint, model: wellModel), size: CGSize(width: 24, height: 24))
+            .overlay(RoundedRectangle(cornerRadius: 1).stroke(model.activeWell == well ? SwiftUI.Color.accentColor : SwiftUI.Color.secondary, lineWidth: well == .stroke ? 4 : 1))
+            .onTapGesture(perform: Self.opening(model, well))
+            .popover(isPresented: Self.showsPalette(model, well)) { Self.palette(model, well) }
+            .onDrop(of: ColorDrag.dropTypes, isTargeted: nil, perform: Self.dropping(model, well))
             .accessibilityElement()
             .accessibilityLabel(well == .stroke ? "Stroke well" : "Fill well")
+            .accessibilityValue(wellModel?.caption ?? "")
+            .accessibilityAddTraits(.isButton)
+            .accessibilityAction(.default, Self.opening(model, well))
             .accessibilityIdentifier(well == .stroke ? "tools.wells.stroke" : "tools.wells.fill")
     }
 

@@ -78,6 +78,12 @@ final class CanvasView: NSView, CanvasHost {
     /// Files dropped on the canvas, with the drop point in pasteboard space (importing.adoc,
     /// "Dragging files from the Finder"); answers whether any was taken.  Nil refuses drops.
     var onFileDrop: (@MainActor ([URL], Point) -> Bool)?
+    /// Colours dragged over the canvas (applying-color.adoc, "Applying color to unselected
+    /// objects"); nil refuses them.
+    var colorDrop: CanvasColorDrop?
+    /// The modifiers held during a drag (kbd:[Shift], kbd:[Cmd], kbd:[Option] choose what a colour
+    /// drop colours); replaceable in tests.
+    var dragModifiers: @MainActor () -> KeyModifiers = { KeyEquivalentResolver.modifiers(NSEvent.modifierFlags) }
 
     /// Pinch, rotate, scroll and animations in progress (the renderer holds its tiles).
     private(set) var gestures = CanvasGestureTracker()
@@ -122,7 +128,7 @@ final class CanvasView: NSView, CanvasHost {
         setAccessibilityRole(.group)
         setAccessibilityIdentifier(Self.accessibilityIdentifier)
         setAccessibilityLabel("Canvas")
-        registerForDraggedTypes([.fileURL])
+        registerForDraggedTypes([.fileURL, ColorDrag.type, .color])
 
         document.invalidation.add(tiles)
         documentObservation = document.observe { [weak self] change in self?.documentDidChange(change) }
@@ -140,16 +146,38 @@ final class CanvasView: NSView, CanvasHost {
     override var acceptsFirstResponder: Bool { true }
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
-    // MARK: Dropping files
+    // MARK: Dropping files and colours
 
     override func draggingEntered(_ sender: any NSDraggingInfo) -> NSDragOperation {
-        onFileDrop != nil && !FileDrop.urls(from: sender.draggingPasteboard).isEmpty ? .copy : []
+        draggingUpdated(sender)
+    }
+
+    override func draggingUpdated(_ sender: any NSDraggingInfo) -> NSDragOperation {
+        if !FileDrop.urls(from: sender.draggingPasteboard).isEmpty { return onFileDrop != nil ? .copy : [] }
+        guard let colorDrop else { return [] }
+        let over = colorDrop.update(sender.draggingPasteboard, at: dropPoint(sender), viewport: viewport, modifiers: dragModifiers())
+        overlay.setNeedsDisplay()
+        return over ? .copy : []
+    }
+
+    override func draggingExited(_ sender: (any NSDraggingInfo)?) {
+        colorDrop?.exit()
+        overlay.setNeedsDisplay()
     }
 
     override func performDragOperation(_ sender: any NSDraggingInfo) -> Bool {
         let urls = FileDrop.urls(from: sender.draggingPasteboard)
-        guard let onFileDrop, !urls.isEmpty else { return false }
-        return onFileDrop(urls, viewport.toPasteboard(viewPoint(fromAppKit: convert(sender.draggingLocation, from: nil))))
+        if !urls.isEmpty {
+            guard let onFileDrop else { return false }
+            return onFileDrop(urls, viewport.toPasteboard(dropPoint(sender)))
+        }
+        defer { overlay.setNeedsDisplay() }
+        return colorDrop?.drop(sender.draggingPasteboard, at: dropPoint(sender), viewport: viewport, modifiers: dragModifiers()) != nil
+    }
+
+    /// Where a drag is, view points.
+    private func dropPoint(_ sender: any NSDraggingInfo) -> Point {
+        viewPoint(fromAppKit: convert(sender.draggingLocation, from: nil))
     }
 
     /// Which renderer puts the canvas on screen.
@@ -341,6 +369,7 @@ final class CanvasView: NSView, CanvasHost {
                 showsRemote: presenceDrawer == nil && showsRemoteSelections(), accent: NSColor.controlAccentColor.cgColor
             )
         }
+        colorDrop?.drawHighlight(in: ctx, viewport: viewport)
         toolManager?.drawOverlay(in: ctx, viewport: viewport)
     }
 

@@ -261,8 +261,8 @@ file as `image/svg+xml` with page scripts off, pausing every Web Animation and S
 3 s (or fails), the file converted to static objects is drawn by the reference renderer instead,
 so an animation is never placed without a poster.  The poster blob is stored before the SVG's,
 and `PlaceImportedScene` creates the `svg_animation` node with an asset for each (poster time 0).
-Placement is the Import command's and a drop's (natural size); drag-to-size with kbd:[Shift]
-waits for the import pointer (IMG-005).
+Placement is the Import command's and a drop's: natural size from a click or a drop, or fitted to
+the import pointer's marquee (kbd:[Shift] fills its width; IMG-005).
 * Rendering (`WTRender`): draws the poster blob like a bitmap (IMG epic's image drawing path)
   with a small play glyph overlay at the centre in the canvas only (never in exports or print);
   placeholder states as for images.  The canvas never evaluates the animation.

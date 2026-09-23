@@ -100,6 +100,9 @@ enum PreferenceControl: Hashable, Sendable {
     /// An application, folder or file chosen with `NSOpenPanel` (BASIC-022); a text field
     /// with a disabled Choose button until then.
     case chooser(placeholder: String)
+    /// The *Font substitutions* table (font-substitution.adoc, "The substitution table"): one row
+    /// per remembered substitution, each with a Remove button (DOC-024).
+    case substitutionTable
 
     var range: ClosedRange<Double>? {
         if case let .stepper(range, _, _) = self { return range }
@@ -181,7 +184,7 @@ struct AnyPreferenceKey: Sendable, Identifiable, Hashable {
             return range.contains(number)
         case let .popup(options):
             return options.contains { $0.value == value }
-        case .toggle, .color, .text, .list, .chooser:
+        case .toggle, .color, .text, .list, .chooser, .substitutionTable:
             return true
         }
     }

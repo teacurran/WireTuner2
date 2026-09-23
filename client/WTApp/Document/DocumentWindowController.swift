@@ -54,6 +54,12 @@ struct DocumentEnvironment {
     /// Files dropped on a window's canvas at a pasteboard point: the app's `ImportController`;
     /// nil refuses drops (tests).
     var importFiles: (@MainActor (DocumentWindowController, [URL], Point) -> Bool)?
+    /// menu:Edit[Paste] when the pasteboard holds no WireTuner objects (importing.adoc,
+    /// "Pasting"): the app's `ImportController` over the general pasteboard; nil pastes objects
+    /// only (tests).
+    var pasteImport: PasteImport?
+    /// A document's first view opened (the Missing Fonts sheet and the embedded fonts, DOC-024).
+    var documentDidOpen: @MainActor (DocumentWindowController) -> Void = { _ in }
 
     /// A document `id` titled `title` whose model `openModel` opens.  A document created on
     /// this Mac (`isNew`) gets the new-document template as its first change.
@@ -71,6 +77,15 @@ struct DocumentEnvironment {
         for id in shortcuts().commandIDs(for: key) where perform(id) { return true }
         return false
     }
+}
+
+/// Pasting files, PDF data or image data into a window (IMG-005).
+@MainActor
+struct PasteImport {
+    /// Whether there is something to import.
+    var canPaste: @MainActor () -> Bool
+    /// Imports it into the window, centred in the view.
+    var paste: @MainActor (DocumentWindowController) -> Void
 }
 
 /// One document window (client.adoc, "The document window"): rulers, canvas and scroll bars,
@@ -284,6 +299,9 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         interaction.floatingFrame = { [weak window] in Self.floatingFrame(near: window?.frame) }
         canvas.onViewportChange = { [weak self] viewport in self?.viewportDidChange(viewport) }
         canvas.onStatusMessage = { [weak self] message in self?.statusBar.show(message: message) }
+        let colorDrop = CanvasColorDrop(document: document, selection: selection)
+        colorDrop.defaultSpace = { preferences[PreferenceCatalog.Colors.defaultColorSpace] == "srgb" ? .sRGB : .displayP3 }
+        canvas.colorDrop = colorDrop
         if let importFiles = environment.importFiles {
             canvas.onFileDrop = { [weak self] urls, point in self.map { importFiles($0, urls, point) } ?? false }
         }
@@ -692,7 +710,15 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
 
     @objc func cut(_ sender: Any?) { objectEditing.cut() }
     @objc func copy(_ sender: Any?) { objectEditing.copy() }
-    @objc func paste(_ sender: Any?) { objectEditing.paste() }
+    /// WireTuner objects first; anything else importable goes through the import path
+    /// (importing.adoc, "Pasting": objects, then PDF, then image).
+    @objc func paste(_ sender: Any?) {
+        if objectEditing.canPaste {
+            objectEditing.paste()
+        } else if let pasteImport = environment.pasteImport, pasteImport.canPaste() {
+            pasteImport.paste(self)
+        }
+    }
 
     /// Whether a text field has key focus in this window (its field editor is first
     /// responder); kbd:[Tab] must then reach the field, not deselect.
@@ -709,7 +735,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         case #selector(delete(_:)), #selector(cut(_:)), #selector(copy(_:)):
             return !isEditingText && !selection.model.isEmpty
         case #selector(paste(_:)):
-            return !isEditingText && objectEditing.canPaste
+            return !isEditingText && (objectEditing.canPaste || environment.pasteImport?.canPaste() == true)
         default:
             return true
         }
