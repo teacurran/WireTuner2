@@ -2,9 +2,10 @@
 // fonts*): the facts a writer needs about a Core Text font, its embedding permission, and a
 // TrueType subset built from Core Text's table data.  The subset keeps glyph ids (unused glyphs
 // become empty), so a PDF can address glyphs as CIDs through an identity map and an SVG web font
-// keeps the font's own `cmap`.  Fonts without TrueType outlines (CFF) and variable-font instances
-// have no subset here; the PDF writer embeds their glyphs as Type 3 procedures instead (a
-// deviation recorded on export-pdf.adoc) and SVG outlines them.
+// keeps the font's own `cmap`.  Fonts without TrueType outlines (CFF) have no subset here; the PDF
+// writer embeds their glyphs as Type 3 procedures instead (a deviation recorded on export-pdf.adoc)
+// and SVG outlines them.  Variable TrueType fonts are instanced by `VariableFontInstancer` for PDF
+// (TYPE-048); SVG and EPS outline them.
 
 import CoreGraphics
 import CoreText

@@ -106,11 +106,12 @@ import WTRender
     @Test func fixReportListsWhatTheStandardForced() {
         let (x1a, fixes) = PDFOptions(standard: .pdfX1a2001, layers: true, embedPackage: true, includeDocumentInfo: false, preserveOverprint: false).conforming()
         #expect(x1a.colors == .convertToCMYK && !x1a.embedProfiles && !x1a.layers && x1a.includeDocumentInfo && x1a.preserveOverprint && !x1a.embedPackage && !x1a.linksFromURLs)
-        #expect(fixes.count == 8)
+        // Bookmarks are on by default and PDF/X turns them off (IO-027).
+        #expect(fixes.count == 9 && !x1a.bookmarksFromPageNames)
         let (x4, x4Fixes) = PDFOptions(standard: .pdfX4_2010, embedProfiles: false).conforming()
         #expect(x4.embedProfiles && x4.colors == .keep)
         #expect(x4Fixes.first == "profiles embedded (PDF/X-4 requires tagged color)")
-        #expect(PDFOptions.pressPDFX1a.conforming().fixes.count == 1)
+        #expect(PDFOptions.pressPDFX1a.conforming().fixes.count == 2)
         #expect(PDFOptions().conforming().fixes.isEmpty)
         #expect(PDFOptions(standard: .pdfX4_2010).headerVersion == "1.6")
         #expect(PDFXCheck.violations(["<</SMask 3 0 R>>", "<</ColorSpace /DeviceRGB>>"], standard: .pdfX1a2001) == ["soft mask (transparency) is not allowed", "RGB color is not allowed"])
@@ -190,7 +191,7 @@ import WTRender
         #expect(IllustratorOptions.defaults == IllustratorOptions())
         let cmyk = try exporter.data(scene: scene, options: IllustratorOptions(colors: .convertToCMYK, embedPackage: true, includeDocumentInfo: false))
         #expect(PDFTests.text(of: cmyk.data).contains(" k\n"))
-        #expect(cmyk.notes.contains { $0.contains("IO-028") })
+        #expect(cmyk.notes.contains("no document package was supplied; the PDF does not embed the document"))
         #expect(throws: ExportError.wrongOptions(format: .illustrator)) { try exporter.export(scene: scene, options: PDFOptions(), to: ExportDestination(url: directory.appendingPathComponent("x.ai"))) }
         #expect(throws: ExportError.self) { try exporter.export(scene: scene, options: IllustratorOptions(), to: ExportDestination(url: URL(fileURLWithPath: "/nonexistent-folder/x.ai"))) }
         try Self.ghostscript(data, "illustrator")

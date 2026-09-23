@@ -23,13 +23,16 @@ public struct ExportNodeInfo: Hashable, Sendable {
     public var url: String?
     /// The node is a layer: SVG writes its group with the layer name, PDF may write a layer.
     public var isLayer: Bool
+    /// The Object panel note (`CommonProps.note`): a PDF comment under *Notes as comments*.
+    public var note: String?
 
-    public init(name: String? = nil, alt: String? = nil, decorative: Bool = false, url: String? = nil, isLayer: Bool = false) {
+    public init(name: String? = nil, alt: String? = nil, decorative: Bool = false, url: String? = nil, isLayer: Bool = false, note: String? = nil) {
         self.name = name
         self.alt = alt
         self.decorative = decorative
         self.url = url
         self.isLayer = isLayer
+        self.note = note
     }
 }
 
@@ -44,6 +47,28 @@ public struct ExportAsset: @unchecked Sendable {
     public init(image: CGImage, jpegData: Data? = nil) {
         self.image = image
         self.jpegData = jpegData
+    }
+}
+
+/// A placed EPS file's PostScript, written verbatim into EPS exports (import-formats.adoc,
+/// "EPS"; export-vector.adoc): the file's bytes -- a DOS EPS binary header is fine, only its
+/// PostScript section is written -- and its bounding box, which the export maps onto the
+/// placed file's bounds.
+public struct ExportPostScript: Hashable, Sendable {
+    /// The file as placed (`placed_file` blob).
+    public var data: Data
+    /// `%%HiResBoundingBox` (or `%%BoundingBox`) in PostScript points, y up.
+    public var boundingBox: Rect
+    /// The placed bounds in the node's local space (`PlacedFile.effectiveBounds`) and the
+    /// node's transform (local → pasteboard).
+    public var bounds: Rect
+    public var transform: AffineTransform
+
+    public init(data: Data, boundingBox: Rect, bounds: Rect, transform: AffineTransform = .identity) {
+        self.data = data
+        self.boundingBox = boundingBox
+        self.bounds = bounds
+        self.transform = transform
     }
 }
 
@@ -141,8 +166,16 @@ public struct ExportScene: Sendable {
     /// The text blocks of the exported pages with their stories, for RTF and plain-text export
     /// (IO-030; export-text.adoc).  Empty when the snapshot was taken for artwork formats.
     public var text: [ExportTextBlock]
+    /// The document's animation (WEB-019, WEB-020): nil when the document is not animated or
+    /// the snapshot was taken for still formats.
+    public var animation: ExportAnimation?
+    /// The document as a `.wiretuner` package (`PackageWriter.data`), for *Embed {product}
+    /// document* (IO-028); nil when the option is off or the snapshot was taken without it.
+    public var package: Data?
+    /// The PostScript of placed EPS files by node, for EPS export's pass-through (IO-018).
+    public var placedPostScript: [NodeID: ExportPostScript]
 
-    public init(name: String = "Untitled", pages: [ExportPage], info: ExportDocumentInfo = ExportDocumentInfo(), nodes: [NodeID: ExportNodeInfo] = [:], assets: [String: ExportAsset] = [:], rasterResolution: Double = 300, text: [ExportTextBlock] = []) {
+    public init(name: String = "Untitled", pages: [ExportPage], info: ExportDocumentInfo = ExportDocumentInfo(), nodes: [NodeID: ExportNodeInfo] = [:], assets: [String: ExportAsset] = [:], rasterResolution: Double = 300, text: [ExportTextBlock] = [], animation: ExportAnimation? = nil, package: Data? = nil, placedPostScript: [NodeID: ExportPostScript] = [:]) {
         self.name = name
         self.pages = pages
         self.info = info
@@ -150,6 +183,9 @@ public struct ExportScene: Sendable {
         self.assets = assets
         self.rasterResolution = rasterResolution
         self.text = text
+        self.animation = animation
+        self.package = package
+        self.placedPostScript = placedPostScript
     }
 
     /// The facts about `node`, if any are recorded.

@@ -467,8 +467,9 @@ fast modes draw the crossed box as for any image.  Deviation: the page said prin
 PostScript device sent the PostScript through unchanged, which cannot happen -- macOS prints
 every job as PDF and {product} writes no PostScript for printers (xref:output-devices.adoc[Output
 devices]) -- so it now says printing uses the preview, as PDF output does; passing the
-PostScript through is the EPS exporter's (IO-018, `WTInterchange`), which does not yet write
-placed files verbatim.
+PostScript through is the EPS exporter's (IO-018, `WTInterchange`), which writes placed files
+verbatim since its follow-up (export-vector.adoc, IO-028 note) when the snapshot supplies the files'
+bytes in `ExportScene.placedPostScript`.
 The golden and parity case is `placedFiles` (the corpus has no image store, so it draws the
 boxes); `PlacedFileRenderingTests` covers the preview scaled into the bounds, the box for a
 missing blob, PDF output and Metal parity with a store.  Still to do in `WTModel`:

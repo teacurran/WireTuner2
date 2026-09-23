@@ -348,6 +348,26 @@ new values (*Auto-rename colors*).  `ImportLibraryColors` (COLOR-013's model hal
 `ColorLibrary` from `colorlib.proto`.  The conformance vectors are not written here (another
 track's directory); the merge tests are WTModel's `SwatchMergeTests`.
 
+NOTE: As built by COLOR-013's `WTInterchange` half (`WTInterchange/Colors`).  `ColorLibraryFiles`
+reads and writes `colorlib.proto`'s `ColorLibrary`: `.wtcolors` is its text format (SwiftProtobuf's
+`textFormatString`, byte-identical through a round trip, every space kept); `.ase` reads group
+blocks into `LibraryColor.group`, type 1 as spot and 0 or 2 as process, RGB as sRGB, LAB (L stored
+0...1) as CIELAB, CMYK as CMYK and Gray as CMYK black (1 − gray), and writes groups, spot/process
+(process as global), CMYK, RGB and LAB, Display P3 and OKLab gamut-mapped into sRGB by
+`WTColor.Gamut.map` and tints as the colour they show, each reported; `.aco` (added: Photoshop's own
+swatches) reads versions 1 and 2 (RGB, HSB, CMYK, Lab, Grayscale, wide CMYK; names from version 2)
+and writes both sections, spots as process, reported; `.act` reads the used colours less the
+transparent index, keyed by position and named `230r 57g 70b`.  Keys repeated in a file are made
+unique (" 2", " 3"…).  `BundledColorLibraries` builds Crayon (48), Grays (21), Web Safe (216) and
+Process -- *as built* the cyan × magenta × yellow cube in 10% steps with no black, 1,331 colours --
+in code rather than as files in the app bundle (the app writes them with `ColorLibraryFiles` if it
+wants files).  `ColorLibraryRegistry` is *My Libraries*: the library files directly in
+`~/Library/Application Support/WireTuner/Colors/` (not the `team/` cache), `install(_:)` copying an
+imported file in after reading it, `save(_:)` writing a `.wtcolors`.  The library sheet, the menus,
+*Import RGB Color Table…* and the calls into `ImportLibraryColors` are WTApp's; the Illustrator and
+Photoshop fixtures are built byte by byte in the tests, since no Adobe application could be driven
+here.
+
 === Build tasks
 
 [[COLOR-002]]

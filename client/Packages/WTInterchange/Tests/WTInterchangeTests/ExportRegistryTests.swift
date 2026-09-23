@@ -8,18 +8,20 @@ import WTRender
 
 @Suite struct ExportRegistryTests {
     @Test func everyFormatHasAnExtensionTypeAndCapabilities() {
-        #expect(ExportFormat.allCases.count == 17)
+        #expect(ExportFormat.allCases.count == 21)
         for format in ExportFormat.allCases {
             #expect(!format.fileExtension.isEmpty)
             #expect(!format.typeIdentifier.isEmpty)
             #expect(format.utType.identifier == format.typeIdentifier)
             #expect(format.description == format.displayName)
-            #expect(ExportFormat(fileExtension: format.fileExtension) == format)
+            // An animation's extension names the still format (or H.264).
+            #expect(ExportFormat(fileExtension: format.fileExtension) == format || format.family == .animation)
             #expect(ExportFormat(rawValue: format.rawValue) == format)
             switch format.family {
             case .vector: #expect(format.capabilities.contains(.vector))
             case .bitmap: #expect(format.capabilities.contains(.scales))
             case .text: #expect(!format.capabilities.contains(.vector))
+            case .animation: #expect(format.capabilities.isSuperset(of: [.animation, .multiPage]))
             }
         }
         #expect(ExportFormat.pdf.capabilities.contains(.multiPage))

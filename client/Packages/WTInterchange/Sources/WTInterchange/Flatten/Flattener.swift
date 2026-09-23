@@ -10,7 +10,13 @@
 // 3. Text becomes outlines where the target or the options require it.
 // 4. What cannot be expressed -- sampled paints (Rectangle, Contour and Cone gradients, patterns,
 //    textures, Custom and Tiled fills), lenses, raster effects the target has no filter for,
-//    feathers -- is rendered to an image with alpha at the raster resolution.
+//    feathers -- is rendered to an image with alpha at the raster resolution.  Raster effects
+//    (FX-012) render at the object's raster effects resolution, and only what must be pixels is:
+//    an effect on one fill or stroke renders that element alone, the rest staying vector; drop
+//    shadows, glows and outer bevels -- which lie under the object -- render as the effect's
+//    pixels alone beneath the vector object; effects inside the shape render clipped to its
+//    outline.  Spot colours inside those pixels are their process alternates, as WTRender draws
+//    them; the vector parts keep their spot inks.
 // 5. For targets without transparency, `OpaqueCompositor` turns everything translucent into
 //    opaque pieces or opaque images composited over what lies beneath.
 
@@ -32,6 +38,11 @@ public struct FlattenReport: Sendable {
     public var outlinedRuns = 0
     /// Translucent areas cut into opaque pieces (opaque targets).
     public var planarized = 0
+    /// Placed EPS files written as their own PostScript.
+    public var passedThrough = 0
+    /// Objects whose raster effects were rendered to pixels, by name ("an unnamed object" when
+    /// the object has none).
+    public var rasterEffectObjects: [String] = []
 
     public init() {}
 
@@ -46,6 +57,9 @@ public struct FlattenReport: Sendable {
         }
         if planarized > 0 {
             result.append("\(planarized) transparent area\(planarized == 1 ? "" : "s") flattened into opaque pieces")
+        }
+        if passedThrough > 0 {
+            result.append("\(passedThrough) placed EPS file\(passedThrough == 1 ? "" : "s") written as \(passedThrough == 1 ? "its" : "their") own PostScript")
         }
         return result
     }
@@ -100,8 +114,16 @@ final class FlattenRun {
 
     var target: FlattenTarget { flattener.target }
 
+    /// The name of the object being flattened (the nearest named node), for the report.
+    var objectName: String?
+
     /// `item` at `indexPath`, tagged with its node when it has one.
     func flatten(_ item: DisplayItem, at indexPath: [Int]) -> [FlatNode] {
+        let enclosing = objectName
+        if let name = scene.info(for: page.nodeID(at: indexPath))?.name, !name.isEmpty {
+            objectName = name
+        }
+        defer { objectName = enclosing }
         let nodes: [FlatNode]
         if indexPath.count == 1, page.displayList.lensIndices.contains(indexPath[0]) {
             nodes = rasterWithBackdrop(through: indexPath[0], reason: "lens")
@@ -110,6 +132,10 @@ final class FlattenRun {
         }
         guard let node = page.nodeID(at: indexPath) else {
             return nodes
+        }
+        if target.contains(.postScript), let postScript = scene.placedPostScript[node] {
+            report.passedThrough += 1
+            return [.group(FlatGroup(children: nodes, node: node, postScript: postScript))]
         }
         if nodes.count == 1, nodes[0].node == nil {
             return [nodes[0].tagged(node)]
@@ -216,19 +242,125 @@ final class FlattenRun {
         }
         var plain = item
         plain.appearance.effects = []
+        let rule = item.appearance.fills.first?.rule ?? .nonZero
         var drawn: [FlatNode] = []
         for (index, element) in item.appearance.items.enumerated() {
-            let attached = effects.filter { $0.target == .element(index) }.map(\.effect)
-            guard let wrapped = wrap(flattenElement(element, of: plain), in: attached, frame: item.transform, region: item.path, rule: item.appearance.fills.first?.rule ?? .nonZero) else {
-                return raster([.path(item)], reason: "raster effect")
+            let attached = effects.filter { $0.target == .element(index) }
+            if let wrapped = wrap(flattenElement(element, of: plain), in: attached.map(\.effect), frame: item.transform, region: item.path, rule: rule) {
+                drawn += wrapped
+                continue
             }
-            drawn += wrapped
+            // This element alone becomes pixels; the others stay vector.
+            var single = plain
+            single.appearance = Appearance([element], effects: attached.map { EffectElement($0.effect) }, raster: item.appearance.raster)
+            drawn += rasterEffect(single)
         }
         let object = effects.filter { $0.target == .object }.map(\.effect)
-        guard let result = wrap(drawn, in: object, frame: item.transform, region: item.path, rule: item.appearance.fills.first?.rule ?? .nonZero) else {
-            return raster([.path(item)], reason: "raster effect")
+        if let result = wrap(drawn, in: object, frame: item.transform, region: item.path, rule: rule) {
+            return result
         }
-        return result
+        let active = object.filter { !FlattenRun.isNoOp($0) }
+        if active.allSatisfy(FlattenRun.liesUnder), let under = effectPixels(item) {
+            return [.image(under)] + drawn
+        }
+        if active.allSatisfy(FlattenRun.liesInside), item.appearance.strokes.isEmpty {
+            let image = rasterEffect(item)
+            return image.isEmpty ? [] : [.group(FlatGroup(children: image, clip: FlatClip(path: item.path, rule: rule, transform: item.transform)))]
+        }
+        return rasterEffect(item)
+    }
+
+    /// Whether an effect changes nothing at its settings (`wrap` skips it).
+    static func isNoOp(_ effect: LiveEffect) -> Bool {
+        switch effect {
+        case .transparency(let transparency):
+            switch transparency.style {
+            case .basic: return transparency.effectiveAmount <= 0
+            case .feather: return transparency.effectiveRadius <= 0
+            case .gradientMask: return false
+            }
+        case .blur(let blur): return blur.effectiveRadius <= 0
+        case .shadow(let shadow): return shadow.effectiveOpacity <= 0
+        case .bevelEmboss(let bevel): return bevel.effectiveWidth <= 0
+        case .sharpen(let sharpen): return sharpen.effectiveAmount <= 0
+        default: return false
+        }
+    }
+
+    /// Whether a raster effect paints only beneath its object (drop shadow, glow, outer bevel),
+    /// so its pixels can sit under the vector object.
+    static func liesUnder(_ effect: LiveEffect) -> Bool {
+        switch effect {
+        case .shadow(let shadow): return shadow.style == .dropShadow || shadow.style == .glow
+        case .bevelEmboss(let bevel): return bevel.style == .outerBevel
+        default: return false
+        }
+    }
+
+    /// Whether a raster effect paints only inside its object's outline (inner shadow, inner
+    /// glow, inner bevel, emboss, sharpen), so its pixels can be clipped by the vector outline.
+    static func liesInside(_ effect: LiveEffect) -> Bool {
+        switch effect {
+        case .shadow(let shadow): return shadow.style == .innerShadow || shadow.style == .innerGlow
+        case .bevelEmboss(let bevel): return bevel.style != .outerBevel
+        case .sharpen: return true
+        default: return false
+        }
+    }
+
+    /// An item with raster effects rendered at its raster effects resolution (the document's or
+    /// its own), named in the report.
+    func rasterEffect(_ item: PathItem) -> [FlatNode] {
+        let resolution = item.appearance.raster.effectiveResolution
+        guard let bounds = DisplayList(canvas: "export", items: [.path(item)]).bounds,
+              let image = RegionRasterizer.render([.path(item)], region: bounds.intersection(page.bounds.expanded(by: 1)), ppi: resolution)
+        else {
+            return []
+        }
+        noteRasterEffect(resolution)
+        return [.image(image)]
+    }
+
+    func noteRasterEffect(_ resolution: Double) {
+        let name = objectName.map { "\u{201C}\($0)\u{201D}" } ?? "an unnamed object"
+        report.rasterEffectObjects.append(objectName ?? "an unnamed object")
+        report.rasterized.append("raster effects of \(name) rendered at \(Numbers.format(resolution, places: 0)) ppi")
+    }
+
+    /// The pixels an item's under-lying raster effects add, without the object: the item is
+    /// rendered with its effects (F) and without (C) on the same grid, and since the effects lie
+    /// under it, F = C + S(1 − a_C) in premultiplied colour, so S = (F − C) / (1 − a_C) wherever
+    /// the object does not cover the pixel -- exactly what shows around the vector object.
+    func effectPixels(_ item: PathItem) -> FlatImage? {
+        let resolution = item.appearance.raster.effectiveResolution
+        var plain = item
+        plain.appearance.effects = item.appearance.effects.filter { $0.target != .object }
+        guard let bounds = DisplayList(canvas: "export", items: [.path(item)]).bounds?.intersection(page.bounds.expanded(by: 1)),
+              let full = RegionRasterizer.render([.path(item)], region: bounds, ppi: resolution),
+              let content = RegionRasterizer.render([.path(plain)], region: bounds, ppi: resolution)
+        else {
+            return nil
+        }
+        let f = RGBAPixels.premultiplied(full.image)
+        let c = RGBAPixels.premultiplied(content.image)
+        var s = [UInt8](repeating: 0, count: f.count)
+        for pixel in stride(from: 0, to: f.count, by: 4) {
+            let coverage = Int(c[pixel + 3])
+            guard coverage < 255 else { continue }
+            let open = 255 - coverage
+            for channel in 0..<4 {
+                let value = max(Int(f[pixel + channel]) - Int(c[pixel + channel]), 0)
+                s[pixel + channel] = UInt8(min((value * 255 + open / 2) / open, 255))
+            }
+            // Premultiplied: no channel above alpha.
+            for channel in 0..<3 {
+                s[pixel + channel] = min(s[pixel + channel], s[pixel + 3])
+            }
+        }
+        noteRasterEffect(resolution)
+        var image = full
+        image.image = RGBAPixels.image(premultiplied: s, width: full.image.width, height: full.image.height)
+        return image
     }
 
     /// `content` wrapped in a group per effect, first effect innermost; nil when an effect

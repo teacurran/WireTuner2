@@ -94,6 +94,8 @@ public enum ExportError: Error, Hashable, Sendable, CustomStringConvertible {
     case nothingToExport
     /// Encoding or writing failed.
     case writeFailed(String)
+    /// The export was cancelled; nothing was left on disk.
+    case cancelled
 
     public var description: String {
         switch self {
@@ -113,6 +115,8 @@ public enum ExportError: Error, Hashable, Sendable, CustomStringConvertible {
             return "There is nothing to export."
         case .writeFailed(let message):
             return "The file could not be written: \(message)"
+        case .cancelled:
+            return "The export was cancelled."
         }
     }
 
@@ -121,7 +125,7 @@ public enum ExportError: Error, Hashable, Sendable, CustomStringConvertible {
             (.multiPage, "several pages"), (.vector, "vector artwork"), (.text, "live text"),
             (.transparency, "live transparency"), (.alpha, "transparency"), (.layers, "layers"),
             (.metadata, "document info"), (.colorProfiles, "a color profile"), (.spotColors, "spot colors"),
-            (.cmyk, "CMYK color"), (.links, "links"), (.filters, "live filters"), (.scales, "several scales"),
+            (.cmyk, "CMYK color"), (.links, "links"), (.filters, "live filters"), (.scales, "several scales"), (.animation, "an animation"),
         ]
         return names.filter { capabilities.contains($0.0) }.map(\.1).joined(separator: ", ")
     }
@@ -231,8 +235,8 @@ public struct ExportRegistry: Sendable {
         self.exporters = table
     }
 
-    /// The exporters this package ships: every format, WebP, HEIC and AVIF where this Mac's
-    /// ImageIO encodes them.
+    /// The exporters this package ships: every format (the animation formats included), WebP,
+    /// HEIC and AVIF where this Mac's ImageIO encodes them.
     public static let standard = ExportRegistry(exporters: [
         PDFExporter(),
         IllustratorExporter(),
@@ -248,6 +252,10 @@ public struct ExportRegistry: Sendable {
         BitmapExporter(format: .targa),
         RTFExporter(),
         PlainTextExporter(),
+        AnimationExporter(format: .animatedGIF),
+        AnimationExporter(format: .apng),
+        AnimationExporter(format: .mp4H264),
+        AnimationExporter(format: .mp4HEVC),
     ] + [ExportFormat.webp, .heic, .avif].filter(BitmapExporter.canEncode).map { BitmapExporter(format: $0) })
 
     /// Every format the Format menu lists, in its order.

@@ -143,7 +143,7 @@ import WTRender
         let source = try #require(CGImageSourceCreateWithData(Data(tiff) as CFData, nil))
         let image = try #require(CGImageSourceCreateImageAtIndex(source, 0, nil))
         #expect(image.width == 200 && image.height == 150)
-        #expect(result.notes.contains { $0.contains("IO-028") })
+        #expect(result.notes.contains("no document package was supplied; the EPS does not embed the document"))
         let big = try Self.export(Corpus.fixture("basics"), options: EPSOptions(preview: .tiff144))
         #expect(big.data.count > data.count)
         let bare = try Self.export(Corpus.fixture("basics"), options: EPSOptions(includeDocumentInfo: false), info: info)

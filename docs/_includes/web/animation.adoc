@@ -340,6 +340,44 @@ objects on layers that appear or disappear.  `startPlayback()` plays the frames 
 `AnimationPlayer` driven by `DisplayLinkTicker` (`NSView.displayLink`); clicking the canvas ends
 preview.  No menu or panel starts playback yet (WEB-017).
 
+NOTE: As built by WEB-019 and WEB-020 (`WTInterchange/Animation`: `AnimationExport.swift`,
+`AnimatedImageWriter.swift`, `MovieWriter.swift`; `Export/ExportProgress.swift`).  The formats are
+`ExportFormat.animatedGIF`, `.apng`, `.mp4H264` and `.mp4HEVC` (family `.animation`, capability
+`.animation` plus `.multiPage`: every frame goes into one file), written by `AnimationExporter` with
+`AnimatedGIFOptions`, `APNGOptions` and `MP4Options` over the shared `AnimationCommonOptions`: *Size*
+as `.scale(points × factor)` or `.pixels(width:height:)` (the frame fitted and centred on the
+background), *Frame rate* (nil: the document's), *Loop* (`.document` -- forever when the document
+loops, once when not -- `.forever` or `.count(n)` plays in all), *Pages* (page indices; frames on no
+page are always written), *Background* (nil: the document's) and anti-aliasing.  The snapshot
+carries the animation as `ExportScene.animation`, an `ExportAnimation`: `FrameComposer.frames` of the
+document, the stored fps and loop, the background choice, the canvas display list with its layer
+spans, the area a Layers-source frame shows (the page or output area) and the page colour.  Each
+frame is `FrameComposer.displayList(_:for:)` drawn by the bitmap rasterizer (WTRender's Core Graphics
+renderer, supersampled, raster effects at *Document resolution*) into sRGB.  *GIF*: every frame is
+quantized by the bitmap exporter's quantizer to its own local palette of *Colors* entries with the
+chosen *Dither*, and written by the package's own GIF89a writer -- *deviation*: ImageIO's GIF
+encoder has neither a colour count nor a dither, so it is not used.  Delays are hundredths of a
+second between rounded frame boundaries (no drift); a frame that would last under 2 cs, which
+browsers stretch to 10 cs, is left out and its time given to the frame before, reported in the
+summary.  A transparent background is one-bit transparency with disposal "restore to background".
+The NETSCAPE2.0 extension carries *plays − 1* repeats (none for one play; 0 for forever), which
+ImageIO reads back as the number of plays.  *APNG*: ImageIO with `kCGImagePropertyAPNGDelayTime`
+per frame and `kCGImagePropertyAPNGLoopCount` = plays.  *MP4*: `AVAssetWriter` H.264 or HEVC at an
+average bit rate of (0.02 + 0.3 × *Quality*/100) bits per pixel per frame, presentation times
+`period / fps` on a 600,000 timescale, every frame period pushed (holds repeat the frame's pixel
+buffer), the session ended at the last frame's end so the movie lasts exactly the animation; the
+size rounds down to even pixels and a transparent background is drawn over white, both reported.
+Progress and cancellation: `ExportProgress` (fraction, `cancel()`), checked between frames;
+`AnimationExporter.export(scene:options:to:progress:)` is `async`, runs the export off the calling
+actor and cancels it when the calling task is cancelled; a cancelled export removes its partial
+file and throws `ExportError.cancelled`.  Tests read the files back with ImageIO and AVFoundation
+(frames, delays, loop count, pixels, duration, frame count, codec) and cross-check durations with
+FFmpeg's `ffprobe` when installed.  The 300-frame 1920 × 1080 H.264 export (300 moving ellipses,
+2× anti-aliasing) is a perf-run test: 23.8 s in release on the development Mac, held to a 60 s
+budget the task sets (the page gives none), 10.000 s long with 300 frames.  Playing the
+files in Preview, Safari and QuickTime Player is manual acceptance and was not recorded; the Export
+sheet's options and the app's snapshot of the animation are WTApp/WTModel work still to do.
+
 === Build tasks
 
 [[WEB-014]]

@@ -440,6 +440,31 @@ repaint.  *PDF*: raster images are placed at the object's resolution with their 
 path for interior effects).  The reviewed screenshots of FX-010 are the golden renders
 (`WTRenderTests/Goldens/effects*`), not images under `docs/images`.
 
+NOTE: As built by FX-012 (`WTInterchange/Flatten/Flattener.swift`, `PDF/PDFWriter.swift`,
+`DXF/DXFExporter.swift`).  The hook is the export flattener (IO-017), which receives each effected
+object from the snapshot's display list; no bitmap is handed over by WTRender, the flattener
+renders it with WTRender's Core Graphics renderer at *Document resolution*.  An object whose raster
+effects the target cannot keep live (every target but SVG's blur, drop shadow and glow filters) is
+rendered at the object's raster effects resolution (`Appearance.raster`, the document's or its own)
+rather than the export's raster resolution, and only what must be pixels becomes pixels: an effect
+on one fill or stroke renders that element alone, the others staying vector; when every active
+object effect lies under the object (drop shadow, glow, outer bevel) the image holds the effect's
+pixels alone -- rendered with and without the effects on one grid and separated as S = (F − C) /
+(1 − a~C~) in premultiplied colour -- beneath the vector object; when every one lies inside it
+(inner shadow, inner glow, inner bevel, embosses, sharpen) and the object has no stroke, the image
+is clipped by the object's outline; anything else renders the whole object with its own alpha.
+The export summary names each object ("raster effects of “Card” rendered at 150 ppi").  Spot
+colours: the pixels hold WTRender's process alternates, and PDF writes spot colours of the vector
+parts as `/Separation` colour spaces with a DeviceCMYK tint transform (*Preserve spot colors*, on by
+default and kept by PDF/X-1a; off or under *Convert to RGB* the alternates are written), so a blurred
+fill lands on the process plates and its stroke on the spot plate (checked with Ghostscript's
+`tiffsep` device).  EPS still writes no separations.  Bitmap exports already render raster effects at
+*Document resolution* and resample them into the export resolution; DXF, which holds no images,
+drops raster effects and lists the objects ("raster effects left out (DXF holds no images) on “Logo”,
+2 unnamed objects").  The PDF drop-shadow case is held to the reference renderer's *Document
+resolution* output (at most 0.2% of pixels beyond 24/255 at 2×); printing from Preview goes through
+the same Core Graphics PDF renderer and was not separately recorded.
+
 === Build tasks
 
 [[FX-007]]

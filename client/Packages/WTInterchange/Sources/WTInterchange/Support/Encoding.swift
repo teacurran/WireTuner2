@@ -119,6 +119,22 @@ struct RGBAPixels {
         bytes = straight
     }
 
+    /// `image` drawn into sRGB with premultiplied alpha, 4 bytes per pixel.
+    static func premultiplied(_ image: CGImage) -> [UInt8] {
+        var bytes = [UInt8](repeating: 0, count: image.width * image.height * 4)
+        bytes.withUnsafeMutableBytes { buffer in
+            let context = CGContext(data: buffer.baseAddress, width: image.width, height: image.height, bitsPerComponent: 8, bytesPerRow: image.width * 4, space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+            context.draw(image, in: CGRect(x: 0, y: 0, width: image.width, height: image.height))
+        }
+        return bytes
+    }
+
+    /// An sRGB image of premultiplied RGBA bytes.
+    static func image(premultiplied bytes: [UInt8], width: Int, height: Int) -> CGImage {
+        let provider = CGDataProvider(data: Data(bytes) as CFData)!
+        return CGImage(width: width, height: height, bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: width * 4, space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue), provider: provider, decode: nil, shouldInterpolate: true, intent: .defaultIntent)!
+    }
+
     /// Whether every pixel is opaque.
     var isOpaque: Bool {
         stride(from: 3, to: bytes.count, by: 4).allSatisfy { bytes[$0] == 255 }

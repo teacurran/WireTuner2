@@ -9,13 +9,19 @@ import enum WTRender.LineJoin
 import struct WTRender.StrokeStyle
 
 struct PDFContent {
-    private(set) var text = ""
-
-    var data: Data { Data(text.utf8) }
+    private(set) var data = Data()
 
     mutating func op(_ operation: String) {
-        text += operation
-        text += "\n"
+        data.append(contentsOf: operation.utf8)
+        data.append(0x0A)
+    }
+
+    /// Bytes written as they are (a placed EPS file's PostScript), ending with a newline.
+    mutating func raw(_ bytes: Data) {
+        data.append(bytes)
+        if bytes.last != 0x0A {
+            data.append(0x0A)
+        }
     }
 
     static func n(_ value: Double) -> String {

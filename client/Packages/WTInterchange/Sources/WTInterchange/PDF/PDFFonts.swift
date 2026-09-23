@@ -4,10 +4,15 @@
 // * TrueType fonts become a Type 0 font over a `CIDFontType2` whose program is a TrueType subset
 //   (`FontFile2`) addressed through `Identity-H` with `CIDToGIDMap /Identity`: two-byte codes are
 //   the glyph ids.  *Complete* embeds every glyph of the font.
-// * Fonts with CFF outlines, and variable-font instances, have no subsetter here: their glyphs
-//   are embedded as Type 3 procedures holding the instance's outlines (up to 256 glyphs per font
-//   resource), where the specification asks for CFF subsets -- the deviation recorded on
-//   export-pdf.adoc.
+// * A variable TrueType font is instanced (TYPE-048, `VariableFontInstancer`): each distinct axis
+//   tuple becomes its own static TrueType subset embedded as above, named
+//   `Family-Instance-<tuple hash>`.  A variable font without `glyf` outlines (CFF2) is drawn as
+//   outlines and reported ("converted to outlines: variable font"), as is one whose tables the
+//   instancer cannot read: every glyph is instanced when the tuple is first used, so a font that
+//   fails does so before any of its text is written.
+// * Fonts with CFF outlines have no subsetter here: their glyphs are embedded as Type 3
+//   procedures holding the outlines (up to 256 glyphs per font resource), where the
+//   specification asks for CFF subsets -- the deviation recorded on export-pdf.adoc.
 // * A font whose license forbids embedding, or every font under *Convert text to outlines*, is
 //   drawn as paths by the page writer and reported.
 
@@ -21,6 +26,8 @@ import WTRender
 final class PDFFontRegistry {
     enum Kind {
         case trueType
+        /// A static instance of a variable TrueType font at `Font.variations`.
+        case instance
         case type3
     }
 
@@ -39,11 +46,16 @@ final class PDFFontRegistry {
         var glyphs: [CGGlyph] = []
         var codes: [CGGlyph: Int] = [:]
         var unicode: [CGGlyph: String] = [:]
+        /// The axis tuple of an instance.
+        var variations: [UInt32: Double] = [:]
+        /// The instance with every glyph (*Complete*, and the fallback for a subset).
+        var instance: Data?
 
-        init(key: String, kind: Kind, unit: CTFont) {
+        init(key: String, kind: Kind, unit: CTFont, variations: [UInt32: Double] = [:]) {
             self.key = key
             self.kind = kind
             self.unit = unit
+            self.variations = variations
             facts = FontFacts(unit)
         }
     }
@@ -55,6 +67,12 @@ final class PDFFontRegistry {
     private var resourceCounter = 0
     /// Fonts drawn as outlines because their license forbids embedding.
     private(set) var restricted = Set<String>()
+    /// Variable fonts drawn as outlines because they cannot be instanced (CFF2), by font key and
+    /// by PostScript name.
+    private(set) var uninstanceable = Set<String>()
+    private(set) var uninstanceableNames = Set<String>()
+    /// Whether a variable font's tables can be instanced (replaceable in tests).
+    var instanceable: (CTFont) -> Bool = VariableFontInstancer.canInstance
 
     init(objects: PDFObjects, embedAll: Bool) {
         self.objects = objects
@@ -67,7 +85,7 @@ final class PDFFontRegistry {
         if let font = fonts[key] {
             return font
         }
-        if restricted.contains(key) {
+        if restricted.contains(key) || uninstanceable.contains(key) {
             return nil
         }
         let unit = GlyphFont(postScriptName: glyphFont.postScriptName, size: 1000, variations: glyphFont.variations).ctFont
@@ -75,8 +93,22 @@ final class PDFFontRegistry {
             restricted.insert(key)
             return nil
         }
-        let kind: Kind = glyphFont.variations.isEmpty && FontProgram.table("glyf", of: unit) != nil ? .trueType : .type3
-        let font = Font(key: key, kind: kind, unit: unit)
+        let kind: Kind
+        var instance: Data?
+        // Variations on a font without `fvar` change nothing (Core Text ignores them).
+        if !glyphFont.variations.isEmpty, FontProgram.table("fvar", of: unit) != nil {
+            guard instanceable(unit), let program = try? VariableFontInstancer.instance(of: unit, variations: glyphFont.variations, glyphs: nil) else {
+                uninstanceable.insert(key)
+                uninstanceableNames.insert(glyphFont.postScriptName)
+                return nil
+            }
+            instance = program
+            kind = .instance
+        } else {
+            kind = FontProgram.table("glyf", of: unit) != nil ? .trueType : .type3
+        }
+        let font = Font(key: key, kind: kind, unit: unit, variations: glyphFont.variations)
+        font.instance = instance
         fonts[key] = font
         order.append(key)
         return font
@@ -95,7 +127,7 @@ final class PDFFontRegistry {
         let resource: Int
         let bytes: String
         switch font.kind {
-        case .trueType:
+        case .trueType, .instance:
             resource = 0
             bytes = String(format: "%04X", glyph)
         case .type3:
@@ -127,8 +159,14 @@ final class PDFFontRegistry {
         for key in order {
             let font = fonts[key]!
             switch font.kind {
-            case .trueType: writeTrueType(font)
-            case .type3: writeType3(font)
+            case .trueType:
+                writeTrueType(font, program: FontProgram.trueTypeSubset(of: font.unit, glyphs: embeddedGlyphs(font))!)
+            case .instance:
+                // Every glyph instanced once already: a subset of them instances too.
+                let subset = embedAll ? nil : try? VariableFontInstancer.instance(of: font.unit, variations: font.variations, glyphs: Set(font.glyphs))
+                writeTrueType(font, program: subset ?? font.instance!)
+            case .type3:
+                writeType3(font)
             }
         }
     }
@@ -178,12 +216,28 @@ final class PDFFontRegistry {
         return objects.add(.dictionary(entries))
     }
 
-    func writeTrueType(_ font: Font) {
-        let all = embedAll ? Set((0..<CGGlyph(CTFontGetGlyphCount(font.unit))).map { $0 }) : Set(font.glyphs)
-        // A font with a glyf table always subsets.
-        let program = FontProgram.trueTypeSubset(of: font.unit, glyphs: all)!
+    /// The glyphs a TrueType program keeps: every glyph under *Complete*, else the used ones.
+    func embeddedGlyphs(_ font: Font) -> Set<CGGlyph> {
+        embedAll ? Set((0..<CGGlyph(CTFontGetGlyphCount(font.unit))).map { $0 }) : Set(font.glyphs)
+    }
+
+    /// An instance's PostScript name: `Family-Instance-<tuple hash>` (eight hex digits of the
+    /// sorted axis values), the family without spaces.
+    static func instanceName(_ font: Font) -> String {
+        var hash: UInt64 = 1469598103934665603
+        for (tag, value) in font.variations.sorted(by: { $0.key < $1.key }) {
+            for byte in "\(tag)=\(value);".utf8 {
+                hash = (hash ^ UInt64(byte)) &* 1099511628211
+            }
+        }
+        let family = font.facts.familyName.filter { !$0.isWhitespace && $0 != "/" }
+        return "\(family)-Instance-\(String(format: "%08X", UInt32(truncatingIfNeeded: hash ^ (hash >> 32))))"
+    }
+
+    func writeTrueType(_ font: Font, program: Data) {
         let file = objects.addStream([("Length1", .int(program.count))], data: program)
-        let name = (embedAll ? "" : PDFFontRegistry.subsetTag(font.glyphs) + "+") + font.facts.postScriptName
+        let baseName = font.kind == .instance ? PDFFontRegistry.instanceName(font) : font.facts.postScriptName
+        let name = (embedAll ? "" : PDFFontRegistry.subsetTag(font.glyphs) + "+") + baseName
         let descriptor = descriptor(font, name: name, fontFile: ("FontFile2", file))
         let sorted = font.glyphs.sorted()
         let widths = advances(of: sorted, in: font.unit)

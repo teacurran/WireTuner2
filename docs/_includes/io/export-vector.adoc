@@ -440,9 +440,26 @@ ASCII85 with FlateDecode (Level 3) or RunLengthDecode (Level 2); a placed RGB JP
 under DCTDecode unless converting to CMYK.  The TIFF preview is an uncompressed TIFF rendered by
 the bitmap rasterizer at 72 or 144 ppi in the DOS EPS binary header.  Document Info: `%%Title`,
 `%%For`, `%%CreationDate`, and `%WTSubject`, `%WTDescription`, `%WTKeywords`, `%WTLanguage`
-comments.  *Embed {product} document* is reported, not written (IO-028, as for PDF).  Tests run
+comments.  *Embed {product} document* is written since IO-028 (note below).  Tests run
 Ghostscript (`gs -dEPSCrop -sDEVICE=png16m -r144`) over every corpus page and hold it to the
 reference renderer (at most 3% of pixels beyond 40/255), when `/opt/homebrew/bin/gs` exists.
+
+NOTE: As built by IO-028 and the IO-018 follow-up named by IMG-011 (`EPS/EPSWriter.swift`,
+`EPS/PostScriptPassThrough.swift`).  *Embed {product} document*: a `%%BeginData: n ASCII Lines`
+block after `%%Trailer` and before `%%EOF`, a `%WireTunerPackage <bytes>` line and the package
+(without its thumbnail and preview, as for PDF) in base64, 76 characters a line, every line starting
+with `%` so an interpreter reads comments -- the specification's "after the trailer, base64" with
+the lines made comments.  *Placed EPS files*: `ExportScene.placedPostScript` maps a `placed_file`
+node to its PostScript (`ExportPostScript`: the file's bytes, its bounding box, the placed bounds
+and transform); the EPS flattener's target adds `.postScript`, so the node's group carries it
+(`FlatGroup.postScript`) around the preview drawing, and the EPS writer writes the program verbatim
+instead -- the DOS binary header's PostScript section only -- under `%%BeginDocument` /
+`%%EndDocument` with the usual inclusion protocol (graphics state, operand and dictionary stacks
+saved and restored, `showpage` disabled, default graphics state), the export's operator dictionary
+ended around it and a matrix mapping the bounding box onto the placed bounds; a program with bytes
+outside 7-bit ASCII makes `%%DocumentData: Binary`.  The summary counts the files passed through.
+PDF, SVG and the bitmap formats draw the preview, as before.  Ghostscript renders the result with
+the placed program's marks at the placed bounds.
 
 NOTE: As built by IO-020 (`WTInterchange/DXF`).  Before flattening, every paint is made solid black
 and every effect but the vector effects is dropped, so that each outline survives as geometry
@@ -471,7 +488,7 @@ NOTE: As built by IO-029 (`IllustratorExporter`).  The `.ai` file is `PDFExporte
 `IllustratorOptions.pdfOptions`: PDF 1.7, *Complete* fonts (text stays editable), layers as
 optional content groups (`/Usage << /CreatorInfo << /Creator … /Subtype /Artwork >> >>`, one per
 top-level layer group, in `/OCProperties` with `/Order` and `/ON`), links kept; the sheet's
-*Colors*, *Embed {product} document* (reported until IO-028) and *Include document info* pass
+*Colors*, *Embed {product} document* (written since IO-028) and *Include document info* pass
 through.  It opens in PDFKit (and so Preview) and Ghostscript in the tests; the Illustrator
 acceptance test needs a person at the Mac -- Photoshop and Illustrator could not be driven by
 AppleScript from the build session -- and was not run.

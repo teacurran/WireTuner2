@@ -385,8 +385,8 @@ scene for the PDF target (transparency, soft masks and linear/radial gradients k
 rather than a `WTRender` backend emitting operators, so screen and PDF share the display list
 through the flattener.  *Fonts*: TrueType (`glyf`) fonts are embedded as `CIDFontType2` subsets
 (`FontFile2`, `Identity-H`, `CIDToGIDMap /Identity`, `/W` widths, `ToUnicode`), glyph ids kept and
-unused glyphs emptied; fonts with CFF outlines and variable-font instances are embedded as Type 3
-fonts whose procedures hold the instance's outlines (256 glyphs per resource) with `ToUnicode`, in
+unused glyphs emptied; fonts with CFF outlines (and, until TYPE-048, variable-font instances) are
+embedded as Type 3 fonts whose procedures hold the outlines (256 glyphs per resource) with `ToUnicode`, in
 place of CFF subsets -- text stays selectable and searchable; fonts whose OS/2 `fsType` forbids
 embedding are outlined and reported.  Glyphs on one baseline are shown with one `TJ`, the
 differences between Core Text's positions and the font's advances written as adjustments.
@@ -401,8 +401,8 @@ list.  *Images*: `FlateDecode` with an `SMask` for alpha, the placed JPEG's byte
 `DCTDecode` when nothing resamples it, JPEG re-encoding under *JPEG*, downsampling by redrawing;
 `CCITTFaxDecode` is not written.  Link annotations come from `ExportNodeInfo.url` (the IO-027 sheet
 option is `linksFromURLs`).  Page boxes: media, trim, bleed (with *Page plus bleed*) and art.  Not
-written yet and reported in the summary: linearization, object streams and the embedded package;
-encryption is IO-027's.  (Layers as optional content, PDF/X and *Convert to CMYK* arrived with
+written yet and reported in the summary: linearization and object streams.  (Encryption, notes,
+bookmarks and the embedded package arrived with IO-027 and IO-028, notes below.)  (Layers as optional content, PDF/X and *Convert to CMYK* arrived with
 IO-026 and IO-029, notes below.)  Tests open every file in PDFKit, rasterize its pages
 with Core Graphics and compare them with the reference renderer (at most 2% of pixels beyond 40/255
 at 2×), check text search per font kind, and run Ghostscript (`-dPDFSTOPONERROR`) over the corpus
@@ -452,6 +452,41 @@ PDF/A and PDF/UA, not PDF/X, and is not installed on the build Mac; neither is a
 (Acrobat) nor the Ghent Workgroup suite.  The tests check the object graph for the rules above,
 open every file in PDFKit, compare X-4 pages with the reference renderer, and run Ghostscript
 (`-dPDFSTOPONERROR`) over X-1a, X-4 and layered files without errors.
+
+NOTE: As built by IO-027.  *Notes as comments* (`notesAsComments`, off by default) writes each
+`ExportNodeInfo.note` as a closed `/Text` annotation (`/Name /Comment`, `/T` the object's name) whose
+20 pt icon's top-left corner is the object's; *Bookmarks from page names* (`bookmarksFromPageNames`,
+on) writes an `/Outlines` tree with one item per named page (`/XYZ` to the page's top-left) and
+`/PageMode /UseOutlines`.  *Passwords*: `openPassword` is the user password and
+`permissionsPassword` the owner password (the open password when empty); `allowPrinting` (bits 3
+and 12), `allowCopying` (bit 5) and `allowEditing` (bits 4, 6, 9, 11) make `/P`, accessibility
+extraction (bit 10) always allowed.  PDF 2.0 files use revision 6 (AES-256, `/V 5`, `/AESV3`,
+SHA-2 hashing of the UTF-8 password, `/OE`, `/UE`, `/Perms`); PDF 1.4 to 1.7 use revision 4
+(AES-128, `/V 4`, `/AESV2`), and 1.4 and 1.5 are written as PDF 1.6 with a note, since AES needs
+1.6.  Every string and stream but the encryption dictionary is encrypted (a random IV in front of
+each), the file identifier fixed before the first object.  *Deviation* -- the passwords' encoding:
+revision 4 writes the PDFDocEncoding (Latin-1) bytes the standard asks for, which Core Graphics
+does not accept (it hashes UTF-8), and PDFKit's `unlock(withPassword:)` accepts no password outside
+ASCII in either revision on macOS 26, so a password with such characters is reported ("Preview
+may not accept it").  PDF/X removes notes, bookmarks, links, passwords and the package, each a fix
+report line.  Tests unlock the files in PDFKit and Core Graphics and compare the pages with the
+unencrypted file, check PDFKit's `allowsCopying`/`allowsPrinting`/`allowsCommenting`, and run
+Ghostscript with `-sPDFPassword`; Acrobat was not available.
+
+NOTE: As built by IO-028 (`WTInterchange/Package/EmbeddedPackage.swift`).  With *Embed {product}
+document* the PDF carries `ExportScene.package` (the `.wiretuner` bytes `PackageWriter` makes; the
+app supplies them) as an embedded file -- `/Type /EmbeddedFile /Subtype
+/application#2Fvnd.wiretuner.package+zip`, a file specification named `<document>.wiretuner` with
+`/AFRelationship /Source`, listed in the catalog's `/EmbeddedFiles` name tree and `/AF` -- stored
+as is (a package is already compressed) and without its `thumbnail.png` and `preview.pdf`, which the
+PDF carrying it makes redundant; opening it reads the manifest, snapshot and blobs, so the reopened
+document is the original.  That keeps the corpus page's PDF with the package under 2.2× the size
+without.  `EmbeddedPackage.find(in:)` returns the package of a PDF (the name tree and its kids,
+matched by media type or `.wiretuner` name, read through CGPDF, so a permissions-only encrypted file
+works) or of an EPS (`%WireTunerPackage` block) when its manifest reads, and nil otherwise;
+`EmbeddedPackage.open(_:reader:)` opens it with a `PackageReader` or returns nil so the caller falls
+through to the PDF or EPS importer.  Wiring it into menu:File[Open Package…], Finder double-click and
+the import dispatch is WTApp's.  With the option on and no package in the scene the summary says so.
 
 === Build tasks
 

@@ -51,7 +51,7 @@ public struct PDFExporter: Exporter {
 /// with everything but these fixed.
 public struct IllustratorOptions: ExportOptions, Hashable {
     public var colors: PDFOptions.Colors
-    /// The embedded document package (IO-028).  Not written yet: reported.
+    /// *Embed {product} document*: `ExportScene.package` as an embedded file (IO-028).
     public var embedPackage: Bool
     public var includeDocumentInfo: Bool
 

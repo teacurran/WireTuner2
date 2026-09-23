@@ -48,7 +48,7 @@ public struct EPSOptions: ExportOptions, Hashable {
     public var fonts: Fonts
     public var colors: Colors
     public var preserveOverprint: Bool
-    /// The embedded document package (IO-028).  Not written yet: reported.
+    /// *Embed {product} document*: `ExportScene.package` as a data block (IO-028).
     public var embedPackage: Bool
     /// Document Info as DSC header comments.
     public var includeDocumentInfo: Bool

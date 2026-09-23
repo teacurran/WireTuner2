@@ -66,6 +66,8 @@ final class EPSBuild {
     var notes: [String] = []
     var wideClipped = Set<Color>()
     var bandedGradients = 0
+    /// A placed file's PostScript holds bytes outside 7-bit ASCII (`%%DocumentData: Binary`).
+    var binaryData = false
 
     init(options: EPSOptions, cmyk: any CMYKConverter, scene: ExportScene) {
         self.options = options
@@ -115,7 +117,7 @@ final class EPSBuild {
             }
         }
         header += "%%LanguageLevel: \(level)\n"
-        header += "%%DocumentData: Clean7Bit\n"
+        header += "%%DocumentData: \(binaryData ? "Binary" : "Clean7Bit")\n"
         header += "%%Pages: 1\n"
         let supplied = fonts.suppliedResources
         if !supplied.isEmpty {
@@ -131,7 +133,15 @@ final class EPSBuild {
         header += "%%Page: 1 1\n%%BeginPageSetup\nsave WTDict begin\n%%EndPageSetup\n"
         var file = Data(header.utf8)
         file.append(content.data)
-        file.append(Data("%%PageTrailer\nend restore\nshowpage\n%%Trailer\n%%EOF\n".utf8))
+        file.append(Data("%%PageTrailer\nend restore\nshowpage\n%%Trailer\n".utf8))
+        if options.embedPackage {
+            if let package = scene.package {
+                file.append(Data(EmbeddedPackage.epsBlock(EmbeddedPackage.slimmed(package)).utf8))
+            } else {
+                notes.append("no document package was supplied; the EPS does not embed the document")
+            }
+        }
+        file.append(Data("%%EOF\n".utf8))
         report()
         return file
     }
@@ -160,9 +170,6 @@ final class EPSBuild {
         }
         if bandedGradients > 0 {
             notes.append("\(bandedGradients) gradient\(bandedGradients == 1 ? "" : "s") written as \(options.gradientSteps) stepped bands (PostScript Level 2)")
-        }
-        if options.embedPackage {
-            notes.append("the embedded document package is not written yet (IO-028)")
         }
     }
 
@@ -222,6 +229,10 @@ final class EPSBuild {
     }
 
     func writeGroup(_ group: FlatGroup) {
+        if let postScript = group.postScript {
+            writePostScript(postScript, name: group.node.flatMap { scene.nodes[$0]?.name } ?? "placed.eps")
+            return
+        }
         content.op("q")
         if let clip = group.clip {
             content.path(clip.path.applying(clip.transform))

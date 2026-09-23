@@ -31,6 +31,9 @@ public struct FlattenTarget: OptionSet, Hashable, Sendable {
     public static let filters = FlattenTarget(rawValue: 1 << 3)
     /// Glyph runs are kept as text.
     public static let text = FlattenTarget(rawValue: 1 << 4)
+    /// Placed EPS files are passed through as their PostScript (EPS): the flattener tags the
+    /// node's group with `FlatGroup.postScript` around its preview drawing.
+    public static let postScript = FlattenTarget(rawValue: 1 << 6)
     /// Basic strokes are kept as strokes (otherwise the writer receives them as strokes anyway;
     /// without this flag they are expanded to filled outlines).
     public static let strokes = FlattenTarget(rawValue: 1 << 5)
@@ -329,14 +332,18 @@ public struct FlatGroup: Sendable {
     public var softMask: FlatSoftMask?
     public var filter: FlatFilter?
     public var node: NodeID?
+    /// A placed EPS file: a PostScript writer writes this verbatim instead of the children (its
+    /// preview); every other writer draws the children.
+    public var postScript: ExportPostScript?
 
-    public init(children: [FlatNode], clip: FlatClip? = nil, opacity: Double = 1, softMask: FlatSoftMask? = nil, filter: FlatFilter? = nil, node: NodeID? = nil) {
+    public init(children: [FlatNode], clip: FlatClip? = nil, opacity: Double = 1, softMask: FlatSoftMask? = nil, filter: FlatFilter? = nil, node: NodeID? = nil, postScript: ExportPostScript? = nil) {
         self.children = children
         self.clip = clip
         self.opacity = opacity
         self.softMask = softMask
         self.filter = filter
         self.node = node
+        self.postScript = postScript
     }
 
     /// Whether the group changes how its children look (anything but a plain grouping).

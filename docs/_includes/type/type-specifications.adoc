@@ -420,6 +420,30 @@ Mahee features.  The 200,000-character relayouts after a one-paragraph edit take
 mixed attributes and 18--20 ms with axes on every paragraph in release (the budgets are enforced
 there), with every run font of the edited paragraph from the cache.
 
+NOTE: As built by TYPE-048 (`WTInterchange/Fonts/VariableFontInstancer.swift`,
+`PDF/PDFFonts.swift`).  The instancer reads the Core Text font's tables: the tuple
+(`GlyphFont.variations`, missing axes at their defaults) is normalized by `fvar`, mapped through
+`avar`'s segment maps, and every `gvar` tuple variation (shared or embedded peaks, intermediate
+regions, shared or private packed point numbers, packed deltas, IUP for untouched points) is scaled
+and summed; coordinates round once at the end.  Composite glyphs move their x/y offsets (written as
+words) and keep point-matched arguments; a composite's box is its components' boxes moved by their
+offsets.  *Deviation*: advances are Core Text's at the tuple (which applies `HVAR`) rather than
+`HVAR` read by the instancer, so `hmtx` (every glyph a long metric, the side bearing the new
+`xMin`), the PDF's `/W` widths and the layout agree.  `head` (long `loca`), `hhea`
+(`numberOfHMetrics`, `advanceWidthMax`), `hmtx`, `glyf` and `loca` are rebuilt and the subset keeps
+`FontProgram.keptTables`, so `fvar`, `gvar`, `avar`, `HVAR`, `MVAR`, `STAT` and `cvar` are gone.  The
+PDF writer instances every glyph of a (font, tuple) the first time it is used -- so a font that
+cannot be instanced is known before any of its text is written -- and embeds the used glyphs (or all
+of them under *Complete*) as a `CIDFontType2` named `<subset tag>+Family-Instance-<8 hex digits of
+the tuple>`; variations on a font without `fvar` embed the static font.  A variable font without
+`glyf` (CFF2), or one whose tables do not parse, draws as outlines with "font … converted to
+outlines: variable font" in the summary.  No CFF2 font ships with macOS 26, so that path is tested
+with the instancer refused.  STIX Two Text (2,221 glyphs, `avar` and `HVAR`) instanced at 400, 550
+and 700 matches Core Text's outlines of the same tuples within 10 units (0.01 em), with advances
+within 1 unit; the three-weight PDF passes `qpdf --check` (qpdf 12 from Homebrew, installed for this
+task) and Ghostscript and searches in PDFKit; the whole font instances in 7.4 ms in release (budget
+200 ms, `PerfBudget`).  EPS and SVG outline variable instances, as specified.
+
 === Build tasks
 
 [[TYPE-020]]

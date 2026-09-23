@@ -211,6 +211,10 @@ enum ExportFormat {
   EXPORT_FORMAT_PSD = 17;
   EXPORT_FORMAT_BMP = 18;
   EXPORT_FORMAT_TARGA = 19;
+  EXPORT_FORMAT_ANIMATED_GIF = 20;   // animation.adoc
+  EXPORT_FORMAT_APNG = 21;
+  EXPORT_FORMAT_MP4_H264 = 22;
+  EXPORT_FORMAT_MP4_HEVC = 23;
   EXPORT_FORMAT_RTF = 30;
   EXPORT_FORMAT_TEXT = 31;
 }
@@ -275,6 +279,15 @@ that convert to CMYK take a `CMYKConverter` (`ProfileCMYKConverter`: a CMYK prof
 `ProfileRegistry`, the bundled Default CMYK -- ColorSync's Generic CMYK -- unless the dialog
 passes the document's Working CMYK or a PDF/X destination profile).  `ExportScene.text` carries
 the text blocks and stories text export reads (export-text.adoc, IO-030 note).
+
+NOTE: As extended by WEB-019 and WEB-020: the animation formats of xref:animation.adoc[Animation]
+-- *GIF (animated)*, *APNG*, *MP4 (H.264)* and *MP4 (HEVC)*, numbers 20 to 23 above (the
+`preferences.proto` enum is not written yet, so these reserve its values) -- are
+`ExportFormat.animatedGIF`, `.apng`, `.mp4H264` and `.mp4HEVC`, family `.animation`, registered with
+`AnimationExporter`.  Their extensions are `gif`, `png` and `mp4`, so `ExportFormat(fileExtension:)`
+answers the still format (or H.264): an animation's format comes from the menu.  They carry the new
+`.animation` capability and `.multiPage` (every frame in one file); GIF and APNG carry `.alpha`.
+`ExportError.cancelled` is a cancelled export, which leaves nothing on disk.
 
 === Build tasks
 

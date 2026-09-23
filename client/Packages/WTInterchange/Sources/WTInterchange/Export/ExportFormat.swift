@@ -21,6 +21,13 @@ public enum ExportFormat: Int, CaseIterable, Hashable, Sendable, CustomStringCon
     case psd = 17
     case bmp = 18
     case targa = 19
+    /// Animated GIF, APNG and MP4 movies (WEB-019, WEB-020): the document's animation frames in
+    /// one file.  Not yet in `preferences.proto`, whose `ExportFormat` is not written; these are
+    /// the numbers the page's enum reserves for them.
+    case animatedGIF = 20
+    case apng = 21
+    case mp4H264 = 22
+    case mp4HEVC = 23
     case rtf = 30
     case text = 31
 
@@ -29,6 +36,8 @@ public enum ExportFormat: Int, CaseIterable, Hashable, Sendable, CustomStringCon
         case vector
         case bitmap
         case text
+        /// The frames of the document's animation, rasterized into one file.
+        case animation
     }
 
     public var family: Family {
@@ -36,6 +45,7 @@ public enum ExportFormat: Int, CaseIterable, Hashable, Sendable, CustomStringCon
         case .pdf, .illustrator, .eps, .svg, .dxf: return .vector
         case .png, .jpeg, .webp, .heic, .avif, .gif, .tiff, .psd, .bmp, .targa: return .bitmap
         case .rtf, .text: return .text
+        case .animatedGIF, .apng, .mp4H264, .mp4HEVC: return .animation
         }
     }
 
@@ -57,6 +67,10 @@ public enum ExportFormat: Int, CaseIterable, Hashable, Sendable, CustomStringCon
         case .psd: return "Photoshop"
         case .bmp: return "BMP"
         case .targa: return "Targa"
+        case .animatedGIF: return "GIF (animated)"
+        case .apng: return "APNG"
+        case .mp4H264: return "MP4 (H.264)"
+        case .mp4HEVC: return "MP4 (HEVC)"
         case .rtf: return "Rich Text"
         case .text: return "Plain Text"
         }
@@ -82,6 +96,9 @@ public enum ExportFormat: Int, CaseIterable, Hashable, Sendable, CustomStringCon
         case .psd: return "psd"
         case .bmp: return "bmp"
         case .targa: return "tga"
+        case .animatedGIF: return "gif"
+        case .apng: return "png"
+        case .mp4H264, .mp4HEVC: return "mp4"
         case .rtf: return "rtf"
         case .text: return "txt"
         }
@@ -107,6 +124,9 @@ public enum ExportFormat: Int, CaseIterable, Hashable, Sendable, CustomStringCon
         case .psd: return "com.adobe.photoshop-image"
         case .bmp: return "com.microsoft.bmp"
         case .targa: return "com.truevision.tga-image"
+        case .animatedGIF: return "com.compuserve.gif"
+        case .apng: return "public.png"
+        case .mp4H264, .mp4HEVC: return "public.mpeg-4"
         case .rtf: return "public.rtf"
         case .text: return "public.plain-text"
         }
@@ -119,7 +139,8 @@ public enum ExportFormat: Int, CaseIterable, Hashable, Sendable, CustomStringCon
     }
 
     /// The format a file extension names (case-insensitive; `jpeg`, `tiff` and `text` are
-    /// accepted as aliases).
+    /// accepted as aliases).  `gif`, `png` and `mp4` name the still formats and H.264: an
+    /// animation's format is chosen from the menu, not the extension.
     public init?(fileExtension: String) {
         let lowered = fileExtension.lowercased()
         let aliases = ["jpeg": ExportFormat.jpeg, "tiff": .tiff, "text": .text]
@@ -157,6 +178,13 @@ public enum ExportFormat: Int, CaseIterable, Hashable, Sendable, CustomStringCon
             return [.multiPage, .text]
         case .text:
             return [.multiPage]
+        case .animatedGIF:
+            // Every frame goes into one file; one-bit transparency.
+            return [.multiPage, .alpha, .animation]
+        case .apng:
+            return [.multiPage, .alpha, .colorProfiles, .animation]
+        case .mp4H264, .mp4HEVC:
+            return [.multiPage, .animation]
         }
     }
 }
@@ -195,4 +223,6 @@ public struct ExportCapabilities: OptionSet, Hashable, Sendable {
     public static let filters = ExportCapabilities(rawValue: 1 << 11)
     /// Several scale factors (1×, 2×, 3×), one file each.
     public static let scales = ExportCapabilities(rawValue: 1 << 12)
+    /// The document's animation frames, timed, in one file.
+    public static let animation = ExportCapabilities(rawValue: 1 << 13)
 }

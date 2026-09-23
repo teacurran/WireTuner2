@@ -32,10 +32,15 @@ public struct DXFExporter: Exporter {
             throw ExportError.nothingToExport
         }
         var page = scene.pages[index]
+        let dropped = DXFExporter.rasterEffectObjects(page, scene: scene)
         page.displayList = DXFExporter.outlinesOnly(page.displayList)
         let flat = DXFExporter.flattener(options: options).flatten(page, scene: scene)
         let written = DXFWriter(options: options).write(flat.page, scene: scene)
-        return (written.data, flat.report.notes.filter { !$0.contains("converted to outlines") } + written.notes)
+        var notes = flat.report.notes.filter { !$0.contains("converted to outlines") } + written.notes
+        if !dropped.isEmpty {
+            notes.append("raster effects left out (DXF holds no images) on " + dropped.joined(separator: ", "))
+        }
+        return (written.data, notes)
     }
 
     public func export(scene: ExportScene, options: any ExportOptions, to destination: ExportDestination) throws -> ExportSummary {
@@ -62,6 +67,40 @@ public struct DXFExporter: Exporter {
     }
 
     // MARK: Preparation
+
+    /// The objects of `page` whose visible raster effects DXF leaves out (FX-012), by name;
+    /// unnamed ones are counted.
+    static func rasterEffectObjects(_ page: ExportPage, scene: ExportScene) -> [String] {
+        var named: [String] = []
+        var unnamed = 0
+        func visit(_ item: DisplayItem, at path: [Int]) {
+            let appearance: Appearance?
+            switch item {
+            case .path(let path): appearance = path.appearance
+            case .group(let group): appearance = group.appearance
+            default: appearance = nil
+            }
+            if let appearance, appearance.effects.contains(where: { !$0.hidden && !$0.effect.isVector && $0.effect != .unsupported && !FlattenRun.isNoOp($0.effect) }) {
+                if let name = scene.info(for: page.nodeID(at: path))?.name, !name.isEmpty {
+                    named.append("\u{201C}\(name)\u{201D}")
+                } else {
+                    unnamed += 1
+                }
+            }
+            if case .group(let group) = item {
+                for (index, child) in group.children.enumerated() {
+                    visit(child, at: path + [index])
+                }
+            }
+        }
+        for (index, item) in page.displayList.items.enumerated() {
+            visit(item, at: [index])
+        }
+        if unnamed > 0 {
+            named.append("\(unnamed) unnamed object\(unnamed == 1 ? "" : "s")")
+        }
+        return named
+    }
 
     /// `list` with every paint that paints made solid black and only vector effects kept.
     static func outlinesOnly(_ list: DisplayList) -> DisplayList {

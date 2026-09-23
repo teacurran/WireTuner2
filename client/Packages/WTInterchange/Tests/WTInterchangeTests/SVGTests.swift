@@ -307,7 +307,9 @@ enum PathDataParser {
         #expect(result.root.all("feGaussianBlur").count == 2)
         #expect(result.root.all("feDropShadow").count == 1)
         #expect(result.root.all("feMorphology").count == 1)
-        #expect(result.root.all("clipPath").count == 1)
+        // The clipped group, and the inner shadow and inner bevel rendered and clipped to their
+        // outlines (FX-012).
+        #expect(result.root.all("clipPath").count == 3)
         #expect(result.root.all("image").count == 3)
         #expect(result.root.all("g").contains { $0.attributes["opacity"] == "0.6" })
         // The mask paints white with the factor as opacity.

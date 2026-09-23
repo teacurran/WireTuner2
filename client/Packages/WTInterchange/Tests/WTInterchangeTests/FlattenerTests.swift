@@ -109,7 +109,12 @@ import struct WTRender.StrokeStyle
         #expect(skipped.count == 1)
         // Box blur and sharpening render.
         #expect(Self.isImage(effected([EffectElement(.blur(LiveEffect.Blur(style: .basic, radius: 3)))])[0]))
-        #expect(Self.isImage(effected([EffectElement(.sharpen(LiveEffect.Sharpen(amount: 50)))])[0]))
+        // Sharpening lies inside the shape: rendered, clipped to the outline (FX-012).
+        if case .group(let sharpened) = effected([EffectElement(.sharpen(LiveEffect.Sharpen(amount: 50)))])[0] {
+            #expect(sharpened.clip != nil && Self.isImage(sharpened.children[0]))
+        } else {
+            Issue.record("expected a clipped group")
+        }
         // A vector effect with a raster one renders.
         #expect(Self.isImage(effected([EffectElement(.ragged(LiveEffect.Ragged(size: 3, frequency: 5))), EffectElement(.blur(LiveEffect.Blur(radius: 2)))])[0]))
         // A single-stop gradient mask is Basic at the stop's luminance; no stops is opaque.
@@ -120,9 +125,10 @@ import struct WTRender.StrokeStyle
         // Without soft masks a gradient mask renders.
         let masked = Self.flatten([Corpus.path(square, [Corpus.fill(.solid(Corpus.red))], effects: [EffectElement(.transparency(LiveEffect.Transparency(style: .gradientMask, mask: Gradient(.linear, from: .black, to: .white))))])], target: [.transparency, .strokes])
         #expect(Self.isImage(masked.page.nodes[0]))
-        // An element-level raster effect the target cannot keep renders the object.
+        // An element-level raster effect the target cannot keep renders that element alone; the
+        // fill stays vector (FX-012).
         let elementBlur = Self.flatten([Corpus.path(square, [Corpus.fill(.solid(Corpus.red)), Corpus.stroke(.solid(.black), width: 2)], effects: [EffectElement(.blur(LiveEffect.Blur(radius: 2)), target: .element(1))])], target: .pdf)
-        #expect(Self.isImage(elementBlur.page.nodes[0]))
+        #expect(elementBlur.page.nodes.count == 2 && !Self.isImage(elementBlur.page.nodes[0]) && Self.isImage(elementBlur.page.nodes[1]))
         // An inner glow has no filter.
         #expect(FlattenRun.filter(for: LiveEffect.Shadow(style: .innerGlow, opacity: 50)) == nil)
         // An effected item that paints nothing yields nothing.

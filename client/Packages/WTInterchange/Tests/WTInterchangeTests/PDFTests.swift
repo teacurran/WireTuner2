@@ -256,7 +256,7 @@ import WTRender
         let reported = try Self.export([page], options: PDFOptions(version: .v1_4, layers: true, embedPackage: true, linearize: true, colors: .convertToRGB, rasterPPI: 72))
         #expect(reported.notes.contains { $0.contains("linearization") })
         #expect(reported.notes.contains { $0.contains("layers") })
-        #expect(reported.notes.contains { $0.contains("IO-028") })
+        #expect(reported.notes.contains("no document package was supplied; the PDF does not embed the document"))
         #expect(PDFOptions.Version.allCases.map(\.rawValue) == ["1.4", "1.5", "1.6", "1.7", "2.0"])
         #expect(PDFOptions.defaults == PDFOptions())
         let directory = Corpus.directory()

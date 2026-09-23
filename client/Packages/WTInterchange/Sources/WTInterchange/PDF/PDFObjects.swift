@@ -30,6 +30,34 @@ indirect enum PDFValue {
         numbers([minX, minY, maxX, maxY])
     }
 
+    /// The value serialized with every string and byte string passed through `encrypt` (and
+    /// written in hex), as an encrypted file's objects are.
+    func text(encrypting encrypt: ((Data) -> Data)?) -> String {
+        guard let encrypt else {
+            return text
+        }
+        switch self {
+        case .string(let string): return PDFValue.bytes(encrypt(PDFValue.stringBytes(string))).text
+        case .bytes(let data): return PDFValue.bytes(encrypt(data)).text
+        case .array(let values): return "[" + values.map { $0.text(encrypting: encrypt) }.joined(separator: " ") + "]"
+        case .dictionary(let entries): return "<<" + entries.map { "/\(PDFValue.escapeName($0.0)) \($0.1.text(encrypting: encrypt))" }.joined(separator: " ") + ">>"
+        default: return text
+        }
+    }
+
+    /// A text string's bytes: ASCII as is, anything else UTF-16BE with a byte-order mark.
+    static func stringBytes(_ string: String) -> Data {
+        if string.unicodeScalars.allSatisfy({ $0.value < 0x80 }) {
+            return Data(string.utf8)
+        }
+        var bytes = Data([0xFE, 0xFF])
+        for unit in string.utf16 {
+            bytes.append(UInt8(unit >> 8))
+            bytes.append(UInt8(unit & 0xFF))
+        }
+        return bytes
+    }
+
     /// The value serialized.
     var text: String {
         switch self {
@@ -95,6 +123,8 @@ final class PDFObjects {
     private(set) var count = 0
     /// Compress streams with FlateDecode (off only for debugging).
     let compress: Bool
+    /// Encrypts strings and streams of every object but the encryption dictionary (IO-027).
+    var encryption: PDFEncryption?
 
     init(compress: Bool) {
         self.compress = compress
@@ -108,9 +138,16 @@ final class PDFObjects {
 
     /// Writes object `number`.
     func set(_ number: Int, _ value: PDFValue) {
-        let text = value.text
-        texts[number] = text
-        bodies[number] = Data("\(number) 0 obj\n\(text)\nendobj\n".utf8)
+        texts[number] = value.text
+        bodies[number] = Data("\(number) 0 obj\n\(value.text(encrypting: encryptor(number)))\nendobj\n".utf8)
+    }
+
+    /// How object `number`'s strings and streams are encrypted, if they are.
+    func encryptor(_ number: Int) -> ((Data) -> Data)? {
+        guard let encryption, encryption.exempt != number else {
+            return nil
+        }
+        return { encryption.encrypt($0, object: number) }
     }
 
     /// Writes stream object `number`: `data` compressed unless `raw` (already encoded, its
@@ -122,10 +159,13 @@ final class PDFObjects {
             payload = Zlib.compress(data)
             entries.append(("Filter", .name("FlateDecode")))
         }
+        let encrypt = encryptor(number)
+        if let encrypt {
+            payload = encrypt(payload)
+        }
         entries.append(("Length", .int(payload.count)))
-        let text = PDFValue.dictionary(entries).text
-        texts[number] = text
-        var body = Data("\(number) 0 obj\n\(text)\nstream\n".utf8)
+        texts[number] = PDFValue.dictionary(entries).text
+        var body = Data("\(number) 0 obj\n\(PDFValue.dictionary(entries).text(encrypting: encrypt))\nstream\n".utf8)
         body.append(payload)
         body.append(Data("\nendstream\nendobj\n".utf8))
         bodies[number] = body
@@ -150,7 +190,7 @@ final class PDFObjects {
 
     /// The file: header, objects in number order, cross-reference table and trailer.  Every
     /// reserved number must have been written.
-    func file(version: String, root: Int, info: Int?) -> Data {
+    func file(version: String, root: Int, info: Int?, encrypt: Int? = nil) -> Data {
         var file = Data("%PDF-\(version)\n%".utf8)
         file.append(contentsOf: [0xE2, 0xE3, 0xCF, 0xD3, 0x0A])
         var offsets: [Int] = []
@@ -158,7 +198,7 @@ final class PDFObjects {
             offsets.append(file.count)
             file.append(bodies[number]!)
         }
-        let digest = Data(Insecure.MD5.hash(data: file))
+        let digest = encryption?.fileID ?? Data(Insecure.MD5.hash(data: file))
         let xref = file.count
         var table = "xref\n0 \(offsets.count + 1)\n0000000000 65535 f \n"
         for offset in offsets {
@@ -167,6 +207,9 @@ final class PDFObjects {
         var trailer: [(String, PDFValue)] = [("Size", .int(offsets.count + 1)), ("Root", .reference(root))]
         if let info {
             trailer.append(("Info", .reference(info)))
+        }
+        if let encrypt {
+            trailer.append(("Encrypt", .reference(encrypt)))
         }
         trailer.append(("ID", .array([.bytes(digest), .bytes(digest)])))
         table += "trailer\n\(PDFValue.dictionary(trailer).text)\nstartxref\n\(xref)\n%%EOF\n"

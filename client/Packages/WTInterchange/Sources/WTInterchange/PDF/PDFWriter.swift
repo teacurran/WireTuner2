@@ -12,8 +12,10 @@
 // for alpha, downsampled on request; fonts as TrueType subsets or Type 3 glyphs with `ToUnicode`;
 // links from attached URLs; page boxes; document info and XMP metadata; layers as optional content
 // groups (IO-029); PDF/X-1a and PDF/X-4 identification, output intents and CMYK conversion through a
-// `CMYKConverter` (IO-026); the cross-reference table.  Linearization, object streams and the
-// embedded package are reported, not written.
+// `CMYKConverter` (IO-026); note comments, bookmarks from page names and AES encryption with open
+// and permissions passwords (IO-027); the embedded document package (IO-028); spot colours as
+// `/Separation` spaces (FX-012); the cross-reference table.  Linearization and object streams are
+// reported, not written.
 
 import CoreGraphics
 import CoreText
@@ -66,6 +68,12 @@ final class PDFDocumentBuild {
         self.cmyk = cmyk
         objects = PDFObjects(compress: options.compressContent)
         fonts = PDFFontRegistry(objects: objects, embedAll: options.fonts == .embedFull)
+        if options.encrypts {
+            objects.encryption = PDFEncryption(
+                revision: options.version == .v2_0 ? .r6 : .r4, userPassword: options.openPassword, ownerPassword: options.permissionsPassword,
+                permissions: PDFEncryption.permissions(printing: options.allowPrinting, copying: options.allowCopying, editing: options.allowEditing)
+            )
+        }
     }
 
     /// Whether every colour is written as DeviceCMYK.
@@ -74,10 +82,12 @@ final class PDFDocumentBuild {
     func write(_ pages: [FlatPage]) -> (data: Data, notes: [String]) {
         let pagesObject = objects.reserve()
         var pageObjects: [Int] = []
+        var pageHeights: [Double] = []
         for (index, page) in pages.enumerated() {
             let documentBleed = index < scene.pages.count ? scene.pages[index].bleed : 0
             let bleed = options.pageSize == .pagePlusBleed ? (options.useDocumentBleed ? documentBleed : options.bleedPoints) : 0
             pageObjects.append(writePage(page, bleed: bleed, parent: pagesObject))
+            pageHeights.append(page.bounds.height + 2 * bleed)
         }
         fonts.finish()
         objects.set(pagesObject, .dictionary([
@@ -93,6 +103,17 @@ final class PDFDocumentBuild {
         }
         if let language = scene.info.effectiveLanguage {
             catalog.append(("Lang", .string(language)))
+        }
+        if options.bookmarksFromPageNames, let outlines = outlines(pages: pageObjects, heights: pageHeights) {
+            catalog += [("Outlines", .reference(outlines)), ("PageMode", .name("UseOutlines"))]
+        }
+        if options.embedPackage {
+            if let package = scene.package {
+                let file = embeddedPackage(EmbeddedPackage.slimmed(package))
+                catalog += [("Names", .dictionary([("EmbeddedFiles", .dictionary([("Names", .array([.string(EmbeddedPackage.fileName(scene.name)), .reference(file)]))]))])), ("AF", .array([.reference(file)]))]
+            } else {
+                notes.append("no document package was supplied; the PDF does not embed the document")
+            }
         }
         if !layerGroups.isEmpty {
             let groups = PDFValue.array(layerGroups.map { .reference($0.object) })
@@ -126,7 +147,11 @@ final class PDFDocumentBuild {
             notes.append("\(wideClipped) wide-gamut color\(wideClipped == 1 ? "" : "s") gamut-mapped into sRGB (Display P3 needs PDF 1.7 with colors kept and profiles embedded)")
         }
         for name in outlinedFonts.sorted() {
-            notes.append("font \(name) does not allow embedding; its text is outlined")
+            if fonts.uninstanceableNames.contains(name) {
+                notes.append("font \(name) converted to outlines: variable font (only TrueType variable fonts are instanced)")
+            } else {
+                notes.append("font \(name) does not allow embedding; its text is outlined")
+            }
         }
         if options.linearize {
             notes.append("fast web view (linearization) is not written yet; the file is not linearized")
@@ -137,13 +162,68 @@ final class PDFDocumentBuild {
         if !convertedColors.isEmpty || convertedImages > 0 {
             notes.append("\(convertedColors.count) color\(convertedColors.count == 1 ? "" : "s") and \(convertedImages) image\(convertedImages == 1 ? "" : "s") converted to CMYK with the \(cmyk.name) profile")
         }
-        if options.embedPackage {
-            notes.append("the embedded document package is not written yet (IO-028)")
-        }
         for problem in PDFXCheck.violations(objects.dictionaries, standard: options.standard) {
             notes.append("PDF/X check: \(problem)")
         }
-        return (objects.file(version: options.headerVersion, root: root, info: info), notes)
+        var encrypt: Int?
+        if let encryption = objects.encryption {
+            let object = objects.reserve()
+            encryption.exempt = object
+            objects.set(object, encryption.dictionary)
+            encrypt = object
+            notes.append(encryption.revision == .r6 ? "encrypted with AES-256" : "encrypted with AES-128")
+            if !(options.openPassword + options.permissionsPassword).unicodeScalars.allSatisfy(\.isASCII) {
+                notes.append("a password holds characters outside ASCII: Preview may not accept it\(encryption.revision == .r4 ? ", and PDF readers disagree on how PDF 1.7 and earlier encode it" : "")")
+            }
+            if options.headerVersion != options.version.rawValue {
+                notes.append("passwords need AES, so the file is PDF 1.6 rather than \(options.version.rawValue)")
+            }
+        }
+        return (objects.file(version: options.headerVersion, root: root, info: info, encrypt: encrypt), notes)
+    }
+
+    /// The outline: one bookmark per named page, opening the page whole; nil when no page has
+    /// a name.
+    func outlines(pages: [Int], heights: [Double]) -> Int? {
+        let named = scene.pages.prefix(pages.count).enumerated().compactMap { index, page in
+            page.name.flatMap { $0.isEmpty ? nil : (index, $0) }
+        }
+        guard !named.isEmpty else {
+            return nil
+        }
+        let root = objects.reserve()
+        let items = named.map { _ in objects.reserve() }
+        for (position, (index, name)) in named.enumerated() {
+            var entries: [(String, PDFValue)] = [
+                ("Title", .string(name)), ("Parent", .reference(root)),
+                ("Dest", .array([.reference(pages[index]), .name("XYZ"), .int(0), .real(heights[index]), .null])),
+            ]
+            if position > 0 {
+                entries.append(("Prev", .reference(items[position - 1])))
+            }
+            if position + 1 < items.count {
+                entries.append(("Next", .reference(items[position + 1])))
+            }
+            objects.set(items[position], .dictionary(entries))
+        }
+        objects.set(root, .dictionary([("Type", .name("Outlines")), ("First", .reference(items[0])), ("Last", .reference(items[items.count - 1])), ("Count", .int(items.count))]))
+        return root
+    }
+
+    /// The package as an embedded file with its file specification (`AFRelationship /Source`:
+    /// the document the PDF was made from), returning the specification.
+    func embeddedPackage(_ package: Data) -> Int {
+        let stream = objects.addStream([
+            ("Type", .name("EmbeddedFile")), ("Subtype", .name(EmbeddedPackage.mediaType)),
+            ("Params", .dictionary([("Size", .int(package.count)), ("ModDate", .string(pdfDate(Date())))])),
+        ], data: package, raw: true)
+        let name = EmbeddedPackage.fileName(scene.name)
+        return objects.add(.dictionary([
+            ("Type", .name("Filespec")), ("F", .string(name)), ("UF", .string(name)),
+            ("Desc", .string(EmbeddedPackage.description)),
+            ("EF", .dictionary([("F", .reference(stream)), ("UF", .reference(stream))])),
+            ("AFRelationship", .name("Source")),
+        ]))
     }
 
     /// The optional content group of a layer node.
@@ -197,17 +277,30 @@ final class PDFDocumentBuild {
             dictionary.append(("ArtBox", .rect(box.minX, box.minY, box.maxX, box.maxY)))
         }
         dictionary += [("Resources", stream.resources.value), ("Contents", .reference(contents))]
-        if !stream.links.isEmpty {
-            let annotations = stream.links.map { link -> PDFValue in
-                let box = link.bounds.applying(base)
-                return .reference(objects.add(.dictionary([
-                    ("Type", .name("Annot")),
-                    ("Subtype", .name("Link")),
-                    ("Rect", .rect(box.minX, box.minY, box.maxX, box.maxY)),
-                    ("Border", .array([.int(0), .int(0), .int(0)])),
-                    ("A", .dictionary([("S", .name("URI")), ("URI", .string(link.url))])),
-                ])))
+        var annotations = stream.links.map { link -> PDFValue in
+            let box = link.bounds.applying(base)
+            return .reference(objects.add(.dictionary([
+                ("Type", .name("Annot")),
+                ("Subtype", .name("Link")),
+                ("Rect", .rect(box.minX, box.minY, box.maxX, box.maxY)),
+                ("Border", .array([.int(0), .int(0), .int(0)])),
+                ("A", .dictionary([("S", .name("URI")), ("URI", .string(link.url))])),
+            ])))
+        }
+        // A note is a closed comment icon whose top-left corner is the object's.
+        annotations += stream.notes.map { note -> PDFValue in
+            let corner = base.apply(Point(x: note.bounds.minX, y: note.bounds.minY))
+            var entries: [(String, PDFValue)] = [
+                ("Type", .name("Annot")), ("Subtype", .name("Text")),
+                ("Rect", .rect(corner.x, corner.y - 20, corner.x + 20, corner.y)),
+                ("Contents", .string(note.text)), ("Name", .name("Comment")), ("Open", .bool(false)), ("F", .int(4)),
+            ]
+            if let title = note.title {
+                entries.append(("T", .string(title)))
             }
+            return .reference(objects.add(.dictionary(entries)))
+        }
+        if !annotations.isEmpty {
             dictionary.append(("Annots", .array(annotations)))
         }
         return objects.add(.dictionary(dictionary))
@@ -467,6 +560,8 @@ final class PDFStreamWriter {
     let patternBase: AffineTransform
     /// Attached URLs and their pasteboard bounds.
     var links: [(url: String, bounds: Rect)] = []
+    /// Object notes, with the object's name and pasteboard bounds.
+    var notes: [(text: String, title: String?, bounds: Rect)] = []
 
     init(build: PDFDocumentBuild, patternBase: AffineTransform) {
         self.build = build
@@ -477,8 +572,12 @@ final class PDFStreamWriter {
     var objects: PDFObjects { build.objects }
 
     func write(_ node: FlatNode) {
-        if options.linksFromURLs, let url = build.scene.info(for: node.node)?.url, let bounds = node.bounds {
+        let info = build.scene.info(for: node.node)
+        if options.linksFromURLs, let url = info?.url, let bounds = node.bounds {
             links.append((url, bounds))
+        }
+        if options.notesAsComments, let note = info?.note, !note.isEmpty, let bounds = node.bounds {
+            notes.append((note, info?.name, bounds))
         }
         switch node {
         case .path(let path): writePath(path)
@@ -497,6 +596,11 @@ final class PDFStreamWriter {
     /// sRGB; *Convert to CMYK* converts through the CMYK converter.
     func setColor(_ color: Color, stroke: Bool) -> Double {
         let alpha = min(max(color.alpha, 0), 1)
+        if let spot = color.spot, options.preserveSpot, options.colors != .convertToRGB {
+            let name = separation(spot, alternate: color)
+            content.op("/\(name) \(stroke ? "CS" : "cs") \(PDFContent.n(spot.tint)) \(stroke ? "SCN" : "scn")")
+            return alpha
+        }
         if build.cmykOutput {
             build.convertedColors.insert(color)
             content.op(build.cmyk.cmyk(color).map(PDFContent.n).joined(separator: " ") + (stroke ? " K" : " k"))
@@ -532,6 +636,33 @@ final class PDFStreamWriter {
         let values = components.map(PDFContent.n).joined(separator: " ")
         content.op("/\(name) \(stroke ? "CS" : "cs") \(values) \(stroke ? "SC" : "sc")")
         return alpha
+    }
+
+    /// The `/Separation` colour space of a spot ink (FX-012): tint 0 is no ink, tint 1 the
+    /// ink's process alternate at full strength (`alternate` is the colour at the ink's tint,
+    /// untinted here in its own space); Registration is `/All`.
+    func separation(_ ink: SpotInk, alternate color: Color) -> String {
+        let registration = ink.identity == .registration
+        let name = registration ? "All" : ink.name
+        return resources.name("ColorSpace", prefix: "CS", key: "separation|" + name) {
+            var full = color
+            if ink.tint > 0, ink.tint < 1 {
+                let white: SIMD4<Double>
+                switch color.space {
+                case .cmyk: white = .zero
+                case .lab: white = SIMD4(100, 0, 0, 0)
+                case .oklab: white = SIMD4(1, 0, 0, 0)
+                case .sRGB, .displayP3: white = SIMD4(1, 1, 1, 0)
+                }
+                full.components = white + (color.components - white) / ink.tint
+            }
+            full.spot = nil
+            let inks = registration ? [1.0, 1, 1, 1] : (full.space == .cmyk ? [full.components.x, full.components.y, full.components.z, full.components.w].map { min(max($0, 0), 1) } : build.cmyk.cmyk(full))
+            let function = PDFValue.dictionary([
+                ("FunctionType", .int(2)), ("Domain", .numbers([0, 1])), ("C0", .numbers([0, 0, 0, 0])), ("C1", .numbers(inks)), ("N", .int(1)),
+            ])
+            return .array([.name("Separation"), .name(name), .name("DeviceCMYK"), function])
+        }
     }
 
     func colorSpace(_ space: CFString) -> String {
@@ -785,6 +916,7 @@ final class PDFStreamWriter {
                 form.write(child)
             }
             links += form.links
+            notes += form.notes
             let object = objects.addStream([
                 ("Type", .name("XObject")), ("Subtype", .name("Form")),
                 ("BBox", .rect(bounds.minX, bounds.minY, bounds.maxX, bounds.maxY)),

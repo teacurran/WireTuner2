@@ -1,6 +1,7 @@
 // The EPS exporter (IO-018): each page flattened for an opaque target -- transparency composited,
-// effects expanded or rendered, gradients kept for Level 3 shadings or Level 2 bands -- and written
-// as one EPS file, with an optional TIFF preview rendered by the bitmap rasterizer.
+// effects expanded or rendered, gradients kept for Level 3 shadings or Level 2 bands, placed EPS
+// files kept as their PostScript -- and written as one EPS file, with an optional TIFF preview
+// rendered by the bitmap rasterizer and, with *Embed {product} document*, the package (IO-028).
 
 import Foundation
 import ImageIO
@@ -19,7 +20,7 @@ public struct EPSExporter: Exporter {
 
     /// The flattener EPS output goes through with `options`.
     public static func flattener(options: EPSOptions, scene: ExportScene) -> Flattener {
-        Flattener(target: .opaque, rasterResolution: options.rasterPPI > 0 ? options.rasterPPI : scene.rasterResolution, outlineText: options.fonts == .outlines)
+        Flattener(target: FlattenTarget.opaque.union(.postScript), rasterResolution: options.rasterPPI > 0 ? options.rasterPPI : scene.rasterResolution, outlineText: options.fonts == .outlines)
     }
 
     /// Page `index` of `scene` as EPS data and the summary notes.

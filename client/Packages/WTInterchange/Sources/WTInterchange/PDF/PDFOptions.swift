@@ -1,7 +1,7 @@
 // PDF export options (export-pdf.adoc; `PdfOptions` in interchange/v1/export_options.proto): the
 // General, Compression, Fonts and Color sections (IO-025), PDF/X and the bleed of *Pages and marks*
-// (IO-026), and the page-box and link options the writer needs.  Passwords, notes and bookmarks
-// (IO-027) and the embedded package (IO-028) belong to later tasks and are reported here.
+// (IO-026), the *Interactive* section -- links, notes, bookmarks, passwords and permissions
+// (IO-027) -- and the embedded package (IO-028).
 
 import Foundation
 
@@ -49,7 +49,7 @@ public struct PDFOptions: ExportOptions, Hashable {
     public var standard: Standard
     /// Document layers as optional content groups (PDF 1.5+).
     public var layers: Bool
-    /// The embedded document package (IO-028).  Not written yet: reported.
+    /// *Embed {product} document*: `ExportScene.package` attached as an embedded file (IO-028).
     public var embedPackage: Bool
     /// *Optimize for fast web view*.  Not written yet: reported.
     public var linearize: Bool
@@ -70,6 +70,20 @@ public struct PDFOptions: ExportOptions, Hashable {
     public var useDocumentBleed: Bool
     public var bleedPoints: Double
     public var linksFromURLs: Bool
+    /// Object notes as text annotations at the objects' top-left corners.
+    public var notesAsComments: Bool
+    /// Named pages as bookmarks (the outline).
+    public var bookmarksFromPageNames: Bool
+    /// Required to open the file; empty for none.  Never stored in a preset.
+    public var openPassword: String
+    /// Required to print, copy or edit beyond the permissions below; empty for none.
+    public var permissionsPassword: String
+    public var allowPrinting: Bool
+    public var allowCopying: Bool
+    public var allowEditing: Bool
+    /// Spot colours as `/Separation` colour spaces on their own plates (FX-012 relies on it for
+    /// vector parts); off writes their process alternates.
+    public var preserveSpot: Bool
     /// Pixels per inch for regions PDF cannot express; 0 uses the document's raster resolution.
     public var rasterPPI: Double
 
@@ -94,7 +108,15 @@ public struct PDFOptions: ExportOptions, Hashable {
         useDocumentBleed: Bool = true,
         bleedPoints: Double = 0,
         linksFromURLs: Bool = true,
-        rasterPPI: Double = 0
+        rasterPPI: Double = 0,
+        notesAsComments: Bool = false,
+        bookmarksFromPageNames: Bool = true,
+        openPassword: String = "",
+        permissionsPassword: String = "",
+        allowPrinting: Bool = true,
+        allowCopying: Bool = true,
+        allowEditing: Bool = true,
+        preserveSpot: Bool = true
     ) {
         self.version = version
         self.standard = standard
@@ -117,6 +139,14 @@ public struct PDFOptions: ExportOptions, Hashable {
         self.bleedPoints = bleedPoints
         self.linksFromURLs = linksFromURLs
         self.rasterPPI = rasterPPI
+        self.notesAsComments = notesAsComments
+        self.bookmarksFromPageNames = bookmarksFromPageNames
+        self.openPassword = openPassword
+        self.permissionsPassword = permissionsPassword
+        self.allowPrinting = allowPrinting
+        self.allowCopying = allowCopying
+        self.allowEditing = allowEditing
+        self.preserveSpot = preserveSpot
     }
 
     public static var defaults: PDFOptions { PDFOptions() }
@@ -167,18 +197,27 @@ public struct PDFOptions: ExportOptions, Hashable {
         force(\.preserveOverprint, true, "overprint preserved (PDF/X requires it)")
         force(\.embedPackage, false, "the embedded document package left out (PDF/X forbids attachments)")
         force(\.linksFromURLs, false, "links left out (PDF/X allows no annotations on the page)")
+        force(\.notesAsComments, false, "comments left out (PDF/X allows no annotations on the page)")
+        force(\.bookmarksFromPageNames, false, "bookmarks left out (interactive features are off for PDF/X)")
+        force(\.openPassword, "", "the open password removed (PDF/X forbids encryption)")
+        force(\.permissionsPassword, "", "the permissions password removed (PDF/X forbids encryption)")
         force(\.pageSize, .pagePlusBleed, "media box set to page plus bleed (PDF/X bleed box)")
         return (result, fixes)
     }
 
     /// The version written in the file header: a standard's own (PDF/X-1a:2001 is PDF 1.3,
-    /// PDF/X-4 is PDF 1.6), otherwise the chosen one.
+    /// PDF/X-4 is PDF 1.6), otherwise the chosen one -- raised to 1.6 when passwords need AES.
     var headerVersion: String {
         switch standard {
-        case .none: return version.rawValue
+        case .none: return encrypts && (version == .v1_4 || version == .v1_5) ? "1.6" : version.rawValue
         case .pdfX1a2001: return "1.3"
         case .pdfX4_2010: return "1.6"
         }
+    }
+
+    /// Whether the file is encrypted: a password is set (PDF/X has already removed them).
+    var encrypts: Bool {
+        !openPassword.isEmpty || !permissionsPassword.isEmpty
     }
 
     /// Whether Display P3 colours can be written with their profile (ICC v4 needs PDF 1.7).
