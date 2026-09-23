@@ -18,6 +18,8 @@ import org.junit.jupiter.api.Test;
 
 import com.google.protobuf.ByteString;
 import com.villagecompute.wiretuner.account.v1.AccountServiceGrpc;
+import com.villagecompute.wiretuner.account.v1.MeRequest;
+import com.villagecompute.wiretuner.account.v1.StorageUsage;
 import com.villagecompute.wiretuner.api.ServiceTestSupport;
 import com.villagecompute.wiretuner.api.TestUsers;
 import com.villagecompute.wiretuner.blob.v1.BlobInfo;
@@ -32,6 +34,8 @@ import com.villagecompute.wiretuner.blob.v1.UploadRequest;
 import com.villagecompute.wiretuner.docs.v1.CreateRequest;
 import com.villagecompute.wiretuner.docs.v1.DocumentServiceGrpc;
 import com.villagecompute.wiretuner.docs.v1.GetRequest;
+import com.villagecompute.wiretuner.sync.v1.PushChangeRequest;
+import com.villagecompute.wiretuner.sync.v1.SyncServiceGrpc;
 
 import io.grpc.Status;
 import io.quarkus.grpc.GrpcClient;
@@ -57,6 +61,9 @@ class BlobServiceTest extends ServiceTestSupport {
 
     @GrpcClient("account")
     AccountServiceGrpc.AccountServiceBlockingStub account;
+
+    @GrpcClient("sync")
+    SyncServiceGrpc.SyncServiceBlockingStub sync;
 
     UUID alice;
     UUID bob;
@@ -313,5 +320,60 @@ class BlobServiceTest extends ServiceTestSupport {
                 .setSha256(ByteString.copyFrom(new byte[31])).build();
         assertFails(() -> as(blobs, ALICE).stat(request).await().atMost(WAIT),
                 Status.Code.INVALID_ARGUMENT, "VALIDATION_FAILED");
+    }
+
+    // ---------------------------------------------------------------------------------- Quota
+
+    UUID teamDocument(UUID team) {
+        UUID id = uuid7();
+        as(docs, ALICE).create(CreateRequest.newBuilder().setDocumentId(id.toString()).setSpaceId(team.toString())
+                .setName("Quota").build());
+        return id;
+    }
+
+    StorageUsage usage(String user, UUID space) {
+        return as(account, user).me(MeRequest.getDefaultInstance()).getStorageList().stream()
+                .filter(u -> u.getSpaceId().equals(space.toString())).findFirst().orElseThrow();
+    }
+
+    @Test
+    void anUploadPastTheSpacesQuotaIsRefusedBeforeItIsStoredAndIngestIsNeverLimited() {
+        UUID team = team(alice, "editor");
+        exec("UPDATE team SET storage_limit_bytes = 1000 WHERE id = ?", team);
+        UUID first = teamDocument(team);
+        Content fits = content(600);
+        upload(ALICE, header(first, fits.sha256(), fits.size(), BlobTag.BLOB_TAG_UNSPECIFIED), fits);
+        assertThat(usage(ALICE, team).getUsedBytes()).isEqualTo(600);
+        assertThat(usage(ALICE, team).getLimitBytes()).isEqualTo(1000);
+
+        Content tooMuch = content(500);
+        io.grpc.StatusRuntimeException refused = failure(() -> upload(ALICE,
+                header(first, tooMuch.sha256(), tooMuch.size(), BlobTag.BLOB_TAG_UNSPECIFIED), tooMuch));
+        assertThat(refused.getStatus().getCode()).isEqualTo(Status.Code.RESOURCE_EXHAUSTED);
+        com.google.rpc.ErrorInfo info = com.villagecompute.wiretuner.api.grpc.StatusExceptions.errorInfo(refused).orElseThrow();
+        assertThat(info.getReason()).isEqualTo("STORAGE_QUOTA");
+        assertThat(info.getMetadataMap()).containsEntry("used_bytes", "600").containsEntry("limit_bytes", "1000");
+        assertThat(com.villagecompute.wiretuner.api.grpc.StatusExceptions.retryDelayOf(refused)).isEmpty();
+        assertThat(count("SELECT count(*) FROM blob WHERE sha256 = ?", BlobGrpcService.hex(tooMuch.sha256()))).isZero();
+
+        // A blob the space already holds adds nothing: accepted into another of its documents, counted once.
+        UUID second = teamDocument(team);
+        upload(ALICE, header(second, fits.sha256(), fits.size(), BlobTag.BLOB_TAG_UNSPECIFIED), fits);
+        assertThat(usage(ALICE, team).getUsedBytes()).isEqualTo(600);
+
+        // At 100%: thumbnails still go in, and so do changes.
+        exec("UPDATE team SET storage_limit_bytes = 600 WHERE id = ?", team);
+        Content thumbnail = content(2_000);
+        upload(ALICE, header(first, thumbnail.sha256(), thumbnail.size(), BlobTag.BLOB_TAG_THUMBNAIL), thumbnail);
+        assertThat(usage(ALICE, team).getUsedBytes()).isEqualTo(600);
+        assertThat(as(sync, ALICE).pushChange(PushChangeRequest.newBuilder().setDocumentId(first.toString())
+                .setChange(change(replicaId(), 1, "At the limit")).build()).getServerSeq()).isEqualTo(1);
+
+        // Defaults: a personal space's and a team's without a limit of its own; the personal space comes first.
+        UUID open = team(alice, "editor");
+        assertThat(usage(ALICE, open).getLimitBytes()).isEqualTo(107_374_182_400L);
+        assertThat(as(account, CAROL).me(MeRequest.getDefaultInstance()).getStorage(0).getSpaceId())
+                .isEqualTo(carol.toString());
+        assertThat(usage(CAROL, carol).getLimitBytes()).isEqualTo(10_737_418_240L);
     }
 }

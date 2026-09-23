@@ -12,6 +12,7 @@ import com.villagecompute.wiretuner.api.auth.DocumentRoles;
 import com.villagecompute.wiretuner.api.auth.Principal;
 import com.villagecompute.wiretuner.api.auth.Role;
 import com.villagecompute.wiretuner.api.grpc.StatusExceptions;
+import com.villagecompute.wiretuner.api.history.ChangeIndex;
 import com.villagecompute.wiretuner.api.history.DocumentStates;
 import com.villagecompute.wiretuner.api.history.Snapshots;
 import com.villagecompute.wiretuner.api.persistence.ChangeLog;
@@ -35,6 +36,7 @@ import com.villagecompute.wiretuner.crdt.Engine;
 import com.villagecompute.wiretuner.doc.v1.Change;
 import com.villagecompute.wiretuner.docs.v1.CreateRequest;
 
+import io.quarkus.hibernate.reactive.panache.Panache;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
 
@@ -129,6 +131,8 @@ public class DocumentCopies {
         doc.headSeq = 1;
         return written
                 .chain(() -> changeLog.persist(logRow(id, 1, change)))
+                .chain(() -> changeLog.flush())
+                .chain(() -> Panache.getSession().chain(session -> ChangeIndex.write(session, id, 1, change)))
                 .chain(() -> bindReplica(principal, id, change.getReplica(), change.getSeq(), null))
                 .replaceWith(id);
     }
@@ -154,9 +158,9 @@ public class DocumentCopies {
 
     /**
      * A branch document (SRV-011): the parent's state at the fork point in the parent's space and
-     * folder, with the parent's owner and a copy of its member rows, so the branch has the same
-     * people and roles (branches.adoc, Branch permissions; resolving roles through the parent live
-     * is COLLAB-019). The caller has been checked for editor on the parent.
+     * folder, with the parent's owner. It gets no member rows: its roles are the parent's, resolved
+     * through it on every lookup (COLLAB-019; branches.adoc, Branch permissions). The caller has been
+     * checked for editor on the parent.
      */
     public Uni<UUID> branch(Principal principal, Copy copy) {
         DocumentRow parent = copy.source();
@@ -167,8 +171,7 @@ public class DocumentCopies {
         doc.folderId = parent.folderId();
         doc.name = copy.name();
         doc.createdByAccountId = principal.accountId();
-        return writeCopy(principal, copy, doc, () -> documents.persist(doc).chain(documents::flush)
-                .chain(() -> members.copyMembers(parent.id(), doc.id)).replaceWithVoid());
+        return writeCopy(principal, copy, doc, () -> documents.persist(doc).replaceWithVoid());
     }
 
     /** Writes {@code doc} ({@code persist}) as a copy of the source at the fork point, then appends the extra changes. */
@@ -186,6 +189,8 @@ public class DocumentCopies {
                         .chain(documents::flush)
                         .chain(() -> snapshot(doc.id, copy.atSeq(), engine))
                         .chain(() -> documentBlobs.copyReferences(source.id(), doc.id))
+                        .chain(() -> Panache.getSession().chain(session -> ChangeIndex.copyNames(session, source.id(),
+                                doc.id, copy.atSeq())))
                         .chain(() -> appendAll(doc, copy.atSeq(), plan.appended()))
                         .chain(() -> Multi.createFrom().iterable(plan.callerReplicas().entrySet())
                                 .onItem().transformToUniAndConcatenate(e -> bindReplica(principal, doc.id, e.getKey(),
@@ -271,9 +276,13 @@ public class DocumentCopies {
                 .map(ignored -> new Plan(appended, callerReplicas, devices));
     }
 
+    /** Appends the extra changes after the fork point, each with its history index (COLLAB-020). */
     private Uni<Void> appendAll(Document doc, long after, List<Change> appended) {
         return Multi.createFrom().range(0, appended.size())
-                .onItem().transformToUniAndConcatenate(i -> changeLog.persist(logRow(doc.id, after + 1 + i, appended.get(i))))
+                .onItem().transformToUniAndConcatenate(i -> changeLog.persist(logRow(doc.id, after + 1 + i, appended.get(i)))
+                        .chain(() -> changeLog.flush())
+                        .chain(() -> Panache.getSession().chain(session -> ChangeIndex.write(session, doc.id, after + 1 + i,
+                                appended.get(i)))))
                 .collect().asList()
                 .replaceWithVoid();
     }

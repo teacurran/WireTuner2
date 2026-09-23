@@ -1,5 +1,6 @@
 package com.villagecompute.wiretuner.api.share;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -8,6 +9,7 @@ import java.util.UUID;
 import com.villagecompute.wiretuner.api.auth.DocumentRoles;
 import com.villagecompute.wiretuner.api.auth.Role;
 import com.villagecompute.wiretuner.api.docs.DocumentMessages;
+import com.villagecompute.wiretuner.api.persistence.BranchRepository;
 import com.villagecompute.wiretuner.api.persistence.DocumentRepository;
 import com.villagecompute.wiretuner.api.sync.DocumentEvents;
 import com.villagecompute.wiretuner.api.sync.LiveSessions;
@@ -33,7 +35,8 @@ import jakarta.inject.Inject;
  * affected document is told its effective role there -- {@code RoleChanged}, or
  * {@code AccessRemoved}, which ends that subscription -- and this node forgets its memoised push
  * decisions for the document, so a downgrade is refused on the person's next push. Only live
- * accounts are evaluated ({@link LiveSessions}): nobody else has a session to tell.
+ * accounts are evaluated ({@link LiveSessions}): nobody else has a session to tell. A document's
+ * branches take its roles, so they are told with it (COLLAB-019); a team's documents include them.
  */
 @ApplicationScoped
 public class RoleNotices {
@@ -56,6 +59,9 @@ public class RoleNotices {
     @Inject
     PushGrants grants;
 
+    @Inject
+    BranchRepository branches;
+
     /** Tells the live accounts among {@code accounts} (null = every live account) on every document of the team. */
     public Uni<Void> team(UUID teamId, Set<UUID> accounts, UUID actor) {
         return Panache.withSession(() -> documents.listTeam(teamId))
@@ -69,7 +75,17 @@ public class RoleNotices {
      * everyone on it that its members changed.
      */
     public Uni<Void> document(UUID documentId, Set<UUID> accounts, UUID actor) {
-        return sessions.accounts(List.of(documentId)).chain(live -> tell(live, accounts, actor, true));
+        return family(documentId).chain(sessions::accounts).chain(live -> tell(live, accounts, actor, true));
+    }
+
+    /** The document and its branches, whose roles are its own (COLLAB-019). */
+    public Uni<List<UUID>> family(UUID documentId) {
+        return Panache.withSession(() -> branches.branchesOf(documentId)).map(ids -> {
+            List<UUID> family = new ArrayList<>(ids.size() + 1);
+            family.add(documentId);
+            family.addAll(ids);
+            return family;
+        });
     }
 
     private Uni<Void> tell(Map<UUID, Set<UUID>> live, Set<UUID> accounts, UUID actor, boolean members) {

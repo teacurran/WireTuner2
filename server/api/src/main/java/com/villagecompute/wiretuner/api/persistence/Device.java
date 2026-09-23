@@ -15,13 +15,13 @@ public class Device {
     @EmbeddedId
     public DeviceId id;
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "text")
     public String name = "";
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "text")
     public String platform = "";
 
-    @Column(name = "auth_method", nullable = false)
+    @Column(name = "auth_method", nullable = false, columnDefinition = "text")
     public String authMethod = "password";
 
     @Column(name = "last_seen_at", nullable = false)

@@ -16,13 +16,13 @@ public class Account {
     @Id
     public UUID id;
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "text")
     public String subject;
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "text")
     public String email = "";
 
-    @Column(name = "display_name", nullable = false)
+    @Column(name = "display_name", nullable = false, columnDefinition = "text")
     public String displayName = "";
 
     @Column(name = "created_at", nullable = false)

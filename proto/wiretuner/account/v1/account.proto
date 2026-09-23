@@ -101,6 +101,21 @@ message MeResponse {
   Account account = 1;
   // The calling device, as identified by `wt-device`.
   Device device = 2;
+  // Blob storage of every space the caller can upload into: the personal space first, then each
+  // live team the caller belongs to, so the library can show "Storage almost full" before an
+  // upload fails with STORAGE_QUOTA (saving.adoc, IO-008).
+  repeated StorageUsage storage = 3 [(buf.validate.field).repeated.max_items = 1000];
+}
+
+// One space's blob storage: what its documents' blobs take and what its plan allows.
+message StorageUsage {
+  // The space: the caller's account id for the personal space, else a team id.
+  string space_id = 1 [(buf.validate.field).string.uuid = true];
+  // Bytes of the distinct blobs the space's documents reference (a blob two documents share
+  // counts once; thumbnails do not count).
+  uint64 used_bytes = 2;
+  // The space's quota in bytes; an upload that would take `used_bytes` past it is refused.
+  uint64 limit_bytes = 3;
 }
 
 // Lists the caller's devices.

@@ -15,7 +15,7 @@ public class TeamMember {
     @EmbeddedId
     public TeamMemberId id;
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "text")
     public String role;
 
     @Column(name = "joined_at", nullable = false)

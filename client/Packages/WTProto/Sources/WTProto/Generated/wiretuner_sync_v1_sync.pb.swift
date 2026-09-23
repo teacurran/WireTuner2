@@ -1042,7 +1042,8 @@ public nonisolated struct Wiretuner_Sync_V1_PresenceUpdate: @unchecked Sendable 
 
   /// Server-filled: set when this session is on a branch of the document rather than on the
   /// document itself (a branch's participants are relayed to the parent's subscription and
-  /// vice versa, so both sides see each other).  The branch document's id.
+  /// vice versa, so both sides see each other).  The branch document's id; empty for a session
+  /// on the parent, whichever subscription the entry is delivered on.
   public var branchID: String {
     get {_storage._branchID}
     set {_uniqueStorage()._branchID = newValue}
@@ -1135,6 +1136,15 @@ public nonisolated struct Wiretuner_Sync_V1_PresenceUpdate: @unchecked Sendable 
   public var followingUserID: String {
     get {_storage._followingUserID}
     set {_uniqueStorage()._followingUserID = newValue}
+  }
+
+  /// Server-filled: the replica of the subscription this entry belongs to.  With `branch_id` it
+  /// identifies one session in the document and its branches, so one person's two Macs are two
+  /// entries; a client recognises its own entry by its own replica and branch.  Ignored on the
+  /// way up.
+  public var session: UInt64 {
+    get {_storage._session}
+    set {_uniqueStorage()._session = newValue}
   }
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
@@ -1257,7 +1267,9 @@ public nonisolated struct Wiretuner_Sync_V1_PresenceSnapshot: Sendable {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  /// One entry per subscription with live presence, the caller's own included.
+  /// One entry per subscription with live presence, the caller's own included.  A document and
+  /// its branches share one presence: the parent's snapshot lists the sessions on its branches
+  /// (`branch_id` set) and a branch's lists the parent's and the other branches' sessions.
   public var participants: [Wiretuner_Sync_V1_PresenceUpdate] = []
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
@@ -2578,7 +2590,7 @@ nonisolated extension Wiretuner_Sync_V1_FetchSnapshotResponse: SwiftProtobuf.Mes
 
 nonisolated extension Wiretuner_Sync_V1_PresenceUpdate: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".PresenceUpdate"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}user\0\u{3}color_index\0\u{3}branch_id\0\u{1}state\0\u{1}page\0\u{1}cursor\0\u{1}viewport\0\u{1}tool\0\u{1}selection\0\u{3}selection_count\0\u{3}sub_selection\0\u{1}editing\0\u{1}caret\0\u{1}spotlight\0\u{3}following_user_id\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}user\0\u{3}color_index\0\u{3}branch_id\0\u{1}state\0\u{1}page\0\u{1}cursor\0\u{1}viewport\0\u{1}tool\0\u{1}selection\0\u{3}selection_count\0\u{3}sub_selection\0\u{1}editing\0\u{1}caret\0\u{1}spotlight\0\u{3}following_user_id\0\u{1}session\0")
 
   fileprivate class _StorageClass {
     var _user: Wiretuner_Sync_V1_Participant? = nil
@@ -2596,6 +2608,7 @@ nonisolated extension Wiretuner_Sync_V1_PresenceUpdate: SwiftProtobuf.Message, S
     var _caret: Wiretuner_Sync_V1_TextCaret? = nil
     var _spotlight: Bool = false
     var _followingUserID: String = String()
+    var _session: UInt64 = 0
 
       // This property is used as the initial default value for new instances of the type.
       // The type itself is protecting the reference to its storage via CoW semantics.
@@ -2621,6 +2634,7 @@ nonisolated extension Wiretuner_Sync_V1_PresenceUpdate: SwiftProtobuf.Message, S
       _caret = source._caret
       _spotlight = source._spotlight
       _followingUserID = source._followingUserID
+      _session = source._session
     }
   }
 
@@ -2654,6 +2668,7 @@ nonisolated extension Wiretuner_Sync_V1_PresenceUpdate: SwiftProtobuf.Message, S
         case 13: try { try decoder.decodeSingularMessageField(value: &_storage._caret) }()
         case 14: try { try decoder.decodeSingularBoolField(value: &_storage._spotlight) }()
         case 15: try { try decoder.decodeSingularStringField(value: &_storage._followingUserID) }()
+        case 16: try { try decoder.decodeSingularFixed64Field(value: &_storage._session) }()
         default: break
         }
       }
@@ -2711,6 +2726,9 @@ nonisolated extension Wiretuner_Sync_V1_PresenceUpdate: SwiftProtobuf.Message, S
       if !_storage._followingUserID.isEmpty {
         try visitor.visitSingularStringField(value: _storage._followingUserID, fieldNumber: 15)
       }
+      if _storage._session != 0 {
+        try visitor.visitSingularFixed64Field(value: _storage._session, fieldNumber: 16)
+      }
     }
     try unknownFields.traverse(visitor: &visitor)
   }
@@ -2735,6 +2753,7 @@ nonisolated extension Wiretuner_Sync_V1_PresenceUpdate: SwiftProtobuf.Message, S
         if _storage._caret != rhs_storage._caret {return false}
         if _storage._spotlight != rhs_storage._spotlight {return false}
         if _storage._followingUserID != rhs_storage._followingUserID {return false}
+        if _storage._session != rhs_storage._session {return false}
         return true
       }
       if !storagesAreEqual {return false}

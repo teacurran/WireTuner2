@@ -25,7 +25,7 @@ public class Document {
     @Column(name = "team_id")
     public UUID teamId;
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "text")
     public String name = "";
 
     /** The folder it is in; null = the space's root. */
@@ -33,7 +33,7 @@ public class Document {
     public UUID folderId;
 
     /** {@code illustration_single_page}, {@code illustration_multi_page} or {@code typeface}. */
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "text")
     public String kind = "illustration_multi_page";
 
     @Column(name = "is_template", nullable = false)
@@ -46,7 +46,7 @@ public class Document {
     public UUID createdByAccountId;
 
     /** The role team members get on this document instead of the team default; null = the default (COLLAB-011). */
-    @Column(name = "team_access_override")
+    @Column(name = "team_access_override", columnDefinition = "text")
     public String teamAccessOverride;
 
     @Column(name = "feature_level", nullable = false)
@@ -62,7 +62,7 @@ public class Document {
     public Instant trashedAt;
 
     /** sha256 (hex) of the client-rendered thumbnail blob; null until the client sends one. */
-    @Column(name = "thumbnail_blob")
+    @Column(name = "thumbnail_blob", columnDefinition = "text")
     public String thumbnailBlob;
 
     @Column(name = "thumbnail_at")

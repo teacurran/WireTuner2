@@ -43,7 +43,9 @@ import jakarta.inject.Inject;
  * they arrive and buffered into 8 MiB multipart parts; the multipart upload is completed only when
  * the size and sha256 match the header, and aborted otherwise, so a bad upload never becomes
  * visible. A blob the server already holds is still hashed end to end (a hash alone must not grant
- * access to content) but not stored again.
+ * access to content) but not stored again. An untagged upload must fit the document's space's
+ * storage quota ({@link StorageQuota}), checked at the header before any byte is stored; a thumbnail
+ * is exempt (IO-008).
  */
 @GrpcService
 public class BlobGrpcService extends MutinyBlobServiceGrpc.BlobServiceImplBase {
@@ -68,6 +70,9 @@ public class BlobGrpcService extends MutinyBlobServiceGrpc.BlobServiceImplBase {
 
     @Inject
     DocumentRepository documents;
+
+    @Inject
+    StorageQuota quota;
 
     @Override
     public Uni<StatResponse> stat(StatRequest request) {
@@ -125,8 +130,11 @@ public class BlobGrpcService extends MutinyBlobServiceGrpc.BlobServiceImplBase {
         }
         UploadHeader header = frame.getHeader();
         UUID documentId = UUID.fromString(header.getDocumentId());
+        String sha = hex(header.getSha256());
         return Panache.withTransaction(() -> guard.require(documentId, Role.EDITOR)
-                .chain(() -> blobs.findById(hex(header.getSha256()))))
+                .chain(() -> blobs.findById(sha)))
+                .call(() -> header.getTag() == BlobTag.BLOB_TAG_THUMBNAIL ? Uni.createFrom().voidItem()
+                        : quota.admit(documentId, sha, header.getSize()))
                 .invoke(existing -> upload.begin(header, documentId, existing != null))
                 .replaceWithVoid();
     }

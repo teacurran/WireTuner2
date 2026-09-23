@@ -196,7 +196,7 @@ responses.  A row is added here and a value there in the same change.
 |`FAILED_PRECONDITION` |`CLIENT_TOO_OLD` |The document's feature level is above this client's; open read-only and prompt to update.
 |`ABORTED` |`SEQ_GAP` |A change arrived before its predecessor; resend from the acked seq.
 |`RESOURCE_EXHAUSTED` |`RATE_LIMITED` |Back off for the `RetryInfo` delay.
-|`RESOURCE_EXHAUSTED` |`STORAGE_QUOTA` |The space's blob storage quota is full; change ingest is never quota-limited (xref:saving.adoc[Saving]).
+|`RESOURCE_EXHAUSTED` |`STORAGE_QUOTA` |The space's blob storage quota is full; `metadata` carries `used_bytes` and `limit_bytes`, and there is no `RetryInfo` (waiting does not help, freeing space does).  Change ingest is never quota-limited (xref:saving.adoc[Saving]).
 |`NOT_FOUND` |`DOCUMENT_NOT_FOUND` |Deleted, or never visible to the caller (the two are indistinguishable on purpose).
 |`PERMISSION_DENIED` |`HOST_NOT_ALLOWED` |A data-source fetch targets a host outside the scope's allowlist (xref:data-merge.adoc[Data merge]).
 |`FAILED_PRECONDITION` |`CREDENTIAL_MISSING` |The source names a credential the scope does not hold.

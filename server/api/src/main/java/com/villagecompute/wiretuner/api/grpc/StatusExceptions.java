@@ -89,10 +89,15 @@ public final class StatusExceptions {
                 errorInfo(ErrorReasons.RATE_LIMITED, Map.of()), retry);
     }
 
-    /** {@code RESOURCE_EXHAUSTED / STORAGE_QUOTA}: the space's blob storage quota is full. */
-    public static StatusRuntimeException storageQuota() {
+    /**
+     * {@code RESOURCE_EXHAUSTED / STORAGE_QUOTA}: the space's blob storage quota is full, with its use
+     * and limit in bytes as {@code used_bytes} and {@code limit_bytes}. No {@code RetryInfo}: waiting
+     * does not help, freeing space does (saving.adoc, IO-008).
+     */
+    public static StatusRuntimeException storageQuota(long usedBytes, long limitBytes) {
         return withReason(Code.RESOURCE_EXHAUSTED, ErrorReasons.STORAGE_QUOTA,
-                "the space's blob storage quota is full", Map.of());
+                "the space's blob storage quota is full: " + usedBytes + " of " + limitBytes + " bytes used",
+                Map.of("used_bytes", Long.toString(usedBytes), "limit_bytes", Long.toString(limitBytes)));
     }
 
     /** {@code NOT_FOUND / DOCUMENT_NOT_FOUND}: deleted, or never visible to the caller. */

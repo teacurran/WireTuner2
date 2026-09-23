@@ -34,6 +34,12 @@ import jakarta.inject.Inject;
  * the sorted set {@code presence:<doc>} -- and every update is fanned out as a {@code PresenceUpdate}
  * frame on the document's subscriptions.
  *
+ * <p>A document and its branches share one presence (COLLAB-005): a session on a branch is stored
+ * under the parent (the family's root), keyed by its document and replica, and every update is
+ * published on the parent's channel, which a branch's subscriptions also listen to for presence
+ * ({@link SyncGrpcService}). So the parent's sessions see the branch's people (with
+ * {@code branch_id} set) and the other way round.
+ *
  * <ul>
  * <li><b>20 Hz, coalesced.</b> A replica's updates go out at most once per {@code wt.presence.interval}
  * (50 ms) on this node; one that arrives sooner waits for the end of the interval, and a later one
@@ -92,14 +98,19 @@ public class PresenceStore {
         return "presence:" + documentId + ":state";
     }
 
-    static String member(long replica) {
-        return Long.toUnsignedString(replica);
+    /** A session's member in its family's set and hash: the document it is on and its replica. */
+    static String member(UUID documentId, long replica) {
+        return documentId + ":" + Long.toUnsignedString(replica);
     }
 
-    /** Stores and fans out a server-filled update, at most one per interval per replica; {@code GONE} removes the entry. */
-    public Uni<Void> update(UUID documentId, long replica, PresenceUpdate update) {
+    /**
+     * Stores and fans out a server-filled update of the session on {@code documentId} (whose presence
+     * family is {@code root}: the document, or a branch's parent), at most one per interval per
+     * replica; {@code GONE} removes the entry.
+     */
+    public Uni<Void> update(UUID root, UUID documentId, long replica, PresenceUpdate update) {
         if (update.getState() == PresenceState.PRESENCE_STATE_GONE) {
-            return leave(documentId, replica, update);
+            return leave(root, documentId, replica, update);
         }
         long now = System.nanoTime();
         Slot slot = slots.computeIfAbsent(new Key(documentId, replica), k -> new Slot(now - interval.toNanos()));
@@ -109,17 +120,17 @@ public class PresenceStore {
             if (waiting || wait > 0) {
                 slot.pending = update;
                 if (!waiting) {
-                    flushLater(documentId, replica, slot, wait);
+                    flushLater(root, documentId, replica, slot, wait);
                 }
                 return Uni.createFrom().voidItem();
             }
             slot.sentAt = now;
         }
-        return store(documentId, replica, update);
+        return store(root, member(documentId, replica), update);
     }
 
     /** Sends the slot's waiting update when its interval ends, unless the replica left meanwhile. */
-    private void flushLater(UUID documentId, long replica, Slot slot, long waitNanos) {
+    private void flushLater(UUID root, UUID documentId, long replica, Slot slot, long waitNanos) {
         Uni.createFrom().voidItem().onItem().delayIt().by(Duration.ofNanos(waitNanos))
                 .chain(() -> {
                     PresenceUpdate next;
@@ -128,33 +139,33 @@ public class PresenceStore {
                         slot.pending = null;
                         slot.sentAt = System.nanoTime();
                     }
-                    return next == null ? Uni.createFrom().voidItem() : store(documentId, replica, next);
+                    return next == null ? Uni.createFrom().voidItem() : store(root, member(documentId, replica), next);
                 })
                 .subscribe().with(ignored -> { }, failure -> LOG.warnf(failure, "presence flush for %s failed", documentId));
     }
 
-    private Uni<Void> store(UUID documentId, long replica, PresenceUpdate update) {
-        String member = member(replica);
+    /** Stores the entry in the family's set and hash and fans it out on the family's channel (the root document's). */
+    private Uni<Void> store(UUID root, String member, PresenceUpdate update) {
         long ttlMillis = ttl.toMillis();
         return redis.batch(List.of(
-                        Request.cmd(Command.ZADD).arg(deadlines(documentId)).arg(System.currentTimeMillis() + ttlMillis).arg(member),
-                        Request.cmd(Command.HSET).arg(states(documentId)).arg(member).arg(Buffer.buffer(update.toByteArray())),
-                        Request.cmd(Command.PEXPIRE).arg(deadlines(documentId)).arg(2 * ttlMillis),
-                        Request.cmd(Command.PEXPIRE).arg(states(documentId)).arg(2 * ttlMillis)))
-                .chain(() -> bus.publish(documentId, ServerFrame.newBuilder().setPresenceUpdate(update).build()));
+                        Request.cmd(Command.ZADD).arg(deadlines(root)).arg(System.currentTimeMillis() + ttlMillis).arg(member),
+                        Request.cmd(Command.HSET).arg(states(root)).arg(member).arg(Buffer.buffer(update.toByteArray())),
+                        Request.cmd(Command.PEXPIRE).arg(deadlines(root)).arg(2 * ttlMillis),
+                        Request.cmd(Command.PEXPIRE).arg(states(root)).arg(2 * ttlMillis)))
+                .chain(() -> bus.publish(root, ServerFrame.newBuilder().setPresenceUpdate(update).build()));
     }
 
-    /** Removes the replica's entry; if it had one, fans out {@code gone} (a GONE update). */
-    public Uni<Void> leave(UUID documentId, long replica, PresenceUpdate gone) {
+    /** Removes the session's entry; if it had one, fans out {@code gone} (a GONE update). */
+    public Uni<Void> leave(UUID root, UUID documentId, long replica, PresenceUpdate gone) {
         Optional.ofNullable(slots.remove(new Key(documentId, replica))).ifPresent(Slot::cancel);
-        String member = member(replica);
-        return redis.send(Request.cmd(Command.ZREM).arg(deadlines(documentId)).arg(member))
-                .call(() -> redis.send(Request.cmd(Command.HDEL).arg(states(documentId)).arg(member)))
+        String member = member(documentId, replica);
+        return redis.send(Request.cmd(Command.ZREM).arg(deadlines(root)).arg(member))
+                .call(() -> redis.send(Request.cmd(Command.HDEL).arg(states(root)).arg(member)))
                 .chain(removed -> removed.toInteger() == 0 ? Uni.createFrom().voidItem()
-                        : bus.publish(documentId, ServerFrame.newBuilder().setPresenceUpdate(gone).build()));
+                        : bus.publish(root, ServerFrame.newBuilder().setPresenceUpdate(gone).build()));
     }
 
-    /** Everyone present on the document now. */
+    /** Everyone present in the family of {@code documentId} (the document and its branches) now. */
     public Uni<PresenceSnapshot> snapshot(UUID documentId) {
         return redis.send(Request.cmd(Command.ZRANGEBYSCORE).arg(deadlines(documentId))
                         .arg(System.currentTimeMillis()).arg("+inf"))
@@ -218,6 +229,7 @@ public class PresenceStore {
     /** The GONE update announcing that the participant of {@code last} left. */
     static PresenceUpdate gone(PresenceUpdate last) {
         return PresenceUpdate.newBuilder().setUser(last.getUser()).setColorIndex(last.getColorIndex())
-                .setBranchId(last.getBranchId()).setState(PresenceState.PRESENCE_STATE_GONE).build();
+                .setBranchId(last.getBranchId()).setSession(last.getSession()).setState(PresenceState.PRESENCE_STATE_GONE)
+                .build();
     }
 }

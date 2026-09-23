@@ -173,4 +173,22 @@ class SyncPartsTest {
         UUID id = new UUID(0x0102030405060708L, 0x090a0b0c0d0e0f10L);
         assertThat(SyncBus.uuidBytes(id)).containsExactly(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16);
     }
+
+    @Test
+    void aPresenceRelayPassesPresenceOnlyAndHasNothingToResync() {
+        LiveFeed feed = new LiveFeed(UUID.randomUUID(), null, null, Duration.ofSeconds(1));
+        SyncGrpcService.PresenceRelay relay = new SyncGrpcService.PresenceRelay(feed);
+        assertThat(relay.account()).isNull();
+        assertThatCode(relay::resync).doesNotThrowAnyException();
+        relay.frame(com.villagecompute.wiretuner.sync.v1.ServerFrame.newBuilder()
+                .setPong(com.villagecompute.wiretuner.sync.v1.Pong.getDefaultInstance()).build());
+        relay.frame(com.villagecompute.wiretuner.sync.v1.ServerFrame.newBuilder()
+                .setPresenceUpdate(com.villagecompute.wiretuner.sync.v1.PresenceUpdate.getDefaultInstance()).build());
+        java.util.List<com.villagecompute.wiretuner.sync.v1.ServerFrame> out = new ArrayList<>();
+        io.smallrye.mutiny.Multi.createFrom().<com.villagecompute.wiretuner.sync.v1.ServerFrame>emitter(emitter -> {
+            feed.start(1, emitter);
+            emitter.complete();
+        }).subscribe().with(out::add);
+        assertThat(out).singleElement().satisfies(frame -> assertThat(frame.hasPresenceUpdate()).isTrue());
+    }
 }

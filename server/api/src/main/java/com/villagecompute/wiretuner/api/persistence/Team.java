@@ -16,17 +16,17 @@ public class Team {
     @Id
     public UUID id;
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "text")
     public String name;
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "text")
     public String slug;
 
     @Column(name = "owner_account_id", nullable = false)
     public UUID ownerAccountId;
 
     /** The document role a member holds on team documents without an explicit share. */
-    @Column(name = "default_document_role", nullable = false)
+    @Column(name = "default_document_role", nullable = false, columnDefinition = "text")
     public String defaultDocumentRole = "editor";
 
     @Column(name = "created_at", nullable = false)

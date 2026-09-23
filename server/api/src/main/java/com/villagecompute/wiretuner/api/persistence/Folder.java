@@ -26,7 +26,7 @@ public class Folder {
     @Column(name = "parent_folder_id")
     public UUID parentFolderId;
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "text")
     public String name;
 
     @Column(name = "created_at", nullable = false)

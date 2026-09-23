@@ -354,9 +354,35 @@ hot log only, so `retained_from_seq` is its oldest row: sessions are one author 
 branch with gaps under 10 minutes, newest first, carrying their changes at five or fewer or when
 named by `expand_session`, interleaved with the named versions in the page's seq range (a version
 above a session ending at its seq); a page reads at most 5,000 rows (a session longer than that
-continues on the next page), and `query` matches labels and author names.  `ListNodeHistory` scans
-the log newest first in pages of 256 rows.  Node names at the time, `attributes`, the object-name
-query and the touched-node index are COLLAB-020.
+continues on the next page), and `query` matches labels and author names.
+
+As built (COLLAB-020, `api/.../history`: `ChangeIndex`, `History`; V11):
+
+* *The index.*  Every change is indexed as it is written: `change_node` (one row per node the change
+  names; primary key document, node, seq) and `node_name` (one row per name a change gives a node:
+  a `CreateNode` with its kind and `CommonProps.name`, empty when unnamed, or a `SetFields` writing
+  `CommonProps.name`, empty when cleared).  The ingest statement writes both in the same statement as
+  the log row; a branch merge's replay and a copy's extra changes write them in their own
+  transaction, and a copy (Fork, Duplicate, branch, Restore as Copy) takes the source's `node_name`
+  rows up to the fork point.  The index is not compacted, so it covers cold history.  Changes logged
+  before V11 are not indexed (no backfill: the log predates any production data).
+* *Timeline across cold segments.*  `ListHistory` reads the hot rows, then the cold segments below
+  them, as one log; `retained_from_seq` is the oldest seq either holds.  A cold change's time is its
+  own `wall_time_ms` (the client's clock; the hot row's server time is not in the segment), and its
+  author and merged branch come from the replica binding (on the document, or on the branch for a
+  replayed change).
+* *Rows.*  Each `ChangeSummary` names up to 8 touched nodes with their names at the change's seq (the
+  newest `node_name` row at or before it; an unnamed node shows its kind's field name, "Path",
+  "Master page"), and `attributes` lists the registers written: the field a `SetFields` path names
+  under the kind (under `CommonProps`, the common field: "Name", "Transform"), the sequence, text or
+  set field of the other field ops, "Deleted" for `SetDeleted` and "Order" for `MoveNode`, at most 32.
+  Deviation: the merge table carries no display names, so the names are the proto field names made
+  readable (`stroke_width` is "Stroke width"); the client localizes them.
+* *Search.*  `query` also matches a change that touched a node whose name, at any time, contains it.
+* *Node history.*  `ListNodeHistory` reads the node's seqs from `change_node` (newest first,
+  `page_size` at a time) and fetches only those changes, hot or from their segments.
+* Not built here: the change retention job with the team window, and retaining pinned versions'
+  blobs past it (COLLAB-020's remaining items); losing writes are not marked in node history.
 
 COLLAB-020 adds:
 `ListHistory` with server-side session grouping and search, a touched-node index on

@@ -13,19 +13,20 @@ import jakarta.persistence.Table;
 public class Blob {
 
     @Id
+    @Column(columnDefinition = "text")
     public String sha256;
 
     @Column(name = "size_bytes", nullable = false)
     public long sizeBytes;
 
-    @Column(name = "media_type", nullable = false)
+    @Column(name = "media_type", nullable = false, columnDefinition = "text")
     public String mediaType;
 
     /** The tag it was first uploaded with: {@code content} or {@code thumbnail}. */
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "text")
     public String tag = "content";
 
-    @Column(name = "storage_key", nullable = false)
+    @Column(name = "storage_key", nullable = false, columnDefinition = "text")
     public String storageKey;
 
     @Column(name = "created_at", nullable = false)

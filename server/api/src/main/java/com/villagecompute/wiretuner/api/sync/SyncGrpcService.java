@@ -79,7 +79,8 @@ public class SyncGrpcService extends MutinySyncServiceGrpc.SyncServiceImplBase {
     static final String STANDING = """
             SELECT d.head_seq, d.feature_level,
                    (SELECT COALESCE(max(s.server_seq), 0) FROM snapshot s WHERE s.document_id = d.id),
-                   r.account_id, r.device_id, r.last_seq, r.retired_at IS NOT NULL
+                   r.account_id, r.device_id, r.last_seq, r.retired_at IS NOT NULL,
+                   (SELECT b.parent_document_id FROM branch b WHERE b.document_id = d.id)
             FROM document d LEFT JOIN replica r ON r.document_id = d.id AND r.replica_id = $2
             WHERE d.id = $1
             """;
@@ -174,13 +175,45 @@ public class SyncGrpcService extends MutinySyncServiceGrpc.SyncServiceImplBase {
 
     // ------------------------------------------------------------------------------------ Subscribe
 
-    /** Where a new subscription stands: the caller, and the document and replica as read after listening. */
+    /**
+     * Where a new subscription stands: the caller, and the document and replica as read after listening;
+     * {@code root} is the document's presence family (its parent when it is a branch, else itself).
+     */
     record Standing(Principal principal, Role role, Participant participant, long head, int featureLevel,
-            long snapshotSeq, long lastAccepted, int color) {
+            long snapshotSeq, long lastAccepted, int color, UUID documentId, UUID root, long replica) {
+
+        /** Whether the subscription is on a branch, whose presence is its parent's. */
+        boolean onBranch() {
+            return !root.equals(documentId);
+        }
     }
 
-    /** A subscription registered on the bus, and where it stands. */
-    record Opened(LiveFeed feed, Standing standing) {
+    /** A subscription registered on the bus, where it stands, and its presence relay from the parent (branches only). */
+    record Opened(LiveFeed feed, PresenceRelay relay, Standing standing) {
+    }
+
+    /**
+     * A branch subscription's listener on its parent's channel: it passes on the presence updates of the
+     * family (a branch's presence lives with its parent's, {@link PresenceStore}) and nothing else. A
+     * lost presence frame costs nothing, so there is nothing to resynchronise.
+     */
+    record PresenceRelay(LiveFeed feed) implements SyncBus.Listener {
+        @Override
+        public void frame(ServerFrame frame) {
+            if (frame.hasPresenceUpdate()) {
+                feed.frame(frame);
+            }
+        }
+
+        @Override
+        public UUID account() {
+            return null;
+        }
+
+        @Override
+        public void resync() {
+            // Presence is current state: the next update replaces whatever was lost.
+        }
     }
 
     /** An authorised caller and how collaborators see them. */
@@ -196,10 +229,19 @@ public class SyncGrpcService extends MutinySyncServiceGrpc.SyncServiceImplBase {
                     LiveFeed feed = new LiveFeed(documentId, caller.grant().principal().accountId(), reader, gapWait);
                     return bus.listen(documentId, feed)
                             .chain(() -> standing(documentId, replica, caller.grant(), caller.participant()))
-                            .onFailure().invoke(() -> bus.unlisten(documentId, feed))
-                            .map(standing -> new Opened(feed, standing));
+                            .chain(standing -> relay(standing, feed).map(relay -> new Opened(feed, relay, standing)))
+                            .onFailure().invoke(() -> bus.unlisten(documentId, feed));
                 })
-                .onItem().transformToMulti(opened -> frames(request, documentId, opened.feed(), opened.standing()));
+                .onItem().transformToMulti(opened -> frames(request, documentId, opened));
+    }
+
+    /** On a branch, the feed's presence relay from the parent's channel, registered; null on a document with no parent. */
+    private Uni<PresenceRelay> relay(Standing standing, LiveFeed feed) {
+        if (!standing.onBranch()) {
+            return Uni.createFrom().nullItem();
+        }
+        PresenceRelay relay = new PresenceRelay(feed);
+        return bus.listen(standing.root(), relay).replaceWith(relay);
     }
 
     /** The caller, checked for {@code minimum} on the document, with their participant. */
@@ -215,13 +257,17 @@ public class SyncGrpcService extends MutinySyncServiceGrpc.SyncServiceImplBase {
             ReplicaBinding binding = boundAccount == null ? null
                     : new ReplicaBinding(boundAccount, row.getUUID(4), row.getLong(5), row.getBoolean(6));
             ReplicaBinding.check(binding, grant.principal(), replica);
-            return colors.of(documentId, grant.principal().accountId()).map(color -> new Standing(grant.principal(),
+            UUID parent = row.getUUID(7);
+            UUID root = parent == null ? documentId : parent;
+            return colors.of(root, grant.principal().accountId()).map(color -> new Standing(grant.principal(),
                     grant.role(), participant, row.getLong(0), row.getInteger(1), row.getLong(2),
-                    binding == null ? 0 : binding.lastSeq(), color));
+                    binding == null ? 0 : binding.lastSeq(), color, documentId, root, replica));
         });
     }
 
-    private Multi<ServerFrame> frames(SubscribeRequest request, UUID documentId, LiveFeed feed, Standing standing) {
+    private Multi<ServerFrame> frames(SubscribeRequest request, UUID documentId, Opened opened) {
+        LiveFeed feed = opened.feed();
+        Standing standing = opened.standing();
         long after = request.getAfterServerSeq();
         long replica = request.getReplica();
         boolean hint = after < standing.snapshotSeq();
@@ -237,9 +283,9 @@ public class SyncGrpcService extends MutinySyncServiceGrpc.SyncServiceImplBase {
                 : reader.range(documentId, after, standing.head()).map(change -> ServerFrame.newBuilder().setChange(change).build());
         PresenceUpdate self = presenceOf(standing);
         Uni<Void> joined = request.hasPresence()
-                ? presence.update(documentId, replica, filled(request.getPresence(), self))
+                ? presence.update(standing.root(), documentId, replica, filled(request.getPresence(), self))
                 : Uni.createFrom().voidItem();
-        Uni<ServerFrame> present = joined.chain(() -> presence.snapshot(documentId))
+        Uni<ServerFrame> present = joined.chain(() -> presence.snapshot(standing.root()))
                 .map(snapshot -> ServerFrame.newBuilder().setPresence(snapshot).build());
         long first = standing.head() + 1;
         AtomicLong lastSent = new AtomicLong(System.nanoTime());
@@ -264,24 +310,34 @@ public class SyncGrpcService extends MutinySyncServiceGrpc.SyncServiceImplBase {
                     metrics.unsubscribed(documentId);
                     sessions.close(documentId, account);
                     bus.unlisten(documentId, feed);
+                    if (opened.relay() != null) {
+                        bus.unlisten(standing.root(), opened.relay());
+                    }
                     if (!bus.documents().contains(documentId)) {
                         snapshotter.closed(documentId).subscribe().with(ignored -> { }, failure -> { });
                     }
-                    presence.leave(documentId, replica, gone).subscribe().with(ignored -> { }, failure -> { });
+                    presence.leave(standing.root(), documentId, replica, gone).subscribe().with(ignored -> { }, failure -> { });
                 });
     }
 
-    /** The server-filled part of the caller's presence on the document: who, with role, and their color. */
+    /**
+     * The server-filled part of the caller's presence on the document: who, with role, their color (one
+     * per person in the document and its branches), the branch the session is on, and the session (its
+     * replica) (COLLAB-004, COLLAB-005).
+     */
     static PresenceUpdate presenceOf(Standing standing) {
         return PresenceUpdate.newBuilder()
                 .setUser(standing.participant().toBuilder().setRole(DocumentMessages.role(standing.role())))
                 .setColorIndex(standing.color())
+                .setBranchId(standing.onBranch() ? standing.documentId().toString() : "")
+                .setSession(standing.replica())
                 .build();
     }
 
-    /** The client's presence with the server-filled fields replaced. */
+    /** The client's presence with the server-filled fields replaced, whatever the client sent in them. */
     static PresenceUpdate filled(PresenceUpdate sent, PresenceUpdate self) {
-        return sent.toBuilder().setUser(self.getUser()).setColorIndex(self.getColorIndex()).clearBranchId().build();
+        return sent.toBuilder().setUser(self.getUser()).setColorIndex(self.getColorIndex()).setBranchId(self.getBranchId())
+                .setSession(self.getSession()).build();
     }
 
     // ---------------------------------------------------------------------------------------- Pushes
@@ -421,10 +477,11 @@ public class SyncGrpcService extends MutinySyncServiceGrpc.SyncServiceImplBase {
         long replica = request.getReplica();
         // Up to 20 calls a second per replica: who the caller is on the document is remembered for the
         // grant TTL (2 s), like a pusher.
-        return grants.memo(documentId, "presence:" + Long.toUnsignedString(replica), () -> caller(documentId, Role.VIEWER)
-                        .chain(caller -> standing(documentId, replica, caller.grant(), caller.participant()))
-                        .map(SyncGrpcService::presenceOf))
-                .chain(self -> presence.update(documentId, replica, filled(request.getPresence(), self)))
+        return grants.<Standing>memo(documentId, "presence:" + Long.toUnsignedString(replica),
+                        () -> caller(documentId, Role.VIEWER)
+                                .chain(caller -> standing(documentId, replica, caller.grant(), caller.participant())))
+                .chain(standing -> presence.update(standing.root(), documentId, replica,
+                        filled(request.getPresence(), presenceOf(standing))))
                 .replaceWith(UpdatePresenceResponse.getDefaultInstance());
     }
 

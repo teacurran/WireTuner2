@@ -20,4 +20,9 @@ public class DocumentRepository implements PanacheRepositoryBase<Document, UUID>
     public Uni<List<Document>> listTeam(UUID teamId) {
         return list("teamId", Sort.by("name"), teamId);
     }
+
+    /** The documents with these ids, by id; none for no ids. */
+    public Uni<List<Document>> byIds(List<UUID> ids) {
+        return ids.isEmpty() ? Uni.createFrom().item(List.of()) : list("id in ?1", Sort.by("id"), ids);
+    }
 }

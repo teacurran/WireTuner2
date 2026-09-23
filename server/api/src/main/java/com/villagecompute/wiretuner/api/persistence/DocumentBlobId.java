@@ -9,5 +9,5 @@ import jakarta.persistence.Embeddable;
 @Embeddable
 public record DocumentBlobId(
         @Column(name = "document_id", nullable = false) UUID documentId,
-        @Column(name = "sha256", nullable = false) String sha256) {
+        @Column(name = "sha256", nullable = false, columnDefinition = "text") String sha256) {
 }

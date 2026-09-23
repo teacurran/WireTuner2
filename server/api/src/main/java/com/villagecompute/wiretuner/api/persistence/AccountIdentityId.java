@@ -6,6 +6,6 @@ import jakarta.persistence.Embeddable;
 /** Primary key of {@code account_identity}: the provider and the subject it asserts. */
 @Embeddable
 public record AccountIdentityId(
-        @Column(name = "provider", nullable = false) String provider,
-        @Column(name = "provider_subject", nullable = false) String providerSubject) {
+        @Column(name = "provider", nullable = false, columnDefinition = "text") String provider,
+        @Column(name = "provider_subject", nullable = false, columnDefinition = "text") String providerSubject) {
 }

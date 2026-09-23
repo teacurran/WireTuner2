@@ -39,7 +39,8 @@ class StatusExceptionsTest {
                         Map.of("expected", "5", "received", "7")),
                 Arguments.of(StatusExceptions.rateLimited(Duration.ofMillis(1500)), Status.Code.RESOURCE_EXHAUSTED,
                         ErrorReasons.RATE_LIMITED, Map.of()),
-                Arguments.of(StatusExceptions.storageQuota(), Status.Code.RESOURCE_EXHAUSTED, ErrorReasons.STORAGE_QUOTA, Map.of()),
+                Arguments.of(StatusExceptions.storageQuota(5, 4), Status.Code.RESOURCE_EXHAUSTED, ErrorReasons.STORAGE_QUOTA,
+                        Map.of("used_bytes", "5", "limit_bytes", "4")),
                 Arguments.of(StatusExceptions.documentNotFound(), Status.Code.NOT_FOUND, ErrorReasons.DOCUMENT_NOT_FOUND, Map.of()),
                 Arguments.of(StatusExceptions.hostNotAllowed("evil.test"), Status.Code.PERMISSION_DENIED,
                         ErrorReasons.HOST_NOT_ALLOWED, Map.of("host", "evil.test")),
@@ -78,7 +79,7 @@ class StatusExceptionsTest {
     void rateLimitedCarriesRetryInfo() {
         assertThat(StatusExceptions.retryDelayOf(StatusExceptions.rateLimited(Duration.ofMillis(1500))))
                 .contains(Duration.ofMillis(1500));
-        assertThat(StatusExceptions.retryDelayOf(StatusExceptions.storageQuota())).isEmpty();
+        assertThat(StatusExceptions.retryDelayOf(StatusExceptions.storageQuota(1, 1))).isEmpty();
     }
 
     @Test

@@ -15,11 +15,11 @@ public class Snapshot {
     @EmbeddedId
     public SnapshotId id;
 
-    @Column(name = "object_key", nullable = false)
+    @Column(name = "object_key", nullable = false, columnDefinition = "text")
     public String objectKey;
 
     /** The merge engine's state hash, hex. */
-    @Column(name = "state_hash", nullable = false)
+    @Column(name = "state_hash", nullable = false, columnDefinition = "text")
     public String stateHash;
 
     @Column(name = "size_bytes", nullable = false)

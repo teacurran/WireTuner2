@@ -348,9 +348,8 @@ As built (SRV-011, `api/.../branch`):
   `HISTORY_UNAVAILABLE`; a parent that is itself a branch is `VALIDATION_FAILED`.  The branch
   document is the parent's state at the fork point stored as the branch's snapshot there (same
   ids, register OpIds and tombstones; `DocumentCopies.branch`, server.adoc Services), in the
-  parent's space and folder, with the parent's owner and a copy of its `document_member` rows --
-  the same people with the same roles at creation (live resolution through the parent is
-  COLLAB-019).  `initial_changes` follow the fork point as on `Fork`: each replica continues its
+  parent's space and folder, with the parent's owner and no `document_member` rows of its own
+  (COLLAB-019, below).  `initial_changes` follow the fork point as on `Fork`: each replica continues its
   seqs from the state and is bound to the caller on the branch.  A retry with the same
   `branch_document_id` and parent answers the branch; the id taken by anything else is
   `DOCUMENT_EXISTS`.
@@ -374,10 +373,36 @@ As built (SRV-011, `api/.../branch`):
   node the parent (at its head) does not have and no earlier replayed op creates.  The branch
   records `merged_branch_seq` (its head), `merged_parent_seq` (the last parent seq the merge
   wrote) and becomes `MERGED` unless `keep_open`.  `first_parent_seq` / `last_parent_seq` are 0
-  when nothing landed.  Not yet: `BranchEvent` fan-out and the cascades (COLLAB-019).
+  when nothing landed.
 * *Done-when.*  `BranchServiceTest` merges a branch of 10,000 changes into a parent that advanced
   10,000; the snapshotter's hash of the merged parent equals a client replaying the parent's log
   and a client merging the branch's changes into its own parent state.
+
+As built (COLLAB-019, `api/.../branch`, `auth/DocumentRoles`, `docs/DocumentGrpcService`,
+`share`):
+
+* *Roles through the parent.*  A branch has no `document_member` rows (V11 dropped the rows SRV-011
+  copied): `DocumentRoles.effectiveRole` of a branch is the parent's, looked up on every check, so
+  sharing the parent shares its branches and removing someone from the parent removes them from the
+  branches at once.  Presence colors are the parent's rows too.  ShareService RPCs that name a
+  branch (members, links, team access, requests, ownership) are
+  `INVALID_ARGUMENT / VALIDATION_FAILED` -- the client opens the parent's Share sheet.  A sharing
+  change on the parent tells the branches' live sessions as well (`MembersChanged`, and
+  `RoleChanged` / `AccessRemoved` for the accounts concerned) and forgets this node's memoised push
+  decisions for them, so a downgraded editor's next push on a branch is `ROLE_INSUFFICIENT`;
+  RoleNotices' per-document and per-team notices include branches (a branch lives in its parent's
+  team).
+* *Cascades.*  Trashing the parent trashes its live branches with the same timestamp; restoring it
+  restores the branches trashed at that moment (a branch trashed on its own stays in the trash).
+  Moving the parent to another folder or space moves its branches with it.  Each followed branch's
+  sessions get the parent's `Trashed` or `Moved` event.  (Ownership transfer to a personal space does
+  not move branches; the Trash job already deletes branches with their parent.)
+* *`BranchEvent` fan-out.*  Create (not a retry), rename, archive, restore to active, trash and merge
+  publish a `BranchEvent` (`CREATED`, `RENAMED`, `ARCHIVED`, `RESTORED`, `TRASHED`, `MERGED`) with the
+  caller as actor on the parent's and the branch's subscriptions once committed.
+* *History index.*  Replayed rows are indexed like ingested ones (history.adoc, Server), and a new
+  branch (like any copy) takes its parent's node names up to the fork point, so its history names the
+  nodes it inherited.
 
 COLLAB-019 adds:
 `initial_changes` binding on create, `excluded_nodes` and `resolutions` on merge with the

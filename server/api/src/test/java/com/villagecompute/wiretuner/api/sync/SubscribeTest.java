@@ -372,15 +372,16 @@ class SubscribeTest extends SyncTestSupport {
         long carolReplica = replicaId();
         blocking(CAROL, null).updatePresence(UpdatePresenceRequest.newBuilder().setDocumentId(doc.toString())
                 .setReplica(carolReplica).setPresence(tool("hand").toBuilder()
-                        .setBranchId(UUID.randomUUID().toString())).build());
+                        .setBranchId(UUID.randomUUID().toString()).setSession(99)).build());
         PresenceUpdate carols = presenceOf(alices, carol);
         assertThat(carols.getTool()).isEqualTo("hand");
         assertThat(carols.getBranchId()).isEmpty();
+        assertThat(carols.getSession()).isEqualTo(carolReplica);
         assertThat(carols.getUser().getUserId()).isEqualTo(carol.toString());
         assertThat(carols.getUser().getRole()).isEqualTo(DocumentRole.DOCUMENT_ROLE_VIEWER);
         assertThat(carols.getColorIndex()).isEqualTo(2);
         long deadline = redis.send(Request.cmd(Command.ZSCORE).arg(PresenceStore.deadlines(doc))
-                .arg(PresenceStore.member(carolReplica))).await().atMost(WAIT).toLong();
+                .arg(PresenceStore.member(doc, carolReplica))).await().atMost(WAIT).toLong();
         assertThat(deadline - System.currentTimeMillis()).isBetween(1L, 3_000L);
 
         blocking(CAROL, null).updatePresence(UpdatePresenceRequest.newBuilder().setDocumentId(doc.toString())
@@ -417,17 +418,21 @@ class SubscribeTest extends SyncTestSupport {
         long other = replicaId();
         blocking(ALICE, null).updatePresence(UpdatePresenceRequest.newBuilder().setDocumentId(doc.toString())
                 .setReplica(other).setPresence(tool("zoom")).build());
-        assertThat(presenceOf(bobs, alice).getTool()).isEqualTo("zoom");
+        PresenceUpdate zoom = presenceOf(bobs, alice);
+        assertThat(zoom.getTool()).isEqualTo("zoom");
+        // One person's two replicas (two Macs) are two sessions.
+        assertThat(zoom.getSession()).isEqualTo(other);
         // The first replica's entry expires: the next sweep removes it and says so.
-        redis.send(Request.cmd(Command.ZADD).arg(PresenceStore.deadlines(doc)).arg(1).arg(PresenceStore.member(replica)))
+        redis.send(Request.cmd(Command.ZADD).arg(PresenceStore.deadlines(doc)).arg(1).arg(PresenceStore.member(doc, replica)))
                 .await().atMost(WAIT);
         PresenceUpdate gone = presenceOf(bobs, alice);
         assertThat(gone.getState()).isEqualTo(PresenceState.PRESENCE_STATE_GONE);
         assertThat(gone.getTool()).isEmpty();
+        assertThat(gone.getSession()).isEqualTo(replica);
         Subscription s = subscribe(ALICE, null, doc, replicaId(), 0);
         assertThat(s.next(FrameCase.PRESENCE).getPresence().getParticipantsList())
                 .extracting(PresenceUpdate::getTool).containsExactly("zoom");
-        assertThat(redis.send(Request.cmd(Command.HEXISTS).arg(PresenceStore.states(doc)).arg(PresenceStore.member(replica)))
+        assertThat(redis.send(Request.cmd(Command.HEXISTS).arg(PresenceStore.states(doc)).arg(PresenceStore.member(doc, replica)))
                 .await().atMost(WAIT).toBoolean()).isFalse();
         s.cancel();
         bobs.cancel();

@@ -19,7 +19,7 @@ public class DocumentMember {
     @EmbeddedId
     public DocumentMemberId id;
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "text")
     public String role;
 
     @Column(name = "added_by")

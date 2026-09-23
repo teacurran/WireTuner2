@@ -189,12 +189,38 @@ public nonisolated struct Wiretuner_Account_V1_MeResponse: Sendable {
   /// Clears the value of `device`. Subsequent reads from it will return its default value.
   public mutating func clearDevice() {self._device = nil}
 
+  /// Blob storage of every space the caller can upload into: the personal space first, then each
+  /// live team the caller belongs to, so the library can show "Storage almost full" before an
+  /// upload fails with STORAGE_QUOTA (saving.adoc, IO-008).
+  public var storage: [Wiretuner_Account_V1_StorageUsage] = []
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
   fileprivate var _account: Wiretuner_Account_V1_Account? = nil
   fileprivate var _device: Wiretuner_Account_V1_Device? = nil
+}
+
+/// One space's blob storage: what its documents' blobs take and what its plan allows.
+public nonisolated struct Wiretuner_Account_V1_StorageUsage: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The space: the caller's account id for the personal space, else a team id.
+  public var spaceID: String = String()
+
+  /// Bytes of the distinct blobs the space's documents reference (a blob two documents share
+  /// counts once; thumbnails do not count).
+  public var usedBytes: UInt64 = 0
+
+  /// The space's quota in bytes; an upload that would take `used_bytes` past it is refused.
+  public var limitBytes: UInt64 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
 }
 
 /// Lists the caller's devices.
@@ -548,7 +574,7 @@ nonisolated extension Wiretuner_Account_V1_MeRequest: SwiftProtobuf.Message, Swi
 
 nonisolated extension Wiretuner_Account_V1_MeResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".MeResponse"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}account\0\u{1}device\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}account\0\u{1}device\0\u{1}storage\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -558,6 +584,7 @@ nonisolated extension Wiretuner_Account_V1_MeResponse: SwiftProtobuf.Message, Sw
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularMessageField(value: &self._account) }()
       case 2: try { try decoder.decodeSingularMessageField(value: &self._device) }()
+      case 3: try { try decoder.decodeRepeatedMessageField(value: &self.storage) }()
       default: break
       }
     }
@@ -574,12 +601,56 @@ nonisolated extension Wiretuner_Account_V1_MeResponse: SwiftProtobuf.Message, Sw
     try { if let v = self._device {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
     } }()
+    if !self.storage.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.storage, fieldNumber: 3)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Wiretuner_Account_V1_MeResponse, rhs: Wiretuner_Account_V1_MeResponse) -> Bool {
     if lhs._account != rhs._account {return false}
     if lhs._device != rhs._device {return false}
+    if lhs.storage != rhs.storage {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Account_V1_StorageUsage: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".StorageUsage"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}space_id\0\u{3}used_bytes\0\u{3}limit_bytes\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.spaceID) }()
+      case 2: try { try decoder.decodeSingularUInt64Field(value: &self.usedBytes) }()
+      case 3: try { try decoder.decodeSingularUInt64Field(value: &self.limitBytes) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.spaceID.isEmpty {
+      try visitor.visitSingularStringField(value: self.spaceID, fieldNumber: 1)
+    }
+    if self.usedBytes != 0 {
+      try visitor.visitSingularUInt64Field(value: self.usedBytes, fieldNumber: 2)
+    }
+    if self.limitBytes != 0 {
+      try visitor.visitSingularUInt64Field(value: self.limitBytes, fieldNumber: 3)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Wiretuner_Account_V1_StorageUsage, rhs: Wiretuner_Account_V1_StorageUsage) -> Bool {
+    if lhs.spaceID != rhs.spaceID {return false}
+    if lhs.usedBytes != rhs.usedBytes {return false}
+    if lhs.limitBytes != rhs.limitBytes {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

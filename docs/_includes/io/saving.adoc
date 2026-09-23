@@ -518,6 +518,22 @@ access hold the session until `retry()` / `signedIn()`.
   and Handoff travels Mac to Mac through Apple's continuity channel, carrying only ids.
   Uploads tagged `THUMBNAIL` (at most 256 KiB) are exempt from the quota, so a full plan
   never leaves the library showing stale pictures.
++
+NOTE: As built by IO-008 (`api/.../blob/StorageQuota`).  The quota is per space -- the personal
+account or the team the document is in (the paragraph above says "the team's"; a personal space has
+one too).  A space uses the bytes of the distinct blobs its documents reference (`document_blob`):
+a blob two of its documents share counts once, a thumbnail (never a reference) not at all, and a
+trashed document's blobs until the Trash job deletes it.  Usage is computed when asked, not kept as
+a counter, so it is exact after dedup and drops as soon as the Trash job has run -- the
+"recomputation when documents are trashed-expired".  The limit is `account.storage_limit_bytes` /
+`team.storage_limit_bytes` (V11) when set, else `wt.storage.quota.personal` (10 GiB) or
+`wt.storage.quota.team` (100 GiB); plans set the columns.  `Upload` checks at the header, before a
+byte is stored: an untagged upload of a blob the space does not already reference that would take
+it past the limit is `RESOURCE_EXHAUSTED / STORAGE_QUOTA` with `ErrorInfo.metadata` `used_bytes` and
+`limit_bytes` and no `RetryInfo` (waiting does not free space).  Two concurrent uploads may both pass
+and take a space slightly past its limit.  `AccountService.Me` answers `storage`
+(`account.proto` `StorageUsage`: space id, used, limit), the personal space first, then each live
+team the caller belongs to.
 
 === Client
 

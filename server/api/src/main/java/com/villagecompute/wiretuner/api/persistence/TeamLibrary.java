@@ -21,7 +21,7 @@ public class TeamLibrary {
     public UUID teamId;
 
     /** The name the panels show. */
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "text")
     public String name;
 
     @Column(name = "published_by")

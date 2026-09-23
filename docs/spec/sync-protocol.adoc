@@ -245,7 +245,7 @@ As built (SRV-005, SRV-006):
 * Presence (SRV-012, `PresenceStore`): `UpdatePresence` and `SubscribeRequest.presence` store the
   replica's last state in Valkey (the state in the hash `presence:<doc>:state`, its expiry time in the
   sorted set `presence:<doc>`) and fan it out with the server-filled user (with role) and color
-  index, and no branch id.  A replica's updates go out at most once per 50 ms (20 Hz) on the node that
+  index.  A replica's updates go out at most once per 50 ms (20 Hz) on the node that
   receives them; one that arrives sooner waits for the end of the interval and is replaced by any
   newer one meanwhile, so the newest state always goes out and the call always succeeds.  An entry
   expires 15 s after its last update: every second each node sweeps the documents it has
@@ -254,8 +254,11 @@ As built (SRV-005, SRV-006):
   sending its state (`IDLE` included) more often than every 15 s.  `GONE`, or the end of the
   subscription, removes the entry at once.  The `PresenceSnapshot` after the replay lists the
   unexpired entries.  Who the caller is on the document (role, color) is memoised for the push grant
-  TTL (2 s).  Colors are specified on xref:presence.adoc[Presence].  Branch relay (COLLAB-005) is
-  not built: there is no BranchService yet.
+  TTL (2 s).  Colors are specified on xref:presence.adoc[Presence].  COLLAB-004/005: every entry also
+  carries the server-filled `session` (its replica) and `branch_id`, and a document and its branches
+  share one presence, stored under the parent (`presence:<parent>`, members `<document>:<replica>`)
+  and published on the parent's channel, which a branch's subscriptions also listen to for presence
+  (xref:presence.adoc[Presence], Server).
 * Document events for one person -- `RoleChanged`, `AccessRemoved` -- reach only that account's
   subscriptions: the bus payload carries an audience (xref:server.adoc[Server], Ingest path), and an
   `AccessRemoved` ends the subscription after it is delivered.

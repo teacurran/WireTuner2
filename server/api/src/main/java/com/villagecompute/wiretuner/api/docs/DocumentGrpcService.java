@@ -4,6 +4,7 @@ import static com.villagecompute.wiretuner.api.docs.DocumentMessages.optionalUui
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -15,6 +16,7 @@ import com.villagecompute.wiretuner.api.auth.RoleGuard;
 import com.villagecompute.wiretuner.api.grpc.Cursors;
 import com.villagecompute.wiretuner.api.grpc.StatusExceptions;
 import com.villagecompute.wiretuner.api.observability.WtMetrics;
+import com.villagecompute.wiretuner.api.persistence.BranchRepository;
 import com.villagecompute.wiretuner.api.persistence.Document;
 import com.villagecompute.wiretuner.api.persistence.DocumentMember;
 import com.villagecompute.wiretuner.api.persistence.DocumentMemberId;
@@ -127,6 +129,9 @@ public class DocumentGrpcService extends MutinyDocumentServiceGrpc.DocumentServi
     @Inject
     RoleNotices notices;
 
+    @Inject
+    BranchRepository branches;
+
     @Override
     public Uni<CreateResponse> create(CreateRequest request) {
         UUID id = UUID.fromString(request.getDocumentId());
@@ -215,7 +220,7 @@ public class DocumentGrpcService extends MutinyDocumentServiceGrpc.DocumentServi
         return tx(() -> guard.require(id, Role.EDITOR).flatMap(grant -> documents.findById(id)
                 .invoke(doc -> touch(doc).name = request.getName())
                 .flatMap(doc -> view(grant.principal(), id))
-                .flatMap(doc -> announce(grant.principal(), doc, actor -> DocumentEvent.newBuilder()
+                .flatMap(doc -> announce(grant.principal(), doc, List.of(), actor -> DocumentEvent.newBuilder()
                         .setRenamed(Renamed.newBuilder().setName(doc.getName()).setActor(actor)).build()))))
                 .call(this::publish)
                 .map(done -> RenameResponse.newBuilder().setDocument(done.document()).build());
@@ -242,11 +247,12 @@ public class DocumentGrpcService extends MutinyDocumentServiceGrpc.DocumentServi
                     .chain(() -> documents.findById(id))
                     .chain(doc -> (crossSpace ? moveSpace(grant.principal(), doc, row, destination)
                             : Uni.createFrom().voidItem())
-                            .invoke(() -> touch(doc).folderId = folderId))
-                    .chain(() -> view(grant.principal(), id))
-                    .chain(doc -> announce(grant.principal(), doc, actor -> DocumentEvent.newBuilder()
+                            .invoke(() -> touch(doc).folderId = folderId)
+                            .chain(() -> moveBranches(doc)))
+                    .chain(followed -> view(grant.principal(), id).chain(doc -> announce(grant.principal(), doc, followed,
+                            actor -> DocumentEvent.newBuilder()
                             .setMoved(Moved.newBuilder().setSpaceId(doc.getSpaceId()).setFolderId(doc.getFolderId())
-                                    .setActor(actor)).build()));
+                                    .setActor(actor)).build())));
         }))).call(this::publish)
                 .call(done -> requestedSpace == null ? Uni.createFrom().voidItem()
                         : notices.document(id, null, UUID.fromString(done.event().getMoved().getActor().getUserId())))
@@ -307,13 +313,15 @@ public class DocumentGrpcService extends MutinyDocumentServiceGrpc.DocumentServi
     public Uni<TrashResponse> trash(TrashRequest request) {
         UUID id = UUID.fromString(request.getDocumentId());
         return tx(() -> guard.require(id, Role.OWNER).flatMap(grant -> documents.findById(id)
-                .invoke(doc -> {
-                    if (doc.trashedAt == null) {
-                        doc.trashedAt = touch(doc).updatedAt;
+                .chain(doc -> {
+                    if (doc.trashedAt != null) {
+                        return Uni.createFrom().item(List.<UUID>of());
                     }
+                    doc.trashedAt = touch(doc).updatedAt;
+                    return retrash(id, null, doc.trashedAt);
                 })
-                .flatMap(doc -> view(grant.principal(), id))
-                .flatMap(doc -> announce(grant.principal(), doc, actor -> trashed(true, actor)))))
+                .flatMap(followed -> view(grant.principal(), id)
+                        .flatMap(doc -> announce(grant.principal(), doc, followed, actor -> trashed(true, actor))))))
                 .call(this::publish)
                 .map(done -> TrashResponse.newBuilder().setDocument(done.document()).build());
     }
@@ -322,9 +330,13 @@ public class DocumentGrpcService extends MutinyDocumentServiceGrpc.DocumentServi
     public Uni<RestoreResponse> restore(RestoreRequest request) {
         UUID id = UUID.fromString(request.getDocumentId());
         return tx(() -> guard.require(id, Role.OWNER).flatMap(grant -> documents.findById(id)
-                .invoke(doc -> touch(doc).trashedAt = null)
-                .flatMap(doc -> view(grant.principal(), id))
-                .flatMap(doc -> announce(grant.principal(), doc, actor -> trashed(false, actor)))))
+                .chain(doc -> {
+                    Instant trashedAt = doc.trashedAt;
+                    touch(doc).trashedAt = null;
+                    return trashedAt == null ? Uni.createFrom().item(List.<UUID>of()) : retrash(id, trashedAt, null);
+                })
+                .flatMap(followed -> view(grant.principal(), id)
+                        .flatMap(doc -> announce(grant.principal(), doc, followed, actor -> trashed(false, actor))))))
                 .call(this::publish)
                 .map(done -> RestoreResponse.newBuilder().setDocument(done.document()).build());
     }
@@ -437,19 +449,52 @@ public class DocumentGrpcService extends MutinyDocumentServiceGrpc.DocumentServi
                 .replaceWith(DeleteFolderResponse.getDefaultInstance());
     }
 
-    /** A committed change to a document and the event every live session on it is told (SRV-005). */
-    record Announced(com.villagecompute.wiretuner.docs.v1.Document document, DocumentEvent event) {
+    /**
+     * A committed change to a document and the event every live session on it is told (SRV-005), and
+     * on the branches that followed it (trashed, restored or moved with it, COLLAB-019).
+     */
+    record Announced(com.villagecompute.wiretuner.docs.v1.Document document, List<UUID> branches, DocumentEvent event) {
     }
 
     /** Builds the event inside the transaction, with the caller as its actor. */
     private Uni<Announced> announce(Principal principal, com.villagecompute.wiretuner.docs.v1.Document doc,
-            Function<Participant, DocumentEvent> event) {
-        return events.event(principal.accountId(), event).map(built -> new Announced(doc, built));
+            List<UUID> branches, Function<Participant, DocumentEvent> event) {
+        return events.event(principal.accountId(), event).map(built -> new Announced(doc, branches, built));
     }
 
-    /** Publishes the event once the transaction has committed. */
+    /** Publishes the event once the transaction has committed, on the document and the branches that followed it. */
     private Uni<Void> publish(Announced done) {
-        return events.publish(UUID.fromString(done.document().getId()), done.event());
+        return Multi.createFrom().item(UUID.fromString(done.document().getId()))
+                .onCompletion().switchTo(() -> Multi.createFrom().iterable(done.branches()))
+                .onItem().transformToUniAndConcatenate(documentId -> events.publish(documentId, done.event()))
+                .collect().last();
+    }
+
+    /**
+     * The parent's branches trashed at {@code from} (null: live ones) set to trashed at {@code to}
+     * (null: restored): a branch goes to the trash with its parent and comes back with it, unless it
+     * was trashed on its own (COLLAB-019). The result is the branches that followed.
+     */
+    private Uni<List<UUID>> retrash(UUID parentId, Instant from, Instant to) {
+        return branches.branchesOf(parentId).chain(documents::byIds).map(docs -> docs.stream()
+                .filter(branch -> Objects.equals(branch.trashedAt, from))
+                .map(branch -> {
+                    touch(branch).trashedAt = to;
+                    return branch.id;
+                })
+                .toList());
+    }
+
+    /** The parent's branches moved into its space and folder (a branch lives beside its parent); their ids. */
+    private Uni<List<UUID>> moveBranches(Document parent) {
+        return branches.branchesOf(parent.id).chain(documents::byIds).map(docs -> docs.stream()
+                .map(branch -> {
+                    touch(branch).ownerAccountId = parent.ownerAccountId;
+                    branch.teamId = parent.teamId;
+                    branch.folderId = parent.folderId;
+                    return branch.id;
+                })
+                .toList());
     }
 
     private static DocumentEvent trashed(boolean trashed, Participant actor) {

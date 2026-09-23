@@ -33,7 +33,7 @@ class SchemaTest {
             "share_link_use", "branch", "version", "document_search", "replica", "change_log", "snapshot",
             "cold_segment", "blob", "document_blob", "folder", "document_invite", "access_request", "data_credential",
             "data_allowed_host", "data_fetch_audit", "library", "comment_thread", "comment", "comment_read",
-            "comment_notification", "publish", "publish_file");
+            "comment_notification", "publish", "publish_file", "change_node", "node_name");
 
     @Inject
     Flyway flyway;
@@ -42,8 +42,8 @@ class SchemaTest {
     DataSource dataSource;
 
     @Test
-    void flywayReachedV10() {
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("10");
+    void flywayReachedV11() {
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("11");
         assertThat(flyway.info().pending()).isEmpty();
     }
 
@@ -52,7 +52,7 @@ class SchemaTest {
         List<String> present = strings("SELECT tablename FROM pg_tables WHERE schemaname = 'public'");
         assertThat(present).containsAll(TABLES);
         assertThat(strings("SELECT extname FROM pg_extension")).contains("pg_trgm");
-        assertThat(strings("SELECT value FROM schema_info WHERE key = 'wiretuner.schema'")).containsExactly("SRV-013");
+        assertThat(strings("SELECT value FROM schema_info WHERE key = 'wiretuner.schema'")).containsExactly("COLLAB-020");
     }
 
     @Test

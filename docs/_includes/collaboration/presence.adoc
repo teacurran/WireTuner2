@@ -217,6 +217,9 @@ message PresenceUpdate {
   bool spotlight = 14;
   // The user this session is following, if any (informational: shown on the hover card).
   string following_user_id = 15;
+  // Server-filled.  The session: the replica of the subscription.  With branch_id it tells one
+  // person's two Macs apart.
+  fixed64 session = 16;
 }
 
 enum PresenceState { PRESENCE_STATE_UNSPECIFIED = 0; PRESENCE_STATE_ACTIVE = 1;
@@ -303,8 +306,31 @@ lowest index no one who has opened the document holds, and once all twelve are t
 of people who have opened it modulo twelve (so the thirteenth gets 0 and the fourteenth 1).  The
 index lives on `document_member.color_index`; someone with access only through the team or a link
 gets a row with role `none`, which grants nothing.  `user`, `color_index` and `branch_id` are
-always overwritten by the server (`branch_id` cleared).  Branch relay is deferred: BranchService
-is not built.
+always overwritten by the server.
+
+As built (COLLAB-004, COLLAB-005; `api/.../sync`):
+
+* *Session.*  `PresenceUpdate.session` (field 16, `fixed64`) is server-filled with the replica of
+  the subscription (or of the `UpdatePresence` call), so one person's two Macs are two entries.  An
+  entry is identified by `(branch_id, session)`: the same replica id may be bound on a parent and on
+  one of its branches (an offline-created branch keeps the parent replica's id).  A client finds its
+  own entry by its own replica and branch.
+* *Change author.*  `SequencedChange.author` is the account the change's replica is bound to; for a
+  change a branch merge replayed into the parent, whose replica is bound on the branch, it is read
+  there (hot rows through `merged_from_branch_id`, cold ones through the branches' replica rows), so
+  replay, catch-up and history attribute merged work to its author.
+* *Colors* are one per person across a document and its branches: a branch has no member rows
+  (COLLAB-019), so a session on a branch takes its color from the parent's `document_member` row.
+* *Branch relay.*  A document and its branches share one presence.  Entries live in Valkey under
+  the parent (`presence:<parent>`, member `<document>:<replica>`), every update is published on the
+  parent's channel, and a subscription on a branch also listens on the parent's channel, taking only
+  its `PresenceUpdate` frames.  So the parent's snapshot lists the sessions on its branches with
+  `branch_id` set, and a branch's snapshot lists the parent's sessions (`branch_id` empty) and those
+  on other branches of the same parent.  `branch_id` always names the branch the session is on,
+  whichever subscription the entry is delivered on.
+* *Caps.*  Deviation: over-cap frames are refused by the protovalidate interceptor
+  (`INVALID_ARGUMENT / VALIDATION_FAILED`) rather than truncated; the client truncates before
+  sending (the selection's first 200 plus `selection_count`).
 
 === Client
 
@@ -324,10 +350,10 @@ the fake server, at most 11 ms).  Outgoing presence is `WTSync.LocalPresence`: W
 it, the sync client reads it at 20 Hz and sends it when it changed or every 10 s, two minutes
 without input reads as `IDLE`, and with *Show my cursor and selection to others* off
 (`LocalPresence.sharing`) pointer, tool, selection, sub-selection and caret are left out.
-Deviation: `PresenceUpdate` carries no session id, so participants are keyed by account -- two
-Macs of one person show as one participant (the newest frame wins) and the local user's other
-Mac is excluded with the local user.  A `session` field on `PresenceUpdate` (server-filled from
-the subscription's replica) would restore the specified keying; proposed for COLLAB-004.
+Deviation: participants are keyed by account -- two Macs of one person show as one participant
+(the newest frame wins) and the local user's other Mac is excluded with the local user.  The
+server now fills `PresenceUpdate.session` (COLLAB-004); keying `PresenceModel` by
+`(branch_id, session)` and excluding only the local replica's entry is left to the client.
 * `WTRender`: a `PresenceOverlayLayer` above the tiled canvas draws cursors, labels,
   selection outlines, point highlights, carets and attribution flashes.  It is redrawn on
   presence changes and on scroll/zoom, never invalidating document tiles.  Hit testing

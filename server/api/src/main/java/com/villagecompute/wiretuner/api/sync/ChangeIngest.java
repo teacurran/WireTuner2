@@ -9,6 +9,7 @@ import com.villagecompute.wiretuner.api.comments.CommentIndex;
 import com.villagecompute.wiretuner.api.comments.CommentOps;
 import com.villagecompute.wiretuner.api.comments.CommentRules;
 import com.villagecompute.wiretuner.api.grpc.StatusExceptions;
+import com.villagecompute.wiretuner.api.history.ChangeIndex;
 import com.villagecompute.wiretuner.api.observability.WtMetrics;
 import com.villagecompute.wiretuner.crdt.Schema;
 import com.villagecompute.wiretuner.doc.v1.Change;
@@ -44,7 +45,8 @@ import jakarta.inject.Inject;
  * nothing was written the replica row and the logged change are read back to say why: a replica
  * bound elsewhere or retired, an already-accepted seq with identical content (silently acked with
  * its original {@code server_seq}) or different content ({@code REPLICA_CONFLICT}), or a gap
- * ({@code SEQ_GAP}).
+ * ({@code SEQ_GAP}). The same statement writes the change's history index ({@link ChangeIndex}: the
+ * nodes it names and the names it gives) at the new {@code server_seq} (COLLAB-020).
  */
 @ApplicationScoped
 public class ChangeIngest {
@@ -65,6 +67,13 @@ public class ChangeIngest {
                 UPDATE document SET head_seq = head_seq + 1
                 WHERE id = $1 AND EXISTS (SELECT 1 FROM r)
                 RETURNING head_seq
+            ), n AS (
+                INSERT INTO change_node (document_id, node_replica, node_counter, server_seq)
+                SELECT $1, t.r, t.c, d.head_seq FROM d, unnest($9::bigint[], $10::bigint[]) AS t(r, c)
+            ), m AS (
+                INSERT INTO node_name (document_id, node_replica, node_counter, server_seq, kind, name)
+                SELECT $1, t.r, t.c, d.head_seq, t.k, t.n
+                FROM d, unnest($11::bigint[], $12::bigint[], $13::int[], $14::text[]) AS t(r, c, k, n)
             )
             INSERT INTO change_log (document_id, server_seq, replica_id, seq, bytes, byte_size, horizon_seq, horizon_ms)
             SELECT $1, d.head_seq, $2, $5, $6, $7, LEAST(r.horizon_seq, $8), r.horizon_ms FROM d, r
@@ -127,6 +136,9 @@ public class ChangeIngest {
         Tuple args = Tuple.from(new Object[] {documentId, change.getReplica(), principal.accountId(),
                 ReplicaBinding.device(principal), change.getSeq(), Buffer.buffer(bytes), bytes.length,
                 change.getBaseServerSeq()});
+        for (Object column : ChangeIndex.entries(change).columns()) {
+            args.addValue(column);
+        }
         return writer.write(documentId, args)
                 .chain(serverSeq -> serverSeq == null ? explain(principal, documentId, change, bytes).map(seq -> new Written(seq, false))
                         : Uni.createFrom().item(new Written(serverSeq, true)))

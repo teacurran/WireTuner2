@@ -20,14 +20,14 @@ public class TeamInvite {
     public UUID teamId;
 
     /** The invited address, lower-case. */
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "text")
     public String email;
 
     /** {@code admin}, {@code member} or {@code guest}. */
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "text")
     public String role;
 
-    @Column(name = "token_hash", nullable = false)
+    @Column(name = "token_hash", nullable = false, columnDefinition = "text")
     public String tokenHash;
 
     @Column(name = "invited_by_account_id")

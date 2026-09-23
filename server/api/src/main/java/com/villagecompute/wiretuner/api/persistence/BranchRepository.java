@@ -56,6 +56,23 @@ public class BranchRepository {
                 .map(row -> row == null ? null : toRow(row));
     }
 
+    /** The parent of a branch; null when the document is not a branch. */
+    public Uni<UUID> parentOf(UUID documentId) {
+        return Panache.getSession().chain(session -> session
+                .createNativeQuery("SELECT parent_document_id FROM branch WHERE document_id = ?1", UUID.class)
+                .setParameter(1, documentId)
+                .getSingleResultOrNull());
+    }
+
+    /** The ids of a document's branches, trashed ones included. */
+    public Uni<List<UUID>> branchesOf(UUID parentId) {
+        return Panache.getSession().chain(session -> session
+                .createNativeQuery("SELECT document_id FROM branch WHERE parent_document_id = ?1 ORDER BY document_id",
+                        UUID.class)
+                .setParameter(1, parentId)
+                .getResultList());
+    }
+
     /**
      * The parent's live (not trashed) branches, newest first, archived ones only when asked, after
      * the cursor ({@code afterMicros}, {@code afterId}; {@code Long.MAX_VALUE} for the first page).

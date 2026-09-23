@@ -8,6 +8,7 @@ import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Supplier;
@@ -24,6 +25,7 @@ import com.villagecompute.wiretuner.api.persistence.Account;
 import com.villagecompute.wiretuner.api.persistence.AccountRepository;
 import com.villagecompute.wiretuner.api.persistence.AccessRequest;
 import com.villagecompute.wiretuner.api.persistence.AccessRequestRepository;
+import com.villagecompute.wiretuner.api.persistence.BranchRepository;
 import com.villagecompute.wiretuner.api.persistence.Document;
 import com.villagecompute.wiretuner.api.persistence.DocumentInvite;
 import com.villagecompute.wiretuner.api.persistence.DocumentInviteRepository;
@@ -158,6 +160,9 @@ public class ShareGrpcService extends MutinyShareServiceGrpc.ShareServiceImplBas
     @Inject
     RoleNotices notices;
 
+    @Inject
+    BranchRepository branches;
+
     /** An event for one account's sessions ({@code audience}), or for everyone's (null). */
     record Notice(UUID audience, DocumentEvent event) {
     }
@@ -173,7 +178,7 @@ public class ShareGrpcService extends MutinyShareServiceGrpc.ShareServiceImplBas
         UUID documentId = UUID.fromString(request.getDocumentId());
         int offset = request.getCursor().isEmpty() ? 0 : Cursors.offset(Cursors.decode(request.getCursor(), 1)[0]);
         int pageSize = Cursors.pageSize(request.getPageSize(), Cursors.SMALL_PAGE);
-        return tx(() -> guard.require(documentId, Role.VIEWER).flatMap(grant -> documents.findById(documentId)
+        return tx(() -> sharing(documentId, Role.VIEWER).flatMap(grant -> documents.findById(documentId)
                 .flatMap(doc -> people(doc, grant.role() == Role.OWNER).flatMap(people -> {
                     ListMembersResponse.Builder response = ListMembersResponse.newBuilder();
                     int end = Math.min(people.size(), offset + pageSize);
@@ -209,7 +214,7 @@ public class ShareGrpcService extends MutinyShareServiceGrpc.ShareServiceImplBas
     public Uni<SetTeamAccessResponse> setTeamAccess(SetTeamAccessRequest request) {
         UUID documentId = UUID.fromString(request.getDocumentId());
         Role override = ShareMessages.role(request.getOverride());
-        return tx(() -> guard.require(documentId, Role.OWNER).flatMap(grant -> documents.findById(documentId)
+        return tx(() -> sharing(documentId, Role.OWNER).flatMap(grant -> documents.findById(documentId)
                 .flatMap(doc -> {
                     if (doc.teamId == null) {
                         return Uni.createFrom().failure(StatusExceptions.teamRoleInvalid(PERSONAL_HAS_NO_TEAM));
@@ -278,7 +283,7 @@ public class ShareGrpcService extends MutinyShareServiceGrpc.ShareServiceImplBas
     public Uni<InviteResponse> invite(InviteRequest request) {
         UUID documentId = UUID.fromString(request.getDocumentId());
         Role role = ShareMessages.role(request.getRole());
-        return tx(() -> guard.require(documentId, Role.EDITOR).flatMap(grant -> documents.findById(documentId)
+        return tx(() -> sharing(documentId, Role.EDITOR).flatMap(grant -> documents.findById(documentId)
                 .flatMap(doc -> invitee(request).flatMap(account -> account == null
                         ? invitePending(grant.principal(), doc, request.getEmail().toLowerCase(Locale.ROOT), role)
                         : inviteAccount(grant.principal(), doc, account, role)))))
@@ -354,7 +359,7 @@ public class ShareGrpcService extends MutinyShareServiceGrpc.ShareServiceImplBas
         UUID documentId = UUID.fromString(request.getDocumentId());
         UUID target = UUID.fromString(request.getAccountId());
         Role role = ShareMessages.role(request.getRole());
-        return tx(() -> guard.require(documentId, Role.EDITOR).flatMap(grant -> documents.findById(documentId)
+        return tx(() -> sharing(documentId, Role.EDITOR).flatMap(grant -> documents.findById(documentId)
                 .flatMap(doc -> named(doc, target).flatMap(row -> {
                     Role current = Role.fromDb(row.role);
                     if (current == Role.EDITOR && role != Role.EDITOR && grant.role() != Role.OWNER) {
@@ -389,7 +394,7 @@ public class ShareGrpcService extends MutinyShareServiceGrpc.ShareServiceImplBas
     public Uni<RemoveMemberResponse> removeMember(RemoveMemberRequest request) {
         UUID documentId = UUID.fromString(request.getDocumentId());
         UUID target = UUID.fromString(request.getAccountId());
-        return tx(() -> guard.require(documentId, Role.VIEWER).flatMap(grant -> documents.findById(documentId)
+        return tx(() -> sharing(documentId, Role.VIEWER).flatMap(grant -> documents.findById(documentId)
                 .flatMap(doc -> members.findById(new DocumentMemberId(documentId, target)).flatMap(row -> {
                     if (isOwner(doc, target, row)) {
                         return Uni.createFrom().failure(StatusExceptions.ownerMustTransfer());
@@ -429,7 +434,7 @@ public class ShareGrpcService extends MutinyShareServiceGrpc.ShareServiceImplBas
         String token = token();
         Uni<String> password = request.getPassword().isEmpty() ? Uni.createFrom().nullItem()
                 : LinkPasswords.hash(request.getPassword());
-        return tx(() -> guard.require(documentId, Role.OWNER).flatMap(grant -> documents.findById(documentId)
+        return tx(() -> sharing(documentId, Role.OWNER).flatMap(grant -> documents.findById(documentId)
                 .flatMap(doc -> linkAllowed(doc, request.getTeamMembersOnly()).chain(() -> password).flatMap(hash -> {
                     ShareLink link = new ShareLink();
                     link.id = UUID.randomUUID();
@@ -526,7 +531,7 @@ public class ShareGrpcService extends MutinyShareServiceGrpc.ShareServiceImplBas
     @Override
     public Uni<ListLinksResponse> listLinks(ListLinksRequest request) {
         UUID documentId = UUID.fromString(request.getDocumentId());
-        return tx(() -> guard.require(documentId, Role.OWNER).flatMap(grant -> links.getSession().chain(session -> session
+        return tx(() -> sharing(documentId, Role.OWNER).flatMap(grant -> links.getSession().chain(session -> session
                 .createQuery("select l, (select count(u) from ShareLinkUse u where u.id.shareLinkId = l.id)"
                         + " from ShareLink l where l.documentId = ?1 and (?2 = true or l.revokedAt is null)"
                         + " order by l.createdAt desc, l.id", Object[].class)
@@ -607,7 +612,7 @@ public class ShareGrpcService extends MutinyShareServiceGrpc.ShareServiceImplBas
     @Override
     public Uni<RequestAccessResponse> requestAccess(RequestAccessRequest request) {
         UUID documentId = UUID.fromString(request.getDocumentId());
-        return tx(() -> guard.authenticated().flatMap(principal -> documents.findById(documentId)
+        return tx(() -> guard.authenticated().flatMap(principal -> notBranch(documentId).chain(() -> documents.findById(documentId))
                 .onItem().ifNull().failWith(StatusExceptions::documentNotFound)
                 .flatMap(doc -> requests.findPending(documentId, principal.accountId()).flatMap(existing -> {
                     if (existing != null) {
@@ -645,7 +650,7 @@ public class ShareGrpcService extends MutinyShareServiceGrpc.ShareServiceImplBas
         UUID documentId = UUID.fromString(request.getDocumentId());
         int offset = request.getCursor().isEmpty() ? 0 : Cursors.offset(Cursors.decode(request.getCursor(), 1)[0]);
         int pageSize = Cursors.pageSize(request.getPageSize(), Cursors.SMALL_PAGE);
-        return tx(() -> guard.require(documentId, Role.OWNER)
+        return tx(() -> sharing(documentId, Role.OWNER)
                 .chain(() -> requests.listPending(documentId, offset, pageSize + 1))
                 .flatMap(pending -> {
                     ListAccessRequestsResponse.Builder response = ListAccessRequestsResponse.newBuilder();
@@ -702,7 +707,7 @@ public class ShareGrpcService extends MutinyShareServiceGrpc.ShareServiceImplBas
     public Uni<TransferOwnershipResponse> transferOwnership(TransferOwnershipRequest request) {
         UUID documentId = UUID.fromString(request.getDocumentId());
         UUID target = UUID.fromString(request.getNewOwnerAccountId());
-        return tx(() -> guard.require(documentId, Role.OWNER).flatMap(grant -> documents.findById(documentId)
+        return tx(() -> sharing(documentId, Role.OWNER).flatMap(grant -> documents.findById(documentId)
                 .flatMap(doc -> members.find("id.documentId = ?1 and role = 'owner'", documentId).firstResult()
                         .flatMap(ownerRow -> {
                             UUID previous = doc.teamId == null ? doc.ownerAccountId
@@ -767,6 +772,21 @@ public class ShareGrpcService extends MutinyShareServiceGrpc.ShareServiceImplBas
 
     // ---------------------------------------------------------------------------------- helpers
 
+    /**
+     * The caller checked for {@code minimum} on a document that is not a branch: a branch's people are
+     * its parent's (COLLAB-019), so sharing a branch is {@code VALIDATION_FAILED}; the client shares the
+     * parent.
+     */
+    private Uni<RoleGuard.Grant> sharing(UUID documentId, Role minimum) {
+        return notBranch(documentId).chain(() -> guard.require(documentId, minimum));
+    }
+
+    private Uni<Void> notBranch(UUID documentId) {
+        return branches.parentOf(documentId).chain(parent -> parent == null ? Uni.createFrom().voidItem()
+                : Uni.createFrom().failure(StatusExceptions.validationFailed("a branch has its parent's people",
+                        Map.of("document_id", "names a branch; share its parent " + parent))));
+    }
+
     /** Gives the account a named role, raising a color-only row or adding one. */
     private Uni<Void> setNamed(DocumentMemberId key, DocumentMember row, Role role, UUID addedBy) {
         if (row != null) {
@@ -808,15 +828,21 @@ public class ShareGrpcService extends MutinyShareServiceGrpc.ShareServiceImplBas
                 .setRole(DocumentMessages.role(role)).setActor(actor)).build();
     }
 
-    /** Tells the document's sessions, once committed, and forgets this node's push decisions for it. */
+    /**
+     * Tells the document's sessions and its branches' (whose people are its own), once committed, and
+     * forgets this node's push decisions for them.
+     */
     private Uni<Void> announce(Outcome<?> outcome) {
-        grants.forget(outcome.documentId());
-        return Multi.createFrom().iterable(outcome.notices())
-                .onItem().transformToUniAndConcatenate(notice -> notice.audience() == null
-                        ? events.publish(outcome.documentId(), notice.event())
-                        : events.publishTo(outcome.documentId(), notice.audience(), notice.event()))
-                .collect().last()
-                .replaceWithVoid();
+        return notices.family(outcome.documentId()).chain(family -> {
+            family.forEach(grants::forget);
+            return Multi.createFrom().iterable(family)
+                    .onItem().transformToMultiAndConcatenate(documentId -> Multi.createFrom().iterable(outcome.notices())
+                            .onItem().transformToUniAndConcatenate(notice -> notice.audience() == null
+                                    ? events.publish(documentId, notice.event())
+                                    : events.publishTo(documentId, notice.audience(), notice.event())))
+                    .collect().last()
+                    .replaceWithVoid();
+        });
     }
 
     static String token() {

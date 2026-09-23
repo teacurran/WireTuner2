@@ -42,13 +42,20 @@ import io.quarkus.test.junit.QuarkusTest;
 
 /**
  * SRV-011: VersionService -- named versions as bookmarks, pinning, restore-as-copy, the timeline
- * and node history (the history scan is 40 rows and the node scan 16 in tests).
+ * and node history (the history scan is 40 rows in tests); COLLAB-020: node names at the time, register
+ * attributes, the object-name query, node history from the index, and history across cold segments.
  */
 @QuarkusTest
 class VersionServiceTest extends HistoryTestSupport {
 
     @GrpcClient("versions")
     VersionServiceGrpc.VersionServiceBlockingStub versions;
+
+    @jakarta.inject.Inject
+    Snapshotter snapshotter;
+
+    @jakarta.inject.Inject
+    Compactor compactor;
 
     VersionServiceGrpc.VersionServiceBlockingStub as(String user) {
         return TestUsers.as(versions, user);
@@ -230,9 +237,14 @@ class VersionServiceTest extends HistoryTestSupport {
         long replica = replicaId();
         List<Change> changes = new ArrayList<>();
         for (long s = 1; s <= 45; s++) {
-            changes.add(change(replica, s, "Edit " + s));
+            // A cold change's time is its own: the client's clock.
+            changes.add(change(replica, s, "Edit " + s).toBuilder().setWallTimeMs(System.currentTimeMillis()).build());
         }
         pushAll(ALICE, null, id, changes);
+        // All but the newest four rows go cold: the timeline reads through the segments.
+        run(() -> snapshotter.snapshot(id));
+        assertThat(run(() -> compactor.compact(id))).isPositive();
+        assertThat(count("SELECT count(*) FROM change_log WHERE document_id = ?", id)).isEqualTo(4);
         // The first page reads 40 rows: the session is cut there and continues on the next page.
         ListHistoryResponse first = history(ListHistoryRequest.newBuilder().setDocumentId(id.toString()));
         assertThat(rows(first)).containsExactly("s:6-45");
@@ -267,6 +279,9 @@ class VersionServiceTest extends HistoryTestSupport {
                     DocOps.noop()));
         }
         pushAll(ALICE, null, id, changes);
+        // A full scan of hot rows: the page is cut there, with a cursor.
+        ListHistoryResponse scanned = history(ListHistoryRequest.newBuilder().setDocumentId(id.toString()));
+        assertThat(rows(scanned)).containsExactly("s:1-40");
         ListNodeHistoryRequest.Builder request = ListNodeHistoryRequest.newBuilder().setDocumentId(id.toString()).setNode(node)
                 .setPageSize(2);
         ListNodeHistoryResponse first = as(CAROL).listNodeHistory(request.build());
@@ -277,5 +292,74 @@ class VersionServiceTest extends HistoryTestSupport {
                 .build());
         assertThat(rest.getChangesList()).extracting(ChangeSummary::getLabel).containsExactly("Rename 10", "Create");
         assertThat(rest.getNextCursor()).isEmpty();
+    }
+
+    @Test
+    void rowsNameTheirNodesAsTheyWereAndTheRegistersWrittenHotAndCold() {
+        UUID id = document(ALICE);
+        share(id, carol, "viewer");
+        DocOps.Author a = new DocOps.Author(replicaId());
+        OpId logo = a.next();
+        List<Change> changes = new ArrayList<>();
+        changes.add(a.change("Create", DocOps.create(wellKnown(LAYERS), DocOps.path("Logo", ""))));
+        changes.add(a.change("Plain", DocOps.create(wellKnown(LAYERS), DocOps.path("", ""))));
+        changes.add(a.change("Rename", DocOps.rename(logo, "Badge")));
+        for (int i = 0; i < 9; i++) {
+            changes.add(a.change("Edit " + i, DocOps.noop()));
+        }
+        changes.add(a.change("Touch", DocOps.clearNote(logo)));
+        push(ALICE, null, id, changes.toArray(Change[]::new));
+        String doc = id.toString();
+
+        for (int pass = 0; pass < 2; pass++) {
+            Session all = history(ListHistoryRequest.newBuilder().setDocumentId(doc).setExpandSession(1)).getRows(0)
+                    .getSession();
+            List<ChangeSummary> rows = all.getChangesList();
+            assertThat(rows).hasSize(13);
+            assertThat(rows.get(12).getLabel()).isEqualTo("Create");
+            assertThat(rows.get(12).getNodes(0).getName()).isEqualTo("Logo");
+            assertThat(rows.get(12).getAttributesList()).isEmpty();
+            assertThat(rows.get(11).getNodes(0).getName()).isEqualTo("Path");
+            assertThat(rows.get(10).getNodes(0).getName()).isEqualTo("Badge");
+            assertThat(rows.get(10).getAttributesList()).containsExactly("Name");
+            assertThat(rows.get(0).getNodes(0).getName()).isEqualTo("Badge");
+            assertThat(rows.get(0).getAttributesList()).containsExactly("Note");
+            // An object's name, then or now, finds the changes that touched it.
+            Session named = history(ListHistoryRequest.newBuilder().setDocumentId(doc).setQuery("logo")).getRows(0)
+                    .getSession();
+            assertThat(named.getChangesList()).extracting(ChangeSummary::getLabel).containsExactly("Touch", "Rename", "Create");
+            // Node history from the index, a page at a time.
+            ListNodeHistoryRequest.Builder request = ListNodeHistoryRequest.newBuilder().setDocumentId(doc).setNode(logo)
+                    .setPageSize(2);
+            ListNodeHistoryResponse first = as(CAROL).listNodeHistory(request.build());
+            assertThat(first.getChangesList()).extracting(ChangeSummary::getLabel).containsExactly("Touch", "Rename");
+            ListNodeHistoryResponse rest = as(CAROL).listNodeHistory(request.setCursor(first.getNextCursor()).build());
+            assertThat(rest.getChangesList()).extracting(ChangeSummary::getLabel).containsExactly("Create");
+            assertThat(rest.getAuthorsList()).singleElement().satisfies(p -> assertThat(p.getUserId()).isEqualTo(alice.toString()));
+            // Then everything but the newest four rows goes cold, and the same answers come from the segments.
+            run(() -> snapshotter.snapshot(id));
+            run(() -> compactor.compact(id));
+        }
+        assertThat(count("SELECT count(*) FROM change_log WHERE document_id = ?", id)).isEqualTo(4);
+        ListHistoryResponse older = history(ListHistoryRequest.newBuilder().setDocumentId(doc).setBeforeServerSeq(4));
+        assertThat(rows(older)).containsExactly("s:1-3");
+        assertThat(older.getRetainedFromSeq()).isEqualTo(1);
+    }
+
+    @Test
+    void aColdChangeOfAnUnboundReplicaHasNoAuthorInTheTimeline() {
+        UUID id = document(ALICE);
+        share(id, carol, "viewer");
+        long replica = replicaId();
+        for (long s = 1; s <= 6; s++) {
+            row(id, s, replica, s, change(replica, s, "Raw " + s).toBuilder().setWallTimeMs(System.currentTimeMillis()).build()
+                    .toByteArray(), 0, 0);
+        }
+        exec("INSERT INTO snapshot (document_id, server_seq, object_key, state_hash, size_bytes, node_count)"
+                + " VALUES (?, 6, 'unused', ?, 0, 0)", id, "0".repeat(64));
+        run(() -> compactor.compact(id));
+        Session raw = history(ListHistoryRequest.newBuilder().setDocumentId(id.toString())).getRows(0).getSession();
+        assertThat(raw.getChangeCount()).isEqualTo(6);
+        assertThat(raw.getAuthor().getUserId()).isEmpty();
     }
 }

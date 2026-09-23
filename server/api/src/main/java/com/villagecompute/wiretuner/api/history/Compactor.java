@@ -54,12 +54,17 @@ public class Compactor {
             WHERE d.id = $2
             """.formatted(BOUNDARY);
 
-    /** The oldest rows up to the boundary whose bytes before them in the run are under the segment size. */
+    /**
+     * The oldest rows up to the boundary whose bytes before them in the run are under the segment size.
+     * Every row takes at least a byte, so no more than {@code segment size + 1} rows can qualify: the
+     * running sum is taken over those only, not over the whole hot log each time.
+     */
     static final String SEGMENT = """
             SELECT server_seq, bytes, horizon_seq, horizon_ms FROM (
                 SELECT server_seq, bytes, horizon_seq, horizon_ms,
                        sum(byte_size) OVER (ORDER BY server_seq) - byte_size AS before
-                FROM change_log WHERE document_id = $1 AND server_seq <= $2) r
+                FROM (SELECT server_seq, bytes, horizon_seq, horizon_ms, byte_size FROM change_log
+                      WHERE document_id = $1 AND server_seq <= $2 ORDER BY server_seq LIMIT $3 + 1) c) r
             WHERE before < $3 ORDER BY server_seq
             """;
 

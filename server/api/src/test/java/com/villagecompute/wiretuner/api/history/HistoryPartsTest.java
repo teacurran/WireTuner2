@@ -29,7 +29,9 @@ import com.villagecompute.wiretuner.doc.v1.ElementDelete;
 import com.villagecompute.wiretuner.doc.v1.ElementInsert;
 import com.villagecompute.wiretuner.doc.v1.ElementMove;
 import com.villagecompute.wiretuner.doc.v1.MoveNode;
+import com.villagecompute.wiretuner.doc.v1.NodeProps;
 import com.villagecompute.wiretuner.doc.v1.Op;
+import com.villagecompute.wiretuner.doc.v1.SetFields;
 import com.villagecompute.wiretuner.doc.v1.SetRemove;
 import com.villagecompute.wiretuner.doc.v1.TextDelete;
 import com.villagecompute.wiretuner.doc.v1.TextMark;
@@ -168,11 +170,88 @@ class HistoryPartsTest {
     }
 
     @Test
-    void aQueryMatchesTheLabelOrTheAuthor() {
+    void aQueryMatchesTheLabelTheAuthorOrANamedNode() {
         History.Logged row = logged(1, "Recolor logo", "u1", "Alice Example", 0, "");
-        assertThat(History.matches(row, "logo")).isTrue();
-        assertThat(History.matches(row, "alice")).isTrue();
-        assertThat(History.matches(row, "bob")).isFalse();
+        assertThat(History.matches(row, "logo", Set.of())).isTrue();
+        assertThat(History.matches(row, "alice", Set.of())).isTrue();
+        assertThat(History.matches(row, "bob", Set.of())).isFalse();
+        assertThat(History.matches(row, "badge", Set.of(new OpId(1, 9)))).isTrue();
+        assertThat(History.matches(row, "badge", Set.of(new OpId(2, 9)))).isFalse();
+    }
+
+    // ---------------------------------------------------------------------------- History index
+
+    @Test
+    void theIndexNamesTouchedNodesAndTheLastNameAChangeGivesEach() {
+        DocOps.Author author = new DocOps.Author(5);
+        com.villagecompute.wiretuner.doc.v1.OpId n = DocOps.id(9, 3);
+        Change change = author.change("Index", DocOps.create(wellKnown(LAYERS), DocOps.path("Logo", "")),
+                DocOps.create(wellKnown(LAYERS), NodeProps.getDefaultInstance()),
+                DocOps.rename(n, "Badge"),
+                Op.newBuilder().setSet(SetFields.newBuilder().setNode(n)
+                        .addPaths(DocOps.fields(NodeProps.PATH_FIELD_NUMBER, 1, CommonProps.NAME_FIELD_NUMBER))).build(),
+                DocOps.clearNote(n),
+                DocOps.noop());
+        ChangeIndex.Entries entries = ChangeIndex.entries(change);
+        assertThat(entries.nodes()).containsExactly(new OpId(1, 5), new OpId(2, 5), OpId.of(n));
+        assertThat(entries.names()).containsExactly(
+                new ChangeIndex.Named(new OpId(1, 5), NodeProps.PATH_FIELD_NUMBER, "Logo"),
+                new ChangeIndex.Named(new OpId(2, 5), 0, ""),
+                new ChangeIndex.Named(OpId.of(n), NodeProps.PATH_FIELD_NUMBER, ""));
+        UUID document = UUID.randomUUID();
+        io.vertx.mutiny.sqlclient.Tuple tuple = entries.tuple(document, 7);
+        assertThat(tuple.size()).isEqualTo(8);
+        assertThat(tuple.getValue(0)).isEqualTo(document);
+        assertThat((Long[]) tuple.getValue(3)).containsExactly(1L, 2L, 9L);
+        assertThat((String[]) tuple.getValue(7)).containsExactly("Logo", "", "");
+        assertThat(ChangeIndex.kindName(NodeProps.MASTER_PAGE_FIELD_NUMBER)).isEqualTo("Master page");
+        assertThat(ChangeIndex.kindName(0)).isEmpty();
+    }
+
+    @Test
+    void attributesAreTheRegistersAChangeWrites() {
+        com.villagecompute.wiretuner.doc.v1.OpId n = DocOps.id(9, 3);
+        com.villagecompute.wiretuner.doc.v1.FieldPath points = DocOps.fields(NodeProps.PATH_FIELD_NUMBER, 2);
+        com.villagecompute.wiretuner.doc.v1.FieldPath element = points.toBuilder()
+                .addSegments(com.villagecompute.wiretuner.doc.v1.PathSegment.newBuilder()
+                        .setElement(com.villagecompute.wiretuner.doc.v1.ElementId.newBuilder().setCounter(4).setReplica(3)))
+                .build();
+        Change change = new DocOps.Author(5).change("All", DocOps.create(wellKnown(LAYERS), DocOps.path("A", "")),
+                DocOps.rename(n, "B"), DocOps.clearNote(n),
+                Op.newBuilder().setSet(SetFields.newBuilder().setNode(n)
+                        .addPaths(DocOps.fields(NodeProps.PATH_FIELD_NUMBER, 1))
+                        .addPaths(DocOps.fields(NodeProps.PATH_FIELD_NUMBER, 1, 999))
+                        .addPaths(DocOps.fields(999, 1))
+                        .addPaths(DocOps.fields(NodeProps.PATH_FIELD_NUMBER))
+                        .addPaths(com.villagecompute.wiretuner.doc.v1.FieldPath.getDefaultInstance())
+                        .addPaths(DocOps.fields(NodeProps.PATH_FIELD_NUMBER, 999))
+                        .addPaths(element.toBuilder().setSegments(1, element.getSegments(2)))).build(),
+                Op.newBuilder().setMove(MoveNode.newBuilder().setNode(n).setParent(wellKnown(LAYERS))).build(),
+                DocOps.delete(n),
+                Op.newBuilder().setElementInsert(ElementInsert.newBuilder().setNode(n).setSequence(points)
+                        .addPositions(ByteString.copyFrom(new byte[] {1}))).build(),
+                Op.newBuilder().setElementMove(ElementMove.newBuilder().setNode(n).setElement(element)).build(),
+                Op.newBuilder().setElementDelete(ElementDelete.newBuilder().setNode(n).addElements(element)).build(),
+                DocOps.type(DocOps.id(10, 3), "x"),
+                Op.newBuilder().setTextDelete(TextDelete.newBuilder().setNode(n)
+                        .setText(DocOps.fields(NodeProps.TEXT_FIELD_NUMBER, 3))).build(),
+                Op.newBuilder().setTextMark(TextMark.newBuilder().setNode(n)
+                        .setText(DocOps.fields(NodeProps.TEXT_FIELD_NUMBER, 4))).build(),
+                DocOps.keyword("k"),
+                Op.newBuilder().setSetRemove(SetRemove.newBuilder().setNode(n)
+                        .setSet(DocOps.fields(NodeProps.SETTINGS_FIELD_NUMBER, 5))).build(),
+                DocOps.noop());
+        List<String> attributes = ChangeIndex.attributes(change);
+        assertThat(attributes).startsWith("Name", "Note", "Common", "Order", "Deleted");
+        assertThat(attributes).contains("Text", "Info");
+        assertThat(attributes).doesNotContain("");
+        assertThat(ChangeIndex.display("stroke_width")).isEqualTo("Stroke width");
+        List<Op> many = new java.util.ArrayList<>();
+        for (int field = 1; field <= 40; field++) {
+            many.add(Op.newBuilder().setSet(SetFields.newBuilder().setNode(n)
+                    .addPaths(DocOps.fields(NodeProps.SETTINGS_FIELD_NUMBER, field))).build());
+        }
+        assertThat(ChangeIndex.attributes(new DocOps.Author(6).change("Many", many))).hasSizeLessThanOrEqualTo(32);
     }
 
     @Test

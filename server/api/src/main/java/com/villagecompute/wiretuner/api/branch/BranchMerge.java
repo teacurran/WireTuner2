@@ -11,11 +11,13 @@ import org.jboss.logging.Logger;
 import com.villagecompute.wiretuner.api.auth.Role;
 import com.villagecompute.wiretuner.api.auth.RoleGuard;
 import com.villagecompute.wiretuner.api.grpc.StatusExceptions;
+import com.villagecompute.wiretuner.api.history.ChangeIndex;
 import com.villagecompute.wiretuner.api.history.DocumentStates;
 import com.villagecompute.wiretuner.api.history.TouchedNodes;
 import com.villagecompute.wiretuner.api.persistence.BranchRepository;
 import com.villagecompute.wiretuner.api.persistence.BranchRepository.BranchRow;
 import com.villagecompute.wiretuner.api.sync.ChangeIngest;
+import com.villagecompute.wiretuner.api.sync.DocumentEvents;
 import com.villagecompute.wiretuner.api.sync.ChangeReader;
 import com.villagecompute.wiretuner.api.sync.Participants;
 import com.villagecompute.wiretuner.api.sync.Protos;
@@ -25,6 +27,7 @@ import com.villagecompute.wiretuner.crdt.OpId;
 import com.villagecompute.wiretuner.doc.v1.Change;
 import com.villagecompute.wiretuner.docs.v1.MergeBranchRequest;
 import com.villagecompute.wiretuner.docs.v1.MergeBranchResponse;
+import com.villagecompute.wiretuner.sync.v1.BranchEventKind;
 import com.villagecompute.wiretuner.sync.v1.SequencedChange;
 import com.villagecompute.wiretuner.sync.v1.ServerFrame;
 
@@ -56,7 +59,8 @@ import jakarta.inject.Inject;
  * does not hold back the parent's garbage collection). They are then fanned out to the parent's
  * subscribers with their authors on the branch, one publish after the other. Ops that name a node
  * the parent does not have (compacted there since the fork, or never merged) are counted as
- * {@code dropped_ops}.
+ * {@code dropped_ops}. Once recorded, the merge is told to the parent's and the branch's sessions as a
+ * {@code BranchEvent} (COLLAB-019).
  */
 @ApplicationScoped
 public class BranchMerge {
@@ -113,6 +117,9 @@ public class BranchMerge {
     @Inject
     Pool pool;
 
+    @Inject
+    DocumentEvents events;
+
     public Uni<MergeBranchResponse> merge(MergeBranchRequest request) {
         UUID branchId = UUID.fromString(request.getBranchDocumentId());
         Set<OpId> excluded = new HashSet<>();
@@ -139,8 +146,14 @@ public class BranchMerge {
                                             request.getResolutionsList(), landed))
                                     .chain(landed -> Panache.withTransaction(() -> branches.merged(branchId, branch.headSeq(),
                                                     landed.last(), request.getKeepOpen() ? "active" : "merged")
-                                            .chain(() -> branches.find(branchId)))
-                                            .map(merged -> response(merged, landed, dropped)))));
+                                            .chain(() -> branches.find(branchId))
+                                            .chain(merged -> events.event(merging.pusher().principal().accountId(),
+                                                    actor -> BranchGrpcService.event(merged,
+                                                            BranchEventKind.BRANCH_EVENT_KIND_MERGED, actor))
+                                                    .map(event -> new BranchGrpcService.Told(merged, event))))
+                                            .call(told -> events.publish(branch.parentId(), told.event())
+                                                    .chain(() -> events.publish(branchId, told.event())))
+                                            .map(told -> response(told.row(), landed, dropped)))));
                 });
     }
 
@@ -225,6 +238,8 @@ public class BranchMerge {
                     Buffer.buffer(bytes), bytes.length, collectSeq, collectTimeMs, branch.branchId()}));
         }
         return connection.preparedQuery(INSERT).executeBatch(rows)
+                .chain(() -> ChangeIndex.write(connection, branch.parentId(), head + 1,
+                        changes.stream().map(SequencedChange::getChange).toList()))
                 .chain(() -> connection.preparedQuery(HEAD).execute(Tuple.of(branch.parentId(), head + changes.size())))
                 .replaceWithVoid();
     }

@@ -9,5 +9,5 @@ import jakarta.persistence.Embeddable;
 @Embeddable
 public record WorkspaceDomainId(
         @Column(name = "team_id", nullable = false) UUID teamId,
-        @Column(name = "domain", nullable = false) String domain) {
+        @Column(name = "domain", nullable = false, columnDefinition = "text") String domain) {
 }

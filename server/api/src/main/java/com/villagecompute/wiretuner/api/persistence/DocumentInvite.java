@@ -23,10 +23,10 @@ public class DocumentInvite {
     public UUID documentId;
 
     /** Lower-case address. */
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "text")
     public String email;
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "text")
     public String role;
 
     @Column(name = "invited_by")

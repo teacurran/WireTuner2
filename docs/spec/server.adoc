@@ -132,7 +132,10 @@ again.
 `BranchService` and `VersionService` (SRV-011, `api/.../branch`, `api/.../history`) are
 specified as built on xref:branches.adoc[Branches] and
 xref:history.adoc[Version history] (Server).  SRV-011 added the reason
-`MERGE_STALE`.
+`MERGE_STALE`.  COLLAB-019 resolves a branch's roles through its parent, cascades trash, restore and
+moves from the parent, and fans out `BranchEvent`s; COLLAB-020 reads history through a touched-node
+index and across cold segments (same pages).  IO-008's storage quota on `BlobService.Upload` is
+specified on xref:saving.adoc[Saving] (Server).
 
 `ShareService` (SRV-010, `api/.../share`) is specified as built on
 xref:sharing.adoc[Sharing] (Server): members by account or by email (a pending invitation
@@ -162,13 +165,14 @@ Postgres holds the truth; object storage holds bulk.
 |`replica` |`(document_id, replica_id)`, account, device, `last_seq`, `last_ack_seq`, `last_seen_at`, `retired_at`.  V10 (D-067): `published_seq` / `published_ms`, the publication the last Ack answered, and `horizon_seq` / `horizon_ms`, the one before it, which the replica confirmed receiving by acking again.
 |`snapshot` |`(document_id, server_seq)`, object key, `state_hash`, size, node count.  V10: `uncompressed_size` (the decompressed `DocumentSnapshot`, which `FetchSnapshot`'s header carries) and `collect_seq` / `collect_time_ms`, the collection point the state was collected at.
 |`cold_segment` |`(document_id, from_seq, to_seq)`, object key, compressed size.  V10: `change_count` and `min_horizon_seq` / `min_horizon_ms`, the smallest change horizon in the segment.
-|`document_member`, `share_link`, `share_link_use` |Roles; `share_link_use(share_link_id, account_id, used_at)` records who used a link, which the effective-role rule needs.  V7 (SRV-010, SRV-012): `document_member.role` may be `none` -- a row that grants nothing and only holds `color_index`, the presence color (0-11) assigned on the account's first Subscribe; `share_link` gains `password_hash` (argon2id PHC string), `revoke_on_expiry` and `team_members_only`.
+|`document_member`, `share_link`, `share_link_use` |Roles (a branch has none: V11 dropped the copies, roles resolve through the parent, COLLAB-019); `share_link_use(share_link_id, account_id, used_at)` records who used a link, which the effective-role rule needs.  V7 (SRV-010, SRV-012): `document_member.role` may be `none` -- a row that grants nothing and only holds `color_index`, the presence color (0-11) assigned on the account's first Subscribe; `share_link` gains `password_hash` (argon2id PHC string), `revoke_on_expiry` and `team_members_only`.
 |`document_invite`, `access_request` |V7 (SRV-010): an invitation by email to an address no account has yet (`document_id`, lower-case-unique `email`, role, inviter); a request for access (`document_id`, `account_id`, message, `resolved_at`, `granted_role`), one pending per person and document.
+|`change_node`, `node_name` |V11 (COLLAB-020): the history index, written with each change -- the nodes a change names (not partitioned: routing through partitions would cost every ingest statement) and the names changes give nodes (kind and name at a `server_seq`).  Never compacted (xref:history.adoc[Version history], Server).
 |`branch` |Child document id, parent document id, fork `server_seq`, merged at.  V10 (SRV-011): name, state (`active`, `archived`, `merged`), `merged_branch_seq`, `merged_parent_seq`, `created_by_account_id`.
 |`version` |V10 (SRV-011) replaces the table: `id` (the client's UUIDv7) primary key, document, `server_seq`, name, note, author, `pinned`, created and updated; two versions may name one seq.
 |`blob`, `document_blob` |sha256, size, media type, storage key (`blobs/<first byte>/<sha256>`), `tag` the blob was first uploaded with (`content` or `thumbnail`); references per document.  A thumbnail upload sets `document.thumbnail_blob` and adds no reference.
 |`data_credential`, `data_allowed_host`, `data_fetch_audit` |V8 (DATA-005, DATA-007, DATA-008): the data service's envelope-encrypted credentials, permitted hosts and fetch audit trail, each in a team XOR one account's personal space (xref:data-merge.adoc#as-built-server[Data merge], As built).
-|`account`, `account_identity`, `device`, `team`, `team_member`, `team_invite`, `workspace`, `workspace_domain` |xref:security.adoc[Accounts, teams and security].  V7 adds `workspace_domain.checked_at` and `failed_checks` for the Domains job; V9 adds `account.preferences` (the synced preferences as JSON).
+|`account`, `account_identity`, `device`, `team`, `team_member`, `team_invite`, `workspace`, `workspace_domain` |xref:security.adoc[Accounts, teams and security].  V7 adds `workspace_domain.checked_at` and `failed_checks` for the Domains job; V9 adds `account.preferences` (the synced preferences as JSON); V11 adds `account.storage_limit_bytes` and `team.storage_limit_bytes`, the space's blob quota (null: the configured default, IO-008).
 |`library` |V9 (COLLAB-012): a team document marked as a team library, with its name, publisher and time; `document.is_library` mirrors it.  V9 also adds `document.team_access_override` and `share_link.expiry_announced_at` (COLLAB-011).
 |`comment_thread`, `comment`, `comment_read`, `comment_notification` |V9 (COLLAB-030): the server's record of comments kept from the ingested ops (opener, author, `resolved` and `deleted` by last-writer-wins, a 200-character preview), read marks, and mention / reply / resolve notifications with `seen_at` and `emailed_at` (xref:comments.adoc[Comments], As built).
 |`publish`, `publish_file` |V9 (WEB-012): published bundles (one current per document) and their files as blob references (xref:publish-html.adoc[Publish as HTML], As built).
@@ -176,6 +180,12 @@ Postgres holds the truth; object storage holds bulk.
 
 Migrations are Flyway, applied by the `main-db-migrations` compose job before the API starts,
 exactly as dissipate-server does.
+
+As built: the entities map every `text` column with `columnDefinition = "text"` (Hibernate otherwise
+expects `varchar(255)`, which compose's startup schema validation reported on
+`access_request.granted_role`), and `SchemaValidationTest` boots the application with
+`quarkus.hibernate-orm.schema-management.strategy=validate`, so an entity that drifts from the
+migrations fails the build.
 
 == Ingest path
 
@@ -242,7 +252,11 @@ As built (SRV-004, SRV-005; `api/.../sync`):
   (`wt.sync.gap-wait`) from the log; when the Valkey connection drops, the bus reconnects,
   resubscribes and has every subscription reread the log up to the head.
 * *The author* of a `SequencedChange` is the account the replica is bound to (user id and display
-  name); `Participant.role` is filled only in presence.
+  name); `Participant.role` is filled only in presence.  A change a branch merge replayed keeps its
+  replica, which is bound on the branch: its author is read there (COLLAB-004).
+* *The history index* (COLLAB-020): the same statement inserts the change's `change_node` and
+  `node_name` rows (arrays computed from the change before it is queued) at the new `server_seq`, so
+  indexing costs no round trip.
 * *Load test* (`IngestLoadTest`): 8 clients on their own connections, each one replica pipelining
   a window of 32 unary pushes, 20,000 changes into one document: about 3,400 accepted changes per
   second on the development Mac (Postgres and Valkey in Docker, JaCoCo on), with `server_seq` dense

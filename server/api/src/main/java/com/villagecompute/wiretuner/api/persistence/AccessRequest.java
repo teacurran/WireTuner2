@@ -22,7 +22,7 @@ public class AccessRequest {
     @Column(name = "account_id", nullable = false)
     public UUID accountId;
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "text")
     public String message = "";
 
     @Column(name = "created_at", nullable = false)
@@ -32,6 +32,6 @@ public class AccessRequest {
     public Instant resolvedAt;
 
     /** The role granted; null when declined or pending. */
-    @Column(name = "granted_role")
+    @Column(name = "granted_role", columnDefinition = "text")
     public String grantedRole;
 }

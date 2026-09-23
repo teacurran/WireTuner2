@@ -15,6 +15,7 @@ import com.villagecompute.wiretuner.api.persistence.BranchRepository;
 import com.villagecompute.wiretuner.api.persistence.BranchRepository.BranchRow;
 import com.villagecompute.wiretuner.api.persistence.DocumentRepository;
 import com.villagecompute.wiretuner.api.persistence.LibraryRepository;
+import com.villagecompute.wiretuner.api.sync.DocumentEvents;
 import com.villagecompute.wiretuner.docs.v1.Branch;
 import com.villagecompute.wiretuner.docs.v1.BranchState;
 import com.villagecompute.wiretuner.docs.v1.CreateBranchRequest;
@@ -32,6 +33,10 @@ import com.villagecompute.wiretuner.docs.v1.RenameBranchRequest;
 import com.villagecompute.wiretuner.docs.v1.RenameBranchResponse;
 import com.villagecompute.wiretuner.docs.v1.SetBranchStateRequest;
 import com.villagecompute.wiretuner.docs.v1.SetBranchStateResponse;
+import com.villagecompute.wiretuner.sync.v1.BranchEvent;
+import com.villagecompute.wiretuner.sync.v1.BranchEventKind;
+import com.villagecompute.wiretuner.sync.v1.DocumentEvent;
+import com.villagecompute.wiretuner.sync.v1.Participant;
 
 import io.quarkus.grpc.GrpcService;
 import io.quarkus.hibernate.reactive.panache.Panache;
@@ -44,8 +49,9 @@ import jakarta.inject.Inject;
  * document forked from its parent's state at a server_seq ({@link DocumentCopies#branch}) with a
  * {@code branch} row naming the parent. Creating needs editor on the parent; listing, viewer on the
  * parent; reading, viewer on the branch; renaming, archiving and trashing, editor on the branch
- * (whose role rows are the parent's); merging ({@link BranchMerge}), editor on the parent. A
- * branch cannot be branched.
+ * (whose roles are the parent's, looked up through it); merging ({@link BranchMerge}), editor on the
+ * parent. A branch cannot be branched. Every change is told to the parent's and the branch's live
+ * sessions as a {@code BranchEvent} once committed (COLLAB-019).
  */
 @GrpcService
 public class BranchGrpcService extends MutinyBranchServiceGrpc.BranchServiceImplBase {
@@ -76,13 +82,16 @@ public class BranchGrpcService extends MutinyBranchServiceGrpc.BranchServiceImpl
     @Inject
     BranchMerge merge;
 
+    @Inject
+    DocumentEvents events;
+
     @Override
     public Uni<CreateBranchResponse> createBranch(CreateBranchRequest request) {
         UUID parentId = UUID.fromString(request.getParentDocumentId());
         UUID branchId = UUID.fromString(request.getBranchDocumentId());
         return tx(() -> guard.require(parentId, Role.EDITOR).flatMap(grant -> branches.find(branchId).flatMap(existing -> {
             if (existing != null) {
-                return existing.parentId().equals(parentId) ? Uni.createFrom().item(existing)
+                return existing.parentId().equals(parentId) ? Uni.createFrom().item(new Told(existing, null))
                         : Uni.createFrom().failure(StatusExceptions.documentExists());
             }
             return documents.findById(branchId).flatMap(taken -> taken != null
@@ -101,9 +110,10 @@ public class BranchGrpcService extends MutinyBranchServiceGrpc.BranchServiceImpl
                                         .chain(() -> branches.insert(branchId, parentId, request.getName(), at,
                                                 grant.principal().accountId()))
                                         .chain(documents::flush)
-                                        .chain(() -> branches.find(branchId));
+                                        .chain(() -> told(grant.principal().accountId(), branchId,
+                                                BranchEventKind.BRANCH_EVENT_KIND_CREATED));
                             })));
-        }))).map(row -> CreateBranchResponse.newBuilder().setBranch(branch(row)).build());
+        }))).call(this::publish).map(told -> CreateBranchResponse.newBuilder().setBranch(branch(told.row())).build());
     }
 
     @Override
@@ -145,33 +155,67 @@ public class BranchGrpcService extends MutinyBranchServiceGrpc.BranchServiceImpl
     @Override
     public Uni<RenameBranchResponse> renameBranch(RenameBranchRequest request) {
         UUID branchId = UUID.fromString(request.getBranchDocumentId());
-        return tx(() -> guard.require(branchId, Role.EDITOR).chain(() -> found(branchId))
+        return tx(() -> guard.require(branchId, Role.EDITOR).flatMap(grant -> found(branchId)
                 .chain(() -> branches.rename(branchId, request.getName()))
-                .chain(() -> branches.find(branchId)))
-                .map(row -> RenameBranchResponse.newBuilder().setBranch(branch(row)).build());
+                .chain(() -> told(grant.principal().accountId(), branchId, BranchEventKind.BRANCH_EVENT_KIND_RENAMED))))
+                .call(this::publish)
+                .map(told -> RenameBranchResponse.newBuilder().setBranch(branch(told.row())).build());
     }
 
     @Override
     public Uni<SetBranchStateResponse> setBranchState(SetBranchStateRequest request) {
         UUID branchId = UUID.fromString(request.getBranchDocumentId());
-        String state = request.getState() == BranchState.BRANCH_STATE_ARCHIVED ? "archived" : "active";
-        return tx(() -> guard.require(branchId, Role.EDITOR).chain(() -> found(branchId))
-                .chain(() -> branches.setState(branchId, state))
-                .chain(() -> branches.find(branchId)))
-                .map(row -> SetBranchStateResponse.newBuilder().setBranch(branch(row)).build());
+        boolean archived = request.getState() == BranchState.BRANCH_STATE_ARCHIVED;
+        return tx(() -> guard.require(branchId, Role.EDITOR).flatMap(grant -> found(branchId)
+                .chain(() -> branches.setState(branchId, archived ? "archived" : "active"))
+                .chain(() -> told(grant.principal().accountId(), branchId, archived
+                        ? BranchEventKind.BRANCH_EVENT_KIND_ARCHIVED : BranchEventKind.BRANCH_EVENT_KIND_RESTORED))))
+                .call(this::publish)
+                .map(told -> SetBranchStateResponse.newBuilder().setBranch(branch(told.row())).build());
     }
 
     @Override
     public Uni<DeleteBranchResponse> deleteBranch(DeleteBranchRequest request) {
         UUID branchId = UUID.fromString(request.getBranchDocumentId());
-        return tx(() -> guard.require(branchId, Role.EDITOR).chain(() -> found(branchId))
-                .chain(() -> documents.update("trashedAt = coalesce(trashedAt, current_timestamp) where id = ?1", branchId)))
+        return tx(() -> guard.require(branchId, Role.EDITOR).flatMap(grant -> found(branchId)
+                .chain(() -> documents.update("trashedAt = coalesce(trashedAt, current_timestamp) where id = ?1", branchId))
+                .chain(() -> told(grant.principal().accountId(), branchId, BranchEventKind.BRANCH_EVENT_KIND_TRASHED))))
+                .call(this::publish)
                 .replaceWith(DeleteBranchResponse.getDefaultInstance());
     }
 
     @Override
     public Uni<MergeBranchResponse> mergeBranch(MergeBranchRequest request) {
         return merge.merge(request);
+    }
+
+    /** A branch after a change, and the event its parent's and its own sessions are told (null: none). */
+    record Told(BranchRow row, DocumentEvent event) {
+    }
+
+    /** The branch as it is now, with the {@code BranchEvent} of {@code kind} by {@code actor}; in the transaction. */
+    Uni<Told> told(UUID actor, UUID branchId, BranchEventKind kind) {
+        return branches.find(branchId).chain(row -> events.event(actor, participant -> event(row, kind, participant))
+                .map(event -> new Told(row, event)));
+    }
+
+    /** The {@code BranchEvent} frame of a branch. */
+    static DocumentEvent event(BranchRow row, BranchEventKind kind, Participant actor) {
+        return DocumentEvent.newBuilder().setBranch(BranchEvent.newBuilder()
+                .setBranchDocumentId(row.branchId().toString())
+                .setParentDocumentId(row.parentId().toString())
+                .setName(row.name())
+                .setKind(kind)
+                .setActor(actor)).build();
+    }
+
+    /** Tells the parent's and the branch's sessions, once committed (COLLAB-019). */
+    Uni<Void> publish(Told told) {
+        if (told.event() == null) {
+            return Uni.createFrom().voidItem();
+        }
+        return events.publish(told.row().parentId(), told.event())
+                .chain(() -> events.publish(told.row().branchId(), told.event()));
     }
 
     /** The branch row; {@code NOT_FOUND / DOCUMENT_NOT_FOUND} when the document is not a branch. */

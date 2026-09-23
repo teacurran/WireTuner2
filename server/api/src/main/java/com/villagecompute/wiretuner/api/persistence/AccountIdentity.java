@@ -19,7 +19,7 @@ public class AccountIdentity {
     @Column(name = "account_id", nullable = false)
     public UUID accountId;
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "text")
     public String email = "";
 
     @Column(name = "email_verified", nullable = false)

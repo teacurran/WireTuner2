@@ -107,9 +107,8 @@ class BranchServiceTest extends HistoryTestSupport {
         assertThat(branch.hasLastChangeAt()).isFalse();
         assertThat(value("SELECT state_hash FROM snapshot WHERE document_id = ? AND server_seq = 2", branchId))
                 .isEqualTo(replayHash(changes));
-        // The same people with the same roles; the retry answers the same branch.
-        assertThat(value("SELECT role FROM document_member WHERE document_id = ? AND account_id = ?", branchId, bob))
-                .isEqualTo("editor");
+        // The parent's people, through the parent (no rows of its own); the retry answers the same branch.
+        assertThat(count("SELECT count(*) FROM document_member WHERE document_id = ?", branchId)).isZero();
         assertThat(as(BOB).createBranch(request).getBranch().getBranchDocumentId()).isEqualTo(branchId.toString());
 
         // Ids taken, branches of branches, fork points beyond the head.

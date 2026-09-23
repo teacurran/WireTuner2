@@ -24,8 +24,8 @@ import jakarta.inject.Inject;
 
 /**
  * Reads the hot change log as {@code SequencedChange}s with their authors (the account the
- * replica is bound to), for the subscription's replay, catch-up downloads and gap backfill. Reads
- * page by page on demand, so a slow reader holds back the query rather than filling memory.
+ * replica is bound to; for a change a branch merge replayed, bound on the branch), for the
+ * subscription's replay, catch-up downloads and gap backfill. Reads page by page on demand, so a slow reader holds back the query rather than filling memory.
  * Where the hot log does not continue the range, the cold segment holding the next server_seq is
  * read from object storage (SRV-007) and its changes in the range form the page; a range neither
  * holds is {@code FAILED_PRECONDITION / HISTORY_UNAVAILABLE}.
@@ -38,7 +38,8 @@ public class ChangeReader {
 
     static final String PAGE_QUERY = """
             SELECT c.server_seq, c.bytes, r.account_id, a.display_name FROM change_log c
-            LEFT JOIN replica r ON r.document_id = c.document_id AND r.replica_id = c.replica_id
+            LEFT JOIN replica r ON r.document_id = coalesce(c.merged_from_branch_id, c.document_id)
+                                AND r.replica_id = c.replica_id
             LEFT JOIN account a ON a.id = r.account_id
             WHERE c.document_id = $1 AND c.server_seq > $2 AND c.server_seq <= $3
             ORDER BY c.server_seq LIMIT $4
@@ -50,10 +51,16 @@ public class ChangeReader {
             SELECT object_key FROM cold_segment WHERE document_id = $1 AND from_seq <= $2 AND to_seq >= $2
             """;
 
+    /**
+     * Who each replica is bound to: on the document, else on one of its branches -- a change a branch
+     * merge replayed keeps its replica, which is bound on the branch (COLLAB-004).
+     */
     static final String AUTHORS = """
-            SELECT r.replica_id, r.account_id, a.display_name FROM replica r
+            SELECT DISTINCT ON (r.replica_id) r.replica_id, r.account_id, a.display_name FROM replica r
             LEFT JOIN account a ON a.id = r.account_id
-            WHERE r.document_id = $1 AND r.replica_id = ANY($2)
+            WHERE r.replica_id = ANY($2)
+              AND (r.document_id = $1 OR r.document_id IN (SELECT document_id FROM branch WHERE parent_document_id = $1))
+            ORDER BY r.replica_id, r.document_id = $1 DESC
             """;
 
     @Inject

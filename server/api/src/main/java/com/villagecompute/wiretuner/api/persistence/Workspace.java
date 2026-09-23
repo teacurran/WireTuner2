@@ -16,7 +16,7 @@ public class Workspace {
     @Column(name = "team_id")
     public UUID teamId;
 
-    @Column(name = "sso_idp_alias")
+    @Column(name = "sso_idp_alias", columnDefinition = "text")
     public String ssoIdpAlias;
 
     @Column(name = "require_sso", nullable = false)

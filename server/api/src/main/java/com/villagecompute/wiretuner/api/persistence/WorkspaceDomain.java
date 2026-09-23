@@ -15,7 +15,7 @@ public class WorkspaceDomain {
     @EmbeddedId
     public WorkspaceDomainId id;
 
-    @Column(name = "verification_token", nullable = false)
+    @Column(name = "verification_token", nullable = false, columnDefinition = "text")
     public String verificationToken;
 
     @Column(name = "verified_at")

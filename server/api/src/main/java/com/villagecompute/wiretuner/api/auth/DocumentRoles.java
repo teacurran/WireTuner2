@@ -8,6 +8,7 @@ import java.util.HexFormat;
 import java.util.List;
 import java.util.UUID;
 
+import com.villagecompute.wiretuner.api.persistence.BranchRepository;
 import com.villagecompute.wiretuner.api.persistence.Document;
 import com.villagecompute.wiretuner.api.persistence.DocumentMemberId;
 import com.villagecompute.wiretuner.api.persistence.DocumentMemberRepository;
@@ -38,6 +39,9 @@ import jakarta.inject.Inject;
  * document's owner is its single {@code document_member} row with role {@code owner}, which the
  * schema's partial unique index keeps single. Both resolve to {@link Role#OWNER} here.
  *
+ * <p>A branch has no role rows of its own: every lookup of a branch is a lookup of its parent, so
+ * sharing the parent shares its branches (COLLAB-019; branches.adoc, Branch permissions).
+ *
  * <p>Every lookup runs sequentially on the request's reactive session; the session is not safe for
  * concurrent use.
  */
@@ -53,6 +57,9 @@ public class DocumentRoles {
 
     @Inject
     DocumentMemberRepository members;
+
+    @Inject
+    BranchRepository branches;
 
     @Inject
     TeamMemberRepository teamMembers;
@@ -84,9 +91,13 @@ public class DocumentRoles {
 
     static final Access NO_ACCESS = new Access(Role.NONE, Role.NONE, Role.NONE, false);
 
-    /** {@link Role#NONE} for an unknown document, so callers cannot tell "deleted" from "never yours". */
+    /**
+     * {@link Role#NONE} for an unknown document, so callers cannot tell "deleted" from "never yours". A
+     * branch has no roles of its own: its role is the parent's, looked up live (COLLAB-019).
+     */
     public Uni<Role> effectiveRole(UUID documentId, UUID accountId) {
-        return documents.findById(documentId)
+        return branches.parentOf(documentId)
+                .flatMap(parent -> documents.findById(parent == null ? documentId : parent))
                 .flatMap(document -> document == null ? Uni.createFrom().item(Role.NONE)
                         : access(document, accountId).map(Access::effective));
     }

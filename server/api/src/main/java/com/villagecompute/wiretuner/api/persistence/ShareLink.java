@@ -20,10 +20,10 @@ public class ShareLink {
     public UUID documentId;
 
     /** sha256 (hex) of the link token. */
-    @Column(name = "token_hash", nullable = false)
+    @Column(name = "token_hash", nullable = false, columnDefinition = "text")
     public String tokenHash;
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "text")
     public String role;
 
     @Column(name = "created_by")
@@ -39,7 +39,7 @@ public class ShareLink {
     public Instant revokedAt;
 
     /** argon2id PHC string of the link password; null when the link has none. */
-    @Column(name = "password_hash")
+    @Column(name = "password_hash", columnDefinition = "text")
     public String passwordHash;
 
     /** Whether the access the link granted ends when it expires. */
