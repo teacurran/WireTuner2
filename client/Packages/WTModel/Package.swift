@@ -4,7 +4,9 @@
 // (and WTGeometry below it); neither of those imports WTModel (client.adoc, "Packages", deviation).
 // It also turns WTInterchange's neutral `ImportedScene` into ops and packs and unpacks `.wiretuner`
 // packages, so it depends on WTInterchange, which imports nothing above WTRender and WTProto
-// (import-formats.adoc, "Imported scene to document"; saving.adoc, "Client").
+// (import-formats.adoc, "Imported scene to document"; saving.adoc, "Client").  It holds each
+// document's WTText `FontManager` and layout engine and reports the faces its text names
+// (font-substitution.adoc, "Client"); WTText sits below it in the table.
 import PackageDescription
 
 let package = Package(
@@ -19,6 +21,7 @@ let package = Package(
         .package(path: "../WTGeometry"),
         .package(path: "../WTRender"),
         .package(path: "../WTInterchange"),
+        .package(path: "../WTText"),
     ],
     targets: [
         .target(
@@ -29,6 +32,7 @@ let package = Package(
                 .product(name: "WTGeometry", package: "WTGeometry"),
                 .product(name: "WTRender", package: "WTRender"),
                 .product(name: "WTInterchange", package: "WTInterchange"),
+                .product(name: "WTText", package: "WTText"),
             ]
         ),
         .testTarget(
@@ -40,6 +44,7 @@ let package = Package(
                 .product(name: "WTGeometry", package: "WTGeometry"),
                 .product(name: "WTRender", package: "WTRender"),
                 .product(name: "WTInterchange", package: "WTInterchange"),
+                .product(name: "WTText", package: "WTText"),
             ]
         ),
     ],

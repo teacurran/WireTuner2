@@ -475,6 +475,19 @@ missing blob, PDF output and Metal parity with a store.  Still to do in `WTModel
 `DocumentScene` builds the item for a `placed_file` node (the preview's hex SHA-256 as the
 asset id, as for images), and the conformance vectors and merge test.
 
+NOTE: As built by IMG-011's `WTModel` half (`WTModel/PlacedFiles.swift`, the `placed_file` branch
+of `DocumentDisplayListBuilder`).  `NodeKind.placedFile` (171) is an object kind (selected, moved,
+transformed, deleted, copied and grouped like an image).  The scene draws
+`PlacedFileDrawing.item(_:)` of `PlacedFiles.placedFile(_:transform:)`: the content's `bounds`,
+`preview_sha256` as lower-case hex for the asset id (none when empty, so the gray box alone),
+`preview_width` and `preview_height`, `source_name`, and the node's own transform (enclosing
+transforms applied as for every item); `Objects.bounds` reads the normalized bounds under the
+transform.  *Update from source* is `UpdatePlacedFile` ("Update from Source"): one write of the
+`content` register, leaving `common` and `source` alone, after the caller has stored the new
+blobs.  Merge tests (`PlacedFileTests`, two replicas): a concurrent transform and update from
+source keep both; two concurrent updates keep one whole `content`.  The conformance vector for
+`content` as one register is the CRDT track's.
+
 NOTE: As built by IMG-012 (`WTInterchange/Import/SVG/`).  User units are read at 96 px/in as
 this page says.  The SVG exporter (IO-019) writes one user unit per point, and by default also
 `width` and `height` in `pt` (xref:export-vector.adoc[Vector export], *Size*), so the view box is

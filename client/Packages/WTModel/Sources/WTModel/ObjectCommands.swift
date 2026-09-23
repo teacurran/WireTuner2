@@ -22,8 +22,10 @@ public enum ObjectEditError: Error, Equatable, Sendable {
 /// lock rules (arranging.adoc, "Locking": a locked object -- or a member of a locked group, or an
 /// object on a locked layer -- is not moved, transformed, deleted, restacked or reshaped).
 public enum Objects {
-    /// The kinds the object commands act on.
-    public static let kinds: Set<NodeKind> = [.path, .rect, .ellipse, .polygon, .group, .chart, .instance, .barcode]
+    /// The kinds the object commands act on.  A connector is selected, styled, deleted, copied
+    /// and grouped like any object, but never moved or transformed on its own: it follows the
+    /// objects it joins (connectors.adoc), so `MoveObjects` and `TransformObjects` skip it.
+    public static let kinds: Set<NodeKind> = [.path, .rect, .ellipse, .polygon, .group, .chart, .instance, .barcode, .connector, .placedFile]
 
     /// The kind of the live object `node`, or throws.
     static func kind(_ node: OpID, in state: EngineState) throws -> NodeKind {
@@ -111,14 +113,20 @@ public enum Objects {
         bounds(of: node, in: state, through: parentTransform(of: node, in: state))
     }
 
-    private static func bounds(of node: OpID, in state: EngineState, through parentTransform: AffineTransform) -> Rect? {
-        guard let kind = state.nodeKind(node) else { return nil }
+    /// `bounds(of:in:)` leaving connectors out (a connector's own bounds read its objects'
+    /// bounds, and a group it is attached to may hold it).
+    static func boundsWithoutConnectors(of node: OpID, in state: EngineState) -> Rect? {
+        bounds(of: node, in: state, through: parentTransform(of: node, in: state), connectors: false)
+    }
+
+    private static func bounds(of node: OpID, in state: EngineState, through parentTransform: AffineTransform, connectors: Bool = true) -> Rect? {
+        guard let kind = state.nodeKind(node), connectors || kind != .connector else { return nil }
         let transform = transform(of: node, in: state).concatenating(parentTransform)
         switch kind {
         case .group:
             var result = Rect.null
             for child in state.liveChildren(node) {
-                if let rect = bounds(of: child, in: state, through: transform) { result = result.union(rect) }
+                if let rect = bounds(of: child, in: state, through: transform, connectors: connectors) { result = result.union(rect) }
             }
             return result.isNull ? nil : result
         case .instance:
@@ -127,7 +135,7 @@ public enum Objects {
             let placement = AffineTransform.translation(x: -origin.x, y: -origin.y).concatenating(transform)
             var result = Rect.null
             for child in state.liveChildren(symbol) {
-                if let rect = bounds(of: child, in: state, through: placement) { result = result.union(rect) }
+                if let rect = bounds(of: child, in: state, through: placement, connectors: connectors) { result = result.union(rect) }
             }
             return result.isNull ? nil : result
         case .chart:
@@ -137,6 +145,10 @@ public enum Objects {
         case .barcode:
             guard case .success(let geometry) = BarcodeRendering.geometry(Barcodes.spec(state.props(node).barcode)) else { return nil }
             return geometry.bounds.applying(transform)
+        case .connector:
+            return Connectors.bounds(of: node, in: state)
+        case .placedFile:
+            return PlacedFiles.placedFile(state.props(node).placedFile, transform: transform).effectiveBounds.applying(transform)
         default:
             break
         }
@@ -187,7 +199,7 @@ public struct MoveObjects: Command {
 
     public func execute(_ builder: inout ChangeBuilder, state: EngineState) throws {
         guard delta.isFinite else { throw ObjectEditError.invalidValue("delta") }
-        for node in Objects.editable(nodes, in: state) {
+        for node in Objects.editable(nodes, in: state) where state.nodeKind(node) != .connector {
             let kind = try Objects.kind(node, in: state)
             let toParent = Objects.parentTransform(of: node, in: state).inverse
             let moved = Objects.transform(of: node, in: state).concatenating(.translation(toParent.apply(delta)))
@@ -272,7 +284,7 @@ public struct TransformObjects: Command {
             throw ObjectEditError.degenerateTransform
         }
         let factor = abs(m.determinant).squareRoot()
-        for node in Objects.editable(nodes, in: state) {
+        for node in Objects.editable(nodes, in: state) where state.nodeKind(node) != .connector {
             let kind = try Objects.kind(node, in: state)
             let toPasteboard = Objects.parentTransform(of: node, in: state)
             let inParent = toPasteboard.concatenating(m).concatenating(toPasteboard.inverse)

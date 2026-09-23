@@ -66,6 +66,7 @@ final class AttributeFixture {
                 && AttributesListModel.kindName(.polygon) == "Polygon" && AttributesListModel.kindName(.group) == "Group"
                 && AttributesListModel.kindName(.layer) == "Layer")
         #expect([NodeKind.chart, .symbol, .instance, .barcode].map(AttributesListModel.kindName) == ["Chart", "Symbol", "Instance", "Barcode"])
+        #expect([NodeKind.connector, .placedFile].map(AttributesListModel.kindName) == ["Connector", "Placed File"])
         #expect(AttributeRowItem(index: 0, list: .effects, kind: nil, summary: "", hidden: .off, targets: list.rows[0].targets).icon == "sparkles")
     }
 

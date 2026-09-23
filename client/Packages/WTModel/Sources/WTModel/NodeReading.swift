@@ -43,12 +43,16 @@ public enum NodeKind: UInt32, Sendable, CaseIterable {
     case polygon = 23
     /// A chart regenerated from its data (charts.adoc).
     case chart = 24
+    /// A line joining two objects, routed on read from their bounds (connectors.adoc).
+    case connector = 25
     case group = 50
     case layer = 150
     /// A symbol's master: its children are the artwork (library.adoc).
     case symbol = 151
     /// An instance of a symbol, on a layer (library.adoc).
     case instance = 153
+    /// A placed file shown through its preview, such as EPS (import-formats.adoc).
+    case placedFile = 171
     /// A QR or Code 128 barcode (data-merge.adoc, "Barcodes").
     case barcode = 240
 }

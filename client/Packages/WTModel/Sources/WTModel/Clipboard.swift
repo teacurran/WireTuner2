@@ -155,6 +155,10 @@ public struct Paste: Command {
 
     public func execute(_ builder: inout ChangeBuilder, state: EngineState) throws {
         guard !payload.isEmpty else { return }
+        // References between copied nodes -- across the pasted objects -- point at the copies.
+        var mapping: [OpID: OpID] = [:]
+        var placed: [NodeTree] = []
+        defer { NodeCopier.rewriteReferences(in: placed, mapping: mapping, builder: &builder) }
         switch placement {
         case .top(let layer, let center):
             var delta = Vector.zero
@@ -179,7 +183,7 @@ public struct Paste: Command {
                 }
                 let top = state.store.children(parent).last.flatMap { state.store.placement($0)?.position }
                 let key = try PathEditing.keys(between: top, and: nil, count: 1)[0]
-                try place(tree, delta: delta, parent: parent, key: key, state: state, builder: &builder)
+                placed.append(try place(tree, delta: delta, parent: parent, key: key, state: state, builder: &builder, mapping: &mapping))
             }
         case .inFront(let anchor), .behind(let anchor):
             guard state.store.exists(anchor), let parent = Objects.parent(of: anchor, in: state) else { throw ObjectEditError.notAnObject(anchor) }
@@ -187,18 +191,21 @@ public struct Paste: Command {
             if case .behind = placement { above = Arranging.clipPath(of: parent, in: state) == anchor }
             let keys = try Arranging.keys(next: anchor, above: above, count: payload.nodes.count, in: state)
             for (tree, key) in zip(payload.nodes, keys) {
-                try place(tree, delta: .zero, parent: parent, key: key, state: state, builder: &builder)
+                placed.append(try place(tree, delta: .zero, parent: parent, key: key, state: state, builder: &builder, mapping: &mapping))
             }
         }
     }
 
     /// Creates `tree` under `parent`: its pasteboard transform, moved by `delta`, expressed in the
     /// parent's space.
-    private func place(_ tree: NodeTree, delta: Vector, parent: OpID, key: [UInt8], state: EngineState, builder: inout ChangeBuilder) throws {
+    private func place(_ tree: NodeTree, delta: Vector, parent: OpID, key: [UInt8], state: EngineState, builder: inout ChangeBuilder,
+                       mapping: inout [OpID: OpID]) throws -> NodeTree {
         var copy = tree
         let toParent = Objects.pasteboardTransform(ofSpace: parent, in: state).inverse
         copy.transform = tree.transform.concatenating(.translation(delta)).concatenating(toParent)
-        try NodeCopier.create(copy, parent: parent, position: key, schema: state.schema, builder: &builder)
+        copy.transformConnectors(by: .translation(delta))
+        _ = try NodeCopier.create(copy, parent: parent, position: key, schema: state.schema, builder: &builder, mapping: &mapping)
+        return copy
     }
 }
 
@@ -246,13 +253,18 @@ public struct DuplicateObjects: Command {
     }
 
     public func execute(_ builder: inout ChangeBuilder, state: EngineState) throws {
+        var mapping: [OpID: OpID] = [:]
+        var copied: [NodeTree] = []
+        defer { NodeCopier.rewriteReferences(in: copied, mapping: mapping, builder: &builder) }
         for node in Objects.stackingOrder(nodes.filter { Objects.isObject($0, in: state) }, in: state) {
             guard let parent = Objects.parent(of: node, in: state) else { continue }
             let toPasteboard = Objects.pasteboardTransform(ofSpace: parent, in: state)
             var tree = NodeTree(node, state: state)
             tree.transform = tree.transform.concatenating(toPasteboard).concatenating(offset).concatenating(toPasteboard.inverse)
+            tree.transformConnectors(by: offset)
             let key = try Arranging.keys(next: node, above: true, count: 1, in: state)[0]
-            try NodeCopier.create(tree, parent: parent, position: key, schema: state.schema, builder: &builder)
+            _ = try NodeCopier.create(tree, parent: parent, position: key, schema: state.schema, builder: &builder, mapping: &mapping)
+            copied.append(tree)
         }
     }
 }

@@ -14,7 +14,7 @@ import WTRender
         #expect(OpID(element: id.elementID) == id)
         #expect(OpID(element: Wiretuner_Doc_V1_ElementId()) == nil)
         #expect(WellKnown.document == .wellKnown(0) && WellKnown.settings == .wellKnown(1) && WellKnown.pages == .wellKnown(2))
-        #expect(NodeKind.allCases.count == 10)
+        #expect(NodeKind.allCases.count == 12)
         #expect(WellKnown.swatches == .wellKnown(5) && WellKnown.symbols == .wellKnown(7))
     }
 
@@ -104,13 +104,13 @@ import WTRender
         var text = Wiretuner_Doc_V1_NodeProps()
         text.text = Wiretuner_Doc_V1_TextProps()
         #expect(NodeValues.common(text) == nil)
-        #expect(NodeKind.allCases.map(NodeValues.appearanceField) == [3, 4, 3, 10, nil, 6, nil, nil, 4, 7])
+        #expect(NodeKind.allCases.map(NodeValues.appearanceField) == [3, 4, 3, 10, nil, 4, 6, nil, nil, 4, nil, 7])
         for kind in NodeKind.allCases {
             let props = NodeValues.common(kind: kind) { $0.name = "n" }
             #expect(NodeValues.common(props)?.name == "n")
             let appearance = NodeValues.with(kind: kind, appearanceField: NodeValues.appearanceField(kind) ?? 0, stack)
-            #expect(NodeValues.appearance(appearance)?.rasterDpi == ([.layer, .chart, .symbol].contains(kind) ? nil : 72))
-            #expect(NodeValues.appearance(NodeValues.replacing(stack, of: kind, in: props))?.rasterDpi == ([.layer, .chart, .symbol].contains(kind) ? nil : 72))
+            #expect(NodeValues.appearance(appearance)?.rasterDpi == ([.layer, .chart, .symbol, .placedFile].contains(kind) ? nil : 72))
+            #expect(NodeValues.appearance(NodeValues.replacing(stack, of: kind, in: props))?.rasterDpi == ([.layer, .chart, .symbol, .placedFile].contains(kind) ? nil : 72))
         }
         #expect(NodeValues.appearance(text) == nil)
     }

@@ -216,6 +216,33 @@ the team library into `WTApp` -- `FontLibraryClient.catalog(team:).families` as
 upload and remove fonts (the server and `WTSync` halves are built, Server and Client above); embedding a document's fonts as blobs and activating them on open
 (`WTModel`/`WTApp`); and repainting canvases after an activation, since tiles keep what they drew.
 
+NOTE: As built by TXT-002's `WTModel` glue (`WTModel/DocumentFontIndex.swift`).  `WTModel` does
+not lay text out yet -- the scene has no text branch, so text nodes draw nothing (the TYPE epic's
+model half) -- so the glue is an index and hooks for that layout rather than a change to it.
+`DocumentFontIndex(state:manager:)` is one per open document on the main actor: it holds the
+document's `FontManager` (the app passes the one it made with the preference's table and the
+document's rows; `substitutions`, `documentSubstitutions` and `teamLibraryFamilies` pass through to
+it) and `layoutEngine`, a `TextLayoutEngine(fonts: manager)` for the text layout to use.  `faces`
+maps each drawn text node to the faces its live runs name: the winning `font_family` mark with the
+winning `font_style` mark, and where a run lacks either, its character style's (the `style` mark
+through `based_on`, or a deleted style's cached `TextStyleAttrs`); a run naming no family is the
+document default and is left out, and text under a deleted node or group is left out (a deleted
+layer's objects are still shown, so still counted).  `DocumentFontIndex.faces(in:)` and
+`namedFaces(in:)` read a state without an index.  `apply(_:)` takes each `DocumentEvent` (local,
+undo, redo, remote; a reload reads everything): it re-reads created and touched nodes, deleted,
+restored or moved subtrees, and every text node when a style node changed.  `report()` is
+`FontManager.report(for:)` over every named face (the Missing Fonts sheet's `facesNeedingSheet`,
+the badge's `substitutedFaces`), `report(for:)` over a given set, and `nodes(naming:)` the text
+using a face.  `fontsChanged()`, called after `FontManager.generation` may have moved (an
+activation, a table or catalog change), returns the text nodes naming a face that now resolves
+differently -- empty when nothing moved -- and `DocumentDisplayListBuilder.invalidate(_:state:)`
+rebuilds those nodes and what depends on them and returns the change summary to repaint.  App
+glue (`WTApp`, DOC-024): make the index when the document opens with the per-document manager,
+forward `Document.observe` events to `apply`, read `report()` for the sheet (or
+`DocumentFontIndex.namedFaces(in:)` in place of a hand-written reader), and after activating fonts
+or changing a table call `fontsChanged()` and pass the result to the canvas's builder
+`invalidate` so the tiles repaint.
+
 === Build tasks
 
 [[DOC-024]]

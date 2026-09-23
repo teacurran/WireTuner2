@@ -111,7 +111,9 @@ free at `point`.  Restoring the object reconnects it because the ref is intact.
 Reshape vs. object move:: `run_offsets` is kept if the route still has the same number of
 runs; otherwise it reads as automatic and stays in the register for the next matching route.
 
-Reverse Direction:: Swaps `start` and `end` (two STRUCT writes) and reverses `run_offsets`.
+Reverse Direction:: Swaps `start` and `end` (two STRUCT writes) and reverses `run_offsets`,
+negating each offset (an offset is to the right of its run's direction, which reversing turns
+around), so the line keeps its shape.
 Concurrent re-attach of one end may land on the "wrong" end after the swap; the review sheet
 lists the connector as *both edited*.
 
@@ -184,10 +186,50 @@ until a page calls for them (the field would be additive: an enum register at nu
 Conformance vectors under `crdt-conformance/vectors/connectors/`: same-end concurrent re-attach
 (all three fields from one writer), both ends re-attached concurrently, attach vs. detach, delete
 vs. attach (the ref and `point` survive on a deleted target), concurrent `run_offsets` (one whole
-list wins), and Reverse Direction vs. a concurrent re-attach.  The WTModel half (reading props into
-a `ConnectorSpec` with the read normalizations above, the commands, and feeding
-`ConnectorSpec.addDependencies(to:)` into `DocumentDisplayListBuilder`'s `DependencyIndex`) is not
-built yet.
+list wins), and Reverse Direction vs. a concurrent re-attach.
+
+NOTE: As built by DRAW-035 and DRAW-037 (`WTModel` half: `WTModel/Connectors.swift`, the
+`connector` branch of `DocumentDisplayListBuilder`).  `NodeKind.connector` (25) is an object kind:
+selected, styled, deleted, copied and grouped like any object, but `MoveObjects` and
+`TransformObjects` skip it, since it follows the objects it joins.  `Connectors.spec(_:in:layers:)`
+reads `ConnectorProps` into WTRender's `ConnectorSpec`: an end whose node is not *attachable* is a
+free end at its `point` -- dangling (deleted, or under a deleted group), unknown, a connector, an
+object on the Guides layer, a layer, or anything not on a layer (a symbol's artwork); an attachable
+node that draws nothing (an empty group) gives the router no bounds, which reads the same way.
+`CONNECTOR_SIDE_UNSPECIFIED` reads as nil (the side facing the other end), routing is
+`.orthogonal`, `run_offsets` pass through (the router reads a count mismatch as automatic), only
+strokes are kept, and `common.transform` is ignored.  `Connectors.isAttachable` is the tool's
+hover test.  A connector's route, its ends' `point` and its `run_offsets` are in pasteboard space:
+the builder draws it without the enclosing groups' transforms, and an attached end sits on the
+object's item as the scene places it (enclosing groups and the shown layer's transform applied,
+grown by half its widest stroke, `Connectors.attachmentBounds(of:)`); a connector inside a group
+it is attached to is left out of that group's bounds while it is routed.  The builder records, for
+every drawn connector, a `DependencyIndex` edge from each node an end names (live or not, so a
+restore reconnects), that node's ancestors up to its layer (a moved group or layer moves it) and
+its descendants (a group's bounds follow its members); the index is rebuilt from the merged state
+on every build, so it is current after every applied change, local, undo or remote, and a change
+to any of those nodes rebuilds the connector and names it in the change summary.  Commands:
+`CreateConnector` (one `CreateNode` on the drawing layer, or the given one, with both ends and a
+strokes-only stack; "Connector"), `SetConnectorEnd` (the whole `ConnectorEnd` -- node, side and
+point -- as one register write, attaching or freeing; "Move Connector End"),
+`SetConnectorRunOffsets` (the whole list, at most 64 finite entries; "Reshape Connector") and
+`ReverseConnectors` (one `SetFields` per connector writing `start`, `end` and, when set,
+`run_offsets`; "Reverse Direction").  Deviation: Reverse Direction also negates the offsets --
+reversing the route turns every run around, so the stored offsets would push the reshaped runs to
+the other side; reversed and negated, the route is the same line drawn the other way (the page's
+"Reverse Direction" rule above now says so).  An attached end must name an attachable node when
+written.  `Connectors.attachmentPoint(of:side:toward:in:)` is the point the tool writes when it
+attaches (the free position should the object be deleted), and `Connectors.route(_:in:scene:)`
+the drawn route (for run handles and the selection outline).  Copying (`NodeCopier`, used by
+Paste, Duplicate and Clone): an end attached to a node copied in the same paste is re-attached to
+the copy with the same side; an end attached to anything else is left unset -- a free end at its
+point -- and the points move with the paste's or duplicate's offset.  The Connector tool, the
+Object panel section and the Reverse Direction menu dispatch are `WTApp`'s (DRAW-036); WTApp's
+Attributes list names the kind "Connector".  Merge tests (`ConnectorMergeTests`, two replicas):
+both ends re-attached concurrently, one end re-attached concurrently (all three fields from one
+writer), delete vs. attach and a restore reconnecting with no observer op, attach vs. detach,
+concurrent `run_offsets`, Reverse Direction vs. re-attach, and a remote move rerouting the
+observer's connector with no op.
 
 === Build tasks
 

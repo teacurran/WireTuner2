@@ -303,7 +303,8 @@ enum NodeValues {
         case .group: props.group.appearance = stack
         case .instance: props.instance.appearance = stack
         case .barcode: props.barcode.appearance = stack
-        case .layer, .chart, .symbol: break
+        case .connector: props.connector.appearance = stack
+        case .layer, .chart, .symbol, .placedFile: break
         }
         return props
     }
@@ -324,6 +325,8 @@ enum NodeValues {
         case .symbol: props.symbol.common = common
         case .instance: props.instance.common = common
         case .barcode: props.barcode.common = common
+        case .connector: props.connector.common = common
+        case .placedFile: props.placedFile.common = common
         }
         return props
     }
@@ -346,6 +349,8 @@ enum NodeValues {
         case .symbol(let symbol)?: symbol.common
         case .instance(let instance)?: instance.common
         case .barcode(let barcode)?: barcode.common
+        case .connector(let connector)?: connector.common
+        case .placedFile(let placed)?: placed.common
         default: nil
         }
     }
@@ -360,6 +365,7 @@ enum NodeValues {
         case .group(let group)?: group.appearance
         case .instance(let instance)?: instance.appearance
         case .barcode(let barcode)?: barcode.appearance
+        case .connector(let connector)?: connector.appearance
         default: nil
         }
     }
@@ -376,7 +382,8 @@ enum NodeValues {
         case .group: props.group.appearance = appearance
         case .instance: props.instance.appearance = appearance
         case .barcode: props.barcode.appearance = appearance
-        case .layer, .chart, .symbol: break
+        case .connector: props.connector.appearance = appearance
+        case .layer, .chart, .symbol, .placedFile: break
         }
         return props
     }
@@ -391,7 +398,8 @@ enum NodeValues {
         case .group: 6
         case .instance: 4
         case .barcode: 7
-        case .layer, .chart, .symbol: nil
+        case .connector: 4
+        case .layer, .chart, .symbol, .placedFile: nil
         }
     }
 }

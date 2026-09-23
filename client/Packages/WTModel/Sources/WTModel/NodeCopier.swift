@@ -36,13 +36,20 @@ public struct NodeTree: Hashable, Sendable {
         case .symbol?: .symbol
         case .instance?: .instance
         case .barcode?: .barcode
+        case .connector?: .connector
+        case .placedFile?: .placedFile
         default: nil
         }
     }
 
-    /// The node's own transform (identity when unset).
+    /// The node's own transform (identity when unset).  A connector's reads as the identity and
+    /// is never written (its `common.transform` is unused): move its free points with
+    /// `transformConnectors(by:)`.
     public var transform: AffineTransform {
-        get { NodeValues.common(props).map { PathEditing.transform($0.transform) } ?? .identity }
+        get {
+            if case .connector? = props.kind { return .identity }
+            return NodeValues.common(props).map { PathEditing.transform($0.transform) } ?? .identity
+        }
         set {
             // Identity leaves the register unset, as creation does.
             func assign(_ common: inout Wiretuner_Doc_V1_CommonProps) {
@@ -59,6 +66,7 @@ public struct NodeTree: Hashable, Sendable {
             case .symbol?: assign(&props.symbol.common)
             case .instance?: assign(&props.instance.common)
             case .barcode?: assign(&props.barcode.common)
+            case .placedFile?: assign(&props.placedFile.common)
             default: break
             }
         }
@@ -66,6 +74,22 @@ public struct NodeTree: Hashable, Sendable {
 
     /// Every node of the tree, depth first (parents before children).
     public var flattened: [NodeTree] { [self] + children.flatMap(\.flattened) }
+
+    /// The tree with the stored points of every connector in it mapped by `matrix` (pasteboard
+    /// space): a connector ignores enclosing transforms, so a paste's or duplicate's offset moves
+    /// its ends here instead.
+    public mutating func transformConnectors(by matrix: AffineTransform) {
+        if case .connector? = props.kind, !matrix.isIdentity {
+            for path in [\Wiretuner_Doc_V1_ConnectorProps.start, \.end] {
+                let point = matrix.apply(Point(x: props.connector[keyPath: path].point.x, y: props.connector[keyPath: path].point.y))
+                props.connector[keyPath: path].point.x = point.x
+                props.connector[keyPath: path].point.y = point.y
+            }
+        }
+        for index in children.indices {
+            children[index].transformConnectors(by: matrix)
+        }
+    }
 }
 
 /// Deep copies of nodes (layers.adoc "Duplicate layer", copying.adoc "Paste", OBJ-012): a
@@ -76,7 +100,9 @@ public struct NodeTree: Hashable, Sendable {
 ///
 /// Not copied: SET members and TEXT fields (no kind WTModel copies has them yet), a group's
 /// `layer_origins` (written once at grouping time) and a layer's `merged_into`.  A group's
-/// `clip_path` is rewritten to the copy of the clipping child.
+/// `clip_path` is rewritten to the copy of the clipping child.  A connector end attached to a node
+/// copied with it is re-attached to the copy (same side and point); an end attached to anything
+/// outside the copy is left unset -- a free end at its point (connectors.adoc).
 public enum NodeCopier {
     /// Appends the ops creating a copy of `tree` under `parent` at `position`; returns the copy's
     /// id.
@@ -85,7 +111,27 @@ public enum NodeCopier {
                               builder: inout ChangeBuilder) throws -> OpID {
         var mapping: [OpID: OpID] = [:]
         let root = try create(tree, parent: parent, position: position, schema: schema, builder: &builder, mapping: &mapping)
-        for original in tree.flattened {
+        rewriteReferences(in: [tree], mapping: mapping, builder: &builder)
+        return root
+    }
+
+    /// Appends the ops pointing references inside copied trees at the copies, once every copy
+    /// exists (`mapping`: source → copy, across every tree of one paste): a group's `clip_path`,
+    /// and each connector end attached to a copied node (left free by the create).
+    static func rewriteReferences(in trees: [NodeTree], mapping: [OpID: OpID], builder: inout ChangeBuilder) {
+        let all = trees.flatMap(\.flattened)
+        for original in all {
+            guard case .connector(let connector)? = original.props.kind, let source = original.source, let copy = mapping[source] else { continue }
+            for (end, path) in [(connector.start, ConnectorFields.start), (connector.end, ConnectorFields.end)] {
+                guard let target = Connectors.storedEnd(end).node, let copied = mapping[target] else { continue }
+                var props = Wiretuner_Doc_V1_NodeProps()
+                var value = end
+                value.node.id = copied.proto
+                if path == ConnectorFields.start { props.connector.start = value } else { props.connector.end = value }
+                builder.append(Ops.set(copy, [path], values: props))
+            }
+        }
+        for original in all {
             guard case .group(let group)? = original.props.kind, group.hasClipPath, let source = original.source,
                   let copy = mapping[source] else { continue }
             var props = Wiretuner_Doc_V1_NodeProps()
@@ -94,11 +140,12 @@ public enum NodeCopier {
             }
             builder.append(Ops.set(copy, [RegisterPath([NodeKind.group.rawValue, 4])], values: props))
         }
-        return root
     }
 
-    private static func create(_ tree: NodeTree, parent: OpID, position: [UInt8], schema: Schema,
-                               builder: inout ChangeBuilder, mapping: inout [OpID: OpID]) throws -> OpID {
+    /// Creates the copy of `tree` without rewriting references (`rewriteReferences` does, once
+    /// every tree of the paste exists).
+    static func create(_ tree: NodeTree, parent: OpID, position: [UInt8], schema: Schema,
+                       builder: inout ChangeBuilder, mapping: inout [OpID: OpID]) throws -> OpID {
         var props = tree.props
         switch props.kind {
         case .group?:
@@ -107,6 +154,12 @@ public enum NodeCopier {
         case .layer?:
             props.layer.clearMergedInto()
             props.layer.role = .unspecified
+        case .connector?:
+            // Attached ends are written after every node exists (above); until then, free.
+            for path in [\Wiretuner_Doc_V1_ConnectorProps.start, \.end] where props.connector[keyPath: path].hasNode {
+                props.connector[keyPath: path].clearNode()
+                props.connector[keyPath: path].side = .unspecified
+            }
         default:
             break
         }

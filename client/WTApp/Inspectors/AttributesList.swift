@@ -131,6 +131,8 @@ struct AttributesListModel {
         case .symbol: "Symbol"
         case .instance: "Instance"
         case .barcode: "Barcode"
+        case .connector: "Connector"
+        case .placedFile: "Placed File"
         }
     }
 

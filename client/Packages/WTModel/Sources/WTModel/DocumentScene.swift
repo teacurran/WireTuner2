@@ -122,6 +122,12 @@ public struct DocumentDisplayListBuilder: Sendable {
     private var cache: [OpID: Built] = [:]
     private let symbolRenderer = SymbolRenderer()
     private let labels = CoreTextLabels()
+    /// While building: the layer list, each connector end's attachment bounds so far, and the
+    /// connectors being routed (a connector inside a group it is attached to is left out of that
+    /// group's bounds while it is routed).
+    private var building: LayerOrder?
+    private var attachments: [OpID: Rect?] = [:]
+    private var routing: Set<OpID> = []
 
     /// A node's item before enclosing transforms, and what the scene records about it.
     private struct Built: Sendable {
@@ -184,7 +190,6 @@ public struct DocumentDisplayListBuilder: Sendable {
     /// rebuilds and names the objects using it, directly or through a tint of it
     /// (`recoloured(by:)`); every other item is reused.
     public mutating func apply(_ change: Wiretuner_Doc_V1_Change, state: EngineState, origin: ChangeOrigin) -> (DocumentScene, ChangeSummary) {
-        let before = scene
         var touched: [OpID: [FieldPath]] = [:]
         for op in change.ops {
             for (node, fields) in Self.targets(op) { touched[node, default: []] += fields }
@@ -193,6 +198,19 @@ public struct DocumentDisplayListBuilder: Sendable {
             if case .create = op.op { touched[id, default: []] += [] }
         }
         let recoloured = recoloured(by: change, state: state)
+        return update(touched: touched, also: recoloured, state: state, origin: origin)
+    }
+
+    /// Rebuilds `nodes` and everything drawn from them without a change to the document: text
+    /// whose fonts now resolve differently (`DocumentFontIndex.fontsChanged`), a placed file whose
+    /// preview arrived.  The summary names them with their bounds before and after.
+    public mutating func invalidate(_ nodes: Set<OpID>, state: EngineState, origin: ChangeOrigin = .local) -> (DocumentScene, ChangeSummary) {
+        update(touched: Dictionary(uniqueKeysWithValues: nodes.map { ($0, []) }), also: [], state: state, origin: origin)
+    }
+
+    private mutating func update(touched: [OpID: [FieldPath]], also recoloured: Set<OpID>, state: EngineState,
+                                 origin: ChangeOrigin) -> (DocumentScene, ChangeSummary) {
+        let before = scene
         let seeds = Set(touched.keys).union(recoloured)
         let dependents = dependencies.dependents(of: seeds.map(NodeID.init))
         for node in seeds { cache[node] = nil }
@@ -271,7 +289,9 @@ public struct DocumentDisplayListBuilder: Sendable {
     /// only, hidden ones only with `includeHidden`, no dimming or keyline.  Built from the same
     /// cached items as the canvas; the scene is not changed.
     public mutating func outputDisplayList(_ state: EngineState, includeHidden: Bool = false) -> DisplayList {
-        ColorResolver.$current.withValue(ColorResolver(state)) {
+        begin(state)
+        defer { end() }
+        return ColorResolver.$current.withValue(ColorResolver(state)) {
             var scratch: [NodeID: SceneObject] = [:]
             let order = LayerOrder(state)
             let contents = layerContents(state, order: order, includeHidden: includeHidden, objects: &scratch).contents
@@ -282,7 +302,19 @@ public struct DocumentDisplayListBuilder: Sendable {
     // MARK: Building
 
     private mutating func build(_ state: EngineState) -> DocumentScene {
-        ColorResolver.$current.withValue(ColorResolver(state)) { buildScene(state) }
+        begin(state)
+        defer { end() }
+        return ColorResolver.$current.withValue(ColorResolver(state)) { buildScene(state) }
+    }
+
+    private mutating func begin(_ state: EngineState) {
+        building = LayerOrder(state)
+        attachments = [:]
+    }
+
+    private mutating func end() {
+        building = nil
+        attachments = [:]
     }
 
     private mutating func buildScene(_ state: EngineState) -> DocumentScene {
@@ -399,10 +431,11 @@ public struct DocumentDisplayListBuilder: Sendable {
                 cache[node] = built
             }
             guard let own = built.item else { return nil }
-            item = parentTransform.isIdentity ? own : own.transformed(by: parentTransform)
+            // A connector is routed in pasteboard space: enclosing transforms do not apply.
+            item = parentTransform.isIdentity || built.kind == .connector ? own : own.transformed(by: parentTransform)
         }
         objects[NodeID(node)] = SceneObject(
-            id: node, kind: built.kind, path: built.path, transform: transform, itemPath: itemPath, parent: parent,
+            id: node, kind: built.kind, path: built.path, transform: built.kind == .connector ? .identity : transform, itemPath: itemPath, parent: parent,
             bounds: item.bounds, elementPoints: built.elementPoints, leafContours: built.leafContours, item: item,
             layer: context.layer, isLocked: built.locked, isEffectivelyLocked: locked
         )
@@ -419,6 +452,9 @@ public struct DocumentDisplayListBuilder: Sendable {
 
     private mutating func built(_ node: OpID, state: EngineState) -> Built? {
         if let cached = cache[node] { return cached }
+        // A connector reached again while it is being routed (it is inside a group it is
+        // attached to) draws nothing in that group's bounds.
+        if routing.contains(node) { return Built(item: nil, kind: .connector, path: nil, transform: .identity, elementPoints: [:], leafContours: [:]) }
         guard let kind = state.nodeKind(node), kind != .layer, kind != .symbol else { return nil }
         let props = state.props(node)
         guard let common = NodeValues.common(props), !common.hasCanvas else { return nil }
@@ -457,11 +493,64 @@ public struct DocumentDisplayListBuilder: Sendable {
             var spec = Barcodes.spec(barcode, appearance: Appearances.resolve(barcode.appearance, order: order))
             spec.transform = transform
             built.item = BarcodeRendering.item(spec)
+        case .connector(let connector)?:
+            // `common.transform` is ignored: the route is derived in pasteboard space from the ends
+            // and the rendered bounds of the objects they are attached to (DRAW-035/037).
+            built.transform = .identity
+            built.sources = Connectors.dependencySources(of: node, in: state)
+            let layers = building ?? LayerOrder(state)
+            let spec = Connectors.spec(node, in: state, layers: layers, appearance: Appearances.resolve(connector.appearance, order: order))
+            routing.insert(node)
+            var bounds: [NodeID: Rect] = [:]
+            for target in [spec.start.node, spec.end.node].compactMap({ $0 }) {
+                bounds[target] = attachmentBounds(OpID(target), state: state, layers: layers)
+            }
+            routing.remove(node)
+            built.item = ConnectorRendering.item(spec, route: ConnectorRouter.route(spec) { bounds[$0] })
+        case .placedFile(let placed)?:
+            built.item = PlacedFileDrawing.item(PlacedFiles.placedFile(placed, transform: transform))
         default:
             break
         }
         cache[node] = built
         return built
+    }
+
+    /// The rendered bounds of `target` as the scene places it (enclosing groups and its layer's
+    /// transform applied), grown by half its widest stroke: where a connector end attaches.  Nil
+    /// when it draws nothing.  Memoized for the build.
+    private mutating func attachmentBounds(_ target: OpID, state: EngineState, layers: LayerOrder) -> Rect? {
+        if let known = attachments[target] { return known }
+        var parentTransform = AffineTransform.identity
+        var current = state.store.placement(target)?.parent
+        while let id = current {
+            if layers.all[id] != nil {
+                let shown = layers.displayLayer(for: id) ?? id
+                parentTransform = parentTransform.concatenating(PathEditing.transform(state.props(shown).layer.common.transform))
+                break
+            }
+            parentTransform = parentTransform.concatenating(Objects.transform(of: id, in: state))
+            current = state.store.placement(id)?.parent
+        }
+        var scratch: [NodeID: SceneObject] = [:]
+        let item = place(target, state: state, parentTransform: parentTransform, itemPath: [], parent: nil,
+                         context: Placing(layer: target, locked: false), objects: &scratch)
+        let rect = item.flatMap(Connectors.attachmentBounds(of:))
+        // Not memoized while a connector inside it is left out.
+        if !routing.contains(where: { scratch[NodeID($0)] == nil && Self.isInside($0, target, state: state) }) {
+            attachments[target] = rect
+        }
+        return rect
+    }
+
+    /// Whether `node` is `ancestor` or below it.
+    private static func isInside(_ node: OpID, _ ancestor: OpID, state: EngineState) -> Bool {
+        var current: OpID? = node
+        while let id = current {
+            if id == ancestor { return true }
+            current = state.store.placement(id)?.parent
+        }
+        return false
     }
 
     /// A path's display item: one `PathItem`, or -- when open contours must not show the fills
