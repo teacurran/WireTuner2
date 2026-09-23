@@ -1,0 +1,35 @@
+# crdt-conformance/vectors/marks/feature-on-vs-off-same-tag.textproto (TYPE-045; schema: crdt-conformance/schema/vector.proto)
+name: "marks/feature-on-vs-off-same-tag"
+description: "Over \"abcdef\" in a doc.v1 text block: replica 1 turns liga ON (state 2) on a-d while replica 2 turns liga OFF (state 3) on c-f.  Marks of one tag are one attribute: in c-d the greater OpId (replica 2, OFF) wins per character, a-b stay ON and e-f OFF."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Type"
+    ops { create { parent { counter: 4 } position: "\x80" props { text { common { name: "T" } } } } }
+    ops { text_insert { node { counter: 1 replica: 7 } text { segments { field: 130 } segments { field: 2 } } chars: "abcdef" } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 8 base_server_seq: 1 label: "Ligatures on"
+    ops { text_mark { node { counter: 1 replica: 7 } text { segments { field: 130 } segments { field: 2 } } start { char { counter: 2 replica: 7 } before: true } end { char { counter: 6 replica: 7 } before: true } value { feature { tag: "liga" state: 2 } } } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 8 base_server_seq: 1 label: "Ligatures off"
+    ops { text_mark { node { counter: 1 replica: 7 } text { segments { field: 130 } segments { field: 2 } } start { char { counter: 4 replica: 7 } before: true } end {  } value { feature { tag: "liga" state: 3 } } } }
+  }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "288571ce2665575c0df1124ba43a77b8b8289cef92fe08a82e3e981f1cc00e5d"
+  snapshot_hash: "ece3ea4f9d4acdac9ce19b6c9a631eb733e5375649f55b6c4fde3eaaf57bcdc2"
+  node {
+    id { counter: 1 replica: 7 }
+    node_hash: ""
+    text { path { segments { field: 130 } segments { field: 2 } } text: "abcdef" chars { counter: 2 replica: 7 } chars { counter: 3 replica: 7 } chars { counter: 4 replica: 7 } chars { counter: 5 replica: 7 } chars { counter: 6 replica: 7 } chars { counter: 7 replica: 7 } runs { start: 0 length: 2 attributes { value { feature { tag: "liga" state: 2 } } mark { counter: 8 replica: 1 } } } runs { start: 2 length: 4 attributes { value { feature { tag: "liga" state: 3 } } mark { counter: 8 replica: 2 } } } }
+  }
+}

@@ -28,6 +28,8 @@ public struct UndoEntry: Sendable, Hashable {
 public enum CoalesceKey: Sendable, Hashable {
     case group(UInt64)
     case typing(node: OpID, field: RegisterPath)
+    /// A run of typing or deleting in one TEXT field (`TextEditKey`, TYPE-002).
+    case text(TextEditKey)
 }
 
 /// A change to the undo and redo lists, as the local store persists it in the same transaction as
@@ -83,9 +85,18 @@ public struct UndoStack: Sendable, Hashable {
     public func recording(
         _ inverse: Inverse, label: String, key: CoalesceKey?, stillOpen: Bool, now: Date, limit: Int
     ) -> UndoEdit? {
+        recording(inverse, label: label, joining: key, open: stillOpen ? key : nil, now: now, limit: limit)
+    }
+
+    /// The edit recording a local change's `inverse` when the key it joins under differs from the
+    /// key its step stays open under (`UndoCoalescing.text`): it joins the top step when that step
+    /// is open for `joining` (for typing, within the pause), else it is a new step; either way
+    /// the step is left open for `open` (nil closes it).
+    public func recording(
+        _ inverse: Inverse, label: String, joining: CoalesceKey?, open: CoalesceKey?, now: Date, limit: Int
+    ) -> UndoEdit? {
         guard !inverse.isEmpty else { return nil }
-        let open = stillOpen ? key : nil
-        if let key, let top = undo.last, top.openKey == key, joins(top, key: key, now: now) {
+        if let joining, let top = undo.last, top.openKey == joining, joins(top, key: joining, now: now) {
             return .replaceTop(UndoEntry(label: top.label, inverse: top.inverse.followed(by: inverse), updatedAt: now,
                                          openKey: open))
         }
@@ -93,10 +104,12 @@ public struct UndoStack: Sendable, Hashable {
     }
 
     private func joins(_ top: UndoEntry, key: CoalesceKey, now: Date) -> Bool {
-        if case .typing = key {
+        switch key {
+        case .typing, .text:
             return now.timeIntervalSince(top.updatedAt) < Self.typingPause
+        case .group:
+            return true
         }
-        return true
     }
 
     /// Applies `edit` (the same edit the local store persists).

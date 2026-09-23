@@ -87,14 +87,16 @@ public struct DocumentCore: Sendable {
         guard !builder.ops.isEmpty else { return nil }
         let change = makeChange(label: command.label, startCounter: builder.startCounter, ops: builder.ops, now: recording.now)
         let inverse = state.applyLocal(change)
-        let (key, stillOpen): (CoalesceKey?, Bool) = switch command.coalescing {
+        let (joining, open): (CoalesceKey?, CoalesceKey?) = switch command.coalescing {
         case .typing(let node, let field, let endsWord) where recording.group == nil:
-            (.typing(node: node, field: field), !endsWord)
+            (.typing(node: node, field: field), endsWord ? nil : .typing(node: node, field: field))
+        case .text(let joins, let opens) where recording.group == nil:
+            (joins, opens)
         default:
-            (recording.group.map(CoalesceKey.group), true)
+            (recording.group.map(CoalesceKey.group), recording.group.map(CoalesceKey.group))
         }
         let edit = command.recordsUndo
-            ? undoStack.recording(inverse, label: command.label, key: key, stillOpen: stillOpen, now: recording.now, limit: recording.limit)
+            ? undoStack.recording(inverse, label: command.label, joining: joining, open: open, now: recording.now, limit: recording.limit)
             : nil
         if let edit {
             undoStack.apply(edit)

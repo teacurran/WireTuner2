@@ -1,0 +1,35 @@
+# crdt-conformance/vectors/marks/axes-later-mark-wins-whole-tuple.textproto (TYPE-045; schema: crdt-conformance/schema/vector.proto)
+name: "marks/axes-later-mark-wins-whole-tuple"
+description: "Over \"abcdef\" in a doc.v1 text block: replica 1 sets axes wght 700 + wdth 80 on a-d and replica 2 sets axes wght 300 alone on c-f.  axes is ATOMIC: in c-d the greater OpId (replica 2) wins the whole tuple, so wdth does not survive there; a-b keep replica 1's tuple."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Type"
+    ops { create { parent { counter: 4 } position: "\x80" props { text { common { name: "T" } } } } }
+    ops { text_insert { node { counter: 1 replica: 7 } text { segments { field: 130 } segments { field: 2 } } chars: "abcdef" } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 8 base_server_seq: 1 label: "Axes"
+    ops { text_mark { node { counter: 1 replica: 7 } text { segments { field: 130 } segments { field: 2 } } start { char { counter: 2 replica: 7 } before: true } end { char { counter: 6 replica: 7 } before: true } value { axes { axes { tag: "wght" value: 700 } axes { tag: "wdth" value: 80 } } } } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 8 base_server_seq: 1 label: "Axes"
+    ops { text_mark { node { counter: 1 replica: 7 } text { segments { field: 130 } segments { field: 2 } } start { char { counter: 4 replica: 7 } before: true } end {  } value { axes { axes { tag: "wght" value: 300 } } } } }
+  }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "264b9c22dafeaab9b437e120333c6c797ae25038e641a6a5144cc1014ba57461"
+  snapshot_hash: "60b62a634e88e78f0311c87838ec4f764b5d8e346bfc4a22ed7b4c691248ae47"
+  node {
+    id { counter: 1 replica: 7 }
+    node_hash: ""
+    text { path { segments { field: 130 } segments { field: 2 } } text: "abcdef" chars { counter: 2 replica: 7 } chars { counter: 3 replica: 7 } chars { counter: 4 replica: 7 } chars { counter: 5 replica: 7 } chars { counter: 6 replica: 7 } chars { counter: 7 replica: 7 } runs { start: 0 length: 2 attributes { value { axes { axes { tag: "wght" value: 700 } axes { tag: "wdth" value: 80 } } } mark { counter: 8 replica: 1 } } } runs { start: 2 length: 4 attributes { value { axes { axes { tag: "wght" value: 300 } } } mark { counter: 8 replica: 2 } } } }
+  }
+}

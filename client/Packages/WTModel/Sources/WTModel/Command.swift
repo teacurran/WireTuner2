@@ -41,6 +41,12 @@ public enum UndoCoalescing: Sendable, Hashable {
     /// ends (`endsWord`: this keystroke typed a space, punctuation or a newline) or the user pauses
     /// for a second.
     case typing(node: OpID, field: RegisterPath, endsWord: Bool)
+    /// A keyed text edit (TYPE-002, creating-text.adoc "Undo grouping of typing"): the change
+    /// joins the open undo step when that step is open under `joins` (and the typing pause has not
+    /// passed), and leaves its step open under `opens` (nil closes it).  The text commands key
+    /// each keystroke by the character it continues from, so moving the caret, a word boundary,
+    /// switching between typing and deleting or any other command starts a new step.
+    case text(joins: CoalesceKey?, opens: CoalesceKey?)
 }
 
 /// A user action that writes to the document (docs/spec/client.adoc, "Undo"): it builds the ops

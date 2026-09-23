@@ -1188,6 +1188,15 @@ nonisolated struct Wiretuner_Conformance_V1_TestMarkValue: Sendable {
     set {value = .url(newValue)}
   }
 
+  /// doc.v1's own message (TYPE-045)
+  var axes: WTProto.Wiretuner_Doc_V1_FontVariation {
+    get {
+      if case .axes(let v)? = value {return v}
+      return WTProto.Wiretuner_Doc_V1_FontVariation()
+    }
+    set {value = .axes(newValue)}
+  }
+
   /// keyed by (feature, tag)
   var feature: Wiretuner_Conformance_V1_TestFeature {
     get {
@@ -1205,6 +1214,8 @@ nonisolated struct Wiretuner_Conformance_V1_TestMarkValue: Sendable {
     case fontFamily(String)
     case size(Double)
     case url(String)
+    /// doc.v1's own message (TYPE-045)
+    case axes(WTProto.Wiretuner_Doc_V1_FontVariation)
     /// keyed by (feature, tag)
     case feature(Wiretuner_Conformance_V1_TestFeature)
 
@@ -3731,7 +3742,7 @@ nonisolated extension Wiretuner_Conformance_V1_TestTextMark: SwiftProtobuf.Messa
 
 nonisolated extension Wiretuner_Conformance_V1_TestMarkValue: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   static let protoMessageName: String = _protobuf_package + ".TestMarkValue"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}font_family\0\u{2}\u{2}size\0\u{2}\u{a}url\0\u{2}\u{8}feature\0\u{2}\u{9}bold\0")
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}font_family\0\u{2}\u{2}size\0\u{2}\u{a}url\0\u{2}\u{7}axes\0\u{1}feature\0\u{2}\u{9}bold\0")
 
   mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -3761,6 +3772,19 @@ nonisolated extension Wiretuner_Conformance_V1_TestMarkValue: SwiftProtobuf.Mess
         if let v = v {
           if self.value != nil {try decoder.handleConflictingOneOf()}
           self.value = .url(v)
+        }
+      }()
+      case 20: try {
+        var v: WTProto.Wiretuner_Doc_V1_FontVariation?
+        var hadOneofValue = false
+        if let current = self.value {
+          hadOneofValue = true
+          if case .axes(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.value = .axes(v)
         }
       }()
       case 21: try {
@@ -3806,6 +3830,10 @@ nonisolated extension Wiretuner_Conformance_V1_TestMarkValue: SwiftProtobuf.Mess
     case .url?: try {
       guard case .url(let v)? = self.value else { preconditionFailure() }
       try visitor.visitSingularStringField(value: v, fieldNumber: 13)
+    }()
+    case .axes?: try {
+      guard case .axes(let v)? = self.value else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 20)
     }()
     case .feature?: try {
       guard case .feature(let v)? = self.value else { preconditionFailure() }

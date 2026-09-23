@@ -205,7 +205,8 @@ xref:creating-text.adoc[Creating text].  `no_hyphen` and `no_break` marks do not
 either end.
 
 Read-time normalizations::
-* `ragged_width` and `flush_zone` clamp to 0–100.
+* `ragged_width` and `flush_zone` clamp to 0–100; an unset `ragged_width` (0: proto3 cannot
+  tell it from a written 0, and no paragraph breaks its lines at 0% of the column) reads as 100.
 * A `SpacingRange` with `min > opt` or `opt > max` is read as `(opt, opt, opt)`.
 * `keep_lines` larger than the paragraph's line count keeps the whole paragraph together.
 * `rule.mode` other than `NONE` with no block stroke and no override stroke draws nothing.

@@ -1,0 +1,36 @@
+# crdt-conformance/vectors/marks/feature-default-over-on.textproto (TYPE-045; schema: crdt-conformance/schema/vector.proto)
+name: "marks/feature-default-over-on"
+description: "\"abcdef\" in a doc.v1 text block has liga ON everywhere.  Replica 1 resets liga to DEFAULT on c-d (the reset arrow writes the tag alone, state UNSPECIFIED, which reads as DEFAULT) while replica 2 turns liga OFF on d-f.  DEFAULT is a value that competes by OpId: on c it wins over ON and reads as no mark (the run carries no liga attribute); on d the greater OpId (replica 2, OFF) wins over it."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Type"
+    ops { create { parent { counter: 4 } position: "\x80" props { text { common { name: "T" } } } } }
+    ops { text_insert { node { counter: 1 replica: 7 } text { segments { field: 130 } segments { field: 2 } } chars: "abcdef" } }
+    ops { text_mark { node { counter: 1 replica: 7 } text { segments { field: 130 } segments { field: 2 } } start { before: true } end {  } value { feature { tag: "liga" state: 2 } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 9 base_server_seq: 1 label: "Reset ligatures"
+    ops { text_mark { node { counter: 1 replica: 7 } text { segments { field: 130 } segments { field: 2 } } start { char { counter: 4 replica: 7 } before: true } end { char { counter: 6 replica: 7 } before: true } value { feature { tag: "liga" } } } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 9 base_server_seq: 1 label: "Ligatures off"
+    ops { text_mark { node { counter: 1 replica: 7 } text { segments { field: 130 } segments { field: 2 } } start { char { counter: 5 replica: 7 } before: true } end {  } value { feature { tag: "liga" state: 3 } } } }
+  }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "4773dec12ccb18d5c66e27f27432bef89561d79e7991f4e6edb9880c44907c0d"
+  snapshot_hash: "eaba8a04e3e0b124aca3ca4a4cae2629e86fc0a64f33462d671a48930bc75b9a"
+  node {
+    id { counter: 1 replica: 7 }
+    node_hash: ""
+    text { path { segments { field: 130 } segments { field: 2 } } text: "abcdef" chars { counter: 2 replica: 7 } chars { counter: 3 replica: 7 } chars { counter: 4 replica: 7 } chars { counter: 5 replica: 7 } chars { counter: 6 replica: 7 } chars { counter: 7 replica: 7 } runs { start: 0 length: 2 attributes { value { feature { tag: "liga" state: 2 } } mark { counter: 8 replica: 7 } } } runs { start: 2 length: 1 } runs { start: 3 length: 3 attributes { value { feature { tag: "liga" state: 3 } } mark { counter: 9 replica: 2 } } } }
+  }
+}

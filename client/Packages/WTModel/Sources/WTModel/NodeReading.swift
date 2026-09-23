@@ -106,8 +106,9 @@ extension EngineState {
 }
 
 /// A sparse message being reassembled from register paths: field numbers to sub-messages or
-/// leaves, and after a SEQUENCE field its elements by id.
-private final class PropsTree {
+/// leaves, and after a SEQUENCE field its elements by id.  Also rooted below `NodeProps` (a
+/// paragraph's registers on a newline, `TextNode`), with `path` the root's full register path.
+final class PropsTree {
     var leaf: [UInt8]?
     var fields: [UInt32: PropsTree] = [:]
     var elements: [OpID: PropsTree] = [:]

@@ -404,7 +404,13 @@ inside the span and bold -- the same result as sequential typing.  Two people ap
 different fonts to overlapping ranges: each character shows the font from the mark with the
 greater OpId that covers it; the review sheet's paragraph diff lists both.  For `feature`
 marks "the same attribute" means the same `tag`: a `liga` mark and an `ss01` mark stack, two
-`liga` marks resolve by OpId (xref:type-specifications.adoc[Setting type specifications]).
+`liga` marks resolve by OpId (xref:type-specifications.adoc[Setting type specifications]).  The
+reset arrow writes DEFAULT as the tag alone (`FEATURE_STATE_UNSPECIFIED`, which reads as
+DEFAULT): the mark still competes with ON and OFF by OpId, and where it wins the run carries no
+`feature` attribute for that tag -- it reads as no mark, as crdt-model.adoc says of a value
+holding its default.  An explicit `FEATURE_STATE_DEFAULT` is accepted and lays out the same.
+The conformance vectors `marks/feature-*`, `marks/axes-later-mark-wins-whole-tuple` and
+`registers/style-features-and-axes` pin these rules (TYPE-045).
 
 Paragraphs:: Each paragraph's properties live on its terminating newline element.  Splitting a
 paragraph (typing kbd:[Return]) inserts a newline whose `paragraph` registers are an explicit
@@ -463,6 +469,33 @@ trailing space is one group; the first letter of the next word starts another); 
 command ran in between.  kbd:[Return], kbd:[Tab] and special characters always close a group.
 Backspace runs group the same way.  Input-method composition is one group per committed
 string.  The change label is "Type" for inserts, "Delete text" for deletions.
++
+As built (TYPE-002): `WTModel` performs every keystroke as its own local change and joins them
+into one undo step; the one change per group on the wire is WTSync's outbox coalescing
+(`Coalescer`, adjacent `TextInsert`s become one op), so "hello world" is two undo steps and,
+once coalesced, two sent inserts ("hello " and "world").  A keystroke (`InsertText` with
+`typing`, `DeleteText` with `backspace`) keys its step by the character it continues from
+(`UndoCoalescing.text`, `TextEditKey`): an insert joins a step left open at its left origin and
+leaves it open at the character it typed; a backspace joins at the character it deletes and
+leaves the step open at the live character before it.  A moved caret, a switch between typing
+and deleting, or any other command therefore starts a new step without a separate "caret moved"
+signal.  kbd:[Return], kbd:[Tab], U+2028, U+000C and U+FFFC, and any string of more than one
+character (a paste, a committed input-method string), are steps of their own.
+
+Commands (TYPE-002):: `TextNode` reads a text node from the merged state: live characters,
+`Anchor` ↔ live offset, paragraphs with their terminator and merged `ParagraphProps`, and decoded
+runs.  The commands, each one change taking anchors resolved when it runs: `CreateTextBlock`
+(`.point` auto-expanding, `.area` fixed-size; with text, one change labelled "Type" with the
+pending format as marks), `InsertText`, `DeleteText`, `SplitParagraph`, `JoinParagraph`,
+`ApplyMark` (and `ApplyMark.remove`, a mark of the cleared value), `SetParagraph` (named
+registers on every touched paragraph's terminator or `tail_paragraph`; tabs are element ops and
+are refused) and `SetTextBlock`.  A split, and every newline an insert types, copies the split
+paragraph's registers and tab stops onto the new newline.  Character and paragraph styles are
+applied as a `style` mark and the `style` register; resolving their settings and clearing
+overrides is TYPE-034, and linked flows are TYPE-007.  `TextLayoutReading` turns a `TextNode`
+into WTText's `TextContent` and block `TextContainer` and draws it through the document's
+`DocumentFontIndex.layoutEngine`; the scene builder does not call it yet (it needs a
+`NodeKind.text` case, which the app's exhaustive switches must learn in the same change).
 
 Text tool:: A `Tool` (APP-003) owning an `NSTextInputClient` implementation for the canvas so
 that dictation, marked text and the Character Viewer work.  kbd:[Esc] ends editing.
@@ -538,4 +571,27 @@ typing, replace-all vs. inner insert, link races and loop cutting, style delete 
 Done when::
 * Both engines produce identical `state_hash` for every vector in every delivery order.
 * Each vector's expected attributed string is asserted, not just the hash.
+
+NOTE: As built by TYPE-004: thirteen vectors under `crdt-conformance/vectors/type/`, each
+replayed by both engines in every permutation of its replicas (`make conformance`), each
+asserting the live string, the live and tombstoned character ids and the exact runs with their
+winning marks, or the registers (with retained losing writes) and tree read-outs the case is
+about.  `concurrent-typing-at-one-anchor` (three runs at one anchor, per-keystroke and whole-word
+inserts, ordered by first OpId); `bold-vs-typing-at-each-edge` and `link-vs-typing-at-each-edge`
+(an expanding and a non-expanding mark against typing at the start edge, inside and at the end
+edge); `overlapping-font-marks` (three replicas' font and size marks, the greater OpId per
+character and attribute, with typing inside the overlap); `paragraph-split-vs-alignment-change`
+(the split's explicit copy against concurrent alignment and indent writes on the original
+terminator); `paragraph-join-vs-property-change` (a write to the deleted newline kept on the
+tombstone, one to the surviving terminator applied); `block-delete-vs-typing` (typing and a mark
+into a deleted block, then *Restore*) and `block-delete-vs-typing-stays-deleted`;
+`replace-all-vs-inner-insert` ("a colour" replaced with "color" while an `s` and an `x` are typed
+into the match: "a colorxs"); `link-race`, `link-delete-middle-vs-link` and `link-loop` (doc.v1
+`next_link`/`prev_link` registers, text-blocks.adoc); `style-delete-vs-apply` (a deleted style
+node against the paragraph's `style` reference, a governed paragraph register and the covering
+font mark, with a concurrent newer font mark showing on its character).  Loop cutting and the
+dangling-reference reads (`next_link` to a deleted node read as unset, a style reference resolved
+through its cache) are read-time normalisations above the engines, which store and hash the raw
+registers; the loop and link vectors therefore pin the registers every replica normalises from,
+not the cut itself.
 endif::spec[]

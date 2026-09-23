@@ -295,6 +295,7 @@ message TestMarkValue {
     string font_family = 1;
     double size = 3;
     string url = 13;
+    wiretuner.doc.v1.FontVariation axes = 20;               // doc.v1's own message (TYPE-045)
     TestFeature feature = 21;                               // keyed by (feature, tag)
   }
 }

@@ -1,0 +1,35 @@
+# crdt-conformance/vectors/marks/feature-different-tags-stack.textproto (TYPE-045; schema: crdt-conformance/schema/vector.proto)
+name: "marks/feature-different-tags-stack"
+description: "Over \"abcdef\" in a doc.v1 text block: replica 1 turns liga ON on a-d while replica 2 turns ss03 ON on c-f.  The attribute identity of a feature mark is (feature, tag), so the two marks are different attributes: c-d resolve both, whatever the OpIds."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Type"
+    ops { create { parent { counter: 4 } position: "\x80" props { text { common { name: "T" } } } } }
+    ops { text_insert { node { counter: 1 replica: 7 } text { segments { field: 130 } segments { field: 2 } } chars: "abcdef" } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 8 base_server_seq: 1 label: "Ligatures on"
+    ops { text_mark { node { counter: 1 replica: 7 } text { segments { field: 130 } segments { field: 2 } } start { char { counter: 2 replica: 7 } before: true } end { char { counter: 6 replica: 7 } before: true } value { feature { tag: "liga" state: 2 } } } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 8 base_server_seq: 1 label: "Stylistic set 3 on"
+    ops { text_mark { node { counter: 1 replica: 7 } text { segments { field: 130 } segments { field: 2 } } start { char { counter: 4 replica: 7 } before: true } end {  } value { feature { tag: "ss03" state: 2 } } } }
+  }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "80c2f90959e1157f275ebe38710560ec3efd916b82ca11ba87573f81b3cb6d2d"
+  snapshot_hash: "9fbac715cc25b4cd38049883f0feed39f33a93efb4891917cbd49c909e0768e8"
+  node {
+    id { counter: 1 replica: 7 }
+    node_hash: ""
+    text { path { segments { field: 130 } segments { field: 2 } } text: "abcdef" chars { counter: 2 replica: 7 } chars { counter: 3 replica: 7 } chars { counter: 4 replica: 7 } chars { counter: 5 replica: 7 } chars { counter: 6 replica: 7 } chars { counter: 7 replica: 7 } runs { start: 0 length: 2 attributes { value { feature { tag: "liga" state: 2 } } mark { counter: 8 replica: 1 } } } runs { start: 2 length: 2 attributes { value { feature { tag: "liga" state: 2 } } mark { counter: 8 replica: 1 } } attributes { value { feature { tag: "ss03" state: 2 } } mark { counter: 8 replica: 2 } } } runs { start: 4 length: 2 attributes { value { feature { tag: "ss03" state: 2 } } mark { counter: 8 replica: 2 } } } }
+  }
+}

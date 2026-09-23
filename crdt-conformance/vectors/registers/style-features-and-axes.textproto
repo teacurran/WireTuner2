@@ -1,0 +1,58 @@
+# crdt-conformance/vectors/registers/style-features-and-axes.textproto (TYPE-045; schema: crdt-conformance/schema/vector.proto)
+name: "registers/style-features-and-axes"
+description: "A character style has liga ON and axes wght 400.  Replica 1 turns its liga OFF and sets axes wght 700 + wdth 90; replica 2 turns its ss03 ON and sets axes wght 300.  CharacterSettings.features is STRUCT, one register per feature, so both feature edits are kept; CharacterSettings.axes is ATOMIC, so the greater OpId (replica 2) wins the whole tuple and wdth does not survive."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "New character style"
+    ops { create { parent { counter: 6 } position: "\x80" props { style { common { name: "Display" } kind: STYLE_KIND_CHARACTER
+      text { character { axes { axes { tag: "wght" value: 400 } } features { liga: FEATURE_STATE_ON } } } } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 2 base_server_seq: 1 label: "Edit style Display"
+    ops { set { node { counter: 1 replica: 7 }
+      paths { segments { field: 154 } segments { field: 7 } segments { field: 2 } segments { field: 15 } segments { field: 1 } }
+      paths { segments { field: 154 } segments { field: 7 } segments { field: 2 } segments { field: 14 } }
+      values { style { text { character { axes { axes { tag: "wght" value: 700 } axes { tag: "wdth" value: 90 } } features { liga: FEATURE_STATE_OFF } } } } } } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 2 base_server_seq: 1 label: "Edit style Display"
+    ops { set { node { counter: 1 replica: 7 }
+      paths { segments { field: 154 } segments { field: 7 } segments { field: 2 } segments { field: 15 } segments { field: 23 } }
+      paths { segments { field: 154 } segments { field: 7 } segments { field: 2 } segments { field: 14 } }
+      values { style { text { character { axes { axes { tag: "wght" value: 300 } } features { ss03: FEATURE_STATE_ON } } } } } } }
+  }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "41f3582a30df1278e649055a9f5ee7fef4d4864926c01938d2399ea6948566e1"
+  snapshot_hash: "1d132750699ad8980594fc3f2afcba43949da74fa909ca2d94cec05fdd57ad48"
+  node {
+    id { counter: 1 replica: 7 }
+    node_hash: ""
+    register {
+      path { segments { field: 154 } segments { field: 7 } segments { field: 2 } segments { field: 14 } }
+      value { style { text { character { axes { axes { tag: "wght" value: 300 } } } } } }
+      op { counter: 2 replica: 2 }
+      losing { counter: 1 replica: 7 }
+      losing { counter: 2 replica: 1 }
+    }
+    register {
+      path { segments { field: 154 } segments { field: 7 } segments { field: 2 } segments { field: 15 } segments { field: 1 } }
+      value { style { text { character { features { liga: FEATURE_STATE_OFF } } } } }
+      op { counter: 2 replica: 1 }
+      losing { counter: 1 replica: 7 }
+    }
+    register {
+      path { segments { field: 154 } segments { field: 7 } segments { field: 2 } segments { field: 15 } segments { field: 23 } }
+      value { style { text { character { features { ss03: FEATURE_STATE_ON } } } } }
+      op { counter: 2 replica: 2 }
+    }
+  }
+}
