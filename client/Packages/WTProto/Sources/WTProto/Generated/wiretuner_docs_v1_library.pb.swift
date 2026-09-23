@@ -50,7 +50,7 @@ public nonisolated struct Wiretuner_Docs_V1_Library: Sendable {
   /// The team that owns it.
   public var teamID: String = String()
 
-  /// The document's name.
+  /// The library's name: the one given when it was published, else the document's name then.
   public var name: String = String()
 
   /// The kind of document (a typeface library offers glyph components).
@@ -94,6 +94,10 @@ public nonisolated struct Wiretuner_Docs_V1_SetLibraryRequest: Sendable {
 
   /// True to make the document a library, false to unmark it.
   public var isLibrary: Bool = false
+
+  /// The library's name in the panels when publishing; empty = the document's name.  Publishing
+  /// an existing library again renames it.
+  public var name: String = String()
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -272,7 +276,7 @@ nonisolated extension Wiretuner_Docs_V1_Library: SwiftProtobuf.Message, SwiftPro
 
 nonisolated extension Wiretuner_Docs_V1_SetLibraryRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SetLibraryRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}document_id\0\u{3}is_library\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}document_id\0\u{3}is_library\0\u{1}name\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -282,6 +286,7 @@ nonisolated extension Wiretuner_Docs_V1_SetLibraryRequest: SwiftProtobuf.Message
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularStringField(value: &self.documentID) }()
       case 2: try { try decoder.decodeSingularBoolField(value: &self.isLibrary) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.name) }()
       default: break
       }
     }
@@ -294,12 +299,16 @@ nonisolated extension Wiretuner_Docs_V1_SetLibraryRequest: SwiftProtobuf.Message
     if self.isLibrary != false {
       try visitor.visitSingularBoolField(value: self.isLibrary, fieldNumber: 2)
     }
+    if !self.name.isEmpty {
+      try visitor.visitSingularStringField(value: self.name, fieldNumber: 3)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Wiretuner_Docs_V1_SetLibraryRequest, rhs: Wiretuner_Docs_V1_SetLibraryRequest) -> Bool {
     if lhs.documentID != rhs.documentID {return false}
     if lhs.isLibrary != rhs.isLibrary {return false}
+    if lhs.name != rhs.name {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

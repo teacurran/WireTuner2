@@ -259,7 +259,7 @@ administrative powers; its single owner is its one `document_member` row with ro
 `comments (0:12)` collection: start threads, reply, mention, react, edit and delete own comments,
 resolve own threads -- xref:comments.adoc[Comments]), `viewer`.  A change from a `commenter`
 session is accepted only if every op targets a node under `0:12` and obeys the per-comment
-ownership rules on the Comments page; a `viewer` session may not write under `0:12` at all.  Effective role = max(explicit membership, team default for members, share
+ownership rules on the Comments page; a `viewer` session may not write under `0:12` at all (as built by COLLAB-030, the same rules also bind editors' and owners' ops on comment threads, with their extra powers; xref:comments.adoc[Comments], As built).  Effective role = max(explicit membership, team default for members, share
 link role if the link was used).  The server evaluates it on every RPC and at every session
 open; a change from a session whose role dropped below `editor` is rejected with
 `ROLE_INSUFFICIENT` (xref:api-conventions.adoc[API conventions]).

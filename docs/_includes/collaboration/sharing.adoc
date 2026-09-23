@@ -58,8 +58,8 @@ address on it.
 objects out to another document.  Cannot change anything.
 
 |Commenter
-|Reserved.  There are no comments in this version; a commenter is treated exactly as a viewer,
-and the role exists so that granting it now means something later.
+|Everything a viewer may, plus start comment threads, reply, mention people, react, and edit or
+delete their own comments (xref:comments.adoc[Comments]).  Cannot change the artwork.
 
 |Editor
 |Everything a viewer may, plus edit the document, name versions, create and merge branches,
@@ -474,6 +474,16 @@ The library's *contents* are read by opening the library document read-only thro
 ordinary `FetchSnapshot`/`FetchChanges` path (members get at least viewer on a library by
 construction: publishing a library sets its team access override to at least VIEWER).
 
+As built (COLLAB-012, `api/.../library/LibraryGrpcService`, table `library`): `SetLibrary` needs the
+owner's powers (the owner row or a team admin) on a team document -- a personal one is
+`FAILED_PRECONDITION / TEAM_ROLE_INVALID` -- and takes an optional `name` (added to
+`SetLibraryRequest`; empty = the document's name, publishing again renames); it keeps
+`document.is_library` in step.  No override is written: team defaults and overrides are never
+below viewer in the schema, so every member can already read the document.  `ListLibraries`
+needs team member or above (a guest is `ROLE_INSUFFICIENT`, an outsider `TEAM_NOT_FOUND`), leaves
+out trashed documents and pages by name; `GetLibrary` needs a role on the document and answers
+`head_seq` for the update check; an unpublished document is `DOCUMENT_NOT_FOUND` there.
+
 === Merge semantics
 
 Membership, links and requests are server rows with last-write-wins by server time; they are
@@ -527,12 +537,18 @@ requests, transfer, link passwords, `team_members_only` and `revoke_on_expiry` a
   role as `RoleChanged` -- or `AccessRemoved`, which ends that subscription.  These two reach only
   the person's own sessions.  A downgrade is refused on the person's next push: the node that made
   the change forgets its memoised push decisions for the document at once; another node honours
-  its memo for up to 2 s (`wt.sync.grant-ttl`, xref:server.adoc[Server]).  Team membership and
-  team-default changes do not push events yet (TeamService).
+  its memo for up to 2 s (`wt.sync.grant-ttl`, xref:server.adoc[Server]).  Changes that reach
+  many people -- a team member's role or removal, leaving, accepting an invitation, deleting the
+  team, the team default, a document's team access override, a move between spaces, a
+  revoke-on-expiry link expiring -- go through `RoleNotices` (COLLAB-011): once committed, every
+  account with a live subscription on an affected document (`LiveSessions`, a Valkey sorted set
+  `live:<doc>` of `<account>:<node>` renewed every 20 s for 60 s) is told its effective role there;
+  the document-level ones also send `MembersChanged`.
 * *ListMembers* (any role): the owner, named members, and people with access through the team or a
   link who have opened the document (their color row or their link use), owner first, then by
   display name, then pending invitations by address; emails for owners (team admins included)
-  only; the team access row on a team document's first page, its override always unset.
+  only; the team access row on a team document's first page, with the document's override when
+  one is set.
 * *Invite* (editor or owner): by account id (which must exist, else `NOT_FOUND /
   MEMBER_NOT_FOUND`) or by email -- an address that is an account's email or one of its verified
   identities names that account, any other becomes a pending `document_invite` (inviting it again
@@ -562,9 +578,25 @@ requests, transfer, link passwords, `team_members_only` and `revoke_on_expiry` a
   to the new owner's personal space, at its root, and every session is told `Moved`; a team
   document passes its `owner` row.  The previous owner becomes an editor.
 * *Restrict-sharing* (SEC-002): see xref:security.adoc[Accounts, teams and security].
-* Not built: `SetTeamAccess` and the named-role-wins rule of COLLAB-011 (`UNIMPLEMENTED`), the
-  expiry of pending invitations, and the "editors may create links when the workspace allows"
-  switch.
+* *SetTeamAccess* (owner; COLLAB-011): stores the override in `document.team_access_override`
+  (null = the team default); a personal document is `FAILED_PRECONDITION / TEAM_ROLE_INVALID`.
+  Effective role: a personal owner, or a team owner or admin, is the owner; otherwise a named role,
+  when there is one, replaces the team's access -- lower or higher -- and a used link can still raise
+  the result; without a named role a member of a live team gets the override, else the team
+  default.  The schema has no role below viewer for either, so an override never hides a document
+  from a member.
+* *Space moves* (COLLAB-011): `DocumentService.Move` is `MoveToFolder` with a `space_id` (SRV-009's
+  RPC, no new one).  Moving needs the owner's powers; moving out of a team also needs team owner or
+  admin -- the document's owner row alone is `ROLE_INSUFFICIENT`; moving into a team needs member
+  or above there.  After the move every live session is told its role (`AccessRemoved` for the
+  team members who lost it) besides `Moved`.
+* *Invitations job* (daily, one node): pending document invitations by email expire after
+  `wt.share.invite-ttl` (30 days) and team invitations past their expiry are deleted; a
+  revoke-on-expiry link that expired since the last run is announced once
+  (`share_link.expiry_announced_at`) to the people who opened it -- `AccessRemoved` without an
+  actor, or their remaining role -- so their sessions and push decisions catch up within one run
+  (the role itself already stops at the expiry, when it is read).
+* Not built: the "editors may create links when the workspace allows" switch.
 
 === Client
 

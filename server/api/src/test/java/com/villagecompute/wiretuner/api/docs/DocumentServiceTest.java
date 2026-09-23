@@ -411,6 +411,12 @@ class DocumentServiceTest extends ServiceTestSupport {
         teamMember(team, bob, "member");
         teamMember(other, bob, "member");
         Document doc = create(BOB, team, null, "Bob's team doc");
+        MoveToFolderRequest out = MoveToFolderRequest.newBuilder().setDocumentId(doc.getId())
+                .setSpaceId(other.toString()).build();
+
+        // Moving out of a team needs a team admin (COLLAB-011): the owner row alone is not enough.
+        assertFails(() -> as(docs, BOB).moveToFolder(out), Status.Code.PERMISSION_DENIED, "ROLE_INSUFFICIENT");
+        exec("UPDATE team_member SET role = 'admin' WHERE team_id IN (?, ?) AND account_id = ?", team, other, bob);
 
         // Team -> team keeps the owner row.
         Document moved = as(docs, BOB).moveToFolder(MoveToFolderRequest.newBuilder().setDocumentId(doc.getId())

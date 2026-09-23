@@ -88,4 +88,14 @@ class SharePartsTest {
         assertThat(LinkPasswords.hashNow("correct horse")).isNotEqualTo(phc);
         assertThat(ShareGrpcService.token()).hasSize(22).matches("[A-Za-z0-9_-]+");
     }
+
+    @Test
+    void roleNoticesCarryTheActorOnlyWhenThereIsOne() {
+        Participant actor = Participant.newBuilder().setUserId(UUID.randomUUID().toString()).build();
+        assertThat(RoleNotices.event(Role.NONE, actor).getAccessRemoved().getActor()).isEqualTo(actor);
+        assertThat(RoleNotices.event(Role.NONE, Participant.getDefaultInstance()).getAccessRemoved().hasActor()).isFalse();
+        assertThat(RoleNotices.event(Role.VIEWER, actor).getRoleChanged().getActor()).isEqualTo(actor);
+        assertThat(RoleNotices.event(Role.EDITOR, Participant.getDefaultInstance()).getRoleChanged().hasActor()).isFalse();
+        assertThat(RoleNotices.event(Role.EDITOR, actor).getRoleChanged().getRole()).isEqualTo(DocumentRole.DOCUMENT_ROLE_EDITOR);
+    }
 }

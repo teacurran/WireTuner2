@@ -24,11 +24,15 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
 /**
- * The effective document role (docs/spec/security.adoc, Document roles): the maximum of the explicit
- * {@code document_member} row, the team default for team members (team owners and admins hold the
- * owner's powers on team documents; guests hold nothing by membership alone), and the role of any
- * share link the account has used that still grants (not revoked; not expired, when it revokes on
- * expiry). A {@code document_member} row with role {@code none} only holds a presence color.
+ * The effective document role (docs/spec/security.adoc, Document roles; sharing.adoc, Roles and
+ * Access for the whole team): the maximum of the role through the team and the role of any share
+ * link the account has used that still grants (not revoked; not expired, when it revokes on expiry).
+ * The role through the team is the explicit {@code document_member} row when there is one -- higher
+ * or lower than the team's access, the named role wins (COLLAB-011) -- and otherwise the team's
+ * access for a team member: the document's override ({@code document.team_access_override}) or the
+ * team default. Team owners and admins hold the owner's powers on team documents whatever their
+ * named role; guests hold nothing by membership alone. A {@code document_member} row with role
+ * {@code none} only holds a presence color.
  *
  * <p>Exactly one owner: a personal document's owner is {@code document.owner_account_id}; a team
  * document's owner is its single {@code document_member} row with role {@code owner}, which the
@@ -66,9 +70,15 @@ public class DocumentRoles {
      */
     public record Access(Role named, Role team, Role link, boolean personalOwner) {
 
-        /** The effective role: the maximum over the sources; a personal owner is always the owner. */
+        /**
+         * The effective role: a personal owner, or a team owner or admin, is the owner; otherwise the
+         * named role if any, else the team's access, raised by a link.
+         */
         public Role effective() {
-            return personalOwner ? Role.OWNER : Role.max(Role.max(named, team), link);
+            if (personalOwner || team == Role.OWNER) {
+                return Role.OWNER;
+            }
+            return Role.max(named == Role.NONE ? team : named, link);
         }
     }
 
@@ -85,7 +95,7 @@ public class DocumentRoles {
     public Uni<Access> access(Document document, UUID accountId) {
         boolean personalOwner = accountId.equals(document.ownerAccountId);
         return explicitRole(document.id, accountId)
-                .flatMap(named -> teamRole(document.teamId, accountId)
+                .flatMap(named -> teamRole(document, accountId)
                         .flatMap(team -> shareLinkRole(document.id, accountId)
                                 .map(link -> new Access(named, team, link, personalOwner))));
     }
@@ -95,8 +105,13 @@ public class DocumentRoles {
                 .map(member -> member == null ? Role.NONE : Role.fromDb(member.role));
     }
 
-    /** The account's role on the team's documents through its membership; NONE for a personal document. */
-    public Uni<Role> teamRole(UUID teamId, UUID accountId) {
+    /**
+     * The account's role on the document through its team membership: the owner's powers for team
+     * owners and admins, the document's override or the team default for members of a live team,
+     * NONE for guests, outsiders and personal documents.
+     */
+    Uni<Role> teamRole(Document document, UUID accountId) {
+        UUID teamId = document.teamId;
         if (teamId == null) {
             return Uni.createFrom().item(Role.NONE);
         }
@@ -106,8 +121,9 @@ public class DocumentRoles {
             }
             return switch (member.role) {
                 case TEAM_OWNER, TEAM_ADMIN -> Uni.createFrom().item(Role.OWNER);
-                case TEAM_MEMBER -> teams.findById(teamId)
-                        .map(team -> team.deletedAt == null ? Role.fromDb(team.defaultDocumentRole) : Role.NONE);
+                case TEAM_MEMBER -> teams.findById(teamId).map(team -> team.deletedAt != null ? Role.NONE
+                        : Role.fromDb(document.teamAccessOverride != null ? document.teamAccessOverride
+                                : team.defaultDocumentRole));
                 default -> Uni.createFrom().item(Role.NONE);
             };
         });

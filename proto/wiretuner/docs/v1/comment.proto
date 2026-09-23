@@ -1,0 +1,96 @@
+// proto/wiretuner/docs/v1/comment.proto
+//
+// Read state and notifications for comments (docs/_includes/collaboration/comments.adoc,
+// "Specification"; COLLAB-030).  Comment threads themselves are document data under the
+// well-known comments node 0:12 (wiretuner.doc.v1 comments.proto) and sync like every other
+// change; what is here is server state kept per account -- which comments the caller has seen,
+// and which documents hold unseen mentions of them -- never document content.  The live half
+// is wiretuner.sync.v1.CommentEvent on the document's subscription.
+syntax = "proto3";
+
+package wiretuner.docs.v1;
+
+import "buf/validate/validate.proto";
+import "wiretuner/doc/v1/common.proto";
+
+option java_multiple_files = true;
+option java_package = "com.villagecompute.wiretuner.docs.v1";
+option optimize_for = SPEED;
+
+// Unread comments and mentions.  Any role that can open the document may call the document
+// RPCs; a document the caller cannot see answers NOT_FOUND with reason DOCUMENT_NOT_FOUND.
+service CommentService {
+  // Unread state for the caller in one document: per thread, the element ids of comments the
+  // caller has not seen -- newer than the thread's read mark, not written by the caller, not
+  // deleted -- as the server's own record of the comments has them, so the count includes
+  // comments the client has not received yet.  Called on open and refreshed from CommentEvent.
+  rpc GetUnread(GetUnreadRequest) returns (GetUnreadResponse);
+  // The caller has seen a thread through a given comment.  Idempotent and monotone per thread:
+  // a mark older than the stored one changes nothing.  Also marks the caller's notifications
+  // for the thread seen, so no mention mail is sent for them.
+  rpc MarkRead(MarkReadRequest) returns (MarkReadResponse);
+  // Documents with unseen mentions of the caller (the library window's dots), account-wide,
+  // limited to documents the caller can still open.
+  rpc ListMentionedDocuments(ListMentionedDocumentsRequest) returns (ListMentionedDocumentsResponse);
+}
+
+// Asks for the caller's unread comments in one document.
+message GetUnreadRequest {
+  // The document.
+  string document_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+}
+
+// The caller's unread comments in one document.
+message GetUnreadResponse {
+  // The threads with something unread, in creation order; threads with nothing unread are
+  // left out.
+  repeated ThreadUnread threads = 1;
+  // The toolbar count: unread comments over every thread.
+  uint32 total = 2;
+}
+
+// One thread's unread comments.
+message ThreadUnread {
+  // The comment_thread node.
+  wiretuner.doc.v1.OpId thread = 1;
+  // The unread comments' element ids, in id order.
+  repeated wiretuner.doc.v1.ElementId unread = 2;
+  // True when a comment in the thread mentions the caller (or a team of theirs) and the caller
+  // has not seen it yet.
+  bool mentions_me = 3;
+}
+
+// Marks a thread read through one comment.
+message MarkReadRequest {
+  // The document.
+  string document_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+  // The comment_thread node.
+  wiretuner.doc.v1.OpId thread = 2 [(buf.validate.field).required = true];
+  // The newest comment displayed: every comment with this id or a lower one counts as read.
+  wiretuner.doc.v1.ElementId through = 3 [(buf.validate.field).required = true];
+}
+
+// The mark was recorded (or an equal or newer one already was).
+message MarkReadResponse {}
+
+// Asks for the documents with unseen mentions of the caller.
+message ListMentionedDocumentsRequest {
+  // Opaque cursor from a previous response; empty for the first page.
+  string cursor = 1 [(buf.validate.field).string.max_len = 1024];
+  // Documents per page; 0 selects the server's default, at most 500.
+  uint32 page_size = 2 [(buf.validate.field).uint32.lte = 500];
+}
+
+// One page of documents with unseen mentions.
+message ListMentionedDocumentsResponse {
+  // The documents' ids, in id order.
+  repeated string document_ids = 1;
+  // Cursor for the next page; empty when this is the last page.
+  string next_cursor = 2;
+}

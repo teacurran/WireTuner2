@@ -67,6 +67,8 @@ import com.villagecompute.wiretuner.docs.v1.RevokeLinkRequest;
 import com.villagecompute.wiretuner.docs.v1.RevokeLinkResponse;
 import com.villagecompute.wiretuner.docs.v1.SetRoleRequest;
 import com.villagecompute.wiretuner.docs.v1.SetRoleResponse;
+import com.villagecompute.wiretuner.docs.v1.SetTeamAccessRequest;
+import com.villagecompute.wiretuner.docs.v1.SetTeamAccessResponse;
 import com.villagecompute.wiretuner.docs.v1.TeamAccess;
 import com.villagecompute.wiretuner.docs.v1.TransferOwnershipRequest;
 import com.villagecompute.wiretuner.docs.v1.TransferOwnershipResponse;
@@ -104,6 +106,7 @@ public class ShareGrpcService extends MutinyShareServiceGrpc.ShareServiceImplBas
 
     static final int TOKEN_BYTES = 16;
     static final String SHARING_RESTRICTED = "this workspace restricts sharing to team members";
+    static final String PERSONAL_HAS_NO_TEAM = "a personal document has no team access; move it to a team first";
 
     private static final SecureRandom RANDOM = new SecureRandom();
 
@@ -152,6 +155,9 @@ public class ShareGrpcService extends MutinyShareServiceGrpc.ShareServiceImplBas
     @Inject
     PushGrants grants;
 
+    @Inject
+    RoleNotices notices;
+
     /** An event for one account's sessions ({@code audience}), or for everyone's (null). */
     record Notice(UUID audience, DocumentEvent event) {
     }
@@ -178,16 +184,47 @@ public class ShareGrpcService extends MutinyShareServiceGrpc.ShareServiceImplBas
                     if (offset > 0 || doc.teamId == null) {
                         return Uni.createFrom().item(response.build());
                     }
-                    return teams.findById(doc.teamId).map(team -> response.setTeamAccess(teamAccess(team)).build());
+                    return teams.findById(doc.teamId).map(team -> response.setTeamAccess(teamAccess(team, doc)).build());
                 }))));
     }
 
-    static TeamAccess teamAccess(Team team) {
-        return TeamAccess.newBuilder()
+    /** The team access row of a team document: the team default and the document's override, if any. */
+    static TeamAccess teamAccess(Team team, Document doc) {
+        TeamAccess.Builder access = TeamAccess.newBuilder()
                 .setTeamId(team.id.toString())
                 .setTeamName(team.name)
-                .setTeamDefault(DocumentMessages.role(Role.fromDb(team.defaultDocumentRole)))
-                .build();
+                .setTeamDefault(DocumentMessages.role(Role.fromDb(team.defaultDocumentRole)));
+        if (doc.teamAccessOverride != null) {
+            access.setOverride(DocumentMessages.role(Role.fromDb(doc.teamAccessOverride)));
+        }
+        return access.build();
+    }
+
+    /**
+     * Overrides the team default for one team document (COLLAB-011), or clears the override. Every live
+     * member of the team on the document is then told their role: a member whose named role is lower
+     * keeps it (the named role wins), one without a named role takes the override.
+     */
+    @Override
+    public Uni<SetTeamAccessResponse> setTeamAccess(SetTeamAccessRequest request) {
+        UUID documentId = UUID.fromString(request.getDocumentId());
+        Role override = ShareMessages.role(request.getOverride());
+        return tx(() -> guard.require(documentId, Role.OWNER).flatMap(grant -> documents.findById(documentId)
+                .flatMap(doc -> {
+                    if (doc.teamId == null) {
+                        return Uni.createFrom().failure(StatusExceptions.teamRoleInvalid(PERSONAL_HAS_NO_TEAM));
+                    }
+                    doc.teamAccessOverride = override == Role.NONE ? null : override.dbName();
+                    doc.updatedAt = Instant.now();
+                    return teams.findById(doc.teamId).map(team -> new Acted<>(SetTeamAccessResponse.newBuilder()
+                            .setTeamAccess(teamAccess(team, doc)).build(), grant.principal().accountId()));
+                })))
+                .call(acted -> notices.document(documentId, null, acted.actor()))
+                .map(Acted::response);
+    }
+
+    /** A committed RPC's response and who made the change, for the role notices that follow. */
+    record Acted<T>(T response, UUID actor) {
     }
 
     /**

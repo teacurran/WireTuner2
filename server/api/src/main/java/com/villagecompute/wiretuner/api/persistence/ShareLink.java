@@ -46,6 +46,10 @@ public class ShareLink {
     @Column(name = "revoke_on_expiry", nullable = false)
     public boolean revokeOnExpiry;
 
+    /** When the Invitations job told the people who opened it that its expiry ended their access (COLLAB-011). */
+    @Column(name = "expiry_announced_at")
+    public Instant expiryAnnouncedAt;
+
     /** Whether only members of the document's team may open it. */
     @Column(name = "team_members_only", nullable = false)
     public boolean teamMembersOnly;

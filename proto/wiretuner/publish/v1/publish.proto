@@ -1,0 +1,216 @@
+// proto/wiretuner/publish/v1/publish.proto
+//
+// Publishing a document to a web link (docs/_includes/web/publish-html.adoc, "Publishing to a web
+// link"; WEB-011).  The client renders the HTML bundle, uploads every file through
+// wiretuner.blob.v1.BlobService (which associates each blob with the document), and registers
+// the bundle here with a manifest of paths and blob hashes.  The server keeps publishes as rows,
+// never as document content, and serves the current one of each document on a separate origin,
+// `https://pub.<host>/d/<document id>/`, so published pages can never read app state or call the
+// API with a viewer's credentials.
+//
+// Errors: an unknown publish, or one on a document the caller cannot see, is NOT_FOUND with
+// reason DOCUMENT_NOT_FOUND; a manifest naming a blob the document does not reference is
+// NOT_FOUND with reason BLOB_NOT_FOUND; a bundle over 512 MiB is INVALID_ARGUMENT with reason
+// VALIDATION_FAILED; more than 30 publishes of one document in an hour is RESOURCE_EXHAUSTED with
+// reason RATE_LIMITED and RetryInfo.
+syntax = "proto3";
+
+package wiretuner.publish.v1;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+
+option java_multiple_files = true;
+option java_package = "com.villagecompute.wiretuner.publish.v1";
+option optimize_for = SPEED;
+
+// The web links of a document.  Creating, changing access and deleting need editor or owner;
+// getting and listing need any role on the document.  Every change is told to the document's
+// sessions as wiretuner.sync.v1.PublishesChanged.
+service PublishService {
+  // Registers a publish whose files are already uploaded as blobs, and makes it the one the
+  // document's web link serves.  Idempotent on `publish_id`: a retry answers the publish made
+  // first and changes nothing.
+  rpc CreatePublish(CreatePublishRequest) returns (CreatePublishResponse);
+  // One publish.
+  rpc GetPublish(GetPublishRequest) returns (GetPublishResponse);
+  // The document's publishes, newest first.
+  rpc ListPublishes(ListPublishesRequest) returns (ListPublishesResponse);
+  // Changes who may open a publish's link.
+  rpc SetPublishAccess(SetPublishAccessRequest) returns (SetPublishAccessResponse);
+  // Unpublishes: the publish is forgotten, and when it was the current one the link stops
+  // working until someone publishes again (at the same address).  The blobs stay, under the
+  // document's ordinary retention.  Idempotent: an unknown publish answers success.
+  rpc DeletePublish(DeletePublishRequest) returns (DeletePublishResponse);
+}
+
+// Who may open a published link.
+enum PublishAccess {
+  // Not set.  On CreatePublish: the document's link policy -- anyone with the link when the
+  // document has a live share link, else members only.
+  PUBLISH_ACCESS_UNSPECIFIED = 0;
+  // People with a role on the document, signed in.
+  PUBLISH_ACCESS_MEMBERS = 1;
+  // Anyone who has the address, without signing in.
+  PUBLISH_ACCESS_ANYONE_WITH_LINK = 2;
+}
+
+// One file of a published bundle.
+message PublishFile {
+  // Path inside the bundle: relative, `/`-separated, normalized -- no empty, `.` or `..`
+  // segment, no leading or trailing `/`, no backslash or control character.  `index.html` is
+  // what the link's root serves.
+  string path = 1 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 1024
+    pattern: "^(?:(?:[^/\\\\\\x00-\\x1f.][^/\\\\\\x00-\\x1f]*|\\.[^/\\\\\\x00-\\x1f.][^/\\\\\\x00-\\x1f]*|\\.\\.[^/\\\\\\x00-\\x1f]+)/)*(?:[^/\\\\\\x00-\\x1f.][^/\\\\\\x00-\\x1f]*|\\.[^/\\\\\\x00-\\x1f.][^/\\\\\\x00-\\x1f]*|\\.\\.[^/\\\\\\x00-\\x1f]+)$"
+  }];
+  // The sha256 of the file's content: a blob uploaded for this document.
+  bytes sha256 = 2 [(buf.validate.field).bytes.len = 32];
+  // The Content-Type the file is served with, for example `text/html; charset=utf-8`.
+  string media_type = 3 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 255
+  }];
+  // The file's size in bytes; the server serves the blob's recorded size.
+  uint64 size = 4;
+}
+
+// The files of a bundle.
+message PublishManifest {
+  option (buf.validate.message).cel = {
+    id: "publish_manifest.unique_paths"
+    message: "every path in a manifest must be unique"
+    expression: "this.files.map(f, f.path).unique()"
+  };
+  // Every file, at most 4,096; paths are unique.
+  repeated PublishFile files = 1 [(buf.validate.field).repeated = {
+    min_items: 1
+    max_items: 4096
+  }];
+}
+
+// A publish as the Published links sheet lists it.
+message Publish {
+  // The client-chosen id (a UUIDv7).
+  string publish_id = 1 [(buf.validate.field).string.uuid = true];
+  // The document.
+  string document_id = 2 [(buf.validate.field).string.uuid = true];
+  // The document version the bundle was rendered from.
+  uint64 server_seq = 3;
+  // The name of the HTML setting used.
+  string setting_name = 4 [(buf.validate.field).string.max_len = 64];
+  // The account that published it.
+  string published_by_account_id = 5 [(buf.validate.field).string.uuid = true];
+  // When it was published.
+  google.protobuf.Timestamp published_at = 6;
+  // Who may open its link.
+  PublishAccess access = 7 [(buf.validate.field).enum.defined_only = true];
+  // The document's web link, `https://pub.<host>/d/<document id>/`; the same for every publish
+  // of the document.
+  string url = 8 [(buf.validate.field).string.max_len = 2048];
+  // True for the publish the link serves.
+  bool current = 9;
+  // How many files the bundle has.
+  uint32 file_count = 10;
+  // The bundle's size in bytes.
+  uint64 total_size = 11;
+}
+
+// Registers a publish.
+message CreatePublishRequest {
+  // A new UUIDv7 chosen by the client; the idempotency key.
+  string publish_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+  // The document.
+  string document_id = 2 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+  // The document version the bundle was rendered from.
+  uint64 server_seq = 3;
+  // The name of the HTML setting used.
+  string setting_name = 4 [(buf.validate.field).string.max_len = 64];
+  // Who may open the link; UNSPECIFIED takes the document's link policy.
+  PublishAccess access = 5 [(buf.validate.field).enum.defined_only = true];
+  // The bundle's files.
+  PublishManifest manifest = 6 [(buf.validate.field).required = true];
+}
+
+// The publish, now current.
+message CreatePublishResponse {
+  // The publish.
+  Publish publish = 1;
+}
+
+// Asks for one publish.
+message GetPublishRequest {
+  // The publish.
+  string publish_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+}
+
+// One publish.
+message GetPublishResponse {
+  // The publish.
+  Publish publish = 1;
+  // Its files, by path.
+  PublishManifest manifest = 2;
+}
+
+// Lists a document's publishes.
+message ListPublishesRequest {
+  // The document.
+  string document_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+  // Opaque cursor from a previous response; empty for the first page.
+  string cursor = 2 [(buf.validate.field).string.max_len = 1024];
+  // Publishes per page; 0 selects the server's default, at most 100.
+  uint32 page_size = 3 [(buf.validate.field).uint32.lte = 100];
+}
+
+// One page of publishes.
+message ListPublishesResponse {
+  // The publishes, newest first.
+  repeated Publish publishes = 1;
+  // Cursor for the next page; empty when this is the last page.
+  string next_cursor = 2;
+}
+
+// Changes who may open a publish's link.
+message SetPublishAccessRequest {
+  // The publish.
+  string publish_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+  // The new access; never UNSPECIFIED.
+  PublishAccess access = 2 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
+}
+
+// The publish after the change.
+message SetPublishAccessResponse {
+  // The publish.
+  Publish publish = 1;
+}
+
+// Unpublishes.
+message DeletePublishRequest {
+  // The publish.
+  string publish_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+}
+
+// The publish is gone.
+message DeletePublishResponse {}

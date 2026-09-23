@@ -7,6 +7,7 @@ import java.util.Base64;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Supplier;
 
@@ -72,6 +73,7 @@ import com.villagecompute.wiretuner.api.persistence.WorkspaceDomain;
 import com.villagecompute.wiretuner.api.persistence.WorkspaceDomainId;
 import com.villagecompute.wiretuner.api.persistence.WorkspaceDomainRepository;
 import com.villagecompute.wiretuner.api.persistence.WorkspaceRepository;
+import com.villagecompute.wiretuner.api.share.RoleNotices;
 
 import io.quarkus.grpc.GrpcService;
 import io.quarkus.hibernate.reactive.panache.Panache;
@@ -135,6 +137,17 @@ public class TeamGrpcService extends MutinyTeamServiceGrpc.TeamServiceImplBase {
 
     @Inject
     DomainVerifier verifier;
+
+    @Inject
+    RoleNotices notices;
+
+    /** A committed RPC's result and the account that acted, for the role notices that follow. */
+    record Acted<T>(T value, UUID actor) {
+
+        Acted(T value, Principal principal) {
+            this(value, principal.accountId());
+        }
+    }
 
     /** The caller's membership and the team it is in. */
     record Membership(Principal principal, Team team, TeamMember member) {
@@ -228,8 +241,11 @@ public class TeamGrpcService extends MutinyTeamServiceGrpc.TeamServiceImplBase {
             if (request.hasDefaultDocumentRole()) {
                 team.defaultDocumentRole = TeamMessages.defaultDocumentRole(request.getDefaultDocumentRole());
             }
-            return slug.chain(() -> teamMessage(team, m.role()));
-        })).map(team -> UpdateTeamResponse.newBuilder().setTeam(team).build());
+            return slug.chain(() -> teamMessage(team, m.role())).map(message -> new Acted<>(message, m.principal()));
+        }))
+                .call(acted -> request.hasDefaultDocumentRole() ? notices.team(teamId, null, acted.actor())
+                        : Uni.createFrom().voidItem())
+                .map(acted -> UpdateTeamResponse.newBuilder().setTeam(acted.value()).build());
     }
 
     @Override
@@ -241,8 +257,11 @@ public class TeamGrpcService extends MutinyTeamServiceGrpc.TeamServiceImplBase {
             return documents.update("trashedAt = ?1, updatedAt = ?1 where teamId = ?2 and trashedAt is null", now, teamId)
                     .chain(() -> teamMembers.delete("id.teamId = ?1 and role <> ?2", teamId, TeamRoles.OWNER))
                     .chain(() -> invites.delete("teamId = ?1 and acceptedAt is null", teamId))
-                    .chain(() -> teamMessage(m.team(), m.role()));
-        })).map(team -> DeleteTeamResponse.newBuilder().setTeam(team).build());
+                    .chain(() -> teamMessage(m.team(), m.role()))
+                    .map(message -> new Acted<>(message, m.principal()));
+        }))
+                .call(acted -> notices.team(teamId, null, acted.actor()))
+                .map(acted -> DeleteTeamResponse.newBuilder().setTeam(acted.value()).build());
     }
 
     @Override
@@ -313,9 +332,11 @@ public class TeamGrpcService extends MutinyTeamServiceGrpc.TeamServiceImplBase {
                         return Uni.createFrom().failure(StatusExceptions.roleInsufficient(TeamRoles.OWNER, m.role()));
                     }
                     member.role = role;
-                    return accounts.findById(target).map(account -> TeamMessages.member(member, account));
+                    return accounts.findById(target)
+                            .map(account -> new Acted<>(TeamMessages.member(member, account), m.principal()));
                 })))
-                .map(member -> SetMemberRoleResponse.newBuilder().setMember(member).build());
+                .call(acted -> notices.team(teamId, Set.of(target), acted.actor()))
+                .map(acted -> SetMemberRoleResponse.newBuilder().setMember(acted.value()).build());
     }
 
     @Override
@@ -325,16 +346,18 @@ public class TeamGrpcService extends MutinyTeamServiceGrpc.TeamServiceImplBase {
         return tx(() -> membership(teamId, TeamRoles.ADMIN, true).flatMap(m -> teamMembers
                 .findById(new TeamMemberId(teamId, target)).flatMap(member -> {
                     if (member == null) {
-                        return Uni.createFrom().voidItem();
+                        return Uni.createFrom().item(m.principal());
                     }
                     if (TeamRoles.OWNER.equals(member.role)) {
-                        return Uni.createFrom().failure(StatusExceptions.ownerMustTransfer());
+                        return Uni.createFrom().<Principal>failure(StatusExceptions.ownerMustTransfer());
                     }
                     if (TeamRoles.ADMIN.equals(member.role) && !m.isOwner()) {
-                        return Uni.createFrom().failure(StatusExceptions.roleInsufficient(TeamRoles.OWNER, m.role()));
+                        return Uni.createFrom().<Principal>failure(StatusExceptions.roleInsufficient(TeamRoles.OWNER,
+                                m.role()));
                     }
-                    return endMembership(member);
+                    return endMembership(member).replaceWith(m.principal());
                 })))
+                .call(actor -> notices.team(teamId, Set.of(target), actor.accountId()))
                 .replaceWith(RemoveMemberResponse.getDefaultInstance());
     }
 
@@ -342,8 +365,9 @@ public class TeamGrpcService extends MutinyTeamServiceGrpc.TeamServiceImplBase {
     public Uni<LeaveTeamResponse> leaveTeam(LeaveTeamRequest request) {
         UUID teamId = UUID.fromString(request.getTeamId());
         return tx(() -> membership(teamId, TeamRoles.GUEST, true).flatMap(m -> m.isOwner()
-                ? Uni.createFrom().<Void>failure(StatusExceptions.ownerMustTransfer())
-                : endMembership(m.member())))
+                ? Uni.createFrom().<Principal>failure(StatusExceptions.ownerMustTransfer())
+                : endMembership(m.member()).replaceWith(m.principal())))
+                .call(principal -> notices.team(teamId, Set.of(principal.accountId()), principal.accountId()))
                 .replaceWith(LeaveTeamResponse.getDefaultInstance());
     }
 
@@ -442,9 +466,13 @@ public class TeamGrpcService extends MutinyTeamServiceGrpc.TeamServiceImplBase {
                 return Uni.createFrom().failure(StatusExceptions.inviteInvalid());
             }
             return teams.findById(invite.teamId).flatMap(team -> team.deletedAt != null
-                    ? Uni.createFrom().failure(StatusExceptions.inviteInvalid())
-                    : accept(principal, invite, team, now));
-        }))).map(team -> AcceptInviteResponse.newBuilder().setTeam(team).build());
+                    ? Uni.createFrom().<Acted<com.villagecompute.wiretuner.account.v1.Team>>failure(
+                            StatusExceptions.inviteInvalid())
+                    : accept(principal, invite, team, now).map(message -> new Acted<>(message, principal)));
+        })))
+                .call(acted -> notices.team(UUID.fromString(acted.value().getId()), Set.of(acted.actor()),
+                        acted.actor()))
+                .map(acted -> AcceptInviteResponse.newBuilder().setTeam(acted.value()).build());
     }
 
     private Uni<com.villagecompute.wiretuner.account.v1.Team> accept(Principal principal, TeamInvite invite, Team team,

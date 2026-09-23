@@ -499,6 +499,40 @@ validation and adds no second pass.
 The server never renders or emails comment *bodies* beyond their first 200 characters (the
 digest quotes the opening line only).
 
+As built (COLLAB-030, COLLAB-031; `api/.../comments`):
+
+* *The server's record of comments* is Postgres, not the snapshotter's merge state: SRV-007's warm
+  `wt-crdt` state does not exist yet, and replaying a document's log into an engine on the ingest
+  path for every commenter push would not hold the ingest target.  `CommentOps` reads every op of
+  a change once (field paths starting at `NodeProps` field 210 are thread ops; `SetDeleted` and
+  `MoveNode` targets are looked up), and after the change is accepted -- before it is fanned out --
+  `CommentIndex` records it in `comment_thread` (opener, `resolved`) and `comment` (author,
+  `deleted`, the first 200 characters as first typed), the two registers written last-writer-wins
+  by op id with the replica compared unsigned.  Every statement is idempotent and runs again for
+  an identical retry, which repairs a record that missed a change.  Unread (`GetUnread`) counts
+  that record's comments.  A thread's *opener* is the account whose change created the thread
+  node (the CreateThread command writes the opening comment in the same change).
+* *The role rule* (`CommentRules`) applies to every role's ops on threads, not only a
+  commenter's: an editor may resolve and move any pin but, like everyone, change only comments they
+  wrote; the owner may also delete anyone's comment or thread.  A commenter's change may hold
+  `Noop`s (they concern nothing).  Ops on comments and threads the server has no record of are
+  refused for commenters; an editor's comment-shaped op on a node that is not a thread is not a
+  comment (the engines ignore it) and passes.
+* *Notifications*: a mention comes from the `mentions` set (on an inserted comment or a `SetAdd`)
+  *and* from a `mention` mark, deduplicated per recipient and comment within 24 hours; recipients
+  must be able to open the document (a `team:` member expands to the team's members who can).
+  Replies notify the opener and earlier authors who can open the document.  `MarkRead` marks the
+  thread's notifications up to the mark seen (a resolve notification with any mark).
+* *API*: `docs.v1.CommentService` is `proto/wiretuner/docs/v1/comment.proto`;
+  `ListMentionedDocuments` pages with `cursor`/`page_size` (at most 500, documents the caller can
+  open, not trashed).  `CommentEvent` is `sync.v1.DocumentEvent` case 9 with a top-level
+  `CommentEventKind` enum (buf's STANDARD lint wants enum values prefixed with the enum's name).
+* *Digest*: *Email me when I'm mentioned* is the synced preference `sync.email_mentions` (bool,
+  on when absent), stored by `AccountService.SetPreferences` (built with this task: per key newest
+  `updated_at_ms` wins, the map as JSON in `account.preferences`).  A live session is a
+  `LiveSessions` entry (Valkey, across nodes).  Mentions older than 7 days are no longer mailed.
+  The mail quotes the first line of the thread's opening comment as first typed.
+
 === Client
 
 * `WTModel/Comments`: `CommentThreadModel` (observable list of threads with resolved pin

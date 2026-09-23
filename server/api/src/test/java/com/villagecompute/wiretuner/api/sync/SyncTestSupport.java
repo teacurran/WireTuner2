@@ -36,22 +36,22 @@ import io.grpc.stub.ClientResponseObserver;
 import io.quarkus.grpc.GrpcClient;
 
 /** Documents, callers and subscriptions for the sync tests. */
-abstract class SyncTestSupport extends ServiceTestSupport {
+public abstract class SyncTestSupport extends ServiceTestSupport {
 
-    static final Duration WAIT = Duration.ofSeconds(10);
+    public static final Duration WAIT = Duration.ofSeconds(10);
 
     @GrpcClient("sync")
-    Channel channel;
+    protected Channel channel;
 
     @GrpcClient("documents")
-    DocumentServiceGrpc.DocumentServiceBlockingStub docs;
+    protected DocumentServiceGrpc.DocumentServiceBlockingStub docs;
 
     @GrpcClient("account")
-    AccountServiceGrpc.AccountServiceBlockingStub account;
+    protected AccountServiceGrpc.AccountServiceBlockingStub account;
 
-    UUID alice;
-    UUID bob;
-    UUID carol;
+    protected UUID alice;
+    protected UUID bob;
+    protected UUID carol;
 
     @BeforeEach
     void accounts() {
@@ -61,7 +61,7 @@ abstract class SyncTestSupport extends ServiceTestSupport {
     }
 
     /** Waits up to {@link #WAIT} for the condition. */
-    static void await(java.util.function.BooleanSupplier condition) {
+    public static void await(java.util.function.BooleanSupplier condition) {
         long end = System.nanoTime() + WAIT.toNanos();
         while (!condition.getAsBoolean()) {
             assertThat(System.nanoTime()).as("condition within " + WAIT).isLessThan(end);
@@ -74,7 +74,7 @@ abstract class SyncTestSupport extends ServiceTestSupport {
     }
 
     /** A new personal document of {@code user}, with no changes. */
-    UUID document(String user) {
+    protected UUID document(String user) {
         UUID id = uuid7();
         UUID space = TestUsers.accountId(account, user);
         TestUsers.as(docs, user).create(CreateRequest.newBuilder()
@@ -82,25 +82,25 @@ abstract class SyncTestSupport extends ServiceTestSupport {
         return id;
     }
 
-    SyncServiceGrpc.SyncServiceBlockingStub blocking(String user, UUID device) {
+    protected SyncServiceGrpc.SyncServiceBlockingStub blocking(String user, UUID device) {
         return TestUsers.as(SyncServiceGrpc.newBlockingStub(channel), user, device);
     }
 
-    SyncServiceGrpc.SyncServiceFutureStub future(String user, UUID device) {
+    protected SyncServiceGrpc.SyncServiceFutureStub future(String user, UUID device) {
         return TestUsers.as(SyncServiceGrpc.newFutureStub(channel), user, device);
     }
 
-    SyncServiceGrpc.SyncServiceStub async(String user, UUID device) {
+    protected SyncServiceGrpc.SyncServiceStub async(String user, UUID device) {
         return TestUsers.as(SyncServiceGrpc.newStub(channel), user, device);
     }
 
     /** A change of {@code ops} no-ops. */
-    static Change change(long replica, long seq) {
+    public static Change change(long replica, long seq) {
         return change(replica, seq, "Edit " + seq);
     }
 
     /** A change of about {@code bytes} bytes: CreateNode ops with 1 KiB positions. */
-    static Change sized(long replica, long seq, int bytes) {
+    public static Change sized(long replica, long seq, int bytes) {
         Change.Builder change = Change.newBuilder().setReplica(replica).setSeq(seq).setStartCounter(seq * 1000)
                 .setWallTimeMs(1).setLabel("Bulk " + seq);
         Op create = Op.newBuilder().setCreate(CreateNode.newBuilder()
@@ -113,21 +113,21 @@ abstract class SyncTestSupport extends ServiceTestSupport {
         return change.build();
     }
 
-    Subscription subscribe(String user, UUID device, UUID document, long replica, long after) {
+    protected Subscription subscribe(String user, UUID device, UUID document, long replica, long after) {
         return subscribe(user, device, SubscribeRequest.newBuilder()
                 .setDocumentId(document.toString()).setReplica(replica).setAfterServerSeq(after).build());
     }
 
-    Subscription subscribe(String user, UUID device, SubscribeRequest request) {
+    protected Subscription subscribe(String user, UUID device, SubscribeRequest request) {
         Subscription subscription = new Subscription();
         async(user, device).subscribe(request, subscription);
         return subscription;
     }
 
     /** One Subscribe stream: every frame in a queue, the terminal status in {@link #done}. */
-    static final class Subscription implements ClientResponseObserver<SubscribeRequest, ServerFrame> {
-        final BlockingQueue<ServerFrame> frames = new LinkedBlockingQueue<>();
-        final CompletableFuture<Void> done = new CompletableFuture<>();
+    public static final class Subscription implements ClientResponseObserver<SubscribeRequest, ServerFrame> {
+        public final BlockingQueue<ServerFrame> frames = new LinkedBlockingQueue<>();
+        public final CompletableFuture<Void> done = new CompletableFuture<>();
         private ClientCallStreamObserver<SubscribeRequest> call;
 
         @Override
@@ -151,7 +151,7 @@ abstract class SyncTestSupport extends ServiceTestSupport {
         }
 
         /** The next frame; fails the test after {@link #WAIT}. */
-        ServerFrame next() {
+        public ServerFrame next() {
             try {
                 ServerFrame frame = frames.poll(WAIT.toMillis(), TimeUnit.MILLISECONDS);
                 if (frame == null && done.isCompletedExceptionally()) {
@@ -165,7 +165,7 @@ abstract class SyncTestSupport extends ServiceTestSupport {
         }
 
         /** The next frame of the given case, skipping pongs and anything else. */
-        ServerFrame next(ServerFrame.FrameCase kind) {
+        public ServerFrame next(ServerFrame.FrameCase kind) {
             while (true) {
                 ServerFrame frame = next();
                 if (frame.getFrameCase() == kind) {
@@ -175,7 +175,7 @@ abstract class SyncTestSupport extends ServiceTestSupport {
         }
 
         /** The next {@code n} changes, skipping other frames. */
-        List<SequencedChange> changes(int n) {
+        public List<SequencedChange> changes(int n) {
             List<SequencedChange> changes = new ArrayList<>();
             while (changes.size() < n) {
                 changes.add(next(ServerFrame.FrameCase.CHANGE).getChange());
@@ -184,7 +184,7 @@ abstract class SyncTestSupport extends ServiceTestSupport {
         }
 
         /** No change arrives within {@code quiet}. */
-        void assertNoChange(Duration quiet) {
+        public void assertNoChange(Duration quiet) {
             long end = System.nanoTime() + quiet.toNanos();
             try {
                 while (System.nanoTime() < end) {
@@ -196,7 +196,7 @@ abstract class SyncTestSupport extends ServiceTestSupport {
             }
         }
 
-        void cancel() {
+        public void cancel() {
             call.cancel("test drops the stream", null);
         }
     }

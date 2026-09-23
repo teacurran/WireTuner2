@@ -4,6 +4,10 @@ import java.util.Arrays;
 import java.util.UUID;
 
 import com.villagecompute.wiretuner.api.auth.Principal;
+import com.villagecompute.wiretuner.api.auth.Role;
+import com.villagecompute.wiretuner.api.comments.CommentIndex;
+import com.villagecompute.wiretuner.api.comments.CommentOps;
+import com.villagecompute.wiretuner.api.comments.CommentRules;
 import com.villagecompute.wiretuner.api.grpc.StatusExceptions;
 import com.villagecompute.wiretuner.api.observability.WtMetrics;
 import com.villagecompute.wiretuner.crdt.Schema;
@@ -74,8 +78,11 @@ public class ChangeIngest {
             SELECT server_seq, bytes FROM change_log WHERE document_id = $1 AND replica_id = $2 AND seq = $3
             """;
 
-    /** A caller whose role allows pushing, with the author every subscriber sees on its changes. */
-    public record Pusher(Principal principal, Participant author) {
+    /**
+     * A caller whose role allows pushing (commenter or above; a commenter only under the comments
+     * collection, {@link CommentRules}), with the author every subscriber sees on its changes.
+     */
+    public record Pusher(Principal principal, Participant author, Role role) {
     }
 
     final Schema schema = Schema.generated();
@@ -92,34 +99,53 @@ public class ChangeIngest {
     @Inject
     WtMetrics metrics;
 
-    /** Accepts one change; the result is its {@code server_seq}. */
+    @Inject
+    CommentIndex comments;
+
+    /** A write's {@code server_seq}, and whether it was new (not the ack of an identical retry). */
+    record Written(long serverSeq, boolean fresh) {
+    }
+
+    /**
+     * Accepts one change; the result is its {@code server_seq}. What the change does to comments is
+     * checked against the caller's role before the write and recorded after it, before the change is
+     * fanned out (COLLAB-030).
+     */
     public Uni<Long> accept(Pusher pusher, UUID documentId, Change change) {
         long started = System.nanoTime();
         return Uni.createFrom().item(change)
                 .invoke(c -> ChangeRules.check(schema, c))
-                .chain(c -> write(pusher, documentId, c, started));
+                .chain(c -> comments.check(pusher, documentId, CommentOps.parse(c)))
+                .chain(checked -> write(pusher, documentId, change, checked, started));
     }
 
-    private Uni<Long> write(Pusher pusher, UUID documentId, Change change, long started) {
+    private Uni<Long> write(Pusher pusher, UUID documentId, Change change, CommentIndex.Checked checked, long started) {
         byte[] bytes = change.toByteArray();
         Principal principal = pusher.principal();
         Tuple args = Tuple.from(new Object[] {documentId, change.getReplica(), principal.accountId(),
                 ReplicaBinding.device(principal), change.getSeq(), Buffer.buffer(bytes), bytes.length});
-        return writer.write(documentId, args).chain(serverSeq -> {
-            if (serverSeq == null) {
-                return explain(principal, documentId, change, bytes);
-            }
-            LOG.debugf("accepted %s replica %s seq %d as server_seq %d", documentId,
-                    Long.toUnsignedString(change.getReplica()), change.getSeq(), serverSeq);
-            metrics.accepted(documentId);
-            metrics.ingest(System.nanoTime() - started);
-            ServerFrame frame = ServerFrame.newBuilder().setChange(SequencedChange.newBuilder()
-                    .setServerSeq(serverSeq).setChange(change).setAuthor(pusher.author())).build();
-            // This node's subscribers have the frame once publish returns; the Valkey leg is not
-            // waited for: a node that misses it fills the gap from the log at the next frame.
-            bus.publish(documentId, frame).subscribe().with(ignored -> { }, failure -> LOG.warnf(failure, "publishing %s failed", documentId));
-            return Uni.createFrom().item(serverSeq);
-        });
+        return writer.write(documentId, args)
+                .chain(serverSeq -> serverSeq == null ? explain(principal, documentId, change, bytes).map(seq -> new Written(seq, false))
+                        : Uni.createFrom().item(new Written(serverSeq, true)))
+                .call(written -> comments.index(pusher, documentId, written.serverSeq(), checked))
+                .map(written -> {
+                    if (written.fresh()) {
+                        published(pusher, documentId, change, written.serverSeq(), started);
+                    }
+                    return written.serverSeq();
+                });
+    }
+
+    private void published(Pusher pusher, UUID documentId, Change change, long serverSeq, long started) {
+        LOG.debugf("accepted %s replica %s seq %d as server_seq %d", documentId,
+                Long.toUnsignedString(change.getReplica()), change.getSeq(), serverSeq);
+        metrics.accepted(documentId);
+        metrics.ingest(System.nanoTime() - started);
+        ServerFrame frame = ServerFrame.newBuilder().setChange(SequencedChange.newBuilder()
+                .setServerSeq(serverSeq).setChange(change).setAuthor(pusher.author())).build();
+        // This node's subscribers have the frame once publish returns; the Valkey leg is not
+        // waited for: a node that misses it fills the gap from the log at the next frame.
+        bus.publish(documentId, frame).subscribe().with(LOG::trace, LOG::warn);
     }
 
     /** Why nothing was written: a rejection, or the original server_seq of an identical retry. */

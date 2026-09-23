@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html>
+<body style="font-family: -apple-system, Helvetica, Arial, sans-serif; line-height: 1.5;">
+<p>You were mentioned in <strong>{documentName}</strong>:</p>
+<ul>
+{#for mention in mentions}
+<li><strong>{mention.author}</strong>{#if mention.quote}: <q>{mention.quote}</q>{/if} &mdash; <a href="{mention.link}">Open the thread</a></li>
+{/for}
+</ul>
+<p style="color: #666;">Turn these emails off with <em>Email me when I'm mentioned</em> in WireTuner's Preferences.</p>
+</body>
+</html>

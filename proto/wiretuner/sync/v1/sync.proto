@@ -548,6 +548,13 @@ message DocumentEvent {
     // The People list changed: someone was invited, removed, changed role, or a link was
     // created or revoked.  The client re-lists members if it shows them.
     MembersChanged members_changed = 8;
+    // A comment landed that concerns the caller: a mention of them (or of a team they are in),
+    // a reply to a thread they take part in, or their thread being resolved (comments.adoc,
+    // COLLAB-030).  Sent to the concerned account's sessions only.
+    CommentEvent comment = 9;
+    // The document's published web links changed: a publish was made, deleted or had its access
+    // changed (publish-html.adoc, WEB-012).  The client refreshes its Published links sheet.
+    PublishesChanged publishes_changed = 10;
   }
 }
 
@@ -639,4 +646,37 @@ message Reconnect {
 message MembersChanged {
   // Who made the change.
   Participant actor = 1;
+}
+
+// Why a CommentEvent was sent.
+enum CommentEventKind {
+  // Not set.
+  COMMENT_EVENT_KIND_UNSPECIFIED = 0;
+  // The comment mentions the caller, or a team the caller belongs to.
+  COMMENT_EVENT_KIND_MENTION = 1;
+  // The comment replies to a thread the caller started or replied to.
+  COMMENT_EVENT_KIND_REPLY = 2;
+  // A thread the caller started was resolved; `comment` is the id of the resolving op.
+  COMMENT_EVENT_KIND_RESOLVED = 3;
+}
+
+// A comment the server saw land that concerns the caller: drives the in-canvas notice and
+// refreshes the unread state without a round trip (comments.adoc, "Being told about comments").
+message CommentEvent {
+  // The comment_thread node.
+  wiretuner.doc.v1.OpId thread = 1;
+  // The comment element (for RESOLVED, the id of the op that resolved the thread).
+  wiretuner.doc.v1.ElementId comment = 2;
+  // Who wrote it.
+  Participant author = 3;
+  // Why the caller is told.
+  CommentEventKind kind = 4 [(buf.validate.field).enum.defined_only = true];
+}
+
+// The document's publishes changed.
+message PublishesChanged {
+  // The publish that was created, changed or deleted.
+  string publish_id = 1 [(buf.validate.field).string.uuid = true];
+  // Who did it.
+  Participant actor = 2;
 }

@@ -45,7 +45,7 @@ message Library {
   string document_id = 1 [(buf.validate.field).string.uuid = true];
   // The team that owns it.
   string team_id = 2 [(buf.validate.field).string.uuid = true];
-  // The document's name.
+  // The library's name: the one given when it was published, else the document's name then.
   string name = 3 [(buf.validate.field).string.max_len = 256];
   // The kind of document (a typeface library offers glyph components).
   DocumentKind kind = 4 [(buf.validate.field).enum.defined_only = true];
@@ -73,6 +73,9 @@ message SetLibraryRequest {
   ];
   // True to make the document a library, false to unmark it.
   bool is_library = 2;
+  // The library's name in the panels when publishing; empty = the document's name.  Publishing
+  // an existing library again renames it.
+  string name = 3 [(buf.validate.field).string.max_len = 256];
 }
 
 // The outcome.

@@ -68,7 +68,10 @@ importing doc.v1 from the `wt-crdt` jar, and replays every vector in `Conformanc
 
 |`SyncService` |`SyncGrpcService` |`Subscribe` (server-streaming Mutiny `Multi`, back-pressure honoured), `PushChange` / `PushChangeBatch` / `UpdatePresence` / `Ack` (unary `Uni`), `PushChanges` (client-streaming), fetch (xref:sync-protocol.adoc[Sync protocol]).  No bidirectional RPC.
 |`DocumentService` |`DocumentGrpcService` |Library CRUD, fork, duplicate, search; spaces (personal / team).
-|`ShareService` |`ShareGrpcService` |Members, roles, links, invitations.
+|`ShareService` |`ShareGrpcService` |Members, roles, links, invitations, the per-document team access override.
+|`LibraryService` |`LibraryGrpcService` |Team libraries (COLLAB-012, xref:sharing.adoc[Sharing], Data model).
+|`CommentService` |`CommentGrpcService` |Unread comments, read marks, mentioned documents (COLLAB-030, xref:comments.adoc[Comments]).
+|`PublishService` |`PublishGrpcService` |Published web links; their files are served by the separate pub origin (`PubOrigin`, WEB-012, xref:publish-html.adoc[Publish as HTML]).
 |`BranchService` |`BranchGrpcService` |Fork points, merge by replay.
 |`VersionService` |`VersionGrpcService` |Named versions, restore-as-copy.
 |`BlobService` |`BlobGrpcService` |Content-addressed storage in R2/MinIO.
@@ -123,8 +126,10 @@ again.
 xref:sharing.adoc[Sharing] (Server): members by account or by email (a pending invitation
 for an unknown address, bound at the invitee's sign-in), roles, removal, links with role, expiry,
 argon2id password and team restriction, access requests, ownership transfer, and the document events
-every change sends.  `SetTeamAccess` (the per-document team override) is COLLAB-011's and answers
-`UNIMPLEMENTED` until then.
+every change sends; COLLAB-011 added `SetTeamAccess` (the per-document team override), the
+named-role-wins rule, the team-admin rule for moving a document out of a team, and role changes
+reaching live sessions from TeamService, space moves and link expiry (`RoleNotices` over
+`LiveSessions`).
 
 SRV-008 and SRV-009 added the reasons `DOCUMENT_EXISTS`, `SPACE_NOT_FOUND`, `FOLDER_NOT_FOUND`,
 `HISTORY_UNAVAILABLE`, `BLOB_NOT_FOUND` and `BLOB_MISMATCH`; they are rows of the Errors table in
@@ -151,7 +156,10 @@ Postgres holds the truth; object storage holds bulk.
 |`version` |`(document_id, server_seq)`, name, author, created.
 |`blob`, `document_blob` |sha256, size, media type, storage key (`blobs/<first byte>/<sha256>`), `tag` the blob was first uploaded with (`content` or `thumbnail`); references per document.  A thumbnail upload sets `document.thumbnail_blob` and adds no reference.
 |`data_credential`, `data_allowed_host`, `data_fetch_audit` |V8 (DATA-005, DATA-007, DATA-008): the data service's envelope-encrypted credentials, permitted hosts and fetch audit trail, each in a team XOR one account's personal space (xref:data-merge.adoc#as-built-server[Data merge], As built).
-|`account`, `account_identity`, `device`, `team`, `team_member`, `team_invite`, `workspace`, `workspace_domain` |xref:security.adoc[Accounts, teams and security].  V7 adds `workspace_domain.checked_at` and `failed_checks` for the Domains job.
+|`account`, `account_identity`, `device`, `team`, `team_member`, `team_invite`, `workspace`, `workspace_domain` |xref:security.adoc[Accounts, teams and security].  V7 adds `workspace_domain.checked_at` and `failed_checks` for the Domains job; V9 adds `account.preferences` (the synced preferences as JSON).
+|`library` |V9 (COLLAB-012): a team document marked as a team library, with its name, publisher and time; `document.is_library` mirrors it.  V9 also adds `document.team_access_override` and `share_link.expiry_announced_at` (COLLAB-011).
+|`comment_thread`, `comment`, `comment_read`, `comment_notification` |V9 (COLLAB-030): the server's record of comments kept from the ingested ops (opener, author, `resolved` and `deleted` by last-writer-wins, a 200-character preview), read marks, and mention / reply / resolve notifications with `seen_at` and `emailed_at` (xref:comments.adoc[Comments], As built).
+|`publish`, `publish_file` |V9 (WEB-012): published bundles (one current per document) and their files as blob references (xref:publish-html.adoc[Publish as HTML], As built).
 |===
 
 Migrations are Flyway, applied by the `main-db-migrations` compose job before the API starts,
@@ -204,8 +212,11 @@ As built (SRV-004, SRV-005; `api/.../sync`):
   and document (`PushGrants`): a revoked device, an expired token or a downgraded role is seen by
   pushes within that time.  A sharing change made on a node forgets that node's decisions for the
   document at once (SRV-010), so a downgrade is refused on the person's next push there; another
-  node still honours its memo for up to the 2 s.  A `commenter` may not push yet: the comments-collection rule of
-  xref:security.adoc[Accounts, teams and security] arrives with the comments tasks.
+  node still honours its memo for up to the 2 s.  A `commenter` may push (COLLAB-030): every change is
+  read once for what it does to comments (`CommentOps`), checked against the per-comment ownership
+  rules (`CommentRules`, one lookup of the threads and comments it names, none for a change that
+  names none), and, once written, recorded in the server's record of comments (`CommentIndex`)
+  before it is fanned out (xref:comments.adoc[Comments], As built).
 * *Fan-out.*  `SyncBus` holds one dedicated Valkey connection per node for every channel
   subscription (the Quarkus data source would open one connection per subscription); a channel
   `doc:<id>` is subscribed with a document's first local listener and unsubscribed with its last.
@@ -241,6 +252,7 @@ As built (SRV-004, SRV-005; `api/.../sync`):
 |Stability |every 5 min |Compute `stable_seq = min(last_ack_seq over live replicas)`, publish it; retire replicas silent past the window.
 |Trash |daily |Delete documents trashed over 30 days ago and their orphaned blobs.
 |Invitations |daily |Expire stale invitations and share links.
+|Comment digest |every 5 min |Mail each account one digest per document of the mentions it has not seen for 10 minutes while away (COLLAB-031).
 |Domains |hourly |Re-verify workspace DNS records.
 |Credential key rotation |2 min after start, then daily |Re-wrap the data key of every `data_credential` row wrapped with another master key than the current one (DATA-005); a no-op once every row is current.
 |Fetch audit retention |daily |Drop `data_fetch_audit` rows older than 90 days (DATA-008).
@@ -256,8 +268,12 @@ verified domain whose record is missing (or whose lookup fails) three runs in a 
 verification, so one DNS outage does not end auto-admit or require-SSO.  *Apple secret*
 (`AppleSecretJob`, every 30 days and 30 s after start) is specified on
 xref:security.adoc[Accounts, teams and security] (Accounts); without its four settings it does
-nothing.  *Invitations* is not built yet: pending document invitations have no expiry, and a link's
-expiry is applied when roles are read.
+nothing.  *Invitations* (`InvitationsJob`, COLLAB-011, daily, three minutes after start) deletes
+pending document invitations older than `wt.share.invite-ttl` (30 days) and expired team
+invitations, and announces each revoke-on-expiry link that expired since the last run to the
+people who opened it (a link's expiry itself is applied when roles are read).  *Comment digest*
+(`CommentDigestJob`, COLLAB-031, every 5 minutes, two minutes after start) is specified as built on
+xref:comments.adoc[Comments].
 
 Until the Stability job exists, `SyncService.Ack` computes it for the one document: it records
 the replica's `last_ack_seq` (never backwards, clamped to the head; an unbound replica is bound

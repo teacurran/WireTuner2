@@ -85,7 +85,7 @@ public class LibraryRepository {
             """;
 
     /** Documents account {@code ?1} can open. */
-    static final String VISIBLE = "(d.owner_account_id = ?1 OR " + TEAM_ACCESS + " OR " + NAMED_ACCESS + ")";
+    public static final String VISIBLE = "(d.owner_account_id = ?1 OR " + TEAM_ACCESS + " OR " + NAMED_ACCESS + ")";
 
     static final String NOT_BRANCH = "NOT EXISTS (SELECT 1 FROM branch br WHERE br.document_id = d.id)";
 

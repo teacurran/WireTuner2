@@ -137,7 +137,11 @@ class ChangeIngestTest extends SyncTestSupport {
         share(doc, carol, "commenter");
         assertFails(() -> push(blocking(BOB, null), doc, change(replicaId(), 1)), Status.Code.PERMISSION_DENIED,
                 ErrorReasons.ROLE_INSUFFICIENT);
-        assertFails(() -> push(blocking(CAROL, null), doc, change(replicaId(), 1)), Status.Code.PERMISSION_DENIED,
+        // A commenter pushes only under the comments collection (COLLAB-030): a no-op concerns nothing and
+        // passes, a node of another kind does not.
+        long commenter = replicaId();
+        assertThat(push(blocking(CAROL, null), doc, change(commenter, 1))).isEqualTo(1);
+        assertFails(() -> push(blocking(CAROL, null), doc, sized(commenter, 2, 1024)), Status.Code.PERMISSION_DENIED,
                 ErrorReasons.ROLE_INSUFFICIENT);
         assertFails(() -> push(blocking(com.villagecompute.wiretuner.api.TestUsers.DAVE, null), doc, change(replicaId(), 1)), Status.Code.NOT_FOUND,
                 ErrorReasons.DOCUMENT_NOT_FOUND);

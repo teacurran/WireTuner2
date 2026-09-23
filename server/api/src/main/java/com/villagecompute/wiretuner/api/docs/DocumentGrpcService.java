@@ -25,6 +25,10 @@ import com.villagecompute.wiretuner.api.persistence.FolderRepository;
 import com.villagecompute.wiretuner.api.persistence.LibraryRepository;
 import com.villagecompute.wiretuner.api.persistence.LibraryRepository.DocumentRow;
 import com.villagecompute.wiretuner.api.persistence.LibraryRepository.Scope;
+import com.villagecompute.wiretuner.api.persistence.TeamMemberId;
+import com.villagecompute.wiretuner.api.persistence.TeamMemberRepository;
+import com.villagecompute.wiretuner.api.share.RoleNotices;
+import com.villagecompute.wiretuner.api.team.TeamRoles;
 import com.villagecompute.wiretuner.api.sync.DocumentEvents;
 import com.villagecompute.wiretuner.docs.v1.CreateFolderRequest;
 import com.villagecompute.wiretuner.docs.v1.CreateFolderResponse;
@@ -116,6 +120,12 @@ public class DocumentGrpcService extends MutinyDocumentServiceGrpc.DocumentServi
 
     @Inject
     WtMetrics metrics;
+
+    @Inject
+    TeamMemberRepository teamMembers;
+
+    @Inject
+    RoleNotices notices;
 
     @Override
     public Uni<CreateResponse> create(CreateRequest request) {
@@ -225,7 +235,8 @@ public class DocumentGrpcService extends MutinyDocumentServiceGrpc.DocumentServi
                     return Uni.createFrom().failure(StatusExceptions.roleInsufficient(Role.OWNER.dbName(),
                             grant.role().dbName()));
                 }
-                allowed = spaces.creatable(grant.principal(), destination).replaceWithVoid();
+                allowed = sourceTeamAdmin(grant.principal(), row.teamId())
+                        .chain(() -> spaces.creatable(grant.principal(), destination)).replaceWithVoid();
             }
             return allowed.chain(() -> spaces.folderIn(folderId, destination))
                     .chain(() -> documents.findById(id))
@@ -236,7 +247,25 @@ public class DocumentGrpcService extends MutinyDocumentServiceGrpc.DocumentServi
                     .chain(doc -> announce(grant.principal(), doc, actor -> DocumentEvent.newBuilder()
                             .setMoved(Moved.newBuilder().setSpaceId(doc.getSpaceId()).setFolderId(doc.getFolderId())
                                     .setActor(actor)).build()));
-        }))).call(this::publish).map(done -> MoveToFolderResponse.newBuilder().setDocument(done.document()).build());
+        }))).call(this::publish)
+                .call(done -> requestedSpace == null ? Uni.createFrom().voidItem()
+                        : notices.document(id, null, UUID.fromString(done.event().getMoved().getActor().getUserId())))
+                .map(done -> MoveToFolderResponse.newBuilder().setDocument(done.document()).build());
+    }
+
+    /**
+     * Moving a document out of a team needs a team admin (sharing.adoc, Spaces): its owner row alone is
+     * not enough. {@code ROLE_INSUFFICIENT} otherwise; nothing to check for a personal document.
+     */
+    private Uni<Void> sourceTeamAdmin(Principal principal, UUID teamId) {
+        if (teamId == null) {
+            return Uni.createFrom().voidItem();
+        }
+        return teamMembers.findById(new TeamMemberId(teamId, principal.accountId())).chain(member -> {
+            String role = member == null ? "none" : member.role;
+            return TeamRoles.atLeast(role, TeamRoles.ADMIN) ? Uni.createFrom().voidItem()
+                    : Uni.createFrom().failure(StatusExceptions.roleInsufficient(TeamRoles.ADMIN, role));
+        });
     }
 
     /**

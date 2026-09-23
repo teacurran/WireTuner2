@@ -428,6 +428,57 @@ public nonisolated enum Wiretuner_Sync_V1_BranchEventKind: SwiftProtobuf.Enum, S
 
 }
 
+/// Why a CommentEvent was sent.
+public nonisolated enum Wiretuner_Sync_V1_CommentEventKind: SwiftProtobuf.Enum, Swift.CaseIterable {
+  public typealias RawValue = Int
+
+  /// Not set.
+  case unspecified // = 0
+
+  /// The comment mentions the caller, or a team the caller belongs to.
+  case mention // = 1
+
+  /// The comment replies to a thread the caller started or replied to.
+  case reply // = 2
+
+  /// A thread the caller started was resolved; `comment` is the id of the resolving op.
+  case resolved // = 3
+  case UNRECOGNIZED(Int)
+
+  public init() {
+    self = .unspecified
+  }
+
+  public init?(rawValue: Int) {
+    switch rawValue {
+    case 0: self = .unspecified
+    case 1: self = .mention
+    case 2: self = .reply
+    case 3: self = .resolved
+    default: self = .UNRECOGNIZED(rawValue)
+    }
+  }
+
+  public var rawValue: Int {
+    switch self {
+    case .unspecified: return 0
+    case .mention: return 1
+    case .reply: return 2
+    case .resolved: return 3
+    case .UNRECOGNIZED(let i): return i
+    }
+  }
+
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static let allCases: [Wiretuner_Sync_V1_CommentEventKind] = [
+    .unspecified,
+    .mention,
+    .reply,
+    .resolved,
+  ]
+
+}
+
 /// Opens the subscription on one document.
 public nonisolated struct Wiretuner_Sync_V1_SubscribeRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
@@ -1292,6 +1343,27 @@ public nonisolated struct Wiretuner_Sync_V1_DocumentEvent: Sendable {
     set {event = .membersChanged(newValue)}
   }
 
+  /// A comment landed that concerns the caller: a mention of them (or of a team they are in),
+  /// a reply to a thread they take part in, or their thread being resolved (comments.adoc,
+  /// COLLAB-030).  Sent to the concerned account's sessions only.
+  public var comment: Wiretuner_Sync_V1_CommentEvent {
+    get {
+      if case .comment(let v)? = event {return v}
+      return Wiretuner_Sync_V1_CommentEvent()
+    }
+    set {event = .comment(newValue)}
+  }
+
+  /// The document's published web links changed: a publish was made, deleted or had its access
+  /// changed (publish-html.adoc, WEB-012).  The client refreshes its Published links sheet.
+  public var publishesChanged: Wiretuner_Sync_V1_PublishesChanged {
+    get {
+      if case .publishesChanged(let v)? = event {return v}
+      return Wiretuner_Sync_V1_PublishesChanged()
+    }
+    set {event = .publishesChanged(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   /// Exactly one case is set.
@@ -1315,6 +1387,13 @@ public nonisolated struct Wiretuner_Sync_V1_DocumentEvent: Sendable {
     /// The People list changed: someone was invited, removed, changed role, or a link was
     /// created or revoked.  The client re-lists members if it shows them.
     case membersChanged(Wiretuner_Sync_V1_MembersChanged)
+    /// A comment landed that concerns the caller: a mention of them (or of a team they are in),
+    /// a reply to a thread they take part in, or their thread being resolved (comments.adoc,
+    /// COLLAB-030).  Sent to the concerned account's sessions only.
+    case comment(Wiretuner_Sync_V1_CommentEvent)
+    /// The document's published web links changed: a publish was made, deleted or had its access
+    /// changed (publish-html.adoc, WEB-012).  The client refreshes its Published links sheet.
+    case publishesChanged(Wiretuner_Sync_V1_PublishesChanged)
 
   }
 
@@ -1526,6 +1605,81 @@ public nonisolated struct Wiretuner_Sync_V1_MembersChanged: Sendable {
   fileprivate var _actor: Wiretuner_Sync_V1_Participant? = nil
 }
 
+/// A comment the server saw land that concerns the caller: drives the in-canvas notice and
+/// refreshes the unread state without a round trip (comments.adoc, "Being told about comments").
+public nonisolated struct Wiretuner_Sync_V1_CommentEvent: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The comment_thread node.
+  public var thread: Wiretuner_Doc_V1_OpId {
+    get {_thread ?? Wiretuner_Doc_V1_OpId()}
+    set {_thread = newValue}
+  }
+  /// Returns true if `thread` has been explicitly set.
+  public var hasThread: Bool {self._thread != nil}
+  /// Clears the value of `thread`. Subsequent reads from it will return its default value.
+  public mutating func clearThread() {self._thread = nil}
+
+  /// The comment element (for RESOLVED, the id of the op that resolved the thread).
+  public var comment: Wiretuner_Doc_V1_ElementId {
+    get {_comment ?? Wiretuner_Doc_V1_ElementId()}
+    set {_comment = newValue}
+  }
+  /// Returns true if `comment` has been explicitly set.
+  public var hasComment: Bool {self._comment != nil}
+  /// Clears the value of `comment`. Subsequent reads from it will return its default value.
+  public mutating func clearComment() {self._comment = nil}
+
+  /// Who wrote it.
+  public var author: Wiretuner_Sync_V1_Participant {
+    get {_author ?? Wiretuner_Sync_V1_Participant()}
+    set {_author = newValue}
+  }
+  /// Returns true if `author` has been explicitly set.
+  public var hasAuthor: Bool {self._author != nil}
+  /// Clears the value of `author`. Subsequent reads from it will return its default value.
+  public mutating func clearAuthor() {self._author = nil}
+
+  /// Why the caller is told.
+  public var kind: Wiretuner_Sync_V1_CommentEventKind = .unspecified
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _thread: Wiretuner_Doc_V1_OpId? = nil
+  fileprivate var _comment: Wiretuner_Doc_V1_ElementId? = nil
+  fileprivate var _author: Wiretuner_Sync_V1_Participant? = nil
+}
+
+/// The document's publishes changed.
+public nonisolated struct Wiretuner_Sync_V1_PublishesChanged: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The publish that was created, changed or deleted.
+  public var publishID: String = String()
+
+  /// Who did it.
+  public var actor: Wiretuner_Sync_V1_Participant {
+    get {_actor ?? Wiretuner_Sync_V1_Participant()}
+    set {_actor = newValue}
+  }
+  /// Returns true if `actor` has been explicitly set.
+  public var hasActor: Bool {self._actor != nil}
+  /// Clears the value of `actor`. Subsequent reads from it will return its default value.
+  public mutating func clearActor() {self._actor = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _actor: Wiretuner_Sync_V1_Participant? = nil
+}
+
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
 fileprivate nonisolated let _protobuf_package = "wiretuner.sync.v1"
@@ -1540,6 +1694,10 @@ nonisolated extension Wiretuner_Sync_V1_PresenceState: SwiftProtobuf._ProtoNameP
 
 nonisolated extension Wiretuner_Sync_V1_BranchEventKind: SwiftProtobuf._ProtoNameProviding {
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0BRANCH_EVENT_KIND_UNSPECIFIED\0\u{1}BRANCH_EVENT_KIND_CREATED\0\u{1}BRANCH_EVENT_KIND_MERGED\0\u{1}BRANCH_EVENT_KIND_ARCHIVED\0\u{1}BRANCH_EVENT_KIND_RESTORED\0\u{1}BRANCH_EVENT_KIND_TRASHED\0\u{1}BRANCH_EVENT_KIND_RENAMED\0")
+}
+
+nonisolated extension Wiretuner_Sync_V1_CommentEventKind: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0COMMENT_EVENT_KIND_UNSPECIFIED\0\u{1}COMMENT_EVENT_KIND_MENTION\0\u{1}COMMENT_EVENT_KIND_REPLY\0\u{1}COMMENT_EVENT_KIND_RESOLVED\0")
 }
 
 nonisolated extension Wiretuner_Sync_V1_SubscribeRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
@@ -2732,7 +2890,7 @@ nonisolated extension Wiretuner_Sync_V1_PresenceSnapshot: SwiftProtobuf.Message,
 
 nonisolated extension Wiretuner_Sync_V1_DocumentEvent: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".DocumentEvent"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}role_changed\0\u{3}access_removed\0\u{1}renamed\0\u{1}moved\0\u{1}trashed\0\u{1}branch\0\u{1}reconnect\0\u{3}members_changed\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}role_changed\0\u{3}access_removed\0\u{1}renamed\0\u{1}moved\0\u{1}trashed\0\u{1}branch\0\u{1}reconnect\0\u{3}members_changed\0\u{1}comment\0\u{3}publishes_changed\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -2844,6 +3002,32 @@ nonisolated extension Wiretuner_Sync_V1_DocumentEvent: SwiftProtobuf.Message, Sw
           self.event = .membersChanged(v)
         }
       }()
+      case 9: try {
+        var v: Wiretuner_Sync_V1_CommentEvent?
+        var hadOneofValue = false
+        if let current = self.event {
+          hadOneofValue = true
+          if case .comment(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.event = .comment(v)
+        }
+      }()
+      case 10: try {
+        var v: Wiretuner_Sync_V1_PublishesChanged?
+        var hadOneofValue = false
+        if let current = self.event {
+          hadOneofValue = true
+          if case .publishesChanged(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.event = .publishesChanged(v)
+        }
+      }()
       default: break
       }
     }
@@ -2886,6 +3070,14 @@ nonisolated extension Wiretuner_Sync_V1_DocumentEvent: SwiftProtobuf.Message, Sw
     case .membersChanged?: try {
       guard case .membersChanged(let v)? = self.event else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 8)
+    }()
+    case .comment?: try {
+      guard case .comment(let v)? = self.event else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 9)
+    }()
+    case .publishesChanged?: try {
+      guard case .publishesChanged(let v)? = self.event else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 10)
     }()
     case nil: break
     }
@@ -3206,6 +3398,94 @@ nonisolated extension Wiretuner_Sync_V1_MembersChanged: SwiftProtobuf.Message, S
   }
 
   public static func ==(lhs: Wiretuner_Sync_V1_MembersChanged, rhs: Wiretuner_Sync_V1_MembersChanged) -> Bool {
+    if lhs._actor != rhs._actor {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Sync_V1_CommentEvent: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".CommentEvent"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}thread\0\u{1}comment\0\u{1}author\0\u{1}kind\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._thread) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._comment) }()
+      case 3: try { try decoder.decodeSingularMessageField(value: &self._author) }()
+      case 4: try { try decoder.decodeSingularEnumField(value: &self.kind) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._thread {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._comment {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try { if let v = self._author {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    } }()
+    if self.kind != .unspecified {
+      try visitor.visitSingularEnumField(value: self.kind, fieldNumber: 4)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Wiretuner_Sync_V1_CommentEvent, rhs: Wiretuner_Sync_V1_CommentEvent) -> Bool {
+    if lhs._thread != rhs._thread {return false}
+    if lhs._comment != rhs._comment {return false}
+    if lhs._author != rhs._author {return false}
+    if lhs.kind != rhs.kind {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Sync_V1_PublishesChanged: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".PublishesChanged"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}publish_id\0\u{1}actor\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.publishID) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._actor) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if !self.publishID.isEmpty {
+      try visitor.visitSingularStringField(value: self.publishID, fieldNumber: 1)
+    }
+    try { if let v = self._actor {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Wiretuner_Sync_V1_PublishesChanged, rhs: Wiretuner_Sync_V1_PublishesChanged) -> Bool {
+    if lhs.publishID != rhs.publishID {return false}
     if lhs._actor != rhs._actor {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true

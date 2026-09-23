@@ -1,0 +1,8 @@
+You were mentioned in "{documentName}":
+{#for mention in mentions}
+
+- {mention.author}{#if mention.quote}: "{mention.quote}"{/if}
+  {mention.link}
+{/for}
+
+Turn these emails off with "Email me when I'm mentioned" in WireTuner's Preferences.

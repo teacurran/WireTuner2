@@ -321,6 +321,36 @@ built from one state), then renders on a background task.  Nothing is written to
 * Access defaults to the document's share-link policy when one exists, else `MEMBERS`.
 * Rate limit: 30 publishes per document per hour (`RESOURCE_EXHAUSTED` with `RetryInfo`).
 
+As built (WEB-011, WEB-012; `proto/wiretuner/publish/v1/publish.proto`, `api/.../publish`):
+
+* *Schema.*  buf's STANDARD lint wants every RPC to take and return its own messages, so the
+  sketch's `Publish` and `google.protobuf.Empty` results are `CreatePublishResponse`,
+  `SetPublishAccessResponse` (each holding the `Publish`) and `DeletePublishResponse`; a
+  `GetPublish` (the publish and its manifest) is added.  `SetPublishAccess` names the publish.
+  `Publish` also carries `file_count` and `total_size`.  No new error reasons: an unknown publish
+  is `NOT_FOUND / DOCUMENT_NOT_FOUND`, a blob the document does not reference `BLOB_NOT_FOUND`, an
+  oversized bundle `VALIDATION_FAILED`; path safety, the 4,096-file cap and unique paths are
+  protovalidate rules.  `PublishesChanged` is `sync.v1.DocumentEvent` case 10.
+* *Service.*  Creating is idempotent on `publish_id` (a retry answers the first publish; the
+  same id for another document is `VALIDATION_FAILED`).  The bundle size is summed from the blob
+  records, not the manifest's `size`.  `PUBLISH_ACCESS_UNSPECIFIED` takes the document's link
+  policy: anyone with the link when the document has a live (unrevoked, unexpired) share link,
+  else members.  `DeletePublish` is idempotent; deleting the current publish leaves the link
+  dead until the next publish.  Listing and getting need any role, the rest editor.  The rate
+  limit is a `RateLimiter` token bucket `rl:p:<document>` (`wt.publish.per-hour`).
+* *Origin.*  A Vert.x HTTP server of its own on `wt.publish.origin.host`:`wt.publish.origin.port`
+  (8090; the `pub.<host>` name routes there), not a route of the API's server.  The path is
+  parsed raw: `.`/`..`, empty segments, encoded `/` or `\`, control characters and invalid
+  percent-escapes or UTF-8 are 400, never resolved.  `GET` and `HEAD` only (405 otherwise);
+  `/d/<document>` redirects to `/d/<document>/`; `If-None-Match` answers 304.  No cookie is set
+  or read.
+* *Deferred:* the members-only sign-in hand-off (Keycloak session cookie on the pub origin after a
+  redirect through the API) waits for its security review; a members-only publish answers 403
+  meanwhile.  Anyone-with-link publishes are served in full.
+* *Load test* (`PublishServiceTest`): a 200-file bundle, 100 concurrent viewers each fetching every
+  file (20,000 requests) from MinIO through the origin; the p95 is printed and must stay under
+  200 ms.
+
 === Client
 
 * Accessibility: every emitted `<img>` and inlined SVG carries the object's alt text

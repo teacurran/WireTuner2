@@ -13,9 +13,17 @@ can queue an offline change the server will reject.
 |---|---|---|---|
 | `wiretuner.account.v1.SetWorkspaceSettingsRequest` | `(message)` | `(buf.validate.message).cel` | `workspace_settings.require_sso_needs_idp: !this.settings.require_sso \|\| this.settings.sso_idp_alias != ''` |
 | `wiretuner.blob.v1.UploadHeader` | `(message)` | `(buf.validate.message).cel` | `upload_header.tagged_size: this.tag == 0 \|\| this.size <= 262144u` |
+| `wiretuner.data.v1.FetchRequest` | `(message)` | `(buf.validate.message).cel` | `fetch.url: this.source.url != ''` |
+| `wiretuner.data.v1.ListAllowedHostsRequest` | `(message)` | `(buf.validate.message).cel` | `list_allowed_hosts.one_scope: has(this.scope) != (this.document_id != '')` |
+| `wiretuner.data.v1.ListCredentialsRequest` | `(message)` | `(buf.validate.message).cel` | `list_credentials.one_scope: has(this.scope) != (this.document_id != '')` |
+| `wiretuner.data.v1.PutCredentialRequest` | `(message)` | `(buf.validate.message).cel` | `put_credential.header: this.kind != 3 \|\| (this.header_name != '' && this.header_value != '' && this.token == '' && this.username == '' && this.password == '' && this.client_id == '' && this.client_secret == '' && this.token_url == '' && this.oauth_scope == '')` |
+| `wiretuner.data.v1.PutCredentialRequest` | `(message)` | `(buf.validate.message).cel` | `put_credential.bearer: this.kind != 1 \|\| (this.token != '' && this.username == '' && this.password == '' && this.header_name == '' && this.header_value == '' && this.client_id == '' && this.client_secret == '' && this.token_url == '' && this.oauth_scope == '')` |
+| `wiretuner.data.v1.PutCredentialRequest` | `(message)` | `(buf.validate.message).cel` | `put_credential.basic: this.kind != 2 \|\| (this.username != '' && this.token == '' && this.header_name == '' && this.header_value == '' && this.client_id == '' && this.client_secret == '' && this.token_url == '' && this.oauth_scope == '')` |
+| `wiretuner.data.v1.PutCredentialRequest` | `(message)` | `(buf.validate.message).cel` | `put_credential.oauth2_client: this.kind != 4 \|\| (this.client_id != '' && this.client_secret != '' && this.token_url != '' && this.token == '' && this.username == '' && this.password == '' && this.header_name == '' && this.header_value == '')` |
 | `wiretuner.doc.v1.Comment` | `reactions` | `(buf.validate.field).cel` | `comment.reactions.emoji: this.all(r, r.matches('^[^:]+:(👍\|❤️\|👀\|✅\|❓\|🎉)$'))` |
 | `wiretuner.doc.v1.HttpHeader` | `name` | `(buf.validate.field).cel` | `http_header.name.not_secret: !(this.lowerAscii() in ['authorization', 'proxy-authorization', 'cookie', 'x-api-key'])` |
 | `wiretuner.docs.v1.ListRequest` | `(message)` | `(buf.validate.message).cel` | `list.space_required: this.scope == 4 \|\| this.space_id != ''` |
+| `wiretuner.publish.v1.PublishManifest` | `(message)` | `(buf.validate.message).cel` | `publish_manifest.unique_paths: this.files.map(f, f.path).unique()` |
 | `wiretuner.sync.v1.Participant` | `avatar_sha256` | `(buf.validate.field).cel` | `participant.avatar_sha256.len: size(this) == 0 \|\| size(this) == 32` |
 
 ## Standard rules without a generated Swift check
@@ -26,6 +34,7 @@ can queue an offline change the server will reject.
 | `wiretuner.account.v1.InviteMemberRequest` | `email` | `string.email` | `true` |
 | `wiretuner.account.v1.RemoveWorkspaceDomainRequest` | `domain` | `string.hostname` | `true` |
 | `wiretuner.account.v1.VerifyWorkspaceDomainRequest` | `domain` | `string.hostname` | `true` |
+| `wiretuner.data.v1.ProxyRequest` | `method` | `string.in` | `[GET, POST, PUT, PATCH, DELETE]` |
 | `wiretuner.doc.v1.DocumentInfo` | `web_statement` | `string.uri` | `true` |
 | `wiretuner.doc.v1.EmbeddedRecords` | `media_type` | `string.in` | `[text/csv, application/json]` |
 | `wiretuner.doc.v1.FontNames` | `designer_url` | `string.uri` | `true` |

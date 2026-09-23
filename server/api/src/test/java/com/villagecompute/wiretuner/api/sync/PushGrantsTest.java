@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 
 import com.villagecompute.wiretuner.api.auth.CallMetadata;
 import com.villagecompute.wiretuner.api.auth.Principal;
+import com.villagecompute.wiretuner.api.auth.Role;
 import com.villagecompute.wiretuner.api.sync.ChangeIngest.Pusher;
 import com.villagecompute.wiretuner.sync.v1.Participant;
 
@@ -23,7 +24,7 @@ class PushGrantsTest {
 
     final Supplier<Uni<Pusher>> resolve = () -> Uni.createFrom().item(() -> {
         resolved.incrementAndGet();
-        return new Pusher(new Principal(UUID.randomUUID(), "s", null, "password", null, "r"), Participant.getDefaultInstance());
+        return new Pusher(new Principal(UUID.randomUUID(), "s", null, "password", null, "r"), Participant.getDefaultInstance(), Role.EDITOR);
     });
 
     static PushGrants grants(Duration ttl) {

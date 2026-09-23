@@ -45,6 +45,10 @@ public class Document {
     @Column(name = "created_by_account_id")
     public UUID createdByAccountId;
 
+    /** The role team members get on this document instead of the team default; null = the default (COLLAB-011). */
+    @Column(name = "team_access_override")
+    public String teamAccessOverride;
+
     @Column(name = "feature_level", nullable = false)
     public int featureLevel;
 

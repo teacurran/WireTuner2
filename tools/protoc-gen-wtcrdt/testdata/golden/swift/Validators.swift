@@ -31,14 +31,19 @@ public enum WTValidators {
     nonisolated(unsafe) private static let pattern2 = try! Regex(#"^[a-z][a-z0-9_]*(\.[a-z0-9_]+)+$"#)
     nonisolated(unsafe) private static let pattern3 = try! Regex(#"^[a-z0-9]([a-z0-9-]{0,62}[a-z0-9])?$"#)
     nonisolated(unsafe) private static let pattern4 = try! Regex(#"^([a-zA-Z0-9!#$&^_.+-]+/[a-zA-Z0-9!#$&^_.+-]+)?$"#)
-    nonisolated(unsafe) private static let pattern5 = try! Regex(#"^[A-Za-z_][A-Za-z0-9_]*$"#)
-    nonisolated(unsafe) private static let pattern6 = try! Regex(#"^[A-Za-z0-9._-]*$"#)
-    nonisolated(unsafe) private static let pattern7 = try! Regex(#"^[0-9]+\.[0-9]{3}$"#)
-    nonisolated(unsafe) private static let pattern8 = try! Regex(#"^[A-Za-z0-9._]+$"#)
-    nonisolated(unsafe) private static let pattern9 = try! Regex(#"^[A-Za-z_.][A-Za-z0-9_.]*$"#)
-    nonisolated(unsafe) private static let pattern10 = try! Regex(#"^https://"#)
-    nonisolated(unsafe) private static let pattern11 = try! Regex(#"^[ -~]{4}$"#)
-    nonisolated(unsafe) private static let pattern12 = try! Regex(#"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-7[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"#)
+    nonisolated(unsafe) private static let pattern5 = try! Regex(#"^https://"#)
+    nonisolated(unsafe) private static let pattern6 = try! Regex(#"^[A-Za-z_][A-Za-z0-9_]*$"#)
+    nonisolated(unsafe) private static let pattern7 = try! Regex(#"^[!#$%&'*+.^_`|~0-9A-Za-z-]+$"#)
+    nonisolated(unsafe) private static let pattern8 = try! Regex(#"^(?i)[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*(:[0-9]{1,5})?$"#)
+    nonisolated(unsafe) private static let pattern9 = try! Regex(#"^[A-Za-z0-9_.-]+$"#)
+    nonisolated(unsafe) private static let pattern10 = try! Regex(#"^([!#$%&'*+.^_`|~0-9A-Za-z-]+)?$"#)
+    nonisolated(unsafe) private static let pattern11 = try! Regex(#"^[A-Za-z0-9._-]*$"#)
+    nonisolated(unsafe) private static let pattern12 = try! Regex(#"^[0-9]+\.[0-9]{3}$"#)
+    nonisolated(unsafe) private static let pattern13 = try! Regex(#"^[A-Za-z0-9._]+$"#)
+    nonisolated(unsafe) private static let pattern14 = try! Regex(#"^[A-Za-z_.][A-Za-z0-9_.]*$"#)
+    nonisolated(unsafe) private static let pattern15 = try! Regex(#"^[ -~]{4}$"#)
+    nonisolated(unsafe) private static let pattern16 = try! Regex(#"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-7[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"#)
+    nonisolated(unsafe) private static let pattern17 = try! Regex(#"^(?:(?:[^/\\\x00-\x1f.][^/\\\x00-\x1f]*|\.[^/\\\x00-\x1f.][^/\\\x00-\x1f]*|\.\.[^/\\\x00-\x1f]+)/)*(?:[^/\\\x00-\x1f.][^/\\\x00-\x1f]*|\.[^/\\\x00-\x1f.][^/\\\x00-\x1f]*|\.\.[^/\\\x00-\x1f]+)$"#)
 
     /// Validates `wiretuner.account.v1.AcceptInviteRequest`; `path` prefixes every violation's field path.
     public static func validate(_ m: Wiretuner_Account_V1_AcceptInviteRequest, path: String = "") -> [ValidationViolation] {
@@ -763,6 +768,456 @@ public enum WTValidators {
         if case .chunk(let v)? = m.frame {
             if v.count > 1048576 {
                 out.append(ValidationViolation(fieldPath: "\(path)chunk", ruleID: "bytes.max_len", message: "value length must be at most 1048576 bytes"))
+            }
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.data.v1.DeleteAllowedHostRequest`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Data_V1_DeleteAllowedHostRequest, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if m.hasScope {
+            let v = m.scope
+            out += validate(v, path: "\(path)scope.")
+        } else {
+            out.append(ValidationViolation(fieldPath: "\(path)scope", ruleID: "required", message: "value is required"))
+        }
+        do {
+            let v = m.host
+            if v.unicodeScalars.count < 1 {
+                out.append(ValidationViolation(fieldPath: "\(path)host", ruleID: "string.min_len", message: "value length must be at least 1 characters"))
+            }
+            if v.unicodeScalars.count > 261 {
+                out.append(ValidationViolation(fieldPath: "\(path)host", ruleID: "string.max_len", message: "value length must be at most 261 characters"))
+            }
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.data.v1.DeleteCredentialRequest`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Data_V1_DeleteCredentialRequest, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if m.hasScope {
+            let v = m.scope
+            out += validate(v, path: "\(path)scope.")
+        } else {
+            out.append(ValidationViolation(fieldPath: "\(path)scope", ruleID: "required", message: "value is required"))
+        }
+        do {
+            let v = m.name
+            if v.unicodeScalars.count < 1 {
+                out.append(ValidationViolation(fieldPath: "\(path)name", ruleID: "string.min_len", message: "value length must be at least 1 characters"))
+            }
+            if v.unicodeScalars.count > 64 {
+                out.append(ValidationViolation(fieldPath: "\(path)name", ruleID: "string.max_len", message: "value length must be at most 64 characters"))
+            }
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.data.v1.FetchAssetRequest`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Data_V1_FetchAssetRequest, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if m.documentID.isEmpty {
+            out.append(ValidationViolation(fieldPath: "\(path)document_id", ruleID: "required", message: "value is required"))
+        }
+        do {
+            let v = m.documentID
+            if v.isEmpty {
+                out.append(ValidationViolation(fieldPath: "\(path)document_id", ruleID: "string.uuid_empty", message: "value is empty, which is not a valid UUID"))
+            } else if v.wholeMatch(of: Self.pattern0) == nil {
+                out.append(ValidationViolation(fieldPath: "\(path)document_id", ruleID: "string.uuid", message: "value must be a valid UUID"))
+            }
+        }
+        do {
+            let v = m.url
+            if v.unicodeScalars.count < 1 {
+                out.append(ValidationViolation(fieldPath: "\(path)url", ruleID: "string.min_len", message: "value length must be at least 1 characters"))
+            }
+            if v.unicodeScalars.count > 2048 {
+                out.append(ValidationViolation(fieldPath: "\(path)url", ruleID: "string.max_len", message: "value length must be at most 2048 characters"))
+            }
+            if v.firstMatch(of: Self.pattern5) == nil {
+                out.append(ValidationViolation(fieldPath: "\(path)url", ruleID: "string.pattern", message: "value does not match regex pattern `^https://`"))
+            }
+        }
+        do {
+            let v = m.credentialName
+            if v.unicodeScalars.count > 64 {
+                out.append(ValidationViolation(fieldPath: "\(path)credential_name", ruleID: "string.max_len", message: "value length must be at most 64 characters"))
+            }
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.data.v1.FetchRequest`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Data_V1_FetchRequest, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if m.documentID.isEmpty {
+            out.append(ValidationViolation(fieldPath: "\(path)document_id", ruleID: "required", message: "value is required"))
+        }
+        do {
+            let v = m.documentID
+            if v.isEmpty {
+                out.append(ValidationViolation(fieldPath: "\(path)document_id", ruleID: "string.uuid_empty", message: "value is empty, which is not a valid UUID"))
+            } else if v.wholeMatch(of: Self.pattern0) == nil {
+                out.append(ValidationViolation(fieldPath: "\(path)document_id", ruleID: "string.uuid", message: "value must be a valid UUID"))
+            }
+        }
+        if m.hasSource {
+            let v = m.source
+            out += validate(v, path: "\(path)source.")
+        } else {
+            out.append(ValidationViolation(fieldPath: "\(path)source", ruleID: "required", message: "value is required"))
+        }
+        if m.params.count > 64 {
+            out.append(ValidationViolation(fieldPath: "\(path)params", ruleID: "map.max_pairs", message: "map must be at most 64 entries"))
+        }
+        for (k, v) in m.params.sorted(by: { $0.key < $1.key }) {
+            if k.unicodeScalars.count > 64 {
+                out.append(ValidationViolation(fieldPath: "\(path)params[\(String(reflecting: k))]", ruleID: "string.max_len", message: "value length must be at most 64 characters"))
+            }
+            if k.firstMatch(of: Self.pattern6) == nil {
+                out.append(ValidationViolation(fieldPath: "\(path)params[\(String(reflecting: k))]", ruleID: "string.pattern", message: "value does not match regex pattern `^[A-Za-z_][A-Za-z0-9_]*$`"))
+            }
+            if v.unicodeScalars.count > 1024 {
+                out.append(ValidationViolation(fieldPath: "\(path)params[\(String(reflecting: k))]", ruleID: "string.max_len", message: "value length must be at most 1024 characters"))
+            }
+        }
+        if m.paths.count > 256 {
+            out.append(ValidationViolation(fieldPath: "\(path)paths", ruleID: "repeated.max_items", message: "value must contain no more than 256 item(s)"))
+        }
+        for (i, v) in m.paths.enumerated() {
+            if v.unicodeScalars.count > 512 {
+                out.append(ValidationViolation(fieldPath: "\(path)paths[\(i)]", ruleID: "string.max_len", message: "value length must be at most 512 characters"))
+            }
+        }
+        do {
+            let v = m.cursor
+            if v.unicodeScalars.count > 8192 {
+                out.append(ValidationViolation(fieldPath: "\(path)cursor", ruleID: "string.max_len", message: "value length must be at most 8192 characters"))
+            }
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.data.v1.ListAllowedHostsRequest`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Data_V1_ListAllowedHostsRequest, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if m.hasScope {
+            let v = m.scope
+            out += validate(v, path: "\(path)scope.")
+        }
+        if !(m.documentID.isEmpty) {
+            let v = m.documentID
+            if v.isEmpty {
+                out.append(ValidationViolation(fieldPath: "\(path)document_id", ruleID: "string.uuid_empty", message: "value is empty, which is not a valid UUID"))
+            } else if v.wholeMatch(of: Self.pattern0) == nil {
+                out.append(ValidationViolation(fieldPath: "\(path)document_id", ruleID: "string.uuid", message: "value must be a valid UUID"))
+            }
+        }
+        do {
+            let v = m.cursor
+            if v.unicodeScalars.count > 1024 {
+                out.append(ValidationViolation(fieldPath: "\(path)cursor", ruleID: "string.max_len", message: "value length must be at most 1024 characters"))
+            }
+        }
+        do {
+            let v = m.pageSize
+            if !(v <= 50) {
+                out.append(ValidationViolation(fieldPath: "\(path)page_size", ruleID: "uint32.lte", message: "value must be less than or equal to 50"))
+            }
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.data.v1.ListCredentialsRequest`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Data_V1_ListCredentialsRequest, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if m.hasScope {
+            let v = m.scope
+            out += validate(v, path: "\(path)scope.")
+        }
+        if !(m.documentID.isEmpty) {
+            let v = m.documentID
+            if v.isEmpty {
+                out.append(ValidationViolation(fieldPath: "\(path)document_id", ruleID: "string.uuid_empty", message: "value is empty, which is not a valid UUID"))
+            } else if v.wholeMatch(of: Self.pattern0) == nil {
+                out.append(ValidationViolation(fieldPath: "\(path)document_id", ruleID: "string.uuid", message: "value must be a valid UUID"))
+            }
+        }
+        do {
+            let v = m.cursor
+            if v.unicodeScalars.count > 1024 {
+                out.append(ValidationViolation(fieldPath: "\(path)cursor", ruleID: "string.max_len", message: "value length must be at most 1024 characters"))
+            }
+        }
+        do {
+            let v = m.pageSize
+            if !(v <= 50) {
+                out.append(ValidationViolation(fieldPath: "\(path)page_size", ruleID: "uint32.lte", message: "value must be less than or equal to 50"))
+            }
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.data.v1.ListFetchAuditRequest`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Data_V1_ListFetchAuditRequest, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if m.hasScope {
+            let v = m.scope
+            out += validate(v, path: "\(path)scope.")
+        } else {
+            out.append(ValidationViolation(fieldPath: "\(path)scope", ruleID: "required", message: "value is required"))
+        }
+        if !(m.documentID.isEmpty) {
+            let v = m.documentID
+            if v.isEmpty {
+                out.append(ValidationViolation(fieldPath: "\(path)document_id", ruleID: "string.uuid_empty", message: "value is empty, which is not a valid UUID"))
+            } else if v.wholeMatch(of: Self.pattern0) == nil {
+                out.append(ValidationViolation(fieldPath: "\(path)document_id", ruleID: "string.uuid", message: "value must be a valid UUID"))
+            }
+        }
+        do {
+            let v = m.host
+            if v.unicodeScalars.count > 261 {
+                out.append(ValidationViolation(fieldPath: "\(path)host", ruleID: "string.max_len", message: "value length must be at most 261 characters"))
+            }
+        }
+        if !(m.accountID.isEmpty) {
+            let v = m.accountID
+            if v.isEmpty {
+                out.append(ValidationViolation(fieldPath: "\(path)account_id", ruleID: "string.uuid_empty", message: "value is empty, which is not a valid UUID"))
+            } else if v.wholeMatch(of: Self.pattern0) == nil {
+                out.append(ValidationViolation(fieldPath: "\(path)account_id", ruleID: "string.uuid", message: "value must be a valid UUID"))
+            }
+        }
+        do {
+            let v = m.cursor
+            if v.unicodeScalars.count > 1024 {
+                out.append(ValidationViolation(fieldPath: "\(path)cursor", ruleID: "string.max_len", message: "value length must be at most 1024 characters"))
+            }
+        }
+        do {
+            let v = m.pageSize
+            if !(v <= 50) {
+                out.append(ValidationViolation(fieldPath: "\(path)page_size", ruleID: "uint32.lte", message: "value must be less than or equal to 50"))
+            }
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.data.v1.ProxyRequest`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Data_V1_ProxyRequest, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if m.documentID.isEmpty {
+            out.append(ValidationViolation(fieldPath: "\(path)document_id", ruleID: "required", message: "value is required"))
+        }
+        do {
+            let v = m.documentID
+            if v.isEmpty {
+                out.append(ValidationViolation(fieldPath: "\(path)document_id", ruleID: "string.uuid_empty", message: "value is empty, which is not a valid UUID"))
+            } else if v.wholeMatch(of: Self.pattern0) == nil {
+                out.append(ValidationViolation(fieldPath: "\(path)document_id", ruleID: "string.uuid", message: "value must be a valid UUID"))
+            }
+        }
+        do {
+            let v = m.url
+            if v.unicodeScalars.count < 1 {
+                out.append(ValidationViolation(fieldPath: "\(path)url", ruleID: "string.min_len", message: "value length must be at least 1 characters"))
+            }
+            if v.unicodeScalars.count > 2048 {
+                out.append(ValidationViolation(fieldPath: "\(path)url", ruleID: "string.max_len", message: "value length must be at most 2048 characters"))
+            }
+            if v.firstMatch(of: Self.pattern5) == nil {
+                out.append(ValidationViolation(fieldPath: "\(path)url", ruleID: "string.pattern", message: "value does not match regex pattern `^https://`"))
+            }
+        }
+        if m.headers.count > 64 {
+            out.append(ValidationViolation(fieldPath: "\(path)headers", ruleID: "map.max_pairs", message: "map must be at most 64 entries"))
+        }
+        for (k, v) in m.headers.sorted(by: { $0.key < $1.key }) {
+            if k.unicodeScalars.count < 1 {
+                out.append(ValidationViolation(fieldPath: "\(path)headers[\(String(reflecting: k))]", ruleID: "string.min_len", message: "value length must be at least 1 characters"))
+            }
+            if k.unicodeScalars.count > 128 {
+                out.append(ValidationViolation(fieldPath: "\(path)headers[\(String(reflecting: k))]", ruleID: "string.max_len", message: "value length must be at most 128 characters"))
+            }
+            if k.firstMatch(of: Self.pattern7) == nil {
+                out.append(ValidationViolation(fieldPath: "\(path)headers[\(String(reflecting: k))]", ruleID: "string.pattern", message: "value does not match regex pattern `^[!#$%&'*+.^_`|~0-9A-Za-z-]+$`"))
+            }
+            if v.unicodeScalars.count > 4096 {
+                out.append(ValidationViolation(fieldPath: "\(path)headers[\(String(reflecting: k))]", ruleID: "string.max_len", message: "value length must be at most 4096 characters"))
+            }
+        }
+        do {
+            let v = m.body
+            if v.count > 1048576 {
+                out.append(ValidationViolation(fieldPath: "\(path)body", ruleID: "bytes.max_len", message: "value length must be at most 1048576 bytes"))
+            }
+        }
+        do {
+            let v = m.credentialName
+            if v.unicodeScalars.count > 64 {
+                out.append(ValidationViolation(fieldPath: "\(path)credential_name", ruleID: "string.max_len", message: "value length must be at most 64 characters"))
+            }
+        }
+        do {
+            let v = m.timeoutS
+            if !(v <= 120) {
+                out.append(ValidationViolation(fieldPath: "\(path)timeout_s", ruleID: "uint32.lte", message: "value must be less than or equal to 120"))
+            }
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.data.v1.PutAllowedHostRequest`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Data_V1_PutAllowedHostRequest, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if m.hasScope {
+            let v = m.scope
+            out += validate(v, path: "\(path)scope.")
+        } else {
+            out.append(ValidationViolation(fieldPath: "\(path)scope", ruleID: "required", message: "value is required"))
+        }
+        do {
+            let v = m.host
+            if v.unicodeScalars.count < 1 {
+                out.append(ValidationViolation(fieldPath: "\(path)host", ruleID: "string.min_len", message: "value length must be at least 1 characters"))
+            }
+            if v.unicodeScalars.count > 261 {
+                out.append(ValidationViolation(fieldPath: "\(path)host", ruleID: "string.max_len", message: "value length must be at most 261 characters"))
+            }
+            if v.firstMatch(of: Self.pattern8) == nil {
+                out.append(ValidationViolation(fieldPath: "\(path)host", ruleID: "string.pattern", message: "value does not match regex pattern `^(?i)[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*(:[0-9]{1,5})?$`"))
+            }
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.data.v1.PutCredentialRequest`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Data_V1_PutCredentialRequest, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if m.hasScope {
+            let v = m.scope
+            out += validate(v, path: "\(path)scope.")
+        } else {
+            out.append(ValidationViolation(fieldPath: "\(path)scope", ruleID: "required", message: "value is required"))
+        }
+        do {
+            let v = m.name
+            if v.unicodeScalars.count < 1 {
+                out.append(ValidationViolation(fieldPath: "\(path)name", ruleID: "string.min_len", message: "value length must be at least 1 characters"))
+            }
+            if v.unicodeScalars.count > 64 {
+                out.append(ValidationViolation(fieldPath: "\(path)name", ruleID: "string.max_len", message: "value length must be at most 64 characters"))
+            }
+            if v.firstMatch(of: Self.pattern9) == nil {
+                out.append(ValidationViolation(fieldPath: "\(path)name", ruleID: "string.pattern", message: "value does not match regex pattern `^[A-Za-z0-9_.-]+$`"))
+            }
+        }
+        do {
+            let v = m.kind
+            if case .UNRECOGNIZED = v {
+                out.append(ValidationViolation(fieldPath: "\(path)kind", ruleID: "enum.defined_only", message: "value must be one of the defined enum values"))
+            }
+            if [0].contains(v.rawValue) {
+                out.append(ValidationViolation(fieldPath: "\(path)kind", ruleID: "enum.not_in", message: "value must not be in list [0]"))
+            }
+        }
+        do {
+            let v = m.host
+            if v.unicodeScalars.count < 1 {
+                out.append(ValidationViolation(fieldPath: "\(path)host", ruleID: "string.min_len", message: "value length must be at least 1 characters"))
+            }
+            if v.unicodeScalars.count > 261 {
+                out.append(ValidationViolation(fieldPath: "\(path)host", ruleID: "string.max_len", message: "value length must be at most 261 characters"))
+            }
+            if v.firstMatch(of: Self.pattern8) == nil {
+                out.append(ValidationViolation(fieldPath: "\(path)host", ruleID: "string.pattern", message: "value does not match regex pattern `^(?i)[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*(:[0-9]{1,5})?$`"))
+            }
+        }
+        do {
+            let v = m.token
+            if v.unicodeScalars.count > 8192 {
+                out.append(ValidationViolation(fieldPath: "\(path)token", ruleID: "string.max_len", message: "value length must be at most 8192 characters"))
+            }
+        }
+        do {
+            let v = m.username
+            if v.unicodeScalars.count > 1024 {
+                out.append(ValidationViolation(fieldPath: "\(path)username", ruleID: "string.max_len", message: "value length must be at most 1024 characters"))
+            }
+        }
+        do {
+            let v = m.password
+            if v.unicodeScalars.count > 1024 {
+                out.append(ValidationViolation(fieldPath: "\(path)password", ruleID: "string.max_len", message: "value length must be at most 1024 characters"))
+            }
+        }
+        do {
+            let v = m.headerName
+            if v.unicodeScalars.count > 128 {
+                out.append(ValidationViolation(fieldPath: "\(path)header_name", ruleID: "string.max_len", message: "value length must be at most 128 characters"))
+            }
+            if v.firstMatch(of: Self.pattern10) == nil {
+                out.append(ValidationViolation(fieldPath: "\(path)header_name", ruleID: "string.pattern", message: "value does not match regex pattern `^([!#$%&'*+.^_`|~0-9A-Za-z-]+)?$`"))
+            }
+        }
+        do {
+            let v = m.headerValue
+            if v.unicodeScalars.count > 8192 {
+                out.append(ValidationViolation(fieldPath: "\(path)header_value", ruleID: "string.max_len", message: "value length must be at most 8192 characters"))
+            }
+        }
+        do {
+            let v = m.clientID
+            if v.unicodeScalars.count > 1024 {
+                out.append(ValidationViolation(fieldPath: "\(path)client_id", ruleID: "string.max_len", message: "value length must be at most 1024 characters"))
+            }
+        }
+        do {
+            let v = m.clientSecret
+            if v.unicodeScalars.count > 8192 {
+                out.append(ValidationViolation(fieldPath: "\(path)client_secret", ruleID: "string.max_len", message: "value length must be at most 8192 characters"))
+            }
+        }
+        if !(m.tokenURL.isEmpty) {
+            let v = m.tokenURL
+            if v.unicodeScalars.count > 2048 {
+                out.append(ValidationViolation(fieldPath: "\(path)token_url", ruleID: "string.max_len", message: "value length must be at most 2048 characters"))
+            }
+            if v.firstMatch(of: Self.pattern5) == nil {
+                out.append(ValidationViolation(fieldPath: "\(path)token_url", ruleID: "string.pattern", message: "value does not match regex pattern `^https://`"))
+            }
+        }
+        do {
+            let v = m.oauthScope
+            if v.unicodeScalars.count > 1024 {
+                out.append(ValidationViolation(fieldPath: "\(path)oauth_scope", ruleID: "string.max_len", message: "value length must be at most 1024 characters"))
+            }
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.data.v1.Scope`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Data_V1_Scope, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if m.scope == nil {
+            out.append(ValidationViolation(fieldPath: "\(path)scope", ruleID: "required", message: "exactly one field is required in oneof"))
+        }
+        if case .teamID(let v)? = m.scope {
+            if v.isEmpty {
+                out.append(ValidationViolation(fieldPath: "\(path)team_id", ruleID: "string.uuid_empty", message: "value is empty, which is not a valid UUID"))
+            } else if v.wholeMatch(of: Self.pattern0) == nil {
+                out.append(ValidationViolation(fieldPath: "\(path)team_id", ruleID: "string.uuid", message: "value must be a valid UUID"))
+            }
+        }
+        if case .accountID(let v)? = m.scope {
+            if v.isEmpty {
+                out.append(ValidationViolation(fieldPath: "\(path)account_id", ruleID: "string.uuid_empty", message: "value is empty, which is not a valid UUID"))
+            } else if v.wholeMatch(of: Self.pattern0) == nil {
+                out.append(ValidationViolation(fieldPath: "\(path)account_id", ruleID: "string.uuid", message: "value must be a valid UUID"))
             }
         }
         return out
@@ -2000,7 +2455,7 @@ public enum WTValidators {
             if v.unicodeScalars.count > 64 {
                 out.append(ValidationViolation(fieldPath: "\(path)name", ruleID: "string.max_len", message: "value length must be at most 64 characters"))
             }
-            if v.firstMatch(of: Self.pattern5) == nil {
+            if v.firstMatch(of: Self.pattern6) == nil {
                 out.append(ValidationViolation(fieldPath: "\(path)name", ruleID: "string.pattern", message: "value does not match regex pattern `^[A-Za-z_][A-Za-z0-9_]*$`"))
             }
         }
@@ -2756,7 +3211,7 @@ public enum WTValidators {
             if v.unicodeScalars.count > 63 {
                 out.append(ValidationViolation(fieldPath: "\(path)postscript", ruleID: "string.max_len", message: "value length must be at most 63 characters"))
             }
-            if v.firstMatch(of: Self.pattern6) == nil {
+            if v.firstMatch(of: Self.pattern11) == nil {
                 out.append(ValidationViolation(fieldPath: "\(path)postscript", ruleID: "string.pattern", message: "value does not match regex pattern `^[A-Za-z0-9._-]*$`"))
             }
         }
@@ -2771,7 +3226,7 @@ public enum WTValidators {
             if v.unicodeScalars.count > 16 {
                 out.append(ValidationViolation(fieldPath: "\(path)version", ruleID: "string.max_len", message: "value length must be at most 16 characters"))
             }
-            if v.firstMatch(of: Self.pattern7) == nil {
+            if v.firstMatch(of: Self.pattern12) == nil {
                 out.append(ValidationViolation(fieldPath: "\(path)version", ruleID: "string.pattern", message: "value does not match regex pattern `^[0-9]+\\.[0-9]{3}$`"))
             }
         }
@@ -2893,7 +3348,7 @@ public enum WTValidators {
             if v.unicodeScalars.count > 63 {
                 out.append(ValidationViolation(fieldPath: "\(path)name", ruleID: "string.max_len", message: "value length must be at most 63 characters"))
             }
-            if v.firstMatch(of: Self.pattern8) == nil {
+            if v.firstMatch(of: Self.pattern13) == nil {
                 out.append(ValidationViolation(fieldPath: "\(path)name", ruleID: "string.pattern", message: "value does not match regex pattern `^[A-Za-z0-9._]+$`"))
             }
         }
@@ -2918,7 +3373,7 @@ public enum WTValidators {
             if v.unicodeScalars.count > 63 {
                 out.append(ValidationViolation(fieldPath: "\(path)name", ruleID: "string.max_len", message: "value length must be at most 63 characters"))
             }
-            if v.firstMatch(of: Self.pattern9) == nil {
+            if v.firstMatch(of: Self.pattern14) == nil {
                 out.append(ValidationViolation(fieldPath: "\(path)name", ruleID: "string.pattern", message: "value does not match regex pattern `^[A-Za-z_.][A-Za-z0-9_.]*$`"))
             }
         }
@@ -3214,7 +3669,7 @@ public enum WTValidators {
             if v.unicodeScalars.count > 2048 {
                 out.append(ValidationViolation(fieldPath: "\(path)url", ruleID: "string.max_len", message: "value length must be at most 2048 characters"))
             }
-            if v.firstMatch(of: Self.pattern10) == nil {
+            if v.firstMatch(of: Self.pattern5) == nil {
                 out.append(ValidationViolation(fieldPath: "\(path)url", ruleID: "string.pattern", message: "value does not match regex pattern `^https://`"))
             }
         }
@@ -3404,7 +3859,7 @@ public enum WTValidators {
             if v.unicodeScalars.count > 63 {
                 out.append(ValidationViolation(fieldPath: "\(path)name", ruleID: "string.max_len", message: "value length must be at most 63 characters"))
             }
-            if v.firstMatch(of: Self.pattern8) == nil {
+            if v.firstMatch(of: Self.pattern13) == nil {
                 out.append(ValidationViolation(fieldPath: "\(path)name", ruleID: "string.pattern", message: "value does not match regex pattern `^[A-Za-z0-9._]+$`"))
             }
         }
@@ -3997,7 +4452,7 @@ public enum WTValidators {
             if v.unicodeScalars.count != 4 {
                 out.append(ValidationViolation(fieldPath: "\(path)vendor_id", ruleID: "string.len", message: "value length must be 4 characters"))
             }
-            if v.firstMatch(of: Self.pattern11) == nil {
+            if v.firstMatch(of: Self.pattern15) == nil {
                 out.append(ValidationViolation(fieldPath: "\(path)vendor_id", ruleID: "string.pattern", message: "value does not match regex pattern `^[ -~]{4}$`"))
             }
         }
@@ -6028,7 +6483,7 @@ public enum WTValidators {
         }
         do {
             let v = m.branchDocumentID
-            if v.firstMatch(of: Self.pattern12) == nil {
+            if v.firstMatch(of: Self.pattern16) == nil {
                 out.append(ValidationViolation(fieldPath: "\(path)branch_document_id", ruleID: "string.pattern", message: "value does not match regex pattern `^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-7[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$`"))
             }
             if v.isEmpty {
@@ -6129,7 +6584,7 @@ public enum WTValidators {
         }
         do {
             let v = m.documentID
-            if v.firstMatch(of: Self.pattern12) == nil {
+            if v.firstMatch(of: Self.pattern16) == nil {
                 out.append(ValidationViolation(fieldPath: "\(path)document_id", ruleID: "string.pattern", message: "value does not match regex pattern `^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-7[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$`"))
             }
             if v.isEmpty {
@@ -6249,7 +6704,7 @@ public enum WTValidators {
         }
         do {
             let v = m.newDocumentID
-            if v.firstMatch(of: Self.pattern12) == nil {
+            if v.firstMatch(of: Self.pattern16) == nil {
                 out.append(ValidationViolation(fieldPath: "\(path)new_document_id", ruleID: "string.pattern", message: "value does not match regex pattern `^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-7[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$`"))
             }
             if v.isEmpty {
@@ -6302,7 +6757,7 @@ public enum WTValidators {
         }
         do {
             let v = m.newDocumentID
-            if v.firstMatch(of: Self.pattern12) == nil {
+            if v.firstMatch(of: Self.pattern16) == nil {
                 out.append(ValidationViolation(fieldPath: "\(path)new_document_id", ruleID: "string.pattern", message: "value does not match regex pattern `^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-7[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$`"))
             }
             if v.isEmpty {
@@ -6378,6 +6833,23 @@ public enum WTValidators {
 
     /// Validates `wiretuner.docs.v1.GetRequest`; `path` prefixes every violation's field path.
     public static func validate(_ m: Wiretuner_Docs_V1_GetRequest, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if m.documentID.isEmpty {
+            out.append(ValidationViolation(fieldPath: "\(path)document_id", ruleID: "required", message: "value is required"))
+        }
+        do {
+            let v = m.documentID
+            if v.isEmpty {
+                out.append(ValidationViolation(fieldPath: "\(path)document_id", ruleID: "string.uuid_empty", message: "value is empty, which is not a valid UUID"))
+            } else if v.wholeMatch(of: Self.pattern0) == nil {
+                out.append(ValidationViolation(fieldPath: "\(path)document_id", ruleID: "string.uuid", message: "value must be a valid UUID"))
+            }
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.docs.v1.GetUnreadRequest`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Docs_V1_GetUnreadRequest, path: String = "") -> [ValidationViolation] {
         var out: [ValidationViolation] = []
         if m.documentID.isEmpty {
             out.append(ValidationViolation(fieldPath: "\(path)document_id", ruleID: "required", message: "value is required"))
@@ -6608,6 +7080,24 @@ public enum WTValidators {
         return out
     }
 
+    /// Validates `wiretuner.docs.v1.ListMentionedDocumentsRequest`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Docs_V1_ListMentionedDocumentsRequest, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        do {
+            let v = m.cursor
+            if v.unicodeScalars.count > 1024 {
+                out.append(ValidationViolation(fieldPath: "\(path)cursor", ruleID: "string.max_len", message: "value length must be at most 1024 characters"))
+            }
+        }
+        do {
+            let v = m.pageSize
+            if !(v <= 500) {
+                out.append(ValidationViolation(fieldPath: "\(path)page_size", ruleID: "uint32.lte", message: "value must be less than or equal to 500"))
+            }
+        }
+        return out
+    }
+
     /// Validates `wiretuner.docs.v1.ListNodeHistoryRequest`; `path` prefixes every violation's field path.
     public static func validate(_ m: Wiretuner_Docs_V1_ListNodeHistoryRequest, path: String = "") -> [ValidationViolation] {
         var out: [ValidationViolation] = []
@@ -6709,6 +7199,29 @@ public enum WTValidators {
         return out
     }
 
+    /// Validates `wiretuner.docs.v1.MarkReadRequest`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Docs_V1_MarkReadRequest, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if m.documentID.isEmpty {
+            out.append(ValidationViolation(fieldPath: "\(path)document_id", ruleID: "required", message: "value is required"))
+        }
+        do {
+            let v = m.documentID
+            if v.isEmpty {
+                out.append(ValidationViolation(fieldPath: "\(path)document_id", ruleID: "string.uuid_empty", message: "value is empty, which is not a valid UUID"))
+            } else if v.wholeMatch(of: Self.pattern0) == nil {
+                out.append(ValidationViolation(fieldPath: "\(path)document_id", ruleID: "string.uuid", message: "value must be a valid UUID"))
+            }
+        }
+        if !m.hasThread {
+            out.append(ValidationViolation(fieldPath: "\(path)thread", ruleID: "required", message: "value is required"))
+        }
+        if !m.hasThrough {
+            out.append(ValidationViolation(fieldPath: "\(path)through", ruleID: "required", message: "value is required"))
+        }
+        return out
+    }
+
     /// Validates `wiretuner.docs.v1.MergeBranchRequest`; `path` prefixes every violation's field path.
     public static func validate(_ m: Wiretuner_Docs_V1_MergeBranchRequest, path: String = "") -> [ValidationViolation] {
         var out: [ValidationViolation] = []
@@ -6787,7 +7300,7 @@ public enum WTValidators {
         }
         do {
             let v = m.versionID
-            if v.firstMatch(of: Self.pattern12) == nil {
+            if v.firstMatch(of: Self.pattern16) == nil {
                 out.append(ValidationViolation(fieldPath: "\(path)version_id", ruleID: "string.pattern", message: "value does not match regex pattern `^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-7[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$`"))
             }
             if v.isEmpty {
@@ -7035,7 +7548,7 @@ public enum WTValidators {
         }
         do {
             let v = m.newDocumentID
-            if v.firstMatch(of: Self.pattern12) == nil {
+            if v.firstMatch(of: Self.pattern16) == nil {
                 out.append(ValidationViolation(fieldPath: "\(path)new_document_id", ruleID: "string.pattern", message: "value does not match regex pattern `^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-7[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$`"))
             }
             if v.isEmpty {
@@ -7179,6 +7692,12 @@ public enum WTValidators {
                 out.append(ValidationViolation(fieldPath: "\(path)document_id", ruleID: "string.uuid_empty", message: "value is empty, which is not a valid UUID"))
             } else if v.wholeMatch(of: Self.pattern0) == nil {
                 out.append(ValidationViolation(fieldPath: "\(path)document_id", ruleID: "string.uuid", message: "value must be a valid UUID"))
+            }
+        }
+        do {
+            let v = m.name
+            if v.unicodeScalars.count > 256 {
+                out.append(ValidationViolation(fieldPath: "\(path)name", ruleID: "string.max_len", message: "value length must be at most 256 characters"))
             }
         }
         return out
@@ -7368,6 +7887,189 @@ public enum WTValidators {
             let v = m.note
             if v.unicodeScalars.count > 8192 {
                 out.append(ValidationViolation(fieldPath: "\(path)note", ruleID: "string.max_len", message: "value length must be at most 8192 characters"))
+            }
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.publish.v1.CreatePublishRequest`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Publish_V1_CreatePublishRequest, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if m.publishID.isEmpty {
+            out.append(ValidationViolation(fieldPath: "\(path)publish_id", ruleID: "required", message: "value is required"))
+        }
+        do {
+            let v = m.publishID
+            if v.isEmpty {
+                out.append(ValidationViolation(fieldPath: "\(path)publish_id", ruleID: "string.uuid_empty", message: "value is empty, which is not a valid UUID"))
+            } else if v.wholeMatch(of: Self.pattern0) == nil {
+                out.append(ValidationViolation(fieldPath: "\(path)publish_id", ruleID: "string.uuid", message: "value must be a valid UUID"))
+            }
+        }
+        if m.documentID.isEmpty {
+            out.append(ValidationViolation(fieldPath: "\(path)document_id", ruleID: "required", message: "value is required"))
+        }
+        do {
+            let v = m.documentID
+            if v.isEmpty {
+                out.append(ValidationViolation(fieldPath: "\(path)document_id", ruleID: "string.uuid_empty", message: "value is empty, which is not a valid UUID"))
+            } else if v.wholeMatch(of: Self.pattern0) == nil {
+                out.append(ValidationViolation(fieldPath: "\(path)document_id", ruleID: "string.uuid", message: "value must be a valid UUID"))
+            }
+        }
+        do {
+            let v = m.settingName
+            if v.unicodeScalars.count > 64 {
+                out.append(ValidationViolation(fieldPath: "\(path)setting_name", ruleID: "string.max_len", message: "value length must be at most 64 characters"))
+            }
+        }
+        do {
+            let v = m.access
+            if case .UNRECOGNIZED = v {
+                out.append(ValidationViolation(fieldPath: "\(path)access", ruleID: "enum.defined_only", message: "value must be one of the defined enum values"))
+            }
+        }
+        if m.hasManifest {
+            let v = m.manifest
+            out += validate(v, path: "\(path)manifest.")
+        } else {
+            out.append(ValidationViolation(fieldPath: "\(path)manifest", ruleID: "required", message: "value is required"))
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.publish.v1.DeletePublishRequest`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Publish_V1_DeletePublishRequest, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if m.publishID.isEmpty {
+            out.append(ValidationViolation(fieldPath: "\(path)publish_id", ruleID: "required", message: "value is required"))
+        }
+        do {
+            let v = m.publishID
+            if v.isEmpty {
+                out.append(ValidationViolation(fieldPath: "\(path)publish_id", ruleID: "string.uuid_empty", message: "value is empty, which is not a valid UUID"))
+            } else if v.wholeMatch(of: Self.pattern0) == nil {
+                out.append(ValidationViolation(fieldPath: "\(path)publish_id", ruleID: "string.uuid", message: "value must be a valid UUID"))
+            }
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.publish.v1.GetPublishRequest`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Publish_V1_GetPublishRequest, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if m.publishID.isEmpty {
+            out.append(ValidationViolation(fieldPath: "\(path)publish_id", ruleID: "required", message: "value is required"))
+        }
+        do {
+            let v = m.publishID
+            if v.isEmpty {
+                out.append(ValidationViolation(fieldPath: "\(path)publish_id", ruleID: "string.uuid_empty", message: "value is empty, which is not a valid UUID"))
+            } else if v.wholeMatch(of: Self.pattern0) == nil {
+                out.append(ValidationViolation(fieldPath: "\(path)publish_id", ruleID: "string.uuid", message: "value must be a valid UUID"))
+            }
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.publish.v1.ListPublishesRequest`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Publish_V1_ListPublishesRequest, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if m.documentID.isEmpty {
+            out.append(ValidationViolation(fieldPath: "\(path)document_id", ruleID: "required", message: "value is required"))
+        }
+        do {
+            let v = m.documentID
+            if v.isEmpty {
+                out.append(ValidationViolation(fieldPath: "\(path)document_id", ruleID: "string.uuid_empty", message: "value is empty, which is not a valid UUID"))
+            } else if v.wholeMatch(of: Self.pattern0) == nil {
+                out.append(ValidationViolation(fieldPath: "\(path)document_id", ruleID: "string.uuid", message: "value must be a valid UUID"))
+            }
+        }
+        do {
+            let v = m.cursor
+            if v.unicodeScalars.count > 1024 {
+                out.append(ValidationViolation(fieldPath: "\(path)cursor", ruleID: "string.max_len", message: "value length must be at most 1024 characters"))
+            }
+        }
+        do {
+            let v = m.pageSize
+            if !(v <= 100) {
+                out.append(ValidationViolation(fieldPath: "\(path)page_size", ruleID: "uint32.lte", message: "value must be less than or equal to 100"))
+            }
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.publish.v1.PublishFile`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Publish_V1_PublishFile, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        do {
+            let v = m.path
+            if v.unicodeScalars.count < 1 {
+                out.append(ValidationViolation(fieldPath: "\(path)path", ruleID: "string.min_len", message: "value length must be at least 1 characters"))
+            }
+            if v.unicodeScalars.count > 1024 {
+                out.append(ValidationViolation(fieldPath: "\(path)path", ruleID: "string.max_len", message: "value length must be at most 1024 characters"))
+            }
+            if v.firstMatch(of: Self.pattern17) == nil {
+                out.append(ValidationViolation(fieldPath: "\(path)path", ruleID: "string.pattern", message: "value does not match regex pattern `^(?:(?:[^/\\\\\\x00-\\x1f.][^/\\\\\\x00-\\x1f]*|\\.[^/\\\\\\x00-\\x1f.][^/\\\\\\x00-\\x1f]*|\\.\\.[^/\\\\\\x00-\\x1f]+)/)*(?:[^/\\\\\\x00-\\x1f.][^/\\\\\\x00-\\x1f]*|\\.[^/\\\\\\x00-\\x1f.][^/\\\\\\x00-\\x1f]*|\\.\\.[^/\\\\\\x00-\\x1f]+)$`"))
+            }
+        }
+        do {
+            let v = m.sha256
+            if v.count != 32 {
+                out.append(ValidationViolation(fieldPath: "\(path)sha256", ruleID: "bytes.len", message: "value length must be 32 bytes"))
+            }
+        }
+        do {
+            let v = m.mediaType
+            if v.unicodeScalars.count < 1 {
+                out.append(ValidationViolation(fieldPath: "\(path)media_type", ruleID: "string.min_len", message: "value length must be at least 1 characters"))
+            }
+            if v.unicodeScalars.count > 255 {
+                out.append(ValidationViolation(fieldPath: "\(path)media_type", ruleID: "string.max_len", message: "value length must be at most 255 characters"))
+            }
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.publish.v1.PublishManifest`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Publish_V1_PublishManifest, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if m.files.count < 1 {
+            out.append(ValidationViolation(fieldPath: "\(path)files", ruleID: "repeated.min_items", message: "value must contain at least 1 item(s)"))
+        }
+        if m.files.count > 4096 {
+            out.append(ValidationViolation(fieldPath: "\(path)files", ruleID: "repeated.max_items", message: "value must contain no more than 4096 item(s)"))
+        }
+        for (i, v) in m.files.enumerated() {
+            out += validate(v, path: "\(path)files[\(i)].")
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.publish.v1.SetPublishAccessRequest`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Publish_V1_SetPublishAccessRequest, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if m.publishID.isEmpty {
+            out.append(ValidationViolation(fieldPath: "\(path)publish_id", ruleID: "required", message: "value is required"))
+        }
+        do {
+            let v = m.publishID
+            if v.isEmpty {
+                out.append(ValidationViolation(fieldPath: "\(path)publish_id", ruleID: "string.uuid_empty", message: "value is empty, which is not a valid UUID"))
+            } else if v.wholeMatch(of: Self.pattern0) == nil {
+                out.append(ValidationViolation(fieldPath: "\(path)publish_id", ruleID: "string.uuid", message: "value must be a valid UUID"))
+            }
+        }
+        do {
+            let v = m.access
+            if case .UNRECOGNIZED = v {
+                out.append(ValidationViolation(fieldPath: "\(path)access", ruleID: "enum.defined_only", message: "value must be one of the defined enum values"))
+            }
+            if [0].contains(v.rawValue) {
+                out.append(ValidationViolation(fieldPath: "\(path)access", ruleID: "enum.not_in", message: "value must not be in list [0]"))
             }
         }
         return out

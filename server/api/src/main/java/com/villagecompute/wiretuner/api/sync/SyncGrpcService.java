@@ -154,6 +154,9 @@ public class SyncGrpcService extends MutinySyncServiceGrpc.SyncServiceImplBase {
     @Inject
     WtMetrics metrics;
 
+    @Inject
+    LiveSessions sessions;
+
     // ------------------------------------------------------------------------------------ Subscribe
 
     /** Where a new subscription stands: the caller, and the document and replica as read after listening. */
@@ -237,11 +240,14 @@ public class SyncGrpcService extends MutinySyncServiceGrpc.SyncServiceImplBase {
         }, liveBuffer);
         PresenceUpdate gone = self.toBuilder().setState(PresenceState.PRESENCE_STATE_GONE).build();
         metrics.subscribed(documentId);
+        UUID account = standing.principal().accountId();
+        sessions.open(documentId, account);
         return Multi.createBy().concatenating().streams(Multi.createFrom().item(ServerFrame.newBuilder().setWelcome(welcome).build()),
                         replay, present.toMulti(), live)
                 .invoke(frame -> lastSent.set(System.nanoTime()))
                 .onTermination().invoke(() -> {
                     metrics.unsubscribed(documentId);
+                    sessions.close(documentId, account);
                     bus.unlisten(documentId, feed);
                     presence.leave(documentId, replica, gone).subscribe().with(ignored -> { }, failure -> { });
                 });
@@ -361,12 +367,13 @@ public class SyncGrpcService extends MutinySyncServiceGrpc.SyncServiceImplBase {
     }
 
     /**
-     * The caller as a pusher on the document (editor or above), resolved at once and remembered:
+     * The caller as a pusher on the document (commenter or above; what a commenter may push is
+     * {@link com.villagecompute.wiretuner.api.comments.CommentRules}), resolved at once and remembered:
      * the call's place in the replica's queue is taken before this completes.
      */
     private Uni<Pusher> pusher(UUID documentId) {
-        Uni<Pusher> pusher = grants.pusher(documentId, () -> caller(documentId, Role.EDITOR)
-                        .map(caller -> new Pusher(caller.grant().principal(), caller.participant())))
+        Uni<Pusher> pusher = grants.pusher(documentId, () -> caller(documentId, Role.COMMENTER)
+                        .map(caller -> new Pusher(caller.grant().principal(), caller.participant(), caller.grant().role())))
                 .memoize().indefinitely();
         pusher.subscribe().with(ignored -> { }, failure -> { });
         return pusher;

@@ -29,7 +29,7 @@ public final class DocumentMessages {
         return KIND_NAMES.getOrDefault(kind, "illustration_multi_page");
     }
 
-    static DocumentKind kind(String stored) {
+    public static DocumentKind kind(String stored) {
         for (var entry : KIND_NAMES.entrySet()) {
             if (entry.getValue().equals(stored)) {
                 return entry.getKey();
