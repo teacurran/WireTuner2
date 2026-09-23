@@ -622,6 +622,7 @@ no remote dependencies.
 |`WTRender`: a 100 × 20 chart table laid out |5 ms |`ChartLayoutTests`
 |`WTRender`: installed profiles listed; 100,000 colours through a cached transform (CMS-002, CMS-003) |1 s; 50 ms |`ColorManagementTests`
 |`WTRender`: 1,000 connectors rerouted and invalidated |16.7 ms |`ConnectorTests`
+|`WTModel`: move one object with 1,000 connectors, command and scene update, median of 7 (DRAW-035) |16.7 ms |`ConnectorPerformanceTests`
 |`WTRender`: a 500-point contour gradient at 800 × 800 px |10 ms |`GradientTests`
 |`WTRender`: recolouring 50,000 dependents mapped (COLOR-006) |16 ms |`ColorInvalidationTests`
 |`WTRender`: a 1,000-node tiled fill over a letter page |16 ms |`LensAndTiledFillTests`

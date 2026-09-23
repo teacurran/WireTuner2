@@ -233,8 +233,8 @@ observer's connector with no op.  Frame budget (the third "Done when" of DRAW-03
 model): `ConnectorPerformanceTests` moves one box joined to 1,000 others by 1,000 connectors and
 times the `MoveObjects` change plus `DocumentDisplayListBuilder.apply` (the box and its 1,000
 connectors rebuilt and rerouted, every other item reused, the change summary) -- 9.9 ms median in a
-release build on an M3 Pro (59 ms before these caches), against one 60 fps frame (16.7 ms, held in release builds
-only).  What keeps it there: the builder keeps each connector as stored (`Connectors.storedSpec`:
+release build on an M3 Pro (59 ms before these caches), against one 60 fps frame (16.7 ms, a
+`PerfBudget` held in the perf run; other runs check the same behaviour on 100 connectors).  What keeps it there: the builder keeps each connector as stored (`Connectors.storedSpec`:
 ends, run offsets, strokes, `locked`) until the connector itself is touched, so a connector
 rerouted because an object it joins changed reads no registers -- it re-checks its ends against the
 document (`Connectors.attached`), recomputes its dependency sources from the stored ends and is

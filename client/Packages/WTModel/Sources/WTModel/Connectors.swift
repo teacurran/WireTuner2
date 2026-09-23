@@ -105,15 +105,34 @@ public enum Connectors {
     /// through (the router reads a length mismatch as automatic) and only strokes are kept.
     public static func spec(_ node: OpID, in state: EngineState, layers: LayerOrder, appearance: Appearance? = nil) -> ConnectorSpec {
         let props = props(node, in: state)
+        let resolved = appearance ?? Appearances.resolve(props.appearance, order: AppearanceEditing.stack(node, in: state))
+        return attached(storedSpec(node, props, appearance: resolved), in: state, layers: layers)
+    }
+
+    /// The connector as stored, before the ends are checked against the document: every end that
+    /// names a node keeps it (with its side), routing orthogonal, `run_offsets` as written and only
+    /// the strokes of `appearance`.  Depends on the connector's own registers only, so the scene
+    /// keeps it until the connector itself changes; `attached(_:in:layers:)` completes it.
+    static func storedSpec(_ node: OpID, _ props: Wiretuner_Doc_V1_ConnectorProps, appearance: Appearance) -> ConnectorSpec {
         func end(_ stored: Wiretuner_Doc_V1_ConnectorEnd) -> ConnectorEnd {
             let (target, side, point) = storedEnd(stored)
-            guard let target, isAttachable(target, in: state, layers: layers) else { return ConnectorEnd(point: point) }
-            return ConnectorEnd(node: NodeID(target), side: side, point: point)
+            return target.map { ConnectorEnd(node: NodeID($0), side: side, point: point) } ?? ConnectorEnd(point: point)
         }
-        let resolved = appearance ?? Appearances.resolve(props.appearance, order: AppearanceEditing.stack(node, in: state))
-        let strokes = resolved.items.filter { if case .stroke = $0 { return true } else { return false } }
+        let strokes = appearance.items.filter { if case .stroke = $0 { return true } else { return false } }
         return ConnectorSpec(id: NodeID(node), start: end(props.start), end: end(props.end), routing: .orthogonal,
                              runOffsets: props.runOffsets, appearance: Appearance(strokes))
+    }
+
+    /// `stored` with every end whose node is not attachable freed at its point (its side dropped).
+    static func attached(_ stored: ConnectorSpec, in state: EngineState, layers: LayerOrder) -> ConnectorSpec {
+        func end(_ value: ConnectorEnd) -> ConnectorEnd {
+            guard let target = value.node, isAttachable(OpID(target), in: state, layers: layers) else { return ConnectorEnd(point: value.point) }
+            return value
+        }
+        var spec = stored
+        spec.start = end(stored.start)
+        spec.end = end(stored.end)
+        return spec
     }
 
     /// The nodes whose change can move connector `node`'s route: each referenced node (live or
@@ -121,6 +140,11 @@ public enum Connectors {
     /// moves it), and its descendants (a group's bounds follow its members).
     public static func dependencySources(of node: OpID, in state: EngineState) -> [OpID] {
         let props = props(node, in: state)
+        return dependencySources(of: node, targets: [props.start, props.end].compactMap { storedEnd($0).node }, in: state)
+    }
+
+    /// The nodes whose change can move a connector joining `targets` (its ends' nodes, as stored).
+    static func dependencySources(of node: OpID, targets: [OpID], in state: EngineState) -> [OpID] {
         var result: [OpID] = []
         var seen: Set<OpID> = [node]
         func add(_ id: OpID) {
@@ -133,8 +157,7 @@ public enum Connectors {
                 descendants(child, depth: depth + 1)
             }
         }
-        for stored in [props.start, props.end] {
-            guard let target = storedEnd(stored).node else { continue }
+        for target in targets {
             add(target)
             var current = state.store.placement(target)?.parent
             while let id = current, id != WellKnown.layers, id != WellKnown.document {

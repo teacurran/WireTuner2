@@ -128,6 +128,17 @@ public struct DocumentDisplayListBuilder: Sendable {
     private var building: LayerOrder?
     private var attachments: [OpID: Rect?] = [:]
     private var routing: Set<OpID> = []
+    /// While building: each layer's transform, read once.
+    private var layerTransforms: [OpID: AffineTransform] = [:]
+    /// Each connector as stored (`Connectors.storedSpec`) with its own `locked`, kept until the
+    /// connector itself is touched: a connector rerouted because an object it joins changed
+    /// re-checks its ends against the document and is routed again without reading its registers.
+    private var connectors: [OpID: StoredConnector] = [:]
+
+    private struct StoredConnector: Sendable {
+        var spec: ConnectorSpec
+        var locked: Bool
+    }
 
     /// A node's item before enclosing transforms, and what the scene records about it.
     private struct Built: Sendable {
@@ -142,6 +153,17 @@ public struct DocumentDisplayListBuilder: Sendable {
         var instance: SymbolInstance?
         /// The nodes the item is drawn from besides its own registers.
         var sources: [OpID] = []
+        /// A leaf's item as last placed and its bounds, with the enclosing transform it was placed
+        /// under: reused while that transform is the same.
+        var placed: Placed?
+    }
+
+    private struct Placed: Sendable {
+        var parentTransform: AffineTransform
+        var item: DisplayItem
+        var bounds: Rect?
+        /// Where a connector end attaches to the item (`Connectors.attachmentBounds`), once asked.
+        var attachment: Rect??
     }
 
     public init(canvas: CanvasID, background: [DisplayItem] = []) {
@@ -154,6 +176,7 @@ public struct DocumentDisplayListBuilder: Sendable {
     @discardableResult
     public mutating func rebuild(_ state: EngineState) -> DocumentScene {
         cache = [:]
+        connectors = [:]
         swatchIndex = SwatchIndex(state)
         scene = build(state)
         return scene
@@ -165,6 +188,7 @@ public struct DocumentDisplayListBuilder: Sendable {
     public mutating func reload(_ state: EngineState, origin: ChangeOrigin = .remote) -> (DocumentScene, ChangeSummary) {
         let before = scene
         cache = [:]
+        connectors = [:]
         swatchIndex = SwatchIndex(state)
         scene = build(state)
         var summary = ChangeSummary(origin: origin, isStructural: true)
@@ -213,7 +237,10 @@ public struct DocumentDisplayListBuilder: Sendable {
         let before = scene
         let seeds = Set(touched.keys).union(recoloured)
         let dependents = dependencies.dependents(of: seeds.map(NodeID.init))
-        for node in seeds { cache[node] = nil }
+        for node in seeds {
+            cache[node] = nil
+            connectors[node] = nil
+        }
         for node in dependents { cache[OpID(node)] = nil }
         scene = build(state)
         var summary = ChangeSummary(origin: origin, isStructural: before.displayList.nodeIDs != scene.displayList.nodeIDs
@@ -310,11 +337,21 @@ public struct DocumentDisplayListBuilder: Sendable {
     private mutating func begin(_ state: EngineState) {
         building = LayerOrder(state)
         attachments = [:]
+        layerTransforms = [:]
     }
 
     private mutating func end() {
         building = nil
         attachments = [:]
+        layerTransforms = [:]
+    }
+
+    /// `layer`'s own transform, read once per build.
+    private mutating func layerTransform(_ layer: OpID, state: EngineState) -> AffineTransform {
+        if let known = layerTransforms[layer] { return known }
+        let transform = PathEditing.transform(state.props(layer).layer.common.transform)
+        layerTransforms[layer] = transform
+        return transform
     }
 
     private mutating func buildScene(_ state: EngineState) -> DocumentScene {
@@ -345,7 +382,7 @@ public struct DocumentDisplayListBuilder: Sendable {
             )
             var items: [(item: DisplayItem, node: NodeID?)] = []
             if layer.visible || includeHidden {
-                let layerTransform = PathEditing.transform(state.props(layer.id).layer.common.transform)
+                let layerTransform = layerTransform(layer.id, state: state)
                 let context = Placing(layer: layer.id, locked: layer.locked)
                 for child in order.objects(on: layer.id, in: state) {
                     guard let item = place(child, state: state, parentTransform: layerTransform, itemPath: [next], parent: nil, context: context,
@@ -414,6 +451,7 @@ public struct DocumentDisplayListBuilder: Sendable {
         let transform = built.transform.concatenating(parentTransform)
         let locked = context.locked || built.locked
         let item: DisplayItem
+        let bounds: Rect?
         if built.kind == .group {
             var children: [DisplayItem] = []
             let inner = Placing(layer: context.layer, locked: locked)
@@ -425,6 +463,10 @@ public struct DocumentDisplayListBuilder: Sendable {
             }
             guard !children.isEmpty else { return nil }
             item = .group(GroupItem(children: children))
+            bounds = item.bounds
+        } else if let placed = built.placed, placed.parentTransform == parentTransform {
+            item = placed.item
+            bounds = placed.bounds
         } else {
             if built.item == nil, let instance = built.instance {
                 built.item = symbolRenderer.item(for: instance, in: library)
@@ -433,10 +475,16 @@ public struct DocumentDisplayListBuilder: Sendable {
             guard let own = built.item else { return nil }
             // A connector is routed in pasteboard space: enclosing transforms do not apply.
             item = parentTransform.isIdentity || built.kind == .connector ? own : own.transformed(by: parentTransform)
+            bounds = item.bounds
+            // Not kept for a connector left out of a group while it is routed (not cached).
+            if cache[node] != nil {
+                built.placed = Placed(parentTransform: parentTransform, item: item, bounds: bounds)
+                cache[node] = built
+            }
         }
         objects[NodeID(node)] = SceneObject(
             id: node, kind: built.kind, path: built.path, transform: built.kind == .connector ? .identity : transform, itemPath: itemPath, parent: parent,
-            bounds: item.bounds, elementPoints: built.elementPoints, leafContours: built.leafContours, item: item,
+            bounds: bounds, elementPoints: built.elementPoints, leafContours: built.leafContours, item: item,
             layer: context.layer, isLocked: built.locked, isEffectivelyLocked: locked
         )
         return item
@@ -455,6 +503,11 @@ public struct DocumentDisplayListBuilder: Sendable {
         // A connector reached again while it is being routed (it is inside a group it is
         // attached to) draws nothing in that group's bounds.
         if routing.contains(node) { return Built(item: nil, kind: .connector, path: nil, transform: .identity, elementPoints: [:], leafContours: [:]) }
+        if let stored = connectors[node] {
+            let built = routed(node, stored, state: state)
+            cache[node] = built
+            return built
+        }
         guard let kind = state.nodeKind(node), kind != .layer, kind != .symbol else { return nil }
         let props = state.props(node)
         guard let common = NodeValues.common(props), !common.hasCanvas else { return nil }
@@ -494,25 +547,36 @@ public struct DocumentDisplayListBuilder: Sendable {
             spec.transform = transform
             built.item = BarcodeRendering.item(spec)
         case .connector(let connector)?:
-            // `common.transform` is ignored: the route is derived in pasteboard space from the ends
-            // and the rendered bounds of the objects they are attached to (DRAW-035/037).
-            built.transform = .identity
-            built.sources = Connectors.dependencySources(of: node, in: state)
-            let layers = building ?? LayerOrder(state)
-            let spec = Connectors.spec(node, in: state, layers: layers, appearance: Appearances.resolve(connector.appearance, order: order))
-            routing.insert(node)
-            var bounds: [NodeID: Rect] = [:]
-            for target in [spec.start.node, spec.end.node].compactMap({ $0 }) {
-                bounds[target] = attachmentBounds(OpID(target), state: state, layers: layers)
-            }
-            routing.remove(node)
-            built.item = ConnectorRendering.item(spec, route: ConnectorRouter.route(spec) { bounds[$0] })
+            let stored = StoredConnector(spec: Connectors.storedSpec(node, connector, appearance: Appearances.resolve(connector.appearance, order: order)),
+                                         locked: common.locked)
+            connectors[node] = stored
+            built = routed(node, stored, state: state)
         case .placedFile(let placed)?:
             built.item = PlacedFileDrawing.item(PlacedFiles.placedFile(placed, transform: transform))
         default:
             break
         }
         cache[node] = built
+        return built
+    }
+
+    /// Connector `node` routed from its stored form: `common.transform` is ignored, the route is
+    /// derived in pasteboard space from the ends and the rendered bounds of the objects they are
+    /// attached to (DRAW-035/037); its sources are the nodes the stored ends name, their ancestors
+    /// and their descendants (`Connectors.dependencySources`).
+    private mutating func routed(_ node: OpID, _ stored: StoredConnector, state: EngineState) -> Built {
+        var built = Built(item: nil, kind: .connector, path: nil, transform: .identity, elementPoints: [:], leafContours: [:], locked: stored.locked)
+        built.sources = Connectors.dependencySources(of: node, targets: [stored.spec.start.node, stored.spec.end.node].compactMap { $0.map(OpID.init) },
+                                                     in: state)
+        let layers = building ?? LayerOrder(state)
+        let spec = Connectors.attached(stored.spec, in: state, layers: layers)
+        routing.insert(node)
+        var bounds: [NodeID: Rect] = [:]
+        for target in [spec.start.node, spec.end.node].compactMap({ $0 }) {
+            bounds[target] = attachmentBounds(OpID(target), state: state, layers: layers)
+        }
+        routing.remove(node)
+        built.item = ConnectorRendering.item(spec, route: ConnectorRouter.route(spec) { bounds[$0] })
         return built
     }
 
@@ -526,7 +590,7 @@ public struct DocumentDisplayListBuilder: Sendable {
         while let id = current {
             if layers.all[id] != nil {
                 let shown = layers.displayLayer(for: id) ?? id
-                parentTransform = parentTransform.concatenating(PathEditing.transform(state.props(shown).layer.common.transform))
+                parentTransform = parentTransform.concatenating(layerTransform(shown, state: state))
                 break
             }
             parentTransform = parentTransform.concatenating(Objects.transform(of: id, in: state))
@@ -535,7 +599,14 @@ public struct DocumentDisplayListBuilder: Sendable {
         var scratch: [NodeID: SceneObject] = [:]
         let item = place(target, state: state, parentTransform: parentTransform, itemPath: [], parent: nil,
                          context: Placing(layer: target, locked: false), objects: &scratch)
+        // A leaf placed under the same transform as before attaches where it did.
+        let placed = cache[target]?.placed.flatMap { $0.parentTransform == parentTransform ? $0 : nil }
+        if let known = placed?.attachment {
+            attachments[target] = known
+            return known
+        }
         let rect = item.flatMap(Connectors.attachmentBounds(of:))
+        if placed != nil { cache[target]?.placed?.attachment = .some(rect) }
         // Not memoized while a connector inside it is left out.
         if !routing.contains(where: { scratch[NodeID($0)] == nil && Self.isInside($0, target, state: state) }) {
             attachments[target] = rect
