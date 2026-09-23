@@ -1,6 +1,7 @@
-// IO-021's memory bound for large exports.  Runs only with `WTINTERCHANGE_PERF=1` (release:
-// `swift test -c release -Xswiftc -enable-testing --filter PerformanceTests`), reporting the peak
-// resident size of a large PNG and Targa export.
+// IO-021's memory bound for large exports.  Runs only in the perf run (`make client-perf`: release,
+// `WT_PERF=1`; one package: `WT_PERF=1 swift test -c release -Xswiftc -enable-testing --filter
+// PerformanceTests`), reporting the process's peak resident size after a large PNG and Targa
+// export to the perf results (a figure, not a budget; other tests of the run share the process).
 
 import Darwin
 import Foundation
@@ -9,7 +10,7 @@ import WTGeometry
 @testable import WTInterchange
 import WTRender
 
-@Suite(.enabled(if: ProcessInfo.processInfo.environment["WTINTERCHANGE_PERF"] == "1"))
+@Suite(.enabled(if: PerfBudget.isMeasuring, "the perf run only: release with WT_PERF=1"))
 struct PerformanceTests {
     static func peakResidentMiB() -> Double {
         var usage = rusage()
@@ -26,6 +27,8 @@ struct PerformanceTests {
         let options: any ExportOptions = format == .png ? PNGOptions(common: common, bits: 24) : TargaOptions(common: common, bits: 24)
         let start = Date()
         let summary = try BitmapExporter(format: format).export(scene: Corpus.scene([page]), options: options, to: ExportDestination(url: Corpus.directory().appendingPathComponent("large.\(format.fileExtension)")))
-        print("\(format): \(summary.files[0].lastPathComponent) in \(Int(Date().timeIntervalSince(start))) s, peak \(Int(Self.peakResidentMiB())) MiB")
+        let figure = "\(Int(Date().timeIntervalSince(start))) s, peak \(Int(Self.peakResidentMiB())) MiB"
+        print("\(format): \(summary.files[0].lastPathComponent) in \(figure)")
+        PerfBudget.record(figure, "\(format)")
     }
 }

@@ -171,8 +171,8 @@ import WTProto
         }
         let sorted = latencies.sorted()
         print("PresenceModel: frame to model \(sorted[10]) median, \(sorted[19]) at most over 20 cursor moves")
-        // The median, so that a test machine busy with other suites does not decide it.
-        #expect(sorted[10] < .milliseconds(100))
+        // The median, so that one slow frame does not decide it; every cursor arrived above.
+        PerfBudget.expect(sorted[10], within: .milliseconds(100), "median of 20")
         // Our connection drops: frozen, then cleared; reconnecting brings the snapshot back.
         await server.update { $0.subscribeFailures = Array(repeating: SyncCallError(code: SyncCallError.unavailable), count: 1_000) }
         await server.disconnect()

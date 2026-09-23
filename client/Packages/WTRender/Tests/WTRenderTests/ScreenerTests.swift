@@ -135,23 +135,17 @@ import WTGeometry
         }
     }
 
-    /// A letter-size plate at 2400 dpi screens in under 4 s (enforced in release builds;
-    /// debug builds screen a 600 dpi plate and report).
+    /// A letter-size plate at 2400 dpi screens in under 4 s (a `PerfBudget`: the perf run screens
+    /// at 2400 dpi and holds it; correctness runs screen a 300 dpi plate and report).
     @Test func letterPlateScreensWithinBudget() throws {
-        #if DEBUG
-        let dpi = 300.0
-        #else
-        let dpi = 2400.0
-        #endif
+        let dpi = PerfBudget.isMeasuring ? 2400.0 : 300.0
         let page = Rect(x: 0, y: 0, width: 612, height: 792)
         let list = Self.tint(0.35, rect: page.insetBy(dx: 36, dy: 36))
         let start = Date()
         let plate = try Screener(resolution: dpi).screenPlate(list, plate: .black, renderer: PlateRenderer(), page: page, plateScreen: HalftoneScreen(shape: .round, angle: 45, frequency: 150))
         let seconds = Date().timeIntervalSince(start)
         print("PERF screener: \(plate.width) × \(plate.height) px at \(Int(dpi)) dpi in \(String(format: "%.2f", seconds)) s")
-        #if !DEBUG
-        #expect(seconds < 4)
-        #endif
+        PerfBudget.expect(.seconds(seconds), within: .seconds(4), "\(Int(dpi)) dpi")
         #expect(abs(plate.coverage(in: (plate.width / 4, plate.height / 4, plate.width / 4, plate.height / 4)) - 0.35) < 0.02)
     }
 

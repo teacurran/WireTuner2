@@ -365,7 +365,7 @@ Nothing.
 NOTE: Deviations recorded by IO-021 (`WTInterchange/Bitmap`).  Tiles are at most 2048 samples a
 side (so 512 output pixels at anti-aliasing 4) and output is produced a band of tiles at a time,
 pulled by the encoder through a sequential `CGDataProvider` (the Targa writer reads bands
-directly).  `PerformanceTests` (`WTINTERCHANGE_PERF=1`, release) reports rather than gates the
+directly).  `PerformanceTests` (the perf run, `make client-perf`) reports rather than gates the
 peak: an A3 page at 300 ppi, 2×, anti-aliasing 4 (7017 × 9925 pixels) exported in 25--26 s with a
 process peak of 333 MiB as Targa and 384 MiB as PNG on the build Mac; the 300 ppi A0 at 2× case of
 IO-021 (8× the pixels) was not run, and whether ImageIO's encoders stay within 1 GiB there is

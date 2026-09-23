@@ -172,7 +172,7 @@ import WTGeometry
     }
 
     /// 1,000 instances of one symbol are built into the display list in under 16 ms after the
-    /// first build, reusing one sub-list (release builds; debug reports).  The reference
+    /// first build, reusing one sub-list (a `PerfBudget`: the perf run holds it).  The reference
     /// renderer's full-view draw of them is reported beside it: drawing is the tile renderers'
     /// budget, not the instance machinery's.
     @Test func aThousandInstancesRenderWithinAFrame() throws {
@@ -196,9 +196,7 @@ import WTGeometry
         print("PERF instances: 1,000 instances built in \(String(format: "%.1f", built.timeIntervalSince(start) * 1000)) ms, built and rendered in \(String(format: "%.1f", milliseconds)) ms")
         #expect(image != nil)
         #expect(renderer.buildCount == 1)
-        #if !DEBUG
-        #expect(built.timeIntervalSince(start) * 1000 < 16)
-        #endif
+        PerfBudget.expect(.seconds(built.timeIntervalSince(start)), within: .milliseconds(16), "build")
     }
 }
 

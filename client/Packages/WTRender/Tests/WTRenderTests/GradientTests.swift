@@ -162,10 +162,8 @@ import Testing
         let image = renderer.renderBitmap(list, viewport: viewport)
         let milliseconds = Double(DispatchTime.now().uptimeNanoseconds - started) / 1e6
         #expect(image != nil)
-        print("PERF contour gradient: a 500-point path at 800 × 800 px in \(String(format: "%.1f", milliseconds)) ms after the first frame (budget 10 ms on M1, enforced in release builds)")
-        #if !DEBUG
-        #expect(milliseconds < 10)
-        #endif
+        print("PERF contour gradient: a 500-point path at 800 × 800 px in \(String(format: "%.1f", milliseconds)) ms after the first frame (budget 10 ms on M1, held in the perf run)")
+        PerfBudget.expect(.milliseconds(milliseconds), within: .milliseconds(10))
     }
 
     /// PDF export of each type reopens (rasterized by Core Graphics, as Preview does) like the

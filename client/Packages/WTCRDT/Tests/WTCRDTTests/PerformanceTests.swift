@@ -5,15 +5,9 @@ import WTProto
 
 /// The CRDT performance budget (docs/spec/crdt-model.adoc, "Performance budget"): inserts into a
 /// 200,000-character text (CRDT-005) and bootstrapping the design-point document from a snapshot
-/// (CRDT-009).  The figures are printed; the budgets are enforced only in release builds
-/// (`swift test -c release -Xswiftc -enable-testing`), as the frame-time gate does.
+/// (CRDT-009).  The figures are printed; the budgets are `PerfBudget`s, held in the perf run only
+/// (`make client-perf`: release, `WT_PERF=1`).
 @Suite struct PerformanceTests {
-    #if DEBUG
-    static let enforced = false
-    #else
-    static let enforced = true
-    #endif
-
     static func seconds(_ body: () -> Void) -> Double {
         let start = DispatchTime.now().uptimeNanoseconds
         body()
@@ -42,15 +36,13 @@ import WTProto
         let perInsert = elapsed / Double(inserts) * 1e6
         print("TextSequence: \(String(format: "%.2f", perInsert)) µs per insert into 200,000 characters")
         #expect(text.count == 202_000)
-        if Self.enforced {
-            #expect(perInsert < 50)
-        }
+        PerfBudget.expect(.microseconds(perInsert), within: .microseconds(50))
     }
 
     /// The design point (crdt-model.adoc, "Performance budget"): 50,000 nodes with 20 registers
-    /// each (1,000,000), five stops each, and a 200,000-character text.  Debug builds use a tenth
-    /// of it, so the suite stays quick; release builds measure the whole.
-    static let scale = enforced ? 1 : 10
+    /// each (1,000,000), five stops each, and a 200,000-character text.  Correctness runs use a
+    /// tenth of it, so the suite stays quick; the perf run measures the whole.
+    static let scale = PerfBudget.isMeasuring ? 1 : 10
 
     static func designPoint() -> EngineState {
         var engine = EngineState(schema: Scenario.schema)
@@ -89,9 +81,7 @@ import WTProto
         print("Snapshot: design point \(registers) registers, \(bytes) compressed bytes in \(frames.count - 1) chunks; "
             + "encode \(String(format: "%.2f", encode)) s, bootstrap \(String(format: "%.2f", load)) s")
         #expect(decoded?.stateHash == engine.stateHash)
-        if Self.enforced {
-            #expect(load < 1.5)
-        }
+        PerfBudget.expect(.seconds(load), within: .seconds(1.5))
     }
 
     static func seconds2(_ body: () throws -> Void) throws -> Double {

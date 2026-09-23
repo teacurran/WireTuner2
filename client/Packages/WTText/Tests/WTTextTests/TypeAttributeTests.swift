@@ -241,9 +241,7 @@ import struct WTRender.StrokeStyle
         let elapsed = Date().timeIntervalSince(start)
         let relayoutLookups = engine.fontLookups - lookups
         #expect(relayoutLookups > 0 && Double(engine.fontHits - hits) / Double(relayoutLookups) > 0.99, "run fonts come from the cache on relayout")
-        #if !DEBUG
-        #expect(elapsed < 0.1, "mixed-attribute relayout took \(elapsed * 1000) ms")
-        #endif
+        PerfBudget.expect(.seconds(elapsed), within: .milliseconds(100))
         print(String(format: "PERF WTText mixed attributes: relayout %.1f ms", elapsed * 1000))
     }
 
@@ -335,9 +333,7 @@ import struct WTRender.StrokeStyle
         _ = engine.layout(content(editing: 3), in: IncrementalLayoutTests.chain)
         let elapsed = Date().timeIntervalSince(start)
         #expect(Double(engine.fontHits - hits) / Double(max(engine.fontLookups - lookups, 1)) > 0.99)
-        #if !DEBUG
-        #expect(elapsed < 0.1, "relayout with axes took \(elapsed * 1000) ms")
-        #endif
+        PerfBudget.expect(.seconds(elapsed), within: .milliseconds(100))
         print(String(format: "PERF WTText axes on every paragraph: relayout %.1f ms", elapsed * 1000))
     }
 }

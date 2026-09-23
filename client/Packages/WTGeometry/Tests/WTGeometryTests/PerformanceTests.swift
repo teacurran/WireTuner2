@@ -3,7 +3,8 @@ import Testing
 
 /// The hot paths (`evaluate`, `derivative`, `bounds`) are fixed-size value computations with no
 /// heap traffic; a tight loop over them must finish comfortably inside a generous wall-clock
-/// bound even in a debug build.  GEO-001: "no allocation in hot paths".
+/// bound.  GEO-001: "no allocation in hot paths".  The bound is a `PerfBudget` (held in the perf
+/// run only); the loops' results are checked in every build.
 @Suite struct PerformanceTests {
     let curve = CubicBezier(Point(0, 0), Point(10, 40), Point(70, -20), Point(100, 30))
 
@@ -19,7 +20,7 @@ import Testing
             }
         }
         #expect(accumulator.isFinite)
-        #expect(elapsed < .seconds(5), "\(iterations) evaluations took \(elapsed)")
+        PerfBudget.expect(elapsed, within: .seconds(5))
     }
 
     @Test func boundsInATightLoop() {
@@ -34,7 +35,7 @@ import Testing
             }
         }
         #expect(accumulator.isFinite)
-        #expect(elapsed < .seconds(5), "\(iterations) bounds took \(elapsed)")
+        PerfBudget.expect(elapsed, within: .seconds(5))
     }
 
     @Test func windingInATightLoop() {
@@ -50,6 +51,6 @@ import Testing
             }
         }
         #expect(inside > 0)
-        #expect(elapsed < .seconds(5), "\(iterations) winding queries took \(elapsed)")
+        PerfBudget.expect(elapsed, within: .seconds(5))
     }
 }

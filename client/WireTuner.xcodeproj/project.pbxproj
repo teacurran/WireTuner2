@@ -281,6 +281,7 @@
 		ECB0D0E8172AFE275389681B /* ReviewSheetModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADE50C7CF931608ADE21324B /* ReviewSheetModel.swift */; };
 		ECDBE1CABF9FFDF3746B487B /* AttributeEditing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 103A1F5A2243AF603F41D105 /* AttributeEditing.swift */; };
 		EECD4D6A63788582C211101B /* ToolTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C850205BEF75FD2F88647D9 /* ToolTests.swift */; };
+		EF16D340EA4F1E91F9EF4598 /* PerfBudget.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF2654D697EDEFF7541F8128 /* PerfBudget.swift */; };
 		F24539B93AFF84AD54CB0E73 /* ShapeTools.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE7B080FB70D0EB52745A578 /* ShapeTools.swift */; };
 		F2BB646D33263B3E340DEB5D /* ShortcutPresetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10301E35F216F33ABD9318FE /* ShortcutPresetTests.swift */; };
 		F2EC0160870F170B076AD3CD /* SelectionCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16A48FA93AF35DA55519ADEA /* SelectionCommands.swift */; };
@@ -579,6 +580,7 @@
 		DC239E118ADA1229304FF5E7 /* PanelDockTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PanelDockTests.swift; sourceTree = "<group>"; };
 		DC7F947927626CEFDBC841F3 /* RegisterNames.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RegisterNames.swift; sourceTree = "<group>"; };
 		DD539A99543C6E841A2BB04A /* MenuTreeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuTreeTests.swift; sourceTree = "<group>"; };
+		DF2654D697EDEFF7541F8128 /* PerfBudget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerfBudget.swift; sourceTree = "<group>"; };
 		DF80459F6F7F73289C8AD178 /* DocumentWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentWindowController.swift; sourceTree = "<group>"; };
 		E01E6B04F6BC1AE49E08CA0B /* ColorDropTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorDropTests.swift; sourceTree = "<group>"; };
 		E0CA021A6927EAB3B1ACD68D /* LibraryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryTests.swift; sourceTree = "<group>"; };
@@ -992,6 +994,7 @@
 				9BA7996E13D4CC130804E833 /* FakeTokenEndpoint.swift */,
 				C905B8F4B13A2719DDEFDB19 /* FakeUnaryCaller.swift */,
 				21AE809F9B830BE30C3A9B2C /* FontFixture.swift */,
+				DF2654D697EDEFF7541F8128 /* PerfBudget.swift */,
 				36744BDEFEC9E7F35262B7F5 /* ReviewWorld.swift */,
 				F45AA9674CB4446BE7055CA1 /* TestEnvironment.swift */,
 			);
@@ -1609,6 +1612,7 @@
 				2F48C0AB3FD5CE3B27A4947D /* PanelRegistryTests.swift in Sources */,
 				28F100470848DBF83D29D123 /* PenBezigonTests.swift in Sources */,
 				CA1887762985552D0994BDFA /* PenToolTests.swift in Sources */,
+				EF16D340EA4F1E91F9EF4598 /* PerfBudget.swift in Sources */,
 				8B7D11267A1DF750283E4FD4 /* PointerMoveTests.swift in Sources */,
 				93EC1286F7D4CAE745E539F2 /* PreferenceTests.swift in Sources */,
 				2762E0B8A9011C718E5992B6 /* PreferenceWindowContentTests.swift in Sources */,

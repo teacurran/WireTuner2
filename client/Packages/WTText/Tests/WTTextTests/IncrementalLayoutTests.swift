@@ -63,12 +63,7 @@ import WTRender
         #expect(engine.paragraphsTypeset == 398, "one paragraph typeset again")
         #expect(relaid.characterCount == content.scalarCount + 8)
         #expect(relaid.lineCount >= initial.lineCount)
-        #if DEBUG
-        let build = "debug"
-        #else
-        let build = "release"
-        #expect(elapsed < 0.1, "incremental relayout of 200,000 characters took \(elapsed * 1000) ms")
-        #endif
-        print(String(format: "PERF WTText (%@): %d characters, %d lines in %d containers; full layout %.1f ms, incremental relayout after a one-paragraph edit %.1f ms", build, relaid.characterCount, relaid.lineCount, IncrementalLayoutTests.chain.count, initialTime * 1000, elapsed * 1000))
+        PerfBudget.expect(.seconds(elapsed), within: .milliseconds(100))
+        print(String(format: "PERF WTText (%@): %d characters, %d lines in %d containers; full layout %.1f ms, incremental relayout after a one-paragraph edit %.1f ms", PerfBudget.buildName, relaid.characterCount, relaid.lineCount, IncrementalLayoutTests.chain.count, initialTime * 1000, elapsed * 1000))
     }
 }

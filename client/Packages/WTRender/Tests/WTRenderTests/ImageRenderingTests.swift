@@ -193,9 +193,7 @@ import WTGeometry
         let elapsed = Date().timeIntervalSince(start)
         #expect(region.rects(for: list.canvas) == [indexed.bounds!])
         print("PERF recolor of 50,000 dependents mapped in \(elapsed) s (COLOR-006 budget: 16 ms on M1, release)")
-        #if !DEBUG
-        #expect(elapsed < 0.016)
-        #endif
+        PerfBudget.expect(.seconds(elapsed), within: .milliseconds(16))
         let few = InvalidationMapper().dirtyRegion(recoloring: ids.prefix(2), in: [indexed])
         #expect(few.rects(for: list.canvas).count >= 1)
         #expect(InvalidationMapper().wholeDocument([indexed, DisplayList(canvas: "empty", items: [])]).rects(for: list.canvas) == [indexed.bounds!])

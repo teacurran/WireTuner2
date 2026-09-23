@@ -284,10 +284,6 @@ enum Trees {
         let median = samples.sorted()[samples.count / 2]
         print("late move on a 50,000-node tree behind 1,000 later tree ops: median \(median)")
         #expect(engine.store.children(Self.layer).count == 50)
-        #if DEBUG
-        #expect(median < .milliseconds(100))
-        #else
-        #expect(median < .milliseconds(1))
-        #endif
+        PerfBudget.expect(median, within: .milliseconds(1), "median of 21")
     }
 }

@@ -181,12 +181,8 @@ import struct WTRender.StrokeStyle
         var faces: [ExtrudeFace] = []
         let elapsed = clock.measure { faces = ExtrudeSolver.visibleSorted(solver.faces([polygon])) }
         #expect(!faces.isEmpty)
-        #if DEBUG
-        print("500-point outline, 20 steps: \(elapsed) (debug)")
-        #else
-        print("500-point outline, 20 steps: \(elapsed) (release)")
-        #expect(elapsed < .milliseconds(5), "\(elapsed)")
-        #endif
+        print("500-point outline, 20 steps: \(elapsed) (\(PerfBudget.buildName))")
+        PerfBudget.expect(elapsed, within: .milliseconds(5))
     }
 
     // MARK: Blends
@@ -319,12 +315,8 @@ import struct WTRender.StrokeStyle
         var count = 0
         let elapsed = clock.measure { count = BlendResolver.entries(BlendSpec(steps: 1000), children: [a, b]).count }
         #expect(count == 1002)
-        #if DEBUG
-        print("1,000-step blend of 50-point paths: \(elapsed) (debug)")
-        #else
-        print("1,000-step blend of 50-point paths: \(elapsed) (release)")
-        #expect(elapsed < .milliseconds(10), "\(elapsed)")
-        #endif
+        print("1,000-step blend of 50-point paths: \(elapsed) (\(PerfBudget.buildName))")
+        PerfBudget.expect(elapsed, within: .milliseconds(10))
     }
 
     // MARK: Envelopes

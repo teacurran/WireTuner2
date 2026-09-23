@@ -2,9 +2,27 @@ import Foundation
 import Testing
 @testable import WTGeometry
 
-/// Random polygons and curves never crash or hang, and polygon results conserve area.
+/// Random polygons and curves never crash or hang, and polygon results conserve area.  Each
+/// test holds its slowest case to `timeLimit` as a `PerfBudget` (the perf run only).
 @Suite struct BooleanFuzzTests {
     static let timeLimit = Duration.seconds(5)
+
+    /// The slowest case of a test so far, for its `PerfBudget`.
+    struct Slowest {
+        var elapsed = Duration.zero
+        var label = ""
+
+        mutating func note(_ elapsed: Duration, _ label: String) {
+            if elapsed > self.elapsed {
+                self.elapsed = elapsed
+                self.label = label
+            }
+        }
+
+        func expectWithinTheLimit(sourceLocation: SourceLocation = #_sourceLocation) {
+            PerfBudget.expect(elapsed, within: BooleanFuzzTests.timeLimit, "slowest: \(label)", sourceLocation: sourceLocation)
+        }
+    }
 
     func randomPolygon(_ rng: inout SeededGenerator, grid: Double? = nil) -> FilledPath {
         let count = Int.random(in: 3...9, using: &rng)
@@ -36,7 +54,7 @@ import Testing
         return FilledPath(contours: contours, fillRule: Bool.random(using: &rng) ? .nonZero : .evenOdd)
     }
 
-    func check(_ a: FilledPath, _ b: FilledPath, conserve: Bool, label: String) -> Bool {
+    func check(_ a: FilledPath, _ b: FilledPath, conserve: Bool, label: String, slowest: inout Slowest) -> Bool {
         let clock = ContinuousClock()
         var results: [FilledPath] = []
         let elapsed = clock.measure {
@@ -44,7 +62,7 @@ import Testing
                 results.append(Boolean.perform(operation, a, b))
             }
         }
-        #expect(elapsed < Self.timeLimit, "\(label) took \(elapsed)")
+        slowest.note(elapsed, label)
         for r in results {
             #expect(r.signedArea().isFinite, "\(label)")
             for contour in r.contours {
@@ -64,33 +82,39 @@ import Testing
     @Test func randomPolygonsConserveArea() {
         var rng = SeededGenerator(seed: 7)
         var failures = 0
+        var slowest = Slowest()
         for k in 0..<150 {
-            if !check(randomPolygon(&rng), randomPolygon(&rng), conserve: true, label: "polygons \(k)") {
+            if !check(randomPolygon(&rng), randomPolygon(&rng), conserve: true, label: "polygons \(k)", slowest: &slowest) {
                 failures += 1
             }
         }
         #expect(failures == 0)
+        slowest.expectWithinTheLimit()
     }
 
     /// Vertices on a coarse grid: many collinear, coincident and touching edges.
     @Test func gridSnappedPolygonsConserveArea() {
         var rng = SeededGenerator(seed: 11)
         var failures = 0
+        var slowest = Slowest()
         for k in 0..<150 {
-            if !check(randomPolygon(&rng, grid: 25), randomPolygon(&rng, grid: 25), conserve: true, label: "grid \(k)") {
+            if !check(randomPolygon(&rng, grid: 25), randomPolygon(&rng, grid: 25), conserve: true, label: "grid \(k)", slowest: &slowest) {
                 failures += 1
             }
         }
         #expect(failures == 0)
+        slowest.expectWithinTheLimit()
     }
 
     @Test func randomCurvesNeverCrash() {
         var rng = SeededGenerator(seed: 13)
+        var slowest = Slowest()
         for k in 0..<60 {
-            _ = check(randomCurves(&rng), randomCurves(&rng), conserve: false, label: "curves \(k)")
+            _ = check(randomCurves(&rng), randomCurves(&rng), conserve: false, label: "curves \(k)", slowest: &slowest)
             let normalized = Boolean.normalize(randomCurves(&rng))
             #expect(normalized.signedArea() >= -1e-6)
         }
+        slowest.expectWithinTheLimit()
     }
 
     @Test func pathologicalInputs() {
@@ -98,12 +122,14 @@ import Testing
         let inf = FilledPath(Contour(polygon: [Point(0, 0), Point(.infinity, 1), Point(4, 4)]))
         let huge = rectPath(-1e12, -1e12, 2e12, 2e12)
         let square = rectPath(0, 0, 10, 10)
-        for (x, y) in [(nan, square), (inf, square), (huge, square), (square, huge)] {
-            _ = check(x, y, conserve: false, label: "pathological")
+        var slowest = Slowest()
+        for (index, (x, y)) in [(nan, square), (inf, square), (huge, square), (square, huge)].enumerated() {
+            _ = check(x, y, conserve: false, label: "pathological \(index)", slowest: &slowest)
         }
         // The same segment repeated many times in one contour.
         let repeated = FilledPath(Contour(segments: Array(repeating: sCurve, count: 20), closed: false))
-        _ = check(repeated, square, conserve: false, label: "repeated")
+        _ = check(repeated, square, conserve: false, label: "repeated", slowest: &slowest)
+        slowest.expectWithinTheLimit()
         // Every segment degenerate.
         let dots = FilledPath(Contour(segments: Array(repeating: CubicBezier(Point(1, 1), Point(1, 1), Point(1, 1), Point(1, 1)), count: 5), closed: true))
         #expect(Boolean.union(dots, square).signedArea() == 100)

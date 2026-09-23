@@ -7,8 +7,8 @@ import Testing
 
 /// REND-006's frame-time gate (docs/spec/testing.adoc, "Performance gates"): a scripted 10 s
 /// pan, zoom and rotate of the 50,000-item design point through the Metal tile canvas at
-/// 120 Hz, each frame's CPU encode time plus GPU execution time measured.  The 8.3 ms budget is
-/// enforced in release builds (`swift test -c release -Xswiftc -enable-testing`); debug builds
+/// 120 Hz, each frame's CPU encode time plus GPU execution time measured.  The 8.3 ms budget is a
+/// `PerfBudget`, held in the perf run (`make client-perf`: release, `WT_PERF=1`); other runs
 /// report the numbers only.  Frames are paced to the 120 Hz wall clock, so tile rasterization
 /// runs on the tile queue alongside them as it does on screen; it is reported separately,
 /// because a frame never waits for it.
@@ -18,12 +18,6 @@ struct MetalFrameTimeTests {
     static let budgetMilliseconds = 8.3
     static let refreshRate = 120.0
     static let seconds = 10.0
-
-    #if DEBUG
-    static let enforcesBudget = false
-    #else
-    static let enforcesBudget = true
-    #endif
 
     /// The viewport at frame `index` of the script: pan for the first third, pinch-zoom (in to
     /// 3× and back) for the second, rotate through 45° for the last.
@@ -92,11 +86,8 @@ struct MetalFrameTimeTests {
         let over = totals.filter { $0 > Self.budgetMilliseconds }.count
         let gpuWorst = timings.map(\.gpuSeconds).max()! * 1000
         let cpuWorst = zip(timings, updateSeconds).map { ($0.cpuSeconds + $1) * 1000 }.max()!
-        let build = Self.enforcesBudget ? "release" : "debug"
-        print("PERF Metal frame (\(build)): \(frames) frames of a 10 s pan/zoom/rotate, 50,000 items, 2880 × 1800 px; mean \(String(format: "%.3f", mean)) ms, p99 \(String(format: "%.3f", p99)) ms, worst \(String(format: "%.3f", worst)) ms (CPU worst \(String(format: "%.3f", cpuWorst)), GPU worst \(String(format: "%.3f", gpuWorst))); \(over) over \(Self.budgetMilliseconds) ms; up to \(timings.map(\.tiles).max()!) tiles per frame; rasterized \(canvas.rasterizedTileCount) tiles (first \(initialTiles) in \(String(format: "%.0f", rasterSeconds * 1000)) ms)")
+        print("PERF Metal frame (\(PerfBudget.buildName)): \(frames) frames of a 10 s pan/zoom/rotate, 50,000 items, 2880 × 1800 px; mean \(String(format: "%.3f", mean)) ms, p99 \(String(format: "%.3f", p99)) ms, worst \(String(format: "%.3f", worst)) ms (CPU worst \(String(format: "%.3f", cpuWorst)), GPU worst \(String(format: "%.3f", gpuWorst))); \(over) over \(Self.budgetMilliseconds) ms; up to \(timings.map(\.tiles).max()!) tiles per frame; rasterized \(canvas.rasterizedTileCount) tiles (first \(initialTiles) in \(String(format: "%.0f", rasterSeconds * 1000)) ms)")
         #expect(timings.allSatisfy { $0.tiles > 0 }, "every frame shows tiles")
-        if Self.enforcesBudget {
-            #expect(worst <= Self.budgetMilliseconds, "worst frame \(worst) ms")
-        }
+        PerfBudget.expect(.milliseconds(worst), within: .milliseconds(Self.budgetMilliseconds), "worst frame")
     }
 }

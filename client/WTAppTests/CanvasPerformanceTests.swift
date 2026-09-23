@@ -7,9 +7,9 @@ import WTRender
 
 /// APP-002's "Done when": panning a 50,000-object document stays at 60 fps.  Measured through
 /// the real layer pipeline (canvas view → `TiledCanvasLayer` → `TileCache` → Core Graphics),
-/// in the Debug build the tests run against.  Non-fatal: the numbers are printed for the
-/// report and a missed budget is recorded as a warning, not a failure (CI machines vary, and
-/// REND-006's Metal renderer is the on-screen path the budget is really for).
+/// in the Debug build the tests run against.  The numbers are printed for the report; the frame
+/// budget is a `PerfBudget`, held only in the perf run (`make client-perf`), where a loaded
+/// machine skips it (REND-006's Metal renderer is the on-screen path the budget is really for).
 @Suite(.serialized) @MainActor struct CanvasPerformanceTests {
     static let objectCount = 50_000
     static let frameBudget = 1.0 / 60
@@ -70,11 +70,8 @@ import WTRender
 
         print("APP-002 pan, 50,000 rects, 1200×800 pt @2×, \(tiles) visible tiles — main thread per frame: \(mainThread)")
         print("APP-002 pan, 50,000 rects — frame including rasterising uncovered tiles: \(withRaster)")
-        if mainThread.p95 > Self.frameBudget {
-            withKnownIssue("main-thread pan frame p95 \(mainThread) exceeds 16.7 ms", isIntermittent: true) {
-                Issue.record("frame budget missed")
-            }
-        }
         #expect(mainThread.samples.count == 120)
+        PerfBudget.expect(.seconds(mainThread.p95), within: .seconds(Self.frameBudget), "main-thread p95",
+                          enforcedInDebug: "the app's tests build Debug only; unoptimised code is slower, so a Debug figure within the budget is a Release one too")
     }
 }

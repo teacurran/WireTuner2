@@ -211,7 +211,7 @@ import WTGeometry
         #expect(ChartTable(series: [], categories: [], values: [[.nan]]).value(0, 0) == 0)
     }
 
-    /// Layout of a 100 × 20 table runs under 5 ms (release builds; debug reports).
+    /// Layout of a 100 × 20 table runs under 5 ms (a `PerfBudget`: the perf run holds it).
     @Test func aHundredByTwentyTableLaysOutQuickly() {
         let series = (0..<20).map { ChartKey(id: F.id(2000 + UInt64($0)), label: "S\($0)") }
         let categories = (0..<100).map { ChartKey(id: F.id(3000 + UInt64($0)), label: "C\($0)") }
@@ -224,8 +224,6 @@ import WTGeometry
         let milliseconds = Date().timeIntervalSince(start) * 1000
         print("PERF chart layout: 100 × 20 table, \(elements.count) elements in \(String(format: "%.2f", milliseconds)) ms")
         #expect(Self.roles(elements, .column).count == 2000)
-        #if !DEBUG
-        #expect(milliseconds < 5)
-        #endif
+        PerfBudget.expect(.milliseconds(milliseconds), within: .milliseconds(5))
     }
 }

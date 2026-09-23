@@ -203,9 +203,7 @@ import struct WTRender.StrokeStyle
         let image = renderer.renderBitmap(list, viewport: Viewport(size: Size(width: 612, height: 792)))
         let milliseconds = Double(DispatchTime.now().uptimeNanoseconds - started) / 1e6
         #expect(image != nil)
-        print("PERF tiled fill: a 1,000-node tile over a 612 × 792 pt page in \(String(format: "%.1f", milliseconds)) ms (budget 16 ms on M1, enforced in release builds)")
-        #if !DEBUG
-        #expect(milliseconds < 16)
-        #endif
+        print("PERF tiled fill: a 1,000-node tile over a 612 × 792 pt page in \(String(format: "%.1f", milliseconds)) ms (budget 16 ms on M1, held in the perf run)")
+        PerfBudget.expect(.milliseconds(milliseconds), within: .milliseconds(16))
     }
 }

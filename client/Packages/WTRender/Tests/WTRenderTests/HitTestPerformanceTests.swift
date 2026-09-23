@@ -4,9 +4,10 @@ import Testing
 @testable import WTRender
 
 /// REND-003 "Done when": hit testing 50,000 objects stays under 2 ms (docs/spec/testing.adoc,
-/// "Performance gates").  Measured in release (`swift test -c release -Xswiftc -enable-testing
-/// --filter HitTestPerformance`), where the median is enforced; a debug build measures and
-/// reports only, since unoptimized Swift is several times slower.
+/// "Performance gates").  The median is a `PerfBudget`, held in the perf run (`make client-perf`;
+/// one package: `WT_PERF=1 swift test -c release -Xswiftc -enable-testing --filter
+/// HitTestPerformance`); other runs measure and report only, since unoptimized Swift is several
+/// times slower.
 @Suite struct HitTestPerformanceTests {
     /// 50,000 attribute-stack paths on a grid: rectangles and every tenth an ellipse, each with a
     /// fill and a stroke; every hundredth a group of two members.
@@ -65,19 +66,8 @@ import Testing
         let marqueeMilliseconds = Self.milliseconds(since: marqueeStart)
         #expect(marquee.count > 300)
 
-        #if DEBUG
-        let build = "debug"
-        #else
-        let build = "release"
-        #endif
-        print("PERF hit test, 50,000 objects (\(build)): R-tree bulk load \(String(format: "%.1f", buildMilliseconds)) ms; 1,000 random hits (\(hits) on an object) median \(String(format: "%.4f", median)) ms, p95 \(String(format: "%.4f", p95)) ms, worst \(String(format: "%.4f", worst)) ms; 240-pt contact marquee (\(marquee.count) items) \(String(format: "%.2f", marqueeMilliseconds)) ms; budget 2 ms")
+        print("PERF hit test, 50,000 objects (\(PerfBudget.buildName)): R-tree bulk load \(String(format: "%.1f", buildMilliseconds)) ms; 1,000 random hits (\(hits) on an object) median \(String(format: "%.4f", median)) ms, p95 \(String(format: "%.4f", p95)) ms, worst \(String(format: "%.4f", worst)) ms; 240-pt contact marquee (\(marquee.count) items) \(String(format: "%.2f", marqueeMilliseconds)) ms; budget 2 ms")
         #expect(hits > 300, "a good share of random points land on the grid's objects")
-        #if DEBUG
-        withKnownIssue("the 2 ms budget applies to release builds; debug measures only", isIntermittent: true) {
-            #expect(median < 2, "median \(median) ms")
-        }
-        #else
-        #expect(median < 2, "median \(median) ms")
-        #endif
+        PerfBudget.expect(.milliseconds(median), within: .milliseconds(2), "median of 1,000")
     }
 }

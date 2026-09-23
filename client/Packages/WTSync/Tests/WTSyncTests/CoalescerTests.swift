@@ -200,9 +200,7 @@ import WTProto
         let seconds = Double(DispatchTime.now().uptimeNanoseconds - start) / 1e9
         print("Coalescer: 20,000-op outbox coalesced and encoded in \(String(format: "%.3f", seconds)) s, \(bytes) bytes")
         #expect(Self.hash(log) == Self.hash(log, outbox: coalesced))
-        #if !DEBUG
-        #expect(seconds < 0.5)
-        #endif
+        PerfBudget.expect(.seconds(seconds), within: .milliseconds(500))
     }
 
     @Test func thePendingUploadOfAStoreIsItsCoalescedOutbox() async throws {

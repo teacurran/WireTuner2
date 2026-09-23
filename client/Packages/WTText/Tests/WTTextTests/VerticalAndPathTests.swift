@@ -142,9 +142,7 @@ import WTRender
             worst = max(worst, Date().timeIntervalSince(start))
             #expect(layout.glyphs().count > 300)
         }
-        #if !DEBUG
-        #expect(worst < 0.008, "re-laying 500 characters on a reshaped path took \(worst * 1000) ms")
-        #endif
+        PerfBudget.expect(.seconds(worst), within: .milliseconds(8), "worst of 5")
         print(String(format: "PERF WTText reshape a path under 500 characters: worst %.1f ms", worst * 1000))
     }
 }

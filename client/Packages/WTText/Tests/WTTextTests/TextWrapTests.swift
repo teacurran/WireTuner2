@@ -139,9 +139,7 @@ import struct WTRender.StrokeStyle
             worst = max(worst, Date().timeIntervalSince(start))
             #expect(moved.lineCount > 30)
         }
-        #if !DEBUG
-        #expect(worst < 0.016, "re-wrapping a page took \(worst * 1000) ms")
-        #endif
+        PerfBudget.expect(.seconds(worst), within: .milliseconds(16), "worst of 5")
         print(String(format: "PERF WTText re-wrap a page around a moved object: worst %.1f ms", worst * 1000))
     }
 }

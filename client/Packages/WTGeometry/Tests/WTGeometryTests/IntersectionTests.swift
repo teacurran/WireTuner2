@@ -196,11 +196,12 @@ import Testing
     @Test func coincidentCurvesTerminate() {
         let hits = sCurve.intersections(with: sCurve)
         #expect(hits.count <= 64)
-        let clock = ContinuousClock()
-        let elapsed = clock.measure {
-            _ = sCurve.intersections(with: sCurve.subdivide(from: 0.2, to: 0.7))
+        var overlap: [Intersection] = []
+        let elapsed = ContinuousClock().measure {
+            overlap = sCurve.intersections(with: sCurve.subdivide(from: 0.2, to: 0.7))
         }
-        #expect(elapsed < .seconds(2))
+        #expect(overlap.count <= 64)
+        PerfBudget.expect(elapsed, within: .seconds(2))
     }
 
     @Test func nineIntersections() {

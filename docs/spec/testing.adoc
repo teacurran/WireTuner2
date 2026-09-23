@@ -198,8 +198,8 @@ the failing tiles are exactly those where Core Graphics, given the swapped rules
 itself.  The frame-time gate (`MetalFrameTimeTests`) plays a 10 s pan, pinch and rotate of the
 50,000-rectangle design point at 120 Hz wall-clock pacing through `MetalTileCanvas` into a
 2880 × 1800 offscreen texture and sums each frame's main-actor update and encode time with its
-GPU time; it enforces 8.3 ms only in release builds (`swift test -c release -Xswiftc
--enable-testing`) and reports debug figures.
+GPU time; it holds 8.3 ms only in the perf run (<<perf-runs>>) and otherwise reports the
+figures.
 +
 NOTE: As built by the ATTR render tasks (`WTRenderTests/Support/AttributeCorpus.swift`).  The golden
 corpus holds 45 cases, each with its own view size; the ATTR cases run through goldens and
@@ -208,8 +208,8 @@ sampled paints -- noise, textures, lenses, the gradient grid -- which PDF embeds
 point while bitmaps sample at device resolution, and for patterns, which stay vector in PDF;
 `PatternPaintTests.pdfExportAndScreenAgree` and `GradientTests.pdfOutputMatchesTheScreen` hold
 those to their own bounds (the appearance pages' ATTR-014 and ATTR-027 notes).  The tiled page and
-contour timings enforce their budgets only in release builds; the brush spray's is reported as a
-known issue (the ATTR-010 note).
+contour timings hold their budgets only in the perf run (<<perf-runs>>); the brush spray's is
+reported there as a known issue (the ATTR-010 note).
 * `WTText`: layout goldens for the type chapter's features (columns, tabs, rules, on-path).
 +
 NOTE: As built by TXT-001 (`WTTextTests/Support/Goldens.swift`).  Each golden case is two files
@@ -219,8 +219,7 @@ Graphics reference renderer at 2× as PNG, where at most 0.2% of pixels may diff
 24/255 per channel.  `WTTEXT_RECORD_GOLDENS=1 swift test` rewrites them.  The cases also assert
 the features' geometry directly (justified edges, tab and indent positions, glyphs on the path,
 caret positions).  The 200,000-character incremental relayout is `IncrementalLayoutTests`; it
-enforces 100 ms only in release builds (`swift test -c release -Xswiftc -enable-testing`) and
-reports debug figures.
+holds 100 ms only in the perf run (<<perf-runs>>) and otherwise reports the figures.
 +
 NOTE: As built by the type render tasks (TYPE-021 to TYPE-047).  `WTTextTests` adds goldens for every
 character attribute, three variable weights and six OpenType features (each also held to the
@@ -231,7 +230,7 @@ text, and the four orientations with three alignments on a circle and an S-curve
 for all, renders for the orientations).  The budgets -- 200,000 characters with mixed attributes,
 with axes on every paragraph and justified (100 ms), a 1,000-row tab table (50 ms), 10,000
 effected characters laid out and drawn (100 ms), re-wrapping a page (16 ms) and re-laying 500
-characters on a reshaped path (8 ms) -- are enforced in release builds only, like
+characters on a reshaped path (8 ms) -- are held in the perf run only, like
 `IncrementalLayoutTests`.  `WTRenderTests/Support/TextCorpus.swift` adds four golden-corpus cases
 that run through REND-007's parity like the rest: text effects in Preview and in Keyline (the
 effects' groups hidden), overprinting glyphs under overprint preview, and greeking by device pixel
@@ -246,7 +245,8 @@ bitmap and PDF at 1× only, for its hairlines).  Plates have their own reference
 `PlateTests.platesMatchTheirReferences` renders four process plates of four lists at 2× and holds
 them to `Goldens/plates*-<ink>@2x.png` (exact in flat areas, 16/255 on edges); each halftone shape
 has a 1-bit reference tile (`Goldens/screen-<shape>@1200dpi.png`, exact).  The screener, instance,
-chart, connector and animation budgets are enforced in release builds only and reported in debug.
+chart, connector and animation budgets are held in the perf run only (<<perf-runs>>) and reported
+otherwise.
 
 == Import and export
 
@@ -551,8 +551,96 @@ stored baseline above is not built for the server (there is no baseline store). 
 taken with JaCoCo's agent on, as in the default build.  The `wt-crdt` bounds are loose JVM
 guards against a pathological regression, not the CRDT performance budget itself
 (xref:crdt-model.adoc[CRDT model], Performance budget: 1 ms per remote change, 1.5 s to bootstrap
-the design point on an M1), which is the client's and is enforced by WTCRDTTests'
-`PerformanceTests` in release builds.
+the design point on an M1), which is the client's and is held by WTCRDTTests'
+`PerformanceTests` in the client's perf run.
+
+[[client-perf-runs]]
+==== Client budgets
+
+The client keeps the same rule with one helper, `PerfBudget`, written once in
+`client/Packages/WTTestSupport/Shared/PerfBudget.swift` and linked (a symbolic link,
+`Support/PerfBudget.swift`) into every test target that holds a budget, `WTAppTests` included.
+It is not a product of the WTTestSupport package: that package depends on every other one, so a
+test target depending on it would make SwiftPM resolve gRPC, NIO and GRDB for packages that have
+no remote dependencies.
+
+* *Correctness in every build.*  A timed scenario's functional assertions are ordinary
+  `#expect`s and run in every `swift test` and in `make client-test`, whose coverage gate is taken
+  over them.  Only the timing goes through `PerfBudget.expect(measured, within: budget)`.  Where a
+  volume is only there for timing (WTCRDT's and WTSync's design point, the 2400 dpi plate, the
+  4 MP trace) the default run uses a smaller one and `PerfBudget.isMeasuring` selects the full
+  one.
+* *Budgets in the perf run.*  `PerfBudget.expect` holds a figure only when `WT_PERF=1` is set
+  and the test module is a release build (`swift test -c release -Xswiftc -enable-testing`).  A
+  budget whose debug figure is meaningful says why (`enforcedInDebug:`); only the app's two
+  budgets do, because the app's tests build Debug only, and unoptimised code within a budget is
+  within it optimised too.  A budget known to be missed on current hardware says so
+  (`knownIssue:`): a miss is recorded as a known issue and reported, not failed.  `make
+  client-perf` runs, in release with `WT_PERF=1` and one test at a time (`--no-parallel`: Swift
+  Testing otherwise runs a suite's tests side by side, and a budget sharing the cores with its
+  own suite misses by up to five times while the load average stays under the guard), the tests
+  of every package whose tests call `PerfBudget`, then the app's `CanvasPerformanceTests` and `CommandPaletteModelTests` (Debug) with
+  `TEST_RUNNER_WT_PERF=1`.  Each budget appends a row (measure, measured, budget, build, and met,
+  missed or skipped with the reason) to `client/build/perf-results.md` (`WT_PERF_RESULTS` names
+  another file) and prints it prefixed `PERF`; the sandboxed test host cannot write outside its
+  container, so the target takes the app's rows from the log.  The `perf` job of
+  `.github/workflows/client.yml` runs it after `test`, copies the table into the job summary,
+  and fails only on a missed budget or a failing test.
+* *Skipped with the reason under load.*  When a budget is checked, a one-minute load average
+  (`getloadavg`) above 1.5 times the active cores skips it with the measured load as the reason
+  -- "load 29.3 over 18.0 (12 cores x 1.5)" -- listed in the table.  `WT_PERF_LOAD_FACTOR`
+  changes the factor; `0` turns the guard off.  Without `WT_PERF=1`, or in a debug build, nothing
+  is checked or written, so a loaded machine running the coverage gate cannot fail a budget.
+
+[cols="3,1,2"]
+|===
+|Measure |Budget |Test
+
+|`WTGeometry`: 500,000 evaluations with derivatives; 200,000 bounds; 20,000 winding queries (GEO-001) |5 s each |`PerformanceTests`
+|`WTGeometry`: the slowest case of each boolean fuzz test, all four operations |5 s |`BooleanFuzzTests`
+|`WTGeometry`: intersecting a curve with an overlapping piece of itself |2 s |`CurveCurveIntersectionTests`
+|`WTCRDT`: an insert into a 200,000-character text, mean of 2,000 |50 µs |`PerformanceTests`
+|`WTCRDT`: bootstrap the design point from a snapshot (a tenth of it outside the perf run) |1.5 s |`PerformanceTests`
+|`WTCRDT`: a late move on a 50,000-node tree behind 1,000 tree ops, median of 21 (CRDT-002) |1 ms |`TreeTests`
+|`WTSync`: open the design point, snapshot and 1,000-change tail (SYNC-001; a tenth outside the perf run) |2 s |`DesignPointTests`
+|`WTSync`: divergence of the design point, 20,000 local and 5,000 remote ops (SYNC-006) |200 ms |`DesignPointTests`
+|`WTSync`: coalesce and encode a 20,000-op outbox |500 ms |`CoalescerTests`
+|`WTSync`: the slowest edit while a 100 MiB image uploads (SYNC-008) |250 ms |`BlobTests`
+|`WTSync`: a remote cursor frame reaches the model, median of 20 (SYNC-009) |100 ms |`PresenceTests`
+|`WTText`: incremental relayout of 200,000 characters after a one-paragraph edit (TXT-001) |100 ms |`IncrementalLayoutTests`
+|`WTText`: 200,000 justified characters; mixed attributes; axes on every paragraph; 10,000 effected characters laid out and drawn |100 ms each |`ColumnsAdjustTests`, `TypeAttributeTests`, `TextEffectTests`
+|`WTText`: a 1,000-row tab table |50 ms |`TabLayoutTests`
+|`WTText`: re-wrap a page around a moved object, worst of 5 |16 ms |`TextWrapTests`
+|`WTText`: re-lay 500 characters on a reshaped path, worst of 5 |8 ms |`VerticalAndPathTests`
+|`WTRender`: Metal frame, worst of a 10 s scripted pan, zoom and rotate (REND-006) |8.3 ms |`MetalFrameTimeTests`
+|`WTRender`: Core Graphics fallback, worst 256-px tile of 50,000 rectangles (known issue) |16 ms |`PerformanceTests`
+|`WTRender`: hit test at 50,000 objects, median of 1,000 (REND-003) |2 ms |`HitTestPerformanceTests`
+|`WTRender`: a warm tile of 5,000 effected objects |8 ms |`EffectPipelineTests`
+|`WTRender`: a 500-point extrude at 20 steps; a 1,000-step blend of 50-point paths |5 ms; 10 ms |`LiveGroupTests`
+|`WTRender`: the worst of 100 animation frames of 2,000 objects |33.3 ms |`AnimationTests`
+|`WTRender`: a 2,000-copy brush spray drawn (known issue, the ATTR-010 note) |8 ms |`BrushStrokeTests`
+|`WTRender`: a 100 × 20 chart table laid out |5 ms |`ChartLayoutTests`
+|`WTRender`: installed profiles listed; 100,000 colours through a cached transform (CMS-002, CMS-003) |1 s; 50 ms |`ColorManagementTests`
+|`WTRender`: 1,000 connectors rerouted and invalidated |16.7 ms |`ConnectorTests`
+|`WTRender`: a 500-point contour gradient at 800 × 800 px |10 ms |`GradientTests`
+|`WTRender`: recolouring 50,000 dependents mapped (COLOR-006) |16 ms |`ColorInvalidationTests`
+|`WTRender`: a 1,000-node tiled fill over a letter page |16 ms |`LensAndTiledFillTests`
+|`WTRender`: 1,000 symbol instances built |16 ms |`SymbolRenderingTests`
+|`WTRender`: a letter plate screened at 2400 dpi (300 dpi outside the perf run) |4 s |`ScreenerTests`
+|`WTRender`: a 4 MP outline trace, 16 colours (512 × 512 outside the perf run) |2 s |`TraceOutlineTests`
+|`WTInterchange`: import a 10 MB SVG |3 s |`SVGImportRoundTripTests`
+|`WTInterchange`: an A3 300 ppi PNG and Targa export, time and process peak (IO-021) |reported |`PerformanceTests` (perf run only)
+|App: main-thread pan frame at 50,000 rectangles, p95 of 120 (APP-002; Debug) |16.7 ms |`CanvasPerformanceTests`
+|App: the worst keystroke ranking 5,000 palette items, best of three each (Debug) |16 ms |`CommandPaletteModelTests`
+|===
+
+Not budgets, and left as they are: waits with a deadline for something to happen (`eventually`
+and its kin, 5 to 120 s) and Swift Testing `.timeLimit` traits, which only stop a hung test; lower
+bounds (a rate-limited push waits at least a second), which load can only lengthen;
+`TraceCancellationTests`' gaps between cancellation polls, measured in the tracing thread's CPU
+time so that load does not stretch them; and figures printed without a bound (bulk upload,
+sync integration, the image pyramid, the whole-view draw).  A chapter note that says a budget is
+"enforced in release builds" means the perf run.
 
 == Documentation
 

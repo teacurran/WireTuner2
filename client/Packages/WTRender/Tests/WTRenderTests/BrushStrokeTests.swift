@@ -168,12 +168,9 @@ import struct WTRender.StrokeStyle
         let milliseconds = Double(DispatchTime.now().uptimeNanoseconds - started) / 1e6
         #expect(layout.copies.count >= 2000)
         print("PERF brush spray: \(layout.copies.count) copies drawn in \(String(format: "%.1f", milliseconds)) ms, laid out in \(String(format: "%.1f", layoutMilliseconds)) ms (render budget 8 ms on M1, enforced in release builds)")
-        #if !DEBUG
-        // Measured, not enforced: 9.2 ms on an idle development Mac, and the shared build Mac's
-        // load moves it further (docs: stroke-attributes, ATTR-010 note).
-        withKnownIssue("the 8 ms spray budget is measured, not enforced, on this Mac", isIntermittent: true) {
-            #expect(milliseconds < 8)
-        }
-        #endif
+        // Measured, not enforced: 9.2 ms on an idle development Mac (docs: stroke-attributes,
+        // ATTR-010 note), so a miss in the perf run is a known issue.
+        PerfBudget.expect(.milliseconds(milliseconds), within: .milliseconds(8),
+                          knownIssue: "the 8 ms spray budget is measured, not enforced, on this Mac")
     }
 }

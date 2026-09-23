@@ -174,9 +174,7 @@ import struct WTRender.StrokeStyle
         let items = layout.displayItems(forContainer: 0)
         let elapsed = Date().timeIntervalSince(start)
         #expect(items.count > 100)
-        #if !DEBUG
-        #expect(elapsed < 0.1, "laying out and drawing 10,000 effected characters took \(elapsed * 1000) ms")
-        #endif
+        PerfBudget.expect(.seconds(elapsed), within: .milliseconds(100))
         print(String(format: "PERF WTText 10,000 effected characters: layout and display items %.1f ms", elapsed * 1000))
     }
 }

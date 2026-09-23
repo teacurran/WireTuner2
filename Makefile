@@ -75,6 +75,36 @@ client-test:
 	tools/coverage/client-coverage.sh --gate
 	tools/launch-smoke/launch-smoke.sh
 
+.PHONY: client-perf
+
+# Timing budgets (docs/spec/testing.adoc, "Client budgets"): every package whose tests hold a
+# PerfBudget runs them in release with WT_PERF=1, one test at a time (a budget must not share the
+# cores with the rest of its suite, which the load average does not show), then the app's budget
+# suites run (Debug, the only configuration its tests build; their rows come from the log, as the
+# sandboxed test host cannot write here).  The table is client/build/perf-results.md.  Under load
+# (one-minute load average over 1.5 x the cores) a budget skips with the load as its reason; the
+# target fails on a missed budget or a failing test, after every package has run.
+PERF_RESULTS = client/build/perf-results.md
+PERF_APP_TESTS = -only-testing:WireTunerTests/CanvasPerformanceTests -only-testing:WireTunerTests/CommandPaletteModelTests
+
+client-perf:
+	@rm -f $(PERF_RESULTS); mkdir -p client/build; status=0; \
+	for package in client/Packages/*/; do \
+		grep -rqs --exclude='PerfBudget*.swift' 'PerfBudget\.' "$$package/Tests" || continue; \
+		echo "==> WT_PERF=1 swift test -c release --no-parallel ($$package)"; \
+		(cd "$$package" && WT_PERF=1 swift test -c release -Xswiftc -enable-testing --no-parallel) || status=1; \
+	done; \
+	echo "==> app budgets: xcodebuild test $(PERF_APP_TESTS)"; \
+	TEST_RUNNER_WT_PERF=1 TEST_RUNNER_WT_PERF_RESULTS=/dev/null/perf-results.md \
+		xcodebuild test -project client/WireTuner.xcodeproj -scheme WireTuner -destination 'platform=macOS' \
+		-derivedDataPath client/build/DerivedData -parallel-testing-enabled NO $(PERF_APP_TESTS) \
+		CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO > client/build/perf-app.log 2>&1 || status=1; \
+	grep -E '^(Test Suite|\*\*|Executed|error:)|[✔✘] (Suite|Test run)' client/build/perf-app.log || true; \
+	test -s $(PERF_RESULTS) || printf '| Measure | Measured | Budget | Build | Result |\n|---|---|---|---|---|\n' > $(PERF_RESULTS); \
+	sed -n 's/^PERF \(| .* |\)$$/\1/p' client/build/perf-app.log >> $(PERF_RESULTS); \
+	cat $(PERF_RESULTS); \
+	exit $$status
+
 sonar-server:
 	@$(SONAR_TOKEN_SHELL); cd server && ./mvnw -B -ntp sonar:sonar -Dsonar.projectVersion="$$(git describe --tags --always)"
 

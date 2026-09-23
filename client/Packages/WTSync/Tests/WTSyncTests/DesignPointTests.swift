@@ -8,17 +8,11 @@ import WTProto
 
 /// SYNC-001's open budget: the design-point document (docs/spec/crdt-model.adoc, "Performance
 /// budget": 50,000 nodes, 1,000,000 registers, 200,000 characters) opens in under 2 s -- snapshot
-/// decompressed and decoded, a tail of changes replayed, the undo stack read.  Debug builds use a
-/// tenth of it and only print; release builds (`swift test -c release -Xswiftc -enable-testing`)
-/// measure the whole and enforce the budget, as WTCRDT's PerformanceTests do.
+/// decompressed and decoded, a tail of changes replayed, the undo stack read.  Correctness runs
+/// use a tenth of it and only print; the perf run (`make client-perf`: release, `WT_PERF=1`)
+/// measures the whole and holds the budget, as WTCRDT's PerformanceTests do.
 @Suite struct DesignPointTests {
-    #if DEBUG
-    static let scale = 10
-    static let enforced = false
-    #else
-    static let scale = 1
-    static let enforced = true
-    #endif
+    static let scale = PerfBudget.isMeasuring ? 1 : 10
 
     static let r: UInt64 = 7
 
@@ -120,9 +114,7 @@ import WTProto
             + String(format: "%.2f", Double(DispatchTime.now().uptimeNanoseconds - rewriteStart) / 1e9) + " s")
         #expect(reopened.report.replayed == 1_000)
         #expect(await reopened.read { $0.stateHash } == tail.stateHash)
-        if Self.enforced {
-            #expect(seconds < 2)
-        }
+        PerfBudget.expect(.seconds(seconds), within: .seconds(2))
     }
 
     /// SYNC-006's budget: measuring the divergence of the design-point document -- a day offline
@@ -186,9 +178,7 @@ import WTProto
             + "\(divergence.overlapCount) overlapping objects (\(review.mode)); measured in \(elapsed)")
         #expect(divergence.localOps == 20_000 / Self.scale && divergence.remoteOps == 5_000 / Self.scale)
         #expect(divergence.overlapCount > 0 && review.mode == .wholeDocument)
-        if Self.enforced {
-            #expect(elapsed < .milliseconds(200))
-        }
+        PerfBudget.expect(elapsed, within: .milliseconds(200))
         try await reopened.close()
     }
 }

@@ -179,7 +179,7 @@ import WTGeometry
     }
 
     /// Moving a node with 1,000 attached connectors reroutes and invalidates them within one
-    /// frame (release builds; debug reports).
+    /// frame (a `PerfBudget`: the perf run holds it).
     @Test func aThousandConnectorsRerouteWithinAFrame() {
         var index = DependencyIndex()
         let hub = NodeID(counter: 50_000, replica: 9)
@@ -206,8 +206,6 @@ import WTGeometry
         print("PERF connectors: 1,000 connectors rerouted and invalidated in \(String(format: "%.1f", milliseconds)) ms")
         #expect(items.count == 1000)
         #expect(!region.isEmpty)
-        #if !DEBUG
-        #expect(milliseconds < 16.7)
-        #endif
+        PerfBudget.expect(.milliseconds(milliseconds), within: .milliseconds(16.7))
     }
 }

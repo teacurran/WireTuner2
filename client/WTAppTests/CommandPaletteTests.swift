@@ -179,12 +179,15 @@ import Testing
         model.query = ""
         let clock = ContinuousClock()
         var worst = Duration.zero
-        // The best of three runs per keystroke, so a busy machine's scheduling does not count.
+        // The best of three runs per keystroke, so one descheduled run does not count.
         for query in ["z", "zo", "zoo", "lay", "lay bg", "keyline mirror"] {
             let elapsed = (0..<3).map { _ in clock.measure { model.query = query } }.min()!
             worst = max(worst, elapsed)
+            #expect(model.query == query)
         }
-        #expect(worst < .milliseconds(16), "worst keystroke \(worst)")
+        #expect(!model.results.isEmpty, "\"keyline mirror\" ranks items")
+        PerfBudget.expect(worst, within: .milliseconds(16), "worst keystroke",
+                          enforcedInDebug: "the app's tests build Debug only; unoptimised code is slower, so a Debug figure within the budget is a Release one too")
     }
 }
 

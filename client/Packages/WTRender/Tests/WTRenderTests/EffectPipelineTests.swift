@@ -364,11 +364,7 @@ import struct WTRender.StrokeStyle
         _ = renderer.renderTile(list, key: key, geometry: geometry)
         let clock = ContinuousClock()
         let elapsed = clock.measure { _ = renderer.renderTile(list, key: key, geometry: geometry) }
-        #if DEBUG
-        print("5,000 effected objects: warm tile in \(elapsed) (debug)")
-        #else
-        print("5,000 effected objects: warm tile in \(elapsed) (release)")
-        #expect(elapsed < .milliseconds(8), "warm tile took \(elapsed)")
-        #endif
+        print("5,000 effected objects: warm tile in \(elapsed) (\(PerfBudget.buildName))")
+        PerfBudget.expect(elapsed, within: .milliseconds(8))
     }
 }

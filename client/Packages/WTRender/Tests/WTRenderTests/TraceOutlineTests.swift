@@ -349,20 +349,15 @@ import WTGeometry
     }
 
     @Test func fourMegapixelOutlineBudget() throws {
-        // Debug builds are some 250 times slower here; they time a quarter-megapixel source.
-        #if DEBUG
-        let side = 512
-        #else
-        let side = 2048
-        #endif
+        // Debug builds are some 250 times slower here: correctness runs trace a quarter-megapixel
+        // source, the perf run (release) the 4 MP one it holds to the budget.
+        let side = PerfBudget.isMeasuring ? 2048 : 512
         let source = TraceFixtures.photograph(width: side, height: side)
         let start = DispatchTime.now().uptimeNanoseconds
         let result = try Trace.run(source, options: Trace.Options(colors: 16))
         let seconds = Double(DispatchTime.now().uptimeNanoseconds - start) / 1e9
-        print("PERF trace: \(side) × \(side) px, 16 colours, outline in \(String(format: "%.2f", seconds)) s (4 MP budget 2 s on M1, enforced in release builds)")
+        print("PERF trace: \(side) × \(side) px, 16 colours, outline in \(String(format: "%.2f", seconds)) s (4 MP budget 2 s on M1, held in the perf run)")
         #expect(!result.paths.isEmpty)
-        #if !DEBUG
-        #expect(seconds < 2)
-        #endif
+        PerfBudget.expect(.seconds(seconds), within: .seconds(2), "\(side) x \(side) px")
     }
 }

@@ -151,7 +151,7 @@ import WTGeometry
     }
 
     /// A 100-frame, 2,000-object document plays at 30 fps without rebuilding the list: each
-    /// frame is the list restricted and drawn (release builds enforce 33 ms; debug reports).
+    /// frame is the list restricted and drawn (33 ms, a `PerfBudget`: the perf run holds it).
     @Test func aHundredFramesOfTwoThousandObjectsHoldThirtyFPS() throws {
         var content: [LayerContent] = [LayerContent(layer: LayerRendering(id: Self.id(10_000), printing: false), items: [])]
         var layers = [AnimationLayer(id: Self.id(10_000), printing: false)]
@@ -177,8 +177,6 @@ import WTGeometry
         }
         let total = Date().timeIntervalSince(start)
         print("PERF animation: 100 frames of 2,000 objects in \(String(format: "%.1f", total * 1000)) ms, worst frame \(String(format: "%.2f", worst * 1000)) ms")
-        #if !DEBUG
-        #expect(worst < 1.0 / 30)
-        #endif
+        PerfBudget.expect(.seconds(worst), within: .seconds(1.0 / 30), "worst frame")
     }
 }

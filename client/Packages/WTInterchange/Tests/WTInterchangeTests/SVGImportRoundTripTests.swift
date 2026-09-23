@@ -144,11 +144,9 @@ struct SVGImportRoundTripTests {
         let seconds = Date().timeIntervalSince(start)
         print("SVG import of \(data.count / 1_000_000) MB (\(index) paths): \(String(format: "%.2f", seconds)) s (the budget is 3 s on M1 in release)")
         #expect(scene.scenePaths.count == index)
-        // Like the other budgets, enforced in release builds only: debug timings under load say
-        // nothing about the importer (testing.adoc).
-        #if !DEBUG
-        #expect(seconds < 3)
-        #endif
+        // Like the other budgets, held in the perf run only: debug timings under load say
+        // nothing about the importer (testing.adoc, "Where budgets run").
+        PerfBudget.expect(.seconds(seconds), within: .seconds(3))
     }
 
     // MARK: Helpers

@@ -99,7 +99,7 @@ func rawPixel(_ image: CGImage, x: Int, y: Int) -> RGBA8 {
         let cmyk = registry.installedProfiles(space: .cmyk)
         #expect(cmyk.allSatisfy { $0.space == .cmyk } && !cmyk.isEmpty)
         print("PERF installed profiles: \(all.count) in \(elapsed) s (CMS-002 budget: 500 in 100 ms)")
-        #expect(elapsed < 1)
+        PerfBudget.expect(.seconds(elapsed), within: .seconds(1), "\(all.count) profiles")
         #expect(WTColor.ProfileRegistry.installedProfile(from: nil) == nil)
         let link: NSDictionary = [kColorSyncProfileClass.takeUnretainedValue(): "link"]
         #expect(WTColor.ProfileRegistry.installedProfile(from: link) == nil)
@@ -156,9 +156,7 @@ func rawPixel(_ image: CGImage, x: Int, y: Int) -> RGBA8 {
         let elapsed = Date().timeIntervalSince(start)
         #expect(converted.count == 100_000 && converted[0].count == 4)
         print("PERF 100,000 colours through a cached transform: \(elapsed) s (CMS-003 budget: 50 ms on M1, release)")
-        #if !DEBUG
-        #expect(elapsed < 0.05)
-        #endif
+        PerfBudget.expect(.seconds(elapsed), within: .milliseconds(50))
         #expect(local.buildCount == 1, "the batch reused the cached transform")
         // Batches of the other entry kinds.
         let lab = try #require(local.convert([SIMD4(50, 20, -30, 0)], space: .oklab, to: local.registry.sRGB))

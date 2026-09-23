@@ -142,9 +142,7 @@ import WTRender
         let elapsed = Date().timeIntervalSince(start)
         #expect(layout.lineCount == 1000, "\(layout.lineCount) lines")
         #expect(!layout.overflows)
-        #if !DEBUG
-        #expect(elapsed < 0.05, "1,000-row relayout took \(elapsed * 1000) ms")
-        #endif
+        PerfBudget.expect(.seconds(elapsed), within: .milliseconds(50))
         print(String(format: "PERF WTText 1,000-row tabbed table: relayout %.1f ms", elapsed * 1000))
     }
 }

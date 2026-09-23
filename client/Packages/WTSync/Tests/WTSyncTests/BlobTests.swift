@@ -329,7 +329,8 @@ struct BlobHarness {
         #expect(upload.chunks == 100 && upload.header.size == 100 << 20 && BlobCache.hex(upload.header.sha256) == hash)
         #expect(await server.blobs[BlobCache.bytes(hex: hash)]?.count == 100 << 20)
         print("BlobQueue: 100 MiB upload, \(edits) edits meanwhile, slowest \(slowest)")
-        #expect(edits > 10 && slowest < .milliseconds(250))
+        #expect(edits > 10)
+        PerfBudget.expect(slowest, within: .milliseconds(250), "slowest edit")
         try await harness.stop()
     }
 

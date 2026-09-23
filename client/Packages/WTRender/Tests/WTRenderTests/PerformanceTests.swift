@@ -4,8 +4,8 @@ import Testing
 @testable import WTRender
 
 /// The Core Graphics fallback's frame budget is 16 ms (docs/spec/testing.adoc, "Performance
-/// baseline").  These measure and report; they do not fail the suite, because the number
-/// depends on the Mac the tests run on.
+/// gates").  These measure and report; the worst tile is a `PerfBudget` recorded as a known issue
+/// when missed, because the number depends on the Mac the tests run on.
 @Suite struct PerformanceTests {
     @Test func fiftyThousandRectsPerTile() {
         let list = Corpus.manyRects()
@@ -33,9 +33,8 @@ import Testing
         let cullMilliseconds = Double(DispatchTime.now().uptimeNanoseconds - cullStart) / 1e6
         print("PERF 50,000 rects: \(keys.count) tiles, mean \(String(format: "%.2f", mean)) ms, worst \(String(format: "%.2f", worst)) ms per 256-px tile; cull of \(list.count) bounds \(String(format: "%.3f", cullMilliseconds)) ms (\(visible) visible); budget 16 ms")
         #expect(mean > 0)
-        withKnownIssue("performance budget is measured, not enforced, on this Mac", isIntermittent: true) {
-            #expect(worst < 16, "worst tile \(worst) ms")
-        }
+        PerfBudget.expect(.milliseconds(worst), within: .milliseconds(16), "worst tile",
+                          knownIssue: "performance budget is measured, not enforced, on this Mac")
     }
 
     @Test func wholeViewOfFiftyThousandRects() {

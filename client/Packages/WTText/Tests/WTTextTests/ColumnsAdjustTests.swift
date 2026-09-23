@@ -237,9 +237,7 @@ import struct WTRender.StrokeStyle
         let layout = engine.layout(content(editing: 12), in: IncrementalLayoutTests.chain)
         let elapsed = Date().timeIntervalSince(start)
         #expect(layout.characterCount > 200_000)
-        #if !DEBUG
-        #expect(elapsed < 0.1, "justified relayout took \(elapsed * 1000) ms")
-        #endif
+        PerfBudget.expect(.seconds(elapsed), within: .milliseconds(100))
         print(String(format: "PERF WTText justified 200,000 characters: relayout %.1f ms", elapsed * 1000))
     }
 }
