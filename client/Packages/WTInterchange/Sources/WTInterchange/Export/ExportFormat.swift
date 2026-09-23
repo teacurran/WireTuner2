@@ -153,9 +153,10 @@ public enum ExportFormat: Int, CaseIterable, Hashable, Sendable, CustomStringCon
         case .bmp, .targa:
             return [.alpha, .scales]
         case .rtf:
-            return [.text]
+            // Every page's text goes into one file.
+            return [.multiPage, .text]
         case .text:
-            return []
+            return [.multiPage]
         }
     }
 }

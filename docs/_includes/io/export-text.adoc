@@ -158,6 +158,41 @@ Nothing.
   selection contains inline graphics), written lazily.
 * Undo: none.
 
+NOTE: As built by IO-030 (`WTInterchange/Text`).  *Input*: the display list holds text only as
+glyph runs, so `ExportScene.text` carries what text export reads, and `WTModel` (IO-014's
+`SceneSnapshot`) must fill it: one `ExportTextBlock` per text block on the exported pages -- on a
+visible layer, inside groups, symbols and clipping paths included -- with its node id, the index of
+the page holding its origin, its stacking order on that page (bottom to top), the next block of
+its chain, and its `ExportStory` (on the chain's head; stories on other blocks of a chain are
+joined in link order).  A story is `ExportStoryElement`s: paragraphs (`ExportParagraph`: runs and
+an `ExportParagraphStyle` with alignment, indents, spacing, line spacing, tab stops with alignment
+and leader, keep with next, hyphenation, style name) and tables (`ExportTable`: column widths, rows
+of cells of paragraphs).  A run (`ExportTextRun`) is text with `ExportTextAttributes` -- family,
+size, bold, italic, colour, underline, strikethrough, super/subscript, baseline shift, horizontal
+scale, tracking in thousandths of an em, small caps, all caps, BCP 47 language, character style
+name -- or an inline graphic already rendered at the raster resolution with its size in points
+(text U+FFFC).  Selected characters are a one-block scene holding just them; line breaks inside
+a paragraph are U+2028; column breaks arrive as paragraph breaks.  *Order*: chains once at their
+head, blocks by page then stacking order; a chain that loops is cut before the block that would
+repeat, and a loop with no head starts at its first block in that order (the exporter sees blocks,
+not the CRDT, so this stands in for the read-time normalization).  *RTF* is an own writer, not
+`NSAttributedString`'s: that writer emits no style sheet, drops attachments outside RTFD and writes
+no tables, the three things the specification patches around.  It writes the font table (family
+names; bold and italic as `\b`, `\i`), the colour table with an `\expandedcolortbl` in sRGB (which
+Apple's readers otherwise take as generic RGB; colours are sRGB fallbacks), a style sheet of
+paragraph (`\s`) and character (`\*\cs`) styles by name, paragraph and run controls for every
+attribute above (language through `NSLocale.windowsLocaleCode`), tables as `\trowd … \cell …
+\row`, `\page` between pages and a blank paragraph between stories on one page, inline graphics
+as `\pict\pngblip` (a bullet when *Embed inline graphics* is off), and non-ASCII as `\uN?`.  *Plain
+text* joins paragraphs with line breaks, table cells with tabs and rows with line breaks, stories
+with a blank line; UTF-16 is little-endian with a byte-order mark.  *Pasteboard*:
+`TextPasteboard.flavors` returns `public.rtf` and `public.utf8-plain-text` for the app to provide
+lazily; `com.apple.flat-rtfd`, the `NSPasteboard` writing and drag to Finder are the app's.  Tests
+read the RTF back with AppKit's RTF reader (fonts, bold, underline, tracking as kern, colour,
+alignment, spacing, super/subscript, baseline shift, indents, fixed line height, tab stops, table
+cells); the inline graphic is checked in the RTF text (a PNG `\pict`).
+The Word and Pages acceptance test needs a person at the Mac and was not run.
+
 === Build tasks
 
 [[IO-030]]

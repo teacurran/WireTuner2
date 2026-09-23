@@ -216,7 +216,7 @@ struct ForeignOptions: BitmapFormatOptions {
             (.png, PNGOptions(common: BitmapCommonOptions(ppi: 0))),
             (.png, PNGOptions(common: BitmapCommonOptions(scales: []))),
             (.png, PNGOptions(common: BitmapCommonOptions(antiAliasing: 5))),
-            (.png, PNGOptions(bits: 8)),
+            (.png, PNGOptions(bits: 16)),
             (.png, PNGOptions(bits: 24)),
             (.png, PNGOptions(common: BitmapCommonOptions(color: .cmyk))),
             (.png, PNGOptions(common: BitmapCommonOptions(background: .white, maskLayer: DisplayList(canvas: "m", items: [])), bits: 24)),

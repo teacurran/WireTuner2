@@ -245,7 +245,9 @@ extension AffineTransform {
 }
 
 extension Color {
-    var flatCG: CGColor { CGColor(srgbRed: red, green: green, blue: blue, alpha: alpha) }
+    /// The colour tagged in its own space (CMYK through Working CMYK), as vector output carries
+    /// it; the sRGB drawing surface converts it.
+    var flatCG: CGColor { ColorManagement.standard.taggedCGColor(self) }
 }
 
 extension FillRule {

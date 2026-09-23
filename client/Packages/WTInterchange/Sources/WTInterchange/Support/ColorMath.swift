@@ -1,6 +1,7 @@
 // Color arithmetic the writers need: the gradient ramp exactly as WTRender computes it (OKLab
-// interpolation with premultiplied alpha, CSS Color 4 style), luminance for masks, sRGB ↔ Display
-// P3 for wide-gamut values, and hex serialization.  WTRender keeps its ramp internal, so the ramp
+// interpolation with premultiplied alpha, CSS Color 4 style), luminance for masks, the in-gamut
+// test, Display P3 components and sRGB fallbacks through WTColor's gamut mapping (COLOR-024), and
+// hex serialization.  WTRender keeps its ramp internal, so the ramp
 // is restated here and held to WTRender's pixels by the PDF and SVG comparison tests.
 
 import Foundation
@@ -49,27 +50,23 @@ enum ColorMath {
 
     // MARK: Wide gamut
 
-    /// Whether a colour's components lie outside sRGB (an extended-range value, which is how a
-    /// wider colour reaches the display list).
+    /// Whether a colour lies outside sRGB (WTColor's in-gamut test: any Display P3, Lab or
+    /// OKLab colour beyond sRGB, or an extended sRGB value).  CMYK is always inside.
     static func isWide(_ color: Color) -> Bool {
-        [color.red, color.green, color.blue].contains { $0 < -1e-9 || $0 > 1 + 1e-9 }
+        !WTColor.Gamut.contains(color, in: .sRGB)
     }
 
-    /// Extended sRGB → Display P3 (both D65, same transfer curve), clipped to P3.
+    /// The colour's Display P3 components, gamut-mapped into Display P3.
     static func displayP3(_ color: Color) -> SIMD3<Double> {
-        let r = linear(color.red), g = linear(color.green), b = linear(color.blue)
-        // sRGB linear → XYZ → P3 linear, composed.
-        let pr = 0.822_461_969 * r + 0.177_538_031 * g
-        let pg = 0.033_194_199 * r + 0.966_805_801 * g
-        let pb = 0.017_082_631 * r + 0.072_397_440 * g + 0.910_519_929 * b
-        func clip(_ v: Double) -> Double { min(max(encoded(min(max(v, 0), 1)), 0), 1) }
-        return SIMD3(clip(pr), clip(pg), clip(pb))
+        let mapped = WTColor.Gamut.map(color, into: .displayP3).components
+        return SIMD3(mapped.x, mapped.y, mapped.z)
     }
 
-    /// The colour clipped into sRGB (gamut *mapping* is COLOR-024's; until it lands, clipping).
-    static func clipped(_ color: Color) -> Color {
-        func clip(_ v: Double) -> Double { min(max(v, 0), 1) }
-        return Color(red: clip(color.red), green: clip(color.green), blue: clip(color.blue), alpha: clip(color.alpha))
+    /// The colour as sRGB for a format or setting that holds nothing wider: gamut-mapped by
+    /// COLOR-024's CSS Color 4 mapping (CMYK through the Working CMYK profile), alpha clamped.
+    static func sRGBFallback(_ color: Color) -> Color {
+        let mapped = color.space == .cmyk ? ColorManagement.standard.sampledColor(color) : WTColor.Gamut.map(color, into: .sRGB)
+        return Color(red: mapped.red, green: mapped.green, blue: mapped.blue, alpha: min(max(color.alpha, 0), 1))
     }
 
     // MARK: Luminance
@@ -85,9 +82,10 @@ enum ColorMath {
         Int((min(max(component, 0), 1) * 255).rounded())
     }
 
-    /// `#rrggbb` of the (clipped) sRGB components.
+    /// `#rrggbb` of the colour's sRGB fallback.
     static func hex(_ color: Color) -> String {
-        String(format: "#%02x%02x%02x", byte(color.red), byte(color.green), byte(color.blue))
+        let rgb = sRGBFallback(color)
+        return String(format: "#%02x%02x%02x", byte(rgb.red), byte(rgb.green), byte(rgb.blue))
     }
 }
 

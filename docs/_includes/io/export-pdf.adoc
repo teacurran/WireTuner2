@@ -401,14 +401,57 @@ list.  *Images*: `FlateDecode` with an `SMask` for alpha, the placed JPEG's byte
 `DCTDecode` when nothing resamples it, JPEG re-encoding under *JPEG*, downsampling by redrawing;
 `CCITTFaxDecode` is not written.  Link annotations come from `ExportNodeInfo.url` (the IO-027 sheet
 option is `linksFromURLs`).  Page boxes: media, trim, bleed (with *Page plus bleed*) and art.  Not
-written yet and reported in the summary: linearization, object streams, layers as optional
-content and the embedded package; PDF/X standards and *Convert to CMYK* are refused until IO-026
-and the CMS epic; encryption is IO-027's.  Tests open every file in PDFKit, rasterize its pages
+written yet and reported in the summary: linearization, object streams and the embedded package;
+encryption is IO-027's.  (Layers as optional content, PDF/X and *Convert to CMYK* arrived with
+IO-026 and IO-029, notes below.)  Tests open every file in PDFKit, rasterize its pages
 with Core Graphics and compare them with the reference renderer (at most 2% of pixels beyond 40/255
 at 2×), check text search per font kind, and run Ghostscript (`-dPDFSTOPONERROR`) over the corpus
 when `/opt/homebrew/bin/gs` exists; `qpdf` and `verapdf` are not installed on the build Mac.  *For
 IO-032*: every flat node keeps its `NodeID` and `PDFStreamWriter.write(_:)` is the one node walk
 producing content, so marked content and the structure tree can be added around it.
+
+NOTE: Colours since the display list's colours became tagged (D-052), as built with IO-026.
+*Keep document colors*: sRGB as `/ICCBased` sRGB (`/DeviceRGB` without profiles), CMYK colours as
+DeviceCMYK with their own inks, CIELAB as `/Lab` (D50 white point), and Display P3, OKLab and
+extended sRGB values through the shared Display P3 `/ICCBased` object at PDF 1.7 and 2.0 without a
+standard; otherwise -- and always under *Convert to RGB* -- a colour outside sRGB is written as its
+sRGB fallback by COLOR-024's gamut mapping (`WTColor.Gamut.map`) and counted.  Gradient ramps are
+still sampled in sRGB, as WTRender's own ramp is.  *Convert to CMYK* converts every colour, every
+gradient's samples and every image into DeviceCMYK through the exporter's `CMYKConverter`
+(`ProfileCMYKConverter`: a CMYK profile of WTColor's `ProfileRegistry`, the bundled Default CMYK --
+ColorSync's Generic CMYK -- until the dialog passes the destination profile; colours convert from
+their tagged `CGColor` through Core Graphics and images by drawing into the profile's context,
+because WTColor's `Converter` returns about 11% cyan and 8% magenta for sRGB white into Generic CMYK
+under relative colorimetric, an absolute-colorimetric result, where Core Graphics gives no ink).
+
+NOTE: As built by IO-026 and IO-029.  *Layers* (PDF 1.5 and later, and PDF/X-4): each top-level
+layer group (`ExportNodeInfo.isLayer`) is an optional content group, its content wrapped in
+`/OC … BDC … EMC`, listed in `/OCProperties` with a default configuration naming, ordering and
+showing them all; below 1.5 the layers are flattened and reported.  *PDF/X*: choosing a standard
+forces its options through `PDFOptions.conforming()`, and each forced change is a line of the fix
+report at the head of the summary notes.  PDF/X-1a:2001 writes a PDF 1.3 header, flattens for the
+opaque target (IO-017), converts everything to DeviceCMYK, embeds no profiles and drops layers;
+PDF/X-4 writes a PDF 1.6 header, keeps transparency, tags RGB with its ICC profile and keeps Lab
+and DeviceCMYK (Display P3 needs PDF 1.7 in this writer, so X-4 gamut-maps P3 colours into sRGB
+and reports them).  Both write `GTS_PDFXVersion` (and `GTS_PDFXConformance` for X-1a) and
+`/Trapped /False` in the Info dictionary with a title (the scene name when Document Info has
+none), the XMP `pdfxid:GTS_PDFXVersion`, `pdf:Trapped` and `xmpMM` document, instance and version
+ids with `RenditionClass`, and a `GTS_PDFX` output intent embedding the converter's profile as
+`DestOutputProfile`; force Document Info and overprint on; write media = page plus bleed, trim and
+bleed boxes on every page and no art box (PDF/X pages carry a trim box or an art box, not both);
+and leave out links (PDF/X allows no annotations in the bleed box -- the specification's "written
+only if you turn them on" for X-4 is not followed) and the embedded package.  The bleed is each
+page's document bleed or `bleedPoints` (`useDocumentBleed` off).  Before the file is written
+`PDFXCheck` scans every object dictionary for what the standard forbids (X-1a: soft masks,
+constant alpha, blend modes, transparency groups, RGB, ICC-based or Lab colour, annotations,
+layers, embedded files, encryption; X-4: untagged RGB, annotations, encryption, JavaScript,
+embedded files) and reports any finding.  The shipped presets are `PDFOptions.printPDFX4` and
+`PDFOptions.pressPDFX1a`.  Not written: printer's marks (the PRINT epic's marks renderer), and a
+`destination_profile_id` other than the converter's profile.  Validation: veraPDF validates
+PDF/A and PDF/UA, not PDF/X, and is not installed on the build Mac; neither is a PDF/X preflight
+(Acrobat) nor the Ghent Workgroup suite.  The tests check the object graph for the rules above,
+open every file in PDFKit, compare X-4 pages with the reference renderer, and run Ghostscript
+(`-dPDFSTOPONERROR`) over X-1a, X-4 and layered files without errors.
 
 === Build tasks
 

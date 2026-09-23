@@ -261,6 +261,21 @@ writes one text file per page, with an optional per-page delay for IO-014's canc
 PDF content streams come from WTInterchange's own writer over the flattened scene, not a
 `WTRender` PDF backend (export-pdf.adoc).
 
+NOTE: As extended by IO-018, IO-020, IO-022, IO-023, IO-024, IO-026, IO-029 and IO-030.
+`ExportRegistry.standard` registers an exporter for every format: `PDFExporter`,
+`IllustratorExporter`, `EPSExporter`, `SVGExporter`, `DXFExporter`, `BitmapExporter` (PNG, JPEG,
+GIF, TIFF, BMP, Targa, and WebP, HEIC and AVIF only where the running macOS's ImageIO encodes
+them), `PSDExporter`, `RTFExporter` and `PlainTextExporter`.  Encoders as built: ImageIO for PNG,
+JPEG, TIFF (8-bit palette TIFF from an indexed image), BMP, HEIC and AVIF; own writers for Targa,
+GIF, 8-bit palette PNG, PSD/PSB, EPS, SVG, DXF, RTF and plain text; no `libwebp` or `libavif` is
+bundled (export-bitmap.adoc, IO-024 note), so a format ImageIO cannot encode throws
+`ExportError.encoderUnavailable` -- on macOS 26 that is WebP -- instead of `notImplemented`.
+Rich Text and Plain Text carry `multiPage`: every page's text goes into one file.  Exporters
+that convert to CMYK take a `CMYKConverter` (`ProfileCMYKConverter`: a CMYK profile of WTColor's
+`ProfileRegistry`, the bundled Default CMYK -- ColorSync's Generic CMYK -- unless the dialog
+passes the document's Working CMYK or a PDF/X destination profile).  `ExportScene.text` carries
+the text blocks and stories text export reads (export-text.adoc, IO-030 note).
+
 === Build tasks
 
 [[IO-013]]

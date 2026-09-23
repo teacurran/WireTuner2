@@ -85,18 +85,20 @@ public protocol BitmapFormatOptions: ExportOptions {
 
 public struct PNGOptions: BitmapFormatOptions, Hashable {
     public var common: BitmapCommonOptions
-    /// 24, 32 (with alpha), 48 or 64 (16 bits per channel, with alpha).  8-bit palettes need
-    /// IO-022's quantizer.
+    /// 8 (palette), 24, 32 (with alpha), 48 or 64 (16 bits per channel, with alpha).
     public var bits: Int
     public var interlaced: Bool
     /// *Fastest* compression rather than *Smallest*.
     public var fast: Bool
+    /// How the 8-bit palette is chosen.
+    public var palette: PaletteSettings
 
-    public init(common: BitmapCommonOptions = BitmapCommonOptions(), bits: Int = 32, interlaced: Bool = false, fast: Bool = false) {
+    public init(common: BitmapCommonOptions = BitmapCommonOptions(), bits: Int = 32, interlaced: Bool = false, fast: Bool = false, palette: PaletteSettings = PaletteSettings()) {
         self.common = common
         self.bits = bits
         self.interlaced = interlaced
         self.fast = fast
+        self.palette = palette
     }
 
     public static var defaults: PNGOptions { PNGOptions() }
@@ -136,17 +138,20 @@ public struct TIFFOptions: BitmapFormatOptions, Hashable {
     public var common: BitmapCommonOptions
     public var compression: Compression
     public var jpegQuality: Int
-    /// 24, 32 (alpha), 48, 64 (alpha); CMYK is 32.
+    /// 8 (palette, no alpha), 24, 32 (alpha), 48, 64 (alpha); CMYK is 32.
     public var bits: Int
     /// *Mac* byte order; ImageIO writes the order it chooses (every reader accepts both).
     public var bigEndian: Bool
+    /// How the 8-bit palette is chosen.
+    public var palette: PaletteSettings
 
-    public init(common: BitmapCommonOptions = BitmapCommonOptions(), compression: Compression = .lzw, jpegQuality: Int = 85, bits: Int = 32, bigEndian: Bool = true) {
+    public init(common: BitmapCommonOptions = BitmapCommonOptions(), compression: Compression = .lzw, jpegQuality: Int = 85, bits: Int = 32, bigEndian: Bool = true, palette: PaletteSettings = PaletteSettings()) {
         self.common = common
         self.compression = compression
         self.jpegQuality = jpegQuality
         self.bits = bits
         self.bigEndian = bigEndian
+        self.palette = palette
     }
 
     public static var defaults: TIFFOptions { TIFFOptions() }
@@ -180,4 +185,77 @@ public struct TargaOptions: BitmapFormatOptions, Hashable {
     }
 
     public static var defaults: TargaOptions { TargaOptions() }
+}
+
+/// GIF options (export-bitmap.adoc, "GIF"; `GifOptions`).  GIF's transparency is its own option:
+/// the common *Background* applies only when `transparent` is off (a transparent choice there
+/// reads as white).
+public struct GIFOptions: BitmapFormatOptions, Hashable {
+    public var common: BitmapCommonOptions
+    public var palette: PaletteSettings
+    /// Pixels where nothing is drawn become the transparent index.
+    public var transparent: Bool
+    /// The colour anti-aliased edges blend toward.
+    public var matte: Color
+    public var interlaced: Bool
+
+    public init(common: BitmapCommonOptions = BitmapCommonOptions(), palette: PaletteSettings = PaletteSettings(), transparent: Bool = true, matte: Color = .white, interlaced: Bool = false) {
+        self.common = common
+        self.palette = palette
+        self.transparent = transparent
+        self.matte = matte
+        self.interlaced = interlaced
+    }
+
+    public static var defaults: GIFOptions { GIFOptions() }
+}
+
+/// WebP options (`WebpOptions`).
+public struct WebPOptions: BitmapFormatOptions, Hashable {
+    public var common: BitmapCommonOptions
+    public var lossless: Bool
+    /// 1 ... 100.
+    public var quality: Int
+
+    public init(common: BitmapCommonOptions = BitmapCommonOptions(), lossless: Bool = false, quality: Int = 80) {
+        self.common = common
+        self.lossless = lossless
+        self.quality = quality
+    }
+
+    public static var defaults: WebPOptions { WebPOptions() }
+}
+
+/// HEIC options (`HeicOptions`).
+public struct HEICOptions: BitmapFormatOptions, Hashable {
+    public var common: BitmapCommonOptions
+    /// 1 ... 100.
+    public var quality: Int
+
+    public init(common: BitmapCommonOptions = BitmapCommonOptions(), quality: Int = 80) {
+        self.common = common
+        self.quality = quality
+    }
+
+    public static var defaults: HEICOptions { HEICOptions() }
+}
+
+/// AVIF options (`AvifOptions`).
+public struct AVIFOptions: BitmapFormatOptions, Hashable {
+    public var common: BitmapCommonOptions
+    /// Exact pixels.  ImageIO's AVIF encoder has no lossless mode, so this is refused.
+    public var lossless: Bool
+    /// 1 ... 100.
+    public var quality: Int
+    /// Encoder effort, 0 (slowest, smallest) ... 10.  ImageIO offers no control: reported.
+    public var speed: Int
+
+    public init(common: BitmapCommonOptions = BitmapCommonOptions(), lossless: Bool = false, quality: Int = 80, speed: Int = 6) {
+        self.common = common
+        self.lossless = lossless
+        self.quality = quality
+        self.speed = speed
+    }
+
+    public static var defaults: AVIFOptions { AVIFOptions() }
 }

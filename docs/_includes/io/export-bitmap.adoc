@@ -377,11 +377,66 @@ extended-range colour values, which the renderer still draws clipped; the P3 tag
 count are in place for CMS-015.  *Working RGB* is sRGB and CMYK is Generic CMYK until the CMS epic
 supplies document profiles.  Greyscale and CMYK have no alpha channel (Core Graphics bitmap
 contexts do not support one), so a transparent background needs RGB.  *Mask from layer* receives
-the layer's artwork as a `DisplayList` in the options.  Not available yet: 8-bit palette PNG and
-TIFF (IO-022's quantizer), BMP 8 and 16 bit and RLE (ImageIO writes 24 and 32 bit only), a
+the layer's artwork as a `DisplayList` in the options.  Not available yet: BMP 8 and 16 bit and
+RLE (ImageIO writes 24 and 32 bit only; 8-bit palette PNG and TIFF arrived with IO-022), a
 byte-order choice for TIFF and a chroma-subsampling choice for JPEG (ImageIO decides both).  The
 options sheets and *Bitmap Export Defaults* belong to the dialog task (IO-014/IO-015); goldens are
 under `WTInterchangeTests/Goldens` (`WTINTERCHANGE_RECORD_GOLDENS=1`).
+
+NOTE: As built by IO-022 (`Bitmap/Palette.swift`, `Bitmap/PaletteEncoders.swift`).  `PaletteSettings`
+(choice, 2--256 colours, dither 0--100%) is shared by `GIFOptions` and the 8-bit depths of
+`PNGOptions` and `TIFFOptions`.  *Adaptive* is median cut over the exact colour histogram (the box
+with the largest channel range times pixel count splits at its weighted median; an image with no
+more colours than the palette keeps them exactly); *Exact* refuses artwork with more colours than
+the palette holds; *Web 216* is the 6×6×6 cube; *Grayscale* evenly spaced greys; *Custom* reads
+`.act` (768 bytes, or 772 with a count) and `.aco` version 1 or 2 (RGB, HSB and greyscale swatches;
+CMYK and Lab swatches are skipped).  Pixels map to the nearest entry by weighted RGB distance, with
+Floyd–Steinberg diffusion scaled by the dither percentage.  Transparency is one bit: alpha below
+128 is the transparent index (which carries the matte colour), everything else is composited over
+the matte.  GIF's *Transparent background* is its own option; with it off, the common background
+applies (a transparent choice reads as white).  GIF89a is written by an own LZW coder (graphic
+control extension for the transparent index, interlacing); 8-bit palette PNG by an own writer
+(`PLTE`, one-bit `tRNS`, `sRGB`, `pHYs`, Adam7 interlacing) because ImageIO's indexed PNG carries no
+transparency; 8-bit palette TIFF through ImageIO from an indexed image (photometric 3; None, LZW or
+ZIP; no transparency and no JPEG compression, both refused).  Tests read every file back with
+ImageIO: the flat logo keeps its exact colours pixel for pixel, the dithered photograph at 64
+colours has a mean error under 6/255 and several times the transitions of the undithered one,
+the matte test finds every kept edge pixel within 24/255 of the artwork over the matte, and a
+noise image over 256 colours round-trips through the LZW table resets.  The palette preview in the
+options sheet is the dialog task's.
+
+NOTE: As built by IO-023 (`Bitmap/PSDWriter.swift`, `Bitmap/PSDExporter.swift`).  Photoshop layers
+come from the page's top-level layer groups (`ExportNodeInfo.isLayer`), each named from its layer
+(`luni` Unicode names, an ASCII Pascal name with `?` for other characters) and each run of other
+top-level artwork becoming a layer of its own ("Layer N"); a layer group's opacity becomes the
+Photoshop layer's opacity and its pixels render opaque.  Blend-mode keys are all `norm`: the
+display list carries no layer blend modes yet.  Visibility: hidden layers never reach the display
+list, so every written layer is visible.  Layers render through the bitmap rasterizer with a
+transparent background and are cropped to their coverage; in Grayscale and CMYK a layer renders
+twice (RGB for its transparency, the target space over black or no ink for its premultiplied
+colour), CMYK stored inverted as Photoshop does.  Channels are RLE at 8 and 16 bits; the composite
+(RLE) is the page as the options render it, with its alpha when transparent (a negative layer
+count).  Image resources: resolution, the ICC profile when embedding, and Document Info as XMP;
+IIM is not written.  PSB (version 2, 8-byte lengths, 4-byte row counts) above 30,000 pixels on a
+side.  Tests read every file back with a minimal PSD/PSB reader (names, order, opacity, rectangles,
+decoded RLE channels) and ImageIO reads the composite, equal to the PNG export within 2/255.  The
+Photoshop and Affinity acceptance test needs a person at the Mac and was not run.
+
+NOTE: As built by IO-024 (`BitmapExporter` with `WebPOptions`, `HEICOptions`, `AVIFOptions`).
+Decision: no encoder is bundled.  On macOS 26.3 (the build Mac) ImageIO encodes HEIC and AVIF but
+only decodes WebP; `libwebp` and `libavif` (with `libaom` or SVT-AV1) are large C code bases rather
+than a small permissively licensed addition, so WebP is registered only where
+`CGImageDestinationCopyTypeIdentifiers()` lists it and otherwise refused with
+`ExportError.encoderUnavailable(.webp)`.  AVIF through ImageIO is lossy only (its encoder fails at
+quality 1.0 and quality is capped at 0.99), so *Lossless* AVIF is refused with a message pointing
+at PNG, and *Speed* has no ImageIO control (a non-default value is reported).  Alpha, the *RGB
+profile* rule and profile tagging come from the bitmap rasterizer as for PNG: a document with
+colours outside sRGB exports tagged Display P3.  Tests: HEIC and AVIF at quality 80 stay under 30%
+of the PNG size on the photographic test page, transparent corners stay transparent, and a P3
+fill decodes within 6/255 (lossy coding); lossless WebP and AVIF round trips and "the bundled
+encoder is statically linked and notarized" cannot apply.  The decision belongs in
+xref:decisions.adoc[Decisions] (proposed in the IO-024 report).  The options sheets with size
+estimates are the dialog task's.
 
 === Build tasks
 

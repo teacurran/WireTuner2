@@ -49,6 +49,19 @@ public struct ExportDestination: Hashable, Sendable {
     }
 }
 
+extension ExportDestination {
+    /// Writes a format's one file at the chosen URL with `fileExtension`.
+    func writeSingle(_ written: (data: Data, notes: [String]), extension fileExtension: String) throws -> ExportSummary {
+        let file = url.deletingPathExtension().appendingPathExtension(fileExtension)
+        do {
+            try written.data.write(to: file)
+        } catch {
+            throw ExportError.writeFailed(error.localizedDescription)
+        }
+        return ExportSummary(files: [file], notes: written.notes)
+    }
+}
+
 /// What an export wrote and what it had to change.
 public struct ExportSummary: Hashable, Sendable {
     /// Every file written, in order.
@@ -74,6 +87,9 @@ public enum ExportError: Error, Hashable, Sendable, CustomStringConvertible {
     case invalidOption(String)
     /// No exporter is registered for the format yet.
     case notImplemented(ExportFormat)
+    /// This Mac's image encoders cannot write the format (WebP: ImageIO decodes it but has no
+    /// encoder, and no encoder is bundled).
+    case encoderUnavailable(ExportFormat)
     /// There is nothing to export.
     case nothingToExport
     /// Encoding or writing failed.
@@ -91,6 +107,8 @@ public enum ExportError: Error, Hashable, Sendable, CustomStringConvertible {
             return message
         case .notImplemented(let format):
             return "\(format.displayName) export is not available yet."
+        case .encoderUnavailable(let format):
+            return "This Mac cannot encode \(format.displayName) images: macOS provides no \(format.displayName) encoder and none is bundled.  Choose another format."
         case .nothingToExport:
             return "There is nothing to export."
         case .writeFailed(let message):
@@ -213,16 +231,24 @@ public struct ExportRegistry: Sendable {
         self.exporters = table
     }
 
-    /// The exporters this package ships: PDF, SVG, PNG, JPEG, TIFF, BMP and Targa.
+    /// The exporters this package ships: every format, WebP, HEIC and AVIF where this Mac's
+    /// ImageIO encodes them.
     public static let standard = ExportRegistry(exporters: [
         PDFExporter(),
+        IllustratorExporter(),
+        EPSExporter(),
         SVGExporter(),
+        DXFExporter(),
         BitmapExporter(format: .png),
         BitmapExporter(format: .jpeg),
+        BitmapExporter(format: .gif),
         BitmapExporter(format: .tiff),
+        PSDExporter(),
         BitmapExporter(format: .bmp),
         BitmapExporter(format: .targa),
-    ])
+        RTFExporter(),
+        PlainTextExporter(),
+    ] + [ExportFormat.webp, .heic, .avif].filter(BitmapExporter.canEncode).map { BitmapExporter(format: $0) })
 
     /// Every format the Format menu lists, in its order.
     public var formats: [ExportFormat] { ExportFormat.allCases }
@@ -240,6 +266,9 @@ public struct ExportRegistry: Sendable {
     /// The exporter for `format`.
     public func exporter(for format: ExportFormat) throws -> any Exporter {
         guard let exporter = exporters[format] else {
+            if [.webp, .heic, .avif].contains(format) && !BitmapExporter.canEncode(format) {
+                throw ExportError.encoderUnavailable(format)
+            }
             throw ExportError.notImplemented(format)
         }
         return exporter

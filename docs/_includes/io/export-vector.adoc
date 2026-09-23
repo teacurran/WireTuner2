@@ -398,9 +398,11 @@ fonts* embeds TrueType subsets (`glyf` fonts that allow embedding, not variable 
 `@font-face` data URLs and outlines the rest; gradients are written as sRGB stops sampled from
 WTRender's OKLab ramp (Repeat, Reflect and Logarithmic unrolled); a gradient mask is a luminance
 mask painting white with the factor as `stop-opacity`; a display-list colour outside sRGB
-(extended components) is written as its clipped hex with a CSS Color 4 `color(display-p3 …)`
-declaration after it (in `style` for presentation attributes), clipping standing in for COLOR-024's
-gamut mapping.  Symbols reach the display list expanded, so *Symbols* is always *Expand*.  Links
+outside sRGB is written as its sRGB fallback in hex with a CSS Color 4 `color(display-p3 …)`
+declaration after it (in `style` for presentation attributes).  Since the display list's colours
+became tagged (D-052) the fallback is COLOR-024's gamut mapping (`WTColor.Gamut.map`) rather than a
+per-channel clip, and "outside sRGB" is `WTColor.Gamut.contains`, so Display P3, Lab and OKLab
+colours qualify as well as extended sRGB values.  Symbols reach the display list expanded, so *Symbols* is always *Expand*.  Links
 use `xlink:href` (valid in SVG 1.1 and read by SVG 2 viewers).  The IO-019 checks run as unit
 tests: XMLParser well-formedness, an element and attribute vocabulary check (SVG 1.1 plus
 `feDropShadow` and `vector-effect`), dangling references, unique ids and path geometry within the
@@ -408,6 +410,65 @@ precision; the WebKit/Chromium screenshot comparison and the IMG importer round 
 browser harness and IMG's SVG importer.  *For IO-031*: flat nodes keep their `NodeID`, and
 `SVGBuild.assignNodeIDs` reserves every name id before any generated id (`wt-g1`, `st1`…), so
 `aria-labelledby` ids can be generated the same way without colliding.
+
+NOTE: As built by IO-018 (`WTInterchange/EPS`).  Each page is flattened for the `.opaque` target
+and written as DSC 3.0 EPSF (`%%BoundingBox` and `%%HiResBoundingBox` from the export bounds, one
+`%%Page`, `showpage` in the page trailer).  The prolog binds PDF's operator spellings (`m`, `l`,
+`c`, `re`, `f`, `W n`, `cm`, `rg`, `k`…) to the PostScript operators in a private `WTDict`, so the
+content is written by the PDF writer's `PDFContent`.  *Level 3*: linear and radial gradients are
+`shfill` shadings (types 2 and 3) over a 256-sample type 0 function of WTRender's ramp; contour,
+cone and rectangle gradients reach the writer already rendered by the flattener (no type 4/6
+meshes, as for PDF).  *Level 2*: stepped bands, `EPSOptions.gradientSteps` (default 256) standing
+in for the print settings' gradient steps.  *Fonts*: TrueType (`glyf`) fonts that allow embedding
+become Type 42 fonts over the same TrueType subset the PDF writer embeds (*Complete*: every
+glyph), 256 codes per font resource, `sfnts` cut at table and glyph boundaries; CFF-flavoured
+fonts and variable instances are outlined and named in the summary (the specification's CFF
+subsets would need a Level 3 `FontSetInit` resource); *Reference only* names the font
+(`%%DocumentNeededResources`, `%%IncludeResource`) re-encoded to ISO Latin-1 and shows runs by
+their characters, outlining runs that are not one glyph per Latin-1 character.  *Colors*: *Keep*
+and *Convert to RGB* write DeviceRGB -- the sRGB fallback (`WTColor.Gamut.map`) for colours
+outside sRGB, reported, since EPS carries no Display P3 -- and CMYK colours keep their inks
+(`setcmykcolor`) under *Keep*; *Convert to CMYK* converts everything through the `CMYKConverter`.
+Spot separations are not written: the display list carries no spot colours yet.  Images are
+ASCII85 with FlateDecode (Level 3) or RunLengthDecode (Level 2); a placed RGB JPEG keeps its bytes
+under DCTDecode unless converting to CMYK.  The TIFF preview is an uncompressed TIFF rendered by
+the bitmap rasterizer at 72 or 144 ppi in the DOS EPS binary header.  Document Info: `%%Title`,
+`%%For`, `%%CreationDate`, and `%WTSubject`, `%WTDescription`, `%WTKeywords`, `%WTLanguage`
+comments.  *Embed {product} document* is reported, not written (IO-028, as for PDF).  Tests run
+Ghostscript (`gs -dEPSCrop -sDEVICE=png16m -r144`) over every corpus page and hold it to the
+reference renderer (at most 3% of pixels beyond 40/255), when `/opt/homebrew/bin/gs` exists.
+
+NOTE: As built by IO-020 (`WTInterchange/DXF`).  Before flattening, every paint is made solid black
+and every effect but the vector effects is dropped, so that each outline survives as geometry
+rather than as an image DXF cannot hold; the flattener then runs without compositing, expands
+vector effects, blends and brushes, outlines all text and, with *Outline strokes*, strokes.  Each
+contour is its own entity (a compound path's holes are separate closed polylines; contours of
+filled paths are always closed).  *Splines* write a clamped cubic B-spline whose control points
+are the Béziers' own with triple interior knots (the curve is exactly the path), `70` = 8
+(planar; not flagged closed, which readers take as periodic); straight-edged contours stay
+`LWPOLYLINE`s; R12 refuses splines.  *Layers* come from display-list groups whose
+`ExportNodeInfo.isLayer` is set (nested layers take their own), names cleaned of DXF's forbidden
+characters and made unique case-insensitively; everything else is on layer 0.  *Units*: the
+scene carries no document units yet, so *Document* reads as points, and points are written
+unitless (`$INSUNITS` 0, DXF has no point unit), both reported; *Tolerance* 0 means 0.1 mm.
+Clipping paths are ignored (clipped artwork is written whole) and images left out, both
+reported.  R2000/2018 files carry `CLASSES`, the `VPORT`, `LTYPE`, `LAYER`, `STYLE`, `VIEW`, `UCS`,
+`APPID`, `DIMSTYLE` and `BLOCK_RECORD` tables, the model- and paper-space blocks and a root
+dictionary, with handles, owners and `$HANDSEED`; strings are UTF-8 in 2018 and `\U+XXXX` in
+2000 and R12.  Tests read every file back with a minimal DXF reader (group codes, sections, layer
+table, handles, `LWPOLYLINE`, `POLYLINE`/`VERTEX` and `SPLINE` evaluated by de Boor) and check
+dimensions to 0.01 mm; `ezdxfAuditsTheCorpus` audits the corpus in all three versions with
+ezdxf's recover auditor when `WTINTERCHANGE_EZDXF_PYTHON` names a Python with ezdxf (ezdxf 1.4.4:
+no errors, no fixes).  LibreCAD is not installed on the build Mac; the LibreCAD check was not run.
+
+NOTE: As built by IO-029 (`IllustratorExporter`).  The `.ai` file is `PDFExporter` output with
+`IllustratorOptions.pdfOptions`: PDF 1.7, *Complete* fonts (text stays editable), layers as
+optional content groups (`/Usage << /CreatorInfo << /Creator … /Subtype /Artwork >> >>`, one per
+top-level layer group, in `/OCProperties` with `/Order` and `/ON`), links kept; the sheet's
+*Colors*, *Embed {product} document* (reported until IO-028) and *Include document info* pass
+through.  It opens in PDFKit (and so Preview) and Ghostscript in the tests; the Illustrator
+acceptance test needs a person at the Mac -- Photoshop and Illustrator could not be driven by
+AppleScript from the build session -- and was not run.
 
 === Build tasks
 

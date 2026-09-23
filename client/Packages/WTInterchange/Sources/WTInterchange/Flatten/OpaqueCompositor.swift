@@ -134,9 +134,10 @@ struct OpaqueCompositor {
     }
 
     /// `top` composited source-over onto opaque `bottom`, in sRGB (the document blending space
-    /// until the CMS epic supplies another).
+    /// until the CMS epic supplies another): both as their sRGB fallbacks.
     static func over(_ top: Color, _ bottom: Color) -> Color {
         let a = min(max(top.alpha, 0), 1)
+        let top = ColorMath.sRGBFallback(top), bottom = ColorMath.sRGBFallback(bottom)
         return Color(
             red: top.red * a + bottom.red * (1 - a),
             green: top.green * a + bottom.green * (1 - a),

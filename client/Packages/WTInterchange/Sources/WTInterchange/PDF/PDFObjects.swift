@@ -90,6 +90,8 @@ indirect enum PDFValue {
 /// The objects of one PDF file.
 final class PDFObjects {
     private var bodies: [Int: Data] = [:]
+    /// Every object's dictionary (or value) text, for the PDF/X check.
+    private var texts: [Int: String] = [:]
     private(set) var count = 0
     /// Compress streams with FlateDecode (off only for debugging).
     let compress: Bool
@@ -106,7 +108,9 @@ final class PDFObjects {
 
     /// Writes object `number`.
     func set(_ number: Int, _ value: PDFValue) {
-        bodies[number] = Data("\(number) 0 obj\n\(value.text)\nendobj\n".utf8)
+        let text = value.text
+        texts[number] = text
+        bodies[number] = Data("\(number) 0 obj\n\(text)\nendobj\n".utf8)
     }
 
     /// Writes stream object `number`: `data` compressed unless `raw` (already encoded, its
@@ -119,10 +123,17 @@ final class PDFObjects {
             entries.append(("Filter", .name("FlateDecode")))
         }
         entries.append(("Length", .int(payload.count)))
-        var body = Data("\(number) 0 obj\n\(PDFValue.dictionary(entries).text)\nstream\n".utf8)
+        let text = PDFValue.dictionary(entries).text
+        texts[number] = text
+        var body = Data("\(number) 0 obj\n\(text)\nstream\n".utf8)
         body.append(payload)
         body.append(Data("\nendstream\nendobj\n".utf8))
         bodies[number] = body
+    }
+
+    /// The dictionaries and values of every object written so far, in number order.
+    var dictionaries: [String] {
+        texts.keys.sorted().map { texts[$0]! }
     }
 
     func add(_ value: PDFValue) -> Int {
@@ -161,5 +172,33 @@ final class PDFObjects {
         table += "trailer\n\(PDFValue.dictionary(trailer).text)\nstartxref\n\(xref)\n%%EOF\n"
         file.append(Data(table.utf8))
         return file
+    }
+}
+
+/// The PDF/X self-check run over the object graph before the file is written: keys and values a
+/// standard forbids.  The writer's conforming options should leave nothing to report; anything it
+/// finds goes to the export summary.
+enum PDFXCheck {
+    static func violations(_ dictionaries: [String], standard: PDFOptions.Standard) -> [String] {
+        let forbidden: [(String, String)]
+        switch standard {
+        case .none:
+            return []
+        case .pdfX1a2001:
+            forbidden = [
+                ("/SMask", "soft mask (transparency)"), ("/CA ", "constant alpha"), ("/ca ", "constant alpha"), ("/BM ", "blend mode"),
+                ("/S /Transparency", "transparency group"), ("/DeviceRGB", "RGB color"), ("/ICCBased", "ICC-based color"), ("/Lab", "Lab color"),
+                ("/Annots", "annotations"), ("/OCProperties", "layers"), ("/EmbeddedFile", "embedded file"), ("/Encrypt", "encryption"),
+            ]
+        case .pdfX4_2010:
+            forbidden = [("/DeviceRGB", "untagged RGB color"), ("/Annots", "annotations"), ("/Encrypt", "encryption"), ("/JavaScript", "JavaScript"), ("/EmbeddedFile", "embedded file")]
+        }
+        // An ICC-based space's alternate names a device space without using it.
+        let texts = dictionaries.map { $0.replacingOccurrences(of: "/Alternate /DeviceRGB", with: "") }
+        var found: [String] = []
+        for (token, name) in forbidden where texts.contains(where: { $0.contains(token) }) && !found.contains(name) {
+            found.append(name)
+        }
+        return found.map { "\($0) is not allowed" }
     }
 }

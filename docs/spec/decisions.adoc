@@ -526,6 +526,13 @@ so one home serves the renderer, the model (COLOR-002 wraps the proto over these
 parsing and naming) and `WTInterchange`.  Resolves Q-017 (xref:color-management.adoc[],
 xref:spot-process.adoc[]).
 
+[[D-069]]
+=== D-069 Image encoders: ImageIO only
+WebP, HEIC and AVIF are encoded by ImageIO where the running macOS provides the encoder; no
+libwebp or libavif is bundled.  On macOS 26 ImageIO encodes HEIC and AVIF (lossy only) and not
+WebP, so WebP export reports `encoderUnavailable` and lossless AVIF is refused.  Revisit if WebP
+export becomes a requirement or ImageIO gains the encoder (xref:export-bitmap.adoc[]).
+
 == Open questions
 
 [[Q-001]]

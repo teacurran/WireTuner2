@@ -1,7 +1,7 @@
 // PDF export options (export-pdf.adoc; `PdfOptions` in interchange/v1/export_options.proto): the
-// General, Compression, Fonts and Color sections IO-025 delivers, and the page-box and link
-// options its writer needs.  PDF/X standards (IO-026), passwords, notes and bookmarks (IO-027) and
-// the embedded package (IO-028) belong to later tasks and are refused or reported here.
+// General, Compression, Fonts and Color sections (IO-025), PDF/X and the bleed of *Pages and marks*
+// (IO-026), and the page-box and link options the writer needs.  Passwords, notes and bookmarks
+// (IO-027) and the embedded package (IO-028) belong to later tasks and are reported here.
 
 import Foundation
 
@@ -47,7 +47,7 @@ public struct PDFOptions: ExportOptions, Hashable {
 
     public var version: Version
     public var standard: Standard
-    /// Layers as optional content (PDF 1.5+).  Not written yet: reported.
+    /// Document layers as optional content groups (PDF 1.5+).
     public var layers: Bool
     /// The embedded document package (IO-028).  Not written yet: reported.
     public var embedPackage: Bool
@@ -66,6 +66,9 @@ public struct PDFOptions: ExportOptions, Hashable {
     public var embedProfiles: Bool
     public var preserveOverprint: Bool
     public var pageSize: PageSize
+    /// The bleed comes from the document (each page's bleed); otherwise `bleedPoints`.
+    public var useDocumentBleed: Bool
+    public var bleedPoints: Double
     public var linksFromURLs: Bool
     /// Pixels per inch for regions PDF cannot express; 0 uses the document's raster resolution.
     public var rasterPPI: Double
@@ -88,6 +91,8 @@ public struct PDFOptions: ExportOptions, Hashable {
         embedProfiles: Bool = true,
         preserveOverprint: Bool = true,
         pageSize: PageSize = .page,
+        useDocumentBleed: Bool = true,
+        bleedPoints: Double = 0,
         linksFromURLs: Bool = true,
         rasterPPI: Double = 0
     ) {
@@ -108,20 +113,22 @@ public struct PDFOptions: ExportOptions, Hashable {
         self.embedProfiles = embedProfiles
         self.preserveOverprint = preserveOverprint
         self.pageSize = pageSize
+        self.useDocumentBleed = useDocumentBleed
+        self.bleedPoints = bleedPoints
         self.linksFromURLs = linksFromURLs
         self.rasterPPI = rasterPPI
     }
 
     public static var defaults: PDFOptions { PDFOptions() }
 
-    /// Rejects values outside the sheet's ranges and choices later tasks deliver.
+    /// The shipped *Print (PDF/X-4)* preset: transparency live, colours tagged, page plus bleed.
+    public static var printPDFX4: PDFOptions { PDFOptions(standard: .pdfX4_2010, pageSize: .pagePlusBleed) }
+
+    /// The shipped *Press (PDF/X-1a)* preset: flattened, CMYK, page plus bleed.
+    public static var pressPDFX1a: PDFOptions { PDFOptions(standard: .pdfX1a2001, colors: .convertToCMYK, embedProfiles: false, pageSize: .pagePlusBleed) }
+
+    /// Rejects values outside the sheet's ranges.
     func validate() throws {
-        guard standard == .none else {
-            throw ExportError.invalidOption("PDF/X output is not available yet (IO-026).")
-        }
-        guard colors != .convertToCMYK else {
-            throw ExportError.invalidOption("Converting to CMYK needs the document's CMYK profile (CMS epic).")
-        }
         guard (1...100).contains(jpegQuality) else {
             throw ExportError.invalidOption("JPEG quality must be 1 to 100.")
         }
@@ -131,10 +138,56 @@ public struct PDFOptions: ExportOptions, Hashable {
         guard rasterPPI >= 0 else {
             throw ExportError.invalidOption("The raster resolution cannot be negative.")
         }
+        guard bleedPoints.isFinite, bleedPoints >= 0, bleedPoints <= 72 else {
+            throw ExportError.invalidOption("The bleed must be 0 to 72 points (1 inch).")
+        }
+    }
+
+    /// The options a standard requires, and what was changed to meet it (the fix report).
+    func conforming() -> (options: PDFOptions, fixes: [String]) {
+        var result = self
+        var fixes: [String] = []
+        func force<Value: Equatable>(_ path: WritableKeyPath<PDFOptions, Value>, _ value: Value, _ fix: String) {
+            if result[keyPath: path] != value {
+                result[keyPath: path] = value
+                fixes.append(fix)
+            }
+        }
+        switch standard {
+        case .none:
+            return (self, [])
+        case .pdfX1a2001:
+            force(\.colors, .convertToCMYK, "colors converted to CMYK (PDF/X-1a allows CMYK and spot colors only)")
+            force(\.embedProfiles, false, "profiles not embedded (PDF/X-1a uses the output intent only)")
+            force(\.layers, false, "layers flattened into the page (PDF/X-1a has no layers)")
+        case .pdfX4_2010:
+            force(\.embedProfiles, true, "profiles embedded (PDF/X-4 requires tagged color)")
+        }
+        force(\.includeDocumentInfo, true, "document info included (PDF/X identifies itself there)")
+        force(\.preserveOverprint, true, "overprint preserved (PDF/X requires it)")
+        force(\.embedPackage, false, "the embedded document package left out (PDF/X forbids attachments)")
+        force(\.linksFromURLs, false, "links left out (PDF/X allows no annotations on the page)")
+        force(\.pageSize, .pagePlusBleed, "media box set to page plus bleed (PDF/X bleed box)")
+        return (result, fixes)
+    }
+
+    /// The version written in the file header: a standard's own (PDF/X-1a:2001 is PDF 1.3,
+    /// PDF/X-4 is PDF 1.6), otherwise the chosen one.
+    var headerVersion: String {
+        switch standard {
+        case .none: return version.rawValue
+        case .pdfX1a2001: return "1.3"
+        case .pdfX4_2010: return "1.6"
+        }
     }
 
     /// Whether Display P3 colours can be written with their profile (ICC v4 needs PDF 1.7).
     var keepsDisplayP3: Bool {
-        embedProfiles && colors == .keep && (version == .v1_7 || version == .v2_0)
+        embedProfiles && colors == .keep && standard == .none && (version == .v1_7 || version == .v2_0)
+    }
+
+    /// Whether optional content (layers) can be written: PDF 1.5 or later.
+    var writesLayers: Bool {
+        layers && (standard == .pdfX4_2010 || version != .v1_4)
     }
 }

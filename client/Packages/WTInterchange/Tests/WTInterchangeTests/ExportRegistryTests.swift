@@ -36,10 +36,22 @@ import WTRender
     @Test func registryHandsOutExporters() throws {
         var registry = ExportRegistry.standard
         #expect(registry.formats == ExportFormat.allCases)
-        #expect(registry.availableFormats == [.pdf, .svg, .png, .jpeg, .tiff, .bmp, .targa])
+        let encodable = [ExportFormat.webp, .heic, .avif].filter(BitmapExporter.canEncode)
+        #expect(registry.availableFormats == ExportFormat.allCases.filter { ![.webp, .heic, .avif].contains($0) || encodable.contains($0) })
         #expect(try registry.exporter(for: .svg).format == .svg)
         #expect(try registry.exporter(for: .pdf).optionsType == PDFOptions.self)
-        #expect(throws: ExportError.notImplemented(.eps)) { try registry.exporter(for: .eps) }
+        for format in registry.availableFormats {
+            let exporter = try registry.exporter(for: format)
+            #expect(exporter.format == format)
+            #expect(exporter.capabilities == format.capabilities)
+            #expect(type(of: exporter.optionsType.defaults) == exporter.optionsType)
+        }
+        if !encodable.contains(.webp) {
+            #expect(throws: ExportError.encoderUnavailable(.webp)) { try registry.exporter(for: .webp) }
+        }
+        let empty = ExportRegistry(exporters: [])
+        #expect(throws: ExportError.notImplemented(.eps)) { try empty.exporter(for: .eps) }
+        #expect(throws: ExportError.notImplemented(.heic)) { try empty.exporter(for: .heic) }
         registry.register(StubExporter(format: .eps))
         #expect(try registry.exporter(for: .eps).optionsType == StubExportOptions.self)
         #expect(registry.format(forExtension: "SVG") == .svg)
@@ -83,7 +95,7 @@ import WTRender
         let errors: [ExportError] = [
             .unsupported([.alpha, .multiPage, .vector, .text, .transparency, .layers, .metadata, .colorProfiles, .spotColors, .cmyk, .links, .filters, .scales], format: .jpeg),
             .namePatternRequired(format: .png, files: 2), .wrongOptions(format: .svg), .invalidOption("bad"),
-            .notImplemented(.eps), .nothingToExport, .writeFailed("disk"),
+            .notImplemented(.eps), .encoderUnavailable(.webp), .nothingToExport, .writeFailed("disk"),
         ]
         for error in errors {
             #expect(!error.description.isEmpty)

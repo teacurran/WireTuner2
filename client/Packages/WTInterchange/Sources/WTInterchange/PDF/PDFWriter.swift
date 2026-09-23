@@ -10,8 +10,10 @@
 // masks whose group paints a DeviceGray shading -- vector, no bitmap; clipping; overprint graphics
 // states; images with `FlateDecode` (or the placed JPEG's bytes under `DCTDecode`) and an `SMask`
 // for alpha, downsampled on request; fonts as TrueType subsets or Type 3 glyphs with `ToUnicode`;
-// links from attached URLs; page boxes; document info and XMP metadata; the cross-reference table.
-// Linearization, object streams, layers and the embedded package are reported, not written.
+// links from attached URLs; page boxes; document info and XMP metadata; layers as optional content
+// groups (IO-029); PDF/X-1a and PDF/X-4 identification, output intents and CMYK conversion through a
+// `CMYKConverter` (IO-026); the cross-reference table.  Linearization, object streams and the
+// embedded package are reported, not written.
 
 import CoreGraphics
 import CoreText
@@ -24,15 +26,18 @@ import WTRender
 /// Writes flattened pages as one PDF.
 public struct PDFWriter: Sendable {
     public var options: PDFOptions
+    /// Converts colours and images under *Convert to CMYK* and names the PDF/X output intent.
+    public var cmyk: any CMYKConverter
 
-    public init(options: PDFOptions = .defaults) {
+    public init(options: PDFOptions = .defaults, cmyk: any CMYKConverter = ProfileCMYKConverter()) {
         self.options = options
+        self.cmyk = cmyk
     }
 
     /// `pages` (flattened from `scene`'s pages, in order) as a PDF file, and notes for the
     /// export summary.
     public func write(_ pages: [FlatPage], scene: ExportScene) -> (data: Data, notes: [String]) {
-        PDFDocumentBuild(options: options, scene: scene).write(pages)
+        PDFDocumentBuild(options: options, scene: scene, cmyk: cmyk).write(pages)
     }
 }
 
@@ -40,6 +45,7 @@ public struct PDFWriter: Sendable {
 final class PDFDocumentBuild {
     let options: PDFOptions
     let scene: ExportScene
+    let cmyk: any CMYKConverter
     let objects: PDFObjects
     let fonts: PDFFontRegistry
     var notes: [String] = []
@@ -48,19 +54,29 @@ final class PDFDocumentBuild {
     var wideClipped = 0
     var wideKept = 0
     var outlinedFonts = Set<String>()
+    /// Colours and images converted to CMYK.
+    var convertedColors = Set<Color>()
+    var convertedImages = 0
+    /// Optional content groups by layer node, in first-use order.
+    private(set) var layerGroups: [(node: NodeID, object: Int)] = []
 
-    init(options: PDFOptions, scene: ExportScene) {
+    init(options: PDFOptions, scene: ExportScene, cmyk: any CMYKConverter = ProfileCMYKConverter()) {
         self.options = options
         self.scene = scene
+        self.cmyk = cmyk
         objects = PDFObjects(compress: options.compressContent)
         fonts = PDFFontRegistry(objects: objects, embedAll: options.fonts == .embedFull)
     }
+
+    /// Whether every colour is written as DeviceCMYK.
+    var cmykOutput: Bool { options.colors == .convertToCMYK }
 
     func write(_ pages: [FlatPage]) -> (data: Data, notes: [String]) {
         let pagesObject = objects.reserve()
         var pageObjects: [Int] = []
         for (index, page) in pages.enumerated() {
-            let bleed = options.pageSize == .pagePlusBleed && index < scene.pages.count ? scene.pages[index].bleed : 0
+            let documentBleed = index < scene.pages.count ? scene.pages[index].bleed : 0
+            let bleed = options.pageSize == .pagePlusBleed ? (options.useDocumentBleed ? documentBleed : options.bleedPoints) : 0
             pageObjects.append(writePage(page, bleed: bleed, parent: pagesObject))
         }
         fonts.finish()
@@ -78,7 +94,23 @@ final class PDFDocumentBuild {
         if let language = scene.info.language {
             catalog.append(("Lang", .string(language)))
         }
-        if wideKept > 0 {
+        if !layerGroups.isEmpty {
+            let groups = PDFValue.array(layerGroups.map { .reference($0.object) })
+            catalog.append(("OCProperties", .dictionary([
+                ("OCGs", groups),
+                ("D", .dictionary([("Name", .string("Layers")), ("Order", groups), ("ON", groups), ("OFF", .array([])), ("BaseState", .name("ON"))])),
+            ])))
+        }
+        if options.standard != .none {
+            catalog.append(("OutputIntents", .array([.dictionary([
+                ("Type", .name("OutputIntent")),
+                ("S", .name("GTS_PDFX")),
+                ("OutputConditionIdentifier", .string(cmyk.outputConditionIdentifier)),
+                ("OutputCondition", .string(cmyk.name)),
+                ("Info", .string(cmyk.name)),
+                ("DestOutputProfile", .reference(objects.addStream([("N", .int(4))], data: cmyk.iccProfile))),
+            ])])))
+        } else if wideKept > 0 {
             // A PDF without a standard that keeps Display P3 objects names Display P3 as its
             // output intent, so viewers know what the document was made for.
             catalog.append(("OutputIntents", .array([.dictionary([
@@ -91,7 +123,7 @@ final class PDFDocumentBuild {
         }
         let root = objects.add(.dictionary(catalog))
         if wideClipped > 0 {
-            notes.append("\(wideClipped) wide-gamut color\(wideClipped == 1 ? "" : "s") converted to sRGB (Display P3 needs PDF 1.7 with profiles embedded)")
+            notes.append("\(wideClipped) wide-gamut color\(wideClipped == 1 ? "" : "s") gamut-mapped into sRGB (Display P3 needs PDF 1.7 with colors kept and profiles embedded)")
         }
         for name in outlinedFonts.sorted() {
             notes.append("font \(name) does not allow embedding; its text is outlined")
@@ -99,13 +131,34 @@ final class PDFDocumentBuild {
         if options.linearize {
             notes.append("fast web view (linearization) is not written yet; the file is not linearized")
         }
-        if options.layers {
-            notes.append("PDF layers are not written yet; layers are flattened into the page")
+        if options.layers && !options.writesLayers {
+            notes.append("PDF layers need PDF 1.5 or later; layers are flattened into the page")
+        }
+        if !convertedColors.isEmpty || convertedImages > 0 {
+            notes.append("\(convertedColors.count) color\(convertedColors.count == 1 ? "" : "s") and \(convertedImages) image\(convertedImages == 1 ? "" : "s") converted to CMYK with the \(cmyk.name) profile")
         }
         if options.embedPackage {
             notes.append("the embedded document package is not written yet (IO-028)")
         }
-        return (objects.file(version: options.version.rawValue, root: root, info: info), notes)
+        for problem in PDFXCheck.violations(objects.dictionaries, standard: options.standard) {
+            notes.append("PDF/X check: \(problem)")
+        }
+        return (objects.file(version: options.headerVersion, root: root, info: info), notes)
+    }
+
+    /// The optional content group of a layer node.
+    func layerGroup(_ node: NodeID) -> Int {
+        if let existing = layerGroups.first(where: { $0.node == node }) {
+            return existing.object
+        }
+        let name = scene.nodes[node]?.name.flatMap { $0.isEmpty ? nil : $0 } ?? "Layer \(layerGroups.count + 1)"
+        let object = objects.add(.dictionary([
+            ("Type", .name("OCG")),
+            ("Name", .string(name)),
+            ("Usage", .dictionary([("CreatorInfo", .dictionary([("Creator", .string(scene.info.creator)), ("Subtype", .name("Artwork"))]))])),
+        ]))
+        layerGroups.append((node, object))
+        return object
     }
 
     // MARK: Pages
@@ -118,7 +171,15 @@ final class PDFDocumentBuild {
         let stream = PDFStreamWriter(build: self, patternBase: base)
         stream.content.transform(base)
         for node in page.nodes {
-            stream.write(node)
+            if options.writesLayers, let id = node.node, scene.nodes[id]?.isLayer == true {
+                let group = layerGroup(id)
+                let name = stream.resources.name("Properties", prefix: "MC", key: String(group)) { .reference(group) }
+                stream.content.op("/OC /\(name) BDC")
+                stream.write(node)
+                stream.content.op("EMC")
+            } else {
+                stream.write(node)
+            }
         }
         let contents = objects.addStream([], data: stream.content.data)
         var dictionary: [(String, PDFValue)] = [
@@ -127,10 +188,11 @@ final class PDFDocumentBuild {
             ("MediaBox", .rect(0, 0, width, height)),
             ("TrimBox", .rect(bleed, bleed, bleed + page.bounds.width, bleed + page.bounds.height)),
         ]
-        if bleed > 0 {
+        if bleed > 0 || options.standard != .none {
             dictionary.append(("BleedBox", .rect(0, 0, width, height)))
         }
-        if let art = FlatNode.union(page.nodes.compactMap(\.bounds))?.intersection(page.bounds).nonEmpty {
+        // PDF/X pages carry a TrimBox or an ArtBox, never both.
+        if options.standard == .none, let art = FlatNode.union(page.nodes.compactMap(\.bounds))?.intersection(page.bounds).nonEmpty {
             let box = art.applying(base)
             dictionary.append(("ArtBox", .rect(box.minX, box.minY, box.maxX, box.maxY)))
         }
@@ -178,6 +240,11 @@ final class PDFDocumentBuild {
             picture = PDFDocumentBuild.resample(picture, width: max(Int((Double(picture.width) * factor).rounded()), 1), height: max(Int((Double(picture.height) * factor).rounded()), 1))
         }
         let colorSpace: PDFValue = options.embedProfiles ? .array([.name("ICCBased"), .reference(icc(CGColorSpace.sRGB))]) : .name("DeviceRGB")
+        if cmykOutput {
+            let object = cmykImageObject(picture)
+            images[key] = (object, image.image)
+            return object
+        }
         let original = picture === image.image && !image.rasterized && options.colorImages != .lossless && options.colorImages != .none ? image.jpegData : nil
         var dictionary: [(String, PDFValue)] = [
             ("Type", .name("XObject")),
@@ -210,6 +277,25 @@ final class PDFDocumentBuild {
         }
         images[key] = (object, image.image)
         return object
+    }
+
+    /// An image converted to DeviceCMYK (lossless, with its alpha as a soft mask where it has one).
+    func cmykImageObject(_ picture: CGImage) -> Int {
+        convertedImages += 1
+        let pixels = RGBAPixels(picture)
+        var dictionary: [(String, PDFValue)] = [
+            ("Type", .name("XObject")), ("Subtype", .name("Image")), ("Width", .int(picture.width)), ("Height", .int(picture.height)),
+            ("BitsPerComponent", .int(8)), ("ColorSpace", .name("DeviceCMYK")),
+        ]
+        if !pixels.isOpaque {
+            let mask: [(String, PDFValue)] = [
+                ("Type", .name("XObject")), ("Subtype", .name("Image")), ("Width", .int(pixels.width)), ("Height", .int(pixels.height)),
+                ("ColorSpace", .name("DeviceGray")), ("BitsPerComponent", .int(8)),
+            ]
+            dictionary.append(("SMask", .reference(objects.addStream(mask, data: pixels.alpha, raw: options.colorImages == .none))))
+        }
+        // Unpremultiplied colours: the soft mask carries the coverage.
+        return objects.addStream(dictionary, data: cmyk.cmykPixels(PDFDocumentBuild.opaqueRGB(pixels)), raw: options.colorImages == .none)
     }
 
     /// The component count of a JPEG (1 grey, 3 RGB, 4 CMYK), nil when it cannot be read.
@@ -265,6 +351,17 @@ final class PDFDocumentBuild {
         }
         let now = pdfDate(Date())
         entries += [("Creator", .string(info.creator)), ("Producer", .string("WireTuner PDF writer")), ("CreationDate", .string(now)), ("ModDate", .string(now))]
+        switch options.standard {
+        case .none:
+            break
+        case .pdfX1a2001:
+            entries += [("GTS_PDFXVersion", .string("PDF/X-1:2001")), ("GTS_PDFXConformance", .string("PDF/X-1a:2001")), ("Trapped", .name("False"))]
+        case .pdfX4_2010:
+            entries += [("GTS_PDFXVersion", .string("PDF/X-4")), ("Trapped", .name("False"))]
+        }
+        if options.standard != .none && info.title == nil {
+            entries.insert(("Title", .string(scene.name)), at: 0)
+        }
         return .dictionary(entries)
     }
 
@@ -273,7 +370,7 @@ final class PDFDocumentBuild {
         let info = scene.info
         func escape(_ text: String) -> String { XMLStream.escape(text, attribute: false) }
         var dc = ""
-        if let title = info.title {
+        if let title = info.title ?? (options.standard != .none ? scene.name : nil) {
             dc += "<dc:title><rdf:Alt><rdf:li xml:lang=\"x-default\">\(escape(title))</rdf:li></rdf:Alt></dc:title>"
         }
         if let author = info.author {
@@ -290,13 +387,28 @@ final class PDFDocumentBuild {
         }
         let formatter = ISO8601DateFormatter()
         let now = formatter.string(from: Date())
+        var standard = ""
+        switch options.standard {
+        case .none:
+            break
+        case .pdfX1a2001:
+            standard = "<pdfxid:GTS_PDFXVersion>PDF/X-1:2001</pdfxid:GTS_PDFXVersion><pdfx:GTS_PDFXConformance>PDF/X-1a:2001</pdfx:GTS_PDFXConformance>"
+        case .pdfX4_2010:
+            standard = "<pdfxid:GTS_PDFXVersion>PDF/X-4</pdfxid:GTS_PDFXVersion>"
+        }
+        if options.standard != .none {
+            let id = "uuid:" + UUID().uuidString.lowercased()
+            standard += "<pdf:Trapped>False</pdf:Trapped><xmpMM:DocumentID>\(id)</xmpMM:DocumentID><xmpMM:InstanceID>\(id)</xmpMM:InstanceID>"
+            standard += "<xmpMM:VersionID>1</xmpMM:VersionID><xmpMM:RenditionClass>default</xmpMM:RenditionClass>"
+        }
         let packet = """
         <?xpacket begin="\u{FEFF}" id="W5M0MpCehiHzreSzNTczkc9d"?>
         <x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">\
-        <rdf:Description rdf:about="" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:xmp="http://ns.adobe.com/xap/1.0/" xmlns:pdf="http://ns.adobe.com/pdf/1.3/">\
+        <rdf:Description rdf:about="" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:xmp="http://ns.adobe.com/xap/1.0/" xmlns:pdf="http://ns.adobe.com/pdf/1.3/" \
+        xmlns:xmpMM="http://ns.adobe.com/xap/1.0/mm/" xmlns:pdfxid="http://www.npes.org/pdfx/ns/id/" xmlns:pdfx="http://ns.adobe.com/pdfx/1.3/">\
         <dc:format>application/pdf</dc:format>\(dc)\
         <xmp:CreatorTool>\(escape(info.creator))</xmp:CreatorTool><xmp:CreateDate>\(now)</xmp:CreateDate><xmp:ModifyDate>\(now)</xmp:ModifyDate>\
-        <pdf:Producer>WireTuner PDF writer</pdf:Producer></rdf:Description></rdf:RDF></x:xmpmeta>
+        <pdf:Producer>WireTuner PDF writer</pdf:Producer>\(standard)</rdf:Description></rdf:RDF></x:xmpmeta>
         <?xpacket end="w"?>
         """
         return Data(packet.utf8)
@@ -367,26 +479,48 @@ final class PDFStreamWriter {
 
     // MARK: Colour
 
-    /// Selects `color` for filling (or stroking) and returns its alpha.
+    /// Selects `color` for filling (or stroking) in the space the options keep it in, and
+    /// returns its alpha.  *Keep*: sRGB as sRGB, CMYK as DeviceCMYK, CIELAB as `/Lab` (D50), and
+    /// Display P3, OKLab and extended sRGB through the Display P3 profile at PDF 1.7 and later --
+    /// otherwise gamut-mapped into sRGB and counted.  *Convert to RGB* gamut-maps everything into
+    /// sRGB; *Convert to CMYK* converts through the CMYK converter.
     func setColor(_ color: Color, stroke: Bool) -> Double {
-        var components = [color.red, color.green, color.blue]
-        var space = CGColorSpace.sRGB
-        if ColorMath.isWide(color) {
-            if options.keepsDisplayP3 {
-                let p3 = ColorMath.displayP3(color)
-                components = [p3.x, p3.y, p3.z]
-                space = CGColorSpace.displayP3
-                build.wideKept += 1
-            } else {
-                let clipped = ColorMath.clipped(color)
-                components = [clipped.red, clipped.green, clipped.blue]
-                build.wideClipped += 1
+        let alpha = min(max(color.alpha, 0), 1)
+        if build.cmykOutput {
+            build.convertedColors.insert(color)
+            content.op(build.cmyk.cmyk(color).map(PDFContent.n).joined(separator: " ") + (stroke ? " K" : " k"))
+            return alpha
+        }
+        let keep = options.colors == .keep
+        if keep && color.space == .cmyk {
+            let c = color.clampedToSpace.components
+            content.op([c.x, c.y, c.z, c.w].map(PDFContent.n).joined(separator: " ") + (stroke ? " K" : " k"))
+            return alpha
+        }
+        if keep && color.space == .lab {
+            let name = resources.name("ColorSpace", prefix: "CS", key: "lab") {
+                .array([.name("Lab"), .dictionary([("WhitePoint", .numbers([0.9642, 1, 0.8249])), ("Range", .numbers([-128, 127, -128, 127]))])])
             }
+            let c = color.clampedToSpace.components
+            content.op("/\(name) \(stroke ? "CS" : "cs") \([c.x, min(c.y, 127), min(c.z, 127)].map(PDFContent.n).joined(separator: " ")) \(stroke ? "SC" : "sc")")
+            return alpha
+        }
+        let rgb = ColorMath.sRGBFallback(color)
+        var components = [rgb.red, rgb.green, rgb.blue]
+        var space = CGColorSpace.sRGB
+        let wide = ColorMath.isWide(color)
+        if keep && options.keepsDisplayP3 && (wide || color.space == .displayP3 || color.space == .oklab) {
+            let p3 = ColorMath.displayP3(color)
+            components = [p3.x, p3.y, p3.z]
+            space = CGColorSpace.displayP3
+            build.wideKept += 1
+        } else if wide {
+            build.wideClipped += 1
         }
         let name = colorSpace(space)
         let values = components.map(PDFContent.n).joined(separator: " ")
         content.op("/\(name) \(stroke ? "CS" : "cs") \(values) \(stroke ? "SC" : "sc")")
-        return min(max(color.alpha, 0), 1)
+        return alpha
     }
 
     func colorSpace(_ space: CFString) -> String {
@@ -458,8 +592,14 @@ final class PDFStreamWriter {
 
     /// A shading pattern for `gradient` painted by an item with local → pasteboard `transform`.
     func pattern(_ gradient: FlatGradient, transform: AffineTransform) -> String {
-        let shading = shadingObject(gradient, components: 3) { t in
+        if build.cmykOutput {
+            build.convertedColors.formUnion(gradient.gradient.stops.map(\.color))
+        }
+        let shading = shadingObject(gradient, components: build.cmykOutput ? 4 : 3) { t in
             let color = gradient.color(at: t)
+            if self.build.cmykOutput {
+                return self.build.cmyk.cmyk(color)
+            }
             return [color.red, color.green, color.blue].map { min(max($0, 0), 1) }
         }
         let matrix = PDFStreamWriter.shadingFrame(gradient).concatenating(transform).concatenating(patternBase)
@@ -497,8 +637,13 @@ final class PDFStreamWriter {
             ("FunctionType", .int(0)), ("Domain", .numbers([0, 1])), ("Range", range),
             ("Size", .array([.int(samples)])), ("BitsPerSample", .int(16)),
         ], data: bytes)
-        let space: PDFValue = components == 1 ? .name("DeviceGray") : .array([.name("ICCBased"), .reference(build.icc(CGColorSpace.sRGB))])
-        var entries: [(String, PDFValue)] = [("ColorSpace", options.embedProfiles || components == 1 ? space : .name("DeviceRGB"))]
+        let space: PDFValue
+        switch components {
+        case 1: space = .name("DeviceGray")
+        case 4: space = .name("DeviceCMYK")
+        default: space = options.embedProfiles ? .array([.name("ICCBased"), .reference(build.icc(CGColorSpace.sRGB))]) : .name("DeviceRGB")
+        }
+        var entries: [(String, PDFValue)] = [("ColorSpace", space)]
         switch gradient.shape {
         case .axial(let start, let end):
             entries += [("ShadingType", .int(2)), ("Coords", .numbers([start.x, start.y, end.x, end.y]))]

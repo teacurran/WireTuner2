@@ -123,14 +123,18 @@ public struct ExportScene: Sendable {
     /// The document's raster effects resolution (ppi): what the flattener renders regions it
     /// cannot express at unless the format's options override it.
     public var rasterResolution: Double
+    /// The text blocks of the exported pages with their stories, for RTF and plain-text export
+    /// (IO-030; export-text.adoc).  Empty when the snapshot was taken for artwork formats.
+    public var text: [ExportTextBlock]
 
-    public init(name: String = "Untitled", pages: [ExportPage], info: ExportDocumentInfo = ExportDocumentInfo(), nodes: [NodeID: ExportNodeInfo] = [:], assets: [String: ExportAsset] = [:], rasterResolution: Double = 300) {
+    public init(name: String = "Untitled", pages: [ExportPage], info: ExportDocumentInfo = ExportDocumentInfo(), nodes: [NodeID: ExportNodeInfo] = [:], assets: [String: ExportAsset] = [:], rasterResolution: Double = 300, text: [ExportTextBlock] = []) {
         self.name = name
         self.pages = pages
         self.info = info
         self.nodes = nodes
         self.assets = assets
         self.rasterResolution = rasterResolution
+        self.text = text
     }
 
     /// The facts about `node`, if any are recorded.

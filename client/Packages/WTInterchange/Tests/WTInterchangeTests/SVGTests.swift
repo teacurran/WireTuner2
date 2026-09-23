@@ -319,11 +319,14 @@ enum PathDataParser {
         let wide = Color(red: 1.1, green: -0.05, blue: 0.2)
         let result = Self.write([Corpus.path(Corpus.rect(0, 0, 10, 10), [Corpus.fill(.solid(wide))])])
         let path = result.root.all("path")[0]
-        #expect(path.attributes["fill"] == "#ff0033")
+        // The sRGB fallback is COLOR-024's gamut mapping of the colour, not a per-channel clip.
+        let fallback = ColorMath.hex(WTColor.Gamut.map(wide, into: .sRGB))
+        #expect(fallback != "#ff0033")
+        #expect(path.attributes["fill"] == fallback)
         #expect(path.attributes["style"]!.hasPrefix("fill:color(display-p3 "))
         #expect(result.document.notes.contains("1 wide-gamut color written as Display P3 with an sRGB fallback"))
         let classes = Self.write([Corpus.path(Corpus.rect(0, 0, 10, 10), [Corpus.fill(.solid(wide))]), Corpus.path(Corpus.rect(0, 0, 10, 10), [Corpus.fill(.solid(wide))])], options: SVGOptions(styling: .cssClasses))
-        #expect(classes.root.all("style")[0].text.contains("fill:#ff0033;fill:color(display-p3"))
+        #expect(classes.root.all("style")[0].text.contains("fill:\(fallback);fill:color(display-p3"))
         #expect(classes.document.notes.contains("2 wide-gamut colors written as Display P3 with an sRGB fallback"))
     }
 

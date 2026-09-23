@@ -1,5 +1,6 @@
-// Bitmap export (export-bitmap.adoc; IO-021): PNG, JPEG, TIFF and BMP through ImageIO, Targa by
-// its own writer, one file per page and scale.
+// Bitmap export (export-bitmap.adoc; IO-021, IO-022): PNG, JPEG, TIFF and BMP through ImageIO,
+// Targa by its own writer, GIF and the 8-bit palette PNG and TIFF depths through the quantizer,
+// one file per page and scale.
 
 import CoreGraphics
 import Foundation
@@ -10,9 +11,17 @@ import WTRender
 public struct BitmapExporter: Exporter {
     public let format: ExportFormat
 
-    /// An exporter for PNG, JPEG, TIFF, BMP or Targa.
+    /// The formats this exporter writes.
+    static let formats: [ExportFormat] = [.png, .jpeg, .tiff, .bmp, .targa, .gif, .webp, .heic, .avif]
+
+    /// Whether this Mac's ImageIO can encode `format` (WebP, HEIC and AVIF vary by macOS).
+    public static func canEncode(_ format: ExportFormat) -> Bool {
+        (CGImageDestinationCopyTypeIdentifiers() as? [String] ?? []).contains(format.typeIdentifier)
+    }
+
+    /// An exporter for PNG, JPEG, TIFF, BMP, Targa, GIF, WebP, HEIC or AVIF.
     public init(format: ExportFormat) {
-        precondition([.png, .jpeg, .tiff, .bmp, .targa].contains(format), "\(format) is not a bitmap format this exporter writes")
+        precondition(BitmapExporter.formats.contains(format), "\(format) is not a bitmap format this exporter writes")
         self.format = format
     }
 
@@ -22,8 +31,22 @@ public struct BitmapExporter: Exporter {
         case .jpeg: return JPEGOptions.self
         case .tiff: return TIFFOptions.self
         case .bmp: return BMPOptions.self
+        case .gif: return GIFOptions.self
+        case .webp: return WebPOptions.self
+        case .heic: return HEICOptions.self
+        case .avif: return AVIFOptions.self
         default: return TargaOptions.self
         }
+    }
+
+    /// The common options as rendered: GIF's own *Transparent background* replaces the common
+    /// background choice.
+    static func effectiveCommon(_ options: any BitmapFormatOptions) -> BitmapCommonOptions {
+        var common = options.common
+        if let gif = options as? GIFOptions {
+            common.background = gif.transparent ? .transparent : (common.background == .transparent ? .white : common.background)
+        }
+        return common
     }
 
     public var capabilities: ExportCapabilities { format.capabilities }
@@ -36,7 +59,7 @@ public struct BitmapExporter: Exporter {
 
     /// Validates the format's own options against the common ones and returns the layout.
     func layout(for options: any BitmapFormatOptions) throws -> Layout {
-        let common = options.common
+        let common = BitmapExporter.effectiveCommon(options)
         try common.validate()
         let transparent = common.background == .transparent
         func require(_ bits: Int, in allowed: [Int]) throws {
@@ -47,15 +70,21 @@ public struct BitmapExporter: Exporter {
         var layout: Layout
         switch options {
         case let png as PNGOptions:
-            try require(png.bits, in: [24, 32, 48, 64])
-            layout = Layout(bitsPerComponent: png.bits >= 48 ? 16 : 8, alpha: png.bits == 32 || png.bits == 64)
+            try require(png.bits, in: [8, 24, 32, 48, 64])
+            if png.bits == 8 {
+                try png.palette.validate()
+            }
+            layout = Layout(bitsPerComponent: png.bits >= 48 ? 16 : 8, alpha: png.bits == 32 || png.bits == 64 || (png.bits == 8 && transparent))
         case let jpeg as JPEGOptions:
             guard (1...100).contains(jpeg.quality) else {
                 throw ExportError.invalidOption("JPEG quality must be 1 to 100.")
             }
             layout = Layout(bitsPerComponent: 8, alpha: false)
         case let tiff as TIFFOptions:
-            try require(tiff.bits, in: common.color == .cmyk ? [32] : [24, 32, 48, 64])
+            try require(tiff.bits, in: common.color == .cmyk ? [32] : (common.color == .gray ? [24, 32, 48, 64] : [8, 24, 32, 48, 64]))
+            if tiff.bits == 8 {
+                try tiff.palette.validate()
+            }
             layout = Layout(bitsPerComponent: tiff.bits >= 48 ? 16 : 8, alpha: common.color == .rgb && (tiff.bits == 32 || tiff.bits == 64))
         case let bmp as BMPOptions:
             try require(bmp.bits, in: [24, 32])
@@ -66,8 +95,32 @@ public struct BitmapExporter: Exporter {
         case let targa as TargaOptions:
             try require(targa.bits, in: [8, 16, 24, 32])
             layout = Layout(bitsPerComponent: 8, alpha: targa.bits == 16 || targa.bits == 32)
+        case let gif as GIFOptions:
+            try gif.palette.validate()
+            guard common.color == .rgb else {
+                throw ExportError.invalidOption("GIF palettes are RGB: choose RGB color (a Grayscale palette gives grey output).")
+            }
+            layout = Layout(bitsPerComponent: 8, alpha: gif.transparent)
+        case let webp as WebPOptions:
+            try BitmapExporter.requireQuality(webp.quality, format: .webp)
+            layout = Layout(bitsPerComponent: 8, alpha: transparent)
+        case let heic as HEICOptions:
+            try BitmapExporter.requireQuality(heic.quality, format: .heic)
+            layout = Layout(bitsPerComponent: 8, alpha: transparent)
+        case let avif as AVIFOptions:
+            try BitmapExporter.requireQuality(avif.quality, format: .avif)
+            guard (0...10).contains(avif.speed) else {
+                throw ExportError.invalidOption("AVIF speed must be 0 to 10.")
+            }
+            if avif.lossless {
+                throw ExportError.invalidOption("Lossless AVIF is not available: macOS's AVIF encoder is lossy only.  Choose PNG or lossless WebP for exact pixels.")
+            }
+            layout = Layout(bitsPerComponent: 8, alpha: transparent)
         default:
             throw ExportError.wrongOptions(format: format)
+        }
+        if [.webp, .heic, .avif].contains(format) && !BitmapExporter.canEncode(format) {
+            throw ExportError.encoderUnavailable(format)
         }
         if common.color == .cmyk && ![.jpeg, .tiff].contains(format) {
             throw ExportError.unsupported(.cmyk, format: format)
@@ -92,7 +145,7 @@ public struct BitmapExporter: Exporter {
         guard !scene.pages.isEmpty else {
             throw ExportError.nothingToExport
         }
-        let common = options.common
+        let common = BitmapExporter.effectiveCommon(options)
         var destination = destination
         if common.scales.count > 1, let pattern = destination.namePattern, !pattern.rawValue.contains("{scale}") {
             destination.namePattern = FileNamePattern(pattern.rawValue + "{scale}")
@@ -108,20 +161,53 @@ public struct BitmapExporter: Exporter {
         for ((page, scale), url) in zip(jobs, urls) {
             let rendered = rasterizer.render(scene.pages[page], scale: scale, bitsPerComponent: layout.bitsPerComponent, alpha: layout.alpha)
             clipped = max(clipped, rendered.clipped)
-            try write(rendered.bitmap, options: options, to: url)
+            try write(rendered.bitmap, options: options, pixelsPerInch: common.ppi * scale, to: url)
             summary.files.append(url)
         }
         if clipped > 0 {
             summary.notes.append("\(clipped) color\(clipped == 1 ? "" : "s") outside sRGB pulled into sRGB")
         }
+        if let avif = options as? AVIFOptions, avif.speed != AVIFOptions.defaults.speed {
+            summary.notes.append("AVIF speed is chosen by macOS's encoder; the Speed setting has no effect")
+        }
         return summary
     }
 
+    static func requireQuality(_ quality: Int, format: ExportFormat) throws {
+        guard (1...100).contains(quality) else {
+            throw ExportError.invalidOption("\(format.displayName) quality must be 1 to 100.")
+        }
+    }
+
+    /// The file of a format this exporter writes by its own code (Targa, GIF, palette PNG and
+    /// TIFF); nil for the ImageIO formats.
+    func ownEncoding(_ bitmap: RasterBitmap, options: any BitmapFormatOptions, pixelsPerInch: Double) throws -> Data? {
+        switch options {
+        case let targa as TargaOptions:
+            return TargaWriter.data(bitmap, bits: targa.bits, rle: targa.rle)
+        case let gif as GIFOptions:
+            let image = try Quantizer.indexed(StraightPixels(bitmap), settings: gif.palette, transparent: gif.transparent, matte: gif.matte)
+            return GIFWriter.data(image, interlaced: gif.interlaced)
+        case let png as PNGOptions where png.bits == 8:
+            let image = try Quantizer.indexed(StraightPixels(bitmap), settings: png.palette, transparent: bitmap.hasAlpha, matte: .white)
+            return PalettePNGWriter.data(image, interlaced: png.interlaced, pixelsPerInch: pixelsPerInch)
+        case let tiff as TIFFOptions where tiff.bits == 8:
+            guard tiff.compression != .jpeg else {
+                throw ExportError.invalidOption("8-bit palette TIFF cannot use JPEG compression.")
+            }
+            let image = try Quantizer.indexed(StraightPixels(bitmap), settings: tiff.palette, transparent: false, matte: .white)
+            let codes: [TIFFOptions.Compression: Int] = [.none: 1, .lzw: 5, .zip: 8]
+            return PaletteTIFFWriter.data(image, compression: codes[tiff.compression]!, pixelsPerInch: pixelsPerInch)
+        default:
+            return nil
+        }
+    }
+
     /// Encodes `bitmap` as this format.
-    func write(_ bitmap: RasterBitmap, options: any BitmapFormatOptions, to url: URL) throws {
-        if let targa = options as? TargaOptions {
+    func write(_ bitmap: RasterBitmap, options: any BitmapFormatOptions, pixelsPerInch: Double = 72, to url: URL) throws {
+        if let data = try ownEncoding(bitmap, options: options, pixelsPerInch: pixelsPerInch) {
             do {
-                try TargaWriter.data(bitmap, bits: targa.bits, rle: targa.rle).write(to: url)
+                try data.write(to: url)
             } catch {
                 throw ExportError.writeFailed(error.localizedDescription)
             }
@@ -149,6 +235,13 @@ public struct BitmapExporter: Exporter {
             if tiff.compression == .jpeg {
                 properties[kCGImageDestinationLossyCompressionQuality] = Double(tiff.jpegQuality) / 100
             }
+        case let webp as WebPOptions:
+            properties[kCGImageDestinationLossyCompressionQuality] = webp.lossless ? 1.0 : Double(webp.quality) / 100
+        case let heic as HEICOptions:
+            properties[kCGImageDestinationLossyCompressionQuality] = Double(heic.quality) / 100
+        case let avif as AVIFOptions:
+            // ImageIO's AVIF encoder refuses quality 1.0 (it has no lossless mode).
+            properties[kCGImageDestinationLossyCompressionQuality] = min(Double(avif.quality) / 100, 0.99)
         default:
             break
         }

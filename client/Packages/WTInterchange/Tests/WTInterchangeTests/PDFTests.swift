@@ -185,12 +185,12 @@ import WTRender
         #expect(modern.notes.contains("2 Display P3 colors written with the Display P3 profile"))
         let legacy = try Self.export([Corpus.page(items)], options: PDFOptions(version: .v1_4))
         #expect(!Self.text(of: legacy.data).contains("/OutputIntents"))
-        #expect(legacy.notes.contains { $0.hasPrefix("2 wide-gamut colors converted to sRGB") })
+        #expect(legacy.notes.contains { $0.hasPrefix("2 wide-gamut colors gamut-mapped into sRGB") })
         #expect(legacy.data.starts(with: Data("%PDF-1.4".utf8)))
         let one = try Self.export([Corpus.page([Corpus.path(Corpus.rect(0, 0, 5, 5), [Corpus.fill(.solid(wide))])])], options: PDFOptions(version: .v2_0))
         #expect(one.notes.contains("1 Display P3 color written with the Display P3 profile"))
         let clippedOne = try Self.export([Corpus.page([Corpus.path(Corpus.rect(0, 0, 5, 5), [Corpus.fill(.solid(wide))])])], options: PDFOptions(embedProfiles: false))
-        #expect(clippedOne.notes.contains { $0.hasPrefix("1 wide-gamut color converted") })
+        #expect(clippedOne.notes.contains { $0.hasPrefix("1 wide-gamut color gamut-mapped") })
     }
 
     @Test func documentInfoLinksAndBoxes() throws {
@@ -246,14 +246,14 @@ import WTRender
     @Test func optionsAreValidatedAndReported() throws {
         let page = Corpus.fixture("basics")
         let invalid = [
-            PDFOptions(standard: .pdfX4_2010), PDFOptions(standard: .pdfX1a2001), PDFOptions(colors: .convertToCMYK),
+            PDFOptions(bleedPoints: -1), PDFOptions(bleedPoints: 100),
             PDFOptions(jpegQuality: 0), PDFOptions(downsample: true, downsampleAbovePPI: 100, downsampleToPPI: 300), PDFOptions(rasterPPI: -1),
         ]
         for options in invalid {
             #expect(throws: ExportError.self) { try PDFExporter().data(scene: Corpus.scene([page]), options: options) }
         }
         #expect(throws: ExportError.nothingToExport) { try PDFExporter().data(scene: Corpus.scene([]), options: PDFOptions()) }
-        let reported = try Self.export([page], options: PDFOptions(version: .v1_5, layers: true, embedPackage: true, linearize: true, colors: .convertToRGB, rasterPPI: 72))
+        let reported = try Self.export([page], options: PDFOptions(version: .v1_4, layers: true, embedPackage: true, linearize: true, colors: .convertToRGB, rasterPPI: 72))
         #expect(reported.notes.contains { $0.contains("linearization") })
         #expect(reported.notes.contains { $0.contains("layers") })
         #expect(reported.notes.contains { $0.contains("IO-028") })
