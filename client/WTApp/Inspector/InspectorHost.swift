@@ -55,7 +55,7 @@ struct ObjectPanelBody: View {
     static func model(_ selection: ActiveSelection?) -> ObjectPanelModel? {
         guard let document = selection?.document, let selectionModel = selection?.model else { return nil }
         _ = document.model?.revision
-        return ObjectPanelModel(document: document, selection: selectionModel.selection)
+        return ObjectPanelModel(document: document, selection: selectionModel.selection, textSession: selection?.editing?.textSession)
     }
 
     /// What the row editors read: *Default line weights* from the app's preferences when the panel

@@ -323,7 +323,7 @@ enum SymbolFixture {
         try a.perform(SetOverride([instance], master: image, value: .image(asset), in: a.state))
         try a.perform(SetOverride([instance], master: image, value: .image(asset), in: a.state))
         try a.perform(SetOverride([instance], master: text, value: .fill(SymbolFixture.red()), in: a.state))
-        #expect(SetOverride([instance], master: text, value: .hidden(true), in: a.state).label == "Hide part")
+        #expect(SetOverride([instance], master: text, value: .hidden(true), in: a.state).label == "Hide text")
         var textOverride = Wiretuner_Doc_V1_NodeProps()
         var element = Wiretuner_Doc_V1_Override()
         element.masterNode = text.proto

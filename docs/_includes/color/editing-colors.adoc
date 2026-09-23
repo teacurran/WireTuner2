@@ -211,6 +211,21 @@ Nothing beyond storing and relaying changes.
   segmented control, three or four sliders with fields, Preview toggle), the Replace sheet
   (source segmented control, swatch or library chooser).
 
+NOTE: As built by COLOR-014 (`WTModel/ColorAdjusting.swift`).  `ColorRegisterWalker` walks the
+selection and its descendants over COLOR-006's `ColorUses` (every `ColorRef` register not under a
+removed element, and text marks); colours inside ATOMIC messages are listed by `ColorUses` but not
+rewritten.  `ColorAdjustment` computes HLS in the colour's own RGB space -- a CMYK or Lab colour
+through sRGB, written back in its own space -- so 50% black lightens to 40% black; Color Control's
+modes add clamped deltas (hue wraps).  `AdjustColors`, `ConvertToGrayscale` and
+`RandomizeSwatches` are one change each; a spot or Registration colour, *None* and a register that
+would not change are skipped, so a second run at a limit writes nothing.  Grayscale writes a tint
+of the Black swatch (a colour lighter than half a percent the White swatch; without the defaults an
+unnamed CMYK black).  Randomize keeps each swatch's space, spot flag and chosen name, renames a
+swatch still named by its values, and takes a seed so a run is repeatable.  The Extensions menu
+entries and the Color Control sheet are WTApp's (COLOR-017); the conformance vector for an
+`inline` written over a `swatch` reference belongs to `crdt-conformance/` and is proposed in the
+task report (a WTModel test pins the same write).
+
 === Build tasks
 
 [[COLOR-014]]

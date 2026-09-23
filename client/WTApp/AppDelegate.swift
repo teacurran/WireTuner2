@@ -331,6 +331,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let documents = documents!
         ObjectMenuCommands.install(into: commands) { documents.activeWindowController?.objectEditing }
         ConnectorCommands.install(commands: commands, tools: tools) { documents.activeWindowController?.objectEditing }
+        tools.replace(TextTool.descriptor)
         let palette = toolPalette
         let toolCommands = tools.commands(
             activate: { id in palette.pressShortcut(id) },

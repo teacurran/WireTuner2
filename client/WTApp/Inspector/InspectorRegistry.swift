@@ -69,8 +69,8 @@ final class InspectorRegistry {
             ?? AnyView(Text("\(context.item.summary) has no editor.").font(.caption).foregroundStyle(.secondary))
     }
 
-    /// The sections and row editors WireTuner ships: point, path, rectangle, polygon and connector
-    /// sections, the common attributes, and the stroke, fill and effect row editors.
+    /// The sections and row editors WireTuner ships: point, path, rectangle, polygon, connector and
+    /// text sections, the common attributes, and the stroke, fill and effect row editors.
     static let standard: InspectorRegistry = {
         let registry = InspectorRegistry()
         registry.register(InspectorSection(id: "point", order: 10, kinds: [.path]) { model in
@@ -87,6 +87,9 @@ final class InspectorRegistry {
         })
         registry.register(InspectorSection(id: "connector", order: 50, kinds: [.connector]) { model in
             model.connector.map { AnyView(ConnectorSectionView(section: $0, model: model)) }
+        })
+        registry.register(InspectorSection(id: "text", order: 60, kinds: [.text]) { model in
+            model.text.map { AnyView(TextSectionView(section: $0, model: model)) }
         })
         registry.register(InspectorSection(id: "common", order: 100, kinds: nil) { model in
             model.common.map { AnyView(CommonSectionView(section: $0, model: model)) }

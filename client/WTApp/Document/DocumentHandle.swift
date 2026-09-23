@@ -6,6 +6,7 @@ import WTModel
 import WTProto
 import WTRender
 import struct WTRender.StrokeStyle
+import WTText
 
 /// The pasteboard every document sits on: 222 × 222 inches, origin at its top-left corner,
 /// y down (workspace.adoc, "The pasteboard").
@@ -144,6 +145,11 @@ final class DocumentHandle: Identifiable, CommandSink {
     /// Delivers change summaries to the canvases (local at once, remote once per frame).
     let invalidation: InvalidationBatcher
     private var builder: DocumentDisplayListBuilder
+    /// The engine the document's text is laid out with: the shared fonts until the document's
+    /// own font index is ready (`useTextEngine`, DocumentFonts).
+    private(set) var textEngine = TextLayoutEngine(fonts: .shared)
+    /// Each text node's layout as of `changeCount` (the Text tool's carets, remote carets).
+    private var textLayouts: [OpID: (count: Int, layout: TextLayout)] = [:]
     private var opening: Task<Void, Never>?
     /// The last command, undo or redo issued: `settle` waits for it.
     private var inflight: Task<Void, Never>?
@@ -160,6 +166,7 @@ final class DocumentHandle: Identifiable, CommandSink {
         self.replicaID = replicaID
         self.invalidation = invalidation
         builder = DocumentDisplayListBuilder(canvas: CanvasID(id), background: [Self.pagesItem(pages)])
+        builder.textLayout = TextSceneLayout(engine: textEngine)
         attach(model)
     }
 
@@ -173,6 +180,7 @@ final class DocumentHandle: Identifiable, CommandSink {
         self.replicaID = replicaID
         self.invalidation = invalidation
         builder = DocumentDisplayListBuilder(canvas: CanvasID(id), background: [Self.pagesItem(pages)])
+        builder.textLayout = TextSceneLayout(engine: textEngine)
         opening = Task { [weak self] in
             do {
                 let model = try await open()
@@ -249,10 +257,35 @@ final class DocumentHandle: Identifiable, CommandSink {
     /// Lays out and draws `nodes` again without a change to the document: text whose fonts now
     /// resolve differently (`DocumentFontIndex.fontsChanged`, DOC-024).
     func relayout(_ nodes: Set<OpID>) {
+        for node in nodes { textLayouts[node] = nil }
         let before = builder.scene.displayList
         let (scene, summary) = builder.invalidate(nodes, state: state)
         invalidation.submit(summary, before: [before], after: [scene.displayList])
         notify(ContentChange(summary: summary, before: before, after: scene.displayList, change: nil))
+    }
+
+    // MARK: Text
+
+    /// Lays out and draws the document's text with `engine` from now on (the document's
+    /// `DocumentFontIndex.layoutEngine`, whose substitutions are the document's own).
+    func useTextEngine(_ engine: TextLayoutEngine) {
+        guard engine !== textEngine else { return }
+        textEngine = engine
+        textLayouts = [:]
+        builder.textLayout = TextSceneLayout(engine: engine)
+        let text = Set(state.store.nodes.filter { state.nodeKind($0) == .text })
+        if !text.isEmpty { relayout(text) }
+    }
+
+    /// The layout of text node `node` as the canvas draws it (container space: the node's own
+    /// space; `Objects.pasteboardTransform` places it), nil when it is not a text node.
+    func textLayout(for node: OpID) -> TextLayout? {
+        if let cached = textLayouts[node], cached.count == changeCount { return cached.layout }
+        let state = state
+        guard let text = state.textNode(node) else { return nil }
+        let layout = TextLayoutReading.layout(text, engine: textEngine, colors: ColorResolver(state))
+        textLayouts[node] = (changeCount, layout)
+        return layout
     }
 
     private func drawPages() {
@@ -459,9 +492,15 @@ final class DocumentHandle: Identifiable, CommandSink {
         object(for: SelectionID(segment.node))?.path?.contour(segment.contour)?.segments.contains { $0.from.id == segment.from } ?? false
     }
 
-    /// The object whose display item sits at `itemPath`.
+    /// The object whose display item sits at `itemPath`, or holds it: a hit on part of an
+    /// object's drawing (a text block's glyph run) names the object.
     func selectionID(atItemPath itemPath: [Int]) -> SelectionID? {
-        builder.scene.object(atItemPath: itemPath).map { SelectionID(NodeID($0.id)) }
+        var path = itemPath
+        while !path.isEmpty {
+            if let object = builder.scene.object(atItemPath: path) { return SelectionID(NodeID(object.id)) }
+            path.removeLast()
+        }
+        return nil
     }
 
     /// Every top-level object that paints something, in draw order; with `rect`, only those

@@ -126,7 +126,8 @@ final class SelectionController {
         var picked: [SelectionID] = []
         var sub: [SelectionID: SubSelection] = [:]
         for hit in hits.reversed() {
-            guard let id = document.selectionID(atItemPath: hit.itemPath), document.isSelectable(id) else { continue }
+            // Several parts of one object's drawing (a text block's runs) pick it once.
+            guard let id = document.selectionID(atItemPath: hit.itemPath), document.isSelectable(id), !picked.contains(id) else { continue }
             let object = document.object(for: id)
             let anchors = hit.anchors.compactMap { object?.point(leafPath: $0.leafPath, element: $0.element) }
             if subselect, !anchors.isEmpty {

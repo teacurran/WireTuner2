@@ -333,10 +333,23 @@ public struct DuplicateAppearance: Command {
 
     public func execute(_ builder: inout ChangeBuilder, state: EngineState) throws {
         let owner = try AppearanceEditing.owner(node, in: state)
-        guard let values = AppearanceEditing.element(node, row, in: state) else { throw PathEditError.unknownPoint(row.element) }
+        guard var values = AppearanceEditing.element(node, row, in: state) else { throw PathEditError.unknownPoint(row.element) }
+        // The copy gets a random pattern of its own (stroke-attributes.adoc, "seed"; ATTR-008).
+        values = Self.reseeded(values, owner: owner, seed: Seeds.next(builder))
         let key = try index.map { try AppearanceEditing.key(at: $0, of: node, moving: nil, owner: owner, state: state) }
             ?? AppearanceEditing.keyAbove(node, row, owner: owner, state: state)
         builder.append(Ops.elementInsert(node, owner.sequence(row.list), positions: [key], values: values))
+    }
+}
+
+extension DuplicateAppearance {
+    /// `values` (one stack element) with a fresh `seed` wherever the element holds one: a brush
+    /// stroke's, a Custom fill's.
+    static func reseeded(_ values: Wiretuner_Doc_V1_NodeProps, owner: StackOwner, seed: UInt64) -> Wiretuner_Doc_V1_NodeProps {
+        var stack = owner == .defaults ? values.settings.defaults.appearance : NodeValues.appearance(values)!
+        if !stack.strokes.isEmpty, stack.strokes[0].settings.brush.seed != 0 { stack.strokes[0].settings.brush.seed = seed }
+        if !stack.fills.isEmpty, stack.fills[0].settings.custom.seed != 0 { stack.fills[0].settings.custom.seed = seed }
+        return owner.values(stack)
     }
 }
 

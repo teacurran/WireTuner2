@@ -53,6 +53,9 @@ struct ObjectPanelModel {
 
     let document: DocumentHandle
     let selection: Selection
+    /// The front window's Text tool session, if it is editing (the Text section formats its
+    /// selection).
+    var textSession: TextEditingSession?
 
     /// The selected path objects with their geometry.
     private var paths: [(id: OpID, props: VectorPath)] {

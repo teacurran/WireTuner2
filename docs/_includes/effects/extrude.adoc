@@ -373,6 +373,23 @@ as the extrusion, the front face as the child.  Performance: a 500-point outline
 solves in 3.0 ms in release (41 ms in debug); the gate enforces 5 ms in release builds.  The screenshots of the
 manual's examples are the golden renders (`effectsExtrude`).
 
+NOTE: As built by FX-017 (`WTModel/ExtrudeCommands.swift`, `Wrappers.swift`, `Baking.swift`).
+`NodeKind` has no `extrude` case yet: WTApp switches over `NodeKind` exhaustively, so the kind is
+added together with its UI.  Until then `WrapperKind` names the wrapper kinds, the scene records an
+extrusion as a `.group` object with an `ExtrudeSpec` on its `GroupItem`, and the commands find the
+wrapper from it or any node inside it.  Commands: `Extrude` ("Extrude"; length, vanishing point
+and a Shaded surface lit from the top left, ambient 30, light 80 -- the working defaults),
+`RemoveExtrusion`, `ReleaseExtrusion`, `ResetExtrusion`, `ShareVanishingPoints`, `EditExtrusion`
+(any registers) and `PasteExtrudeProfile` ("Paste profile"; one open contour of two or more
+points).  Extruding something that is, lies inside or holds an extrusion is refused; the model has
+no command that moves a node into an arbitrary parent, so there is nothing else to reject.  Release
+bakes what the extrusion draws (sides, front face, flat extra children) through WTInterchange's
+`Flattener` -- the expansion vector export uses -- into plain filled and stroked paths; regions the
+flattener can only rasterize are left out.  The draw order puts the child of the smallest id first
+(the one extruded) and the rest after it.  Two replicas extruding one path concurrently make two
+wrappers; the path's move resolves to one of them, so one extrusion draws and the other is an empty
+extrusion that draws nothing -- the same on every replica.
+
 === Build tasks
 
 [[FX-016]]

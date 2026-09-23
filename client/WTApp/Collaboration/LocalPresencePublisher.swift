@@ -74,6 +74,23 @@ final class LocalPresencePublisher {
         presence.update { $0.editing = ids.prefix(Self.selectionCap).map { $0.opID.proto } }
     }
 
+    /// The Text tool's insertion point (`TextCaret`): the block, the character the caret is before
+    /// (zero: the end) and a selection's other end; nil clears it.
+    func caret(_ caret: (node: OpID, position: OpID, rangeEnd: OpID?)?) {
+        presence.update { update in
+            guard let caret else {
+                update.clearCaret()
+                return
+            }
+            var value = Wiretuner_Sync_V1_TextCaret()
+            value.node = caret.node.proto
+            value.text = TextFields.text.proto
+            value.position = caret.position.elementID
+            if let end = caret.rangeEnd { value.rangeEnd = end.elementID }
+            update.caret = value
+        }
+    }
+
     func spotlight(_ on: Bool) {
         presence.update { $0.spotlight = on }
     }

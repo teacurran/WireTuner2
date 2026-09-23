@@ -320,6 +320,22 @@ and step's bounds centre is placed; Rotate on path turns by the tangent's absolu
 Keyline draws the steps.  Performance: a 1,000-step blend of two 50-point paths interpolates in
 4.5 ms in release (105 ms in debug); the gate enforces 10 ms in release builds.
 
+NOTE: As built by FX-024 (`WTModel/BlendCommands.swift`, `Wrappers.swift`, `Baking.swift`).  As
+for extrusions, `blend` is not a `NodeKind` case yet; `WrapperKind` names it and the scene records a
+blend as a `.group` object whose `GroupItem.live` is the resolved `BlendSpec`.  Commands: `Blend`
+(from the selection in stacking order, point to point with a point chosen per object; objects from
+several parents are collected on top of the active layer and keep their place on the page),
+`AddToBlend`, `SetBlendPoint` ("Move blend point"), `EditBlend` (any register but `path` and
+`blend_points`), `JoinBlendToPath`, `SplitBlend` and `ReleaseBlend` ("Ungroup").  Eligibility
+(`BlendEligibility`) refuses with the sentence shown: fewer than two objects, bitmaps (images,
+placed files), text, groups holding anything but simple paths or with a clip path, composite with
+non-composite, and neighbours whose topmost fill or stroke kinds differ (Basic and Gradient fills
+count as one family; an unset kind reads Basic).  Release bakes one group of steps per span,
+placed between its key objects: the whole blend is expanded by the `Flattener` and split by
+measuring each key object's share and a one-step blend of each span; when the shares do not add up
+(a key the interpolation skips) no steps are baked.  Steps become process colours, as the guide
+says releasing does.
+
 === Build tasks
 
 [[FX-023]]

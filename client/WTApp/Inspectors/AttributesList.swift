@@ -133,6 +133,7 @@ struct AttributesListModel {
         case .barcode: "Barcode"
         case .connector: "Connector"
         case .placedFile: "Placed File"
+        case .text: "Text"
         }
     }
 

@@ -410,6 +410,19 @@ Done when::
 * Merge test: a selection published as anchors resolves to the same characters on a second
   replica after concurrent inserts.
 
+NOTE: As built by TYPE-010 (with TYPE-003): click, drag, double-click (word) and triple-click
+(paragraph), dragging after them by words or paragraphs, and kbd:[Shift]-click; the whole
+keyboard table above (`TextNavigation`: words are runs of letters, digits, `_` and apostrophes;
+line ends come from the layout's line ranges, a soft wrap's boundary kept on the earlier line;
+Up and Down keep the x they started from); Select All over the block -- linked chains are
+TYPE-007's; kbd:[Delete], kbd:[Fn+Delete], kbd:[Option+Delete], kbd:[Option+Fn+Delete] and
+kbd:[Cmd+Delete].  The selection is published as presence's `TextCaret` (the character the caret
+is before, zero for the end, and the other end of a range).  A caret is an anchor before a
+character, so a remote delete of that character leaves it where the character was -- after the
+nearest surviving predecessor -- and typing continues there.  Not built yet: the text ruler and
+menu:View[Text Rulers] with *Show text handles when ruler is off* (the block's selection handles
+show while it is edited).
+
 [[TYPE-011]]
 ==== TYPE-011 Text Editor window
 [horizontal]
@@ -502,4 +515,10 @@ Done when::
 * Presence frames at 20 Hz for ten collaborators render without dropping canvas frame rate.
 * Merge test: the notice appears when a remote `deleted = true` arrives for the edited node,
   and *Restore* writes `deleted = false` as one undoable change.
+
+NOTE: Partly built with TYPE-003: on the canvas a collaborator's caret is drawn at its character
+through the block's layout (a deleted character reads where it was; a character not received yet,
+or a caret in a deleted block, is not drawn) and a range as a tint in their colour
+(`PresenceOverlay.caretGeometry`).  Carets on text on a path and in the Text Editor, and the
+*Restore* notice, remain; a remote delete of the edited block ends editing for now.
 endif::spec[]

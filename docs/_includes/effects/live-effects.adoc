@@ -826,6 +826,33 @@ lower end point whichever way a fan triangle runs, so triangles sharing an edge 
 samples next to it: the stroke outlines of effected squares, whose fan edges ran along the sample
 lattice's diagonal, showed seams against REND-007 before.
 
+NOTE: As built by FX-002 (`WTModel/EffectCommands.swift`, `EffectLowering.swift`).  Commands:
+`AddEffect` ("Add Bend effect"; the object level above a chosen row or at the top of the stack, or
+attached to a fill or stroke directly above that element's own effects), `RemoveEffect` ("Remove
+effect"), `ReorderEffect` ("Reorder effects"; an index within the group it is dropped into, writing
+`attached_to` when the group changes), `SetEffectKind` ("Change effect to Ragged"), `EditEffect`
+(any registers, fanned out over the selection), `ReseedEffect` ("Reseed") and `SetCornerPoints`
+(`SetAdd`/`SetRemove` on `CornersEffect.points`, "Change corners"); hiding is ATTR-002's
+`SetAppearanceHidden`.  The pages leave the defaults open, so `EffectDefaults` gives every kind a
+moderate working value (Bend 20 pt, Ragged 4 pt at 12 per inch, Sketch 3 pt × 3, Expand Path 4 pt,
+Corners 6 pt, Blur 2 px, a 50% drop shadow 6 pt at 315°, Transparency 50 ...); a kind switch seeds
+a kind's settings only when they were never written, so switching back finds them.  Seeds (effects
+and ATTR-008's brush strokes) are deterministic: SplitMix64 of the replica and the counter the
+change's next op takes (`Seeds.allocate`), never 0.  The read-out is `EffectReading.entries`
+(attachment `.object`, `.element(row)` or `.skipped` for a dangling `attached_to`; unknown kinds
+titled "Unsupported effect (update WireTuner)"; the "Combine applies to groups" notice).
+`EngineState.props` does not read SET members, so `EffectReading.completingSets` reads
+`CornersEffect.points` in before a Corners effect is lowered.  Lowering: `Appearances.resolve`
+now carries the effects (targets as stack indices, raster settings from `raster_dpi` or the
+document's `RasterEffectSettings` through `SceneContext`), point ids resolve to anchors by the
+`CornerPoint` numbering and a Corners effect whose members all drop out treats no corner; a
+Corners effect on a `rect` builds the zero-radius path; a group's own stack travels on its
+`GroupItem`, and an open path split into one item per attribute keeps each element's attached
+effects on its item and the object's on the group.  A change to the document's raster settings
+rebuilds every cached item.  The appearance copy/paste and graphic-style commands do not exist
+yet; object copies carry effects because `NodeCopier` copies every sequence.  FX-001 wrote no
+conformance vectors, so the dangling-`attached_to` rule is covered by WTModel tests.
+
 === Build tasks
 
 [[FX-001]]

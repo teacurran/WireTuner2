@@ -111,6 +111,8 @@ public struct DocumentDisplayListBuilder: Sendable {
     public private(set) var scene: DocumentScene
     /// *Guide color* (preferences.adoc, cyan by default): objects on the Guides layer draw in it.
     public var guideColor = Color(red: 0, green: 1, blue: 1)
+    /// How text nodes are laid out and drawn (`TextSceneLayout`); nil draws no text.
+    public var textLayout: TextSceneLayout?
     /// Node → the nodes drawn from it, as of the last build: a symbol from its master nodes and
     /// nested symbols, an instance from its symbol, a chart from its pictograph nodes.
     public private(set) var dependencies = DependencyIndex()
@@ -156,6 +158,10 @@ public struct DocumentDisplayListBuilder: Sendable {
         /// A leaf's item as last placed and its bounds, with the enclosing transform it was placed
         /// under: reused while that transform is the same.
         var placed: Placed?
+        /// A group's own attribute stack (its effects apply to the group as one shape, FX-002).
+        var groupAppearance = Appearance()
+        /// A blend or extrusion, drawn as a group with a live drawing (FX-024, FX-017).
+        var wrapper: WrapperKind?
     }
 
     private struct Placed: Sendable {
@@ -235,6 +241,10 @@ public struct DocumentDisplayListBuilder: Sendable {
     private mutating func update(touched: [OpID: [FieldPath]], also recoloured: Set<OpID>, state: EngineState,
                                  origin: ChangeOrigin) -> (DocumentScene, ChangeSummary) {
         let before = scene
+        // The document's raster effect resolution reaches every object (FX-007).
+        if touched[WellKnown.settings]?.contains(where: { FieldPath(fields: 2, 90).contains($0) }) == true {
+            cache = [:]
+        }
         let seeds = Set(touched.keys).union(recoloured)
         let dependents = dependencies.dependents(of: seeds.map(NodeID.init))
         for node in seeds {
@@ -321,7 +331,10 @@ public struct DocumentDisplayListBuilder: Sendable {
         return ColorResolver.$current.withValue(ColorResolver(state)) {
             var scratch: [NodeID: SceneObject] = [:]
             let order = LayerOrder(state)
-            let contents = layerContents(state, order: order, includeHidden: includeHidden, objects: &scratch).contents
+            let context = sceneContext(state)
+            let contents = SceneContext.$current.withValue(context) {
+                layerContents(state, order: order, includeHidden: includeHidden, objects: &scratch).contents
+            }
             return LayerScene.build(canvas: canvas, layers: contents, purpose: .output(includeHidden: includeHidden), background: [])
         }
     }
@@ -359,13 +372,26 @@ public struct DocumentDisplayListBuilder: Sendable {
         library = buildLibrary(state, dependencies: &index)
         var objects: [NodeID: SceneObject] = [:]
         let order = LayerOrder(state)
-        let (contents, topLevel) = layerContents(state, order: order, includeHidden: false, objects: &objects)
+        let context = sceneContext(state)
+        let (contents, topLevel) = SceneContext.$current.withValue(context) {
+            layerContents(state, order: order, includeHidden: false, objects: &objects)
+        }
         for (node, built) in cache where objects[NodeID(node)] != nil {
             for source in built.sources { index.add(NodeID(node), dependsOn: NodeID(source)) }
+        }
+        // A brush redraws its strokes when one of its symbols changes (ATTR-008).
+        for entry in Brushes.list(state) {
+            for symbol in entry.symbols { library.addDependencies(of: NodeID(entry.id), on: NodeID(symbol), to: &index) }
         }
         dependencies = index
         let list = LayerScene.build(canvas: canvas, layers: contents, purpose: .screen(guideColor: guideColor), background: background)
         return DocumentScene(displayList: list, objects: objects, topLevel: topLevel, layers: order)
+    }
+
+    /// What the build resolves once for every object: the document's raster settings and its
+    /// brushes with their symbols' artwork (`library` must be current).
+    private func sceneContext(_ state: EngineState) -> SceneContext {
+        SceneContext(raster: SceneContext.raster(state), brushes: Brushes.resolve(state, library: library, renderer: symbolRenderer))
     }
 
     /// Every layer's content in `order`, placing the objects of the visible ones (and of hidden
@@ -454,15 +480,18 @@ public struct DocumentDisplayListBuilder: Sendable {
         let bounds: Rect?
         if built.kind == .group {
             var children: [DisplayItem] = []
+            var placedIDs: [OpID] = []
             let inner = Placing(layer: context.layer, locked: locked)
-            for child in state.liveChildren(node) {
+            for child in built.wrapper.map({ Wrappers.drawOrder(node, $0, in: state) }) ?? state.liveChildren(node) {
                 if let placed = place(child, state: state, parentTransform: transform, itemPath: itemPath + [children.count], parent: node,
                                       context: inner, objects: &objects) {
                     children.append(placed)
+                    placedIDs.append(child)
                 }
             }
             guard !children.isEmpty else { return nil }
-            item = .group(GroupItem(children: children))
+            let live = built.wrapper.map { Wrappers.live($0, node: node, children: placedIDs, in: state) { self.cache[$0]?.path } }
+            item = .group(GroupItem(children: children, appearance: built.groupAppearance, live: live))
             bounds = item.bounds
         } else if let placed = built.placed, placed.parentTransform == parentTransform {
             item = placed.item
@@ -508,8 +537,16 @@ public struct DocumentDisplayListBuilder: Sendable {
             cache[node] = built
             return built
         }
+        if let wrapper = WrapperKind.of(node, in: state) {
+            let props = state.props(node)
+            guard let common = NodeValues.common(props), !common.hasCanvas else { return nil }
+            let built = Built(item: nil, kind: .group, path: nil, transform: PathEditing.transform(common.transform), elementPoints: [:],
+                              leafContours: [:], locked: common.locked, wrapper: wrapper)
+            cache[node] = built
+            return built
+        }
         guard let kind = state.nodeKind(node), kind != .layer, kind != .symbol else { return nil }
-        let props = state.props(node)
+        let props = EffectReading.completingSets(state.props(node), node: node, in: state)
         guard let common = NodeValues.common(props), !common.hasCanvas else { return nil }
         let transform = PathEditing.transform(common.transform)
         var built = Built(item: nil, kind: kind, path: nil, transform: transform, elementPoints: [:], leafContours: [:], locked: common.locked)
@@ -519,7 +556,9 @@ public struct DocumentDisplayListBuilder: Sendable {
             let model = VectorPath(path, node: node, state: state)
             built.path = model
             Self.render(model, appearance: path.appearance, order: order, transform: transform, into: &built)
-        case .rect(let rect)?:
+        case .rect(var rect)?:
+            // A Corners effect takes precedence over the rectangle's own radii (FX-046).
+            if EffectLowering.hasCorners(rect.appearance) { rect.clearCorners() }
             let model = ShapeGeometry.path(rect)
             built.path = model
             Self.render(model, appearance: rect.appearance, order: order, transform: transform, into: &built)
@@ -551,11 +590,16 @@ public struct DocumentDisplayListBuilder: Sendable {
                                          locked: common.locked)
             connectors[node] = stored
             built = routed(node, stored, state: state)
+        case .text?:
+            built.item = textLayout?.item(node, state: state)
         case .placedFile(let placed)?:
             built.item = PlacedFileDrawing.item(PlacedFiles.placedFile(placed, transform: transform))
+        case .group(let group)?:
+            built.groupAppearance = Appearances.resolve(group.appearance, order: order)
         default:
             break
         }
+        built.sources += Brushes.referenced(NodeValues.appearance(props))
         cache[node] = built
         return built
     }
@@ -633,7 +677,8 @@ public struct DocumentDisplayListBuilder: Sendable {
         let all = display(path) { _ in true }
         let hasOpen = path.contours.contains { $0.isRenderable && !$0.closed }
         let hasClosed = path.contours.contains { $0.isRenderable && $0.closed }
-        let resolved = Appearances.resolve(appearance, order: order, evenOdd: path.evenOdd)
+        let corners = EffectLowering.cornerPoints(path)
+        let resolved = Appearances.resolve(appearance, order: order, evenOdd: path.evenOdd, corners: corners)
         let hasFill = resolved.items.contains { if case .fill = $0 { return true } else { return false } }
         guard hasOpen, !path.fillWhenOpen, hasFill else {
             built.item = .path(PathItem(path: all.path, appearance: resolved, transform: transform))
@@ -642,21 +687,25 @@ public struct DocumentDisplayListBuilder: Sendable {
             return
         }
         guard hasClosed else {
-            built.item = .path(PathItem(path: all.path, appearance: Appearances.resolve(appearance, order: order, evenOdd: path.evenOdd, paintsFill: false), transform: transform))
+            built.item = .path(PathItem(path: all.path, appearance: Appearances.resolve(appearance, order: order, evenOdd: path.evenOdd, paintsFill: false,
+                                                                                    corners: corners), transform: transform))
             built.elementPoints = [[]: all.points]
             built.leafContours = [[]: all.contours]
             return
         }
         let closed = display(path) { $0.closed }
         var children: [DisplayItem] = []
-        for element in resolved.items {
+        for (index, element) in resolved.items.enumerated() {
             let source: (path: DisplayPath, points: [PointRef?], contours: [OpID])
             if case .fill = element { source = closed } else { source = all }
             built.elementPoints[[children.count]] = source.points
             built.leafContours[[children.count]] = source.contours
-            children.append(.path(PathItem(path: source.path, appearance: Appearance([element]), transform: transform)))
+            // Each element keeps the effects attached to it; the object's own apply to the group.
+            let attached = resolved.effects.filter { $0.target == .element(index) }.map { EffectElement($0.effect, target: .element(0), hidden: $0.hidden) }
+            children.append(.path(PathItem(path: source.path, appearance: Appearance([element], effects: attached, raster: resolved.raster), transform: transform)))
         }
-        built.item = .group(GroupItem(children: children))
+        let objectLevel = resolved.effects.filter { $0.target == .object }
+        built.item = .group(GroupItem(children: children, appearance: Appearance(effects: objectLevel, raster: resolved.raster)))
     }
 
     /// The `DisplayPath` of the renderable contours `include` accepts, with the point each element

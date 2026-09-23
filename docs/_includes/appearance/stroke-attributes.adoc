@@ -546,6 +546,25 @@ height and angle.  The 64 built-in patterns are `WTApp/Inspectors/Resources/Patt
 (designed for {product}: sixteen grey levels by ordered dither, lines, diagonals, grids, checks,
 bricks, dots, diamonds, waves and weaves).
 
+NOTE: As built by ATTR-008 (`WTModel/BrushCommands.swift`, `Brushes.swift`, `Baking.swift`).
+Commands: `CreateBrush` (*Copy* puts copies of the selection in a new symbol; *Convert* is
+LIB-005's Convert to Symbol; the symbol's `usage` is set to brush tip), `EditBrush` (*Change*
+writes the node's settings -- an empty name keeps the name -- and replaces its symbols when they
+changed; *Create* makes "Copy of <name>" and points the given strokes at it), `DuplicateBrush`,
+`RemoveBrush` (*Delete* deletes the brush and every object whose stroke uses it; *Release* puts each
+using object in a group with its brush strokes baked into paths by the `Flattener` and removes the
+object's brush strokes), `ApplyBrush` (kind, reference with the cached Basic stroke of the row's
+current colour and width, colour, 100% width and a seed when unset), `ImportBrushes` and
+`BrushFile.document` (a brush file is a document holding the brushes and their symbols; the app
+writes it as a package).  Imported artwork keeps its colours as values: references to the file's
+swatches read their cached colours, and the file's swatches are not added to the list.  Seeds are
+deterministic (`Seeds.allocate`, FX-002's note); *Duplicate* of a stroke row gives a brush stroke
+or a Custom fill a new seed.  While a scene is built, `SceneContext` holds every live brush
+resolved with its symbols' artwork, so brush strokes draw their symbols; a path using a brush
+depends on the brush node and the brush on its symbols, so editing a symbol's artwork redraws the
+strokes.  The seed-on-duplicate conformance vector belongs to `crdt-conformance/` and is proposed
+in the task report.
+
 === Build tasks
 
 [[ATTR-005]]

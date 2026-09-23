@@ -45,6 +45,8 @@ public enum NodeKind: UInt32, Sendable, CaseIterable {
     case chart = 24
     /// A line joining two objects, routed on read from their bounds (connectors.adoc).
     case connector = 25
+    /// A text block, text on a path or area text (creating-text.adoc, "Data model").
+    case text = 130
     case group = 50
     case layer = 150
     /// A symbol's master: its children are the artwork (library.adoc).

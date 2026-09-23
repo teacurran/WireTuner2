@@ -271,6 +271,21 @@ images sampled at 4 pixels per point, not as `ShadingType 1`, and agree with the
 24/255 on all but 1% of the pixels.  Display-list colours are sRGB until the colour epic, so PDF
 shadings are sRGB rather than the widest stop space.
 
+NOTE: As built by ATTR-024 (`WTModel/GradientCommands.swift`).  Commands: `ChooseGradient` (the
+*Fill type* pop-up; the kind and, for a gradient without stops, the type and a two-stop ramp from
+the fill's colour to white -- `SetAttributeKind` still refuses Gradient), `EditGradient` (type,
+behavior, count 1 ... 100 and the ATOMIC `axis`; a handle drag writes on every move and the window
+groups it into one undo step), `AddGradientStop`, `MoveGradientStop` (an end stop dragged inward
+leaves a copy at the end), `RecolorGradientStop`, `CopyGradientStop`, `RemoveGradientStop`
+(refused for the two ends and whenever two or fewer stops remain), `ConvertGradientToBasic`
+(`kind` and `basic.color` from the ramp's left stop) and `ApplyGradient` (every object of the
+selection, groups expanded, on its topmost fill or a new one: the registers, the axis cleared to
+Auto size and the stops replaced).  `GradientReading.ramp` sorts by clamped offset, then element
+id, and the display list is given the stops in that order; `GradientReading.normalized` applies
+the rest of the normalizations; `GradientReading.tombstoneColor` reads a removed stop's colour for
+*Restore*.  "No stops reads as a Basic fill of the object's default fill color" is read as the
+fill's own Basic colour (what switching it to Basic shows).
+
 === Build tasks
 
 [[ATTR-023]]

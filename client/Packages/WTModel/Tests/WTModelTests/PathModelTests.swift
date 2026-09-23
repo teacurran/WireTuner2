@@ -290,7 +290,7 @@ private func point(_ n: UInt64, _ x: Double, _ y: Double, in inHandle: Vector = 
               case .stroke(let second) = resolved.items[3], case .stroke(let fallback) = resolved.items[4] else {
             Issue.record("order"); return
         }
-        #expect(empty.paint.isNone, "a gradient without stops paints nothing")
+        #expect(empty.paint == .solid(.black), "a gradient without stops reads as a Basic fill of the fill's own colour (ATTR-024)")
         #expect(fallback.kind == .brush(BrushStroke(brush: nil, widthPercent: 0)), "a brush stroke without its brush draws its fallback")
         #expect(fill.rule == .evenOdd && fill.overprint && fill.paint == .solid(Color(red: 0, green: 1, blue: 0)))
         #expect(first.style.width == 1 && first.style.cap == .round && first.style.join == .bevel && first.style.miterLimit == 4 && first.style.dash == [2, 1])

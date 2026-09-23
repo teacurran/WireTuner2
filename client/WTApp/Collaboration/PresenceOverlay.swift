@@ -118,14 +118,53 @@ struct PresenceOverlay {
         return result
     }
 
-    /// The text blocks collaborators are typing in, as a flag at the block's top-left corner in
-    /// view points.  Mapping the caret's character to a glyph needs the text editor's layout
-    /// (COLLAB-008): until it exists the flag marks the block.
+    /// The collaborators' carets in view points (COLLAB-008, TYPE-016): through the block's layout
+    /// at the character the caret is before -- a deleted one reads where it was, before the next
+    /// surviving character; zero is the end -- or, when the block cannot place it (nothing laid
+    /// out yet), a flag at the block's top-left corner.  Carets in deleted blocks, or naming a
+    /// character not received yet, are not drawn.
     func carets(_ participants: [RemoteParticipant]) -> [(rect: Rect, name: String, color: Color)] {
         participants.compactMap { participant in
-            guard let caret = participant.caret, let bounds = document.object(for: caret.node)?.bounds else { return nil }
+            guard let caret = participant.caret, document.state.isLive(caret.node.opID) else { return nil }
+            if let geometry = caretGeometry(caret) {
+                let top = geometry.top
+                let bottom = geometry.bottom
+                return (Rect(x: min(top.x, bottom.x), y: min(top.y, bottom.y), width: 1.5, height: max(abs(bottom.y - top.y), 1)),
+                        participant.name, participant.color)
+            }
+            guard let bounds = document.object(for: caret.node)?.bounds else { return nil }
             let rect = bounds.applying(viewport.pasteboardToView)
             return (Rect(x: rect.minX, y: rect.minY, width: 1.5, height: rect.height), participant.name, participant.color)
+        }
+    }
+
+    /// The live offset a caret's character stands for in `text`: before it (a tombstone: where it
+    /// was), the end for zero; nil for a character the text does not hold.
+    static func offset(_ char: OpID, in text: TextNode) -> Int? {
+        char == .zero ? text.length : try? text.offset(of: Anchor(char: char, before: true))
+    }
+
+    /// A remote caret's ends and its selection's quads, in view points; nil when the block has
+    /// no layout to place it in.
+    func caretGeometry(_ caret: RemoteCaret) -> (top: Point, bottom: Point, selection: [[Point]])? {
+        let node = caret.node.opID
+        let state = document.state
+        guard let text = state.textNode(node), text.length > 0, let layout = document.textLayout(for: node),
+              let offset = Self.offset(caret.position, in: text), let placed = layout.caret(atOffset: offset) else { return nil }
+        let toView = Objects.pasteboardTransform(of: node, in: state).concatenating(viewport.pasteboardToView)
+        var selection: [[Point]] = []
+        if let end = caret.rangeEnd, let other = Self.offset(end, in: text), other != offset {
+            selection = layout.selection(from: offset, to: other).map { $0.corners.map { toView.apply($0) } }
+        }
+        return (toView.apply(placed.top), toView.apply(placed.bottom), selection)
+    }
+
+    /// The collaborators' text selections, tinted in their colour.
+    func textSelections(_ participants: [RemoteParticipant]) -> [(quad: [Point], color: Color)] {
+        participants.flatMap { participant -> [(quad: [Point], color: Color)] in
+            guard let caret = participant.caret, caret.rangeEnd != nil, document.state.isLive(caret.node.opID),
+                  let geometry = caretGeometry(caret) else { return [] }
+            return geometry.selection.map { ($0, participant.color) }
         }
     }
 
@@ -152,6 +191,11 @@ struct PresenceOverlay {
                 ctx.setFillColor(color.cgColor)
                 let half = Self.pointSize / 2
                 ctx.fill(CGRect(x: point.x - half, y: point.y - half, width: Self.pointSize, height: Self.pointSize))
+            }
+            for (quad, color) in textSelections(participants) {
+                ctx.setFillColor(color.cgColor.copy(alpha: 0.25) ?? color.cgColor)
+                ctx.addPath(TextTool.polygon(quad))
+                ctx.fillPath()
             }
             for caret in carets(participants) {
                 ctx.setFillColor(caret.color.cgColor)

@@ -493,7 +493,7 @@ final class TypesetParagraph {
     /// `hyphensBefore` consecutive hyphenated lines.
     func line(start: Int, columnWidth: Double, hyphensBefore: Int = 0) -> TypesetLine {
         let limited = style.hyphenation.consecutive > 0 ? min(hyphensBefore, style.hyphenation.consecutive) : 0
-        let request = LineRequest(start: start, columnWidth: (columnWidth * 1000).rounded() / 1000, hyphensBefore: limited)
+        let request = LineRequest(start: start, columnWidth: (columnWidth * 1000).rounded(.up) / 1000, hyphensBefore: limited)
         if let cached = memo[request] {
             return cached
         }

@@ -62,6 +62,9 @@ final class ObjectEditing: CommandSink {
     var onActiveLayerChange: (@MainActor () -> Void)?
     /// The path the Pen and Bezigon are building, shared so a switch between them continues it.
     var pathSession: PathBuildingSession?
+    /// The block the Text tool is editing, if any (the Object panel's Text section formats its
+    /// selection; Edit menu commands act on its text).
+    var textSession: TextEditingSession?
     /// Groups a burst of nudges into one undo step: ended after this long without one.
     var nudgePause: Duration = .milliseconds(500)
     private(set) var duplicateMemory: DuplicateMemory?

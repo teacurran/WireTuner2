@@ -465,6 +465,14 @@ Done when::
   winning value per character.
 * Conformance vectors for `Leading` as ATOMIC (mode and value never split).
 
+NOTE: Started with TYPE-003: the Object panel's *Text* section (`TextSection.swift`, registered in
+`InspectorRegistry.standard` for the `text` kind) has Font (the installed families, and the text's
+own when it is missing), Style (the family's faces), Size and Alignment.  While the Text tool edits
+one of the selected blocks it formats the tool's selection -- one mark over a range, or at an
+insertion point the pending format, which writes nothing -- and otherwise every selected block
+whole, as one change; values the text does not share show as mixed.  The rest of the section is
+this task's.
+
 [[TYPE-021]]
 ==== TYPE-021 Type attribute rendering
 [horizontal]

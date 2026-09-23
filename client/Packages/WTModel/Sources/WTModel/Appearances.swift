@@ -7,8 +7,9 @@ import WTRender
 /// Resolves a stored attribute stack into WTRender's `Appearance` (attribute-stack.adoc,
 /// "Rendering"): every fill and stroke in stack order, bottom first, hidden elements skipped, and
 /// every kind lowered to its display-list paint with the read-time normalizations of the stroke
-/// and fill pages.  Brush strokes draw as their cached Basic stroke (brush nodes are not lowered
-/// until the brush model, ATTR-008, lands) and effects are left to the FX epic's lowering.
+/// and fill pages.  Brush strokes draw their brush node's symbols while a scene build resolves the
+/// document's brushes (`SceneContext`), else their cached Basic stroke; effects are lowered by
+/// `EffectLowering`.
 public enum Appearances {
     /// The built-in defaults: a 1 pt black basic stroke and no fill
     /// (default-attributes.adoc, "an empty default stack reads as the built-in defaults").
@@ -46,24 +47,39 @@ public enum Appearances {
 
     /// The display appearance of `props`.  `order` is the stack order (`AppearanceEditing.stack`);
     /// without it fills paint below strokes.  `evenOdd` sets every fill's rule; `paintsFill`
-    /// false drops the fills (an open path that does not show its fill).
+    /// false drops the fills (an open path that does not show its fill).  Effects (FX-002) come
+    /// in stack order with their targets -- an effect attached to a fill or stroke that is not
+    /// drawn is skipped with it -- and `corners` resolves a Corners effect's point ids.
     public static func resolve(_ props: Wiretuner_Doc_V1_AppearanceProps, order: [AppearanceRow]? = nil, evenOdd: Bool = false,
-                               paintsFill: Bool = true) -> Appearance {
+                               paintsFill: Bool = true, corners: (OpID) -> CornerPoint? = { _ in nil }) -> Appearance {
         let fillElement = { (fill: Wiretuner_Doc_V1_Fill) in StackElement(.fill(Self.fill(fill.settings, evenOdd: evenOdd)), hidden: fill.hidden) }
         let strokeElement = { (stroke: Wiretuner_Doc_V1_Stroke) in StackElement(.stroke(Self.stroke(stroke.settings)), hidden: stroke.hidden) }
         guard let order else {
-            return Appearance(stack: (paintsFill ? props.fills.map(fillElement) : []) + props.strokes.map(strokeElement))
+            let fills = paintsFill ? props.fills : []
+            let rows = fills.map { OpID(element: $0.id) ?? .zero } + props.strokes.map { OpID(element: $0.id) ?? .zero }
+            return Appearance(stack: fills.map(fillElement) + props.strokes.map(strokeElement),
+                              effects: EffectLowering.elements(effects: props.effects, rows: rows, corners: corners),
+                              raster: EffectLowering.raster(props))
         }
         let fills = Dictionary(props.fills.compactMap { fill in OpID(element: fill.id).map { ($0, fill) } }) { first, _ in first }
         let strokes = Dictionary(props.strokes.compactMap { stroke in OpID(element: stroke.id).map { ($0, stroke) } }) { first, _ in first }
+        let effects = Dictionary(props.effects.compactMap { effect in OpID(element: effect.id).map { ($0, effect) } }) { first, _ in first }
+        var rows: [OpID] = []
+        var ordered: [Wiretuner_Doc_V1_Effect] = []
         let stack = order.compactMap { row -> StackElement? in
+            let element: StackElement?
             switch row.list {
-            case .fills: paintsFill ? fills[row.element].map(fillElement) : nil
-            case .strokes: strokes[row.element].map(strokeElement)
-            case .effects: nil
+            case .fills: element = paintsFill ? fills[row.element].map(fillElement) : nil
+            case .strokes: element = strokes[row.element].map(strokeElement)
+            case .effects:
+                if let effect = effects[row.element] { ordered.append(effect) }
+                element = nil
             }
+            if element != nil { rows.append(row.element) }
+            return element
         }
-        return Appearance(stack: stack)
+        return Appearance(stack: stack, effects: EffectLowering.elements(effects: ordered, rows: rows, corners: corners),
+                          raster: EffectLowering.raster(props))
     }
 
     // MARK: Fills
@@ -72,6 +88,8 @@ public enum Appearances {
         let rule: FillRule = evenOdd ? .evenOdd : .nonZero
         switch settings.kind {
         case .gradient:
+            // No live stops reads as a Basic fill (gradients.adoc, "Read-time normalizations").
+            guard !settings.gradient.stops.isEmpty else { return basic(settings.basic.color, rule: rule, overprint: settings.gradient.overprint) }
             return FillPaint(paint: .gradient(gradient(settings.gradient)), rule: rule, overprint: settings.gradient.overprint)
         case .lens:
             let lens = settings.lens
@@ -127,7 +145,7 @@ public enum Appearances {
             start: Point(x: gradient.axis.start.x, y: gradient.axis.start.y), end: Point(x: gradient.axis.end.x, y: gradient.axis.end.y),
             end2: gradient.axis.hasEnd2 ? Point(x: gradient.axis.end2.x, y: gradient.axis.end2.y) : nil
         ) : nil
-        let stops = gradient.stops.map { Gradient.Stop(offset: min(max($0.offset, 0), 1), color: color($0.color) ?? .clear) }
+        let stops = GradientReading.ramp(gradient).map { Gradient.Stop(offset: $0.offset, color: color($0.color) ?? .clear) }
         return Gradient(kind: kinds[gradient.type] ?? .linear, behavior: behaviors[gradient.behavior] ?? .normal,
                         repeatCount: Int(max(gradient.repeatCount, 1)), axis: axis, stops: stops)
     }
@@ -167,7 +185,7 @@ public enum Appearances {
         case .brush:
             let brush = settings.brush
             let cached = (try? Wiretuner_Doc_V1_BasicStroke(serializedBytes: brush.brush.cached)).flatMap { $0 == Wiretuner_Doc_V1_BasicStroke() ? nil : $0 }
-            let fallback = BrushStroke(brush: nil, widthPercent: brush.widthPercent, seed: brush.seed)
+            let fallback = BrushStroke(brush: Brushes.definition(brush.brush), widthPercent: brush.widthPercent, seed: brush.seed)
             var paint = basic(cached ?? { var basic = Wiretuner_Doc_V1_BasicStroke(); basic.color = brush.color; basic.width = 1; return basic }())
             paint.kind = .brush(fallback)
             return paint

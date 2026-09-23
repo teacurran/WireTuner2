@@ -202,6 +202,14 @@ final class PointerTool: Tool, PointerTracking {
             // The object, or the member of it already selected by an Option-click.
             let hit = context.selection.pick(at: e.viewPoint, viewport: context.viewport, subselect: false)
             let member = context.selection.pick(at: e.viewPoint, viewport: context.viewport, subselect: true)
+            // Double-clicking text switches to the Text tool with the insertion point there
+            // (text-blocks.adoc, "Double-click behaviors").
+            if let member, let editText = context.editText, let object = context.document.object(for: member.id), object.kind == .text,
+               !object.isEffectivelyLocked, !e.modifiers.contains(.option) {
+                cancel()
+                editText(object.id, e.pasteboardPoint)
+                return
+            }
             let onSelection = [hit?.id, member?.id].contains { $0.map(context.selection.selection.contains) == true }
             if onSelection, context.transformHandles() {
                 showHandles()

@@ -155,8 +155,17 @@ final class ToolManager {
         } else {
             activeTool.flagsChanged(CanvasEvent(pasteboardPoint: .zero, viewPoint: .zero, modifiers: modifiers, timestamp: timestamp))
         }
-        perform(machine.commandChanged(down: modifiers.contains(.command)))
+        // While text is edited Command is for the text keys (Cmd-arrows), not the temporary Pointer.
+        if !isEditingText { perform(machine.commandChanged(down: modifiers.contains(.command))) }
         context.host.setNeedsOverlayDisplay()
+    }
+
+    /// Whether the active tool is editing text: every key but kbd:[Esc] is typing.
+    var isEditingText: Bool { (activeTool as? any TextInputHandling)?.isEditingText == true }
+
+    /// The tool the canvas's text input client talks to, while it edits text.
+    var textInput: (any TextInputHandling)? {
+        (activeTool as? any TextInputHandling).flatMap { $0.isEditingText ? $0 : nil }
     }
 
     /// A Force click on the canvas, delivered to the effective tool (BASIC-034).
@@ -171,13 +180,18 @@ final class ToolManager {
     /// key was handled.
     @discardableResult
     func keyDown(_ event: NSEvent) -> Bool {
-        if event.keyCode == CanvasEventTranslator.spaceKeyCode {
+        if event.keyCode == CanvasEventTranslator.spaceKeyCode, !isEditingText {
             if let tool = activeTool as? any SpaceDragging, tool.isDragging {
                 if !event.isARepeat { tool.spaceChanged(down: true) }
                 context.host.setNeedsOverlayDisplay()
                 return true
             }
             if !event.isARepeat { perform(machine.spaceChanged(down: true)) }
+            return true
+        }
+        // A composition takes kbd:[Esc] itself (the input method cancels it).
+        if event.keyCode == CanvasEventTranslator.escapeKeyCode, textInput?.hasMarkedText == true, activeTool.keyDown(event) {
+            context.host.setNeedsOverlayDisplay()
             return true
         }
         if event.keyCode == CanvasEventTranslator.escapeKeyCode {
@@ -212,7 +226,7 @@ final class ToolManager {
 
     @discardableResult
     func keyUp(_ event: NSEvent) -> Bool {
-        guard event.keyCode == CanvasEventTranslator.spaceKeyCode else { return false }
+        guard event.keyCode == CanvasEventTranslator.spaceKeyCode, !isEditingText else { return false }
         if let tool = activeTool as? any SpaceDragging, tool.isDragging {
             tool.spaceChanged(down: false)
             context.host.setNeedsOverlayDisplay()

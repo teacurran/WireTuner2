@@ -247,6 +247,10 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         context.drawing = { DrawingSettings(preferences: preferences) }
         context.commandSink = objectEditing
         context.objectEditing = objectEditing
+        context.text = { TextToolSettings(preferences: preferences) }
+        context.selectTool = { [weak self] id in self?.toolManager?.select(id) }
+        context.editText = { [weak self] node, point in self?.editText(node, at: point) }
+        context.textCaretChanged = { [weak self] caret in self?.collaboration.publisher?.caret(caret) }
         let manager = ToolManager(registry: environment.tools, context: context, initialTool: initialTool) { [environment] key in
             environment.runShortcut(key)
         }
@@ -670,13 +674,35 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
 
     // MARK: Select commands (responder chain; `SelectionCommands`)
 
-    override func selectAll(_ sender: Any?) { selection.selectAll() }
+    /// While the Text tool edits a block, Select All selects its characters.
+    override func selectAll(_ sender: Any?) {
+        if let text = textEditor { text.selectAll() } else { selection.selectAll() }
+    }
 
     /// menu:Edit[Clear] (kbd:[Delete]): selected points leave their paths (which heal across the
-    /// gap); otherwise the selected objects are deleted.  One change.
+    /// gap); otherwise the selected objects are deleted.  One change.  While the Text tool edits,
+    /// kbd:[Delete] deletes text (the selection, or the character before the insertion point).
     @objc func delete(_ sender: Any?) {
+        if let text = textEditor {
+            text.delete(.backspace)
+            return
+        }
         guard let command = deletionCommand() else { return }
         objectEditing.perform(command)
+    }
+
+    // MARK: Text editing (TYPE-003, TYPE-010)
+
+    /// The block the Text tool is editing in this window, if it is.
+    var textEditor: TextEditingSession? {
+        toolManager?.textInput != nil ? objectEditing.textSession : nil
+    }
+
+    /// The Pointer's double-click on text: the Text tool takes over with the insertion point at
+    /// `point` (pasteboard).
+    func editText(_ node: OpID, at point: Point) {
+        toolManager.select(TextTool.id)
+        (toolManager.activeTool as? TextTool)?.edit(node, at: point)
     }
 
     /// What Clear deletes, as one command; nil when nothing is selected.
@@ -708,12 +734,19 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
 
     // MARK: Clipboard (responder chain; OBJ-010)
 
-    @objc func cut(_ sender: Any?) { objectEditing.cut() }
-    @objc func copy(_ sender: Any?) { objectEditing.copy() }
+    @objc func cut(_ sender: Any?) {
+        if let text = textEditor { text.cut() } else { objectEditing.cut() }
+    }
+
+    @objc func copy(_ sender: Any?) {
+        if let text = textEditor { text.copy() } else { objectEditing.copy() }
+    }
     /// WireTuner objects first; anything else importable goes through the import path
     /// (importing.adoc, "Pasting": objects, then PDF, then image).
     @objc func paste(_ sender: Any?) {
-        if objectEditing.canPaste {
+        if let text = textEditor {
+            text.paste()
+        } else if objectEditing.canPaste {
             objectEditing.paste()
         } else if let pasteImport = environment.pasteImport, pasteImport.canPaste() {
             pasteImport.paste(self)
@@ -727,6 +760,17 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
     /// Validation of the select commands.  Select All reaches this controller only when no
     /// text view took it first.
     func validate(selector: Selector) -> Bool {
+        if let text = textEditor, !isEditingText {
+            switch selector {
+            case #selector(selectAll(_:)): return text.node != nil
+            // A composition takes kbd:[Delete] itself.
+            case #selector(delete(_:)): return text.node != nil && text.marked == nil
+            case #selector(cut(_:)), #selector(copy(_:)): return !text.selectedRange.isEmpty
+            case #selector(paste(_:)): return text.canPaste
+            case #selector(selectNone(_:)), #selector(invertSelection(_:)): return false
+            default: break
+            }
+        }
         switch selector {
         case #selector(selectAll(_:)), #selector(invertSelection(_:)):
             return selection.canSelectAll
@@ -831,6 +875,10 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
     }
 
     func windowWillClose(_ notification: Notification) {
+        // Editing ends with the window: the canvas stops being a text input client first.
+        let input = canvas.inputContext
+        (toolManager.activeTool as? TextTool)?.endEditing(revert: false)
+        input?.deactivate()
         collaboration.review.dismiss()
         collaboration.tearDown()
         saveState()

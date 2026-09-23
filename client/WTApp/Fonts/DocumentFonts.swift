@@ -90,6 +90,7 @@ final class DocumentFonts {
         let index = DocumentFontIndex(state: model.state, manager: manager)
         let token = model.observe { [weak index] event in index?.apply(event) }
         open[document.id] = (index, document, token)
+        document.useTextEngine(index.layoutEngine)
         activateEmbedded(EmbeddedFont.all(in: model.state), for: document.id)
         // The library's fonts are fetched silently -- offline, the ones fetched before still load
         // from the cache -- and only what is left asks.

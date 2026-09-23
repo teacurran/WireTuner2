@@ -494,11 +494,37 @@ paragraph's registers and tab stops onto the new newline.  Character and paragra
 applied as a `style` mark and the `style` register; resolving their settings and clearing
 overrides is TYPE-034, and linked flows are TYPE-007.  `TextLayoutReading` turns a `TextNode`
 into WTText's `TextContent` and block `TextContainer` and draws it through the document's
-`DocumentFontIndex.layoutEngine`; the scene builder does not call it yet (it needs a
-`NodeKind.text` case, which the app's exhaustive switches must learn in the same change).
+`DocumentFontIndex.layoutEngine`.  The scene draws text blocks through it (TYPE-003):
+`NodeKind.text` (130) is a kind WTModel reads and the object commands act on (moved, transformed,
+locked, deleted like any object; its `common` is field 1 and it has no attribute stack of its own
+-- `block_appearance` is not drawn yet), and `DocumentDisplayListBuilder.textLayout` holds a
+`TextSceneLayout` over the document's engine.  The engine's caches are main-actor state, so a
+builder given one must build on the main actor (the app's `DocumentHandle` does); builders
+without one -- export, baking, previews -- draw no text.  A font activation reaches the drawn text
+through `invalidate` with the nodes `DocumentFontIndex.fontsChanged` names.
 
 Text tool:: A `Tool` (APP-003) owning an `NSTextInputClient` implementation for the canvas so
 that dictation, marked text and the Character Viewer work.  kbd:[Esc] ends editing.
++
+As built (TYPE-003, TYPE-010): `TextTool` (WTApp/Tools) makes the gestures and draws the
+overlay; `TextEditingSession` (WTApp/Text) is the model -- the block (or, before the first
+character, the place a click or drag made for it), the selection as two anchors in the
+`TextNode.anchor(at:)` form (before a character, or the end), the pending format and the input
+method's marked text.  The canvas is the `NSTextInputClient` (`CanvasTextInput.swift`); while the
+tool edits, keys go through `interpretKeyEvents` and the key-binding selectors (`moveWordLeft:`,
+`deleteToBeginningOfLine:` ...) come back to the tool; with no input context (tests) the tool maps
+the arrows, deletes, Return and Tab itself.  Every edit is a `TextKeystroke` (WTApp) resolved
+against the state it runs on, and the session queues edits and moves behind a change still on
+its way, so a keystroke typed while the new block is being created, or an arrow right after
+typing, acts on the text the change before left.  The first character is `TypeNewTextBlock`
+(`CreateTextBlock` with it, one change labelled "Type"), which leaves the undo step open at that
+character so the rest of the first word joins it.  While text is edited Space types, Command no
+longer pushes the temporary Pointer, and Edit menu Cut, Copy, Paste, Select All and Clear act on
+the text (plain text on the pasteboard, line ends read as paragraph ends); kbd:[Shift+Return]
+types an end of line (U+2028).  An emptied block is deleted when editing ends.  Deviations:
+kbd:[Option]-click behaves as a click until the Text Editor exists (TYPE-011); the composition is
+drawn over the text at the insertion point (underlined, in the overlay) rather than laid out
+inside the line; the caret does not blink.
 
 === Build tasks
 
@@ -557,6 +583,17 @@ Done when::
 * Marked text from the Japanese input method is not sent until committed (no `TextInsert` in
   the outbox during composition).
 * kbd:[Option]-click opens the Text Editor window with the new block.
+
+NOTE: As built by TYPE-003 (with the scene hook, `NodeKind.text` and `TextSceneLayout`, and
+TYPE-010's selection and keys): the *Done when* tests are app-hosted tests driving the tool with
+canvas events (`TextToolTests`, `TextEditingTests`): an auto-expanding and a fixed-size block are
+created and typed into, an abandoned block leaves no node and no change, and marked text leaves
+the document untouched until it is committed.  kbd:[Option]-click opening the Text Editor waits
+for TYPE-011.  The *Text tool reverts to Pointer* and *New text containers auto-expand*
+preferences are read at each click (a click with the latter off makes a 144 × 72 pt block).
+A click in any text block's laid-out rectangle -- between lines, or in a fixed-size block's empty
+part -- edits it; the Pointer's double-click on text hands the block to the Text tool with the
+insertion point at the click (text-blocks.adoc, "Double-click behaviors").
 
 [[TYPE-004]]
 ==== TYPE-004 Text merge conformance vectors

@@ -359,7 +359,8 @@ enum FontDocuments {
             await FontDocuments.asset(world.document, byte: 8, mediaType: "font/otf")
             #expect(await fonts.documentDidOpen(world.window) == nil, "the embedded font answers")
         }
-        #expect(FontManager.shared.isAvailable(family) && relayouts.count == 1, "the first document's text is laid out again")
+        // Once with the document's own engine when it opens, once more when its font arrives.
+        #expect(FontManager.shared.isAvailable(family) && relayouts.count == 2, "the first document's text is laid out again")
         #expect(fonts.index(for: first.document.id)?.manager.resolve(FaceName(family: family)).source == .embedded)
         fonts.documentDidClose(first.document)
         #expect(FontManager.shared.isAvailable(family), "the second document still embeds it")
@@ -395,17 +396,18 @@ enum FontDocuments {
         team.isOnline = false
         let offline = try #require(await fonts.documentDidOpen(world.window))
         #expect(Set(offline.rows.map(\.face.family)) == [family, absent, broken] && !offline.canFetch && offline.fetchHelp != nil)
-        #expect(Set(offline.rows.filter(\.inTeamLibrary).map(\.face.family)) == [family, broken] && relayouts.count == 0)
+        // Opening lays the text out with the document's own engine; no font changed.
+        #expect(Set(offline.rows.filter(\.inTeamLibrary).map(\.face.family)) == [family, broken] && relayouts.count == 1)
         #expect(Set(team.fetched) == [family, broken])
         fonts.documentDidClose(world.document)
         // Online (or cached): the library's font is activated silently; the absent one asks.
         team.isOnline = true
         team.files = [family: [url], broken: [junk]]
         let online = try #require(await fonts.documentDidOpen(world.window))
-        #expect(online.rows.map(\.face.family).sorted() == [absent, broken].sorted() && relayouts.count == 1 && FontManager.shared.isAvailable(family))
+        #expect(online.rows.map(\.face.family).sorted() == [absent, broken].sorted() && relayouts.count == 3 && FontManager.shared.isAvailable(family))
         #expect(try await online.team?.fetch(family) == [url])
         online.didActivate()
-        #expect(relayouts.count == 1, "nothing resolves differently")
+        #expect(relayouts.count == 3, "nothing resolves differently")
         await fonts.finish(world.window, open: true)
     }
 

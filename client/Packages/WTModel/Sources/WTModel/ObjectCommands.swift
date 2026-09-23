@@ -25,7 +25,7 @@ public enum Objects {
     /// The kinds the object commands act on.  A connector is selected, styled, deleted, copied
     /// and grouped like any object, but never moved or transformed on its own: it follows the
     /// objects it joins (connectors.adoc), so `MoveObjects` and `TransformObjects` skip it.
-    public static let kinds: Set<NodeKind> = [.path, .rect, .ellipse, .polygon, .group, .chart, .instance, .barcode, .connector, .placedFile]
+    public static let kinds: Set<NodeKind> = [.path, .rect, .ellipse, .polygon, .group, .chart, .instance, .barcode, .connector, .placedFile, .text]
 
     /// The kind of the live object `node`, or throws.
     static func kind(_ node: OpID, in state: EngineState) throws -> NodeKind {

@@ -1,4 +1,5 @@
 import AppKit
+import WTCRDT
 import WTGeometry
 import WTRender
 
@@ -70,11 +71,15 @@ protocol CanvasHost: AnyObject {
     func showHUD(_ message: String)
     /// The Zoom tool's Shift-drag: ask for a named view of `target` (the New View sheet).
     func requestNamedView(_ target: Viewport)
+    /// Hands a key to the text input system while the Text tool edits (`interpretKeyEvents`, which
+    /// calls back through the canvas's `NSTextInputClient`); false when the host has none.
+    func interpretKeys(_ event: NSEvent) -> Bool
 }
 
 extension CanvasHost {
     func showHUD(_ message: String) { showStatusMessage(message) }
     func requestNamedView(_ target: Viewport) {}
+    func interpretKeys(_ event: NSEvent) -> Bool { false }
 }
 
 /// Snapping, as the tools see it.  A placeholder until GEO-005 and OBJ-039 deliver the
@@ -163,6 +168,16 @@ struct ToolContext {
     var objectEditing: ObjectEditing?
     /// *Double-click enables transform handles* (transforming.adoc, OBJ-034).
     var transformHandles: @MainActor () -> Bool = { true }
+    /// Makes `id` the window's tool (the Text tool handing over to the Pointer).
+    var selectTool: @MainActor (ToolID) -> Void = { _ in }
+    /// The Pointer's double-click on text: the Text tool takes over with the insertion point at
+    /// the point (text-blocks.adoc, "Double-click behaviors"); nil outside a window.
+    var editText: (@MainActor (OpID, Point) -> Void)?
+    /// The Text tool's preferences.
+    var text: @MainActor () -> TextToolSettings = { TextToolSettings() }
+    /// The Text tool's insertion point moved: the block, the character it is before (zero: the
+    /// end) and a selection's other end; nil when editing ends (outgoing presence).
+    var textCaretChanged: @MainActor ((node: OpID, position: OpID, rangeEnd: OpID?)?) -> Void = { _ in }
 
     init(document: DocumentHandle, host: any CanvasHost, snapping: SnappingContext = SnappingContext(), selection: SelectionController? = nil) {
         self.document = document
