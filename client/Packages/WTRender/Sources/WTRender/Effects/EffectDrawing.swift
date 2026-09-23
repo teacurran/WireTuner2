@@ -136,7 +136,7 @@ extension CoreGraphicsRenderer {
     /// maps into), as premultiplied RGBA.  Every pixel depends on its position alone, so any two
     /// regions agree where they overlap.
     func deviceLayerImage(_ node: EffectNode, pasteboardToPixels: AffineTransform, region: PixelRect) -> TextureImage? {
-        guard let surface = BitmapSurface(width: region.width, height: region.height) else {
+        guard let surface = BitmapSurface(width: region.width, height: region.height, colorSpace: colorManagement.colorSpace) else {
             return nil
         }
         let context = surface.context
@@ -163,7 +163,7 @@ extension CoreGraphicsRenderer {
                     bytes[index * 4 + channel] = UInt8((Double(bytes[index * 4 + channel]) * factor).rounded())
                 }
             }
-            CoreGraphicsRenderer.blit(TextureImage(width: region.width, height: region.height, bytes: bytes), at: PixelRect(origin: region), into: context)
+            CoreGraphicsRenderer.blit(TextureImage(width: region.width, height: region.height, bytes: bytes, colorSpace: content.colorSpace), at: PixelRect(origin: region), into: context)
         case .raster(let raster):
             let resolution = rasterPreview.resolution(for: raster.settings, deviceScale: pasteboardToPixels.scaleFactor)
             guard let result = rasterResult(raster, resolution: resolution) else {
@@ -226,6 +226,10 @@ extension CoreGraphicsRenderer {
         var result = CoreGraphicsRenderer(flatteningTolerance: flatteningTolerance, viewMode: .preview)
         result.rasterPreview = .document
         result.rasterCache = rasterCache
+        // Raster effects evaluate in sRGB; their content's colours still go through Working
+        // CMYK and the proof.
+        result.colorManagement = colorManagement
+        result.colorManagement.workingSpace = .sRGB
         return result
     }
 
@@ -237,7 +241,7 @@ extension CoreGraphicsRenderer {
         }
         context.saveGState()
         context.addPath(badge.cgPath)
-        context.setFillColor(CoreGraphicsRenderer.badgeColor.cg)
+        context.setFillColor(fillColor(CoreGraphicsRenderer.badgeColor))
         context.fillPath(using: .winding)
         context.restoreGState()
     }
@@ -336,12 +340,12 @@ extension TextureImage {
                 bytes[row * surface.width * 4 + column] = source[row * rowBytes + column]
             }
         }
-        self.init(width: surface.width, height: surface.height, bytes: bytes)
+        self.init(width: surface.width, height: surface.height, bytes: bytes, colorSpace: surface.context.colorSpace ?? CoreGraphicsRenderer.colorSpace)
     }
 
-    /// As a Core Graphics image; nil for an empty one.
+    /// As a Core Graphics image in its colour space; nil for an empty one.
     var cgImage: CGImage? {
-        guard let surface = BitmapSurface(width: width, height: height) else {
+        guard let surface = BitmapSurface(width: width, height: height, colorSpace: colorSpace) else {
             return nil
         }
         let data = surface.context.data!.assumingMemoryBound(to: UInt8.self)

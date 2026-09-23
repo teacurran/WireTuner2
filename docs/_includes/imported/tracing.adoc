@@ -239,6 +239,35 @@ Nothing beyond storing and relaying changes.
   The model is an optional resource: if it is absent from the bundle (a build without it) the
   *Photo* tracer uses foreground instances only, splitting the picture into subject and
   background, and the options sheet says so.  Nothing leaves the Mac.
++
+NOTE: As built by IMG-021 and IMG-022 (`WTRender/Trace/`).  The kernel is `WTRender.Trace`, not
+`WTGeometry.Trace`: it samples through the renderer and `WTGeometry` stays a pure geometry package;
+it produces `WTGeometry` contours fitted by GEO-004's `CurveFitter`.  `Trace.Sampling.render`
+rasterizes a display-list rectangle with the bitmap → pasteboard map; `Trace.run` (synchronous,
+with progress and a cancellation poll per row, label and contour) and `Trace.trace` (async,
+cancelled with its task) return paths in painter's order, one compound path per palette entry,
+lighter first, colors as sRGB `Color`s or, in the CMYK model, the naive CMYK mix (`TracedPath.color`
+is then a CMYK `Color`).  `Trace.outline(mask:width:height:conformity:keepHoles:)` is the outline
+stage for IMG-027 and *Convert selection edge*.  Deviations: median cut runs on a 15-bit histogram
+(a 256-level luma histogram for *Grays*) and pixels with alpha below 128 are not traced; *Noise
+tolerance* 1--5 is a 3 × 3 filter adopting a neighbouring label held by at least 8, 7, 6, 5 of the 9
+pixels (5 runs twice) because a plain majority filter erases 1-pixel lines, and 6 and up merges
+4-connected regions under tolerance² pixels.  Polygon approximation is not Potrace's optimal
+polygon: boundaries are walked on the pixel-corner lattice (inside on the right, so holes come out
+reversed) with the minority turn policy decided by rings of radius 2--4, sampled at run midpoints
+plus corners between runs of at least 2 px, and fitted with a corner angle of 0.4π.  *Path
+overlap* offsets each edge whose outside neighbour is darker by 2 or 0.5 px geometrically rather
+than dilating masks.  *Outer edge* traces everything but the lightest ("paper") entry, outer
+contours only, in the mean color.  Centerline removes L-corner staircase pixels after Zhang--Suen,
+merges junction clusters joined by chains no longer than the feature width, prunes shorter spurs,
+and measures width by probing both edges along each sample's normal at 1/16 px (the median of the
+probe sums, each sample re-centred between the edges) instead of sampling the distance transform,
+which keeps even widths within 0.5 px; the classifier compares `2·maxDT − 1` with *Open paths
+below*.  A single-pixel dot yields no centerline path.  "No allocation in the contour-following
+loop" is shown by the corner buffer keeping its reserved capacity, not by an allocator trace.  The
+4 MP 16-color outline takes 0.77 s in a release build (2 s budget, enforced in release only); the
+fixtures are generated in code (line art, lettering, a gradient "photograph", a salt-and-pepper
+scan), not a recorded corpus of real files.
 * Undo: one change per trace, labelled "Trace _name_".
 
 === Build tasks

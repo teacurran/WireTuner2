@@ -9,8 +9,19 @@ import Foundation
 
 /// Draws display lists with Core Graphics.
 public struct CoreGraphicsRenderer: WTRender {
-    /// The working colour space: sRGB, until the CMS epic supplies document profiles.
+    /// The space sampled paints and intermediate effect bitmaps evaluate in: sRGB.  Tiles and
+    /// bitmaps are rendered in `colorManagement`'s working space.
     public static let colorSpace = CGColorSpace(name: CGColorSpace.sRGB)!
+
+    /// How tagged colours become pixels (CMS-006, CMS-007): the working space tiles and bitmaps
+    /// are tagged with, Working CMYK, the intent and the soft proof.  PDF output carries colours
+    /// tagged in their own spaces and never proofs.
+    public var colorManagement: ColorManagement = .standard
+
+    /// Where placed images' pixels come from (IMG-004); nil draws every image as its
+    /// placeholder.  Bitmaps and tiles never wait for a decode (the store calls back when a
+    /// level is ready); PDF output decodes inline.
+    public var imageStore: ImageStore?
 
     public let flatteningTolerance: FlatteningTolerance
 
@@ -74,6 +85,13 @@ public struct CoreGraphicsRenderer: WTRender {
         return result
     }
 
+    /// The same renderer with another colour pipeline.
+    public func with(colorManagement: ColorManagement) -> CoreGraphicsRenderer {
+        var result = self
+        result.colorManagement = colorManagement
+        return result
+    }
+
     /// The same renderer with overprint preview on or off.
     public func with(overprintPreview: Bool) -> CoreGraphicsRenderer {
         var result = self
@@ -105,7 +123,7 @@ public struct CoreGraphicsRenderer: WTRender {
     }
 
     public func renderTile(_ displayList: DisplayList, key: TileKey, geometry: TileGeometry) -> CGImage? {
-        guard let surface = BitmapSurface(width: geometry.tileSize, height: geometry.tileSize) else {
+        guard let surface = BitmapSurface(width: geometry.tileSize, height: geometry.tileSize, colorSpace: colorManagement.colorSpace) else {
             return nil
         }
         render(displayList, tile: key, geometry: geometry, into: surface.context)
@@ -118,7 +136,7 @@ public struct CoreGraphicsRenderer: WTRender {
     public func renderBitmap(_ displayList: DisplayList, viewport: Viewport, scale: Double = 1) -> CGImage? {
         let width = Int((viewport.size.width * scale).rounded())
         let height = Int((viewport.size.height * scale).rounded())
-        guard let surface = BitmapSurface(width: width, height: height) else {
+        guard let surface = BitmapSurface(width: width, height: height, colorSpace: colorManagement.colorSpace) else {
             return nil
         }
         surface.context.scaleBy(x: scale, y: scale)
@@ -139,6 +157,7 @@ public struct CoreGraphicsRenderer: WTRender {
         var vector = self
         vector.rasterScale = CoreGraphicsRenderer.pdfRasterScale
         vector.vectorOutput = true
+        vector.colorManagement.proof = nil
         vector.render(displayList, viewport: viewport, into: context)
         context.endPDFPage()
         context.closePDF()
@@ -177,7 +196,7 @@ public struct CoreGraphicsRenderer: WTRender {
         context.translateBy(x: 0, y: CGFloat(surface.height))
         context.scaleBy(x: 1, y: -1)
         if let background {
-            context.setFillColor(background.cg)
+            context.setFillColor(fillColor(background))
             context.fill(surface.cg)
         }
         context.concatenate(pasteboardTransform.cg)
@@ -245,7 +264,7 @@ public struct CoreGraphicsRenderer: WTRender {
             if viewMode.drawsImagesAsBoxes {
                 drawImageBox(image, color: Color(white: 0.45), into: context)
             } else {
-                drawImagePlaceholder(image, into: context)
+                drawImage(image, into: context)
             }
         case .text(let text):
             if shouldGreek(text, in: context) {
@@ -298,7 +317,7 @@ public struct CoreGraphicsRenderer: WTRender {
                 if let color = paint.color, !(overprint && overprintPreview) {
                     // The common case needs no saved state: the colour is set for every fill.
                     context.addPath(shape.cgPath)
-                    context.setFillColor(color.cg)
+                    context.setFillColor(fillColor(color))
                     context.fillPath(using: shapeRule.cg)
                     continue
                 }
@@ -306,7 +325,7 @@ public struct CoreGraphicsRenderer: WTRender {
                 applyOverprint(overprint, to: context)
                 context.addPath(shape.cgPath)
                 if let color = paint.color {
-                    context.setFillColor(color.cg)
+                    context.setFillColor(fillColor(color))
                     context.fillPath(using: shapeRule.cg)
                 } else {
                     context.clip(using: shapeRule.cg)
@@ -340,31 +359,48 @@ public struct CoreGraphicsRenderer: WTRender {
         }
     }
 
+    /// The `CGColor` a solid fill paints with: in the working space for bitmaps (converted and
+    /// proofed exactly as the Metal renderer converts it), tagged in its own space for PDF.
+    func fillColor(_ color: Color) -> CGColor {
+        vectorOutput ? colorManagement.taggedCGColor(color) : colorManagement.cgColor(color)
+    }
+
     private func applyOverprint(_ overprint: Bool, to context: CGContext) {
         if overprint && overprintPreview {
             context.setBlendMode(.multiply)
         }
     }
 
-    /// A neutral grey block with a diagonal cross, until the image pipeline lands.
+    /// The decoded image (IMG-004) when the renderer has an `imageStore` that holds it, else
+    /// the placeholder.
+    private func drawImage(_ item: ImageItem, into context: CGContext) {
+        guard let imageStore, let image = ImageDrawing.image(for: item, store: imageStore, renderer: self, in: context) else {
+            drawImagePlaceholder(item, into: context)
+            return
+        }
+        ImageDrawing.draw(image, item: item, renderer: self, into: context)
+    }
+
+    /// A neutral grey block with a diagonal cross over the visible frame; while the blob
+    /// downloads, a darker bar along its bottom edge shows the progress.
     private func drawImagePlaceholder(_ item: ImageItem, into context: CGContext) {
+        let frame = item.visibleRect
         context.saveGState()
         context.concatenate(item.transform.cg)
-        context.setFillColor(Color(white: 0.75).cg)
-        context.fill(item.rect.cg)
+        context.setFillColor(fillColor(Color(white: 0.75)))
+        context.fill(frame.cg)
+        if let bar = ImageDrawing.progressBar(for: item, store: imageStore) {
+            context.setFillColor(fillColor(Color(white: 0.45)))
+            context.fill(bar.cg)
+        }
         context.restoreGState()
         drawImageBox(item, color: Color(white: 0.45), lineWidth: 1, into: context)
     }
 
-    /// The image's frame and diagonals only: the fast modes' and Keyline's crossed box, as
-    /// hairlines.  With `lineWidth` (the Preview placeholder) only the diagonals are drawn.
+    /// The image's visible frame and diagonals only: the fast modes' and Keyline's crossed box,
+    /// as hairlines.  With `lineWidth` (the Preview placeholder) only the diagonals are drawn.
     private func drawImageBox(_ item: ImageItem, color: Color, lineWidth: Double? = nil, into context: CGContext) {
-        var box = lineWidth == nil ? DisplayPath(rect: item.rect) : DisplayPath()
-        box.move(to: Point(x: item.rect.minX, y: item.rect.minY))
-        box.addLine(to: Point(x: item.rect.maxX, y: item.rect.maxY))
-        box.move(to: Point(x: item.rect.maxX, y: item.rect.minY))
-        box.addLine(to: Point(x: item.rect.minX, y: item.rect.maxY))
-        drawLine(box, width: lineWidth, transform: item.transform, color: color, into: context)
+        drawLine(ImageDrawing.box(item.visibleRect, framed: lineWidth == nil), width: lineWidth, transform: item.transform, color: color, into: context)
     }
 
     /// The run's ink bounds at 15% of the text colour plus its baseline, until `WTText`
@@ -372,7 +408,7 @@ public struct CoreGraphicsRenderer: WTRender {
     private func drawTextPlaceholder(_ item: TextRunItem, into context: CGContext) {
         context.saveGState()
         context.concatenate(item.transform.cg)
-        context.setFillColor(item.color.withAlpha(multipliedBy: 0.15).cg)
+        context.setFillColor(fillColor(item.color.withAlpha(multipliedBy: 0.15)))
         context.fill(item.bounds.cg)
         context.restoreGState()
         var baseline = DisplayPath()
@@ -389,7 +425,7 @@ public struct CoreGraphicsRenderer: WTRender {
         let scale = abs(ctm.a * ctm.d - ctm.b * ctm.c).squareRoot()
         let outline = HairlineOutline.region(path, width: width ?? Double(hairlineWidth(in: context)), tolerance: StrokeExpansion.tolerance(forScale: scale) * 16)
         context.addPath(outline.cgPath)
-        context.setFillColor(color.cg)
+        context.setFillColor(fillColor(color))
         context.fillPath(using: .winding)
         context.restoreGState()
     }
@@ -404,7 +440,7 @@ public struct CoreGraphicsRenderer: WTRender {
         applyOverprint(overprint, to: context)
         context.concatenate(transform.cg)
         context.addPath(outline.cgPath)
-        context.setFillColor(color.cg)
+        context.setFillColor(fillColor(color))
         context.fillPath(using: .winding)
         context.restoreGState()
     }
@@ -426,7 +462,7 @@ public struct CoreGraphicsRenderer: WTRender {
     private func drawGreeked(_ item: TextRunItem, into context: CGContext) {
         context.saveGState()
         context.concatenate(item.transform.cg)
-        context.setFillColor(Color(white: 0.7).cg)
+        context.setFillColor(fillColor(Color(white: 0.7)))
         context.fill(item.bounds.cg)
         context.restoreGState()
     }

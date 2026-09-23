@@ -271,6 +271,16 @@ Nothing beyond storing and relaying changes.
   `Tool` (APP-003) that samples through the display list (the resolved `Color`, space
   included) and, for bitmaps, the decoded pixel converted through the image's source profile
   (CMS-003) into the default color space.
++
+NOTE: As built by COLOR-006's `WTRender` half.  Resolved colors arrive in the display list from
+`WTModel`'s `ColorResolver`, space included; `WTRender` provides the conversions it needs
+(`Color.tinted(_:)` for tint chains, `converted(to:)`, the formulas in `WTColor.Math`) and
+`InvalidationMapper.dirtyRegion(recoloring:in:)`, which maps a swatch's dependents
+(`SwatchDependents`, WTModel's) to dirty rectangles in one pass, collapsing a canvas to the union
+past `DirtyRegion.collapseThreshold` rectangles.  50,000 dependents map in about 20--60 ms in a debug
+build on this (shared) Mac; the 16 ms budget is enforced in release builds.  Converted colors are
+cached by resolved `Color` in `WTColor.Converter`, so unchanged objects convert nothing.  The
+resolver, the dependents index, the vectors and the merge test are `WTModel`'s and not built here.
 * Undo grouping: drops and palette picks are single changes; Mixer-bound edits group per
   slider drag.
 

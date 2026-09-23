@@ -43,7 +43,7 @@ enum PaintDrawing {
         guard let bounds = environment.path.controlBounds else {
             return
         }
-        switch paint {
+        switch environment.renderer.colorManagement.sampledPaint(paint) {
         case .none, .solid:
             return
         case .gradient(let gradient):

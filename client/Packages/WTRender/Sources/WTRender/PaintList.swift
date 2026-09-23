@@ -25,16 +25,18 @@ enum PaintBlend: Hashable, Sendable {
 struct PaintFill: Hashable, Sendable {
     var path: FlatPath
     var rule: FillRule
-    /// Premultiplied sRGB, the renderer's working space.
+    /// Premultiplied, in the renderer's working space (`ColorManagement`).
     var color: SIMD4<Float>
     var blend: PaintBlend
 }
 
-/// Premultiplied RGBA8 pixels, row 0 at the top.
+/// Premultiplied RGBA8 pixels, row 0 at the top, in `colorSpace`: the working space for
+/// textures the Metal renderer uploads as they are, sRGB for raster effect results.
 struct TextureImage: Hashable, Sendable {
     var width: Int
     var height: Int
     var bytes: [UInt8]
+    var colorSpace: CGColorSpace = CoreGraphicsRenderer.colorSpace
 }
 
 /// One polygon fill whose colour comes from a texture placed at `origin` (device pixels).
@@ -89,7 +91,9 @@ struct PaintListBuilder: Sendable {
         referenceTolerance: FlatteningTolerance = .standard,
         rasterPreview: RasterPreview = .screen,
         rasterEffectsReady: (@Sendable (Rect) -> Void)? = nil,
-        greekTypeBelow: Double = 0
+        greekTypeBelow: Double = 0,
+        colorManagement: ColorManagement = .standard,
+        imageStore: ImageStore? = nil
     ) {
         self.greekTypeBelow = greekTypeBelow
         self.viewMode = viewMode
@@ -99,6 +103,8 @@ struct PaintListBuilder: Sendable {
         reference.rasterPreview = rasterPreview
         reference.rasterEffectsReady = rasterEffectsReady
         reference.greekTypeBelow = greekTypeBelow
+        reference.colorManagement = colorManagement
+        reference.imageStore = imageStore
         self.reference = reference
         self.swapsFillRules = swapsFillRules
         self.surface = surface
@@ -152,8 +158,10 @@ struct PaintListBuilder: Sendable {
             let transform = image.transform.concatenating(base)
             if viewMode.drawsImagesAsBoxes {
                 addImageBox(image, transform: transform, color: Color(white: 0.45), lineWidth: nil, state: state, into: &result)
+            } else if reference.imageStore != nil {
+                addReferenceTexture(item, region: DisplayPath(rect: image.visibleRect), transform: transform, base: base, state: state, into: &result)
             } else {
-                addFill(DisplayPath(rect: image.rect), transform: transform, rule: .nonZero, color: Color(white: 0.75), state: state, into: &result)
+                addFill(DisplayPath(rect: image.visibleRect), transform: transform, rule: .nonZero, color: Color(white: 0.75), state: state, into: &result)
                 addImageBox(image, transform: transform, color: Color(white: 0.45), lineWidth: 1, state: state, into: &result)
             }
         case .text(let text):
@@ -230,7 +238,7 @@ struct PaintListBuilder: Sendable {
         let minY = Int(bounds.minY.rounded(.down))
         let width = Int(bounds.maxX.rounded(.up)) - minX
         let height = Int(bounds.maxY.rounded(.up)) - minY
-        guard let bitmap = BitmapSurface(width: width, height: height) else {
+        guard let bitmap = BitmapSurface(width: width, height: height, colorSpace: reference.colorManagement.colorSpace) else {
             return
         }
         let context = bitmap.context
@@ -264,10 +272,41 @@ struct PaintListBuilder: Sendable {
         result.append(.texture(PaintTexture(
             path: flat,
             rule: effectiveRule,
-            image: TextureImage(width: width, height: height, bytes: bytes),
+            image: TextureImage(width: width, height: height, bytes: bytes, colorSpace: reference.colorManagement.colorSpace),
             origin: SIMD2(Int32(minX), Int32(minY)),
             alpha: Float(state.alpha),
             blend: blend
+        )))
+    }
+
+    /// `item` (local → device `transform`, pasteboard → device `base`) drawn by the reference renderer into a bitmap over
+    /// `region`'s pixels, composited through Metal's coverage of `region`: placed images, whose
+    /// pixels Core Graphics resamples, draw exactly as the reference draws them.
+    private func addReferenceTexture(_ item: DisplayItem, region: DisplayPath, transform: AffineTransform, base: AffineTransform, state: State, into result: inout [PaintOperation]) {
+        let flat = flattener.flatten(region, transform: transform).clipped(to: clipBounds)
+        guard let bounds = flat.bounds?.intersection(surface), !bounds.isNull, bounds.width > 0, bounds.height > 0 else {
+            return
+        }
+        let minX = Int(bounds.minX.rounded(.down))
+        let minY = Int(bounds.minY.rounded(.down))
+        let width = Int(bounds.maxX.rounded(.up)) - minX
+        let height = Int(bounds.maxY.rounded(.up)) - minY
+        guard let bitmap = BitmapSurface(width: width, height: height, colorSpace: reference.colorManagement.colorSpace) else {
+            return
+        }
+        let context = bitmap.context
+        context.translateBy(x: 0, y: CGFloat(height))
+        context.scaleBy(x: 1, y: -1)
+        context.translateBy(x: CGFloat(-minX), y: CGFloat(-minY))
+        context.concatenate(base.cg)
+        reference.drawNested([item], in: context)
+        result.append(.texture(PaintTexture(
+            path: flat,
+            rule: .nonZero,
+            image: TextureImage(surface: bitmap),
+            origin: SIMD2(Int32(minX), Int32(minY)),
+            alpha: Float(state.alpha),
+            blend: .normal
         )))
     }
 
@@ -468,11 +507,7 @@ struct PaintListBuilder: Sendable {
     /// The image's frame and diagonals (`lineWidth` nil: hairlines, frame included) or only its
     /// diagonals at `lineWidth` (the Preview placeholder).
     private func addImageBox(_ item: ImageItem, transform: AffineTransform, color: Color, lineWidth: Double?, state: State, into result: inout [PaintOperation]) {
-        var box = lineWidth == nil ? DisplayPath(rect: item.rect) : DisplayPath()
-        box.move(to: Point(x: item.rect.minX, y: item.rect.minY))
-        box.addLine(to: Point(x: item.rect.maxX, y: item.rect.maxY))
-        box.move(to: Point(x: item.rect.maxX, y: item.rect.minY))
-        box.addLine(to: Point(x: item.rect.minX, y: item.rect.maxY))
+        let box = ImageDrawing.box(item.visibleRect, framed: lineWidth == nil)
         addStroke(box, style: StrokeStyle(width: lineWidth ?? 0), transform: transform, color: color, state: state, into: &result)
     }
 
@@ -481,8 +516,9 @@ struct PaintListBuilder: Sendable {
         guard let bounds = path.bounds, bounds.intersects(surface) else {
             return
         }
-        let alpha = color.alpha * state.alpha
-        let premultiplied = SIMD4<Float>(Float(color.red * alpha), Float(color.green * alpha), Float(color.blue * alpha), Float(alpha))
+        let working = reference.colorManagement.workingComponents(color)
+        let alpha = working.w * state.alpha
+        let premultiplied = SIMD4<Float>(Float(working.x * alpha), Float(working.y * alpha), Float(working.z * alpha), Float(alpha))
         result.append(.fill(PaintFill(path: path, rule: rule, color: premultiplied, blend: blend)))
     }
 }

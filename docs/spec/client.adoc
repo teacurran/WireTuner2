@@ -18,7 +18,7 @@ other so that the screen, the PDF and the printer agree.
 |`WTModel` |The typed document: `Document`, `Node` wrappers per kind (`PathNode`, `TextNode`, `GroupNode`, ...), `Command`s that produce `Change`s with labels and inverses, selection, normalize-on-read views, validators.
 |`WTSync` |Local store (GRDB), outbox and coalescing, sync client actor, bootstrap, bulk push, divergence measurement, replica rotation, blob queue, presence.
 |`WTGeometry` |Bézier math, booleans, offsetting, fitting, intersections, transforms, snapping.
-|`WTRender` |Display list, the Metal tile renderer, the Core Graphics reference renderer, tile cache and view transform, hit testing with an R-tree, invalidation, view modes, glyph atlas, Core Image bridge for raster effects, smart-guide candidate engine.
+|`WTRender` |Display list, the Metal tile renderer, the Core Graphics reference renderer, tile cache and view transform, hit testing with an R-tree, invalidation, view modes, glyph atlas, Core Image bridge for raster effects, smart-guide candidate engine, the `WTColor` color-management kernel (color math, gamut mapping, profiles, conversion, the render color pipeline; xref:decisions.adoc#D-068[D-068]), placed-image decoding and drawing, and the trace kernel.
 |`WTText` |Core Text layout over `RichText`, fonts, substitution, text on a path, vertical text.
 |`WTInterchange` |Importers and exporters (SVG, PDF, EPS, AI, PSD, images, RTF, UFO/OTF...), the `.wiretuner` package, printing.
 |`WTTestSupport` |Simulated clients, vector loaders, screenshot helpers.

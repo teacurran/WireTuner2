@@ -294,6 +294,15 @@ Nothing beyond storing and relaying changes.
   the same protocol; sRGB↔P3 and the Lab spaces are exact formulas and never go through
   ColorSync, so they are deterministic across Macs and macOS versions.  Gamut *mapping* (what
   *Convert to sRGB* does to a color outside sRGB) is COLOR-024's, in `WTRender`.
++
+NOTE: Decided by xref:decisions.adoc#D-068[D-068] (Q-017): the color arithmetic lives in `WTRender` under `WTColor`, not in
+`WTModel`.  `WTColor.Math` (`WTRender/WTColor/ColorMath.swift`) holds the exact formulas (sRGB and
+Display P3 through XYZ D65, CIELAB through XYZ D50 with Bradford, OKLab and OKLCH, the naive CMYK
+pair, ΔE OK) with CSS Color 4's matrices, and `WTRender.Color` carries the `space` tag
+(`Color.Space`: sRGB, Display P3, CIELAB D50, OKLab, CMYK) with `converted(to:)` and
+`tinted(_:)` (mixing toward white in its own space as above).  COLOR-002 in `WTModel` keeps the
+proto wrapper, CSS parsing and serialization, names, HLS/HSV, web-safe snapping and the read-time
+rules, and calls these formulas; it does not re-implement them.
 * Commands `SetSwatchSpot`, `ConvertSwatchSpace` (targets sRGB, Display P3, CMYK; a no-op
   write is skipped when the swatch is already in the target space), `ImportLibraryColors`.
 * `WTInterchange`: readers for `.wtcolors` (the `Color` is written whole, space included),
@@ -305,6 +314,18 @@ Nothing beyond storing and relaying changes.
   after gamut mapping to sRGB, since `.ase` cannot say P3, and report it.
 * `WTApp`: the library sheet (SwiftUI `LazyVGrid` of chips with names, search, multi-select,
   already-present ticks).
+
+NOTE: As built by COLOR-024 (`WTRender/WTColor/Gamut.swift`).  `WTColor.Gamut.map(_:into:)` is CSS
+Color 4's algorithm with JND 0.02 and chroma ε 0.0001; its own in-gamut test allows 0.000075 on
+encoded components (color.js's), and it matches color.js's CSS-algorithm vectors for the P3
+primaries, whites and blacks within 1/255 (`GamutTests`).  The WPT suite itself has no
+gamut-mapping vectors, so those are the committed reference.  `contains(_:in:)` is the indicator
+test (linear components within 0...1 ± 1/1024), `indicator(for:)` reads sRGB / P3 / out of
+gamut.  `WTColor.DisplayGamut` answers the display query from the window's screen color space
+(formulas for sRGB and P3 displays, ColorSync into the extended display space otherwise); the
+window owner rebuilds it on the screen notifications (`MetalTileCanvas.displayColorSpaceChanged`).
+`Color.cgColor` is the tagged render path.  The merge test and conformance vector are
+`WTModel`'s (COLOR-005) and have not been written here.
 
 === Build tasks
 

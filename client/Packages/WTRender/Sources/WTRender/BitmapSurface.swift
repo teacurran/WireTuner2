@@ -3,7 +3,7 @@
 
 import CoreGraphics
 
-/// One pixel of a `BitmapSurface`: premultiplied sRGB, 8 bits per channel.
+/// One pixel of a `BitmapSurface`: premultiplied, 8 bits per channel, in the surface's space.
 public struct RGBA8: Hashable, Sendable, CustomStringConvertible {
     public var red: UInt8
     public var green: UInt8
@@ -32,7 +32,8 @@ public struct RGBA8: Hashable, Sendable, CustomStringConvertible {
     }
 }
 
-/// A premultiplied RGBA8 sRGB bitmap context with pixel access.  Not thread-safe; owned by
+/// A premultiplied RGBA8 bitmap context (sRGB unless another RGB space is given) with pixel
+/// access.  Not thread-safe; owned by
 /// whoever draws into it.
 public final class BitmapSurface {
     public let width: Int
@@ -41,7 +42,7 @@ public final class BitmapSurface {
 
     /// A transparent surface of `width` × `height` device pixels; nil when Core Graphics
     /// refuses the allocation (a zero or absurd size).
-    public init?(width: Int, height: Int) {
+    public init?(width: Int, height: Int, colorSpace: CGColorSpace = CoreGraphicsRenderer.colorSpace) {
         guard width > 0, height > 0, width <= 16_384, height <= 16_384,
               let context = CGContext(
                 data: nil,
@@ -49,7 +50,7 @@ public final class BitmapSurface {
                 height: height,
                 bitsPerComponent: 8,
                 bytesPerRow: 0,
-                space: CoreGraphicsRenderer.colorSpace,
+                space: colorSpace,
                 bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue
               )
         else {

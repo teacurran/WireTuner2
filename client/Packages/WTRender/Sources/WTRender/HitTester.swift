@@ -335,7 +335,7 @@ public struct HitTester: Sendable {
         case .path(let path) where path.hasEffects:
             return hitEffected(path, point: point, tolerance: tolerance)
         case .image(let image):
-            return hitFrame(image.rect, transform: image.transform, point: point, tolerance: tolerance).map { (.image, $0) }
+            return hitFrame(image.visibleRect, transform: image.transform, point: point, tolerance: tolerance).map { (.image, $0) }
         case .text(let text):
             return hitFrame(text.bounds, transform: text.transform, point: point, tolerance: tolerance).map { (.text, $0) }
         default:
@@ -509,7 +509,7 @@ public struct HitTester: Sendable {
         let contours: [Contour]
         switch item {
         case .image(let image):
-            contours = [HitTester.frameContour(image.rect, transform: image.transform.concatenating(toView))]
+            contours = [HitTester.frameContour(image.visibleRect, transform: image.transform.concatenating(toView))]
         case .text(let text):
             contours = [HitTester.frameContour(text.bounds, transform: text.transform.concatenating(toView))]
         default:

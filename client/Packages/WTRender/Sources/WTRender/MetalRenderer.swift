@@ -28,6 +28,11 @@ public struct MetalRenderer: WTRender {
     public var rasterEffectsReady: (@Sendable (Rect) -> Void)?
     /// As `CoreGraphicsRenderer.greekTypeBelow`.
     public var greekTypeBelow: Double = 0
+    /// As `CoreGraphicsRenderer.colorManagement`: the working space the surfaces are in and
+    /// how every colour reaches it.
+    public var colorManagement: ColorManagement = .standard
+    /// As `CoreGraphicsRenderer.imageStore`: placed images draw from it.
+    public var imageStore: ImageStore?
 
     /// The fraction of the shared tolerance this renderer flattens to.  The shared tolerance
     /// is the bound both renderers honour, but Core Graphics' scan converter subdivides curves
@@ -53,6 +58,12 @@ public struct MetalRenderer: WTRender {
     public func with(viewMode: ViewMode) -> MetalRenderer {
         var result = self
         result.viewMode = viewMode
+        return result
+    }
+
+    public func with(colorManagement: ColorManagement) -> MetalRenderer {
+        var result = self
+        result.colorManagement = colorManagement
         return result
     }
 
@@ -100,7 +111,7 @@ public struct MetalRenderer: WTRender {
     /// the command buffer fails.
     func renderImage(_ displayList: DisplayList, pasteboardTransform: AffineTransform, cull: Rect, width: Int, height: Int) -> CGImage? {
         let operations = paintOperations(for: displayList, pasteboardTransform: pasteboardTransform, cull: cull, width: width, height: height)
-        guard let surface = BitmapSurface(width: width, height: height),
+        guard let surface = BitmapSurface(width: width, height: height, colorSpace: colorManagement.colorSpace),
               let target = makeReadableTexture(width: width, height: height),
               let commandBuffer = context.queue.makeCommandBuffer(),
               encode(operations, width: width, height: height, into: target, slice: 0, commandBuffer: commandBuffer)
@@ -135,7 +146,9 @@ public struct MetalRenderer: WTRender {
             referenceTolerance: flatteningTolerance,
             rasterPreview: rasterPreview,
             rasterEffectsReady: rasterEffectsReady,
-            greekTypeBelow: greekTypeBelow
+            greekTypeBelow: greekTypeBelow,
+            colorManagement: colorManagement,
+            imageStore: imageStore
         )
         return builder.operations(for: displayList, pasteboardTransform: pasteboardTransform, cull: cull)
     }
@@ -157,7 +170,8 @@ public struct MetalRenderer: WTRender {
         let plan = geometry.plan(operations, width: Double(width), height: Double(height))
         var encoder = PaintEncoder(context: context, commandBuffer: commandBuffer, width: width, height: height)
         let clear = background.map { color in
-            MTLClearColor(red: color.red * color.alpha, green: color.green * color.alpha, blue: color.blue * color.alpha, alpha: color.alpha)
+            let working = colorManagement.workingComponents(color)
+            return MTLClearColor(red: working.x * working.w, green: working.y * working.w, blue: working.z * working.w, alpha: working.w)
         } ?? MTLClearColor(red: 0, green: 0, blue: 0, alpha: 0)
         return encoder.prepare(geometry) && encoder.encode(plan, clear: clear, target: target, slice: slice)
     }

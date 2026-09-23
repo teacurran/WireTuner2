@@ -63,6 +63,12 @@ public final class MetalTileCanvas {
     }
     /// Drawn where no tile covers the view.
     public var pasteboardColor: Color
+    /// The colour pipeline tiles render through (CMS-006, CMS-007); the Metal layer is tagged
+    /// with its working space and the window server matches it to the display.
+    public private(set) var colorManagement: ColorManagement = .standard
+    /// What the display the window is on can show (COLOR-024), as last reported by
+    /// `displayColorSpaceChanged`.
+    public private(set) var displayGamut: WTColor.DisplayGamut = .sRGB
 
     public private(set) var displayList: DisplayList?
     public private(set) var viewport: Viewport?
@@ -206,6 +212,47 @@ public final class MetalTileCanvas {
         renderer = renderer?.with(viewMode: viewMode).with(overprintPreview: overprintPreview)
         dropTiles { _ in true }
         requestMissingTiles()
+    }
+
+    /// Renders through another colour pipeline (a working-space, Working CMYK, intent or proof
+    /// change): every tile is re-rendered.
+    public func setColorManagement(_ colorManagement: ColorManagement) {
+        guard colorManagement != self.colorManagement else {
+            return
+        }
+        self.colorManagement = colorManagement
+        metalLayer.colorspace = colorManagement.colorSpace
+        fallbackRenderer = fallbackRenderer.with(colorManagement: colorManagement)
+        if let fallbackCanvas {
+            fallbackCanvas.setRenderer(fallbackRenderer)
+            return
+        }
+        renderer = renderer?.with(colorManagement: colorManagement)
+        dropTiles { _ in true }
+        requestMissingTiles()
+    }
+
+    /// Draws placed images from `store` (IMG-004); every tile is re-rendered.  The owner
+    /// forwards the store's `onReady` to `invalidate(pasteboardRects:)` with
+    /// `DisplayList.bounds(ofImageAsset:)`.
+    public func setImageStore(_ store: ImageStore?) {
+        fallbackRenderer.imageStore = store
+        if let fallbackCanvas {
+            fallbackCanvas.setRenderer(fallbackRenderer)
+            return
+        }
+        renderer?.imageStore = store
+        dropTiles { _ in true }
+        requestMissingTiles()
+    }
+
+    /// The window moved to another display or the display's profile changed
+    /// (`NSWindow.didChangeScreenNotification`, `didChangeScreenProfileNotification`): the
+    /// display query answers for the new display at once.  Tiles are tagged with the working
+    /// space, so the window server re-matches them without a re-render; a frame is requested.
+    public func displayColorSpaceChanged(_ colorSpace: CGColorSpace) {
+        displayGamut = WTColor.DisplayGamut(colorSpace: colorSpace)
+        needsDisplay = true
     }
 
     /// Applies the *Greek type below* preference (pixels; 0 turns greeking off): every tile is
@@ -388,7 +435,8 @@ public final class MetalTileCanvas {
         pass.colorAttachments[0].texture = texture
         pass.colorAttachments[0].loadAction = .clear
         pass.colorAttachments[0].storeAction = .store
-        pass.colorAttachments[0].clearColor = MTLClearColor(red: pasteboardColor.red, green: pasteboardColor.green, blue: pasteboardColor.blue, alpha: 1)
+        let clear = colorManagement.workingComponents(pasteboardColor)
+        pass.colorAttachments[0].clearColor = MTLClearColor(red: clear.x, green: clear.y, blue: clear.z, alpha: 1)
         guard let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: pass) else {
             return 0
         }

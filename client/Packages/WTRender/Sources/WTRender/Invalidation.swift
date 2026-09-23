@@ -279,3 +279,53 @@ public final class InvalidationBatcher {
         weak var target: (any InvalidationTarget)?
     }
 }
+
+// MARK: - Colour invalidation (COLOR-006, CMS-006)
+
+extension InvalidationMapper {
+    /// The region a swatch recolor dirties: the painted bounds of every dependent node
+    /// (`SwatchDependents`, resolved by WTModel) in each display list, batched -- past
+    /// `DirtyRegion.collapseThreshold` dependents on a canvas the canvas collapses to their
+    /// union at once instead of merging rectangle by rectangle, so a swatch used by 50,000
+    /// objects costs one pass over their bounds.  Lenses over any of them repaint too.
+    public func dirtyRegion(recoloring nodes: some Sequence<NodeID>, in lists: [DisplayList]) -> DirtyRegion {
+        var region = DirtyRegion(maxRectsPerCanvas: maxRectsPerCanvas)
+        let dependents = Array(nodes)
+        for list in lists {
+            let rects = dependents.compactMap { list.bounds(of: $0) }
+            if rects.count > DirtyRegion.collapseThreshold, let union = DisplayList.union(of: rects) {
+                region.add(union, canvas: list.canvas)
+            } else {
+                for rect in rects {
+                    region.add(rect, canvas: list.canvas)
+                }
+            }
+        }
+        InvalidationMapper.addLenses(over: &region, lists: lists)
+        return region
+    }
+
+    /// Everything each list paints: the whole-document repaint for a change to the document's
+    /// colour settings (`SettingsProps.color`) or a new colour pipeline (CMS-006).
+    public func wholeDocument(_ lists: [DisplayList]) -> DirtyRegion {
+        var region = DirtyRegion(maxRectsPerCanvas: maxRectsPerCanvas)
+        for list in lists {
+            if let bounds = list.bounds {
+                region.add(bounds, canvas: list.canvas)
+            }
+        }
+        return region
+    }
+
+    /// The frames of the placed images of blob `assetID`: what `ImageStore.onReady` repaints.
+    public func dirtyRegion(imageAsset assetID: String, in lists: [DisplayList]) -> DirtyRegion {
+        var region = DirtyRegion(maxRectsPerCanvas: maxRectsPerCanvas)
+        for list in lists {
+            for rect in list.bounds(ofImageAsset: assetID) {
+                region.add(rect, canvas: list.canvas)
+            }
+        }
+        InvalidationMapper.addLenses(over: &region, lists: lists)
+        return region
+    }
+}

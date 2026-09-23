@@ -319,6 +319,33 @@ Nothing beyond storing and relaying changes and blobs.
 * Hit testing (REND-003): the cropped natural rect transformed; with *Transparent* or alpha,
   a hit inside the rect on a fully transparent pixel still selects, so pointer
   behavior does not depend on decoding.
++
+NOTE: As built by IMG-004 and IMG-018 (`WTRender/Images/`, `ImageItem` in `DisplayList.swift`).
+`ImageItem` carries the natural frame (`ImageItem.naturalRect`, dpi 0 reading 72), the crop
+(`effectiveCrop` applies the read-time rule; bounds, hit testing and drawing use `visibleRect`),
+mode, alpha flags, ramp, the resolved tint, the effective source profile and intent, and the
+source name.  Both renderers draw it from an `ImageStore` (`imageStore` on
+`CoreGraphicsRenderer`, `MetalRenderer` and `MetalTileCanvas.setImageStore`); without a store,
+or until the level is decoded, the placeholder draws: the grey frame with its diagonals and, while
+the blob downloads (`ImageStore.setDownloading`), a progress bar along the bottom edge.  The name
+and the "uploading from" text are left to the canvas overlay (IMG-006), since the renderer draws
+no UI text.  The Metal renderer composites the reference renderer's drawing of the image through
+its own coverage of the cropped frame, as it does sampled paints.  Tiles never wait: `image(for:)`
+schedules the decode off the caller's thread and `onReady` reports the asset, which the owner maps
+to dirty rectangles with `InvalidationMapper.dirtyRegion(imageAsset:in:)`; PDF output decodes
+inline (`imageBlocking`).  Deviations: the bilevel/grayscale treatment is a deterministic CPU pass
+(a 256-entry ramp table, tint as `g·white + (1 − g)·tint`, *Transparent* as alpha `1 − g` in the
+tint or black, alpha not shown composites over white) rather than a `CIImage` pipeline; the ramp
+presets are defined on `GrayRamp.lut()` (Lighten `128 + v/2`, Darken `v/2`, Custom a contrast
+slope about mid-grey plus lightness/100).  Levels are powers of two down to 512 px for blobs over
+4 MP, stored as `<cache>/<hash>/<level>.png` and reused across launches; above 64 MP reduced levels
+come from `kCGImageSourceSubsampleFactor` where the format honours it, and the full level is only
+ever decoded for the part in view (`fullResolutionTile`), but ImageIO has no region decode, so each
+such tile decodes the whole image transiently and the 1.5× peak-memory bound is not guaranteed.
+The memory cache is a byte-budgeted LRU (512 MiB default) keyed by hash, level and treatment.  The
+twenty-50 MP and 200 MP budgets are not measured (a 16 MP JPEG pyramid takes 1.2 s in a debug
+build); the reference renders cover a representative subset of mode × alpha × transparent × tint
+rather than every combination.
 * Undo: each Object panel edit is one change; kbd:[Option]-drag resizing is one change per
   drag with the coalescing rule from APP-011.
 * `Image Info…` is an `NSPopover` with a SwiftUI form; history attribution comes from the

@@ -40,7 +40,8 @@ enum TransparencyStage {
         context.concatenate(pasteboardToPixels.cg)
         let canvasToBase = context.ctm
         context.concatenate(mask.frame.cg)
-        let environment = PaintEnvironment(renderer: renderer, canvasToBase: canvasToBase, path: mask.region, rule: mask.rule, rasterScale: 1, canvas: nil, indexPath: [], lensDepth: 0)
+        // A mask's gradient is transparency, not colour: never converted or proofed.
+        let environment = PaintEnvironment(renderer: renderer.with(colorManagement: .standard), canvasToBase: canvasToBase, path: mask.region, rule: mask.rule, rasterScale: 1, canvas: nil, indexPath: [], lensDepth: 0)
         PaintDrawing.fill(.gradient(mask.gradient), in: context, environment: environment)
         return TextureImage(surface: surface)
     }

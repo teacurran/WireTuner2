@@ -516,6 +516,16 @@ horizon.  Every replica and the snapshotter collect at (C, T).  `AckResponse` ga
 `collect_seq` and `collect_time_ms`; SRV-007 and SRV-013 implement the server side
 (xref:crdt-model.adoc[CRDT model]).
 
+[[D-068]]
+=== D-068 The color module lives in WTRender
+`WTColor` -- color arithmetic, CSS Color 4 gamut mapping, the profile registry, the conversion
+service and the renderer's color pipeline -- is a module directory of `WTRender`
+(`Sources/WTRender/WTColor`), and the display list's `Color` carries its space.  Gamut mapping and
+the tagged render path need the formulas below `WTModel`, and `WTModel` already imports `WTRender`,
+so one home serves the renderer, the model (COLOR-002 wraps the proto over these formulas and adds
+parsing and naming) and `WTInterchange`.  Resolves Q-017 (xref:color-management.adoc[],
+xref:spot-process.adoc[]).
+
 == Open questions
 
 [[Q-001]]
@@ -554,7 +564,8 @@ with preview only (xref:import-formats.adoc[]).
 === Q-008 Bundled ICC press profiles and spot libraries
 Which press profiles (SWOP, GRACoL, FOGRA) and spot libraries may ship needs a licence check;
 a bit-exact CMM (Little CMS) vs. ColorSync is open (xref:color-profiles.adoc[],
-xref:color-tables.adoc[]).
+xref:color-tables.adoc[]).  CMS-002 ships no ICC files: the bundled `srgb`, `display-p3`,
+`generic-gray` and `default-cmyk` are macOS's own ColorSync profiles, read at run time.
 
 [[Q-009]]
 === Q-009 Resolved
@@ -596,9 +607,8 @@ and xref:crdt-model.adoc[CRDT model] now say `merge_table`.
 See xref:decisions.adoc#D-064[D-064].
 
 [[Q-017]]
-=== Q-017 Home of the color module
-Spot-process places `WTColor` in `WTModel`, color-management in `WTRender`; gamut mapping
-(COLOR-024) assumes `WTRender`.  Settle before COLOR-002.
+=== Q-017 Resolved
+See xref:decisions.adoc#D-068[D-068].
 
 [[Q-018]]
 === Q-018 Licences for bundled ML models

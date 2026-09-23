@@ -439,6 +439,47 @@ Invalidation:: Any change to `SettingsProps.color` or to the display profile inv
 tile and the cached converted colors; the invalidation from a remote change goes through
 REND-004 as a whole-document dirty rect.
 
+NOTE: As built by CMS-002, CMS-003, CMS-006 and CMS-007 (`WTRender/WTColor/Profiles.swift`,
+`Converter.swift`, `ColorManagement.swift`; xref:decisions.adoc#D-068[D-068]).  *Registry*: `WTColor.ProfileRegistry`
+takes the bundled profiles (`srgb`, `display-p3`, `generic-gray`, `default-cmyk` = Generic CMYK)
+from macOS's own ColorSync profiles at run time rather than shipping ICC files, so their hashes are
+those of the installed macOS; no press characterization is bundled yet (Q-008 stays open for the
+licence check).  An embedded profile is recognized as bundled by the SHA-256 of its bytes with the
+ICC header's flags, rendering intent and profile id zeroed, so a copy saved with another header
+intent still reads as `srgb`.  Custom profiles come from `register(iccData:)` or from
+`blobLoader` (CMS-008 supplies it); `resolve` gives the bundled fallback with `pending`.  Installed
+profiles are enumerated with `ColorSyncIterateInstalledProfiles`, keeping the `mntr`, `prtr`, `scnr`
+and `spac` classes (device links, abstract and named-color profiles are dropped); 13 profiles take
+about 2 ms here, the 500-profile budget is not measured.  *Converter*: `WTColor.Converter` builds
+one `ColorSyncTransform` per chain of `(profile hash, intent, black point compensation)` steps and
+caches it; colors enter a profile with their step's intent and leave it with the next step's.
+CIELAB and OKLab enter through the Generic Lab profile (OKLab converted to Lab D50 by formula),
+CMYK through the Working CMYK passed in.  Converted colors are cached per `(Color, chain)`, the
+space tag included.  `canonical(_:step:)` rounds half away from zero (1/255, 1/10000).  The
+100,000-color conversion takes 0.21 s in a debug build; the 50 ms budget is enforced in release
+builds only.  The cross-version corpus (two macOS versions within 1/255) is not committed: this
+Mac has one macOS.  *Working space*: `ColorManagement` is renderer state on both renderers, the
+Metal canvas (`setColorManagement`) and the tile cache's renderer.  Tiles, bitmaps and the Metal
+layer are tagged with its `workingSpace`, `.sRGB` by default (so every existing golden is
+unchanged) and `.displayP3` when the app's canvas sets it, as this page asks.  Both renderers ask
+`workingComponents` for every solid color -- a color already in the working space as stored;
+sRGB, P3, Lab and OKLab by the exact formulas, clipped per channel; CMYK through Working CMYK with
+the document intent and black point compensation -- so Metal and Core Graphics put identical
+numbers into the tile, and the window server matches the tagged tile to the display (changing the
+display profile needs no re-render; `displayColorSpaceChanged` refreshes the display query).  PDF
+output carries each color tagged in its own space (`taggedCGColor`: CMYK in the Working CMYK
+space, OKLab in Extended Linear sRGB) and never proofs.  Gradients, patterns, Custom, Textured and
+Lens fills and raster effects still evaluate in sRGB: their colors are mapped through
+`sampledColor` (CMYK through Working CMYK, proofed under a proof) and wide-gamut stops are clipped
+to sRGB -- a recorded limitation.  *Soft proof*: `ColorManagement.proof` (`WTColor.ProofSetup`)
+converts every solid color and every sampled paint's colors through the chain once per distinct
+color, and each decoded image level through the same chain (`ImageProofCache`); the chain ends in
+the working space, not the display profile, and the window server makes the last match to the
+display.  *Simulate paper white* leaves the proof device with absolute colorimetric; *Simulate
+black ink* off turns on black point compensation for the last step.  A mask's gradient is
+transparency and is never converted.  The per-window flag, the menu item and the title-bar
+indicator are WTApp's.  The frame-time budget under proof is not measured.
+
 AppKit:: The Color Settings sheet is an `NSPanel` sheet with `NSPopUpButton`s for profiles
 (grouped: Bundled, Installed, Document, Other…), an `NSPopUpButton` for intent, checkboxes for
 the rest, and a Proof setup group.  The View menu item is validated from the window's view

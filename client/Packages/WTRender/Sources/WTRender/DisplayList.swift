@@ -24,35 +24,6 @@ public struct CanvasID: Hashable, Sendable, ExpressibleByStringLiteral, CustomSt
     public var description: String { rawValue }
 }
 
-/// An sRGB colour with straight (non-premultiplied) alpha, components in 0...1.
-public struct Color: Hashable, Sendable {
-    public var red: Double
-    public var green: Double
-    public var blue: Double
-    public var alpha: Double
-
-    public init(red: Double, green: Double, blue: Double, alpha: Double = 1) {
-        self.red = red
-        self.green = green
-        self.blue = blue
-        self.alpha = alpha
-    }
-
-    /// A neutral grey.
-    public init(white: Double, alpha: Double = 1) {
-        self.init(red: white, green: white, blue: white, alpha: alpha)
-    }
-
-    public static let black = Color(white: 0)
-    public static let white = Color(white: 1)
-    public static let clear = Color(white: 0, alpha: 0)
-
-    /// The colour with its alpha multiplied by `factor`.
-    public func withAlpha(multipliedBy factor: Double) -> Color {
-        Color(red: red, green: green, blue: blue, alpha: alpha * factor)
-    }
-}
-
 /// What a fill or stroke is painted with (docs/_includes/appearance/fill-attributes.adoc,
 /// gradients.adoc).  A stroke's paint fills its outline, so a Pattern stroke is a Basic stroke
 /// painted `.pattern`.
@@ -190,19 +161,97 @@ public struct StrokeItem: Hashable, Sendable {
     }
 }
 
-/// A placed raster image.  Until the image pipeline lands the renderers draw a neutral
-/// placeholder over `rect`; `assetID` names the blob the pipeline will resolve.
+/// A placed raster image (IMG-004; docs/_includes/imported/bitmaps.adoc).  `assetID` is the
+/// blob's SHA-256 in hex, which the renderer's `ImageStore` resolves; until the pixels are
+/// decoded (or with no store) the renderers draw the placeholder over the cropped frame.
 public struct ImageItem: Hashable, Sendable {
     public var assetID: String
-    /// The image's frame in local space.
+    /// The image's natural frame in local space (`naturalRect`).
     public var rect: Rect
     /// Local → pasteboard.
     public var transform: AffineTransform
+    /// The crop in unit image space (0...1 of the natural frame, y down); nil is uncropped.
+    public var crop: Rect?
+    public var mode: ImageMode
+    public var hasAlpha: Bool
+    public var displayAlpha: Bool
+    public var transparentBackground: Bool
+    public var ramp: GrayRamp
+    /// The resolved tint (`ImageProps.tint`) for bilevel and grayscale images.
+    public var tint: Color?
+    /// The effective source profile (`ImageColorSettings`, resolved by WTModel); nil draws the
+    /// decoded image in its own colour space.
+    public var sourceProfile: WTColor.ProfileRef?
+    /// The image's rendering intent override; nil uses the document intent.
+    public var intent: WTColor.RenderingIntent?
+    /// `source_name`, for the placeholder.
+    public var name: String
 
-    public init(assetID: String, rect: Rect, transform: AffineTransform = .identity) {
+    public init(
+        assetID: String,
+        rect: Rect,
+        transform: AffineTransform = .identity,
+        crop: Rect? = nil,
+        mode: ImageMode = .rgb,
+        hasAlpha: Bool = false,
+        displayAlpha: Bool = true,
+        transparentBackground: Bool = false,
+        ramp: GrayRamp = .normal,
+        tint: Color? = nil,
+        sourceProfile: WTColor.ProfileRef? = nil,
+        intent: WTColor.RenderingIntent? = nil,
+        name: String = ""
+    ) {
         self.assetID = assetID
         self.rect = rect
         self.transform = transform
+        self.crop = crop
+        self.mode = mode
+        self.hasAlpha = hasAlpha
+        self.displayAlpha = displayAlpha
+        self.transparentBackground = transparentBackground
+        self.ramp = ramp
+        self.tint = tint
+        self.sourceProfile = sourceProfile
+        self.intent = intent
+        self.name = name
+    }
+
+    /// The natural frame of a `pixelWidth` × `pixelHeight` image at `dpiX` × `dpiY` pixels per
+    /// inch, in points at the origin; a resolution of 0 (or not finite) reads as 72.
+    public static func naturalRect(pixelWidth: Int, pixelHeight: Int, dpiX: Double, dpiY: Double) -> Rect {
+        func read(_ dpi: Double) -> Double { dpi.isFinite && dpi > 0 ? dpi : 72 }
+        return Rect(x: 0, y: 0, width: Double(pixelWidth) / read(dpiX) * 72, height: Double(pixelHeight) / read(dpiY) * 72)
+    }
+
+    /// The crop that applies: nil when unset or when any edge lies outside 0...1 or the area
+    /// is not positive (importing.adoc, "Read-time normalizations").
+    public var effectiveCrop: Rect? {
+        guard let crop, crop.minX >= 0, crop.minY >= 0, crop.maxX <= 1, crop.maxY <= 1, crop.width > 0, crop.height > 0 else {
+            return nil
+        }
+        return crop
+    }
+
+    /// The part of the natural frame that shows, in local space.
+    public var visibleRect: Rect {
+        guard let crop = effectiveCrop else {
+            return rect
+        }
+        return Rect(x: rect.minX + crop.minX * rect.width, y: rect.minY + crop.minY * rect.height, width: crop.width * rect.width, height: crop.height * rect.height)
+    }
+
+    /// How the decoded pixels are treated (ramp, tint and *Transparent* on bilevel and
+    /// grayscale images, alpha shown or not), the tint through `colorManagement`.
+    func treatment(_ colorManagement: ColorManagement) -> ImageTreatment {
+        ImageTreatment(
+            mode: mode,
+            ramp: ramp,
+            tint: tint.map { colorManagement.sampledColor($0).srgb },
+            transparentBackground: transparentBackground,
+            displayAlpha: displayAlpha,
+            hasAlpha: hasAlpha
+        )
     }
 }
 
@@ -350,7 +399,7 @@ public indirect enum DisplayItem: Hashable, Sendable {
             }
             return item.appearance.paintedBounds(of: item.path).map { $0.applying(item.transform) }
         case .image(let item):
-            return item.rect.applying(item.transform)
+            return item.visibleRect.applying(item.transform)
         case .text(let item):
             return item.bounds.applying(item.transform)
         case .group(let item):
@@ -417,6 +466,26 @@ public struct DisplayList: Hashable, Sendable {
     }
 
     /// The pasteboard bounds of the item built from `node`, if it paints anything.
+    /// The pasteboard frames of every placed image of blob `assetID`, at any depth: what to
+    /// repaint when its pixels arrive or finish decoding (IMG-004).
+    public func bounds(ofImageAsset assetID: String) -> [Rect] {
+        var result: [Rect] = []
+        func visit(_ items: [DisplayItem]) {
+            for item in items {
+                switch item {
+                case .image(let image) where image.assetID == assetID:
+                    result.append(image.visibleRect.applying(image.transform))
+                case .group(let group):
+                    visit(group.children)
+                default:
+                    break
+                }
+            }
+        }
+        visit(items)
+        return result
+    }
+
     public func bounds(of node: NodeID) -> Rect? {
         index(of: node).flatMap { itemBounds[$0] }
     }
@@ -565,7 +634,7 @@ extension DisplayItem {
         case .path(let item):
             return item.path.controlBounds.map { $0.applying(item.transform) }
         case .image(let item):
-            return item.rect.applying(item.transform)
+            return item.visibleRect.applying(item.transform)
         case .text(let item):
             return item.bounds.applying(item.transform)
         case .group(let group):

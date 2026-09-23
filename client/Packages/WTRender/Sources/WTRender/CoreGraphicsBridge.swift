@@ -66,10 +66,8 @@ extension DisplayPath {
 }
 
 extension Color {
-    /// The colour in the sRGB colour space (`CoreGraphicsRenderer.colorSpace`).
-    var cg: CGColor {
-        CGColor(srgbRed: red, green: green, blue: blue, alpha: alpha)
-    }
+    /// The colour tagged in its own space (`cgColor`), for the sampled paints' own drawing.
+    var cg: CGColor { cgColor }
 }
 
 extension FillRule {
