@@ -23,9 +23,23 @@ struct PathBuildingSession: Equatable, Sendable {
 /// the constrain angle and every 45° from it.  Double-click, kbd:[Tab] or kbd:[Esc] ends the path;
 /// clicking the first point closes it.  Each placed point is one change (the first is grouped with
 /// the path's creation, so undoing every point removes the path); a close is one change.
+///
+/// With `bezigon` it is the Bezigon tool (DRAW-022): a click places a corner point, kbd:[Option]-click
+/// an automatic curve point (its handles computed from the neighbours on read, so each new point
+/// re-smooths the one before), kbd:[Control]-click a connector, kbd:[Cmd]-drag moves the point being
+/// placed; there are no handles to drag.  Pen and Bezigon share the window's session, so switching
+/// between them mid-path continues the same contour (DRAW-022).  Without a session, a click on an
+/// end point of a selected open path (or kbd:[Option] on any path's end) continues that path, and a
+/// click on a segment of a selected path adds a point there (DRAW-023, DRAW-026).  With *Auto-join
+/// paths*, a click on another open path's end joins it to the path being drawn (one change "Join").
 @MainActor
 final class PenTool: Tool, PointerTracking, ToolInfoPublishing {
     static let id: ToolID = .pen
+    static let bezigonID: ToolID = "bezigon"
+
+    static var bezigonDescriptor: ToolDescriptor {
+        ToolCatalog.all.first { $0.id == bezigonID }!.delivering { PenTool(bezigon: true) }
+    }
     /// A drag shorter than this (view points) places a corner point.
     static let dragThreshold = 2.0
     static let tabKeyCode: UInt16 = 48
@@ -33,7 +47,7 @@ final class PenTool: Tool, PointerTracking, ToolInfoPublishing {
 
     /// What a click would do, shown by the cursor.
     enum Intent: Equatable, Sendable {
-        case start, add, close
+        case start, add, close, join
     }
 
     /// The point being placed between mouse-down and mouse-up.
@@ -48,17 +62,41 @@ final class PenTool: Tool, PointerTracking, ToolInfoPublishing {
         var press: Point
         var last: Point
         var dragged = false
+        /// A Bezigon automatic curve point.
+        var automatic = false
+        /// The other path's end this click joins (auto-join).
+        var joins: JoinTarget?
     }
 
+    /// An end of another open path the path being drawn can join.
+    struct JoinTarget: Equatable {
+        var node: OpID
+        var contour: OpID
+        var end: ContourEnd
+    }
+
+    let toolID: ToolID
+    /// The Bezigon tool.
+    let isBezigon: Bool
     private(set) var context: ToolContext?
-    private(set) var session: PathBuildingSession?
+    private var localSession: PathBuildingSession?
+    /// The session: the window's (shared by Pen and Bezigon), or the tool's own without a window.
+    private(set) var session: PathBuildingSession? {
+        get { context?.objectEditing.map { $0.pathSession } ?? localSession }
+        set {
+            if let editing = context?.objectEditing { editing.pathSession = newValue } else { localSession = newValue }
+        }
+    }
     private(set) var placement: Placement?
     /// The pointer with no button down (the preview's end and the cursor's intent).
     private(set) var hover: Point?
     /// The commits in flight, chained so each sees the session the one before left.
     private(set) var pending: Task<Void, Never>?
 
-    init() {}
+    init(bezigon: Bool = false) {
+        isBezigon = bezigon
+        toolID = bezigon ? Self.bezigonID : Self.id
+    }
 
     var cursor: NSCursor { PenCursors.cursor(for: intent) }
 
@@ -71,16 +109,23 @@ final class PenTool: Tool, PointerTracking, ToolInfoPublishing {
     var intent: Intent {
         guard session != nil else { return .start }
         if let hover, closesPath(at: hover) { return .close }
+        if let hover, joinTarget(at: hover) != nil { return .join }
         return .add
     }
 
+    static let bezigonStatusMessage = "Click for a corner, Option-click for a smooth point, Control-click for a connector"
+
     func activate(in context: ToolContext) {
         self.context = context
-        context.host.showStatusMessage(Self.statusMessage)
+        context.host.showStatusMessage(isBezigon ? Self.bezigonStatusMessage : Self.statusMessage)
     }
 
+    /// Leaves the window's session for the other pen-family tool (the window ends it when a tool
+    /// of another kind is chosen); a tool without a window ends its own.
     func deactivate() {
-        finish()
+        placement = nil
+        hover = nil
+        if context?.objectEditing == nil { localSession = nil }
         context = nil
     }
 
@@ -141,6 +186,66 @@ final class PenTool: Tool, PointerTracking, ToolInfoPublishing {
         return transform.apply(other.anchor).distance(to: point) <= tolerance
     }
 
+    /// With *Auto-join paths*, the end of another open path at `point` (within the pick distance).
+    func joinTarget(at point: Point) -> JoinTarget? {
+        guard let session, let context, context.drawing().autoJoin, drawnContour != nil else { return nil }
+        return Self.openEnd(near: point, in: context, among: context.document.selectableIDs().filter { $0.opID != session.node })
+    }
+
+    /// An end of an open contour of one of `ids` within the pick distance of `point`.
+    static func openEnd(near point: Point, in context: ToolContext, among ids: [SelectionID]) -> JoinTarget? {
+        let tolerance = context.snapping.pickDistance() / context.viewport.zoom
+        for id in ids {
+            guard let object = context.document.object(for: id), object.kind == .path, let path = object.path else { continue }
+            for contour in path.contours where !contour.closed {
+                guard let ends = contour.ends else { continue }
+                if object.transform.apply(ends.last.anchor).distance(to: point) <= tolerance { return JoinTarget(node: id.opID, contour: contour.id, end: .end) }
+                if object.transform.apply(ends.first.anchor).distance(to: point) <= tolerance { return JoinTarget(node: id.opID, contour: contour.id, end: .start) }
+            }
+        }
+        return nil
+    }
+
+    /// Without a session: the path end a click continues (a selected path's, or with Option any
+    /// path's), resuming the session there.  Returns whether it did.
+    private func continuePath(at point: Point, modifiers: KeyModifiers) -> Bool {
+        guard let context else { return false }
+        let candidates = modifiers.contains(.option) ? context.document.selectableIDs() : context.selection.selection.ids
+        guard let end = Self.openEnd(near: point, in: context, among: candidates),
+              let contour = context.document.object(for: SelectionID(end.node))?.path?.contour(end.contour), let ends = contour.ends else { return false }
+        resume(PathBuildingSession(node: end.node, contour: end.contour, activeEnd: end.end == .end ? ends.last.id : ends.first.id, end: end.end))
+        return true
+    }
+
+    /// Without a session: a click on a segment of a selected path adds a point there, splitting
+    /// the curve without changing it (DRAW-026).  Returns whether it did.
+    private func insertOnSegment(at e: CanvasEvent) -> Bool {
+        guard let context, let (id, sub) = context.selection.pick(at: e.viewPoint, viewport: context.viewport, subselect: true),
+              context.selection.selection.contains(id), case let .segments(segments)? = sub, let segment = segments.first,
+              let object = context.document.object(for: id), let inverse = object.transform.inverted(),
+              let vector = object.path?.contour(segment.contour)?.segments.first(where: { $0.from.id == segment.from }) else { return false }
+        let local = inverse.apply(e.pasteboardPoint)
+        // A straight segment is split by length (the command interpolates linearly); a curve at
+        // the nearest parameter.
+        let chord = vector.to.anchor - vector.from.anchor
+        let t = vector.isStraight ? (local - vector.from.anchor).dot(chord) / chord.lengthSquared : vector.cubic.nearestPoint(to: local).t
+        guard t > 0.001, t < 0.999 else { return false }
+        pending = chained { sink in
+            _ = await sink.perform(InsertPointOnSegment(node: id.opID, contour: segment.contour, from: segment.from, t: t)).value
+        }
+        return true
+    }
+
+    /// Runs `body` after the commits in flight.
+    private func chained(_ body: @escaping @MainActor (CommandSink) async -> Void) -> Task<Void, Never>? {
+        guard let sink = context?.commandSink else { return pending }
+        let previous = pending
+        return Task { @MainActor in
+            await previous?.value
+            await body(sink)
+        }
+    }
+
     private func constrained(_ point: Point, from origin: Point?, modifiers: KeyModifiers) -> Point {
         guard modifiers.contains(.shift), let origin, let context else { return point }
         return context.drawing().constraint.constrain(point, from: origin)
@@ -166,9 +271,14 @@ final class PenTool: Tool, PointerTracking, ToolInfoPublishing {
             return
         }
         if session != nil, drawnContour == nil { session = nil }
+        if session == nil, continuePath(at: e.pasteboardPoint, modifiers: e.modifiers) || insertOnSegment(at: e) { return }
         let point = constrained(snapped(e.pasteboardPoint), from: activeAnchor, modifiers: e.modifiers)
         let closes = closesPath(at: e.pasteboardPoint)
-        placement = Placement(anchor: point, kind: e.modifiers.contains(.control) ? .connector : .corner, closes: closes, press: point, last: point)
+        var kind: PointKind = e.modifiers.contains(.control) ? .connector : .corner
+        let automatic = isBezigon && e.modifiers.contains(.option) && !e.modifiers.contains(.control)
+        if automatic { kind = .curve }
+        placement = Placement(anchor: point, kind: kind, closes: closes, press: point, last: point, automatic: automatic,
+                              joins: closes ? nil : joinTarget(at: e.pasteboardPoint))
     }
 
     func mouseDragged(_ e: CanvasEvent) {
@@ -176,7 +286,7 @@ final class PenTool: Tool, PointerTracking, ToolInfoPublishing {
         let pointer = e.pasteboardPoint
         if e.modifiers.contains(.command) {
             placement.anchor = placement.anchor + (pointer - placement.last)
-        } else {
+        } else if !isBezigon {
             var handle = pointer - placement.anchor
             if e.modifiers.contains(.shift) { handle = context.drawing().constraint.constrain(handle) }
             let dragged = handle.length * context.viewport.zoom >= Self.dragThreshold
@@ -203,20 +313,31 @@ final class PenTool: Tool, PointerTracking, ToolInfoPublishing {
         mouseDragged(e)
         guard let placement, let context else { return }
         self.placement = nil
-        let point = VectorPoint(anchor: placement.anchor, inHandle: placement.inHandle, outHandle: placement.outHandle, kind: placement.kind)
+        let point = VectorPoint(anchor: placement.anchor, inHandle: placement.inHandle, outHandle: placement.outHandle, kind: placement.kind,
+                                automatic: placement.automatic)
         let previous = pending
         let fillWhenOpen = context.drawing().fillWhenOpen
+        let layer = context.objectEditing?.activeLayer
         pending = Task { @MainActor [weak self] in
             await previous?.value
-            await self?.commit(point, closes: placement.closes, fillWhenOpen: fillWhenOpen, sink: context.commandSink, selection: context.selection)
+            await self?.commit(point, closes: placement.closes, joins: placement.joins, fillWhenOpen: fillWhenOpen, layer: layer,
+                               sink: context.commandSink, selection: context.selection)
         }
     }
 
-    /// Performs the placement: close, first point (with the path's creation) or another point.
-    private func commit(_ point: VectorPoint, closes: Bool, fillWhenOpen: Bool, sink: CommandSink, selection: SelectionController) async {
+    /// Performs the placement: close, join, first point (with the path's creation) or another
+    /// point.
+    private func commit(_ point: VectorPoint, closes: Bool, joins: JoinTarget?, fillWhenOpen: Bool, layer: OpID?, sink: CommandSink,
+                        selection: SelectionController) async {
         if let session, contour(session) == nil { self.session = nil }
         if let session, closes {
             _ = await sink.perform(SetClosed(node: session.node, closed: true, contours: [session.contour])).value
+            finish()
+            return
+        }
+        if let session, let joins {
+            _ = await sink.perform(JoinPaths(target: session.node, targetContour: session.contour, targetEnd: session.end,
+                                             source: joins.node, sourceContour: joins.contour, sourceEnd: joins.end)).value
             finish()
             return
         }
@@ -230,7 +351,7 @@ final class PenTool: Tool, PointerTracking, ToolInfoPublishing {
             }
             return
         }
-        let create = CreatePath(label: "Pen", contours: [NewContour(points: [point])], fillWhenOpen: fillWhenOpen)
+        let create = CreatePath(label: isBezigon ? "Bezigon" : "Pen", contours: [NewContour(points: [point])], fillWhenOpen: fillWhenOpen, layer: layer)
         guard let change = await sink.perform(create).value, let node = change.createdObjects.first,
               let contour = change.insertedElements(node, PathFields.contours).first,
               let id = change.insertedElements(node, PathFields.points(contour)).first else { return }
@@ -323,12 +444,14 @@ enum PenCursors {
         case .start: start
         case .add: add
         case .close: close
+        case .join: join
         }
     }
 
     static let start = make(badge: nil)
     static let add = make(badge: "plus")
     static let close = make(badge: "circle")
+    static let join = make(badge: "link")
 
     /// The pen tip at the hot spot, with an optional badge at the lower right.
     static func make(badge: String?) -> NSCursor {

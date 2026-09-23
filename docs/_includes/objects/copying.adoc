@@ -333,6 +333,28 @@ Nothing beyond storing and relaying changes.
   *Clipboard image resolution* (144 ppi), *Option-drag copies* (on), *Remember layer info*
   (off).
 
+NOTE: As built by OBJ-010 to OBJ-012 (`WTModel/Clipboard.swift`, `NodeCopier.swift`,
+`WTApp/Document/ObjectEditing.swift`).  Deviation: `clipboard.proto` is not in `proto/` yet (proto
+track), so `ClipboardPayload` is encoded by hand in the sketched message's wire format (nodes 1,
+layer_names 2, bounds 4, source_document 5; `ClipboardNode` props 1, children 2, source_id 3) and
+carries no assets (swatches, styles, symbols and brushes are not nodes yet; colours are inline).  A
+copied root's transform is its pasteboard transform (enclosing groups baked in) and a paste
+re-expresses it in the destination parent's space.  Copies go through `NodeCopier`, which is generic
+over every kind: `CreateNode` with the full props, then one `ElementInsert` per SEQUENCE field found
+through the merge table (nested ones after their parent element), then the children; SET members and
+TEXT fields are not copied yet, a group's `clip_path` is rewritten to the copied child and its
+`layer_origins` dropped.  `Paste` places on top of the active layer (centred on the visible area),
+or `inFront`/`behind` an anchor inside its parent (never below a clip path); *Remember layer info*
+finds the layer by name or creates it once per paste.  Only the native pasteboard type is written
+and read (the PDF, SVG, image and text formats are WTInterchange's), so Copy Special and Paste Special
+are not delivered.  *Power duplicating*: `DuplicateMemory` holds the transformations applied to
+exactly the last duplicates since they were made (the window's `ObjectEditing` is the tools'
+`CommandSink` and records every `MoveObjects`/`TransformObjects` on them); Duplicate applies it, or the
+10 pt offset when nothing was recorded; any other command or selection clears it.  menu:Edit[Duplicate]
+keeps kbd:[Cmd+D] from the shortcut catalog and Clone has no default key (the guide's kbd:[Cmd+Option+D]
+and kbd:[Cmd+Shift+D] are left to the shortcut presets).  Paste In Front is kbd:[Cmd+Option+V] and
+Paste Behind kbd:[Cmd+Option+Shift+V].
+
 === Build tasks
 
 [[OBJ-010]]

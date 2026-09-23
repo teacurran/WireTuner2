@@ -210,20 +210,26 @@ enum PathEditing {
 
     // MARK: Layers
 
-    /// The layer new objects go into: the top-most live, visible, unlocked layer; nil when there
-    /// is none and one must be created.
+    /// The layer new objects go into: the top-most live, visible, unlocked, non-Guides layer; nil
+    /// when there is none and one must be created.
     static func drawingLayer(in state: EngineState) -> OpID? {
-        state.liveChildren(WellKnown.layers).reversed().first { layer in
-            guard state.nodeKind(layer) == .layer else { return false }
-            let props = state.props(layer).layer
-            return props.visible && !props.locked && props.role != .guides
-        }
+        LayerOrder(state).drawingLayer
     }
 
-    /// The layer to draw into, appending the creation of a "Foreground" layer when there is none
-    /// (visible and printing) to `builder`.
-    static func ensureLayer(_ builder: inout ChangeBuilder, state: EngineState) throws -> OpID {
-        if let layer = drawingLayer(in: state) { return layer }
+    /// Whether new objects may go onto `layer`: a live, unlocked, non-Guides layer (a hidden
+    /// active layer is allowed, layers.adoc "Showing and hiding layers").
+    static func accepts(_ layer: OpID, _ order: LayerOrder) -> Bool {
+        guard order.isLive(layer), let info = order.layer(layer) else { return false }
+        return !info.locked && info.role == .ordinary
+    }
+
+    /// The layer to draw into -- `preferred` (the active layer) when it takes objects, else the
+    /// drawing layer -- appending the creation of a "Foreground" layer (visible and printing) to
+    /// `builder` when there is none.
+    static func ensureLayer(_ builder: inout ChangeBuilder, state: EngineState, preferred: OpID? = nil) throws -> OpID {
+        let order = LayerOrder(state)
+        if let preferred, accepts(preferred, order) { return preferred }
+        if let layer = order.drawingLayer { return layer }
         var props = Wiretuner_Doc_V1_NodeProps()
         props.layer.common.name = "Foreground"
         props.layer.visible = true
@@ -290,23 +296,32 @@ enum NodeValues {
         case .path: props.path.appearance = stack
         case .rect: props.rect.appearance = stack
         case .ellipse: props.ellipse.appearance = stack
+        case .polygon: props.polygon.appearance = stack
         case .group: props.group.appearance = stack
         case .layer: break
         }
         return props
     }
 
-    /// `NodeProps` of `kind` with `transform` in its common props.
-    static func with(kind: NodeKind, transform: Wiretuner_Doc_V1_Transform) -> Wiretuner_Doc_V1_NodeProps {
+    /// `NodeProps` of `kind` whose common props `build` fills.
+    static func common(kind: NodeKind, _ build: (inout Wiretuner_Doc_V1_CommonProps) -> Void) -> Wiretuner_Doc_V1_NodeProps {
+        var common = Wiretuner_Doc_V1_CommonProps()
+        build(&common)
         var props = Wiretuner_Doc_V1_NodeProps()
         switch kind {
-        case .path: props.path.common.transform = transform
-        case .rect: props.rect.common.transform = transform
-        case .ellipse: props.ellipse.common.transform = transform
-        case .group: props.group.common.transform = transform
-        case .layer: props.layer.common.transform = transform
+        case .path: props.path.common = common
+        case .rect: props.rect.common = common
+        case .ellipse: props.ellipse.common = common
+        case .polygon: props.polygon.common = common
+        case .group: props.group.common = common
+        case .layer: props.layer.common = common
         }
         return props
+    }
+
+    /// `NodeProps` of `kind` with `transform` in its common props.
+    static func with(kind: NodeKind, transform: Wiretuner_Doc_V1_Transform) -> Wiretuner_Doc_V1_NodeProps {
+        common(kind: kind) { $0.transform = transform }
     }
 
     /// The common props of any kind WTModel reads.
@@ -315,8 +330,21 @@ enum NodeValues {
         case .path(let path)?: path.common
         case .rect(let rect)?: rect.common
         case .ellipse(let ellipse)?: ellipse.common
+        case .polygon(let polygon)?: polygon.common
         case .group(let group)?: group.common
         case .layer(let layer)?: layer.common
+        default: nil
+        }
+    }
+
+    /// The attribute stack of any kind with one.
+    static func appearance(_ props: Wiretuner_Doc_V1_NodeProps) -> Wiretuner_Doc_V1_AppearanceProps? {
+        switch props.kind {
+        case .path(let path)?: path.appearance
+        case .rect(let rect)?: rect.appearance
+        case .ellipse(let ellipse)?: ellipse.appearance
+        case .polygon(let polygon)?: polygon.appearance
+        case .group(let group)?: group.appearance
         default: nil
         }
     }
@@ -327,6 +355,7 @@ enum NodeValues {
         case .path: 3
         case .rect: 4
         case .ellipse: 3
+        case .polygon: 10
         case .group: 6
         case .layer: nil
         }

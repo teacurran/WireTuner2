@@ -36,6 +36,14 @@ public struct SceneObject: Hashable, Sendable {
     public var leafContours: [[Int]: [OpID]]
     /// The object's display item as placed (transforms flattened; a group with its members).
     public var item: DisplayItem
+    /// The layer the object is shown on (a deleted layer's objects show on its merge target or
+    /// the default layer, `LayerOrder`).
+    public var layer: OpID?
+    /// Whether the object itself is locked (`CommonProps.locked`).
+    public var isLocked = false
+    /// Whether the object cannot be edited from the canvas: it, an enclosing group or its layer
+    /// is locked (arranging.adoc, "Locking"; layers.adoc, "Locking and unlocking layers").
+    public var isEffectivelyLocked = false
 
     /// The point a hit on element `element` of the leaf at `leafPath` (a full index path) names.
     public func point(leafPath: [Int], element: Int) -> PointRef? {
@@ -59,12 +67,15 @@ public struct DocumentScene: Hashable, Sendable {
     public var objects: [NodeID: SceneObject]
     /// The top-level objects in draw order (bottom first).
     public var topLevel: [NodeID]
+    /// The layer list the scene was built from.
+    public var layers: LayerOrder?
     private var byItemPath: [[Int]: NodeID]
 
-    public init(displayList: DisplayList, objects: [NodeID: SceneObject] = [:], topLevel: [NodeID] = []) {
+    public init(displayList: DisplayList, objects: [NodeID: SceneObject] = [:], topLevel: [NodeID] = [], layers: LayerOrder? = nil) {
         self.displayList = displayList
         self.objects = objects
         self.topLevel = topLevel
+        self.layers = layers
         byItemPath = Dictionary(uniqueKeysWithValues: objects.map { ($0.value.itemPath, $0.key) })
     }
 
@@ -99,6 +110,7 @@ public struct DocumentDisplayListBuilder: Sendable {
         var transform: AffineTransform
         var elementPoints: [[Int]: [PointRef?]]
         var leafContours: [[Int]: [OpID]]
+        var locked = false
     }
 
     public init(canvas: CanvasID, background: [DisplayItem] = []) {
@@ -113,6 +125,21 @@ public struct DocumentDisplayListBuilder: Sendable {
         cache = [:]
         scene = build(state)
         return scene
+    }
+
+    /// Rebuilds everything from `state` after the document's state was replaced wholesale
+    /// (`Document.reload`): no cached item survives, and the summary is structural and names every
+    /// object drawn before or after with its bounds, so every tile they touch repaints.
+    public mutating func reload(_ state: EngineState, origin: ChangeOrigin = .remote) -> (DocumentScene, ChangeSummary) {
+        let before = scene
+        cache = [:]
+        scene = build(state)
+        var summary = ChangeSummary(origin: origin, isStructural: true)
+        for id in Set(before.objects.keys).union(scene.objects.keys) {
+            summary.record(id, old: before.objects[id]?.bounds.map { NodeBounds(canvas: canvas, rect: $0) },
+                           new: scene.objects[id]?.bounds.map { NodeBounds(canvas: canvas, rect: $0) })
+        }
+        return (scene, summary)
     }
 
     /// Replaces the background items (pages added or removed) and rebuilds the list around the
@@ -189,31 +216,42 @@ public struct DocumentDisplayListBuilder: Sendable {
         var nodeIDs: [NodeID?] = background.map { _ in nil }
         var objects: [NodeID: SceneObject] = [:]
         var topLevel: [NodeID] = []
-        for layer in state.liveChildren(WellKnown.layers) where state.nodeKind(layer) == .layer {
-            let props = state.props(layer).layer
-            guard props.visible else { continue }
-            let layerTransform = PathEditing.transform(props.common.transform)
-            for child in state.liveChildren(layer) {
+        let order = LayerOrder(state)
+        for layer in order.layers where layer.visible {
+            let layerTransform = PathEditing.transform(state.props(layer.id).layer.common.transform)
+            let context = Placing(layer: layer.id, locked: layer.locked)
+            for child in order.objects(on: layer.id, in: state) {
                 let index = items.count
-                guard let item = place(child, state: state, parentTransform: layerTransform, itemPath: [index], parent: nil, objects: &objects) else { continue }
+                guard let item = place(child, state: state, parentTransform: layerTransform, itemPath: [index], parent: nil, context: context,
+                                       objects: &objects) else { continue }
                 items.append(item)
                 nodeIDs.append(NodeID(child))
                 topLevel.append(NodeID(child))
             }
         }
-        return DocumentScene(displayList: DisplayList(canvas: canvas, items: items, nodeIDs: nodeIDs), objects: objects, topLevel: topLevel)
+        return DocumentScene(displayList: DisplayList(canvas: canvas, items: items, nodeIDs: nodeIDs), objects: objects, topLevel: topLevel,
+                             layers: order)
+    }
+
+    /// What enclosing nodes pass down while placing.
+    private struct Placing {
+        var layer: OpID
+        var locked: Bool
     }
 
     /// The item of `node` under `parentTransform`, recording it (and its members) in `objects`.
     private mutating func place(_ node: OpID, state: EngineState, parentTransform: AffineTransform, itemPath: [Int], parent: OpID?,
-                                objects: inout [NodeID: SceneObject]) -> DisplayItem? {
+                                context: Placing, objects: inout [NodeID: SceneObject]) -> DisplayItem? {
         guard let built = built(node, state: state) else { return nil }
         let transform = built.transform.concatenating(parentTransform)
+        let locked = context.locked || built.locked
         let item: DisplayItem
         if built.kind == .group {
             var children: [DisplayItem] = []
+            let inner = Placing(layer: context.layer, locked: locked)
             for child in state.liveChildren(node) {
-                if let placed = place(child, state: state, parentTransform: transform, itemPath: itemPath + [children.count], parent: node, objects: &objects) {
+                if let placed = place(child, state: state, parentTransform: transform, itemPath: itemPath + [children.count], parent: node,
+                                      context: inner, objects: &objects) {
                     children.append(placed)
                 }
             }
@@ -225,7 +263,8 @@ public struct DocumentDisplayListBuilder: Sendable {
         }
         objects[NodeID(node)] = SceneObject(
             id: node, kind: built.kind, path: built.path, transform: transform, itemPath: itemPath, parent: parent,
-            bounds: item.bounds, elementPoints: built.elementPoints, leafContours: built.leafContours, item: item
+            bounds: item.bounds, elementPoints: built.elementPoints, leafContours: built.leafContours, item: item,
+            layer: context.layer, isLocked: built.locked, isEffectivelyLocked: locked
         )
         return item
     }
@@ -236,7 +275,7 @@ public struct DocumentDisplayListBuilder: Sendable {
         let props = state.props(node)
         guard let common = NodeValues.common(props), !common.hasCanvas else { return nil }
         let transform = PathEditing.transform(common.transform)
-        var built = Built(item: nil, kind: kind, path: nil, transform: transform, elementPoints: [:], leafContours: [:])
+        var built = Built(item: nil, kind: kind, path: nil, transform: transform, elementPoints: [:], leafContours: [:], locked: common.locked)
         switch props.kind {
         case .path(let path)?:
             let model = VectorPath(path, node: node, state: state)
@@ -250,6 +289,10 @@ public struct DocumentDisplayListBuilder: Sendable {
             let model = ShapeGeometry.path(ellipse)
             built.path = model
             Self.render(model, appearance: ellipse.appearance, transform: transform, into: &built)
+        case .polygon(let polygon)?:
+            let model = ShapeGeometry.path(polygon)
+            built.path = model
+            Self.render(model, appearance: polygon.appearance, transform: transform, into: &built)
         default:
             break
         }

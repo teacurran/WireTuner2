@@ -1,4 +1,5 @@
 import AppKit
+import WTCRDT
 import WTGeometry
 import WTModel
 import WTRender
@@ -32,6 +33,11 @@ struct DocumentEnvironment {
     /// Opens a document id's model: its local store in the app (`DocumentOpener.localStore`), a
     /// memory document by default (tests).
     var openModel: @MainActor (String) async throws -> WTModel.Document = DocumentOpener.memory
+    /// The pasteboard copied objects go to: the general pasteboard in the app, a private one by
+    /// default (tests).
+    var makePasteboard: @MainActor () -> any ObjectPasteboard = {
+        SystemObjectPasteboard(NSPasteboard(name: NSPasteboard.Name("com.villagecompute.wiretuner.objects.private")))
+    }
 
     /// A document `id` titled `title` whose model `openModel` opens.
     func makeDocument(id: String = UUID().uuidString, title: String) -> DocumentHandle {
@@ -73,6 +79,9 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
     let selection: SelectionController
     let presence: any PresenceProviding
     let syncStatus: any SyncStatusProviding
+    /// The object commands (clipboard, duplicate, group, lock, arrange, nudge) and the tools'
+    /// command sink.
+    let objectEditing: ObjectEditing
     private(set) var toolManager: ToolManager!
 
     private(set) var viewMode: ViewMode = .preview {
@@ -160,6 +169,9 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         )
         presence = environment.makePresence(document)
         syncStatus = environment.makeSyncStatus(document)
+        objectEditing = ObjectEditing(document: document, selection: selection, pasteboard: environment.makePasteboard())
+        objectEditing.rememberLayerInfo = { preferences[PreferenceCatalog.General.rememberLayerInfo] }
+        selection.lassoContactSensitive = { preferences[SelectionToolOptions.lassoContactSensitive] }
 
         let window = NSWindow(
             contentRect: NSRect(origin: .zero, size: Self.defaultContentSize),
@@ -188,16 +200,21 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         context.redraw = { RedrawSettings(preferences: preferences) }
         context.optionDragCopies = { preferences[PreferenceCatalog.Object.optionDragCopies] }
         context.drawing = { DrawingSettings(preferences: preferences) }
+        context.commandSink = objectEditing
+        context.objectEditing = objectEditing
         let manager = ToolManager(registry: environment.tools, context: context, initialTool: initialTool) { [environment] key in
             environment.runShortcut(key)
         }
         manager.onToolChange = { [weak self] id in
             guard let self else { return }
+            // Choosing another kind of tool ends the Pen/Bezigon session; a temporary tool does not.
+            if id != PenTool.id, id != PenTool.bezigonID, self.toolManager?.isTemporary != true { self.objectEditing.pathSession = nil }
             self.onToolChange?(self, id)
         }
         toolManager = manager
         canvas.toolManager = manager
         canvas.selectionController = selection
+        objectEditing.visibleCenter = { [weak canvas] in canvas.map { $0.viewport.toPasteboard($0.viewport.viewCenter) } }
         canvas.presence = presence
         canvas.showsRemoteSelections = { preferences[PreferenceCatalog.Sync.showSelections] }
         canvas.glyphStyle = {
@@ -507,24 +524,41 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
     /// gap); otherwise the selected objects are deleted.  One change.
     @objc func delete(_ sender: Any?) {
         guard let command = deletionCommand() else { return }
-        documentHandle.perform(command)
+        objectEditing.perform(command)
     }
 
     /// What Clear deletes, as one command; nil when nothing is selected.
     func deletionCommand() -> (any WTModel.Command)? {
         let current = selection.model.selection
         var pointCommands: [any WTModel.Command] = []
+        var segmentCommands: [any WTModel.Command] = []
         for id in current.ids {
-            if case let .points(points) = current.subSelection(of: id), !points.isEmpty {
+            switch current.subSelection(of: id) {
+            case let .points(points)? where !points.isEmpty:
                 pointCommands.append(DeletePoints(node: id.opID, points: points.sorted().map { ($0.contour, $0.point) }))
+            case let .segments(segments)? where !segments.isEmpty:
+                // One segment per contour: a second would be computed against the contour the first rewrites.
+                var contours: Set<OpID> = []
+                for segment in segments.sorted() where contours.insert(segment.contour).inserted {
+                    segmentCommands.append(DeleteSegment(node: id.opID, contour: segment.contour, from: segment.from))
+                }
+            default:
+                break
             }
         }
         if !pointCommands.isEmpty { return CommandBatch(pointCommands.count == 1 ? pointCommands[0].label : "Delete Points", pointCommands) }
+        if !segmentCommands.isEmpty { return CommandBatch(segmentCommands.count == 1 ? segmentCommands[0].label : "Delete Segments", segmentCommands) }
         guard !current.isEmpty else { return nil }
         return DeleteNodes(current.ids.map(\.opID))
     }
     @objc func selectNone(_ sender: Any?) { selection.selectNone() }
     @objc func invertSelection(_ sender: Any?) { selection.invert() }
+
+    // MARK: Clipboard (responder chain; OBJ-010)
+
+    @objc func cut(_ sender: Any?) { objectEditing.cut() }
+    @objc func copy(_ sender: Any?) { objectEditing.copy() }
+    @objc func paste(_ sender: Any?) { objectEditing.paste() }
 
     /// Whether a text field has key focus in this window (its field editor is first
     /// responder); kbd:[Tab] must then reach the field, not deselect.
@@ -538,8 +572,10 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
             return selection.canSelectAll
         case #selector(selectNone(_:)):
             return !isEditingText && !selection.model.isEmpty
-        case #selector(delete(_:)):
+        case #selector(delete(_:)), #selector(cut(_:)), #selector(copy(_:)):
             return !isEditingText && !selection.model.isEmpty
+        case #selector(paste(_:)):
+            return !isEditingText && objectEditing.canPaste
         default:
             return true
         }

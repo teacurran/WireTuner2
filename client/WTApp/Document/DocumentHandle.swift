@@ -229,8 +229,11 @@ final class DocumentHandle: Identifiable, CommandSink {
 
     private func modelDidChange(_ event: DocumentEvent) {
         let before = builder.scene.displayList
-        let origin: ChangeOrigin = event.origin == .remote ? .remote : .local
-        let (scene, summary) = builder.apply(event.change, state: event.after, origin: origin)
+        let origin: ChangeOrigin = event.origin == .remote || event.origin == .reload ? .remote : .local
+        // A reload (the state replaced wholesale) rebuilds everything; a change the nodes it touched.
+        let (scene, summary) = event.origin == .reload
+            ? builder.reload(event.after, origin: origin)
+            : builder.apply(event.change, state: event.after, origin: origin)
         changeCount += 1
         invalidation.submit(summary, before: [before], after: [scene.displayList])
         notify(ContentChange(summary: summary, before: before, after: scene.displayList, change: event.change))
@@ -276,6 +279,18 @@ final class DocumentHandle: Identifiable, CommandSink {
     @discardableResult
     func redo() -> Task<Wiretuner_Doc_V1_Change?, Never> {
         run { model in try await model.redo() }
+    }
+
+    /// The model's state was replaced wholesale (WTSync's `SyncEvent.stateReplaced`: a snapshot
+    /// bootstrap or a salvage): re-reads it and redraws everything; the selection drops what no
+    /// longer resolves.
+    @discardableResult
+    func reload() -> Task<Void, Never> {
+        let opening = opening
+        return Task { [weak self] in
+            await opening?.value
+            await self?.model?.reload()
+        }
     }
 
     /// Applies a change from the server's log (the sync client's path in; tests stand in for it).

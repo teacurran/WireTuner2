@@ -156,10 +156,23 @@ final class ToolManager {
             context.host.setNeedsOverlayDisplay()
             return true
         }
+        if !machine.isDragging, nudge(keyCode: event.keyCode, modifiers: KeyEquivalentResolver.modifiers(event.modifierFlags)) {
+            return true
+        }
         guard !machine.isDragging,
             let key = CanvasEventTranslator.shortcut(charactersIgnoringModifiers: event.charactersIgnoringModifiers, modifierFlags: event.modifierFlags)
         else { return false }
         return runShortcut(key)
+    }
+
+    /// An arrow key without Command, Option or Control nudges the selection by *Arrow key
+    /// distance* (with Shift, *Shift-arrow key distance*) (OBJ-009).  Returns whether it did.
+    func nudge(keyCode: UInt16, modifiers: KeyModifiers) -> Bool {
+        guard let editing = context.objectEditing, modifiers.isDisjoint(with: [.command, .option, .control]) else { return false }
+        let settings = context.drawing()
+        let distance = modifiers.contains(.shift) ? settings.shiftArrowDistance : settings.arrowDistance
+        guard let delta = ObjectEditing.nudgeDelta(keyCode: keyCode, distance: distance) else { return false }
+        return editing.nudge(by: delta)
     }
 
     @discardableResult

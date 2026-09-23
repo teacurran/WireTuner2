@@ -252,6 +252,25 @@ Nothing beyond storing and relaying changes.
 * Undo grouping: one change per commit; slider drags group under one label for the duration
   of the drag (mouse down to mouse up).
 
+NOTE: As built by OBJ-001 to OBJ-004.  *Measure* (`WTModel/Measure.swift`): `%` applies to the number it
+follows (`50% + 1`), arithmetic runs in the document unit (a suffixed number is converted first), the
+suffixes are case-insensitive, `2p6` and `2p.5` are pica-point forms, and errors carry the character
+offset of the caret; `Measure.format` writes picas as `2p6`.  *Common attributes*
+(`WTApp/Panels/ObjectPanelSections.swift`): X/Y/W/H are the objects' geometry bounds through the
+transform chain (`Objects.bounds`, strokes not included); typing X or Y is one `MoveObjects` per
+object ("Move", one `transform` write), W or H one `TransformObjects` scale about the box's top-left
+("Scale"), proportional with the lock; Name, Note and Locked are `SetNameOrNote` and `SetLocked`.
+`Mixed` is the `shared()` rule; rectangle (`SetCornerRadius`) and polygon (`SetPolygonFields`)
+sections appear when every selected object is one; a fan-out is one `CompositeCommand`.  The
+attribute stack commands are `AddAppearance.fill/.stroke/.effect` (above the selected row of the same
+list, else at the top of it; `effect` takes the `Effect` value, since the effect kernels own their
+defaults), `RemoveAppearance`, `MoveAppearance`, `DuplicateAppearance`, `SetAppearanceColor` and
+`SetStrokeWidth`.  The properties list with stack rows and the Add/Remove buttons in the panel, the
+`PropertyEditor` protocol and the remote-edit highlight belong to APP-007's framework and are not
+wired here; the UI tests are unit tests of the panel model and its bindings.  The OBJ-004
+conformance vector (concurrent inserts at one gap) is a WTModel merge test until the CRDT track adds
+it.
+
 === Build tasks
 
 [[OBJ-001]]

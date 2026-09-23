@@ -149,6 +149,30 @@ public final class Document {
         }
     }
 
+    /// Re-reads the backend after its state was replaced wholesale (a snapshot bootstrap or a
+    /// salvage: WTSync's `SyncEvent.stateReplaced`): the replica, the Edit menu state and the merged
+    /// state, then publishes one `.reload` event -- an empty change, the whole state before and
+    /// after -- so every observer rebuilds from scratch (`DocumentDisplayListBuilder.reload`) and
+    /// drops what no longer resolves.  Queued after every earlier call.
+    public func reload() async {
+        _ = try? await serially { [backend] in
+            let summary = await backend.summary()
+            let after = await backend.read { $0 }
+            self.undoTitle = summary.undo.undoTitle
+            self.redoTitle = summary.undo.redoTitle
+            self.canUndo = summary.undo.canUndo
+            self.canRedo = summary.undo.canRedo
+            self.replica = summary.replica
+            let before = self.state
+            self.state = after
+            self.revision += 1
+            let event = DocumentEvent(change: Wiretuner_Doc_V1_Change(), origin: .reload, before: before, after: after)
+            for id in self.observers.keys.sorted() {
+                self.observers[id]?(event)
+            }
+        }
+    }
+
     /// Applies a change from the server's log (the sync client's path in).
     public func receive(_ change: Wiretuner_Doc_V1_Change, serverSeq: UInt64) async throws {
         _ = try await serially { [backend] in
@@ -213,6 +237,8 @@ public struct DocumentEvent: Sendable {
     /// Where the change came from.
     public enum Origin: Sendable, Hashable {
         case local, undo, redo, remote
+        /// The backend's state was replaced wholesale (`Document.reload`); the change is empty.
+        case reload
     }
 
     public let change: Wiretuner_Doc_V1_Change

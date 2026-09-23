@@ -224,6 +224,14 @@ Nothing beyond storing and relaying changes.
   is in subselect mode, in which case it returns the innermost node.
 * Undo: one step each.
 
+NOTE: As built by OBJ-016 (`WTModel/Grouping.swift`).  `GroupObjects` groups objects that share a parent in
+place (above the topmost), and collects objects from several parents onto the active layer; members
+keep their stacking order (`Objects.stackingOrder`).  With *Remember layer info* it inserts one
+`LayerOrigin` per member, and `Ungroup` sends each member back to that layer when it is live.
+`Ungroup` of a rectangle, ellipse or polygon converts it to a path (DRAW-009, DRAW-012).  The
+"pixel test" is a comparison of every member's painted bounds before and after in the scene; the
+conformance vector for concurrent `layer_origins` inserts is left to the CRDT track.
+
 === Build tasks
 
 [[OBJ-016]]

@@ -63,7 +63,7 @@ enum PanelCatalog {
             stub("colorMixer", "Color Mixer", "paintpalette", Group.mixer, 40, "color-mixer", "Mix colors here."),
             stub("tints", "Tints", "circle.lefthalf.filled", Group.mixer, 41, "tints", "Tints of the chosen color appear here."),
             stub("align", "Align", "align.horizontal.left", Group.alignTransform, 50, "arranging", "Align and distribute objects here."),
-            stub("transform", "Transform", "arrow.up.left.and.arrow.down.right", Group.alignTransform, 51, "transforming", "Move, scale, rotate and skew by numbers here."),
+            TransformPanel.descriptor(selection: selection),
             stub("halftones", "Halftones", "circle.grid.3x3", Group.halftones, 60, "halftones", "Halftone screens appear here."),
             stub("navigation", "Navigation", "list.bullet.indent", Group.navigation, 70, "names-notes", "Object names, notes and URLs appear here."),
             stub("findReplace", "Find & Replace Graphics", "magnifyingglass", Group.findSelect, 80, "find-replace", "Find and replace attributes here."),

@@ -49,6 +49,8 @@ enum SelectionCommands {
     @MainActor
     static func install(commands registry: CommandRegistry, tools: ToolRegistry) {
         tools.replace(PointerTool.descriptor)
+        tools.replace(PointerTool.subselectDescriptor)
+        tools.replace(LassoTool.descriptor)
         for command in commands() { registry.replace(command) }
     }
 }

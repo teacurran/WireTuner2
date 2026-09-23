@@ -56,10 +56,14 @@ final class ActiveSelection {
     var model: SelectionModel?
     /// The front window's document (the Object panel's sections read it).
     var document: DocumentHandle?
+    /// The front window's object commands (the Transform panel performs through them, so a
+    /// transformation is remembered for *Transform Again* and power duplicating).
+    var editing: ObjectEditing?
 
-    init(model: SelectionModel? = nil, document: DocumentHandle? = nil) {
+    init(model: SelectionModel? = nil, document: DocumentHandle? = nil, editing: ObjectEditing? = nil) {
         self.model = model
         self.document = document
+        self.editing = editing
     }
 
     /// "Nothing selected", "1 object selected", "3 objects selected".

@@ -208,6 +208,14 @@ Nothing beyond storing and relaying changes.
   is on.  Locked nodes draw with a small lock glyph at the selection's corner.
 * Preferences: *Edit locked objects* (off).
 
+NOTE: As built by OBJ-018 and OBJ-020 (`WTModel/Arranging.swift`, `ObjectCommands.swift`).  The Arrange
+commands are `Arrange(nodes, direction)` with the guide's keys (kbd:[Cmd+Up], kbd:[Cmd+Shift+Up],
+kbd:[Cmd+Down], kbd:[Cmd+Shift+Down]); the selection in each parent moves as one block.  Lock and
+Unlock are `SetLocked`; every object command filters with `Objects.editable` (the object, an
+enclosing group or its layer locked), and the scene marks `isEffectivelyLocked`.  Not delivered here:
+the *Edit locked objects* exception (appearance commands do not consult the lock at all yet), the lock
+toolbar buttons and the lock glyph, and the Align commands and panel (OBJ-019).
+
 === Build tasks
 
 [[OBJ-018]]

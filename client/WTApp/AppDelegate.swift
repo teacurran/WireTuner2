@@ -117,6 +117,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         environment.showHelp = { [weak self] descriptor in self?.showHelp(for: descriptor) }
         environment.snapSounds = snapSounds
         environment.openModel = DocumentOpener.opener(for: launchEnvironment, preferences: preferences)
+        environment.makePasteboard = { SystemObjectPasteboard() }
         if let socketMonitor {
             environment.diagnostics = { socketMonitor.counts.accessibilityText }
         }
@@ -223,7 +224,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func installTools() {
         tools.registerBuiltIn()
         SelectionCommands.install(commands: commands, tools: tools)
+        DrawingTools.install(into: tools)
+        ToolOptionSheets.install(into: tools, store: preferences)
         let documents = documents!
+        ObjectMenuCommands.install(into: commands) { documents.activeWindowController?.objectEditing }
         let palette = toolPalette
         let toolCommands = tools.commands(
             activate: { id in palette.pressShortcut(id) },
@@ -266,6 +270,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         toolPalette.selectionWells = window?.selectionWells
         activeSelection.model = window?.selection.model
         activeSelection.document = window?.documentHandle
+        activeSelection.editing = window?.objectEditing
         floatingPanels.reattach()
         toolbarsDocumentsDidChange()
     }

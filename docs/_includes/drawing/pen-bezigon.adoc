@@ -179,6 +179,15 @@ variants come with editing-paths.adoc's point insertion and deletion.  Snapping 
 `SnappingContext` placeholder (identity until GEO-005).  The UI tests are unit tests of the tool
 against a memory document (`WTAppTests/PenToolTests.swift`); the merge tests are WTModel's.
 
+NOTE: As built by DRAW-022 to DRAW-024.  The Bezigon is `PenTool(bezigon: true)`; Pen and Bezigon share
+the window's session (`ObjectEditing.pathSession`), which choosing another kind of tool ends (a
+temporary tool does not).  An automatic point needs no handle write on its neighbour: automatic
+handles are computed on read.  Without a session, a click on a selected open path's end (or kbd:[Option]
+on any path's end) resumes the session there, and a click on a selected path's segment inserts a point
+(DRAW-026).  Auto-join: a click on another open path's end performs one `JoinPaths` ("Join") and ends
+the session, without placing a point there.  Closing by dragging one end onto the other with the
+Pointer and the context menu's Path > Closed/Open are not delivered.
+
 === Build tasks
 
 [[DRAW-021]]

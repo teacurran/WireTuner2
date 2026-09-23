@@ -604,6 +604,28 @@ Preferences:: *Clicking a layer name moves selected objects* (Panels, default on
 *Edit current layer only* (Object, default off).  *Guide color* belongs to
 xref:grid-guides.adoc[grid and guides].
 
+NOTE: As built by LIB-002 and LIB-003 (`WTModel/LayerOrder.swift`, `LayerCommands.swift`).  `LayerOrder`
+reads every layer node (`LayerInfo`), orders the live ones bottom first -- background layers, then
+printing layers, each in tree order -- and resolves the Guides layer (smallest id with the role,
+read live even when deleted), the default layer, `merged_into` routing (one hop: a deleted layer's
+objects show on its live target, else on the default layer) and `drawingLayer` (the top-most
+visible, unlocked, non-Guides layer).  `DocumentDisplayListBuilder` builds the scene in that order
+and appends a deleted layer's live objects after the display layer's own; `SceneObject` gained
+`layer`, `isLocked` and `isEffectivelyLocked`.  The commands are `CreateLayer` ("New Layer", above the
+active layer, printing like it), `DuplicateLayer` ("Duplicate Layer", a deep copy through
+`NodeCopier`), `RenameLayer`, `RemoveLayers` ("Remove layer <name>" / "Remove N layers"),
+`ReorderLayer` ("Move Layer": a `MoveNode` among the destination group's layers plus `printing` when
+it crosses the separator), `SetLayerFlag` ("Hide 4 layers", "Lock layer", ...), `SetLayerHighlight`,
+`MergeLayers` ("Merge N layers"; `.foreground(in:)` for *Merge Foreground Layers*) and
+`MoveObjectsToLayer`; refusals are `LayerError` (Guides, last printing layer, locked destination).
+Every create command (`CreatePath`, `CreateShape`, `CreatePolygon`, `Paste`, `GroupObjects`) takes the
+active layer and falls back to the drawing layer when it is locked, gone or Guides.  Not delivered
+here: background layers drawn dimmed and per-layer Keyline (WTRender consumes `LayerOrder` in a later
+task; hidden layers are skipped), the Layers panel and the active-layer UI (LIB-004: the window's
+active layer is `ObjectEditing.activeLayer`, nil until then), the conformance vectors for the
+default-layer rule and dead `merged_into` targets (CRDT track; the same cases are WTModel merge tests
+in `LayerTests.swift`), and the review model's *move vs move* listing (WTSync's).
+
 === Build tasks
 
 [[LIB-001]]

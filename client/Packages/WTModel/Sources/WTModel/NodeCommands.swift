@@ -15,13 +15,16 @@ public struct CreateShape: Command {
     public var size: Size
     public var transform: AffineTransform
     public var appearance: Wiretuner_Doc_V1_AppearanceProps
+    /// The layer to draw on (the active layer), as for `CreatePath`.
+    public var layer: OpID?
     public var label: String {
         if case .ellipse = kind { return "Ellipse" }
         return "Rectangle"
     }
 
     public init(_ kind: Kind, size: Size, transform: AffineTransform = .identity,
-                appearance: Wiretuner_Doc_V1_AppearanceProps = Appearances.standard) {
+                appearance: Wiretuner_Doc_V1_AppearanceProps = Appearances.standard, layer: OpID? = nil) {
+        self.layer = layer
         self.kind = kind
         self.size = size
         self.transform = transform
@@ -32,7 +35,7 @@ public struct CreateShape: Command {
         guard size.width > 0, size.height > 0, size.width.isFinite, size.height.isFinite else {
             throw PathEditError.invalidValue("size")
         }
-        let layer = try PathEditing.ensureLayer(&builder, state: state)
+        let layer = try PathEditing.ensureLayer(&builder, state: state, preferred: self.layer)
         var props = Wiretuner_Doc_V1_NodeProps()
         var storedSize = Wiretuner_Doc_V1_Size()
         storedSize.width = size.width
@@ -114,7 +117,8 @@ public struct DeleteNodes: Command {
     }
 
     public func execute(_ builder: inout ChangeBuilder, state: EngineState) throws {
-        for node in nodes where state.isLive(node) && state.store.isCreated(node) {
+        let order = LayerOrder(state)
+        for node in nodes where state.isLive(node) && state.store.isCreated(node) && !Objects.isEffectivelyLocked(node, in: state, layers: order) {
             builder.append(Ops.setDeleted(node))
         }
     }

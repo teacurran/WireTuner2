@@ -130,6 +130,15 @@ option set for the preview.  The spiral's *Draw from* option maps the press/drag
 
 Undo:: One group per drawn shape.
 
+NOTE: As built by DRAW-013 to DRAW-015.  Deviation: `spiralPath` and `arcPath` are in
+`WTModel.ShapeGeometry` (`SpiralArcGeometry.swift`), not WTGeometry.  Each quarter-turn cubic's
+handles follow the spiral's tangent scaled by `4/3 · tan(Δθ/4)`, so a turn of constant radius is the
+standard circle approximation; a turn count that does not come out even ends with one shorter segment
+at the outer end.  Drawing an expanding spiral by increments starts at *Starting radius* and expands by
+*Expansion* per turn until it reaches the drag.  *Draw from Corner* centres the spiral in the dragged
+box with half the box's shorter side as its radius.  An arc's curve points are corner points with one
+handle.  The sheets list the tools' preferences (`ToolOptionSheets`).
+
 === Build tasks
 
 [[DRAW-013]]

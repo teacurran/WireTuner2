@@ -109,17 +109,33 @@ struct DrawingSettings: Equatable, Sendable {
     var fillWhenOpen = false
     /// *Pen tool preview*: the rubber-band segment.
     var penPreview = true
+    /// *Auto-join paths*: ending a Pen path on another open path's end joins them.
+    var autoJoin = true
+    /// *Arrow key distance* and *Shift-arrow key distance*, points (moving.adoc).
+    var arrowDistance = 1.0
+    var shiftArrowDistance = 10.0
+    /// The drawing tools' own settings (their options sheets).
+    var tools = DrawingToolOptions()
 
-    init(constrainAngle: Double = 0, fillWhenOpen: Bool = false, penPreview: Bool = true) {
+    init(constrainAngle: Double = 0, fillWhenOpen: Bool = false, penPreview: Bool = true, autoJoin: Bool = true, arrowDistance: Double = 1,
+         shiftArrowDistance: Double = 10, tools: DrawingToolOptions = DrawingToolOptions()) {
         self.constrainAngle = constrainAngle
         self.fillWhenOpen = fillWhenOpen
         self.penPreview = penPreview
+        self.autoJoin = autoJoin
+        self.arrowDistance = arrowDistance
+        self.shiftArrowDistance = shiftArrowDistance
+        self.tools = tools
     }
 
     @MainActor init(preferences: PreferenceStore) {
         constrainAngle = preferences[PreferenceCatalog.Object.constrainAngle]
         fillWhenOpen = preferences[PreferenceCatalog.Object.showFillOpenPaths]
         penPreview = preferences[PreferenceCatalog.General.penPreview]
+        autoJoin = preferences[PreferenceCatalog.Object.autoJoinPaths]
+        arrowDistance = preferences[PreferenceCatalog.Object.arrowDistance]
+        shiftArrowDistance = preferences[PreferenceCatalog.Object.shiftArrowDistance]
+        tools = DrawingToolOptions(preferences: preferences)
     }
 
     /// Shift's rule: the constrain angle and every 45° from it.
@@ -143,6 +159,8 @@ struct ToolContext {
     var drawing: @MainActor () -> DrawingSettings = { DrawingSettings() }
     /// Where the tools' commands go: the document unless a test records them.
     var commandSink: CommandSink
+    /// The window's object commands (nudging, the active layer), when the tool runs in a window.
+    var objectEditing: ObjectEditing?
 
     init(document: DocumentHandle, host: any CanvasHost, snapping: SnappingContext = SnappingContext(), selection: SelectionController? = nil) {
         self.document = document

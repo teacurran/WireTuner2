@@ -298,6 +298,17 @@ Nothing beyond storing and relaying changes.
 * Preferences: *Arrow key distance* (1 pt), *Shift-arrow key distance* (10 pt), *Snap
   distance* (3 px).
 
+NOTE: As built by OBJ-008 and OBJ-009.  `MoveObjects(nodes, by:)` composes the pasteboard-space delta,
+converted into each node's parent space, onto its `transform` ("Move" / "Move N objects"); locked
+objects are skipped.  The Pointer previews the move as outlines in the overlay and performs one
+command on mouse-up (client.adoc's tool rule, rather than provisional application per drag event);
+kbd:[Option] with *Option-drag copies paths* performs a `DuplicateObjects` offset by the drag
+("Copy").  Nudging is `ObjectEditing.nudge(by:)`, reached from the canvas through
+`ToolManager.nudge` for arrow keys without Command, Option or Control: a burst is one undo group
+until 500 ms pass without a press, and a point sub-selection moves its points (`MovePoints`).
+Snapping goes through the `SnappingContext` placeholder (GEO-005), and smart guides and the Info
+toolbar's move readout are OBJ-038/039's.
+
 === Build tasks
 
 [[OBJ-008]]

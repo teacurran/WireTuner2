@@ -16,6 +16,8 @@ final class SelectionController {
     var contactSensitive: @MainActor () -> Bool
     /// *Pick distance*, view pixels.
     var pickDistance: @MainActor () -> Double
+    /// The Lasso's *Contact-sensitive selection*.
+    var lassoContactSensitive: @MainActor () -> Bool = { false }
 
     /// Built on first use and after every content change; the viewport and options are set
     /// per query (they are plain values).

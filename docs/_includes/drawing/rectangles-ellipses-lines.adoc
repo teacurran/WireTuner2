@@ -239,6 +239,12 @@ becomes two corner points joined by a quarter-circle cubic, kappa 0.5522847498),
 A live Corners effect does not override the radius yet.  The UI tests of each modifier combination
 are unit tests of the tools (`WTAppTests/ShapeToolTests.swift`); XCUITest was not run.
 
+NOTE: As built by DRAW-009.  The rectangle section of the Object panel (Radius, Uniform and the four
+corners, `SetCornerRadius`) and menu:Modify[Ungroup] converting a rectangle or ellipse to a path
+(`Ungroup`: a `path` node with the same outline, attributes and transform above it, the shape deleted;
+undo restores the shape) are delivered.  The Rectangle Tool sheet and the Subselect radius handles are
+not.
+
 === Build tasks
 
 [[DRAW-006]]

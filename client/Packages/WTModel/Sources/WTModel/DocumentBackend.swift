@@ -96,6 +96,12 @@ public actor MemoryBackend: DocumentBackend {
         try body(core.state)
     }
 
+    /// Replaces the whole core (a memory document's snapshot bootstrap or salvage); the façade
+    /// catches up with `Document.reload()`.
+    public func replace(with core: DocumentCore) {
+        self.core = core
+    }
+
     private func update(_ change: Wiretuner_Doc_V1_Change?) -> DocumentUpdate {
         DocumentUpdate(change: change, undo: UndoSummary(core.undoStack), replica: core.replica)
     }

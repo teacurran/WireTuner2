@@ -172,6 +172,17 @@ Automatic, Rotation (degrees in the UI, radians stored).
 
 Undo:: One group per drag or field commit.
 
+NOTE: As built by DRAW-010 to DRAW-012.  Deviation: `polygonPath` is `WTModel.ShapeGeometry.polygonPath`
+(with `PolygonShape` holding the read-time rules), not WTGeometry's, for the same reason as the
+rectangle's (it produces WTModel's `VectorPath` with synthetic point ids).  The automatic inner radius
+is clamped at 0 (the odd-count formula is negative for a triangle).  A manual star's inner radius is
+seeded from *Acute/Obtuse* between 10% of the radius and the edge midpoints' radius.  `CreatePolygon`
+places the centre with `transform` and the first vertex with `rotation`; the tool previews and creates
+on mouse-up like the other shape tools.  The Polygon Tool sheet lists the tool's preferences
+(`ToolOptionSheets`) without a live preview; the Subselect diamond and circle handles are not
+delivered.  The concurrent `radius`/`rotation` conformance vector is left to the CRDT track (the case is
+a WTModel merge test).
+
 === Build tasks
 
 [[DRAW-010]]

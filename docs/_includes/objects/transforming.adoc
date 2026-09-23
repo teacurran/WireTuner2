@@ -302,6 +302,22 @@ Nothing beyond storing and relaying changes.
   changes.
 * Preferences: *Double-click enables transform handles* (on), *Constrain angle* (0°).
 
+NOTE: As built by OBJ-031 and OBJ-032 (`WTModel/ObjectCommands.swift`, `WTApp/Tools/TransformTools.swift`).
+`TransformObjects(nodes, matrix:, about:, kind:, options:, copies:)` conjugates the pasteboard-space
+matrix into each node's parent space; *Strokes* scales basic stroke widths by `sqrt(|det|)` in the same
+change; *Fills* is accepted but has no effect until ATTR's fill axes exist; *Contents* is always on (a
+group's transform carries its members).  `TransformPoints` writes point registers.  `LastTransform`
+backs *Transform Again* (menu:Modify[Transform > Transform Again], kbd:[Cmd+Shift+T]).  The four tools
+are one `TransformTool(kind)`: the press sets the centre, the drag's first point 3 px from it the
+reference, and the amount follows the pointer; scale factors clamp to ±0.01%.  The Transform panel
+(OBJ-033, `WTApp/Panels/TransformPanel.swift`) is `TransformPanelModel`: the five tabs' numbers (Move X
+and Y positive right and up, Rotate counter-clockwise, Reflect's axis 90° left-to-right and 0°
+top-to-bottom), a centre that defaults to the selection's bounds centre, *Copies* and *Strokes*;
+*Apply* performs one `TransformObjects` through the window's `ObjectEditing`, and the panel shows the
+last transformation's name.  The *Fills* and *Contents* toggles are not shown (see above), and the
+centre is not synchronised with transform handles, which are not delivered (OBJ-034), nor are
+double-click opening the panel's tab and the 60 fps preview measurement.
+
 === Build tasks
 
 [[OBJ-031]]

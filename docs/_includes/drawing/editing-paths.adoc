@@ -346,6 +346,14 @@ wires the commands.
 Undo:: One group per drag, per key nudge burst (nudges within 500 ms group), per Delete, per
 Split, per Simplify OK, per Reverse.
 
+NOTE: As built by DRAW-025 and DRAW-026.  A drag on selected points (Pointer with kbd:[Option], or
+Subselect) moves them with one `MovePoints` per path on mouse-up, previewed in the overlay, rather
+than a write per drag event; arrow keys nudge them (moving.adoc).  Handle drags, kbd:[Option]-click
+type toggling, kbd:[Option]-drag handle extension and *Smoother editing* are not delivered.
+menu:Edit[Clear] on selected segments deletes one segment per contour (`DeleteSegment`); a Pen click on
+a selected path's segment inserts a point (`InsertPointOnSegment`, split by length on a straight
+segment); menu:Extensions[Distort > Add Points] is `AddPoints` (no toolbar button yet).
+
 === Build tasks
 
 [[DRAW-025]]

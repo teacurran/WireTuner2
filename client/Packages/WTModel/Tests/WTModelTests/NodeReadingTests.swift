@@ -14,7 +14,7 @@ import WTRender
         #expect(OpID(element: id.elementID) == id)
         #expect(OpID(element: Wiretuner_Doc_V1_ElementId()) == nil)
         #expect(WellKnown.document == .wellKnown(0) && WellKnown.settings == .wellKnown(1) && WellKnown.pages == .wellKnown(2))
-        #expect(NodeKind.allCases.count == 5)
+        #expect(NodeKind.allCases.count == 6)
     }
 
     @Test func wellKnownAndUnknownNodesReadEmpty() {
@@ -103,6 +103,13 @@ import WTRender
         var text = Wiretuner_Doc_V1_NodeProps()
         text.text = Wiretuner_Doc_V1_TextProps()
         #expect(NodeValues.common(text) == nil)
-        #expect(NodeKind.allCases.map(NodeValues.appearanceField) == [3, 4, 3, 6, nil])
+        #expect(NodeKind.allCases.map(NodeValues.appearanceField) == [3, 4, 3, 10, 6, nil])
+        for kind in NodeKind.allCases {
+            let props = NodeValues.common(kind: kind) { $0.name = "n" }
+            #expect(NodeValues.common(props)?.name == "n")
+            let appearance = NodeValues.with(kind: kind, appearanceField: NodeValues.appearanceField(kind) ?? 0, stack)
+            #expect(NodeValues.appearance(appearance)?.rasterDpi == (kind == .layer ? nil : 72))
+        }
+        #expect(NodeValues.appearance(text) == nil)
     }
 }

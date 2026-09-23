@@ -38,6 +38,7 @@ public enum NodeKind: UInt32, Sendable, CaseIterable {
     case path = 20
     case rect = 21
     case ellipse = 22
+    case polygon = 23
     case group = 50
     case layer = 150
 }
@@ -177,6 +178,12 @@ private final class PropsTree {
 
 /// Minimal protobuf wire writing for `PropsTree`.
 enum Wire {
+    /// A message's encoding (empty if it cannot be encoded, which a proto3 message built here
+    /// never is).
+    static func bytes(_ encode: () throws -> [UInt8]) -> [UInt8] {
+        (try? encode()) ?? []
+    }
+
     static func varint(_ value: UInt64) -> [UInt8] {
         var value = value
         var out: [UInt8] = []

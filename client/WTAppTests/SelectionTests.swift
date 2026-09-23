@@ -415,7 +415,8 @@ struct GroupOfRectangles: WTModel.Command {
         tool.mouseDown(TestEvents.point(30, 30))
         tool.cancel()
         tool.mouseUp(TestEvents.point(30, 30))
-        #expect(fixture.selection.selection.isEmpty)
+        #expect(fixture.selection.selection.ids == [fixture.objects.a], "the press selects (OBJ-005: so a drag can move it); Esc abandons only the drag")
+        fixture.selection.model.clear()
         #expect(!tool.keyDown(TestEvents.escape))
         let context = CGContext(data: nil, width: 10, height: 10, bitsPerComponent: 8, bytesPerRow: 0, space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
         tool.drawOverlay(in: context, viewport: fixture.host.viewport)

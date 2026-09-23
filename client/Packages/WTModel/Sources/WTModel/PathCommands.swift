@@ -29,9 +29,14 @@ public struct CreatePath: Command {
     public var evenOdd: Bool
     public var fillWhenOpen: Bool
     public var name: String
+    /// The layer to draw on (the active layer); nil, or a layer that takes no objects, draws on
+    /// the drawing layer.
+    public var layer: OpID?
 
     public init(label: String = "Path", contours: [NewContour], appearance: Wiretuner_Doc_V1_AppearanceProps = Appearances.standard,
-                transform: AffineTransform = .identity, evenOdd: Bool = false, fillWhenOpen: Bool = false, name: String = "") {
+                transform: AffineTransform = .identity, evenOdd: Bool = false, fillWhenOpen: Bool = false, name: String = "",
+                layer: OpID? = nil) {
+        self.layer = layer
         self.label = label
         self.contours = contours
         self.appearance = appearance
@@ -50,7 +55,7 @@ public struct CreatePath: Command {
         for contour in contours where contour.points.count > VectorContour.maximumPoints {
             throw PathEditError.contourFull(.zero)
         }
-        let layer = try PathEditing.ensureLayer(&builder, state: state)
+        let layer = try PathEditing.ensureLayer(&builder, state: state, preferred: self.layer)
         var props = Wiretuner_Doc_V1_NodeProps()
         props.path.common.name = name
         if !transform.isIdentity { props.path.common.transform = PathEditing.proto(transform) }
@@ -393,7 +398,7 @@ public struct DeleteSegment: Command {
     public var node: OpID
     public var contour: OpID
     public var from: OpID
-    public var label: String { "Delete VectorSegment" }
+    public var label: String { "Delete Segment" }
 
     public init(node: OpID, contour: OpID, from: OpID) {
         self.node = node

@@ -285,6 +285,17 @@ Relays presence (SRV-012).  Nothing else.
   the menu, and nothing else changes.  Nothing is written to the document and nothing leaves
   the Mac.
 
+NOTE: As built by OBJ-005.  The Pointer and Subselect tools are one `PointerTool` (`subselect:`); the press
+selects an unselected object at once (so a drag moves it) and a release without a drag applies the
+click rule, so kbd:[Esc] abandons a drag but not the selection the press made.  A drag that starts on a
+selected object moves the selection, one that starts on a point moves the selected points
+(moving.adoc).  The Lasso (`LassoTool`) tests anchors (points and whole objects) and, for groups and
+shapes without anchors, the bounds' corners against the loop (even-odd); *Contact-sensitive
+selection* for the Lasso is `SelectionController.lassoContactSensitive`.  The options sheets
+(`ToolOptionSheets`) list the tool's preferences with the Preferences window's rows.  Cycle-through,
+Superselect/Subselect All and the Force-click stage beyond APP-006's are not part of this task.  The
+UI tests are unit tests of the tools against memory documents (`PointerMoveTests.swift`).
+
 === Build tasks
 
 [[OBJ-005]]

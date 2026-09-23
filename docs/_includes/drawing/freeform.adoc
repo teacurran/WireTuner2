@@ -189,6 +189,14 @@ through the tool's `keyDown` while a drag is active and update the width from th
 
 Undo:: One group per stroke, including the overlap cleanup.
 
+NOTE: As built by DRAW-016 and DRAW-017.  `StrokeCapture` (WTApp) collects the pointer samples and the
+kbd:[Option] spans; `WTModel.StrokeFit` fits each freehand run with GEO-004's `PrecisionSetting.fit`
+at the view's zoom and joins the spans (corner points at span joins and at the stroke's ends, curve
+points where the fitted handles are collinear).  A continuation is `ContinuePath` (the stroke's first
+point is the end being extended, whose leaving handle smooths the join).  Pressure and tablet
+detection are not read by the Pencil (the Variable Stroke and Calligraphic Pens use them), and the
+fit-to-golden-corpus check is GEO-004's own test.
+
 === Build tasks
 
 [[DRAW-016]]

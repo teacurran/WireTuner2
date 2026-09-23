@@ -105,6 +105,11 @@ change on the wire except by its label.
 * Menu titles from `Change.label`; `Undo` dimmed when the stack is empty.
 * Preference: *Undo levels* (100).
 
+NOTE: OBJ-036 was already delivered by APP-011 (`WTModel.UndoStack`, *Undo levels* at open and on append,
+the stack persisted by WTSync's local store) and APP-006's `UndoCommands` (titles from change labels,
+disabled when empty, the redo list cleared by a new change); the OBJ tasks add no undo machinery.
+Every command above is one change and one undo step, verified per command by WTModel's tests.
+
 === Build tasks
 
 [[OBJ-036]]
