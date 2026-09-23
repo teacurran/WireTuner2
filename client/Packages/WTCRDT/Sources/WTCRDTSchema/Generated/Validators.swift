@@ -31,7 +31,14 @@ public enum WTValidators {
     nonisolated(unsafe) private static let pattern2 = try! Regex(#"^[a-z][a-z0-9_]*(\.[a-z0-9_]+)+$"#)
     nonisolated(unsafe) private static let pattern3 = try! Regex(#"^[a-z0-9]([a-z0-9-]{0,62}[a-z0-9])?$"#)
     nonisolated(unsafe) private static let pattern4 = try! Regex(#"^([a-zA-Z0-9!#$&^_.+-]+/[a-zA-Z0-9!#$&^_.+-]+)?$"#)
-    nonisolated(unsafe) private static let pattern5 = try! Regex(#"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-7[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"#)
+    nonisolated(unsafe) private static let pattern5 = try! Regex(#"^[A-Za-z_][A-Za-z0-9_]*$"#)
+    nonisolated(unsafe) private static let pattern6 = try! Regex(#"^[A-Za-z0-9._-]*$"#)
+    nonisolated(unsafe) private static let pattern7 = try! Regex(#"^[0-9]+\.[0-9]{3}$"#)
+    nonisolated(unsafe) private static let pattern8 = try! Regex(#"^[A-Za-z0-9._]+$"#)
+    nonisolated(unsafe) private static let pattern9 = try! Regex(#"^[A-Za-z_.][A-Za-z0-9_.]*$"#)
+    nonisolated(unsafe) private static let pattern10 = try! Regex(#"^https://"#)
+    nonisolated(unsafe) private static let pattern11 = try! Regex(#"^[ -~]{4}$"#)
+    nonisolated(unsafe) private static let pattern12 = try! Regex(#"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-7[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"#)
 
     /// Validates `wiretuner.account.v1.AcceptInviteRequest`; `path` prefixes every violation's field path.
     public static func validate(_ m: Wiretuner_Account_V1_AcceptInviteRequest, path: String = "") -> [ValidationViolation] {
@@ -794,6 +801,30 @@ public enum WTValidators {
         return []
     }
 
+    /// Validates `wiretuner.doc.v1.AnimationSettings`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_AnimationSettings, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        do {
+            let v = m.source
+            if case .UNRECOGNIZED = v {
+                out.append(ValidationViolation(fieldPath: "\(path)source", ruleID: "enum.defined_only", message: "value must be one of the defined enum values"))
+            }
+        }
+        if !(m.fps == 0) {
+            let v = m.fps
+            if !(v >= 0.01 && v <= 120) {
+                out.append(ValidationViolation(fieldPath: "\(path)fps", ruleID: "double.gte_lte", message: "value must be greater than or equal to 0.01 and less than or equal to 120"))
+            }
+        }
+        do {
+            let v = m.background
+            if case .UNRECOGNIZED = v {
+                out.append(ValidationViolation(fieldPath: "\(path)background", ruleID: "enum.defined_only", message: "value must be one of the defined enum values"))
+            }
+        }
+        return out
+    }
+
     /// Validates `wiretuner.doc.v1.AppearanceProps`; `path` prefixes every violation's field path.
     public static func validate(_ m: Wiretuner_Doc_V1_AppearanceProps, path: String = "") -> [ValidationViolation] {
         var out: [ValidationViolation] = []
@@ -802,6 +833,15 @@ public enum WTValidators {
         }
         for (i, v) in m.strokes.enumerated() {
             out += validate(v, path: "\(path)strokes[\(i)].")
+        }
+        for (i, v) in m.effects.enumerated() {
+            out += validate(v, path: "\(path)effects[\(i)].")
+        }
+        do {
+            let v = m.rasterDpi
+            if !(v <= 2400) {
+                out.append(ValidationViolation(fieldPath: "\(path)raster_dpi", ruleID: "uint32.lte", message: "value must be less than or equal to 2400"))
+            }
         }
         return out
     }
@@ -825,6 +865,38 @@ public enum WTValidators {
             let v = m.pathTrim
             if !(v >= 0) {
                 out.append(ValidationViolation(fieldPath: "\(path)path_trim", ruleID: "double.gte", message: "value must be greater than or equal to 0"))
+            }
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.doc.v1.AssetProps`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_AssetProps, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if m.hasCommon {
+            let v = m.common
+            out += validate(v, path: "\(path)common.")
+        }
+        if !(m.sha256.isEmpty) {
+            let v = m.sha256
+            if v.count != 32 {
+                out.append(ValidationViolation(fieldPath: "\(path)sha256", ruleID: "bytes.len", message: "value length must be 32 bytes"))
+            }
+        }
+        do {
+            let v = m.mediaType
+            if v.unicodeScalars.count > 128 {
+                out.append(ValidationViolation(fieldPath: "\(path)media_type", ruleID: "string.max_len", message: "value length must be at most 128 characters"))
+            }
+        }
+        if m.hasLink {
+            let v = m.link
+            out += validate(v, path: "\(path)link.")
+        }
+        do {
+            let v = m.bookmark
+            if v.count > 65536 {
+                out.append(ValidationViolation(fieldPath: "\(path)bookmark", ruleID: "bytes.max_len", message: "value length must be at most 65536 bytes"))
             }
         }
         return out
@@ -862,6 +934,44 @@ public enum WTValidators {
             if v.unicodeScalars.count > 16 {
                 out.append(ValidationViolation(fieldPath: "\(path)suffix", ruleID: "string.max_len", message: "value length must be at most 16 characters"))
             }
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.doc.v1.BarcodeProps`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_BarcodeProps, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if m.hasCommon {
+            let v = m.common
+            out += validate(v, path: "\(path)common.")
+        }
+        do {
+            let v = m.symbology
+            if case .UNRECOGNIZED = v {
+                out.append(ValidationViolation(fieldPath: "\(path)symbology", ruleID: "enum.defined_only", message: "value must be one of the defined enum values"))
+            }
+        }
+        do {
+            let v = m.value
+            if v.unicodeScalars.count > 4096 {
+                out.append(ValidationViolation(fieldPath: "\(path)value", ruleID: "string.max_len", message: "value length must be at most 4096 characters"))
+            }
+        }
+        do {
+            let v = m.qrErrorCorrection
+            if case .UNRECOGNIZED = v {
+                out.append(ValidationViolation(fieldPath: "\(path)qr_error_correction", ruleID: "enum.defined_only", message: "value must be one of the defined enum values"))
+            }
+        }
+        do {
+            let v = m.quietZone
+            if !(v >= 0) {
+                out.append(ValidationViolation(fieldPath: "\(path)quiet_zone", ruleID: "double.gte", message: "value must be greater than or equal to 0"))
+            }
+        }
+        if m.hasAppearance {
+            let v = m.appearance
+            out += validate(v, path: "\(path)appearance.")
         }
         return out
     }
@@ -918,6 +1028,130 @@ public enum WTValidators {
         if m.hasEndArrowhead {
             let v = m.endArrowhead
             out += validate(v, path: "\(path)end_arrowhead.")
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.doc.v1.BendEffect`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_BendEffect, path: String = "") -> [ValidationViolation] {
+        return []
+    }
+
+    /// Validates `wiretuner.doc.v1.BevelEmbossEffect`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_BevelEmbossEffect, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        do {
+            let v = m.style
+            if case .UNRECOGNIZED = v {
+                out.append(ValidationViolation(fieldPath: "\(path)style", ruleID: "enum.defined_only", message: "value must be one of the defined enum values"))
+            }
+        }
+        if m.hasColor {
+            let v = m.color
+            out += validate(v, path: "\(path)color.")
+        }
+        do {
+            let v = m.width
+            if !(v >= 0) {
+                out.append(ValidationViolation(fieldPath: "\(path)width", ruleID: "double.gte", message: "value must be greater than or equal to 0"))
+            }
+        }
+        do {
+            let v = m.contrast
+            if !(v <= 100) {
+                out.append(ValidationViolation(fieldPath: "\(path)contrast", ruleID: "uint32.lte", message: "value must be less than or equal to 100"))
+            }
+        }
+        do {
+            let v = m.softness
+            if !(v <= 10) {
+                out.append(ValidationViolation(fieldPath: "\(path)softness", ruleID: "uint32.lte", message: "value must be less than or equal to 10"))
+            }
+        }
+        do {
+            let v = m.angle
+            if !(v >= 0 && v <= 360) {
+                out.append(ValidationViolation(fieldPath: "\(path)angle", ruleID: "double.gte_lte", message: "value must be greater than or equal to 0 and less than or equal to 360"))
+            }
+        }
+        do {
+            let v = m.edgeShape
+            if case .UNRECOGNIZED = v {
+                out.append(ValidationViolation(fieldPath: "\(path)edge_shape", ruleID: "enum.defined_only", message: "value must be one of the defined enum values"))
+            }
+        }
+        do {
+            let v = m.buttonPreset
+            if case .UNRECOGNIZED = v {
+                out.append(ValidationViolation(fieldPath: "\(path)button_preset", ruleID: "enum.defined_only", message: "value must be one of the defined enum values"))
+            }
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.doc.v1.BlendPoint`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_BlendPoint, path: String = "") -> [ValidationViolation] {
+        return []
+    }
+
+    /// Validates `wiretuner.doc.v1.BlendProps`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_BlendProps, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if m.hasCommon {
+            let v = m.common
+            out += validate(v, path: "\(path)common.")
+        }
+        if !(m.steps == 0) {
+            let v = m.steps
+            if !(v >= 1 && v <= 1000) {
+                out.append(ValidationViolation(fieldPath: "\(path)steps", ruleID: "uint32.gte_lte", message: "value must be greater than or equal to 1 and less than or equal to 1000"))
+            }
+        }
+        do {
+            let v = m.rangeFirst
+            if !(v >= 0 && v <= 100) {
+                out.append(ValidationViolation(fieldPath: "\(path)range_first", ruleID: "double.gte_lte", message: "value must be greater than or equal to 0 and less than or equal to 100"))
+            }
+        }
+        do {
+            let v = m.rangeLast
+            if !(v >= 0 && v <= 100) {
+                out.append(ValidationViolation(fieldPath: "\(path)range_last", ruleID: "double.gte_lte", message: "value must be greater than or equal to 0 and less than or equal to 100"))
+            }
+        }
+        do {
+            let v = m.type
+            if case .UNRECOGNIZED = v {
+                out.append(ValidationViolation(fieldPath: "\(path)type", ruleID: "enum.defined_only", message: "value must be one of the defined enum values"))
+            }
+        }
+        do {
+            let v = m.order
+            if case .UNRECOGNIZED = v {
+                out.append(ValidationViolation(fieldPath: "\(path)order", ruleID: "enum.defined_only", message: "value must be one of the defined enum values"))
+            }
+        }
+        if m.hasPath {
+            let v = m.path
+            out += validate(v, path: "\(path)path.")
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.doc.v1.BlurEffect`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_BlurEffect, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        do {
+            let v = m.style
+            if case .UNRECOGNIZED = v {
+                out.append(ValidationViolation(fieldPath: "\(path)style", ruleID: "enum.defined_only", message: "value must be one of the defined enum values"))
+            }
+        }
+        do {
+            let v = m.radius
+            if !(v >= 0 && v <= 250) {
+                out.append(ValidationViolation(fieldPath: "\(path)radius", ruleID: "double.gte_lte", message: "value must be greater than or equal to 0 and less than or equal to 250"))
+            }
         }
         return out
     }
@@ -1236,6 +1470,18 @@ public enum WTValidators {
         return out
     }
 
+    /// Validates `wiretuner.doc.v1.ClassKern`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_ClassKern, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        do {
+            let v = m.value
+            if !(v >= -32767 && v <= 32767) {
+                out.append(ValidationViolation(fieldPath: "\(path)value", ruleID: "double.gte_lte", message: "value must be greater than or equal to -32767 and less than or equal to 32767"))
+            }
+        }
+        return out
+    }
+
     /// Validates `wiretuner.doc.v1.Cmyk`; `path` prefixes every violation's field path.
     public static func validate(_ m: Wiretuner_Doc_V1_Cmyk, path: String = "") -> [ValidationViolation] {
         var out: [ValidationViolation] = []
@@ -1296,6 +1542,34 @@ public enum WTValidators {
         return out
     }
 
+    /// Validates `wiretuner.doc.v1.ColorSettings`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_ColorSettings, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if m.hasRgbProfile {
+            let v = m.rgbProfile
+            out += validate(v, path: "\(path)rgb_profile.")
+        }
+        if m.hasCmykProfile {
+            let v = m.cmykProfile
+            out += validate(v, path: "\(path)cmyk_profile.")
+        }
+        do {
+            let v = m.intent
+            if case .UNRECOGNIZED = v {
+                out.append(ValidationViolation(fieldPath: "\(path)intent", ruleID: "enum.defined_only", message: "value must be one of the defined enum values"))
+            }
+        }
+        if m.hasDefaultImageRgbProfile {
+            let v = m.defaultImageRgbProfile
+            out += validate(v, path: "\(path)default_image_rgb_profile.")
+        }
+        if m.hasProof {
+            let v = m.proof
+            out += validate(v, path: "\(path)proof.")
+        }
+        return out
+    }
+
     /// Validates `wiretuner.doc.v1.ColumnsRows`; `path` prefixes every violation's field path.
     public static func validate(_ m: Wiretuner_Doc_V1_ColumnsRows, path: String = "") -> [ValidationViolation] {
         var out: [ValidationViolation] = []
@@ -1340,6 +1614,71 @@ public enum WTValidators {
             if case .UNRECOGNIZED = v {
                 out.append(ValidationViolation(fieldPath: "\(path)flow", ruleID: "enum.defined_only", message: "value must be one of the defined enum values"))
             }
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.doc.v1.CombineEffect`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_CombineEffect, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        do {
+            let v = m.op
+            if case .UNRECOGNIZED = v {
+                out.append(ValidationViolation(fieldPath: "\(path)op", ruleID: "enum.defined_only", message: "value must be one of the defined enum values"))
+            }
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.doc.v1.Comment`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_Comment, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        do {
+            let v = m.authorAccountID
+            if v.unicodeScalars.count > 64 {
+                out.append(ValidationViolation(fieldPath: "\(path)author_account_id", ruleID: "string.max_len", message: "value length must be at most 64 characters"))
+            }
+        }
+        if m.hasBody {
+            let v = m.body
+            out += validate(v, path: "\(path)body.")
+        }
+        if m.mentions.count > 50 {
+            out.append(ValidationViolation(fieldPath: "\(path)mentions", ruleID: "repeated.max_items", message: "value must contain no more than 50 item(s)"))
+        }
+        for (i, v) in m.mentions.enumerated() {
+            if v.unicodeScalars.count > 80 {
+                out.append(ValidationViolation(fieldPath: "\(path)mentions[\(i)]", ruleID: "string.max_len", message: "value length must be at most 80 characters"))
+            }
+        }
+        if m.reactions.count > 500 {
+            out.append(ValidationViolation(fieldPath: "\(path)reactions", ruleID: "repeated.max_items", message: "value must contain no more than 500 item(s)"))
+        }
+        for (i, v) in m.reactions.enumerated() {
+            if v.unicodeScalars.count > 96 {
+                out.append(ValidationViolation(fieldPath: "\(path)reactions[\(i)]", ruleID: "string.max_len", message: "value length must be at most 96 characters"))
+            }
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.doc.v1.CommentThreadProps`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_CommentThreadProps, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if m.hasCommon {
+            let v = m.common
+            out += validate(v, path: "\(path)common.")
+        }
+        if m.hasAnchor {
+            let v = m.anchor
+            out += validate(v, path: "\(path)anchor.")
+        }
+        if m.hasPage {
+            let v = m.page
+            out += validate(v, path: "\(path)page.")
+        }
+        for (i, v) in m.comments.enumerated() {
+            out += validate(v, path: "\(path)comments[\(i)].")
         }
         return out
     }
@@ -1400,6 +1739,16 @@ public enum WTValidators {
         return out
     }
 
+    /// Validates `wiretuner.doc.v1.Component`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_Component, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if m.hasGlyph {
+            let v = m.glyph
+            out += validate(v, path: "\(path)glyph.")
+        }
+        return out
+    }
+
     /// Validates `wiretuner.doc.v1.Contour`; `path` prefixes every violation's field path.
     public static func validate(_ m: Wiretuner_Doc_V1_Contour, path: String = "") -> [ValidationViolation] {
         var out: [ValidationViolation] = []
@@ -1434,6 +1783,24 @@ public enum WTValidators {
             let v = m.bottomLeft
             if !(v >= 0) {
                 out.append(ValidationViolation(fieldPath: "\(path)bottom_left", ruleID: "double.gte", message: "value must be greater than or equal to 0"))
+            }
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.doc.v1.CornersEffect`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_CornersEffect, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        do {
+            let v = m.radius
+            if !(v >= 0) {
+                out.append(ValidationViolation(fieldPath: "\(path)radius", ruleID: "double.gte", message: "value must be greater than or equal to 0"))
+            }
+        }
+        do {
+            let v = m.style
+            if case .UNRECOGNIZED = v {
+                out.append(ValidationViolation(fieldPath: "\(path)style", ruleID: "enum.defined_only", message: "value must be one of the defined enum values"))
             }
         }
         return out
@@ -1579,6 +1946,20 @@ public enum WTValidators {
         return out
     }
 
+    /// Validates `wiretuner.doc.v1.CustomViewProps`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_CustomViewProps, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if m.hasCommon {
+            let v = m.common
+            out += validate(v, path: "\(path)common.")
+        }
+        if m.hasTarget {
+            let v = m.target
+            out += validate(v, path: "\(path)target.")
+        }
+        return out
+    }
+
     /// Validates `wiretuner.doc.v1.DashPattern`; `path` prefixes every violation's field path.
     public static func validate(_ m: Wiretuner_Doc_V1_DashPattern, path: String = "") -> [ValidationViolation] {
         var out: [ValidationViolation] = []
@@ -1611,6 +1992,81 @@ public enum WTValidators {
         return out
     }
 
+    /// Validates `wiretuner.doc.v1.DataField`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_DataField, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if !(m.name.isEmpty) {
+            let v = m.name
+            if v.unicodeScalars.count > 64 {
+                out.append(ValidationViolation(fieldPath: "\(path)name", ruleID: "string.max_len", message: "value length must be at most 64 characters"))
+            }
+            if v.firstMatch(of: Self.pattern5) == nil {
+                out.append(ValidationViolation(fieldPath: "\(path)name", ruleID: "string.pattern", message: "value does not match regex pattern `^[A-Za-z_][A-Za-z0-9_]*$`"))
+            }
+        }
+        do {
+            let v = m.type
+            if case .UNRECOGNIZED = v {
+                out.append(ValidationViolation(fieldPath: "\(path)type", ruleID: "enum.defined_only", message: "value must be one of the defined enum values"))
+            }
+        }
+        if m.hasFormat {
+            let v = m.format
+            out += validate(v, path: "\(path)format.")
+        }
+        if m.hasTransform {
+            let v = m.transform
+            out += validate(v, path: "\(path)transform.")
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.doc.v1.DataPreview`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_DataPreview, path: String = "") -> [ValidationViolation] {
+        return []
+    }
+
+    /// Validates `wiretuner.doc.v1.DataSource`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_DataSource, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        do {
+            let v = m.name
+            if v.unicodeScalars.count > 128 {
+                out.append(ValidationViolation(fieldPath: "\(path)name", ruleID: "string.max_len", message: "value length must be at most 128 characters"))
+            }
+        }
+        if m.hasSpec {
+            let v = m.spec
+            out += validate(v, path: "\(path)spec.")
+        }
+        for (i, v) in m.mapping.enumerated() {
+            out += validate(v, path: "\(path)mapping[\(i)].")
+        }
+        if m.hasSample {
+            let v = m.sample
+            out += validate(v, path: "\(path)sample.")
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.doc.v1.DataSourceSpec`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_DataSourceSpec, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if m.hasFile {
+            let v = m.file
+            out += validate(v, path: "\(path)file.")
+        }
+        if m.hasHTTP {
+            let v = m.http
+            out += validate(v, path: "\(path)http.")
+        }
+        if m.hasScript {
+            let v = m.script
+            out += validate(v, path: "\(path)script.")
+        }
+        return out
+    }
+
     /// Validates `wiretuner.doc.v1.Defaults`; `path` prefixes every violation's field path.
     public static func validate(_ m: Wiretuner_Doc_V1_Defaults, path: String = "") -> [ValidationViolation] {
         var out: [ValidationViolation] = []
@@ -1625,6 +2081,138 @@ public enum WTValidators {
         if m.hasText {
             let v = m.text
             out += validate(v, path: "\(path)text.")
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.doc.v1.DocumentInfo`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_DocumentInfo, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        do {
+            let v = m.title
+            if v.unicodeScalars.count > 256 {
+                out.append(ValidationViolation(fieldPath: "\(path)title", ruleID: "string.max_len", message: "value length must be at most 256 characters"))
+            }
+        }
+        do {
+            let v = m.headline
+            if v.unicodeScalars.count > 256 {
+                out.append(ValidationViolation(fieldPath: "\(path)headline", ruleID: "string.max_len", message: "value length must be at most 256 characters"))
+            }
+        }
+        do {
+            let v = m.description_p
+            if v.unicodeScalars.count > 2000 {
+                out.append(ValidationViolation(fieldPath: "\(path)description", ruleID: "string.max_len", message: "value length must be at most 2000 characters"))
+            }
+        }
+        if m.keywords.count > 500 {
+            out.append(ValidationViolation(fieldPath: "\(path)keywords", ruleID: "repeated.max_items", message: "value must contain no more than 500 item(s)"))
+        }
+        for (i, v) in m.keywords.enumerated() {
+            if v.unicodeScalars.count > 64 {
+                out.append(ValidationViolation(fieldPath: "\(path)keywords[\(i)]", ruleID: "string.max_len", message: "value length must be at most 64 characters"))
+            }
+        }
+        do {
+            let v = m.category
+            if v.unicodeScalars.count > 3 {
+                out.append(ValidationViolation(fieldPath: "\(path)category", ruleID: "string.max_len", message: "value length must be at most 3 characters"))
+            }
+        }
+        if m.supplementalCategories.count > 3 {
+            out.append(ValidationViolation(fieldPath: "\(path)supplemental_categories", ruleID: "repeated.max_items", message: "value must contain no more than 3 item(s)"))
+        }
+        for (i, v) in m.supplementalCategories.enumerated() {
+            if v.unicodeScalars.count > 32 {
+                out.append(ValidationViolation(fieldPath: "\(path)supplemental_categories[\(i)]", ruleID: "string.max_len", message: "value length must be at most 32 characters"))
+            }
+        }
+        if m.creators.count > 32 {
+            out.append(ValidationViolation(fieldPath: "\(path)creators", ruleID: "repeated.max_items", message: "value must contain no more than 32 item(s)"))
+        }
+        for (i, v) in m.creators.enumerated() {
+            if v.unicodeScalars.count > 256 {
+                out.append(ValidationViolation(fieldPath: "\(path)creators[\(i)]", ruleID: "string.max_len", message: "value length must be at most 256 characters"))
+            }
+        }
+        do {
+            let v = m.creatorJobTitle
+            if v.unicodeScalars.count > 256 {
+                out.append(ValidationViolation(fieldPath: "\(path)creator_job_title", ruleID: "string.max_len", message: "value length must be at most 256 characters"))
+            }
+        }
+        do {
+            let v = m.credit
+            if v.unicodeScalars.count > 256 {
+                out.append(ValidationViolation(fieldPath: "\(path)credit", ruleID: "string.max_len", message: "value length must be at most 256 characters"))
+            }
+        }
+        do {
+            let v = m.source
+            if v.unicodeScalars.count > 256 {
+                out.append(ValidationViolation(fieldPath: "\(path)source", ruleID: "string.max_len", message: "value length must be at most 256 characters"))
+            }
+        }
+        do {
+            let v = m.copyrightNotice
+            if v.unicodeScalars.count > 1024 {
+                out.append(ValidationViolation(fieldPath: "\(path)copyright_notice", ruleID: "string.max_len", message: "value length must be at most 1024 characters"))
+            }
+        }
+        do {
+            let v = m.copyrightStatus
+            if case .UNRECOGNIZED = v {
+                out.append(ValidationViolation(fieldPath: "\(path)copyright_status", ruleID: "enum.defined_only", message: "value must be one of the defined enum values"))
+            }
+        }
+        do {
+            let v = m.rightsUsageTerms
+            if v.unicodeScalars.count > 2000 {
+                out.append(ValidationViolation(fieldPath: "\(path)rights_usage_terms", ruleID: "string.max_len", message: "value length must be at most 2000 characters"))
+            }
+        }
+        if !(m.webStatement.isEmpty) {
+            let v = m.webStatement
+            if v.unicodeScalars.count > 2048 {
+                out.append(ValidationViolation(fieldPath: "\(path)web_statement", ruleID: "string.max_len", message: "value length must be at most 2048 characters"))
+            }
+        }
+        do {
+            let v = m.dateCreated
+            if v.unicodeScalars.count > 32 {
+                out.append(ValidationViolation(fieldPath: "\(path)date_created", ruleID: "string.max_len", message: "value length must be at most 32 characters"))
+            }
+        }
+        do {
+            let v = m.city
+            if v.unicodeScalars.count > 256 {
+                out.append(ValidationViolation(fieldPath: "\(path)city", ruleID: "string.max_len", message: "value length must be at most 256 characters"))
+            }
+        }
+        do {
+            let v = m.state
+            if v.unicodeScalars.count > 256 {
+                out.append(ValidationViolation(fieldPath: "\(path)state", ruleID: "string.max_len", message: "value length must be at most 256 characters"))
+            }
+        }
+        do {
+            let v = m.country
+            if v.unicodeScalars.count > 256 {
+                out.append(ValidationViolation(fieldPath: "\(path)country", ruleID: "string.max_len", message: "value length must be at most 256 characters"))
+            }
+        }
+        do {
+            let v = m.instructions
+            if v.unicodeScalars.count > 2000 {
+                out.append(ValidationViolation(fieldPath: "\(path)instructions", ruleID: "string.max_len", message: "value length must be at most 2000 characters"))
+            }
+        }
+        do {
+            let v = m.language
+            if v.unicodeScalars.count > 35 {
+                out.append(ValidationViolation(fieldPath: "\(path)language", ruleID: "string.max_len", message: "value length must be at most 35 characters"))
+            }
         }
         return out
     }
@@ -1660,9 +2248,86 @@ public enum WTValidators {
         return out
     }
 
+    /// Validates `wiretuner.doc.v1.DuetEffect`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_DuetEffect, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        do {
+            let v = m.mode
+            if case .UNRECOGNIZED = v {
+                out.append(ValidationViolation(fieldPath: "\(path)mode", ruleID: "enum.defined_only", message: "value must be one of the defined enum values"))
+            }
+        }
+        if !(m.copies == 0) {
+            let v = m.copies
+            if !(v >= 1 && v <= 100) {
+                out.append(ValidationViolation(fieldPath: "\(path)copies", ruleID: "uint32.gte_lte", message: "value must be greater than or equal to 1 and less than or equal to 100"))
+            }
+        }
+        return out
+    }
+
     /// Validates `wiretuner.doc.v1.Effect`; `path` prefixes every violation's field path.
     public static func validate(_ m: Wiretuner_Doc_V1_Effect, path: String = "") -> [ValidationViolation] {
-        return []
+        var out: [ValidationViolation] = []
+        if m.hasSettings {
+            let v = m.settings
+            out += validate(v, path: "\(path)settings.")
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.doc.v1.EffectSettings`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_EffectSettings, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if m.hasDuet {
+            let v = m.duet
+            out += validate(v, path: "\(path)duet.")
+        }
+        if m.hasExpandPath {
+            let v = m.expandPath
+            out += validate(v, path: "\(path)expand_path.")
+        }
+        if m.hasRagged {
+            let v = m.ragged
+            out += validate(v, path: "\(path)ragged.")
+        }
+        if m.hasSketch {
+            let v = m.sketch
+            out += validate(v, path: "\(path)sketch.")
+        }
+        if m.hasTransform {
+            let v = m.transform
+            out += validate(v, path: "\(path)transform.")
+        }
+        if m.hasCorners {
+            let v = m.corners
+            out += validate(v, path: "\(path)corners.")
+        }
+        if m.hasCombine {
+            let v = m.combine
+            out += validate(v, path: "\(path)combine.")
+        }
+        if m.hasBevelEmboss {
+            let v = m.bevelEmboss
+            out += validate(v, path: "\(path)bevel_emboss.")
+        }
+        if m.hasBlur {
+            let v = m.blur
+            out += validate(v, path: "\(path)blur.")
+        }
+        if m.hasShadow {
+            let v = m.shadow
+            out += validate(v, path: "\(path)shadow.")
+        }
+        if m.hasSharpen {
+            let v = m.sharpen
+            out += validate(v, path: "\(path)sharpen.")
+        }
+        if m.hasTransparency {
+            let v = m.transparency
+            out += validate(v, path: "\(path)transparency.")
+        }
+        return out
     }
 
     /// Validates `wiretuner.doc.v1.ElementDelete`; `path` prefixes every violation's field path.
@@ -1796,6 +2461,100 @@ public enum WTValidators {
         return out
     }
 
+    /// Validates `wiretuner.doc.v1.EmbeddedRecords`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_EmbeddedRecords, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        do {
+            let v = m.blobSha256
+            if v.count != 32 {
+                out.append(ValidationViolation(fieldPath: "\(path)blob_sha256", ruleID: "bytes.len", message: "value length must be 32 bytes"))
+            }
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.doc.v1.EnvelopeCorners`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_EnvelopeCorners, path: String = "") -> [ValidationViolation] {
+        return []
+    }
+
+    /// Validates `wiretuner.doc.v1.EnvelopeProps`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_EnvelopeProps, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if m.hasCommon {
+            let v = m.common
+            out += validate(v, path: "\(path)common.")
+        }
+        for (i, v) in m.contours.enumerated() {
+            out += validate(v, path: "\(path)contours[\(i)].")
+        }
+        if m.hasSourceBounds {
+            let v = m.sourceBounds
+            out += validate(v, path: "\(path)source_bounds.")
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.doc.v1.ExpandPathEffect`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_ExpandPathEffect, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        do {
+            let v = m.direction
+            if case .UNRECOGNIZED = v {
+                out.append(ValidationViolation(fieldPath: "\(path)direction", ruleID: "enum.defined_only", message: "value must be one of the defined enum values"))
+            }
+        }
+        do {
+            let v = m.width
+            if !(v >= 0 && v <= 50) {
+                out.append(ValidationViolation(fieldPath: "\(path)width", ruleID: "double.gte_lte", message: "value must be greater than or equal to 0 and less than or equal to 50"))
+            }
+        }
+        do {
+            let v = m.cap
+            if case .UNRECOGNIZED = v {
+                out.append(ValidationViolation(fieldPath: "\(path)cap", ruleID: "enum.defined_only", message: "value must be one of the defined enum values"))
+            }
+        }
+        do {
+            let v = m.join
+            if case .UNRECOGNIZED = v {
+                out.append(ValidationViolation(fieldPath: "\(path)join", ruleID: "enum.defined_only", message: "value must be one of the defined enum values"))
+            }
+        }
+        if !(m.miterLimit == 0) {
+            let v = m.miterLimit
+            if !(v >= 1 && v <= 57) {
+                out.append(ValidationViolation(fieldPath: "\(path)miter_limit", ruleID: "double.gte_lte", message: "value must be greater than or equal to 1 and less than or equal to 57"))
+            }
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.doc.v1.ExtrudeProps`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_ExtrudeProps, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if m.hasCommon {
+            let v = m.common
+            out += validate(v, path: "\(path)common.")
+        }
+        do {
+            let v = m.length
+            if !(v >= 0 && v <= 32000) {
+                out.append(ValidationViolation(fieldPath: "\(path)length", ruleID: "double.gte_lte", message: "value must be greater than or equal to 0 and less than or equal to 32000"))
+            }
+        }
+        if m.hasSurface {
+            let v = m.surface
+            out += validate(v, path: "\(path)surface.")
+        }
+        if m.hasProfile {
+            let v = m.profile
+            out += validate(v, path: "\(path)profile.")
+        }
+        return out
+    }
+
     /// Validates `wiretuner.doc.v1.FeatureSetting`; `path` prefixes every violation's field path.
     public static func validate(_ m: Wiretuner_Doc_V1_FeatureSetting, path: String = "") -> [ValidationViolation] {
         var out: [ValidationViolation] = []
@@ -1819,6 +2578,36 @@ public enum WTValidators {
         return []
     }
 
+    /// Validates `wiretuner.doc.v1.FieldFormat`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_FieldFormat, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        do {
+            let v = m.pattern
+            if v.unicodeScalars.count > 64 {
+                out.append(ValidationViolation(fieldPath: "\(path)pattern", ruleID: "string.max_len", message: "value length must be at most 64 characters"))
+            }
+        }
+        do {
+            let v = m.locale
+            if v.unicodeScalars.count > 32 {
+                out.append(ValidationViolation(fieldPath: "\(path)locale", ruleID: "string.max_len", message: "value length must be at most 32 characters"))
+            }
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.doc.v1.FieldMapping`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_FieldMapping, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        do {
+            let v = m.path
+            if v.unicodeScalars.count > 512 {
+                out.append(ValidationViolation(fieldPath: "\(path)path", ruleID: "string.max_len", message: "value length must be at most 512 characters"))
+            }
+        }
+        return out
+    }
+
     /// Validates `wiretuner.doc.v1.FieldPath`; `path` prefixes every violation's field path.
     public static func validate(_ m: Wiretuner_Doc_V1_FieldPath, path: String = "") -> [ValidationViolation] {
         var out: [ValidationViolation] = []
@@ -1830,6 +2619,48 @@ public enum WTValidators {
         }
         for (i, v) in m.segments.enumerated() {
             out += validate(v, path: "\(path)segments[\(i)].")
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.doc.v1.FileSource`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_FileSource, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        do {
+            let v = m.format
+            if case .UNRECOGNIZED = v {
+                out.append(ValidationViolation(fieldPath: "\(path)format", ruleID: "enum.defined_only", message: "value must be one of the defined enum values"))
+            }
+        }
+        do {
+            let v = m.fileName
+            if v.unicodeScalars.count > 256 {
+                out.append(ValidationViolation(fieldPath: "\(path)file_name", ruleID: "string.max_len", message: "value length must be at most 256 characters"))
+            }
+        }
+        do {
+            let v = m.delimiter
+            if v.unicodeScalars.count > 4 {
+                out.append(ValidationViolation(fieldPath: "\(path)delimiter", ruleID: "string.max_len", message: "value length must be at most 4 characters"))
+            }
+        }
+        do {
+            let v = m.encoding
+            if v.unicodeScalars.count > 64 {
+                out.append(ValidationViolation(fieldPath: "\(path)encoding", ruleID: "string.max_len", message: "value length must be at most 64 characters"))
+            }
+        }
+        do {
+            let v = m.recordsPath
+            if v.unicodeScalars.count > 512 {
+                out.append(ValidationViolation(fieldPath: "\(path)records_path", ruleID: "string.max_len", message: "value length must be at most 512 characters"))
+            }
+        }
+        do {
+            let v = m.bookmark
+            if v.count > 65536 {
+                out.append(ValidationViolation(fieldPath: "\(path)bookmark", ruleID: "bytes.max_len", message: "value length must be at most 65536 bytes"))
+            }
         }
         return out
     }
@@ -1878,6 +2709,167 @@ public enum WTValidators {
         return out
     }
 
+    /// Validates `wiretuner.doc.v1.FontMetrics`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_FontMetrics, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if !(m.upm == 0) {
+            let v = m.upm
+            if !(v >= 16 && v <= 16384) {
+                out.append(ValidationViolation(fieldPath: "\(path)upm", ruleID: "uint32.gte_lte", message: "value must be greater than or equal to 16 and less than or equal to 16384"))
+            }
+        }
+        do {
+            let v = m.italicAngle
+            if !(v >= -90 && v <= 90) {
+                out.append(ValidationViolation(fieldPath: "\(path)italic_angle", ruleID: "double.gte_lte", message: "value must be greater than or equal to -90 and less than or equal to 90"))
+            }
+        }
+        do {
+            let v = m.underlineThickness
+            if !(v >= 0) {
+                out.append(ValidationViolation(fieldPath: "\(path)underline_thickness", ruleID: "double.gte", message: "value must be greater than or equal to 0"))
+            }
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.doc.v1.FontNames`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_FontNames, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        do {
+            let v = m.family
+            if v.unicodeScalars.count > 63 {
+                out.append(ValidationViolation(fieldPath: "\(path)family", ruleID: "string.max_len", message: "value length must be at most 63 characters"))
+            }
+        }
+        do {
+            let v = m.style
+            if v.unicodeScalars.count > 63 {
+                out.append(ValidationViolation(fieldPath: "\(path)style", ruleID: "string.max_len", message: "value length must be at most 63 characters"))
+            }
+        }
+        do {
+            let v = m.postscript
+            if v.unicodeScalars.count > 63 {
+                out.append(ValidationViolation(fieldPath: "\(path)postscript", ruleID: "string.max_len", message: "value length must be at most 63 characters"))
+            }
+            if v.firstMatch(of: Self.pattern6) == nil {
+                out.append(ValidationViolation(fieldPath: "\(path)postscript", ruleID: "string.pattern", message: "value does not match regex pattern `^[A-Za-z0-9._-]*$`"))
+            }
+        }
+        do {
+            let v = m.full
+            if v.unicodeScalars.count > 127 {
+                out.append(ValidationViolation(fieldPath: "\(path)full", ruleID: "string.max_len", message: "value length must be at most 127 characters"))
+            }
+        }
+        if !(m.version.isEmpty) {
+            let v = m.version
+            if v.unicodeScalars.count > 16 {
+                out.append(ValidationViolation(fieldPath: "\(path)version", ruleID: "string.max_len", message: "value length must be at most 16 characters"))
+            }
+            if v.firstMatch(of: Self.pattern7) == nil {
+                out.append(ValidationViolation(fieldPath: "\(path)version", ruleID: "string.pattern", message: "value does not match regex pattern `^[0-9]+\\.[0-9]{3}$`"))
+            }
+        }
+        do {
+            let v = m.copyright
+            if v.unicodeScalars.count > 4096 {
+                out.append(ValidationViolation(fieldPath: "\(path)copyright", ruleID: "string.max_len", message: "value length must be at most 4096 characters"))
+            }
+        }
+        do {
+            let v = m.trademark
+            if v.unicodeScalars.count > 1024 {
+                out.append(ValidationViolation(fieldPath: "\(path)trademark", ruleID: "string.max_len", message: "value length must be at most 1024 characters"))
+            }
+        }
+        do {
+            let v = m.designer
+            if v.unicodeScalars.count > 255 {
+                out.append(ValidationViolation(fieldPath: "\(path)designer", ruleID: "string.max_len", message: "value length must be at most 255 characters"))
+            }
+        }
+        if !(m.designerURL.isEmpty) {
+            let v = m.designerURL
+            if v.unicodeScalars.count > 1024 {
+                out.append(ValidationViolation(fieldPath: "\(path)designer_url", ruleID: "string.max_len", message: "value length must be at most 1024 characters"))
+            }
+        }
+        do {
+            let v = m.manufacturer
+            if v.unicodeScalars.count > 255 {
+                out.append(ValidationViolation(fieldPath: "\(path)manufacturer", ruleID: "string.max_len", message: "value length must be at most 255 characters"))
+            }
+        }
+        if !(m.manufacturerURL.isEmpty) {
+            let v = m.manufacturerURL
+            if v.unicodeScalars.count > 1024 {
+                out.append(ValidationViolation(fieldPath: "\(path)manufacturer_url", ruleID: "string.max_len", message: "value length must be at most 1024 characters"))
+            }
+        }
+        do {
+            let v = m.description_p
+            if v.unicodeScalars.count > 4096 {
+                out.append(ValidationViolation(fieldPath: "\(path)description", ruleID: "string.max_len", message: "value length must be at most 4096 characters"))
+            }
+        }
+        do {
+            let v = m.sampleText
+            if v.unicodeScalars.count > 255 {
+                out.append(ValidationViolation(fieldPath: "\(path)sample_text", ruleID: "string.max_len", message: "value length must be at most 255 characters"))
+            }
+        }
+        do {
+            let v = m.license
+            if v.unicodeScalars.count > 65536 {
+                out.append(ValidationViolation(fieldPath: "\(path)license", ruleID: "string.max_len", message: "value length must be at most 65536 characters"))
+            }
+        }
+        if !(m.licenseURL.isEmpty) {
+            let v = m.licenseURL
+            if v.unicodeScalars.count > 1024 {
+                out.append(ValidationViolation(fieldPath: "\(path)license_url", ruleID: "string.max_len", message: "value length must be at most 1024 characters"))
+            }
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.doc.v1.FontProps`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_FontProps, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if m.hasNames {
+            let v = m.names
+            out += validate(v, path: "\(path)names.")
+        }
+        if m.hasMetrics {
+            let v = m.metrics
+            out += validate(v, path: "\(path)metrics.")
+        }
+        if m.hasOs2 {
+            let v = m.os2
+            out += validate(v, path: "\(path)os2.")
+        }
+        if m.hasGuides {
+            let v = m.guides
+            out += validate(v, path: "\(path)guides.")
+        }
+        for (i, v) in m.pairs.enumerated() {
+            out += validate(v, path: "\(path)pairs[\(i)].")
+        }
+        for (i, v) in m.classes.enumerated() {
+            out += validate(v, path: "\(path)classes[\(i)].")
+        }
+        for (i, v) in m.classKerns.enumerated() {
+            out += validate(v, path: "\(path)class_kerns[\(i)].")
+        }
+        if m.hasFeatures {
+            let v = m.features
+            out += validate(v, path: "\(path)features.")
+        }
+        return out
+    }
+
     /// Validates `wiretuner.doc.v1.FontVariation`; `path` prefixes every violation's field path.
     public static func validate(_ m: Wiretuner_Doc_V1_FontVariation, path: String = "") -> [ValidationViolation] {
         var out: [ValidationViolation] = []
@@ -1886,6 +2878,78 @@ public enum WTValidators {
         }
         for (i, v) in m.axes.enumerated() {
             out += validate(v, path: "\(path)axes[\(i)].")
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.doc.v1.GlyphAnchor`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_GlyphAnchor, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if !(m.name.isEmpty) {
+            let v = m.name
+            if v.unicodeScalars.count > 63 {
+                out.append(ValidationViolation(fieldPath: "\(path)name", ruleID: "string.max_len", message: "value length must be at most 63 characters"))
+            }
+            if v.firstMatch(of: Self.pattern8) == nil {
+                out.append(ValidationViolation(fieldPath: "\(path)name", ruleID: "string.pattern", message: "value does not match regex pattern `^[A-Za-z0-9._]+$`"))
+            }
+        }
+        do {
+            let v = m.role
+            if case .UNRECOGNIZED = v {
+                out.append(ValidationViolation(fieldPath: "\(path)role", ruleID: "enum.defined_only", message: "value must be one of the defined enum values"))
+            }
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.doc.v1.GlyphProps`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_GlyphProps, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if m.hasCommon {
+            let v = m.common
+            out += validate(v, path: "\(path)common.")
+        }
+        if !(m.name.isEmpty) {
+            let v = m.name
+            if v.unicodeScalars.count > 63 {
+                out.append(ValidationViolation(fieldPath: "\(path)name", ruleID: "string.max_len", message: "value length must be at most 63 characters"))
+            }
+            if v.firstMatch(of: Self.pattern9) == nil {
+                out.append(ValidationViolation(fieldPath: "\(path)name", ruleID: "string.pattern", message: "value does not match regex pattern `^[A-Za-z_.][A-Za-z0-9_.]*$`"))
+            }
+        }
+        for (i, v) in m.codepoints.enumerated() {
+            if !(v <= 1114111) {
+                out.append(ValidationViolation(fieldPath: "\(path)codepoints[\(i)]", ruleID: "uint32.lte", message: "value must be less than or equal to 1114111"))
+            }
+        }
+        do {
+            let v = m.advanceWidth
+            if !(v >= 0 && v <= 32767) {
+                out.append(ValidationViolation(fieldPath: "\(path)advance_width", ruleID: "double.gte_lte", message: "value must be greater than or equal to 0 and less than or equal to 32767"))
+            }
+        }
+        do {
+            let v = m.kind
+            if case .UNRECOGNIZED = v {
+                out.append(ValidationViolation(fieldPath: "\(path)kind", ruleID: "enum.defined_only", message: "value must be one of the defined enum values"))
+            }
+        }
+        for (i, v) in m.components.enumerated() {
+            out += validate(v, path: "\(path)components[\(i)].")
+        }
+        for (i, v) in m.anchors.enumerated() {
+            out += validate(v, path: "\(path)anchors[\(i)].")
+        }
+        for (i, v) in m.guides.enumerated() {
+            out += validate(v, path: "\(path)guides[\(i)].")
+        }
+        do {
+            let v = m.markColor
+            if !(v <= 12) {
+                out.append(ValidationViolation(fieldPath: "\(path)mark_color", ruleID: "uint32.lte", message: "value must be less than or equal to 12"))
+            }
         }
         return out
     }
@@ -1922,6 +2986,30 @@ public enum WTValidators {
         if m.hasColor {
             let v = m.color
             out += validate(v, path: "\(path)color.")
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.doc.v1.GrayRamp`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_GrayRamp, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        do {
+            let v = m.preset
+            if case .UNRECOGNIZED = v {
+                out.append(ValidationViolation(fieldPath: "\(path)preset", ruleID: "enum.defined_only", message: "value must be one of the defined enum values"))
+            }
+        }
+        do {
+            let v = m.lightness
+            if !(v >= -100 && v <= 100) {
+                out.append(ValidationViolation(fieldPath: "\(path)lightness", ruleID: "int32.gte_lte", message: "value must be greater than or equal to -100 and less than or equal to 100"))
+            }
+        }
+        do {
+            let v = m.contrast
+            if !(v >= -100 && v <= 100) {
+                out.append(ValidationViolation(fieldPath: "\(path)contrast", ruleID: "int32.gte_lte", message: "value must be greater than or equal to -100 and less than or equal to 100"))
+            }
         }
         return out
     }
@@ -2001,6 +3089,169 @@ public enum WTValidators {
         return out
     }
 
+    /// Validates `wiretuner.doc.v1.HtmlSetting`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_HtmlSetting, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        do {
+            let v = m.name
+            if v.unicodeScalars.count > 64 {
+                out.append(ValidationViolation(fieldPath: "\(path)name", ruleID: "string.max_len", message: "value length must be at most 64 characters"))
+            }
+        }
+        do {
+            let v = m.location
+            if v.unicodeScalars.count > 4096 {
+                out.append(ValidationViolation(fieldPath: "\(path)location", ruleID: "string.max_len", message: "value length must be at most 4096 characters"))
+            }
+        }
+        do {
+            let v = m.layout
+            if case .UNRECOGNIZED = v {
+                out.append(ValidationViolation(fieldPath: "\(path)layout", ruleID: "enum.defined_only", message: "value must be one of the defined enum values"))
+            }
+        }
+        do {
+            let v = m.pageMode
+            if case .UNRECOGNIZED = v {
+                out.append(ValidationViolation(fieldPath: "\(path)page_mode", ruleID: "enum.defined_only", message: "value must be one of the defined enum values"))
+            }
+        }
+        do {
+            let v = m.vectorFormat
+            if case .UNRECOGNIZED = v {
+                out.append(ValidationViolation(fieldPath: "\(path)vector_format", ruleID: "enum.defined_only", message: "value must be one of the defined enum values"))
+            }
+        }
+        if !(m.scale == 0) {
+            let v = m.scale
+            if !(v >= 1 && v <= 3) {
+                out.append(ValidationViolation(fieldPath: "\(path)scale", ruleID: "uint32.gte_lte", message: "value must be greater than or equal to 1 and less than or equal to 3"))
+            }
+        }
+        do {
+            let v = m.imageFormat
+            if case .UNRECOGNIZED = v {
+                out.append(ValidationViolation(fieldPath: "\(path)image_format", ruleID: "enum.defined_only", message: "value must be one of the defined enum values"))
+            }
+        }
+        do {
+            let v = m.imageQuality
+            if !(v <= 100) {
+                out.append(ValidationViolation(fieldPath: "\(path)image_quality", ruleID: "uint32.lte", message: "value must be less than or equal to 100"))
+            }
+        }
+        do {
+            let v = m.fontMode
+            if case .UNRECOGNIZED = v {
+                out.append(ValidationViolation(fieldPath: "\(path)font_mode", ruleID: "enum.defined_only", message: "value must be one of the defined enum values"))
+            }
+        }
+        do {
+            let v = m.background
+            if case .UNRECOGNIZED = v {
+                out.append(ValidationViolation(fieldPath: "\(path)background", ruleID: "enum.defined_only", message: "value must be one of the defined enum values"))
+            }
+        }
+        do {
+            let v = m.title
+            if v.unicodeScalars.count > 256 {
+                out.append(ValidationViolation(fieldPath: "\(path)title", ruleID: "string.max_len", message: "value length must be at most 256 characters"))
+            }
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.doc.v1.HttpHeader`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_HttpHeader, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        do {
+            let v = m.name
+            if v.unicodeScalars.count > 128 {
+                out.append(ValidationViolation(fieldPath: "\(path)name", ruleID: "string.max_len", message: "value length must be at most 128 characters"))
+            }
+        }
+        do {
+            let v = m.value
+            if v.unicodeScalars.count > 4096 {
+                out.append(ValidationViolation(fieldPath: "\(path)value", ruleID: "string.max_len", message: "value length must be at most 4096 characters"))
+            }
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.doc.v1.HttpParam`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_HttpParam, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        do {
+            let v = m.name
+            if v.unicodeScalars.count > 64 {
+                out.append(ValidationViolation(fieldPath: "\(path)name", ruleID: "string.max_len", message: "value length must be at most 64 characters"))
+            }
+        }
+        do {
+            let v = m.defaultValue
+            if v.unicodeScalars.count > 1024 {
+                out.append(ValidationViolation(fieldPath: "\(path)default_value", ruleID: "string.max_len", message: "value length must be at most 1024 characters"))
+            }
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.doc.v1.HttpSource`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_HttpSource, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        do {
+            let v = m.method
+            if case .UNRECOGNIZED = v {
+                out.append(ValidationViolation(fieldPath: "\(path)method", ruleID: "enum.defined_only", message: "value must be one of the defined enum values"))
+            }
+        }
+        if !(m.url.isEmpty) {
+            let v = m.url
+            if v.unicodeScalars.count > 2048 {
+                out.append(ValidationViolation(fieldPath: "\(path)url", ruleID: "string.max_len", message: "value length must be at most 2048 characters"))
+            }
+            if v.firstMatch(of: Self.pattern10) == nil {
+                out.append(ValidationViolation(fieldPath: "\(path)url", ruleID: "string.pattern", message: "value does not match regex pattern `^https://`"))
+            }
+        }
+        for (i, v) in m.headers.enumerated() {
+            out += validate(v, path: "\(path)headers[\(i)].")
+        }
+        do {
+            let v = m.bodyTemplate
+            if v.unicodeScalars.count > 65536 {
+                out.append(ValidationViolation(fieldPath: "\(path)body_template", ruleID: "string.max_len", message: "value length must be at most 65536 characters"))
+            }
+        }
+        do {
+            let v = m.credentialName
+            if v.unicodeScalars.count > 64 {
+                out.append(ValidationViolation(fieldPath: "\(path)credential_name", ruleID: "string.max_len", message: "value length must be at most 64 characters"))
+            }
+        }
+        do {
+            let v = m.recordsPath
+            if v.unicodeScalars.count > 512 {
+                out.append(ValidationViolation(fieldPath: "\(path)records_path", ruleID: "string.max_len", message: "value length must be at most 512 characters"))
+            }
+        }
+        if m.hasPagination {
+            let v = m.pagination
+            out += validate(v, path: "\(path)pagination.")
+        }
+        for (i, v) in m.params.enumerated() {
+            out += validate(v, path: "\(path)params[\(i)].")
+        }
+        do {
+            let v = m.timeoutS
+            if !(v <= 120) {
+                out.append(ValidationViolation(fieldPath: "\(path)timeout_s", ruleID: "uint32.lte", message: "value must be less than or equal to 120"))
+            }
+        }
+        return out
+    }
+
     /// Validates `wiretuner.doc.v1.Hyphenation`; `path` prefixes every violation's field path.
     public static func validate(_ m: Wiretuner_Doc_V1_Hyphenation, path: String = "") -> [ValidationViolation] {
         var out: [ValidationViolation] = []
@@ -2015,6 +3266,87 @@ public enum WTValidators {
             if !(v <= 100) {
                 out.append(ValidationViolation(fieldPath: "\(path)consecutive", ruleID: "uint32.lte", message: "value must be less than or equal to 100"))
             }
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.doc.v1.ImageColorSettings`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_ImageColorSettings, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if m.hasSourceProfile {
+            let v = m.sourceProfile
+            out += validate(v, path: "\(path)source_profile.")
+        }
+        do {
+            let v = m.intent
+            if case .UNRECOGNIZED = v {
+                out.append(ValidationViolation(fieldPath: "\(path)intent", ruleID: "enum.defined_only", message: "value must be one of the defined enum values"))
+            }
+        }
+        if m.hasEmbeddedProfile {
+            let v = m.embeddedProfile
+            out += validate(v, path: "\(path)embedded_profile.")
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.doc.v1.ImageProps`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_ImageProps, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if m.hasCommon {
+            let v = m.common
+            out += validate(v, path: "\(path)common.")
+        }
+        if m.hasPixels {
+            let v = m.pixels
+            out += validate(v, path: "\(path)pixels.")
+        }
+        do {
+            let v = m.sourceName
+            if v.unicodeScalars.count > 256 {
+                out.append(ValidationViolation(fieldPath: "\(path)source_name", ruleID: "string.max_len", message: "value length must be at most 256 characters"))
+            }
+        }
+        if !(m.dpiX == 0) {
+            let v = m.dpiX
+            if !(v > 0) {
+                out.append(ValidationViolation(fieldPath: "\(path)dpi_x", ruleID: "double.gt", message: "value must be greater than 0"))
+            }
+        }
+        if !(m.dpiY == 0) {
+            let v = m.dpiY
+            if !(v > 0) {
+                out.append(ValidationViolation(fieldPath: "\(path)dpi_y", ruleID: "double.gt", message: "value must be greater than 0"))
+            }
+        }
+        if m.hasRamp {
+            let v = m.ramp
+            out += validate(v, path: "\(path)ramp.")
+        }
+        if m.hasTint {
+            let v = m.tint
+            out += validate(v, path: "\(path)tint.")
+        }
+        if m.hasCrop {
+            let v = m.crop
+            out += validate(v, path: "\(path)crop.")
+        }
+        if m.hasColor {
+            let v = m.color
+            out += validate(v, path: "\(path)color.")
+        }
+        if m.hasSource {
+            let v = m.source
+            out += validate(v, path: "\(path)source.")
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.doc.v1.Ink`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_Ink, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if case .spot(let v)? = m.ink {
+            out += validate(v, path: "\(path)spot.")
         }
         return out
     }
@@ -2061,6 +3393,60 @@ public enum WTValidators {
         return out
     }
 
+    /// Validates `wiretuner.doc.v1.KernClass`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_KernClass, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if !(m.name.isEmpty) {
+            let v = m.name
+            if v.unicodeScalars.count > 63 {
+                out.append(ValidationViolation(fieldPath: "\(path)name", ruleID: "string.max_len", message: "value length must be at most 63 characters"))
+            }
+            if v.firstMatch(of: Self.pattern8) == nil {
+                out.append(ValidationViolation(fieldPath: "\(path)name", ruleID: "string.pattern", message: "value does not match regex pattern `^[A-Za-z0-9._]+$`"))
+            }
+        }
+        do {
+            let v = m.side
+            if case .UNRECOGNIZED = v {
+                out.append(ValidationViolation(fieldPath: "\(path)side", ruleID: "enum.defined_only", message: "value must be one of the defined enum values"))
+            }
+        }
+        for (i, v) in m.members.enumerated() {
+            out += validate(v, path: "\(path)members[\(i)].")
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.doc.v1.KernClassMember`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_KernClassMember, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if m.hasGlyph {
+            let v = m.glyph
+            out += validate(v, path: "\(path)glyph.")
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.doc.v1.KernPair`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_KernPair, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if m.hasLeft {
+            let v = m.left
+            out += validate(v, path: "\(path)left.")
+        }
+        if m.hasRight {
+            let v = m.right
+            out += validate(v, path: "\(path)right.")
+        }
+        do {
+            let v = m.value
+            if !(v >= -32767 && v <= 32767) {
+                out.append(ValidationViolation(fieldPath: "\(path)value", ruleID: "double.gte_lte", message: "value must be greater than or equal to -32767 and less than or equal to 32767"))
+            }
+        }
+        return out
+    }
+
     /// Validates `wiretuner.doc.v1.Lab`; `path` prefixes every violation's field path.
     public static func validate(_ m: Wiretuner_Doc_V1_Lab, path: String = "") -> [ValidationViolation] {
         var out: [ValidationViolation] = []
@@ -2080,6 +3466,18 @@ public enum WTValidators {
             let v = m.b
             if !(v >= -128 && v <= 128) {
                 out.append(ValidationViolation(fieldPath: "\(path)b", ruleID: "double.gte_lte", message: "value must be greater than or equal to -128 and less than or equal to 128"))
+            }
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.doc.v1.LayerFrameProps`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_LayerFrameProps, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        do {
+            let v = m.hold
+            if !(v <= 10000) {
+                out.append(ValidationViolation(fieldPath: "\(path)hold", ruleID: "uint32.lte", message: "value must be less than or equal to 10000"))
             }
         }
         return out
@@ -2119,6 +3517,10 @@ public enum WTValidators {
         if m.hasMergedInto {
             let v = m.mergedInto
             out += validate(v, path: "\(path)merged_into.")
+        }
+        if m.hasFrame {
+            let v = m.frame
+            out += validate(v, path: "\(path)frame.")
         }
         return out
     }
@@ -2173,6 +3575,65 @@ public enum WTValidators {
         return out
     }
 
+    /// Validates `wiretuner.doc.v1.Light`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_Light, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        do {
+            let v = m.direction
+            if case .UNRECOGNIZED = v {
+                out.append(ValidationViolation(fieldPath: "\(path)direction", ruleID: "enum.defined_only", message: "value must be one of the defined enum values"))
+            }
+        }
+        do {
+            let v = m.intensity
+            if !(v <= 100) {
+                out.append(ValidationViolation(fieldPath: "\(path)intensity", ruleID: "uint32.lte", message: "value must be less than or equal to 100"))
+            }
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.doc.v1.LinkSource`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_LinkSource, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        do {
+            let v = m.kind
+            if case .UNRECOGNIZED = v {
+                out.append(ValidationViolation(fieldPath: "\(path)kind", ruleID: "enum.defined_only", message: "value must be one of the defined enum values"))
+            }
+        }
+        do {
+            let v = m.displayName
+            if v.unicodeScalars.count > 256 {
+                out.append(ValidationViolation(fieldPath: "\(path)display_name", ruleID: "string.max_len", message: "value length must be at most 256 characters"))
+            }
+        }
+        do {
+            let v = m.path
+            if v.unicodeScalars.count > 4096 {
+                out.append(ValidationViolation(fieldPath: "\(path)path", ruleID: "string.max_len", message: "value length must be at most 4096 characters"))
+            }
+        }
+        do {
+            let v = m.device
+            if v.unicodeScalars.count > 64 {
+                out.append(ValidationViolation(fieldPath: "\(path)device", ruleID: "string.max_len", message: "value length must be at most 64 characters"))
+            }
+        }
+        do {
+            let v = m.libraryDocument
+            if v.unicodeScalars.count > 36 {
+                out.append(ValidationViolation(fieldPath: "\(path)library_document", ruleID: "string.max_len", message: "value length must be at most 36 characters"))
+            }
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.doc.v1.Marks`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_Marks, path: String = "") -> [ValidationViolation] {
+        return []
+    }
+
     /// Validates `wiretuner.doc.v1.MasterPageProps`; `path` prefixes every violation's field path.
     public static func validate(_ m: Wiretuner_Doc_V1_MasterPageProps, path: String = "") -> [ValidationViolation] {
         var out: [ValidationViolation] = []
@@ -2192,6 +3653,39 @@ public enum WTValidators {
         }
         for (i, v) in m.guides.enumerated() {
             out += validate(v, path: "\(path)guides[\(i)].")
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.doc.v1.MetricGuideSettings`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_MetricGuideSettings, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if m.hasBaselineColor {
+            let v = m.baselineColor
+            out += validate(v, path: "\(path)baseline_color.")
+        }
+        if m.hasMetricColor {
+            let v = m.metricColor
+            out += validate(v, path: "\(path)metric_color.")
+        }
+        if m.hasBearingColor {
+            let v = m.bearingColor
+            out += validate(v, path: "\(path)bearing_color.")
+        }
+        for (i, v) in m.extraLines.enumerated() {
+            out += validate(v, path: "\(path)extra_lines[\(i)].")
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.doc.v1.MetricLine`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_MetricLine, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        do {
+            let v = m.name
+            if v.unicodeScalars.count > 63 {
+                out.append(ValidationViolation(fieldPath: "\(path)name", ruleID: "string.max_len", message: "value length must be at most 63 characters"))
+            }
         }
         return out
     }
@@ -2300,6 +3794,9 @@ public enum WTValidators {
         if case .masterPage(let v)? = m.kind {
             out += validate(v, path: "\(path)master_page.")
         }
+        if case .asset(let v)? = m.kind {
+            out += validate(v, path: "\(path)asset.")
+        }
         if case .path(let v)? = m.kind {
             out += validate(v, path: "\(path)path.")
         }
@@ -2324,6 +3821,18 @@ public enum WTValidators {
         if case .brush(let v)? = m.kind {
             out += validate(v, path: "\(path)brush.")
         }
+        if case .blend(let v)? = m.kind {
+            out += validate(v, path: "\(path)blend.")
+        }
+        if case .extrude(let v)? = m.kind {
+            out += validate(v, path: "\(path)extrude.")
+        }
+        if case .envelope(let v)? = m.kind {
+            out += validate(v, path: "\(path)envelope.")
+        }
+        if case .perspective(let v)? = m.kind {
+            out += validate(v, path: "\(path)perspective.")
+        }
         if case .text(let v)? = m.kind {
             out += validate(v, path: "\(path)text.")
         }
@@ -2341,6 +3850,30 @@ public enum WTValidators {
         }
         if case .style(let v)? = m.kind {
             out += validate(v, path: "\(path)style.")
+        }
+        if case .image(let v)? = m.kind {
+            out += validate(v, path: "\(path)image.")
+        }
+        if case .placedFile(let v)? = m.kind {
+            out += validate(v, path: "\(path)placed_file.")
+        }
+        if case .svgAnimation(let v)? = m.kind {
+            out += validate(v, path: "\(path)svg_animation.")
+        }
+        if case .commentThread(let v)? = m.kind {
+            out += validate(v, path: "\(path)comment_thread.")
+        }
+        if case .glyph(let v)? = m.kind {
+            out += validate(v, path: "\(path)glyph.")
+        }
+        if case .barcode(let v)? = m.kind {
+            out += validate(v, path: "\(path)barcode.")
+        }
+        if case .script(let v)? = m.kind {
+            out += validate(v, path: "\(path)script.")
+        }
+        if case .customView(let v)? = m.kind {
+            out += validate(v, path: "\(path)custom_view.")
         }
         return out
     }
@@ -2430,6 +3963,50 @@ public enum WTValidators {
         return []
     }
 
+    /// Validates `wiretuner.doc.v1.OptionalMetric`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_OptionalMetric, path: String = "") -> [ValidationViolation] {
+        return []
+    }
+
+    /// Validates `wiretuner.doc.v1.Os2Props`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_Os2Props, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if !(m.weightClass == 0) {
+            let v = m.weightClass
+            if !(v >= 1 && v <= 1000) {
+                out.append(ValidationViolation(fieldPath: "\(path)weight_class", ruleID: "uint32.gte_lte", message: "value must be greater than or equal to 1 and less than or equal to 1000"))
+            }
+        }
+        if !(m.widthClass == 0) {
+            let v = m.widthClass
+            if !(v >= 1 && v <= 9) {
+                out.append(ValidationViolation(fieldPath: "\(path)width_class", ruleID: "uint32.gte_lte", message: "value must be greater than or equal to 1 and less than or equal to 9"))
+            }
+        }
+        if !(m.vendorID.isEmpty) {
+            let v = m.vendorID
+            if v.unicodeScalars.count != 4 {
+                out.append(ValidationViolation(fieldPath: "\(path)vendor_id", ruleID: "string.len", message: "value length must be 4 characters"))
+            }
+            if v.firstMatch(of: Self.pattern11) == nil {
+                out.append(ValidationViolation(fieldPath: "\(path)vendor_id", ruleID: "string.pattern", message: "value does not match regex pattern `^[ -~]{4}$`"))
+            }
+        }
+        do {
+            let v = m.embedding
+            if case .UNRECOGNIZED = v {
+                out.append(ValidationViolation(fieldPath: "\(path)embedding", ruleID: "enum.defined_only", message: "value must be one of the defined enum values"))
+            }
+        }
+        if !(m.panose.isEmpty) {
+            let v = m.panose
+            if v.count != 10 {
+                out.append(ValidationViolation(fieldPath: "\(path)panose", ruleID: "bytes.len", message: "value length must be 10 bytes"))
+            }
+        }
+        return out
+    }
+
     /// Validates `wiretuner.doc.v1.Override`; `path` prefixes every violation's field path.
     public static func validate(_ m: Wiretuner_Doc_V1_Override, path: String = "") -> [ValidationViolation] {
         var out: [ValidationViolation] = []
@@ -2505,6 +4082,30 @@ public enum WTValidators {
         }
         for (i, v) in m.guides.enumerated() {
             out += validate(v, path: "\(path)guides[\(i)].")
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.doc.v1.Pagination`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_Pagination, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        do {
+            let v = m.mode
+            if case .UNRECOGNIZED = v {
+                out.append(ValidationViolation(fieldPath: "\(path)mode", ruleID: "enum.defined_only", message: "value must be one of the defined enum values"))
+            }
+        }
+        do {
+            let v = m.nextURLPath
+            if v.unicodeScalars.count > 512 {
+                out.append(ValidationViolation(fieldPath: "\(path)next_url_path", ruleID: "string.max_len", message: "value length must be at most 512 characters"))
+            }
+        }
+        do {
+            let v = m.pageParam
+            if v.unicodeScalars.count > 64 {
+                out.append(ValidationViolation(fieldPath: "\(path)page_param", ruleID: "string.max_len", message: "value length must be at most 64 characters"))
+            }
         }
         return out
     }
@@ -2591,6 +4192,11 @@ public enum WTValidators {
             }
         }
         return out
+    }
+
+    /// Validates `wiretuner.doc.v1.PastedSource`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_PastedSource, path: String = "") -> [ValidationViolation] {
+        return []
     }
 
     /// Validates `wiretuner.doc.v1.PathPoint`; `path` prefixes every violation's field path.
@@ -2688,6 +4294,192 @@ public enum WTValidators {
         return out
     }
 
+    /// Validates `wiretuner.doc.v1.PerspectiveGrid`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_PerspectiveGrid, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        do {
+            let v = m.name
+            if v.unicodeScalars.count > 64 {
+                out.append(ValidationViolation(fieldPath: "\(path)name", ruleID: "string.max_len", message: "value length must be at most 64 characters"))
+            }
+        }
+        if !(m.vanishingPoints == 0) {
+            let v = m.vanishingPoints
+            if !(v >= 1 && v <= 3) {
+                out.append(ValidationViolation(fieldPath: "\(path)vanishing_points", ruleID: "uint32.gte_lte", message: "value must be greater than or equal to 1 and less than or equal to 3"))
+            }
+        }
+        do {
+            let v = m.cellSize
+            if !(v >= 0) {
+                out.append(ValidationViolation(fieldPath: "\(path)cell_size", ruleID: "double.gte", message: "value must be greater than or equal to 0"))
+            }
+        }
+        if m.hasLeftColor {
+            let v = m.leftColor
+            out += validate(v, path: "\(path)left_color.")
+        }
+        if m.hasRightColor {
+            let v = m.rightColor
+            out += validate(v, path: "\(path)right_color.")
+        }
+        if m.hasFloorColor {
+            let v = m.floorColor
+            out += validate(v, path: "\(path)floor_color.")
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.doc.v1.PerspectiveProps`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_PerspectiveProps, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if m.hasCommon {
+            let v = m.common
+            out += validate(v, path: "\(path)common.")
+        }
+        do {
+            let v = m.plane
+            if case .UNRECOGNIZED = v {
+                out.append(ValidationViolation(fieldPath: "\(path)plane", ruleID: "enum.defined_only", message: "value must be one of the defined enum values"))
+            }
+        }
+        do {
+            let v = m.cellWidth
+            if !(v >= 0) {
+                out.append(ValidationViolation(fieldPath: "\(path)cell_width", ruleID: "double.gte", message: "value must be greater than or equal to 0"))
+            }
+        }
+        do {
+            let v = m.cellHeight
+            if !(v >= 0) {
+                out.append(ValidationViolation(fieldPath: "\(path)cell_height", ruleID: "double.gte", message: "value must be greater than or equal to 0"))
+            }
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.doc.v1.PixelSource`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_PixelSource, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        do {
+            let v = m.blobSha256
+            if v.count != 32 {
+                out.append(ValidationViolation(fieldPath: "\(path)blob_sha256", ruleID: "bytes.len", message: "value length must be 32 bytes"))
+            }
+        }
+        do {
+            let v = m.format
+            if v.unicodeScalars.count > 128 {
+                out.append(ValidationViolation(fieldPath: "\(path)format", ruleID: "string.max_len", message: "value length must be at most 128 characters"))
+            }
+        }
+        do {
+            let v = m.pixelWidth
+            if !(v > 0) {
+                out.append(ValidationViolation(fieldPath: "\(path)pixel_width", ruleID: "int32.gt", message: "value must be greater than 0"))
+            }
+        }
+        do {
+            let v = m.pixelHeight
+            if !(v > 0) {
+                out.append(ValidationViolation(fieldPath: "\(path)pixel_height", ruleID: "int32.gt", message: "value must be greater than 0"))
+            }
+        }
+        do {
+            let v = m.mode
+            if case .UNRECOGNIZED = v {
+                out.append(ValidationViolation(fieldPath: "\(path)mode", ruleID: "enum.defined_only", message: "value must be one of the defined enum values"))
+            }
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.doc.v1.PlacedFileContent`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_PlacedFileContent, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        do {
+            let v = m.format
+            if case .UNRECOGNIZED = v {
+                out.append(ValidationViolation(fieldPath: "\(path)format", ruleID: "enum.defined_only", message: "value must be one of the defined enum values"))
+            }
+        }
+        do {
+            let v = m.blobSha256
+            if v.count != 32 {
+                out.append(ValidationViolation(fieldPath: "\(path)blob_sha256", ruleID: "bytes.len", message: "value length must be 32 bytes"))
+            }
+        }
+        do {
+            let v = m.sourceName
+            if v.unicodeScalars.count > 256 {
+                out.append(ValidationViolation(fieldPath: "\(path)source_name", ruleID: "string.max_len", message: "value length must be at most 256 characters"))
+            }
+        }
+        if m.hasBounds {
+            let v = m.bounds
+            out += validate(v, path: "\(path)bounds.")
+        }
+        if !(m.previewSha256.isEmpty) {
+            let v = m.previewSha256
+            if v.count != 32 {
+                out.append(ValidationViolation(fieldPath: "\(path)preview_sha256", ruleID: "bytes.len", message: "value length must be 32 bytes"))
+            }
+        }
+        do {
+            let v = m.previewWidth
+            if !(v >= 0) {
+                out.append(ValidationViolation(fieldPath: "\(path)preview_width", ruleID: "int32.gte", message: "value must be greater than or equal to 0"))
+            }
+        }
+        do {
+            let v = m.previewHeight
+            if !(v >= 0) {
+                out.append(ValidationViolation(fieldPath: "\(path)preview_height", ruleID: "int32.gte", message: "value must be greater than or equal to 0"))
+            }
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.doc.v1.PlacedFileProps`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_PlacedFileProps, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if m.hasCommon {
+            let v = m.common
+            out += validate(v, path: "\(path)common.")
+        }
+        if m.hasContent {
+            let v = m.content
+            out += validate(v, path: "\(path)content.")
+        }
+        if m.hasSource {
+            let v = m.source
+            out += validate(v, path: "\(path)source.")
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.doc.v1.PlateSettings`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_PlateSettings, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if m.hasInk {
+            let v = m.ink
+            out += validate(v, path: "\(path)ink.")
+        }
+        do {
+            let v = m.angle
+            if !(v >= 0 && v <= 360) {
+                out.append(ValidationViolation(fieldPath: "\(path)angle", ruleID: "double.gte_lte", message: "value must be greater than or equal to 0 and less than or equal to 360"))
+            }
+        }
+        do {
+            let v = m.frequency
+            if !(v >= 0 && v <= 600) {
+                out.append(ValidationViolation(fieldPath: "\(path)frequency", ruleID: "double.gte_lte", message: "value must be greater than or equal to 0 and less than or equal to 600"))
+            }
+        }
+        return out
+    }
+
     /// Validates `wiretuner.doc.v1.Point`; `path` prefixes every violation's field path.
     public static func validate(_ m: Wiretuner_Doc_V1_Point, path: String = "") -> [ValidationViolation] {
         return []
@@ -2727,6 +4519,171 @@ public enum WTValidators {
         if m.hasAppearance {
             let v = m.appearance
             out += validate(v, path: "\(path)appearance.")
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.doc.v1.PrintSettings`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_PrintSettings, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        do {
+            let v = m.scaleMode
+            if case .UNRECOGNIZED = v {
+                out.append(ValidationViolation(fieldPath: "\(path)scale_mode", ruleID: "enum.defined_only", message: "value must be one of the defined enum values"))
+            }
+        }
+        if !(m.scaleX == 0) {
+            let v = m.scaleX
+            if !(v >= 1 && v <= 2000) {
+                out.append(ValidationViolation(fieldPath: "\(path)scale_x", ruleID: "double.gte_lte", message: "value must be greater than or equal to 1 and less than or equal to 2000"))
+            }
+        }
+        if !(m.scaleY == 0) {
+            let v = m.scaleY
+            if !(v >= 1 && v <= 2000) {
+                out.append(ValidationViolation(fieldPath: "\(path)scale_y", ruleID: "double.gte_lte", message: "value must be greater than or equal to 1 and less than or equal to 2000"))
+            }
+        }
+        do {
+            let v = m.tile
+            if case .UNRECOGNIZED = v {
+                out.append(ValidationViolation(fieldPath: "\(path)tile", ruleID: "enum.defined_only", message: "value must be one of the defined enum values"))
+            }
+        }
+        do {
+            let v = m.tileOverlap
+            if !(v >= 0 && v <= 720) {
+                out.append(ValidationViolation(fieldPath: "\(path)tile_overlap", ruleID: "double.gte_lte", message: "value must be greater than or equal to 0 and less than or equal to 720"))
+            }
+        }
+        do {
+            let v = m.bleed
+            if !(v >= 0 && v <= 720) {
+                out.append(ValidationViolation(fieldPath: "\(path)bleed", ruleID: "double.gte_lte", message: "value must be greater than or equal to 0 and less than or equal to 720"))
+            }
+        }
+        do {
+            let v = m.flatness
+            if !(v >= 0 && v <= 100) {
+                out.append(ValidationViolation(fieldPath: "\(path)flatness", ruleID: "double.gte_lte", message: "value must be greater than or equal to 0 and less than or equal to 100"))
+            }
+        }
+        if !(m.rasterizeDpi == 0) {
+            let v = m.rasterizeDpi
+            if !(v >= 72 && v <= 2400) {
+                out.append(ValidationViolation(fieldPath: "\(path)rasterize_dpi", ruleID: "double.gte_lte", message: "value must be greater than or equal to 72 and less than or equal to 2400"))
+            }
+        }
+        if m.hasDefaultHalftone {
+            let v = m.defaultHalftone
+            out += validate(v, path: "\(path)default_halftone.")
+        }
+        for (i, v) in m.plates.enumerated() {
+            out += validate(v, path: "\(path)plates[\(i)].")
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.doc.v1.Profile`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_Profile, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        do {
+            let v = m.kind
+            if case .UNRECOGNIZED = v {
+                out.append(ValidationViolation(fieldPath: "\(path)kind", ruleID: "enum.defined_only", message: "value must be one of the defined enum values"))
+            }
+        }
+        if m.hasPath {
+            let v = m.path
+            out += validate(v, path: "\(path)path.")
+        }
+        if !(m.steps == 0) {
+            let v = m.steps
+            if !(v >= 1 && v <= 100) {
+                out.append(ValidationViolation(fieldPath: "\(path)steps", ruleID: "uint32.gte_lte", message: "value must be greater than or equal to 1 and less than or equal to 100"))
+            }
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.doc.v1.ProfileRef`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_ProfileRef, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        do {
+            let v = m.name
+            if v.unicodeScalars.count > 256 {
+                out.append(ValidationViolation(fieldPath: "\(path)name", ruleID: "string.max_len", message: "value length must be at most 256 characters"))
+            }
+        }
+        if !(m.sha256.isEmpty) {
+            let v = m.sha256
+            if v.count != 32 {
+                out.append(ValidationViolation(fieldPath: "\(path)sha256", ruleID: "bytes.len", message: "value length must be 32 bytes"))
+            }
+        }
+        do {
+            let v = m.bundledID
+            if v.unicodeScalars.count > 64 {
+                out.append(ValidationViolation(fieldPath: "\(path)bundled_id", ruleID: "string.max_len", message: "value length must be at most 64 characters"))
+            }
+        }
+        do {
+            let v = m.space
+            if case .UNRECOGNIZED = v {
+                out.append(ValidationViolation(fieldPath: "\(path)space", ruleID: "enum.defined_only", message: "value must be one of the defined enum values"))
+            }
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.doc.v1.ProofSettings`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_ProofSettings, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        do {
+            let v = m.target
+            if case .UNRECOGNIZED = v {
+                out.append(ValidationViolation(fieldPath: "\(path)target", ruleID: "enum.defined_only", message: "value must be one of the defined enum values"))
+            }
+        }
+        if m.hasCompositeProfile {
+            let v = m.compositeProfile
+            out += validate(v, path: "\(path)composite_profile.")
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.doc.v1.RaggedEffect`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_RaggedEffect, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        do {
+            let v = m.size
+            if !(v >= 0) {
+                out.append(ValidationViolation(fieldPath: "\(path)size", ruleID: "double.gte", message: "value must be greater than or equal to 0"))
+            }
+        }
+        do {
+            let v = m.frequency
+            if !(v >= 0) {
+                out.append(ValidationViolation(fieldPath: "\(path)frequency", ruleID: "double.gte", message: "value must be greater than or equal to 0"))
+            }
+        }
+        do {
+            let v = m.copies
+            if !(v <= 10) {
+                out.append(ValidationViolation(fieldPath: "\(path)copies", ruleID: "uint32.lte", message: "value must be less than or equal to 10"))
+            }
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.doc.v1.RasterEffectSettings`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_RasterEffectSettings, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if !(m.resolutionPpi == 0) {
+            let v = m.resolutionPpi
+            if !(v >= 1 && v <= 2400) {
+                out.append(ValidationViolation(fieldPath: "\(path)resolution_ppi", ruleID: "uint32.gte_lte", message: "value must be greater than or equal to 1 and less than or equal to 2400"))
+            }
         }
         return out
     }
@@ -2844,6 +4801,47 @@ public enum WTValidators {
         return out
     }
 
+    /// Validates `wiretuner.doc.v1.Rotation3`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_Rotation3, path: String = "") -> [ValidationViolation] {
+        return []
+    }
+
+    /// Validates `wiretuner.doc.v1.ScriptProps`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_ScriptProps, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if m.hasCommon {
+            let v = m.common
+            out += validate(v, path: "\(path)common.")
+        }
+        do {
+            let v = m.description_p
+            if v.unicodeScalars.count > 1024 {
+                out.append(ValidationViolation(fieldPath: "\(path)description", ruleID: "string.max_len", message: "value length must be at most 1024 characters"))
+            }
+        }
+        do {
+            let v = m.source
+            if v.unicodeScalars.count > 1048576 {
+                out.append(ValidationViolation(fieldPath: "\(path)source", ruleID: "string.max_len", message: "value length must be at most 1048576 characters"))
+            }
+        }
+        if m.hasLibrary {
+            let v = m.library
+            out += validate(v, path: "\(path)library.")
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.doc.v1.ScriptSource`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_ScriptSource, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if m.hasScript {
+            let v = m.script
+            out += validate(v, path: "\(path)script.")
+        }
+        return out
+    }
+
     /// Validates `wiretuner.doc.v1.SetAdd`; `path` prefixes every violation's field path.
     public static func validate(_ m: Wiretuner_Doc_V1_SetAdd, path: String = "") -> [ValidationViolation] {
         var out: [ValidationViolation] = []
@@ -2948,6 +4946,114 @@ public enum WTValidators {
             let v = m.defaults
             out += validate(v, path: "\(path)defaults.")
         }
+        do {
+            let v = m.documentKind
+            if case .UNRECOGNIZED = v {
+                out.append(ValidationViolation(fieldPath: "\(path)document_kind", ruleID: "enum.defined_only", message: "value must be one of the defined enum values"))
+            }
+        }
+        if m.hasFont {
+            let v = m.font
+            out += validate(v, path: "\(path)font.")
+        }
+        if m.hasOutputArea {
+            let v = m.outputArea
+            out += validate(v, path: "\(path)output_area.")
+        }
+        if m.hasPrint {
+            let v = m.print
+            out += validate(v, path: "\(path)print.")
+        }
+        if m.hasView {
+            let v = m.view
+            out += validate(v, path: "\(path)view.")
+        }
+        if m.hasColor {
+            let v = m.color
+            out += validate(v, path: "\(path)color.")
+        }
+        for (i, v) in m.htmlSettings.enumerated() {
+            out += validate(v, path: "\(path)html_settings[\(i)].")
+        }
+        if m.hasAnimation {
+            let v = m.animation
+            out += validate(v, path: "\(path)animation.")
+        }
+        for (i, v) in m.dataFields.enumerated() {
+            out += validate(v, path: "\(path)data_fields[\(i)].")
+        }
+        for (i, v) in m.dataSources.enumerated() {
+            out += validate(v, path: "\(path)data_sources[\(i)].")
+        }
+        if m.hasRasterEffects {
+            let v = m.rasterEffects
+            out += validate(v, path: "\(path)raster_effects.")
+        }
+        for (i, v) in m.perspectiveGrids.enumerated() {
+            out += validate(v, path: "\(path)perspective_grids[\(i)].")
+        }
+        if m.hasInfo {
+            let v = m.info
+            out += validate(v, path: "\(path)info.")
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.doc.v1.ShadowEffect`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_ShadowEffect, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        do {
+            let v = m.style
+            if case .UNRECOGNIZED = v {
+                out.append(ValidationViolation(fieldPath: "\(path)style", ruleID: "enum.defined_only", message: "value must be one of the defined enum values"))
+            }
+        }
+        if m.hasColor {
+            let v = m.color
+            out += validate(v, path: "\(path)color.")
+        }
+        do {
+            let v = m.opacity
+            if !(v <= 100) {
+                out.append(ValidationViolation(fieldPath: "\(path)opacity", ruleID: "uint32.lte", message: "value must be less than or equal to 100"))
+            }
+        }
+        do {
+            let v = m.softness
+            if !(v <= 30) {
+                out.append(ValidationViolation(fieldPath: "\(path)softness", ruleID: "uint32.lte", message: "value must be less than or equal to 30"))
+            }
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.doc.v1.SharpenEffect`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_SharpenEffect, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        do {
+            let v = m.style
+            if case .UNRECOGNIZED = v {
+                out.append(ValidationViolation(fieldPath: "\(path)style", ruleID: "enum.defined_only", message: "value must be one of the defined enum values"))
+            }
+        }
+        do {
+            let v = m.amount
+            if !(v >= 0 && v <= 500) {
+                out.append(ValidationViolation(fieldPath: "\(path)amount", ruleID: "double.gte_lte", message: "value must be greater than or equal to 0 and less than or equal to 500"))
+            }
+        }
+        if !(m.pixelRadius == 0) {
+            let v = m.pixelRadius
+            if !(v >= 0.1 && v <= 250) {
+                out.append(ValidationViolation(fieldPath: "\(path)pixel_radius", ruleID: "double.gte_lte", message: "value must be greater than or equal to 0.1 and less than or equal to 250"))
+            }
+        }
+        do {
+            let v = m.threshold
+            if !(v <= 255) {
+                out.append(ValidationViolation(fieldPath: "\(path)threshold", ruleID: "uint32.lte", message: "value must be less than or equal to 255"))
+            }
+        }
         return out
     }
 
@@ -2964,6 +5070,24 @@ public enum WTValidators {
             let v = m.height
             if !(v >= 0) {
                 out.append(ValidationViolation(fieldPath: "\(path)height", ruleID: "double.gte", message: "value must be greater than or equal to 0"))
+            }
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.doc.v1.SketchEffect`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_SketchEffect, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        do {
+            let v = m.amount
+            if !(v >= 0) {
+                out.append(ValidationViolation(fieldPath: "\(path)amount", ruleID: "double.gte", message: "value must be greater than or equal to 0"))
+            }
+        }
+        if !(m.copies == 0) {
+            let v = m.copies
+            if !(v >= 1 && v <= 20) {
+                out.append(ValidationViolation(fieldPath: "\(path)copies", ruleID: "uint32.gte_lte", message: "value must be greater than or equal to 1 and less than or equal to 20"))
             }
         }
         return out
@@ -3112,6 +5236,81 @@ public enum WTValidators {
             let v = m.props
             if v.count > 2097152 {
                 out.append(ValidationViolation(fieldPath: "\(path)props", ruleID: "bytes.max_len", message: "value length must be at most 2097152 bytes"))
+            }
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.doc.v1.Surface`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_Surface, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        do {
+            let v = m.kind
+            if case .UNRECOGNIZED = v {
+                out.append(ValidationViolation(fieldPath: "\(path)kind", ruleID: "enum.defined_only", message: "value must be one of the defined enum values"))
+            }
+        }
+        if !(m.steps == 0) {
+            let v = m.steps
+            if !(v >= 1 && v <= 100) {
+                out.append(ValidationViolation(fieldPath: "\(path)steps", ruleID: "uint32.gte_lte", message: "value must be greater than or equal to 1 and less than or equal to 100"))
+            }
+        }
+        do {
+            let v = m.ambient
+            if !(v <= 100) {
+                out.append(ValidationViolation(fieldPath: "\(path)ambient", ruleID: "uint32.lte", message: "value must be less than or equal to 100"))
+            }
+        }
+        if m.hasLight1 {
+            let v = m.light1
+            out += validate(v, path: "\(path)light1.")
+        }
+        if m.hasLight2 {
+            let v = m.light2
+            out += validate(v, path: "\(path)light2.")
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.doc.v1.SvgAnimationKinds`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_SvgAnimationKinds, path: String = "") -> [ValidationViolation] {
+        return []
+    }
+
+    /// Validates `wiretuner.doc.v1.SvgAnimationProps`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_SvgAnimationProps, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if m.hasCommon {
+            let v = m.common
+            out += validate(v, path: "\(path)common.")
+        }
+        if m.hasAsset {
+            let v = m.asset
+            out += validate(v, path: "\(path)asset.")
+        }
+        if m.hasNaturalSize {
+            let v = m.naturalSize
+            out += validate(v, path: "\(path)natural_size.")
+        }
+        if m.hasPoster {
+            let v = m.poster
+            out += validate(v, path: "\(path)poster.")
+        }
+        if m.hasWeb {
+            let v = m.web
+            out += validate(v, path: "\(path)web.")
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.doc.v1.SvgAnimationWebProps`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_SvgAnimationWebProps, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        do {
+            let v = m.loop
+            if case .UNRECOGNIZED = v {
+                out.append(ValidationViolation(fieldPath: "\(path)loop", ruleID: "enum.defined_only", message: "value must be one of the defined enum values"))
             }
         }
         return out
@@ -3464,6 +5663,16 @@ public enum WTValidators {
         if case .feature(let v)? = m.value {
             out += validate(v, path: "\(path)feature.")
         }
+        if case .link(let v)? = m.value {
+            if v.unicodeScalars.count > 2048 {
+                out.append(ValidationViolation(fieldPath: "\(path)link", ruleID: "string.max_len", message: "value length must be at most 2048 characters"))
+            }
+        }
+        if case .mention(let v)? = m.value {
+            if v.unicodeScalars.count > 80 {
+                out.append(ValidationViolation(fieldPath: "\(path)mention", ruleID: "string.max_len", message: "value length must be at most 80 characters"))
+            }
+        }
         return out
     }
 
@@ -3625,6 +5834,52 @@ public enum WTValidators {
         return []
     }
 
+    /// Validates `wiretuner.doc.v1.TransformEffect`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_TransformEffect, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if !(m.copies == 0) {
+            let v = m.copies
+            if !(v >= 1 && v <= 1000) {
+                out.append(ValidationViolation(fieldPath: "\(path)copies", ruleID: "uint32.gte_lte", message: "value must be greater than or equal to 1 and less than or equal to 1000"))
+            }
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.doc.v1.TransparencyEffect`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_TransparencyEffect, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        do {
+            let v = m.style
+            if case .UNRECOGNIZED = v {
+                out.append(ValidationViolation(fieldPath: "\(path)style", ruleID: "enum.defined_only", message: "value must be one of the defined enum values"))
+            }
+        }
+        do {
+            let v = m.amount
+            if !(v <= 100) {
+                out.append(ValidationViolation(fieldPath: "\(path)amount", ruleID: "uint32.lte", message: "value must be less than or equal to 100"))
+            }
+        }
+        do {
+            let v = m.radius
+            if !(v >= 0) {
+                out.append(ValidationViolation(fieldPath: "\(path)radius", ruleID: "double.gte", message: "value must be greater than or equal to 0"))
+            }
+        }
+        do {
+            let v = m.softness
+            if !(v <= 100) {
+                out.append(ValidationViolation(fieldPath: "\(path)softness", ruleID: "uint32.lte", message: "value must be less than or equal to 100"))
+            }
+        }
+        if m.hasMask {
+            let v = m.mask
+            out += validate(v, path: "\(path)mask.")
+        }
+        return out
+    }
+
     /// Validates `wiretuner.doc.v1.UnitChoice`; `path` prefixes every violation's field path.
     public static func validate(_ m: Wiretuner_Doc_V1_UnitChoice, path: String = "") -> [ValidationViolation] {
         var out: [ValidationViolation] = []
@@ -3655,6 +5910,48 @@ public enum WTValidators {
         return out
     }
 
+    /// Validates `wiretuner.doc.v1.ViewState`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_ViewState, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if !(m.magnification == 0) {
+            let v = m.magnification
+            if !(v >= 0.06 && v <= 256) {
+                out.append(ValidationViolation(fieldPath: "\(path)magnification", ruleID: "double.gte_lte", message: "value must be greater than or equal to 0.06 and less than or equal to 256"))
+            }
+        }
+        do {
+            let v = m.mode
+            if case .UNRECOGNIZED = v {
+                out.append(ValidationViolation(fieldPath: "\(path)mode", ruleID: "enum.defined_only", message: "value must be one of the defined enum values"))
+            }
+        }
+        do {
+            let v = m.rotationDegrees
+            if !(v > -180 && v <= 180) {
+                out.append(ValidationViolation(fieldPath: "\(path)rotation_degrees", ruleID: "double.gt_lte", message: "value must be greater than -180 and less than or equal to 180"))
+            }
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.doc.v1.ViewTarget`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_ViewTarget, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        do {
+            let v = m.magnification
+            if !(v >= 0.06 && v <= 256) {
+                out.append(ValidationViolation(fieldPath: "\(path)magnification", ruleID: "double.gte_lte", message: "value must be greater than or equal to 0.06 and less than or equal to 256"))
+            }
+        }
+        do {
+            let v = m.mode
+            if case .UNRECOGNIZED = v {
+                out.append(ValidationViolation(fieldPath: "\(path)mode", ruleID: "enum.defined_only", message: "value must be one of the defined enum values"))
+            }
+        }
+        return out
+    }
+
     /// Validates `wiretuner.docs.v1.CreateBranchRequest`; `path` prefixes every violation's field path.
     public static func validate(_ m: Wiretuner_Docs_V1_CreateBranchRequest, path: String = "") -> [ValidationViolation] {
         var out: [ValidationViolation] = []
@@ -3674,7 +5971,7 @@ public enum WTValidators {
         }
         do {
             let v = m.branchDocumentID
-            if v.firstMatch(of: Self.pattern5) == nil {
+            if v.firstMatch(of: Self.pattern12) == nil {
                 out.append(ValidationViolation(fieldPath: "\(path)branch_document_id", ruleID: "string.pattern", message: "value does not match regex pattern `^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-7[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$`"))
             }
             if v.isEmpty {
@@ -3775,7 +6072,7 @@ public enum WTValidators {
         }
         do {
             let v = m.documentID
-            if v.firstMatch(of: Self.pattern5) == nil {
+            if v.firstMatch(of: Self.pattern12) == nil {
                 out.append(ValidationViolation(fieldPath: "\(path)document_id", ruleID: "string.pattern", message: "value does not match regex pattern `^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-7[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$`"))
             }
             if v.isEmpty {
@@ -3895,7 +6192,7 @@ public enum WTValidators {
         }
         do {
             let v = m.newDocumentID
-            if v.firstMatch(of: Self.pattern5) == nil {
+            if v.firstMatch(of: Self.pattern12) == nil {
                 out.append(ValidationViolation(fieldPath: "\(path)new_document_id", ruleID: "string.pattern", message: "value does not match regex pattern `^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-7[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$`"))
             }
             if v.isEmpty {
@@ -3948,7 +6245,7 @@ public enum WTValidators {
         }
         do {
             let v = m.newDocumentID
-            if v.firstMatch(of: Self.pattern5) == nil {
+            if v.firstMatch(of: Self.pattern12) == nil {
                 out.append(ValidationViolation(fieldPath: "\(path)new_document_id", ruleID: "string.pattern", message: "value does not match regex pattern `^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-7[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$`"))
             }
             if v.isEmpty {
@@ -4433,7 +6730,7 @@ public enum WTValidators {
         }
         do {
             let v = m.versionID
-            if v.firstMatch(of: Self.pattern5) == nil {
+            if v.firstMatch(of: Self.pattern12) == nil {
                 out.append(ValidationViolation(fieldPath: "\(path)version_id", ruleID: "string.pattern", message: "value does not match regex pattern `^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-7[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$`"))
             }
             if v.isEmpty {
@@ -4681,7 +6978,7 @@ public enum WTValidators {
         }
         do {
             let v = m.newDocumentID
-            if v.firstMatch(of: Self.pattern5) == nil {
+            if v.firstMatch(of: Self.pattern12) == nil {
                 out.append(ValidationViolation(fieldPath: "\(path)new_document_id", ruleID: "string.pattern", message: "value does not match regex pattern `^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-7[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$`"))
             }
             if v.isEmpty {

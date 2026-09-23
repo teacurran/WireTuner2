@@ -1,0 +1,89 @@
+// proto/wiretuner/doc/v1/comments.proto
+//
+// Comment threads (docs/_includes/collaboration/comments.adoc, COLLAB-025): `comment_thread`
+// nodes are children of the well-known comments node 0:12, ordered by creation (the panel sorts
+// by activity).  Conversation, not artwork: never rendered or exported by default.  A mention
+// inside a comment's text is TextMarkValue.mention over the name's characters; the `mentions`
+// set is the authoritative list the server notifies from.  The read-state service and the
+// comment event are docs.v1 and sync.v1 API, not document schema.
+syntax = "proto3";
+
+package wiretuner.doc.v1;
+
+import "buf/validate/validate.proto";
+import "wiretuner/doc/v1/common.proto";
+import "wiretuner/doc/v1/text.proto";
+import "wt/crdt/options.proto";
+
+option java_multiple_files = true;
+option java_package = "com.villagecompute.wiretuner.doc.v1";
+option optimize_for = SPEED;
+
+// NodeProps.kind case `comment_thread` (COLLAB block).  STRUCT.
+message CommentThreadProps {
+  // Shared registers; unused by the panel, present so every kind has `common = 1`.
+  CommonProps common = 1;
+  // The object the pin is attached to.  Unset for a point pin.  When the target is deleted or
+  // unknown the reference reads as unset and the pin falls back to `point`; the panel still
+  // names the object.  Never rewritten by edits to the object: the pin follows it because it
+  // references it.
+  NodeRef anchor = 2 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
+  // Pin position.  With `anchor` set: in the anchored node's local space (before its
+  // transform), so the pin rides along with move, rotate and scale.  Without `anchor`, or while
+  // it dangles: pasteboard points.  ATOMIC: x and y are one position.
+  Point point = 3 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Pasteboard position recorded when the thread was created or the pin last dropped: the
+  // fallback when `anchor` dangles and the anchored node's transform is gone.  ATOMIC.
+  Point fallback_point = 4 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // The page the pin was on when created or last dropped, for the panel's by-page filter of
+  // point pins and dangling anchors.
+  NodeRef page = 5 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
+  // Open or resolved.  Concurrent resolve and reopen resolve by OpId.
+  bool resolved = 6;
+  // The opening comment is the first element; replies follow.  SEQUENCE: concurrent
+  // replies are both kept.
+  repeated Comment comments = 7 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+}
+
+// One comment.  Element of CommentThreadProps.comments; each field is its own register.
+message Comment {
+  // Element id (MERGE_SEQUENCE).
+  ElementId id = 1;
+  // Server-verified on ingest: must equal the account bound to the change's replica.
+  string author_account_id = 2 [(buf.validate.field).string.max_len = 64];
+  // The text.  TEXT: concurrent edits merge character by character.
+  RichText body = 3 [(wt.crdt.field).merge = MERGE_TEXT];
+  // When posted, Unix milliseconds.  Informational; display only.
+  int64 wall_time_ms = 4;
+  // Wall time of the last edit, for the "edited" label; 0 = never edited.
+  int64 edited_wall_time_ms = 5;
+  // Account ids mentioned, or "team:<team id>" for a whole team.  SET: a concurrent edit that
+  // adds a mention and one that removes another both apply.
+  repeated string mentions = 6 [
+    (wt.crdt.field).merge = MERGE_SET,
+    (buf.validate.field).repeated = {
+      max_items: 50
+      items: {
+        string: {max_len: 80}
+      }
+    }
+  ];
+  // "<account id>:<emoji>" members, add-wins.  The emoji is one of the six the guide lists.
+  repeated string reactions = 7 [
+    (wt.crdt.field).merge = MERGE_SET,
+    (buf.validate.field).repeated = {
+      max_items: 500
+      items: {
+        string: {max_len: 96}
+      }
+    },
+    (buf.validate.field).cel = {
+      id: "comment.reactions.emoji"
+      message: "a reaction must be <account id>:<one of the six allowed emoji>"
+      expression: "this.all(r, r.matches('^[^:]+:(\U0001F44D|❤️|\U0001F440|✅|❓|\U0001F389)$'))"
+    }
+  ];
+  // Soft delete.  The element's own deletion is not used for comments so a deleted opening
+  // comment keeps its place at the head of the thread.
+  bool deleted = 8;
+}

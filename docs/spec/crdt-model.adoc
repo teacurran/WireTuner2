@@ -50,7 +50,7 @@ position among its siblings, a `deleted` flag and typed properties.
 [listing]
 ....
 document (0:0)
-├── settings    (0:1)   units, default attributes, print & export settings
+├── settings    (0:1)   units, default attributes, print & export settings; ── custom_view …
 ├── pages       (0:2)   ── page …                       (order = page order)
 ├── masters     (0:3)   ── master page …
 ├── layers      (0:4)   ── layer …  ── object …         (order = stacking, bottom first)
@@ -59,7 +59,7 @@ document (0:0)
 ├── styles      (0:6)   ── graphic style / text style …
 ├── symbols     (0:7)   ── symbol ── object …           (Library panel)
 ├── brushes     (0:8)   ── brush …
-├── assets      (0:9)   ── image / font / embedded file / script (blob references)
+├── assets      (0:9)   ── asset (image, font, embedded file blobs) / script …
 ├── trash       (0:10)  (reserved; deleted nodes stay in place, see Deletion)
 ├── glyphs      (0:11)  ── glyph …   (typeface documents only; a glyph is a canvas like a page)
 └── comments    (0:12)  ── comment_thread …   (conversation, not artwork; never rendered or exported by default)
@@ -80,19 +80,20 @@ adds its case there:
 |===
 |Block |Epic |Cases
 
-|1--19 |DOC |`document` 1, `settings` 2, `page` 3, `master_page` 4
+|1--19 |DOC |`document` 1, `settings` 2, `page` 3, `master_page` 4, `asset` 5
 |20--49 |DRAW |`path` 20, `rect` 21, `ellipse` 22, `polygon` 23, `chart` 24
 |50--69 |OBJ |`group` 50
 |70--79 |COLOR |`swatch` 70
 |80--99 |ATTR |`brush` 80
-|100--129 |FX |blend, path effect, envelope, perspective, extrude, ...
+|100--129 |FX |`blend` 100, `extrude` 101, `envelope` 102, `perspective` 103
 |130--149 |TYPE |`text` 130 (text styles are `style` nodes)
 |150--169 |LIB |`layer` 150, `symbol` 151, `symbol_folder` 152, `instance` 153, `style` 154
-|170--189 |IMG |image, placed_file, ...
-|190--209 |WEB |svg_animation, ...
-|210--219 |COLLAB |comment_thread
-|220--239 |FONT |glyph
-|240--259 |DATA |barcode, script
+|170--189 |IMG |`image` 170, `placed_file` 171
+|190--209 |WEB |`svg_animation` 190
+|210--219 |COLLAB |`comment_thread` 210
+|220--239 |FONT |`glyph` 220
+|240--259 |DATA |`barcode` 240, `script` 241
+|260--279 |BASIC |`custom_view` 260
 |===
 
 Artwork lives under layers: a top-level object's parent is its layer, and its

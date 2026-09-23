@@ -1,0 +1,114 @@
+// proto/wiretuner/doc/v1/glyph.proto
+//
+// The `glyph` node kind (docs/_includes/typeface/typeface-documents.adoc, FONT-001): a child of
+// the well-known glyphs node 0:11, in custom grid order.  A glyph is a canvas like a master
+// page: its artwork is the top-level objects under 0:4 whose CommonProps.canvas is the glyph.
+// Glyph-canvas space is font units with the pasteboard's y-down convention (the baseline is
+// y = 0, the ascender at y = -ascender); the UI shows font y = -stored y.  Side bearings and
+// grid order are derived, never stored.  Separate from font.proto to avoid an import cycle
+// (see there).
+syntax = "proto3";
+
+package wiretuner.doc.v1;
+
+import "buf/validate/validate.proto";
+import "wiretuner/doc/v1/common.proto";
+import "wiretuner/doc/v1/document.proto";
+import "wt/crdt/options.proto";
+
+option java_multiple_files = true;
+option java_package = "com.villagecompute.wiretuner.doc.v1";
+option optimize_for = SPEED;
+
+// The role of a glyph in the font.
+enum GlyphKind {
+  // Reads as BASE.
+  GLYPH_KIND_UNSPECIFIED = 0;
+  // An ordinary spacing glyph.
+  GLYPH_KIND_BASE = 1;
+  // A combining mark: zero advance by convention, attaches via anchors.
+  GLYPH_KIND_MARK = 2;
+  // Replaces a sequence; the name a_b names the sequence.
+  GLYPH_KIND_LIGATURE = 3;
+  // An unencoded piece used only through components; never a cmap entry.
+  GLYPH_KIND_COMPONENT = 4;
+}
+
+// A reference to another glyph's outline, placed with a transform.  Element of
+// GlyphProps.components.
+message Component {
+  // Element id (MERGE_SEQUENCE).
+  ElementId id = 1;
+  // A glyph node under 0:11.  Dangling renders a placeholder.
+  NodeRef glyph = 2 [(wt.crdt.field).on_dangling = REF_FALLBACK_PLACEHOLDER];
+  // Placement in glyph-canvas space (font units).  ATOMIC.
+  Transform transform = 3 [(wt.crdt.field).merge = MERGE_ATOMIC];
+}
+
+// Whether an anchor is where marks attach to this glyph or where this mark attaches.
+enum AnchorRole {
+  // Reads as BASE.
+  ANCHOR_ROLE_UNSPECIFIED = 0;
+  // Where a mark attaches to this glyph ("top").
+  ANCHOR_ROLE_BASE = 1;
+  // Where this mark attaches to a base ("_top").
+  ANCHOR_ROLE_MARK = 2;
+}
+
+// A named attachment point.  Element of GlyphProps.anchors.  Named GlyphAnchor because text
+// marks already use `Anchor` (text.proto).
+message GlyphAnchor {
+  // Element id (MERGE_SEQUENCE).
+  ElementId id = 1;
+  // Anchor name ("top", "_top").
+  string name = 2 [
+    (buf.validate.field).string = {
+      max_len: 63
+      pattern: "^[A-Za-z0-9._]+$"
+    },
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+  // Glyph-canvas space (font units, y down).  ATOMIC.
+  Point position = 3 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Base or mark; set from the underscore convention unless overridden.
+  AnchorRole role = 4 [(buf.validate.field).enum.defined_only = true];
+}
+
+// NodeProps.kind case `glyph` (FONT block).  STRUCT.  CommonProps.note is the glyph's note;
+// CommonProps.name is unused (the PostScript `name` below identifies the glyph).
+message GlyphProps {
+  // Note and the other shared registers.
+  CommonProps common = 1;
+  // PostScript glyph name: an AGL name, uniXXXX, or a_b for ligatures.  Unique in the font
+  // after read-time normalization (glyph-grid.adoc).  ATOMIC: a later rename wins.
+  string name = 2 [
+    (buf.validate.field).string = {
+      max_len: 63
+      pattern: "^[A-Za-z_.][A-Za-z0-9_.]*$"
+    },
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+  // Unicode scalar values this glyph encodes.  SET: add-wins; a codepoint claimed by two glyphs
+  // is resolved on read.  Empty for unencoded glyphs.
+  repeated uint32 codepoints = 3 [
+    (wt.crdt.field).merge = MERGE_SET,
+    (buf.validate.field).repeated.items.uint32.lte = 1114111
+  ];
+  // Horizontal advance in font units, 0 .. 32767.
+  double advance_width = 4 [(buf.validate.field).double = {
+    gte: 0
+    lte: 32767
+  }];
+  // Base, mark, ligature or component.
+  GlyphKind kind = 5 [(buf.validate.field).enum.defined_only = true];
+  // Components.  SEQUENCE.
+  repeated Component components = 6 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  // Anchors.  SEQUENCE.
+  repeated GlyphAnchor anchors = 7 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  // Leave this glyph out of generated fonts; inverted so a new glyph exports.
+  bool skip_export = 8;
+  // Ruler guides on this glyph's canvas, as on pages, in font units.  SEQUENCE.
+  repeated Guide guides = 9 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  // Color tag shown on the grid cell, 0 .. 12; 0 = none.  Organizational only.
+  uint32 mark_color = 10 [(buf.validate.field).uint32.lte = 12];
+}

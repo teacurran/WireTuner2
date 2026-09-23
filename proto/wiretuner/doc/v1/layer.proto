@@ -3,7 +3,8 @@
 // The layer node kind (docs/_includes/library/layers.adoc, LIB-001).  PROTO-003 created the
 // message with only `common` so NodeProps could name it; LIB-001 filled in `LayerRole` and the
 // layer flags here, in this file, because the FILE breaking rules pin a message to the file it
-// first appeared in.  `CommonProps.origin_layer` (Remember layer info) is in common.proto.
+// first appeared in; WEB-014 added LayerFrameProps.  `CommonProps.origin_layer` (Remember layer
+// info) is in common.proto.
 syntax = "proto3";
 
 package wiretuner.doc.v1;
@@ -58,4 +59,15 @@ message LayerProps {
   // Set when this layer is deleted by a merge: the layer its objects were moved onto.  Live
   // objects arriving on this layer afterwards read as being on the target.
   NodeRef merged_into = 8 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
+  // Animation frame metadata (web/animation.adoc, WEB-014).  STRUCT.
+  LayerFrameProps frame = 20;
+}
+
+// A layer's animation frame fields (web/animation.adoc).  STRUCT: hold and exclusion are
+// independent choices.
+message LayerFrameProps {
+  // Number of frame periods this layer stays on screen, 0 .. 10000; 0 (never set) reads as 1.
+  uint32 hold = 1 [(buf.validate.field).uint32.lte = 10000];
+  // Leave this layer out of the animation; it still prints and exports as a still.
+  bool excluded = 2;
 }

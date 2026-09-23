@@ -15,7 +15,9 @@
 /// rulers, grid-guides).  PROTO-003 created the kind messages empty so NodeProps could name them;
 /// DOC-001 filled them in here, in this file, because the FILE breaking rules pin a message to
 /// the file it first appeared in.  Everything is in points on the pasteboard, y down, origin at
-/// the pasteboard's top left (docs/spec/crdt-model.adoc).
+/// the pasteboard's top left (docs/spec/crdt-model.adoc).  The other epics' settings-node and
+/// page fields reference messages in their own files (print, view, color_management, web, data,
+/// effects, perspective, font, file_info), recorded in the field-number tables below.
 
 import SwiftProtobuf
 
@@ -322,80 +324,101 @@ public nonisolated struct Wiretuner_Doc_V1_Guide: Sendable {
 ///    1      common          crdt-model.adoc
 ///    2-9    DOC             document-panel.adoc, rulers.adoc, grid-guides.adoc
 ///   10-19   OBJ             objects/names-notes.adoc (reading_order 10)
-///   20-29   FX              effects/perspective.adoc (perspective_grid, ...)
+///   20-29   FX              effects/perspective.adoc (perspective_grid 20,
+///                           perspective_grid_visible 21)
 ///   30-     free; an epic takes the next block of ten and adds a row here.
-public nonisolated struct Wiretuner_Doc_V1_PageProps: Sendable {
+public nonisolated struct Wiretuner_Doc_V1_PageProps: @unchecked Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   /// Name (the page's label in the Document panel) and the other shared registers.
   public var common: Wiretuner_Doc_V1_CommonProps {
-    get {_common ?? Wiretuner_Doc_V1_CommonProps()}
-    set {_common = newValue}
+    get {_storage._common ?? Wiretuner_Doc_V1_CommonProps()}
+    set {_uniqueStorage()._common = newValue}
   }
   /// Returns true if `common` has been explicitly set.
-  public var hasCommon: Bool {self._common != nil}
+  public var hasCommon: Bool {_storage._common != nil}
   /// Clears the value of `common`. Subsequent reads from it will return its default value.
-  public mutating func clearCommon() {self._common = nil}
+  public mutating func clearCommon() {_uniqueStorage()._common = nil}
 
   /// The page's top-left corner on the pasteboard.  ATOMIC.
   public var origin: Wiretuner_Doc_V1_Point {
-    get {_origin ?? Wiretuner_Doc_V1_Point()}
-    set {_origin = newValue}
+    get {_storage._origin ?? Wiretuner_Doc_V1_Point()}
+    set {_uniqueStorage()._origin = newValue}
   }
   /// Returns true if `origin` has been explicitly set.
-  public var hasOrigin: Bool {self._origin != nil}
+  public var hasOrigin: Bool {_storage._origin != nil}
   /// Clears the value of `origin`. Subsequent reads from it will return its default value.
-  public mutating func clearOrigin() {self._origin = nil}
+  public mutating func clearOrigin() {_uniqueStorage()._origin = nil}
 
   /// Size and orientation.  ATOMIC: the later write wins whole.  Masked while `master` resolves.
   public var geometry: Wiretuner_Doc_V1_PageGeometry {
-    get {_geometry ?? Wiretuner_Doc_V1_PageGeometry()}
-    set {_geometry = newValue}
+    get {_storage._geometry ?? Wiretuner_Doc_V1_PageGeometry()}
+    set {_uniqueStorage()._geometry = newValue}
   }
   /// Returns true if `geometry` has been explicitly set.
-  public var hasGeometry: Bool {self._geometry != nil}
+  public var hasGeometry: Bool {_storage._geometry != nil}
   /// Clears the value of `geometry`. Subsequent reads from it will return its default value.
-  public mutating func clearGeometry() {self._geometry = nil}
+  public mutating func clearGeometry() {_uniqueStorage()._geometry = nil}
 
   /// Points beyond every edge.  Masked while `master` resolves.
-  public var bleed: Double = 0
+  public var bleed: Double {
+    get {_storage._bleed}
+    set {_uniqueStorage()._bleed = newValue}
+  }
 
   /// The master page (a child of 0:3), or unset.  Dangling or wrong kind reads as unset: the
   /// page shows its own geometry.
   public var master: Wiretuner_Doc_V1_NodeRef {
-    get {_master ?? Wiretuner_Doc_V1_NodeRef()}
-    set {_master = newValue}
+    get {_storage._master ?? Wiretuner_Doc_V1_NodeRef()}
+    set {_uniqueStorage()._master = newValue}
   }
   /// Returns true if `master` has been explicitly set.
-  public var hasMaster: Bool {self._master != nil}
+  public var hasMaster: Bool {_storage._master != nil}
   /// Clears the value of `master`. Subsequent reads from it will return its default value.
-  public mutating func clearMaster() {self._master = nil}
+  public mutating func clearMaster() {_uniqueStorage()._master = nil}
 
   /// The rulers' zero point relative to the page's top-left, points, y down.  ATOMIC.  Unset =
   /// the bottom-left corner (0, height) (rulers.adoc).
   public var rulerOrigin: Wiretuner_Doc_V1_Point {
-    get {_rulerOrigin ?? Wiretuner_Doc_V1_Point()}
-    set {_rulerOrigin = newValue}
+    get {_storage._rulerOrigin ?? Wiretuner_Doc_V1_Point()}
+    set {_uniqueStorage()._rulerOrigin = newValue}
   }
   /// Returns true if `rulerOrigin` has been explicitly set.
-  public var hasRulerOrigin: Bool {self._rulerOrigin != nil}
+  public var hasRulerOrigin: Bool {_storage._rulerOrigin != nil}
   /// Clears the value of `rulerOrigin`. Subsequent reads from it will return its default value.
-  public mutating func clearRulerOrigin() {self._rulerOrigin = nil}
+  public mutating func clearRulerOrigin() {_uniqueStorage()._rulerOrigin = nil}
 
   /// Ruler guides.  SEQUENCE: added, moved and deleted individually.
-  public var guides: [Wiretuner_Doc_V1_Guide] = []
+  public var guides: [Wiretuner_Doc_V1_Guide] {
+    get {_storage._guides}
+    set {_uniqueStorage()._guides = newValue}
+  }
+
+  /// The perspective grid this page uses: an element of SettingsProps.perspective_grids
+  /// (effects/perspective.adoc, FX-040).  Unset or dangling reads as the default grid (the
+  /// sequence's first live element, or the built-in two-point grid).  ATOMIC.
+  public var perspectiveGrid: Wiretuner_Doc_V1_ElementId {
+    get {_storage._perspectiveGrid ?? Wiretuner_Doc_V1_ElementId()}
+    set {_uniqueStorage()._perspectiveGrid = newValue}
+  }
+  /// Returns true if `perspectiveGrid` has been explicitly set.
+  public var hasPerspectiveGrid: Bool {_storage._perspectiveGrid != nil}
+  /// Clears the value of `perspectiveGrid`. Subsequent reads from it will return its default value.
+  public mutating func clearPerspectiveGrid() {_uniqueStorage()._perspectiveGrid = nil}
+
+  /// View > Perspective Grid > Show for this page.  View state; never leaves the device.
+  public var perspectiveGridVisible: Bool {
+    get {_storage._perspectiveGridVisible}
+    set {_uniqueStorage()._perspectiveGridVisible = newValue}
+  }
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
-  fileprivate var _common: Wiretuner_Doc_V1_CommonProps? = nil
-  fileprivate var _origin: Wiretuner_Doc_V1_Point? = nil
-  fileprivate var _geometry: Wiretuner_Doc_V1_PageGeometry? = nil
-  fileprivate var _master: Wiretuner_Doc_V1_NodeRef? = nil
-  fileprivate var _rulerOrigin: Wiretuner_Doc_V1_Point? = nil
+  fileprivate var _storage = _StorageClass.defaultInstance
 }
 
 /// NodeProps.kind case `master_page`: a child of the well-known masters node 0:3.  A separate
@@ -611,12 +634,14 @@ public nonisolated struct Wiretuner_Doc_V1_Defaults: Sendable {
 ///    10-19   OBJ             objects/default-attributes.adoc (defaults 10)
 ///    20-29   FONT            typeface/typeface-documents.adoc (document_kind 20, font 21)
 ///    30-39   PRINT           printing/output-area.adoc (output_area 30), printing/printing.adoc
+///                            (print 31)
 ///    40-49   BASIC           basics/document-view.adoc (view 40, local_only)
-///    50-59   CMS             cms/color-management.adoc (color)
+///    50-59   CMS             cms/color-management.adoc (color 50)
 ///    60-69   WEB             web/publish-html.adoc (html_settings 60, html_setting_selected 61)
 ///    70-79   WEB             web/animation.adoc (animation 70)
 ///    80-89   DATA            automation/data-merge.adoc (data_fields 80 ... data_preview 83)
-///    90-99   FX              effects/raster-effects.adoc, effects/perspective.adoc
+///    90-99   FX              effects/raster-effects.adoc (raster_effects 90),
+///                            effects/perspective.adoc (perspective_grids 91)
 ///   100-119  free
 ///   120-129  IO              io/saving.adoc (snapshot_interval_override_s 120)
 ///   130-139  IO              io/file-info.adoc (info 130), io/exporting.adoc (last_export 131)
@@ -690,6 +715,152 @@ public nonisolated struct Wiretuner_Doc_V1_SettingsProps: @unchecked Sendable {
   public var hasDefaults: Bool {_storage._defaults != nil}
   /// Clears the value of `defaults`. Subsequent reads from it will return its default value.
   public mutating func clearDefaults() {_uniqueStorage()._defaults = nil}
+
+  /// Illustration or typeface (FONT block, font.proto).  ATOMIC: a later conversion wins.
+  public var documentKind: Wiretuner_Doc_V1_DocumentKind {
+    get {_storage._documentKind}
+    set {_uniqueStorage()._documentKind = newValue}
+  }
+
+  /// Font Info, kerning and the feature file of a typeface document (FONT block).  STRUCT.
+  public var font: Wiretuner_Doc_V1_FontProps {
+    get {_storage._font ?? Wiretuner_Doc_V1_FontProps()}
+    set {_uniqueStorage()._font = newValue}
+  }
+  /// Returns true if `font` has been explicitly set.
+  public var hasFont: Bool {_storage._font != nil}
+  /// Clears the value of `font`. Subsequent reads from it will return its default value.
+  public mutating func clearFont() {_uniqueStorage()._font = nil}
+
+  /// The document's single output area in pasteboard coordinates; unset = none (PRINT block,
+  /// printing/output-area.adoc).  ATOMIC: a rectangle is one thing.
+  public var outputArea: Wiretuner_Doc_V1_Rect {
+    get {_storage._outputArea ?? Wiretuner_Doc_V1_Rect()}
+    set {_uniqueStorage()._outputArea = newValue}
+  }
+  /// Returns true if `outputArea` has been explicitly set.
+  public var hasOutputArea: Bool {_storage._outputArea != nil}
+  /// Clears the value of `outputArea`. Subsequent reads from it will return its default value.
+  public mutating func clearOutputArea() {_uniqueStorage()._outputArea = nil}
+
+  /// Document-wide print settings (PRINT block, print.proto).  STRUCT.
+  public var print: Wiretuner_Doc_V1_PrintSettings {
+    get {_storage._print ?? Wiretuner_Doc_V1_PrintSettings()}
+    set {_uniqueStorage()._print = newValue}
+  }
+  /// Returns true if `print` has been explicitly set.
+  public var hasPrint: Bool {_storage._print != nil}
+  /// Clears the value of `print`. Subsequent reads from it will return its default value.
+  public mutating func clearPrint() {_uniqueStorage()._print = nil}
+
+  /// This Mac's view state (BASIC block, view.proto).  Never leaves the device: the outbox drops
+  /// any op whose path enters it.
+  public var view: Wiretuner_Doc_V1_ViewState {
+    get {_storage._view ?? Wiretuner_Doc_V1_ViewState()}
+    set {_uniqueStorage()._view = newValue}
+  }
+  /// Returns true if `view` has been explicitly set.
+  public var hasView: Bool {_storage._view != nil}
+  /// Clears the value of `view`. Subsequent reads from it will return its default value.
+  public mutating func clearView() {_uniqueStorage()._view = nil}
+
+  /// Working profiles, intent and proof setup (CMS block, color_management.proto).  STRUCT.
+  public var color: Wiretuner_Doc_V1_ColorSettings {
+    get {_storage._color ?? Wiretuner_Doc_V1_ColorSettings()}
+    set {_uniqueStorage()._color = newValue}
+  }
+  /// Returns true if `color` has been explicitly set.
+  public var hasColor: Bool {_storage._color != nil}
+  /// Clears the value of `color`. Subsequent reads from it will return its default value.
+  public mutating func clearColor() {_uniqueStorage()._color = nil}
+
+  /// Named HTML settings (WEB block, web.proto).  SEQUENCE: added, renamed and deleted
+  /// individually; order is the Setup sheet's list.  Empty = the synthesized Default setting.
+  public var htmlSettings: [Wiretuner_Doc_V1_HtmlSetting] {
+    get {_storage._htmlSettings}
+    set {_uniqueStorage()._htmlSettings = newValue}
+  }
+
+  /// The html_settings element the Publish sheet selects by default; dangling or unset reads as
+  /// the first setting.  Never leaves the device.  ATOMIC.
+  public var htmlSettingSelected: Wiretuner_Doc_V1_ElementId {
+    get {_storage._htmlSettingSelected ?? Wiretuner_Doc_V1_ElementId()}
+    set {_uniqueStorage()._htmlSettingSelected = newValue}
+  }
+  /// Returns true if `htmlSettingSelected` has been explicitly set.
+  public var hasHtmlSettingSelected: Bool {_storage._htmlSettingSelected != nil}
+  /// Clears the value of `htmlSettingSelected`. Subsequent reads from it will return its default value.
+  public mutating func clearHtmlSettingSelected() {_uniqueStorage()._htmlSettingSelected = nil}
+
+  /// Animation settings (WEB block, web.proto).  STRUCT.
+  public var animation: Wiretuner_Doc_V1_AnimationSettings {
+    get {_storage._animation ?? Wiretuner_Doc_V1_AnimationSettings()}
+    set {_uniqueStorage()._animation = newValue}
+  }
+  /// Returns true if `animation` has been explicitly set.
+  public var hasAnimation: Bool {_storage._animation != nil}
+  /// Clears the value of `animation`. Subsequent reads from it will return its default value.
+  public mutating func clearAnimation() {_uniqueStorage()._animation = nil}
+
+  /// Data-merge fields (DATA block, data.proto).  SEQUENCE: added, renamed and removed
+  /// individually; references are by element id.
+  public var dataFields: [Wiretuner_Doc_V1_DataField] {
+    get {_storage._dataFields}
+    set {_uniqueStorage()._dataFields = newValue}
+  }
+
+  /// Data sources.  SEQUENCE; the inactive ones keep their settings.
+  public var dataSources: [Wiretuner_Doc_V1_DataSource] {
+    get {_storage._dataSources}
+    set {_uniqueStorage()._dataSources = newValue}
+  }
+
+  /// The connected data_sources element (one at a time); dangling reads as none connected.
+  /// ATOMIC.
+  public var dataSourceActive: Wiretuner_Doc_V1_ElementId {
+    get {_storage._dataSourceActive ?? Wiretuner_Doc_V1_ElementId()}
+    set {_uniqueStorage()._dataSourceActive = newValue}
+  }
+  /// Returns true if `dataSourceActive` has been explicitly set.
+  public var hasDataSourceActive: Bool {_storage._dataSourceActive != nil}
+  /// Clears the value of `dataSourceActive`. Subsequent reads from it will return its default value.
+  public mutating func clearDataSourceActive() {_uniqueStorage()._dataSourceActive = nil}
+
+  /// Data preview state.  Never leaves the device.
+  public var dataPreview: Wiretuner_Doc_V1_DataPreview {
+    get {_storage._dataPreview ?? Wiretuner_Doc_V1_DataPreview()}
+    set {_uniqueStorage()._dataPreview = newValue}
+  }
+  /// Returns true if `dataPreview` has been explicitly set.
+  public var hasDataPreview: Bool {_storage._dataPreview != nil}
+  /// Clears the value of `dataPreview`. Subsequent reads from it will return its default value.
+  public mutating func clearDataPreview() {_uniqueStorage()._dataPreview = nil}
+
+  /// Raster effect resolution and color mode (FX block, effects.proto).  STRUCT.
+  public var rasterEffects: Wiretuner_Doc_V1_RasterEffectSettings {
+    get {_storage._rasterEffects ?? Wiretuner_Doc_V1_RasterEffectSettings()}
+    set {_uniqueStorage()._rasterEffects = newValue}
+  }
+  /// Returns true if `rasterEffects` has been explicitly set.
+  public var hasRasterEffects: Bool {_storage._rasterEffects != nil}
+  /// Clears the value of `rasterEffects`. Subsequent reads from it will return its default value.
+  public mutating func clearRasterEffects() {_uniqueStorage()._rasterEffects = nil}
+
+  /// Perspective grid definitions (FX block, perspective.proto).  SEQUENCE.
+  public var perspectiveGrids: [Wiretuner_Doc_V1_PerspectiveGrid] {
+    get {_storage._perspectiveGrids}
+    set {_uniqueStorage()._perspectiveGrids = newValue}
+  }
+
+  /// IPTC document metadata (IO block, file_info.proto).  STRUCT.
+  public var info: Wiretuner_Doc_V1_DocumentInfo {
+    get {_storage._info ?? Wiretuner_Doc_V1_DocumentInfo()}
+    set {_uniqueStorage()._info = newValue}
+  }
+  /// Returns true if `info` has been explicitly set.
+  public var hasInfo: Bool {_storage._info != nil}
+  /// Clears the value of `info`. Subsequent reads from it will return its default value.
+  public mutating func clearInfo() {_uniqueStorage()._info = nil}
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -878,63 +1049,125 @@ nonisolated extension Wiretuner_Doc_V1_Guide: SwiftProtobuf.Message, SwiftProtob
 
 nonisolated extension Wiretuner_Doc_V1_PageProps: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".PageProps"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}common\0\u{1}origin\0\u{1}geometry\0\u{1}bleed\0\u{1}master\0\u{3}ruler_origin\0\u{1}guides\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}common\0\u{1}origin\0\u{1}geometry\0\u{1}bleed\0\u{1}master\0\u{3}ruler_origin\0\u{1}guides\0\u{4}\u{d}perspective_grid\0\u{3}perspective_grid_visible\0")
+
+  fileprivate class _StorageClass {
+    var _common: Wiretuner_Doc_V1_CommonProps? = nil
+    var _origin: Wiretuner_Doc_V1_Point? = nil
+    var _geometry: Wiretuner_Doc_V1_PageGeometry? = nil
+    var _bleed: Double = 0
+    var _master: Wiretuner_Doc_V1_NodeRef? = nil
+    var _rulerOrigin: Wiretuner_Doc_V1_Point? = nil
+    var _guides: [Wiretuner_Doc_V1_Guide] = []
+    var _perspectiveGrid: Wiretuner_Doc_V1_ElementId? = nil
+    var _perspectiveGridVisible: Bool = false
+
+      // This property is used as the initial default value for new instances of the type.
+      // The type itself is protecting the reference to its storage via CoW semantics.
+      // This will force a copy to be made of this reference when the first mutation occurs;
+      // hence, it is safe to mark this as `nonisolated(unsafe)`.
+      static nonisolated(unsafe) let defaultInstance = _StorageClass()
+
+    private init() {}
+
+    init(copying source: _StorageClass) {
+      _common = source._common
+      _origin = source._origin
+      _geometry = source._geometry
+      _bleed = source._bleed
+      _master = source._master
+      _rulerOrigin = source._rulerOrigin
+      _guides = source._guides
+      _perspectiveGrid = source._perspectiveGrid
+      _perspectiveGridVisible = source._perspectiveGridVisible
+    }
+  }
+
+  fileprivate mutating func _uniqueStorage() -> _StorageClass {
+    if !isKnownUniquelyReferenced(&_storage) {
+      _storage = _StorageClass(copying: _storage)
+    }
+    return _storage
+  }
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularMessageField(value: &self._common) }()
-      case 2: try { try decoder.decodeSingularMessageField(value: &self._origin) }()
-      case 3: try { try decoder.decodeSingularMessageField(value: &self._geometry) }()
-      case 4: try { try decoder.decodeSingularDoubleField(value: &self.bleed) }()
-      case 5: try { try decoder.decodeSingularMessageField(value: &self._master) }()
-      case 6: try { try decoder.decodeSingularMessageField(value: &self._rulerOrigin) }()
-      case 7: try { try decoder.decodeRepeatedMessageField(value: &self.guides) }()
-      default: break
+    _ = _uniqueStorage()
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      while let fieldNumber = try decoder.nextFieldNumber() {
+        // The use of inline closures is to circumvent an issue where the compiler
+        // allocates stack space for every case branch when no optimizations are
+        // enabled. https://github.com/apple/swift-protobuf/issues/1034
+        switch fieldNumber {
+        case 1: try { try decoder.decodeSingularMessageField(value: &_storage._common) }()
+        case 2: try { try decoder.decodeSingularMessageField(value: &_storage._origin) }()
+        case 3: try { try decoder.decodeSingularMessageField(value: &_storage._geometry) }()
+        case 4: try { try decoder.decodeSingularDoubleField(value: &_storage._bleed) }()
+        case 5: try { try decoder.decodeSingularMessageField(value: &_storage._master) }()
+        case 6: try { try decoder.decodeSingularMessageField(value: &_storage._rulerOrigin) }()
+        case 7: try { try decoder.decodeRepeatedMessageField(value: &_storage._guides) }()
+        case 20: try { try decoder.decodeSingularMessageField(value: &_storage._perspectiveGrid) }()
+        case 21: try { try decoder.decodeSingularBoolField(value: &_storage._perspectiveGridVisible) }()
+        default: break
+        }
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    // The use of inline closures is to circumvent an issue where the compiler
-    // allocates stack space for every if/case branch local when no optimizations
-    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
-    // https://github.com/apple/swift-protobuf/issues/1182
-    try { if let v = self._common {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
-    } }()
-    try { if let v = self._origin {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
-    } }()
-    try { if let v = self._geometry {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
-    } }()
-    if self.bleed.bitPattern != 0 {
-      try visitor.visitSingularDoubleField(value: self.bleed, fieldNumber: 4)
-    }
-    try { if let v = self._master {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
-    } }()
-    try { if let v = self._rulerOrigin {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 6)
-    } }()
-    if !self.guides.isEmpty {
-      try visitor.visitRepeatedMessageField(value: self.guides, fieldNumber: 7)
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every if/case branch local when no optimizations
+      // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+      // https://github.com/apple/swift-protobuf/issues/1182
+      try { if let v = _storage._common {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+      } }()
+      try { if let v = _storage._origin {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+      } }()
+      try { if let v = _storage._geometry {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+      } }()
+      if _storage._bleed.bitPattern != 0 {
+        try visitor.visitSingularDoubleField(value: _storage._bleed, fieldNumber: 4)
+      }
+      try { if let v = _storage._master {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
+      } }()
+      try { if let v = _storage._rulerOrigin {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 6)
+      } }()
+      if !_storage._guides.isEmpty {
+        try visitor.visitRepeatedMessageField(value: _storage._guides, fieldNumber: 7)
+      }
+      try { if let v = _storage._perspectiveGrid {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 20)
+      } }()
+      if _storage._perspectiveGridVisible != false {
+        try visitor.visitSingularBoolField(value: _storage._perspectiveGridVisible, fieldNumber: 21)
+      }
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Wiretuner_Doc_V1_PageProps, rhs: Wiretuner_Doc_V1_PageProps) -> Bool {
-    if lhs._common != rhs._common {return false}
-    if lhs._origin != rhs._origin {return false}
-    if lhs._geometry != rhs._geometry {return false}
-    if lhs.bleed != rhs.bleed {return false}
-    if lhs._master != rhs._master {return false}
-    if lhs._rulerOrigin != rhs._rulerOrigin {return false}
-    if lhs.guides != rhs.guides {return false}
+    if lhs._storage !== rhs._storage {
+      let storagesAreEqual: Bool = withExtendedLifetime((lhs._storage, rhs._storage)) { (_args: (_StorageClass, _StorageClass)) in
+        let _storage = _args.0
+        let rhs_storage = _args.1
+        if _storage._common != rhs_storage._common {return false}
+        if _storage._origin != rhs_storage._origin {return false}
+        if _storage._geometry != rhs_storage._geometry {return false}
+        if _storage._bleed != rhs_storage._bleed {return false}
+        if _storage._master != rhs_storage._master {return false}
+        if _storage._rulerOrigin != rhs_storage._rulerOrigin {return false}
+        if _storage._guides != rhs_storage._guides {return false}
+        if _storage._perspectiveGrid != rhs_storage._perspectiveGrid {return false}
+        if _storage._perspectiveGridVisible != rhs_storage._perspectiveGridVisible {return false}
+        return true
+      }
+      if !storagesAreEqual {return false}
+    }
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -1193,7 +1426,7 @@ nonisolated extension Wiretuner_Doc_V1_Defaults: SwiftProtobuf.Message, SwiftPro
 
 nonisolated extension Wiretuner_Doc_V1_SettingsProps: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SettingsProps"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}common\0\u{1}units\0\u{3}printer_resolution\0\u{1}grid\0\u{3}custom_page_sizes\0\u{3}custom_units\0\u{3}guides_locked\0\u{2}\u{3}defaults\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}common\0\u{1}units\0\u{3}printer_resolution\0\u{1}grid\0\u{3}custom_page_sizes\0\u{3}custom_units\0\u{3}guides_locked\0\u{2}\u{3}defaults\0\u{4}\u{a}document_kind\0\u{1}font\0\u{4}\u{9}output_area\0\u{1}print\0\u{2}\u{9}view\0\u{2}\u{a}color\0\u{4}\u{a}html_settings\0\u{3}html_setting_selected\0\u{2}\u{9}animation\0\u{4}\u{a}data_fields\0\u{3}data_sources\0\u{3}data_source_active\0\u{3}data_preview\0\u{4}\u{7}raster_effects\0\u{3}perspective_grids\0\u{2}'info\0")
 
   fileprivate class _StorageClass {
     var _common: Wiretuner_Doc_V1_CommonProps? = nil
@@ -1204,6 +1437,22 @@ nonisolated extension Wiretuner_Doc_V1_SettingsProps: SwiftProtobuf.Message, Swi
     var _customUnits: [Wiretuner_Doc_V1_CustomUnit] = []
     var _guidesLocked: Bool = false
     var _defaults: Wiretuner_Doc_V1_Defaults? = nil
+    var _documentKind: Wiretuner_Doc_V1_DocumentKind = .unspecified
+    var _font: Wiretuner_Doc_V1_FontProps? = nil
+    var _outputArea: Wiretuner_Doc_V1_Rect? = nil
+    var _print: Wiretuner_Doc_V1_PrintSettings? = nil
+    var _view: Wiretuner_Doc_V1_ViewState? = nil
+    var _color: Wiretuner_Doc_V1_ColorSettings? = nil
+    var _htmlSettings: [Wiretuner_Doc_V1_HtmlSetting] = []
+    var _htmlSettingSelected: Wiretuner_Doc_V1_ElementId? = nil
+    var _animation: Wiretuner_Doc_V1_AnimationSettings? = nil
+    var _dataFields: [Wiretuner_Doc_V1_DataField] = []
+    var _dataSources: [Wiretuner_Doc_V1_DataSource] = []
+    var _dataSourceActive: Wiretuner_Doc_V1_ElementId? = nil
+    var _dataPreview: Wiretuner_Doc_V1_DataPreview? = nil
+    var _rasterEffects: Wiretuner_Doc_V1_RasterEffectSettings? = nil
+    var _perspectiveGrids: [Wiretuner_Doc_V1_PerspectiveGrid] = []
+    var _info: Wiretuner_Doc_V1_DocumentInfo? = nil
 
       // This property is used as the initial default value for new instances of the type.
       // The type itself is protecting the reference to its storage via CoW semantics.
@@ -1222,6 +1471,22 @@ nonisolated extension Wiretuner_Doc_V1_SettingsProps: SwiftProtobuf.Message, Swi
       _customUnits = source._customUnits
       _guidesLocked = source._guidesLocked
       _defaults = source._defaults
+      _documentKind = source._documentKind
+      _font = source._font
+      _outputArea = source._outputArea
+      _print = source._print
+      _view = source._view
+      _color = source._color
+      _htmlSettings = source._htmlSettings
+      _htmlSettingSelected = source._htmlSettingSelected
+      _animation = source._animation
+      _dataFields = source._dataFields
+      _dataSources = source._dataSources
+      _dataSourceActive = source._dataSourceActive
+      _dataPreview = source._dataPreview
+      _rasterEffects = source._rasterEffects
+      _perspectiveGrids = source._perspectiveGrids
+      _info = source._info
     }
   }
 
@@ -1248,6 +1513,22 @@ nonisolated extension Wiretuner_Doc_V1_SettingsProps: SwiftProtobuf.Message, Swi
         case 6: try { try decoder.decodeRepeatedMessageField(value: &_storage._customUnits) }()
         case 7: try { try decoder.decodeSingularBoolField(value: &_storage._guidesLocked) }()
         case 10: try { try decoder.decodeSingularMessageField(value: &_storage._defaults) }()
+        case 20: try { try decoder.decodeSingularEnumField(value: &_storage._documentKind) }()
+        case 21: try { try decoder.decodeSingularMessageField(value: &_storage._font) }()
+        case 30: try { try decoder.decodeSingularMessageField(value: &_storage._outputArea) }()
+        case 31: try { try decoder.decodeSingularMessageField(value: &_storage._print) }()
+        case 40: try { try decoder.decodeSingularMessageField(value: &_storage._view) }()
+        case 50: try { try decoder.decodeSingularMessageField(value: &_storage._color) }()
+        case 60: try { try decoder.decodeRepeatedMessageField(value: &_storage._htmlSettings) }()
+        case 61: try { try decoder.decodeSingularMessageField(value: &_storage._htmlSettingSelected) }()
+        case 70: try { try decoder.decodeSingularMessageField(value: &_storage._animation) }()
+        case 80: try { try decoder.decodeRepeatedMessageField(value: &_storage._dataFields) }()
+        case 81: try { try decoder.decodeRepeatedMessageField(value: &_storage._dataSources) }()
+        case 82: try { try decoder.decodeSingularMessageField(value: &_storage._dataSourceActive) }()
+        case 83: try { try decoder.decodeSingularMessageField(value: &_storage._dataPreview) }()
+        case 90: try { try decoder.decodeSingularMessageField(value: &_storage._rasterEffects) }()
+        case 91: try { try decoder.decodeRepeatedMessageField(value: &_storage._perspectiveGrids) }()
+        case 130: try { try decoder.decodeSingularMessageField(value: &_storage._info) }()
         default: break
         }
       }
@@ -1284,6 +1565,54 @@ nonisolated extension Wiretuner_Doc_V1_SettingsProps: SwiftProtobuf.Message, Swi
       try { if let v = _storage._defaults {
         try visitor.visitSingularMessageField(value: v, fieldNumber: 10)
       } }()
+      if _storage._documentKind != .unspecified {
+        try visitor.visitSingularEnumField(value: _storage._documentKind, fieldNumber: 20)
+      }
+      try { if let v = _storage._font {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 21)
+      } }()
+      try { if let v = _storage._outputArea {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 30)
+      } }()
+      try { if let v = _storage._print {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 31)
+      } }()
+      try { if let v = _storage._view {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 40)
+      } }()
+      try { if let v = _storage._color {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 50)
+      } }()
+      if !_storage._htmlSettings.isEmpty {
+        try visitor.visitRepeatedMessageField(value: _storage._htmlSettings, fieldNumber: 60)
+      }
+      try { if let v = _storage._htmlSettingSelected {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 61)
+      } }()
+      try { if let v = _storage._animation {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 70)
+      } }()
+      if !_storage._dataFields.isEmpty {
+        try visitor.visitRepeatedMessageField(value: _storage._dataFields, fieldNumber: 80)
+      }
+      if !_storage._dataSources.isEmpty {
+        try visitor.visitRepeatedMessageField(value: _storage._dataSources, fieldNumber: 81)
+      }
+      try { if let v = _storage._dataSourceActive {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 82)
+      } }()
+      try { if let v = _storage._dataPreview {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 83)
+      } }()
+      try { if let v = _storage._rasterEffects {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 90)
+      } }()
+      if !_storage._perspectiveGrids.isEmpty {
+        try visitor.visitRepeatedMessageField(value: _storage._perspectiveGrids, fieldNumber: 91)
+      }
+      try { if let v = _storage._info {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 130)
+      } }()
     }
     try unknownFields.traverse(visitor: &visitor)
   }
@@ -1301,6 +1630,22 @@ nonisolated extension Wiretuner_Doc_V1_SettingsProps: SwiftProtobuf.Message, Swi
         if _storage._customUnits != rhs_storage._customUnits {return false}
         if _storage._guidesLocked != rhs_storage._guidesLocked {return false}
         if _storage._defaults != rhs_storage._defaults {return false}
+        if _storage._documentKind != rhs_storage._documentKind {return false}
+        if _storage._font != rhs_storage._font {return false}
+        if _storage._outputArea != rhs_storage._outputArea {return false}
+        if _storage._print != rhs_storage._print {return false}
+        if _storage._view != rhs_storage._view {return false}
+        if _storage._color != rhs_storage._color {return false}
+        if _storage._htmlSettings != rhs_storage._htmlSettings {return false}
+        if _storage._htmlSettingSelected != rhs_storage._htmlSettingSelected {return false}
+        if _storage._animation != rhs_storage._animation {return false}
+        if _storage._dataFields != rhs_storage._dataFields {return false}
+        if _storage._dataSources != rhs_storage._dataSources {return false}
+        if _storage._dataSourceActive != rhs_storage._dataSourceActive {return false}
+        if _storage._dataPreview != rhs_storage._dataPreview {return false}
+        if _storage._rasterEffects != rhs_storage._rasterEffects {return false}
+        if _storage._perspectiveGrids != rhs_storage._perspectiveGrids {return false}
+        if _storage._info != rhs_storage._info {return false}
         return true
       }
       if !storagesAreEqual {return false}

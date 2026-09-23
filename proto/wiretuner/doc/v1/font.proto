@@ -1,0 +1,340 @@
+// proto/wiretuner/doc/v1/font.proto
+//
+// Typeface document settings (docs/_includes/typeface/typeface-documents.adoc, FONT-001; Font
+// Info on font-info.adoc, kerning on kerning-metrics.adoc, the feature file on
+// opentype-features.adoc): the document kind and FontProps, both on the settings node 0:1
+// (SettingsProps.document_kind, SettingsProps.font).  The glyph node kind is glyph.proto: it
+// reuses document.proto's Guide, and document.proto imports this file for SettingsProps, so
+// one file would be an import cycle.  Font values are in font units (1/UPM em); vertical
+// metrics are font values, y up.
+syntax = "proto3";
+
+package wiretuner.doc.v1;
+
+import "buf/validate/validate.proto";
+import "wiretuner/doc/v1/common.proto";
+import "wiretuner/doc/v1/text.proto";
+import "wt/crdt/options.proto";
+
+option java_multiple_files = true;
+option java_package = "com.villagecompute.wiretuner.doc.v1";
+option optimize_for = SPEED;
+
+// What kind of document this is (SettingsProps.document_kind).  ATOMIC: a later conversion
+// wins.
+enum DocumentKind {
+  // Reads as ILLUSTRATION_MULTI_PAGE (every document made before the kind existed).
+  DOCUMENT_KIND_UNSPECIFIED = 0;
+  // An illustration with exactly one page.
+  DOCUMENT_KIND_ILLUSTRATION_SINGLE_PAGE = 1;
+  // An illustration with any number of pages.
+  DOCUMENT_KIND_ILLUSTRATION_MULTI_PAGE = 2;
+  // A typeface: glyphs under 0:11 plus sketch pages.
+  DOCUMENT_KIND_TYPEFACE = 3;
+}
+
+// The font's naming table entries.  STRUCT: each is an independent register.  No field has a
+// minimum length: a SetFields carries the fields it does not write as empty strings, so
+// "required" names are enforced by the generate checker, not by validation.
+message FontNames {
+  // Family name; written by New Typeface and Convert to typeface.
+  string family = 1 [(buf.validate.field).string.max_len = 63];
+  // Style name ("Regular", "Bold Italic").
+  string style = 2 [(buf.validate.field).string.max_len = 63];
+  // PostScript name: ASCII, no spaces; "" = generated from family and style.
+  string postscript = 3 [(buf.validate.field).string = {
+    max_len: 63
+    pattern: "^[A-Za-z0-9._-]*$"
+  }];
+  // Full name; "" = generated.
+  string full = 4 [(buf.validate.field).string.max_len = 127];
+  // Version string such as "1.000"; "" reads as "1.000".
+  string version = 5 [
+    (buf.validate.field).string = {
+      max_len: 16
+      pattern: "^[0-9]+\\.[0-9]{3}$"
+    },
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+  // Copyright notice.
+  string copyright = 6 [(buf.validate.field).string.max_len = 4096];
+  // Trademark notice.
+  string trademark = 7 [(buf.validate.field).string.max_len = 1024];
+  // Designer.
+  string designer = 8 [(buf.validate.field).string.max_len = 255];
+  // Designer URL, or empty.
+  string designer_url = 9 [
+    (buf.validate.field).string = {
+      max_len: 1024
+      uri: true
+    },
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+  // Manufacturer.
+  string manufacturer = 10 [(buf.validate.field).string.max_len = 255];
+  // Manufacturer URL, or empty.
+  string manufacturer_url = 11 [
+    (buf.validate.field).string = {
+      max_len: 1024
+      uri: true
+    },
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+  // Description.
+  string description = 12 [(buf.validate.field).string.max_len = 4096];
+  // Sample text.
+  string sample_text = 13 [(buf.validate.field).string.max_len = 255];
+  // License text.
+  string license = 14 [(buf.validate.field).string.max_len = 65536];
+  // License URL, or empty.
+  string license_url = 15 [
+    (buf.validate.field).string = {
+      max_len: 1024
+      uri: true
+    },
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+}
+
+// A metric value that is either computed at generate time or typed.  ATOMIC wherever used: the
+// flag and the value are one choice.
+message OptionalMetric {
+  // Computed at generate time; `value` is ignored.
+  bool computed = 1;
+  // The typed value in font units.
+  double value = 2;
+}
+
+// Vertical metrics.  STRUCT.  Unset fields read as the defaults on font-info.adoc.
+message FontMetrics {
+  // Units per em, 16 .. 16384; 0 reads as 1000.
+  uint32 upm = 1 [
+    (buf.validate.field).uint32 = {
+      gte: 16
+      lte: 16384
+    },
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+  // Ascender, font units; above 0 by convention.
+  double ascender = 2;
+  // Descender, font units; below 0 by convention.
+  double descender = 3;
+  // x-height, font units.
+  double x_height = 4;
+  // Cap height, font units.
+  double cap_height = 5;
+  // Italic angle in degrees, -90 .. 90.
+  double italic_angle = 6 [(buf.validate.field).double = {
+    gte: -90
+    lte: 90
+  }];
+  // Underline position, font units.
+  double underline_position = 7;
+  // Underline thickness, font units, at least 0.
+  double underline_thickness = 8 [(buf.validate.field).double.gte = 0];
+  // Line gap, font units.
+  double line_gap = 9;
+  // OS/2 usWinAscent; unset = computed.  ATOMIC.
+  OptionalMetric win_ascent = 10 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // OS/2 usWinDescent; unset = computed.  ATOMIC.
+  OptionalMetric win_descent = 11 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // False: the typo_* metrics follow ascender, descender and line_gap.
+  bool typo_separate = 12;
+  // OS/2 sTypoAscender when typo_separate, font units.
+  double typo_ascender = 13;
+  // OS/2 sTypoDescender when typo_separate, font units.
+  double typo_descender = 14;
+  // OS/2 sTypoLineGap when typo_separate, font units.
+  double typo_line_gap = 15;
+}
+
+// OS/2 embedding permissions (fsType).
+enum Embedding {
+  // Reads as INSTALLABLE.
+  EMBEDDING_UNSPECIFIED = 0;
+  // fsType 0.
+  EMBEDDING_INSTALLABLE = 1;
+  // fsType 8.
+  EMBEDDING_EDITABLE = 2;
+  // fsType 4.
+  EMBEDDING_PREVIEW_PRINT = 3;
+  // fsType 2.
+  EMBEDDING_RESTRICTED = 4;
+}
+
+// OS/2 table fields.  STRUCT.
+message Os2Props {
+  // Weight class, 1 .. 1000; 0 reads as 400.
+  uint32 weight_class = 1 [
+    (buf.validate.field).uint32 = {
+      gte: 1
+      lte: 1000
+    },
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+  // Width class, 1 .. 9; 0 reads as 5.
+  uint32 width_class = 2 [
+    (buf.validate.field).uint32 = {
+      gte: 1
+      lte: 9
+    },
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+  // Four printable ASCII characters; "" reads as "WTNR".
+  string vendor_id = 3 [
+    (buf.validate.field).string = {
+      len: 4
+      pattern: "^[ -~]{4}$"
+    },
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+  // fsSelection bold.
+  bool style_bold = 4;
+  // fsSelection italic.
+  bool style_italic = 5;
+  // Embedding permission.
+  Embedding embedding = 6 [(buf.validate.field).enum.defined_only = true];
+  // fsType no-subsetting bit.
+  bool no_subsetting = 7;
+  // fsType bitmap-embedding-only bit.
+  bool bitmap_embedding_only = 8;
+  // PANOSE, 10 bytes; empty reads as all zero (Any).  ATOMIC.
+  bytes panose = 9 [
+    (wt.crdt.field).merge = MERGE_ATOMIC,
+    (buf.validate.field).bytes.len = 10,
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+}
+
+// A named extra metric line.  Element of MetricGuideSettings.extra_lines.
+message MetricLine {
+  // Element id (MERGE_SEQUENCE).
+  ElementId id = 1;
+  // The label; "" reads as "Line".
+  string name = 2 [(buf.validate.field).string.max_len = 63];
+  // Font units, y up (a font value, not a canvas coordinate).
+  double y = 3;
+}
+
+// Which metric guides the glyph canvas shows, and their colors.  STRUCT.
+message MetricGuideSettings {
+  // Hide the baseline; inverted so the default shows every line.
+  bool hide_baseline = 1;
+  // Hide the x-height line.
+  bool hide_x_height = 2;
+  // Hide the cap-height line.
+  bool hide_cap_height = 3;
+  // Hide the ascender line.
+  bool hide_ascender = 4;
+  // Hide the descender line.
+  bool hide_descender = 5;
+  // Hide the side bearings.
+  bool hide_side_bearings = 6;
+  // Hide the em box.
+  bool hide_em_box = 7;
+  // Hide the line labels.
+  bool hide_labels = 8;
+  // Baseline color; unset = the default palette.  ATOMIC.
+  Color baseline_color = 9 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Metric line color; unset = the default palette.  ATOMIC.
+  Color metric_color = 10 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Side bearing color; unset = the default palette.  ATOMIC.
+  Color bearing_color = 11 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Named extra lines.  SEQUENCE.
+  repeated MetricLine extra_lines = 12 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+}
+
+// Which side of a kerning pair a class applies to.
+enum KernSide {
+  // Reads as LEFT.
+  KERN_SIDE_UNSPECIFIED = 0;
+  // The first glyph of a pair.
+  KERN_SIDE_LEFT = 1;
+  // The second glyph of a pair.
+  KERN_SIDE_RIGHT = 2;
+}
+
+// A pair kern (exception).  Element of FontProps.pairs.  Duplicates resolve on read.
+message KernPair {
+  // Element id (MERGE_SEQUENCE).
+  ElementId id = 1;
+  // The first glyph node.
+  NodeRef left = 2 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
+  // The second glyph node.
+  NodeRef right = 3 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
+  // Font units, -32767 .. 32767; negative tightens.
+  double value = 4 [(buf.validate.field).double = {
+    gte: -32767
+    lte: 32767
+  }];
+}
+
+// A class member.  Element of KernClass.members, a SEQUENCE whose order is meaningless (a set
+// of messages has no SET policy); a glyph in two classes of one side is resolved on read.
+message KernClassMember {
+  // Element id (MERGE_SEQUENCE).
+  ElementId id = 1;
+  // The glyph node.
+  NodeRef glyph = 2 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
+}
+
+// A kerning class.  Element of FontProps.classes.
+message KernClass {
+  // Element id (MERGE_SEQUENCE).
+  ElementId id = 1;
+  // Class name; two live classes with one name are written O and O_2 in element-id order.
+  string name = 2 [
+    (buf.validate.field).string = {
+      max_len: 63
+      pattern: "^[A-Za-z0-9._]+$"
+    },
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+  // Left or right; immutable in practice (a side change is a new class).
+  KernSide side = 3 [(buf.validate.field).enum.defined_only = true];
+  // The members.  SEQUENCE.
+  repeated KernClassMember members = 4 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+}
+
+// One class-kerning matrix cell.  Element of FontProps.class_kerns.  An absent cell is 0;
+// duplicates resolve on read.
+message ClassKern {
+  // Element id (MERGE_SEQUENCE).
+  ElementId id = 1;
+  // A KernClass with side LEFT.  ATOMIC.
+  ElementId left = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // A KernClass with side RIGHT.  ATOMIC.
+  ElementId right = 3 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Font units, -32767 .. 32767.
+  double value = 4 [(buf.validate.field).double = {
+    gte: -32767
+    lte: 32767
+  }];
+}
+
+// Font Info, kerning and the feature file (SettingsProps.font).  STRUCT: each field is an
+// independent register.
+message FontProps {
+  // Naming.  STRUCT.
+  FontNames names = 1;
+  // Vertical metrics.  STRUCT.
+  FontMetrics metrics = 2;
+  // OS/2 fields.  STRUCT.
+  Os2Props os2 = 3;
+  // Metric guide display.  STRUCT.
+  MetricGuideSettings guides = 4;
+  // Pair kerns.  SEQUENCE.
+  repeated KernPair pairs = 5 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  // Kerning classes.  SEQUENCE.
+  repeated KernClass classes = 6 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  // Class kerning cells.  SEQUENCE.
+  repeated ClassKern class_kerns = 7 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  // The user's feature file text (plain; marks are ignored on read).  TEXT.
+  RichText features = 8 [(wt.crdt.field).merge = MERGE_TEXT];
+  // Do not append the generated kern feature.
+  bool omit_generated_kern = 9;
+  // Do not append the generated mark and mkmk features.
+  bool omit_generated_mark = 10;
+  // Do not append the generated liga feature.
+  bool omit_generated_liga = 11;
+}

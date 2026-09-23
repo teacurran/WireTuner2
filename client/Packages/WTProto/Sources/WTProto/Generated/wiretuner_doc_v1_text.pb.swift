@@ -20,8 +20,8 @@
 ///
 /// TextMarkValue field numbers: 1-12 and 14-21 type/creating-text.adoc (TYPE-001, TYPE-045);
 /// 13 reserved (a `url` mark superseded by `link`); 40 `link` (web/urls.adoc, WEB-001); 41
-/// `field` (automation/data-merge.adoc, DATA epic); `mention` (collaboration/comments.adoc)
-/// takes the next free number from 42.
+/// `field` (automation/data-merge.adoc, DATA-001); 42 `mention` (collaboration/comments.adoc,
+/// COLLAB-025); 43- free, a task takes the next number and records it here.
 
 import SwiftProtobuf
 
@@ -1263,6 +1263,38 @@ public nonisolated struct Wiretuner_Doc_V1_TextMarkValue: Sendable {
     set {value = .feature(newValue)}
   }
 
+  /// A text-range link (web/urls.adoc, WEB-001).  An empty string removes the link from the
+  /// range.
+  public var link: String {
+    get {
+      if case .link(let v)? = value {return v}
+      return String()
+    }
+    set {value = .link(newValue)}
+  }
+
+  /// A data-merge placeholder (automation/data-merge.adoc, DATA-001): a DataField element on
+  /// the settings node.  The span is the placeholder's characters; on merge it is replaced by
+  /// the value.  Non-expanding (start before, end after): typing at either edge is outside.
+  /// Dangling reads as `{{missing}}`.  ATOMIC.
+  public var field: Wiretuner_Doc_V1_ElementId {
+    get {
+      if case .field(let v)? = value {return v}
+      return Wiretuner_Doc_V1_ElementId()
+    }
+    set {value = .field(newValue)}
+  }
+
+  /// A mention in a comment (collaboration/comments.adoc, COLLAB-025): the account id, or
+  /// "team:<team id>", over the name's characters.  Comment.mentions is the authoritative list.
+  public var mention: String {
+    get {
+      if case .mention(let v)? = value {return v}
+      return String()
+    }
+    set {value = .mention(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   /// The attribute; exactly one is set per mark.
@@ -1308,6 +1340,17 @@ public nonisolated struct Wiretuner_Doc_V1_TextMarkValue: Sendable {
     case axes(Wiretuner_Doc_V1_FontVariation)
     /// One OpenType feature's state; the attribute identity is (feature, tag).  ATOMIC.
     case feature(Wiretuner_Doc_V1_FeatureSetting)
+    /// A text-range link (web/urls.adoc, WEB-001).  An empty string removes the link from the
+    /// range.
+    case link(String)
+    /// A data-merge placeholder (automation/data-merge.adoc, DATA-001): a DataField element on
+    /// the settings node.  The span is the placeholder's characters; on merge it is replaced by
+    /// the value.  Non-expanding (start before, end after): typing at either edge is outside.
+    /// Dangling reads as `{{missing}}`.  ATOMIC.
+    case field(Wiretuner_Doc_V1_ElementId)
+    /// A mention in a comment (collaboration/comments.adoc, COLLAB-025): the account id, or
+    /// "team:<team id>", over the name's characters.  Comment.mentions is the authoritative list.
+    case mention(String)
 
   }
 
@@ -3279,7 +3322,7 @@ nonisolated extension Wiretuner_Doc_V1_Anchor: SwiftProtobuf.Message, SwiftProto
 
 nonisolated extension Wiretuner_Doc_V1_TextMarkValue: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".TextMarkValue"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}font_family\0\u{3}font_style\0\u{1}size\0\u{1}leading\0\u{1}kerning\0\u{3}range_kerning\0\u{3}baseline_shift\0\u{3}horizontal_scale\0\u{1}fill\0\u{1}stroke\0\u{1}effect\0\u{1}style\0\u{2}\u{2}language\0\u{3}no_break\0\u{1}case\0\u{3}inline_graphic\0\u{1}overprint\0\u{3}no_hyphen\0\u{1}axes\0\u{1}feature\0\u{b}url\0\u{c}\u{d}\u{1}")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}font_family\0\u{3}font_style\0\u{1}size\0\u{1}leading\0\u{1}kerning\0\u{3}range_kerning\0\u{3}baseline_shift\0\u{3}horizontal_scale\0\u{1}fill\0\u{1}stroke\0\u{1}effect\0\u{1}style\0\u{2}\u{2}language\0\u{3}no_break\0\u{1}case\0\u{3}inline_graphic\0\u{1}overprint\0\u{3}no_hyphen\0\u{1}axes\0\u{1}feature\0\u{2}\u{13}link\0\u{1}field\0\u{1}mention\0\u{b}url\0\u{c}\u{d}\u{1}")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -3487,6 +3530,35 @@ nonisolated extension Wiretuner_Doc_V1_TextMarkValue: SwiftProtobuf.Message, Swi
           self.value = .feature(v)
         }
       }()
+      case 40: try {
+        var v: String?
+        try decoder.decodeSingularStringField(value: &v)
+        if let v = v {
+          if self.value != nil {try decoder.handleConflictingOneOf()}
+          self.value = .link(v)
+        }
+      }()
+      case 41: try {
+        var v: Wiretuner_Doc_V1_ElementId?
+        var hadOneofValue = false
+        if let current = self.value {
+          hadOneofValue = true
+          if case .field(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.value = .field(v)
+        }
+      }()
+      case 42: try {
+        var v: String?
+        try decoder.decodeSingularStringField(value: &v)
+        if let v = v {
+          if self.value != nil {try decoder.handleConflictingOneOf()}
+          self.value = .mention(v)
+        }
+      }()
       default: break
       }
     }
@@ -3577,6 +3649,18 @@ nonisolated extension Wiretuner_Doc_V1_TextMarkValue: SwiftProtobuf.Message, Swi
     case .feature?: try {
       guard case .feature(let v)? = self.value else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 21)
+    }()
+    case .link?: try {
+      guard case .link(let v)? = self.value else { preconditionFailure() }
+      try visitor.visitSingularStringField(value: v, fieldNumber: 40)
+    }()
+    case .field?: try {
+      guard case .field(let v)? = self.value else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 41)
+    }()
+    case .mention?: try {
+      guard case .mention(let v)? = self.value else { preconditionFailure() }
+      try visitor.visitSingularStringField(value: v, fieldNumber: 42)
     }()
     case nil: break
     }

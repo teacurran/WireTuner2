@@ -1,0 +1,102 @@
+// proto/wiretuner/doc/v1/view.proto
+//
+// View state and named views (docs/_includes/basics/document-view.adoc, BASIC-014).  The
+// per-window view state never leaves this Mac: it is SettingsProps.view, marked local_only, so
+// WTModel exposes it through the same observation API as everything else while the outbox drops
+// any op whose path enters it.  Named views are shared `custom_view` nodes, children of the
+// settings node 0:1, in View > Custom order.
+syntax = "proto3";
+
+package wiretuner.doc.v1;
+
+import "buf/validate/validate.proto";
+import "wiretuner/doc/v1/common.proto";
+import "wt/crdt/options.proto";
+
+option java_multiple_files = true;
+option java_package = "com.villagecompute.wiretuner.doc.v1";
+option optimize_for = SPEED;
+
+// How the canvas draws artwork.
+enum DrawingMode {
+  // Reads as PREVIEW.
+  DRAWING_MODE_UNSPECIFIED = 0;
+  // Full preview.
+  DRAWING_MODE_PREVIEW = 1;
+  // Fast preview.
+  DRAWING_MODE_FAST_PREVIEW = 2;
+  // Keyline (outlines).
+  DRAWING_MODE_KEYLINE = 3;
+  // Fast keyline.
+  DRAWING_MODE_FAST_KEYLINE = 4;
+}
+
+// Local view state (SettingsProps.view, local_only).  Every path under it is local_only through
+// its parent field; the registers are STRUCT so the local store updates them one at a time.
+message ViewState {
+  // Magnification, 0.06 .. 256 (1.0 = 100%); 0 (never set) reads as 1.0.
+  double magnification = 1 [
+    (buf.validate.field).double = {
+      gte: 0.06
+      lte: 256
+    },
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+  // Pasteboard point at the window's top-left.  ATOMIC.
+  Point scroll_origin = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Preview, fast preview, keyline or fast keyline.
+  DrawingMode mode = 3 [(buf.validate.field).enum.defined_only = true];
+  // The current page node; unset = the first page.  ATOMIC.
+  OpId current_page = 4 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Snap to point (Tools panel Snap section).
+  bool snap_to_point = 5;
+  // Snap to object.
+  bool snap_to_object = 6;
+  // Snap to grid.
+  bool snap_to_grid = 7;
+  // Snap to guides.
+  bool snap_to_guides = 8;
+  // View > Page Rulers > Show.
+  bool page_rulers = 9;
+  // View > Text Rulers.
+  bool text_rulers = 10;
+  // View > Grid > Show.
+  bool grid_visible = 11;
+  // View > Guides > Show.
+  bool guides_visible = 12;
+  // The named view recalled most recently, for Custom > Previous.  ATOMIC.
+  OpId previous_view = 13 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // The one recalled before it.  ATOMIC.
+  OpId previous_view_2 = 14 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Canvas rotation in degrees, counter-clockwise, -180 < r <= 180; 0 = straight.  Not part of
+  // a named view.
+  double rotation_degrees = 15 [(buf.validate.field).double = {
+    gt: -180
+    lte: 180
+  }];
+}
+
+// NodeProps.kind case `custom_view` (BASIC block): a named view, a child of the settings node
+// 0:1.  The name is CommonProps.name (empty reads as "View n").  Shared: it is the one piece of
+// "view" that is a document fact.
+message CustomViewProps {
+  // The view's name and the other shared registers.
+  CommonProps common = 1;
+  // Magnification, mode and scroll position are one register: a view redefined by two people
+  // concurrently must not end up with one person's zoom and the other's scroll.  ATOMIC.
+  ViewTarget target = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];
+}
+
+// Where a named view goes.  ATOMIC wherever used.  No rotation: a named view is a place in the
+// document, not the angle someone holds their trackpad at.
+message ViewTarget {
+  // Magnification, 0.06 .. 256.
+  double magnification = 1 [(buf.validate.field).double = {
+    gte: 0.06
+    lte: 256
+  }];
+  // Pasteboard point at the window's top-left.  Part of the one ATOMIC value.
+  Point scroll_origin = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Drawing mode.
+  DrawingMode mode = 3 [(buf.validate.field).enum.defined_only = true];
+}

@@ -192,6 +192,10 @@ public nonisolated struct Wiretuner_Doc_V1_AppearanceProps: Sendable {
   /// stack.  SEQUENCE.
   public var effects: [Wiretuner_Doc_V1_Effect] = []
 
+  /// Per-object raster effect resolution in ppi (effects/raster-effects.adoc, FX-007): 0 = the
+  /// document's SettingsProps.raster_effects; otherwise 1 .. 2400.
+  public var rasterDpi: UInt32 = 0
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -444,7 +448,7 @@ nonisolated extension Wiretuner_Doc_V1_StrokeKind: SwiftProtobuf._ProtoNameProvi
 
 nonisolated extension Wiretuner_Doc_V1_AppearanceProps: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".AppearanceProps"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}fills\0\u{1}strokes\0\u{1}effects\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}fills\0\u{1}strokes\0\u{1}effects\0\u{3}raster_dpi\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -455,6 +459,7 @@ nonisolated extension Wiretuner_Doc_V1_AppearanceProps: SwiftProtobuf.Message, S
       case 1: try { try decoder.decodeRepeatedMessageField(value: &self.fills) }()
       case 2: try { try decoder.decodeRepeatedMessageField(value: &self.strokes) }()
       case 3: try { try decoder.decodeRepeatedMessageField(value: &self.effects) }()
+      case 4: try { try decoder.decodeSingularUInt32Field(value: &self.rasterDpi) }()
       default: break
       }
     }
@@ -470,6 +475,9 @@ nonisolated extension Wiretuner_Doc_V1_AppearanceProps: SwiftProtobuf.Message, S
     if !self.effects.isEmpty {
       try visitor.visitRepeatedMessageField(value: self.effects, fieldNumber: 3)
     }
+    if self.rasterDpi != 0 {
+      try visitor.visitSingularUInt32Field(value: self.rasterDpi, fieldNumber: 4)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -477,6 +485,7 @@ nonisolated extension Wiretuner_Doc_V1_AppearanceProps: SwiftProtobuf.Message, S
     if lhs.fills != rhs.fills {return false}
     if lhs.strokes != rhs.strokes {return false}
     if lhs.effects != rhs.effects {return false}
+    if lhs.rasterDpi != rhs.rasterDpi {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

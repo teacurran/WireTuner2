@@ -1,0 +1,36 @@
+// proto/wiretuner/doc/v1/script.proto
+//
+// The `script` node kind (docs/_includes/document/scripting.adoc; DATA-001 delivers it): a
+// JavaScript script stored in a document or a team library document, under the assets
+// collection 0:9.  The script's name is CommonProps.name.
+syntax = "proto3";
+
+package wiretuner.doc.v1;
+
+import "buf/validate/validate.proto";
+import "wiretuner/doc/v1/common.proto";
+import "wiretuner/doc/v1/symbol.proto";
+import "wt/crdt/options.proto";
+
+option java_multiple_files = true;
+option java_package = "com.villagecompute.wiretuner.doc.v1";
+option optimize_for = SPEED;
+
+// NodeProps.kind case `script` (DATA block).  A script is saved whole from the Script Editor,
+// so `source` is one ATOMIC register: a script always runs as last saved by somebody, never as a
+// character-level merge of two people's edits.  Name and description are independent
+// registers.
+message ScriptProps {
+  // The script's name (CommonProps.name) and the other shared registers.
+  CommonProps common = 1;
+  // What the script does.  Informational.
+  string description = 2 [(buf.validate.field).string.max_len = 1024];
+  // The JavaScript source, at most 1 MiB.  ATOMIC.
+  string source = 3 [
+    (buf.validate.field).string.max_len = 1048576,
+    (wt.crdt.field).merge = MERGE_ATOMIC
+  ];
+  // Set when copied from a team library so Update from Library can find the original
+  // (`symbol` names the script node there).  ATOMIC.
+  LibrarySource library = 4 [(wt.crdt.field).merge = MERGE_ATOMIC];
+}

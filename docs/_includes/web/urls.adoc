@@ -273,7 +273,7 @@ Package `WTApp` for the panel and the view overlay, `WTModel` for the commands,
 Track:: client-model
 Depends on:: PROTO-003, CRDT-001, CRDT-006, APP-011
 Size:: S
-Delivers:: `NavigationProps` on `CommonProps` and the `link` text mark in `TextMarkValue`; `WTModel` commands `setLink(nodes:url:)`, `setLink(range:url:)`, `setAlt`, `setTarget`, with inverses; the link index (`DocumentIndex.links`) maintained from applied changes.
+Delivers:: `NavigationProps` on `CommonProps` and the `link` text mark in `TextMarkValue`; `WTModel` commands `setLink(nodes:url:)`, `setLink(range:url:)`, `setAlt`, `setTarget`, with inverses; the link index (`DocumentIndex.links`) maintained from applied changes (implemented in `common.proto` (`NavigationProps`, unchanged since PROTO-003) and `text.proto` (`link` = 40) for the schema half; the `WTModel` commands and link index are client-model work still to do).
 Done when::
 * Setting, changing and clearing a link on an object and on a text range each produce one change with a correct inverse; undo restores the prior value only where the register is still this user's write.
 * Merge test: two replicas set different URLs on one object concurrently and converge on the greater OpId; two replicas link overlapping text ranges and converge per the mark rules.

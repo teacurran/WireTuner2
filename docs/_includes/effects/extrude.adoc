@@ -222,9 +222,18 @@ message ExtrudeProps {
 
 message Rotation3 { double x = 1; double y = 2; double z = 3; }
 
+// The enums are top-level in extrude.proto with prefixed values and `_UNSPECIFIED` zeros:
+// SurfaceKind (SURFACE_KIND_FLAT ... ), LightDirection (LIGHT_DIRECTION_UNSPECIFIED reads NONE,
+// then NONE = 1, TOP_LEFT = 2 ... BOTTOM_RIGHT = 10), ProfileKind (PROFILE_KIND_UNSPECIFIED
+// reads NONE, then NONE = 1, BEVEL = 2, STATIC = 3).  Lower bounds of 1 carry
+// IGNORE_IF_ZERO_VALUE so a sparse SetFields validates; 0 reads as the default.
+enum SurfaceKind {
+  SURFACE_KIND_UNSPECIFIED = 0; SURFACE_KIND_FLAT = 1; SURFACE_KIND_SHADED = 2;
+  SURFACE_KIND_WIREFRAME = 3; SURFACE_KIND_MESH = 4; SURFACE_KIND_HIDDEN_MESH = 5;
+}
+
 message Surface {
-  enum Kind { KIND_UNSPECIFIED = 0; KIND_FLAT = 1; KIND_SHADED = 2; KIND_WIREFRAME = 3; KIND_MESH = 4; KIND_HIDDEN_MESH = 5; }
-  Kind kind = 1;                 // default SHADED on create
+  SurfaceKind kind = 1;          // default SHADED on create
   uint32 steps = 2 [(buf.validate.field).uint32 = {gte: 1, lte: 100}];   // curvature subdivision
   uint32 ambient = 3 [(buf.validate.field).uint32.lte = 100];
   Light light1 = 4;              // STRUCT
@@ -232,18 +241,12 @@ message Surface {
 }
 
 message Light {
-  enum Direction {
-    DIRECTION_NONE = 0; DIRECTION_TOP_LEFT = 1; DIRECTION_TOP = 2; DIRECTION_TOP_RIGHT = 3;
-    DIRECTION_LEFT = 4; DIRECTION_FRONT = 5; DIRECTION_RIGHT = 6;
-    DIRECTION_BOTTOM_LEFT = 7; DIRECTION_BOTTOM = 8; DIRECTION_BOTTOM_RIGHT = 9;
-  }
-  Direction direction = 1;
+  LightDirection direction = 1;  // see the enum note above
   uint32 intensity = 2 [(buf.validate.field).uint32.lte = 100];
 }
 
 message Profile {
-  enum Kind { KIND_NONE = 0; KIND_BEVEL = 1; KIND_STATIC = 2; }
-  Kind kind = 1;
+  ProfileKind kind = 1;          // see the enum note above
   // A copy of the pasted open path's geometry (the DRAW epic's Contour message, one contour).
   // ATOMIC: Paste In replaces it whole; nobody edits its points in place.
   Contour path = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];
@@ -360,7 +363,7 @@ Track:: proto
 Depends on:: PROTO-003
 Size:: S
 Delivers:: `extrude` kind in `NodeProps` with `ExtrudeProps`, `Rotation3`, `Surface`, `Light`,
-`Profile` as sketched.
+`Profile` as sketched (implemented in `extrude.proto`; `extrude` = 101).
 Done when::
 * Lints clean; ATOMIC options on `vanishing_point`, `rotation`, `profile.path`.
 * Conformance vectors: concurrent vanishing-point drags; rotation vs. length; remove vs. edit;

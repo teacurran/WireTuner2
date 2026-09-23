@@ -212,8 +212,13 @@ message PixelSource {
   int32 pixel_width = 3 [(buf.validate.field).int32.gt = 0];
   int32 pixel_height = 4 [(buf.validate.field).int32.gt = 0];
   ColorMode mode = 5;
-  int32 bits_per_channel = 6;   // 1, 8 or 16
+  int32 bits_per_channel = 6 [(buf.validate.field).int32 = {in: [1, 8, 16]}];
   bool has_alpha = 7;           // the encoded file carries an alpha channel
+}
+
+enum GrayRampPreset {           // unspecified reads NORMAL
+  GRAY_RAMP_PRESET_UNSPECIFIED = 0; GRAY_RAMP_PRESET_NORMAL = 1; GRAY_RAMP_PRESET_INVERTED = 2;
+  GRAY_RAMP_PRESET_LIGHTEN = 3; GRAY_RAMP_PRESET_DARKEN = 4; GRAY_RAMP_PRESET_CUSTOM = 5;
 }
 
 // A grayscale ramp remaps the gray levels of a bilevel or grayscale image (Object panel).
@@ -224,34 +229,36 @@ message GrayRamp {
   int32 contrast = 3 [(buf.validate.field).int32 = {gte: -100, lte: 100}];
 }
 
+// NodeProps.kind case `image` = 170 (IMG block).  Field blocks: 1 common, 2-19 IMG.
 message ImageProps {
-  PixelSource pixels = 1 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  CommonProps common = 1;
+  PixelSource pixels = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];
   // File name at import; shown in the Object panel and on placeholders.
-  string source_name = 2 [(buf.validate.field).string.max_len = 256];
+  string source_name = 3 [(buf.validate.field).string.max_len = 256];
   // Resolution in pixels per inch.  Together with the pixel dimensions this fixes the
   // image's natural size in points; CommonProps.transform scales, rotates and skews it.
-  double dpi_x = 3 [(buf.validate.field).double.gt = 0];
-  double dpi_y = 4 [(buf.validate.field).double.gt = 0];
+  // 0 (never set) reads as 72 (IGNORE_IF_ZERO_VALUE, so a sparse SetFields validates).
+  double dpi_x = 4 [(buf.validate.field).double.gt = 0];
+  double dpi_y = 5 [(buf.validate.field).double.gt = 0];
   // Object panel "Display alpha channel".  Ignored when pixels.has_alpha is false.
-  bool display_alpha = 5;
+  bool display_alpha = 6;
   // Object panel "Transparent": white pixels of a bilevel or grayscale image are clear.
-  bool transparent_background = 6;
+  bool transparent_background = 7;
   // Object panel "Edit grayscale ramp".  Unset means NORMAL.
-  GrayRamp ramp = 7 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  GrayRamp ramp = 8 [(wt.crdt.field).merge = MERGE_ATOMIC];
   // Fill color applied to a bilevel or grayscale image colors its dark pixels.  ColorRef is
-  // the COLOR epic's swatch-or-literal color reference; cached so a deleted swatch keeps
-  // the last color.
-  ColorRef tint = 8 [(wt.crdt.field).merge = MERGE_ATOMIC,
-                     (wt.crdt.field).on_dangling = REF_FALLBACK_CACHED];
+  // the COLOR epic's swatch-or-literal color reference; its swatch NodeRef is
+  // REF_FALLBACK_CACHED, so a deleted swatch keeps the last color.
+  ColorRef tint = 9 [(wt.crdt.field).merge = MERGE_ATOMIC];
   // Non-destructive crop in unit image space (0..1 of the natural size, y down).  ATOMIC: a
   // rectangle's edges are one gesture.  Unset means uncropped.  See cropping-bitmaps.adoc.
-  Rect crop = 9 [(wt.crdt.field).merge = MERGE_ATOMIC];
-  // Color management: source profile and rendering intent.  Reserved for the CMS epic;
+  Rect crop = 10 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Color management: source profile and rendering intent (CMS epic, color_management.proto);
   // see image-color.adoc.
-  ImageColorSettings color = 10;
-  // Link record (source path, modification date) kept under the `assets` collection by the
-  // Links panel; unset for pasted and generated images.  See linking-embedding.adoc.
-  NodeRef source = 11 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
+  ImageColorSettings color = 11;
+  // The `asset` node (under 0:9) holding the link record; unset for pasted and generated
+  // images.  See linking-embedding.adoc.
+  NodeRef source = 12 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
 }
 ----
 
@@ -351,7 +358,7 @@ decodes an image.
 Track:: proto
 Depends on:: PROTO-003, PROTO-005
 Size:: S
-Delivers:: `doc/v1/image.proto` with `ColorMode`, `PixelSource`, `GrayRamp`, `ImageProps` as sketched above, the `image` kind in `NodeProps`, and its number block.
+Delivers:: `doc/v1/image.proto` with `ColorMode`, `PixelSource`, `GrayRamp`, `ImageProps` as sketched above, the `image` kind in `NodeProps`, and its number block (implemented in `image.proto` and `placed_file.proto`; `image` = 170, `placed_file` = 171, `CommonProps common = 1` first so the sketch numbers moved up by one, and `GrayRampPreset` defined).
 Done when::
 * `buf lint` with `COMMENTS` passes; every field carries the merge option shown here.
 * Conformance vectors: concurrent `pixels` replacement (ATOMIC), concurrent `crop` vs `pixels`

@@ -1,0 +1,131 @@
+// proto/wiretuner/doc/v1/color_management.proto
+//
+// Color management settings (docs/_includes/cms/color-management.adoc, CMS-001; the per-image
+// message is image-color.adoc's).  `ColorSettings` is SettingsProps.color on the settings node
+// 0:1; `ImageColorSettings` is ImageProps.color (image.proto).  Every ProfileRef field is
+// ATOMIC: name, hash, bundled id and space describe the same bytes and are meaningless apart.
+syntax = "proto3";
+
+package wiretuner.doc.v1;
+
+import "buf/validate/validate.proto";
+import "wt/crdt/options.proto";
+
+option java_multiple_files = true;
+option java_package = "com.villagecompute.wiretuner.doc.v1";
+option optimize_for = SPEED;
+
+// The color space class of an ICC profile.
+enum ProfileSpace {
+  // Unknown class; readers fall back by the field's own model.
+  PROFILE_SPACE_UNSPECIFIED = 0;
+  // An RGB profile.
+  PROFILE_SPACE_RGB = 1;
+  // A CMYK profile.
+  PROFILE_SPACE_CMYK = 2;
+  // A grayscale profile.
+  PROFILE_SPACE_GRAY = 3;
+  // A Lab profile.
+  PROFILE_SPACE_LAB = 4;
+}
+
+// Identifies one ICC profile.  ATOMIC wherever used.
+message ProfileRef {
+  // The profile's description tag, shown in menus and the review sheet.  Informational.
+  string name = 1 [(buf.validate.field).string.max_len = 256];
+  // SHA-256 of the ICC data (32 bytes).  Set for every profile, bundled or not, so two clients
+  // can tell whether they hold the same bytes.  For a custom profile this is also its blob hash
+  // (BlobService).
+  bytes sha256 = 2 [
+    (buf.validate.field).bytes.len = 32,
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+  // Non-empty for a profile shipped inside the app ("srgb", "display-p3", "default-cmyk",
+  // ...): readers use the bundled data and never fetch a blob.  Empty means fetch the blob.
+  string bundled_id = 3 [(buf.validate.field).string.max_len = 64];
+  // Color space class, so a reader can choose a fallback of the right class without the ICC
+  // data.
+  ProfileSpace space = 4 [(buf.validate.field).enum.defined_only = true];
+}
+
+// An ICC rendering intent.
+enum RenderingIntent {
+  // Use the document default where one exists (ColorSettings.intent: RELATIVE_COLORIMETRIC).
+  RENDERING_INTENT_UNSPECIFIED = 0;
+  // Perceptual.
+  RENDERING_INTENT_PERCEPTUAL = 1;
+  // Relative colorimetric.
+  RENDERING_INTENT_RELATIVE_COLORIMETRIC = 2;
+  // Saturation.
+  RENDERING_INTENT_SATURATION = 3;
+  // Absolute colorimetric.
+  RENDERING_INTENT_ABSOLUTE_COLORIMETRIC = 4;
+}
+
+// What View > Proof Colors simulates.
+enum ProofTarget {
+  // Reads as NONE.
+  PROOF_TARGET_UNSPECIFIED = 0;
+  // No proof.
+  PROOF_TARGET_NONE = 1;
+  // Simulate the Working CMYK press.
+  PROOF_TARGET_SEPARATIONS = 2;
+  // Simulate ProofSettings.composite_profile.
+  PROOF_TARGET_COMPOSITE = 3;
+}
+
+// Document color settings (SettingsProps.color).  STRUCT: each setting is an independent choice
+// and two people changing different ones concurrently both win.
+message ColorSettings {
+  // Working RGB: the RGB output space (Convert to RGB, RGB exports, untagged RGB images).
+  // Artwork colors carry their own space in `Color.space` and are never reinterpreted by this
+  // profile.  Unset reads as bundled "srgb".  ATOMIC.
+  ProfileRef rgb_profile = 1 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Working CMYK: the separations press.  Unset reads as bundled "default-cmyk".  ATOMIC.
+  ProfileRef cmyk_profile = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Document default intent.  UNSPECIFIED reads as RELATIVE_COLORIMETRIC.
+  RenderingIntent intent = 3 [(buf.validate.field).enum.defined_only = true];
+  // Black point compensation, written as its negation so the unset default is on.
+  bool no_black_point_compensation = 4;
+  // Color manage spot colors, written as its negation so the unset default is on.
+  bool no_spot_color_management = 5;
+  // Profile assumed for RGB images with neither an embedded nor an assigned profile.  Unset
+  // reads as `rgb_profile`.  ATOMIC.
+  ProfileRef default_image_rgb_profile = 6 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Proof setup.  STRUCT.
+  ProofSettings proof = 7;
+}
+
+// Proof setup (View > Proof Colors simulates this).  STRUCT.
+message ProofSettings {
+  // What to simulate.
+  ProofTarget target = 1 [(buf.validate.field).enum.defined_only = true];
+  // Used when target is COMPOSITE.  Unset reads as ColorSettings.cmyk_profile.  ATOMIC.
+  ProfileRef composite_profile = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // The composite proofer imitates the separations press (Working CMYK) rather than being the
+  // output device.  Also read by the PRINT epic when printing to a composite device.
+  bool composite_simulates_separations = 3;
+  // The display step uses absolute colorimetric.
+  bool simulate_paper_white = 4;
+  // Simulate the press's black ink.
+  bool simulate_black_ink = 5;
+}
+
+// Per-image color interpretation (image-color.adoc; ImageProps.color).  STRUCT: the choices are
+// independent.
+message ImageColorSettings {
+  // Profile the pixels are interpreted through when `use_embedded` is false.  Unset reads as
+  // the document default for the image's model (default RGB image source, Working CMYK, or
+  // bundled generic gray).  ATOMIC.
+  ProfileRef source_profile = 1 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Intent for this image when converting to proof or output.  UNSPECIFIED reads as the
+  // document intent.
+  RenderingIntent intent = 2 [(buf.validate.field).enum.defined_only = true];
+  // Interpret through `embedded_profile`, ignoring `source_profile`.  Reads as false while
+  // `embedded_profile` is unset, whatever was written.
+  bool use_embedded = 3;
+  // The profile found inside the file at import, if any.  Written once by the importer, never
+  // by the Object panel; kept so the user can return to it and the exporter can re-embed it.
+  // ATOMIC.
+  ProfileRef embedded_profile = 4 [(wt.crdt.field).merge = MERGE_ATOMIC];
+}

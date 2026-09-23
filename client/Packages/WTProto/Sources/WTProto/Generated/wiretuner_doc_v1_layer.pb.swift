@@ -13,7 +13,8 @@
 /// The layer node kind (docs/_includes/library/layers.adoc, LIB-001).  PROTO-003 created the
 /// message with only `common` so NodeProps could name it; LIB-001 filled in `LayerRole` and the
 /// layer flags here, in this file, because the FILE breaking rules pin a message to the file it
-/// first appeared in.  `CommonProps.origin_layer` (Remember layer info) is in common.proto.
+/// first appeared in; WEB-014 added LayerFrameProps.  `CommonProps.origin_layer` (Remember layer
+/// info) is in common.proto.
 
 import SwiftProtobuf
 
@@ -133,6 +134,16 @@ public nonisolated struct Wiretuner_Doc_V1_LayerProps: Sendable {
   /// Clears the value of `mergedInto`. Subsequent reads from it will return its default value.
   public mutating func clearMergedInto() {self._mergedInto = nil}
 
+  /// Animation frame metadata (web/animation.adoc, WEB-014).  STRUCT.
+  public var frame: Wiretuner_Doc_V1_LayerFrameProps {
+    get {_frame ?? Wiretuner_Doc_V1_LayerFrameProps()}
+    set {_frame = newValue}
+  }
+  /// Returns true if `frame` has been explicitly set.
+  public var hasFrame: Bool {self._frame != nil}
+  /// Clears the value of `frame`. Subsequent reads from it will return its default value.
+  public mutating func clearFrame() {self._frame = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -140,6 +151,25 @@ public nonisolated struct Wiretuner_Doc_V1_LayerProps: Sendable {
   fileprivate var _common: Wiretuner_Doc_V1_CommonProps? = nil
   fileprivate var _highlight: Wiretuner_Doc_V1_Color? = nil
   fileprivate var _mergedInto: Wiretuner_Doc_V1_NodeRef? = nil
+  fileprivate var _frame: Wiretuner_Doc_V1_LayerFrameProps? = nil
+}
+
+/// A layer's animation frame fields (web/animation.adoc).  STRUCT: hold and exclusion are
+/// independent choices.
+public nonisolated struct Wiretuner_Doc_V1_LayerFrameProps: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Number of frame periods this layer stays on screen, 0 .. 10000; 0 (never set) reads as 1.
+  public var hold: UInt32 = 0
+
+  /// Leave this layer out of the animation; it still prints and exports as a still.
+  public var excluded: Bool = false
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
 }
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
@@ -152,7 +182,7 @@ nonisolated extension Wiretuner_Doc_V1_LayerRole: SwiftProtobuf._ProtoNameProvid
 
 nonisolated extension Wiretuner_Doc_V1_LayerProps: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".LayerProps"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}common\0\u{1}role\0\u{1}visible\0\u{1}locked\0\u{1}printing\0\u{1}keyline\0\u{1}highlight\0\u{3}merged_into\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}common\0\u{1}role\0\u{1}visible\0\u{1}locked\0\u{1}printing\0\u{1}keyline\0\u{1}highlight\0\u{3}merged_into\0\u{2}\u{c}frame\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -168,6 +198,7 @@ nonisolated extension Wiretuner_Doc_V1_LayerProps: SwiftProtobuf.Message, SwiftP
       case 6: try { try decoder.decodeSingularBoolField(value: &self.keyline) }()
       case 7: try { try decoder.decodeSingularMessageField(value: &self._highlight) }()
       case 8: try { try decoder.decodeSingularMessageField(value: &self._mergedInto) }()
+      case 20: try { try decoder.decodeSingularMessageField(value: &self._frame) }()
       default: break
       }
     }
@@ -202,6 +233,9 @@ nonisolated extension Wiretuner_Doc_V1_LayerProps: SwiftProtobuf.Message, SwiftP
     try { if let v = self._mergedInto {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 8)
     } }()
+    try { if let v = self._frame {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 20)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -214,6 +248,42 @@ nonisolated extension Wiretuner_Doc_V1_LayerProps: SwiftProtobuf.Message, SwiftP
     if lhs.keyline != rhs.keyline {return false}
     if lhs._highlight != rhs._highlight {return false}
     if lhs._mergedInto != rhs._mergedInto {return false}
+    if lhs._frame != rhs._frame {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Doc_V1_LayerFrameProps: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".LayerFrameProps"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}hold\0\u{1}excluded\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularUInt32Field(value: &self.hold) }()
+      case 2: try { try decoder.decodeSingularBoolField(value: &self.excluded) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.hold != 0 {
+      try visitor.visitSingularUInt32Field(value: self.hold, fieldNumber: 1)
+    }
+    if self.excluded != false {
+      try visitor.visitSingularBoolField(value: self.excluded, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Wiretuner_Doc_V1_LayerFrameProps, rhs: Wiretuner_Doc_V1_LayerFrameProps) -> Bool {
+    if lhs.hold != rhs.hold {return false}
+    if lhs.excluded != rhs.excluded {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

@@ -120,7 +120,7 @@ by default: each field an independent register.
 
 [source,protobuf]
 ----
-// doc/v1/settings.proto
+// doc/v1/document.proto (SettingsProps) and doc/v1/file_info.proto (the rest)
 message SettingsProps {
   // ... other epics' fields ...
   DocumentInfo info = 130;   // STRUCT by default: every field merges on its own
@@ -156,7 +156,11 @@ message DocumentInfo {
   string state = 32;                  // photoshop:State
   string country = 33;                // photoshop:Country
   string instructions = 34 [(buf.validate.field).string.max_len = 2000];    // photoshop:Instructions
+  string language = 35 [(buf.validate.field).string.max_len = 35];          // dc:language, BCP 47
 }
+// The implementation also caps every unbounded string above (256 for names and places, 2000
+// for usage terms, 32 per supplemental category, 256 per creator) and lets web_statement be
+// empty (IGNORE_IF_ZERO_VALUE).
 
 enum CopyrightStatus {
   COPYRIGHT_STATUS_UNSPECIFIED = 0;   // "Unknown"
@@ -211,7 +215,7 @@ Nothing beyond storing and relaying changes.
 Track:: proto
 Depends on:: PROTO-003, PROTO-005
 Size:: S
-Delivers:: `DocumentInfo` and `CopyrightStatus` in `doc/v1/settings.proto` with the validators above and `keywords` as `MERGE_SET`.
+Delivers:: `DocumentInfo` and `CopyrightStatus` in `doc/v1/settings.proto` with the validators above and `keywords` as `MERGE_SET` (implemented in `file_info.proto`; `info` = `SettingsProps` 130).
 Done when::
 * Lints clean with `COMMENTS`; generated Swift validators reject a 257-character headline.
 * Conformance vectors: concurrent edits to two fields; same field from two replicas; concurrent add/remove of one keyword; whole-list replacement of `creators` from two replicas.

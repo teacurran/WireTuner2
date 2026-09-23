@@ -11,37 +11,51 @@
 // here; blocks are never renumbered and a case is never removed.
 //
 //   Block     Epic    Cases so far
-//   1-19      DOC     1 document, 2 settings, 3 page, 4 master_page
+//   1-19      DOC     1 document, 2 settings, 3 page, 4 master_page, 5 asset
 //   20-49     DRAW    20 path, 21 rect, 22 ellipse, 23 polygon, 24 chart
 //   50-69     OBJ     50 group
 //   70-79     COLOR   70 swatch
 //   80-99     ATTR    80 brush
-//   100-129   FX      (blend, path effect, envelope, perspective, extrude, ... FX epic)
+//   100-129   FX      100 blend, 101 extrude, 102 envelope, 103 perspective
 //   130-149   TYPE    130 text (text styles are `style` nodes of kind PARAGRAPH/CHARACTER)
 //   150-169   LIB     150 layer, 151 symbol, 152 symbol_folder, 153 instance, 154 style
-//   170-189   IMG     (image, placed_file, ... IMG epic)
-//   190-209   WEB     (svg_animation, ... WEB epic)
-//   210-219   COLLAB  (comment_thread, COLLAB-025)
-//   220-239   FONT    (glyph, FONT-001)
-//   240-259   DATA    (barcode, script, DATA-001)
-//   260-      free; a new epic takes the next block of 20 and adds a row here.
+//   170-189   IMG     170 image, 171 placed_file
+//   190-209   WEB     190 svg_animation
+//   210-219   COLLAB  210 comment_thread
+//   220-239   FONT    220 glyph
+//   240-259   DATA    240 barcode, 241 script
+//   260-279   BASIC   260 custom_view (BASIC-014)
+//   280-      free; a new epic takes the next block of 20 and adds a row here.
 syntax = "proto3";
 
 package wiretuner.doc.v1;
 
 import "buf/validate/validate.proto";
+import "wiretuner/doc/v1/asset.proto";
+import "wiretuner/doc/v1/barcode.proto";
+import "wiretuner/doc/v1/blend.proto";
 import "wiretuner/doc/v1/chart.proto";
 import "wiretuner/doc/v1/color.proto";
+import "wiretuner/doc/v1/comments.proto";
 import "wiretuner/doc/v1/common.proto";
 import "wiretuner/doc/v1/document.proto";
+import "wiretuner/doc/v1/envelope.proto";
+import "wiretuner/doc/v1/extrude.proto";
+import "wiretuner/doc/v1/glyph.proto";
 import "wiretuner/doc/v1/group.proto";
+import "wiretuner/doc/v1/image.proto";
 import "wiretuner/doc/v1/layer.proto";
 import "wiretuner/doc/v1/path.proto";
+import "wiretuner/doc/v1/perspective.proto";
+import "wiretuner/doc/v1/placed_file.proto";
+import "wiretuner/doc/v1/script.proto";
 import "wiretuner/doc/v1/shape.proto";
 import "wiretuner/doc/v1/stroke.proto";
 import "wiretuner/doc/v1/style.proto";
+import "wiretuner/doc/v1/svg_animation.proto";
 import "wiretuner/doc/v1/symbol.proto";
 import "wiretuner/doc/v1/text.proto";
+import "wiretuner/doc/v1/view.proto";
 
 option java_multiple_files = true;
 option java_package = "com.villagecompute.wiretuner.doc.v1";
@@ -120,6 +134,8 @@ message NodeProps {
     PageProps page = 3;
     // A master page under 0:3 (DOC block).
     MasterPageProps master_page = 4;
+    // An imported file's blob and link record under 0:9 (DOC block, asset.proto).
+    AssetProps asset = 5;
     // A vector path (DRAW block, path.proto).
     PathProps path = 20;
     // A live rectangle (DRAW block, shape.proto).
@@ -136,6 +152,14 @@ message NodeProps {
     SwatchProps swatch = 70;
     // A brush under 0:8 (ATTR block, stroke.proto).
     BrushProps brush = 80;
+    // A blend of key objects (FX block, blend.proto).
+    BlendProps blend = 100;
+    // An extrusion wrapping one flat shape (FX block, extrude.proto).
+    ExtrudeProps extrude = 101;
+    // An envelope warping its contents (FX block, envelope.proto).
+    EnvelopeProps envelope = 102;
+    // An object attached to a perspective grid plane (FX block, perspective.proto).
+    PerspectiveProps perspective = 103;
     // A text block, text on a path or text in a path (TYPE block, text.proto).
     TextProps text = 130;
     // A layer under 0:4 (LIB block).
@@ -148,5 +172,21 @@ message NodeProps {
     InstanceProps instance = 153;
     // A graphic, paragraph or character style under 0:6 (LIB block, style.proto).
     StyleProps style = 154;
+    // An imported bitmap (IMG block, image.proto).
+    ImageProps image = 170;
+    // A placed file shown through its preview, such as EPS (IMG block, placed_file.proto).
+    PlacedFileProps placed_file = 171;
+    // A placed SVG animation (WEB block, svg_animation.proto).
+    SvgAnimationProps svg_animation = 190;
+    // A comment thread under 0:12 (COLLAB block, comments.proto).
+    CommentThreadProps comment_thread = 210;
+    // A glyph of a typeface document under 0:11 (FONT block, glyph.proto).
+    GlyphProps glyph = 220;
+    // A QR or Code 128 barcode (DATA block, barcode.proto).
+    BarcodeProps barcode = 240;
+    // A JavaScript script under 0:9 (DATA block, script.proto).
+    ScriptProps script = 241;
+    // A named view, a child of the settings node 0:1 (BASIC block, view.proto).
+    CustomViewProps custom_view = 260;
   }
 }

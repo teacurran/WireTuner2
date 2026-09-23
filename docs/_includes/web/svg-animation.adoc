@@ -149,32 +149,33 @@ ifdef::spec[]
 === Data model
 
 A new node kind, `SvgAnimationProps`, in the `NodeProps.kind` block reserved for the WEB epic.
-The file is a blob in the `assets` collection, as for images (the IMG epic's `AssetProps`); the
-node references the asset.
+The file is a blob in the `assets` collection, as for images (the DOC epic's `AssetProps`,
+xref:linking-embedding.adoc[Linking and embedding]); the node references the asset.
 
 [source,protobuf]
 ----
-// node.proto -- NodeProps.kind case for a placed SVG animation (WEB block)
+// svg_animation.proto -- NodeProps.kind case `svg_animation` = 190 (WEB block)
 message SvgAnimationProps {
+  CommonProps common = 1;
   // The asset node holding the SVG blob (assets collection).  Placeholder until the blob
   // has downloaded; if the asset is deleted the node renders as a hatched placeholder.
-  NodeRef asset = 1 [(wt.crdt.field).on_dangling = REF_FALLBACK_PLACEHOLDER];
+  NodeRef asset = 2 [(wt.crdt.field).on_dangling = REF_FALLBACK_PLACEHOLDER];
   // Natural size from the viewBox (or width/height), read at import.  ATOMIC: width and
   // height belong together.
-  Size natural_size = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  Size natural_size = 3 [(wt.crdt.field).merge = MERGE_ATOMIC];
   // Declared duration in milliseconds; 0 = indefinite.  Informational.
-  uint64 duration_ms = 3;
+  uint64 duration_ms = 4;
   // Which animation mechanisms the file uses, for the Object panel and export warnings.
-  // Informational; recomputed on Replace.
-  SvgAnimationKinds kinds = 4;
+  // Informational; recomputed on Replace.  ATOMIC: one analysis of one file.
+  SvgAnimationKinds kinds = 5 [(wt.crdt.field).merge = MERGE_ATOMIC];
   // Poster frame time in milliseconds.
-  uint64 poster_time_ms = 5;
-  // The poster image blob (PNG, rendered at import or when the time changes) so every replica
-  // can draw the object before the SVG has downloaded, and so PDF/print never need to
-  // evaluate the animation.
-  NodeRef poster = 6 [(wt.crdt.field).on_dangling = REF_FALLBACK_PLACEHOLDER];
+  uint64 poster_time_ms = 6;
+  // The asset node holding the poster image blob (PNG, rendered at import or when the time
+  // changes) so every replica can draw the object before the SVG has downloaded, and so
+  // PDF/print never need to evaluate the animation.
+  NodeRef poster = 7 [(wt.crdt.field).on_dangling = REF_FALLBACK_PLACEHOLDER];
   // Web playback settings.  STRUCT: each is independent.
-  SvgAnimationWebProps web = 7;
+  SvgAnimationWebProps web = 8;
   // Placement: CommonProps.transform (ATOMIC) maps natural_size points (at 72 px/in) to the
   // pasteboard, as for bitmaps.
 }
@@ -191,7 +192,7 @@ message SvgAnimationWebProps {
   bool play_on_hover = 3;
 }
 
-enum LoopMode { LOOP_MODE_AS_FILE = 0; LOOP_MODE_LOOP = 1; LOOP_MODE_ONCE = 2; }
+enum LoopMode { LOOP_MODE_UNSPECIFIED = 0; LOOP_MODE_AS_FILE = 1; LOOP_MODE_LOOP = 2; LOOP_MODE_ONCE = 3; }  // unspecified reads AS_FILE
 ----
 
 The SVG blob is uploaded through `BlobService` like any asset; the poster blob is small and is
@@ -272,7 +273,7 @@ value (`wt.blob.max-size.svg-animation`, 50 MiB).
 Track:: client-model
 Depends on:: PROTO-003, CRDT-001, APP-011
 Size:: S
-Delivers:: `SvgAnimationProps`, `SvgAnimationKinds` and `SvgAnimationWebProps` in the WEB kind block, commands to create, set poster, set web props and replace the asset with inverses, read-time normalizations.
+Delivers:: `SvgAnimationProps`, `SvgAnimationKinds` and `SvgAnimationWebProps` in the WEB kind block, commands to create, set poster, set web props and replace the asset with inverses, read-time normalizations (implemented in `svg_animation.proto` for the schema half (`svg_animation` = 190); the commands are client-model work still to do).
 Done when::
 * Creating, editing and replacing produce one change each with correct inverses.
 * Merge test: two replicas set different poster times concurrently and converge with `poster` and `poster_time_ms` from the same winning change; a concurrent move survives a replace.

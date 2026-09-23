@@ -10,12 +10,17 @@
 
 /// proto/wiretuner/doc/v1/effects.proto
 ///
-/// Live effects in the attribute stack (docs/_includes/effects/live-effects.adoc, FX epic).
-/// ATTR-001 creates `Effect` with only the two fields every stack element shares so
-/// AppearanceProps can reserve its `effects` sequence; the FX epic fills it in here, in this
-/// file, because the FILE breaking rules pin a message to the file it first appeared in.  Like
-/// Fill and Stroke, the kind and its settings go in a MERGE_VARIANT message (`EffectSettings
-/// settings = 4`, after `attached_to = 3`), so a concurrent kind switch keeps every case.
+/// Live effects in the attribute stack (docs/_includes/effects/live-effects.adoc, FX-001 and
+/// FX-045; raster-effects.adoc, FX-007; transparency.adoc, FX-013).  ATTR-001 created `Effect`
+/// with only the two fields every stack element shares so AppearanceProps could reserve its
+/// `effects` sequence; the FX epic filled it in here, in this file, because the FILE breaking
+/// rules pin a message to the file it first appeared in.  Like Fill and Stroke, the kind and its
+/// settings are a MERGE_VARIANT message (`EffectSettings settings = 4`), so a concurrent kind
+/// switch keeps every case's settings.  The effect wrapper node kinds (blend, extrude, envelope,
+/// perspective) are in their own files.
+///
+/// Adding an EffectKind later bumps the document's feature level (crdt-model.adoc, "Schema
+/// evolution"): an older client renders the object without the unknown effect.
 
 import SwiftProtobuf
 
@@ -29,8 +34,711 @@ fileprivate nonisolated struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobu
   typealias Version = _2
 }
 
+/// Which effect settings message is live.  Unset renders as no effect; an unknown value (a
+/// newer client's) renders as no effect and its registers are preserved.
+public nonisolated enum Wiretuner_Doc_V1_EffectKind: SwiftProtobuf.Enum, Swift.CaseIterable {
+  public typealias RawValue = Int
+
+  /// Renders as no effect.
+  case unspecified // = 0
+
+  /// BendEffect.
+  case bend // = 1
+
+  /// DuetEffect.
+  case duet // = 2
+
+  /// ExpandPathEffect.
+  case expandPath // = 3
+
+  /// RaggedEffect.
+  case ragged // = 4
+
+  /// SketchEffect.
+  case sketch // = 5
+
+  /// TransformEffect.
+  case transform // = 6
+
+  /// BevelEmbossEffect.
+  case bevelEmboss // = 7
+
+  /// BlurEffect.
+  case blur // = 8
+
+  /// ShadowEffect.
+  case shadow // = 9
+
+  /// SharpenEffect.
+  case sharpen // = 10
+
+  /// TransparencyEffect.
+  case transparency // = 11
+
+  /// CornersEffect.
+  case corners // = 12
+
+  /// CombineEffect.
+  case combine // = 13
+  case UNRECOGNIZED(Int)
+
+  public init() {
+    self = .unspecified
+  }
+
+  public init?(rawValue: Int) {
+    switch rawValue {
+    case 0: self = .unspecified
+    case 1: self = .bend
+    case 2: self = .duet
+    case 3: self = .expandPath
+    case 4: self = .ragged
+    case 5: self = .sketch
+    case 6: self = .transform
+    case 7: self = .bevelEmboss
+    case 8: self = .blur
+    case 9: self = .shadow
+    case 10: self = .sharpen
+    case 11: self = .transparency
+    case 12: self = .corners
+    case 13: self = .combine
+    default: self = .UNRECOGNIZED(rawValue)
+    }
+  }
+
+  public var rawValue: Int {
+    switch self {
+    case .unspecified: return 0
+    case .bend: return 1
+    case .duet: return 2
+    case .expandPath: return 3
+    case .ragged: return 4
+    case .sketch: return 5
+    case .transform: return 6
+    case .bevelEmboss: return 7
+    case .blur: return 8
+    case .shadow: return 9
+    case .sharpen: return 10
+    case .transparency: return 11
+    case .corners: return 12
+    case .combine: return 13
+    case .UNRECOGNIZED(let i): return i
+    }
+  }
+
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static let allCases: [Wiretuner_Doc_V1_EffectKind] = [
+    .unspecified,
+    .bend,
+    .duet,
+    .expandPath,
+    .ragged,
+    .sketch,
+    .transform,
+    .bevelEmboss,
+    .blur,
+    .shadow,
+    .sharpen,
+    .transparency,
+    .corners,
+    .combine,
+  ]
+
+}
+
+/// How a duet makes its clones.
+public nonisolated enum Wiretuner_Doc_V1_DuetMode: SwiftProtobuf.Enum, Swift.CaseIterable {
+  public typealias RawValue = Int
+
+  /// Reads as REFLECT.
+  case unspecified // = 0
+
+  /// One mirror image across the axis.
+  case reflect // = 1
+
+  /// `copies` rotated copies about the centre.
+  case rotate // = 2
+  case UNRECOGNIZED(Int)
+
+  public init() {
+    self = .unspecified
+  }
+
+  public init?(rawValue: Int) {
+    switch rawValue {
+    case 0: self = .unspecified
+    case 1: self = .reflect
+    case 2: self = .rotate
+    default: self = .UNRECOGNIZED(rawValue)
+    }
+  }
+
+  public var rawValue: Int {
+    switch self {
+    case .unspecified: return 0
+    case .reflect: return 1
+    case .rotate: return 2
+    case .UNRECOGNIZED(let i): return i
+    }
+  }
+
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static let allCases: [Wiretuner_Doc_V1_DuetMode] = [
+    .unspecified,
+    .reflect,
+    .rotate,
+  ]
+
+}
+
+/// Which side of the path an expand-path effect grows on.
+public nonisolated enum Wiretuner_Doc_V1_ExpandDirection: SwiftProtobuf.Enum, Swift.CaseIterable {
+  public typealias RawValue = Int
+
+  /// Reads as BOTH.
+  case unspecified // = 0
+
+  /// Centred on the path.
+  case both // = 1
+
+  /// Inside a closed path only.
+  case inside // = 2
+
+  /// Outside a closed path only.
+  case outside // = 3
+  case UNRECOGNIZED(Int)
+
+  public init() {
+    self = .unspecified
+  }
+
+  public init?(rawValue: Int) {
+    switch rawValue {
+    case 0: self = .unspecified
+    case 1: self = .both
+    case 2: self = .inside
+    case 3: self = .outside
+    default: self = .UNRECOGNIZED(rawValue)
+    }
+  }
+
+  public var rawValue: Int {
+    switch self {
+    case .unspecified: return 0
+    case .both: return 1
+    case .inside: return 2
+    case .outside: return 3
+    case .UNRECOGNIZED(let i): return i
+    }
+  }
+
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static let allCases: [Wiretuner_Doc_V1_ExpandDirection] = [
+    .unspecified,
+    .both,
+    .inside,
+    .outside,
+  ]
+
+}
+
+/// The shape a corners effect cuts.
+public nonisolated enum Wiretuner_Doc_V1_CornerStyle: SwiftProtobuf.Enum, Swift.CaseIterable {
+  public typealias RawValue = Int
+
+  /// Reads as ROUND.
+  case unspecified // = 0
+
+  /// Convex arc.
+  case round // = 1
+
+  /// Concave scoop.
+  case invertedRound // = 2
+
+  /// Straight cut.
+  case chamfer // = 3
+  case UNRECOGNIZED(Int)
+
+  public init() {
+    self = .unspecified
+  }
+
+  public init?(rawValue: Int) {
+    switch rawValue {
+    case 0: self = .unspecified
+    case 1: self = .round
+    case 2: self = .invertedRound
+    case 3: self = .chamfer
+    default: self = .UNRECOGNIZED(rawValue)
+    }
+  }
+
+  public var rawValue: Int {
+    switch self {
+    case .unspecified: return 0
+    case .round: return 1
+    case .invertedRound: return 2
+    case .chamfer: return 3
+    case .UNRECOGNIZED(let i): return i
+    }
+  }
+
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static let allCases: [Wiretuner_Doc_V1_CornerStyle] = [
+    .unspecified,
+    .round,
+    .invertedRound,
+    .chamfer,
+  ]
+
+}
+
+/// The boolean a combine effect computes.
+public nonisolated enum Wiretuner_Doc_V1_BooleanOp: SwiftProtobuf.Enum, Swift.CaseIterable {
+  public typealias RawValue = Int
+
+  /// Reads as UNION.
+  case unspecified // = 0
+
+  /// Everything covered by any member.
+  case union // = 1
+
+  /// The bottom member minus every member above it.
+  case subtract // = 2
+
+  /// What every member covers.
+  case intersect // = 3
+
+  /// Regions covered an odd number of times.
+  case exclude // = 4
+  case UNRECOGNIZED(Int)
+
+  public init() {
+    self = .unspecified
+  }
+
+  public init?(rawValue: Int) {
+    switch rawValue {
+    case 0: self = .unspecified
+    case 1: self = .union
+    case 2: self = .subtract
+    case 3: self = .intersect
+    case 4: self = .exclude
+    default: self = .UNRECOGNIZED(rawValue)
+    }
+  }
+
+  public var rawValue: Int {
+    switch self {
+    case .unspecified: return 0
+    case .union: return 1
+    case .subtract: return 2
+    case .intersect: return 3
+    case .exclude: return 4
+    case .UNRECOGNIZED(let i): return i
+    }
+  }
+
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static let allCases: [Wiretuner_Doc_V1_BooleanOp] = [
+    .unspecified,
+    .union,
+    .subtract,
+    .intersect,
+    .exclude,
+  ]
+
+}
+
+/// Bevel and emboss styles.
+public nonisolated enum Wiretuner_Doc_V1_BevelStyle: SwiftProtobuf.Enum, Swift.CaseIterable {
+  public typealias RawValue = Int
+
+  /// Reads as INNER_BEVEL.
+  case unspecified // = 0
+
+  /// Bevel outside the outline.
+  case outerBevel // = 1
+
+  /// Bevel inside the outline.
+  case innerBevel // = 2
+
+  /// Raised emboss.
+  case raisedEmboss // = 3
+
+  /// Inset emboss.
+  case insetEmboss // = 4
+  case UNRECOGNIZED(Int)
+
+  public init() {
+    self = .unspecified
+  }
+
+  public init?(rawValue: Int) {
+    switch rawValue {
+    case 0: self = .unspecified
+    case 1: self = .outerBevel
+    case 2: self = .innerBevel
+    case 3: self = .raisedEmboss
+    case 4: self = .insetEmboss
+    default: self = .UNRECOGNIZED(rawValue)
+    }
+  }
+
+  public var rawValue: Int {
+    switch self {
+    case .unspecified: return 0
+    case .outerBevel: return 1
+    case .innerBevel: return 2
+    case .raisedEmboss: return 3
+    case .insetEmboss: return 4
+    case .UNRECOGNIZED(let i): return i
+    }
+  }
+
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static let allCases: [Wiretuner_Doc_V1_BevelStyle] = [
+    .unspecified,
+    .outerBevel,
+    .innerBevel,
+    .raisedEmboss,
+    .insetEmboss,
+  ]
+
+}
+
+/// The profile of a bevel's edge.
+public nonisolated enum Wiretuner_Doc_V1_BevelEdgeShape: SwiftProtobuf.Enum, Swift.CaseIterable {
+  public typealias RawValue = Int
+
+  /// Reads as FLAT.
+  case unspecified // = 0
+
+  /// Flat.
+  case flat // = 1
+
+  /// Smooth.
+  case smooth // = 2
+
+  /// Sloped.
+  case sloped // = 3
+
+  /// Frame 1.
+  case frame1 // = 4
+
+  /// Frame 2.
+  case frame2 // = 5
+
+  /// Ring.
+  case ring // = 6
+
+  /// Ruffle.
+  case ruffle // = 7
+  case UNRECOGNIZED(Int)
+
+  public init() {
+    self = .unspecified
+  }
+
+  public init?(rawValue: Int) {
+    switch rawValue {
+    case 0: self = .unspecified
+    case 1: self = .flat
+    case 2: self = .smooth
+    case 3: self = .sloped
+    case 4: self = .frame1
+    case 5: self = .frame2
+    case 6: self = .ring
+    case 7: self = .ruffle
+    default: self = .UNRECOGNIZED(rawValue)
+    }
+  }
+
+  public var rawValue: Int {
+    switch self {
+    case .unspecified: return 0
+    case .flat: return 1
+    case .smooth: return 2
+    case .sloped: return 3
+    case .frame1: return 4
+    case .frame2: return 5
+    case .ring: return 6
+    case .ruffle: return 7
+    case .UNRECOGNIZED(let i): return i
+    }
+  }
+
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static let allCases: [Wiretuner_Doc_V1_BevelEdgeShape] = [
+    .unspecified,
+    .flat,
+    .smooth,
+    .sloped,
+    .frame1,
+    .frame2,
+    .ring,
+    .ruffle,
+  ]
+
+}
+
+/// The lighting preset of a bevel (button states).
+public nonisolated enum Wiretuner_Doc_V1_BevelButtonPreset: SwiftProtobuf.Enum, Swift.CaseIterable {
+  public typealias RawValue = Int
+
+  /// Reads as RAISED.
+  case unspecified // = 0
+
+  /// Raised.
+  case raised // = 1
+
+  /// Highlighted.
+  case highlighted // = 2
+
+  /// Inset.
+  case inset // = 3
+
+  /// Inverted.
+  case inverted // = 4
+  case UNRECOGNIZED(Int)
+
+  public init() {
+    self = .unspecified
+  }
+
+  public init?(rawValue: Int) {
+    switch rawValue {
+    case 0: self = .unspecified
+    case 1: self = .raised
+    case 2: self = .highlighted
+    case 3: self = .inset
+    case 4: self = .inverted
+    default: self = .UNRECOGNIZED(rawValue)
+    }
+  }
+
+  public var rawValue: Int {
+    switch self {
+    case .unspecified: return 0
+    case .raised: return 1
+    case .highlighted: return 2
+    case .inset: return 3
+    case .inverted: return 4
+    case .UNRECOGNIZED(let i): return i
+    }
+  }
+
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static let allCases: [Wiretuner_Doc_V1_BevelButtonPreset] = [
+    .unspecified,
+    .raised,
+    .highlighted,
+    .inset,
+    .inverted,
+  ]
+
+}
+
+/// Blur algorithms.
+public nonisolated enum Wiretuner_Doc_V1_BlurStyle: SwiftProtobuf.Enum, Swift.CaseIterable {
+  public typealias RawValue = Int
+
+  /// Reads as GAUSSIAN.
+  case unspecified // = 0
+
+  /// Box blur.
+  case basic // = 1
+
+  /// Gaussian blur.
+  case gaussian // = 2
+  case UNRECOGNIZED(Int)
+
+  public init() {
+    self = .unspecified
+  }
+
+  public init?(rawValue: Int) {
+    switch rawValue {
+    case 0: self = .unspecified
+    case 1: self = .basic
+    case 2: self = .gaussian
+    default: self = .UNRECOGNIZED(rawValue)
+    }
+  }
+
+  public var rawValue: Int {
+    switch self {
+    case .unspecified: return 0
+    case .basic: return 1
+    case .gaussian: return 2
+    case .UNRECOGNIZED(let i): return i
+    }
+  }
+
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static let allCases: [Wiretuner_Doc_V1_BlurStyle] = [
+    .unspecified,
+    .basic,
+    .gaussian,
+  ]
+
+}
+
+/// Shadow and glow styles.
+public nonisolated enum Wiretuner_Doc_V1_ShadowStyle: SwiftProtobuf.Enum, Swift.CaseIterable {
+  public typealias RawValue = Int
+
+  /// Reads as DROP_SHADOW.
+  case unspecified // = 0
+
+  /// Offset shadow behind the object.
+  case dropShadow // = 1
+
+  /// Shadow inside the outline.
+  case innerShadow // = 2
+
+  /// Halo around the outline.
+  case glow // = 3
+
+  /// Halo inside the outline.
+  case innerGlow // = 4
+  case UNRECOGNIZED(Int)
+
+  public init() {
+    self = .unspecified
+  }
+
+  public init?(rawValue: Int) {
+    switch rawValue {
+    case 0: self = .unspecified
+    case 1: self = .dropShadow
+    case 2: self = .innerShadow
+    case 3: self = .glow
+    case 4: self = .innerGlow
+    default: self = .UNRECOGNIZED(rawValue)
+    }
+  }
+
+  public var rawValue: Int {
+    switch self {
+    case .unspecified: return 0
+    case .dropShadow: return 1
+    case .innerShadow: return 2
+    case .glow: return 3
+    case .innerGlow: return 4
+    case .UNRECOGNIZED(let i): return i
+    }
+  }
+
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static let allCases: [Wiretuner_Doc_V1_ShadowStyle] = [
+    .unspecified,
+    .dropShadow,
+    .innerShadow,
+    .glow,
+    .innerGlow,
+  ]
+
+}
+
+/// Sharpen algorithms.
+public nonisolated enum Wiretuner_Doc_V1_SharpenStyle: SwiftProtobuf.Enum, Swift.CaseIterable {
+  public typealias RawValue = Int
+
+  /// Reads as BASIC.
+  case unspecified // = 0
+
+  /// Basic sharpen.
+  case basic // = 1
+
+  /// Unsharp mask.
+  case unsharpMask // = 2
+  case UNRECOGNIZED(Int)
+
+  public init() {
+    self = .unspecified
+  }
+
+  public init?(rawValue: Int) {
+    switch rawValue {
+    case 0: self = .unspecified
+    case 1: self = .basic
+    case 2: self = .unsharpMask
+    default: self = .UNRECOGNIZED(rawValue)
+    }
+  }
+
+  public var rawValue: Int {
+    switch self {
+    case .unspecified: return 0
+    case .basic: return 1
+    case .unsharpMask: return 2
+    case .UNRECOGNIZED(let i): return i
+    }
+  }
+
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static let allCases: [Wiretuner_Doc_V1_SharpenStyle] = [
+    .unspecified,
+    .basic,
+    .unsharpMask,
+  ]
+
+}
+
+/// Transparency styles.
+public nonisolated enum Wiretuner_Doc_V1_TransparencyStyle: SwiftProtobuf.Enum, Swift.CaseIterable {
+  public typealias RawValue = Int
+
+  /// Reads as BASIC.
+  case unspecified // = 0
+
+  /// Uniform transparency.
+  case basic // = 1
+
+  /// Feathered edge.
+  case feather // = 2
+
+  /// Luminance of a gradient as the mask.
+  case gradientMask // = 3
+  case UNRECOGNIZED(Int)
+
+  public init() {
+    self = .unspecified
+  }
+
+  public init?(rawValue: Int) {
+    switch rawValue {
+    case 0: self = .unspecified
+    case 1: self = .basic
+    case 2: self = .feather
+    case 3: self = .gradientMask
+    default: self = .UNRECOGNIZED(rawValue)
+    }
+  }
+
+  public var rawValue: Int {
+    switch self {
+    case .unspecified: return 0
+    case .basic: return 1
+    case .feather: return 2
+    case .gradientMask: return 3
+    case .UNRECOGNIZED(let i): return i
+    }
+  }
+
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static let allCases: [Wiretuner_Doc_V1_TransparencyStyle] = [
+    .unspecified,
+    .basic,
+    .feather,
+    .gradientMask,
+  ]
+
+}
+
 /// One effect in the stack.  Element of AppearanceProps.effects; its position shares one
-/// fractional-index space with the fills and strokes.  Filled in by the FX epic.
+/// fractional-index space with the fills and strokes.
 public nonisolated struct Wiretuner_Doc_V1_Effect: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -49,20 +757,659 @@ public nonisolated struct Wiretuner_Doc_V1_Effect: Sendable {
   /// Eye toggle: kept but not rendered, printed or exported.  ATOMIC.
   public var hidden: Bool = false
 
+  /// The fill or stroke element (in the same AppearanceProps) this effect applies to.  Unset
+  /// (all zero): the whole object.  Reads as unset when that element is deleted.  ATOMIC.
+  public var attachedTo: Wiretuner_Doc_V1_ElementId {
+    get {_attachedTo ?? Wiretuner_Doc_V1_ElementId()}
+    set {_attachedTo = newValue}
+  }
+  /// Returns true if `attachedTo` has been explicitly set.
+  public var hasAttachedTo: Bool {self._attachedTo != nil}
+  /// Clears the value of `attachedTo`. Subsequent reads from it will return its default value.
+  public mutating func clearAttachedTo() {self._attachedTo = nil}
+
+  /// The kind and every kind's settings.  MERGE_VARIANT.
+  public var settings: Wiretuner_Doc_V1_EffectSettings {
+    get {_settings ?? Wiretuner_Doc_V1_EffectSettings()}
+    set {_settings = newValue}
+  }
+  /// Returns true if `settings` has been explicitly set.
+  public var hasSettings: Bool {self._settings != nil}
+  /// Clears the value of `settings`. Subsequent reads from it will return its default value.
+  public mutating func clearSettings() {self._settings = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
   fileprivate var _id: Wiretuner_Doc_V1_ElementId? = nil
+  fileprivate var _attachedTo: Wiretuner_Doc_V1_ElementId? = nil
+  fileprivate var _settings: Wiretuner_Doc_V1_EffectSettings? = nil
+}
+
+/// An effect's kind and its per-kind settings (MERGE_VARIANT).  Vector effects 10-19, raster
+/// and transparency effects 20-29.
+public nonisolated struct Wiretuner_Doc_V1_EffectSettings: @unchecked Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Which case is live.  ATOMIC.
+  public var kind: Wiretuner_Doc_V1_EffectKind {
+    get {_storage._kind}
+    set {_uniqueStorage()._kind = newValue}
+  }
+
+  /// live-effects.adoc.  STRUCT.
+  public var bend: Wiretuner_Doc_V1_BendEffect {
+    get {_storage._bend ?? Wiretuner_Doc_V1_BendEffect()}
+    set {_uniqueStorage()._bend = newValue}
+  }
+  /// Returns true if `bend` has been explicitly set.
+  public var hasBend: Bool {_storage._bend != nil}
+  /// Clears the value of `bend`. Subsequent reads from it will return its default value.
+  public mutating func clearBend() {_uniqueStorage()._bend = nil}
+
+  /// live-effects.adoc.  STRUCT.
+  public var duet: Wiretuner_Doc_V1_DuetEffect {
+    get {_storage._duet ?? Wiretuner_Doc_V1_DuetEffect()}
+    set {_uniqueStorage()._duet = newValue}
+  }
+  /// Returns true if `duet` has been explicitly set.
+  public var hasDuet: Bool {_storage._duet != nil}
+  /// Clears the value of `duet`. Subsequent reads from it will return its default value.
+  public mutating func clearDuet() {_uniqueStorage()._duet = nil}
+
+  /// live-effects.adoc.  STRUCT.
+  public var expandPath: Wiretuner_Doc_V1_ExpandPathEffect {
+    get {_storage._expandPath ?? Wiretuner_Doc_V1_ExpandPathEffect()}
+    set {_uniqueStorage()._expandPath = newValue}
+  }
+  /// Returns true if `expandPath` has been explicitly set.
+  public var hasExpandPath: Bool {_storage._expandPath != nil}
+  /// Clears the value of `expandPath`. Subsequent reads from it will return its default value.
+  public mutating func clearExpandPath() {_uniqueStorage()._expandPath = nil}
+
+  /// live-effects.adoc.  STRUCT.
+  public var ragged: Wiretuner_Doc_V1_RaggedEffect {
+    get {_storage._ragged ?? Wiretuner_Doc_V1_RaggedEffect()}
+    set {_uniqueStorage()._ragged = newValue}
+  }
+  /// Returns true if `ragged` has been explicitly set.
+  public var hasRagged: Bool {_storage._ragged != nil}
+  /// Clears the value of `ragged`. Subsequent reads from it will return its default value.
+  public mutating func clearRagged() {_uniqueStorage()._ragged = nil}
+
+  /// live-effects.adoc.  STRUCT.
+  public var sketch: Wiretuner_Doc_V1_SketchEffect {
+    get {_storage._sketch ?? Wiretuner_Doc_V1_SketchEffect()}
+    set {_uniqueStorage()._sketch = newValue}
+  }
+  /// Returns true if `sketch` has been explicitly set.
+  public var hasSketch: Bool {_storage._sketch != nil}
+  /// Clears the value of `sketch`. Subsequent reads from it will return its default value.
+  public mutating func clearSketch() {_uniqueStorage()._sketch = nil}
+
+  /// live-effects.adoc.  STRUCT.
+  public var transform: Wiretuner_Doc_V1_TransformEffect {
+    get {_storage._transform ?? Wiretuner_Doc_V1_TransformEffect()}
+    set {_uniqueStorage()._transform = newValue}
+  }
+  /// Returns true if `transform` has been explicitly set.
+  public var hasTransform: Bool {_storage._transform != nil}
+  /// Clears the value of `transform`. Subsequent reads from it will return its default value.
+  public mutating func clearTransform() {_uniqueStorage()._transform = nil}
+
+  /// live-effects.adoc.  STRUCT.
+  public var corners: Wiretuner_Doc_V1_CornersEffect {
+    get {_storage._corners ?? Wiretuner_Doc_V1_CornersEffect()}
+    set {_uniqueStorage()._corners = newValue}
+  }
+  /// Returns true if `corners` has been explicitly set.
+  public var hasCorners: Bool {_storage._corners != nil}
+  /// Clears the value of `corners`. Subsequent reads from it will return its default value.
+  public mutating func clearCorners() {_uniqueStorage()._corners = nil}
+
+  /// live-effects.adoc.  STRUCT.
+  public var combine: Wiretuner_Doc_V1_CombineEffect {
+    get {_storage._combine ?? Wiretuner_Doc_V1_CombineEffect()}
+    set {_uniqueStorage()._combine = newValue}
+  }
+  /// Returns true if `combine` has been explicitly set.
+  public var hasCombine: Bool {_storage._combine != nil}
+  /// Clears the value of `combine`. Subsequent reads from it will return its default value.
+  public mutating func clearCombine() {_uniqueStorage()._combine = nil}
+
+  /// raster-effects.adoc.  STRUCT.
+  public var bevelEmboss: Wiretuner_Doc_V1_BevelEmbossEffect {
+    get {_storage._bevelEmboss ?? Wiretuner_Doc_V1_BevelEmbossEffect()}
+    set {_uniqueStorage()._bevelEmboss = newValue}
+  }
+  /// Returns true if `bevelEmboss` has been explicitly set.
+  public var hasBevelEmboss: Bool {_storage._bevelEmboss != nil}
+  /// Clears the value of `bevelEmboss`. Subsequent reads from it will return its default value.
+  public mutating func clearBevelEmboss() {_uniqueStorage()._bevelEmboss = nil}
+
+  /// raster-effects.adoc.  STRUCT.
+  public var blur: Wiretuner_Doc_V1_BlurEffect {
+    get {_storage._blur ?? Wiretuner_Doc_V1_BlurEffect()}
+    set {_uniqueStorage()._blur = newValue}
+  }
+  /// Returns true if `blur` has been explicitly set.
+  public var hasBlur: Bool {_storage._blur != nil}
+  /// Clears the value of `blur`. Subsequent reads from it will return its default value.
+  public mutating func clearBlur() {_uniqueStorage()._blur = nil}
+
+  /// raster-effects.adoc.  STRUCT.
+  public var shadow: Wiretuner_Doc_V1_ShadowEffect {
+    get {_storage._shadow ?? Wiretuner_Doc_V1_ShadowEffect()}
+    set {_uniqueStorage()._shadow = newValue}
+  }
+  /// Returns true if `shadow` has been explicitly set.
+  public var hasShadow: Bool {_storage._shadow != nil}
+  /// Clears the value of `shadow`. Subsequent reads from it will return its default value.
+  public mutating func clearShadow() {_uniqueStorage()._shadow = nil}
+
+  /// raster-effects.adoc.  STRUCT.
+  public var sharpen: Wiretuner_Doc_V1_SharpenEffect {
+    get {_storage._sharpen ?? Wiretuner_Doc_V1_SharpenEffect()}
+    set {_uniqueStorage()._sharpen = newValue}
+  }
+  /// Returns true if `sharpen` has been explicitly set.
+  public var hasSharpen: Bool {_storage._sharpen != nil}
+  /// Clears the value of `sharpen`. Subsequent reads from it will return its default value.
+  public mutating func clearSharpen() {_uniqueStorage()._sharpen = nil}
+
+  /// transparency.adoc.  STRUCT.
+  public var transparency: Wiretuner_Doc_V1_TransparencyEffect {
+    get {_storage._transparency ?? Wiretuner_Doc_V1_TransparencyEffect()}
+    set {_uniqueStorage()._transparency = newValue}
+  }
+  /// Returns true if `transparency` has been explicitly set.
+  public var hasTransparency: Bool {_storage._transparency != nil}
+  /// Clears the value of `transparency`. Subsequent reads from it will return its default value.
+  public mutating func clearTransparency() {_uniqueStorage()._transparency = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _storage = _StorageClass.defaultInstance
+}
+
+/// Bloat (positive size) or pinch (negative size) about a centre.
+public nonisolated struct Wiretuner_Doc_V1_BendEffect: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Points; greater than 0 bloats, less than 0 pinches.
+  public var size: Double = 0
+
+  /// Centre relative to the object's bounds centre, points.  ATOMIC: x and y are one drag.
+  public var center: Wiretuner_Doc_V1_Point {
+    get {_center ?? Wiretuner_Doc_V1_Point()}
+    set {_center = newValue}
+  }
+  /// Returns true if `center` has been explicitly set.
+  public var hasCenter: Bool {self._center != nil}
+  /// Clears the value of `center`. Subsequent reads from it will return its default value.
+  public mutating func clearCenter() {self._center = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _center: Wiretuner_Doc_V1_Point? = nil
+}
+
+/// Mirrored or rotated clones of the path.
+public nonisolated struct Wiretuner_Doc_V1_DuetEffect: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Reflect or rotate.
+  public var mode: Wiretuner_Doc_V1_DuetMode = .unspecified
+
+  /// Relative to the object's bounds centre, points.  ATOMIC.
+  public var center: Wiretuner_Doc_V1_Point {
+    get {_center ?? Wiretuner_Doc_V1_Point()}
+    set {_center = newValue}
+  }
+  /// Returns true if `center` has been explicitly set.
+  public var hasCenter: Bool {self._center != nil}
+  /// Clears the value of `center`. Subsequent reads from it will return its default value.
+  public mutating func clearCenter() {self._center = nil}
+
+  /// Degrees; the mirror axis direction for REFLECT.
+  public var axisAngle: Double = 0
+
+  /// ROTATE only: 1 .. 100; 0 (never set) reads as 1.
+  public var copies: UInt32 = 0
+
+  /// One continuous path through the original and its clones.
+  public var joined: Bool = false
+
+  /// Close each clone (joined false) or the joined path.
+  public var closed: Bool = false
+
+  /// Alternate filled and unfilled where clones overlap.
+  public var evenOdd: Bool = false
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _center: Wiretuner_Doc_V1_Point? = nil
+}
+
+/// Replaces the path by the outline of a stroke of `width` along it.
+public nonisolated struct Wiretuner_Doc_V1_ExpandPathEffect: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Which side grows.
+  public var direction: Wiretuner_Doc_V1_ExpandDirection = .unspecified
+
+  /// Points, 0 .. 50.
+  public var width: Double = 0
+
+  /// End cap, shared with BasicStroke (stroke.proto).
+  public var cap: Wiretuner_Doc_V1_LineCap = .unspecified
+
+  /// Corner join, shared with BasicStroke.
+  public var join: Wiretuner_Doc_V1_LineJoin = .unspecified
+
+  /// Miter limit, 1 .. 57; 0 (never set) reads as 4.
+  public var miterLimit: Double = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// Random or uniform displacement of added points.
+public nonisolated struct Wiretuner_Doc_V1_RaggedEffect: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Maximum displacement in points.
+  public var size: Double = 0
+
+  /// Added points per inch.
+  public var frequency: Double = 0
+
+  /// Extra copies, 0 .. 10.
+  public var copies: UInt32 = 0
+
+  /// False = Rough (corner points), true = Smooth (curve points).
+  public var smooth: Bool = false
+
+  /// Alternate plus and minus `size` instead of random displacement.
+  public var uniform: Bool = false
+
+  /// PRNG seed; Reseed writes a new one.  Never 0 once created.
+  public var seed: UInt64 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// Hand-drawn look: jittered copies of the path.
+public nonisolated struct Wiretuner_Doc_V1_SketchEffect: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Jitter in points.
+  public var amount: Double = 0
+
+  /// Copies, 1 .. 20; 0 (never set) reads as 1.
+  public var copies: UInt32 = 0
+
+  /// Close each copy.
+  public var closed: Bool = false
+
+  /// PRNG seed; never 0 once created.
+  public var seed: UInt64 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// A parametric transform, optionally repeated.  STRUCT, unlike CommonProps.transform: these are
+/// independent user-facing parameters composed in a fixed order (scale, skew, rotate, move about
+/// the centre), so merging one user's rotate with another's scale produces what both asked for.
+public nonisolated struct Wiretuner_Doc_V1_TransformEffect: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Percent; 100 = unchanged; 0 (never set) reads as 100.
+  public var scaleX: Double = 0
+
+  /// Percent; 0 (never set) reads as 100.
+  public var scaleY: Double = 0
+
+  /// UI lock only: while true the panel writes scale_y equal to scale_x.
+  public var uniform: Bool = false
+
+  /// Horizontal skew, degrees.
+  public var skewH: Double = 0
+
+  /// Vertical skew, degrees.
+  public var skewV: Double = 0
+
+  /// Degrees, counterclockwise positive.
+  public var rotate: Double = 0
+
+  /// Offset in points, y up as shown in the panel.  ATOMIC.
+  public var move: Wiretuner_Doc_V1_Point {
+    get {_move ?? Wiretuner_Doc_V1_Point()}
+    set {_move = newValue}
+  }
+  /// Returns true if `move` has been explicitly set.
+  public var hasMove: Bool {self._move != nil}
+  /// Clears the value of `move`. Subsequent reads from it will return its default value.
+  public mutating func clearMove() {self._move = nil}
+
+  /// Relative to the object's bounds centre, points.  ATOMIC.
+  public var center: Wiretuner_Doc_V1_Point {
+    get {_center ?? Wiretuner_Doc_V1_Point()}
+    set {_center = newValue}
+  }
+  /// Returns true if `center` has been explicitly set.
+  public var hasCenter: Bool {self._center != nil}
+  /// Clears the value of `center`. Subsequent reads from it will return its default value.
+  public mutating func clearCenter() {self._center = nil}
+
+  /// Copies, 1 .. 1000; 0 (never set) reads as 1.
+  public var copies: UInt32 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _move: Wiretuner_Doc_V1_Point? = nil
+  fileprivate var _center: Wiretuner_Doc_V1_Point? = nil
+}
+
+/// Rounds, scoops or chamfers corner points of the effected outline without changing them.
+public nonisolated struct Wiretuner_Doc_V1_CornersEffect: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Points, at least 0; clamped per corner on read.
+  public var radius: Double = 0
+
+  /// Round, inverted round or chamfer.
+  public var style: Wiretuner_Doc_V1_CornerStyle = .unspecified
+
+  /// The PathPoint element ids this effect treats.  SET (add-wins, members compared by value):
+  /// two people choosing different points both keep theirs.  Empty = every eligible corner.  A
+  /// member whose point is deleted, is a curve point or belongs to another node drops out on
+  /// read; the set is never rewritten for it, so restoring the point restores the corner.  On a
+  /// `rect` node the set is ignored and all four corners are treated.
+  public var points: [Wiretuner_Doc_V1_ElementId] = []
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// A live boolean over a group's members.  Meaningful only at the object level of a `group`
+/// node; anywhere else it renders as no effect.  Operand order = stacking order, bottom first.
+public nonisolated struct Wiretuner_Doc_V1_CombineEffect: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The operation.
+  public var op: Wiretuner_Doc_V1_BooleanOp = .unspecified
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// Document-level raster effect settings (raster-effects.adoc).  SettingsProps.raster_effects;
+/// STRUCT.
+public nonisolated struct Wiretuner_Doc_V1_RasterEffectSettings: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Raster effect resolution, 1 .. 2400 ppi; 0 (never set) reads as 72.
+  public var resolutionPpi: UInt32 = 0
+
+  /// Render effects in CMYK, bypassing color management.
+  public var optimalCmyk: Bool = false
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// Bevel and emboss raster effect.
+public nonisolated struct Wiretuner_Doc_V1_BevelEmbossEffect: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Which bevel or emboss.
+  public var style: Wiretuner_Doc_V1_BevelStyle = .unspecified
+
+  /// Outer bevel rim color.  ATOMIC; a deleted swatch reads its cached color.
+  public var color: Wiretuner_Doc_V1_ColorRef {
+    get {_color ?? Wiretuner_Doc_V1_ColorRef()}
+    set {_color = newValue}
+  }
+  /// Returns true if `color` has been explicitly set.
+  public var hasColor: Bool {self._color != nil}
+  /// Clears the value of `color`. Subsequent reads from it will return its default value.
+  public mutating func clearColor() {self._color = nil}
+
+  /// Bevel width in points.
+  public var width: Double = 0
+
+  /// Contrast, 0 .. 100.
+  public var contrast: UInt32 = 0
+
+  /// Softness, 0 .. 10.
+  public var softness: UInt32 = 0
+
+  /// Light angle in degrees, 0 .. 360.
+  public var angle: Double = 0
+
+  /// Bevels only.
+  public var edgeShape: Wiretuner_Doc_V1_BevelEdgeShape = .unspecified
+
+  /// Bevels only.
+  public var buttonPreset: Wiretuner_Doc_V1_BevelButtonPreset = .unspecified
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _color: Wiretuner_Doc_V1_ColorRef? = nil
+}
+
+/// Blur raster effect.
+public nonisolated struct Wiretuner_Doc_V1_BlurEffect: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Which blur.
+  public var style: Wiretuner_Doc_V1_BlurStyle = .unspecified
+
+  /// Radius in pixels at the raster resolution, 0 .. 250.
+  public var radius: Double = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// Shadow and glow raster effect.
+public nonisolated struct Wiretuner_Doc_V1_ShadowEffect: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Which shadow or glow.
+  public var style: Wiretuner_Doc_V1_ShadowStyle = .unspecified
+
+  /// Shadow color.  ATOMIC; a deleted swatch reads its cached color.
+  public var color: Wiretuner_Doc_V1_ColorRef {
+    get {_color ?? Wiretuner_Doc_V1_ColorRef()}
+    set {_color = newValue}
+  }
+  /// Returns true if `color` has been explicitly set.
+  public var hasColor: Bool {self._color != nil}
+  /// Clears the value of `color`. Subsequent reads from it will return its default value.
+  public mutating func clearColor() {self._color = nil}
+
+  /// Points; shadows: distance along `angle`; glows: halo width.
+  public var offset: Double = 0
+
+  /// Opacity, 0 .. 100.
+  public var opacity: UInt32 = 0
+
+  /// Softness, 0 .. 30.
+  public var softness: UInt32 = 0
+
+  /// Degrees; shadows only.
+  public var angle: Double = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _color: Wiretuner_Doc_V1_ColorRef? = nil
+}
+
+/// Sharpen raster effect.
+public nonisolated struct Wiretuner_Doc_V1_SharpenEffect: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Which sharpen.
+  public var style: Wiretuner_Doc_V1_SharpenStyle = .unspecified
+
+  /// Percent, 0 .. 500.
+  public var amount: Double = 0
+
+  /// Unsharp mask only: 0.1 .. 250 pixels; 0 (never set) reads as 1.
+  public var pixelRadius: Double = 0
+
+  /// Unsharp mask only: 0 .. 255 levels.
+  public var threshold: UInt32 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// Transparency effect (transparency.adoc).
+public nonisolated struct Wiretuner_Doc_V1_TransparencyEffect: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Which transparency.
+  public var style: Wiretuner_Doc_V1_TransparencyStyle = .unspecified
+
+  /// BASIC: 0 opaque .. 100 invisible.
+  public var amount: UInt32 = 0
+
+  /// FEATHER: points, at least 0.
+  public var radius: Double = 0
+
+  /// FEATHER: 0 .. 100.
+  public var softness: UInt32 = 0
+
+  /// GRADIENT_MASK: the ATTR gradient (gradient.proto) whose stop luminance is 1 - alpha.
+  /// STRUCT with its stops a SEQUENCE, exactly as in a gradient fill, so stop edits merge
+  /// individually.  Its `overprint` is ignored.
+  public var mask: Wiretuner_Doc_V1_GradientFill {
+    get {_mask ?? Wiretuner_Doc_V1_GradientFill()}
+    set {_mask = newValue}
+  }
+  /// Returns true if `mask` has been explicitly set.
+  public var hasMask: Bool {self._mask != nil}
+  /// Clears the value of `mask`. Subsequent reads from it will return its default value.
+  public mutating func clearMask() {self._mask = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _mask: Wiretuner_Doc_V1_GradientFill? = nil
 }
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
 fileprivate nonisolated let _protobuf_package = "wiretuner.doc.v1"
 
+nonisolated extension Wiretuner_Doc_V1_EffectKind: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0EFFECT_KIND_UNSPECIFIED\0\u{1}EFFECT_KIND_BEND\0\u{1}EFFECT_KIND_DUET\0\u{1}EFFECT_KIND_EXPAND_PATH\0\u{1}EFFECT_KIND_RAGGED\0\u{1}EFFECT_KIND_SKETCH\0\u{1}EFFECT_KIND_TRANSFORM\0\u{1}EFFECT_KIND_BEVEL_EMBOSS\0\u{1}EFFECT_KIND_BLUR\0\u{1}EFFECT_KIND_SHADOW\0\u{1}EFFECT_KIND_SHARPEN\0\u{1}EFFECT_KIND_TRANSPARENCY\0\u{1}EFFECT_KIND_CORNERS\0\u{1}EFFECT_KIND_COMBINE\0")
+}
+
+nonisolated extension Wiretuner_Doc_V1_DuetMode: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0DUET_MODE_UNSPECIFIED\0\u{1}DUET_MODE_REFLECT\0\u{1}DUET_MODE_ROTATE\0")
+}
+
+nonisolated extension Wiretuner_Doc_V1_ExpandDirection: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0EXPAND_DIRECTION_UNSPECIFIED\0\u{1}EXPAND_DIRECTION_BOTH\0\u{1}EXPAND_DIRECTION_INSIDE\0\u{1}EXPAND_DIRECTION_OUTSIDE\0")
+}
+
+nonisolated extension Wiretuner_Doc_V1_CornerStyle: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0CORNER_STYLE_UNSPECIFIED\0\u{1}CORNER_STYLE_ROUND\0\u{1}CORNER_STYLE_INVERTED_ROUND\0\u{1}CORNER_STYLE_CHAMFER\0")
+}
+
+nonisolated extension Wiretuner_Doc_V1_BooleanOp: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0BOOLEAN_OP_UNSPECIFIED\0\u{1}BOOLEAN_OP_UNION\0\u{1}BOOLEAN_OP_SUBTRACT\0\u{1}BOOLEAN_OP_INTERSECT\0\u{1}BOOLEAN_OP_EXCLUDE\0")
+}
+
+nonisolated extension Wiretuner_Doc_V1_BevelStyle: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0BEVEL_STYLE_UNSPECIFIED\0\u{1}BEVEL_STYLE_OUTER_BEVEL\0\u{1}BEVEL_STYLE_INNER_BEVEL\0\u{1}BEVEL_STYLE_RAISED_EMBOSS\0\u{1}BEVEL_STYLE_INSET_EMBOSS\0")
+}
+
+nonisolated extension Wiretuner_Doc_V1_BevelEdgeShape: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0BEVEL_EDGE_SHAPE_UNSPECIFIED\0\u{1}BEVEL_EDGE_SHAPE_FLAT\0\u{1}BEVEL_EDGE_SHAPE_SMOOTH\0\u{1}BEVEL_EDGE_SHAPE_SLOPED\0\u{1}BEVEL_EDGE_SHAPE_FRAME_1\0\u{1}BEVEL_EDGE_SHAPE_FRAME_2\0\u{1}BEVEL_EDGE_SHAPE_RING\0\u{1}BEVEL_EDGE_SHAPE_RUFFLE\0")
+}
+
+nonisolated extension Wiretuner_Doc_V1_BevelButtonPreset: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0BEVEL_BUTTON_PRESET_UNSPECIFIED\0\u{1}BEVEL_BUTTON_PRESET_RAISED\0\u{1}BEVEL_BUTTON_PRESET_HIGHLIGHTED\0\u{1}BEVEL_BUTTON_PRESET_INSET\0\u{1}BEVEL_BUTTON_PRESET_INVERTED\0")
+}
+
+nonisolated extension Wiretuner_Doc_V1_BlurStyle: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0BLUR_STYLE_UNSPECIFIED\0\u{1}BLUR_STYLE_BASIC\0\u{1}BLUR_STYLE_GAUSSIAN\0")
+}
+
+nonisolated extension Wiretuner_Doc_V1_ShadowStyle: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0SHADOW_STYLE_UNSPECIFIED\0\u{1}SHADOW_STYLE_DROP_SHADOW\0\u{1}SHADOW_STYLE_INNER_SHADOW\0\u{1}SHADOW_STYLE_GLOW\0\u{1}SHADOW_STYLE_INNER_GLOW\0")
+}
+
+nonisolated extension Wiretuner_Doc_V1_SharpenStyle: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0SHARPEN_STYLE_UNSPECIFIED\0\u{1}SHARPEN_STYLE_BASIC\0\u{1}SHARPEN_STYLE_UNSHARP_MASK\0")
+}
+
+nonisolated extension Wiretuner_Doc_V1_TransparencyStyle: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0TRANSPARENCY_STYLE_UNSPECIFIED\0\u{1}TRANSPARENCY_STYLE_BASIC\0\u{1}TRANSPARENCY_STYLE_FEATHER\0\u{1}TRANSPARENCY_STYLE_GRADIENT_MASK\0")
+}
+
 nonisolated extension Wiretuner_Doc_V1_Effect: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Effect"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}hidden\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}hidden\0\u{3}attached_to\0\u{1}settings\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -72,6 +1419,8 @@ nonisolated extension Wiretuner_Doc_V1_Effect: SwiftProtobuf.Message, SwiftProto
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularMessageField(value: &self._id) }()
       case 2: try { try decoder.decodeSingularBoolField(value: &self.hidden) }()
+      case 3: try { try decoder.decodeSingularMessageField(value: &self._attachedTo) }()
+      case 4: try { try decoder.decodeSingularMessageField(value: &self._settings) }()
       default: break
       }
     }
@@ -88,12 +1437,875 @@ nonisolated extension Wiretuner_Doc_V1_Effect: SwiftProtobuf.Message, SwiftProto
     if self.hidden != false {
       try visitor.visitSingularBoolField(value: self.hidden, fieldNumber: 2)
     }
+    try { if let v = self._attachedTo {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    } }()
+    try { if let v = self._settings {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Wiretuner_Doc_V1_Effect, rhs: Wiretuner_Doc_V1_Effect) -> Bool {
     if lhs._id != rhs._id {return false}
     if lhs.hidden != rhs.hidden {return false}
+    if lhs._attachedTo != rhs._attachedTo {return false}
+    if lhs._settings != rhs._settings {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Doc_V1_EffectSettings: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".EffectSettings"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}kind\0\u{2}\u{9}bend\0\u{1}duet\0\u{3}expand_path\0\u{1}ragged\0\u{1}sketch\0\u{1}transform\0\u{1}corners\0\u{1}combine\0\u{4}\u{3}bevel_emboss\0\u{1}blur\0\u{1}shadow\0\u{1}sharpen\0\u{1}transparency\0")
+
+  fileprivate class _StorageClass {
+    var _kind: Wiretuner_Doc_V1_EffectKind = .unspecified
+    var _bend: Wiretuner_Doc_V1_BendEffect? = nil
+    var _duet: Wiretuner_Doc_V1_DuetEffect? = nil
+    var _expandPath: Wiretuner_Doc_V1_ExpandPathEffect? = nil
+    var _ragged: Wiretuner_Doc_V1_RaggedEffect? = nil
+    var _sketch: Wiretuner_Doc_V1_SketchEffect? = nil
+    var _transform: Wiretuner_Doc_V1_TransformEffect? = nil
+    var _corners: Wiretuner_Doc_V1_CornersEffect? = nil
+    var _combine: Wiretuner_Doc_V1_CombineEffect? = nil
+    var _bevelEmboss: Wiretuner_Doc_V1_BevelEmbossEffect? = nil
+    var _blur: Wiretuner_Doc_V1_BlurEffect? = nil
+    var _shadow: Wiretuner_Doc_V1_ShadowEffect? = nil
+    var _sharpen: Wiretuner_Doc_V1_SharpenEffect? = nil
+    var _transparency: Wiretuner_Doc_V1_TransparencyEffect? = nil
+
+      // This property is used as the initial default value for new instances of the type.
+      // The type itself is protecting the reference to its storage via CoW semantics.
+      // This will force a copy to be made of this reference when the first mutation occurs;
+      // hence, it is safe to mark this as `nonisolated(unsafe)`.
+      static nonisolated(unsafe) let defaultInstance = _StorageClass()
+
+    private init() {}
+
+    init(copying source: _StorageClass) {
+      _kind = source._kind
+      _bend = source._bend
+      _duet = source._duet
+      _expandPath = source._expandPath
+      _ragged = source._ragged
+      _sketch = source._sketch
+      _transform = source._transform
+      _corners = source._corners
+      _combine = source._combine
+      _bevelEmboss = source._bevelEmboss
+      _blur = source._blur
+      _shadow = source._shadow
+      _sharpen = source._sharpen
+      _transparency = source._transparency
+    }
+  }
+
+  fileprivate mutating func _uniqueStorage() -> _StorageClass {
+    if !isKnownUniquelyReferenced(&_storage) {
+      _storage = _StorageClass(copying: _storage)
+    }
+    return _storage
+  }
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    _ = _uniqueStorage()
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      while let fieldNumber = try decoder.nextFieldNumber() {
+        // The use of inline closures is to circumvent an issue where the compiler
+        // allocates stack space for every case branch when no optimizations are
+        // enabled. https://github.com/apple/swift-protobuf/issues/1034
+        switch fieldNumber {
+        case 1: try { try decoder.decodeSingularEnumField(value: &_storage._kind) }()
+        case 10: try { try decoder.decodeSingularMessageField(value: &_storage._bend) }()
+        case 11: try { try decoder.decodeSingularMessageField(value: &_storage._duet) }()
+        case 12: try { try decoder.decodeSingularMessageField(value: &_storage._expandPath) }()
+        case 13: try { try decoder.decodeSingularMessageField(value: &_storage._ragged) }()
+        case 14: try { try decoder.decodeSingularMessageField(value: &_storage._sketch) }()
+        case 15: try { try decoder.decodeSingularMessageField(value: &_storage._transform) }()
+        case 16: try { try decoder.decodeSingularMessageField(value: &_storage._corners) }()
+        case 17: try { try decoder.decodeSingularMessageField(value: &_storage._combine) }()
+        case 20: try { try decoder.decodeSingularMessageField(value: &_storage._bevelEmboss) }()
+        case 21: try { try decoder.decodeSingularMessageField(value: &_storage._blur) }()
+        case 22: try { try decoder.decodeSingularMessageField(value: &_storage._shadow) }()
+        case 23: try { try decoder.decodeSingularMessageField(value: &_storage._sharpen) }()
+        case 24: try { try decoder.decodeSingularMessageField(value: &_storage._transparency) }()
+        default: break
+        }
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every if/case branch local when no optimizations
+      // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+      // https://github.com/apple/swift-protobuf/issues/1182
+      if _storage._kind != .unspecified {
+        try visitor.visitSingularEnumField(value: _storage._kind, fieldNumber: 1)
+      }
+      try { if let v = _storage._bend {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 10)
+      } }()
+      try { if let v = _storage._duet {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 11)
+      } }()
+      try { if let v = _storage._expandPath {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 12)
+      } }()
+      try { if let v = _storage._ragged {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 13)
+      } }()
+      try { if let v = _storage._sketch {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 14)
+      } }()
+      try { if let v = _storage._transform {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 15)
+      } }()
+      try { if let v = _storage._corners {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 16)
+      } }()
+      try { if let v = _storage._combine {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 17)
+      } }()
+      try { if let v = _storage._bevelEmboss {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 20)
+      } }()
+      try { if let v = _storage._blur {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 21)
+      } }()
+      try { if let v = _storage._shadow {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 22)
+      } }()
+      try { if let v = _storage._sharpen {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 23)
+      } }()
+      try { if let v = _storage._transparency {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 24)
+      } }()
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Wiretuner_Doc_V1_EffectSettings, rhs: Wiretuner_Doc_V1_EffectSettings) -> Bool {
+    if lhs._storage !== rhs._storage {
+      let storagesAreEqual: Bool = withExtendedLifetime((lhs._storage, rhs._storage)) { (_args: (_StorageClass, _StorageClass)) in
+        let _storage = _args.0
+        let rhs_storage = _args.1
+        if _storage._kind != rhs_storage._kind {return false}
+        if _storage._bend != rhs_storage._bend {return false}
+        if _storage._duet != rhs_storage._duet {return false}
+        if _storage._expandPath != rhs_storage._expandPath {return false}
+        if _storage._ragged != rhs_storage._ragged {return false}
+        if _storage._sketch != rhs_storage._sketch {return false}
+        if _storage._transform != rhs_storage._transform {return false}
+        if _storage._corners != rhs_storage._corners {return false}
+        if _storage._combine != rhs_storage._combine {return false}
+        if _storage._bevelEmboss != rhs_storage._bevelEmboss {return false}
+        if _storage._blur != rhs_storage._blur {return false}
+        if _storage._shadow != rhs_storage._shadow {return false}
+        if _storage._sharpen != rhs_storage._sharpen {return false}
+        if _storage._transparency != rhs_storage._transparency {return false}
+        return true
+      }
+      if !storagesAreEqual {return false}
+    }
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Doc_V1_BendEffect: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".BendEffect"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}size\0\u{1}center\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularDoubleField(value: &self.size) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._center) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if self.size.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.size, fieldNumber: 1)
+    }
+    try { if let v = self._center {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Wiretuner_Doc_V1_BendEffect, rhs: Wiretuner_Doc_V1_BendEffect) -> Bool {
+    if lhs.size != rhs.size {return false}
+    if lhs._center != rhs._center {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Doc_V1_DuetEffect: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".DuetEffect"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}mode\0\u{1}center\0\u{3}axis_angle\0\u{1}copies\0\u{1}joined\0\u{1}closed\0\u{3}even_odd\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularEnumField(value: &self.mode) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._center) }()
+      case 3: try { try decoder.decodeSingularDoubleField(value: &self.axisAngle) }()
+      case 4: try { try decoder.decodeSingularUInt32Field(value: &self.copies) }()
+      case 5: try { try decoder.decodeSingularBoolField(value: &self.joined) }()
+      case 6: try { try decoder.decodeSingularBoolField(value: &self.closed) }()
+      case 7: try { try decoder.decodeSingularBoolField(value: &self.evenOdd) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if self.mode != .unspecified {
+      try visitor.visitSingularEnumField(value: self.mode, fieldNumber: 1)
+    }
+    try { if let v = self._center {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    if self.axisAngle.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.axisAngle, fieldNumber: 3)
+    }
+    if self.copies != 0 {
+      try visitor.visitSingularUInt32Field(value: self.copies, fieldNumber: 4)
+    }
+    if self.joined != false {
+      try visitor.visitSingularBoolField(value: self.joined, fieldNumber: 5)
+    }
+    if self.closed != false {
+      try visitor.visitSingularBoolField(value: self.closed, fieldNumber: 6)
+    }
+    if self.evenOdd != false {
+      try visitor.visitSingularBoolField(value: self.evenOdd, fieldNumber: 7)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Wiretuner_Doc_V1_DuetEffect, rhs: Wiretuner_Doc_V1_DuetEffect) -> Bool {
+    if lhs.mode != rhs.mode {return false}
+    if lhs._center != rhs._center {return false}
+    if lhs.axisAngle != rhs.axisAngle {return false}
+    if lhs.copies != rhs.copies {return false}
+    if lhs.joined != rhs.joined {return false}
+    if lhs.closed != rhs.closed {return false}
+    if lhs.evenOdd != rhs.evenOdd {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Doc_V1_ExpandPathEffect: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ExpandPathEffect"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}direction\0\u{1}width\0\u{1}cap\0\u{1}join\0\u{3}miter_limit\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularEnumField(value: &self.direction) }()
+      case 2: try { try decoder.decodeSingularDoubleField(value: &self.width) }()
+      case 3: try { try decoder.decodeSingularEnumField(value: &self.cap) }()
+      case 4: try { try decoder.decodeSingularEnumField(value: &self.join) }()
+      case 5: try { try decoder.decodeSingularDoubleField(value: &self.miterLimit) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.direction != .unspecified {
+      try visitor.visitSingularEnumField(value: self.direction, fieldNumber: 1)
+    }
+    if self.width.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.width, fieldNumber: 2)
+    }
+    if self.cap != .unspecified {
+      try visitor.visitSingularEnumField(value: self.cap, fieldNumber: 3)
+    }
+    if self.join != .unspecified {
+      try visitor.visitSingularEnumField(value: self.join, fieldNumber: 4)
+    }
+    if self.miterLimit.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.miterLimit, fieldNumber: 5)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Wiretuner_Doc_V1_ExpandPathEffect, rhs: Wiretuner_Doc_V1_ExpandPathEffect) -> Bool {
+    if lhs.direction != rhs.direction {return false}
+    if lhs.width != rhs.width {return false}
+    if lhs.cap != rhs.cap {return false}
+    if lhs.join != rhs.join {return false}
+    if lhs.miterLimit != rhs.miterLimit {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Doc_V1_RaggedEffect: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".RaggedEffect"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}size\0\u{1}frequency\0\u{1}copies\0\u{1}smooth\0\u{1}uniform\0\u{1}seed\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularDoubleField(value: &self.size) }()
+      case 2: try { try decoder.decodeSingularDoubleField(value: &self.frequency) }()
+      case 3: try { try decoder.decodeSingularUInt32Field(value: &self.copies) }()
+      case 4: try { try decoder.decodeSingularBoolField(value: &self.smooth) }()
+      case 5: try { try decoder.decodeSingularBoolField(value: &self.uniform) }()
+      case 6: try { try decoder.decodeSingularFixed64Field(value: &self.seed) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.size.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.size, fieldNumber: 1)
+    }
+    if self.frequency.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.frequency, fieldNumber: 2)
+    }
+    if self.copies != 0 {
+      try visitor.visitSingularUInt32Field(value: self.copies, fieldNumber: 3)
+    }
+    if self.smooth != false {
+      try visitor.visitSingularBoolField(value: self.smooth, fieldNumber: 4)
+    }
+    if self.uniform != false {
+      try visitor.visitSingularBoolField(value: self.uniform, fieldNumber: 5)
+    }
+    if self.seed != 0 {
+      try visitor.visitSingularFixed64Field(value: self.seed, fieldNumber: 6)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Wiretuner_Doc_V1_RaggedEffect, rhs: Wiretuner_Doc_V1_RaggedEffect) -> Bool {
+    if lhs.size != rhs.size {return false}
+    if lhs.frequency != rhs.frequency {return false}
+    if lhs.copies != rhs.copies {return false}
+    if lhs.smooth != rhs.smooth {return false}
+    if lhs.uniform != rhs.uniform {return false}
+    if lhs.seed != rhs.seed {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Doc_V1_SketchEffect: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".SketchEffect"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}amount\0\u{1}copies\0\u{1}closed\0\u{1}seed\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularDoubleField(value: &self.amount) }()
+      case 2: try { try decoder.decodeSingularUInt32Field(value: &self.copies) }()
+      case 3: try { try decoder.decodeSingularBoolField(value: &self.closed) }()
+      case 4: try { try decoder.decodeSingularFixed64Field(value: &self.seed) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.amount.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.amount, fieldNumber: 1)
+    }
+    if self.copies != 0 {
+      try visitor.visitSingularUInt32Field(value: self.copies, fieldNumber: 2)
+    }
+    if self.closed != false {
+      try visitor.visitSingularBoolField(value: self.closed, fieldNumber: 3)
+    }
+    if self.seed != 0 {
+      try visitor.visitSingularFixed64Field(value: self.seed, fieldNumber: 4)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Wiretuner_Doc_V1_SketchEffect, rhs: Wiretuner_Doc_V1_SketchEffect) -> Bool {
+    if lhs.amount != rhs.amount {return false}
+    if lhs.copies != rhs.copies {return false}
+    if lhs.closed != rhs.closed {return false}
+    if lhs.seed != rhs.seed {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Doc_V1_TransformEffect: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".TransformEffect"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}scale_x\0\u{3}scale_y\0\u{1}uniform\0\u{3}skew_h\0\u{3}skew_v\0\u{1}rotate\0\u{1}move\0\u{1}center\0\u{1}copies\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularDoubleField(value: &self.scaleX) }()
+      case 2: try { try decoder.decodeSingularDoubleField(value: &self.scaleY) }()
+      case 3: try { try decoder.decodeSingularBoolField(value: &self.uniform) }()
+      case 4: try { try decoder.decodeSingularDoubleField(value: &self.skewH) }()
+      case 5: try { try decoder.decodeSingularDoubleField(value: &self.skewV) }()
+      case 6: try { try decoder.decodeSingularDoubleField(value: &self.rotate) }()
+      case 7: try { try decoder.decodeSingularMessageField(value: &self._move) }()
+      case 8: try { try decoder.decodeSingularMessageField(value: &self._center) }()
+      case 9: try { try decoder.decodeSingularUInt32Field(value: &self.copies) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if self.scaleX.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.scaleX, fieldNumber: 1)
+    }
+    if self.scaleY.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.scaleY, fieldNumber: 2)
+    }
+    if self.uniform != false {
+      try visitor.visitSingularBoolField(value: self.uniform, fieldNumber: 3)
+    }
+    if self.skewH.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.skewH, fieldNumber: 4)
+    }
+    if self.skewV.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.skewV, fieldNumber: 5)
+    }
+    if self.rotate.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.rotate, fieldNumber: 6)
+    }
+    try { if let v = self._move {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 7)
+    } }()
+    try { if let v = self._center {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 8)
+    } }()
+    if self.copies != 0 {
+      try visitor.visitSingularUInt32Field(value: self.copies, fieldNumber: 9)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Wiretuner_Doc_V1_TransformEffect, rhs: Wiretuner_Doc_V1_TransformEffect) -> Bool {
+    if lhs.scaleX != rhs.scaleX {return false}
+    if lhs.scaleY != rhs.scaleY {return false}
+    if lhs.uniform != rhs.uniform {return false}
+    if lhs.skewH != rhs.skewH {return false}
+    if lhs.skewV != rhs.skewV {return false}
+    if lhs.rotate != rhs.rotate {return false}
+    if lhs._move != rhs._move {return false}
+    if lhs._center != rhs._center {return false}
+    if lhs.copies != rhs.copies {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Doc_V1_CornersEffect: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".CornersEffect"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}radius\0\u{1}style\0\u{1}points\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularDoubleField(value: &self.radius) }()
+      case 2: try { try decoder.decodeSingularEnumField(value: &self.style) }()
+      case 3: try { try decoder.decodeRepeatedMessageField(value: &self.points) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.radius.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.radius, fieldNumber: 1)
+    }
+    if self.style != .unspecified {
+      try visitor.visitSingularEnumField(value: self.style, fieldNumber: 2)
+    }
+    if !self.points.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.points, fieldNumber: 3)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Wiretuner_Doc_V1_CornersEffect, rhs: Wiretuner_Doc_V1_CornersEffect) -> Bool {
+    if lhs.radius != rhs.radius {return false}
+    if lhs.style != rhs.style {return false}
+    if lhs.points != rhs.points {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Doc_V1_CombineEffect: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".CombineEffect"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}op\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularEnumField(value: &self.op) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.op != .unspecified {
+      try visitor.visitSingularEnumField(value: self.op, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Wiretuner_Doc_V1_CombineEffect, rhs: Wiretuner_Doc_V1_CombineEffect) -> Bool {
+    if lhs.op != rhs.op {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Doc_V1_RasterEffectSettings: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".RasterEffectSettings"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}resolution_ppi\0\u{3}optimal_cmyk\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularUInt32Field(value: &self.resolutionPpi) }()
+      case 2: try { try decoder.decodeSingularBoolField(value: &self.optimalCmyk) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.resolutionPpi != 0 {
+      try visitor.visitSingularUInt32Field(value: self.resolutionPpi, fieldNumber: 1)
+    }
+    if self.optimalCmyk != false {
+      try visitor.visitSingularBoolField(value: self.optimalCmyk, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Wiretuner_Doc_V1_RasterEffectSettings, rhs: Wiretuner_Doc_V1_RasterEffectSettings) -> Bool {
+    if lhs.resolutionPpi != rhs.resolutionPpi {return false}
+    if lhs.optimalCmyk != rhs.optimalCmyk {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Doc_V1_BevelEmbossEffect: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".BevelEmbossEffect"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}style\0\u{1}color\0\u{1}width\0\u{1}contrast\0\u{1}softness\0\u{1}angle\0\u{3}edge_shape\0\u{3}button_preset\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularEnumField(value: &self.style) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._color) }()
+      case 3: try { try decoder.decodeSingularDoubleField(value: &self.width) }()
+      case 4: try { try decoder.decodeSingularUInt32Field(value: &self.contrast) }()
+      case 5: try { try decoder.decodeSingularUInt32Field(value: &self.softness) }()
+      case 6: try { try decoder.decodeSingularDoubleField(value: &self.angle) }()
+      case 7: try { try decoder.decodeSingularEnumField(value: &self.edgeShape) }()
+      case 8: try { try decoder.decodeSingularEnumField(value: &self.buttonPreset) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if self.style != .unspecified {
+      try visitor.visitSingularEnumField(value: self.style, fieldNumber: 1)
+    }
+    try { if let v = self._color {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    if self.width.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.width, fieldNumber: 3)
+    }
+    if self.contrast != 0 {
+      try visitor.visitSingularUInt32Field(value: self.contrast, fieldNumber: 4)
+    }
+    if self.softness != 0 {
+      try visitor.visitSingularUInt32Field(value: self.softness, fieldNumber: 5)
+    }
+    if self.angle.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.angle, fieldNumber: 6)
+    }
+    if self.edgeShape != .unspecified {
+      try visitor.visitSingularEnumField(value: self.edgeShape, fieldNumber: 7)
+    }
+    if self.buttonPreset != .unspecified {
+      try visitor.visitSingularEnumField(value: self.buttonPreset, fieldNumber: 8)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Wiretuner_Doc_V1_BevelEmbossEffect, rhs: Wiretuner_Doc_V1_BevelEmbossEffect) -> Bool {
+    if lhs.style != rhs.style {return false}
+    if lhs._color != rhs._color {return false}
+    if lhs.width != rhs.width {return false}
+    if lhs.contrast != rhs.contrast {return false}
+    if lhs.softness != rhs.softness {return false}
+    if lhs.angle != rhs.angle {return false}
+    if lhs.edgeShape != rhs.edgeShape {return false}
+    if lhs.buttonPreset != rhs.buttonPreset {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Doc_V1_BlurEffect: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".BlurEffect"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}style\0\u{1}radius\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularEnumField(value: &self.style) }()
+      case 2: try { try decoder.decodeSingularDoubleField(value: &self.radius) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.style != .unspecified {
+      try visitor.visitSingularEnumField(value: self.style, fieldNumber: 1)
+    }
+    if self.radius.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.radius, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Wiretuner_Doc_V1_BlurEffect, rhs: Wiretuner_Doc_V1_BlurEffect) -> Bool {
+    if lhs.style != rhs.style {return false}
+    if lhs.radius != rhs.radius {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Doc_V1_ShadowEffect: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ShadowEffect"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}style\0\u{1}color\0\u{1}offset\0\u{1}opacity\0\u{1}softness\0\u{1}angle\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularEnumField(value: &self.style) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._color) }()
+      case 3: try { try decoder.decodeSingularDoubleField(value: &self.offset) }()
+      case 4: try { try decoder.decodeSingularUInt32Field(value: &self.opacity) }()
+      case 5: try { try decoder.decodeSingularUInt32Field(value: &self.softness) }()
+      case 6: try { try decoder.decodeSingularDoubleField(value: &self.angle) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if self.style != .unspecified {
+      try visitor.visitSingularEnumField(value: self.style, fieldNumber: 1)
+    }
+    try { if let v = self._color {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    if self.offset.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.offset, fieldNumber: 3)
+    }
+    if self.opacity != 0 {
+      try visitor.visitSingularUInt32Field(value: self.opacity, fieldNumber: 4)
+    }
+    if self.softness != 0 {
+      try visitor.visitSingularUInt32Field(value: self.softness, fieldNumber: 5)
+    }
+    if self.angle.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.angle, fieldNumber: 6)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Wiretuner_Doc_V1_ShadowEffect, rhs: Wiretuner_Doc_V1_ShadowEffect) -> Bool {
+    if lhs.style != rhs.style {return false}
+    if lhs._color != rhs._color {return false}
+    if lhs.offset != rhs.offset {return false}
+    if lhs.opacity != rhs.opacity {return false}
+    if lhs.softness != rhs.softness {return false}
+    if lhs.angle != rhs.angle {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Doc_V1_SharpenEffect: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".SharpenEffect"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}style\0\u{1}amount\0\u{3}pixel_radius\0\u{1}threshold\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularEnumField(value: &self.style) }()
+      case 2: try { try decoder.decodeSingularDoubleField(value: &self.amount) }()
+      case 3: try { try decoder.decodeSingularDoubleField(value: &self.pixelRadius) }()
+      case 4: try { try decoder.decodeSingularUInt32Field(value: &self.threshold) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.style != .unspecified {
+      try visitor.visitSingularEnumField(value: self.style, fieldNumber: 1)
+    }
+    if self.amount.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.amount, fieldNumber: 2)
+    }
+    if self.pixelRadius.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.pixelRadius, fieldNumber: 3)
+    }
+    if self.threshold != 0 {
+      try visitor.visitSingularUInt32Field(value: self.threshold, fieldNumber: 4)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Wiretuner_Doc_V1_SharpenEffect, rhs: Wiretuner_Doc_V1_SharpenEffect) -> Bool {
+    if lhs.style != rhs.style {return false}
+    if lhs.amount != rhs.amount {return false}
+    if lhs.pixelRadius != rhs.pixelRadius {return false}
+    if lhs.threshold != rhs.threshold {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Doc_V1_TransparencyEffect: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".TransparencyEffect"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}style\0\u{1}amount\0\u{1}radius\0\u{1}softness\0\u{1}mask\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularEnumField(value: &self.style) }()
+      case 2: try { try decoder.decodeSingularUInt32Field(value: &self.amount) }()
+      case 3: try { try decoder.decodeSingularDoubleField(value: &self.radius) }()
+      case 4: try { try decoder.decodeSingularUInt32Field(value: &self.softness) }()
+      case 5: try { try decoder.decodeSingularMessageField(value: &self._mask) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if self.style != .unspecified {
+      try visitor.visitSingularEnumField(value: self.style, fieldNumber: 1)
+    }
+    if self.amount != 0 {
+      try visitor.visitSingularUInt32Field(value: self.amount, fieldNumber: 2)
+    }
+    if self.radius.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.radius, fieldNumber: 3)
+    }
+    if self.softness != 0 {
+      try visitor.visitSingularUInt32Field(value: self.softness, fieldNumber: 4)
+    }
+    try { if let v = self._mask {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Wiretuner_Doc_V1_TransparencyEffect, rhs: Wiretuner_Doc_V1_TransparencyEffect) -> Bool {
+    if lhs.style != rhs.style {return false}
+    if lhs.amount != rhs.amount {return false}
+    if lhs.radius != rhs.radius {return false}
+    if lhs.softness != rhs.softness {return false}
+    if lhs._mask != rhs._mask {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

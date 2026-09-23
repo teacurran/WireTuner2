@@ -5,15 +5,26 @@
 // rulers, grid-guides).  PROTO-003 created the kind messages empty so NodeProps could name them;
 // DOC-001 filled them in here, in this file, because the FILE breaking rules pin a message to
 // the file it first appeared in.  Everything is in points on the pasteboard, y down, origin at
-// the pasteboard's top left (docs/spec/crdt-model.adoc).
+// the pasteboard's top left (docs/spec/crdt-model.adoc).  The other epics' settings-node and
+// page fields reference messages in their own files (print, view, color_management, web, data,
+// effects, perspective, font, file_info), recorded in the field-number tables below.
 syntax = "proto3";
 
 package wiretuner.doc.v1;
 
 import "buf/validate/validate.proto";
 import "wiretuner/doc/v1/appearance.proto";
+import "wiretuner/doc/v1/color_management.proto";
 import "wiretuner/doc/v1/common.proto";
+import "wiretuner/doc/v1/data.proto";
+import "wiretuner/doc/v1/effects.proto";
+import "wiretuner/doc/v1/file_info.proto";
+import "wiretuner/doc/v1/font.proto";
+import "wiretuner/doc/v1/perspective.proto";
+import "wiretuner/doc/v1/print.proto";
 import "wiretuner/doc/v1/text.proto";
+import "wiretuner/doc/v1/view.proto";
+import "wiretuner/doc/v1/web.proto";
 import "wt/crdt/options.proto";
 
 option java_multiple_files = true;
@@ -121,7 +132,8 @@ message Guide {
 //    1      common          crdt-model.adoc
 //    2-9    DOC             document-panel.adoc, rulers.adoc, grid-guides.adoc
 //   10-19   OBJ             objects/names-notes.adoc (reading_order 10)
-//   20-29   FX              effects/perspective.adoc (perspective_grid, ...)
+//   20-29   FX              effects/perspective.adoc (perspective_grid 20,
+//                           perspective_grid_visible 21)
 //   30-     free; an epic takes the next block of ten and adds a row here.
 message PageProps {
   // Name (the page's label in the Document panel) and the other shared registers.
@@ -143,6 +155,12 @@ message PageProps {
   Point ruler_origin = 6 [(wt.crdt.field).merge = MERGE_ATOMIC];
   // Ruler guides.  SEQUENCE: added, moved and deleted individually.
   repeated Guide guides = 7 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  // The perspective grid this page uses: an element of SettingsProps.perspective_grids
+  // (effects/perspective.adoc, FX-040).  Unset or dangling reads as the default grid (the
+  // sequence's first live element, or the built-in two-point grid).  ATOMIC.
+  ElementId perspective_grid = 20 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // View > Perspective Grid > Show for this page.  View state; never leaves the device.
+  bool perspective_grid_visible = 21 [(wt.crdt.field).local_only = true];
 }
 
 // NodeProps.kind case `master_page`: a child of the well-known masters node 0:3.  A separate
@@ -232,12 +250,14 @@ message Defaults {
 //    10-19   OBJ             objects/default-attributes.adoc (defaults 10)
 //    20-29   FONT            typeface/typeface-documents.adoc (document_kind 20, font 21)
 //    30-39   PRINT           printing/output-area.adoc (output_area 30), printing/printing.adoc
+//                            (print 31)
 //    40-49   BASIC           basics/document-view.adoc (view 40, local_only)
-//    50-59   CMS             cms/color-management.adoc (color)
+//    50-59   CMS             cms/color-management.adoc (color 50)
 //    60-69   WEB             web/publish-html.adoc (html_settings 60, html_setting_selected 61)
 //    70-79   WEB             web/animation.adoc (animation 70)
 //    80-89   DATA            automation/data-merge.adoc (data_fields 80 ... data_preview 83)
-//    90-99   FX              effects/raster-effects.adoc, effects/perspective.adoc
+//    90-99   FX              effects/raster-effects.adoc (raster_effects 90),
+//                            effects/perspective.adoc (perspective_grids 91)
 //   100-119  free
 //   120-129  IO              io/saving.adoc (snapshot_interval_override_s 120)
 //   130-139  IO              io/file-info.adoc (info 130), io/exporting.adoc (last_export 131)
@@ -266,4 +286,45 @@ message SettingsProps {
   bool guides_locked = 7;
   // What newly drawn objects receive (OBJ block).  STRUCT.
   Defaults defaults = 10;
+  // Illustration or typeface (FONT block, font.proto).  ATOMIC: a later conversion wins.
+  DocumentKind document_kind = 20 [(buf.validate.field).enum.defined_only = true];
+  // Font Info, kerning and the feature file of a typeface document (FONT block).  STRUCT.
+  FontProps font = 21;
+  // The document's single output area in pasteboard coordinates; unset = none (PRINT block,
+  // printing/output-area.adoc).  ATOMIC: a rectangle is one thing.
+  Rect output_area = 30 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Document-wide print settings (PRINT block, print.proto).  STRUCT.
+  PrintSettings print = 31;
+  // This Mac's view state (BASIC block, view.proto).  Never leaves the device: the outbox drops
+  // any op whose path enters it.
+  ViewState view = 40 [(wt.crdt.field).local_only = true];
+  // Working profiles, intent and proof setup (CMS block, color_management.proto).  STRUCT.
+  ColorSettings color = 50;
+  // Named HTML settings (WEB block, web.proto).  SEQUENCE: added, renamed and deleted
+  // individually; order is the Setup sheet's list.  Empty = the synthesized Default setting.
+  repeated HtmlSetting html_settings = 60 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  // The html_settings element the Publish sheet selects by default; dangling or unset reads as
+  // the first setting.  Never leaves the device.  ATOMIC.
+  ElementId html_setting_selected = 61 [
+    (wt.crdt.field).merge = MERGE_ATOMIC,
+    (wt.crdt.field).local_only = true
+  ];
+  // Animation settings (WEB block, web.proto).  STRUCT.
+  AnimationSettings animation = 70;
+  // Data-merge fields (DATA block, data.proto).  SEQUENCE: added, renamed and removed
+  // individually; references are by element id.
+  repeated DataField data_fields = 80 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  // Data sources.  SEQUENCE; the inactive ones keep their settings.
+  repeated DataSource data_sources = 81 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  // The connected data_sources element (one at a time); dangling reads as none connected.
+  // ATOMIC.
+  ElementId data_source_active = 82 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Data preview state.  Never leaves the device.
+  DataPreview data_preview = 83 [(wt.crdt.field).local_only = true];
+  // Raster effect resolution and color mode (FX block, effects.proto).  STRUCT.
+  RasterEffectSettings raster_effects = 90;
+  // Perspective grid definitions (FX block, perspective.proto).  SEQUENCE.
+  repeated PerspectiveGrid perspective_grids = 91 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  // IPTC document metadata (IO block, file_info.proto).  STRUCT.
+  DocumentInfo info = 130;
 }

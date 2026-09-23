@@ -541,7 +541,7 @@ Track:: proto
 Depends on:: PROTO-003, PROTO-009
 Size:: S
 Delivers:: `envelope` kind with `EnvelopeProps` and `EnvelopeCorners`; `EnvelopePreset` in the
-account `Preferences` message.
+account `Preferences` message (implemented in `envelope.proto`; `envelope` = 102.  `EnvelopePreset` belongs to the account `Preferences` message and is not in this change).
 Done when::
 * Lints clean; `contours` SEQUENCE, `source_bounds`/`corners` ATOMIC, `show_map` local-only.
 * Conformance vectors: concurrent envelope point drags; corner point deleted concurrently with

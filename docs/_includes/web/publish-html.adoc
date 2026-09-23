@@ -199,14 +199,16 @@ HTML settings live in the document's `settings` node so they are shared; the loc
 
 [source,protobuf]
 ----
-// settings.proto -- extension of the well-known settings node (0:1)
+// document.proto -- extension of the well-known settings node (0:1); the messages are web.proto
 message SettingsProps {
   // ... other settings
   // Named HTML settings.  SEQUENCE: settings are added, renamed and deleted individually;
   // order is the order of the Setup sheet's list.
   repeated HtmlSetting html_settings = 60 [(wt.crdt.field).merge = MERGE_SEQUENCE];
-  // Which setting the Publish sheet selects by default.  Falls back to the first setting.
-  NodeRef html_setting_selected = 61 [(wt.crdt.field).local_only = true];
+  // Which setting (an html_settings element) the Publish sheet selects by default.  Falls
+  // back to the first setting.  An ElementId, not a NodeRef: settings are sequence elements.
+  ElementId html_setting_selected = 61 [(wt.crdt.field).merge = MERGE_ATOMIC,
+                                        (wt.crdt.field).local_only = true];
 }
 
 // One HTML setting.  STRUCT: each option is an independent choice.
@@ -218,7 +220,7 @@ message HtmlSetting {
   HtmlLayout layout = 4;                  // WHOLE_PAGES (default) or POSITIONED_OBJECTS
   HtmlPageMode page_mode = 5;             // STACKED (default) or SEPARATE_FILES
   HtmlVectorFormat vector_format = 6;     // SVG (default) or PNG
-  uint32 scale = 7 [(buf.validate.field).uint32 = {gte: 1, lte: 3}];   // PNG scale; default 2
+  uint32 scale = 7 [(buf.validate.field).uint32 = {gte: 1, lte: 3}];   // PNG scale; 0 reads 2 (IGNORE_IF_ZERO_VALUE)
   HtmlImageFormat image_format = 8;       // JPEG (default), PNG, WEBP
   uint32 image_quality = 9 [(buf.validate.field).uint32.lte = 100];   // default 80
   HtmlFontMode font_mode = 10;            // EMBED (default), OUTLINES, SYSTEM
@@ -371,7 +373,7 @@ built from one state), then renders on a background task.  Nothing is written to
 Track:: client-model
 Depends on:: PROTO-003, CRDT-001, CRDT-004, APP-011
 Size:: S
-Delivers:: `HtmlSetting` sequence and enums on `SettingsProps`, `local_only` location, the synthesized Default setting, commands to add, rename, edit and delete settings with inverses.
+Delivers:: `HtmlSetting` sequence and enums on `SettingsProps`, `local_only` location, the synthesized Default setting, commands to add, rename, edit and delete settings with inverses (implemented in `web.proto` for the schema half, with `html_settings`/`html_setting_selected` as `SettingsProps` fields 60/61; the commands are client-model work still to do).
 Done when::
 * A fresh document reports one setting (Default) without any element existing; editing it creates the element with the edited field and defaults for the rest.
 * Merge test: two replicas edit different fields of one setting concurrently and both edits survive; one edits while the other deletes and the setting stays deleted with the edit retained.

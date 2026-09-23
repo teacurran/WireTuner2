@@ -1,0 +1,104 @@
+// proto/wiretuner/doc/v1/perspective.proto
+//
+// Perspective grids and the `perspective` node kind (docs/_includes/effects/perspective.adoc,
+// FX-040).  Grid definitions are a SEQUENCE on the settings node (SettingsProps
+// .perspective_grids); each page names the grid it uses (PageProps.perspective_grid) and keeps
+// its visibility as view state.  An attached object is wrapped in a `perspective` node that
+// records where it sits on which plane; the object inside stays flat and the perspective look
+// is computed on read.
+syntax = "proto3";
+
+package wiretuner.doc.v1;
+
+import "buf/validate/validate.proto";
+import "wiretuner/doc/v1/common.proto";
+import "wt/crdt/options.proto";
+
+option java_multiple_files = true;
+option java_package = "com.villagecompute.wiretuner.doc.v1";
+option optimize_for = SPEED;
+
+// One named perspective grid.  Element of SettingsProps.perspective_grids; every field is its
+// own register.  Geometry is in page coordinates (points from the page's bottom-left, y up, as
+// the panel shows them).
+message PerspectiveGrid {
+  // Element id (MERGE_SEQUENCE).
+  ElementId id = 1;
+  // Unique per document when written (the model enforces; duplicates resolve to the smaller
+  // element id on read).
+  string name = 2 [(buf.validate.field).string.max_len = 64];
+  // Number of vanishing points, 1 .. 3; 0 (never set) reads as 2.
+  uint32 vanishing_points = 3 [
+    (buf.validate.field).uint32 = {
+      gte: 1
+      lte: 3
+    },
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+  // Grid cell size in points; 0 (never set) reads as the built-in default grid's.
+  double cell_size = 4 [(buf.validate.field).double.gte = 0];
+  // The horizon's y.
+  double horizon_y = 5;
+  // 1-point grids: the single vanishing point; 2- and 3-point grids: the left one.  ATOMIC.
+  Point left_vp = 6 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // 2- and 3-point grids.  ATOMIC.
+  Point right_vp = 7 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // 3-point grids.  ATOMIC.
+  Point vertical_vp = 8 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // x of the left wall's near edge.
+  double left_wall_x = 9;
+  // x of the right wall's near edge.
+  double right_wall_x = 10;
+  // y of the floor's near edge.
+  double floor_front_y = 11;
+  // Left wall grid color.  ATOMIC.
+  ColorRef left_color = 12 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Right wall grid color.  ATOMIC.
+  ColorRef right_color = 13 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Floor grid color.  ATOMIC.
+  ColorRef floor_color = 14 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Left wall hidden (double-click a vanishing point).
+  bool left_hidden = 15;
+  // Right wall hidden.
+  bool right_hidden = 16;
+  // Floor hidden (double-click the horizon).
+  bool floor_hidden = 17;
+}
+
+// The plane of a grid an object is attached to.
+enum PerspectivePlane {
+  // Reads as LEFT_WALL (WALL on a one-point grid).
+  PERSPECTIVE_PLANE_UNSPECIFIED = 0;
+  // The left wall.
+  PERSPECTIVE_PLANE_LEFT_WALL = 1;
+  // The right wall.
+  PERSPECTIVE_PLANE_RIGHT_WALL = 2;
+  // The floor, aligned to the left vanishing point.
+  PERSPECTIVE_PLANE_FLOOR_LEFT = 3;
+  // The floor, aligned to the right vanishing point.
+  PERSPECTIVE_PLANE_FLOOR_RIGHT = 4;
+  // One-point grids: the wall.
+  PERSPECTIVE_PLANE_WALL = 5;
+  // One-point grids: the floor.
+  PERSPECTIVE_PLANE_FLOOR = 6;
+}
+
+// NodeProps.kind case `perspective` (FX block): wraps one child, the flat object.  STRUCT.
+message PerspectiveProps {
+  // Name, transform and the other shared registers.
+  CommonProps common = 1;
+  // Which plane.
+  PerspectivePlane plane = 2 [(buf.validate.field).enum.defined_only = true];
+  // Where the child's bounds sit on the plane, in grid cells (u along the plane's horizontal
+  // grid lines, v along its receding lines).  ATOMIC: one drag.
+  Point cell_position = 3 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Size on the plane in cells (keys 3/4).
+  double cell_width = 4 [(buf.validate.field).double.gte = 0];
+  // Height on the plane in cells (keys 5/6).
+  double cell_height = 5 [(buf.validate.field).double.gte = 0];
+  // Mirrored on the plane (Space).
+  bool flipped = 6;
+  // The grid (a SettingsProps.perspective_grids element) the object was attached to; normally
+  // the page's grid.  Dangling reads as the page's grid.  ATOMIC.
+  ElementId grid = 7 [(wt.crdt.field).merge = MERGE_ATOMIC];
+}

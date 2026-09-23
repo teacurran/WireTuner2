@@ -212,15 +212,18 @@ ifdef::spec[]
 
 [source,protobuf]
 ----
-// FontProps: STRUCT on SettingsProps.font.  Each field is an independent register.
+// FontProps: STRUCT on SettingsProps.font (field 21).  Each field is an independent register.
+// No field has a minimum length or a pattern that rejects "": a SetFields carries the fields it
+// does not write as empty strings, so patterns and fixed lengths carry IGNORE_IF_ZERO_VALUE and
+// "required" names are enforced by the generate checker.
 
 message FontNames {
-  string family = 1 [(buf.validate.field).string = {min_len: 1, max_len: 63}];
-  string style = 2 [(buf.validate.field).string = {min_len: 1, max_len: 63}];
+  string family = 1 [(buf.validate.field).string.max_len = 63];
+  string style = 2 [(buf.validate.field).string.max_len = 63];
   // Empty = generated from family and style.  ASCII, no spaces, max 63 per the spec.
   string postscript = 3 [(buf.validate.field).string = {max_len: 63, pattern: "^[A-Za-z0-9._-]*$"}];
   string full = 4 [(buf.validate.field).string.max_len = 127];        // empty = generated
-  string version = 5 [(buf.validate.field).string = {pattern: "^[0-9]+\\.[0-9]{3}$"}];   // "1.000"
+  string version = 5 [(buf.validate.field).string = {max_len: 16, pattern: "^[0-9]+\\.[0-9]{3}$"}];   // "1.000"
   string copyright = 6 [(buf.validate.field).string.max_len = 4096];
   string trademark = 7 [(buf.validate.field).string.max_len = 1024];
   string designer = 8 [(buf.validate.field).string.max_len = 255];
@@ -278,7 +281,7 @@ message Os2Props {
 // A named extra metric line.  Element of a SEQUENCE.
 message MetricLine {
   ElementId id = 1;
-  string name = 2 [(buf.validate.field).string = {min_len: 1, max_len: 63}];
+  string name = 2 [(buf.validate.field).string.max_len = 63];
   double y = 3;                    // font units, y up (a font value, not a canvas coordinate)
 }
 

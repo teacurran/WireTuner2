@@ -1,26 +1,490 @@
 // proto/wiretuner/doc/v1/effects.proto
 //
-// Live effects in the attribute stack (docs/_includes/effects/live-effects.adoc, FX epic).
-// ATTR-001 creates `Effect` with only the two fields every stack element shares so
-// AppearanceProps can reserve its `effects` sequence; the FX epic fills it in here, in this
-// file, because the FILE breaking rules pin a message to the file it first appeared in.  Like
-// Fill and Stroke, the kind and its settings go in a MERGE_VARIANT message (`EffectSettings
-// settings = 4`, after `attached_to = 3`), so a concurrent kind switch keeps every case.
+// Live effects in the attribute stack (docs/_includes/effects/live-effects.adoc, FX-001 and
+// FX-045; raster-effects.adoc, FX-007; transparency.adoc, FX-013).  ATTR-001 created `Effect`
+// with only the two fields every stack element shares so AppearanceProps could reserve its
+// `effects` sequence; the FX epic filled it in here, in this file, because the FILE breaking
+// rules pin a message to the file it first appeared in.  Like Fill and Stroke, the kind and its
+// settings are a MERGE_VARIANT message (`EffectSettings settings = 4`), so a concurrent kind
+// switch keeps every case's settings.  The effect wrapper node kinds (blend, extrude, envelope,
+// perspective) are in their own files.
+//
+// Adding an EffectKind later bumps the document's feature level (crdt-model.adoc, "Schema
+// evolution"): an older client renders the object without the unknown effect.
 syntax = "proto3";
 
 package wiretuner.doc.v1;
 
+import "buf/validate/validate.proto";
 import "wiretuner/doc/v1/common.proto";
+import "wiretuner/doc/v1/gradient.proto";
+import "wiretuner/doc/v1/stroke.proto";
+import "wt/crdt/options.proto";
 
 option java_multiple_files = true;
 option java_package = "com.villagecompute.wiretuner.doc.v1";
 option optimize_for = SPEED;
 
 // One effect in the stack.  Element of AppearanceProps.effects; its position shares one
-// fractional-index space with the fills and strokes.  Filled in by the FX epic.
+// fractional-index space with the fills and strokes.
 message Effect {
   // Element id (MERGE_SEQUENCE).
   ElementId id = 1;
   // Eye toggle: kept but not rendered, printed or exported.  ATOMIC.
   bool hidden = 2;
+  // The fill or stroke element (in the same AppearanceProps) this effect applies to.  Unset
+  // (all zero): the whole object.  Reads as unset when that element is deleted.  ATOMIC.
+  ElementId attached_to = 3 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // The kind and every kind's settings.  MERGE_VARIANT.
+  EffectSettings settings = 4 [(wt.crdt.field).merge = MERGE_VARIANT];
+}
+
+// Which effect settings message is live.  Unset renders as no effect; an unknown value (a
+// newer client's) renders as no effect and its registers are preserved.
+enum EffectKind {
+  // Renders as no effect.
+  EFFECT_KIND_UNSPECIFIED = 0;
+  // BendEffect.
+  EFFECT_KIND_BEND = 1;
+  // DuetEffect.
+  EFFECT_KIND_DUET = 2;
+  // ExpandPathEffect.
+  EFFECT_KIND_EXPAND_PATH = 3;
+  // RaggedEffect.
+  EFFECT_KIND_RAGGED = 4;
+  // SketchEffect.
+  EFFECT_KIND_SKETCH = 5;
+  // TransformEffect.
+  EFFECT_KIND_TRANSFORM = 6;
+  // BevelEmbossEffect.
+  EFFECT_KIND_BEVEL_EMBOSS = 7;
+  // BlurEffect.
+  EFFECT_KIND_BLUR = 8;
+  // ShadowEffect.
+  EFFECT_KIND_SHADOW = 9;
+  // SharpenEffect.
+  EFFECT_KIND_SHARPEN = 10;
+  // TransparencyEffect.
+  EFFECT_KIND_TRANSPARENCY = 11;
+  // CornersEffect.
+  EFFECT_KIND_CORNERS = 12;
+  // CombineEffect.
+  EFFECT_KIND_COMBINE = 13;
+}
+
+// An effect's kind and its per-kind settings (MERGE_VARIANT).  Vector effects 10-19, raster
+// and transparency effects 20-29.
+message EffectSettings {
+  // Which case is live.  ATOMIC.
+  EffectKind kind = 1;
+  // live-effects.adoc.  STRUCT.
+  BendEffect bend = 10;
+  // live-effects.adoc.  STRUCT.
+  DuetEffect duet = 11;
+  // live-effects.adoc.  STRUCT.
+  ExpandPathEffect expand_path = 12;
+  // live-effects.adoc.  STRUCT.
+  RaggedEffect ragged = 13;
+  // live-effects.adoc.  STRUCT.
+  SketchEffect sketch = 14;
+  // live-effects.adoc.  STRUCT.
+  TransformEffect transform = 15;
+  // live-effects.adoc.  STRUCT.
+  CornersEffect corners = 16;
+  // live-effects.adoc.  STRUCT.
+  CombineEffect combine = 17;
+  // raster-effects.adoc.  STRUCT.
+  BevelEmbossEffect bevel_emboss = 20;
+  // raster-effects.adoc.  STRUCT.
+  BlurEffect blur = 21;
+  // raster-effects.adoc.  STRUCT.
+  ShadowEffect shadow = 22;
+  // raster-effects.adoc.  STRUCT.
+  SharpenEffect sharpen = 23;
+  // transparency.adoc.  STRUCT.
+  TransparencyEffect transparency = 24;
+}
+
+// Bloat (positive size) or pinch (negative size) about a centre.
+message BendEffect {
+  // Points; greater than 0 bloats, less than 0 pinches.
+  double size = 1;
+  // Centre relative to the object's bounds centre, points.  ATOMIC: x and y are one drag.
+  Point center = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];
+}
+
+// How a duet makes its clones.
+enum DuetMode {
+  // Reads as REFLECT.
+  DUET_MODE_UNSPECIFIED = 0;
+  // One mirror image across the axis.
+  DUET_MODE_REFLECT = 1;
+  // `copies` rotated copies about the centre.
+  DUET_MODE_ROTATE = 2;
+}
+
+// Mirrored or rotated clones of the path.
+message DuetEffect {
+  // Reflect or rotate.
+  DuetMode mode = 1 [(buf.validate.field).enum.defined_only = true];
+  // Relative to the object's bounds centre, points.  ATOMIC.
+  Point center = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Degrees; the mirror axis direction for REFLECT.
+  double axis_angle = 3;
+  // ROTATE only: 1 .. 100; 0 (never set) reads as 1.
+  uint32 copies = 4 [
+    (buf.validate.field).uint32 = {
+      gte: 1
+      lte: 100
+    },
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+  // One continuous path through the original and its clones.
+  bool joined = 5;
+  // Close each clone (joined false) or the joined path.
+  bool closed = 6;
+  // Alternate filled and unfilled where clones overlap.
+  bool even_odd = 7;
+}
+
+// Which side of the path an expand-path effect grows on.
+enum ExpandDirection {
+  // Reads as BOTH.
+  EXPAND_DIRECTION_UNSPECIFIED = 0;
+  // Centred on the path.
+  EXPAND_DIRECTION_BOTH = 1;
+  // Inside a closed path only.
+  EXPAND_DIRECTION_INSIDE = 2;
+  // Outside a closed path only.
+  EXPAND_DIRECTION_OUTSIDE = 3;
+}
+
+// Replaces the path by the outline of a stroke of `width` along it.
+message ExpandPathEffect {
+  // Which side grows.
+  ExpandDirection direction = 1 [(buf.validate.field).enum.defined_only = true];
+  // Points, 0 .. 50.
+  double width = 2 [(buf.validate.field).double = {
+    gte: 0
+    lte: 50
+  }];
+  // End cap, shared with BasicStroke (stroke.proto).
+  LineCap cap = 3 [(buf.validate.field).enum.defined_only = true];
+  // Corner join, shared with BasicStroke.
+  LineJoin join = 4 [(buf.validate.field).enum.defined_only = true];
+  // Miter limit, 1 .. 57; 0 (never set) reads as 4.
+  double miter_limit = 5 [
+    (buf.validate.field).double = {
+      gte: 1
+      lte: 57
+    },
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+}
+
+// Random or uniform displacement of added points.
+message RaggedEffect {
+  // Maximum displacement in points.
+  double size = 1 [(buf.validate.field).double.gte = 0];
+  // Added points per inch.
+  double frequency = 2 [(buf.validate.field).double.gte = 0];
+  // Extra copies, 0 .. 10.
+  uint32 copies = 3 [(buf.validate.field).uint32.lte = 10];
+  // False = Rough (corner points), true = Smooth (curve points).
+  bool smooth = 4;
+  // Alternate plus and minus `size` instead of random displacement.
+  bool uniform = 5;
+  // PRNG seed; Reseed writes a new one.  Never 0 once created.
+  fixed64 seed = 6;
+}
+
+// Hand-drawn look: jittered copies of the path.
+message SketchEffect {
+  // Jitter in points.
+  double amount = 1 [(buf.validate.field).double.gte = 0];
+  // Copies, 1 .. 20; 0 (never set) reads as 1.
+  uint32 copies = 2 [
+    (buf.validate.field).uint32 = {
+      gte: 1
+      lte: 20
+    },
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+  // Close each copy.
+  bool closed = 3;
+  // PRNG seed; never 0 once created.
+  fixed64 seed = 4;
+}
+
+// A parametric transform, optionally repeated.  STRUCT, unlike CommonProps.transform: these are
+// independent user-facing parameters composed in a fixed order (scale, skew, rotate, move about
+// the centre), so merging one user's rotate with another's scale produces what both asked for.
+message TransformEffect {
+  // Percent; 100 = unchanged; 0 (never set) reads as 100.
+  double scale_x = 1;
+  // Percent; 0 (never set) reads as 100.
+  double scale_y = 2;
+  // UI lock only: while true the panel writes scale_y equal to scale_x.
+  bool uniform = 3;
+  // Horizontal skew, degrees.
+  double skew_h = 4;
+  // Vertical skew, degrees.
+  double skew_v = 5;
+  // Degrees, counterclockwise positive.
+  double rotate = 6;
+  // Offset in points, y up as shown in the panel.  ATOMIC.
+  Point move = 7 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Relative to the object's bounds centre, points.  ATOMIC.
+  Point center = 8 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Copies, 1 .. 1000; 0 (never set) reads as 1.
+  uint32 copies = 9 [
+    (buf.validate.field).uint32 = {
+      gte: 1
+      lte: 1000
+    },
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+}
+
+// The shape a corners effect cuts.
+enum CornerStyle {
+  // Reads as ROUND.
+  CORNER_STYLE_UNSPECIFIED = 0;
+  // Convex arc.
+  CORNER_STYLE_ROUND = 1;
+  // Concave scoop.
+  CORNER_STYLE_INVERTED_ROUND = 2;
+  // Straight cut.
+  CORNER_STYLE_CHAMFER = 3;
+}
+
+// Rounds, scoops or chamfers corner points of the effected outline without changing them.
+message CornersEffect {
+  // Points, at least 0; clamped per corner on read.
+  double radius = 1 [(buf.validate.field).double.gte = 0];
+  // Round, inverted round or chamfer.
+  CornerStyle style = 2 [(buf.validate.field).enum.defined_only = true];
+  // The PathPoint element ids this effect treats.  SET (add-wins, members compared by value):
+  // two people choosing different points both keep theirs.  Empty = every eligible corner.  A
+  // member whose point is deleted, is a curve point or belongs to another node drops out on
+  // read; the set is never rewritten for it, so restoring the point restores the corner.  On a
+  // `rect` node the set is ignored and all four corners are treated.
+  repeated ElementId points = 3 [(wt.crdt.field).merge = MERGE_SET];
+}
+
+// The boolean a combine effect computes.
+enum BooleanOp {
+  // Reads as UNION.
+  BOOLEAN_OP_UNSPECIFIED = 0;
+  // Everything covered by any member.
+  BOOLEAN_OP_UNION = 1;
+  // The bottom member minus every member above it.
+  BOOLEAN_OP_SUBTRACT = 2;
+  // What every member covers.
+  BOOLEAN_OP_INTERSECT = 3;
+  // Regions covered an odd number of times.
+  BOOLEAN_OP_EXCLUDE = 4;
+}
+
+// A live boolean over a group's members.  Meaningful only at the object level of a `group`
+// node; anywhere else it renders as no effect.  Operand order = stacking order, bottom first.
+message CombineEffect {
+  // The operation.
+  BooleanOp op = 1 [(buf.validate.field).enum.defined_only = true];
+}
+
+// Document-level raster effect settings (raster-effects.adoc).  SettingsProps.raster_effects;
+// STRUCT.
+message RasterEffectSettings {
+  // Raster effect resolution, 1 .. 2400 ppi; 0 (never set) reads as 72.
+  uint32 resolution_ppi = 1 [
+    (buf.validate.field).uint32 = {
+      gte: 1
+      lte: 2400
+    },
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+  // Render effects in CMYK, bypassing color management.
+  bool optimal_cmyk = 2;
+}
+
+// Bevel and emboss styles.
+enum BevelStyle {
+  // Reads as INNER_BEVEL.
+  BEVEL_STYLE_UNSPECIFIED = 0;
+  // Bevel outside the outline.
+  BEVEL_STYLE_OUTER_BEVEL = 1;
+  // Bevel inside the outline.
+  BEVEL_STYLE_INNER_BEVEL = 2;
+  // Raised emboss.
+  BEVEL_STYLE_RAISED_EMBOSS = 3;
+  // Inset emboss.
+  BEVEL_STYLE_INSET_EMBOSS = 4;
+}
+
+// The profile of a bevel's edge.
+enum BevelEdgeShape {
+  // Reads as FLAT.
+  BEVEL_EDGE_SHAPE_UNSPECIFIED = 0;
+  // Flat.
+  BEVEL_EDGE_SHAPE_FLAT = 1;
+  // Smooth.
+  BEVEL_EDGE_SHAPE_SMOOTH = 2;
+  // Sloped.
+  BEVEL_EDGE_SHAPE_SLOPED = 3;
+  // Frame 1.
+  BEVEL_EDGE_SHAPE_FRAME_1 = 4;
+  // Frame 2.
+  BEVEL_EDGE_SHAPE_FRAME_2 = 5;
+  // Ring.
+  BEVEL_EDGE_SHAPE_RING = 6;
+  // Ruffle.
+  BEVEL_EDGE_SHAPE_RUFFLE = 7;
+}
+
+// The lighting preset of a bevel (button states).
+enum BevelButtonPreset {
+  // Reads as RAISED.
+  BEVEL_BUTTON_PRESET_UNSPECIFIED = 0;
+  // Raised.
+  BEVEL_BUTTON_PRESET_RAISED = 1;
+  // Highlighted.
+  BEVEL_BUTTON_PRESET_HIGHLIGHTED = 2;
+  // Inset.
+  BEVEL_BUTTON_PRESET_INSET = 3;
+  // Inverted.
+  BEVEL_BUTTON_PRESET_INVERTED = 4;
+}
+
+// Bevel and emboss raster effect.
+message BevelEmbossEffect {
+  // Which bevel or emboss.
+  BevelStyle style = 1 [(buf.validate.field).enum.defined_only = true];
+  // Outer bevel rim color.  ATOMIC; a deleted swatch reads its cached color.
+  ColorRef color = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Bevel width in points.
+  double width = 3 [(buf.validate.field).double.gte = 0];
+  // Contrast, 0 .. 100.
+  uint32 contrast = 4 [(buf.validate.field).uint32.lte = 100];
+  // Softness, 0 .. 10.
+  uint32 softness = 5 [(buf.validate.field).uint32.lte = 10];
+  // Light angle in degrees, 0 .. 360.
+  double angle = 6 [(buf.validate.field).double = {
+    gte: 0
+    lte: 360
+  }];
+  // Bevels only.
+  BevelEdgeShape edge_shape = 7 [(buf.validate.field).enum.defined_only = true];
+  // Bevels only.
+  BevelButtonPreset button_preset = 8 [(buf.validate.field).enum.defined_only = true];
+}
+
+// Blur algorithms.
+enum BlurStyle {
+  // Reads as GAUSSIAN.
+  BLUR_STYLE_UNSPECIFIED = 0;
+  // Box blur.
+  BLUR_STYLE_BASIC = 1;
+  // Gaussian blur.
+  BLUR_STYLE_GAUSSIAN = 2;
+}
+
+// Blur raster effect.
+message BlurEffect {
+  // Which blur.
+  BlurStyle style = 1 [(buf.validate.field).enum.defined_only = true];
+  // Radius in pixels at the raster resolution, 0 .. 250.
+  double radius = 2 [(buf.validate.field).double = {
+    gte: 0
+    lte: 250
+  }];
+}
+
+// Shadow and glow styles.
+enum ShadowStyle {
+  // Reads as DROP_SHADOW.
+  SHADOW_STYLE_UNSPECIFIED = 0;
+  // Offset shadow behind the object.
+  SHADOW_STYLE_DROP_SHADOW = 1;
+  // Shadow inside the outline.
+  SHADOW_STYLE_INNER_SHADOW = 2;
+  // Halo around the outline.
+  SHADOW_STYLE_GLOW = 3;
+  // Halo inside the outline.
+  SHADOW_STYLE_INNER_GLOW = 4;
+}
+
+// Shadow and glow raster effect.
+message ShadowEffect {
+  // Which shadow or glow.
+  ShadowStyle style = 1 [(buf.validate.field).enum.defined_only = true];
+  // Shadow color.  ATOMIC; a deleted swatch reads its cached color.
+  ColorRef color = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Points; shadows: distance along `angle`; glows: halo width.
+  double offset = 3;
+  // Opacity, 0 .. 100.
+  uint32 opacity = 4 [(buf.validate.field).uint32.lte = 100];
+  // Softness, 0 .. 30.
+  uint32 softness = 5 [(buf.validate.field).uint32.lte = 30];
+  // Degrees; shadows only.
+  double angle = 6;
+}
+
+// Sharpen algorithms.
+enum SharpenStyle {
+  // Reads as BASIC.
+  SHARPEN_STYLE_UNSPECIFIED = 0;
+  // Basic sharpen.
+  SHARPEN_STYLE_BASIC = 1;
+  // Unsharp mask.
+  SHARPEN_STYLE_UNSHARP_MASK = 2;
+}
+
+// Sharpen raster effect.
+message SharpenEffect {
+  // Which sharpen.
+  SharpenStyle style = 1 [(buf.validate.field).enum.defined_only = true];
+  // Percent, 0 .. 500.
+  double amount = 2 [(buf.validate.field).double = {
+    gte: 0
+    lte: 500
+  }];
+  // Unsharp mask only: 0.1 .. 250 pixels; 0 (never set) reads as 1.
+  double pixel_radius = 3 [
+    (buf.validate.field).double = {
+      gte: 0.1
+      lte: 250
+    },
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+  // Unsharp mask only: 0 .. 255 levels.
+  uint32 threshold = 4 [(buf.validate.field).uint32.lte = 255];
+}
+
+// Transparency styles.
+enum TransparencyStyle {
+  // Reads as BASIC.
+  TRANSPARENCY_STYLE_UNSPECIFIED = 0;
+  // Uniform transparency.
+  TRANSPARENCY_STYLE_BASIC = 1;
+  // Feathered edge.
+  TRANSPARENCY_STYLE_FEATHER = 2;
+  // Luminance of a gradient as the mask.
+  TRANSPARENCY_STYLE_GRADIENT_MASK = 3;
+}
+
+// Transparency effect (transparency.adoc).
+message TransparencyEffect {
+  // Which transparency.
+  TransparencyStyle style = 1 [(buf.validate.field).enum.defined_only = true];
+  // BASIC: 0 opaque .. 100 invisible.
+  uint32 amount = 2 [(buf.validate.field).uint32.lte = 100];
+  // FEATHER: points, at least 0.
+  double radius = 3 [(buf.validate.field).double.gte = 0];
+  // FEATHER: 0 .. 100.
+  uint32 softness = 4 [(buf.validate.field).uint32.lte = 100];
+  // GRADIENT_MASK: the ATTR gradient (gradient.proto) whose stop luminance is 1 - alpha.
+  // STRUCT with its stops a SEQUENCE, exactly as in a gradient fill, so stop edits merge
+  // individually.  Its `overprint` is ignored.
+  GradientFill mask = 5;
 }

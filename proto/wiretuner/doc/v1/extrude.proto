@@ -1,0 +1,153 @@
+// proto/wiretuner/doc/v1/extrude.proto
+//
+// The `extrude` node kind (docs/_includes/effects/extrude.adoc, FX-016).  An extrusion wraps
+// exactly one child, the flat shape (a path, group or text node), which keeps its own kind and
+// props; extrusion edits and source edits are on different nodes and never compete.
+syntax = "proto3";
+
+package wiretuner.doc.v1;
+
+import "buf/validate/validate.proto";
+import "wiretuner/doc/v1/common.proto";
+import "wiretuner/doc/v1/contour.proto";
+import "wt/crdt/options.proto";
+
+option java_multiple_files = true;
+option java_package = "com.villagecompute.wiretuner.doc.v1";
+option optimize_for = SPEED;
+
+// NodeProps.kind case `extrude` (FX block).  STRUCT.
+message ExtrudeProps {
+  // Name, transform and the other shared registers.
+  CommonProps common = 1;
+  // Depth in points, 0 .. 32000.
+  double length = 2 [(buf.validate.field).double = {
+    gte: 0
+    lte: 32000
+  }];
+  // Pasteboard coordinates; the panel shows them relative to the active page.  ATOMIC: one
+  // drag.
+  Point vanishing_point = 3 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Position Z; X and Y are the child's own position.
+  double z = 4;
+  // Euler angles applied X then Y then Z about the 3D centre.  ATOMIC: a rotation drag writes
+  // all three and a merge of components is a rotation nobody made.
+  Rotation3 rotation = 5 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Surface shading.  STRUCT.
+  Surface surface = 6;
+  // Bevel or static profile.  STRUCT.
+  Profile profile = 7;
+}
+
+// Three Euler angles in degrees.  ATOMIC wherever used.
+message Rotation3 {
+  // About the X axis, degrees.
+  double x = 1;
+  // About the Y axis, degrees.
+  double y = 2;
+  // About the Z axis, degrees.
+  double z = 3;
+}
+
+// How an extrusion's faces are drawn.
+enum SurfaceKind {
+  // Reads as SHADED (written SHADED on create).
+  SURFACE_KIND_UNSPECIFIED = 0;
+  // Flat color.
+  SURFACE_KIND_FLAT = 1;
+  // Lit and shaded.
+  SURFACE_KIND_SHADED = 2;
+  // Edges only.
+  SURFACE_KIND_WIREFRAME = 3;
+  // Mesh lines over the faces.
+  SURFACE_KIND_MESH = 4;
+  // Mesh with hidden lines removed.
+  SURFACE_KIND_HIDDEN_MESH = 5;
+}
+
+// Surface shading of an extrusion.  STRUCT.
+message Surface {
+  // How faces are drawn.
+  SurfaceKind kind = 1 [(buf.validate.field).enum.defined_only = true];
+  // Curvature subdivision, 1 .. 100; 0 (never set) reads as 10.
+  uint32 steps = 2 [
+    (buf.validate.field).uint32 = {
+      gte: 1
+      lte: 100
+    },
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+  // Ambient light, 0 .. 100.
+  uint32 ambient = 3 [(buf.validate.field).uint32.lte = 100];
+  // First light.  STRUCT.
+  Light light1 = 4;
+  // Second light.  STRUCT.
+  Light light2 = 5;
+}
+
+// Where a light shines from.
+enum LightDirection {
+  // Reads as NONE (the light is off).
+  LIGHT_DIRECTION_UNSPECIFIED = 0;
+  // Off.
+  LIGHT_DIRECTION_NONE = 1;
+  // Top left.
+  LIGHT_DIRECTION_TOP_LEFT = 2;
+  // Top.
+  LIGHT_DIRECTION_TOP = 3;
+  // Top right.
+  LIGHT_DIRECTION_TOP_RIGHT = 4;
+  // Left.
+  LIGHT_DIRECTION_LEFT = 5;
+  // Front.
+  LIGHT_DIRECTION_FRONT = 6;
+  // Right.
+  LIGHT_DIRECTION_RIGHT = 7;
+  // Bottom left.
+  LIGHT_DIRECTION_BOTTOM_LEFT = 8;
+  // Bottom.
+  LIGHT_DIRECTION_BOTTOM = 9;
+  // Bottom right.
+  LIGHT_DIRECTION_BOTTOM_RIGHT = 10;
+}
+
+// One light.  STRUCT: direction and intensity are independent.
+message Light {
+  // Where the light shines from.
+  LightDirection direction = 1 [(buf.validate.field).enum.defined_only = true];
+  // Intensity, 0 .. 100.
+  uint32 intensity = 2 [(buf.validate.field).uint32.lte = 100];
+}
+
+// The profile an extrusion sweeps.
+enum ProfileKind {
+  // Reads as NONE.
+  PROFILE_KIND_UNSPECIFIED = 0;
+  // Straight sides.
+  PROFILE_KIND_NONE = 1;
+  // The profile path bevels the edge.
+  PROFILE_KIND_BEVEL = 2;
+  // The profile path is swept at `angle`.
+  PROFILE_KIND_STATIC = 3;
+}
+
+// An extrusion's profile.  STRUCT.
+message Profile {
+  // None, bevel or static.
+  ProfileKind kind = 1 [(buf.validate.field).enum.defined_only = true];
+  // A copy of the pasted open path's geometry (one contour).  ATOMIC: Paste In replaces it
+  // whole; nobody edits its points in place.
+  Contour path = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // STATIC only, degrees.
+  double angle = 3;
+  // Front-to-back slices, 1 .. 100; 0 (never set) reads as 1.
+  uint32 steps = 4 [
+    (buf.validate.field).uint32 = {
+      gte: 1
+      lte: 100
+    },
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+  // Degrees, clockwise, applied to the rear face.
+  double twist = 5;
+}

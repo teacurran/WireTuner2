@@ -264,62 +264,71 @@ ifdef::spec[]
 // Additions to proto/wiretuner/doc/v1/effects.proto
 
 // Document-level settings, a field of the settings node's SettingsProps (FX block 90-99):
-//   RasterEffectSettings raster_effects = …;   // STRUCT
+//   RasterEffectSettings raster_effects = 90;   // STRUCT
 message RasterEffectSettings {
-  uint32 resolution_ppi = 1 [(buf.validate.field).uint32 = {gte: 1, lte: 2400}];  // default 72
+  uint32 resolution_ppi = 1 [(buf.validate.field).uint32 = {gte: 1, lte: 2400}];  // 0 reads 72 (IGNORE_IF_ZERO_VALUE)
   bool optimal_cmyk = 2;         // render effects in CMYK, bypassing color management
 }
 
-// Per-object override, a field of Appearance (ATTR epic):
-//   uint32 raster_dpi = …;      // 0 = use document setting; else 1..2400
+// Per-object override, a field of AppearanceProps (ATTR epic, appearance.proto):
+//   uint32 raster_dpi = 4;      // 0 = use document setting; else 1..2400
+
+// The effect enums are top-level in effects.proto, each value prefixed with the enum's name
+// (BevelStyle: BEVEL_STYLE_OUTER_BEVEL ...; BevelEdgeShape; BevelButtonPreset; BlurStyle;
+// ShadowStyle; SharpenStyle).
+enum BevelStyle {
+  BEVEL_STYLE_UNSPECIFIED = 0; BEVEL_STYLE_OUTER_BEVEL = 1; BEVEL_STYLE_INNER_BEVEL = 2;
+  BEVEL_STYLE_RAISED_EMBOSS = 3; BEVEL_STYLE_INSET_EMBOSS = 4;
+}
+enum BevelEdgeShape {
+  BEVEL_EDGE_SHAPE_UNSPECIFIED = 0; BEVEL_EDGE_SHAPE_FLAT = 1; BEVEL_EDGE_SHAPE_SMOOTH = 2;
+  BEVEL_EDGE_SHAPE_SLOPED = 3; BEVEL_EDGE_SHAPE_FRAME_1 = 4; BEVEL_EDGE_SHAPE_FRAME_2 = 5;
+  BEVEL_EDGE_SHAPE_RING = 6; BEVEL_EDGE_SHAPE_RUFFLE = 7;
+}
+enum BevelButtonPreset {
+  BEVEL_BUTTON_PRESET_UNSPECIFIED = 0; BEVEL_BUTTON_PRESET_RAISED = 1;
+  BEVEL_BUTTON_PRESET_HIGHLIGHTED = 2; BEVEL_BUTTON_PRESET_INSET = 3; BEVEL_BUTTON_PRESET_INVERTED = 4;
+}
 
 message BevelEmbossEffect {
-  enum Style {
-    STYLE_UNSPECIFIED = 0; STYLE_OUTER_BEVEL = 1; STYLE_INNER_BEVEL = 2;
-    STYLE_RAISED_EMBOSS = 3; STYLE_INSET_EMBOSS = 4;
-  }
-  enum EdgeShape {
-    EDGE_SHAPE_UNSPECIFIED = 0; EDGE_SHAPE_FLAT = 1; EDGE_SHAPE_SMOOTH = 2; EDGE_SHAPE_SLOPED = 3;
-    EDGE_SHAPE_FRAME_1 = 4; EDGE_SHAPE_FRAME_2 = 5; EDGE_SHAPE_RING = 6; EDGE_SHAPE_RUFFLE = 7;
-  }
-  enum ButtonPreset {
-    BUTTON_PRESET_UNSPECIFIED = 0; BUTTON_PRESET_RAISED = 1; BUTTON_PRESET_HIGHLIGHTED = 2;
-    BUTTON_PRESET_INSET = 3; BUTTON_PRESET_INVERTED = 4;
-  }
-  Style style = 1;
-  ColorRef color = 2;            // outer bevel rim color; ATOMIC (ColorRef is a swatch ref or literal, COLOR epic)
+  BevelStyle style = 1;
+  // Outer bevel rim color.  ATOMIC (annotated: a message field defaults to STRUCT).
+  ColorRef color = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];
   double width = 3;              // points
   uint32 contrast = 4 [(buf.validate.field).uint32.lte = 100];
   uint32 softness = 5 [(buf.validate.field).uint32.lte = 10];
   double angle = 6;              // degrees 0..360
-  EdgeShape edge_shape = 7;      // bevels only
-  ButtonPreset button_preset = 8; // bevels only
+  BevelEdgeShape edge_shape = 7;       // bevels only
+  BevelButtonPreset button_preset = 8; // bevels only
 }
 
+enum BlurStyle { BLUR_STYLE_UNSPECIFIED = 0; BLUR_STYLE_BASIC = 1; BLUR_STYLE_GAUSSIAN = 2; }
+
 message BlurEffect {
-  enum Style { STYLE_UNSPECIFIED = 0; STYLE_BASIC = 1; STYLE_GAUSSIAN = 2; }
-  Style style = 1;
+  BlurStyle style = 1;
   double radius = 2 [(buf.validate.field).double = {gte: 0, lte: 250}];  // pixels at raster ppi
 }
 
+enum ShadowStyle {
+  SHADOW_STYLE_UNSPECIFIED = 0; SHADOW_STYLE_DROP_SHADOW = 1; SHADOW_STYLE_INNER_SHADOW = 2;
+  SHADOW_STYLE_GLOW = 3; SHADOW_STYLE_INNER_GLOW = 4;
+}
+
 message ShadowEffect {
-  enum Style {
-    STYLE_UNSPECIFIED = 0; STYLE_DROP_SHADOW = 1; STYLE_INNER_SHADOW = 2;
-    STYLE_GLOW = 3; STYLE_INNER_GLOW = 4;
-  }
-  Style style = 1;
-  ColorRef color = 2;
+  ShadowStyle style = 1;
+  ColorRef color = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];
   double offset = 3;             // points; shadows: distance along angle; glows: halo width
   uint32 opacity = 4 [(buf.validate.field).uint32.lte = 100];
   uint32 softness = 5 [(buf.validate.field).uint32.lte = 30];
   double angle = 6;              // degrees; shadows only
 }
 
+enum SharpenStyle { SHARPEN_STYLE_UNSPECIFIED = 0; SHARPEN_STYLE_BASIC = 1; SHARPEN_STYLE_UNSHARP_MASK = 2; }
+
 message SharpenEffect {
-  enum Style { STYLE_UNSPECIFIED = 0; STYLE_BASIC = 1; STYLE_UNSHARP_MASK = 2; }
-  Style style = 1;
+  SharpenStyle style = 1;
   double amount = 2 [(buf.validate.field).double = {gte: 0, lte: 500}];    // percent
-  double pixel_radius = 3 [(buf.validate.field).double = {gte: 0.1, lte: 250}];  // unsharp only
+  double pixel_radius = 3 [(buf.validate.field).double = {gte: 0.1, lte: 250}];  // unsharp only; 0 reads 1 (IGNORE_IF_ZERO_VALUE)
   uint32 threshold = 4 [(buf.validate.field).uint32.lte = 255];              // unsharp only
 }
 ----
@@ -409,7 +418,7 @@ Depends on:: FX-001
 Size:: S
 Delivers:: `BevelEmbossEffect`, `BlurEffect`, `ShadowEffect`, `SharpenEffect`,
 `RasterEffectSettings` (added to the settings node's message, coordinated with the DOC epic)
-and `Appearance.raster_dpi` (coordinated with the ATTR epic).
+and `Appearance.raster_dpi` (coordinated with the ATTR epic) (implemented in `effects.proto`; `raster_effects` is `SettingsProps` field 90 in `document.proto`, `raster_dpi` is `AppearanceProps` field 4 in `appearance.proto`).
 Done when::
 * Lints clean; ranges validated; every field commented.
 * Conformance vectors: concurrent resolution writes; style change vs. option edit on a shadow;

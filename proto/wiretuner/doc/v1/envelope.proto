@@ -1,0 +1,48 @@
+// proto/wiretuner/doc/v1/envelope.proto
+//
+// The `envelope` node kind (docs/_includes/effects/path-effects.adoc, FX-037): a group-like
+// wrapper whose live children are the contents and whose props hold the envelope shape as an
+// editable path.  Envelope presets are account preferences (the account Preferences message,
+// PROTO-009), not document data.
+syntax = "proto3";
+
+package wiretuner.doc.v1;
+
+import "wiretuner/doc/v1/common.proto";
+import "wiretuner/doc/v1/contour.proto";
+import "wt/crdt/options.proto";
+
+option java_multiple_files = true;
+option java_package = "com.villagecompute.wiretuner.doc.v1";
+option optimize_for = SPEED;
+
+// NodeProps.kind case `envelope` (FX block).  STRUCT.
+message EnvelopeProps {
+  // Name, transform and the other shared registers.
+  CommonProps common = 1;
+  // The envelope outline: one closed contour, edited with the path tools and merging point by
+  // point exactly as PathProps.contours does.  SEQUENCE.
+  repeated Contour contours = 2 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  // The contents' bounds at creation, in the envelope's coordinates: the source rectangle the
+  // warp maps from.  ATOMIC: written once by Create or Paste as Envelope.
+  Rect source_bounds = 3 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Which four points of the contour are the corners of the warp patch.  ATOMIC as a set of
+  // four.
+  EnvelopeCorners corners = 4 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Show the warp map.  View state; never leaves the device.
+  bool show_map = 5 [(wt.crdt.field).local_only = true];
+}
+
+// The four corner points of an envelope, as PathPoint element ids of its contour.  Points
+// between corners shape that edge.  ATOMIC wherever used.  A dangling corner reads as the
+// nearest surviving point in stored order.
+message EnvelopeCorners {
+  // Top left.
+  ElementId tl = 1;
+  // Top right.
+  ElementId tr = 2;
+  // Bottom right.
+  ElementId br = 3;
+  // Bottom left.
+  ElementId bl = 4;
+}

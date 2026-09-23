@@ -1,0 +1,98 @@
+// proto/wiretuner/doc/v1/file_info.proto
+//
+// Document metadata (docs/_includes/io/file-info.adoc, IO-010): the IPTC Core fields of the
+// File Info sheet, exported as XMP, PDF /Info and SVG metadata.  SettingsProps.info on the
+// settings node 0:1; a singular message field, so STRUCT and each field is its own register.
+// In its own file rather than document.proto so the settings node's growing list of epics
+// stays one import each.
+syntax = "proto3";
+
+package wiretuner.doc.v1;
+
+import "buf/validate/validate.proto";
+import "wt/crdt/options.proto";
+
+option java_multiple_files = true;
+option java_package = "com.villagecompute.wiretuner.doc.v1";
+option optimize_for = SPEED;
+
+// xmpRights:Marked.
+enum CopyrightStatus {
+  // "Unknown".
+  COPYRIGHT_STATUS_UNSPECIFIED = 0;
+  // Copyrighted.
+  COPYRIGHT_STATUS_COPYRIGHTED = 1;
+  // Public domain.
+  COPYRIGHT_STATUS_PUBLIC_DOMAIN = 2;
+}
+
+// IPTC Core fields.  Limits follow IPTC Photo Metadata Standard 2024.1.  Field numbers are
+// grouped by the sheet's sections: description 1-9, creator 10-19, rights 20-29, origin 30-39.
+message DocumentInfo {
+  // dc:title.
+  string title = 1 [(buf.validate.field).string.max_len = 256];
+  // photoshop:Headline.
+  string headline = 2 [(buf.validate.field).string.max_len = 256];
+  // dc:description.
+  string description = 3 [(buf.validate.field).string.max_len = 2000];
+  // dc:subject.  Add-wins SET: a concurrent add and remove of the same keyword keeps it.
+  repeated string keywords = 4 [
+    (wt.crdt.field).merge = MERGE_SET,
+    (buf.validate.field).repeated = {
+      max_items: 500
+      items: {
+        string: {max_len: 64}
+      }
+    }
+  ];
+  // photoshop:Category, at most three characters.
+  string category = 5 [(buf.validate.field).string.max_len = 3];
+  // photoshop:SupplementalCategories.  Ordered, small, edited as a unit: ATOMIC (the default
+  // for repeated scalars).
+  repeated string supplemental_categories = 6 [(buf.validate.field).repeated = {
+    max_items: 3
+    items: {
+      string: {max_len: 32}
+    }
+  }];
+  // dc:creator.  An ordered list edited as one field in the sheet: ATOMIC (the default).
+  repeated string creators = 10 [(buf.validate.field).repeated = {
+    max_items: 32
+    items: {
+      string: {max_len: 256}
+    }
+  }];
+  // photoshop:AuthorsPosition.
+  string creator_job_title = 11 [(buf.validate.field).string.max_len = 256];
+  // photoshop:Credit.
+  string credit = 12 [(buf.validate.field).string.max_len = 256];
+  // photoshop:Source.
+  string source = 13 [(buf.validate.field).string.max_len = 256];
+  // dc:rights.
+  string copyright_notice = 20 [(buf.validate.field).string.max_len = 1024];
+  // xmpRights:Marked.
+  CopyrightStatus copyright_status = 21 [(buf.validate.field).enum.defined_only = true];
+  // xmpRights:UsageTerms.
+  string rights_usage_terms = 22 [(buf.validate.field).string.max_len = 2000];
+  // xmpRights:WebStatement: a URI, or empty.
+  string web_statement = 23 [
+    (buf.validate.field).string = {
+      uri: true
+      max_len: 2048
+    },
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+  // photoshop:DateCreated: ISO 8601 date or date-time as text, because IPTC allows partial
+  // dates ("2026-03").
+  string date_created = 30 [(buf.validate.field).string.max_len = 32];
+  // photoshop:City.
+  string city = 31 [(buf.validate.field).string.max_len = 256];
+  // photoshop:State.
+  string state = 32 [(buf.validate.field).string.max_len = 256];
+  // photoshop:Country.
+  string country = 33 [(buf.validate.field).string.max_len = 256];
+  // photoshop:Instructions.
+  string instructions = 34 [(buf.validate.field).string.max_len = 2000];
+  // BCP 47 language tag: XMP dc:language, PDF /Lang, SVG xml:lang.  Empty = unset.
+  string language = 35 [(buf.validate.field).string.max_len = 35];
+}

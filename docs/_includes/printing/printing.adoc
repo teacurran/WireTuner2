@@ -298,26 +298,24 @@ Print settings live on the well-known `settings` node.  `SettingsProps` (DOC epi
 message PrintSettings {
   // false = composite, true = one plate per ink.
   bool separations = 1;
-  enum ScaleMode { SCALE_MODE_UNSPECIFIED = 0; UNIFORM = 1; VARIABLE = 2; FIT = 3; }
-  ScaleMode scale_mode = 2;
-  // Percent.  UNIFORM reads scale_x only.  Range 1..2000 (buf.validate).
+  PrintScaleMode scale_mode = 2;         // top-level enum, see below
+  // Percent.  UNIFORM reads scale_x only.  Range 1..2000 (buf.validate); 0 reads 100.
   double scale_x = 3;
   double scale_y = 4;
   // Offset of the page on the paper, points.  ATOMIC: an offset is one point.
   Point offset = 5 [(wt.crdt.field).merge = MERGE_ATOMIC];
-  enum TileMode { TILE_MODE_UNSPECIFIED = 0; NONE = 1; AUTOMATIC = 2; MANUAL = 3; }
-  TileMode tile = 6;
-  // Overlap between automatic tiles, points, >= 0.
+  PrintTileMode tile = 6;
+  // Overlap between automatic tiles, points, 0..720.
   double tile_overlap = 7;
   // When printing the output area: draw page outlines inside it.
   bool print_page_boundary = 8;
   Marks marks = 9;                       // STRUCT
-  // Bleed beyond the page edge, points, >= 0.
+  // Bleed beyond the page edge, points, 0..720.
   double bleed = 10;
   bool emulsion_down = 11;
   bool negative = 12;
   bool include_hidden_layers = 13;
-  // Device pixels; 0 = printer default.
+  // Device pixels, 0..100; 0 = printer default.
   double flatness = 14;
   bool text_as_outlines = 15;
   // 0 = vector output; otherwise every sheet is rasterized at this dpi (72..2400).
@@ -341,16 +339,22 @@ message Marks {
   bool file_name_date = 4;
 }
 
+enum PrintScaleMode {
+  PRINT_SCALE_MODE_UNSPECIFIED = 0;      // reads UNIFORM
+  PRINT_SCALE_MODE_UNIFORM = 1; PRINT_SCALE_MODE_VARIABLE = 2; PRINT_SCALE_MODE_FIT = 3;
+}
+enum PrintTileMode {
+  PRINT_TILE_MODE_UNSPECIFIED = 0;       // reads NONE
+  PRINT_TILE_MODE_NONE = 1; PRINT_TILE_MODE_AUTOMATIC = 2; PRINT_TILE_MODE_MANUAL = 3;
+}
+
 // A halftone screen.  ATOMIC: shape, angle and frequency describe one screen; a frequency
-// from one user with an angle from another is a screen nobody chose.
+// from one user with an angle from another is a screen nobody chose.  Lives in common.proto
+// (PROTO-003 put it there for CommonProps.halftone; the FILE breaking rules keep it, D-065).
 message Halftone {
-  enum Shape {
-    SHAPE_UNSPECIFIED = 0;   // "Default": inherit (document default, or printer's)
-    ROUND = 1; ELLIPSE = 2; LINE = 3; DIAMOND = 4; SQUARE = 5; CROSS = 6;
-  }
-  Shape shape = 1;
+  HalftoneShape shape = 1;   // HALFTONE_SHAPE_UNSPECIFIED = "Default": inherit; ROUND ... CROSS
   double angle = 2;          // degrees, 0..360
-  double frequency = 3;      // lines per inch, > 0; 0 = inherit
+  double frequency = 3;      // lines per inch, 0..600; 0 = inherit
 }
 
 // Per-plate choices.  A SEQUENCE element so plates can be added and removed independently.
@@ -363,10 +367,14 @@ message PlateSettings {
   double frequency = 5;      // lpi; 0 = document default
 }
 
+enum ProcessInk {
+  PROCESS_INK_UNSPECIFIED = 0;           // not an ink: the entry is ignored on read
+  PROCESS_INK_CYAN = 1; PROCESS_INK_MAGENTA = 2; PROCESS_INK_YELLOW = 3; PROCESS_INK_BLACK = 4;
+}
+
 message Ink {
-  enum Process { PROCESS_UNSPECIFIED = 0; CYAN = 1; MAGENTA = 2; YELLOW = 3; BLACK = 4; }
   oneof ink {
-    Process process = 1;
+    ProcessInk process = 1;
     // A spot color swatch.  Dangling → the entry is ignored on read.
     NodeRef spot = 2 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
   }
@@ -460,7 +468,7 @@ Nothing beyond storing and relaying changes.
 Track:: proto
 Depends on:: PROTO-003, PROTO-005
 Size:: S
-Delivers:: `doc/v1/print.proto` with `PrintSettings`, `Marks`, `Halftone`, `PlateSettings`, `Ink` exactly as sketched; `SettingsProps.print`; `SettingsProps.output_area` (a `Rect`, ATOMIC, see xref:output-area.adoc[Output area]); `CommonProps.halftone` (ATOMIC, see xref:halftones.adoc[Halftones]); protovalidate ranges on every numeric field.
+Delivers:: `doc/v1/print.proto` with `PrintSettings`, `Marks`, `Halftone`, `PlateSettings`, `Ink` exactly as sketched; `SettingsProps.print`; `SettingsProps.output_area` (a `Rect`, ATOMIC, see xref:output-area.adoc[Output area]); `CommonProps.halftone` (ATOMIC, see xref:halftones.adoc[Halftones]); protovalidate ranges on every numeric field (implemented in `print.proto`; `output_area` = 30 and `print` = 31 on `SettingsProps`; `Halftone` and `CommonProps.halftone` stay in `common.proto` (D-065)).
 Done when::
 * `buf lint` with `COMMENTS` passes; every field carries the comment from the sketch.
 * The generated merge table marks `plates` SEQUENCE, `offset`/`default_halftone`/`ink`/`output_area`/`CommonProps.halftone` ATOMIC, everything else default.

@@ -199,7 +199,7 @@ ifdef::spec[]
 
 [source,protobuf]
 ----
-// settings.proto -- extension of the well-known settings node (0:1)
+// document.proto -- extension of the well-known settings node (0:1); the messages are web.proto
 message SettingsProps {
   // ... other settings
   // Document animation settings.  STRUCT: each is an independent choice.
@@ -223,8 +223,8 @@ enum AnimationBackground {
 
 message AnimationSettings {
   FrameSource source = 1;
-  // Frames per second.  Validated 0.01..120; 0 reads as 12.
-  double fps = 2 [(buf.validate.field).double = {gte: 0, lte: 120}];
+  // Frames per second.  Validated 0.01..120 (IGNORE_IF_ZERO_VALUE); 0 reads as 12.
+  double fps = 2 [(buf.validate.field).double = {gte: 0.01, lte: 120}];
   bool loop = 3;                 // default true (see read-time rule below)
   bool no_autoplay = 4;          // inverted so the proto default (false) means autoplay
   AnimationBackground background = 5;
@@ -323,7 +323,7 @@ Nothing beyond storing and relaying changes.
 Track:: client-model
 Depends on:: PROTO-003, CRDT-001, APP-011
 Size:: S
-Delivers:: `AnimationSettings` on `SettingsProps`, `LayerFrameProps` on `LayerProps`, read-time defaults (loop, fps, hold), commands with inverses, a `FrameList` query (frame → visible node ids, page, hold) derived from the model.
+Delivers:: `AnimationSettings` on `SettingsProps`, `LayerFrameProps` on `LayerProps`, read-time defaults (loop, fps, hold), commands with inverses, a `FrameList` query (frame → visible node ids, page, hold) derived from the model (implemented in `web.proto` and `layer.proto` for the schema half (`animation` = `SettingsProps` 70, `frame` = `LayerProps` 20); the commands and `FrameList` are client-model work still to do).
 Done when::
 * Frame lists match hand-computed expectations for Layers, Pages and Pages-and-layers fixtures including hidden, excluded, held and background layers.
 * Merge test: concurrent `fps` and `source` writes both survive; concurrent `fps` writes converge on the greater OpId.

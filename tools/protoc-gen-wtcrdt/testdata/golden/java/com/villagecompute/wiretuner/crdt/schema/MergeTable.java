@@ -44,7 +44,7 @@ public final class MergeTable {
   public record VariantPolicy(int kindField, List<Integer> caseFields) {}
 
   /** SHA-256 (hex) of the canonical JSON table without its version key. */
-  public static final String VERSION = "02790b0e1a7df61c0dc890802cc0961ef22e430f33b47f9abaecf57739848fac";
+  public static final String VERSION = "c3932ca67c82671779dcbaf75b48516af6f09d2d41718c0050173791f87cf23e";
 
   /** The name of the JSON resource beside this class. */
   public static final String RESOURCE = "merge-table.json";
@@ -54,12 +54,20 @@ public final class MergeTable {
       Map.ofEntries(
           Map.entry("wiretuner.doc.v1.AdjustColumns", table_wiretuner_doc_v1_AdjustColumns()),
           Map.entry("wiretuner.doc.v1.Anchor", table_wiretuner_doc_v1_Anchor()),
+          Map.entry("wiretuner.doc.v1.AnimationSettings", table_wiretuner_doc_v1_AnimationSettings()),
           Map.entry("wiretuner.doc.v1.AppearanceProps", table_wiretuner_doc_v1_AppearanceProps()),
           Map.entry("wiretuner.doc.v1.Arrowhead", table_wiretuner_doc_v1_Arrowhead()),
+          Map.entry("wiretuner.doc.v1.AssetProps", table_wiretuner_doc_v1_AssetProps()),
           Map.entry("wiretuner.doc.v1.Axis", table_wiretuner_doc_v1_Axis()),
           Map.entry("wiretuner.doc.v1.AxisOptions", table_wiretuner_doc_v1_AxisOptions()),
+          Map.entry("wiretuner.doc.v1.BarcodeProps", table_wiretuner_doc_v1_BarcodeProps()),
           Map.entry("wiretuner.doc.v1.BasicFill", table_wiretuner_doc_v1_BasicFill()),
           Map.entry("wiretuner.doc.v1.BasicStroke", table_wiretuner_doc_v1_BasicStroke()),
+          Map.entry("wiretuner.doc.v1.BendEffect", table_wiretuner_doc_v1_BendEffect()),
+          Map.entry("wiretuner.doc.v1.BevelEmbossEffect", table_wiretuner_doc_v1_BevelEmbossEffect()),
+          Map.entry("wiretuner.doc.v1.BlendPoint", table_wiretuner_doc_v1_BlendPoint()),
+          Map.entry("wiretuner.doc.v1.BlendProps", table_wiretuner_doc_v1_BlendProps()),
+          Map.entry("wiretuner.doc.v1.BlurEffect", table_wiretuner_doc_v1_BlurEffect()),
           Map.entry("wiretuner.doc.v1.BrushProps", table_wiretuner_doc_v1_BrushProps()),
           Map.entry("wiretuner.doc.v1.BrushStroke", table_wiretuner_doc_v1_BrushStroke()),
           Map.entry("wiretuner.doc.v1.BrushSymbol", table_wiretuner_doc_v1_BrushSymbol()),
@@ -72,71 +80,139 @@ public final class MergeTable {
           Map.entry("wiretuner.doc.v1.ChartOverride", table_wiretuner_doc_v1_ChartOverride()),
           Map.entry("wiretuner.doc.v1.ChartProps", table_wiretuner_doc_v1_ChartProps()),
           Map.entry("wiretuner.doc.v1.ChartRow", table_wiretuner_doc_v1_ChartRow()),
+          Map.entry("wiretuner.doc.v1.ClassKern", table_wiretuner_doc_v1_ClassKern()),
           Map.entry("wiretuner.doc.v1.Cmyk", table_wiretuner_doc_v1_Cmyk()),
           Map.entry("wiretuner.doc.v1.Color", table_wiretuner_doc_v1_Color()),
           Map.entry("wiretuner.doc.v1.ColorRef", table_wiretuner_doc_v1_ColorRef()),
+          Map.entry("wiretuner.doc.v1.ColorSettings", table_wiretuner_doc_v1_ColorSettings()),
           Map.entry("wiretuner.doc.v1.ColumnsRows", table_wiretuner_doc_v1_ColumnsRows()),
+          Map.entry("wiretuner.doc.v1.CombineEffect", table_wiretuner_doc_v1_CombineEffect()),
+          Map.entry("wiretuner.doc.v1.Comment", table_wiretuner_doc_v1_Comment()),
+          Map.entry("wiretuner.doc.v1.CommentThreadProps", table_wiretuner_doc_v1_CommentThreadProps()),
           Map.entry("wiretuner.doc.v1.CommonProps", table_wiretuner_doc_v1_CommonProps()),
+          Map.entry("wiretuner.doc.v1.Component", table_wiretuner_doc_v1_Component()),
           Map.entry("wiretuner.doc.v1.Contour", table_wiretuner_doc_v1_Contour()),
           Map.entry("wiretuner.doc.v1.CornerRadii", table_wiretuner_doc_v1_CornerRadii()),
+          Map.entry("wiretuner.doc.v1.CornersEffect", table_wiretuner_doc_v1_CornersEffect()),
           Map.entry("wiretuner.doc.v1.CustomFill", table_wiretuner_doc_v1_CustomFill()),
           Map.entry("wiretuner.doc.v1.CustomPageSize", table_wiretuner_doc_v1_CustomPageSize()),
           Map.entry("wiretuner.doc.v1.CustomStroke", table_wiretuner_doc_v1_CustomStroke()),
           Map.entry("wiretuner.doc.v1.CustomUnit", table_wiretuner_doc_v1_CustomUnit()),
+          Map.entry("wiretuner.doc.v1.CustomViewProps", table_wiretuner_doc_v1_CustomViewProps()),
           Map.entry("wiretuner.doc.v1.DashPattern", table_wiretuner_doc_v1_DashPattern()),
           Map.entry("wiretuner.doc.v1.DataBinding", table_wiretuner_doc_v1_DataBinding()),
+          Map.entry("wiretuner.doc.v1.DataField", table_wiretuner_doc_v1_DataField()),
+          Map.entry("wiretuner.doc.v1.DataPreview", table_wiretuner_doc_v1_DataPreview()),
+          Map.entry("wiretuner.doc.v1.DataSource", table_wiretuner_doc_v1_DataSource()),
+          Map.entry("wiretuner.doc.v1.DataSourceSpec", table_wiretuner_doc_v1_DataSourceSpec()),
           Map.entry("wiretuner.doc.v1.Defaults", table_wiretuner_doc_v1_Defaults()),
+          Map.entry("wiretuner.doc.v1.DocumentInfo", table_wiretuner_doc_v1_DocumentInfo()),
           Map.entry("wiretuner.doc.v1.DocumentProps", table_wiretuner_doc_v1_DocumentProps()),
+          Map.entry("wiretuner.doc.v1.DuetEffect", table_wiretuner_doc_v1_DuetEffect()),
           Map.entry("wiretuner.doc.v1.Effect", table_wiretuner_doc_v1_Effect()),
+          Map.entry("wiretuner.doc.v1.EffectSettings", table_wiretuner_doc_v1_EffectSettings()),
           Map.entry("wiretuner.doc.v1.ElementId", table_wiretuner_doc_v1_ElementId()),
           Map.entry("wiretuner.doc.v1.EllipseProps", table_wiretuner_doc_v1_EllipseProps()),
+          Map.entry("wiretuner.doc.v1.EmbeddedRecords", table_wiretuner_doc_v1_EmbeddedRecords()),
+          Map.entry("wiretuner.doc.v1.EnvelopeCorners", table_wiretuner_doc_v1_EnvelopeCorners()),
+          Map.entry("wiretuner.doc.v1.EnvelopeProps", table_wiretuner_doc_v1_EnvelopeProps()),
+          Map.entry("wiretuner.doc.v1.ExpandPathEffect", table_wiretuner_doc_v1_ExpandPathEffect()),
+          Map.entry("wiretuner.doc.v1.ExtrudeProps", table_wiretuner_doc_v1_ExtrudeProps()),
           Map.entry("wiretuner.doc.v1.FeatureSetting", table_wiretuner_doc_v1_FeatureSetting()),
           Map.entry("wiretuner.doc.v1.FeatureSettings", table_wiretuner_doc_v1_FeatureSettings()),
+          Map.entry("wiretuner.doc.v1.FieldFormat", table_wiretuner_doc_v1_FieldFormat()),
+          Map.entry("wiretuner.doc.v1.FieldMapping", table_wiretuner_doc_v1_FieldMapping()),
+          Map.entry("wiretuner.doc.v1.FileSource", table_wiretuner_doc_v1_FileSource()),
           Map.entry("wiretuner.doc.v1.Fill", table_wiretuner_doc_v1_Fill()),
           Map.entry("wiretuner.doc.v1.FillSettings", table_wiretuner_doc_v1_FillSettings()),
+          Map.entry("wiretuner.doc.v1.FontMetrics", table_wiretuner_doc_v1_FontMetrics()),
+          Map.entry("wiretuner.doc.v1.FontNames", table_wiretuner_doc_v1_FontNames()),
+          Map.entry("wiretuner.doc.v1.FontProps", table_wiretuner_doc_v1_FontProps()),
           Map.entry("wiretuner.doc.v1.FontVariation", table_wiretuner_doc_v1_FontVariation()),
+          Map.entry("wiretuner.doc.v1.GlyphAnchor", table_wiretuner_doc_v1_GlyphAnchor()),
+          Map.entry("wiretuner.doc.v1.GlyphProps", table_wiretuner_doc_v1_GlyphProps()),
           Map.entry("wiretuner.doc.v1.GradientAxis", table_wiretuner_doc_v1_GradientAxis()),
           Map.entry("wiretuner.doc.v1.GradientFill", table_wiretuner_doc_v1_GradientFill()),
           Map.entry("wiretuner.doc.v1.GradientStop", table_wiretuner_doc_v1_GradientStop()),
+          Map.entry("wiretuner.doc.v1.GrayRamp", table_wiretuner_doc_v1_GrayRamp()),
           Map.entry("wiretuner.doc.v1.GridSettings", table_wiretuner_doc_v1_GridSettings()),
           Map.entry("wiretuner.doc.v1.GroupProps", table_wiretuner_doc_v1_GroupProps()),
           Map.entry("wiretuner.doc.v1.Guide", table_wiretuner_doc_v1_Guide()),
           Map.entry("wiretuner.doc.v1.Halftone", table_wiretuner_doc_v1_Halftone()),
+          Map.entry("wiretuner.doc.v1.HtmlSetting", table_wiretuner_doc_v1_HtmlSetting()),
+          Map.entry("wiretuner.doc.v1.HttpHeader", table_wiretuner_doc_v1_HttpHeader()),
+          Map.entry("wiretuner.doc.v1.HttpParam", table_wiretuner_doc_v1_HttpParam()),
+          Map.entry("wiretuner.doc.v1.HttpSource", table_wiretuner_doc_v1_HttpSource()),
           Map.entry("wiretuner.doc.v1.Hyphenation", table_wiretuner_doc_v1_Hyphenation()),
+          Map.entry("wiretuner.doc.v1.ImageColorSettings", table_wiretuner_doc_v1_ImageColorSettings()),
+          Map.entry("wiretuner.doc.v1.ImageProps", table_wiretuner_doc_v1_ImageProps()),
+          Map.entry("wiretuner.doc.v1.Ink", table_wiretuner_doc_v1_Ink()),
           Map.entry("wiretuner.doc.v1.InlineTint", table_wiretuner_doc_v1_InlineTint()),
           Map.entry("wiretuner.doc.v1.Inset", table_wiretuner_doc_v1_Inset()),
           Map.entry("wiretuner.doc.v1.InstanceProps", table_wiretuner_doc_v1_InstanceProps()),
+          Map.entry("wiretuner.doc.v1.KernClass", table_wiretuner_doc_v1_KernClass()),
+          Map.entry("wiretuner.doc.v1.KernClassMember", table_wiretuner_doc_v1_KernClassMember()),
+          Map.entry("wiretuner.doc.v1.KernPair", table_wiretuner_doc_v1_KernPair()),
           Map.entry("wiretuner.doc.v1.Lab", table_wiretuner_doc_v1_Lab()),
+          Map.entry("wiretuner.doc.v1.LayerFrameProps", table_wiretuner_doc_v1_LayerFrameProps()),
           Map.entry("wiretuner.doc.v1.LayerOrigin", table_wiretuner_doc_v1_LayerOrigin()),
           Map.entry("wiretuner.doc.v1.LayerProps", table_wiretuner_doc_v1_LayerProps()),
           Map.entry("wiretuner.doc.v1.Leading", table_wiretuner_doc_v1_Leading()),
           Map.entry("wiretuner.doc.v1.LensFill", table_wiretuner_doc_v1_LensFill()),
           Map.entry("wiretuner.doc.v1.LibrarySource", table_wiretuner_doc_v1_LibrarySource()),
+          Map.entry("wiretuner.doc.v1.Light", table_wiretuner_doc_v1_Light()),
+          Map.entry("wiretuner.doc.v1.LinkSource", table_wiretuner_doc_v1_LinkSource()),
+          Map.entry("wiretuner.doc.v1.Marks", table_wiretuner_doc_v1_Marks()),
           Map.entry("wiretuner.doc.v1.MasterPageProps", table_wiretuner_doc_v1_MasterPageProps()),
+          Map.entry("wiretuner.doc.v1.MetricGuideSettings", table_wiretuner_doc_v1_MetricGuideSettings()),
+          Map.entry("wiretuner.doc.v1.MetricLine", table_wiretuner_doc_v1_MetricLine()),
           Map.entry("wiretuner.doc.v1.NavigationProps", table_wiretuner_doc_v1_NavigationProps()),
           Map.entry("wiretuner.doc.v1.Node", table_wiretuner_doc_v1_Node()),
           Map.entry("wiretuner.doc.v1.NodeProps", table_wiretuner_doc_v1_NodeProps()),
           Map.entry("wiretuner.doc.v1.NodeRef", table_wiretuner_doc_v1_NodeRef()),
           Map.entry("wiretuner.doc.v1.OpId", table_wiretuner_doc_v1_OpId()),
+          Map.entry("wiretuner.doc.v1.OptionalMetric", table_wiretuner_doc_v1_OptionalMetric()),
+          Map.entry("wiretuner.doc.v1.Os2Props", table_wiretuner_doc_v1_Os2Props()),
           Map.entry("wiretuner.doc.v1.Override", table_wiretuner_doc_v1_Override()),
           Map.entry("wiretuner.doc.v1.PageGeometry", table_wiretuner_doc_v1_PageGeometry()),
           Map.entry("wiretuner.doc.v1.PageProps", table_wiretuner_doc_v1_PageProps()),
+          Map.entry("wiretuner.doc.v1.Pagination", table_wiretuner_doc_v1_Pagination()),
           Map.entry("wiretuner.doc.v1.ParagraphProps", table_wiretuner_doc_v1_ParagraphProps()),
           Map.entry("wiretuner.doc.v1.ParagraphRule", table_wiretuner_doc_v1_ParagraphRule()),
           Map.entry("wiretuner.doc.v1.ParagraphSettings", table_wiretuner_doc_v1_ParagraphSettings()),
+          Map.entry("wiretuner.doc.v1.PastedSource", table_wiretuner_doc_v1_PastedSource()),
           Map.entry("wiretuner.doc.v1.PathPoint", table_wiretuner_doc_v1_PathPoint()),
           Map.entry("wiretuner.doc.v1.PathProps", table_wiretuner_doc_v1_PathProps()),
           Map.entry("wiretuner.doc.v1.PatternBitmap", table_wiretuner_doc_v1_PatternBitmap()),
           Map.entry("wiretuner.doc.v1.PatternFill", table_wiretuner_doc_v1_PatternFill()),
           Map.entry("wiretuner.doc.v1.PatternStroke", table_wiretuner_doc_v1_PatternStroke()),
+          Map.entry("wiretuner.doc.v1.PerspectiveGrid", table_wiretuner_doc_v1_PerspectiveGrid()),
+          Map.entry("wiretuner.doc.v1.PerspectiveProps", table_wiretuner_doc_v1_PerspectiveProps()),
+          Map.entry("wiretuner.doc.v1.PixelSource", table_wiretuner_doc_v1_PixelSource()),
+          Map.entry("wiretuner.doc.v1.PlacedFileContent", table_wiretuner_doc_v1_PlacedFileContent()),
+          Map.entry("wiretuner.doc.v1.PlacedFileProps", table_wiretuner_doc_v1_PlacedFileProps()),
+          Map.entry("wiretuner.doc.v1.PlateSettings", table_wiretuner_doc_v1_PlateSettings()),
           Map.entry("wiretuner.doc.v1.Point", table_wiretuner_doc_v1_Point()),
           Map.entry("wiretuner.doc.v1.PolygonProps", table_wiretuner_doc_v1_PolygonProps()),
+          Map.entry("wiretuner.doc.v1.PrintSettings", table_wiretuner_doc_v1_PrintSettings()),
+          Map.entry("wiretuner.doc.v1.Profile", table_wiretuner_doc_v1_Profile()),
+          Map.entry("wiretuner.doc.v1.ProfileRef", table_wiretuner_doc_v1_ProfileRef()),
+          Map.entry("wiretuner.doc.v1.ProofSettings", table_wiretuner_doc_v1_ProofSettings()),
+          Map.entry("wiretuner.doc.v1.RaggedEffect", table_wiretuner_doc_v1_RaggedEffect()),
+          Map.entry("wiretuner.doc.v1.RasterEffectSettings", table_wiretuner_doc_v1_RasterEffectSettings()),
+          Map.entry("wiretuner.doc.v1.Rect", table_wiretuner_doc_v1_Rect()),
           Map.entry("wiretuner.doc.v1.RectProps", table_wiretuner_doc_v1_RectProps()),
           Map.entry("wiretuner.doc.v1.Rgb", table_wiretuner_doc_v1_Rgb()),
           Map.entry("wiretuner.doc.v1.RichText", table_wiretuner_doc_v1_RichText()),
           Map.entry("wiretuner.doc.v1.RichTextMark", table_wiretuner_doc_v1_RichTextMark()),
+          Map.entry("wiretuner.doc.v1.Rotation3", table_wiretuner_doc_v1_Rotation3()),
+          Map.entry("wiretuner.doc.v1.ScriptProps", table_wiretuner_doc_v1_ScriptProps()),
+          Map.entry("wiretuner.doc.v1.ScriptSource", table_wiretuner_doc_v1_ScriptSource()),
           Map.entry("wiretuner.doc.v1.SettingsProps", table_wiretuner_doc_v1_SettingsProps()),
+          Map.entry("wiretuner.doc.v1.ShadowEffect", table_wiretuner_doc_v1_ShadowEffect()),
+          Map.entry("wiretuner.doc.v1.SharpenEffect", table_wiretuner_doc_v1_SharpenEffect()),
           Map.entry("wiretuner.doc.v1.Size", table_wiretuner_doc_v1_Size()),
+          Map.entry("wiretuner.doc.v1.SketchEffect", table_wiretuner_doc_v1_SketchEffect()),
           Map.entry("wiretuner.doc.v1.SpacingRange", table_wiretuner_doc_v1_SpacingRange()),
           Map.entry("wiretuner.doc.v1.Stroke", table_wiretuner_doc_v1_Stroke()),
           Map.entry("wiretuner.doc.v1.StrokeSettings", table_wiretuner_doc_v1_StrokeSettings()),
@@ -144,6 +220,10 @@ public final class MergeTable {
           Map.entry("wiretuner.doc.v1.StyleProps", table_wiretuner_doc_v1_StyleProps()),
           Map.entry("wiretuner.doc.v1.Subtree", table_wiretuner_doc_v1_Subtree()),
           Map.entry("wiretuner.doc.v1.SubtreeNode", table_wiretuner_doc_v1_SubtreeNode()),
+          Map.entry("wiretuner.doc.v1.Surface", table_wiretuner_doc_v1_Surface()),
+          Map.entry("wiretuner.doc.v1.SvgAnimationKinds", table_wiretuner_doc_v1_SvgAnimationKinds()),
+          Map.entry("wiretuner.doc.v1.SvgAnimationProps", table_wiretuner_doc_v1_SvgAnimationProps()),
+          Map.entry("wiretuner.doc.v1.SvgAnimationWebProps", table_wiretuner_doc_v1_SvgAnimationWebProps()),
           Map.entry("wiretuner.doc.v1.SwatchProps", table_wiretuner_doc_v1_SwatchProps()),
           Map.entry("wiretuner.doc.v1.SymbolFolderProps", table_wiretuner_doc_v1_SymbolFolderProps()),
           Map.entry("wiretuner.doc.v1.SymbolProps", table_wiretuner_doc_v1_SymbolProps()),
@@ -163,13 +243,19 @@ public final class MergeTable {
           Map.entry("wiretuner.doc.v1.TexturedFill", table_wiretuner_doc_v1_TexturedFill()),
           Map.entry("wiretuner.doc.v1.TiledFill", table_wiretuner_doc_v1_TiledFill()),
           Map.entry("wiretuner.doc.v1.Transform", table_wiretuner_doc_v1_Transform()),
+          Map.entry("wiretuner.doc.v1.TransformEffect", table_wiretuner_doc_v1_TransformEffect()),
+          Map.entry("wiretuner.doc.v1.TransparencyEffect", table_wiretuner_doc_v1_TransparencyEffect()),
           Map.entry("wiretuner.doc.v1.UnitChoice", table_wiretuner_doc_v1_UnitChoice()),
-          Map.entry("wiretuner.doc.v1.UnitDefinition", table_wiretuner_doc_v1_UnitDefinition())
+          Map.entry("wiretuner.doc.v1.UnitDefinition", table_wiretuner_doc_v1_UnitDefinition()),
+          Map.entry("wiretuner.doc.v1.ViewState", table_wiretuner_doc_v1_ViewState()),
+          Map.entry("wiretuner.doc.v1.ViewTarget", table_wiretuner_doc_v1_ViewTarget())
       );
 
   /** The MERGE_VARIANT messages, by fully qualified proto name. */
   public static final Map<String, VariantPolicy> VARIANTS =
       Map.ofEntries(
+          Map.entry("wiretuner.doc.v1.DataSourceSpec", new VariantPolicy(1, List.of(2, 3, 4, 5))),
+          Map.entry("wiretuner.doc.v1.EffectSettings", new VariantPolicy(1, List.of(10, 11, 12, 13, 14, 15, 16, 17, 20, 21, 22, 23, 24))),
           Map.entry("wiretuner.doc.v1.FillSettings", new VariantPolicy(1, List.of(2, 3, 4, 5, 6, 7, 8))),
           Map.entry("wiretuner.doc.v1.StrokeSettings", new VariantPolicy(1, List.of(2, 3, 4, 5, 6)))
       );
@@ -216,13 +302,26 @@ public final class MergeTable {
         ));
   }
 
+  private static MessagePolicy table_wiretuner_doc_v1_AnimationSettings() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.AnimationSettings",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "source", Policy.ATOMIC, RefFallback.UNSET, false, "enum", false, "wiretuner.doc.v1.FrameSource", null, null)),
+            Map.entry(2, new FieldPolicy(2, "fps", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
+            Map.entry(3, new FieldPolicy(3, "loop", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
+            Map.entry(4, new FieldPolicy(4, "no_autoplay", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
+            Map.entry(5, new FieldPolicy(5, "background", Policy.ATOMIC, RefFallback.UNSET, false, "enum", false, "wiretuner.doc.v1.AnimationBackground", null, null))
+        ));
+  }
+
   private static MessagePolicy table_wiretuner_doc_v1_AppearanceProps() {
     return new MessagePolicy(
         "wiretuner.doc.v1.AppearanceProps",
         Map.ofEntries(
             Map.entry(1, new FieldPolicy(1, "fills", Policy.SEQUENCE, RefFallback.UNSET, false, "message", true, "wiretuner.doc.v1.Fill", "wiretuner.doc.v1.Fill", null)),
             Map.entry(2, new FieldPolicy(2, "strokes", Policy.SEQUENCE, RefFallback.UNSET, false, "message", true, "wiretuner.doc.v1.Stroke", "wiretuner.doc.v1.Stroke", null)),
-            Map.entry(3, new FieldPolicy(3, "effects", Policy.SEQUENCE, RefFallback.UNSET, false, "message", true, "wiretuner.doc.v1.Effect", "wiretuner.doc.v1.Effect", null))
+            Map.entry(3, new FieldPolicy(3, "effects", Policy.SEQUENCE, RefFallback.UNSET, false, "message", true, "wiretuner.doc.v1.Effect", "wiretuner.doc.v1.Effect", null)),
+            Map.entry(4, new FieldPolicy(4, "raster_dpi", Policy.ATOMIC, RefFallback.UNSET, false, "uint32", false, null, null, null))
         ));
   }
 
@@ -234,6 +333,19 @@ public final class MergeTable {
             Map.entry(2, new FieldPolicy(2, "contours", Policy.ATOMIC, RefFallback.UNSET, false, "message", true, "wiretuner.doc.v1.Contour", null, null)),
             Map.entry(3, new FieldPolicy(3, "filled", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
             Map.entry(4, new FieldPolicy(4, "path_trim", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null))
+        ));
+  }
+
+  private static MessagePolicy table_wiretuner_doc_v1_AssetProps() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.AssetProps",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "common", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.CommonProps", null, null)),
+            Map.entry(2, new FieldPolicy(2, "sha256", Policy.ATOMIC, RefFallback.UNSET, false, "bytes", false, null, null, null)),
+            Map.entry(3, new FieldPolicy(3, "byte_size", Policy.ATOMIC, RefFallback.UNSET, false, "uint64", false, null, null, null)),
+            Map.entry(4, new FieldPolicy(4, "media_type", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
+            Map.entry(5, new FieldPolicy(5, "link", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.LinkSource", null, null)),
+            Map.entry(6, new FieldPolicy(6, "bookmark", Policy.ATOMIC, RefFallback.UNSET, true, "bytes", false, null, null, null))
         ));
   }
 
@@ -262,6 +374,20 @@ public final class MergeTable {
         ));
   }
 
+  private static MessagePolicy table_wiretuner_doc_v1_BarcodeProps() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.BarcodeProps",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "common", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.CommonProps", null, null)),
+            Map.entry(2, new FieldPolicy(2, "symbology", Policy.ATOMIC, RefFallback.UNSET, false, "enum", false, "wiretuner.doc.v1.BarcodeSymbology", null, null)),
+            Map.entry(3, new FieldPolicy(3, "value", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
+            Map.entry(4, new FieldPolicy(4, "qr_error_correction", Policy.ATOMIC, RefFallback.UNSET, false, "enum", false, "wiretuner.doc.v1.QrErrorCorrection", null, null)),
+            Map.entry(5, new FieldPolicy(5, "quiet_zone", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
+            Map.entry(6, new FieldPolicy(6, "show_text", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
+            Map.entry(7, new FieldPolicy(7, "appearance", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.AppearanceProps", null, null))
+        ));
+  }
+
   private static MessagePolicy table_wiretuner_doc_v1_BasicFill() {
     return new MessagePolicy(
         "wiretuner.doc.v1.BasicFill",
@@ -284,6 +410,67 @@ public final class MergeTable {
             Map.entry(7, new FieldPolicy(7, "start_arrowhead", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.Arrowhead", null, null)),
             Map.entry(8, new FieldPolicy(8, "end_arrowhead", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.Arrowhead", null, null)),
             Map.entry(9, new FieldPolicy(9, "overprint", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null))
+        ));
+  }
+
+  private static MessagePolicy table_wiretuner_doc_v1_BendEffect() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.BendEffect",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "size", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
+            Map.entry(2, new FieldPolicy(2, "center", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.Point", null, null))
+        ));
+  }
+
+  private static MessagePolicy table_wiretuner_doc_v1_BevelEmbossEffect() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.BevelEmbossEffect",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "style", Policy.ATOMIC, RefFallback.UNSET, false, "enum", false, "wiretuner.doc.v1.BevelStyle", null, null)),
+            Map.entry(2, new FieldPolicy(2, "color", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.ColorRef", null, null)),
+            Map.entry(3, new FieldPolicy(3, "width", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
+            Map.entry(4, new FieldPolicy(4, "contrast", Policy.ATOMIC, RefFallback.UNSET, false, "uint32", false, null, null, null)),
+            Map.entry(5, new FieldPolicy(5, "softness", Policy.ATOMIC, RefFallback.UNSET, false, "uint32", false, null, null, null)),
+            Map.entry(6, new FieldPolicy(6, "angle", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
+            Map.entry(7, new FieldPolicy(7, "edge_shape", Policy.ATOMIC, RefFallback.UNSET, false, "enum", false, "wiretuner.doc.v1.BevelEdgeShape", null, null)),
+            Map.entry(8, new FieldPolicy(8, "button_preset", Policy.ATOMIC, RefFallback.UNSET, false, "enum", false, "wiretuner.doc.v1.BevelButtonPreset", null, null))
+        ));
+  }
+
+  private static MessagePolicy table_wiretuner_doc_v1_BlendPoint() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.BlendPoint",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "id", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.ElementId", null, null)),
+            Map.entry(2, new FieldPolicy(2, "object", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.OpId", null, null)),
+            Map.entry(3, new FieldPolicy(3, "contour", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.ElementId", null, null)),
+            Map.entry(4, new FieldPolicy(4, "point", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.ElementId", null, null))
+        ));
+  }
+
+  private static MessagePolicy table_wiretuner_doc_v1_BlendProps() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.BlendProps",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "common", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.CommonProps", null, null)),
+            Map.entry(2, new FieldPolicy(2, "steps", Policy.ATOMIC, RefFallback.UNSET, false, "uint32", false, null, null, null)),
+            Map.entry(3, new FieldPolicy(3, "range_first", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
+            Map.entry(4, new FieldPolicy(4, "range_last", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
+            Map.entry(5, new FieldPolicy(5, "type", Policy.ATOMIC, RefFallback.UNSET, false, "enum", false, "wiretuner.doc.v1.BlendType", null, null)),
+            Map.entry(6, new FieldPolicy(6, "order", Policy.ATOMIC, RefFallback.UNSET, false, "enum", false, "wiretuner.doc.v1.BlendOrder", null, null)),
+            Map.entry(7, new FieldPolicy(7, "path", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.NodeRef", null, null)),
+            Map.entry(8, new FieldPolicy(8, "show_path", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
+            Map.entry(9, new FieldPolicy(9, "rotate_on_path", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
+            Map.entry(10, new FieldPolicy(10, "blend_points", Policy.SEQUENCE, RefFallback.UNSET, false, "message", true, "wiretuner.doc.v1.BlendPoint", "wiretuner.doc.v1.BlendPoint", null))
+        ));
+  }
+
+  private static MessagePolicy table_wiretuner_doc_v1_BlurEffect() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.BlurEffect",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "style", Policy.ATOMIC, RefFallback.UNSET, false, "enum", false, "wiretuner.doc.v1.BlurStyle", null, null)),
+            Map.entry(2, new FieldPolicy(2, "radius", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null))
         ));
   }
 
@@ -447,6 +634,17 @@ public final class MergeTable {
         ));
   }
 
+  private static MessagePolicy table_wiretuner_doc_v1_ClassKern() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.ClassKern",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "id", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.ElementId", null, null)),
+            Map.entry(2, new FieldPolicy(2, "left", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.ElementId", null, null)),
+            Map.entry(3, new FieldPolicy(3, "right", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.ElementId", null, null)),
+            Map.entry(4, new FieldPolicy(4, "value", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null))
+        ));
+  }
+
   private static MessagePolicy table_wiretuner_doc_v1_Cmyk() {
     return new MessagePolicy(
         "wiretuner.doc.v1.Cmyk",
@@ -480,6 +678,20 @@ public final class MergeTable {
         ));
   }
 
+  private static MessagePolicy table_wiretuner_doc_v1_ColorSettings() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.ColorSettings",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "rgb_profile", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.ProfileRef", null, null)),
+            Map.entry(2, new FieldPolicy(2, "cmyk_profile", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.ProfileRef", null, null)),
+            Map.entry(3, new FieldPolicy(3, "intent", Policy.ATOMIC, RefFallback.UNSET, false, "enum", false, "wiretuner.doc.v1.RenderingIntent", null, null)),
+            Map.entry(4, new FieldPolicy(4, "no_black_point_compensation", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
+            Map.entry(5, new FieldPolicy(5, "no_spot_color_management", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
+            Map.entry(6, new FieldPolicy(6, "default_image_rgb_profile", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.ProfileRef", null, null)),
+            Map.entry(7, new FieldPolicy(7, "proof", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.ProofSettings", null, null))
+        ));
+  }
+
   private static MessagePolicy table_wiretuner_doc_v1_ColumnsRows() {
     return new MessagePolicy(
         "wiretuner.doc.v1.ColumnsRows",
@@ -493,6 +705,43 @@ public final class MergeTable {
             Map.entry(7, new FieldPolicy(7, "row_spacing", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
             Map.entry(8, new FieldPolicy(8, "row_rules", Policy.ATOMIC, RefFallback.UNSET, false, "enum", false, "wiretuner.doc.v1.RuleExtent", null, null)),
             Map.entry(9, new FieldPolicy(9, "flow", Policy.ATOMIC, RefFallback.UNSET, false, "enum", false, "wiretuner.doc.v1.FlowOrder", null, null))
+        ));
+  }
+
+  private static MessagePolicy table_wiretuner_doc_v1_CombineEffect() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.CombineEffect",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "op", Policy.ATOMIC, RefFallback.UNSET, false, "enum", false, "wiretuner.doc.v1.BooleanOp", null, null))
+        ));
+  }
+
+  private static MessagePolicy table_wiretuner_doc_v1_Comment() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.Comment",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "id", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.ElementId", null, null)),
+            Map.entry(2, new FieldPolicy(2, "author_account_id", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
+            Map.entry(3, new FieldPolicy(3, "body", Policy.TEXT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.RichText", null, null)),
+            Map.entry(4, new FieldPolicy(4, "wall_time_ms", Policy.ATOMIC, RefFallback.UNSET, false, "int64", false, null, null, null)),
+            Map.entry(5, new FieldPolicy(5, "edited_wall_time_ms", Policy.ATOMIC, RefFallback.UNSET, false, "int64", false, null, null, null)),
+            Map.entry(6, new FieldPolicy(6, "mentions", Policy.SET, RefFallback.UNSET, false, "string", true, null, null, null)),
+            Map.entry(7, new FieldPolicy(7, "reactions", Policy.SET, RefFallback.UNSET, false, "string", true, null, null, null)),
+            Map.entry(8, new FieldPolicy(8, "deleted", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null))
+        ));
+  }
+
+  private static MessagePolicy table_wiretuner_doc_v1_CommentThreadProps() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.CommentThreadProps",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "common", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.CommonProps", null, null)),
+            Map.entry(2, new FieldPolicy(2, "anchor", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.NodeRef", null, null)),
+            Map.entry(3, new FieldPolicy(3, "point", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.Point", null, null)),
+            Map.entry(4, new FieldPolicy(4, "fallback_point", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.Point", null, null)),
+            Map.entry(5, new FieldPolicy(5, "page", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.NodeRef", null, null)),
+            Map.entry(6, new FieldPolicy(6, "resolved", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
+            Map.entry(7, new FieldPolicy(7, "comments", Policy.SEQUENCE, RefFallback.UNSET, false, "message", true, "wiretuner.doc.v1.Comment", "wiretuner.doc.v1.Comment", null))
         ));
   }
 
@@ -517,6 +766,16 @@ public final class MergeTable {
         ));
   }
 
+  private static MessagePolicy table_wiretuner_doc_v1_Component() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.Component",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "id", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.ElementId", null, null)),
+            Map.entry(2, new FieldPolicy(2, "glyph", Policy.ATOMIC, RefFallback.PLACEHOLDER, false, "message", false, "wiretuner.doc.v1.NodeRef", null, null)),
+            Map.entry(3, new FieldPolicy(3, "transform", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.Transform", null, null))
+        ));
+  }
+
   private static MessagePolicy table_wiretuner_doc_v1_Contour() {
     return new MessagePolicy(
         "wiretuner.doc.v1.Contour",
@@ -538,6 +797,16 @@ public final class MergeTable {
             Map.entry(3, new FieldPolicy(3, "top_right", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
             Map.entry(4, new FieldPolicy(4, "bottom_right", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
             Map.entry(5, new FieldPolicy(5, "bottom_left", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null))
+        ));
+  }
+
+  private static MessagePolicy table_wiretuner_doc_v1_CornersEffect() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.CornersEffect",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "radius", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
+            Map.entry(2, new FieldPolicy(2, "style", Policy.ATOMIC, RefFallback.UNSET, false, "enum", false, "wiretuner.doc.v1.CornerStyle", null, null)),
+            Map.entry(3, new FieldPolicy(3, "points", Policy.SET, RefFallback.UNSET, false, "message", true, "wiretuner.doc.v1.ElementId", null, null))
         ));
   }
 
@@ -594,6 +863,15 @@ public final class MergeTable {
         ));
   }
 
+  private static MessagePolicy table_wiretuner_doc_v1_CustomViewProps() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.CustomViewProps",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "common", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.CommonProps", null, null)),
+            Map.entry(2, new FieldPolicy(2, "target", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.ViewTarget", null, null))
+        ));
+  }
+
   private static MessagePolicy table_wiretuner_doc_v1_DashPattern() {
     return new MessagePolicy(
         "wiretuner.doc.v1.DashPattern",
@@ -612,6 +890,51 @@ public final class MergeTable {
         ));
   }
 
+  private static MessagePolicy table_wiretuner_doc_v1_DataField() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.DataField",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "id", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.ElementId", null, null)),
+            Map.entry(2, new FieldPolicy(2, "name", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
+            Map.entry(3, new FieldPolicy(3, "type", Policy.ATOMIC, RefFallback.UNSET, false, "enum", false, "wiretuner.doc.v1.DataFieldType", null, null)),
+            Map.entry(4, new FieldPolicy(4, "format", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.FieldFormat", null, null)),
+            Map.entry(5, new FieldPolicy(5, "transform", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.NodeRef", null, null))
+        ));
+  }
+
+  private static MessagePolicy table_wiretuner_doc_v1_DataPreview() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.DataPreview",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "showing", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
+            Map.entry(2, new FieldPolicy(2, "record_index", Policy.ATOMIC, RefFallback.UNSET, false, "uint32", false, null, null, null))
+        ));
+  }
+
+  private static MessagePolicy table_wiretuner_doc_v1_DataSource() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.DataSource",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "id", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.ElementId", null, null)),
+            Map.entry(2, new FieldPolicy(2, "name", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
+            Map.entry(3, new FieldPolicy(3, "spec", Policy.VARIANT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.DataSourceSpec", null, null)),
+            Map.entry(4, new FieldPolicy(4, "mapping", Policy.SEQUENCE, RefFallback.UNSET, false, "message", true, "wiretuner.doc.v1.FieldMapping", "wiretuner.doc.v1.FieldMapping", null)),
+            Map.entry(5, new FieldPolicy(5, "sample", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.EmbeddedRecords", null, null))
+        ));
+  }
+
+  private static MessagePolicy table_wiretuner_doc_v1_DataSourceSpec() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.DataSourceSpec",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "kind", Policy.ATOMIC, RefFallback.UNSET, false, "enum", false, "wiretuner.doc.v1.DataSourceKind", null, null)),
+            Map.entry(2, new FieldPolicy(2, "file", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.FileSource", null, null)),
+            Map.entry(3, new FieldPolicy(3, "pasted", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.PastedSource", null, null)),
+            Map.entry(4, new FieldPolicy(4, "http", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.HttpSource", null, null)),
+            Map.entry(5, new FieldPolicy(5, "script", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.ScriptSource", null, null))
+        ));
+  }
+
   private static MessagePolicy table_wiretuner_doc_v1_Defaults() {
     return new MessagePolicy(
         "wiretuner.doc.v1.Defaults",
@@ -619,6 +942,33 @@ public final class MergeTable {
             Map.entry(1, new FieldPolicy(1, "appearance", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.AppearanceProps", null, null)),
             Map.entry(2, new FieldPolicy(2, "style", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.NodeRef", null, null)),
             Map.entry(3, new FieldPolicy(3, "text", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.TextStyleAttrs", null, null))
+        ));
+  }
+
+  private static MessagePolicy table_wiretuner_doc_v1_DocumentInfo() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.DocumentInfo",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "title", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
+            Map.entry(2, new FieldPolicy(2, "headline", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
+            Map.entry(3, new FieldPolicy(3, "description", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
+            Map.entry(4, new FieldPolicy(4, "keywords", Policy.SET, RefFallback.UNSET, false, "string", true, null, null, null)),
+            Map.entry(5, new FieldPolicy(5, "category", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
+            Map.entry(6, new FieldPolicy(6, "supplemental_categories", Policy.ATOMIC, RefFallback.UNSET, false, "string", true, null, null, null)),
+            Map.entry(10, new FieldPolicy(10, "creators", Policy.ATOMIC, RefFallback.UNSET, false, "string", true, null, null, null)),
+            Map.entry(11, new FieldPolicy(11, "creator_job_title", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
+            Map.entry(12, new FieldPolicy(12, "credit", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
+            Map.entry(13, new FieldPolicy(13, "source", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
+            Map.entry(20, new FieldPolicy(20, "copyright_notice", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
+            Map.entry(21, new FieldPolicy(21, "copyright_status", Policy.ATOMIC, RefFallback.UNSET, false, "enum", false, "wiretuner.doc.v1.CopyrightStatus", null, null)),
+            Map.entry(22, new FieldPolicy(22, "rights_usage_terms", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
+            Map.entry(23, new FieldPolicy(23, "web_statement", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
+            Map.entry(30, new FieldPolicy(30, "date_created", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
+            Map.entry(31, new FieldPolicy(31, "city", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
+            Map.entry(32, new FieldPolicy(32, "state", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
+            Map.entry(33, new FieldPolicy(33, "country", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
+            Map.entry(34, new FieldPolicy(34, "instructions", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
+            Map.entry(35, new FieldPolicy(35, "language", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null))
         ));
   }
 
@@ -630,12 +980,49 @@ public final class MergeTable {
         ));
   }
 
+  private static MessagePolicy table_wiretuner_doc_v1_DuetEffect() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.DuetEffect",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "mode", Policy.ATOMIC, RefFallback.UNSET, false, "enum", false, "wiretuner.doc.v1.DuetMode", null, null)),
+            Map.entry(2, new FieldPolicy(2, "center", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.Point", null, null)),
+            Map.entry(3, new FieldPolicy(3, "axis_angle", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
+            Map.entry(4, new FieldPolicy(4, "copies", Policy.ATOMIC, RefFallback.UNSET, false, "uint32", false, null, null, null)),
+            Map.entry(5, new FieldPolicy(5, "joined", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
+            Map.entry(6, new FieldPolicy(6, "closed", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
+            Map.entry(7, new FieldPolicy(7, "even_odd", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null))
+        ));
+  }
+
   private static MessagePolicy table_wiretuner_doc_v1_Effect() {
     return new MessagePolicy(
         "wiretuner.doc.v1.Effect",
         Map.ofEntries(
             Map.entry(1, new FieldPolicy(1, "id", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.ElementId", null, null)),
-            Map.entry(2, new FieldPolicy(2, "hidden", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null))
+            Map.entry(2, new FieldPolicy(2, "hidden", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
+            Map.entry(3, new FieldPolicy(3, "attached_to", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.ElementId", null, null)),
+            Map.entry(4, new FieldPolicy(4, "settings", Policy.VARIANT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.EffectSettings", null, null))
+        ));
+  }
+
+  private static MessagePolicy table_wiretuner_doc_v1_EffectSettings() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.EffectSettings",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "kind", Policy.ATOMIC, RefFallback.UNSET, false, "enum", false, "wiretuner.doc.v1.EffectKind", null, null)),
+            Map.entry(10, new FieldPolicy(10, "bend", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.BendEffect", null, null)),
+            Map.entry(11, new FieldPolicy(11, "duet", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.DuetEffect", null, null)),
+            Map.entry(12, new FieldPolicy(12, "expand_path", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.ExpandPathEffect", null, null)),
+            Map.entry(13, new FieldPolicy(13, "ragged", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.RaggedEffect", null, null)),
+            Map.entry(14, new FieldPolicy(14, "sketch", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.SketchEffect", null, null)),
+            Map.entry(15, new FieldPolicy(15, "transform", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.TransformEffect", null, null)),
+            Map.entry(16, new FieldPolicy(16, "corners", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.CornersEffect", null, null)),
+            Map.entry(17, new FieldPolicy(17, "combine", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.CombineEffect", null, null)),
+            Map.entry(20, new FieldPolicy(20, "bevel_emboss", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.BevelEmbossEffect", null, null)),
+            Map.entry(21, new FieldPolicy(21, "blur", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.BlurEffect", null, null)),
+            Map.entry(22, new FieldPolicy(22, "shadow", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.ShadowEffect", null, null)),
+            Map.entry(23, new FieldPolicy(23, "sharpen", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.SharpenEffect", null, null)),
+            Map.entry(24, new FieldPolicy(24, "transparency", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.TransparencyEffect", null, null))
         ));
   }
 
@@ -655,6 +1042,67 @@ public final class MergeTable {
             Map.entry(1, new FieldPolicy(1, "common", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.CommonProps", null, null)),
             Map.entry(2, new FieldPolicy(2, "size", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.Size", null, null)),
             Map.entry(3, new FieldPolicy(3, "appearance", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.AppearanceProps", null, null))
+        ));
+  }
+
+  private static MessagePolicy table_wiretuner_doc_v1_EmbeddedRecords() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.EmbeddedRecords",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "blob_sha256", Policy.ATOMIC, RefFallback.UNSET, false, "bytes", false, null, null, null)),
+            Map.entry(2, new FieldPolicy(2, "media_type", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
+            Map.entry(3, new FieldPolicy(3, "record_count", Policy.ATOMIC, RefFallback.UNSET, false, "uint32", false, null, null, null)),
+            Map.entry(4, new FieldPolicy(4, "complete", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
+            Map.entry(5, new FieldPolicy(5, "fetched_at_ms", Policy.ATOMIC, RefFallback.UNSET, false, "int64", false, null, null, null))
+        ));
+  }
+
+  private static MessagePolicy table_wiretuner_doc_v1_EnvelopeCorners() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.EnvelopeCorners",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "tl", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.ElementId", null, null)),
+            Map.entry(2, new FieldPolicy(2, "tr", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.ElementId", null, null)),
+            Map.entry(3, new FieldPolicy(3, "br", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.ElementId", null, null)),
+            Map.entry(4, new FieldPolicy(4, "bl", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.ElementId", null, null))
+        ));
+  }
+
+  private static MessagePolicy table_wiretuner_doc_v1_EnvelopeProps() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.EnvelopeProps",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "common", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.CommonProps", null, null)),
+            Map.entry(2, new FieldPolicy(2, "contours", Policy.SEQUENCE, RefFallback.UNSET, false, "message", true, "wiretuner.doc.v1.Contour", "wiretuner.doc.v1.Contour", null)),
+            Map.entry(3, new FieldPolicy(3, "source_bounds", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.Rect", null, null)),
+            Map.entry(4, new FieldPolicy(4, "corners", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.EnvelopeCorners", null, null)),
+            Map.entry(5, new FieldPolicy(5, "show_map", Policy.ATOMIC, RefFallback.UNSET, true, "bool", false, null, null, null))
+        ));
+  }
+
+  private static MessagePolicy table_wiretuner_doc_v1_ExpandPathEffect() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.ExpandPathEffect",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "direction", Policy.ATOMIC, RefFallback.UNSET, false, "enum", false, "wiretuner.doc.v1.ExpandDirection", null, null)),
+            Map.entry(2, new FieldPolicy(2, "width", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
+            Map.entry(3, new FieldPolicy(3, "cap", Policy.ATOMIC, RefFallback.UNSET, false, "enum", false, "wiretuner.doc.v1.LineCap", null, null)),
+            Map.entry(4, new FieldPolicy(4, "join", Policy.ATOMIC, RefFallback.UNSET, false, "enum", false, "wiretuner.doc.v1.LineJoin", null, null)),
+            Map.entry(5, new FieldPolicy(5, "miter_limit", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null))
+        ));
+  }
+
+  private static MessagePolicy table_wiretuner_doc_v1_ExtrudeProps() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.ExtrudeProps",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "common", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.CommonProps", null, null)),
+            Map.entry(2, new FieldPolicy(2, "length", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
+            Map.entry(3, new FieldPolicy(3, "vanishing_point", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.Point", null, null)),
+            Map.entry(4, new FieldPolicy(4, "z", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
+            Map.entry(5, new FieldPolicy(5, "rotation", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.Rotation3", null, null)),
+            Map.entry(6, new FieldPolicy(6, "surface", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.Surface", null, null)),
+            Map.entry(7, new FieldPolicy(7, "profile", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.Profile", null, null))
         ));
   }
 
@@ -705,6 +1153,39 @@ public final class MergeTable {
         ));
   }
 
+  private static MessagePolicy table_wiretuner_doc_v1_FieldFormat() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.FieldFormat",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "pattern", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
+            Map.entry(2, new FieldPolicy(2, "locale", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null))
+        ));
+  }
+
+  private static MessagePolicy table_wiretuner_doc_v1_FieldMapping() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.FieldMapping",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "id", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.ElementId", null, null)),
+            Map.entry(2, new FieldPolicy(2, "field", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.ElementId", null, null)),
+            Map.entry(3, new FieldPolicy(3, "path", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null))
+        ));
+  }
+
+  private static MessagePolicy table_wiretuner_doc_v1_FileSource() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.FileSource",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "format", Policy.ATOMIC, RefFallback.UNSET, false, "enum", false, "wiretuner.doc.v1.FileFormat", null, null)),
+            Map.entry(2, new FieldPolicy(2, "file_name", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
+            Map.entry(3, new FieldPolicy(3, "delimiter", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
+            Map.entry(4, new FieldPolicy(4, "encoding", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
+            Map.entry(5, new FieldPolicy(5, "header_row", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
+            Map.entry(6, new FieldPolicy(6, "records_path", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
+            Map.entry(7, new FieldPolicy(7, "bookmark", Policy.ATOMIC, RefFallback.UNSET, true, "bytes", false, null, null, null))
+        ));
+  }
+
   private static MessagePolicy table_wiretuner_doc_v1_Fill() {
     return new MessagePolicy(
         "wiretuner.doc.v1.Fill",
@@ -730,11 +1211,101 @@ public final class MergeTable {
         ));
   }
 
+  private static MessagePolicy table_wiretuner_doc_v1_FontMetrics() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.FontMetrics",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "upm", Policy.ATOMIC, RefFallback.UNSET, false, "uint32", false, null, null, null)),
+            Map.entry(2, new FieldPolicy(2, "ascender", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
+            Map.entry(3, new FieldPolicy(3, "descender", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
+            Map.entry(4, new FieldPolicy(4, "x_height", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
+            Map.entry(5, new FieldPolicy(5, "cap_height", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
+            Map.entry(6, new FieldPolicy(6, "italic_angle", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
+            Map.entry(7, new FieldPolicy(7, "underline_position", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
+            Map.entry(8, new FieldPolicy(8, "underline_thickness", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
+            Map.entry(9, new FieldPolicy(9, "line_gap", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
+            Map.entry(10, new FieldPolicy(10, "win_ascent", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.OptionalMetric", null, null)),
+            Map.entry(11, new FieldPolicy(11, "win_descent", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.OptionalMetric", null, null)),
+            Map.entry(12, new FieldPolicy(12, "typo_separate", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
+            Map.entry(13, new FieldPolicy(13, "typo_ascender", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
+            Map.entry(14, new FieldPolicy(14, "typo_descender", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
+            Map.entry(15, new FieldPolicy(15, "typo_line_gap", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null))
+        ));
+  }
+
+  private static MessagePolicy table_wiretuner_doc_v1_FontNames() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.FontNames",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "family", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
+            Map.entry(2, new FieldPolicy(2, "style", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
+            Map.entry(3, new FieldPolicy(3, "postscript", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
+            Map.entry(4, new FieldPolicy(4, "full", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
+            Map.entry(5, new FieldPolicy(5, "version", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
+            Map.entry(6, new FieldPolicy(6, "copyright", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
+            Map.entry(7, new FieldPolicy(7, "trademark", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
+            Map.entry(8, new FieldPolicy(8, "designer", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
+            Map.entry(9, new FieldPolicy(9, "designer_url", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
+            Map.entry(10, new FieldPolicy(10, "manufacturer", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
+            Map.entry(11, new FieldPolicy(11, "manufacturer_url", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
+            Map.entry(12, new FieldPolicy(12, "description", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
+            Map.entry(13, new FieldPolicy(13, "sample_text", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
+            Map.entry(14, new FieldPolicy(14, "license", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
+            Map.entry(15, new FieldPolicy(15, "license_url", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null))
+        ));
+  }
+
+  private static MessagePolicy table_wiretuner_doc_v1_FontProps() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.FontProps",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "names", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.FontNames", null, null)),
+            Map.entry(2, new FieldPolicy(2, "metrics", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.FontMetrics", null, null)),
+            Map.entry(3, new FieldPolicy(3, "os2", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.Os2Props", null, null)),
+            Map.entry(4, new FieldPolicy(4, "guides", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.MetricGuideSettings", null, null)),
+            Map.entry(5, new FieldPolicy(5, "pairs", Policy.SEQUENCE, RefFallback.UNSET, false, "message", true, "wiretuner.doc.v1.KernPair", "wiretuner.doc.v1.KernPair", null)),
+            Map.entry(6, new FieldPolicy(6, "classes", Policy.SEQUENCE, RefFallback.UNSET, false, "message", true, "wiretuner.doc.v1.KernClass", "wiretuner.doc.v1.KernClass", null)),
+            Map.entry(7, new FieldPolicy(7, "class_kerns", Policy.SEQUENCE, RefFallback.UNSET, false, "message", true, "wiretuner.doc.v1.ClassKern", "wiretuner.doc.v1.ClassKern", null)),
+            Map.entry(8, new FieldPolicy(8, "features", Policy.TEXT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.RichText", null, null)),
+            Map.entry(9, new FieldPolicy(9, "omit_generated_kern", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
+            Map.entry(10, new FieldPolicy(10, "omit_generated_mark", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
+            Map.entry(11, new FieldPolicy(11, "omit_generated_liga", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null))
+        ));
+  }
+
   private static MessagePolicy table_wiretuner_doc_v1_FontVariation() {
     return new MessagePolicy(
         "wiretuner.doc.v1.FontVariation",
         Map.ofEntries(
             Map.entry(1, new FieldPolicy(1, "axes", Policy.ATOMIC, RefFallback.UNSET, false, "message", true, "wiretuner.doc.v1.Axis", null, null))
+        ));
+  }
+
+  private static MessagePolicy table_wiretuner_doc_v1_GlyphAnchor() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.GlyphAnchor",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "id", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.ElementId", null, null)),
+            Map.entry(2, new FieldPolicy(2, "name", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
+            Map.entry(3, new FieldPolicy(3, "position", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.Point", null, null)),
+            Map.entry(4, new FieldPolicy(4, "role", Policy.ATOMIC, RefFallback.UNSET, false, "enum", false, "wiretuner.doc.v1.AnchorRole", null, null))
+        ));
+  }
+
+  private static MessagePolicy table_wiretuner_doc_v1_GlyphProps() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.GlyphProps",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "common", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.CommonProps", null, null)),
+            Map.entry(2, new FieldPolicy(2, "name", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
+            Map.entry(3, new FieldPolicy(3, "codepoints", Policy.SET, RefFallback.UNSET, false, "uint32", true, null, null, null)),
+            Map.entry(4, new FieldPolicy(4, "advance_width", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
+            Map.entry(5, new FieldPolicy(5, "kind", Policy.ATOMIC, RefFallback.UNSET, false, "enum", false, "wiretuner.doc.v1.GlyphKind", null, null)),
+            Map.entry(6, new FieldPolicy(6, "components", Policy.SEQUENCE, RefFallback.UNSET, false, "message", true, "wiretuner.doc.v1.Component", "wiretuner.doc.v1.Component", null)),
+            Map.entry(7, new FieldPolicy(7, "anchors", Policy.SEQUENCE, RefFallback.UNSET, false, "message", true, "wiretuner.doc.v1.GlyphAnchor", "wiretuner.doc.v1.GlyphAnchor", null)),
+            Map.entry(8, new FieldPolicy(8, "skip_export", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
+            Map.entry(9, new FieldPolicy(9, "guides", Policy.SEQUENCE, RefFallback.UNSET, false, "message", true, "wiretuner.doc.v1.Guide", "wiretuner.doc.v1.Guide", null)),
+            Map.entry(10, new FieldPolicy(10, "mark_color", Policy.ATOMIC, RefFallback.UNSET, false, "uint32", false, null, null, null))
         ));
   }
 
@@ -768,6 +1339,16 @@ public final class MergeTable {
             Map.entry(1, new FieldPolicy(1, "id", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.ElementId", null, null)),
             Map.entry(2, new FieldPolicy(2, "offset", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
             Map.entry(3, new FieldPolicy(3, "color", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.ColorRef", null, null))
+        ));
+  }
+
+  private static MessagePolicy table_wiretuner_doc_v1_GrayRamp() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.GrayRamp",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "preset", Policy.ATOMIC, RefFallback.UNSET, false, "enum", false, "wiretuner.doc.v1.GrayRampPreset", null, null)),
+            Map.entry(2, new FieldPolicy(2, "lightness", Policy.ATOMIC, RefFallback.UNSET, false, "int32", false, null, null, null)),
+            Map.entry(3, new FieldPolicy(3, "contrast", Policy.ATOMIC, RefFallback.UNSET, false, "int32", false, null, null, null))
         ));
   }
 
@@ -813,6 +1394,65 @@ public final class MergeTable {
         ));
   }
 
+  private static MessagePolicy table_wiretuner_doc_v1_HtmlSetting() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.HtmlSetting",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "id", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.ElementId", null, null)),
+            Map.entry(2, new FieldPolicy(2, "name", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
+            Map.entry(3, new FieldPolicy(3, "location", Policy.ATOMIC, RefFallback.UNSET, true, "string", false, null, null, null)),
+            Map.entry(4, new FieldPolicy(4, "layout", Policy.ATOMIC, RefFallback.UNSET, false, "enum", false, "wiretuner.doc.v1.HtmlLayout", null, null)),
+            Map.entry(5, new FieldPolicy(5, "page_mode", Policy.ATOMIC, RefFallback.UNSET, false, "enum", false, "wiretuner.doc.v1.HtmlPageMode", null, null)),
+            Map.entry(6, new FieldPolicy(6, "vector_format", Policy.ATOMIC, RefFallback.UNSET, false, "enum", false, "wiretuner.doc.v1.HtmlVectorFormat", null, null)),
+            Map.entry(7, new FieldPolicy(7, "scale", Policy.ATOMIC, RefFallback.UNSET, false, "uint32", false, null, null, null)),
+            Map.entry(8, new FieldPolicy(8, "image_format", Policy.ATOMIC, RefFallback.UNSET, false, "enum", false, "wiretuner.doc.v1.HtmlImageFormat", null, null)),
+            Map.entry(9, new FieldPolicy(9, "image_quality", Policy.ATOMIC, RefFallback.UNSET, false, "uint32", false, null, null, null)),
+            Map.entry(10, new FieldPolicy(10, "font_mode", Policy.ATOMIC, RefFallback.UNSET, false, "enum", false, "wiretuner.doc.v1.HtmlFontMode", null, null)),
+            Map.entry(11, new FieldPolicy(11, "animation_still", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
+            Map.entry(12, new FieldPolicy(12, "svg_animation_poster_only", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
+            Map.entry(13, new FieldPolicy(13, "background", Policy.ATOMIC, RefFallback.UNSET, false, "enum", false, "wiretuner.doc.v1.HtmlBackground", null, null)),
+            Map.entry(14, new FieldPolicy(14, "title", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
+            Map.entry(15, new FieldPolicy(15, "allow_scripts", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null))
+        ));
+  }
+
+  private static MessagePolicy table_wiretuner_doc_v1_HttpHeader() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.HttpHeader",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "id", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.ElementId", null, null)),
+            Map.entry(2, new FieldPolicy(2, "name", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
+            Map.entry(3, new FieldPolicy(3, "value", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null))
+        ));
+  }
+
+  private static MessagePolicy table_wiretuner_doc_v1_HttpParam() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.HttpParam",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "id", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.ElementId", null, null)),
+            Map.entry(2, new FieldPolicy(2, "name", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
+            Map.entry(3, new FieldPolicy(3, "default_value", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null))
+        ));
+  }
+
+  private static MessagePolicy table_wiretuner_doc_v1_HttpSource() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.HttpSource",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "method", Policy.ATOMIC, RefFallback.UNSET, false, "enum", false, "wiretuner.doc.v1.HttpMethod", null, null)),
+            Map.entry(2, new FieldPolicy(2, "url", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
+            Map.entry(3, new FieldPolicy(3, "headers", Policy.SEQUENCE, RefFallback.UNSET, false, "message", true, "wiretuner.doc.v1.HttpHeader", "wiretuner.doc.v1.HttpHeader", null)),
+            Map.entry(4, new FieldPolicy(4, "body_template", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
+            Map.entry(5, new FieldPolicy(5, "credential_name", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
+            Map.entry(6, new FieldPolicy(6, "records_path", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
+            Map.entry(7, new FieldPolicy(7, "pagination", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.Pagination", null, null)),
+            Map.entry(8, new FieldPolicy(8, "params", Policy.SEQUENCE, RefFallback.UNSET, false, "message", true, "wiretuner.doc.v1.HttpParam", "wiretuner.doc.v1.HttpParam", null)),
+            Map.entry(9, new FieldPolicy(9, "timeout_s", Policy.ATOMIC, RefFallback.UNSET, false, "uint32", false, null, null, null)),
+            Map.entry(10, new FieldPolicy(10, "max_records", Policy.ATOMIC, RefFallback.UNSET, false, "uint32", false, null, null, null))
+        ));
+  }
+
   private static MessagePolicy table_wiretuner_doc_v1_Hyphenation() {
     return new MessagePolicy(
         "wiretuner.doc.v1.Hyphenation",
@@ -821,6 +1461,45 @@ public final class MergeTable {
             Map.entry(2, new FieldPolicy(2, "language", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
             Map.entry(3, new FieldPolicy(3, "consecutive", Policy.ATOMIC, RefFallback.UNSET, false, "uint32", false, null, null, null)),
             Map.entry(4, new FieldPolicy(4, "skip_capitalized", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null))
+        ));
+  }
+
+  private static MessagePolicy table_wiretuner_doc_v1_ImageColorSettings() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.ImageColorSettings",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "source_profile", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.ProfileRef", null, null)),
+            Map.entry(2, new FieldPolicy(2, "intent", Policy.ATOMIC, RefFallback.UNSET, false, "enum", false, "wiretuner.doc.v1.RenderingIntent", null, null)),
+            Map.entry(3, new FieldPolicy(3, "use_embedded", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
+            Map.entry(4, new FieldPolicy(4, "embedded_profile", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.ProfileRef", null, null))
+        ));
+  }
+
+  private static MessagePolicy table_wiretuner_doc_v1_ImageProps() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.ImageProps",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "common", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.CommonProps", null, null)),
+            Map.entry(2, new FieldPolicy(2, "pixels", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.PixelSource", null, null)),
+            Map.entry(3, new FieldPolicy(3, "source_name", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
+            Map.entry(4, new FieldPolicy(4, "dpi_x", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
+            Map.entry(5, new FieldPolicy(5, "dpi_y", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
+            Map.entry(6, new FieldPolicy(6, "display_alpha", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
+            Map.entry(7, new FieldPolicy(7, "transparent_background", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
+            Map.entry(8, new FieldPolicy(8, "ramp", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.GrayRamp", null, null)),
+            Map.entry(9, new FieldPolicy(9, "tint", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.ColorRef", null, null)),
+            Map.entry(10, new FieldPolicy(10, "crop", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.Rect", null, null)),
+            Map.entry(11, new FieldPolicy(11, "color", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.ImageColorSettings", null, null)),
+            Map.entry(12, new FieldPolicy(12, "source", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.NodeRef", null, null))
+        ));
+  }
+
+  private static MessagePolicy table_wiretuner_doc_v1_Ink() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.Ink",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "process", Policy.ATOMIC, RefFallback.UNSET, false, "enum", false, "wiretuner.doc.v1.ProcessInk", null, "ink")),
+            Map.entry(2, new FieldPolicy(2, "spot", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.NodeRef", null, "ink"))
         ));
   }
 
@@ -855,6 +1534,37 @@ public final class MergeTable {
         ));
   }
 
+  private static MessagePolicy table_wiretuner_doc_v1_KernClass() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.KernClass",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "id", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.ElementId", null, null)),
+            Map.entry(2, new FieldPolicy(2, "name", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
+            Map.entry(3, new FieldPolicy(3, "side", Policy.ATOMIC, RefFallback.UNSET, false, "enum", false, "wiretuner.doc.v1.KernSide", null, null)),
+            Map.entry(4, new FieldPolicy(4, "members", Policy.SEQUENCE, RefFallback.UNSET, false, "message", true, "wiretuner.doc.v1.KernClassMember", "wiretuner.doc.v1.KernClassMember", null))
+        ));
+  }
+
+  private static MessagePolicy table_wiretuner_doc_v1_KernClassMember() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.KernClassMember",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "id", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.ElementId", null, null)),
+            Map.entry(2, new FieldPolicy(2, "glyph", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.NodeRef", null, null))
+        ));
+  }
+
+  private static MessagePolicy table_wiretuner_doc_v1_KernPair() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.KernPair",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "id", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.ElementId", null, null)),
+            Map.entry(2, new FieldPolicy(2, "left", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.NodeRef", null, null)),
+            Map.entry(3, new FieldPolicy(3, "right", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.NodeRef", null, null)),
+            Map.entry(4, new FieldPolicy(4, "value", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null))
+        ));
+  }
+
   private static MessagePolicy table_wiretuner_doc_v1_Lab() {
     return new MessagePolicy(
         "wiretuner.doc.v1.Lab",
@@ -862,6 +1572,15 @@ public final class MergeTable {
             Map.entry(1, new FieldPolicy(1, "l", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
             Map.entry(2, new FieldPolicy(2, "a", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
             Map.entry(3, new FieldPolicy(3, "b", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null))
+        ));
+  }
+
+  private static MessagePolicy table_wiretuner_doc_v1_LayerFrameProps() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.LayerFrameProps",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "hold", Policy.ATOMIC, RefFallback.UNSET, false, "uint32", false, null, null, null)),
+            Map.entry(2, new FieldPolicy(2, "excluded", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null))
         ));
   }
 
@@ -886,7 +1605,8 @@ public final class MergeTable {
             Map.entry(5, new FieldPolicy(5, "printing", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
             Map.entry(6, new FieldPolicy(6, "keyline", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
             Map.entry(7, new FieldPolicy(7, "highlight", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.Color", null, null)),
-            Map.entry(8, new FieldPolicy(8, "merged_into", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.NodeRef", null, null))
+            Map.entry(8, new FieldPolicy(8, "merged_into", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.NodeRef", null, null)),
+            Map.entry(20, new FieldPolicy(20, "frame", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.LayerFrameProps", null, null))
         ));
   }
 
@@ -925,6 +1645,39 @@ public final class MergeTable {
         ));
   }
 
+  private static MessagePolicy table_wiretuner_doc_v1_Light() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.Light",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "direction", Policy.ATOMIC, RefFallback.UNSET, false, "enum", false, "wiretuner.doc.v1.LightDirection", null, null)),
+            Map.entry(2, new FieldPolicy(2, "intensity", Policy.ATOMIC, RefFallback.UNSET, false, "uint32", false, null, null, null))
+        ));
+  }
+
+  private static MessagePolicy table_wiretuner_doc_v1_LinkSource() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.LinkSource",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "kind", Policy.ATOMIC, RefFallback.UNSET, false, "enum", false, "wiretuner.doc.v1.LinkKind", null, null)),
+            Map.entry(2, new FieldPolicy(2, "display_name", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
+            Map.entry(3, new FieldPolicy(3, "path", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
+            Map.entry(4, new FieldPolicy(4, "device", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
+            Map.entry(5, new FieldPolicy(5, "library_document", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
+            Map.entry(6, new FieldPolicy(6, "source_modified_ms", Policy.ATOMIC, RefFallback.UNSET, false, "int64", false, null, null, null))
+        ));
+  }
+
+  private static MessagePolicy table_wiretuner_doc_v1_Marks() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.Marks",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "crop", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
+            Map.entry(2, new FieldPolicy(2, "registration", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
+            Map.entry(3, new FieldPolicy(3, "separation_names", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
+            Map.entry(4, new FieldPolicy(4, "file_name_date", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null))
+        ));
+  }
+
   private static MessagePolicy table_wiretuner_doc_v1_MasterPageProps() {
     return new MessagePolicy(
         "wiretuner.doc.v1.MasterPageProps",
@@ -933,6 +1686,35 @@ public final class MergeTable {
             Map.entry(2, new FieldPolicy(2, "geometry", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.PageGeometry", null, null)),
             Map.entry(3, new FieldPolicy(3, "bleed", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
             Map.entry(4, new FieldPolicy(4, "guides", Policy.SEQUENCE, RefFallback.UNSET, false, "message", true, "wiretuner.doc.v1.Guide", "wiretuner.doc.v1.Guide", null))
+        ));
+  }
+
+  private static MessagePolicy table_wiretuner_doc_v1_MetricGuideSettings() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.MetricGuideSettings",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "hide_baseline", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
+            Map.entry(2, new FieldPolicy(2, "hide_x_height", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
+            Map.entry(3, new FieldPolicy(3, "hide_cap_height", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
+            Map.entry(4, new FieldPolicy(4, "hide_ascender", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
+            Map.entry(5, new FieldPolicy(5, "hide_descender", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
+            Map.entry(6, new FieldPolicy(6, "hide_side_bearings", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
+            Map.entry(7, new FieldPolicy(7, "hide_em_box", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
+            Map.entry(8, new FieldPolicy(8, "hide_labels", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
+            Map.entry(9, new FieldPolicy(9, "baseline_color", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.Color", null, null)),
+            Map.entry(10, new FieldPolicy(10, "metric_color", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.Color", null, null)),
+            Map.entry(11, new FieldPolicy(11, "bearing_color", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.Color", null, null)),
+            Map.entry(12, new FieldPolicy(12, "extra_lines", Policy.SEQUENCE, RefFallback.UNSET, false, "message", true, "wiretuner.doc.v1.MetricLine", "wiretuner.doc.v1.MetricLine", null))
+        ));
+  }
+
+  private static MessagePolicy table_wiretuner_doc_v1_MetricLine() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.MetricLine",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "id", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.ElementId", null, null)),
+            Map.entry(2, new FieldPolicy(2, "name", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
+            Map.entry(3, new FieldPolicy(3, "y", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null))
         ));
   }
 
@@ -966,6 +1748,7 @@ public final class MergeTable {
             Map.entry(2, new FieldPolicy(2, "settings", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.SettingsProps", null, "kind")),
             Map.entry(3, new FieldPolicy(3, "page", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.PageProps", null, "kind")),
             Map.entry(4, new FieldPolicy(4, "master_page", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.MasterPageProps", null, "kind")),
+            Map.entry(5, new FieldPolicy(5, "asset", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.AssetProps", null, "kind")),
             Map.entry(20, new FieldPolicy(20, "path", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.PathProps", null, "kind")),
             Map.entry(21, new FieldPolicy(21, "rect", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.RectProps", null, "kind")),
             Map.entry(22, new FieldPolicy(22, "ellipse", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.EllipseProps", null, "kind")),
@@ -974,12 +1757,24 @@ public final class MergeTable {
             Map.entry(50, new FieldPolicy(50, "group", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.GroupProps", null, "kind")),
             Map.entry(70, new FieldPolicy(70, "swatch", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.SwatchProps", null, "kind")),
             Map.entry(80, new FieldPolicy(80, "brush", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.BrushProps", null, "kind")),
+            Map.entry(100, new FieldPolicy(100, "blend", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.BlendProps", null, "kind")),
+            Map.entry(101, new FieldPolicy(101, "extrude", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.ExtrudeProps", null, "kind")),
+            Map.entry(102, new FieldPolicy(102, "envelope", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.EnvelopeProps", null, "kind")),
+            Map.entry(103, new FieldPolicy(103, "perspective", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.PerspectiveProps", null, "kind")),
             Map.entry(130, new FieldPolicy(130, "text", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.TextProps", null, "kind")),
             Map.entry(150, new FieldPolicy(150, "layer", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.LayerProps", null, "kind")),
             Map.entry(151, new FieldPolicy(151, "symbol", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.SymbolProps", null, "kind")),
             Map.entry(152, new FieldPolicy(152, "symbol_folder", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.SymbolFolderProps", null, "kind")),
             Map.entry(153, new FieldPolicy(153, "instance", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.InstanceProps", null, "kind")),
-            Map.entry(154, new FieldPolicy(154, "style", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.StyleProps", null, "kind"))
+            Map.entry(154, new FieldPolicy(154, "style", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.StyleProps", null, "kind")),
+            Map.entry(170, new FieldPolicy(170, "image", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.ImageProps", null, "kind")),
+            Map.entry(171, new FieldPolicy(171, "placed_file", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.PlacedFileProps", null, "kind")),
+            Map.entry(190, new FieldPolicy(190, "svg_animation", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.SvgAnimationProps", null, "kind")),
+            Map.entry(210, new FieldPolicy(210, "comment_thread", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.CommentThreadProps", null, "kind")),
+            Map.entry(220, new FieldPolicy(220, "glyph", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.GlyphProps", null, "kind")),
+            Map.entry(240, new FieldPolicy(240, "barcode", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.BarcodeProps", null, "kind")),
+            Map.entry(241, new FieldPolicy(241, "script", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.ScriptProps", null, "kind")),
+            Map.entry(260, new FieldPolicy(260, "custom_view", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.CustomViewProps", null, "kind"))
         ));
   }
 
@@ -998,6 +1793,31 @@ public final class MergeTable {
         Map.ofEntries(
             Map.entry(1, new FieldPolicy(1, "counter", Policy.ATOMIC, RefFallback.UNSET, false, "uint64", false, null, null, null)),
             Map.entry(2, new FieldPolicy(2, "replica", Policy.ATOMIC, RefFallback.UNSET, false, "fixed64", false, null, null, null))
+        ));
+  }
+
+  private static MessagePolicy table_wiretuner_doc_v1_OptionalMetric() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.OptionalMetric",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "computed", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
+            Map.entry(2, new FieldPolicy(2, "value", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null))
+        ));
+  }
+
+  private static MessagePolicy table_wiretuner_doc_v1_Os2Props() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.Os2Props",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "weight_class", Policy.ATOMIC, RefFallback.UNSET, false, "uint32", false, null, null, null)),
+            Map.entry(2, new FieldPolicy(2, "width_class", Policy.ATOMIC, RefFallback.UNSET, false, "uint32", false, null, null, null)),
+            Map.entry(3, new FieldPolicy(3, "vendor_id", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
+            Map.entry(4, new FieldPolicy(4, "style_bold", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
+            Map.entry(5, new FieldPolicy(5, "style_italic", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
+            Map.entry(6, new FieldPolicy(6, "embedding", Policy.ATOMIC, RefFallback.UNSET, false, "enum", false, "wiretuner.doc.v1.Embedding", null, null)),
+            Map.entry(7, new FieldPolicy(7, "no_subsetting", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
+            Map.entry(8, new FieldPolicy(8, "bitmap_embedding_only", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
+            Map.entry(9, new FieldPolicy(9, "panose", Policy.ATOMIC, RefFallback.UNSET, false, "bytes", false, null, null, null))
         ));
   }
 
@@ -1037,7 +1857,21 @@ public final class MergeTable {
             Map.entry(4, new FieldPolicy(4, "bleed", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
             Map.entry(5, new FieldPolicy(5, "master", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.NodeRef", null, null)),
             Map.entry(6, new FieldPolicy(6, "ruler_origin", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.Point", null, null)),
-            Map.entry(7, new FieldPolicy(7, "guides", Policy.SEQUENCE, RefFallback.UNSET, false, "message", true, "wiretuner.doc.v1.Guide", "wiretuner.doc.v1.Guide", null))
+            Map.entry(7, new FieldPolicy(7, "guides", Policy.SEQUENCE, RefFallback.UNSET, false, "message", true, "wiretuner.doc.v1.Guide", "wiretuner.doc.v1.Guide", null)),
+            Map.entry(20, new FieldPolicy(20, "perspective_grid", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.ElementId", null, null)),
+            Map.entry(21, new FieldPolicy(21, "perspective_grid_visible", Policy.ATOMIC, RefFallback.UNSET, true, "bool", false, null, null, null))
+        ));
+  }
+
+  private static MessagePolicy table_wiretuner_doc_v1_Pagination() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.Pagination",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "mode", Policy.ATOMIC, RefFallback.UNSET, false, "enum", false, "wiretuner.doc.v1.PaginationMode", null, null)),
+            Map.entry(2, new FieldPolicy(2, "next_url_path", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
+            Map.entry(3, new FieldPolicy(3, "page_param", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
+            Map.entry(4, new FieldPolicy(4, "first_page", Policy.ATOMIC, RefFallback.UNSET, false, "uint32", false, null, null, null)),
+            Map.entry(5, new FieldPolicy(5, "max_pages", Policy.ATOMIC, RefFallback.UNSET, false, "uint32", false, null, null, null))
         ));
   }
 
@@ -1102,6 +1936,14 @@ public final class MergeTable {
         ));
   }
 
+  private static MessagePolicy table_wiretuner_doc_v1_PastedSource() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.PastedSource",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "pasted_at_ms", Policy.ATOMIC, RefFallback.UNSET, false, "int64", false, null, null, null))
+        ));
+  }
+
   private static MessagePolicy table_wiretuner_doc_v1_PathPoint() {
     return new MessagePolicy(
         "wiretuner.doc.v1.PathPoint",
@@ -1156,6 +1998,94 @@ public final class MergeTable {
         ));
   }
 
+  private static MessagePolicy table_wiretuner_doc_v1_PerspectiveGrid() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.PerspectiveGrid",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "id", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.ElementId", null, null)),
+            Map.entry(2, new FieldPolicy(2, "name", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
+            Map.entry(3, new FieldPolicy(3, "vanishing_points", Policy.ATOMIC, RefFallback.UNSET, false, "uint32", false, null, null, null)),
+            Map.entry(4, new FieldPolicy(4, "cell_size", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
+            Map.entry(5, new FieldPolicy(5, "horizon_y", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
+            Map.entry(6, new FieldPolicy(6, "left_vp", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.Point", null, null)),
+            Map.entry(7, new FieldPolicy(7, "right_vp", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.Point", null, null)),
+            Map.entry(8, new FieldPolicy(8, "vertical_vp", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.Point", null, null)),
+            Map.entry(9, new FieldPolicy(9, "left_wall_x", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
+            Map.entry(10, new FieldPolicy(10, "right_wall_x", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
+            Map.entry(11, new FieldPolicy(11, "floor_front_y", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
+            Map.entry(12, new FieldPolicy(12, "left_color", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.ColorRef", null, null)),
+            Map.entry(13, new FieldPolicy(13, "right_color", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.ColorRef", null, null)),
+            Map.entry(14, new FieldPolicy(14, "floor_color", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.ColorRef", null, null)),
+            Map.entry(15, new FieldPolicy(15, "left_hidden", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
+            Map.entry(16, new FieldPolicy(16, "right_hidden", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
+            Map.entry(17, new FieldPolicy(17, "floor_hidden", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null))
+        ));
+  }
+
+  private static MessagePolicy table_wiretuner_doc_v1_PerspectiveProps() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.PerspectiveProps",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "common", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.CommonProps", null, null)),
+            Map.entry(2, new FieldPolicy(2, "plane", Policy.ATOMIC, RefFallback.UNSET, false, "enum", false, "wiretuner.doc.v1.PerspectivePlane", null, null)),
+            Map.entry(3, new FieldPolicy(3, "cell_position", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.Point", null, null)),
+            Map.entry(4, new FieldPolicy(4, "cell_width", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
+            Map.entry(5, new FieldPolicy(5, "cell_height", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
+            Map.entry(6, new FieldPolicy(6, "flipped", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
+            Map.entry(7, new FieldPolicy(7, "grid", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.ElementId", null, null))
+        ));
+  }
+
+  private static MessagePolicy table_wiretuner_doc_v1_PixelSource() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.PixelSource",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "blob_sha256", Policy.ATOMIC, RefFallback.UNSET, false, "bytes", false, null, null, null)),
+            Map.entry(2, new FieldPolicy(2, "format", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
+            Map.entry(3, new FieldPolicy(3, "pixel_width", Policy.ATOMIC, RefFallback.UNSET, false, "int32", false, null, null, null)),
+            Map.entry(4, new FieldPolicy(4, "pixel_height", Policy.ATOMIC, RefFallback.UNSET, false, "int32", false, null, null, null)),
+            Map.entry(5, new FieldPolicy(5, "mode", Policy.ATOMIC, RefFallback.UNSET, false, "enum", false, "wiretuner.doc.v1.ColorMode", null, null)),
+            Map.entry(6, new FieldPolicy(6, "bits_per_channel", Policy.ATOMIC, RefFallback.UNSET, false, "int32", false, null, null, null)),
+            Map.entry(7, new FieldPolicy(7, "has_alpha", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null))
+        ));
+  }
+
+  private static MessagePolicy table_wiretuner_doc_v1_PlacedFileContent() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.PlacedFileContent",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "format", Policy.ATOMIC, RefFallback.UNSET, false, "enum", false, "wiretuner.doc.v1.PlacedFileFormat", null, null)),
+            Map.entry(2, new FieldPolicy(2, "blob_sha256", Policy.ATOMIC, RefFallback.UNSET, false, "bytes", false, null, null, null)),
+            Map.entry(3, new FieldPolicy(3, "source_name", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
+            Map.entry(4, new FieldPolicy(4, "bounds", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.Rect", null, null)),
+            Map.entry(5, new FieldPolicy(5, "preview_sha256", Policy.ATOMIC, RefFallback.UNSET, false, "bytes", false, null, null, null)),
+            Map.entry(6, new FieldPolicy(6, "preview_width", Policy.ATOMIC, RefFallback.UNSET, false, "int32", false, null, null, null)),
+            Map.entry(7, new FieldPolicy(7, "preview_height", Policy.ATOMIC, RefFallback.UNSET, false, "int32", false, null, null, null))
+        ));
+  }
+
+  private static MessagePolicy table_wiretuner_doc_v1_PlacedFileProps() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.PlacedFileProps",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "common", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.CommonProps", null, null)),
+            Map.entry(2, new FieldPolicy(2, "content", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.PlacedFileContent", null, null)),
+            Map.entry(3, new FieldPolicy(3, "source", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.NodeRef", null, null))
+        ));
+  }
+
+  private static MessagePolicy table_wiretuner_doc_v1_PlateSettings() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.PlateSettings",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "id", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.ElementId", null, null)),
+            Map.entry(2, new FieldPolicy(2, "ink", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.Ink", null, null)),
+            Map.entry(3, new FieldPolicy(3, "print", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
+            Map.entry(4, new FieldPolicy(4, "angle", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
+            Map.entry(5, new FieldPolicy(5, "frequency", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null))
+        ));
+  }
+
   private static MessagePolicy table_wiretuner_doc_v1_Point() {
     return new MessagePolicy(
         "wiretuner.doc.v1.Point",
@@ -1179,6 +2109,102 @@ public final class MergeTable {
             Map.entry(8, new FieldPolicy(8, "rotation", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
             Map.entry(9, new FieldPolicy(9, "valley_offset", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
             Map.entry(10, new FieldPolicy(10, "appearance", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.AppearanceProps", null, null))
+        ));
+  }
+
+  private static MessagePolicy table_wiretuner_doc_v1_PrintSettings() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.PrintSettings",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "separations", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
+            Map.entry(2, new FieldPolicy(2, "scale_mode", Policy.ATOMIC, RefFallback.UNSET, false, "enum", false, "wiretuner.doc.v1.PrintScaleMode", null, null)),
+            Map.entry(3, new FieldPolicy(3, "scale_x", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
+            Map.entry(4, new FieldPolicy(4, "scale_y", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
+            Map.entry(5, new FieldPolicy(5, "offset", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.Point", null, null)),
+            Map.entry(6, new FieldPolicy(6, "tile", Policy.ATOMIC, RefFallback.UNSET, false, "enum", false, "wiretuner.doc.v1.PrintTileMode", null, null)),
+            Map.entry(7, new FieldPolicy(7, "tile_overlap", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
+            Map.entry(8, new FieldPolicy(8, "print_page_boundary", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
+            Map.entry(9, new FieldPolicy(9, "marks", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.Marks", null, null)),
+            Map.entry(10, new FieldPolicy(10, "bleed", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
+            Map.entry(11, new FieldPolicy(11, "emulsion_down", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
+            Map.entry(12, new FieldPolicy(12, "negative", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
+            Map.entry(13, new FieldPolicy(13, "include_hidden_layers", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
+            Map.entry(14, new FieldPolicy(14, "flatness", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
+            Map.entry(15, new FieldPolicy(15, "text_as_outlines", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
+            Map.entry(16, new FieldPolicy(16, "rasterize_dpi", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
+            Map.entry(17, new FieldPolicy(17, "spot_as_process", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
+            Map.entry(18, new FieldPolicy(18, "default_halftone", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.Halftone", null, null)),
+            Map.entry(19, new FieldPolicy(19, "plates", Policy.SEQUENCE, RefFallback.UNSET, false, "message", true, "wiretuner.doc.v1.PlateSettings", "wiretuner.doc.v1.PlateSettings", null)),
+            Map.entry(20, new FieldPolicy(20, "screen_in_app", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
+            Map.entry(21, new FieldPolicy(21, "ignore_object_halftones", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null))
+        ));
+  }
+
+  private static MessagePolicy table_wiretuner_doc_v1_Profile() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.Profile",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "kind", Policy.ATOMIC, RefFallback.UNSET, false, "enum", false, "wiretuner.doc.v1.ProfileKind", null, null)),
+            Map.entry(2, new FieldPolicy(2, "path", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.Contour", null, null)),
+            Map.entry(3, new FieldPolicy(3, "angle", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
+            Map.entry(4, new FieldPolicy(4, "steps", Policy.ATOMIC, RefFallback.UNSET, false, "uint32", false, null, null, null)),
+            Map.entry(5, new FieldPolicy(5, "twist", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null))
+        ));
+  }
+
+  private static MessagePolicy table_wiretuner_doc_v1_ProfileRef() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.ProfileRef",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "name", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
+            Map.entry(2, new FieldPolicy(2, "sha256", Policy.ATOMIC, RefFallback.UNSET, false, "bytes", false, null, null, null)),
+            Map.entry(3, new FieldPolicy(3, "bundled_id", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
+            Map.entry(4, new FieldPolicy(4, "space", Policy.ATOMIC, RefFallback.UNSET, false, "enum", false, "wiretuner.doc.v1.ProfileSpace", null, null))
+        ));
+  }
+
+  private static MessagePolicy table_wiretuner_doc_v1_ProofSettings() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.ProofSettings",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "target", Policy.ATOMIC, RefFallback.UNSET, false, "enum", false, "wiretuner.doc.v1.ProofTarget", null, null)),
+            Map.entry(2, new FieldPolicy(2, "composite_profile", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.ProfileRef", null, null)),
+            Map.entry(3, new FieldPolicy(3, "composite_simulates_separations", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
+            Map.entry(4, new FieldPolicy(4, "simulate_paper_white", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
+            Map.entry(5, new FieldPolicy(5, "simulate_black_ink", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null))
+        ));
+  }
+
+  private static MessagePolicy table_wiretuner_doc_v1_RaggedEffect() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.RaggedEffect",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "size", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
+            Map.entry(2, new FieldPolicy(2, "frequency", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
+            Map.entry(3, new FieldPolicy(3, "copies", Policy.ATOMIC, RefFallback.UNSET, false, "uint32", false, null, null, null)),
+            Map.entry(4, new FieldPolicy(4, "smooth", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
+            Map.entry(5, new FieldPolicy(5, "uniform", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
+            Map.entry(6, new FieldPolicy(6, "seed", Policy.ATOMIC, RefFallback.UNSET, false, "fixed64", false, null, null, null))
+        ));
+  }
+
+  private static MessagePolicy table_wiretuner_doc_v1_RasterEffectSettings() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.RasterEffectSettings",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "resolution_ppi", Policy.ATOMIC, RefFallback.UNSET, false, "uint32", false, null, null, null)),
+            Map.entry(2, new FieldPolicy(2, "optimal_cmyk", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null))
+        ));
+  }
+
+  private static MessagePolicy table_wiretuner_doc_v1_Rect() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.Rect",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "x", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
+            Map.entry(2, new FieldPolicy(2, "y", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
+            Map.entry(3, new FieldPolicy(3, "width", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
+            Map.entry(4, new FieldPolicy(4, "height", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null))
         ));
   }
 
@@ -1223,6 +2249,35 @@ public final class MergeTable {
         ));
   }
 
+  private static MessagePolicy table_wiretuner_doc_v1_Rotation3() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.Rotation3",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "x", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
+            Map.entry(2, new FieldPolicy(2, "y", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
+            Map.entry(3, new FieldPolicy(3, "z", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null))
+        ));
+  }
+
+  private static MessagePolicy table_wiretuner_doc_v1_ScriptProps() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.ScriptProps",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "common", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.CommonProps", null, null)),
+            Map.entry(2, new FieldPolicy(2, "description", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
+            Map.entry(3, new FieldPolicy(3, "source", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
+            Map.entry(4, new FieldPolicy(4, "library", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.LibrarySource", null, null))
+        ));
+  }
+
+  private static MessagePolicy table_wiretuner_doc_v1_ScriptSource() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.ScriptSource",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "script", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.NodeRef", null, null))
+        ));
+  }
+
   private static MessagePolicy table_wiretuner_doc_v1_SettingsProps() {
     return new MessagePolicy(
         "wiretuner.doc.v1.SettingsProps",
@@ -1234,7 +2289,47 @@ public final class MergeTable {
             Map.entry(5, new FieldPolicy(5, "custom_page_sizes", Policy.SEQUENCE, RefFallback.UNSET, false, "message", true, "wiretuner.doc.v1.CustomPageSize", "wiretuner.doc.v1.CustomPageSize", null)),
             Map.entry(6, new FieldPolicy(6, "custom_units", Policy.SEQUENCE, RefFallback.UNSET, false, "message", true, "wiretuner.doc.v1.CustomUnit", "wiretuner.doc.v1.CustomUnit", null)),
             Map.entry(7, new FieldPolicy(7, "guides_locked", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
-            Map.entry(10, new FieldPolicy(10, "defaults", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.Defaults", null, null))
+            Map.entry(10, new FieldPolicy(10, "defaults", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.Defaults", null, null)),
+            Map.entry(20, new FieldPolicy(20, "document_kind", Policy.ATOMIC, RefFallback.UNSET, false, "enum", false, "wiretuner.doc.v1.DocumentKind", null, null)),
+            Map.entry(21, new FieldPolicy(21, "font", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.FontProps", null, null)),
+            Map.entry(30, new FieldPolicy(30, "output_area", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.Rect", null, null)),
+            Map.entry(31, new FieldPolicy(31, "print", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.PrintSettings", null, null)),
+            Map.entry(40, new FieldPolicy(40, "view", Policy.STRUCT, RefFallback.UNSET, true, "message", false, "wiretuner.doc.v1.ViewState", null, null)),
+            Map.entry(50, new FieldPolicy(50, "color", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.ColorSettings", null, null)),
+            Map.entry(60, new FieldPolicy(60, "html_settings", Policy.SEQUENCE, RefFallback.UNSET, false, "message", true, "wiretuner.doc.v1.HtmlSetting", "wiretuner.doc.v1.HtmlSetting", null)),
+            Map.entry(61, new FieldPolicy(61, "html_setting_selected", Policy.ATOMIC, RefFallback.UNSET, true, "message", false, "wiretuner.doc.v1.ElementId", null, null)),
+            Map.entry(70, new FieldPolicy(70, "animation", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.AnimationSettings", null, null)),
+            Map.entry(80, new FieldPolicy(80, "data_fields", Policy.SEQUENCE, RefFallback.UNSET, false, "message", true, "wiretuner.doc.v1.DataField", "wiretuner.doc.v1.DataField", null)),
+            Map.entry(81, new FieldPolicy(81, "data_sources", Policy.SEQUENCE, RefFallback.UNSET, false, "message", true, "wiretuner.doc.v1.DataSource", "wiretuner.doc.v1.DataSource", null)),
+            Map.entry(82, new FieldPolicy(82, "data_source_active", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.ElementId", null, null)),
+            Map.entry(83, new FieldPolicy(83, "data_preview", Policy.STRUCT, RefFallback.UNSET, true, "message", false, "wiretuner.doc.v1.DataPreview", null, null)),
+            Map.entry(90, new FieldPolicy(90, "raster_effects", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.RasterEffectSettings", null, null)),
+            Map.entry(91, new FieldPolicy(91, "perspective_grids", Policy.SEQUENCE, RefFallback.UNSET, false, "message", true, "wiretuner.doc.v1.PerspectiveGrid", "wiretuner.doc.v1.PerspectiveGrid", null)),
+            Map.entry(130, new FieldPolicy(130, "info", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.DocumentInfo", null, null))
+        ));
+  }
+
+  private static MessagePolicy table_wiretuner_doc_v1_ShadowEffect() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.ShadowEffect",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "style", Policy.ATOMIC, RefFallback.UNSET, false, "enum", false, "wiretuner.doc.v1.ShadowStyle", null, null)),
+            Map.entry(2, new FieldPolicy(2, "color", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.ColorRef", null, null)),
+            Map.entry(3, new FieldPolicy(3, "offset", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
+            Map.entry(4, new FieldPolicy(4, "opacity", Policy.ATOMIC, RefFallback.UNSET, false, "uint32", false, null, null, null)),
+            Map.entry(5, new FieldPolicy(5, "softness", Policy.ATOMIC, RefFallback.UNSET, false, "uint32", false, null, null, null)),
+            Map.entry(6, new FieldPolicy(6, "angle", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null))
+        ));
+  }
+
+  private static MessagePolicy table_wiretuner_doc_v1_SharpenEffect() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.SharpenEffect",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "style", Policy.ATOMIC, RefFallback.UNSET, false, "enum", false, "wiretuner.doc.v1.SharpenStyle", null, null)),
+            Map.entry(2, new FieldPolicy(2, "amount", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
+            Map.entry(3, new FieldPolicy(3, "pixel_radius", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
+            Map.entry(4, new FieldPolicy(4, "threshold", Policy.ATOMIC, RefFallback.UNSET, false, "uint32", false, null, null, null))
         ));
   }
 
@@ -1244,6 +2339,17 @@ public final class MergeTable {
         Map.ofEntries(
             Map.entry(1, new FieldPolicy(1, "width", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
             Map.entry(2, new FieldPolicy(2, "height", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null))
+        ));
+  }
+
+  private static MessagePolicy table_wiretuner_doc_v1_SketchEffect() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.SketchEffect",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "amount", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
+            Map.entry(2, new FieldPolicy(2, "copies", Policy.ATOMIC, RefFallback.UNSET, false, "uint32", false, null, null, null)),
+            Map.entry(3, new FieldPolicy(3, "closed", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
+            Map.entry(4, new FieldPolicy(4, "seed", Policy.ATOMIC, RefFallback.UNSET, false, "fixed64", false, null, null, null))
         ));
   }
 
@@ -1319,6 +2425,53 @@ public final class MergeTable {
         Map.ofEntries(
             Map.entry(1, new FieldPolicy(1, "parent", Policy.ATOMIC, RefFallback.UNSET, false, "int32", false, null, null, null)),
             Map.entry(2, new FieldPolicy(2, "props", Policy.ATOMIC, RefFallback.UNSET, false, "bytes", false, null, null, null))
+        ));
+  }
+
+  private static MessagePolicy table_wiretuner_doc_v1_Surface() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.Surface",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "kind", Policy.ATOMIC, RefFallback.UNSET, false, "enum", false, "wiretuner.doc.v1.SurfaceKind", null, null)),
+            Map.entry(2, new FieldPolicy(2, "steps", Policy.ATOMIC, RefFallback.UNSET, false, "uint32", false, null, null, null)),
+            Map.entry(3, new FieldPolicy(3, "ambient", Policy.ATOMIC, RefFallback.UNSET, false, "uint32", false, null, null, null)),
+            Map.entry(4, new FieldPolicy(4, "light1", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.Light", null, null)),
+            Map.entry(5, new FieldPolicy(5, "light2", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.Light", null, null))
+        ));
+  }
+
+  private static MessagePolicy table_wiretuner_doc_v1_SvgAnimationKinds() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.SvgAnimationKinds",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "css", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
+            Map.entry(2, new FieldPolicy(2, "smil", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
+            Map.entry(3, new FieldPolicy(3, "script", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null))
+        ));
+  }
+
+  private static MessagePolicy table_wiretuner_doc_v1_SvgAnimationProps() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.SvgAnimationProps",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "common", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.CommonProps", null, null)),
+            Map.entry(2, new FieldPolicy(2, "asset", Policy.ATOMIC, RefFallback.PLACEHOLDER, false, "message", false, "wiretuner.doc.v1.NodeRef", null, null)),
+            Map.entry(3, new FieldPolicy(3, "natural_size", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.Size", null, null)),
+            Map.entry(4, new FieldPolicy(4, "duration_ms", Policy.ATOMIC, RefFallback.UNSET, false, "uint64", false, null, null, null)),
+            Map.entry(5, new FieldPolicy(5, "kinds", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.SvgAnimationKinds", null, null)),
+            Map.entry(6, new FieldPolicy(6, "poster_time_ms", Policy.ATOMIC, RefFallback.UNSET, false, "uint64", false, null, null, null)),
+            Map.entry(7, new FieldPolicy(7, "poster", Policy.ATOMIC, RefFallback.PLACEHOLDER, false, "message", false, "wiretuner.doc.v1.NodeRef", null, null)),
+            Map.entry(8, new FieldPolicy(8, "web", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.SvgAnimationWebProps", null, null))
+        ));
+  }
+
+  private static MessagePolicy table_wiretuner_doc_v1_SvgAnimationWebProps() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.SvgAnimationWebProps",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "no_autoplay", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
+            Map.entry(2, new FieldPolicy(2, "loop", Policy.ATOMIC, RefFallback.UNSET, false, "enum", false, "wiretuner.doc.v1.LoopMode", null, null)),
+            Map.entry(3, new FieldPolicy(3, "play_on_hover", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null))
         ));
   }
 
@@ -1457,7 +2610,10 @@ public final class MergeTable {
             Map.entry(18, new FieldPolicy(18, "overprint", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, "value")),
             Map.entry(19, new FieldPolicy(19, "no_hyphen", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, "value")),
             Map.entry(20, new FieldPolicy(20, "axes", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.FontVariation", null, "value")),
-            Map.entry(21, new FieldPolicy(21, "feature", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.FeatureSetting", null, "value"))
+            Map.entry(21, new FieldPolicy(21, "feature", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.FeatureSetting", null, "value")),
+            Map.entry(40, new FieldPolicy(40, "link", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, "value")),
+            Map.entry(41, new FieldPolicy(41, "field", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.ElementId", null, "value")),
+            Map.entry(42, new FieldPolicy(42, "mention", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, "value"))
         ));
   }
 
@@ -1569,6 +2725,34 @@ public final class MergeTable {
         ));
   }
 
+  private static MessagePolicy table_wiretuner_doc_v1_TransformEffect() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.TransformEffect",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "scale_x", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
+            Map.entry(2, new FieldPolicy(2, "scale_y", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
+            Map.entry(3, new FieldPolicy(3, "uniform", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
+            Map.entry(4, new FieldPolicy(4, "skew_h", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
+            Map.entry(5, new FieldPolicy(5, "skew_v", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
+            Map.entry(6, new FieldPolicy(6, "rotate", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
+            Map.entry(7, new FieldPolicy(7, "move", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.Point", null, null)),
+            Map.entry(8, new FieldPolicy(8, "center", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.Point", null, null)),
+            Map.entry(9, new FieldPolicy(9, "copies", Policy.ATOMIC, RefFallback.UNSET, false, "uint32", false, null, null, null))
+        ));
+  }
+
+  private static MessagePolicy table_wiretuner_doc_v1_TransparencyEffect() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.TransparencyEffect",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "style", Policy.ATOMIC, RefFallback.UNSET, false, "enum", false, "wiretuner.doc.v1.TransparencyStyle", null, null)),
+            Map.entry(2, new FieldPolicy(2, "amount", Policy.ATOMIC, RefFallback.UNSET, false, "uint32", false, null, null, null)),
+            Map.entry(3, new FieldPolicy(3, "radius", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
+            Map.entry(4, new FieldPolicy(4, "softness", Policy.ATOMIC, RefFallback.UNSET, false, "uint32", false, null, null, null)),
+            Map.entry(5, new FieldPolicy(5, "mask", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.GradientFill", null, null))
+        ));
+  }
+
   private static MessagePolicy table_wiretuner_doc_v1_UnitChoice() {
     return new MessagePolicy(
         "wiretuner.doc.v1.UnitChoice",
@@ -1584,6 +2768,38 @@ public final class MergeTable {
         Map.ofEntries(
             Map.entry(1, new FieldPolicy(1, "amount", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
             Map.entry(2, new FieldPolicy(2, "base", Policy.ATOMIC, RefFallback.UNSET, false, "enum", false, "wiretuner.doc.v1.Unit", null, null))
+        ));
+  }
+
+  private static MessagePolicy table_wiretuner_doc_v1_ViewState() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.ViewState",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "magnification", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
+            Map.entry(2, new FieldPolicy(2, "scroll_origin", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.Point", null, null)),
+            Map.entry(3, new FieldPolicy(3, "mode", Policy.ATOMIC, RefFallback.UNSET, false, "enum", false, "wiretuner.doc.v1.DrawingMode", null, null)),
+            Map.entry(4, new FieldPolicy(4, "current_page", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.OpId", null, null)),
+            Map.entry(5, new FieldPolicy(5, "snap_to_point", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
+            Map.entry(6, new FieldPolicy(6, "snap_to_object", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
+            Map.entry(7, new FieldPolicy(7, "snap_to_grid", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
+            Map.entry(8, new FieldPolicy(8, "snap_to_guides", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
+            Map.entry(9, new FieldPolicy(9, "page_rulers", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
+            Map.entry(10, new FieldPolicy(10, "text_rulers", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
+            Map.entry(11, new FieldPolicy(11, "grid_visible", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
+            Map.entry(12, new FieldPolicy(12, "guides_visible", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
+            Map.entry(13, new FieldPolicy(13, "previous_view", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.OpId", null, null)),
+            Map.entry(14, new FieldPolicy(14, "previous_view_2", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.OpId", null, null)),
+            Map.entry(15, new FieldPolicy(15, "rotation_degrees", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null))
+        ));
+  }
+
+  private static MessagePolicy table_wiretuner_doc_v1_ViewTarget() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.ViewTarget",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "magnification", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
+            Map.entry(2, new FieldPolicy(2, "scroll_origin", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.Point", null, null)),
+            Map.entry(3, new FieldPolicy(3, "mode", Policy.ATOMIC, RefFallback.UNSET, false, "enum", false, "wiretuner.doc.v1.DrawingMode", null, null))
         ));
   }
 }

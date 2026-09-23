@@ -244,7 +244,7 @@ Encoding placeholders treat a collided codepoint as present (the keeper has it).
 
 `advance_width`:: ATOMIC scalar; later wins; a lost local write is listed (same-register rule).
 
-`kind`, `mark_color`, `skip_export`, `note`:: ATOMIC; later wins.
+`kind`, `mark_color`, `skip_export`, `common.note`:: ATOMIC; later wins.
 
 Grid order:: Sibling positions; concurrent adds "after the same glyph" both land after it, ordered
 by random suffix then node id, as pages.  Concurrent reorders of the same glyph: later wins.

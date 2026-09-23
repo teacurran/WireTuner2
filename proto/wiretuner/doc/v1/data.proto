@@ -1,0 +1,298 @@
+// proto/wiretuner/doc/v1/data.proto
+//
+// The data-merge document schema (docs/_includes/automation/data-merge.adoc, DATA-001).
+// Everything shared lives on the settings node 0:1: the fields, the sources and their mappings
+// (SettingsProps.data_fields, data_sources, data_source_active, data_preview).  Bindings are
+// CommonProps.data_binding (DataBinding, in common.proto for good, D-065) and the `field` mark in
+// TextMarkValue (text.proto).  Barcodes and scripts are node kinds (barcode.proto,
+// script.proto).  Records are never document state; an embedded sample or pasted table is a
+// blob.  Credentials, allowlists and the fetch audit are server state (wiretuner.data.v1).
+syntax = "proto3";
+
+package wiretuner.doc.v1;
+
+import "buf/validate/validate.proto";
+import "wiretuner/doc/v1/common.proto";
+import "wt/crdt/options.proto";
+
+option java_multiple_files = true;
+option java_package = "com.villagecompute.wiretuner.doc.v1";
+option optimize_for = SPEED;
+
+// The type of a data field's values.
+enum DataFieldType {
+  // Reads as TEXT.
+  DATA_FIELD_TYPE_UNSPECIFIED = 0;
+  // Text.
+  DATA_FIELD_TYPE_TEXT = 1;
+  // A number, formatted by FieldFormat.
+  DATA_FIELD_TYPE_NUMBER = 2;
+  // A date, formatted by FieldFormat.
+  DATA_FIELD_TYPE_DATE = 3;
+  // True or false (visibility bindings).
+  DATA_FIELD_TYPE_BOOLEAN = 4;
+  // An image file or URL (image bindings).
+  DATA_FIELD_TYPE_IMAGE = 5;
+  // A URL (link bindings).
+  DATA_FIELD_TYPE_LINK = 6;
+}
+
+// A data field.  Element of SettingsProps.data_fields; STRUCT, so name, type, format and
+// transform are independent edits.  Every reference to a field is by its element id, never by
+// name.
+message DataField {
+  // Element id (MERGE_SEQUENCE).
+  ElementId id = 1;
+  // [A-Za-z_][A-Za-z0-9_]*, compared case-insensitively; unique among live fields when written
+  // (duplicates resolve on read to the smaller element id).
+  string name = 2 [
+    (buf.validate.field).string = {
+      max_len: 64
+      pattern: "^[A-Za-z_][A-Za-z0-9_]*$"
+    },
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+  // The value type.
+  DataFieldType type = 3 [(buf.validate.field).enum.defined_only = true];
+  // Formatting; only NUMBER and DATE read it.  STRUCT.
+  FieldFormat format = 4;
+  // A `script` node in this document exporting `transform`.  Dangling = no transform.
+  NodeRef transform = 5 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
+}
+
+// How a NUMBER or DATE field is formatted.  STRUCT.
+message FieldFormat {
+  // ICU number or date pattern; "" = as is / the locale default.
+  string pattern = 1 [(buf.validate.field).string.max_len = 64];
+  // BCP 47 locale; "" = the merging user's locale.
+  string locale = 2 [(buf.validate.field).string.max_len = 32];
+}
+
+// A data source.  Element of SettingsProps.data_sources.  `spec` is a MERGE_VARIANT, so
+// switching a source from File to Web API and back keeps both configurations; `mapping` and
+// `sample` sit beside it because every kind has them.
+message DataSource {
+  // Element id (MERGE_SEQUENCE).
+  ElementId id = 1;
+  // The name in the Data panel.
+  string name = 2 [(buf.validate.field).string.max_len = 128];
+  // The kind and every kind's settings.  MERGE_VARIANT.
+  DataSourceSpec spec = 3 [(wt.crdt.field).merge = MERGE_VARIANT];
+  // Source column or path to field.  A field with no mapping entry maps to a column of its own
+  // name.  SEQUENCE.
+  repeated FieldMapping mapping = 4 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  // Embedded records: the first N (sample), or all of them (pasted table, Embed All Records).
+  // ATOMIC: hash, count and completeness describe one blob.
+  EmbeddedRecords sample = 5 [(wt.crdt.field).merge = MERGE_ATOMIC];
+}
+
+// Which source settings message is live.
+enum DataSourceKind {
+  // No source configured.
+  DATA_SOURCE_KIND_UNSPECIFIED = 0;
+  // CSV, TSV or JSON on the connecting user's Mac.
+  DATA_SOURCE_KIND_FILE = 1;
+  // Rows stored in DataSource.sample with complete = true.
+  DATA_SOURCE_KIND_PASTED = 2;
+  // Fetched by the server (wiretuner.data.v1).
+  DATA_SOURCE_KIND_HTTP = 3;
+  // Produced by a script node's `records` export.
+  DATA_SOURCE_KIND_SCRIPT = 4;
+}
+
+// A source's kind and its per-kind settings (MERGE_VARIANT).
+message DataSourceSpec {
+  // Which case is live.  ATOMIC.
+  DataSourceKind kind = 1;
+  // FILE.  STRUCT.
+  FileSource file = 2;
+  // PASTED.  STRUCT.
+  PastedSource pasted = 3;
+  // HTTP.  STRUCT.
+  HttpSource http = 4;
+  // SCRIPT.  STRUCT.
+  ScriptSource script = 5;
+}
+
+// The format of a file source.
+enum FileFormat {
+  // Detected from the file.
+  FILE_FORMAT_UNSPECIFIED = 0;
+  // Comma-separated values.
+  FILE_FORMAT_CSV = 1;
+  // Tab-separated values.
+  FILE_FORMAT_TSV = 2;
+  // JSON.
+  FILE_FORMAT_JSON = 3;
+}
+
+// A file on the connecting user's Mac.
+message FileSource {
+  // CSV, TSV or JSON.
+  FileFormat format = 1 [(buf.validate.field).enum.defined_only = true];
+  // Display only.
+  string file_name = 2 [(buf.validate.field).string.max_len = 256];
+  // CSV: ",", ";" or a tab after detection; "" = detect.
+  string delimiter = 3 [(buf.validate.field).string.max_len = 4];
+  // IANA charset name after detection; "" = detect.
+  string encoding = 4 [(buf.validate.field).string.max_len = 64];
+  // CSV/TSV: the first row names the columns.  Written true when the source is created.
+  bool header_row = 5;
+  // JSON: path to the records array; "" = the root.
+  string records_path = 6 [(buf.validate.field).string.max_len = 512];
+  // Security-scoped bookmark of the file on this Mac.  Never on the wire.
+  bytes bookmark = 7 [
+    (wt.crdt.field).local_only = true,
+    (buf.validate.field).bytes.max_len = 65536
+  ];
+}
+
+// A pasted table: nothing beyond the rows in DataSource.sample.
+message PastedSource {
+  // When the table was pasted, Unix milliseconds.  Informational; present so the variant has a
+  // case.
+  int64 pasted_at_ms = 1;
+}
+
+// The HTTP method of an API source.
+enum HttpMethod {
+  // Reads as GET.
+  HTTP_METHOD_UNSPECIFIED = 0;
+  // GET.
+  HTTP_METHOD_GET = 1;
+  // POST with `body_template`.
+  HTTP_METHOD_POST = 2;
+}
+
+// The request definition the server executes.  No secret is ever written here: header names are
+// validated on ingest against the credential header names and rejected.
+message HttpSource {
+  // GET or POST.
+  HttpMethod method = 1 [(buf.validate.field).enum.defined_only = true];
+  // https only; may contain {{param}} references.
+  string url = 2 [
+    (buf.validate.field).string = {
+      max_len: 2048
+      pattern: "^https://"
+    },
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+  // Request headers.  SEQUENCE.
+  repeated HttpHeader headers = 3 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  // POST body; may contain {{param}} references.
+  string body_template = 4 [(buf.validate.field).string.max_len = 65536];
+  // Name of a credential in the server's secret store, scoped to the document's team or, for a
+  // personal document, to its owner.  The document never holds the secret.
+  string credential_name = 5 [(buf.validate.field).string.max_len = 64];
+  // JSONPath subset to the records array; "" = the root array.
+  string records_path = 6 [(buf.validate.field).string.max_len = 512];
+  // Paging.  STRUCT.
+  Pagination pagination = 7;
+  // Parameters referenced by `url` and `body_template`; defaults are shared, values typed at
+  // fetch time are local.  SEQUENCE.
+  repeated HttpParam params = 8 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  // Seconds; 0 reads as 30; capped by the server at 120.
+  uint32 timeout_s = 9 [(buf.validate.field).uint32.lte = 120];
+  // 0 = no limit (the server's cap still applies).
+  uint32 max_records = 10;
+}
+
+// One request header.  Element of HttpSource.headers.
+message HttpHeader {
+  // Element id (MERGE_SEQUENCE).
+  ElementId id = 1;
+  // Header name.  Credential headers (Authorization, Proxy-Authorization, Cookie, X-Api-Key)
+  // are rejected, compared case-insensitively; credentials go through `credential_name`.
+  string name = 2 [
+    (buf.validate.field).string.max_len = 128,
+    (buf.validate.field).cel = {
+      id: "http_header.name.not_secret"
+      message: "credential headers are not allowed; use credential_name"
+      expression: "!(this.lowerAscii() in ['authorization', 'proxy-authorization', 'cookie', 'x-api-key'])"
+    }
+  ];
+  // Header value.
+  string value = 3 [(buf.validate.field).string.max_len = 4096];
+}
+
+// One request parameter.  Element of HttpSource.params.
+message HttpParam {
+  // Element id (MERGE_SEQUENCE).
+  ElementId id = 1;
+  // The name used in {{name}} references.
+  string name = 2 [(buf.validate.field).string.max_len = 64];
+  // The shared default value.
+  string default_value = 3 [(buf.validate.field).string.max_len = 1024];
+}
+
+// How an API source pages.
+enum PaginationMode {
+  // Reads as NONE.
+  PAGINATION_MODE_UNSPECIFIED = 0;
+  // One request.
+  PAGINATION_MODE_NONE = 1;
+  // Follow `next_url_path` in each response until it is empty.
+  PAGINATION_MODE_NEXT_URL = 2;
+  // Increment `page_param` from `first_page` until a page has no records.
+  PAGINATION_MODE_PAGE_PARAM = 3;
+}
+
+// Paging of an API source.  STRUCT.
+message Pagination {
+  // The mode.
+  PaginationMode mode = 1 [(buf.validate.field).enum.defined_only = true];
+  // NEXT_URL: JSONPath to the next URL in each response.
+  string next_url_path = 2 [(buf.validate.field).string.max_len = 512];
+  // PAGE_PARAM: the query parameter to increment.
+  string page_param = 3 [(buf.validate.field).string.max_len = 64];
+  // PAGE_PARAM: the first page; 0 reads as 1.
+  uint32 first_page = 4;
+  // Page cap; 0 reads as 1000.
+  uint32 max_pages = 5;
+}
+
+// A script source.
+message ScriptSource {
+  // A `script` node in this document exporting `records`.  Team-library scripts are copied into
+  // the document on use, as symbols are.  Dangling = no records.
+  NodeRef script = 1 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
+}
+
+// One mapping entry.  Element of DataSource.mapping.
+message FieldMapping {
+  // Element id (MERGE_SEQUENCE).
+  ElementId id = 1;
+  // A DataField; dangling = the entry is ignored on read.  ATOMIC.
+  ElementId field = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Column name, or JSONPath for JSON and HTTP sources.
+  string path = 3 [(buf.validate.field).string.max_len = 512];
+}
+
+// Records stored in the document as one blob: CSV (text/csv, UTF-8, header row) with a sidecar
+// of images referenced by hash for IMAGE fields, or JSON.  Limits: 2 MiB for a sample, 20 MiB
+// for a complete embed, images counted.  ATOMIC wherever used.
+message EmbeddedRecords {
+  // SHA-256 of the blob (32 bytes).
+  bytes blob_sha256 = 1 [(buf.validate.field).bytes.len = 32];
+  // text/csv or application/json.
+  string media_type = 2 [(buf.validate.field).string = {
+    in: [
+      "text/csv",
+      "application/json"
+    ]
+  }];
+  // How many records the blob holds.
+  uint32 record_count = 3;
+  // Every record is here (pasted table, Embed All Records).
+  bool complete = 4;
+  // When fetched, Unix milliseconds.  Informational ("Fetched 2 minutes ago").
+  int64 fetched_at_ms = 5;
+}
+
+// Preview state (SettingsProps.data_preview): local, never synced.
+message DataPreview {
+  // The canvas shows record values instead of placeholders.
+  bool showing = 1;
+  // 0-based index into the resolved record list.
+  uint32 record_index = 2;
+}

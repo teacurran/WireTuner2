@@ -172,11 +172,11 @@ perspective appearance is computed on read from the wrapper and the page's grid.
 ----
 // proto/wiretuner/doc/v1/perspective.proto (sketch)
 
-// On SettingsProps (FX block 90-99):  repeated PerspectiveGrid perspective_grids = …; (SEQUENCE)
+// On SettingsProps (FX block 90-99):  repeated PerspectiveGrid perspective_grids = 91; (SEQUENCE)
 message PerspectiveGrid {
   ElementId id = 1;
   string name = 2 [(buf.validate.field).string.max_len = 64];   // unique per document (model enforces)
-  uint32 vanishing_points = 3 [(buf.validate.field).uint32 = {gte: 1, lte: 3}];
+  uint32 vanishing_points = 3 [(buf.validate.field).uint32 = {gte: 1, lte: 3}];  // 0 reads 2 (IGNORE_IF_ZERO_VALUE)
   double cell_size = 4;          // document units
   // Geometry in page coordinates (points from the page's bottom-left).  Each point ATOMIC.
   double horizon_y = 5;
@@ -186,29 +186,26 @@ message PerspectiveGrid {
   double left_wall_x = 9;        // x of the left wall's near edge
   double right_wall_x = 10;      // x of the right wall's near edge
   double floor_front_y = 11;     // y of the floor's near edge
-  ColorRef left_color = 12;
-  ColorRef right_color = 13;
-  ColorRef floor_color = 14;
+  ColorRef left_color = 12 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  ColorRef right_color = 13 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  ColorRef floor_color = 14 [(wt.crdt.field).merge = MERGE_ATOMIC];
   bool left_hidden = 15;         // double-click a vanishing point
   bool right_hidden = 16;
   bool floor_hidden = 17;        // double-click the horizon
 }
 
 // On PageProps (FX block 20-29, document.proto):
-//   ElementId perspective_grid = …;   // which grid; unset or dangling → the default grid
-//   bool perspective_grid_visible = … [(wt.crdt.field).local_only = true];
+//   ElementId perspective_grid = 20 [(wt.crdt.field).merge = MERGE_ATOMIC];   // which grid; unset or dangling → the default grid
+//   bool perspective_grid_visible = 21 [(wt.crdt.field).local_only = true];
 
 // A NodeProps.kind case wrapping one child (the flat object).
 message PerspectiveProps {
   CommonProps common = 1;
-  enum Plane {
-    PLANE_UNSPECIFIED = 0; PLANE_LEFT_WALL = 1; PLANE_RIGHT_WALL = 2;
-    PLANE_FLOOR_LEFT = 3;          // floor, aligned to the left vanishing point
-    PLANE_FLOOR_RIGHT = 4;         // floor, aligned to the right vanishing point
-    PLANE_WALL = 5;                // one-point grids
-    PLANE_FLOOR = 6;               // one-point grids
-  }
-  Plane plane = 2;
+  // PerspectivePlane is top-level in perspective.proto, values prefixed PERSPECTIVE_PLANE_:
+  //   UNSPECIFIED = 0 (reads LEFT_WALL, or WALL on a one-point grid); LEFT_WALL = 1;
+  //   RIGHT_WALL = 2; FLOOR_LEFT = 3 (floor, aligned to the left vp); FLOOR_RIGHT = 4;
+  //   WALL = 5 and FLOOR = 6 (one-point grids).
+  PerspectivePlane plane = 2;
   // Where the child's bounds sit on the plane, in grid cells (u along the plane's horizontal
   // grid lines, v along its receding lines).  ATOMIC: one drag.
   Point cell_position = 3 [(wt.crdt.field).merge = MERGE_ATOMIC];
@@ -216,7 +213,7 @@ message PerspectiveProps {
   double cell_height = 5;        // keys 5/6
   bool flipped = 6;              // Space
   // The grid the object was attached to; normally the page's grid.  Dangling → page's grid.
-  ElementId grid = 7;
+  ElementId grid = 7 [(wt.crdt.field).merge = MERGE_ATOMIC];
 }
 ----
 
@@ -323,7 +320,7 @@ Track:: proto
 Depends on:: PROTO-003
 Size:: S
 Delivers:: `PerspectiveGrid` (added to the settings message with the DOC epic), the two page
-fields, the `perspective` kind with `PerspectiveProps`.
+fields, the `perspective` kind with `PerspectiveProps` (implemented in `perspective.proto`; `perspective` = 103, `perspective_grids` is `SettingsProps` field 91 and `perspective_grid`/`perspective_grid_visible` are `PageProps` fields 20/21 in `document.proto`).
 Done when::
 * Lints clean; vanishing points ATOMIC; `perspective_grid_visible` local-only.
 * Conformance vectors: two drags of one vp; vp drag vs. object cell move; grid deleted vs.

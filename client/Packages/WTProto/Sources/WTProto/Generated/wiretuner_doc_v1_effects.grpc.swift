@@ -1,11 +1,16 @@
 /// proto/wiretuner/doc/v1/effects.proto
 ///
-/// Live effects in the attribute stack (docs/_includes/effects/live-effects.adoc, FX epic).
-/// ATTR-001 creates `Effect` with only the two fields every stack element shares so
-/// AppearanceProps can reserve its `effects` sequence; the FX epic fills it in here, in this
-/// file, because the FILE breaking rules pin a message to the file it first appeared in.  Like
-/// Fill and Stroke, the kind and its settings go in a MERGE_VARIANT message (`EffectSettings
-/// settings = 4`, after `attached_to = 3`), so a concurrent kind switch keeps every case.
+/// Live effects in the attribute stack (docs/_includes/effects/live-effects.adoc, FX-001 and
+/// FX-045; raster-effects.adoc, FX-007; transparency.adoc, FX-013).  ATTR-001 created `Effect`
+/// with only the two fields every stack element shares so AppearanceProps could reserve its
+/// `effects` sequence; the FX epic filled it in here, in this file, because the FILE breaking
+/// rules pin a message to the file it first appeared in.  Like Fill and Stroke, the kind and its
+/// settings are a MERGE_VARIANT message (`EffectSettings settings = 4`), so a concurrent kind
+/// switch keeps every case's settings.  The effect wrapper node kinds (blend, extrude, envelope,
+/// perspective) are in their own files.
+///
+/// Adding an EffectKind later bumps the document's feature level (crdt-model.adoc, "Schema
+/// evolution"): an older client renders the object without the unknown effect.
 
 // DO NOT EDIT.
 // swift-format-ignore-file

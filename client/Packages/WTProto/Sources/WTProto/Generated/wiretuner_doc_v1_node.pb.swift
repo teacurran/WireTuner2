@@ -21,20 +21,21 @@
 /// here; blocks are never renumbered and a case is never removed.
 ///
 ///   Block     Epic    Cases so far
-///   1-19      DOC     1 document, 2 settings, 3 page, 4 master_page
+///   1-19      DOC     1 document, 2 settings, 3 page, 4 master_page, 5 asset
 ///   20-49     DRAW    20 path, 21 rect, 22 ellipse, 23 polygon, 24 chart
 ///   50-69     OBJ     50 group
 ///   70-79     COLOR   70 swatch
 ///   80-99     ATTR    80 brush
-///   100-129   FX      (blend, path effect, envelope, perspective, extrude, ... FX epic)
+///   100-129   FX      100 blend, 101 extrude, 102 envelope, 103 perspective
 ///   130-149   TYPE    130 text (text styles are `style` nodes of kind PARAGRAPH/CHARACTER)
 ///   150-169   LIB     150 layer, 151 symbol, 152 symbol_folder, 153 instance, 154 style
-///   170-189   IMG     (image, placed_file, ... IMG epic)
-///   190-209   WEB     (svg_animation, ... WEB epic)
-///   210-219   COLLAB  (comment_thread, COLLAB-025)
-///   220-239   FONT    (glyph, FONT-001)
-///   240-259   DATA    (barcode, script, DATA-001)
-///   260-      free; a new epic takes the next block of 20 and adds a row here.
+///   170-189   IMG     170 image, 171 placed_file
+///   190-209   WEB     190 svg_animation
+///   210-219   COLLAB  210 comment_thread
+///   220-239   FONT    220 glyph
+///   240-259   DATA    240 barcode, 241 script
+///   260-279   BASIC   260 custom_view (BASIC-014)
+///   280-      free; a new epic takes the next block of 20 and adds a row here.
 
 #if canImport(FoundationEssentials)
 import FoundationEssentials
@@ -275,6 +276,15 @@ public nonisolated struct Wiretuner_Doc_V1_NodeProps: Sendable {
     set {kind = .masterPage(newValue)}
   }
 
+  /// An imported file's blob and link record under 0:9 (DOC block, asset.proto).
+  public var asset: Wiretuner_Doc_V1_AssetProps {
+    get {
+      if case .asset(let v)? = kind {return v}
+      return Wiretuner_Doc_V1_AssetProps()
+    }
+    set {kind = .asset(newValue)}
+  }
+
   /// A vector path (DRAW block, path.proto).
   public var path: Wiretuner_Doc_V1_PathProps {
     get {
@@ -347,6 +357,42 @@ public nonisolated struct Wiretuner_Doc_V1_NodeProps: Sendable {
     set {kind = .brush(newValue)}
   }
 
+  /// A blend of key objects (FX block, blend.proto).
+  public var blend: Wiretuner_Doc_V1_BlendProps {
+    get {
+      if case .blend(let v)? = kind {return v}
+      return Wiretuner_Doc_V1_BlendProps()
+    }
+    set {kind = .blend(newValue)}
+  }
+
+  /// An extrusion wrapping one flat shape (FX block, extrude.proto).
+  public var extrude: Wiretuner_Doc_V1_ExtrudeProps {
+    get {
+      if case .extrude(let v)? = kind {return v}
+      return Wiretuner_Doc_V1_ExtrudeProps()
+    }
+    set {kind = .extrude(newValue)}
+  }
+
+  /// An envelope warping its contents (FX block, envelope.proto).
+  public var envelope: Wiretuner_Doc_V1_EnvelopeProps {
+    get {
+      if case .envelope(let v)? = kind {return v}
+      return Wiretuner_Doc_V1_EnvelopeProps()
+    }
+    set {kind = .envelope(newValue)}
+  }
+
+  /// An object attached to a perspective grid plane (FX block, perspective.proto).
+  public var perspective: Wiretuner_Doc_V1_PerspectiveProps {
+    get {
+      if case .perspective(let v)? = kind {return v}
+      return Wiretuner_Doc_V1_PerspectiveProps()
+    }
+    set {kind = .perspective(newValue)}
+  }
+
   /// A text block, text on a path or text in a path (TYPE block, text.proto).
   public var text: Wiretuner_Doc_V1_TextProps {
     get {
@@ -401,6 +447,78 @@ public nonisolated struct Wiretuner_Doc_V1_NodeProps: Sendable {
     set {kind = .style(newValue)}
   }
 
+  /// An imported bitmap (IMG block, image.proto).
+  public var image: Wiretuner_Doc_V1_ImageProps {
+    get {
+      if case .image(let v)? = kind {return v}
+      return Wiretuner_Doc_V1_ImageProps()
+    }
+    set {kind = .image(newValue)}
+  }
+
+  /// A placed file shown through its preview, such as EPS (IMG block, placed_file.proto).
+  public var placedFile: Wiretuner_Doc_V1_PlacedFileProps {
+    get {
+      if case .placedFile(let v)? = kind {return v}
+      return Wiretuner_Doc_V1_PlacedFileProps()
+    }
+    set {kind = .placedFile(newValue)}
+  }
+
+  /// A placed SVG animation (WEB block, svg_animation.proto).
+  public var svgAnimation: Wiretuner_Doc_V1_SvgAnimationProps {
+    get {
+      if case .svgAnimation(let v)? = kind {return v}
+      return Wiretuner_Doc_V1_SvgAnimationProps()
+    }
+    set {kind = .svgAnimation(newValue)}
+  }
+
+  /// A comment thread under 0:12 (COLLAB block, comments.proto).
+  public var commentThread: Wiretuner_Doc_V1_CommentThreadProps {
+    get {
+      if case .commentThread(let v)? = kind {return v}
+      return Wiretuner_Doc_V1_CommentThreadProps()
+    }
+    set {kind = .commentThread(newValue)}
+  }
+
+  /// A glyph of a typeface document under 0:11 (FONT block, glyph.proto).
+  public var glyph: Wiretuner_Doc_V1_GlyphProps {
+    get {
+      if case .glyph(let v)? = kind {return v}
+      return Wiretuner_Doc_V1_GlyphProps()
+    }
+    set {kind = .glyph(newValue)}
+  }
+
+  /// A QR or Code 128 barcode (DATA block, barcode.proto).
+  public var barcode: Wiretuner_Doc_V1_BarcodeProps {
+    get {
+      if case .barcode(let v)? = kind {return v}
+      return Wiretuner_Doc_V1_BarcodeProps()
+    }
+    set {kind = .barcode(newValue)}
+  }
+
+  /// A JavaScript script under 0:9 (DATA block, script.proto).
+  public var script: Wiretuner_Doc_V1_ScriptProps {
+    get {
+      if case .script(let v)? = kind {return v}
+      return Wiretuner_Doc_V1_ScriptProps()
+    }
+    set {kind = .script(newValue)}
+  }
+
+  /// A named view, a child of the settings node 0:1 (BASIC block, view.proto).
+  public var customView: Wiretuner_Doc_V1_CustomViewProps {
+    get {
+      if case .customView(let v)? = kind {return v}
+      return Wiretuner_Doc_V1_CustomViewProps()
+    }
+    set {kind = .customView(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   /// The node's kind and its properties.  Unset for the well-known collection nodes 0:2-0:12.
@@ -413,6 +531,8 @@ public nonisolated struct Wiretuner_Doc_V1_NodeProps: Sendable {
     case page(Wiretuner_Doc_V1_PageProps)
     /// A master page under 0:3 (DOC block).
     case masterPage(Wiretuner_Doc_V1_MasterPageProps)
+    /// An imported file's blob and link record under 0:9 (DOC block, asset.proto).
+    case asset(Wiretuner_Doc_V1_AssetProps)
     /// A vector path (DRAW block, path.proto).
     case path(Wiretuner_Doc_V1_PathProps)
     /// A live rectangle (DRAW block, shape.proto).
@@ -429,6 +549,14 @@ public nonisolated struct Wiretuner_Doc_V1_NodeProps: Sendable {
     case swatch(Wiretuner_Doc_V1_SwatchProps)
     /// A brush under 0:8 (ATTR block, stroke.proto).
     case brush(Wiretuner_Doc_V1_BrushProps)
+    /// A blend of key objects (FX block, blend.proto).
+    case blend(Wiretuner_Doc_V1_BlendProps)
+    /// An extrusion wrapping one flat shape (FX block, extrude.proto).
+    case extrude(Wiretuner_Doc_V1_ExtrudeProps)
+    /// An envelope warping its contents (FX block, envelope.proto).
+    case envelope(Wiretuner_Doc_V1_EnvelopeProps)
+    /// An object attached to a perspective grid plane (FX block, perspective.proto).
+    case perspective(Wiretuner_Doc_V1_PerspectiveProps)
     /// A text block, text on a path or text in a path (TYPE block, text.proto).
     case text(Wiretuner_Doc_V1_TextProps)
     /// A layer under 0:4 (LIB block).
@@ -441,6 +569,22 @@ public nonisolated struct Wiretuner_Doc_V1_NodeProps: Sendable {
     case instance(Wiretuner_Doc_V1_InstanceProps)
     /// A graphic, paragraph or character style under 0:6 (LIB block, style.proto).
     case style(Wiretuner_Doc_V1_StyleProps)
+    /// An imported bitmap (IMG block, image.proto).
+    case image(Wiretuner_Doc_V1_ImageProps)
+    /// A placed file shown through its preview, such as EPS (IMG block, placed_file.proto).
+    case placedFile(Wiretuner_Doc_V1_PlacedFileProps)
+    /// A placed SVG animation (WEB block, svg_animation.proto).
+    case svgAnimation(Wiretuner_Doc_V1_SvgAnimationProps)
+    /// A comment thread under 0:12 (COLLAB block, comments.proto).
+    case commentThread(Wiretuner_Doc_V1_CommentThreadProps)
+    /// A glyph of a typeface document under 0:11 (FONT block, glyph.proto).
+    case glyph(Wiretuner_Doc_V1_GlyphProps)
+    /// A QR or Code 128 barcode (DATA block, barcode.proto).
+    case barcode(Wiretuner_Doc_V1_BarcodeProps)
+    /// A JavaScript script under 0:9 (DATA block, script.proto).
+    case script(Wiretuner_Doc_V1_ScriptProps)
+    /// A named view, a child of the settings node 0:1 (BASIC block, view.proto).
+    case customView(Wiretuner_Doc_V1_CustomViewProps)
 
   }
 
@@ -555,7 +699,7 @@ nonisolated extension Wiretuner_Doc_V1_Node: SwiftProtobuf.Message, SwiftProtobu
 
 nonisolated extension Wiretuner_Doc_V1_NodeProps: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".NodeProps"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}document\0\u{1}settings\0\u{1}page\0\u{3}master_page\0\u{2}\u{10}path\0\u{1}rect\0\u{1}ellipse\0\u{1}polygon\0\u{1}chart\0\u{2}\u{1a}group\0\u{2}\u{14}swatch\0\u{2}\u{a}brush\0\u{2}2text\0\u{2}\u{14}layer\0\u{1}symbol\0\u{3}symbol_folder\0\u{1}instance\0\u{1}style\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}document\0\u{1}settings\0\u{1}page\0\u{3}master_page\0\u{1}asset\0\u{2}\u{f}path\0\u{1}rect\0\u{1}ellipse\0\u{1}polygon\0\u{1}chart\0\u{2}\u{1a}group\0\u{2}\u{14}swatch\0\u{2}\u{a}brush\0\u{2}\u{14}blend\0\u{1}extrude\0\u{1}envelope\0\u{1}perspective\0\u{2}\u{1b}text\0\u{2}\u{14}layer\0\u{1}symbol\0\u{3}symbol_folder\0\u{1}instance\0\u{1}style\0\u{2}\u{10}image\0\u{3}placed_file\0\u{4}\u{13}svg_animation\0\u{4}\u{14}comment_thread\0\u{2}\u{a}glyph\0\u{2}\u{14}barcode\0\u{1}script\0\u{4}\u{13}custom_view\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -613,6 +757,19 @@ nonisolated extension Wiretuner_Doc_V1_NodeProps: SwiftProtobuf.Message, SwiftPr
         if let v = v {
           if hadOneofValue {try decoder.handleConflictingOneOf()}
           self.kind = .masterPage(v)
+        }
+      }()
+      case 5: try {
+        var v: Wiretuner_Doc_V1_AssetProps?
+        var hadOneofValue = false
+        if let current = self.kind {
+          hadOneofValue = true
+          if case .asset(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.kind = .asset(v)
         }
       }()
       case 20: try {
@@ -719,6 +876,58 @@ nonisolated extension Wiretuner_Doc_V1_NodeProps: SwiftProtobuf.Message, SwiftPr
           self.kind = .brush(v)
         }
       }()
+      case 100: try {
+        var v: Wiretuner_Doc_V1_BlendProps?
+        var hadOneofValue = false
+        if let current = self.kind {
+          hadOneofValue = true
+          if case .blend(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.kind = .blend(v)
+        }
+      }()
+      case 101: try {
+        var v: Wiretuner_Doc_V1_ExtrudeProps?
+        var hadOneofValue = false
+        if let current = self.kind {
+          hadOneofValue = true
+          if case .extrude(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.kind = .extrude(v)
+        }
+      }()
+      case 102: try {
+        var v: Wiretuner_Doc_V1_EnvelopeProps?
+        var hadOneofValue = false
+        if let current = self.kind {
+          hadOneofValue = true
+          if case .envelope(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.kind = .envelope(v)
+        }
+      }()
+      case 103: try {
+        var v: Wiretuner_Doc_V1_PerspectiveProps?
+        var hadOneofValue = false
+        if let current = self.kind {
+          hadOneofValue = true
+          if case .perspective(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.kind = .perspective(v)
+        }
+      }()
       case 130: try {
         var v: Wiretuner_Doc_V1_TextProps?
         var hadOneofValue = false
@@ -797,6 +1006,110 @@ nonisolated extension Wiretuner_Doc_V1_NodeProps: SwiftProtobuf.Message, SwiftPr
           self.kind = .style(v)
         }
       }()
+      case 170: try {
+        var v: Wiretuner_Doc_V1_ImageProps?
+        var hadOneofValue = false
+        if let current = self.kind {
+          hadOneofValue = true
+          if case .image(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.kind = .image(v)
+        }
+      }()
+      case 171: try {
+        var v: Wiretuner_Doc_V1_PlacedFileProps?
+        var hadOneofValue = false
+        if let current = self.kind {
+          hadOneofValue = true
+          if case .placedFile(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.kind = .placedFile(v)
+        }
+      }()
+      case 190: try {
+        var v: Wiretuner_Doc_V1_SvgAnimationProps?
+        var hadOneofValue = false
+        if let current = self.kind {
+          hadOneofValue = true
+          if case .svgAnimation(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.kind = .svgAnimation(v)
+        }
+      }()
+      case 210: try {
+        var v: Wiretuner_Doc_V1_CommentThreadProps?
+        var hadOneofValue = false
+        if let current = self.kind {
+          hadOneofValue = true
+          if case .commentThread(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.kind = .commentThread(v)
+        }
+      }()
+      case 220: try {
+        var v: Wiretuner_Doc_V1_GlyphProps?
+        var hadOneofValue = false
+        if let current = self.kind {
+          hadOneofValue = true
+          if case .glyph(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.kind = .glyph(v)
+        }
+      }()
+      case 240: try {
+        var v: Wiretuner_Doc_V1_BarcodeProps?
+        var hadOneofValue = false
+        if let current = self.kind {
+          hadOneofValue = true
+          if case .barcode(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.kind = .barcode(v)
+        }
+      }()
+      case 241: try {
+        var v: Wiretuner_Doc_V1_ScriptProps?
+        var hadOneofValue = false
+        if let current = self.kind {
+          hadOneofValue = true
+          if case .script(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.kind = .script(v)
+        }
+      }()
+      case 260: try {
+        var v: Wiretuner_Doc_V1_CustomViewProps?
+        var hadOneofValue = false
+        if let current = self.kind {
+          hadOneofValue = true
+          if case .customView(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.kind = .customView(v)
+        }
+      }()
       default: break
       }
     }
@@ -823,6 +1136,10 @@ nonisolated extension Wiretuner_Doc_V1_NodeProps: SwiftProtobuf.Message, SwiftPr
     case .masterPage?: try {
       guard case .masterPage(let v)? = self.kind else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
+    }()
+    case .asset?: try {
+      guard case .asset(let v)? = self.kind else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
     }()
     case .path?: try {
       guard case .path(let v)? = self.kind else { preconditionFailure() }
@@ -856,6 +1173,22 @@ nonisolated extension Wiretuner_Doc_V1_NodeProps: SwiftProtobuf.Message, SwiftPr
       guard case .brush(let v)? = self.kind else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 80)
     }()
+    case .blend?: try {
+      guard case .blend(let v)? = self.kind else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 100)
+    }()
+    case .extrude?: try {
+      guard case .extrude(let v)? = self.kind else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 101)
+    }()
+    case .envelope?: try {
+      guard case .envelope(let v)? = self.kind else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 102)
+    }()
+    case .perspective?: try {
+      guard case .perspective(let v)? = self.kind else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 103)
+    }()
     case .text?: try {
       guard case .text(let v)? = self.kind else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 130)
@@ -879,6 +1212,38 @@ nonisolated extension Wiretuner_Doc_V1_NodeProps: SwiftProtobuf.Message, SwiftPr
     case .style?: try {
       guard case .style(let v)? = self.kind else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 154)
+    }()
+    case .image?: try {
+      guard case .image(let v)? = self.kind else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 170)
+    }()
+    case .placedFile?: try {
+      guard case .placedFile(let v)? = self.kind else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 171)
+    }()
+    case .svgAnimation?: try {
+      guard case .svgAnimation(let v)? = self.kind else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 190)
+    }()
+    case .commentThread?: try {
+      guard case .commentThread(let v)? = self.kind else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 210)
+    }()
+    case .glyph?: try {
+      guard case .glyph(let v)? = self.kind else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 220)
+    }()
+    case .barcode?: try {
+      guard case .barcode(let v)? = self.kind else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 240)
+    }()
+    case .script?: try {
+      guard case .script(let v)? = self.kind else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 241)
+    }()
+    case .customView?: try {
+      guard case .customView(let v)? = self.kind else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 260)
     }()
     case nil: break
     }

@@ -274,31 +274,32 @@ creation (position among siblings is informational; the panel sorts by activity)
 ----
 // proto/wiretuner/doc/v1/comments.proto (sketch, COLLAB-025)
 
-// NodeProps gains:  CommentThreadProps comment_thread = <next kind number>;
+// NodeProps gains:  CommentThreadProps comment_thread = 210;   (COLLAB block 210-219)
 
 message CommentThreadProps {
+  CommonProps common = 1;   // every kind carries it first
   // The object the pin is attached to.  Unset for a point pin.  When the target is deleted
   // or unknown the reference reads as unset and the pin falls back to `point`; the panel
   // still names the object (a deleted node keeps its CommonProps.name).  Never rewritten by
   // edits to the object: the pin follows the object because it references it, so a thousand
   // moves of the object write nothing here.
-  NodeRef anchor = 1 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
+  NodeRef anchor = 2 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
   // Pin position.  With `anchor` set: in the anchored node's local coordinate space (before
   // its transform), so the pin rides along with move, rotate and scale.  Without `anchor`,
   // or when it dangles: pasteboard coordinates (points).  ATOMIC: x and y are one position.
-  Point point = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  Point point = 3 [(wt.crdt.field).merge = MERGE_ATOMIC];
   // Pasteboard position recorded when the thread was created or the pin last dropped, used
   // as the fallback when `anchor` dangles and the anchored node's transform is gone (it was
   // compacted).  ATOMIC for the same reason.
-  Point fallback_point = 3 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  Point fallback_point = 4 [(wt.crdt.field).merge = MERGE_ATOMIC];
   // The page the pin was on when created or last dropped; the panel's "by page" filter for
   // point pins and dangling anchors.  Anchored pins are grouped by the anchor's current page.
-  NodeRef page = 4 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
+  NodeRef page = 5 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
   // Open / resolved.  A register: concurrent resolve and reopen resolve by OpId.
-  bool resolved = 5;
-  // The opening comment is comments[0]; replies follow.  SEQUENCE: each comment is an
+  bool resolved = 6;
+  // The opening comment is the first element; replies follow.  SEQUENCE: each comment is an
   // element with its own registers; concurrent replies are both kept.
-  repeated Comment comments = 6 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  repeated Comment comments = 7 [(wt.crdt.field).merge = MERGE_SEQUENCE];
 }
 
 message Comment {
@@ -534,7 +535,7 @@ digest quotes the opening line only).
 Track:: proto
 Depends on:: PROTO-003, PROTO-007, PROTO-006
 Size:: S
-Delivers:: `doc/v1/comments.proto` as sketched: the `comments (0:12)` well-known node, `comment_thread` kind, `CommentThreadProps`, `Comment` with merge options and validation rules (mention and reaction caps, the six-emoji rule as a CEL constraint), `docs.v1 CommentService`, the `CommentEvent` case of `DocumentEvent`, and the `mention` `TextMarkValue`.
+Delivers:: `doc/v1/comments.proto` as sketched: the `comments (0:12)` well-known node, `comment_thread` kind, `CommentThreadProps`, `Comment` with merge options and validation rules (mention and reaction caps, the six-emoji rule as a CEL constraint), `docs.v1 CommentService`, the `CommentEvent` case of `DocumentEvent`, and the `mention` `TextMarkValue` (implemented in `comments.proto` and `text.proto` for the document schema (`comment_thread` = 210, `mention` = 42); `CommentService` and `CommentEvent` are docs.v1/sync.v1 API still to do).
 Done when::
 * Lints clean with `COMMENTS`; `buf breaking` passes against main; the merge table lists `comments` as SEQUENCE, `body` as TEXT, `mentions` and `reactions` as SET, `point` and `fallback_point` as ATOMIC.
 * Conformance vectors: concurrent replies to one thread; concurrent resolve and reopen; edit vs. delete of one comment; concurrent add and remove of one reaction -- identical results in Swift and Java.

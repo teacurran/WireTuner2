@@ -520,24 +520,29 @@ message BendEffect {
   Point center = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];
 }
 
+enum DuetMode { DUET_MODE_UNSPECIFIED = 0; DUET_MODE_REFLECT = 1; DUET_MODE_ROTATE = 2; }  // unspecified reads REFLECT
+
 message DuetEffect {
-  enum Mode { MODE_UNSPECIFIED = 0; MODE_REFLECT = 1; MODE_ROTATE = 2; }
-  Mode mode = 1;
+  DuetMode mode = 1;
   Point center = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];   // relative to bounds centre
   double axis_angle = 3;         // degrees; mirror axis direction for REFLECT
-  uint32 copies = 4 [(buf.validate.field).uint32 = {gte: 1, lte: 100}];  // ROTATE only
+  uint32 copies = 4 [(buf.validate.field).uint32 = {gte: 1, lte: 100}];  // ROTATE only; 0 reads 1 (IGNORE_IF_ZERO_VALUE)
   bool joined = 5;               // one continuous path through original and clones
   bool closed = 6;               // close each clone (joined=false) or the joined path
   bool even_odd = 7;             // alternate filled/unfilled where clones overlap
 }
 
+enum ExpandDirection {           // unspecified reads BOTH
+  EXPAND_DIRECTION_UNSPECIFIED = 0; EXPAND_DIRECTION_BOTH = 1; EXPAND_DIRECTION_INSIDE = 2;
+  EXPAND_DIRECTION_OUTSIDE = 3;
+}
+
 message ExpandPathEffect {
-  enum Direction { DIRECTION_UNSPECIFIED = 0; DIRECTION_BOTH = 1; DIRECTION_INSIDE = 2; DIRECTION_OUTSIDE = 3; }
-  Direction direction = 1;
+  ExpandDirection direction = 1;
   double width = 2 [(buf.validate.field).double = {gte: 0, lte: 50}];   // points
   LineCap cap = 3;               // BUTT / ROUND / SQUARE, shared with BasicStroke (ATTR)
   LineJoin join = 4;             // MITER / ROUND / BEVEL
-  double miter_limit = 5 [(buf.validate.field).double = {gte: 1, lte: 57}];
+  double miter_limit = 5 [(buf.validate.field).double = {gte: 1, lte: 57}];  // 0 reads 4 (IGNORE_IF_ZERO_VALUE)
 }
 
 message RaggedEffect {
@@ -585,9 +590,10 @@ message CornersEffect {
 }
 
 enum CornerStyle {
-  CORNER_STYLE_ROUND = 0;            // convex arc
-  CORNER_STYLE_INVERTED_ROUND = 1;   // concave scoop
-  CORNER_STYLE_CHAMFER = 2;          // straight cut
+  CORNER_STYLE_UNSPECIFIED = 0;      // reads as ROUND
+  CORNER_STYLE_ROUND = 1;            // convex arc
+  CORNER_STYLE_INVERTED_ROUND = 2;   // concave scoop
+  CORNER_STYLE_CHAMFER = 3;          // straight cut
 }
 
 // A live boolean over a group's members.  Meaningful only at the object level of a `group`
@@ -598,10 +604,11 @@ message CombineEffect {
 }
 
 enum BooleanOp {
-  BOOLEAN_OP_UNION = 0;
-  BOOLEAN_OP_SUBTRACT = 1;           // bottom member minus every member above it
-  BOOLEAN_OP_INTERSECT = 2;
-  BOOLEAN_OP_EXCLUDE = 3;            // regions covered an odd number of times
+  BOOLEAN_OP_UNSPECIFIED = 0;        // reads as UNION
+  BOOLEAN_OP_UNION = 1;
+  BOOLEAN_OP_SUBTRACT = 2;           // bottom member minus every member above it
+  BOOLEAN_OP_INTERSECT = 3;
+  BOOLEAN_OP_EXCLUDE = 4;            // regions covered an odd number of times
 }
 ----
 
@@ -775,7 +782,7 @@ Depends on:: PROTO-003, PROTO-005
 Size:: S
 Delivers:: `doc/v1/effects.proto` with `Effect`, `EffectKind`, `BendEffect`, `DuetEffect`,
 `ExpandPathEffect`, `RaggedEffect`, `SketchEffect`, `TransformEffect` exactly as sketched, wired
-into the `AppearanceProps.effects` sequence reserved by the ATTR epic.
+into the `AppearanceProps.effects` sequence reserved by the ATTR epic (implemented in `effects.proto`; zero values are `_UNSPECIFIED` and the per-effect enums are top-level (`DuetMode`, `ExpandDirection`)).
 Done when::
 * `buf lint` and `buf breaking` pass; every field commented; validation ranges as documented.
 * The merge table marks `effects` as SEQUENCE, `center`/`move` as ATOMIC, everything else
@@ -871,7 +878,7 @@ Depends on:: FX-001, CRDT-007
 Size:: S
 Delivers:: `CornersEffect`, `CornerStyle`, `CombineEffect` and `BooleanOp` in
 `doc/v1/effects.proto` as sketched, the `corners` and `combine` fields on `Effect`, and the two
-new `EffectKind` cases; `points` declared `MERGE_SET` over `ElementId` members.
+new `EffectKind` cases; `points` declared `MERGE_SET` over `ElementId` members (implemented in `effects.proto`; `CornerStyle` and `BooleanOp` gained `_UNSPECIFIED` zero values).
 Done when::
 * `buf lint` and `buf breaking` pass; every field commented; `radius` validated `>= 0`.
 * The merge table marks `CornersEffect.points` as SET and everything else default.

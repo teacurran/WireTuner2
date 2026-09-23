@@ -11,20 +11,21 @@
 /// here; blocks are never renumbered and a case is never removed.
 ///
 ///   Block     Epic    Cases so far
-///   1-19      DOC     1 document, 2 settings, 3 page, 4 master_page
+///   1-19      DOC     1 document, 2 settings, 3 page, 4 master_page, 5 asset
 ///   20-49     DRAW    20 path, 21 rect, 22 ellipse, 23 polygon, 24 chart
 ///   50-69     OBJ     50 group
 ///   70-79     COLOR   70 swatch
 ///   80-99     ATTR    80 brush
-///   100-129   FX      (blend, path effect, envelope, perspective, extrude, ... FX epic)
+///   100-129   FX      100 blend, 101 extrude, 102 envelope, 103 perspective
 ///   130-149   TYPE    130 text (text styles are `style` nodes of kind PARAGRAPH/CHARACTER)
 ///   150-169   LIB     150 layer, 151 symbol, 152 symbol_folder, 153 instance, 154 style
-///   170-189   IMG     (image, placed_file, ... IMG epic)
-///   190-209   WEB     (svg_animation, ... WEB epic)
-///   210-219   COLLAB  (comment_thread, COLLAB-025)
-///   220-239   FONT    (glyph, FONT-001)
-///   240-259   DATA    (barcode, script, DATA-001)
-///   260-      free; a new epic takes the next block of 20 and adds a row here.
+///   170-189   IMG     170 image, 171 placed_file
+///   190-209   WEB     190 svg_animation
+///   210-219   COLLAB  210 comment_thread
+///   220-239   FONT    220 glyph
+///   240-259   DATA    240 barcode, 241 script
+///   260-279   BASIC   260 custom_view (BASIC-014)
+///   280-      free; a new epic takes the next block of 20 and adds a row here.
 
 // DO NOT EDIT.
 // swift-format-ignore-file

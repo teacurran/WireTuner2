@@ -10,8 +10,8 @@
 ///
 /// TextMarkValue field numbers: 1-12 and 14-21 type/creating-text.adoc (TYPE-001, TYPE-045);
 /// 13 reserved (a `url` mark superseded by `link`); 40 `link` (web/urls.adoc, WEB-001); 41
-/// `field` (automation/data-merge.adoc, DATA epic); `mention` (collaboration/comments.adoc)
-/// takes the next free number from 42.
+/// `field` (automation/data-merge.adoc, DATA-001); 42 `mention` (collaboration/comments.adoc,
+/// COLLAB-025); 43- free, a task takes the next number and records it here.
 
 // DO NOT EDIT.
 // swift-format-ignore-file

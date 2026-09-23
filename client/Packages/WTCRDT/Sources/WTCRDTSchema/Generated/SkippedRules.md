@@ -13,6 +13,8 @@ can queue an offline change the server will reject.
 |---|---|---|---|
 | `wiretuner.account.v1.SetWorkspaceSettingsRequest` | `(message)` | `(buf.validate.message).cel` | `workspace_settings.require_sso_needs_idp: !this.settings.require_sso \|\| this.settings.sso_idp_alias != ''` |
 | `wiretuner.blob.v1.UploadHeader` | `(message)` | `(buf.validate.message).cel` | `upload_header.tagged_size: this.tag == 0 \|\| this.size <= 262144u` |
+| `wiretuner.doc.v1.Comment` | `reactions` | `(buf.validate.field).cel` | `comment.reactions.emoji: this.all(r, r.matches('^[^:]+:(👍\|❤️\|👀\|✅\|❓\|🎉)$'))` |
+| `wiretuner.doc.v1.HttpHeader` | `name` | `(buf.validate.field).cel` | `http_header.name.not_secret: !(this.lowerAscii() in ['authorization', 'proxy-authorization', 'cookie', 'x-api-key'])` |
 | `wiretuner.docs.v1.ListRequest` | `(message)` | `(buf.validate.message).cel` | `list.space_required: this.scope == 4 \|\| this.space_id != ''` |
 | `wiretuner.sync.v1.Participant` | `avatar_sha256` | `(buf.validate.field).cel` | `participant.avatar_sha256.len: size(this) == 0 \|\| size(this) == 32` |
 
@@ -24,4 +26,10 @@ can queue an offline change the server will reject.
 | `wiretuner.account.v1.InviteMemberRequest` | `email` | `string.email` | `true` |
 | `wiretuner.account.v1.RemoveWorkspaceDomainRequest` | `domain` | `string.hostname` | `true` |
 | `wiretuner.account.v1.VerifyWorkspaceDomainRequest` | `domain` | `string.hostname` | `true` |
+| `wiretuner.doc.v1.DocumentInfo` | `web_statement` | `string.uri` | `true` |
+| `wiretuner.doc.v1.EmbeddedRecords` | `media_type` | `string.in` | `[text/csv, application/json]` |
+| `wiretuner.doc.v1.FontNames` | `designer_url` | `string.uri` | `true` |
+| `wiretuner.doc.v1.FontNames` | `license_url` | `string.uri` | `true` |
+| `wiretuner.doc.v1.FontNames` | `manufacturer_url` | `string.uri` | `true` |
+| `wiretuner.doc.v1.PixelSource` | `bits_per_channel` | `int32.in` | `[1, 8, 16]` |
 | `wiretuner.docs.v1.InviteRequest` | `email` | `string.email` | `true` |

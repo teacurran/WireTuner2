@@ -5,7 +5,9 @@
 /// rulers, grid-guides).  PROTO-003 created the kind messages empty so NodeProps could name them;
 /// DOC-001 filled them in here, in this file, because the FILE breaking rules pin a message to
 /// the file it first appeared in.  Everything is in points on the pasteboard, y down, origin at
-/// the pasteboard's top left (docs/spec/crdt-model.adoc).
+/// the pasteboard's top left (docs/spec/crdt-model.adoc).  The other epics' settings-node and
+/// page fields reference messages in their own files (print, view, color_management, web, data,
+/// effects, perspective, font, file_info), recorded in the field-number tables below.
 
 // DO NOT EDIT.
 // swift-format-ignore-file

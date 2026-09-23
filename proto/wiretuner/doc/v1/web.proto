@@ -1,0 +1,176 @@
+// proto/wiretuner/doc/v1/web.proto
+//
+// Document-level web settings on the settings node 0:1: named HTML publish settings
+// (docs/_includes/web/publish-html.adoc, WEB-007; SettingsProps.html_settings) and animation
+// settings (web/animation.adoc, WEB-014; SettingsProps.animation).  The per-layer frame fields
+// are LayerFrameProps in layer.proto; published links are server state (wiretuner.publish.v1).
+syntax = "proto3";
+
+package wiretuner.doc.v1;
+
+import "buf/validate/validate.proto";
+import "wiretuner/doc/v1/common.proto";
+import "wt/crdt/options.proto";
+
+option java_multiple_files = true;
+option java_package = "com.villagecompute.wiretuner.doc.v1";
+option optimize_for = SPEED;
+
+// How pages become HTML.
+enum HtmlLayout {
+  // Reads as WHOLE_PAGES.
+  HTML_LAYOUT_UNSPECIFIED = 0;
+  // Each page is one image or SVG.
+  HTML_LAYOUT_WHOLE_PAGES = 1;
+  // Objects are positioned individually.
+  HTML_LAYOUT_POSITIONED_OBJECTS = 2;
+}
+
+// How multiple pages are published.
+enum HtmlPageMode {
+  // Reads as STACKED.
+  HTML_PAGE_MODE_UNSPECIFIED = 0;
+  // All pages stacked in one HTML file.
+  HTML_PAGE_MODE_STACKED = 1;
+  // One HTML file per page.
+  HTML_PAGE_MODE_SEPARATE_FILES = 2;
+}
+
+// How vector artwork is written.
+enum HtmlVectorFormat {
+  // Reads as SVG.
+  HTML_VECTOR_FORMAT_UNSPECIFIED = 0;
+  // Inline SVG.
+  HTML_VECTOR_FORMAT_SVG = 1;
+  // PNG at `scale`.
+  HTML_VECTOR_FORMAT_PNG = 2;
+}
+
+// How bitmaps are written.
+enum HtmlImageFormat {
+  // Reads as JPEG.
+  HTML_IMAGE_FORMAT_UNSPECIFIED = 0;
+  // JPEG at `image_quality`.
+  HTML_IMAGE_FORMAT_JPEG = 1;
+  // PNG.
+  HTML_IMAGE_FORMAT_PNG = 2;
+  // WebP at `image_quality`.
+  HTML_IMAGE_FORMAT_WEBP = 3;
+}
+
+// How fonts are published.
+enum HtmlFontMode {
+  // Reads as EMBED.
+  HTML_FONT_MODE_UNSPECIFIED = 0;
+  // Embed the used glyphs as web fonts.
+  HTML_FONT_MODE_EMBED = 1;
+  // Convert text to outlines.
+  HTML_FONT_MODE_OUTLINES = 2;
+  // Name system fonts only.
+  HTML_FONT_MODE_SYSTEM = 3;
+}
+
+// The published page background.
+enum HtmlBackground {
+  // Reads as DOCUMENT.
+  HTML_BACKGROUND_UNSPECIFIED = 0;
+  // The document's page color.
+  HTML_BACKGROUND_DOCUMENT = 1;
+  // White.
+  HTML_BACKGROUND_WHITE = 2;
+  // Transparent.
+  HTML_BACKGROUND_TRANSPARENT = 3;
+}
+
+// One named HTML setting.  Element of SettingsProps.html_settings; STRUCT, so each option is an
+// independent choice.  The Default setting is synthesized when the sequence is empty and
+// materialized as an element the first time someone edits it.
+message HtmlSetting {
+  // Element id (MERGE_SEQUENCE).
+  ElementId id = 1;
+  // The name in the Setup sheet's list.
+  string name = 2 [(buf.validate.field).string.max_len = 64];
+  // The output folder on this Mac.  Never synced; each Mac keeps its own.
+  string location = 3 [
+    (wt.crdt.field).local_only = true,
+    (buf.validate.field).string.max_len = 4096
+  ];
+  // Whole pages or positioned objects.
+  HtmlLayout layout = 4 [(buf.validate.field).enum.defined_only = true];
+  // Stacked or separate files.
+  HtmlPageMode page_mode = 5 [(buf.validate.field).enum.defined_only = true];
+  // SVG or PNG.
+  HtmlVectorFormat vector_format = 6 [(buf.validate.field).enum.defined_only = true];
+  // PNG scale, 1 .. 3; 0 (never set) reads as 2.
+  uint32 scale = 7 [
+    (buf.validate.field).uint32 = {
+      gte: 1
+      lte: 3
+    },
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+  // JPEG, PNG or WebP.
+  HtmlImageFormat image_format = 8 [(buf.validate.field).enum.defined_only = true];
+  // JPEG and WebP quality, 0 .. 100; 0 (never set) reads as 80.
+  uint32 image_quality = 9 [(buf.validate.field).uint32.lte = 100];
+  // Embed, outlines or system fonts.
+  HtmlFontMode font_mode = 10 [(buf.validate.field).enum.defined_only = true];
+  // Publish stills even if the document is animated.
+  bool animation_still = 11;
+  // Placed SVG animations as poster images only.
+  bool svg_animation_poster_only = 12;
+  // Transparent, white or the document's background.
+  HtmlBackground background = 13 [(buf.validate.field).enum.defined_only = true];
+  // The HTML title; empty = the document name.
+  string title = 14 [(buf.validate.field).string.max_len = 256];
+  // Keep <script> inside placed SVG animations (stripped by default).
+  bool allow_scripts = 15;
+}
+
+// Where animation frames come from.
+enum FrameSource {
+  // Reads as NONE.
+  FRAME_SOURCE_UNSPECIFIED = 0;
+  // Not animated.
+  FRAME_SOURCE_NONE = 1;
+  // One frame per layer.
+  FRAME_SOURCE_LAYERS = 2;
+  // One frame per page.
+  FRAME_SOURCE_PAGES = 3;
+  // One frame per layer on every page.
+  FRAME_SOURCE_PAGES_AND_LAYERS = 4;
+}
+
+// The background behind animation frames.
+enum AnimationBackground {
+  // Reads as PAGE_COLOR.
+  ANIMATION_BACKGROUND_UNSPECIFIED = 0;
+  // The page color.
+  ANIMATION_BACKGROUND_PAGE_COLOR = 1;
+  // White.
+  ANIMATION_BACKGROUND_WHITE = 2;
+  // Transparent.
+  ANIMATION_BACKGROUND_TRANSPARENT = 3;
+}
+
+// Document animation settings (SettingsProps.animation).  STRUCT: each is an independent
+// choice.  `loop` reads as true while the message has never been written (`source` unset); once
+// any field is written the stored value is authoritative.
+message AnimationSettings {
+  // Where frames come from.
+  FrameSource source = 1 [(buf.validate.field).enum.defined_only = true];
+  // Frames per second, 0.01 .. 120; 0 (never set) reads as 12.
+  double fps = 2 [
+    (buf.validate.field).double = {
+      gte: 0.01
+      lte: 120
+    },
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+  // Loop playback (see the read-time rule above).
+  bool loop = 3;
+  // Written as its negation so the default plays automatically.
+  bool no_autoplay = 4;
+  // Background behind frames.
+  AnimationBackground background = 5 [(buf.validate.field).enum.defined_only = true];
+}

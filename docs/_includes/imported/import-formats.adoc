@@ -215,24 +215,31 @@ enum PlacedFileFormat {
 
 // A file kept as-is and shown through its preview.  ATOMIC as a whole: the preview, bounding
 // box and file describe one placed file and are replaced together by "Update from source".
-message PlacedFileProps {
+message PlacedFileContent {
   PlacedFileFormat format = 1;
   bytes blob_sha256 = 2 [(buf.validate.field).bytes.len = 32];      // the original file
   string source_name = 3 [(buf.validate.field).string.max_len = 256];
   // Bounding box from the file (EPS %%BoundingBox), in points; natural size and origin.
-  Rect bounds = 4;
+  Rect bounds = 4 [(wt.crdt.field).merge = MERGE_ATOMIC];
   // Preview blob: a PNG rendered from the TIFF/EPSI preview or the PDF-compatible stream.
   // Empty when the file carries none; the renderer then draws a gray box with source_name.
   bytes preview_sha256 = 5;
   int32 preview_width = 6;
   int32 preview_height = 7;
+}
+
+// NodeProps.kind case `placed_file` = 171 (IMG block).
+message PlacedFileProps {
+  CommonProps common = 1;
+  PlacedFileContent content = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];
   // Link record for the Links panel, as ImageProps.source.
-  NodeRef source = 8 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
+  NodeRef source = 3 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
 }
 ----
 
-The whole message is declared ATOMIC where it is used in `NodeProps`; the transform, name and
-notes are on `CommonProps` as for every node.
+The file's facts are one ATOMIC register (`content`) rather than the whole kind message, so
+the name, notes and transform on `CommonProps` and the `source` link stay independent registers
+as for every node.
 
 === Merge semantics
 

@@ -1,0 +1,177 @@
+// proto/wiretuner/doc/v1/print.proto
+//
+// Document-wide print settings (docs/_includes/printing/printing.adoc, PRINT-001; the fields
+// are documented on output-devices.adoc, print-fonts.adoc, print-performance.adoc,
+// print-preview.adoc and halftones.adoc).  SettingsProps.print holds them; SettingsProps
+// .output_area is output-area.adoc's rectangle.  The Halftone message itself is in common.proto
+// (docs/spec/decisions.adoc D-065) because CommonProps.halftone names it.  The archived
+// NSPrintInfo (printer, paper, copies, range) is local state, never in the document.
+syntax = "proto3";
+
+package wiretuner.doc.v1;
+
+import "buf/validate/validate.proto";
+import "wiretuner/doc/v1/common.proto";
+import "wt/crdt/options.proto";
+
+option java_multiple_files = true;
+option java_package = "com.villagecompute.wiretuner.doc.v1";
+option optimize_for = SPEED;
+
+// How the page is scaled onto the paper.
+enum PrintScaleMode {
+  // Reads as UNIFORM.
+  PRINT_SCALE_MODE_UNSPECIFIED = 0;
+  // One percentage for both axes (scale_x).
+  PRINT_SCALE_MODE_UNIFORM = 1;
+  // Separate horizontal and vertical percentages.
+  PRINT_SCALE_MODE_VARIABLE = 2;
+  // Fit the paper.
+  PRINT_SCALE_MODE_FIT = 3;
+}
+
+// How a page larger than the paper is tiled.
+enum PrintTileMode {
+  // Reads as NONE.
+  PRINT_TILE_MODE_UNSPECIFIED = 0;
+  // No tiling.
+  PRINT_TILE_MODE_NONE = 1;
+  // Automatic tiles with `tile_overlap`.
+  PRINT_TILE_MODE_AUTOMATIC = 2;
+  // Manual tiles.
+  PRINT_TILE_MODE_MANUAL = 3;
+}
+
+// Document-wide print settings (SettingsProps.print).  STRUCT: every field is an independent
+// choice.  `offset`, `default_halftone` and each plate's `ink` are the ATOMIC exceptions.
+message PrintSettings {
+  // False = composite, true = one plate per ink.
+  bool separations = 1;
+  // Uniform, variable or fit.
+  PrintScaleMode scale_mode = 2 [(buf.validate.field).enum.defined_only = true];
+  // Percent, 1 .. 2000; UNIFORM reads scale_x only; 0 (never set) reads as 100.
+  double scale_x = 3 [
+    (buf.validate.field).double = {
+      gte: 1
+      lte: 2000
+    },
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+  // Percent, 1 .. 2000; 0 (never set) reads as 100.
+  double scale_y = 4 [
+    (buf.validate.field).double = {
+      gte: 1
+      lte: 2000
+    },
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+  // Offset of the page on the paper, points.  ATOMIC: an offset is one point.
+  Point offset = 5 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Tiling.
+  PrintTileMode tile = 6 [(buf.validate.field).enum.defined_only = true];
+  // Overlap between automatic tiles, points.
+  double tile_overlap = 7 [(buf.validate.field).double = {
+    gte: 0
+    lte: 720
+  }];
+  // When printing the output area: draw page outlines inside it.
+  bool print_page_boundary = 8;
+  // Printer's marks.  STRUCT.
+  Marks marks = 9;
+  // Bleed beyond the page edge, points.
+  double bleed = 10 [(buf.validate.field).double = {
+    gte: 0
+    lte: 720
+  }];
+  // Emulsion down (mirror the output).
+  bool emulsion_down = 11;
+  // Negative output.
+  bool negative = 12;
+  // Print layers that are hidden.
+  bool include_hidden_layers = 13;
+  // Device pixels; 0 = printer default.
+  double flatness = 14 [(buf.validate.field).double = {
+    gte: 0
+    lte: 100
+  }];
+  // Convert text to outlines when printing.
+  bool text_as_outlines = 15;
+  // 0 = vector output; otherwise every sheet is rasterized at this dpi, 72 .. 2400.
+  double rasterize_dpi = 16 [
+    (buf.validate.field).double = {
+      gte: 72
+      lte: 2400
+    },
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+  // Print spot inks as process.
+  bool spot_as_process = 17;
+  // Document default screen: the shape and frequency every plate starts from.  Its angle is
+  // ignored (angles are per plate).  ATOMIC: see Halftone.
+  Halftone default_halftone = 18 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // One entry per ink the user has touched; inks without an entry use defaults.  SEQUENCE.
+  // Two entries for one ink: the one with the greater element id wins on read.
+  repeated PlateSettings plates = 19 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  // Halftone plates in the app instead of leaving screening to the printer.
+  bool screen_in_app = 20;
+  // Print every object with its plate's screen, ignoring CommonProps.halftone.
+  bool ignore_object_halftones = 21;
+}
+
+// Printer's marks.  STRUCT: each mark is its own switch.
+message Marks {
+  // Crop marks.
+  bool crop = 1;
+  // Registration marks.
+  bool registration = 2;
+  // Separation names.
+  bool separation_names = 3;
+  // File name and date.
+  bool file_name_date = 4;
+}
+
+// Per-plate choices.  Element of PrintSettings.plates, so plates are added and removed
+// independently.
+message PlateSettings {
+  // Element id (MERGE_SEQUENCE).
+  ElementId id = 1;
+  // Which ink.  ATOMIC: the identity of the plate.
+  Ink ink = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Print this plate; written true when the entry is created.
+  bool print = 3;
+  // Screen angle in degrees, 0 .. 360; never written = the default for the ink.
+  double angle = 4 [(buf.validate.field).double = {
+    gte: 0
+    lte: 360
+  }];
+  // Screen frequency in lines per inch; 0 = the document default.
+  double frequency = 5 [(buf.validate.field).double = {
+    gte: 0
+    lte: 600
+  }];
+}
+
+// The four process inks.
+enum ProcessInk {
+  // Not a process ink; an Ink with this value is ignored on read.
+  PROCESS_INK_UNSPECIFIED = 0;
+  // Cyan.
+  PROCESS_INK_CYAN = 1;
+  // Magenta.
+  PROCESS_INK_MAGENTA = 2;
+  // Yellow.
+  PROCESS_INK_YELLOW = 3;
+  // Black.
+  PROCESS_INK_BLACK = 4;
+}
+
+// An ink: a process ink or a spot color swatch.  ATOMIC wherever used.
+message Ink {
+  // Exactly one.  Unset: the entry is ignored on read.
+  oneof ink {
+    // A process ink.
+    ProcessInk process = 1;
+    // A spot color swatch under 0:5.  Dangling: the entry is ignored on read.
+    NodeRef spot = 2 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
+  }
+}

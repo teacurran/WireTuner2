@@ -455,7 +455,7 @@ writes only the registers that differ from the current values.
 Track:: proto
 Depends on:: PROTO-003, PROTO-005
 Size:: S
-Delivers:: `doc/v1/color_management.proto` with `ProfileRef`, `ProfileSpace`, `RenderingIntent`, `ProofTarget`, `ColorSettings`, `ProofSettings`, and `ImageColorSettings` (xref:image-color.adoc[Managing image color]); `SettingsProps.color` wired in.
+Delivers:: `doc/v1/color_management.proto` with `ProfileRef`, `ProfileSpace`, `RenderingIntent`, `ProofTarget`, `ColorSettings`, `ProofSettings`, and `ImageColorSettings` (xref:image-color.adoc[Managing image color]); `SettingsProps.color` wired in (implemented in `color_management.proto`; `color` is `SettingsProps` field 50).
 Done when::
 * `buf lint` with `COMMENTS` passes; every `ProfileRef` field carries `MERGE_ATOMIC`; `ColorSettings` and `ProofSettings` are STRUCT in the generated merge table.
 * Conformance vectors: concurrent writes to `rgb_profile` and `cmyk_profile` from two replicas keep both; concurrent writes to `cmyk_profile` resolve by OpId with the loser retained; `proof.target` vs `proof.composite_profile` concurrent writes keep both.

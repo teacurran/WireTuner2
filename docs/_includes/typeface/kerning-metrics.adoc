@@ -188,7 +188,7 @@ message KernClassMember {
 
 message KernClass {
   ElementId id = 1;
-  string name = 2 [(buf.validate.field).string = {min_len: 1, max_len: 63, pattern: "^[A-Za-z0-9._]+$"}];
+  string name = 2 [(buf.validate.field).string = {max_len: 63, pattern: "^[A-Za-z0-9._]+$"}];   // IGNORE_IF_ZERO_VALUE
   KernSide side = 3;            // immutable in practice; a side change is a new class
   repeated KernClassMember members = 4 [(wt.crdt.field).merge = MERGE_SEQUENCE];
 }
@@ -196,8 +196,8 @@ message KernClass {
 // One matrix cell.  Element of a SEQUENCE.  Absent cell = 0.  Duplicates resolved on read.
 message ClassKern {
   ElementId id = 1;
-  ElementId left = 2;           // a KernClass with side LEFT
-  ElementId right = 3;          // a KernClass with side RIGHT
+  ElementId left = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];    // a KernClass with side LEFT
+  ElementId right = 3 [(wt.crdt.field).merge = MERGE_ATOMIC];   // a KernClass with side RIGHT
   double value = 4 [(buf.validate.field).double = {gte: -32767, lte: 32767}];
 }
 ----

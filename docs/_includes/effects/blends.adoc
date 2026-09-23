@@ -178,13 +178,14 @@ never stored: every replica derives them on read from the key objects and the pr
 // proto/wiretuner/doc/v1/blend.proto (sketch); BlendProps is a NodeProps.kind case
 message BlendProps {
   CommonProps common = 1;
-  uint32 steps = 2 [(buf.validate.field).uint32 = {gte: 1, lte: 1000}];
+  uint32 steps = 2 [(buf.validate.field).uint32 = {gte: 1, lte: 1000}];  // 0 reads 25 (IGNORE_IF_ZERO_VALUE)
   double range_first = 3 [(buf.validate.field).double = {gte: 0, lte: 100}];   // percent
   double range_last = 4 [(buf.validate.field).double = {gte: 0, lte: 100}];
-  enum Type { TYPE_NORMAL = 0; TYPE_HORIZONTAL = 1; TYPE_VERTICAL = 2; }
-  Type type = 5;
-  enum Order { ORDER_POSITIONAL = 0; ORDER_STACKING = 1; }
-  Order order = 6;
+  // Top-level enums in blend.proto: BlendType (BLEND_TYPE_UNSPECIFIED reads NORMAL, NORMAL = 1,
+  // HORIZONTAL = 2, VERTICAL = 3) and BlendOrder (BLEND_ORDER_UNSPECIFIED reads POSITIONAL,
+  // POSITIONAL = 1, STACKING = 2).
+  BlendType type = 5;
+  BlendOrder order = 6;
   // The child node that is the path the blend follows.  Unset, deleted, not a child, or not a
   // path: the blend is straight (REF_FALLBACK_UNSET).  The path is a child so it moves,
   // copies and deletes with the blend.
@@ -198,9 +199,10 @@ message BlendProps {
 
 message BlendPoint {
   ElementId id = 1;
-  OpId object = 2;               // a key object (child of this blend node)
-  ElementId contour = 3;         // contour element in that path
-  ElementId point = 4;           // point element in that contour
+  // Each ATOMIC (annotated: a message field defaults to STRUCT).
+  OpId object = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];        // a key object (child of this blend node)
+  ElementId contour = 3 [(wt.crdt.field).merge = MERGE_ATOMIC];  // contour element in that path
+  ElementId point = 4 [(wt.crdt.field).merge = MERGE_ATOMIC];    // point element in that contour
 }
 ----
 
@@ -312,7 +314,7 @@ steps carry tint values so they separate onto the spot plates.
 Track:: proto
 Depends on:: PROTO-003
 Size:: S
-Delivers:: `blend` kind, `BlendProps`, `BlendPoint` as sketched.
+Delivers:: `blend` kind, `BlendProps`, `BlendPoint` as sketched (implemented in `blend.proto`; `blend` = 100).
 Done when::
 * Lints clean; `path` carries `REF_FALLBACK_UNSET`; `blend_points` is SEQUENCE.
 * Conformance vectors: steps vs. child edit; two blend points for one object; path deleted

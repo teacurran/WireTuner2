@@ -545,7 +545,7 @@ message SettingsProps {
   repeated DataSource data_sources = 81 [(wt.crdt.field).merge = MERGE_SEQUENCE];
   // Which source is connected (one at a time in v1; the sequence keeps the others so
   // switching back restores their settings).  Dangling reads as "none connected".
-  ElementId data_source_active = 82;
+  ElementId data_source_active = 82 [(wt.crdt.field).merge = MERGE_ATOMIC];
   // Preview state.  Never leaves this Mac.
   DataPreview data_preview = 83 [(wt.crdt.field).local_only = true];
 }
@@ -564,7 +564,9 @@ enum DataFieldType {
 message DataField {
   ElementId id = 1;
   // Unique among live fields when written; [A-Za-z_][A-Za-z0-9_]*, compared case-insensitively.
-  string name = 2 [(buf.validate.field).string = {max_len: 64, pattern: "^[A-Za-z_][A-Za-z0-9_]*$"}];
+  // IGNORE_IF_ZERO_VALUE: a SetFields that does not write the name carries "".
+  string name = 2 [(buf.validate.field).string = {max_len: 64, pattern: "^[A-Za-z_][A-Za-z0-9_]*$"},
+                   (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE];
   DataFieldType type = 3;
   FieldFormat format = 4;             // STRUCT; only NUMBER and DATE read it
   // A `script` node in this document exporting `transform`.  Dangling = no transform.
@@ -632,7 +634,7 @@ enum HttpMethod { HTTP_METHOD_UNSPECIFIED = 0; HTTP_METHOD_GET = 1; HTTP_METHOD_
 // Proxy-Authorization, Cookie, X-Api-Key and any header a credential kind sets) and rejected.
 message HttpSource {
   HttpMethod method = 1;
-  // May contain {{param}} references.  https only.
+  // May contain {{param}} references.  https only (pattern "^https://", IGNORE_IF_ZERO_VALUE).
   string url = 2 [(buf.validate.field).string.max_len = 2048];
   repeated HttpHeader headers = 3 [(wt.crdt.field).merge = MERGE_SEQUENCE];
   string body_template = 4 [(buf.validate.field).string.max_len = 65536];
@@ -650,6 +652,8 @@ message HttpSource {
 
 message HttpHeader {
   ElementId id = 1;
+  // CEL constraint "http_header.name.not_secret": lowerAscii() not in authorization,
+  // proxy-authorization, cookie, x-api-key.
   string name = 2 [(buf.validate.field).string.max_len = 128];
   string value = 3 [(buf.validate.field).string.max_len = 4096];
 }
@@ -661,9 +665,10 @@ message HttpParam {
 }
 
 enum PaginationMode {
-  PAGINATION_MODE_NONE = 0;
-  PAGINATION_MODE_NEXT_URL = 1;     // follow `next_url_path` in each response until empty
-  PAGINATION_MODE_PAGE_PARAM = 2;   // increment `page_param` from `first_page` until a page has no records
+  PAGINATION_MODE_UNSPECIFIED = 0;  // reads as NONE
+  PAGINATION_MODE_NONE = 1;
+  PAGINATION_MODE_NEXT_URL = 2;     // follow `next_url_path` in each response until empty
+  PAGINATION_MODE_PAGE_PARAM = 3;   // increment `page_param` from `first_page` until a page has no records
 }
 
 message Pagination {
@@ -682,7 +687,7 @@ message ScriptSource {
 
 message FieldMapping {
   ElementId id = 1;
-  ElementId field = 2;                // a DataField; dangling = entry ignored on read
+  ElementId field = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];   // a DataField; dangling = entry ignored on read
   string path = 3 [(buf.validate.field).string.max_len = 512];   // column name, or JSONPath for JSON and HTTP
 }
 
@@ -736,7 +741,7 @@ message TextMarkValue {
     // A placeholder.  The span is the placeholder's characters ("{{first_name}}" as typed,
     // or the field name inserted from the panel); on merge the span is replaced by the
     // value.  Non-expanding (start before, end after): typing at either edge is outside.
-    ElementId field = 41;
+    ElementId field = 41 [(wt.crdt.field).merge = MERGE_ATOMIC];
   }
 }
 ----
@@ -752,19 +757,23 @@ enum BarcodeSymbology {
   BARCODE_SYMBOLOGY_CODE_128 = 2;
 }
 
-enum QrErrorCorrection { QR_EC_UNSPECIFIED = 0; QR_EC_L = 1; QR_EC_M = 2; QR_EC_Q = 3; QR_EC_H = 4; }  // unspecified reads as M
+enum QrErrorCorrection {             // unspecified reads as M
+  QR_ERROR_CORRECTION_UNSPECIFIED = 0; QR_ERROR_CORRECTION_L = 1; QR_ERROR_CORRECTION_M = 2;
+  QR_ERROR_CORRECTION_Q = 3; QR_ERROR_CORRECTION_H = 4;
+}
 
-// NodeProps.kind case `barcode`.  Drawn by WTRender from `value` (or, when
+// NodeProps.kind case `barcode` = 240 (DATA block).  Drawn by WTRender from `value` (or, when
 // CommonProps.data_binding.kind == TEXT, from the bound field's value); the bars take the
 // node's first fill, the background is clear.  Natural size: one module = 1 pt (QR), one
 // narrow bar = 1 pt (Code 128), then CommonProps.transform.  STRUCT.
 message BarcodeProps {
-  BarcodeSymbology symbology = 1;
-  string value = 2 [(buf.validate.field).string.max_len = 4096];   // fixed content; ignored while bound
-  QrErrorCorrection qr_error_correction = 3;
-  double quiet_zone = 4;             // modules (QR, default 4) or points (Code 128, default 10)
-  bool show_text = 5;                // Code 128: human-readable line under the bars
-  AppearanceProps appearance = 6;    // ATTR epic; only the first fill is used
+  CommonProps common = 1;
+  BarcodeSymbology symbology = 2;
+  string value = 3 [(buf.validate.field).string.max_len = 4096];   // fixed content; ignored while bound
+  QrErrorCorrection qr_error_correction = 4;
+  double quiet_zone = 5;             // modules (QR, default 4) or points (Code 128, default 10)
+  bool show_text = 6;                // Code 128: human-readable line under the bars
+  AppearanceProps appearance = 7;    // ATTR epic; only the first fill is used
 }
 ----
 
@@ -1181,7 +1190,7 @@ chunks.  Preview changes are not undoable (view state).
 Track:: proto
 Depends on:: PROTO-003, PROTO-005
 Size:: M
-Delivers:: `doc/v1/data.proto` with `DataField`, `DataFieldType`, `FieldFormat`, `DataSource`, `DataSourceSpec`, `DataSourceKind`, `FileSource`, `PastedSource`, `HttpSource`, `HttpHeader`, `HttpParam`, `Pagination`, `ScriptSource`, `FieldMapping`, `EmbeddedRecords`, `DataPreview`; `SettingsProps.data_fields`, `data_sources`, `data_source_active`, `data_preview` (local_only); `CommonProps.data_binding` with `DataBinding` and `BindingKind`; `TextMarkValue.field`; `doc/v1/barcode.proto` with `BarcodeProps` and the `barcode` kind case; the `script` kind case and `ScriptProps` from xref:scripting.adoc[Scripting and automation]; protovalidate rules as sketched, including the secret-header denylist on `HttpHeader.name` and `https` on `HttpSource.url`.
+Delivers:: `doc/v1/data.proto` with `DataField`, `DataFieldType`, `FieldFormat`, `DataSource`, `DataSourceSpec`, `DataSourceKind`, `FileSource`, `PastedSource`, `HttpSource`, `HttpHeader`, `HttpParam`, `Pagination`, `ScriptSource`, `FieldMapping`, `EmbeddedRecords`, `DataPreview`; `SettingsProps.data_fields`, `data_sources`, `data_source_active`, `data_preview` (local_only); `CommonProps.data_binding` with `DataBinding` and `BindingKind`; `TextMarkValue.field`; `doc/v1/barcode.proto` with `BarcodeProps` and the `barcode` kind case; the `script` kind case and `ScriptProps` from xref:scripting.adoc[Scripting and automation]; protovalidate rules as sketched, including the secret-header denylist on `HttpHeader.name` and `https` on `HttpSource.url` (implemented in `data.proto`, `barcode.proto` and `script.proto`; `barcode` = 240, `script` = 241, `SettingsProps` 80-83, `TextMarkValue.field` = 41; `DataBinding` stays in `common.proto` (D-065)).
 Done when::
 * `buf lint` with `COMMENTS` and `buf breaking` pass; the generated merge table marks `data_fields`, `data_sources`, `headers`, `params`, `mapping` SEQUENCE, `spec` VARIANT, `sample` and `data_binding` ATOMIC, `data_preview` and `bookmark` local_only.
 * Conformance vectors: concurrent field rename vs. type change (both kept); concurrent source URL vs. header edit (both kept); kind switch FILE→HTTP→FILE restores the file settings; two concurrent `sample` writes yield one whole value; a `SetFields` on `data_preview` is a no-op in both engines.

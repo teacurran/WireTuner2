@@ -112,19 +112,24 @@ ifdef::spec[]
 [source,protobuf]
 ----
 // Addition to proto/wiretuner/doc/v1/effects.proto
+enum TransparencyStyle {
+  TRANSPARENCY_STYLE_UNSPECIFIED = 0; TRANSPARENCY_STYLE_BASIC = 1; TRANSPARENCY_STYLE_FEATHER = 2;
+  TRANSPARENCY_STYLE_GRADIENT_MASK = 3;
+}
+
 message TransparencyEffect {
-  enum Style { STYLE_UNSPECIFIED = 0; STYLE_BASIC = 1; STYLE_FEATHER = 2; STYLE_GRADIENT_MASK = 3; }
-  Style style = 1;
+  TransparencyStyle style = 1;
   uint32 amount = 2 [(buf.validate.field).uint32.lte = 100];   // BASIC: 0 opaque .. 100 invisible
   double radius = 3 [(buf.validate.field).double.gte = 0];       // FEATHER, points
   uint32 softness = 4 [(buf.validate.field).uint32.lte = 100];  // FEATHER
-  // GRADIENT_MASK: the ATTR epic's gradient (type, angle, handles, stops).  STRUCT with its
-  // stops as a SEQUENCE, exactly as in a gradient fill, so stop edits merge individually.
-  Gradient mask = 5;
+  // GRADIENT_MASK: the ATTR epic's gradient (type, axis, stops).  STRUCT with its stops as a
+  // SEQUENCE, exactly as in a gradient fill, so stop edits merge individually.  Its
+  // `overprint` is ignored.
+  GradientFill mask = 5;
 }
 ----
 
-`Gradient` is the message xref:gradients.adoc[Gradients] defines for gradient fills; nothing
+`GradientFill` is the message xref:gradients.adoc[Gradients] defines for gradient fills; nothing
 is added to it.  The mask ignores each stop's color hue and uses its luminance
 (`0.2126 R + 0.7152 G + 0.0722 B` in the document RGB space, or `1 − K` for pure-K CMYK stops)
 as `1 − alpha`.
@@ -188,8 +193,8 @@ as for gradient fills.
 Track:: proto
 Depends on:: FX-001
 Size:: S
-Delivers:: `TransparencyEffect` with its three styles and the reuse of the ATTR `Gradient`
-message.
+Delivers:: `TransparencyEffect` with its three styles and the reuse of the ATTR `GradientFill`
+message (implemented in `effects.proto`).
 Done when::
 * Lints clean; conformance vectors: style vs. option edit; two concurrent stop inserts in a
   mask; stop delete vs. edit.

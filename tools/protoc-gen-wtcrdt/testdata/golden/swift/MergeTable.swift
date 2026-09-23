@@ -93,18 +93,26 @@ public enum WTMergeTable {
     }
 
     /// SHA-256 (hex) of the canonical JSON table without its `version` key.
-    public static let version = "02790b0e1a7df61c0dc890802cc0961ef22e430f33b47f9abaecf57739848fac"
+    public static let version = "c3932ca67c82671779dcbaf75b48516af6f09d2d41718c0050173791f87cf23e"
 
     /// The rows of every message, by fully qualified proto name.
     public static let messages: [String: MessagePolicy] = [
         "wiretuner.doc.v1.AdjustColumns": wiretuner_doc_v1_AdjustColumns,
         "wiretuner.doc.v1.Anchor": wiretuner_doc_v1_Anchor,
+        "wiretuner.doc.v1.AnimationSettings": wiretuner_doc_v1_AnimationSettings,
         "wiretuner.doc.v1.AppearanceProps": wiretuner_doc_v1_AppearanceProps,
         "wiretuner.doc.v1.Arrowhead": wiretuner_doc_v1_Arrowhead,
+        "wiretuner.doc.v1.AssetProps": wiretuner_doc_v1_AssetProps,
         "wiretuner.doc.v1.Axis": wiretuner_doc_v1_Axis,
         "wiretuner.doc.v1.AxisOptions": wiretuner_doc_v1_AxisOptions,
+        "wiretuner.doc.v1.BarcodeProps": wiretuner_doc_v1_BarcodeProps,
         "wiretuner.doc.v1.BasicFill": wiretuner_doc_v1_BasicFill,
         "wiretuner.doc.v1.BasicStroke": wiretuner_doc_v1_BasicStroke,
+        "wiretuner.doc.v1.BendEffect": wiretuner_doc_v1_BendEffect,
+        "wiretuner.doc.v1.BevelEmbossEffect": wiretuner_doc_v1_BevelEmbossEffect,
+        "wiretuner.doc.v1.BlendPoint": wiretuner_doc_v1_BlendPoint,
+        "wiretuner.doc.v1.BlendProps": wiretuner_doc_v1_BlendProps,
+        "wiretuner.doc.v1.BlurEffect": wiretuner_doc_v1_BlurEffect,
         "wiretuner.doc.v1.BrushProps": wiretuner_doc_v1_BrushProps,
         "wiretuner.doc.v1.BrushStroke": wiretuner_doc_v1_BrushStroke,
         "wiretuner.doc.v1.BrushSymbol": wiretuner_doc_v1_BrushSymbol,
@@ -117,71 +125,139 @@ public enum WTMergeTable {
         "wiretuner.doc.v1.ChartOverride": wiretuner_doc_v1_ChartOverride,
         "wiretuner.doc.v1.ChartProps": wiretuner_doc_v1_ChartProps,
         "wiretuner.doc.v1.ChartRow": wiretuner_doc_v1_ChartRow,
+        "wiretuner.doc.v1.ClassKern": wiretuner_doc_v1_ClassKern,
         "wiretuner.doc.v1.Cmyk": wiretuner_doc_v1_Cmyk,
         "wiretuner.doc.v1.Color": wiretuner_doc_v1_Color,
         "wiretuner.doc.v1.ColorRef": wiretuner_doc_v1_ColorRef,
+        "wiretuner.doc.v1.ColorSettings": wiretuner_doc_v1_ColorSettings,
         "wiretuner.doc.v1.ColumnsRows": wiretuner_doc_v1_ColumnsRows,
+        "wiretuner.doc.v1.CombineEffect": wiretuner_doc_v1_CombineEffect,
+        "wiretuner.doc.v1.Comment": wiretuner_doc_v1_Comment,
+        "wiretuner.doc.v1.CommentThreadProps": wiretuner_doc_v1_CommentThreadProps,
         "wiretuner.doc.v1.CommonProps": wiretuner_doc_v1_CommonProps,
+        "wiretuner.doc.v1.Component": wiretuner_doc_v1_Component,
         "wiretuner.doc.v1.Contour": wiretuner_doc_v1_Contour,
         "wiretuner.doc.v1.CornerRadii": wiretuner_doc_v1_CornerRadii,
+        "wiretuner.doc.v1.CornersEffect": wiretuner_doc_v1_CornersEffect,
         "wiretuner.doc.v1.CustomFill": wiretuner_doc_v1_CustomFill,
         "wiretuner.doc.v1.CustomPageSize": wiretuner_doc_v1_CustomPageSize,
         "wiretuner.doc.v1.CustomStroke": wiretuner_doc_v1_CustomStroke,
         "wiretuner.doc.v1.CustomUnit": wiretuner_doc_v1_CustomUnit,
+        "wiretuner.doc.v1.CustomViewProps": wiretuner_doc_v1_CustomViewProps,
         "wiretuner.doc.v1.DashPattern": wiretuner_doc_v1_DashPattern,
         "wiretuner.doc.v1.DataBinding": wiretuner_doc_v1_DataBinding,
+        "wiretuner.doc.v1.DataField": wiretuner_doc_v1_DataField,
+        "wiretuner.doc.v1.DataPreview": wiretuner_doc_v1_DataPreview,
+        "wiretuner.doc.v1.DataSource": wiretuner_doc_v1_DataSource,
+        "wiretuner.doc.v1.DataSourceSpec": wiretuner_doc_v1_DataSourceSpec,
         "wiretuner.doc.v1.Defaults": wiretuner_doc_v1_Defaults,
+        "wiretuner.doc.v1.DocumentInfo": wiretuner_doc_v1_DocumentInfo,
         "wiretuner.doc.v1.DocumentProps": wiretuner_doc_v1_DocumentProps,
+        "wiretuner.doc.v1.DuetEffect": wiretuner_doc_v1_DuetEffect,
         "wiretuner.doc.v1.Effect": wiretuner_doc_v1_Effect,
+        "wiretuner.doc.v1.EffectSettings": wiretuner_doc_v1_EffectSettings,
         "wiretuner.doc.v1.ElementId": wiretuner_doc_v1_ElementId,
         "wiretuner.doc.v1.EllipseProps": wiretuner_doc_v1_EllipseProps,
+        "wiretuner.doc.v1.EmbeddedRecords": wiretuner_doc_v1_EmbeddedRecords,
+        "wiretuner.doc.v1.EnvelopeCorners": wiretuner_doc_v1_EnvelopeCorners,
+        "wiretuner.doc.v1.EnvelopeProps": wiretuner_doc_v1_EnvelopeProps,
+        "wiretuner.doc.v1.ExpandPathEffect": wiretuner_doc_v1_ExpandPathEffect,
+        "wiretuner.doc.v1.ExtrudeProps": wiretuner_doc_v1_ExtrudeProps,
         "wiretuner.doc.v1.FeatureSetting": wiretuner_doc_v1_FeatureSetting,
         "wiretuner.doc.v1.FeatureSettings": wiretuner_doc_v1_FeatureSettings,
+        "wiretuner.doc.v1.FieldFormat": wiretuner_doc_v1_FieldFormat,
+        "wiretuner.doc.v1.FieldMapping": wiretuner_doc_v1_FieldMapping,
+        "wiretuner.doc.v1.FileSource": wiretuner_doc_v1_FileSource,
         "wiretuner.doc.v1.Fill": wiretuner_doc_v1_Fill,
         "wiretuner.doc.v1.FillSettings": wiretuner_doc_v1_FillSettings,
+        "wiretuner.doc.v1.FontMetrics": wiretuner_doc_v1_FontMetrics,
+        "wiretuner.doc.v1.FontNames": wiretuner_doc_v1_FontNames,
+        "wiretuner.doc.v1.FontProps": wiretuner_doc_v1_FontProps,
         "wiretuner.doc.v1.FontVariation": wiretuner_doc_v1_FontVariation,
+        "wiretuner.doc.v1.GlyphAnchor": wiretuner_doc_v1_GlyphAnchor,
+        "wiretuner.doc.v1.GlyphProps": wiretuner_doc_v1_GlyphProps,
         "wiretuner.doc.v1.GradientAxis": wiretuner_doc_v1_GradientAxis,
         "wiretuner.doc.v1.GradientFill": wiretuner_doc_v1_GradientFill,
         "wiretuner.doc.v1.GradientStop": wiretuner_doc_v1_GradientStop,
+        "wiretuner.doc.v1.GrayRamp": wiretuner_doc_v1_GrayRamp,
         "wiretuner.doc.v1.GridSettings": wiretuner_doc_v1_GridSettings,
         "wiretuner.doc.v1.GroupProps": wiretuner_doc_v1_GroupProps,
         "wiretuner.doc.v1.Guide": wiretuner_doc_v1_Guide,
         "wiretuner.doc.v1.Halftone": wiretuner_doc_v1_Halftone,
+        "wiretuner.doc.v1.HtmlSetting": wiretuner_doc_v1_HtmlSetting,
+        "wiretuner.doc.v1.HttpHeader": wiretuner_doc_v1_HttpHeader,
+        "wiretuner.doc.v1.HttpParam": wiretuner_doc_v1_HttpParam,
+        "wiretuner.doc.v1.HttpSource": wiretuner_doc_v1_HttpSource,
         "wiretuner.doc.v1.Hyphenation": wiretuner_doc_v1_Hyphenation,
+        "wiretuner.doc.v1.ImageColorSettings": wiretuner_doc_v1_ImageColorSettings,
+        "wiretuner.doc.v1.ImageProps": wiretuner_doc_v1_ImageProps,
+        "wiretuner.doc.v1.Ink": wiretuner_doc_v1_Ink,
         "wiretuner.doc.v1.InlineTint": wiretuner_doc_v1_InlineTint,
         "wiretuner.doc.v1.Inset": wiretuner_doc_v1_Inset,
         "wiretuner.doc.v1.InstanceProps": wiretuner_doc_v1_InstanceProps,
+        "wiretuner.doc.v1.KernClass": wiretuner_doc_v1_KernClass,
+        "wiretuner.doc.v1.KernClassMember": wiretuner_doc_v1_KernClassMember,
+        "wiretuner.doc.v1.KernPair": wiretuner_doc_v1_KernPair,
         "wiretuner.doc.v1.Lab": wiretuner_doc_v1_Lab,
+        "wiretuner.doc.v1.LayerFrameProps": wiretuner_doc_v1_LayerFrameProps,
         "wiretuner.doc.v1.LayerOrigin": wiretuner_doc_v1_LayerOrigin,
         "wiretuner.doc.v1.LayerProps": wiretuner_doc_v1_LayerProps,
         "wiretuner.doc.v1.Leading": wiretuner_doc_v1_Leading,
         "wiretuner.doc.v1.LensFill": wiretuner_doc_v1_LensFill,
         "wiretuner.doc.v1.LibrarySource": wiretuner_doc_v1_LibrarySource,
+        "wiretuner.doc.v1.Light": wiretuner_doc_v1_Light,
+        "wiretuner.doc.v1.LinkSource": wiretuner_doc_v1_LinkSource,
+        "wiretuner.doc.v1.Marks": wiretuner_doc_v1_Marks,
         "wiretuner.doc.v1.MasterPageProps": wiretuner_doc_v1_MasterPageProps,
+        "wiretuner.doc.v1.MetricGuideSettings": wiretuner_doc_v1_MetricGuideSettings,
+        "wiretuner.doc.v1.MetricLine": wiretuner_doc_v1_MetricLine,
         "wiretuner.doc.v1.NavigationProps": wiretuner_doc_v1_NavigationProps,
         "wiretuner.doc.v1.Node": wiretuner_doc_v1_Node,
         "wiretuner.doc.v1.NodeProps": wiretuner_doc_v1_NodeProps,
         "wiretuner.doc.v1.NodeRef": wiretuner_doc_v1_NodeRef,
         "wiretuner.doc.v1.OpId": wiretuner_doc_v1_OpId,
+        "wiretuner.doc.v1.OptionalMetric": wiretuner_doc_v1_OptionalMetric,
+        "wiretuner.doc.v1.Os2Props": wiretuner_doc_v1_Os2Props,
         "wiretuner.doc.v1.Override": wiretuner_doc_v1_Override,
         "wiretuner.doc.v1.PageGeometry": wiretuner_doc_v1_PageGeometry,
         "wiretuner.doc.v1.PageProps": wiretuner_doc_v1_PageProps,
+        "wiretuner.doc.v1.Pagination": wiretuner_doc_v1_Pagination,
         "wiretuner.doc.v1.ParagraphProps": wiretuner_doc_v1_ParagraphProps,
         "wiretuner.doc.v1.ParagraphRule": wiretuner_doc_v1_ParagraphRule,
         "wiretuner.doc.v1.ParagraphSettings": wiretuner_doc_v1_ParagraphSettings,
+        "wiretuner.doc.v1.PastedSource": wiretuner_doc_v1_PastedSource,
         "wiretuner.doc.v1.PathPoint": wiretuner_doc_v1_PathPoint,
         "wiretuner.doc.v1.PathProps": wiretuner_doc_v1_PathProps,
         "wiretuner.doc.v1.PatternBitmap": wiretuner_doc_v1_PatternBitmap,
         "wiretuner.doc.v1.PatternFill": wiretuner_doc_v1_PatternFill,
         "wiretuner.doc.v1.PatternStroke": wiretuner_doc_v1_PatternStroke,
+        "wiretuner.doc.v1.PerspectiveGrid": wiretuner_doc_v1_PerspectiveGrid,
+        "wiretuner.doc.v1.PerspectiveProps": wiretuner_doc_v1_PerspectiveProps,
+        "wiretuner.doc.v1.PixelSource": wiretuner_doc_v1_PixelSource,
+        "wiretuner.doc.v1.PlacedFileContent": wiretuner_doc_v1_PlacedFileContent,
+        "wiretuner.doc.v1.PlacedFileProps": wiretuner_doc_v1_PlacedFileProps,
+        "wiretuner.doc.v1.PlateSettings": wiretuner_doc_v1_PlateSettings,
         "wiretuner.doc.v1.Point": wiretuner_doc_v1_Point,
         "wiretuner.doc.v1.PolygonProps": wiretuner_doc_v1_PolygonProps,
+        "wiretuner.doc.v1.PrintSettings": wiretuner_doc_v1_PrintSettings,
+        "wiretuner.doc.v1.Profile": wiretuner_doc_v1_Profile,
+        "wiretuner.doc.v1.ProfileRef": wiretuner_doc_v1_ProfileRef,
+        "wiretuner.doc.v1.ProofSettings": wiretuner_doc_v1_ProofSettings,
+        "wiretuner.doc.v1.RaggedEffect": wiretuner_doc_v1_RaggedEffect,
+        "wiretuner.doc.v1.RasterEffectSettings": wiretuner_doc_v1_RasterEffectSettings,
+        "wiretuner.doc.v1.Rect": wiretuner_doc_v1_Rect,
         "wiretuner.doc.v1.RectProps": wiretuner_doc_v1_RectProps,
         "wiretuner.doc.v1.Rgb": wiretuner_doc_v1_Rgb,
         "wiretuner.doc.v1.RichText": wiretuner_doc_v1_RichText,
         "wiretuner.doc.v1.RichTextMark": wiretuner_doc_v1_RichTextMark,
+        "wiretuner.doc.v1.Rotation3": wiretuner_doc_v1_Rotation3,
+        "wiretuner.doc.v1.ScriptProps": wiretuner_doc_v1_ScriptProps,
+        "wiretuner.doc.v1.ScriptSource": wiretuner_doc_v1_ScriptSource,
         "wiretuner.doc.v1.SettingsProps": wiretuner_doc_v1_SettingsProps,
+        "wiretuner.doc.v1.ShadowEffect": wiretuner_doc_v1_ShadowEffect,
+        "wiretuner.doc.v1.SharpenEffect": wiretuner_doc_v1_SharpenEffect,
         "wiretuner.doc.v1.Size": wiretuner_doc_v1_Size,
+        "wiretuner.doc.v1.SketchEffect": wiretuner_doc_v1_SketchEffect,
         "wiretuner.doc.v1.SpacingRange": wiretuner_doc_v1_SpacingRange,
         "wiretuner.doc.v1.Stroke": wiretuner_doc_v1_Stroke,
         "wiretuner.doc.v1.StrokeSettings": wiretuner_doc_v1_StrokeSettings,
@@ -189,6 +265,10 @@ public enum WTMergeTable {
         "wiretuner.doc.v1.StyleProps": wiretuner_doc_v1_StyleProps,
         "wiretuner.doc.v1.Subtree": wiretuner_doc_v1_Subtree,
         "wiretuner.doc.v1.SubtreeNode": wiretuner_doc_v1_SubtreeNode,
+        "wiretuner.doc.v1.Surface": wiretuner_doc_v1_Surface,
+        "wiretuner.doc.v1.SvgAnimationKinds": wiretuner_doc_v1_SvgAnimationKinds,
+        "wiretuner.doc.v1.SvgAnimationProps": wiretuner_doc_v1_SvgAnimationProps,
+        "wiretuner.doc.v1.SvgAnimationWebProps": wiretuner_doc_v1_SvgAnimationWebProps,
         "wiretuner.doc.v1.SwatchProps": wiretuner_doc_v1_SwatchProps,
         "wiretuner.doc.v1.SymbolFolderProps": wiretuner_doc_v1_SymbolFolderProps,
         "wiretuner.doc.v1.SymbolProps": wiretuner_doc_v1_SymbolProps,
@@ -208,12 +288,18 @@ public enum WTMergeTable {
         "wiretuner.doc.v1.TexturedFill": wiretuner_doc_v1_TexturedFill,
         "wiretuner.doc.v1.TiledFill": wiretuner_doc_v1_TiledFill,
         "wiretuner.doc.v1.Transform": wiretuner_doc_v1_Transform,
+        "wiretuner.doc.v1.TransformEffect": wiretuner_doc_v1_TransformEffect,
+        "wiretuner.doc.v1.TransparencyEffect": wiretuner_doc_v1_TransparencyEffect,
         "wiretuner.doc.v1.UnitChoice": wiretuner_doc_v1_UnitChoice,
         "wiretuner.doc.v1.UnitDefinition": wiretuner_doc_v1_UnitDefinition,
+        "wiretuner.doc.v1.ViewState": wiretuner_doc_v1_ViewState,
+        "wiretuner.doc.v1.ViewTarget": wiretuner_doc_v1_ViewTarget,
     ]
 
     /// The MERGE_VARIANT messages, by fully qualified proto name.
     public static let variants: [String: VariantPolicy] = [
+        "wiretuner.doc.v1.DataSourceSpec": VariantPolicy(kindField: 1, caseFields: [2, 3, 4, 5]),
+        "wiretuner.doc.v1.EffectSettings": VariantPolicy(kindField: 1, caseFields: [10, 11, 12, 13, 14, 15, 16, 17, 20, 21, 22, 23, 24]),
         "wiretuner.doc.v1.FillSettings": VariantPolicy(kindField: 1, caseFields: [2, 3, 4, 5, 6, 7, 8]),
         "wiretuner.doc.v1.StrokeSettings": VariantPolicy(kindField: 1, caseFields: [2, 3, 4, 5, 6]),
     ]
@@ -324,6 +410,65 @@ public enum WTMergeTable {
         }
       }
     },
+    "wiretuner.doc.v1.AnimationSettings": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "source",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.FrameSource"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "fps",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "loop",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "no_autoplay",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "background",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.AnimationBackground"
+        }
+      }
+    },
     "wiretuner.doc.v1.AppearanceProps": {
       "fields": {
         "1": {
@@ -358,6 +503,17 @@ public enum WTMergeTable {
           "repeated": true,
           "type": "message",
           "type_name": "wiretuner.doc.v1.Effect"
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "raster_dpi",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "uint32",
+          "type_name": null
         }
       }
     },
@@ -405,6 +561,76 @@ public enum WTMergeTable {
           "policy": "ATOMIC",
           "repeated": false,
           "type": "double",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.AssetProps": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "common",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.CommonProps"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "sha256",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bytes",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "byte_size",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "uint64",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "media_type",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "link",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.LinkSource"
+        },
+        "6": {
+          "element_message": null,
+          "local_only": true,
+          "name": "bookmark",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bytes",
           "type_name": null
         }
       }
@@ -538,6 +764,87 @@ public enum WTMergeTable {
         }
       }
     },
+    "wiretuner.doc.v1.BarcodeProps": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "common",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.CommonProps"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "symbology",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.BarcodeSymbology"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "value",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "qr_error_correction",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.QrErrorCorrection"
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "quiet_zone",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "6": {
+          "element_message": null,
+          "local_only": false,
+          "name": "show_text",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "7": {
+          "element_message": null,
+          "local_only": false,
+          "name": "appearance",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.AppearanceProps"
+        }
+      }
+    },
     "wiretuner.doc.v1.BasicFill": {
       "fields": {
         "1": {
@@ -663,6 +970,312 @@ public enum WTMergeTable {
           "policy": "ATOMIC",
           "repeated": false,
           "type": "bool",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.BendEffect": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "size",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "center",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Point"
+        }
+      }
+    },
+    "wiretuner.doc.v1.BevelEmbossEffect": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "style",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.BevelStyle"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "color",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ColorRef"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "width",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "contrast",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "uint32",
+          "type_name": null
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "softness",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "uint32",
+          "type_name": null
+        },
+        "6": {
+          "element_message": null,
+          "local_only": false,
+          "name": "angle",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "7": {
+          "element_message": null,
+          "local_only": false,
+          "name": "edge_shape",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.BevelEdgeShape"
+        },
+        "8": {
+          "element_message": null,
+          "local_only": false,
+          "name": "button_preset",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.BevelButtonPreset"
+        }
+      }
+    },
+    "wiretuner.doc.v1.BlendPoint": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "id",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ElementId"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "object",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.OpId"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "contour",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ElementId"
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "point",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ElementId"
+        }
+      }
+    },
+    "wiretuner.doc.v1.BlendProps": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "common",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.CommonProps"
+        },
+        "10": {
+          "element_message": "wiretuner.doc.v1.BlendPoint",
+          "local_only": false,
+          "name": "blend_points",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "SEQUENCE",
+          "repeated": true,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.BlendPoint"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "steps",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "uint32",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "range_first",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "range_last",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "type",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.BlendType"
+        },
+        "6": {
+          "element_message": null,
+          "local_only": false,
+          "name": "order",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.BlendOrder"
+        },
+        "7": {
+          "element_message": null,
+          "local_only": false,
+          "name": "path",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.NodeRef"
+        },
+        "8": {
+          "element_message": null,
+          "local_only": false,
+          "name": "show_path",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "9": {
+          "element_message": null,
+          "local_only": false,
+          "name": "rotate_on_path",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.BlurEffect": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "style",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.BlurStyle"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "radius",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
           "type_name": null
         }
       }
@@ -1551,6 +2164,54 @@ public enum WTMergeTable {
         }
       }
     },
+    "wiretuner.doc.v1.ClassKern": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "id",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ElementId"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "left",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ElementId"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "right",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ElementId"
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "value",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        }
+      }
+    },
     "wiretuner.doc.v1.Cmyk": {
       "fields": {
         "1": {
@@ -1695,6 +2356,87 @@ public enum WTMergeTable {
         }
       }
     },
+    "wiretuner.doc.v1.ColorSettings": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "rgb_profile",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ProfileRef"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "cmyk_profile",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ProfileRef"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "intent",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.RenderingIntent"
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "no_black_point_compensation",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "no_spot_color_management",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "6": {
+          "element_message": null,
+          "local_only": false,
+          "name": "default_image_rgb_profile",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ProfileRef"
+        },
+        "7": {
+          "element_message": null,
+          "local_only": false,
+          "name": "proof",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ProofSettings"
+        }
+      }
+    },
     "wiretuner.doc.v1.ColumnsRows": {
       "fields": {
         "1": {
@@ -1795,6 +2537,194 @@ public enum WTMergeTable {
           "repeated": false,
           "type": "enum",
           "type_name": "wiretuner.doc.v1.FlowOrder"
+        }
+      }
+    },
+    "wiretuner.doc.v1.CombineEffect": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "op",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.BooleanOp"
+        }
+      }
+    },
+    "wiretuner.doc.v1.Comment": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "id",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ElementId"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "author_account_id",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "body",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "TEXT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.RichText"
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "wall_time_ms",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "int64",
+          "type_name": null
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "edited_wall_time_ms",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "int64",
+          "type_name": null
+        },
+        "6": {
+          "element_message": null,
+          "local_only": false,
+          "name": "mentions",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "SET",
+          "repeated": true,
+          "type": "string",
+          "type_name": null
+        },
+        "7": {
+          "element_message": null,
+          "local_only": false,
+          "name": "reactions",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "SET",
+          "repeated": true,
+          "type": "string",
+          "type_name": null
+        },
+        "8": {
+          "element_message": null,
+          "local_only": false,
+          "name": "deleted",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.CommentThreadProps": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "common",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.CommonProps"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "anchor",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.NodeRef"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "point",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Point"
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "fallback_point",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Point"
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "page",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.NodeRef"
+        },
+        "6": {
+          "element_message": null,
+          "local_only": false,
+          "name": "resolved",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "7": {
+          "element_message": "wiretuner.doc.v1.Comment",
+          "local_only": false,
+          "name": "comments",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "SEQUENCE",
+          "repeated": true,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Comment"
         }
       }
     },
@@ -1956,6 +2886,43 @@ public enum WTMergeTable {
         }
       }
     },
+    "wiretuner.doc.v1.Component": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "id",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ElementId"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "glyph",
+          "on_dangling": "PLACEHOLDER",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.NodeRef"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "transform",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Transform"
+        }
+      }
+    },
     "wiretuner.doc.v1.Contour": {
       "fields": {
         "1": {
@@ -2071,6 +3038,43 @@ public enum WTMergeTable {
           "repeated": false,
           "type": "double",
           "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.CornersEffect": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "radius",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "style",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.CornerStyle"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "points",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "SET",
+          "repeated": true,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ElementId"
         }
       }
     },
@@ -2365,6 +3369,32 @@ public enum WTMergeTable {
         }
       }
     },
+    "wiretuner.doc.v1.CustomViewProps": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "common",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.CommonProps"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "target",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ViewTarget"
+        }
+      }
+    },
     "wiretuner.doc.v1.DashPattern": {
       "fields": {
         "1": {
@@ -2417,6 +3447,209 @@ public enum WTMergeTable {
         }
       }
     },
+    "wiretuner.doc.v1.DataField": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "id",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ElementId"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "name",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "type",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.DataFieldType"
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "format",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.FieldFormat"
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "transform",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.NodeRef"
+        }
+      }
+    },
+    "wiretuner.doc.v1.DataPreview": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "showing",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "record_index",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "uint32",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.DataSource": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "id",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ElementId"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "name",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "spec",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "VARIANT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.DataSourceSpec"
+        },
+        "4": {
+          "element_message": "wiretuner.doc.v1.FieldMapping",
+          "local_only": false,
+          "name": "mapping",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "SEQUENCE",
+          "repeated": true,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.FieldMapping"
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "sample",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.EmbeddedRecords"
+        }
+      }
+    },
+    "wiretuner.doc.v1.DataSourceSpec": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "kind",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.DataSourceKind"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "file",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.FileSource"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "pasted",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.PastedSource"
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "http",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.HttpSource"
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "script",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ScriptSource"
+        }
+      }
+    },
     "wiretuner.doc.v1.Defaults": {
       "fields": {
         "1": {
@@ -2454,6 +3687,230 @@ public enum WTMergeTable {
         }
       }
     },
+    "wiretuner.doc.v1.DocumentInfo": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "title",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "10": {
+          "element_message": null,
+          "local_only": false,
+          "name": "creators",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": true,
+          "type": "string",
+          "type_name": null
+        },
+        "11": {
+          "element_message": null,
+          "local_only": false,
+          "name": "creator_job_title",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "12": {
+          "element_message": null,
+          "local_only": false,
+          "name": "credit",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "13": {
+          "element_message": null,
+          "local_only": false,
+          "name": "source",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "headline",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "20": {
+          "element_message": null,
+          "local_only": false,
+          "name": "copyright_notice",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "21": {
+          "element_message": null,
+          "local_only": false,
+          "name": "copyright_status",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.CopyrightStatus"
+        },
+        "22": {
+          "element_message": null,
+          "local_only": false,
+          "name": "rights_usage_terms",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "23": {
+          "element_message": null,
+          "local_only": false,
+          "name": "web_statement",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "description",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "30": {
+          "element_message": null,
+          "local_only": false,
+          "name": "date_created",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "31": {
+          "element_message": null,
+          "local_only": false,
+          "name": "city",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "32": {
+          "element_message": null,
+          "local_only": false,
+          "name": "state",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "33": {
+          "element_message": null,
+          "local_only": false,
+          "name": "country",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "34": {
+          "element_message": null,
+          "local_only": false,
+          "name": "instructions",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "35": {
+          "element_message": null,
+          "local_only": false,
+          "name": "language",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "keywords",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "SET",
+          "repeated": true,
+          "type": "string",
+          "type_name": null
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "category",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "6": {
+          "element_message": null,
+          "local_only": false,
+          "name": "supplemental_categories",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": true,
+          "type": "string",
+          "type_name": null
+        }
+      }
+    },
     "wiretuner.doc.v1.DocumentProps": {
       "fields": {
         "1": {
@@ -2466,6 +3923,87 @@ public enum WTMergeTable {
           "repeated": false,
           "type": "message",
           "type_name": "wiretuner.doc.v1.CommonProps"
+        }
+      }
+    },
+    "wiretuner.doc.v1.DuetEffect": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "mode",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.DuetMode"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "center",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Point"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "axis_angle",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "copies",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "uint32",
+          "type_name": null
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "joined",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "6": {
+          "element_message": null,
+          "local_only": false,
+          "name": "closed",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "7": {
+          "element_message": null,
+          "local_only": false,
+          "name": "even_odd",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
         }
       }
     },
@@ -2492,6 +4030,186 @@ public enum WTMergeTable {
           "repeated": false,
           "type": "bool",
           "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "attached_to",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ElementId"
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "settings",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "VARIANT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.EffectSettings"
+        }
+      }
+    },
+    "wiretuner.doc.v1.EffectSettings": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "kind",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.EffectKind"
+        },
+        "10": {
+          "element_message": null,
+          "local_only": false,
+          "name": "bend",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.BendEffect"
+        },
+        "11": {
+          "element_message": null,
+          "local_only": false,
+          "name": "duet",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.DuetEffect"
+        },
+        "12": {
+          "element_message": null,
+          "local_only": false,
+          "name": "expand_path",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ExpandPathEffect"
+        },
+        "13": {
+          "element_message": null,
+          "local_only": false,
+          "name": "ragged",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.RaggedEffect"
+        },
+        "14": {
+          "element_message": null,
+          "local_only": false,
+          "name": "sketch",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.SketchEffect"
+        },
+        "15": {
+          "element_message": null,
+          "local_only": false,
+          "name": "transform",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.TransformEffect"
+        },
+        "16": {
+          "element_message": null,
+          "local_only": false,
+          "name": "corners",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.CornersEffect"
+        },
+        "17": {
+          "element_message": null,
+          "local_only": false,
+          "name": "combine",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.CombineEffect"
+        },
+        "20": {
+          "element_message": null,
+          "local_only": false,
+          "name": "bevel_emboss",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.BevelEmbossEffect"
+        },
+        "21": {
+          "element_message": null,
+          "local_only": false,
+          "name": "blur",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.BlurEffect"
+        },
+        "22": {
+          "element_message": null,
+          "local_only": false,
+          "name": "shadow",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ShadowEffect"
+        },
+        "23": {
+          "element_message": null,
+          "local_only": false,
+          "name": "sharpen",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.SharpenEffect"
+        },
+        "24": {
+          "element_message": null,
+          "local_only": false,
+          "name": "transparency",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.TransparencyEffect"
         }
       }
     },
@@ -2555,6 +4273,312 @@ public enum WTMergeTable {
           "repeated": false,
           "type": "message",
           "type_name": "wiretuner.doc.v1.AppearanceProps"
+        }
+      }
+    },
+    "wiretuner.doc.v1.EmbeddedRecords": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "blob_sha256",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bytes",
+          "type_name": null
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "media_type",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "record_count",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "uint32",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "complete",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "fetched_at_ms",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "int64",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.EnvelopeCorners": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "tl",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ElementId"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "tr",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ElementId"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "br",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ElementId"
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "bl",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ElementId"
+        }
+      }
+    },
+    "wiretuner.doc.v1.EnvelopeProps": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "common",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.CommonProps"
+        },
+        "2": {
+          "element_message": "wiretuner.doc.v1.Contour",
+          "local_only": false,
+          "name": "contours",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "SEQUENCE",
+          "repeated": true,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Contour"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "source_bounds",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Rect"
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "corners",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.EnvelopeCorners"
+        },
+        "5": {
+          "element_message": null,
+          "local_only": true,
+          "name": "show_map",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.ExpandPathEffect": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "direction",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.ExpandDirection"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "width",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "cap",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.LineCap"
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "join",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.LineJoin"
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "miter_limit",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.ExtrudeProps": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "common",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.CommonProps"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "length",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "vanishing_point",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Point"
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "z",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "rotation",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Rotation3"
+        },
+        "6": {
+          "element_message": null,
+          "local_only": false,
+          "name": "surface",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Surface"
+        },
+        "7": {
+          "element_message": null,
+          "local_only": false,
+          "name": "profile",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Profile"
         }
       }
     },
@@ -2929,6 +4953,150 @@ public enum WTMergeTable {
         }
       }
     },
+    "wiretuner.doc.v1.FieldFormat": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "pattern",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "locale",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.FieldMapping": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "id",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ElementId"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "field",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ElementId"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "path",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.FileSource": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "format",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.FileFormat"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "file_name",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "delimiter",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "encoding",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "header_row",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "6": {
+          "element_message": null,
+          "local_only": false,
+          "name": "records_path",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "7": {
+          "element_message": null,
+          "local_only": true,
+          "name": "bookmark",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bytes",
+          "type_name": null
+        }
+      }
+    },
     "wiretuner.doc.v1.Fill": {
       "fields": {
         "1": {
@@ -3058,6 +5226,469 @@ public enum WTMergeTable {
         }
       }
     },
+    "wiretuner.doc.v1.FontMetrics": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "upm",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "uint32",
+          "type_name": null
+        },
+        "10": {
+          "element_message": null,
+          "local_only": false,
+          "name": "win_ascent",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.OptionalMetric"
+        },
+        "11": {
+          "element_message": null,
+          "local_only": false,
+          "name": "win_descent",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.OptionalMetric"
+        },
+        "12": {
+          "element_message": null,
+          "local_only": false,
+          "name": "typo_separate",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "13": {
+          "element_message": null,
+          "local_only": false,
+          "name": "typo_ascender",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "14": {
+          "element_message": null,
+          "local_only": false,
+          "name": "typo_descender",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "15": {
+          "element_message": null,
+          "local_only": false,
+          "name": "typo_line_gap",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "ascender",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "descender",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "x_height",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "cap_height",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "6": {
+          "element_message": null,
+          "local_only": false,
+          "name": "italic_angle",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "7": {
+          "element_message": null,
+          "local_only": false,
+          "name": "underline_position",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "8": {
+          "element_message": null,
+          "local_only": false,
+          "name": "underline_thickness",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "9": {
+          "element_message": null,
+          "local_only": false,
+          "name": "line_gap",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.FontNames": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "family",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "10": {
+          "element_message": null,
+          "local_only": false,
+          "name": "manufacturer",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "11": {
+          "element_message": null,
+          "local_only": false,
+          "name": "manufacturer_url",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "12": {
+          "element_message": null,
+          "local_only": false,
+          "name": "description",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "13": {
+          "element_message": null,
+          "local_only": false,
+          "name": "sample_text",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "14": {
+          "element_message": null,
+          "local_only": false,
+          "name": "license",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "15": {
+          "element_message": null,
+          "local_only": false,
+          "name": "license_url",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "style",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "postscript",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "full",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "version",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "6": {
+          "element_message": null,
+          "local_only": false,
+          "name": "copyright",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "7": {
+          "element_message": null,
+          "local_only": false,
+          "name": "trademark",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "8": {
+          "element_message": null,
+          "local_only": false,
+          "name": "designer",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "9": {
+          "element_message": null,
+          "local_only": false,
+          "name": "designer_url",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.FontProps": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "names",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.FontNames"
+        },
+        "10": {
+          "element_message": null,
+          "local_only": false,
+          "name": "omit_generated_mark",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "11": {
+          "element_message": null,
+          "local_only": false,
+          "name": "omit_generated_liga",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "metrics",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.FontMetrics"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "os2",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Os2Props"
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "guides",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.MetricGuideSettings"
+        },
+        "5": {
+          "element_message": "wiretuner.doc.v1.KernPair",
+          "local_only": false,
+          "name": "pairs",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "SEQUENCE",
+          "repeated": true,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.KernPair"
+        },
+        "6": {
+          "element_message": "wiretuner.doc.v1.KernClass",
+          "local_only": false,
+          "name": "classes",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "SEQUENCE",
+          "repeated": true,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.KernClass"
+        },
+        "7": {
+          "element_message": "wiretuner.doc.v1.ClassKern",
+          "local_only": false,
+          "name": "class_kerns",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "SEQUENCE",
+          "repeated": true,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ClassKern"
+        },
+        "8": {
+          "element_message": null,
+          "local_only": false,
+          "name": "features",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "TEXT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.RichText"
+        },
+        "9": {
+          "element_message": null,
+          "local_only": false,
+          "name": "omit_generated_kern",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        }
+      }
+    },
     "wiretuner.doc.v1.FontVariation": {
       "fields": {
         "1": {
@@ -3070,6 +5701,168 @@ public enum WTMergeTable {
           "repeated": true,
           "type": "message",
           "type_name": "wiretuner.doc.v1.Axis"
+        }
+      }
+    },
+    "wiretuner.doc.v1.GlyphAnchor": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "id",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ElementId"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "name",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "position",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Point"
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "role",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.AnchorRole"
+        }
+      }
+    },
+    "wiretuner.doc.v1.GlyphProps": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "common",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.CommonProps"
+        },
+        "10": {
+          "element_message": null,
+          "local_only": false,
+          "name": "mark_color",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "uint32",
+          "type_name": null
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "name",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "codepoints",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "SET",
+          "repeated": true,
+          "type": "uint32",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "advance_width",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "kind",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.GlyphKind"
+        },
+        "6": {
+          "element_message": "wiretuner.doc.v1.Component",
+          "local_only": false,
+          "name": "components",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "SEQUENCE",
+          "repeated": true,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Component"
+        },
+        "7": {
+          "element_message": "wiretuner.doc.v1.GlyphAnchor",
+          "local_only": false,
+          "name": "anchors",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "SEQUENCE",
+          "repeated": true,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.GlyphAnchor"
+        },
+        "8": {
+          "element_message": null,
+          "local_only": false,
+          "name": "skip_export",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "9": {
+          "element_message": "wiretuner.doc.v1.Guide",
+          "local_only": false,
+          "name": "guides",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "SEQUENCE",
+          "repeated": true,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Guide"
         }
       }
     },
@@ -3214,6 +6007,43 @@ public enum WTMergeTable {
           "repeated": false,
           "type": "message",
           "type_name": "wiretuner.doc.v1.ColorRef"
+        }
+      }
+    },
+    "wiretuner.doc.v1.GrayRamp": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "preset",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.GrayRampPreset"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "lightness",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "int32",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "contrast",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "int32",
+          "type_name": null
         }
       }
     },
@@ -3387,6 +6217,363 @@ public enum WTMergeTable {
         }
       }
     },
+    "wiretuner.doc.v1.HtmlSetting": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "id",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ElementId"
+        },
+        "10": {
+          "element_message": null,
+          "local_only": false,
+          "name": "font_mode",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.HtmlFontMode"
+        },
+        "11": {
+          "element_message": null,
+          "local_only": false,
+          "name": "animation_still",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "12": {
+          "element_message": null,
+          "local_only": false,
+          "name": "svg_animation_poster_only",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "13": {
+          "element_message": null,
+          "local_only": false,
+          "name": "background",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.HtmlBackground"
+        },
+        "14": {
+          "element_message": null,
+          "local_only": false,
+          "name": "title",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "15": {
+          "element_message": null,
+          "local_only": false,
+          "name": "allow_scripts",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "name",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": true,
+          "name": "location",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "layout",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.HtmlLayout"
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "page_mode",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.HtmlPageMode"
+        },
+        "6": {
+          "element_message": null,
+          "local_only": false,
+          "name": "vector_format",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.HtmlVectorFormat"
+        },
+        "7": {
+          "element_message": null,
+          "local_only": false,
+          "name": "scale",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "uint32",
+          "type_name": null
+        },
+        "8": {
+          "element_message": null,
+          "local_only": false,
+          "name": "image_format",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.HtmlImageFormat"
+        },
+        "9": {
+          "element_message": null,
+          "local_only": false,
+          "name": "image_quality",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "uint32",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.HttpHeader": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "id",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ElementId"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "name",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "value",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.HttpParam": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "id",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ElementId"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "name",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "default_value",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.HttpSource": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "method",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.HttpMethod"
+        },
+        "10": {
+          "element_message": null,
+          "local_only": false,
+          "name": "max_records",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "uint32",
+          "type_name": null
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "url",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "3": {
+          "element_message": "wiretuner.doc.v1.HttpHeader",
+          "local_only": false,
+          "name": "headers",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "SEQUENCE",
+          "repeated": true,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.HttpHeader"
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "body_template",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "credential_name",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "6": {
+          "element_message": null,
+          "local_only": false,
+          "name": "records_path",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "7": {
+          "element_message": null,
+          "local_only": false,
+          "name": "pagination",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Pagination"
+        },
+        "8": {
+          "element_message": "wiretuner.doc.v1.HttpParam",
+          "local_only": false,
+          "name": "params",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "SEQUENCE",
+          "repeated": true,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.HttpParam"
+        },
+        "9": {
+          "element_message": null,
+          "local_only": false,
+          "name": "timeout_s",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "uint32",
+          "type_name": null
+        }
+      }
+    },
     "wiretuner.doc.v1.Hyphenation": {
       "fields": {
         "1": {
@@ -3432,6 +6619,216 @@ public enum WTMergeTable {
           "repeated": false,
           "type": "bool",
           "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.ImageColorSettings": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "source_profile",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ProfileRef"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "intent",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.RenderingIntent"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "use_embedded",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "embedded_profile",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ProfileRef"
+        }
+      }
+    },
+    "wiretuner.doc.v1.ImageProps": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "common",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.CommonProps"
+        },
+        "10": {
+          "element_message": null,
+          "local_only": false,
+          "name": "crop",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Rect"
+        },
+        "11": {
+          "element_message": null,
+          "local_only": false,
+          "name": "color",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ImageColorSettings"
+        },
+        "12": {
+          "element_message": null,
+          "local_only": false,
+          "name": "source",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.NodeRef"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "pixels",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.PixelSource"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "source_name",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "dpi_x",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "dpi_y",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "6": {
+          "element_message": null,
+          "local_only": false,
+          "name": "display_alpha",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "7": {
+          "element_message": null,
+          "local_only": false,
+          "name": "transparent_background",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "8": {
+          "element_message": null,
+          "local_only": false,
+          "name": "ramp",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.GrayRamp"
+        },
+        "9": {
+          "element_message": null,
+          "local_only": false,
+          "name": "tint",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ColorRef"
+        }
+      }
+    },
+    "wiretuner.doc.v1.Ink": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "process",
+          "on_dangling": "UNSET",
+          "oneof": "ink",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.ProcessInk"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "spot",
+          "on_dangling": "UNSET",
+          "oneof": "ink",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.NodeRef"
         }
       }
     },
@@ -3557,6 +6954,128 @@ public enum WTMergeTable {
         }
       }
     },
+    "wiretuner.doc.v1.KernClass": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "id",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ElementId"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "name",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "side",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.KernSide"
+        },
+        "4": {
+          "element_message": "wiretuner.doc.v1.KernClassMember",
+          "local_only": false,
+          "name": "members",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "SEQUENCE",
+          "repeated": true,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.KernClassMember"
+        }
+      }
+    },
+    "wiretuner.doc.v1.KernClassMember": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "id",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ElementId"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "glyph",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.NodeRef"
+        }
+      }
+    },
+    "wiretuner.doc.v1.KernPair": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "id",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ElementId"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "left",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.NodeRef"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "right",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.NodeRef"
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "value",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        }
+      }
+    },
     "wiretuner.doc.v1.Lab": {
       "fields": {
         "1": {
@@ -3590,6 +7109,32 @@ public enum WTMergeTable {
           "policy": "ATOMIC",
           "repeated": false,
           "type": "double",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.LayerFrameProps": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "hold",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "uint32",
+          "type_name": null
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "excluded",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
           "type_name": null
         }
       }
@@ -3654,6 +7199,17 @@ public enum WTMergeTable {
           "repeated": false,
           "type": "enum",
           "type_name": "wiretuner.doc.v1.LayerRole"
+        },
+        "20": {
+          "element_message": null,
+          "local_only": false,
+          "name": "frame",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.LayerFrameProps"
         },
         "3": {
           "element_message": null,
@@ -3889,6 +7445,150 @@ public enum WTMergeTable {
         }
       }
     },
+    "wiretuner.doc.v1.Light": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "direction",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.LightDirection"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "intensity",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "uint32",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.LinkSource": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "kind",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.LinkKind"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "display_name",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "path",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "device",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "library_document",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "6": {
+          "element_message": null,
+          "local_only": false,
+          "name": "source_modified_ms",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "int64",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.Marks": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "crop",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "registration",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "separation_names",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "file_name_date",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        }
+      }
+    },
     "wiretuner.doc.v1.MasterPageProps": {
       "fields": {
         "1": {
@@ -3934,6 +7634,179 @@ public enum WTMergeTable {
           "repeated": true,
           "type": "message",
           "type_name": "wiretuner.doc.v1.Guide"
+        }
+      }
+    },
+    "wiretuner.doc.v1.MetricGuideSettings": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "hide_baseline",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "10": {
+          "element_message": null,
+          "local_only": false,
+          "name": "metric_color",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Color"
+        },
+        "11": {
+          "element_message": null,
+          "local_only": false,
+          "name": "bearing_color",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Color"
+        },
+        "12": {
+          "element_message": "wiretuner.doc.v1.MetricLine",
+          "local_only": false,
+          "name": "extra_lines",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "SEQUENCE",
+          "repeated": true,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.MetricLine"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "hide_x_height",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "hide_cap_height",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "hide_ascender",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "hide_descender",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "6": {
+          "element_message": null,
+          "local_only": false,
+          "name": "hide_side_bearings",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "7": {
+          "element_message": null,
+          "local_only": false,
+          "name": "hide_em_box",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "8": {
+          "element_message": null,
+          "local_only": false,
+          "name": "hide_labels",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "9": {
+          "element_message": null,
+          "local_only": false,
+          "name": "baseline_color",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Color"
+        }
+      }
+    },
+    "wiretuner.doc.v1.MetricLine": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "id",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ElementId"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "name",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "y",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
         }
       }
     },
@@ -4046,6 +7919,50 @@ public enum WTMergeTable {
           "type": "message",
           "type_name": "wiretuner.doc.v1.DocumentProps"
         },
+        "100": {
+          "element_message": null,
+          "local_only": false,
+          "name": "blend",
+          "on_dangling": "UNSET",
+          "oneof": "kind",
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.BlendProps"
+        },
+        "101": {
+          "element_message": null,
+          "local_only": false,
+          "name": "extrude",
+          "on_dangling": "UNSET",
+          "oneof": "kind",
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ExtrudeProps"
+        },
+        "102": {
+          "element_message": null,
+          "local_only": false,
+          "name": "envelope",
+          "on_dangling": "UNSET",
+          "oneof": "kind",
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.EnvelopeProps"
+        },
+        "103": {
+          "element_message": null,
+          "local_only": false,
+          "name": "perspective",
+          "on_dangling": "UNSET",
+          "oneof": "kind",
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.PerspectiveProps"
+        },
         "130": {
           "element_message": null,
           "local_only": false,
@@ -4112,6 +8029,39 @@ public enum WTMergeTable {
           "type": "message",
           "type_name": "wiretuner.doc.v1.StyleProps"
         },
+        "170": {
+          "element_message": null,
+          "local_only": false,
+          "name": "image",
+          "on_dangling": "UNSET",
+          "oneof": "kind",
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ImageProps"
+        },
+        "171": {
+          "element_message": null,
+          "local_only": false,
+          "name": "placed_file",
+          "on_dangling": "UNSET",
+          "oneof": "kind",
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.PlacedFileProps"
+        },
+        "190": {
+          "element_message": null,
+          "local_only": false,
+          "name": "svg_animation",
+          "on_dangling": "UNSET",
+          "oneof": "kind",
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.SvgAnimationProps"
+        },
         "2": {
           "element_message": null,
           "local_only": false,
@@ -4145,6 +8095,17 @@ public enum WTMergeTable {
           "type": "message",
           "type_name": "wiretuner.doc.v1.RectProps"
         },
+        "210": {
+          "element_message": null,
+          "local_only": false,
+          "name": "comment_thread",
+          "on_dangling": "UNSET",
+          "oneof": "kind",
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.CommentThreadProps"
+        },
         "22": {
           "element_message": null,
           "local_only": false,
@@ -4155,6 +8116,17 @@ public enum WTMergeTable {
           "repeated": false,
           "type": "message",
           "type_name": "wiretuner.doc.v1.EllipseProps"
+        },
+        "220": {
+          "element_message": null,
+          "local_only": false,
+          "name": "glyph",
+          "on_dangling": "UNSET",
+          "oneof": "kind",
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.GlyphProps"
         },
         "23": {
           "element_message": null,
@@ -4178,6 +8150,39 @@ public enum WTMergeTable {
           "type": "message",
           "type_name": "wiretuner.doc.v1.ChartProps"
         },
+        "240": {
+          "element_message": null,
+          "local_only": false,
+          "name": "barcode",
+          "on_dangling": "UNSET",
+          "oneof": "kind",
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.BarcodeProps"
+        },
+        "241": {
+          "element_message": null,
+          "local_only": false,
+          "name": "script",
+          "on_dangling": "UNSET",
+          "oneof": "kind",
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ScriptProps"
+        },
+        "260": {
+          "element_message": null,
+          "local_only": false,
+          "name": "custom_view",
+          "on_dangling": "UNSET",
+          "oneof": "kind",
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.CustomViewProps"
+        },
         "3": {
           "element_message": null,
           "local_only": false,
@@ -4199,6 +8204,17 @@ public enum WTMergeTable {
           "repeated": false,
           "type": "message",
           "type_name": "wiretuner.doc.v1.MasterPageProps"
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "asset",
+          "on_dangling": "UNSET",
+          "oneof": "kind",
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.AssetProps"
         },
         "50": {
           "element_message": null,
@@ -4283,6 +8299,135 @@ public enum WTMergeTable {
           "policy": "ATOMIC",
           "repeated": false,
           "type": "fixed64",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.OptionalMetric": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "computed",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "value",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.Os2Props": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "weight_class",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "uint32",
+          "type_name": null
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "width_class",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "uint32",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "vendor_id",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "style_bold",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "style_italic",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "6": {
+          "element_message": null,
+          "local_only": false,
+          "name": "embedding",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.Embedding"
+        },
+        "7": {
+          "element_message": null,
+          "local_only": false,
+          "name": "no_subsetting",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "8": {
+          "element_message": null,
+          "local_only": false,
+          "name": "bitmap_embedding_only",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "9": {
+          "element_message": null,
+          "local_only": false,
+          "name": "panose",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bytes",
           "type_name": null
         }
       }
@@ -4451,6 +8596,28 @@ public enum WTMergeTable {
           "type": "message",
           "type_name": "wiretuner.doc.v1.Point"
         },
+        "20": {
+          "element_message": null,
+          "local_only": false,
+          "name": "perspective_grid",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ElementId"
+        },
+        "21": {
+          "element_message": null,
+          "local_only": true,
+          "name": "perspective_grid_visible",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
         "3": {
           "element_message": null,
           "local_only": false,
@@ -4505,6 +8672,65 @@ public enum WTMergeTable {
           "repeated": true,
           "type": "message",
           "type_name": "wiretuner.doc.v1.Guide"
+        }
+      }
+    },
+    "wiretuner.doc.v1.Pagination": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "mode",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.PaginationMode"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "next_url_path",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "page_param",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "first_page",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "uint32",
+          "type_name": null
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "max_pages",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "uint32",
+          "type_name": null
         }
       }
     },
@@ -4960,6 +9186,21 @@ public enum WTMergeTable {
         }
       }
     },
+    "wiretuner.doc.v1.PastedSource": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "pasted_at_ms",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "int64",
+          "type_name": null
+        }
+      }
+    },
     "wiretuner.doc.v1.PathPoint": {
       "fields": {
         "1": {
@@ -5189,6 +9430,536 @@ public enum WTMergeTable {
         }
       }
     },
+    "wiretuner.doc.v1.PerspectiveGrid": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "id",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ElementId"
+        },
+        "10": {
+          "element_message": null,
+          "local_only": false,
+          "name": "right_wall_x",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "11": {
+          "element_message": null,
+          "local_only": false,
+          "name": "floor_front_y",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "12": {
+          "element_message": null,
+          "local_only": false,
+          "name": "left_color",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ColorRef"
+        },
+        "13": {
+          "element_message": null,
+          "local_only": false,
+          "name": "right_color",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ColorRef"
+        },
+        "14": {
+          "element_message": null,
+          "local_only": false,
+          "name": "floor_color",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ColorRef"
+        },
+        "15": {
+          "element_message": null,
+          "local_only": false,
+          "name": "left_hidden",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "16": {
+          "element_message": null,
+          "local_only": false,
+          "name": "right_hidden",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "17": {
+          "element_message": null,
+          "local_only": false,
+          "name": "floor_hidden",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "name",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "vanishing_points",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "uint32",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "cell_size",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "horizon_y",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "6": {
+          "element_message": null,
+          "local_only": false,
+          "name": "left_vp",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Point"
+        },
+        "7": {
+          "element_message": null,
+          "local_only": false,
+          "name": "right_vp",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Point"
+        },
+        "8": {
+          "element_message": null,
+          "local_only": false,
+          "name": "vertical_vp",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Point"
+        },
+        "9": {
+          "element_message": null,
+          "local_only": false,
+          "name": "left_wall_x",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.PerspectiveProps": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "common",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.CommonProps"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "plane",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.PerspectivePlane"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "cell_position",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Point"
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "cell_width",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "cell_height",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "6": {
+          "element_message": null,
+          "local_only": false,
+          "name": "flipped",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "7": {
+          "element_message": null,
+          "local_only": false,
+          "name": "grid",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ElementId"
+        }
+      }
+    },
+    "wiretuner.doc.v1.PixelSource": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "blob_sha256",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bytes",
+          "type_name": null
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "format",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "pixel_width",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "int32",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "pixel_height",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "int32",
+          "type_name": null
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "mode",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.ColorMode"
+        },
+        "6": {
+          "element_message": null,
+          "local_only": false,
+          "name": "bits_per_channel",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "int32",
+          "type_name": null
+        },
+        "7": {
+          "element_message": null,
+          "local_only": false,
+          "name": "has_alpha",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.PlacedFileContent": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "format",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.PlacedFileFormat"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "blob_sha256",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bytes",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "source_name",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "bounds",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Rect"
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "preview_sha256",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bytes",
+          "type_name": null
+        },
+        "6": {
+          "element_message": null,
+          "local_only": false,
+          "name": "preview_width",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "int32",
+          "type_name": null
+        },
+        "7": {
+          "element_message": null,
+          "local_only": false,
+          "name": "preview_height",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "int32",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.PlacedFileProps": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "common",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.CommonProps"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "content",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.PlacedFileContent"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "source",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.NodeRef"
+        }
+      }
+    },
+    "wiretuner.doc.v1.PlateSettings": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "id",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ElementId"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "ink",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Ink"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "print",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "angle",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "frequency",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        }
+      }
+    },
     "wiretuner.doc.v1.Point": {
       "fields": {
         "1": {
@@ -5320,6 +10091,551 @@ public enum WTMergeTable {
           "element_message": null,
           "local_only": false,
           "name": "valley_offset",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.PrintSettings": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "separations",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "10": {
+          "element_message": null,
+          "local_only": false,
+          "name": "bleed",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "11": {
+          "element_message": null,
+          "local_only": false,
+          "name": "emulsion_down",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "12": {
+          "element_message": null,
+          "local_only": false,
+          "name": "negative",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "13": {
+          "element_message": null,
+          "local_only": false,
+          "name": "include_hidden_layers",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "14": {
+          "element_message": null,
+          "local_only": false,
+          "name": "flatness",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "15": {
+          "element_message": null,
+          "local_only": false,
+          "name": "text_as_outlines",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "16": {
+          "element_message": null,
+          "local_only": false,
+          "name": "rasterize_dpi",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "17": {
+          "element_message": null,
+          "local_only": false,
+          "name": "spot_as_process",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "18": {
+          "element_message": null,
+          "local_only": false,
+          "name": "default_halftone",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Halftone"
+        },
+        "19": {
+          "element_message": "wiretuner.doc.v1.PlateSettings",
+          "local_only": false,
+          "name": "plates",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "SEQUENCE",
+          "repeated": true,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.PlateSettings"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "scale_mode",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.PrintScaleMode"
+        },
+        "20": {
+          "element_message": null,
+          "local_only": false,
+          "name": "screen_in_app",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "21": {
+          "element_message": null,
+          "local_only": false,
+          "name": "ignore_object_halftones",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "scale_x",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "scale_y",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "offset",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Point"
+        },
+        "6": {
+          "element_message": null,
+          "local_only": false,
+          "name": "tile",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.PrintTileMode"
+        },
+        "7": {
+          "element_message": null,
+          "local_only": false,
+          "name": "tile_overlap",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "8": {
+          "element_message": null,
+          "local_only": false,
+          "name": "print_page_boundary",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "9": {
+          "element_message": null,
+          "local_only": false,
+          "name": "marks",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Marks"
+        }
+      }
+    },
+    "wiretuner.doc.v1.Profile": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "kind",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.ProfileKind"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "path",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Contour"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "angle",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "steps",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "uint32",
+          "type_name": null
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "twist",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.ProfileRef": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "name",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "sha256",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bytes",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "bundled_id",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "space",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.ProfileSpace"
+        }
+      }
+    },
+    "wiretuner.doc.v1.ProofSettings": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "target",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.ProofTarget"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "composite_profile",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ProfileRef"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "composite_simulates_separations",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "simulate_paper_white",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "simulate_black_ink",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.RaggedEffect": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "size",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "frequency",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "copies",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "uint32",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "smooth",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "uniform",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "6": {
+          "element_message": null,
+          "local_only": false,
+          "name": "seed",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "fixed64",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.RasterEffectSettings": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "resolution_ppi",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "uint32",
+          "type_name": null
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "optimal_cmyk",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.Rect": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "x",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "y",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "width",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "height",
           "on_dangling": "UNSET",
           "oneof": null,
           "policy": "ATOMIC",
@@ -5488,6 +10804,106 @@ public enum WTMergeTable {
         }
       }
     },
+    "wiretuner.doc.v1.Rotation3": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "x",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "y",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "z",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.ScriptProps": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "common",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.CommonProps"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "description",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "source",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "library",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.LibrarySource"
+        }
+      }
+    },
+    "wiretuner.doc.v1.ScriptSource": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "script",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.NodeRef"
+        }
+      }
+    },
     "wiretuner.doc.v1.SettingsProps": {
       "fields": {
         "1": {
@@ -5512,6 +10928,17 @@ public enum WTMergeTable {
           "type": "message",
           "type_name": "wiretuner.doc.v1.Defaults"
         },
+        "130": {
+          "element_message": null,
+          "local_only": false,
+          "name": "info",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.DocumentInfo"
+        },
         "2": {
           "element_message": null,
           "local_only": false,
@@ -5522,6 +10949,28 @@ public enum WTMergeTable {
           "repeated": false,
           "type": "message",
           "type_name": "wiretuner.doc.v1.UnitChoice"
+        },
+        "20": {
+          "element_message": null,
+          "local_only": false,
+          "name": "document_kind",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.DocumentKind"
+        },
+        "21": {
+          "element_message": null,
+          "local_only": false,
+          "name": "font",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.FontProps"
         },
         "3": {
           "element_message": null,
@@ -5534,6 +10983,28 @@ public enum WTMergeTable {
           "type": "uint32",
           "type_name": null
         },
+        "30": {
+          "element_message": null,
+          "local_only": false,
+          "name": "output_area",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Rect"
+        },
+        "31": {
+          "element_message": null,
+          "local_only": false,
+          "name": "print",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.PrintSettings"
+        },
         "4": {
           "element_message": null,
           "local_only": false,
@@ -5544,6 +11015,17 @@ public enum WTMergeTable {
           "repeated": false,
           "type": "message",
           "type_name": "wiretuner.doc.v1.GridSettings"
+        },
+        "40": {
+          "element_message": null,
+          "local_only": true,
+          "name": "view",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ViewState"
         },
         "5": {
           "element_message": "wiretuner.doc.v1.CustomPageSize",
@@ -5556,6 +11038,17 @@ public enum WTMergeTable {
           "type": "message",
           "type_name": "wiretuner.doc.v1.CustomPageSize"
         },
+        "50": {
+          "element_message": null,
+          "local_only": false,
+          "name": "color",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ColorSettings"
+        },
         "6": {
           "element_message": "wiretuner.doc.v1.CustomUnit",
           "local_only": false,
@@ -5567,6 +11060,28 @@ public enum WTMergeTable {
           "type": "message",
           "type_name": "wiretuner.doc.v1.CustomUnit"
         },
+        "60": {
+          "element_message": "wiretuner.doc.v1.HtmlSetting",
+          "local_only": false,
+          "name": "html_settings",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "SEQUENCE",
+          "repeated": true,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.HtmlSetting"
+        },
+        "61": {
+          "element_message": null,
+          "local_only": true,
+          "name": "html_setting_selected",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ElementId"
+        },
         "7": {
           "element_message": null,
           "local_only": false,
@@ -5576,6 +11091,201 @@ public enum WTMergeTable {
           "policy": "ATOMIC",
           "repeated": false,
           "type": "bool",
+          "type_name": null
+        },
+        "70": {
+          "element_message": null,
+          "local_only": false,
+          "name": "animation",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.AnimationSettings"
+        },
+        "80": {
+          "element_message": "wiretuner.doc.v1.DataField",
+          "local_only": false,
+          "name": "data_fields",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "SEQUENCE",
+          "repeated": true,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.DataField"
+        },
+        "81": {
+          "element_message": "wiretuner.doc.v1.DataSource",
+          "local_only": false,
+          "name": "data_sources",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "SEQUENCE",
+          "repeated": true,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.DataSource"
+        },
+        "82": {
+          "element_message": null,
+          "local_only": false,
+          "name": "data_source_active",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ElementId"
+        },
+        "83": {
+          "element_message": null,
+          "local_only": true,
+          "name": "data_preview",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.DataPreview"
+        },
+        "90": {
+          "element_message": null,
+          "local_only": false,
+          "name": "raster_effects",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.RasterEffectSettings"
+        },
+        "91": {
+          "element_message": "wiretuner.doc.v1.PerspectiveGrid",
+          "local_only": false,
+          "name": "perspective_grids",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "SEQUENCE",
+          "repeated": true,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.PerspectiveGrid"
+        }
+      }
+    },
+    "wiretuner.doc.v1.ShadowEffect": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "style",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.ShadowStyle"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "color",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ColorRef"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "offset",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "opacity",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "uint32",
+          "type_name": null
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "softness",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "uint32",
+          "type_name": null
+        },
+        "6": {
+          "element_message": null,
+          "local_only": false,
+          "name": "angle",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.SharpenEffect": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "style",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.SharpenStyle"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "amount",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "pixel_radius",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "threshold",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "uint32",
           "type_name": null
         }
       }
@@ -5602,6 +11312,54 @@ public enum WTMergeTable {
           "policy": "ATOMIC",
           "repeated": false,
           "type": "double",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.SketchEffect": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "amount",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "copies",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "uint32",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "closed",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "seed",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "fixed64",
           "type_name": null
         }
       }
@@ -5916,6 +11674,231 @@ public enum WTMergeTable {
           "policy": "ATOMIC",
           "repeated": false,
           "type": "bytes",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.Surface": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "kind",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.SurfaceKind"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "steps",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "uint32",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "ambient",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "uint32",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "light1",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Light"
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "light2",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Light"
+        }
+      }
+    },
+    "wiretuner.doc.v1.SvgAnimationKinds": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "css",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "smil",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "script",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.SvgAnimationProps": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "common",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.CommonProps"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "asset",
+          "on_dangling": "PLACEHOLDER",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.NodeRef"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "natural_size",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Size"
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "duration_ms",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "uint64",
+          "type_name": null
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "kinds",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.SvgAnimationKinds"
+        },
+        "6": {
+          "element_message": null,
+          "local_only": false,
+          "name": "poster_time_ms",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "uint64",
+          "type_name": null
+        },
+        "7": {
+          "element_message": null,
+          "local_only": false,
+          "name": "poster",
+          "on_dangling": "PLACEHOLDER",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.NodeRef"
+        },
+        "8": {
+          "element_message": null,
+          "local_only": false,
+          "name": "web",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.SvgAnimationWebProps"
+        }
+      }
+    },
+    "wiretuner.doc.v1.SvgAnimationWebProps": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "no_autoplay",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "loop",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.LoopMode"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "play_on_hover",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
           "type_name": null
         }
       }
@@ -6662,6 +12645,39 @@ public enum WTMergeTable {
           "type": "message",
           "type_name": "wiretuner.doc.v1.Leading"
         },
+        "40": {
+          "element_message": null,
+          "local_only": false,
+          "name": "link",
+          "on_dangling": "UNSET",
+          "oneof": "value",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "41": {
+          "element_message": null,
+          "local_only": false,
+          "name": "field",
+          "on_dangling": "UNSET",
+          "oneof": "value",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ElementId"
+        },
+        "42": {
+          "element_message": null,
+          "local_only": false,
+          "name": "mention",
+          "on_dangling": "UNSET",
+          "oneof": "value",
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
         "5": {
           "element_message": null,
           "local_only": false,
@@ -7250,6 +13266,168 @@ public enum WTMergeTable {
         }
       }
     },
+    "wiretuner.doc.v1.TransformEffect": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "scale_x",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "scale_y",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "uniform",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "skew_h",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "skew_v",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "6": {
+          "element_message": null,
+          "local_only": false,
+          "name": "rotate",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "7": {
+          "element_message": null,
+          "local_only": false,
+          "name": "move",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Point"
+        },
+        "8": {
+          "element_message": null,
+          "local_only": false,
+          "name": "center",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Point"
+        },
+        "9": {
+          "element_message": null,
+          "local_only": false,
+          "name": "copies",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "uint32",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.TransparencyEffect": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "style",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.TransparencyStyle"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "amount",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "uint32",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "radius",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "softness",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "uint32",
+          "type_name": null
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "mask",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.GradientFill"
+        }
+      }
+    },
     "wiretuner.doc.v1.UnitChoice": {
       "fields": {
         "1": {
@@ -7301,9 +13479,242 @@ public enum WTMergeTable {
           "type_name": "wiretuner.doc.v1.Unit"
         }
       }
+    },
+    "wiretuner.doc.v1.ViewState": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "magnification",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "10": {
+          "element_message": null,
+          "local_only": false,
+          "name": "text_rulers",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "11": {
+          "element_message": null,
+          "local_only": false,
+          "name": "grid_visible",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "12": {
+          "element_message": null,
+          "local_only": false,
+          "name": "guides_visible",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "13": {
+          "element_message": null,
+          "local_only": false,
+          "name": "previous_view",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.OpId"
+        },
+        "14": {
+          "element_message": null,
+          "local_only": false,
+          "name": "previous_view_2",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.OpId"
+        },
+        "15": {
+          "element_message": null,
+          "local_only": false,
+          "name": "rotation_degrees",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "scroll_origin",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Point"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "mode",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.DrawingMode"
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "current_page",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.OpId"
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "snap_to_point",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "6": {
+          "element_message": null,
+          "local_only": false,
+          "name": "snap_to_object",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "7": {
+          "element_message": null,
+          "local_only": false,
+          "name": "snap_to_grid",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "8": {
+          "element_message": null,
+          "local_only": false,
+          "name": "snap_to_guides",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "9": {
+          "element_message": null,
+          "local_only": false,
+          "name": "page_rulers",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.ViewTarget": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "magnification",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "scroll_origin",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.Point"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "mode",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.DrawingMode"
+        }
+      }
     }
   },
   "variants": {
+    "wiretuner.doc.v1.DataSourceSpec": {
+      "case_fields": [
+        2,
+        3,
+        4,
+        5
+      ],
+      "kind_field": 1
+    },
+    "wiretuner.doc.v1.EffectSettings": {
+      "case_fields": [
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        20,
+        21,
+        22,
+        23,
+        24
+      ],
+      "kind_field": 1
+    },
     "wiretuner.doc.v1.FillSettings": {
       "case_fields": [
         2,
@@ -7327,7 +13738,7 @@ public enum WTMergeTable {
       "kind_field": 1
     }
   },
-  "version": "02790b0e1a7df61c0dc890802cc0961ef22e430f33b47f9abaecf57739848fac"
+  "version": "c3932ca67c82671779dcbaf75b48516af6f09d2d41718c0050173791f87cf23e"
 }
 """#
 
@@ -7383,6 +13794,37 @@ public enum WTMergeTable {
         ]
     )
 
+    private static let wiretuner_doc_v1_AnimationSettings = MessagePolicy(
+        name: "wiretuner.doc.v1.AnimationSettings",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "source", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "enum", repeated: false, typeName: "wiretuner.doc.v1.FrameSource",
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "fps", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "loop", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            4: FieldPolicy(
+                fieldNumber: 4, name: "no_autoplay", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            5: FieldPolicy(
+                fieldNumber: 5, name: "background", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "enum", repeated: false, typeName: "wiretuner.doc.v1.AnimationBackground",
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
     private static let wiretuner_doc_v1_AppearanceProps = MessagePolicy(
         name: "wiretuner.doc.v1.AppearanceProps",
         fields: [
@@ -7400,6 +13842,11 @@ public enum WTMergeTable {
                 fieldNumber: 3, name: "effects", policy: .sequence, onDangling: .unset,
                 localOnly: false, type: "message", repeated: true, typeName: "wiretuner.doc.v1.Effect",
                 elementMessage: "wiretuner.doc.v1.Effect", oneof: nil
+            ),
+            4: FieldPolicy(
+                fieldNumber: 4, name: "raster_dpi", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "uint32", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
             ),
         ]
     )
@@ -7425,6 +13872,42 @@ public enum WTMergeTable {
             4: FieldPolicy(
                 fieldNumber: 4, name: "path_trim", policy: .atomic, onDangling: .unset,
                 localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_AssetProps = MessagePolicy(
+        name: "wiretuner.doc.v1.AssetProps",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "common", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.CommonProps",
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "sha256", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bytes", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "byte_size", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "uint64", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            4: FieldPolicy(
+                fieldNumber: 4, name: "media_type", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            5: FieldPolicy(
+                fieldNumber: 5, name: "link", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.LinkSource",
+                elementMessage: nil, oneof: nil
+            ),
+            6: FieldPolicy(
+                fieldNumber: 6, name: "bookmark", policy: .atomic, onDangling: .unset,
+                localOnly: true, type: "bytes", repeated: false, typeName: nil,
                 elementMessage: nil, oneof: nil
             ),
         ]
@@ -7497,6 +13980,47 @@ public enum WTMergeTable {
         ]
     )
 
+    private static let wiretuner_doc_v1_BarcodeProps = MessagePolicy(
+        name: "wiretuner.doc.v1.BarcodeProps",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "common", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.CommonProps",
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "symbology", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "enum", repeated: false, typeName: "wiretuner.doc.v1.BarcodeSymbology",
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "value", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            4: FieldPolicy(
+                fieldNumber: 4, name: "qr_error_correction", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "enum", repeated: false, typeName: "wiretuner.doc.v1.QrErrorCorrection",
+                elementMessage: nil, oneof: nil
+            ),
+            5: FieldPolicy(
+                fieldNumber: 5, name: "quiet_zone", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            6: FieldPolicy(
+                fieldNumber: 6, name: "show_text", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            7: FieldPolicy(
+                fieldNumber: 7, name: "appearance", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.AppearanceProps",
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
     private static let wiretuner_doc_v1_BasicFill = MessagePolicy(
         name: "wiretuner.doc.v1.BasicFill",
         fields: [
@@ -7559,6 +14083,166 @@ public enum WTMergeTable {
             9: FieldPolicy(
                 fieldNumber: 9, name: "overprint", policy: .atomic, onDangling: .unset,
                 localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_BendEffect = MessagePolicy(
+        name: "wiretuner.doc.v1.BendEffect",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "size", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "center", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.Point",
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_BevelEmbossEffect = MessagePolicy(
+        name: "wiretuner.doc.v1.BevelEmbossEffect",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "style", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "enum", repeated: false, typeName: "wiretuner.doc.v1.BevelStyle",
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "color", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ColorRef",
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "width", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            4: FieldPolicy(
+                fieldNumber: 4, name: "contrast", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "uint32", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            5: FieldPolicy(
+                fieldNumber: 5, name: "softness", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "uint32", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            6: FieldPolicy(
+                fieldNumber: 6, name: "angle", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            7: FieldPolicy(
+                fieldNumber: 7, name: "edge_shape", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "enum", repeated: false, typeName: "wiretuner.doc.v1.BevelEdgeShape",
+                elementMessage: nil, oneof: nil
+            ),
+            8: FieldPolicy(
+                fieldNumber: 8, name: "button_preset", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "enum", repeated: false, typeName: "wiretuner.doc.v1.BevelButtonPreset",
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_BlendPoint = MessagePolicy(
+        name: "wiretuner.doc.v1.BlendPoint",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "id", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ElementId",
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "object", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.OpId",
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "contour", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ElementId",
+                elementMessage: nil, oneof: nil
+            ),
+            4: FieldPolicy(
+                fieldNumber: 4, name: "point", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ElementId",
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_BlendProps = MessagePolicy(
+        name: "wiretuner.doc.v1.BlendProps",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "common", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.CommonProps",
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "steps", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "uint32", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "range_first", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            4: FieldPolicy(
+                fieldNumber: 4, name: "range_last", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            5: FieldPolicy(
+                fieldNumber: 5, name: "type", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "enum", repeated: false, typeName: "wiretuner.doc.v1.BlendType",
+                elementMessage: nil, oneof: nil
+            ),
+            6: FieldPolicy(
+                fieldNumber: 6, name: "order", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "enum", repeated: false, typeName: "wiretuner.doc.v1.BlendOrder",
+                elementMessage: nil, oneof: nil
+            ),
+            7: FieldPolicy(
+                fieldNumber: 7, name: "path", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.NodeRef",
+                elementMessage: nil, oneof: nil
+            ),
+            8: FieldPolicy(
+                fieldNumber: 8, name: "show_path", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            9: FieldPolicy(
+                fieldNumber: 9, name: "rotate_on_path", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            10: FieldPolicy(
+                fieldNumber: 10, name: "blend_points", policy: .sequence, onDangling: .unset,
+                localOnly: false, type: "message", repeated: true, typeName: "wiretuner.doc.v1.BlendPoint",
+                elementMessage: "wiretuner.doc.v1.BlendPoint", oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_BlurEffect = MessagePolicy(
+        name: "wiretuner.doc.v1.BlurEffect",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "style", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "enum", repeated: false, typeName: "wiretuner.doc.v1.BlurStyle",
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "radius", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
                 elementMessage: nil, oneof: nil
             ),
         ]
@@ -8016,6 +14700,32 @@ public enum WTMergeTable {
         ]
     )
 
+    private static let wiretuner_doc_v1_ClassKern = MessagePolicy(
+        name: "wiretuner.doc.v1.ClassKern",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "id", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ElementId",
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "left", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ElementId",
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "right", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ElementId",
+                elementMessage: nil, oneof: nil
+            ),
+            4: FieldPolicy(
+                fieldNumber: 4, name: "value", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
     private static let wiretuner_doc_v1_Cmyk = MessagePolicy(
         name: "wiretuner.doc.v1.Cmyk",
         fields: [
@@ -8094,6 +14804,47 @@ public enum WTMergeTable {
         ]
     )
 
+    private static let wiretuner_doc_v1_ColorSettings = MessagePolicy(
+        name: "wiretuner.doc.v1.ColorSettings",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "rgb_profile", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ProfileRef",
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "cmyk_profile", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ProfileRef",
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "intent", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "enum", repeated: false, typeName: "wiretuner.doc.v1.RenderingIntent",
+                elementMessage: nil, oneof: nil
+            ),
+            4: FieldPolicy(
+                fieldNumber: 4, name: "no_black_point_compensation", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            5: FieldPolicy(
+                fieldNumber: 5, name: "no_spot_color_management", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            6: FieldPolicy(
+                fieldNumber: 6, name: "default_image_rgb_profile", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ProfileRef",
+                elementMessage: nil, oneof: nil
+            ),
+            7: FieldPolicy(
+                fieldNumber: 7, name: "proof", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ProofSettings",
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
     private static let wiretuner_doc_v1_ColumnsRows = MessagePolicy(
         name: "wiretuner.doc.v1.ColumnsRows",
         fields: [
@@ -8141,6 +14892,104 @@ public enum WTMergeTable {
                 fieldNumber: 9, name: "flow", policy: .atomic, onDangling: .unset,
                 localOnly: false, type: "enum", repeated: false, typeName: "wiretuner.doc.v1.FlowOrder",
                 elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_CombineEffect = MessagePolicy(
+        name: "wiretuner.doc.v1.CombineEffect",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "op", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "enum", repeated: false, typeName: "wiretuner.doc.v1.BooleanOp",
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_Comment = MessagePolicy(
+        name: "wiretuner.doc.v1.Comment",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "id", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ElementId",
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "author_account_id", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "body", policy: .text, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.RichText",
+                elementMessage: nil, oneof: nil
+            ),
+            4: FieldPolicy(
+                fieldNumber: 4, name: "wall_time_ms", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "int64", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            5: FieldPolicy(
+                fieldNumber: 5, name: "edited_wall_time_ms", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "int64", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            6: FieldPolicy(
+                fieldNumber: 6, name: "mentions", policy: .set, onDangling: .unset,
+                localOnly: false, type: "string", repeated: true, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            7: FieldPolicy(
+                fieldNumber: 7, name: "reactions", policy: .set, onDangling: .unset,
+                localOnly: false, type: "string", repeated: true, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            8: FieldPolicy(
+                fieldNumber: 8, name: "deleted", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_CommentThreadProps = MessagePolicy(
+        name: "wiretuner.doc.v1.CommentThreadProps",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "common", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.CommonProps",
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "anchor", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.NodeRef",
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "point", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.Point",
+                elementMessage: nil, oneof: nil
+            ),
+            4: FieldPolicy(
+                fieldNumber: 4, name: "fallback_point", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.Point",
+                elementMessage: nil, oneof: nil
+            ),
+            5: FieldPolicy(
+                fieldNumber: 5, name: "page", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.NodeRef",
+                elementMessage: nil, oneof: nil
+            ),
+            6: FieldPolicy(
+                fieldNumber: 6, name: "resolved", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            7: FieldPolicy(
+                fieldNumber: 7, name: "comments", policy: .sequence, onDangling: .unset,
+                localOnly: false, type: "message", repeated: true, typeName: "wiretuner.doc.v1.Comment",
+                elementMessage: "wiretuner.doc.v1.Comment", oneof: nil
             ),
         ]
     )
@@ -8221,6 +15070,27 @@ public enum WTMergeTable {
         ]
     )
 
+    private static let wiretuner_doc_v1_Component = MessagePolicy(
+        name: "wiretuner.doc.v1.Component",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "id", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ElementId",
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "glyph", policy: .atomic, onDangling: .placeholder,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.NodeRef",
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "transform", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.Transform",
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
     private static let wiretuner_doc_v1_Contour = MessagePolicy(
         name: "wiretuner.doc.v1.Contour",
         fields: [
@@ -8278,6 +15148,27 @@ public enum WTMergeTable {
             5: FieldPolicy(
                 fieldNumber: 5, name: "bottom_left", policy: .atomic, onDangling: .unset,
                 localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_CornersEffect = MessagePolicy(
+        name: "wiretuner.doc.v1.CornersEffect",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "radius", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "style", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "enum", repeated: false, typeName: "wiretuner.doc.v1.CornerStyle",
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "points", policy: .set, onDangling: .unset,
+                localOnly: false, type: "message", repeated: true, typeName: "wiretuner.doc.v1.ElementId",
                 elementMessage: nil, oneof: nil
             ),
         ]
@@ -8432,6 +15323,22 @@ public enum WTMergeTable {
         ]
     )
 
+    private static let wiretuner_doc_v1_CustomViewProps = MessagePolicy(
+        name: "wiretuner.doc.v1.CustomViewProps",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "common", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.CommonProps",
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "target", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ViewTarget",
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
     private static let wiretuner_doc_v1_DashPattern = MessagePolicy(
         name: "wiretuner.doc.v1.DashPattern",
         fields: [
@@ -8464,6 +15371,115 @@ public enum WTMergeTable {
         ]
     )
 
+    private static let wiretuner_doc_v1_DataField = MessagePolicy(
+        name: "wiretuner.doc.v1.DataField",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "id", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ElementId",
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "name", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "type", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "enum", repeated: false, typeName: "wiretuner.doc.v1.DataFieldType",
+                elementMessage: nil, oneof: nil
+            ),
+            4: FieldPolicy(
+                fieldNumber: 4, name: "format", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.FieldFormat",
+                elementMessage: nil, oneof: nil
+            ),
+            5: FieldPolicy(
+                fieldNumber: 5, name: "transform", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.NodeRef",
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_DataPreview = MessagePolicy(
+        name: "wiretuner.doc.v1.DataPreview",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "showing", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "record_index", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "uint32", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_DataSource = MessagePolicy(
+        name: "wiretuner.doc.v1.DataSource",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "id", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ElementId",
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "name", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "spec", policy: .variant, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.DataSourceSpec",
+                elementMessage: nil, oneof: nil
+            ),
+            4: FieldPolicy(
+                fieldNumber: 4, name: "mapping", policy: .sequence, onDangling: .unset,
+                localOnly: false, type: "message", repeated: true, typeName: "wiretuner.doc.v1.FieldMapping",
+                elementMessage: "wiretuner.doc.v1.FieldMapping", oneof: nil
+            ),
+            5: FieldPolicy(
+                fieldNumber: 5, name: "sample", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.EmbeddedRecords",
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_DataSourceSpec = MessagePolicy(
+        name: "wiretuner.doc.v1.DataSourceSpec",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "kind", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "enum", repeated: false, typeName: "wiretuner.doc.v1.DataSourceKind",
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "file", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.FileSource",
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "pasted", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.PastedSource",
+                elementMessage: nil, oneof: nil
+            ),
+            4: FieldPolicy(
+                fieldNumber: 4, name: "http", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.HttpSource",
+                elementMessage: nil, oneof: nil
+            ),
+            5: FieldPolicy(
+                fieldNumber: 5, name: "script", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ScriptSource",
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
     private static let wiretuner_doc_v1_Defaults = MessagePolicy(
         name: "wiretuner.doc.v1.Defaults",
         fields: [
@@ -8485,12 +15501,159 @@ public enum WTMergeTable {
         ]
     )
 
+    private static let wiretuner_doc_v1_DocumentInfo = MessagePolicy(
+        name: "wiretuner.doc.v1.DocumentInfo",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "title", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "headline", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "description", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            4: FieldPolicy(
+                fieldNumber: 4, name: "keywords", policy: .set, onDangling: .unset,
+                localOnly: false, type: "string", repeated: true, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            5: FieldPolicy(
+                fieldNumber: 5, name: "category", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            6: FieldPolicy(
+                fieldNumber: 6, name: "supplemental_categories", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: true, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            10: FieldPolicy(
+                fieldNumber: 10, name: "creators", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: true, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            11: FieldPolicy(
+                fieldNumber: 11, name: "creator_job_title", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            12: FieldPolicy(
+                fieldNumber: 12, name: "credit", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            13: FieldPolicy(
+                fieldNumber: 13, name: "source", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            20: FieldPolicy(
+                fieldNumber: 20, name: "copyright_notice", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            21: FieldPolicy(
+                fieldNumber: 21, name: "copyright_status", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "enum", repeated: false, typeName: "wiretuner.doc.v1.CopyrightStatus",
+                elementMessage: nil, oneof: nil
+            ),
+            22: FieldPolicy(
+                fieldNumber: 22, name: "rights_usage_terms", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            23: FieldPolicy(
+                fieldNumber: 23, name: "web_statement", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            30: FieldPolicy(
+                fieldNumber: 30, name: "date_created", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            31: FieldPolicy(
+                fieldNumber: 31, name: "city", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            32: FieldPolicy(
+                fieldNumber: 32, name: "state", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            33: FieldPolicy(
+                fieldNumber: 33, name: "country", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            34: FieldPolicy(
+                fieldNumber: 34, name: "instructions", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            35: FieldPolicy(
+                fieldNumber: 35, name: "language", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
     private static let wiretuner_doc_v1_DocumentProps = MessagePolicy(
         name: "wiretuner.doc.v1.DocumentProps",
         fields: [
             1: FieldPolicy(
                 fieldNumber: 1, name: "common", policy: .structure, onDangling: .unset,
                 localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.CommonProps",
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_DuetEffect = MessagePolicy(
+        name: "wiretuner.doc.v1.DuetEffect",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "mode", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "enum", repeated: false, typeName: "wiretuner.doc.v1.DuetMode",
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "center", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.Point",
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "axis_angle", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            4: FieldPolicy(
+                fieldNumber: 4, name: "copies", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "uint32", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            5: FieldPolicy(
+                fieldNumber: 5, name: "joined", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            6: FieldPolicy(
+                fieldNumber: 6, name: "closed", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            7: FieldPolicy(
+                fieldNumber: 7, name: "even_odd", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
                 elementMessage: nil, oneof: nil
             ),
         ]
@@ -8507,6 +15670,92 @@ public enum WTMergeTable {
             2: FieldPolicy(
                 fieldNumber: 2, name: "hidden", policy: .atomic, onDangling: .unset,
                 localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "attached_to", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ElementId",
+                elementMessage: nil, oneof: nil
+            ),
+            4: FieldPolicy(
+                fieldNumber: 4, name: "settings", policy: .variant, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.EffectSettings",
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_EffectSettings = MessagePolicy(
+        name: "wiretuner.doc.v1.EffectSettings",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "kind", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "enum", repeated: false, typeName: "wiretuner.doc.v1.EffectKind",
+                elementMessage: nil, oneof: nil
+            ),
+            10: FieldPolicy(
+                fieldNumber: 10, name: "bend", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.BendEffect",
+                elementMessage: nil, oneof: nil
+            ),
+            11: FieldPolicy(
+                fieldNumber: 11, name: "duet", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.DuetEffect",
+                elementMessage: nil, oneof: nil
+            ),
+            12: FieldPolicy(
+                fieldNumber: 12, name: "expand_path", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ExpandPathEffect",
+                elementMessage: nil, oneof: nil
+            ),
+            13: FieldPolicy(
+                fieldNumber: 13, name: "ragged", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.RaggedEffect",
+                elementMessage: nil, oneof: nil
+            ),
+            14: FieldPolicy(
+                fieldNumber: 14, name: "sketch", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.SketchEffect",
+                elementMessage: nil, oneof: nil
+            ),
+            15: FieldPolicy(
+                fieldNumber: 15, name: "transform", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.TransformEffect",
+                elementMessage: nil, oneof: nil
+            ),
+            16: FieldPolicy(
+                fieldNumber: 16, name: "corners", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.CornersEffect",
+                elementMessage: nil, oneof: nil
+            ),
+            17: FieldPolicy(
+                fieldNumber: 17, name: "combine", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.CombineEffect",
+                elementMessage: nil, oneof: nil
+            ),
+            20: FieldPolicy(
+                fieldNumber: 20, name: "bevel_emboss", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.BevelEmbossEffect",
+                elementMessage: nil, oneof: nil
+            ),
+            21: FieldPolicy(
+                fieldNumber: 21, name: "blur", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.BlurEffect",
+                elementMessage: nil, oneof: nil
+            ),
+            22: FieldPolicy(
+                fieldNumber: 22, name: "shadow", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ShadowEffect",
+                elementMessage: nil, oneof: nil
+            ),
+            23: FieldPolicy(
+                fieldNumber: 23, name: "sharpen", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.SharpenEffect",
+                elementMessage: nil, oneof: nil
+            ),
+            24: FieldPolicy(
+                fieldNumber: 24, name: "transparency", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.TransparencyEffect",
                 elementMessage: nil, oneof: nil
             ),
         ]
@@ -8544,6 +15793,166 @@ public enum WTMergeTable {
             3: FieldPolicy(
                 fieldNumber: 3, name: "appearance", policy: .structure, onDangling: .unset,
                 localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.AppearanceProps",
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_EmbeddedRecords = MessagePolicy(
+        name: "wiretuner.doc.v1.EmbeddedRecords",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "blob_sha256", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bytes", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "media_type", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "record_count", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "uint32", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            4: FieldPolicy(
+                fieldNumber: 4, name: "complete", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            5: FieldPolicy(
+                fieldNumber: 5, name: "fetched_at_ms", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "int64", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_EnvelopeCorners = MessagePolicy(
+        name: "wiretuner.doc.v1.EnvelopeCorners",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "tl", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ElementId",
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "tr", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ElementId",
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "br", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ElementId",
+                elementMessage: nil, oneof: nil
+            ),
+            4: FieldPolicy(
+                fieldNumber: 4, name: "bl", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ElementId",
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_EnvelopeProps = MessagePolicy(
+        name: "wiretuner.doc.v1.EnvelopeProps",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "common", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.CommonProps",
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "contours", policy: .sequence, onDangling: .unset,
+                localOnly: false, type: "message", repeated: true, typeName: "wiretuner.doc.v1.Contour",
+                elementMessage: "wiretuner.doc.v1.Contour", oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "source_bounds", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.Rect",
+                elementMessage: nil, oneof: nil
+            ),
+            4: FieldPolicy(
+                fieldNumber: 4, name: "corners", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.EnvelopeCorners",
+                elementMessage: nil, oneof: nil
+            ),
+            5: FieldPolicy(
+                fieldNumber: 5, name: "show_map", policy: .atomic, onDangling: .unset,
+                localOnly: true, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_ExpandPathEffect = MessagePolicy(
+        name: "wiretuner.doc.v1.ExpandPathEffect",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "direction", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "enum", repeated: false, typeName: "wiretuner.doc.v1.ExpandDirection",
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "width", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "cap", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "enum", repeated: false, typeName: "wiretuner.doc.v1.LineCap",
+                elementMessage: nil, oneof: nil
+            ),
+            4: FieldPolicy(
+                fieldNumber: 4, name: "join", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "enum", repeated: false, typeName: "wiretuner.doc.v1.LineJoin",
+                elementMessage: nil, oneof: nil
+            ),
+            5: FieldPolicy(
+                fieldNumber: 5, name: "miter_limit", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_ExtrudeProps = MessagePolicy(
+        name: "wiretuner.doc.v1.ExtrudeProps",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "common", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.CommonProps",
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "length", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "vanishing_point", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.Point",
+                elementMessage: nil, oneof: nil
+            ),
+            4: FieldPolicy(
+                fieldNumber: 4, name: "z", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            5: FieldPolicy(
+                fieldNumber: 5, name: "rotation", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.Rotation3",
+                elementMessage: nil, oneof: nil
+            ),
+            6: FieldPolicy(
+                fieldNumber: 6, name: "surface", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.Surface",
+                elementMessage: nil, oneof: nil
+            ),
+            7: FieldPolicy(
+                fieldNumber: 7, name: "profile", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.Profile",
                 elementMessage: nil, oneof: nil
             ),
         ]
@@ -8726,6 +16135,84 @@ public enum WTMergeTable {
         ]
     )
 
+    private static let wiretuner_doc_v1_FieldFormat = MessagePolicy(
+        name: "wiretuner.doc.v1.FieldFormat",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "pattern", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "locale", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_FieldMapping = MessagePolicy(
+        name: "wiretuner.doc.v1.FieldMapping",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "id", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ElementId",
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "field", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ElementId",
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "path", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_FileSource = MessagePolicy(
+        name: "wiretuner.doc.v1.FileSource",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "format", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "enum", repeated: false, typeName: "wiretuner.doc.v1.FileFormat",
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "file_name", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "delimiter", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            4: FieldPolicy(
+                fieldNumber: 4, name: "encoding", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            5: FieldPolicy(
+                fieldNumber: 5, name: "header_row", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            6: FieldPolicy(
+                fieldNumber: 6, name: "records_path", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            7: FieldPolicy(
+                fieldNumber: 7, name: "bookmark", policy: .atomic, onDangling: .unset,
+                localOnly: true, type: "bytes", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
     private static let wiretuner_doc_v1_Fill = MessagePolicy(
         name: "wiretuner.doc.v1.Fill",
         fields: [
@@ -8793,12 +16280,317 @@ public enum WTMergeTable {
         ]
     )
 
+    private static let wiretuner_doc_v1_FontMetrics = MessagePolicy(
+        name: "wiretuner.doc.v1.FontMetrics",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "upm", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "uint32", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "ascender", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "descender", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            4: FieldPolicy(
+                fieldNumber: 4, name: "x_height", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            5: FieldPolicy(
+                fieldNumber: 5, name: "cap_height", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            6: FieldPolicy(
+                fieldNumber: 6, name: "italic_angle", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            7: FieldPolicy(
+                fieldNumber: 7, name: "underline_position", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            8: FieldPolicy(
+                fieldNumber: 8, name: "underline_thickness", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            9: FieldPolicy(
+                fieldNumber: 9, name: "line_gap", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            10: FieldPolicy(
+                fieldNumber: 10, name: "win_ascent", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.OptionalMetric",
+                elementMessage: nil, oneof: nil
+            ),
+            11: FieldPolicy(
+                fieldNumber: 11, name: "win_descent", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.OptionalMetric",
+                elementMessage: nil, oneof: nil
+            ),
+            12: FieldPolicy(
+                fieldNumber: 12, name: "typo_separate", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            13: FieldPolicy(
+                fieldNumber: 13, name: "typo_ascender", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            14: FieldPolicy(
+                fieldNumber: 14, name: "typo_descender", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            15: FieldPolicy(
+                fieldNumber: 15, name: "typo_line_gap", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_FontNames = MessagePolicy(
+        name: "wiretuner.doc.v1.FontNames",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "family", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "style", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "postscript", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            4: FieldPolicy(
+                fieldNumber: 4, name: "full", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            5: FieldPolicy(
+                fieldNumber: 5, name: "version", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            6: FieldPolicy(
+                fieldNumber: 6, name: "copyright", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            7: FieldPolicy(
+                fieldNumber: 7, name: "trademark", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            8: FieldPolicy(
+                fieldNumber: 8, name: "designer", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            9: FieldPolicy(
+                fieldNumber: 9, name: "designer_url", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            10: FieldPolicy(
+                fieldNumber: 10, name: "manufacturer", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            11: FieldPolicy(
+                fieldNumber: 11, name: "manufacturer_url", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            12: FieldPolicy(
+                fieldNumber: 12, name: "description", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            13: FieldPolicy(
+                fieldNumber: 13, name: "sample_text", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            14: FieldPolicy(
+                fieldNumber: 14, name: "license", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            15: FieldPolicy(
+                fieldNumber: 15, name: "license_url", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_FontProps = MessagePolicy(
+        name: "wiretuner.doc.v1.FontProps",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "names", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.FontNames",
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "metrics", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.FontMetrics",
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "os2", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.Os2Props",
+                elementMessage: nil, oneof: nil
+            ),
+            4: FieldPolicy(
+                fieldNumber: 4, name: "guides", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.MetricGuideSettings",
+                elementMessage: nil, oneof: nil
+            ),
+            5: FieldPolicy(
+                fieldNumber: 5, name: "pairs", policy: .sequence, onDangling: .unset,
+                localOnly: false, type: "message", repeated: true, typeName: "wiretuner.doc.v1.KernPair",
+                elementMessage: "wiretuner.doc.v1.KernPair", oneof: nil
+            ),
+            6: FieldPolicy(
+                fieldNumber: 6, name: "classes", policy: .sequence, onDangling: .unset,
+                localOnly: false, type: "message", repeated: true, typeName: "wiretuner.doc.v1.KernClass",
+                elementMessage: "wiretuner.doc.v1.KernClass", oneof: nil
+            ),
+            7: FieldPolicy(
+                fieldNumber: 7, name: "class_kerns", policy: .sequence, onDangling: .unset,
+                localOnly: false, type: "message", repeated: true, typeName: "wiretuner.doc.v1.ClassKern",
+                elementMessage: "wiretuner.doc.v1.ClassKern", oneof: nil
+            ),
+            8: FieldPolicy(
+                fieldNumber: 8, name: "features", policy: .text, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.RichText",
+                elementMessage: nil, oneof: nil
+            ),
+            9: FieldPolicy(
+                fieldNumber: 9, name: "omit_generated_kern", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            10: FieldPolicy(
+                fieldNumber: 10, name: "omit_generated_mark", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            11: FieldPolicy(
+                fieldNumber: 11, name: "omit_generated_liga", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
     private static let wiretuner_doc_v1_FontVariation = MessagePolicy(
         name: "wiretuner.doc.v1.FontVariation",
         fields: [
             1: FieldPolicy(
                 fieldNumber: 1, name: "axes", policy: .atomic, onDangling: .unset,
                 localOnly: false, type: "message", repeated: true, typeName: "wiretuner.doc.v1.Axis",
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_GlyphAnchor = MessagePolicy(
+        name: "wiretuner.doc.v1.GlyphAnchor",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "id", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ElementId",
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "name", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "position", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.Point",
+                elementMessage: nil, oneof: nil
+            ),
+            4: FieldPolicy(
+                fieldNumber: 4, name: "role", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "enum", repeated: false, typeName: "wiretuner.doc.v1.AnchorRole",
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_GlyphProps = MessagePolicy(
+        name: "wiretuner.doc.v1.GlyphProps",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "common", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.CommonProps",
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "name", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "codepoints", policy: .set, onDangling: .unset,
+                localOnly: false, type: "uint32", repeated: true, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            4: FieldPolicy(
+                fieldNumber: 4, name: "advance_width", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            5: FieldPolicy(
+                fieldNumber: 5, name: "kind", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "enum", repeated: false, typeName: "wiretuner.doc.v1.GlyphKind",
+                elementMessage: nil, oneof: nil
+            ),
+            6: FieldPolicy(
+                fieldNumber: 6, name: "components", policy: .sequence, onDangling: .unset,
+                localOnly: false, type: "message", repeated: true, typeName: "wiretuner.doc.v1.Component",
+                elementMessage: "wiretuner.doc.v1.Component", oneof: nil
+            ),
+            7: FieldPolicy(
+                fieldNumber: 7, name: "anchors", policy: .sequence, onDangling: .unset,
+                localOnly: false, type: "message", repeated: true, typeName: "wiretuner.doc.v1.GlyphAnchor",
+                elementMessage: "wiretuner.doc.v1.GlyphAnchor", oneof: nil
+            ),
+            8: FieldPolicy(
+                fieldNumber: 8, name: "skip_export", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            9: FieldPolicy(
+                fieldNumber: 9, name: "guides", policy: .sequence, onDangling: .unset,
+                localOnly: false, type: "message", repeated: true, typeName: "wiretuner.doc.v1.Guide",
+                elementMessage: "wiretuner.doc.v1.Guide", oneof: nil
+            ),
+            10: FieldPolicy(
+                fieldNumber: 10, name: "mark_color", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "uint32", repeated: false, typeName: nil,
                 elementMessage: nil, oneof: nil
             ),
         ]
@@ -8877,6 +16669,27 @@ public enum WTMergeTable {
             3: FieldPolicy(
                 fieldNumber: 3, name: "color", policy: .atomic, onDangling: .unset,
                 localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ColorRef",
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_GrayRamp = MessagePolicy(
+        name: "wiretuner.doc.v1.GrayRamp",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "preset", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "enum", repeated: false, typeName: "wiretuner.doc.v1.GrayRampPreset",
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "lightness", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "int32", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "contrast", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "int32", repeated: false, typeName: nil,
                 elementMessage: nil, oneof: nil
             ),
         ]
@@ -8976,6 +16789,185 @@ public enum WTMergeTable {
         ]
     )
 
+    private static let wiretuner_doc_v1_HtmlSetting = MessagePolicy(
+        name: "wiretuner.doc.v1.HtmlSetting",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "id", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ElementId",
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "name", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "location", policy: .atomic, onDangling: .unset,
+                localOnly: true, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            4: FieldPolicy(
+                fieldNumber: 4, name: "layout", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "enum", repeated: false, typeName: "wiretuner.doc.v1.HtmlLayout",
+                elementMessage: nil, oneof: nil
+            ),
+            5: FieldPolicy(
+                fieldNumber: 5, name: "page_mode", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "enum", repeated: false, typeName: "wiretuner.doc.v1.HtmlPageMode",
+                elementMessage: nil, oneof: nil
+            ),
+            6: FieldPolicy(
+                fieldNumber: 6, name: "vector_format", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "enum", repeated: false, typeName: "wiretuner.doc.v1.HtmlVectorFormat",
+                elementMessage: nil, oneof: nil
+            ),
+            7: FieldPolicy(
+                fieldNumber: 7, name: "scale", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "uint32", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            8: FieldPolicy(
+                fieldNumber: 8, name: "image_format", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "enum", repeated: false, typeName: "wiretuner.doc.v1.HtmlImageFormat",
+                elementMessage: nil, oneof: nil
+            ),
+            9: FieldPolicy(
+                fieldNumber: 9, name: "image_quality", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "uint32", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            10: FieldPolicy(
+                fieldNumber: 10, name: "font_mode", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "enum", repeated: false, typeName: "wiretuner.doc.v1.HtmlFontMode",
+                elementMessage: nil, oneof: nil
+            ),
+            11: FieldPolicy(
+                fieldNumber: 11, name: "animation_still", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            12: FieldPolicy(
+                fieldNumber: 12, name: "svg_animation_poster_only", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            13: FieldPolicy(
+                fieldNumber: 13, name: "background", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "enum", repeated: false, typeName: "wiretuner.doc.v1.HtmlBackground",
+                elementMessage: nil, oneof: nil
+            ),
+            14: FieldPolicy(
+                fieldNumber: 14, name: "title", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            15: FieldPolicy(
+                fieldNumber: 15, name: "allow_scripts", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_HttpHeader = MessagePolicy(
+        name: "wiretuner.doc.v1.HttpHeader",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "id", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ElementId",
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "name", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "value", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_HttpParam = MessagePolicy(
+        name: "wiretuner.doc.v1.HttpParam",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "id", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ElementId",
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "name", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "default_value", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_HttpSource = MessagePolicy(
+        name: "wiretuner.doc.v1.HttpSource",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "method", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "enum", repeated: false, typeName: "wiretuner.doc.v1.HttpMethod",
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "url", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "headers", policy: .sequence, onDangling: .unset,
+                localOnly: false, type: "message", repeated: true, typeName: "wiretuner.doc.v1.HttpHeader",
+                elementMessage: "wiretuner.doc.v1.HttpHeader", oneof: nil
+            ),
+            4: FieldPolicy(
+                fieldNumber: 4, name: "body_template", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            5: FieldPolicy(
+                fieldNumber: 5, name: "credential_name", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            6: FieldPolicy(
+                fieldNumber: 6, name: "records_path", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            7: FieldPolicy(
+                fieldNumber: 7, name: "pagination", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.Pagination",
+                elementMessage: nil, oneof: nil
+            ),
+            8: FieldPolicy(
+                fieldNumber: 8, name: "params", policy: .sequence, onDangling: .unset,
+                localOnly: false, type: "message", repeated: true, typeName: "wiretuner.doc.v1.HttpParam",
+                elementMessage: "wiretuner.doc.v1.HttpParam", oneof: nil
+            ),
+            9: FieldPolicy(
+                fieldNumber: 9, name: "timeout_s", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "uint32", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            10: FieldPolicy(
+                fieldNumber: 10, name: "max_records", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "uint32", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
     private static let wiretuner_doc_v1_Hyphenation = MessagePolicy(
         name: "wiretuner.doc.v1.Hyphenation",
         fields: [
@@ -8998,6 +16990,114 @@ public enum WTMergeTable {
                 fieldNumber: 4, name: "skip_capitalized", policy: .atomic, onDangling: .unset,
                 localOnly: false, type: "bool", repeated: false, typeName: nil,
                 elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_ImageColorSettings = MessagePolicy(
+        name: "wiretuner.doc.v1.ImageColorSettings",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "source_profile", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ProfileRef",
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "intent", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "enum", repeated: false, typeName: "wiretuner.doc.v1.RenderingIntent",
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "use_embedded", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            4: FieldPolicy(
+                fieldNumber: 4, name: "embedded_profile", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ProfileRef",
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_ImageProps = MessagePolicy(
+        name: "wiretuner.doc.v1.ImageProps",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "common", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.CommonProps",
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "pixels", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.PixelSource",
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "source_name", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            4: FieldPolicy(
+                fieldNumber: 4, name: "dpi_x", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            5: FieldPolicy(
+                fieldNumber: 5, name: "dpi_y", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            6: FieldPolicy(
+                fieldNumber: 6, name: "display_alpha", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            7: FieldPolicy(
+                fieldNumber: 7, name: "transparent_background", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            8: FieldPolicy(
+                fieldNumber: 8, name: "ramp", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.GrayRamp",
+                elementMessage: nil, oneof: nil
+            ),
+            9: FieldPolicy(
+                fieldNumber: 9, name: "tint", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ColorRef",
+                elementMessage: nil, oneof: nil
+            ),
+            10: FieldPolicy(
+                fieldNumber: 10, name: "crop", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.Rect",
+                elementMessage: nil, oneof: nil
+            ),
+            11: FieldPolicy(
+                fieldNumber: 11, name: "color", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ImageColorSettings",
+                elementMessage: nil, oneof: nil
+            ),
+            12: FieldPolicy(
+                fieldNumber: 12, name: "source", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.NodeRef",
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_Ink = MessagePolicy(
+        name: "wiretuner.doc.v1.Ink",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "process", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "enum", repeated: false, typeName: "wiretuner.doc.v1.ProcessInk",
+                elementMessage: nil, oneof: "ink"
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "spot", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.NodeRef",
+                elementMessage: nil, oneof: "ink"
             ),
         ]
     )
@@ -9070,6 +17170,74 @@ public enum WTMergeTable {
         ]
     )
 
+    private static let wiretuner_doc_v1_KernClass = MessagePolicy(
+        name: "wiretuner.doc.v1.KernClass",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "id", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ElementId",
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "name", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "side", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "enum", repeated: false, typeName: "wiretuner.doc.v1.KernSide",
+                elementMessage: nil, oneof: nil
+            ),
+            4: FieldPolicy(
+                fieldNumber: 4, name: "members", policy: .sequence, onDangling: .unset,
+                localOnly: false, type: "message", repeated: true, typeName: "wiretuner.doc.v1.KernClassMember",
+                elementMessage: "wiretuner.doc.v1.KernClassMember", oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_KernClassMember = MessagePolicy(
+        name: "wiretuner.doc.v1.KernClassMember",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "id", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ElementId",
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "glyph", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.NodeRef",
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_KernPair = MessagePolicy(
+        name: "wiretuner.doc.v1.KernPair",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "id", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ElementId",
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "left", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.NodeRef",
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "right", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.NodeRef",
+                elementMessage: nil, oneof: nil
+            ),
+            4: FieldPolicy(
+                fieldNumber: 4, name: "value", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
     private static let wiretuner_doc_v1_Lab = MessagePolicy(
         name: "wiretuner.doc.v1.Lab",
         fields: [
@@ -9086,6 +17254,22 @@ public enum WTMergeTable {
             3: FieldPolicy(
                 fieldNumber: 3, name: "b", policy: .atomic, onDangling: .unset,
                 localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_LayerFrameProps = MessagePolicy(
+        name: "wiretuner.doc.v1.LayerFrameProps",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "hold", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "uint32", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "excluded", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
                 elementMessage: nil, oneof: nil
             ),
         ]
@@ -9153,6 +17337,11 @@ public enum WTMergeTable {
             8: FieldPolicy(
                 fieldNumber: 8, name: "merged_into", policy: .atomic, onDangling: .unset,
                 localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.NodeRef",
+                elementMessage: nil, oneof: nil
+            ),
+            20: FieldPolicy(
+                fieldNumber: 20, name: "frame", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.LayerFrameProps",
                 elementMessage: nil, oneof: nil
             ),
         ]
@@ -9246,6 +17435,84 @@ public enum WTMergeTable {
         ]
     )
 
+    private static let wiretuner_doc_v1_Light = MessagePolicy(
+        name: "wiretuner.doc.v1.Light",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "direction", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "enum", repeated: false, typeName: "wiretuner.doc.v1.LightDirection",
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "intensity", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "uint32", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_LinkSource = MessagePolicy(
+        name: "wiretuner.doc.v1.LinkSource",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "kind", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "enum", repeated: false, typeName: "wiretuner.doc.v1.LinkKind",
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "display_name", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "path", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            4: FieldPolicy(
+                fieldNumber: 4, name: "device", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            5: FieldPolicy(
+                fieldNumber: 5, name: "library_document", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            6: FieldPolicy(
+                fieldNumber: 6, name: "source_modified_ms", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "int64", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_Marks = MessagePolicy(
+        name: "wiretuner.doc.v1.Marks",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "crop", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "registration", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "separation_names", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            4: FieldPolicy(
+                fieldNumber: 4, name: "file_name_date", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
     private static let wiretuner_doc_v1_MasterPageProps = MessagePolicy(
         name: "wiretuner.doc.v1.MasterPageProps",
         fields: [
@@ -9268,6 +17535,93 @@ public enum WTMergeTable {
                 fieldNumber: 4, name: "guides", policy: .sequence, onDangling: .unset,
                 localOnly: false, type: "message", repeated: true, typeName: "wiretuner.doc.v1.Guide",
                 elementMessage: "wiretuner.doc.v1.Guide", oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_MetricGuideSettings = MessagePolicy(
+        name: "wiretuner.doc.v1.MetricGuideSettings",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "hide_baseline", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "hide_x_height", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "hide_cap_height", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            4: FieldPolicy(
+                fieldNumber: 4, name: "hide_ascender", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            5: FieldPolicy(
+                fieldNumber: 5, name: "hide_descender", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            6: FieldPolicy(
+                fieldNumber: 6, name: "hide_side_bearings", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            7: FieldPolicy(
+                fieldNumber: 7, name: "hide_em_box", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            8: FieldPolicy(
+                fieldNumber: 8, name: "hide_labels", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            9: FieldPolicy(
+                fieldNumber: 9, name: "baseline_color", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.Color",
+                elementMessage: nil, oneof: nil
+            ),
+            10: FieldPolicy(
+                fieldNumber: 10, name: "metric_color", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.Color",
+                elementMessage: nil, oneof: nil
+            ),
+            11: FieldPolicy(
+                fieldNumber: 11, name: "bearing_color", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.Color",
+                elementMessage: nil, oneof: nil
+            ),
+            12: FieldPolicy(
+                fieldNumber: 12, name: "extra_lines", policy: .sequence, onDangling: .unset,
+                localOnly: false, type: "message", repeated: true, typeName: "wiretuner.doc.v1.MetricLine",
+                elementMessage: "wiretuner.doc.v1.MetricLine", oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_MetricLine = MessagePolicy(
+        name: "wiretuner.doc.v1.MetricLine",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "id", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ElementId",
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "name", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "y", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
             ),
         ]
     )
@@ -9347,6 +17701,11 @@ public enum WTMergeTable {
                 localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.MasterPageProps",
                 elementMessage: nil, oneof: "kind"
             ),
+            5: FieldPolicy(
+                fieldNumber: 5, name: "asset", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.AssetProps",
+                elementMessage: nil, oneof: "kind"
+            ),
             20: FieldPolicy(
                 fieldNumber: 20, name: "path", policy: .structure, onDangling: .unset,
                 localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.PathProps",
@@ -9387,6 +17746,26 @@ public enum WTMergeTable {
                 localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.BrushProps",
                 elementMessage: nil, oneof: "kind"
             ),
+            100: FieldPolicy(
+                fieldNumber: 100, name: "blend", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.BlendProps",
+                elementMessage: nil, oneof: "kind"
+            ),
+            101: FieldPolicy(
+                fieldNumber: 101, name: "extrude", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ExtrudeProps",
+                elementMessage: nil, oneof: "kind"
+            ),
+            102: FieldPolicy(
+                fieldNumber: 102, name: "envelope", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.EnvelopeProps",
+                elementMessage: nil, oneof: "kind"
+            ),
+            103: FieldPolicy(
+                fieldNumber: 103, name: "perspective", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.PerspectiveProps",
+                elementMessage: nil, oneof: "kind"
+            ),
             130: FieldPolicy(
                 fieldNumber: 130, name: "text", policy: .structure, onDangling: .unset,
                 localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.TextProps",
@@ -9415,6 +17794,46 @@ public enum WTMergeTable {
             154: FieldPolicy(
                 fieldNumber: 154, name: "style", policy: .structure, onDangling: .unset,
                 localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.StyleProps",
+                elementMessage: nil, oneof: "kind"
+            ),
+            170: FieldPolicy(
+                fieldNumber: 170, name: "image", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ImageProps",
+                elementMessage: nil, oneof: "kind"
+            ),
+            171: FieldPolicy(
+                fieldNumber: 171, name: "placed_file", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.PlacedFileProps",
+                elementMessage: nil, oneof: "kind"
+            ),
+            190: FieldPolicy(
+                fieldNumber: 190, name: "svg_animation", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.SvgAnimationProps",
+                elementMessage: nil, oneof: "kind"
+            ),
+            210: FieldPolicy(
+                fieldNumber: 210, name: "comment_thread", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.CommentThreadProps",
+                elementMessage: nil, oneof: "kind"
+            ),
+            220: FieldPolicy(
+                fieldNumber: 220, name: "glyph", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.GlyphProps",
+                elementMessage: nil, oneof: "kind"
+            ),
+            240: FieldPolicy(
+                fieldNumber: 240, name: "barcode", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.BarcodeProps",
+                elementMessage: nil, oneof: "kind"
+            ),
+            241: FieldPolicy(
+                fieldNumber: 241, name: "script", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ScriptProps",
+                elementMessage: nil, oneof: "kind"
+            ),
+            260: FieldPolicy(
+                fieldNumber: 260, name: "custom_view", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.CustomViewProps",
                 elementMessage: nil, oneof: "kind"
             ),
         ]
@@ -9447,6 +17866,73 @@ public enum WTMergeTable {
             2: FieldPolicy(
                 fieldNumber: 2, name: "replica", policy: .atomic, onDangling: .unset,
                 localOnly: false, type: "fixed64", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_OptionalMetric = MessagePolicy(
+        name: "wiretuner.doc.v1.OptionalMetric",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "computed", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "value", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_Os2Props = MessagePolicy(
+        name: "wiretuner.doc.v1.Os2Props",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "weight_class", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "uint32", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "width_class", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "uint32", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "vendor_id", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            4: FieldPolicy(
+                fieldNumber: 4, name: "style_bold", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            5: FieldPolicy(
+                fieldNumber: 5, name: "style_italic", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            6: FieldPolicy(
+                fieldNumber: 6, name: "embedding", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "enum", repeated: false, typeName: "wiretuner.doc.v1.Embedding",
+                elementMessage: nil, oneof: nil
+            ),
+            7: FieldPolicy(
+                fieldNumber: 7, name: "no_subsetting", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            8: FieldPolicy(
+                fieldNumber: 8, name: "bitmap_embedding_only", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            9: FieldPolicy(
+                fieldNumber: 9, name: "panose", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bytes", repeated: false, typeName: nil,
                 elementMessage: nil, oneof: nil
             ),
         ]
@@ -9561,6 +18047,47 @@ public enum WTMergeTable {
                 fieldNumber: 7, name: "guides", policy: .sequence, onDangling: .unset,
                 localOnly: false, type: "message", repeated: true, typeName: "wiretuner.doc.v1.Guide",
                 elementMessage: "wiretuner.doc.v1.Guide", oneof: nil
+            ),
+            20: FieldPolicy(
+                fieldNumber: 20, name: "perspective_grid", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ElementId",
+                elementMessage: nil, oneof: nil
+            ),
+            21: FieldPolicy(
+                fieldNumber: 21, name: "perspective_grid_visible", policy: .atomic, onDangling: .unset,
+                localOnly: true, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_Pagination = MessagePolicy(
+        name: "wiretuner.doc.v1.Pagination",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "mode", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "enum", repeated: false, typeName: "wiretuner.doc.v1.PaginationMode",
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "next_url_path", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "page_param", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            4: FieldPolicy(
+                fieldNumber: 4, name: "first_page", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "uint32", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            5: FieldPolicy(
+                fieldNumber: 5, name: "max_pages", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "uint32", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
             ),
         ]
     )
@@ -9783,6 +18310,17 @@ public enum WTMergeTable {
         ]
     )
 
+    private static let wiretuner_doc_v1_PastedSource = MessagePolicy(
+        name: "wiretuner.doc.v1.PastedSource",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "pasted_at_ms", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "int64", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
     private static let wiretuner_doc_v1_PathPoint = MessagePolicy(
         name: "wiretuner.doc.v1.PathPoint",
         fields: [
@@ -9908,6 +18446,272 @@ public enum WTMergeTable {
         ]
     )
 
+    private static let wiretuner_doc_v1_PerspectiveGrid = MessagePolicy(
+        name: "wiretuner.doc.v1.PerspectiveGrid",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "id", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ElementId",
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "name", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "vanishing_points", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "uint32", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            4: FieldPolicy(
+                fieldNumber: 4, name: "cell_size", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            5: FieldPolicy(
+                fieldNumber: 5, name: "horizon_y", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            6: FieldPolicy(
+                fieldNumber: 6, name: "left_vp", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.Point",
+                elementMessage: nil, oneof: nil
+            ),
+            7: FieldPolicy(
+                fieldNumber: 7, name: "right_vp", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.Point",
+                elementMessage: nil, oneof: nil
+            ),
+            8: FieldPolicy(
+                fieldNumber: 8, name: "vertical_vp", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.Point",
+                elementMessage: nil, oneof: nil
+            ),
+            9: FieldPolicy(
+                fieldNumber: 9, name: "left_wall_x", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            10: FieldPolicy(
+                fieldNumber: 10, name: "right_wall_x", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            11: FieldPolicy(
+                fieldNumber: 11, name: "floor_front_y", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            12: FieldPolicy(
+                fieldNumber: 12, name: "left_color", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ColorRef",
+                elementMessage: nil, oneof: nil
+            ),
+            13: FieldPolicy(
+                fieldNumber: 13, name: "right_color", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ColorRef",
+                elementMessage: nil, oneof: nil
+            ),
+            14: FieldPolicy(
+                fieldNumber: 14, name: "floor_color", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ColorRef",
+                elementMessage: nil, oneof: nil
+            ),
+            15: FieldPolicy(
+                fieldNumber: 15, name: "left_hidden", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            16: FieldPolicy(
+                fieldNumber: 16, name: "right_hidden", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            17: FieldPolicy(
+                fieldNumber: 17, name: "floor_hidden", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_PerspectiveProps = MessagePolicy(
+        name: "wiretuner.doc.v1.PerspectiveProps",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "common", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.CommonProps",
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "plane", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "enum", repeated: false, typeName: "wiretuner.doc.v1.PerspectivePlane",
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "cell_position", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.Point",
+                elementMessage: nil, oneof: nil
+            ),
+            4: FieldPolicy(
+                fieldNumber: 4, name: "cell_width", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            5: FieldPolicy(
+                fieldNumber: 5, name: "cell_height", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            6: FieldPolicy(
+                fieldNumber: 6, name: "flipped", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            7: FieldPolicy(
+                fieldNumber: 7, name: "grid", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ElementId",
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_PixelSource = MessagePolicy(
+        name: "wiretuner.doc.v1.PixelSource",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "blob_sha256", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bytes", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "format", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "pixel_width", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "int32", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            4: FieldPolicy(
+                fieldNumber: 4, name: "pixel_height", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "int32", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            5: FieldPolicy(
+                fieldNumber: 5, name: "mode", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "enum", repeated: false, typeName: "wiretuner.doc.v1.ColorMode",
+                elementMessage: nil, oneof: nil
+            ),
+            6: FieldPolicy(
+                fieldNumber: 6, name: "bits_per_channel", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "int32", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            7: FieldPolicy(
+                fieldNumber: 7, name: "has_alpha", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_PlacedFileContent = MessagePolicy(
+        name: "wiretuner.doc.v1.PlacedFileContent",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "format", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "enum", repeated: false, typeName: "wiretuner.doc.v1.PlacedFileFormat",
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "blob_sha256", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bytes", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "source_name", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            4: FieldPolicy(
+                fieldNumber: 4, name: "bounds", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.Rect",
+                elementMessage: nil, oneof: nil
+            ),
+            5: FieldPolicy(
+                fieldNumber: 5, name: "preview_sha256", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bytes", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            6: FieldPolicy(
+                fieldNumber: 6, name: "preview_width", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "int32", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            7: FieldPolicy(
+                fieldNumber: 7, name: "preview_height", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "int32", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_PlacedFileProps = MessagePolicy(
+        name: "wiretuner.doc.v1.PlacedFileProps",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "common", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.CommonProps",
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "content", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.PlacedFileContent",
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "source", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.NodeRef",
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_PlateSettings = MessagePolicy(
+        name: "wiretuner.doc.v1.PlateSettings",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "id", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ElementId",
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "ink", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.Ink",
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "print", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            4: FieldPolicy(
+                fieldNumber: 4, name: "angle", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            5: FieldPolicy(
+                fieldNumber: 5, name: "frequency", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
     private static let wiretuner_doc_v1_Point = MessagePolicy(
         name: "wiretuner.doc.v1.Point",
         fields: [
@@ -9975,6 +18779,283 @@ public enum WTMergeTable {
             10: FieldPolicy(
                 fieldNumber: 10, name: "appearance", policy: .structure, onDangling: .unset,
                 localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.AppearanceProps",
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_PrintSettings = MessagePolicy(
+        name: "wiretuner.doc.v1.PrintSettings",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "separations", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "scale_mode", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "enum", repeated: false, typeName: "wiretuner.doc.v1.PrintScaleMode",
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "scale_x", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            4: FieldPolicy(
+                fieldNumber: 4, name: "scale_y", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            5: FieldPolicy(
+                fieldNumber: 5, name: "offset", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.Point",
+                elementMessage: nil, oneof: nil
+            ),
+            6: FieldPolicy(
+                fieldNumber: 6, name: "tile", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "enum", repeated: false, typeName: "wiretuner.doc.v1.PrintTileMode",
+                elementMessage: nil, oneof: nil
+            ),
+            7: FieldPolicy(
+                fieldNumber: 7, name: "tile_overlap", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            8: FieldPolicy(
+                fieldNumber: 8, name: "print_page_boundary", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            9: FieldPolicy(
+                fieldNumber: 9, name: "marks", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.Marks",
+                elementMessage: nil, oneof: nil
+            ),
+            10: FieldPolicy(
+                fieldNumber: 10, name: "bleed", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            11: FieldPolicy(
+                fieldNumber: 11, name: "emulsion_down", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            12: FieldPolicy(
+                fieldNumber: 12, name: "negative", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            13: FieldPolicy(
+                fieldNumber: 13, name: "include_hidden_layers", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            14: FieldPolicy(
+                fieldNumber: 14, name: "flatness", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            15: FieldPolicy(
+                fieldNumber: 15, name: "text_as_outlines", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            16: FieldPolicy(
+                fieldNumber: 16, name: "rasterize_dpi", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            17: FieldPolicy(
+                fieldNumber: 17, name: "spot_as_process", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            18: FieldPolicy(
+                fieldNumber: 18, name: "default_halftone", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.Halftone",
+                elementMessage: nil, oneof: nil
+            ),
+            19: FieldPolicy(
+                fieldNumber: 19, name: "plates", policy: .sequence, onDangling: .unset,
+                localOnly: false, type: "message", repeated: true, typeName: "wiretuner.doc.v1.PlateSettings",
+                elementMessage: "wiretuner.doc.v1.PlateSettings", oneof: nil
+            ),
+            20: FieldPolicy(
+                fieldNumber: 20, name: "screen_in_app", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            21: FieldPolicy(
+                fieldNumber: 21, name: "ignore_object_halftones", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_Profile = MessagePolicy(
+        name: "wiretuner.doc.v1.Profile",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "kind", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "enum", repeated: false, typeName: "wiretuner.doc.v1.ProfileKind",
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "path", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.Contour",
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "angle", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            4: FieldPolicy(
+                fieldNumber: 4, name: "steps", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "uint32", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            5: FieldPolicy(
+                fieldNumber: 5, name: "twist", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_ProfileRef = MessagePolicy(
+        name: "wiretuner.doc.v1.ProfileRef",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "name", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "sha256", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bytes", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "bundled_id", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            4: FieldPolicy(
+                fieldNumber: 4, name: "space", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "enum", repeated: false, typeName: "wiretuner.doc.v1.ProfileSpace",
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_ProofSettings = MessagePolicy(
+        name: "wiretuner.doc.v1.ProofSettings",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "target", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "enum", repeated: false, typeName: "wiretuner.doc.v1.ProofTarget",
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "composite_profile", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ProfileRef",
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "composite_simulates_separations", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            4: FieldPolicy(
+                fieldNumber: 4, name: "simulate_paper_white", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            5: FieldPolicy(
+                fieldNumber: 5, name: "simulate_black_ink", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_RaggedEffect = MessagePolicy(
+        name: "wiretuner.doc.v1.RaggedEffect",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "size", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "frequency", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "copies", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "uint32", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            4: FieldPolicy(
+                fieldNumber: 4, name: "smooth", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            5: FieldPolicy(
+                fieldNumber: 5, name: "uniform", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            6: FieldPolicy(
+                fieldNumber: 6, name: "seed", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "fixed64", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_RasterEffectSettings = MessagePolicy(
+        name: "wiretuner.doc.v1.RasterEffectSettings",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "resolution_ppi", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "uint32", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "optimal_cmyk", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_Rect = MessagePolicy(
+        name: "wiretuner.doc.v1.Rect",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "x", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "y", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "width", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            4: FieldPolicy(
+                fieldNumber: 4, name: "height", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
                 elementMessage: nil, oneof: nil
             ),
         ]
@@ -10069,6 +19150,64 @@ public enum WTMergeTable {
         ]
     )
 
+    private static let wiretuner_doc_v1_Rotation3 = MessagePolicy(
+        name: "wiretuner.doc.v1.Rotation3",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "x", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "y", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "z", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_ScriptProps = MessagePolicy(
+        name: "wiretuner.doc.v1.ScriptProps",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "common", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.CommonProps",
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "description", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "source", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            4: FieldPolicy(
+                fieldNumber: 4, name: "library", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.LibrarySource",
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_ScriptSource = MessagePolicy(
+        name: "wiretuner.doc.v1.ScriptSource",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "script", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.NodeRef",
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
     private static let wiretuner_doc_v1_SettingsProps = MessagePolicy(
         name: "wiretuner.doc.v1.SettingsProps",
         fields: [
@@ -10112,6 +19251,148 @@ public enum WTMergeTable {
                 localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.Defaults",
                 elementMessage: nil, oneof: nil
             ),
+            20: FieldPolicy(
+                fieldNumber: 20, name: "document_kind", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "enum", repeated: false, typeName: "wiretuner.doc.v1.DocumentKind",
+                elementMessage: nil, oneof: nil
+            ),
+            21: FieldPolicy(
+                fieldNumber: 21, name: "font", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.FontProps",
+                elementMessage: nil, oneof: nil
+            ),
+            30: FieldPolicy(
+                fieldNumber: 30, name: "output_area", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.Rect",
+                elementMessage: nil, oneof: nil
+            ),
+            31: FieldPolicy(
+                fieldNumber: 31, name: "print", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.PrintSettings",
+                elementMessage: nil, oneof: nil
+            ),
+            40: FieldPolicy(
+                fieldNumber: 40, name: "view", policy: .structure, onDangling: .unset,
+                localOnly: true, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ViewState",
+                elementMessage: nil, oneof: nil
+            ),
+            50: FieldPolicy(
+                fieldNumber: 50, name: "color", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ColorSettings",
+                elementMessage: nil, oneof: nil
+            ),
+            60: FieldPolicy(
+                fieldNumber: 60, name: "html_settings", policy: .sequence, onDangling: .unset,
+                localOnly: false, type: "message", repeated: true, typeName: "wiretuner.doc.v1.HtmlSetting",
+                elementMessage: "wiretuner.doc.v1.HtmlSetting", oneof: nil
+            ),
+            61: FieldPolicy(
+                fieldNumber: 61, name: "html_setting_selected", policy: .atomic, onDangling: .unset,
+                localOnly: true, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ElementId",
+                elementMessage: nil, oneof: nil
+            ),
+            70: FieldPolicy(
+                fieldNumber: 70, name: "animation", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.AnimationSettings",
+                elementMessage: nil, oneof: nil
+            ),
+            80: FieldPolicy(
+                fieldNumber: 80, name: "data_fields", policy: .sequence, onDangling: .unset,
+                localOnly: false, type: "message", repeated: true, typeName: "wiretuner.doc.v1.DataField",
+                elementMessage: "wiretuner.doc.v1.DataField", oneof: nil
+            ),
+            81: FieldPolicy(
+                fieldNumber: 81, name: "data_sources", policy: .sequence, onDangling: .unset,
+                localOnly: false, type: "message", repeated: true, typeName: "wiretuner.doc.v1.DataSource",
+                elementMessage: "wiretuner.doc.v1.DataSource", oneof: nil
+            ),
+            82: FieldPolicy(
+                fieldNumber: 82, name: "data_source_active", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ElementId",
+                elementMessage: nil, oneof: nil
+            ),
+            83: FieldPolicy(
+                fieldNumber: 83, name: "data_preview", policy: .structure, onDangling: .unset,
+                localOnly: true, type: "message", repeated: false, typeName: "wiretuner.doc.v1.DataPreview",
+                elementMessage: nil, oneof: nil
+            ),
+            90: FieldPolicy(
+                fieldNumber: 90, name: "raster_effects", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.RasterEffectSettings",
+                elementMessage: nil, oneof: nil
+            ),
+            91: FieldPolicy(
+                fieldNumber: 91, name: "perspective_grids", policy: .sequence, onDangling: .unset,
+                localOnly: false, type: "message", repeated: true, typeName: "wiretuner.doc.v1.PerspectiveGrid",
+                elementMessage: "wiretuner.doc.v1.PerspectiveGrid", oneof: nil
+            ),
+            130: FieldPolicy(
+                fieldNumber: 130, name: "info", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.DocumentInfo",
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_ShadowEffect = MessagePolicy(
+        name: "wiretuner.doc.v1.ShadowEffect",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "style", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "enum", repeated: false, typeName: "wiretuner.doc.v1.ShadowStyle",
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "color", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ColorRef",
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "offset", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            4: FieldPolicy(
+                fieldNumber: 4, name: "opacity", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "uint32", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            5: FieldPolicy(
+                fieldNumber: 5, name: "softness", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "uint32", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            6: FieldPolicy(
+                fieldNumber: 6, name: "angle", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_SharpenEffect = MessagePolicy(
+        name: "wiretuner.doc.v1.SharpenEffect",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "style", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "enum", repeated: false, typeName: "wiretuner.doc.v1.SharpenStyle",
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "amount", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "pixel_radius", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            4: FieldPolicy(
+                fieldNumber: 4, name: "threshold", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "uint32", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
         ]
     )
 
@@ -10126,6 +19407,32 @@ public enum WTMergeTable {
             2: FieldPolicy(
                 fieldNumber: 2, name: "height", policy: .atomic, onDangling: .unset,
                 localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_SketchEffect = MessagePolicy(
+        name: "wiretuner.doc.v1.SketchEffect",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "amount", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "copies", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "uint32", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "closed", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            4: FieldPolicy(
+                fieldNumber: 4, name: "seed", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "fixed64", repeated: false, typeName: nil,
                 elementMessage: nil, oneof: nil
             ),
         ]
@@ -10298,6 +19605,125 @@ public enum WTMergeTable {
             2: FieldPolicy(
                 fieldNumber: 2, name: "props", policy: .atomic, onDangling: .unset,
                 localOnly: false, type: "bytes", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_Surface = MessagePolicy(
+        name: "wiretuner.doc.v1.Surface",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "kind", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "enum", repeated: false, typeName: "wiretuner.doc.v1.SurfaceKind",
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "steps", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "uint32", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "ambient", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "uint32", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            4: FieldPolicy(
+                fieldNumber: 4, name: "light1", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.Light",
+                elementMessage: nil, oneof: nil
+            ),
+            5: FieldPolicy(
+                fieldNumber: 5, name: "light2", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.Light",
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_SvgAnimationKinds = MessagePolicy(
+        name: "wiretuner.doc.v1.SvgAnimationKinds",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "css", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "smil", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "script", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_SvgAnimationProps = MessagePolicy(
+        name: "wiretuner.doc.v1.SvgAnimationProps",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "common", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.CommonProps",
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "asset", policy: .atomic, onDangling: .placeholder,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.NodeRef",
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "natural_size", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.Size",
+                elementMessage: nil, oneof: nil
+            ),
+            4: FieldPolicy(
+                fieldNumber: 4, name: "duration_ms", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "uint64", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            5: FieldPolicy(
+                fieldNumber: 5, name: "kinds", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.SvgAnimationKinds",
+                elementMessage: nil, oneof: nil
+            ),
+            6: FieldPolicy(
+                fieldNumber: 6, name: "poster_time_ms", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "uint64", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            7: FieldPolicy(
+                fieldNumber: 7, name: "poster", policy: .atomic, onDangling: .placeholder,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.NodeRef",
+                elementMessage: nil, oneof: nil
+            ),
+            8: FieldPolicy(
+                fieldNumber: 8, name: "web", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.SvgAnimationWebProps",
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_SvgAnimationWebProps = MessagePolicy(
+        name: "wiretuner.doc.v1.SvgAnimationWebProps",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "no_autoplay", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "loop", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "enum", repeated: false, typeName: "wiretuner.doc.v1.LoopMode",
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "play_on_hover", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
                 elementMessage: nil, oneof: nil
             ),
         ]
@@ -10705,6 +20131,21 @@ public enum WTMergeTable {
                 localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.FeatureSetting",
                 elementMessage: nil, oneof: "value"
             ),
+            40: FieldPolicy(
+                fieldNumber: 40, name: "link", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: "value"
+            ),
+            41: FieldPolicy(
+                fieldNumber: 41, name: "field", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ElementId",
+                elementMessage: nil, oneof: "value"
+            ),
+            42: FieldPolicy(
+                fieldNumber: 42, name: "mention", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: "value"
+            ),
         ]
     )
 
@@ -10987,6 +20428,88 @@ public enum WTMergeTable {
         ]
     )
 
+    private static let wiretuner_doc_v1_TransformEffect = MessagePolicy(
+        name: "wiretuner.doc.v1.TransformEffect",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "scale_x", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "scale_y", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "uniform", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            4: FieldPolicy(
+                fieldNumber: 4, name: "skew_h", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            5: FieldPolicy(
+                fieldNumber: 5, name: "skew_v", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            6: FieldPolicy(
+                fieldNumber: 6, name: "rotate", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            7: FieldPolicy(
+                fieldNumber: 7, name: "move", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.Point",
+                elementMessage: nil, oneof: nil
+            ),
+            8: FieldPolicy(
+                fieldNumber: 8, name: "center", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.Point",
+                elementMessage: nil, oneof: nil
+            ),
+            9: FieldPolicy(
+                fieldNumber: 9, name: "copies", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "uint32", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_TransparencyEffect = MessagePolicy(
+        name: "wiretuner.doc.v1.TransparencyEffect",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "style", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "enum", repeated: false, typeName: "wiretuner.doc.v1.TransparencyStyle",
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "amount", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "uint32", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "radius", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            4: FieldPolicy(
+                fieldNumber: 4, name: "softness", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "uint32", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            5: FieldPolicy(
+                fieldNumber: 5, name: "mask", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.GradientFill",
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
     private static let wiretuner_doc_v1_UnitChoice = MessagePolicy(
         name: "wiretuner.doc.v1.UnitChoice",
         fields: [
@@ -11014,6 +20537,108 @@ public enum WTMergeTable {
             2: FieldPolicy(
                 fieldNumber: 2, name: "base", policy: .atomic, onDangling: .unset,
                 localOnly: false, type: "enum", repeated: false, typeName: "wiretuner.doc.v1.Unit",
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_ViewState = MessagePolicy(
+        name: "wiretuner.doc.v1.ViewState",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "magnification", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "scroll_origin", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.Point",
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "mode", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "enum", repeated: false, typeName: "wiretuner.doc.v1.DrawingMode",
+                elementMessage: nil, oneof: nil
+            ),
+            4: FieldPolicy(
+                fieldNumber: 4, name: "current_page", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.OpId",
+                elementMessage: nil, oneof: nil
+            ),
+            5: FieldPolicy(
+                fieldNumber: 5, name: "snap_to_point", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            6: FieldPolicy(
+                fieldNumber: 6, name: "snap_to_object", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            7: FieldPolicy(
+                fieldNumber: 7, name: "snap_to_grid", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            8: FieldPolicy(
+                fieldNumber: 8, name: "snap_to_guides", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            9: FieldPolicy(
+                fieldNumber: 9, name: "page_rulers", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            10: FieldPolicy(
+                fieldNumber: 10, name: "text_rulers", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            11: FieldPolicy(
+                fieldNumber: 11, name: "grid_visible", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            12: FieldPolicy(
+                fieldNumber: 12, name: "guides_visible", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            13: FieldPolicy(
+                fieldNumber: 13, name: "previous_view", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.OpId",
+                elementMessage: nil, oneof: nil
+            ),
+            14: FieldPolicy(
+                fieldNumber: 14, name: "previous_view_2", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.OpId",
+                elementMessage: nil, oneof: nil
+            ),
+            15: FieldPolicy(
+                fieldNumber: 15, name: "rotation_degrees", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_ViewTarget = MessagePolicy(
+        name: "wiretuner.doc.v1.ViewTarget",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "magnification", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "scroll_origin", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.Point",
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "mode", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "enum", repeated: false, typeName: "wiretuner.doc.v1.DrawingMode",
                 elementMessage: nil, oneof: nil
             ),
         ]

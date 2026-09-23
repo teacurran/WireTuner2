@@ -1,0 +1,59 @@
+// proto/wiretuner/doc/v1/barcode.proto
+//
+// The `barcode` node kind (docs/_includes/automation/data-merge.adoc, DATA-001).  Drawn by
+// WTRender from `value` or, when CommonProps.data_binding.kind is TEXT, from the bound field's
+// value; the bars take the node's first fill and the background is clear.  Natural size: one
+// module = 1 pt (QR), one narrow bar = 1 pt (Code 128), then CommonProps.transform.
+syntax = "proto3";
+
+package wiretuner.doc.v1;
+
+import "buf/validate/validate.proto";
+import "wiretuner/doc/v1/appearance.proto";
+import "wiretuner/doc/v1/common.proto";
+
+option java_multiple_files = true;
+option java_package = "com.villagecompute.wiretuner.doc.v1";
+option optimize_for = SPEED;
+
+// Barcode symbologies.
+enum BarcodeSymbology {
+  // Reads as QR.
+  BARCODE_SYMBOLOGY_UNSPECIFIED = 0;
+  // QR code.
+  BARCODE_SYMBOLOGY_QR = 1;
+  // Code 128.
+  BARCODE_SYMBOLOGY_CODE_128 = 2;
+}
+
+// QR error correction levels.
+enum QrErrorCorrection {
+  // Reads as M.
+  QR_ERROR_CORRECTION_UNSPECIFIED = 0;
+  // About 7% recovery.
+  QR_ERROR_CORRECTION_L = 1;
+  // About 15% recovery.
+  QR_ERROR_CORRECTION_M = 2;
+  // About 25% recovery.
+  QR_ERROR_CORRECTION_Q = 3;
+  // About 30% recovery.
+  QR_ERROR_CORRECTION_H = 4;
+}
+
+// NodeProps.kind case `barcode` (DATA block).  STRUCT.
+message BarcodeProps {
+  // Name, transform, data binding and the other shared registers.
+  CommonProps common = 1;
+  // QR or Code 128.
+  BarcodeSymbology symbology = 2 [(buf.validate.field).enum.defined_only = true];
+  // Fixed content; ignored while bound.
+  string value = 3 [(buf.validate.field).string.max_len = 4096];
+  // QR only.
+  QrErrorCorrection qr_error_correction = 4 [(buf.validate.field).enum.defined_only = true];
+  // Modules (QR; 0 never set reads as 4) or points (Code 128; reads as 10).
+  double quiet_zone = 5 [(buf.validate.field).double.gte = 0];
+  // Code 128: the human-readable line under the bars.
+  bool show_text = 6;
+  // The attribute stack; only the first fill is used.
+  AppearanceProps appearance = 7;
+}

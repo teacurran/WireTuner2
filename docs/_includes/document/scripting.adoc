@@ -285,19 +285,20 @@ document.  Script nodes live under the well-known `assets` collection (0:9).
 
 [source,protobuf]
 ----
-// proto/wiretuner/doc/v1/script.proto (sketch; numbers in the DATA block)
+// proto/wiretuner/doc/v1/script.proto (DATA-001; `script` = 241 in the DATA block)
 
 // NodeProps.kind case `script`.  A script is saved whole from the Script Editor, so
 // `source` is one ATOMIC register: a script is always run as last saved by somebody, never
-// as a character-level merge of two people's edits.  Name and description are independent
-// registers.
+// as a character-level merge of two people's edits.  Name (CommonProps.name, as for every
+// named kind) and description are independent registers.
 message ScriptProps {
-  string name = 1 [(buf.validate.field).string.max_len = 128];
+  CommonProps common = 1;
   string description = 2 [(buf.validate.field).string.max_len = 1024];
   string source = 3 [(buf.validate.field).string.max_len = 1048576,
                      (wt.crdt.field).merge = MERGE_ATOMIC];
   // Set when copied from a team library so *Update from Library* can find the original.
-  LibraryProvenance library = 4 [(wt.crdt.field).merge = MERGE_ATOMIC];   // LIB epic message
+  // The LIB epic's LibrarySource (symbol.proto): document id, node, server_seq.
+  LibrarySource library = 4 [(wt.crdt.field).merge = MERGE_ATOMIC];
 }
 ----
 

@@ -1,0 +1,71 @@
+// proto/wiretuner/doc/v1/asset.proto
+//
+// The `asset` node kind (docs/_includes/document/linking-embedding.adoc, DOC-021): an imported
+// file's blob and link record, a child of the well-known assets node 0:9.  Placed images,
+// placed files and SVG animations reference their asset by NodeRef.  The asset's display name
+// is CommonProps.name.
+syntax = "proto3";
+
+package wiretuner.doc.v1;
+
+import "buf/validate/validate.proto";
+import "wiretuner/doc/v1/common.proto";
+import "wt/crdt/options.proto";
+
+option java_multiple_files = true;
+option java_package = "com.villagecompute.wiretuner.doc.v1";
+option optimize_for = SPEED;
+
+// Where an asset's content comes from.
+enum LinkKind {
+  // Reads as EMBEDDED.
+  LINK_KIND_UNSPECIFIED = 0;
+  // No source; the blob is the truth.
+  LINK_KIND_EMBEDDED = 1;
+  // A path on the Mac named by `device`.
+  LINK_KIND_LOCAL_FILE = 2;
+  // A document in the cloud library (an image asset document).
+  LINK_KIND_LIBRARY = 3;
+}
+
+// Where the content came from.  ATOMIC wherever used: kind, path, device and modification time
+// describe one source; a path from one relink with a device from another names a file that
+// never existed.
+message LinkSource {
+  // Embedded, local file or library.
+  LinkKind kind = 1 [(buf.validate.field).enum.defined_only = true];
+  // The source's name as shown in the Links window.
+  string display_name = 2 [(buf.validate.field).string.max_len = 256];
+  // POSIX path, for LOCAL_FILE.
+  string path = 3 [(buf.validate.field).string.max_len = 4096];
+  // wt-device id of the Mac that owns `path`, shown as the user's name.
+  string device = 4 [(buf.validate.field).string.max_len = 64];
+  // UUIDv7 of the library document, for LIBRARY.
+  string library_document = 5 [(buf.validate.field).string.max_len = 36];
+  // Modification time of the source when the blob was last read from it, Unix milliseconds.
+  int64 source_modified_ms = 6;
+}
+
+// NodeProps.kind case `asset` (DOC block).  STRUCT: Update and Change write `sha256`,
+// `byte_size`, `media_type` and `link` in one change.
+message AssetProps {
+  // The display name and the other shared registers.
+  CommonProps common = 1;
+  // SHA-256 of the current blob (32 bytes, content-addressed).
+  bytes sha256 = 2 [
+    (buf.validate.field).bytes.len = 32,
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+  // Size of the blob in bytes.
+  uint64 byte_size = 3;
+  // "image/tiff", "application/pdf", ...
+  string media_type = 4 [(buf.validate.field).string.max_len = 128];
+  // The source.  ATOMIC.
+  LinkSource link = 5 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Security-scoped bookmark for `link.path`; only meaningful on the device that made it.
+  // Never leaves the device.
+  bytes bookmark = 6 [
+    (wt.crdt.field).local_only = true,
+    (buf.validate.field).bytes.max_len = 65536
+  ];
+}

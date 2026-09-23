@@ -121,7 +121,7 @@ fields of the asset.
 // proto/wiretuner/doc/v1/asset.proto (DOC epic sketch; the IMG epic adds image-specific fields)
 
 enum LinkKind {
-  LINK_KIND_UNSPECIFIED = 0;
+  LINK_KIND_UNSPECIFIED = 0;  // reads as EMBEDDED
   LINK_KIND_EMBEDDED = 1;     // no source; the blob is the truth
   LINK_KIND_LOCAL_FILE = 2;   // a path on the Mac named by `link.device`
   LINK_KIND_LIBRARY = 3;      // a document in the cloud library (an image asset document)
@@ -138,13 +138,15 @@ message LinkSource {
   int64 source_modified_ms = 6;  // mtime of the source when the blob was last read from it
 }
 
+// NodeProps.kind case `asset` = 5 (DOC block).  The display name is CommonProps.name.
 message AssetProps {
-  bytes sha256 = 1 [(buf.validate.field).bytes.len = 32];   // current blob (content-addressed)
-  uint64 byte_size = 2;
-  string media_type = 3 [(buf.validate.field).string.max_len = 128];   // "image/tiff", "application/pdf", ...
-  LinkSource link = 4 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  CommonProps common = 1;
+  bytes sha256 = 2 [(buf.validate.field).bytes.len = 32];   // current blob (content-addressed); IGNORE_IF_ZERO_VALUE
+  uint64 byte_size = 3;
+  string media_type = 4 [(buf.validate.field).string.max_len = 128];   // "image/tiff", "application/pdf", ...
+  LinkSource link = 5 [(wt.crdt.field).merge = MERGE_ATOMIC];
   // Security-scoped bookmark for `link.path`; only meaningful on the device that made it.
-  bytes bookmark = 5 [(wt.crdt.field).local_only = true];
+  bytes bookmark = 6 [(wt.crdt.field).local_only = true];
 }
 ----
 
@@ -209,7 +211,7 @@ retention.
 Track:: proto
 Depends on:: DOC-001
 Size:: S
-Delivers:: `doc/v1/asset.proto` with `AssetProps`, `LinkSource`, `LinkKind`, the `asset` case in `NodeProps.kind`, and validation.
+Delivers:: `doc/v1/asset.proto` with `AssetProps`, `LinkSource`, `LinkKind`, the `asset` case in `NodeProps.kind`, and validation (implemented in `asset.proto`; `asset` = 5).
 Done when::
 * Lints clean; `bookmark` is `local_only`; `link` is ATOMIC in the generated merge table.
 * Conformance vectors: concurrent `link` writes; `bookmark` never appears in a serialized change.

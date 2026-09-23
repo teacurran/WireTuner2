@@ -15,6 +15,7 @@ syntax = "proto3";
 
 package wiretuner.doc.v1;
 
+import "buf/validate/validate.proto";
 import "wiretuner/doc/v1/common.proto";
 import "wiretuner/doc/v1/effects.proto";
 import "wiretuner/doc/v1/fill.proto";
@@ -38,6 +39,9 @@ message AppearanceProps {
   // The live effects, owned by the FX epic (effects.proto); here so every consumer sees one
   // stack.  SEQUENCE.
   repeated Effect effects = 3 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  // Per-object raster effect resolution in ppi (effects/raster-effects.adoc, FX-007): 0 = the
+  // document's SettingsProps.raster_effects; otherwise 1 .. 2400.
+  uint32 raster_dpi = 4 [(buf.validate.field).uint32.lte = 2400];
 }
 
 // Which fill settings message is live.  Unset or unknown (a newer client's value) reads as

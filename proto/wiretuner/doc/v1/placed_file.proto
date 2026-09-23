@@ -1,0 +1,60 @@
+// proto/wiretuner/doc/v1/placed_file.proto
+//
+// The `placed_file` node kind (docs/_includes/imported/import-formats.adoc, IMG-001): a file
+// kept as-is and shown through its preview (EPS).  The file's facts are one ATOMIC message so
+// "Update from source" replaces them together, while the name, transform and link record stay
+// independent registers.
+syntax = "proto3";
+
+package wiretuner.doc.v1;
+
+import "buf/validate/validate.proto";
+import "wiretuner/doc/v1/common.proto";
+import "wt/crdt/options.proto";
+
+option java_multiple_files = true;
+option java_package = "com.villagecompute.wiretuner.doc.v1";
+option optimize_for = SPEED;
+
+// Formats kept as placed files.
+enum PlacedFileFormat {
+  // Unknown; drawn as a gray box with the source name.
+  PLACED_FILE_FORMAT_UNSPECIFIED = 0;
+  // Encapsulated PostScript.
+  PLACED_FILE_FORMAT_EPS = 1;
+}
+
+// The placed file and its preview.  ATOMIC wherever used: the preview, bounding box and file
+// describe one placed file and are replaced together.
+message PlacedFileContent {
+  // The file's format.
+  PlacedFileFormat format = 1 [(buf.validate.field).enum.defined_only = true];
+  // SHA-256 of the original file (32 bytes).
+  bytes blob_sha256 = 2 [(buf.validate.field).bytes.len = 32];
+  // File name at import.
+  string source_name = 3 [(buf.validate.field).string.max_len = 256];
+  // Bounding box from the file (EPS %%BoundingBox) in points: natural size and origin.
+  // Part of the one ATOMIC value.
+  Rect bounds = 4 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // SHA-256 of the preview blob: a PNG rendered from the TIFF/EPSI preview or the
+  // PDF-compatible stream.  Empty when the file carries none; the renderer then draws a gray
+  // box with `source_name`.
+  bytes preview_sha256 = 5 [
+    (buf.validate.field).bytes.len = 32,
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+  // Preview width in pixels.
+  int32 preview_width = 6 [(buf.validate.field).int32.gte = 0];
+  // Preview height in pixels.
+  int32 preview_height = 7 [(buf.validate.field).int32.gte = 0];
+}
+
+// NodeProps.kind case `placed_file` (IMG block).  STRUCT.
+message PlacedFileProps {
+  // Name, note, transform and the other shared registers.
+  CommonProps common = 1;
+  // The file and its preview.  ATOMIC.
+  PlacedFileContent content = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // The `asset` node holding the link record for the Links panel, as ImageProps.source.
+  NodeRef source = 3 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
+}

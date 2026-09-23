@@ -1,0 +1,73 @@
+// proto/wiretuner/doc/v1/svg_animation.proto
+//
+// The `svg_animation` node kind (docs/_includes/web/svg-animation.adoc, WEB-024): a placed SVG
+// animation.  The file is a blob held by an `asset` node under 0:9 (asset.proto); the node
+// references the asset and a poster image so every replica can draw it before the SVG has
+// downloaded and PDF and print never evaluate the animation.  Placement is CommonProps
+// .transform, mapping `natural_size` points (72 px/in) to the pasteboard, as for bitmaps.
+syntax = "proto3";
+
+package wiretuner.doc.v1;
+
+import "buf/validate/validate.proto";
+import "wiretuner/doc/v1/common.proto";
+import "wt/crdt/options.proto";
+
+option java_multiple_files = true;
+option java_package = "com.villagecompute.wiretuner.doc.v1";
+option optimize_for = SPEED;
+
+// NodeProps.kind case `svg_animation` (WEB block).  STRUCT.
+message SvgAnimationProps {
+  // Name, note, transform and the other shared registers.
+  CommonProps common = 1;
+  // The asset node holding the SVG blob.  Placeholder until the blob has downloaded; a deleted
+  // asset renders as a hatched placeholder.
+  NodeRef asset = 2 [(wt.crdt.field).on_dangling = REF_FALLBACK_PLACEHOLDER];
+  // Natural size from the viewBox (or width/height), read at import.  ATOMIC: width and height
+  // belong together.
+  Size natural_size = 3 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Declared duration in milliseconds; 0 = indefinite.  Informational.
+  uint64 duration_ms = 4;
+  // Which animation mechanisms the file uses, for the Object panel and export warnings.
+  // Informational; recomputed on Replace.  ATOMIC: one analysis of one file.
+  SvgAnimationKinds kinds = 5 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Poster frame time in milliseconds.
+  uint64 poster_time_ms = 6;
+  // The asset node holding the poster PNG (rendered at import or when the time changes).
+  NodeRef poster = 7 [(wt.crdt.field).on_dangling = REF_FALLBACK_PLACEHOLDER];
+  // Web playback settings.  STRUCT.
+  SvgAnimationWebProps web = 8;
+}
+
+// The animation mechanisms an SVG file uses.
+message SvgAnimationKinds {
+  // CSS @keyframes or transitions.
+  bool css = 1;
+  // SMIL: <animate>, <animateTransform>, <animateMotion>, <set>.
+  bool smil = 2;
+  // <script> or event attributes; never run in the app.
+  bool script = 3;
+}
+
+// Loop behavior of a placed SVG animation on the web.
+enum LoopMode {
+  // Reads as AS_FILE.
+  LOOP_MODE_UNSPECIFIED = 0;
+  // As the file declares.
+  LOOP_MODE_AS_FILE = 1;
+  // Loop forever.
+  LOOP_MODE_LOOP = 2;
+  // Play once.
+  LOOP_MODE_ONCE = 3;
+}
+
+// Web playback settings.  STRUCT: each is independent.
+message SvgAnimationWebProps {
+  // Written as its negation so the default plays automatically.
+  bool no_autoplay = 1;
+  // As the file, loop or once.
+  LoopMode loop = 2 [(buf.validate.field).enum.defined_only = true];
+  // Play while the pointer is over the object.
+  bool play_on_hover = 3;
+}

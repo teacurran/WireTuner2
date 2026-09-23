@@ -228,8 +228,10 @@ document (0:0)
 
 [source,protobuf]
 ----
-// proto/wiretuner/doc/v1/font.proto (FONT epic sketch) -- the kind and the glyph node.
-// FontProps, kerning and features are sketched on the pages that own them.
+// proto/wiretuner/doc/v1/font.proto (DocumentKind, FontProps, kerning) and glyph.proto (the
+// glyph node, which reuses document.proto's Guide; one file would be an import cycle because
+// document.proto imports font.proto for SettingsProps).  FontProps, kerning and features are
+// sketched on the pages that own them.
 
 enum DocumentKind {
   DOCUMENT_KIND_UNSPECIFIED = 0;          // reads as ILLUSTRATION_MULTI_PAGE (every pre-FONT document)
@@ -263,30 +265,33 @@ enum AnchorRole {
   ANCHOR_ROLE_MARK = 2;                   // where this mark attaches to a base ("_top")
 }
 
-// A named attachment point.  Element of a SEQUENCE.
-message Anchor {
+// A named attachment point.  Element of a SEQUENCE.  GlyphAnchor, because text marks already
+// use `Anchor` (text.proto).  Name patterns carry IGNORE_IF_ZERO_VALUE: a sparse SetFields
+// carries the fields it does not write as "".
+message GlyphAnchor {
   ElementId id = 1;
-  string name = 2 [(buf.validate.field).string = {min_len: 1, max_len: 63, pattern: "^[A-Za-z0-9._]+$"}];
+  string name = 2 [(buf.validate.field).string = {max_len: 63, pattern: "^[A-Za-z0-9._]+$"}];
   Point position = 3 [(wt.crdt.field).merge = MERGE_ATOMIC];   // glyph-canvas space (font units, y down; see Client)
   AnchorRole role = 4;
 }
 
+// NodeProps.kind case `glyph` = 220 (FONT block).  The note is CommonProps.note.
 message GlyphProps {
+  CommonProps common = 1;
   // PostScript glyph name: AGL name, uniXXXX, or a_b for ligatures.  Unique in the font after
   // read-time normalization (glyph-grid).  ATOMIC: later rename wins.
-  string name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 63, pattern: "^[A-Za-z_.][A-Za-z0-9_.]*$"}];
+  string name = 2 [(buf.validate.field).string = {max_len: 63, pattern: "^[A-Za-z_.][A-Za-z0-9_.]*$"}];
   // Unicode scalar values this glyph encodes.  SET: add-wins; a codepoint claimed by two glyphs is
   // resolved on read (glyph-grid).  Empty for unencoded glyphs.
-  repeated uint32 codepoints = 2 [(wt.crdt.field).merge = MERGE_SET, (buf.validate.field).repeated.items.uint32.lte = 0x10FFFF];
+  repeated uint32 codepoints = 3 [(wt.crdt.field).merge = MERGE_SET, (buf.validate.field).repeated.items.uint32.lte = 0x10FFFF];
   // Horizontal advance in font units.  ATOMIC scalar.  Side bearings are derived from the
   // flattened outline's bounds and never stored.
-  double advance_width = 3 [(buf.validate.field).double = {gte: 0, lte: 32767}];
-  GlyphKind kind = 4;
-  repeated Component components = 5 [(wt.crdt.field).merge = MERGE_SEQUENCE];
-  repeated Anchor anchors = 6 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  double advance_width = 4 [(buf.validate.field).double = {gte: 0, lte: 32767}];
+  GlyphKind kind = 5;
+  repeated Component components = 6 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  repeated GlyphAnchor anchors = 7 [(wt.crdt.field).merge = MERGE_SEQUENCE];
   // proto3 booleans default to false, and a new glyph must export, so the flag is inverted.
-  bool skip_export = 7;
-  string note = 8 [(buf.validate.field).string.max_len = 8192];
+  bool skip_export = 8;
   // Ruler guides on this glyph's canvas, as on pages (Guide from document.proto; font units).
   repeated Guide guides = 9 [(wt.crdt.field).merge = MERGE_SEQUENCE];
   // Colour tag shown on the grid cell, 0 = none.  Organisational only.
@@ -408,10 +413,10 @@ patterns on ingest and does not know what a glyph is.
 Track:: proto
 Depends on:: PROTO-003, PROTO-005
 Size:: M
-Delivers:: `doc/v1/font.proto` with `DocumentKind`, `GlyphKind`, `Component`, `AnchorRole`, `Anchor`, `GlyphProps` as sketched here, `FontProps` and its sub-messages from xref:font-info.adoc[Font Info], `KernPair`, `KernClass`, `ClassKern` from xref:kerning-metrics.adoc[Kerning and metrics], the `features` field from xref:opentype-features.adoc[OpenType features]; the `glyph` case in `NodeProps.kind` in a FONT block; `document_kind` and `font` on `DocumentSettings`; the `GLYPHS = 11` well-known constant.
+Delivers:: `doc/v1/font.proto` with `DocumentKind`, `GlyphKind`, `Component`, `AnchorRole`, `Anchor`, `GlyphProps` as sketched here, `FontProps` and its sub-messages from xref:font-info.adoc[Font Info], `KernPair`, `KernClass`, `ClassKern` from xref:kerning-metrics.adoc[Kerning and metrics], the `features` field from xref:opentype-features.adoc[OpenType features]; the `glyph` case in `NodeProps.kind` in a FONT block; `document_kind` and `font` on `DocumentSettings`; the `GLYPHS = 11` well-known constant (implemented in `font.proto` and `glyph.proto`, split to avoid an import cycle with `document.proto`; `glyph` = 220, `document_kind`/`font` = `SettingsProps` 20/21, `Anchor` renamed `GlyphAnchor`).
 Done when::
 * `buf lint` and `buf breaking` pass; every field commented with its unit.
-* The wtcrdt merge table lists `codepoints` as SET; `components`, `anchors`, `guides`, `pairs`, `classes`, `class_kerns` as SEQUENCE; `Component.transform`, `Anchor.position` as ATOMIC; `features` as TEXT.
+* The wtcrdt merge table lists `codepoints` as SET; `components`, `anchors`, `guides`, `pairs`, `classes`, `class_kerns` as SEQUENCE; `Component.transform`, `GlyphAnchor.position` as ATOMIC; `features` as TEXT.
 * Conformance vectors: a glyph with two components and two anchors round-trips both engines; concurrent `codepoints` add and remove keeps the add.
 
 [[FONT-002]]
