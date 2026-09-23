@@ -19,6 +19,17 @@ FROM maven:3.9-eclipse-temurin-25
 
 ENV LANG='en_US.UTF-8' LANGUAGE='en_US:en'
 
+# wt-crdt's generate-sources runs `make -C tools/protoc-gen-wtcrdt generate-java`, which needs make,
+# Go (the plugin) and protoc on the PATH (docs/spec/server.adoc, "Generated code").
+# Go comes from go.dev: the distribution package lags the version tools/protoc-gen-wtcrdt/go.mod needs.
+ARG GO_VERSION=1.27.1
+ARG TARGETARCH
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends make protobuf-compiler curl ca-certificates \
+ && rm -rf /var/lib/apt/lists/* \
+ && curl -fsSL "https://go.dev/dl/go${GO_VERSION}.linux-${TARGETARCH:-amd64}.tar.gz" | tar -C /usr/local -xz
+ENV PATH="/usr/local/go/bin:${PATH}"
+
 RUN mkdir -p /app/server
 WORKDIR /app/server
 
