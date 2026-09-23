@@ -36,7 +36,7 @@ public enum InverseCodec {
             steps.append(try decodeStep(&input))
         }
         guard input.atEnd else { throw Failure(description: "trailing bytes after the inverse") }
-        return .assembled(steps)
+        return Inverse(steps: steps)
     }
 
     private static func encode(_ step: Inverse.Step, into out: inout ByteWriter) {
@@ -113,17 +113,17 @@ public enum InverseCodec {
             return .textInserted(node: try input.id(), text: try input.path(), chars: try input.list { r throws(Failure) in try r.id() })
         case 11:
             return .textDeleted(node: try input.id(), text: try input.path(), chars: try input.list { r throws(Failure) in
-                DeletedChar.assembled(
+                DeletedChar(
                     id: try r.id(), scalar: try r.uint32(),
                     attributes: try r.list { r throws(Failure) in try r.bytes() },
                     paragraph: try r.list { r throws(Failure) in
-                        ParagraphRegister.assembled(suffix: try r.segments(), value: try r.optionalBytes())
+                        ParagraphRegister(suffix: try r.segments(), value: try r.optionalBytes())
                     })
             })
         case 12:
             return .textMarked(node: try input.id(), text: try input.path(), mark: try input.id(),
                                key: MarkKey(field: try input.uint32(), tag: try input.bytes()), value: try input.bytes(),
-                               prior: try input.list { r throws(Failure) in PriorFormat.assembled(char: try r.id(), value: try r.optionalBytes()) })
+                               prior: try input.list { r throws(Failure) in PriorFormat(char: try r.id(), value: try r.optionalBytes()) })
         case let tag:
             throw Failure(description: "unknown inverse step \(tag)")
         }
@@ -289,7 +289,7 @@ struct ByteReader {
     }
 
     mutating func field() throws(Failure) -> MemberField {
-        MemberField.assembled(number: try uint32(), type: try string(), typeName: try optional { r throws(Failure) in try r.string() })
+        MemberField(number: try uint32(), type: try string(), typeName: try optional { r throws(Failure) in try r.string() })
     }
 
     mutating func optional<T>(_ body: (inout ByteReader) throws(Failure) -> T) throws(Failure) -> T? {

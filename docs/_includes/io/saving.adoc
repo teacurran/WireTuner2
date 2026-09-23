@@ -492,6 +492,16 @@ any ──unrecoverable rejection────────▶ error
 The library window shows the last published state per document from `sync_state`; a document
 that is not open and has an empty outbox shows *Saved to cloud* without opening a session.
 
+NOTE: As built by SYNC-003 (`WTSync.SyncState`, `SyncClient.states()`, `transitions()`).  The cases
+above are published with each transition's cause; IO-001 adds the `sync_state` table and the blob
+queue's and reconcile's inputs (`needsReview` and `storageFull` are declared but not yet entered).
+Counts and the backlog percentage are published at most every 250 ms.  Deviation: a validation
+failure does not enter `error` -- the change goes up as `Noop`s and is reported
+(`SyncEvent.changeDropped`, sync-protocol.adoc "The client as built"), so one bad change does not
+stop the rest of the outbox; `error` is entered for a repeated replica conflict, a document that
+no longer exists, and a snapshot that twice could not be read.  `error`, `needsSignIn` and a removed
+access hold the session until `retry()` / `signedIn()`.
+
 === Server
 
 * `VersionService.Name` accepts a `server_seq` at or before head and a name; versions are rows

@@ -381,27 +381,100 @@ public actor LocalStore: DocumentBackend {
     }
 
     /// The outbox coalesced for sending (`Coalescer`), judged against everything applied since
-    /// its first change.
-    public func pendingUpload(rules: Coalescer.Rules = .standard) throws -> [Wiretuner_Doc_V1_Change] {
+    /// its first change.  Changes up to seq `fixedThrough` have already been sent as they were
+    /// coalesced then (the sync client resends exactly those bytes, SYNC-003): they are neither
+    /// returned nor rewritten, only judged against like any other applied change.
+    public func pendingUpload(rules: Coalescer.Rules = .standard, fixedThrough: UInt64 = 0) throws -> [Wiretuner_Doc_V1_Change] {
         guard let database else { throw Failure.closed }
         let replica = core.replica
         let log = try database.read { db in
             let rows = try Row.fetchAll(db, sql: """
-                SELECT replica, local, server_seq, data FROM changes
-                WHERE id >= (SELECT MIN(id) FROM changes WHERE local = 1 AND server_seq IS NULL AND replica = ?)
+                SELECT replica, seq, local, server_seq, data FROM changes
+                WHERE id >= (SELECT MIN(id) FROM changes WHERE local = 1 AND server_seq IS NULL AND replica = ? AND seq > ?)
                 ORDER BY id
-                """, arguments: [replica.sql])
+                """, arguments: [replica.sql, fixedThrough.sql])
             return try rows.map { row -> Coalescer.Entry in
                 let change = try Self.change(row["data"])
                 let local: Bool = row["local"]
                 let serverSeq: Int64? = row["server_seq"]
                 let rowReplica: Int64 = row["replica"]
-                let unsent = local && serverSeq == nil && UInt64(sql: rowReplica) == replica
+                let unsent = local && serverSeq == nil && UInt64(sql: rowReplica) == replica && change.seq > fixedThrough
                 return unsent ? .outbox(change) : .other(change)
             }
         }
         return Coalescer.coalesce(log, rules: rules)
     }
+
+    /// How many local changes of the current replica wait for an acknowledgement (the outbox).
+    public func outboxCount() throws -> Int {
+        guard let database else { throw Failure.closed }
+        return try database.read { db in
+            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM changes WHERE local = 1 AND server_seq IS NULL AND replica = ?",
+                             arguments: [core.replica.sql])!
+        }
+    }
+
+    /// Records every unacknowledged change of the current replica up to `seq` as acknowledged at
+    /// `serverSeq`: `Welcome.last_accepted_seq` says they got in, and a snapshot that holds them
+    /// (so no echo will come) is at `serverSeq`, an upper bound of their true positions.
+    public func acknowledgeAccepted(through seq: UInt64, serverSeq: UInt64) throws {
+        try write { db, applied in
+            let seqs = try Int64.fetchAll(db, sql: """
+                SELECT seq FROM changes WHERE local = 1 AND server_seq IS NULL AND replica = ? AND seq <= ?
+                """, arguments: [core.replica.sql, seq.sql]).map(UInt64.init(sql:))
+            guard !seqs.isEmpty else { return }
+            applied = true
+            for accepted in seqs {
+                core.acknowledge(seq: accepted, serverSeq: serverSeq)
+            }
+            try db.execute(sql: """
+                UPDATE changes SET server_seq = ?, sent_at = ? WHERE local = 1 AND server_seq IS NULL AND replica = ? AND seq <= ?
+                """, arguments: [serverSeq.sql, Date().timeIntervalSince1970, core.replica.sql, seq.sql])
+        }
+    }
+
+    /// Replaces the stored bytes of the unacknowledged local change with `change`'s replica and
+    /// seq (a change the server refused with `VALIDATION_FAILED`, sent again as `Noop`s so the
+    /// replica's seqs and counters stay dense).  The in-memory state is not reverted.
+    public func replaceUnsent(_ change: Wiretuner_Doc_V1_Change) throws {
+        try write { db, _ in
+            try db.execute(sql: """
+                UPDATE changes SET data = ? WHERE replica = ? AND seq = ? AND local = 1 AND server_seq IS NULL
+                """, arguments: [try change.serializedData(), change.replica.sql, change.seq.sql])
+        }
+    }
+
+    /// Replaces the merged state with a snapshot the server sent at `serverSeq` (bootstrap and
+    /// catch-up, SYNC-004), replays every stored change on top -- the outbox, and remote changes
+    /// the snapshot may not hold -- and rewrites the local snapshot from the result.
+    public func installSnapshot(_ state: EngineState, serverSeq: UInt64) async throws {
+        try write { db, applied in
+            var fresh = DocumentCore(state: state, replica: core.replica, nextSeq: core.nextSeq,
+                                     lastServerSeq: max(serverSeq, core.lastServerSeq), undoStack: core.undoStack,
+                                     horizon: core.horizon)
+            let rows = try Row.fetchCursor(db, sql: "SELECT server_seq, data FROM changes ORDER BY id")
+            while let row = try rows.next() {
+                fresh.replay(try Self.change(row["data"]), serverSeq: (row["server_seq"] as Int64?).map(UInt64.init(sql:)))
+            }
+            core = fresh
+            applied = true
+            try checkFault()
+            try db.execute(sql: "UPDATE meta SET last_server_seq = ? WHERE id = 1", arguments: [core.lastServerSeq.sql])
+        }
+        try await rewriteSnapshot()
+    }
+
+    /// Records a stable point the server published (`DocumentCore.advanceHorizon`, D-067).  The
+    /// horizon is held in memory: every `Ack` answer publishes it again.
+    public func advanceHorizon(to stableSeq: UInt64) {
+        core.advanceHorizon(to: stableSeq)
+    }
+
+    /// The newest stable point the server published to this replica.
+    public var horizon: UInt64 { core.horizon }
+
+    /// The merge table the store was opened with.
+    public nonisolated var schema: Schema { options.schema }
 
     /// Records the server's acknowledgement of this replica's change `seq` at `serverSeq`.
     public func acknowledge(seq: UInt64, serverSeq: UInt64) throws {
@@ -526,6 +599,15 @@ public actor LocalStore: DocumentBackend {
                 ORDER BY (CASE WHEN tag = ? THEN 0 ELSE 1 END), size, hash
                 """, arguments: [Self.thumbnailTag])
                 .map { PendingBlob(hash: $0["hash"], path: $0["path"], tag: $0["tag"], size: $0["size"]) }
+        }
+    }
+
+    /// How many blobs wait to upload, the thumbnail not counted (*Uploading N images*).
+    public func pendingBlobCount() throws -> Int {
+        guard let database else { throw Failure.closed }
+        return try database.read { db in
+            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM blobs_pending WHERE tag IS NULL OR tag != ?",
+                             arguments: [Self.thumbnailTag])!
         }
     }
 

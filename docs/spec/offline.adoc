@@ -107,6 +107,15 @@ coalesces and encodes in 16 ms (release).
 * The subscription stays open during upload; other users see the backlog arrive as it is
   sequenced, which is preferable to a stall followed by a single huge burst.
 
+NOTE: As built by SYNC-005 (`WTSync.SyncClient`, `BulkFrames`).  The backlog -- resends first, then
+the coalesced outbox -- is packed into frames of at most 1 MiB and 256 changes, a change larger than
+a frame travelling alone; the upload's state is `uploadingBacklog(percent)`, the percentage of its
+coalesced bytes at or below the highest own seq echoed on the subscription.  A dropped upload ends
+the session, and the next `Welcome.last_accepted_seq` says where it resumes (overlapping changes
+are silently acked).  The 20,000-op backlog of the done-when (2,000 changes of 10 ops, 64 KiB frames
+to force many) uploads through three forced disconnects against the in-process fake server in
+`BulkUploadTests`.
+
 == Replica expiry and salvage [[expiry]]
 
 A replica silent for the retention window (90 days) is retired so garbage collection can

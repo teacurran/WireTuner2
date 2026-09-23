@@ -272,6 +272,72 @@ As built (SRV-005, SRV-006):
   the stream resumes from `Welcome.last_accepted_seq` and may resend overlapping changes, which are
   silently acked.
 
+=== The client as built
+
+SYNC-003, SYNC-004 and SYNC-005 built the client side as `WTSync.SyncClient`, one actor per open
+document, over a `SyncTransport` seam whose production implementation is `GRPCSyncTransport`
+(grpc-swift 2, one long-lived HTTP/2 client per document session, every call carrying the
+bearer token, `wt-client`, `wt-device` and a fresh `wt-request-id`).  Remote changes go to a
+`RemoteChangeSink`: the window's `Document` (whose backend is the store the client sends from),
+or the `LocalStore` itself for a headless upload.  The settled details:
+
+* *Ordering on one connection.*  grpc-java may start calls it buffered while its channel was
+  still connecting in any order (the server's `IngestLoadTest` makes one blocking call first).
+  The client never pushes before `Welcome` has arrived, so the connection is up before the
+  window of 32 opens and the calls start in seq order.
+* *Resends are byte-identical.*  The outbox is coalesced at send time, and a change sent once is
+  never coalesced again: the client keeps the exact bytes of every change sent and not yet known
+  accepted, resends those after `SEQ_GAP` or a dropped stream, and coalesces only the changes
+  after the highest seq sent (`LocalStore.pendingUpload(fixedThrough:)`, which judges against
+  the sent ones like any other applied change).  Otherwise a retried change whose first copy did
+  get in could differ from it and draw `REPLICA_CONFLICT`.
+* *Drain and resend.*  After `SEQ_GAP` (or `TOKEN_EXPIRED`, or `RATE_LIMITED`, which waits for the
+  `RetryInfo` delay, 1 s without one) the client stops opening calls, lets the window answer, and
+  resends from the highest acknowledged seq -- a push response, a batch prefix, `Welcome`, or the
+  own echo on the subscription, since the server accepts a replica's changes only in seq order.
+  In gateway mode one `PushChangeBatch` of up to 32 is in flight and the next starts after its
+  prefix.  The bulk threshold is checked whenever the window is empty, so a backlog made while
+  connected also goes up through `PushChanges`.
+* *Rejections.*  `REPLICA_CONFLICT` and `REPLICA_EXPIRED` (on a push or on `Subscribe`) rotate the
+  replica (`LocalStore.rotateReplica()`) and resubscribe at once, reporting
+  `SyncEvent.replicaRotated`; a second one before any push of the new replica is accepted is the
+  `error` state.  `ROLE_INSUFFICIENT` makes the document read-only with the outbox kept (salvage is
+  SYNC-010); an editor role in a later `Welcome` or `RoleChanged` lifts it.  `PERMISSION_DENIED` on
+  `Subscribe` is `readOnly(accessRemoved)` and `NOT_FOUND` is `error`, both halted until *Retry
+  now*.  Deviation: a `VALIDATION_FAILED` change is not reverted locally -- WTSync has the change,
+  not the inverse the undo stack recorded for it -- but replaced in the outbox by `Noop`s over the
+  same counter range (the seqs stay dense), sent again, and reported as
+  `SyncEvent.changeDropped`; the local state keeps its effect until an inverse can be built for it.
+* *Tokens.*  An `UNAUTHENTICATED` answer asks the injected `TokenProvider` for a new token, once
+  per refused token however many calls were refused with it; `TokenFailure.signInRequired`
+  parks the client in `needsSignIn` until `signedIn()`.
+* *Merge table.*  `Welcome.merge_table`'s `version` is compared with `WTMergeTable.version`, and a
+  difference is reported (`SyncEvent.mergeTableDiffers`).  Deviation: the store keeps merging with
+  its bundled table (the engine preserves fields it does not know); loading the server's table
+  into an open store is left to the schema-evolution work.
+* *Catch-up.*  With the snapshot hint, a document with no local state bootstraps from
+  `FetchSnapshot` then `FetchChanges` from the snapshot's seq; a snapshot whose header says
+  `uncompressed_size = 0` (the server until SRV-007) is sized from its zstd frame header.
+  Deviation: a document that already has local state replays `FetchChanges` from its applied seq
+  and takes the snapshot only when that answers `HISTORY_UNAVAILABLE` -- the hint says a snapshot
+  exists, not that the tail is gone, and replaying keeps the local state instead of rebuilding
+  it; `LocalStore.installSnapshot` then replays every stored change on the snapshot.  Accepted own
+  changes a snapshot holds never echo, so after catch-up everything up to
+  `Welcome.last_accepted_seq` is marked acknowledged.  A gap in the live frames is filled from
+  `FetchChanges` before the change after it is applied; duplicates are skipped.  Progress is
+  `SyncEvent.catchUp` (compressed bytes of the snapshot, then seqs of the range); stopping the
+  client cancels it.  An unreadable snapshot twice in a row is the `error` state.
+* *Horizon (D-067).*  Each `AckResponse.stable_seq` goes to the sink's `advanceHorizon(to:)`
+  (the `Document` forwards it to its `LocalStore`, whose `DocumentCore` holds the horizon, in
+  memory: every `Ack` republishes it).  The proposed `collect_seq = 2` / `collect_time_ms = 3` are
+  read from the response's unknown fields until the proto has them and reported as
+  `SyncEvent.collectionPoint`; absent or zero means no collection.  Collecting at the point needs a
+  `DocumentCore` entry point WTModel does not have yet.
+* *Timers.*  `Ack` every 2 s when the applied seq moved, and on stop; presence read at 20 Hz and sent
+  when it changed or 10 s after the last send (the server expires an entry after 15 s), `GONE` on
+  stop; 45 s of silence ends the session; reconnects back off exponentially from 0.5 s to 30 s,
+  scaled by a random 0.5-1.
+
 == Blobs
 
 Images, embedded fonts and other binaries are content-addressed (`sha256`).  A document op only

@@ -85,18 +85,18 @@ import WTProto
         for inverse in inverses {
             #expect(try InverseCodec.decode(InverseCodec.encode(inverse)) == inverse)
         }
-        #expect(try InverseCodec.decode(InverseCodec.encode(.assembled([]))).isEmpty)
+        #expect(try InverseCodec.decode(InverseCodec.encode(Inverse(steps: []))).isEmpty)
     }
 
     @Test func priorFlagsAndMessageMembersRoundTrip() throws {
         let node = Self.id(9)
         let path = RegisterPath(segments: [.field(3), .field(7), .element(Self.id(10))])
-        let inverse = Inverse.assembled([
+        let inverse = Inverse(steps: [
             .deleted(node: node, prior: Stamped(true, Self.id(5)), wrote: Self.id(6)),
             .elementDeleted(node: node, element: path, prior: Stamped(false, Self.id(7)), wrote: Self.id(8)),
             .memberAdded(node: node, set: RegisterPath([1, 2]), member: [1, 2, 3], tag: Self.id(11), wasPresent: true,
-                         field: .assembled(number: 4, type: "message", typeName: "wiretuner.doc.v1.NodeRef")),
-            .memberRemoved(node: node, set: RegisterPath([1, 2]), member: [9], field: .assembled(number: 4, type: "uint32", typeName: nil)),
+                         field: MemberField(number: 4, type: "message", typeName: "wiretuner.doc.v1.NodeRef")),
+            .memberRemoved(node: node, set: RegisterPath([1, 2]), member: [9], field: MemberField(number: 4, type: "uint32", typeName: nil)),
         ])
         #expect(try InverseCodec.decode(InverseCodec.encode(inverse)) == inverse)
     }

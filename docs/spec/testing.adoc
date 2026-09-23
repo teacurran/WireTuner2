@@ -157,6 +157,15 @@ transitions:
 . A viewer's role downgraded mid-session.
 . Token expiry every minute for an hour.
 
+NOTE: Until TEST-001, the sync client is tested in `WTSyncTests` against `FakeSyncServer`, an
+in-process stand-in for `SyncGrpcService` (acceptance rule, Welcome with the snapshot hint, replay,
+FetchChanges, FetchSnapshot) with injectable faults: delayed (reordered) and lost pushes, one-shot
+rejections, dropped and duplicated live frames, disconnects, silent streams, bulk uploads cut off
+mid-way.  The same fake is served over grpc-swift's in-process transport to test
+`GRPCSyncTransport` end to end.  `SyncSimulationTests` runs seeded rounds of loss and reordering in
+both push modes.  `SyncIntegrationTests` runs two clients against the compose server and is
+skipped unless `WT_SYNC_IT=1` (`WT_SYNC_API`, `WT_SYNC_KEYCLOAK` override the local URLs).
+
 == Geometry and rendering
 
 * `WTGeometry`: property tests against numeric references; a corpus of 200 boolean cases
