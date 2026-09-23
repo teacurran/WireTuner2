@@ -276,23 +276,24 @@ public struct DocumentDisplayListBuilder: Sendable {
         guard let common = NodeValues.common(props), !common.hasCanvas else { return nil }
         let transform = PathEditing.transform(common.transform)
         var built = Built(item: nil, kind: kind, path: nil, transform: transform, elementPoints: [:], leafContours: [:], locked: common.locked)
+        let order = AppearanceEditing.stack(node, in: state)
         switch props.kind {
         case .path(let path)?:
             let model = VectorPath(path, node: node, state: state)
             built.path = model
-            Self.render(model, appearance: path.appearance, transform: transform, into: &built)
+            Self.render(model, appearance: path.appearance, order: order, transform: transform, into: &built)
         case .rect(let rect)?:
             let model = ShapeGeometry.path(rect)
             built.path = model
-            Self.render(model, appearance: rect.appearance, transform: transform, into: &built)
+            Self.render(model, appearance: rect.appearance, order: order, transform: transform, into: &built)
         case .ellipse(let ellipse)?:
             let model = ShapeGeometry.path(ellipse)
             built.path = model
-            Self.render(model, appearance: ellipse.appearance, transform: transform, into: &built)
+            Self.render(model, appearance: ellipse.appearance, order: order, transform: transform, into: &built)
         case .polygon(let polygon)?:
             let model = ShapeGeometry.path(polygon)
             built.path = model
-            Self.render(model, appearance: polygon.appearance, transform: transform, into: &built)
+            Self.render(model, appearance: polygon.appearance, order: order, transform: transform, into: &built)
         default:
             break
         }
@@ -303,12 +304,13 @@ public struct DocumentDisplayListBuilder: Sendable {
     /// A path's display item: one `PathItem`, or -- when open contours must not show the fills
     /// that closed ones do -- a group of one item per attribute (the fills over the closed
     /// contours only), keeping the stack's order.
-    private static func render(_ path: VectorPath, appearance: Wiretuner_Doc_V1_AppearanceProps, transform: AffineTransform, into built: inout Built) {
+    private static func render(_ path: VectorPath, appearance: Wiretuner_Doc_V1_AppearanceProps, order: [AppearanceRow], transform: AffineTransform,
+                               into built: inout Built) {
         guard path.isRenderable else { return }
         let all = display(path) { _ in true }
         let hasOpen = path.contours.contains { $0.isRenderable && !$0.closed }
         let hasClosed = path.contours.contains { $0.isRenderable && $0.closed }
-        let resolved = Appearances.resolve(appearance, evenOdd: path.evenOdd)
+        let resolved = Appearances.resolve(appearance, order: order, evenOdd: path.evenOdd)
         let hasFill = resolved.items.contains { if case .fill = $0 { return true } else { return false } }
         guard hasOpen, !path.fillWhenOpen, hasFill else {
             built.item = .path(PathItem(path: all.path, appearance: resolved, transform: transform))
@@ -317,7 +319,7 @@ public struct DocumentDisplayListBuilder: Sendable {
             return
         }
         guard hasClosed else {
-            built.item = .path(PathItem(path: all.path, appearance: Appearances.resolve(appearance, evenOdd: path.evenOdd, paintsFill: false), transform: transform))
+            built.item = .path(PathItem(path: all.path, appearance: Appearances.resolve(appearance, order: order, evenOdd: path.evenOdd, paintsFill: false), transform: transform))
             built.elementPoints = [[]: all.points]
             built.leafContours = [[]: all.contours]
             return

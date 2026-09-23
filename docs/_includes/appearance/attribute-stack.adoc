@@ -308,6 +308,43 @@ a brush's cached Basic stroke); a Brush stroke hits inside its copies' symbol fr
 Calligraphic stroke inside its swept nib.  The Metal renderer draws paints other than a solid
 colour through a per-item texture (docs/spec/client.adoc, NOTE on the ATTR paints).
 
+NOTE: As built by ATTR-002 (`WTModel/AppearanceCommands.swift`, `AttributeStack.swift`,
+`AttributeCommands.swift`, `Appearances.swift`).  The read-out is `AppearanceEditing.stack` (rows) and
+`AppearanceEditing.entries` (`AttributeEntry`: row, `hidden`, normalized kind, stored element, the
+`summary` the list shows).  Commands: `AddAppearance.fill/.stroke/.effect` (above any row of the merged
+stack, per target through `aboveRows`), `RemoveAppearance`, `DuplicateAppearance` (above itself, or at
+a stack index for an kbd:[Option]-drag), `ReorderAttribute` (to a merged-stack index, one
+`ElementMove` per target, "Reorder Attributes"), `SetAppearanceHidden`, `SetAttributeKind` (the
+`setFillKind`/`setStrokeKind` of Client), `EditAttribute` (any registers of a fill's or stroke's
+`settings`, paths in `AttributeFields`) and `SetAppearanceColor` (the live kind's colour register,
+so a colour dropped on a Pattern stroke recolours the pattern).  The per-list `MoveAppearance` of
+OBJ-004 stays.  Deviations: `SetAttributeKind` also seeds a kind whose message was never written
+(the current colour and width carried over, a fresh `seed` for brushes and Custom fills, a Transparency
+lens at 50, Circles, Burlap, 100% tile scale, the checker bitmap), so a newly chosen kind draws at once;
+it refuses Gradient, which the gradient commands choose (ATTR-024).  Creation now draws the keys of an
+object's initial fills and strokes from one run, fills first, because separately generated keys
+interleaved at random once the lists share the position space.  The stack commands take the settings
+node too (`SettingsProps.defaults.appearance`): with nothing selected they edit the default
+attributes; copying them onto new objects remains OBJ-037's.  `Appearances.resolve` lowers every
+fill and stroke kind in stack order (a Brush stroke draws its cached Basic stroke until the brush model,
+ATTR-008, resolves brush nodes; effects are the FX epic's), decodes `Subtree` tiles and lens snapshots
+(`SubtreeRendering`), and reads an unset miter limit as 4 as specified (it read 10 before).
+
+NOTE: As built by ATTR-003 (`WTApp/Inspectors/AttributesList.swift`, `AttributesListView.swift`).
+The list is a SwiftUI `List` in the Object panel rather than an `NSOutlineView` (APP-007's
+inspector host is not built): the root row, then the rows top first, each with its kind icon,
+description and a visibility checkbox; btn:[Add Stroke], btn:[Add Fill], btn:[Add Effect] (a menu
+of the effect kinds, added with their default settings), btn:[Remove Item] (and kbd:[Delete]) and
+the action menu; `onMove` reorders and duplicates with kbd:[Option] down at the drop.  The selected
+row is remembered by the first target's element (`AttributesState`) and the editor is identified by
+it, so a remote insert neither moves the selection nor rebuilds the focused editor.  With several
+objects a row shows only where every object has an element of the same list at the same position;
+its description reads "Mixed" where they differ.  A colour dropped on a row is an `NSColor` from the
+drag pasteboard (a colour well or the Colors panel) applied as an unnamed colour; swatch drags
+carry the `ColorRef` pasteboard type once the Swatches panel and Color Mixer (COLOR-007, COLOR-008)
+exist.  Selecting an effect row names it; effects are edited by FX-003.  The "UI tests" are unit
+tests of the list model, its bindings and the views rendered in an `NSHostingView`.
+
 === Build tasks
 
 [[ATTR-001]]

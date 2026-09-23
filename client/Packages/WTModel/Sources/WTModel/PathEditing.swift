@@ -256,13 +256,16 @@ enum PathEditing {
             build(&stack)
             return NodeValues.with(kind: kind, appearanceField: field, stack)
         }
+        // One run of keys: the lists share a position space, so the fills sit below the strokes
+        // (a new object gets its fills with its strokes above them, attribute-stack.adoc).
+        let all = try keys(between: nil, and: nil, count: appearance.fills.count + appearance.strokes.count)
         if !appearance.fills.isEmpty {
-            let keys = try keys(between: nil, and: nil, count: appearance.fills.count)
-            ops.append(Ops.elementInsert(node, appearancePath.child(1), positions: keys, values: values { $0.fills = appearance.fills }))
+            ops.append(Ops.elementInsert(node, appearancePath.child(1), positions: Array(all.prefix(appearance.fills.count)),
+                                         values: values { $0.fills = appearance.fills }))
         }
         if !appearance.strokes.isEmpty {
-            let keys = try keys(between: nil, and: nil, count: appearance.strokes.count)
-            ops.append(Ops.elementInsert(node, appearancePath.child(2), positions: keys, values: values { $0.strokes = appearance.strokes }))
+            ops.append(Ops.elementInsert(node, appearancePath.child(2), positions: Array(all.suffix(appearance.strokes.count)),
+                                         values: values { $0.strokes = appearance.strokes }))
         }
         return ops
     }

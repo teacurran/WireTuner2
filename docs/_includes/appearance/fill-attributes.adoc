@@ -415,6 +415,23 @@ the tile is clipped at the cell edge.  An empty tile, or one without area, rende
 1,000-node tile over a Letter page draws in 5--8 ms in a release build (40 ms in debug); the
 16 ms budget is enforced in release builds.
 
+NOTE: As built by ATTR-013 and ATTR-017 (`WTApp/Inspectors/FillEditors.swift`, `PatternEditor.swift`).
+The pattern grid is an `NSView` (`PatternGridView`) with per-pixel hit testing; a press toggles its
+pixel, a drag paints that value, and the picture is written at mouse-up as one change, with the
+drag's own picture shown meanwhile over whatever arrives.  The palette shows eight presets at a time,
+scrolled by its slider.  The Custom fill form shows the options of the chosen pattern (the table
+above); numbers clamp to their ranges.  Lens sliders are one undo step per drag.  *Gradient* is
+listed in the *Fill type* pop-up but chosen and edited by the gradient ramp editor (ATTR-025, on
+ATTR-024's commands); choosing it here shows a note.  *Snapshot* writes the flag only (turning it off
+also clears `snapshot_contents`): capturing the lens's backdrop into `snapshot_contents` is
+ATTR-020's Snapshot command, and a snapshot without contents renders live as specified.  The Tiled
+fill's btn:[Paste In] and btn:[Copy Out] are built here on WTModel's `Subtrees.tile` and
+`Subtrees.payload` (the capture and expansion half of ATTR-020): the objects pasteboard's nodes with
+their props, parents before children, moved so the artwork starts at the origin; a node WTModel does
+not know as a path, shape or group (images, placed files, text), or one with a tiled or lens fill,
+is refused with the message, as is more than 20,000 nodes.  The angle dial is a circular
+`NSSlider` writing on mouse-up; the preview draws the tiled fill itself.
+
 === Build tasks
 
 [[ATTR-016]]

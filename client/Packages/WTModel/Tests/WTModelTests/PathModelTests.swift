@@ -259,7 +259,7 @@ private func point(_ n: UInt64, _ x: Double, _ y: Double, in inHandle: Vector = 
         guard case .stroke(let stroke) = resolved.items.first else { Issue.record("no stroke"); return }
         #expect(resolved.items.count == 1)
         #expect(stroke.paint == .solid(Color(red: 0, green: 0, blue: 0)))
-        #expect(stroke.style.width == 1 && stroke.style.cap == .butt && stroke.style.join == .miter && stroke.style.miterLimit == 10)
+        #expect(stroke.style.width == 1 && stroke.style.cap == .butt && stroke.style.join == .miter && stroke.style.miterLimit == 4, "an unset miter limit reads as 4")
     }
 
     @Test func fillsAndStrokesResolveBottomFirst() {
@@ -285,15 +285,18 @@ private func point(_ n: UInt64, _ x: Double, _ y: Double, in inHandle: Vector = 
         brush.settings.kind = .brush
         appearance.strokes = [stroke, square, hiddenStroke, brush]
         let resolved = Appearances.resolve(appearance, evenOdd: true)
-        #expect(resolved.items.count == 3)
-        guard case .fill(let fill) = resolved.items[0], case .stroke(let first) = resolved.items[1], case .stroke(let second) = resolved.items[2] else {
+        #expect(resolved.items.count == 5, "hidden elements are skipped; every kind resolves")
+        guard case .fill(let empty) = resolved.items[0], case .fill(let fill) = resolved.items[1], case .stroke(let first) = resolved.items[2],
+              case .stroke(let second) = resolved.items[3], case .stroke(let fallback) = resolved.items[4] else {
             Issue.record("order"); return
         }
+        #expect(empty.paint.isNone, "a gradient without stops paints nothing")
+        #expect(fallback.kind == .brush(BrushStroke(brush: nil, widthPercent: 0)), "a brush stroke without its brush draws its fallback")
         #expect(fill.rule == .evenOdd && fill.overprint && fill.paint == .solid(Color(red: 0, green: 1, blue: 0)))
         #expect(first.style.width == 1 && first.style.cap == .round && first.style.join == .bevel && first.style.miterLimit == 4 && first.style.dash == [2, 1])
         #expect(second.style.width == 0 && second.style.cap == .square && second.style.join == .round)
-        #expect(Appearances.resolve(appearance, paintsFill: false).items.count == 2)
-        guard case .fill(let nonZero) = Appearances.resolve(appearance).items[0] else { return }
+        #expect(Appearances.resolve(appearance, paintsFill: false).items.count == 3)
+        guard case .fill(let nonZero) = Appearances.resolve(appearance).items[1] else { return }
         #expect(nonZero.rule == .nonZero)
     }
 
@@ -320,7 +323,13 @@ private func point(_ n: UInt64, _ x: Double, _ y: Double, in inHandle: Vector = 
         #expect(Appearances.color(cmyk) == Color(red: 0, green: 0.5, blue: 0.5))
         var lab = Wiretuner_Doc_V1_Color()
         lab.lab.l = 50
-        #expect(Appearances.color(lab) == Color(white: 0.5))
+        #expect(Appearances.color(lab) == Color(labL: 50, a: 0, b: 0))
+        lab.space = .oklab
+        #expect(Appearances.color(lab) == Color(oklabL: 50, a: 0, b: 0))
+        var p3 = Wiretuner_Doc_V1_Color()
+        p3.rgb.r = 1
+        p3.space = .displayP3
+        #expect(Appearances.color(p3) == Color(displayP3Red: 1, green: 0, blue: 0))
         #expect(Appearances.color(Wiretuner_Doc_V1_Color()) == .black)
     }
 }

@@ -344,6 +344,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         activeSelection.document = window?.documentHandle
         activeSelection.editing = window?.objectEditing
         activeSelection.presence = window?.presence
+        activeSelection.preferences = preferences
         floatingPanels.reattach()
         toolbarsDocumentsDidChange()
     }

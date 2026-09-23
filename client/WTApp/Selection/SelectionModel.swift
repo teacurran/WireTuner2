@@ -61,6 +61,8 @@ final class ActiveSelection {
     var editing: ObjectEditing?
     /// The front window's collaborators (the Object panel's "Priya is editing this object").
     var presence: (any PresenceProviding)?
+    /// The app's preferences (the Object panel's stroke width presets).
+    var preferences: PreferenceStore?
 
     init(model: SelectionModel? = nil, document: DocumentHandle? = nil, editing: ObjectEditing? = nil, presence: (any PresenceProviding)? = nil) {
         self.model = model

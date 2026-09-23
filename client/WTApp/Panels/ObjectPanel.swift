@@ -139,6 +139,7 @@ struct ObjectPanelModel {
 /// until it is committed (client.adoc, "Panels").
 struct ObjectPanelBody: View {
     let selection: ActiveSelection?
+    @State private var attributes = AttributesState()
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -146,7 +147,11 @@ struct ObjectPanelBody: View {
             if let line = selection?.editingLine {
                 Text(line).font(.caption).italic().foregroundStyle(.secondary).padding(.horizontal).accessibilityIdentifier("object.editingBy")
             }
-            if let model = model {
+            if let list = Self.attributes(selection) {
+                AttributesListView(model: list, state: attributes, pasteboard: selection?.editing?.pasteboard,
+                                   widthPresets: Self.widthPresets(selection))
+            }
+            if Self.showsObjectSections(selection, attributes), let model = model {
                 if let path = model.path { PathSectionView(section: path, model: model) }
                 if let point = model.point { PointSectionView(section: point, model: model) }
                 if let rectangle = model.rectangle { RectangleSectionView(section: rectangle, model: model) }
@@ -155,6 +160,25 @@ struct ObjectPanelBody: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    /// The Attributes list of the front window's selection (ATTR-003).
+    static func attributes(_ selection: ActiveSelection?) -> AttributesListModel? {
+        guard let document = selection?.document, let selectionModel = selection?.model else { return nil }
+        _ = document.model?.revision
+        return AttributesListModel(document: document, selection: selectionModel.selection)
+    }
+
+    /// *Default line weights*, from the app's preferences when the panel has them.
+    static func widthPresets(_ selection: ActiveSelection?) -> [String] {
+        selection?.preferences?[PreferenceCatalog.Object.defaultLineWeights] ?? PreferenceCatalog.Object.defaultLineWeights.defaultValue
+    }
+
+    /// The object's own sections show while its root row is selected (the lower half edits
+    /// whichever row is selected in the list).
+    static func showsObjectSections(_ selection: ActiveSelection?, _ state: AttributesState) -> Bool {
+        guard let list = attributes(selection) else { return true }
+        return AttributesListView.selected(list, state) == nil
     }
 
     private var model: ObjectPanelModel? {

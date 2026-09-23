@@ -527,6 +527,25 @@ offscreen of the same pixels (REND-007 failed at 4× under rotation).  PDF outpu
 vector `CGPattern` with a 2 × 2 pt cell; reopened, it agrees with the screen within REND-007's
 tile tolerance with interiors off by rounding (1/255), not pixel for pixel.
 
+NOTE: As built by ATTR-006 and ATTR-015 (`WTApp/Inspectors/StrokeEditors.swift`, `StrokePresets.swift`,
+`AttributeEditing.swift`).  The width field takes units, arithmetic and "Hairline"; above 16,164 pt it
+clamps with a beep, a negative or unreadable entry beeps and is dropped.  Its presets are the
+*Default line weights* preference (preferences.adoc; default `0.5 1 2 4 8 12 16 24`) with Hairline
+always first, rather than a separate *Stroke width presets* preference.  The colour control is a
+colour well with a btn:[None] button until COLOR-011 supplies the colour pop-up.  Custom dashes and
+arrowheads saved on this Mac are `dashes.json` (name and lengths) and `arrowheads.json` (each head
+its encoded `Arrowhead`, base64) in the Presets folder; a dash made in the Dash Editor is named by its
+lengths ("6-3").  The arrowhead pop-ups list the built-in heads (`Arrowhead.builtIns`, copied through
+`InlineShapes.arrowhead`), the saved ones and those strokes in the document use; *New…* is disabled
+and kbd:[Option]-click applies the head until the Arrowhead Editor (ATTR-030) exists.  The Brush
+kind shows its colour and width percentage only; the brush pop-up, its action menu and the Edit
+Brush sheet are ATTR-009, which needs the brush model (ATTR-008).  btn:[Paste In] takes a path with
+one closed contour, a rectangle, an ellipse or a polygon from the objects pasteboard and maps its
+control bounds onto the unit square (`Subtrees.nib`); btn:[Copy Out] writes the nib at its width,
+height and angle.  The 64 built-in patterns are `WTApp/Inspectors/Resources/PatternPresets.json`
+(designed for {product}: sixteen grey levels by ordered dither, lines, diagonals, grids, checks,
+bricks, dots, diamonds, waves and weaves).
+
 === Build tasks
 
 [[ATTR-005]]
