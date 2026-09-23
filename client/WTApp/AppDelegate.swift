@@ -1,12 +1,24 @@
 import AppKit
 import Sparkle
 
-/// The application delegate.  `@main` on an `NSApplicationDelegate` runs `NSApplicationMain`
-/// and installs an instance of this class as the delegate; there is no storyboard, so the menu
-/// bar and the windows are built in code from the command, panel and tool registries.
+/// The application delegate.  There is no main nib or storyboard, so `NSApplicationMain` would
+/// never instantiate a delegate: `main()` creates one, holds it (`NSApplication.delegate` is
+/// weak) and runs the app.  The menu bar and the windows are built in code from the command,
+/// panel and tool registries.
 @main
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    /// The running app's delegate, kept alive for the life of the process.
+    private static var running: AppDelegate?
+
+    static func main() {
+        let delegate = AppDelegate()
+        running = delegate
+        let app = NSApplication.shared
+        app.delegate = delegate
+        app.run()
+    }
+
     /// Sparkle.  Not started until the distribution task ships an `SUPublicEDKey`; starting
     /// the updater without one is a fatal Sparkle error.  The menu item stays disabled until
     /// then because its command validates against `canCheckForUpdates`.
