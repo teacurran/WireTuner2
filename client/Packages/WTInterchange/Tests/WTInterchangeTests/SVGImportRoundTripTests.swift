@@ -142,9 +142,13 @@ struct SVGImportRoundTripTests {
         let start = Date()
         let scene = try SVGImporter().convert(data, name: "large.svg", format: .svg, options: SVGImportOptions().values, context: ImportContext())
         let seconds = Date().timeIntervalSince(start)
-        print("SVG import of \(data.count / 1_000_000) MB (\(index) paths): \(String(format: "%.2f", seconds)) s (debug build; the budget is 3 s on M1 in release)")
+        print("SVG import of \(data.count / 1_000_000) MB (\(index) paths): \(String(format: "%.2f", seconds)) s (the budget is 3 s on M1 in release)")
         #expect(scene.scenePaths.count == index)
-        #expect(seconds < 10)
+        // Like the other budgets, enforced in release builds only: debug timings under load say
+        // nothing about the importer (testing.adoc).
+        #if !DEBUG
+        #expect(seconds < 3)
+        #endif
     }
 
     // MARK: Helpers
