@@ -77,7 +77,7 @@ enum PanelCatalog {
 
     private static func stub(_ id: PanelID, _ title: String, _ icon: String, _ group: String, _ order: Int, _ slug: String, _ detail: String) -> PanelDescriptor {
         PanelDescriptor(id: id, title: title, icon: icon, defaultGroup: group, menuOrder: order, helpSlug: slug) {
-            PlaceholderPanelBody(title: title, detail: detail)
+            PlaceholderPanelBody(title: title, detail: detail).panelContextMenu(PanelContextMenus.bodyContexts[id])
         }
     }
 

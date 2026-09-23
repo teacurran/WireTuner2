@@ -1,0 +1,19 @@
+{
+  "_comment": "Adobe Photoshop's Mac shortcuts for the commands the two applications share (zoom, hand, selection, transforms). Commands not listed keep the WireTuner set's keys; a key listed here is taken away from every other command.",
+  "format": "wtkeys",
+  "version": 1,
+  "id": "builtin.photoshop",
+  "name": "Photoshop",
+  "based_on": "builtin.wiretuner",
+  "updated_at_ms": 0,
+  "bindings": [
+    { "command_id": "view.fitPage", "keys": ["cmd+0"] },
+    { "command_id": "view.fitAll", "keys": [] },
+    { "command_id": "edit.select.none", "keys": ["cmd+d"] },
+    { "command_id": "edit.select.invert", "keys": ["cmd+shift+i"] },
+    { "command_id": "tool.rectangle", "keys": ["m", "2"] },
+    { "command_id": "tool.freeform", "keys": [] },
+    { "command_id": "tool.page", "keys": ["shift+v"] },
+    { "command_id": "tool.graphicHose", "keys": [] }
+  ]
+}

@@ -54,6 +54,11 @@ enum PreferenceForm {
         integer ? .int(Int(number.rounded())) : .double(number)
     }
 
+    /// What a chooser shows: the chosen item's name, or the placeholder ("System default").
+    static func chooserTitle(_ path: String, placeholder: String) -> String {
+        path.isEmpty ? placeholder : FileManager.default.displayName(atPath: path)
+    }
+
     /// A list field's text: items separated by spaces.
     static func listText(_ items: [String]) -> String {
         items.joined(separator: " ")
@@ -80,6 +85,19 @@ enum PreferenceForm {
 struct PreferenceBindings {
     let store: PreferenceStore
     var beep: @MainActor () -> Void = { NSSound.beep() }
+    /// Runs a chooser's open panel (BASIC-022); replaceable in tests.
+    var choose: @MainActor (AnyPreferenceKey) -> Void
+
+    init(store: PreferenceStore, beep: @escaping @MainActor () -> Void = { NSSound.beep() }, choose: (@MainActor (AnyPreferenceKey) -> Void)? = nil) {
+        self.store = store
+        self.beep = beep
+        self.choose = choose ?? { key in PreferenceBookmarks(store: store).runChooser(for: key) }
+    }
+
+    /// Clears a chooser's pick.
+    func clearChoice(_ key: AnyPreferenceKey) {
+        PreferenceBookmarks(store: store).clear(key)
+    }
 
     func commit(_ value: PreferenceValue, for key: AnyPreferenceKey) {
         if !store.set(value, for: key) { beep() }
@@ -191,11 +209,14 @@ struct PreferenceRowView: View {
         case let .chooser(placeholder):
             LabeledContent(row.title) {
                 HStack {
-                    TextField(row.title, text: bindings.string(row.key), prompt: Text(placeholder))
-                        .labelsHidden()
-                    Button("Choose…") {}
-                        .disabled(true)
-                        .help("Choosing with a panel arrives with the Preferences window content")
+                    Text(PreferenceForm.chooserTitle(bindings.string(row.key).wrappedValue, placeholder: placeholder))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    Button("Choose…") { bindings.choose(row.key) }
+                        .accessibilityIdentifier("\(row.accessibilityIdentifier).choose")
+                    Button("Clear") { bindings.clearChoice(row.key) }
+                        .accessibilityIdentifier("\(row.accessibilityIdentifier).clear")
                 }
             }
         }

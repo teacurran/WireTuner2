@@ -238,6 +238,25 @@ runs server-side in `SetPreferences` (BASIC-023).
   drag sources are command ids; `NSToolbar` handles the Main toolbar natively.
 * Panel layouts: files under `~/Library/Application Support/WireTuner/Layouts/<name>.json`
   (format in xref:panels.adoc[Using panels]); the menu is rebuilt from the directory.
++
+NOTE: Deviations recorded by BASIC-029 and BASIC-030.  *Customize Toolbars* lists the registry's
+commands under their top-level menu, tools under *Tools* and commands without a menu item under
+*Tools/Commands*, searchable by title and keywords; selecting one highlights its buttons and names
+the toolbars that show it, and a button clicked while the window is open selects its command
+instead of running it.  Rows drag as a `wt.toolbar:<source>:<command>` string.  A button dragged and
+released where no toolbar takes it is removed; a drop on a toolbar moves the button, or with
+kbd:[Option] held (kbd:[Cmd+Option]-drag) puts a copy there; outside the window a drag needs
+kbd:[Cmd]; a toolbar holds a command once.  The Tools panel takes added buttons in a row after its
+Snap section; its own tool slots, wells and toggles cannot be removed.  Customized toolbars are saved
+in `Application Support/WireTuner/Toolbars.json`; Reset Toolbars restores every toolbar's buttons
+and leaves which toolbars are shown alone.  menu:Window[Panel Layout] lists Save Layout…
+(`panels.layout.save`, an alert whose combo box offers the saved names) and Manage Layouts…
+(`panels.layout.manage`, a list with Delete), then Current (`panels.layout.current`) and the saved
+layouts sorted by name (`panels.layout.named.<name>`), then Reset to Default, the three groups
+separated by lines (`MenuPath.subsection`).  Switching from Current to a
+named layout keeps the arrangement left behind in `Layouts/.current.json`; choosing Current brings
+it back.  A floating group whose display is not connected, or whose frame is on no screen, is moved
+onto the main display when a layout is applied.
 * Command palette (`WTApp/Palette`, BASIC-033).  Sources conform to `PaletteSource` and
   return `[PaletteItem]` (id, title, subtitle, kind, icon, shortcut, `isEnabled` with a
   reason, `run`).  Built-in sources: every APP-005 registry command including tools (subtitle
@@ -263,6 +282,39 @@ runs server-side in `SetPreferences` (BASIC-023).
   field and list, positioned at the top third of the key document window; kbd:[Esc] closes,
   focus returns to the previous responder.  It is accessible: the list is an
   `NSAccessibilityList`, each row labelled with title, shortcut and enabled state.
+
+NOTE: Deviations recorded by BASIC-026, BASIC-027 and BASIC-033.  *Built-in sets*: the
+{product} set is not a resource; it is generated from every registered command's default key
+(`ShortcutSet.builtInDefault`), so a command an epic registers is covered at once.  The
+Illustrator, QuarkXPress and Photoshop sets are `.wtkeys`-format JSON resources
+(`WTApp/Shortcuts/Resources/builtin.*.json`) holding only the bindings that differ from the
+{product} set; they are applied over it (a key a preset binds is taken from every other
+command, an empty key list unbinds) and every command they do not mention keeps {product}'s
+keys.  The validation "build failure" is a unit test (`ShortcutPresetTests`): each preset's
+report lists every registered command as set by the preset or inherited, and the test fails on
+an unknown command id, on a duplicate key in any resolved set, and unless kbd:[Cmd+U] is *Smart
+Guides* and kbd:[Cmd+/] the palette in every set and kbd:[Cmd+K] is *Settings…* in the
+Illustrator set only.  Until BASIC-028, the user's sets and the active set id are kept in
+`Application Support/WireTuner/ShortcutSets.json` (`ShortcutSetStore`); a user set is a full
+copy, and commands registered after it was made fill in from the set it was copied from.
+Switching or editing a set rebuilds the menu bar; tool keys follow because the canvas resolves
+every key through the active set (tool button tooltips still show the default keys).  *Window*:
+SwiftUI in an `NSWindow` (a `List` with collapsible sections per menu, not an `NSOutlineView`);
+*Duplicate…* is the same action as btn:[+].  Revert restores the sets and the active set as they
+were when the window was last shown.  *Card*: two columns on US Letter pages; btn:[Print…] opens
+a preview sheet with *Include commands without shortcuts*, btn:[Print…] (the system dialog) and
+btn:[Save as PDF…], which joins each page's `dataWithPDF(inside:)` into one document.  The
+"golden PDF" test is structural: the page count and the text of every page (PDFKit) against the
+default set's menus, not a pixel comparison.  The CSV has one row per binding (command, the
+binding's keys in canonical form separated by spaces, menu path), header row, CRLF.  *Palette*:
+one `NSPanel` per application, shown over the key document window (not one per
+`DocumentWindowController`).  Sources are read when the palette opens (or a source registers);
+typing re-ranks them, so validation is as of opening.  Built-in sources: commands and tools
+(the Window menu's panel toggles are left to the panel source), panels, and the front
+document's pages; layers, named views and recent documents register through
+`CommandPaletteModel.register(id:_:)` from their epics.  A history entry's `query_prefix` is the
+whole normalized query it was chosen for; it matches that query and every longer one, decayed
+with a 30-day half-life; equal scores keep the sources' order.  Spaces in a query are ignored.
 
 === Build tasks
 

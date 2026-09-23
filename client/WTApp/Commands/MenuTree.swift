@@ -6,6 +6,9 @@ struct MenuItemNode: Equatable, Sendable {
     let commandID: CommandID
     let title: String
     let key: KeyEquivalent?
+    /// A context menu's own wording ("Object Panel", "Follow Ana"): validation keeps it
+    /// instead of the command's menu-bar title.
+    var keepsTitle = false
 }
 
 /// One node of the menu tree.
@@ -61,7 +64,7 @@ struct MenuTree: Equatable, Sendable {
 enum MenuTreeBuilder {
     /// The order of the standard menus; menus the registry adds beyond these follow in the
     /// order they were first registered.
-    static let standardMenuOrder = ["WireTuner", "File", "Edit", "View", "Window", "Help"]
+    static let standardMenuOrder = ["WireTuner", "File", "Edit", "View", "Modify", "Text", "Object", "Extensions", "Window", "Help"]
 
     @MainActor
     static func build(
@@ -85,7 +88,7 @@ enum MenuTreeBuilder {
     /// deeper than `depth` goes into a submenu named by its next component, placed where its
     /// first member appears.
     static func nodes(for commands: [Command], depth: Int, shortcuts: ShortcutSet) -> [MenuNode] {
-        let sections = Dictionary(grouping: commands) { $0.menuPath?.section ?? 0 }
+        let sections = Dictionary(grouping: commands) { $0.menuPath?.section(atDepth: depth) ?? 0 }
         var result: [MenuNode] = []
         for section in sections.keys.sorted() {
             if !result.isEmpty { result.append(.separator) }

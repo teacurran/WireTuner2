@@ -382,7 +382,9 @@ final class SelectionFlag {
         #expect(commands.command(SelectionCommands.ID.invert)?.action.responderSelectorName == "invertSelection:")
         let tree = MenuTreeBuilder.build(registry: commands, shortcuts: ShortcutSet.builtInDefault(commands: commands.commands))
         let select = tree.items(inMenu: "Edit")?.first { $0.title == "Select" }
-        #expect(select?.commandIDs == [SelectionCommands.ID.selectAll, SelectionCommands.ID.selectNone, SelectionCommands.ID.invert])
+        #expect(select?.commandIDs == [
+            SelectionCommands.ID.selectAll, ContextMenuCatalog.ID.superselect, ContextMenuCatalog.ID.subselect, SelectionCommands.ID.selectNone, SelectionCommands.ID.invert,
+        ])
         #expect(ShortcutSet.builtInDefault(commands: commands.commands).conflicts().isEmpty)
         #expect(SelectionToolOptions.contactSensitive.defaultValue == false)
         #expect(SelectionToolOptions.lassoContactSensitive.id == "tools.lasso.contact_sensitive")

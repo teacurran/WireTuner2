@@ -65,10 +65,13 @@ protocol CanvasHost: AnyObject {
     func showStatusMessage(_ message: String)
     /// Shows `message` briefly over the canvas (the "coming soon" HUD).
     func showHUD(_ message: String)
+    /// The Zoom tool's Shift-drag: ask for a named view of `target` (the New View sheet).
+    func requestNamedView(_ target: Viewport)
 }
 
 extension CanvasHost {
     func showHUD(_ message: String) { showStatusMessage(message) }
+    func requestNamedView(_ target: Viewport) {}
 }
 
 /// Snapping, as the tools see it.  A placeholder until GEO-005 and OBJ-039 deliver the
@@ -81,8 +84,16 @@ struct SnappingContext {
     /// View pixels within which a click picks (*Pick distance*).
     var pickDistance: @MainActor () -> Double = { 3 }
     var smartGuidesEnabled: @MainActor () -> Bool = { true }
+    /// Called by the snap resolver each time a dragged point snaps (the Sounds preferences,
+    /// BASIC-025); GEO-005's resolver reports what it snapped to.
+    var didSnap: @MainActor (SnapKind) -> Void = { _ in }
 
     func snap(_ point: Point, viewport: Viewport) -> Point { point }
+}
+
+/// What a dragged point snapped to (preferences.adoc, "Sounds").
+enum SnapKind: String, CaseIterable, Sendable {
+    case point, object, grid, guide
 }
 
 /// Everything a tool gets when activated (client.adoc, "Tools"): the document, the view
@@ -94,6 +105,10 @@ struct ToolContext {
     var snapping: SnappingContext
     /// The window's selection (APP-006); a fresh one over `document` when none is given.
     let selection: SelectionController
+    /// The Redraw preferences (*Preview drag* and the rest, BASIC-013), read at each use.
+    var redraw: @MainActor () -> RedrawSettings = { RedrawSettings() }
+    /// *Option-drag copies paths*: with it off, Option-drag previews the dragged objects fully.
+    var optionDragCopies: @MainActor () -> Bool = { true }
 
     init(document: DocumentHandle, host: any CanvasHost, snapping: SnappingContext = SnappingContext(), selection: SelectionController? = nil) {
         self.document = document
@@ -129,8 +144,11 @@ protocol Tool: AnyObject {
     func drawOverlay(in ctx: CGContext, viewport: Viewport)
     /// Esc: abandons the gesture in progress without emitting anything.
     func cancel()
+    /// A Force click (stage 2 of a Force Touch press) at `e`; most tools ignore it.
+    func forceClick(_ e: CanvasEvent)
 }
 
 extension Tool {
     var toolID: ToolID { Self.id }
+    func forceClick(_ e: CanvasEvent) {}
 }

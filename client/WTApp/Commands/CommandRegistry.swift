@@ -55,6 +55,16 @@ final class CommandRegistry {
         }
     }
 
+    /// Removes the commands with `ids` (named panel layouts deleted from the Window menu);
+    /// unknown ids are ignored.
+    func remove(_ ids: Set<CommandID>) {
+        let before = commands.count
+        commands.removeAll { ids.contains($0.id) }
+        guard commands.count != before else { return }
+        indexByID = Dictionary(uniqueKeysWithValues: commands.enumerated().map { ($1.id, $0) })
+        onChange?()
+    }
+
     func command(_ id: CommandID) -> Command? {
         indexByID[id].map { commands[$0] }
     }

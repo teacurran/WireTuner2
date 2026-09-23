@@ -31,3 +31,6 @@ docs/inspo/*.pdf
 # Xcode test results and raw coverage profiles
 *.xcresult
 *.profraw
+
+# Agent worktrees
+.claude/worktrees/

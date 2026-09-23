@@ -16,7 +16,7 @@ enum PlaceholderPanels {
     static let layers = PanelDescriptor(
         id: "layers", title: "Layers", icon: "square.3.layers.3d", defaultGroup: "Layers", menuOrder: 20, helpSlug: "layers"
     ) {
-        PlaceholderPanelBody(title: "Layers", detail: "The document's layers appear here.")
+        PlaceholderPanelBody(title: "Layers", detail: "The document's layers appear here.").panelContextMenu(.layer)
     }
 
     static var all: [PanelDescriptor] { [object, layers] }

@@ -117,6 +117,21 @@ Nothing beyond storing and relaying changes.
 * Disabled extensions remain registered so documents referencing them render and edit; only
   the UI entry points hide.
 
+NOTE: Deviations recorded by BASIC-031 and BASIC-032.  Operation commands are
+`extension.<id>`, Repeat is `extension.repeat` and Manage Extensions… `extension.manage` (a plain
+command, so it cannot be turned off); tool extensions are the tool registry's `tool.<id>` commands.
+The tool extensions are grouped for Manage Extensions under the category their operation shares
+(Distort: Mirror, Roughen, Bend, Fisheye Lens, Smudge, Shadow, 3D Rotation; Chart: Chart) and under a
+*Tools* category for the rest, which has no submenu.  A turned-off operation keeps its registry entry
+and its place but loses its menu item (the command palette lists it disabled, "Turned off in Manage
+Extensions"); a turned-off tool extension leaves the Extension Tools toolbar but keeps its Tools
+panel flyout slot.  An operation's settings are an `ExtensionParameters` string map: `run(nil)` asks
+(its sheet) and returns what it captured, Repeat passes the captured map back (an empty one when
+nothing was captured); choosing any tool, from the Tools panel, a shortcut or a toolbar, disables
+Repeat.  Manage Extensions is a sheet on the front document window, or a window of its own when none
+is open.  Where the Extensions menu sits in the menu bar is `MenuTreeBuilder.standardMenuOrder`'s
+business.
+
 === Build tasks
 
 [[BASIC-031]]

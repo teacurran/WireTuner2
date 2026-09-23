@@ -39,7 +39,7 @@ enum SelectionCommands {
         return [
             .responder(
                 id: ID.selectAll, title: "All", key: KeyEquivalent("a", .command), menu: path,
-                contexts: [.pasteboard, .page, .textEditing], keywords: ["select all"], selector: selectAllSelector
+                contexts: [.pasteboard, .page], keywords: ["select all"], selector: selectAllSelector
             ),
             .responder(id: ID.selectNone, title: "None", key: KeyEquivalent("tab"), menu: path, keywords: ["deselect"], selector: selectNoneSelector),
             .responder(id: ID.invert, title: "Invert Selection", menu: path, keywords: ["inverse"], selector: invertSelector),

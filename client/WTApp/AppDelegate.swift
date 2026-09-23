@@ -41,9 +41,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private(set) var libraryWindowController: LibraryWindowController?
     /// The UI tests' socket audit, running only when the launch asked for it (DEBUG builds).
     let socketMonitor: SocketMonitor?
+    /// menu:View[Preview in Browser]'s exports (BASIC-017); the exporter arrives with WEB-029.
+    let browserPreview = BrowserPreview()
+    /// The Sounds preferences' playback (BASIC-025).
+    let snapSounds: SnapSoundPlayer
+    /// The dockable toolbars and the extensions (BASIC-011, 029, 031, 032).
+    let toolbars: ToolbarFeatures
+    /// menu:Window[Panel Layout]'s saved layouts (BASIC-030).
+    let namedLayouts: NamedLayoutController
 
-    /// The active shortcut set; BASIC-026 makes it selectable.
+    /// The active shortcut set, resolved against the registry (BASIC-026).
     private(set) var shortcuts: ShortcutSet
+    /// The shortcut sets and which is active (BASIC-026).
+    let shortcutSets: ShortcutSetStore
+    /// menu:Edit[Keyboard Shortcuts…] (BASIC-027).
+    var keyboardShortcutsWindowController: KeyboardShortcutsWindowController?
+    /// The command palette (BASIC-033).
+    let palette: CommandPaletteController
     private(set) var menuTarget: CommandMenuTarget?
 
     /// - Parameters:
@@ -54,10 +68,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         layoutStore: PanelLayoutStore?, defaults: UserDefaults = PreferenceStore.makeDefaults(), windowStates: WindowStateStore? = nil,
         launchEnvironment: LaunchEnvironment = LaunchEnvironment(), account: AccountModel? = nil,
         libraryStore: LibraryCacheStore? = nil, thumbnailDirectory: URL? = nil, library: LibraryModel? = nil,
-        sessionStore: SessionStore? = nil
+        sessionStore: SessionStore? = nil, toolbarStore: ToolbarStore? = nil, layoutsDirectory: URL? = nil,
+        shortcutSetsURL: URL? = nil, paletteHistoryURL: URL? = nil
     ) {
         layout = PanelLayoutController(registry: panels, store: layoutStore)
         preferences = PreferenceStore(defaults: defaults)
+        snapSounds = SnapSoundPlayer(preferences: preferences)
         floatingPanels = FloatingPanelsController(panels: panels, layout: layout)
         self.sessionStore = sessionStore
         self.launchEnvironment = launchEnvironment
@@ -69,6 +85,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
         socketMonitor = launchEnvironment.auditsSockets ? SocketMonitor() : nil
         shortcuts = ShortcutSet.builtInDefault(commands: [])
+        toolbars = ToolbarFeatures(commands: commands, layout: layout, tools: tools, defaults: defaults, store: toolbarStore)
+        namedLayouts = NamedLayoutController(
+            layout: layout, store: NamedLayoutStore(directory: layoutsDirectory ?? FileManager.default.temporaryDirectory.appending(path: "WireTunerLayouts-\(UUID().uuidString)")),
+            commands: commands
+        )
+        shortcutSets = ShortcutSetStore(url: shortcutSetsURL)
+        palette = CommandPaletteController(model: CommandPaletteModel(history: PaletteHistory(url: paletteHistoryURL)))
         super.init()
         var environment = DocumentEnvironment(
             commands: commands, panels: panels, layout: layout, tools: tools, preferences: preferences,
@@ -77,6 +100,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             perform: { [weak self] id in self?.menuTarget?.perform(id) ?? false }
         )
         environment.showHelp = { [weak self] descriptor in self?.showHelp(for: descriptor) }
+        environment.snapSounds = snapSounds
         if let socketMonitor {
             environment.diagnostics = { socketMonitor.counts.accessibilityText }
         }
@@ -89,7 +113,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.init(
             layoutStore: PanelLayoutStore(url: PanelLayoutStore.defaultURL), windowStates: WindowStateStore(url: WindowStateStore.defaultURL),
             libraryStore: LibraryCacheStore(url: LibraryCacheStore.defaultURL), thumbnailDirectory: ThumbnailCache.defaultDirectory,
-            sessionStore: SessionStore(url: SessionStore.defaultURL)
+            sessionStore: SessionStore(url: SessionStore.defaultURL), toolbarStore: ToolbarStore(url: ToolbarStore.defaultURL),
+            layoutsDirectory: NamedLayoutStore.defaultDirectory, shortcutSetsURL: ShortcutSetStore.defaultURL,
+            paletteHistoryURL: PaletteHistory.defaultURL
         )
     }
 
@@ -110,20 +136,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         library.onOpen = { opened in
             for document in opened { documents.open(DocumentHandle.placeholder(id: document.id, title: document.name)) }
         }
+        let preferences = preferences
         ViewCommands.install(
             into: commands,
             target: { documents.activeWindowController },
-            newDocument: { library.createDocument() }
+            hooks: ViewCommands.Hooks(
+                newDocument: { library.createDocument() }, documents: documents, browserPreview: browserPreview,
+                previewBrowser: { PreferenceBookmarks(store: preferences).url(for: PreferenceCatalog.Export.previewBrowser.erased) }
+            )
         )
         LibraryCommands.install(into: commands) { [weak self] in self?.showLibrary() }
         PreferenceCommands.install(into: commands, store: preferences) { [weak self] in self?.showPreferences() }
         installTools()
+        installShortcutsAndPalette()
         AccountCommands.install(into: commands, model: account) { [weak self] in self?.showAccount() }
         let account = account
         Task { await account.start() }
 
+        installContextMenus()
         PanelCatalog.register(into: panels, selection: activeSelection, help: helpModel)
         panels.registerIfAbsent(ToolsPanel.descriptor(model: toolPalette))
+        installToolbars()
         layout.load()
         panels.onChange = { [weak self] in self?.panelsDidChange() }
         panelsDidChange()
@@ -135,6 +168,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        browserPreview.cleanUp()
         documents.saveAllStates()
         try? sessionStore?.save(documents.sessionState())
     }
@@ -189,6 +223,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         toolPalette.slotStore = (get: { layout.flyoutSlot($0) }, set: { layout.setFlyoutSlot($0, to: $1) })
     }
 
+    /// Panel menus (BASIC-019) come from the registry with the active shortcut set.
+    private func installContextMenus() {
+        let commands = commands
+        PanelContextMenus.nodes = { [weak self] context in
+            ContextMenuBuilder.nodes(for: .panel(context), registry: commands, shortcuts: self?.shortcuts ?? ShortcutSet.builtInDefault(commands: []))
+        }
+        PanelContextMenus.perform = { [weak self] id in _ = self?.menuTarget?.perform(id) }
+    }
+
     /// A panel was registered: give it a layout slot and a Window menu item.
     func panelsDidChange() {
         layout.addRegisteredPanels()
@@ -205,10 +248,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         toolPalette.selectionWells = window?.selectionWells
         activeSelection.model = window?.selection.model
         floatingPanels.reattach()
+        toolbarsDocumentsDidChange()
     }
 
     func rebuildMainMenu() {
-        shortcuts = ShortcutSet.builtInDefault(commands: commands.commands)
+        shortcuts = shortcutSets.activeSet
         let target = CommandMenuTarget(registry: commands)
         menuTarget = target
         NSApp.mainMenu = MainMenuBuilder.menuBar(registry: commands, shortcuts: shortcuts, target: target)
@@ -225,7 +269,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// The audit's counts changed: every canvas republishes its accessibility value.
     func socketCountsDidChange() {
-        for controller in documents.windowControllers.values { controller.canvas.updateAccessibilityValue() }
+        for controller in documents.allWindowControllers { controller.canvas.updateAccessibilityValue() }
     }
 
     /// menu:File[Open…], menu:Window[Library].

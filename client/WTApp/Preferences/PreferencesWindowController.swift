@@ -25,6 +25,12 @@ final class PreferencesWindowModel {
         PreferenceCategory.visible(typefaceDocumentOpen: typefaceDocumentOpen)
     }
 
+    /// The synced/local badge beside each category (preferences.adoc, "Synced and local
+    /// preferences").
+    static func badge(for category: PreferenceCategory) -> String {
+        category.scope == .synced ? "Synced" : "This Mac"
+    }
+
     var restoreTitle: String {
         optionHeld ? "Restore This Category" : "Restore Defaults"
     }
@@ -63,9 +69,15 @@ struct PreferencesSidebar: View {
             get: { Optional(model.selectedCategory) },
             set: { if let category = $0 { model.selectedCategory = category } }
         )) { category in
-            Label(category.title, systemImage: category.symbolName)
-                .tag(category)
-                .accessibilityIdentifier("pref-sidebar.\(category.rawValue)")
+            HStack {
+                Label(category.title, systemImage: category.symbolName)
+                Spacer()
+                Text(PreferencesWindowModel.badge(for: category))
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+            .tag(category)
+            .accessibilityIdentifier("pref-sidebar.\(category.rawValue)")
         }
         .listStyle(.sidebar)
     }

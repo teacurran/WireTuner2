@@ -59,14 +59,16 @@ import Testing
         let commands = CommandRegistry()
         StandardCommands.register(into: commands)
         let added = PanelCommands.sync(into: commands, panels: panels, layout: layout)
-        #expect(added == ["panel.show.object", "panel.show.layers", PanelCommands.ID.togglePanels, PanelCommands.ID.resetLayout])
+        // menu:View[Panels] replaces the standard set's placeholder; Reset to Default is new.
+        #expect(added == ["panel.show.object", "panel.show.layers", PanelCommands.ID.resetLayout])
+        #expect(commands.validate(PanelCommands.ID.togglePanels)?.isEnabled == true)
         #expect(PanelCommands.sync(into: commands, panels: panels, layout: layout).isEmpty)
 
         let tree = MenuTreeBuilder.build(registry: commands, shortcuts: ShortcutSet.builtInDefault(commands: commands.commands))
         let window = tree.items(inMenu: "Window")!
-        #expect(window.map(\.title) == ["Minimize", "Zoom", nil, "Object", "Layers", nil, "Panel Layout", nil, "Bring All to Front"])
-        #expect(window[6] == .submenu(title: "Panel Layout", items: [.item(MenuItemNode(commandID: PanelCommands.ID.resetLayout, title: "Reset to Default", key: nil))]))
-        #expect(tree.items(inMenu: "View")!.last == .item(MenuItemNode(commandID: PanelCommands.ID.togglePanels, title: "Panels", key: nil)))
+        #expect(window.map(\.title) == ["Minimize", "Zoom", "New Window", nil, "Object", "Layers", nil, "Panel Layout", nil, "Bring All to Front"])
+        #expect(window[7] == .submenu(title: "Panel Layout", items: [.item(MenuItemNode(commandID: PanelCommands.ID.resetLayout, title: "Reset to Default", key: nil))]))
+        #expect(tree.items(inMenu: "View")!.contains(.item(MenuItemNode(commandID: PanelCommands.ID.togglePanels, title: "Panels", key: nil))))
 
         try panels.register(PanelDescriptor(id: "swatches", title: "Swatches", defaultGroup: "Assets", menuOrder: 15) { NSView() })
         #expect(PanelCommands.sync(into: commands, panels: panels, layout: layout) == ["panel.show.swatches"])

@@ -411,7 +411,7 @@ import WTRender
         #expect(created.count == 1)
         // Placeholders were replaced in place: the View menu keeps its order.
         let view = registry.commands(inMenu: "View").map(\.id)
-        #expect(Array(view.prefix(5)) == [ids.zoomIn, ids.zoomOut, ids.fitPage, ids.fitAll, ids.fitSelection])
+        #expect(Array(view.prefix(3)) == [ids.fitSelection, ids.fitPage, ids.fitAll])
         #expect(registry.command(ids.zoomIn)?.defaultKey == KeyEquivalent("=", .command))
 
         // Performing with no target is a no-op for the closure-based actions.

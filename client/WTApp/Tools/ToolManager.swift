@@ -14,6 +14,12 @@ final class ToolManager {
     var runShortcut: @MainActor (KeyEquivalent) -> Bool
     /// Called after the effective tool changes.
     var onToolChange: (@MainActor (ToolID) -> Void)?
+    /// What the Info toolbar shows: the pointer position plus the active tool's readouts.
+    private(set) var info = ToolInfo() {
+        didSet { if info != oldValue { onInfoChange?(info) } }
+    }
+    /// Called when `info` changes (the Info toolbar, BASIC-011).
+    var onInfoChange: (@MainActor (ToolInfo) -> Void)?
 
     private(set) var machine: TemporaryToolMachine
     private(set) var activeTool: any Tool
@@ -74,19 +80,32 @@ final class ToolManager {
         machine.mouseDown()
         lastEvent = event
         activeTool.mouseDown(event)
+        publishInfo(event)
         context.host.setNeedsOverlayDisplay()
+    }
+
+    /// The pointer moved with no button down: the Info toolbar follows it.
+    func pointerMoved(_ event: CanvasEvent) {
+        publishInfo(event)
+    }
+
+    private func publishInfo(_ event: CanvasEvent) {
+        let base = ToolInfo(position: event.pasteboardPoint)
+        info = (activeTool as? any ToolInfoPublishing).map { base.merged(with: $0.info) } ?? base
     }
 
     func mouseDragged(_ event: CanvasEvent) {
         guard !machine.isSuppressingDrag else { return }
         lastEvent = event
         activeTool.mouseDragged(event)
+        publishInfo(event)
         context.host.setNeedsOverlayDisplay()
     }
 
     func mouseUp(_ event: CanvasEvent) {
         let suppressed = machine.isSuppressingDrag
         if !suppressed { activeTool.mouseUp(event) }
+        publishInfo(event)
         lastEvent = nil
         let result = machine.mouseUp()
         perform(result.effects)
@@ -104,6 +123,12 @@ final class ToolManager {
             activeTool.flagsChanged(CanvasEvent(pasteboardPoint: .zero, viewPoint: .zero, modifiers: modifiers, timestamp: timestamp))
         }
         perform(machine.commandChanged(down: modifiers.contains(.command)))
+        context.host.setNeedsOverlayDisplay()
+    }
+
+    /// A Force click on the canvas, delivered to the effective tool (BASIC-034).
+    func forceClick(_ event: CanvasEvent) {
+        activeTool.forceClick(event)
         context.host.setNeedsOverlayDisplay()
     }
 

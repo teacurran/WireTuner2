@@ -13,25 +13,34 @@ import Testing
     @Test func buildsTheStandardMenuBar() {
         let (registry, shortcuts) = standardRegistry()
         let tree = MenuTreeBuilder.build(registry: registry, shortcuts: shortcuts)
-        #expect(tree.titles == MenuTreeBuilder.standardMenuOrder)
-        #expect(Set(tree.commandIDs) == Set(registry.ids))
+        #expect(tree.titles == Self.menusWithoutExtensions)
+        // Every command with a menu path is in the tree; the context menu's extra
+        // magnifications are palette- and context-only.
+        #expect(Set(tree.commandIDs) == Set(registry.commands.filter { $0.menuPath != nil }.map(\.id)))
         #expect(tree.items(inMenu: "Nope") == nil)
 
+        // The View menu follows the page's table.
         let view = tree.items(inMenu: "View")!
-        #expect(view[0] == .item(MenuItemNode(commandID: StandardCommands.ID.zoomIn, title: "Zoom In", key: KeyEquivalent("=", .command))))
-        #expect(view[5] == .separator)
-        guard case let .submenu(title, levels) = view[6] else { Issue.record("expected the Magnification submenu"); return }
+        #expect(view.map(\.title) == Self.viewMenuTitles)
+        #expect(view[0] == .item(MenuItemNode(commandID: StandardCommands.ID.fitSelection, title: "Fit Selection", key: KeyEquivalent("0", [.command, .option]))))
+        guard case let .submenu(title, levels) = view[3] else { Issue.record("expected the Magnification submenu"); return }
         #expect(title == "Magnification")
         #expect(levels.map(\.title) == ["25%", "50%", "100%", "200%", "400%", "800%"])
         #expect(levels[2].commandID == StandardCommands.ID.magnification(100))
-        #expect(view[7] == .separator)
-        #expect(view.compactMap(\.title).contains("Smart Guides"))
-        #expect(view.filter { $0 == .separator }.count == 3)
+        #expect(view.filter { $0 == .separator }.count == 8)
 
         let app = tree.items(inMenu: "WireTuner")!
         #expect(app.map(\.title) == ["About WireTuner", "Check for Updates…", nil, "Settings…", nil, "Hide WireTuner", "Hide Others", "Show All", nil, "Quit WireTuner"])
         #expect(tree.items(inMenu: "Edit")!.last == .item(MenuItemNode(commandID: StandardCommands.ID.keyboardShortcuts, title: "Keyboard Shortcuts…", key: nil)))
     }
+
+    static let menusWithoutExtensions = MenuTreeBuilder.standardMenuOrder.filter { $0 != "Extensions" }
+    static let viewMenuTitles: [String?] = [
+        "Fit Selection", "Fit to Page", "Fit All", "Magnification", "Zoom In", "Zoom Out", nil,
+        "Custom", "Rotate Canvas", nil, "Preview in Browser", nil, "Keyline", "Fast Mode", nil,
+        "Panels", "Toolbars", "Show Tab Bar", "Customize Toolbar…", nil, "Page Rulers", "Text Rulers", "Grid", "Guides", nil,
+        "Snap to Point", "Snap to Object", "Smart Guides", nil, "Perspective Grid", nil, "Show All", "Hide Selection", "Collaborators",
+    ]
 
     @Test func usesTheActiveShortcutSet() {
         let (registry, shortcuts) = standardRegistry()
@@ -39,10 +48,10 @@ import Testing
         custom.bind(KeyEquivalent("j", .command), to: StandardCommands.ID.zoomIn)
         // The first key of a binding is the one the menu shows.
         var tree = MenuTreeBuilder.build(registry: registry, shortcuts: custom)
-        #expect(tree.items(inMenu: "View")![0] == .item(MenuItemNode(commandID: StandardCommands.ID.zoomIn, title: "Zoom In", key: KeyEquivalent("=", .command))))
+        #expect(tree.items(inMenu: "View")![4] == .item(MenuItemNode(commandID: StandardCommands.ID.zoomIn, title: "Zoom In", key: KeyEquivalent("=", .command))))
         custom.unbind(KeyEquivalent("=", .command), from: StandardCommands.ID.zoomIn)
         tree = MenuTreeBuilder.build(registry: registry, shortcuts: custom)
-        #expect(tree.items(inMenu: "View")![0] == .item(MenuItemNode(commandID: StandardCommands.ID.zoomIn, title: "Zoom In", key: KeyEquivalent("j", .command))))
+        #expect(tree.items(inMenu: "View")![4] == .item(MenuItemNode(commandID: StandardCommands.ID.zoomIn, title: "Zoom In", key: KeyEquivalent("j", .command))))
     }
 
     @Test func ordersUnknownMenusAfterTheStandardOnes() throws {
@@ -71,11 +80,11 @@ import Testing
         try registry.register(Command(id: "obj.disabled", title: "Never", menu: MenuPath("Edit"), contexts: [.path], validation: { .disabled("no") }, action: .perform(Command.noop)))
         try registry.register(Command(id: "obj.dyn", title: "Static", menu: MenuPath("Help"), contexts: [.path], validation: { CommandValidation(title: "Dynamic") }, action: .perform(Command.noop)))
         let nodes = ContextMenuBuilder.nodes(registry: registry, contexts: [.path], shortcuts: shortcuts)
-        #expect(nodes.map(\.title) == ["Cut", "Copy", "Delete", nil, "Dynamic"])
+        #expect(nodes.map(\.title) == ["Cut", "Copy", "Clear", nil, "Dynamic"])
         #expect(nodes[0] == .item(MenuItemNode(commandID: StandardCommands.ID.cut, title: "Cut", key: KeyEquivalent("x", .command))))
         #expect(ContextMenuBuilder.nodes(registry: registry, contexts: [.swatch], shortcuts: shortcuts).isEmpty)
         let pasteboard = ContextMenuBuilder.nodes(registry: registry, contexts: [.pasteboard], shortcuts: shortcuts)
-        #expect(pasteboard.compactMap(\.commandID) == [StandardCommands.ID.paste, StandardCommands.ID.selectAll, StandardCommands.ID.zoomIn, StandardCommands.ID.zoomOut].filter { id in
+        #expect(pasteboard.compactMap(\.commandID) == [StandardCommands.ID.paste, StandardCommands.ID.selectAll].filter { id in
             registry.validate(id)!.isEnabled
         })
     }
@@ -84,7 +93,7 @@ import Testing
         let (registry, shortcuts) = standardRegistry()
         let target = CommandMenuTarget(registry: registry)
         let menuBar = MainMenuBuilder.menuBar(registry: registry, shortcuts: shortcuts, target: target)
-        #expect(menuBar.items.map(\.title) == MenuTreeBuilder.standardMenuOrder)
+        #expect(menuBar.items.map(\.title) == Self.menusWithoutExtensions)
         #expect(NSApp.windowsMenu?.title == "Window")
         #expect(NSApp.helpMenu?.title == "Help")
 
@@ -149,7 +158,7 @@ import Testing
         let (registry, shortcuts) = standardRegistry()
         let target = CommandMenuTarget(registry: registry)
         let menu = MainMenuBuilder.contextMenu(registry: registry, contexts: [.textEditing], shortcuts: shortcuts, target: target)
-        #expect(menu.items.map(\.title) == ["Cut", "Copy", "Paste", "Select All"])
+        #expect(menu.items.map(\.title) == ["Cut", "Copy", "Paste"])
         #expect(menu.items[0].identifier?.rawValue == MainMenuBuilder.accessibilityIdentifier(for: StandardCommands.ID.cut))
         #expect(menu.items[0].keyEquivalent == "x")
     }

@@ -2,10 +2,10 @@ import Foundation
 import WTGeometry
 import WTRender
 
-/// What a document window restores when the document is opened again on this Mac: frame,
-/// magnification, scroll position, rotation and drawing mode (workspace.adoc, "Magnification
-/// and the canvas"; `ViewState` and `WindowState` in document-view.adoc and workspace.adoc).
-/// Local only: never part of the document.
+/// What a document window restores when the document is opened again on this Mac: the frame
+/// and the view's `ViewState` (document-view.adoc, "Data model"): magnification, scroll
+/// position, rotation, drawing mode, the snap toggles, page rulers and the current page
+/// (workspace.adoc, "Magnification and the canvas").  Local only: never part of the document.
 struct DocumentWindowState: Codable, Equatable, Sendable {
     /// Window frame in screen points; nil when unknown.
     var frame: LayoutRect?
@@ -17,6 +17,11 @@ struct DocumentWindowState: Codable, Equatable, Sendable {
     var viewMode: ViewMode
     /// The snap toggles (BASIC-009); nil in files written before them.
     var snap: SnapSettings?
+    /// `ViewState.current_page`: the page's frame until pages have ids, so a page deleted
+    /// meanwhile falls back to the nearest remaining one by pasteboard distance (BASIC-016).
+    var currentPageFrame: LayoutRect?
+    /// `ViewState.page_rulers` (View > Page Rulers > Show); nil reads as shown.
+    var pageRulers: Bool?
 
     init(frame: LayoutRect? = nil, zoom: Double = 1, scrollX: Double = 0, scrollY: Double = 0, rotationDegrees: Double = 0, viewMode: ViewMode = .preview) {
         self.frame = frame
@@ -37,6 +42,14 @@ struct DocumentWindowState: Codable, Equatable, Sendable {
     /// The stored view applied to a viewport of `size`.
     func viewport(size: Size) -> Viewport {
         Viewport(scrollOrigin: Point(x: scrollX, y: scrollY), rotationDegrees: rotationDegrees, zoom: zoom, size: size)
+    }
+
+    /// The index of the page nearest the saved current page among `pages` (nil when there
+    /// are none or nothing was saved): the saved page itself when it still exists.
+    func currentPageIndex(among pages: [Rect]) -> Int? {
+        guard let frame = currentPageFrame, !pages.isEmpty else { return nil }
+        let centre = Point(x: frame.x + frame.width / 2, y: frame.y + frame.height / 2)
+        return pages.indices.min { pages[$0].center.distance(to: centre) < pages[$1].center.distance(to: centre) }
     }
 }
 

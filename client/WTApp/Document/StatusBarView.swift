@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import WTRender
 
 /// The page selector's text: a page number, or a page's name as its pop-up lists it.
 enum PageSelection {
@@ -30,6 +31,8 @@ final class StatusBarView: NSView, NSComboBoxDelegate {
     let pageField = NSComboBox()
     let nextPage = NSButton(title: ">", target: nil, action: nil)
     let magnification = NSComboBox()
+    /// The canvas rotation (BASIC-034): hidden while straight; a click straightens.
+    let compass = CompassButton()
     let viewMode = NSPopUpButton(frame: .zero, pullsDown: false)
     let units = NSPopUpButton(frame: .zero, pullsDown: false)
     let message = NSTextField(labelWithString: "")
@@ -49,6 +52,7 @@ final class StatusBarView: NSView, NSComboBoxDelegate {
     var onPage: (@MainActor (Int) -> Void)?
     var onPageText: (@MainActor (String) -> Void)?
     var onUnits: (@MainActor (DocumentUnits) -> Void)?
+    var onResetRotation: (@MainActor () -> Void)?
 
     init() {
         super.init(frame: NSRect(x: 0, y: 0, width: 800, height: Self.height))
@@ -97,7 +101,9 @@ final class StatusBarView: NSView, NSComboBoxDelegate {
         syncHost = NSHostingView(rootView: SyncIndicatorView(model: model))
         avatarHost = NSHostingView(rootView: AvatarStripView(model: model))
 
-        let stack = NSStackView(views: [addPage, previousPage, pageField, nextPage, magnification, viewMode, units, syncHost, avatarHost, message])
+        compass.target = self
+        compass.action = #selector(compassClicked(_:))
+        let stack = NSStackView(views: [addPage, previousPage, pageField, nextPage, magnification, compass, viewMode, units, syncHost, avatarHost, message])
         stack.orientation = .horizontal
         stack.spacing = 6
         stack.edgeInsets = NSEdgeInsets(top: 0, left: 8, bottom: 0, right: 8)
@@ -153,6 +159,11 @@ final class StatusBarView: NSView, NSComboBoxDelegate {
         magnification.stringValue = MagnificationFormat.string(for: zoom)
     }
 
+    /// The compass: the angle the top of the page points to, hidden at 0°.
+    func show(rotation degrees: Double) {
+        compass.degrees = degrees
+    }
+
     func show(mode: ViewMode) {
         viewMode.selectItem(at: ViewMode.allCases.firstIndex(of: mode) ?? 0)
     }
@@ -190,6 +201,7 @@ final class StatusBarView: NSView, NSComboBoxDelegate {
     // MARK: Actions
 
     @objc func addPageClicked(_ sender: Any?) { onAddPage?() }
+    @objc func compassClicked(_ sender: Any?) { onResetRotation?() }
     @objc func previousPageClicked(_ sender: Any?) { onPage?(currentPage - 1) }
     @objc func nextPageClicked(_ sender: Any?) { onPage?(currentPage + 1) }
 
@@ -220,5 +232,53 @@ final class StatusBarView: NSView, NSComboBoxDelegate {
     @objc func unitsChosen(_ sender: NSPopUpButton) {
         let index = max(sender.indexOfSelectedItem, 0)
         onUnits?(DocumentUnits.allCases[index])
+    }
+}
+
+/// The status bar's compass: a needle showing which way the top of the page points and the
+/// angle in degrees; hidden while the canvas is straight.  Clicking it resets the rotation.
+@MainActor
+final class CompassButton: NSButton {
+    var degrees: Double = 0 {
+        didSet { update() }
+    }
+
+    init() {
+        super.init(frame: NSRect(x: 0, y: 0, width: 56, height: 18))
+        isBordered = false
+        imagePosition = .imageLeading
+        font = .systemFont(ofSize: NSFont.smallSystemFontSize)
+        image = NSImage(systemSymbolName: "location.north.fill", accessibilityDescription: "Compass")
+        toolTip = "Canvas rotation; click to straighten"
+        setAccessibilityIdentifier("status.compass")
+        setAccessibilityLabel("Canvas rotation")
+        update()
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("CompassButton is built in code")
+    }
+
+    private func update() {
+        let title = CanvasRotation.compassTitle(degrees)
+        isHidden = title == nil
+        self.title = title ?? ""
+        setAccessibilityValue(title ?? "0°")
+        // The needle points where the page's top points: counter-clockwise by the angle.
+        image = CompassButton.needle(rotatedBy: degrees)
+    }
+
+    /// The north needle turned counter-clockwise by `degrees`.
+    static func needle(rotatedBy degrees: Double) -> NSImage? {
+        guard let symbol = NSImage(systemSymbolName: "location.north.fill", accessibilityDescription: "Compass") else { return nil }
+        let size = NSSize(width: 12, height: 12)
+        return NSImage(size: size, flipped: false) { rect in
+            guard let context = NSGraphicsContext.current?.cgContext else { return false }
+            context.translateBy(x: rect.midX, y: rect.midY)
+            context.rotate(by: degrees * .pi / 180)
+            symbol.draw(in: NSRect(x: -size.width / 2, y: -size.height / 2, width: size.width, height: size.height))
+            return true
+        }
     }
 }

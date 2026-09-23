@@ -1,0 +1,33 @@
+{
+  "_comment": "Adobe Illustrator's Mac shortcuts where a WireTuner command corresponds. Commands not listed keep the WireTuner set's keys; a key listed here is taken away from every other command.",
+  "format": "wtkeys",
+  "version": 1,
+  "id": "builtin.illustrator",
+  "name": "Illustrator",
+  "based_on": "builtin.wiretuner",
+  "updated_at_ms": 0,
+  "bindings": [
+    { "command_id": "app.settings", "keys": ["cmd+k", "cmd+,"] },
+    { "command_id": "view.keyline", "keys": ["cmd+y"] },
+    { "command_id": "view.fastMode", "keys": ["cmd+opt+y"] },
+    { "command_id": "view.fitPage", "keys": ["cmd+0"] },
+    { "command_id": "view.fitAll", "keys": ["cmd+opt+0"] },
+    { "command_id": "view.fitSelection", "keys": [] },
+    { "command_id": "edit.select.none", "keys": ["cmd+shift+a"] },
+    { "command_id": "tool.rectangle", "keys": ["m", "2"] },
+    { "command_id": "tool.ellipse", "keys": ["l", "3"] },
+    { "command_id": "tool.lasso", "keys": ["q"] },
+    { "command_id": "tool.rotate", "keys": ["r"] },
+    { "command_id": "tool.reflect", "keys": ["o"] },
+    { "command_id": "tool.scale", "keys": ["s"] },
+    { "command_id": "tool.pencil", "keys": ["n", "9"] },
+    { "command_id": "tool.line", "keys": ["\\", "4"] },
+    { "command_id": "tool.knife", "keys": ["c", "7"] },
+    { "command_id": "tool.eraser", "keys": ["shift+e"] },
+    { "command_id": "tool.graphicHose", "keys": ["shift+s"] },
+    { "command_id": "tool.chart", "keys": ["j"] },
+    { "command_id": "tool.page", "keys": ["shift+o"] },
+    { "command_id": "tool.freeform", "keys": ["shift+r"] },
+    { "command_id": "tool.perspective", "keys": ["shift+p"] }
+  ]
+}

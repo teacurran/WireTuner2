@@ -72,7 +72,7 @@ import WTRender
             settled.append(Double(DispatchTime.now().uptimeNanoseconds - start) / 1e9)
         }
         let withRaster = Stats(samples: settled)
-        let tiles = canvas.tiles.tileLayerCount
+        let tiles = canvas.tiles.fallbackCanvas?.tileLayerCount ?? canvas.tiles.atlasTileCount
 
         print("APP-002 pan, 50,000 rects, 1200×800 pt @2×, \(tiles) visible tiles — main thread per frame: \(mainThread)")
         print("APP-002 pan, 50,000 rects — frame including rasterising uncovered tiles: \(withRaster)")

@@ -150,8 +150,8 @@ import WTRender
     }
 }
 
-/// `WireTuner.ViewMode` is the app's local enum; WTRender gains its own with REND-005.
-private typealias Mode = WireTuner.ViewMode
+/// WTRender's drawing modes as the app names and stores them.
+private typealias Mode = ViewMode
 
 @Suite struct ViewModeTests {
     @Test func togglesFollowTheDrawingModesPage() {
@@ -164,5 +164,16 @@ private typealias Mode = WireTuner.ViewMode
         #expect(Mode.allCases.map(\.title) == ["Preview", "Fast Preview", "Keyline", "Fast Keyline"])
         #expect(Mode.allCases.filter(\.isKeyline) == [.keyline, .fastKeyline])
         #expect(Mode.allCases.filter(\.isFast) == [.fastPreview, .fastKeyline])
+    }
+
+    @Test func storedNamesRoundTripAndRejectUnknownOnes() throws {
+        #expect(Mode.allCases.map(\.storedName) == ["preview", "fast_preview", "keyline", "fast_keyline"])
+        for mode in Mode.allCases {
+            #expect(Mode(storedName: mode.storedName) == mode)
+            let data = try JSONEncoder().encode([mode])
+            #expect(try JSONDecoder().decode([Mode].self, from: data) == [mode])
+        }
+        #expect(Mode(storedName: "outline") == nil)
+        #expect(throws: DecodingError.self) { try JSONDecoder().decode([Mode].self, from: Data("[\"outline\"]".utf8)) }
     }
 }

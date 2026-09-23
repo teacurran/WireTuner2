@@ -48,6 +48,30 @@ final class PanelInteraction: NSObject, NSDraggingSource, NSMenuItemValidation {
             guard let self, let groupView, let panel = groupView.group.effectiveActivePanel else { return }
             self.presentMenu(self.optionsMenu(for: panel, in: groupView), button)
         }
+        groupView.tabMenu = { [weak self, weak groupView] panel in
+            guard let self, let groupView else { return nil }
+            return self.tabMenu(for: panel, in: groupView)
+        }
+    }
+
+    /// A panel tab's context menu (context-menus.adoc, "Any panel tab"; BASIC-019): *Group
+    /// <panel> With ▸*, *Rename Panel Group…*, *Float Group* or *Dock Group*, and *Help for
+    /// <panel>* -- the framework's part of the Options menu, without the panel's own items.
+    func tabMenu(for panel: PanelID, in groupView: PanelGroupView) -> NSMenu {
+        let options = optionsMenu(for: panel, in: groupView)
+        let menu = NSMenu(title: options.title)
+        let kept = options.items.filter { item in
+            guard let target = item.representedObject as? OptionTarget else { return item.submenu != nil }
+            switch target.option {
+            case .rename, .float, .dock, .help: return true
+            default: return false
+            }
+        }
+        for item in kept {
+            options.removeItem(item)
+            menu.addItem(item)
+        }
+        return menu
     }
 
     // MARK: Drops
@@ -503,6 +527,8 @@ final class PanelGroupView: NSView, NSTextFieldDelegate {
     /// A panel or group dropped on the tab strip, before tab `index` (nil: at the end).
     var onDrop: ((PanelDragPayload, Int?) -> Void)?
     var onDragTab: ((PanelTabButton, NSEvent) -> Void)?
+    /// A tab's context menu.
+    var tabMenu: ((PanelID) -> NSMenu?)?
     var onDragGroup: ((NSEvent) -> Void)?
     var onRename: ((String) -> Void)?
     var onClose: (() -> Void)?
@@ -569,6 +595,7 @@ final class PanelGroupView: NSView, NSTextFieldDelegate {
             button.target = self
             button.action = #selector(selectTab(_:))
             button.onDrag = { [weak self] button, event in self?.onDragTab?(button, event) }
+            button.contextMenu = { [weak self] id in self?.tabMenu?(id) }
             return button
         }
         tabBar.setViews(tabButtons, in: .leading)
@@ -726,6 +753,8 @@ final class GripperView: NSImageView {
 final class PanelTabButton: NSButton {
     let panelID: PanelID
     var onDrag: ((PanelTabButton, NSEvent) -> Void)?
+    /// The tab's context menu (secondary click or Control-click).
+    var contextMenu: ((PanelID) -> NSMenu?)?
 
     init(panelID: PanelID, title: String, image: NSImage? = nil) {
         self.panelID = panelID
@@ -744,7 +773,15 @@ final class PanelTabButton: NSButton {
         fatalError("PanelTabButton is built in code")
     }
 
+    override func menu(for event: NSEvent) -> NSMenu? {
+        contextMenu?(panelID)
+    }
+
     override func mouseDown(with event: NSEvent) {
+        if event.modifierFlags.contains(.control), let menu = contextMenu?(panelID) {
+            NSMenu.popUpContextMenu(menu, with: event, for: self)
+            return
+        }
         guard let window,
             let next = window.nextEvent(matching: [.leftMouseUp, .leftMouseDragged], until: .distantFuture, inMode: .eventTracking, dequeue: true)
         else { return }

@@ -421,6 +421,18 @@ size-limited to 64 KiB.  Team policy floors are a `team` table column read by th
   disagree.  *Rotate canvas with trackpad* is read by BASIC-034
   (xref:document-view.adoc[Setting the document view]).
 
+NOTE: Deviations recorded by BASIC-021, BASIC-022 and BASIC-025.  The catalog and store were
+APP-010's, with the exact-rows test; this adds no ids.  There are fifteen category forms (the page's
+categories, Typeface only while a typeface document is open), each sidebar row badged *Synced* or
+*This Mac*.  Choosers open an `NSOpenPanel` for an application (*Default image editor*, *Preview
+browser*), a folder (*Search for missing links*) or a file (template, ICC profiles); the preference
+stores the path and an app-scoped security bookmark is kept locally in `wt.bookmarks.<id>` (the
+app gains the `files.user-selected.read-only` and `files.bookmarks.app-scope` entitlements), with a
+Clear button beside Choose….  The "UI tests" write one control per category through the form's
+bindings and read the store.  Snap sounds: `SnapSoundPlayer` plays through
+`SnappingContext.didSnap`, which GEO-005's resolver calls, so no drag plays one until then; the
+system setting is read from `com.apple.sound.uiaudio.enabled` in the global domain (absent is on).
+
 === Build tasks
 
 [[BASIC-020]]

@@ -189,6 +189,33 @@ Nothing beyond storing and relaying changes.
   selection range.
 * Every menu item carries the accessibility identifier `menu.<commandId>` (TEST-002).
 
+NOTE: Deviations recorded by BASIC-018 and BASIC-019.  The canvas and tab menus are layouts in
+this page's order (`ContextMenuCatalog`), not the menu bar's order, resolved in the registry; any
+other registered command whose `contexts` match the target follows them after a line, which is how
+features and panels add items.  Disabled commands stay in the menu, greyed with their reason, so a
+menu keeps its shape.  The commands the layouts name that no task has delivered are placeholders
+with a menu-bar home, in new top-level menus *Modify*, *Text* and *Object* (paths from this book
+where it gives them, `menu:Modify[Combine > Union]` and the like) and in Edit, File and a View >
+Collaborators submenu; *Add Page* and the View ▸ magnifications work.  The pasteboard menu's View ▸
+levels below 25% and above 800% are commands without a menu item (the palette and the context menu
+reach them), because the View menu table keeps Magnification at 25%--800%.  Where this page names
+only a submenu (Font ▸, Size ▸, Style ▸, Align ▸, Leading ▸, Special Characters ▸, Spelling ▸,
+Convert Case ▸) its items are placeholders until the type epic.  `MenuContext` gained
+`importedGraphic`, `swatchesArea` (the Swatches panel's empty area) and `colorBox`.  Hit targets:
+the display list tells paths, text, bitmaps, groups and clipping groups apart; the other kinds are
+stub targets in tests until their nodes exist; guides and presence markers resolve through
+`ContextMenuResolver.guide` and `.presence`, which answer nothing until the grid epic and SYNC-009.
+The text menu is `ContextMenuTarget.textEditing`, for the type epic's editing session.  Panel rows
+and areas attach `panelContextMenu(_:)` (a SwiftUI context menu built from the registry through
+`PanelContextMenus`) rather than `NSTableView.menu(for:)`; each placeholder panel uses its main
+context.  The document tab bar is native window tabbing, which shows AppKit's own tab menu (Close
+Tab, Close Other Tabs, Move Tab to New Window...) and has no hook for more items, so *Rename
+Document…*, *Share…* and *Show in Library* are `.tab` commands the builder and the palette offer
+but the native menu does not show.  A panel tab's menu is the Options menu's framework part
+(`PanelTabButton.menu(for:)`).  The Edit menu's Delete is titled *Clear*, as this page names it,
+and Select All is no longer a text-menu item.  The "UI tests" are unit tests of the builder and of
+`DocumentWindowController.contextMenu(at:)`.
+
 === Build tasks
 
 [[BASIC-018]]

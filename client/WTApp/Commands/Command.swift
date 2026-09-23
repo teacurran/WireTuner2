@@ -42,32 +42,53 @@ enum CommandAction: Sendable {
 }
 
 /// Where a command lives in the menu bar.  `components` is the path of titles from the
-/// top-level menu (`["View", "Magnification"]`); `section` groups items at each level, and
-/// sections are separated by a line.  Within a section commands keep registration order.
+/// top-level menu (`["View", "Magnification"]`); `section` groups the entries of the top-level
+/// menu (an item, or the submenu the command is in), and `subsection` groups the items inside
+/// the command's submenu.  Sections are separated by a line; within a section commands keep
+/// registration order.
 struct MenuPath: Hashable, Sendable, Codable {
     var components: [String]
     var section: Int
+    var subsection: Int
 
-    init(_ components: String..., section: Int = 0) {
+    init(_ components: String..., section: Int = 0, subsection: Int = 0) {
         self.components = components
         self.section = section
+        self.subsection = subsection
     }
 
-    init(components: [String], section: Int) {
+    init(components: [String], section: Int, subsection: Int = 0) {
         self.components = components
         self.section = section
+        self.subsection = subsection
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case components, section, subsection
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        components = try container.decode([String].self, forKey: .components)
+        section = try container.decode(Int.self, forKey: .section)
+        subsection = try container.decodeIfPresent(Int.self, forKey: .subsection) ?? 0
     }
 
     /// The top-level menu title.
     var menu: String { components[0] }
+
+    /// The grouping at `depth` (1 is the top-level menu's own entries).
+    func section(atDepth depth: Int) -> Int { depth <= 1 ? section : subsection }
 }
 
 /// The situations a context menu can be opened in (Context menus page, BASIC-018).  A command
 /// with a non-empty set appears in the context menu of those targets.
 enum MenuContext: String, Hashable, Sendable, Codable, CaseIterable {
-    case path, text, bitmap, group, blend, clip, connector, symbolInstance, chart, envelope
+    case path, text, bitmap, importedGraphic, group, blend, clip, connector, symbolInstance, chart, envelope
     case multiple, pasteboard, page, guide, presence, swatch, layer, style, symbol, tint
     case pageThumbnail, tab, panelTab, textEditing
+    /// The Swatches panel's empty area and the Color Mixer or Tints panel's color box.
+    case swatchesArea, colorBox
 }
 
 /// One entry in the command registry: everything the menu bar, the shortcut editor, context

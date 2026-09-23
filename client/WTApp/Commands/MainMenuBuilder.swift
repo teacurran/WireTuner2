@@ -32,11 +32,14 @@ final class CommandMenuTarget: NSObject, NSMenuItemValidation {
         guard let id = Self.commandID(of: item), let command = registry.command(id) else { return false }
         let validation = command.validation()
         item.state = validation.isChecked ? .on : .off
-        item.title = validation.title ?? command.title
+        if !(item is FixedTitleMenuItem) { item.title = validation.title ?? command.title }
         item.toolTip = validation.isEnabled ? nil : validation.reason
         return validation.isEnabled
     }
 }
+
+/// A menu item whose title the context menu chose; validation leaves it alone.
+final class FixedTitleMenuItem: NSMenuItem {}
 
 /// Renders a `MenuTree` into `NSMenu`s.  Thin by design: the tree carries titles, keys and
 /// order; this only creates AppKit objects.
@@ -87,7 +90,7 @@ enum MainMenuBuilder {
     }
 
     static func menuItem(for node: MenuItemNode, registry: CommandRegistry, target: CommandMenuTarget) -> NSMenuItem {
-        let item = NSMenuItem(title: node.title, action: nil, keyEquivalent: "")
+        let item = node.keepsTitle ? FixedTitleMenuItem(title: node.title, action: nil, keyEquivalent: "") : NSMenuItem(title: node.title, action: nil, keyEquivalent: "")
         item.identifier = NSUserInterfaceItemIdentifier(accessibilityIdentifier(for: node.commandID))
         item.representedObject = node.commandID
         KeyEquivalentResolver.apply(node.key, to: item)

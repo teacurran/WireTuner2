@@ -476,6 +476,55 @@ window opens at Fit to Page.
 * Undo grouping: named-view commands are single undo steps; view state changes, rotation
   included, are not undoable.
 
+NOTE: Deviations recorded by BASIC-012, BASIC-013, BASIC-016, BASIC-017 and BASIC-034.  *View
+menu*: the items follow the table in nine sections; `MenuPath` gained `subsection` so a submenu
+has lines of its own (Custom's Previous, Rotate Canvas's Reset).  Items whose features belong to
+other tasks are disabled placeholders with a reason: Custom > Edit… and Previous (BASIC-015), Page
+Rulers > Edit Units…, Text Rulers, Grid > Show and Edit Grid…, Guides > Show, Lock and Edit…,
+Perspective Grid, Show All and Hide Selection.  Page Rulers > Show toggles the rulers as view
+state.  menu:View[Customize Toolbar…] (BASIC-010) sits with Panels, Toolbars and Show Tab Bar, and
+a Collaborators submenu (the presence context menu's items) ends the menu.  *View state*: there is
+no proto-shaped `ViewState` until BASIC-014; `DocumentWindowState` in `WindowState.json` holds the
+magnification, scroll origin, rotation, mode, snap toggles, `pageRulers` and `currentPageFrame`
+(the current page as its frame until pages have ids: on restore the page nearest that frame's
+centre becomes current, which is how a page deleted meanwhile falls back).  The current page
+itself stays on the `DocumentHandle`, so the views of one document on this Mac share it until
+`WTModel`.  *Zoom tool*: with the Zoom tool active, Control-click is the tool's (maximum
+magnification) rather than the context menu, which the secondary click still opens.  Shift-drag
+zooms to the area and opens a New View sheet that names the view but saves nothing until
+BASIC-015; View > Custom > New… opens the same sheet.  Option-drag zooms out by the dragged
+rectangle's share of the window and puts the old window centre at the rectangle's centre.
+*Auto-scroll*: a drag within 8 pt of the canvas edge (or past it) scrolls 8--48 pt every 16 ms and
+replays the drag at the new pasteboard point, for every tool but the Hand; *Dragging a guide scrolls
+the window* applies once guides can be dragged.  *Drawing modes* reach the renderer through
+`MetalTileCanvas.setViewMode`.  *Redraw preferences*: `RedrawSettings`, read from the store at each
+use and given to tools as `ToolContext.redraw` (with `optionDragCopies`), implements the Preview
+drag rule (`dragPreview(count:optionHeld:optionDragCopies:)`) and the greeking rule, tested as
+rules: no tool drags objects until OBJ-005 moves the selection, and the renderer has no
+text-effect, greek-size or image-resolution setting until TXT-001 and the image pipeline, so those
+three change no pixels yet.  This page's *On-screen image resolution* (Full, Half, Quarter) is the
+preferences page's *Image display* (High resolution, Proxy, Gray boxes), which the catalog follows.
+*Multiple views*: `DocumentController.views` lists each document's views, primary first; closing
+the primary view promotes the next, and closing every view (kbd:[Option]-click) closes the
+additional views first so the primary view's state is the one saved.  A new view is a tab beside
+the view it copies; each view has its own selection; session restore reopens every view.
+*Preview in Browser*: `BrowserPreview` takes a `BrowserPreviewExporter` (WEB-029's SVG/HTML
+exporter; none is installed yet, so the command is disabled with that reason as its tooltip);
+exports go to `NSTemporaryDirectory()/WireTuner/Preview/<document id>/`, open with the *Preview
+browser* preference's application when one is chosen, and are removed at quit.  *Rotation*: the
+compass shows the size of the turn (the needle shows its direction) and hides at 0°; clockwise is
+negative in `rotation_degrees`; menu rotations and Reset animate for 150 ms about the window centre
+inside one renderer gesture, so the settled angle is rasterized once.  The two-finger rotate turns
+about the rotate event's pointer location.  Smart zoom fits the REND-003 pick at the pointer, else
+the page containing it, and any other navigation forgets the way back.  A Force click (pressure
+stage 2) reaches the active tool's `forceClick` (a no-op by default; the Pointer subselects).  The
+per-tile golden comparison at 0°, 15° and 90° is REND-007's parity suite in WTRender, not repeated
+in the app; no tool constrains a drag yet, so the kbd:[Shift] constraint is covered by the
+pasteboard-space mapping of the pointer at 45°.  The "UI tests" of these tasks are unit tests of the
+window controller, canvas and commands; AppKit gesture events cannot be synthesized, so the
+`magnify(with:)`, `rotate(with:)`, `smartMagnify(with:)` and `pressureChange(with:)` overrides are
+thin forwards to tested methods.
+
 === Build tasks
 
 [[BASIC-012]]

@@ -1,12 +1,14 @@
 import AppKit
+import Metal
 import WTGeometry
 import WTRender
 
-/// The canvas: a layer-hosting view whose root layer holds the REND-001 tiled canvas and the
-/// tool overlay above it (the Metal `WTCanvasView` of REND-006 takes the tiles' place).  It
-/// owns the `Viewport`, pans on scroll, zooms on pinch and Option-scroll, and hands pointer
-/// and key events to the `ToolManager`.  Thin by design: coordinate translation is
-/// `CanvasEventTranslator`, zoom and scroll arithmetic `CanvasNavigation`.
+/// The canvas: a layer-hosting view whose root layer holds the REND-006 `MetalTileCanvas` (a
+/// `CAMetalLayer` driven by a display link, or its Core Graphics tile layer when the fallback
+/// has engaged) and the tool overlay above it.  It owns the `Viewport`, pans on scroll, zooms on
+/// pinch and Option-scroll, turns on two-finger rotate, and hands pointer and key events to the
+/// `ToolManager`.  Thin by design: coordinate translation is `CanvasEventTranslator`, zoom and
+/// scroll arithmetic `CanvasNavigation`, gesture phases `CanvasGestureTracker`.
 ///
 /// Not flipped: the tile layers are laid out y-up (`TileLayout.layerFrame`), so neither this
 /// view nor its layers may be geometry-flipped.  The orientation snapshot test checks that
@@ -16,9 +18,21 @@ final class CanvasView: NSView, CanvasHost {
     static let accessibilityIdentifier = "canvas"
     /// The pasteboard's colour behind the tiles (BASIC-003 draws page shadows on it).
     static let pasteboardColor = CGColor(gray: 0.86, alpha: 1)
+    static let pasteboardTileColor = Color(white: 0.86)
+
+    /// A tile canvas on the system GPU: Metal on an Apple-family GPU, else the Core Graphics
+    /// fallback (the canvas decides and logs why).
+    static func makeTiles() -> MetalTileCanvas {
+        MetalTileCanvas(pasteboardColor: pasteboardTileColor)
+    }
+
+    /// A tile canvas that draws with Core Graphics from the start (tests, snapshots).
+    static func makeFallbackTiles() -> MetalTileCanvas {
+        MetalTileCanvas(device: nil, pasteboardColor: pasteboardTileColor)
+    }
 
     let document: DocumentHandle
-    let tiles: TiledCanvasLayer
+    let tiles: MetalTileCanvas
     let overlay = CanvasOverlayLayer()
     var navigation = CanvasNavigation()
     private(set) var viewport: Viewport
@@ -30,6 +44,8 @@ final class CanvasView: NSView, CanvasHost {
     /// saved state).
     var onViewportChange: (@MainActor (Viewport) -> Void)?
     var onStatusMessage: (@MainActor (String) -> Void)?
+    /// A secondary click: the window builds the context menu for the point (view points).
+    var onContextMenu: (@MainActor (NSEvent, Point) -> NSMenu?)?
     private var documentObservation: DocumentHandle.ObservationToken?
 
     /// The window's selection, drawn under the tool overlay (APP-006).
@@ -40,13 +56,25 @@ final class CanvasView: NSView, CanvasHost {
     var presence: (any PresenceProviding)?
     /// *Show others' selections*.
     var showsRemoteSelections: @MainActor () -> Bool = { true }
+    /// *Rotate canvas with trackpad*: gates the two-finger rotate gesture only.
+    var rotatesWithTrackpad: @MainActor () -> Bool = { true }
     /// Extra state for UI tests, appended to the accessibility value (the socket audit's
     /// counts under `-WTSocketAudit`); nil adds nothing.
     var diagnostics: @MainActor () -> String? = { nil }
 
-    init(document: DocumentHandle, cache: TileCache = TileCache(renderer: CoreGraphicsRenderer()), frame: NSRect = NSRect(x: 0, y: 0, width: 800, height: 600)) {
+    /// Pinch, rotate, scroll and animations in progress (the renderer holds its tiles).
+    private(set) var gestures = CanvasGestureTracker()
+    /// The angle when the rotate gesture began and the rotation accumulated since.
+    private(set) var rotationGesture: (start: Double, accumulated: Double)?
+    private(set) var smartZoom = SmartZoomState()
+    /// The running menu rotation or Reset, awaited by tests.
+    private(set) var animation: Task<Void, Never>?
+    /// How long a menu rotation animates; zero applies it at once (tests).
+    var rotationAnimationDuration = CanvasRotation.animationDuration
+
+    init(document: DocumentHandle, tiles: MetalTileCanvas = CanvasView.makeFallbackTiles(), frame: NSRect = NSRect(x: 0, y: 0, width: 800, height: 600)) {
         self.document = document
-        tiles = TiledCanvasLayer(cache: cache, backingScale: 2)
+        self.tiles = tiles
         viewport = Viewport(size: Size(frame.size))
         super.init(frame: frame)
 
@@ -84,6 +112,9 @@ final class CanvasView: NSView, CanvasHost {
     override var acceptsFirstResponder: Bool { true }
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
+    /// Which renderer puts the canvas on screen.
+    var backend: MetalTileCanvas.Backend { tiles.backend }
+
     // MARK: Viewport
 
     func setViewport(_ viewport: Viewport) {
@@ -104,6 +135,11 @@ final class CanvasView: NSView, CanvasHost {
         overlay.setNeedsDisplay()
     }
 
+    /// Draws the canvas in `mode` (REND-005); the display list is not rebuilt.
+    func setViewMode(_ mode: ViewMode) {
+        tiles.setViewMode(mode)
+    }
+
     override func setFrameSize(_ newSize: NSSize) {
         super.setFrameSize(newSize)
         var resized = viewport
@@ -120,6 +156,32 @@ final class CanvasView: NSView, CanvasHost {
             overlay.contentsScale = scale
         }
         render()
+    }
+
+    /// The display link runs while the canvas is in a window: frames are drawn at the display's
+    /// refresh only when something changed, and never by `nextDrawable()` from here.
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        if window == nil {
+            tiles.stopDisplayLink()
+        } else {
+            tiles.startDisplayLink()
+            render()
+        }
+    }
+
+    /// What one frame of the current view costs on the GPU path, drawn offscreen at the view's
+    /// pixel size (the frame-budget harness; nil on the Core Graphics fallback).
+    func measureFrame() -> FrameTiming? {
+        guard backend == .metal, let device = tiles.metalLayer.device else { return nil }
+        let scale = tiles.backingScale
+        let descriptor = MTLTextureDescriptor.texture2DDescriptor(
+            pixelFormat: .bgra8Unorm, width: max(Int(viewport.size.width * scale), 1), height: max(Int(viewport.size.height * scale), 1), mipmapped: false
+        )
+        descriptor.usage = [.renderTarget]
+        descriptor.storageMode = .private
+        guard let texture = device.makeTexture(descriptor: descriptor) else { return nil }
+        return tiles.renderFrame(into: texture)
     }
 
     private func documentDidChange(dirty: Rect?) {
@@ -160,6 +222,13 @@ final class CanvasView: NSView, CanvasHost {
 
     func showStatusMessage(_ message: String) {
         onStatusMessage?(message)
+    }
+
+    /// The Zoom tool's Shift-drag; the window shows the New View sheet.
+    var onNamedViewRequest: (@MainActor (Viewport) -> Void)?
+
+    func requestNamedView(_ target: Viewport) {
+        onNamedViewRequest?(target)
     }
 
     // MARK: HUD
@@ -233,17 +302,50 @@ final class CanvasView: NSView, CanvasHost {
         )
     }
 
+    /// The view point (y down) of an AppKit point in this view.
+    func viewPoint(fromAppKit point: CGPoint) -> Point {
+        CanvasEventTranslator.viewPoint(fromAppKit: point, viewHeight: Double(bounds.height))
+    }
+
     override func mouseDown(with event: NSEvent) {
         window?.makeFirstResponder(self)
+        if event.modifierFlags.contains(.control), toolManager?.activeToolID != .zoom, let menu = contextMenu(for: event) {
+            NSMenu.popUpContextMenu(menu, with: event, for: self)
+            return
+        }
+        stopAutoscroll()
         toolManager?.mouseDown(canvasEvent(event))
     }
 
+    /// The Info toolbar follows the pointer (BASIC-011).
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        for area in trackingAreas where area.owner === self { removeTrackingArea(area) }
+        addTrackingArea(NSTrackingArea(rect: .zero, options: [.mouseMoved, .activeInKeyWindow, .inVisibleRect], owner: self))
+    }
+
+    override func mouseMoved(with event: NSEvent) {
+        toolManager?.pointerMoved(canvasEvent(event))
+    }
+
     override func mouseDragged(with event: NSEvent) {
-        toolManager?.mouseDragged(canvasEvent(event))
+        let translated = canvasEvent(event)
+        toolManager?.mouseDragged(translated)
+        updateAutoscroll(translated)
     }
 
     override func mouseUp(with event: NSEvent) {
+        stopAutoscroll()
         toolManager?.mouseUp(canvasEvent(event))
+    }
+
+    override func menu(for event: NSEvent) -> NSMenu? {
+        contextMenu(for: event)
+    }
+
+    /// The context menu for the point of `event`, from the window (BASIC-018).
+    func contextMenu(for event: NSEvent) -> NSMenu? {
+        onContextMenu?(event, viewPoint(fromAppKit: convert(event.locationInWindow, from: nil)))
     }
 
     override func flagsChanged(with event: NSEvent) {
@@ -259,6 +361,7 @@ final class CanvasView: NSView, CanvasHost {
     }
 
     override func scrollWheel(with event: NSEvent) {
+        gesture(.scroll, phase: event.phase, momentumPhase: event.momentumPhase)
         scroll(
             deltaX: Double(event.scrollingDeltaX), deltaY: Double(event.scrollingDeltaY),
             precise: event.hasPreciseScrollingDeltas, modifierFlags: event.modifierFlags,
@@ -268,10 +371,10 @@ final class CanvasView: NSView, CanvasHost {
 
     /// Scroll-wheel handling: pan, or with Option zoom about the pointer.
     func scroll(deltaX: Double, deltaY: Double, precise: Bool, modifierFlags: NSEvent.ModifierFlags, at appKitPoint: CGPoint) {
+        smartZoom.reset()
         if modifierFlags.contains(.option) {
             let factor = CanvasEventTranslator.scrollZoomFactor(deltaY: deltaY, hasPreciseDeltas: precise)
-            let pivot = CanvasEventTranslator.viewPoint(fromAppKit: appKitPoint, viewHeight: Double(bounds.height))
-            setViewport(navigation.magnify(viewport, by: factor, about: pivot))
+            setViewport(navigation.magnify(viewport, by: factor, about: viewPoint(fromAppKit: appKitPoint)))
         } else {
             let delta = CanvasEventTranslator.scrollDelta(deltaX: deltaX, deltaY: deltaY, hasPreciseDeltas: precise, shift: modifierFlags.contains(.shift))
             setViewport(navigation.scroll(viewport, by: delta))
@@ -279,16 +382,190 @@ final class CanvasView: NSView, CanvasHost {
     }
 
     override func magnify(with event: NSEvent) {
+        gesture(.magnify, phase: event.phase)
         magnify(by: Double(event.magnification), at: convert(event.locationInWindow, from: nil))
     }
 
     /// Pinch: continuous zoom about the pointer.
     func magnify(by magnification: Double, at appKitPoint: CGPoint) {
-        let pivot = CanvasEventTranslator.viewPoint(fromAppKit: appKitPoint, viewHeight: Double(bounds.height))
-        setViewport(navigation.magnify(viewport, by: CanvasEventTranslator.pinchFactor(magnification: magnification), about: pivot))
+        smartZoom.reset()
+        setViewport(navigation.magnify(viewport, by: CanvasEventTranslator.pinchFactor(magnification: magnification), about: viewPoint(fromAppKit: appKitPoint)))
     }
 
-    // BASIC-034 hook: `rotate(with:)` accumulates the gesture's rotation about its centroid
-    // through `Viewport.rotated(byDegrees:aboutViewPoint:)` while *Rotate canvas with
-    // trackpad* is on.  The scroll model, navigation and translator already work rotated.
+    /// Folds an event's phases into the gesture state and tells the renderer when a span of
+    /// continuous input begins or settles.
+    func gesture(_ source: CanvasGestureTracker.Source, phase: NSEvent.Phase, momentumPhase: NSEvent.Phase = []) {
+        apply(gestures.update(source, phase: phase, momentumPhase: momentumPhase))
+    }
+
+    private func apply(_ edge: CanvasGestureTracker.Edge?) {
+        switch edge {
+        case .began?: tiles.beginGesture()
+        case .ended?: tiles.endGesture()
+        case nil: break
+        }
+    }
+
+    // MARK: Rotation (BASIC-034)
+
+    override func rotate(with event: NSEvent) {
+        guard rotatesWithTrackpad() else { return }
+        gesture(.rotate, phase: event.phase)
+        rotate(
+            byGestureDegrees: Double(event.rotation), phase: event.phase, snapping: event.modifierFlags.contains(.shift),
+            at: convert(event.locationInWindow, from: nil)
+        )
+    }
+
+    /// One step of the two-finger rotate: the gesture's rotation so far (counter-clockwise
+    /// positive) turns the canvas about the point between the fingers; Shift snaps the total
+    /// to 15°.  `phase` ends the gesture on `.ended`/`.cancelled`.
+    func rotate(byGestureDegrees delta: Double, phase: NSEvent.Phase = .changed, snapping: Bool, at appKitPoint: CGPoint) {
+        guard rotatesWithTrackpad() else { return }
+        smartZoom.reset()
+        var state = rotationGesture ?? (start: viewport.rotationDegrees, accumulated: 0)
+        state.accumulated += delta
+        let angle = CanvasRotation.gestureAngle(start: state.start, accumulated: state.accumulated, snapping: snapping)
+        setViewport(viewport.rotated(toDegrees: angle, aboutViewPoint: viewPoint(fromAppKit: appKitPoint)))
+        rotationGesture = CanvasGestureTracker.isStopping(phase) ? nil : state
+    }
+
+    /// Turns the canvas to `degrees` about the view centre, animated over 150 ms (the menu
+    /// commands and the compass).  Tiles are drawn through the turn and the settled angle is
+    /// rasterised once at the end.
+    @discardableResult
+    func animateRotation(toDegrees degrees: Double) -> Task<Void, Never>? {
+        animation?.cancel()
+        smartZoom.reset()
+        let start = viewport
+        let duration = rotationAnimationDuration
+        guard duration > 0 else {
+            setViewport(start.rotated(toDegrees: degrees))
+            animation = nil
+            return nil
+        }
+        apply(gestures.set(.animation, running: true))
+        let task = Task { [weak self] in
+            let began = CACurrentMediaTime()
+            var fraction = 0.0
+            while fraction < 1, !Task.isCancelled {
+                try? await Task.sleep(for: .milliseconds(8))
+                fraction = min((CACurrentMediaTime() - began) / duration, 1)
+                self?.setViewport(CanvasRotation.interpolated(start, toDegrees: degrees, fraction: fraction))
+            }
+            self?.finishAnimation()
+        }
+        animation = task
+        return task
+    }
+
+    private func finishAnimation() {
+        apply(gestures.set(.animation, running: false))
+    }
+
+    // MARK: Smart zoom and Force click
+
+    override func smartMagnify(with event: NSEvent) {
+        smartMagnify(at: convert(event.locationInWindow, from: nil))
+    }
+
+    /// Two-finger double-tap: fit the object under the pointer, else the page under it; again
+    /// to go back.
+    func smartMagnify(at appKitPoint: CGPoint) {
+        let point = viewPoint(fromAppKit: appKitPoint)
+        let target = smartZoomTarget(at: point)
+        var state = smartZoom
+        let next = state.toggle(from: viewport, target: target, navigation: navigation)
+        setViewport(next)
+        smartZoom = state
+    }
+
+    /// The object (REND-003 hit) or page under `viewPoint`.
+    func smartZoomTarget(at viewPoint: Point) -> Rect? {
+        if let hit = selectionController?.pick(at: viewPoint, viewport: viewport, subselect: false),
+            let bounds = document.item(for: hit.id)?.bounds
+        {
+            return bounds
+        }
+        let point = viewport.toPasteboard(viewPoint)
+        return document.pages.first { $0.contains(point) }
+    }
+
+    override func pressureChange(with event: NSEvent) {
+        pressureChanged(stage: event.stage, event: canvasEvent(event))
+    }
+
+    /// Stage 2 of a Force Touch press is a Force click for the active tool (the Pointer
+    /// subselects, as Option-click does).
+    func pressureChanged(stage: Int, event: CanvasEvent) {
+        guard stage == 2 else { return }
+        toolManager?.forceClick(event)
+    }
+
+    // MARK: Auto-scroll
+
+    /// While a drag holds the pointer near or past the canvas edge, the view scrolls toward it
+    /// and the tool hears the drag again at the pointer's new pasteboard position.
+    private(set) var autoscrollEvent: CanvasEvent?
+    private var autoscrollTask: Task<Void, Never>?
+    /// Whether auto-scroll may run for the current tool (the Hand scrolls by itself).
+    var autoscrolls: @MainActor () -> Bool = { true }
+
+    private func updateAutoscroll(_ event: CanvasEvent) {
+        guard autoscrolls(), CanvasAutoscroll.delta(viewPoint: event.viewPoint, size: viewport.size) != nil else {
+            stopAutoscroll()
+            return
+        }
+        autoscrollEvent = event
+        guard autoscrollTask == nil else { return }
+        autoscrollTask = Task { [weak self] in
+            while !Task.isCancelled, self?.autoscrollStep() == true {
+                try? await Task.sleep(for: .milliseconds(16))
+            }
+        }
+    }
+
+    /// One auto-scroll step; returns whether the pointer is still at the edge.
+    @discardableResult
+    func autoscrollStep() -> Bool {
+        guard let event = autoscrollEvent, let delta = CanvasAutoscroll.delta(viewPoint: event.viewPoint, size: viewport.size) else {
+            return false
+        }
+        setViewport(navigation.scroll(viewport, by: delta))
+        let moved = CanvasEvent(
+            pasteboardPoint: viewport.toPasteboard(event.viewPoint), viewPoint: event.viewPoint, modifiers: event.modifiers,
+            pressure: event.pressure, clickCount: event.clickCount, timestamp: event.timestamp
+        )
+        autoscrollEvent = moved
+        toolManager?.mouseDragged(moved)
+        return true
+    }
+
+    func stopAutoscroll() {
+        autoscrollTask?.cancel()
+        autoscrollTask = nil
+        autoscrollEvent = nil
+    }
+}
+
+/// How fast the view scrolls when a drag reaches the canvas edge.
+enum CanvasAutoscroll {
+    /// The band inside the edge, in view points, where scrolling starts.
+    static let edge = 8.0
+    /// View points per step at the edge; further out scrolls faster, up to `maximumStep`.
+    static let step = 8.0
+    static let maximumStep = 48.0
+
+    /// The scroll for a pointer at `viewPoint` in a view of `size`; nil well inside it.
+    static func delta(viewPoint: Point, size: Size) -> Vector? {
+        let dx = axis(viewPoint.x, length: size.width)
+        let dy = axis(viewPoint.y, length: size.height)
+        return dx == 0 && dy == 0 ? nil : Vector(dx: dx, dy: dy)
+    }
+
+    static func axis(_ value: Double, length: Double) -> Double {
+        if value < edge { return -min(step + (edge - value), maximumStep) }
+        if value > length - edge { return min(step + (value - (length - edge)), maximumStep) }
+        return 0
+    }
 }

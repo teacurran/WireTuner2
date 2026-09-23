@@ -281,6 +281,20 @@ and image textures wait for the display list to carry glyph runs, raster effects
 (TXT-001, FX, the image pipeline); until then Metal draws the same placeholders as Core
 Graphics.
 
+NOTE: Deviations recorded by BASIC-034, which hosts REND-006's canvas.  `CanvasView` holds a
+`MetalTileCanvas` (`DocumentEnvironment.makeTiles`, `CanvasView.makeTiles()`); without Metal or on a
+GPU that is not Apple-family the canvas is its own Core Graphics fallback, so WTApp has one path.
+The display link starts when the canvas enters a window and stops when it leaves; WTApp never
+calls `drawFrame()`.  Pinch, two-finger rotate, a trackpad scroll with its momentum, and the menu's
+rotation animation are folded by `CanvasGestureTracker` into one `beginGesture`/`endGesture` span.
+Frame timing is `CanvasView.measureFrame()`, the current view drawn offscreen through
+`MetalTileCanvas.renderFrame(into:)` (CPU encode plus GPU): panning, pinching and rotating the
+50,000-rectangle document at 1200 × 800 pt @2× measured a p95 of 0.3--0.4 ms per frame against the
+8.3 ms budget.  Display-link frames are not timed one by one (WTRender exposes no per-frame hook).
+Tests build canvases with `CanvasView.makeFallbackTiles()` so layer snapshots (the orientation test)
+read Core Graphics tiles, and run the Metal tests only on an Apple-family GPU.  `ViewMode` is
+WTRender's; WTApp adds its `title` and the stored `DrawingMode` spelling.
+
 == Undo
 
 NOTE: Selection lives in `WTApp/Selection` (`SelectionModel`, `SelectionController`) until `WTModel` lands; ids are display-list index paths, renumbered when items are removed.  The Pointer tool is only the selection part of OBJ-005.  The sketch rectangle is one `PathItem`.

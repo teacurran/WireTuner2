@@ -37,7 +37,7 @@ enum PanelCommands {
             ),
             Command(
                 id: ID.resetLayout, title: "Reset to Default",
-                menu: MenuPath(StandardCommands.Menu.window, layoutSubmenu, section: StandardCommands.Section.windowLayout),
+                menu: MenuPath(StandardCommands.Menu.window, layoutSubmenu, section: StandardCommands.Section.windowLayout, subsection: 2),
                 keywords: ["panel", "layout", "factory"],
                 action: .perform { layout.resetToDefault() }
             ),
@@ -46,14 +46,20 @@ enum PanelCommands {
 
     @MainActor
     static func commands(panels: PanelRegistry, layout: PanelLayoutController) -> [Command] {
-        panels.descriptors.map { showCommand(for: $0, layout: layout) } + frameworkCommands(layout: layout)
+        panels.descriptors.filter(\.showsInWindowMenu).map { showCommand(for: $0, layout: layout) } + frameworkCommands(layout: layout)
     }
 
     /// Registers the panel commands that are not registered yet; returns the ids added.
-    /// Idempotent, so it runs again whenever a panel is registered.
+    /// Idempotent, so it runs again whenever a panel is registered.  The framework commands
+    /// replace the standard set's placeholders (menu:View[Panels]) in place.
     @discardableResult
     @MainActor
     static func sync(into registry: CommandRegistry, panels: PanelRegistry, layout: PanelLayoutController) -> [CommandID] {
-        commands(panels: panels, layout: layout).filter { registry.registerIfAbsent($0) }.map(\.id)
+        var added = panels.descriptors.map { showCommand(for: $0, layout: layout) }.filter { registry.registerIfAbsent($0) }.map(\.id)
+        for command in frameworkCommands(layout: layout) {
+            if !registry.contains(command.id) { added.append(command.id) }
+            registry.replace(command)
+        }
+        return added
     }
 }

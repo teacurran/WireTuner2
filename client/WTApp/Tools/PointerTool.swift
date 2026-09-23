@@ -78,6 +78,14 @@ final class PointerTool: Tool {
 
     func keyDown(_ e: NSEvent) -> Bool { false }
 
+    /// A Force click subselects the member under the pointer, as Option-click does
+    /// (document-view.adoc, "Trackpad, mouse and tablet gestures").
+    func forceClick(_ e: CanvasEvent) {
+        guard let context else { return }
+        cancel()
+        context.selection.click(at: e.viewPoint, viewport: context.viewport, modifiers: e.modifiers.union(.option), subselect: true)
+    }
+
     func drawOverlay(in ctx: CGContext, viewport: Viewport) {
         guard let rect = marqueeRect else { return }
         ctx.setStrokeColor(NSColor.controlAccentColor.cgColor)

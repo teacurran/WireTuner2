@@ -108,6 +108,9 @@ final class ToolPaletteModel {
     /// Where the flyout slots are kept (`PanelLayoutController`); in memory until connected.
     @ObservationIgnored var slotStore: (get: @MainActor (String) -> String?, set: @MainActor (String, String) -> Void)
     @ObservationIgnored private var slots: [String: String] = [:]
+    /// The buttons added to the Tools panel in Customize Toolbars (BASIC-029), after the
+    /// Snap section; nil until the toolbars are installed.
+    @ObservationIgnored var extraItems: (@MainActor () -> AnyView)?
 
     init() {
         slotStore = (get: { _ in nil }, set: { _, _ in })
@@ -236,6 +239,7 @@ struct ToolsPanelBody: View {
         ToolWellsView(model: model)
         Divider()
         snapToggles(horizontal: horizontal)
+        if let extraItems = model.extraItems { extraItems() }
     }
 
     @ViewBuilder private func slotGrid(_ slots: [ToolSlot], horizontal: Bool) -> some View {

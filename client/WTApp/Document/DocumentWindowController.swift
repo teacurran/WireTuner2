@@ -16,8 +16,10 @@ struct DocumentEnvironment {
     var shortcuts: @MainActor () -> ShortcutSet
     /// Runs a command as the menu would (responder-chain commands included).
     var perform: @MainActor (CommandID) -> Bool
-    /// A fresh tile cache per window.
-    var makeTileCache: @MainActor () -> TileCache = { TileCache(renderer: CoreGraphicsRenderer()) }
+    /// A tile canvas per window: Metal on an Apple-family GPU, else the Core Graphics fallback.
+    var makeTiles: @MainActor () -> MetalTileCanvas = { CanvasView.makeTiles() }
+    /// Snap sounds (BASIC-025); nil plays none (tests).
+    var snapSounds: SnapSoundPlayer?
     /// Appended to each canvas's accessibility value (the socket audit's counts).
     var diagnostics: @MainActor () -> String? = { nil }
     /// The presence source per window; the stub (nobody else) until SYNC-009.
@@ -65,10 +67,43 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
 
     private(set) var viewMode: ViewMode = .preview {
         didSet {
+            canvas.setViewMode(viewMode)
             statusBar.show(mode: viewMode)
             onViewStateChange?(self)
         }
     }
+
+    /// `ViewState.page_rulers` (menu:View[Page Rulers > Show]).
+    var pageRulersVisible: Bool {
+        get { rulerHost.rulersVisible }
+        set {
+            rulerHost.rulersVisible = newValue
+            rulerHost.needsLayout = true
+            onViewStateChange?(self)
+        }
+    }
+
+    /// The Redraw preferences as the canvas and tools read them (BASIC-013).
+    var redraw: RedrawSettings { RedrawSettings(preferences: environment.preferences) }
+
+    /// Whether this is the document's first view, whose view state persists (BASIC-016).
+    var isPrimaryView = true
+    /// Option-click on the close button closes every view of the document.
+    var onCloseAllViews: (@MainActor (DocumentWindowController) -> Void)?
+    /// Whether the close was Option-clicked; replaceable in tests.
+    var closesAllViews: @MainActor () -> Bool = { NSEvent.modifierFlags.contains(.option) }
+    /// The view state an additional view starts from (a copy of the view it was opened from).
+    private let initialState: DocumentWindowState?
+    /// The New View sheet on screen, if any (the Zoom tool's Shift-drag, View > Custom > New…).
+    private(set) var namedViewSheet: NSWindow?
+    /// The target the context menu was opened on, for commands that act on it.
+    private(set) var contextTarget: ContextMenuTarget?
+    /// Resolves guides and presence markers under the pointer (their epics fill it in).
+    var contextResolver = ContextMenuResolver()
+    /// Keeps the context menus' items' target alive.
+    private(set) lazy var contextMenuTarget = CommandMenuTarget(registry: environment.commands)
+    /// The main toolbar (BASIC-010).
+    private(set) var mainToolbar: MainToolbarController?
 
     /// The four snap toggles (`ViewState.snap_*`, local only).
     private(set) var snap = SnapSettings() {
@@ -91,10 +126,11 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
     /// Beeps on rejected magnification input; replaceable in tests.
     var beep: @MainActor () -> Void = { NSSound.beep() }
 
-    init(document: DocumentHandle, environment: DocumentEnvironment, initialTool: ToolID = .pointer) {
+    init(document: DocumentHandle, environment: DocumentEnvironment, initialTool: ToolID = .pointer, initialState: DocumentWindowState? = nil) {
         self.documentHandle = document
         self.environment = environment
-        canvas = CanvasView(document: document, cache: environment.makeTileCache())
+        self.initialState = initialState
+        canvas = CanvasView(document: document, tiles: environment.makeTiles())
         rulerHost = RulerHostView(canvas: canvas)
         let preferences = environment.preferences
         let interaction = PanelInteraction(panels: environment.panels, layout: environment.layout)
@@ -129,13 +165,18 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         window.contentMinSize = NSSize(width: 480, height: 320)
         super.init(window: window)
         window.delegate = self
+        mainToolbar = MainToolbarController(environment: environment, window: window)
 
         buildContent(in: window)
-        let context = ToolContext(document: document, host: canvas, snapping: SnappingContext(
+        let sounds = environment.snapSounds
+        var context = ToolContext(document: document, host: canvas, snapping: SnappingContext(
             snapDistance: { Double(preferences[PreferenceCatalog.General.snapDistance]) },
             pickDistance: { Double(preferences[PreferenceCatalog.General.pickDistance]) },
-            smartGuidesEnabled: { preferences[PreferenceCatalog.General.smartGuides] }
+            smartGuidesEnabled: { preferences[PreferenceCatalog.General.smartGuides] },
+            didSnap: { kind in sounds?.snapped(kind) }
         ), selection: selection)
+        context.redraw = { RedrawSettings(preferences: preferences) }
+        context.optionDragCopies = { preferences[PreferenceCatalog.Object.optionDragCopies] }
         let manager = ToolManager(registry: environment.tools, context: context, initialTool: initialTool) { [environment] key in
             environment.runShortcut(key)
         }
@@ -148,6 +189,10 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         canvas.selectionController = selection
         canvas.presence = presence
         canvas.showsRemoteSelections = { preferences[PreferenceCatalog.Sync.showSelections] }
+        canvas.rotatesWithTrackpad = { preferences[PreferenceCatalog.General.trackpadRotate] }
+        canvas.autoscrolls = { [weak manager] in manager?.activeToolID != .hand }
+        canvas.onContextMenu = { [weak self] _, point in self?.contextMenu(at: point) }
+        canvas.onNamedViewRequest = { [weak self] target in self?.presentNamedViewSheet(target: target) }
         canvas.diagnostics = environment.diagnostics
         canvas.updateAccessibilityValue()
         selection.model.observe { [weak self] _ in
@@ -170,6 +215,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         statusBar.onPage = { [weak self] index in self?.goToPage(index) }
         statusBar.onPageText = { [weak self] text in self?.enterPage(text) }
         statusBar.onUnits = { [weak self] units in self?.documentHandle.setUnits(units) }
+        statusBar.onResetRotation = { [weak self] in self?.resetRotation() }
         rulerHost.onHorizontalScroll = { [weak self] value in self?.scrollHorizontally(to: value) }
         rulerHost.onVerticalScroll = { [weak self] value in self?.scrollVertically(to: value) }
 
@@ -327,6 +373,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         let scroller = canvas.navigation.scroller
         rulerHost.update(horizontal: scroller.horizontal(viewport), vertical: scroller.vertical(viewport), viewport: viewport)
         statusBar.show(zoom: viewport.zoom)
+        statusBar.show(rotation: viewport.rotationDegrees)
     }
 
     func setViewport(_ viewport: Viewport) {
@@ -339,6 +386,65 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
 
     func toggleKeyline() { viewMode = viewMode.togglingKeyline }
     func toggleFastMode() { viewMode = viewMode.togglingFast }
+
+    // MARK: Rotation (BASIC-034)
+
+    /// menu:View[Rotate Canvas > Rotate Clockwise / Counter-clockwise]: 15° about the window
+    /// centre, animated; `steps` is positive counter-clockwise.
+    @discardableResult
+    func rotateCanvas(steps: Int) -> Task<Void, Never>? {
+        canvas.animateRotation(toDegrees: viewport.rotationDegrees + Double(steps) * CanvasRotation.step)
+    }
+
+    /// menu:View[Rotate Canvas > Reset] and the compass: straightens the canvas about the window
+    /// centre.
+    @discardableResult
+    func resetRotation() -> Task<Void, Never>? {
+        canvas.animateRotation(toDegrees: 0)
+    }
+
+    func togglePageRulers() { pageRulersVisible.toggle() }
+
+    // MARK: Named views (BASIC-012 stub of BASIC-015)
+
+    /// The New View sheet for `target`: the Zoom tool's Shift-drag and View > Custom > New….
+    /// Named views are document nodes (BASIC-014/015); until they land the sheet names the view
+    /// and OK only closes it.
+    @discardableResult
+    func presentNamedViewSheet(target: Viewport) -> NSWindow? {
+        guard let window, namedViewSheet == nil else { return nil }
+        let sheet = NamedViewSheet.window(target: target) { [weak self] _ in self?.endNamedViewSheet() }
+        namedViewSheet = sheet
+        window.beginSheet(sheet)
+        return sheet
+    }
+
+    func endNamedViewSheet() {
+        guard let sheet = namedViewSheet else { return }
+        window?.endSheet(sheet)
+        namedViewSheet = nil
+    }
+
+    // MARK: Context menus (BASIC-018)
+
+    /// The canvas's context menu at `viewPoint`, after the select-before-menu rule.
+    func contextMenu(at viewPoint: Point) -> NSMenu {
+        let target = contextResolver.target(at: viewPoint, viewport: viewport, document: documentHandle, selection: selection)
+        return contextMenu(for: target)
+    }
+
+    func contextMenu(for target: ContextMenuTarget) -> NSMenu {
+        contextTarget = target
+        return MainMenuBuilder.contextMenu(for: target, registry: environment.commands, shortcuts: environment.shortcuts(), menuTarget: contextMenuTarget)
+    }
+
+    // MARK: Tabs (BASIC-019)
+
+    /// The tab menu's *Close Other Tabs*: closes the other tabs of this window's tab group.
+    func closeOtherTabs() {
+        guard let window else { return }
+        for other in window.tabbedWindows ?? [] where other !== window { other.performClose(nil) }
+    }
 
     // MARK: Zoom commands
 
@@ -433,34 +539,57 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         let frame = window.map { LayoutRect(x: $0.frame.minX, y: $0.frame.minY, width: $0.frame.width, height: $0.frame.height) }
         var state = DocumentWindowState(frame: frame, viewport: viewport, viewMode: viewMode)
         state.snap = snap
+        state.pageRulers = pageRulersVisible
+        state.currentPageFrame = documentHandle.currentPage.map { LayoutRect(x: $0.minX, y: $0.minY, width: $0.width, height: $0.height) }
         return state
     }
 
     /// Applies the saved state honouring *Restore view when opening document* and *Remember
-    /// window size and location*; without a saved view the page is fitted.
+    /// window size and location*; without a saved view the document opens at Fit to Page on
+    /// page 1.  An additional view starts from the state it was given (BASIC-016).
     func restoreState() {
         let preferences = environment.preferences
+        if let initialState {
+            apply(initialState)
+            return
+        }
         let saved = environment.windowStates?.state(for: documentHandle.id)
         if let saved, preferences[PreferenceCatalog.Document.rememberWindow], let frame = saved.frame, let window {
             window.setFrame(NSRect(x: frame.x, y: frame.y, width: frame.width, height: frame.height), display: false)
             window.contentView?.layoutSubtreeIfNeeded()
         }
         if let saved, preferences[PreferenceCatalog.Document.restoreView] {
-            viewMode = saved.viewMode
-            snap = saved.snap ?? SnapSettings()
-            setViewport(saved.viewport(size: canvas.viewport.size))
+            apply(saved)
         } else {
+            documentHandle.selectPage(0)
             fitPage()
         }
     }
 
-    /// Writes the window's state for this document.
+    /// Applies a view state: mode, snaps, rulers, current page (the nearest remaining page if
+    /// it was deleted meanwhile), then the viewport.
+    func apply(_ state: DocumentWindowState) {
+        viewMode = state.viewMode
+        snap = state.snap ?? SnapSettings()
+        pageRulersVisible = state.pageRulers ?? true
+        if let index = state.currentPageIndex(among: documentHandle.pages) { documentHandle.selectPage(index) }
+        setViewport(state.viewport(size: canvas.viewport.size))
+    }
+
+    /// Writes the window's state for this document; only the primary view's persists.
     func saveState() {
-        guard isLoaded else { return }
+        guard isLoaded, isPrimaryView else { return }
         try? environment.windowStates?.save(currentState, for: documentHandle.id)
     }
 
     // MARK: NSWindowDelegate
+
+    /// Option-click on the close button closes every view of the document.
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        guard closesAllViews(), let onCloseAllViews else { return true }
+        onCloseAllViews(self)
+        return false
+    }
 
     func windowWillClose(_ notification: Notification) {
         saveState()

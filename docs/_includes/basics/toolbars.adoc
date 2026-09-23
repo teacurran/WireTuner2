@@ -315,6 +315,35 @@ store's `view` table.  Tools with options open a placeholder sheet; option persi
 each tool.  `UnimplementedTool` shows its "coming soon" HUD as a text layer over the canvas for
 1.5 s and in the status bar.
 
+NOTE: Deviations recorded by BASIC-011.  There is no separate `ToolbarHost`: each of the five
+toolbars is a one-panel group of the panel framework (as the Tools panel is, BASIC-009), closed in
+the factory layout and docked in the top strip when shown, so it docks at any edge and floats with
+the panels' drag code; the group's tab strip is the handle, and the drop highlight is the
+framework's (its 2 pt insertion line is not drawn yet).  Their panels are left out of the Window
+menu's panel list (`PanelDescriptor.showsInWindowMenu`) and listed under menu:Window[Toolbars]
+(`toolbar.show.<name>`): the five toolbars, a line, then *Customize…* (`toolbars.customize`) and
+*Reset Toolbars* (`toolbars.reset`), grouped by `MenuPath.subsection`.  menu:View[Toolbars] (`view.toolbars`) hides and restores the five toolbars and the
+Tools panel (not the Main `NSToolbar`); the set it hid is kept in
+`Application Support/WireTuner/Toolbars.json` with the customized buttons.  A `ToolbarView` is an
+`NSStackView` of `NSButton`s, a row when its host is wider than tall and a column otherwise, and
+revalidates its buttons after every window update.  The Text toolbar's font family, style, size and
+leading fields, its alignment buttons and the Envelope toolbar's buttons and preset pop-up are
+disabled placeholder commands (`text.*`, `envelope.*`, no menu item) until the type and envelope
+epics register them.  The Info toolbar reads `ToolManager.info` (`ToolInfo`: position, delta, angle,
+centre, radius, sides, object kind), published through `onInfoChange`: the pointer position on
+every pointer event (the canvas tracks `mouseMoved`), merged with the readouts of a tool conforming
+to `ToolInfoPublishing`; until their epics land, the stub transformation tools report the drag's
+angle about the press point, Polygon its default five sides and every other stub the drag's delta
+(`ToolReadout`).  Readouts are in points until the document's units reach the toolbar.
+
+NOTE: Deviations recorded by BASIC-010.  The Main toolbar is `MainToolbarController`'s
+`NSToolbar` (identifier `com.villagecompute.wiretuner.main`, icon-only, unified compact), whose item
+identifiers are `command.<id>`; every registered command is allowed, and NSToolbar's own autosave
+keeps the customized set (shared by every window, restored at relaunch).  Save Version, Import,
+Share, Lock and Unlock are placeholder commands (Lock and Unlock say "Nothing is selected" with no
+selection); the panel buttons run the Window menu's panel commands; tooltips show the active set's
+key.
+
 === Build tasks
 
 [[BASIC-008]]

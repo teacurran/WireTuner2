@@ -23,6 +23,17 @@ enum ToolPanelCommands {
         }
     }
 
+    /// Snap to Point and Snap to Object sit in the View menu's snapping section; Snap to Grid
+    /// and Snap to Guides in the Grid and Guides submenus (document-view.adoc, "The View menu").
+    static func snapMenuPath(_ kind: SnapSettings.Kind) -> MenuPath {
+        let view = StandardCommands.Menu.view
+        switch kind {
+        case .point, .object: return MenuPath(view, section: StandardCommands.Section.viewSnap)
+        case .grid: return MenuPath(view, StandardCommands.Menu.grid, section: StandardCommands.Section.viewRulers)
+        case .guides: return MenuPath(view, StandardCommands.Menu.guides, section: StandardCommands.Section.viewRulers)
+        }
+    }
+
     @MainActor
     static func commands(palette: ToolPaletteModel, target: @escaping @MainActor @Sendable () -> DocumentWindowController?) -> [Command] {
         let wellValidation: @MainActor @Sendable () -> CommandValidation = {
@@ -35,7 +46,7 @@ enum ToolPanelCommands {
         ]
         for kind in SnapSettings.Kind.allCases {
             commands.append(Command(
-                id: snapCommandID(kind), title: kind.title, key: snapKey(kind), menu: MenuPath(StandardCommands.Menu.view, section: 3), keywords: ["snap"],
+                id: snapCommandID(kind), title: kind.title, key: snapKey(kind), menu: snapMenuPath(kind), keywords: ["snap"],
                 validation: { target().map { .checked($0.snap[kind]) } ?? .disabled(ViewCommands.noDocument) },
                 action: .perform { target()?.toggleSnap(kind) }
             ))
@@ -66,7 +77,7 @@ enum WindowTabCommands {
         let window = StandardCommands.Menu.window
         let arrange = StandardCommands.Section.windowArrange
         return [
-            .responder(id: ID.showTabBar, title: "Show Tab Bar", menu: MenuPath(StandardCommands.Menu.view, section: 5), keywords: ["tabs"], selector: "toggleTabBar:"),
+            .responder(id: ID.showTabBar, title: "Show Tab Bar", menu: MenuPath(StandardCommands.Menu.view, section: StandardCommands.Section.viewPanels), keywords: ["tabs"], selector: "toggleTabBar:"),
             .responder(id: ID.nextTab, title: "Show Next Tab", key: KeyEquivalent("tab", .control), menu: MenuPath(window, section: arrange), keywords: ["tab", "document"], selector: "selectNextTab:"),
             .responder(id: ID.previousTab, title: "Show Previous Tab", key: KeyEquivalent("tab", [.control, .shift]), menu: MenuPath(window, section: arrange), keywords: ["tab", "document"], selector: "selectPreviousTab:"),
             .responder(id: ID.moveTabToNewWindow, title: "Move Tab to New Window", menu: MenuPath(window, section: arrange), keywords: ["tab"], selector: "moveTabToNewWindow:"),

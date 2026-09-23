@@ -50,7 +50,7 @@ final class TestEnvironment {
     }
 
     var document: DocumentEnvironment {
-        DocumentEnvironment(
+        var environment = DocumentEnvironment(
             commands: commands, panels: panels, layout: layout, tools: tools, preferences: preferences,
             windowStates: windowStates,
             shortcuts: { [unowned self] in self.shortcuts },
@@ -59,6 +59,8 @@ final class TestEnvironment {
                 return self.commands.perform(id)
             }
         )
+        environment.makeTiles = { CanvasView.makeFallbackTiles() }
+        return environment
     }
 }
 
@@ -74,7 +76,10 @@ final class RecordingHost: CanvasHost {
         self.viewport = viewport
     }
 
+    private(set) var namedViewRequests: [Viewport] = []
+
     func setViewport(_ viewport: Viewport) { self.viewport = viewport }
+    func requestNamedView(_ target: Viewport) { namedViewRequests.append(target) }
     func setNeedsOverlayDisplay() { overlayRequests += 1 }
     func toolCursorDidChange() { cursorChanges += 1 }
     func showStatusMessage(_ message: String) { messages.append(message) }

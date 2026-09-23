@@ -24,6 +24,9 @@ struct PanelDescriptor: Identifiable, Sendable {
     var menuOrder: Int
     /// The guide page the panel's help button opens.
     var helpSlug: String?
+    /// False for the dockable toolbars (BASIC-011): they are listed under
+    /// menu:Window[Toolbars], not with the panels.
+    var showsInWindowMenu = true
     /// Creates the panel's view.  Called once per panel per dock; the view is reused.
     var makeView: @MainActor @Sendable () -> NSView
 
