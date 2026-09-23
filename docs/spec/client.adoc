@@ -60,6 +60,24 @@ measurements and presence; it owns the tracking loop and forwards events -- mous
 two-finger rotate, smart zoom, Force click -- to the active `Tool`.  The pasteboard is
 222 × 222 inches; pages sit on it.
 
+NOTE: Deviation recorded by APP-002 and APP-003.  There is no `NSScrollView`: the canvas is
+`CanvasView` (`WTApp/Document`), a layer-hosting `NSView` whose unflipped root layer holds the
+REND-001 `TiledCanvasLayer` and the tool overlay layer above it, beside two plain `NSScroller`s
+driven by `CanvasScrollerModel`, which clamps the view to the pasteboard in rotated, scaled
+space (`R · S` applied to the 222 × 222 in pasteboard), so a rotated canvas needs no rotated
+clip view.  An `NSScrollView` would own the document view's bounds origin and magnification,
+which `Viewport` already owns, and it cannot scroll a rotated extent.  The Metal `WTCanvasView`
+(REND-006) replaces the tile layer inside `CanvasView`, not the view.  On-screen orientation
+of the fallback canvas is checked by a snapshot of the view's layer tree (pasteboard (0, 0)
+at the top-left; no flip was needed).  `ToolContext` carries `SnappingContext`, an identity
+placeholder reading *Snap distance* and *Pick distance* until GEO-005 and OBJ-039; the
+document is a `DocumentHandle` (id, title, pages, a display-list provider and the
+`CommandSink`) until `WTModel.Document` lands.  Temporary tools follow
+xref:toolbars.adoc[Toolbars]: pushed only between drags (Command pressed mid-drag is a
+modifier for the current tool, as xref:moving.adoc[Moving] requires), restored on key-up even
+mid-drag, in which case the current tool's drag is ended with a synthesized mouse-up at the
+last pointer position and the rest of the drag is swallowed.
+
 == Tools
 
 A tool conforms to `Tool`:

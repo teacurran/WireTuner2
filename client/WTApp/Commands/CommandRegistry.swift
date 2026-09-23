@@ -43,6 +43,18 @@ final class CommandRegistry {
         return true
     }
 
+    /// Replaces the command with `command.id` in place, keeping its menu position; a feature
+    /// delivering a command the standard set registered as a placeholder calls this.
+    /// Registers it when no command has the id.
+    func replace(_ command: Command) {
+        if let index = indexByID[command.id] {
+            commands[index] = command
+            onChange?()
+        } else {
+            registerIfAbsent(command)
+        }
+    }
+
     func command(_ id: CommandID) -> Command? {
         indexByID[id].map { commands[$0] }
     }

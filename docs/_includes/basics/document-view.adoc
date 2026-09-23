@@ -410,6 +410,17 @@ Nothing beyond storing and relaying changes.
   as the scroll view's `magnification` for display and to the renderer as the rasterization
   scale; `allowsMagnification = true` provides pinch, with `minMagnification = 0.06`,
   `maxMagnification = 256`.
++
+NOTE: Deviation recorded by APP-002: the canvas lives in `WTApp/Document` and has no
+`NSScrollView`.  `CanvasView` owns the `Viewport`; `CanvasNavigation` applies zoom, pinch,
+Option-scroll and the Fit commands to it and `CanvasScrollerModel` clamps it to the pasteboard
+and drives two `NSScroller`s, in rotated space, so the rotated scroll extent needs no custom
+clip view (xref:client.adoc[Client], "The document window").  Magnification is the viewport's
+zoom, used by the renderer as the rasterization scale.  Fit commands leave a 20-point margin.
+Until BASIC-016 the view state persists per document id in
+`Application Support/WireTuner/WindowState.json` (frame, magnification, scroll origin,
+rotation, drawing mode), restored when *Restore view when opening document* is on, else the
+window opens at Fit to Page.
 * View transform.  The renderer's view transform is `T(scroll) · R(rotation_degrees) ·
   S(magnification)` about the viewport centre; `Viewport` exposes `pasteboardToView` and
   `viewToPasteboard` and every tool, ruler, overlay and hit test goes through them, so

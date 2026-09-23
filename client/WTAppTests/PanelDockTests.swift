@@ -142,19 +142,17 @@ import Testing
         #expect(empty.contentView.subviews.isEmpty)
     }
 
-    @Test func mainWindowHostsCanvasAndDock() {
-        let panels = PanelRegistry()
-        PlaceholderPanels.register(into: panels)
-        let layout = PanelLayoutController(registry: panels)
-        layout.load()
-        let controller = MainWindowController(panels: panels, layout: layout)
+    @Test func documentWindowHostsCanvasAndDock() {
+        let environment = TestEnvironment()
+        let controller = DocumentWindowController(document: .placeholder(title: "Dock"), environment: environment.document)
         let window = controller.window!
-        #expect(window.title == "WireTuner")
-        #expect(window.identifier == MainWindow.identifier)
+        #expect(window.title == "Dock")
+        #expect(window.identifier == DocumentWindowController.windowIdentifier)
         #expect(window.accessibilityIdentifier() == "main-window")
         let content = window.contentView!
         content.layoutSubtreeIfNeeded()
-        #expect(content.subviews.contains { $0.accessibilityIdentifier() == MainWindow.canvasIdentifier })
+        #expect(content.subviews.contains { $0 === controller.rulerHost })
+        #expect(controller.rulerHost.subviews.contains { $0.accessibilityIdentifier() == CanvasView.accessibilityIdentifier })
         #expect(content.subviews.contains { $0 === controller.dock.view })
         #expect(controller.dock.view.frame.width == 280)
         #expect(controller.dock.view.frame.maxX == content.bounds.maxX)
@@ -163,16 +161,22 @@ import Testing
 
     @Test func appDelegateWiresRegistriesMenusAndWindow() {
         // The hosted test process has no NSApp.delegate (XCTest's host injection), so launch a
-        // fresh delegate with an in-memory layout store and check the wiring on it.
-        let delegate = AppDelegate(layoutStore: nil)
+        // fresh delegate with in-memory stores and check the wiring on it.
+        let suite = TestDefaults()
+        let delegate = AppDelegate(layoutStore: nil, defaults: suite.defaults)
         #expect(!delegate.applicationShouldTerminateAfterLastWindowClosed(NSApp))
         delegate.applicationDidFinishLaunching(Notification(name: NSApplication.didFinishLaunchingNotification))
-        #expect(delegate.mainWindowController?.window?.identifier == MainWindow.identifier)
-        #expect(delegate.mainWindowController?.dock.groupViews.count == 2)
+        let window = delegate.activeDocumentWindow
+        #expect(window?.window?.identifier == DocumentWindowController.windowIdentifier)
+        #expect(window?.dock.groupViews.count == 3, "Tools, Properties, Layers")
         #expect(delegate.commands.contains(PanelCommands.ID.show("layers")))
+        #expect(delegate.commands.contains(PanelCommands.ID.show("tools")))
         #expect(delegate.commands.contains(PanelCommands.ID.resetLayout))
         #expect(delegate.commands.validate(StandardCommands.ID.checkForUpdates)?.isEnabled == false)
+        #expect(delegate.commands.validate(StandardCommands.ID.zoomIn)?.isEnabled == true)
+        #expect(delegate.commands.validate(StandardCommands.ID.settings)?.isEnabled == true)
         #expect(delegate.shortcuts.keyEquivalent(for: StandardCommands.ID.quit) == KeyEquivalent("q", .command))
+        #expect(delegate.shortcuts.keyEquivalent(for: ToolRegistry.commandID(for: .rectangle)) == KeyEquivalent("r"))
         #expect(delegate.menuTarget?.registry === delegate.commands)
         let windowMenu = NSApp.mainMenu?.item(withTitle: "Window")?.submenu
         #expect(windowMenu?.item(withTitle: "Layers")?.identifier?.rawValue == "menu.panel.show.layers")
@@ -180,9 +184,31 @@ import Testing
         // A panel registered later lands in the layout, the dock and the Window menu.
         delegate.panels.registerIfAbsent(PanelDescriptor(id: "swatches", title: "Swatches", defaultGroup: "Assets") { NSView() })
         #expect(delegate.layout.layout.group("assets")?.panels == ["swatches"])
-        #expect(delegate.mainWindowController?.dock.groupViews.count == 3)
+        #expect(window?.dock.groupViews.count == 4)
         #expect(NSApp.mainMenu?.item(withTitle: "Window")?.submenu?.item(withTitle: "Swatches") != nil)
-        delegate.mainWindowController?.close()
+
+        // Tool shortcuts reach the key window's tool manager through the registry.
+        #expect(delegate.menuTarget?.perform(ToolRegistry.commandID(for: .hand)) == true)
+        #expect(window?.toolManager.activeToolID == .hand)
+        #expect(delegate.toolPalette.activeToolID == .hand)
+        delegate.toolPalette.select(.rectangle)
+        #expect(window?.toolManager.activeToolID == .rectangle)
+
+        // File > New opens a second document; Settings opens the Preferences window once.
+        #expect(delegate.menuTarget?.perform(StandardCommands.ID.new) == true)
+        #expect(delegate.documents.documents.count == 2)
+        #expect(delegate.menuTarget?.perform(StandardCommands.ID.settings) == true)
+        let preferences = delegate.preferencesWindowController
+        #expect(preferences?.window?.isVisible == true)
+        delegate.showPreferences()
+        #expect(delegate.preferencesWindowController === preferences)
+        preferences?.model.onRestoreAll()
+        preferences?.close()
+
+        delegate.applicationWillTerminate(Notification(name: NSApplication.willTerminateNotification))
+        for id in delegate.documents.documents.map(\.id) { delegate.documents.close(id) }
+        #expect(delegate.documents.documents.isEmpty)
+        suite.remove()
 
         #expect(AppDelegate().layout.store?.url == PanelLayoutStore.defaultURL)
     }

@@ -397,6 +397,22 @@ size-limited to 64 KiB.  Team policy floors are a `team` table column read by th
 * Sync thresholds are read by `WTSync` (SYNC-006) at reconcile time; `Keep both offset` by
   the review sheet (SYNC-007); presence flags by SYNC-009; undo levels by APP-011; snapshot
   interval by SYNC-001.  Changing a value takes effect at the next use, without restart.
+* Deviation recorded by APP-010.  `PreferenceStore` is a `@MainActor @Observable`
+  class, not an actor: every read is synchronous on the main actor, and observers get an
+  `AsyncStream` of changes.  Every preference, synced or local, is stored in `UserDefaults`
+  (suite `com.villagecompute.wiretuner`, which is the app's own domain) under `wt.<id>`, so
+  synced values are available offline and at launch; synced keys are also handed to a
+  `SyncedPreferenceBackend` (a local stub until BASIC-023), and a remote map is applied
+  wholesale to synced keys while *Sync preferences with my account* is on.  Keys are typed
+  constants, `PreferenceCatalog.General.pickDistance`, read as `store[key]`.  The page's 123
+  rows map to 128 keys: *Smart quotes* (on/off and style), *Font substitutions* (the list and
+  the default substitute), *Search for missing links* (on/off and a local folder) and
+  *Monitor, composite and separations profiles* (three local keys) hold more than one value.
+  The window's sidebar is a SwiftUI `List` in the `NSSplitViewController`'s sidebar item
+  rather than an `NSOutlineView`; forms are generated from the catalog (toggle, number field
+  with stepper and unit, pop-up, colour well, text, space-separated list, and a chooser whose
+  btn:[Choose…] is disabled until BASIC-022).  The menu item keeps the macOS title
+  menu:WireTuner[Settings…].
 * Sounds: `NSSound(named:)` from the system alert set, played through `ToolManager`'s snap
   callback, gated by `NSWorkspace` UI sound setting.
 * *Smart guides*, *Show measurements while holding Option* and *Smart guide color* are read

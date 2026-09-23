@@ -7,6 +7,6 @@ final class LaunchTests: XCTestCase {
         app.launch()
         let window = app.windows["main-window"]
         XCTAssertTrue(window.waitForExistence(timeout: 10), "the main window did not appear")
-        XCTAssertEqual(window.title, "WireTuner")
+        XCTAssertEqual(window.title, "Untitled", "a new blank document opens at launch")
     }
 }

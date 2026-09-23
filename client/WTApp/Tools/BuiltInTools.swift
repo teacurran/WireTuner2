@@ -1,0 +1,157 @@
+import AppKit
+import WTGeometry
+import WTRender
+
+/// The stand-in for a tool whose epic has not landed (toolbars.adoc, "Client"): selectable,
+/// with a cursor, says "coming soon" on mouse down and never writes a change.  The Pointer
+/// runs on it until APP-006.
+@MainActor
+final class UnimplementedTool: Tool {
+    static let id: ToolID = "unimplemented"
+
+    let toolID: ToolID
+    let title: String
+    let cursor: NSCursor
+    private var context: ToolContext?
+    private(set) var pressCount = 0
+
+    init(id: ToolID, title: String, cursor: NSCursor = .arrow) {
+        toolID = id
+        self.title = title
+        self.cursor = cursor
+    }
+
+    var message: String { "The \(title) tool is coming soon" }
+
+    func activate(in context: ToolContext) { self.context = context }
+    func deactivate() { context = nil }
+
+    func mouseDown(_ e: CanvasEvent) {
+        pressCount += 1
+        context?.host.showStatusMessage(message)
+    }
+
+    func mouseDragged(_ e: CanvasEvent) {}
+    func mouseUp(_ e: CanvasEvent) {}
+    func flagsChanged(_ e: CanvasEvent) {}
+    func keyDown(_ e: NSEvent) -> Bool { false }
+    func drawOverlay(in ctx: CGContext, viewport: Viewport) {}
+    func cancel() {}
+}
+
+/// The Hand: dragging scrolls the pasteboard (Space pushes it over any tool).  Changes only
+/// the view, never the document.
+@MainActor
+final class PanTool: Tool {
+    static let id: ToolID = .hand
+
+    private var context: ToolContext?
+    private(set) var lastViewPoint: Point?
+
+    init() {}
+
+    var cursor: NSCursor { lastViewPoint == nil ? .openHand : .closedHand }
+
+    func activate(in context: ToolContext) { self.context = context }
+
+    func deactivate() {
+        context = nil
+        lastViewPoint = nil
+    }
+
+    func mouseDown(_ e: CanvasEvent) {
+        lastViewPoint = e.viewPoint
+        context?.host.toolCursorDidChange()
+    }
+
+    func mouseDragged(_ e: CanvasEvent) {
+        guard let context, let last = lastViewPoint else { return }
+        context.host.setViewport(context.viewport.scrolled(byViewDelta: last - e.viewPoint))
+        lastViewPoint = e.viewPoint
+    }
+
+    func mouseUp(_ e: CanvasEvent) {
+        lastViewPoint = nil
+        context?.host.toolCursorDidChange()
+    }
+
+    func flagsChanged(_ e: CanvasEvent) {}
+    func keyDown(_ e: NSEvent) -> Bool { false }
+    func drawOverlay(in ctx: CGContext, viewport: Viewport) {}
+    func cancel() { lastViewPoint = nil }
+}
+
+/// The Zoom tool's essentials (document-view.adoc, "Zooming"): click zooms in one step about
+/// the click, Option-click zooms out, a drag zooms to the dragged area, Control-click jumps to
+/// the maximum and Control+Option-click to the minimum.  BASIC-012 adds Option-drag's inverse
+/// fit and Shift-drag's named view.
+@MainActor
+final class ZoomTool: Tool {
+    static let id: ToolID = .zoom
+    /// A drag shorter than this (view points) is a click.
+    static let clickSlop = 3.0
+
+    private var context: ToolContext?
+    private(set) var start: CanvasEvent?
+    private(set) var current: CanvasEvent?
+    private let navigation = CanvasNavigation()
+
+    init() {}
+
+    var cursor: NSCursor { .crosshair }
+
+    func activate(in context: ToolContext) { self.context = context }
+
+    func deactivate() {
+        context = nil
+        cancel()
+    }
+
+    func mouseDown(_ e: CanvasEvent) {
+        start = e
+        current = e
+    }
+
+    func mouseDragged(_ e: CanvasEvent) { current = e }
+
+    func mouseUp(_ e: CanvasEvent) {
+        defer { cancel() }
+        guard let context, let start else { return }
+        let viewport = context.viewport
+        context.host.setViewport(Self.target(viewport: viewport, start: start, end: e, navigation: navigation))
+    }
+
+    /// Where a zoom gesture from `start` to `end` lands.
+    static func target(viewport: Viewport, start: CanvasEvent, end: CanvasEvent, navigation: CanvasNavigation = CanvasNavigation()) -> Viewport {
+        let modifiers = end.modifiers
+        if end.viewPoint.distance(to: start.viewPoint) < clickSlop {
+            if modifiers.contains(.control) {
+                let zoom = modifiers.contains(.option) ? Viewport.zoomRange.lowerBound : Viewport.zoomRange.upperBound
+                return navigation.zoom(viewport, to: zoom, about: end.viewPoint)
+            }
+            let zoom = modifiers.contains(.option) ? ZoomLadder.zoomOut(from: viewport.zoom) : ZoomLadder.zoomIn(from: viewport.zoom)
+            return navigation.zoom(viewport, to: zoom, about: end.viewPoint)
+        }
+        return navigation.fit(viewport, rect: Rect(start.pasteboardPoint, end.pasteboardPoint))
+    }
+
+    func flagsChanged(_ e: CanvasEvent) {
+        if current != nil { current = current?.with(modifiers: e.modifiers) }
+    }
+
+    func keyDown(_ e: NSEvent) -> Bool { false }
+
+    /// The marquee while dragging.
+    func drawOverlay(in ctx: CGContext, viewport: Viewport) {
+        guard let start, let current, current.viewPoint.distance(to: start.viewPoint) >= Self.clickSlop else { return }
+        ctx.setStrokeColor(NSColor.controlAccentColor.cgColor)
+        ctx.setLineWidth(1)
+        ctx.setLineDash(phase: 0, lengths: [4, 3])
+        ctx.stroke(Rect(start.viewPoint, current.viewPoint).cgRect)
+    }
+
+    func cancel() {
+        start = nil
+        current = nil
+    }
+}
