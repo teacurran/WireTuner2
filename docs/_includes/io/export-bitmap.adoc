@@ -362,6 +362,27 @@ Nothing.
   written for readers that ignore layers, XMP and IIM image resources from IO-012.
 * Undo: none.
 
+NOTE: Deviations recorded by IO-021 (`WTInterchange/Bitmap`).  Tiles are at most 2048 samples a
+side (so 512 output pixels at anti-aliasing 4) and output is produced a band of tiles at a time,
+pulled by the encoder through a sequential `CGDataProvider` (the Targa writer reads bands
+directly).  `PerformanceTests` (`WTINTERCHANGE_PERF=1`, release) reports rather than gates the
+peak: an A3 page at 300 ppi, 2×, anti-aliasing 4 (7017 × 9925 pixels) exported in 25--26 s with a
+process peak of 333 MiB as Targa and 384 MiB as PNG on the build Mac; the 300 ppi A0 at 2× case of
+IO-021 (8× the pixels) was not run, and whether ImageIO's encoders stay within 1 GiB there is
+unverified.  Every sample tile is drawn by WTRender's `CoreGraphicsRenderer` with
+`rasterPreview = .document`; an export at 72 ppi with anti-aliasing 4 equals the reference
+renderer's 4× bitmap box-downsampled within 1/255.  Until WTRender's display list carries colour
+spaces (its `Color` is sRGB and its renderer clamps), *Automatic* picks Display P3 only for
+extended-range colour values, which the renderer still draws clipped; the P3 tag and the clipped
+count are in place for CMS-015.  *Working RGB* is sRGB and CMYK is Generic CMYK until the CMS epic
+supplies document profiles.  Greyscale and CMYK have no alpha channel (Core Graphics bitmap
+contexts do not support one), so a transparent background needs RGB.  *Mask from layer* receives
+the layer's artwork as a `DisplayList` in the options.  Not available yet: 8-bit palette PNG and
+TIFF (IO-022's quantizer), BMP 8 and 16 bit and RLE (ImageIO writes 24 and 32 bit only), a
+byte-order choice for TIFF and a chroma-subsampling choice for JPEG (ImageIO decides both).  The
+options sheets and *Bitmap Export Defaults* belong to the dialog task (IO-014/IO-015); goldens are
+under `WTInterchangeTests/Goldens` (`WTINTERCHANGE_RECORD_GOLDENS=1`).
+
 === Build tasks
 
 [[IO-021]]

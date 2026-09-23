@@ -380,6 +380,36 @@ Nothing.
   content never diverge.
 * Undo: none.
 
+NOTE: Deviations recorded by IO-025 (`WTInterchange/PDF`).  The writer is fed the `Flattener`'s
+scene for the PDF target (transparency, soft masks and linear/radial gradients kept; text kept)
+rather than a `WTRender` backend emitting operators, so screen and PDF share the display list
+through the flattener.  *Fonts*: TrueType (`glyf`) fonts are embedded as `CIDFontType2` subsets
+(`FontFile2`, `Identity-H`, `CIDToGIDMap /Identity`, `/W` widths, `ToUnicode`), glyph ids kept and
+unused glyphs emptied; fonts with CFF outlines and variable-font instances are embedded as Type 3
+fonts whose procedures hold the instance's outlines (256 glyphs per resource) with `ToUnicode`, in
+place of CFF subsets -- text stays selectable and searchable; fonts whose OS/2 `fsType` forbids
+embedding are outlined and reported.  Glyphs on one baseline are shown with one `TJ`, the
+differences between Core Text's positions and the font's advances written as adjustments.
+*Gradients* are shading patterns (types 2 and 3) over a 1024-sample function of WTRender's OKLab
+ramp; a translucent ramp adds a luminosity soft mask of its alpha; Rectangle, Contour and Cone
+gradients render as images (no type 4/6/7 meshes yet).  A Gradient Mask is a luminosity soft mask
+whose DeviceGray group paints the mask factor as a shading -- no image.  *Colours*: sRGB is
+`/ICCBased` sRGB (or `/DeviceRGB` without profiles); extended-range colour values are written
+through a shared Display P3 `/ICCBased` object with a Display P3 output intent at PDF 1.7 and 2.0,
+and clipped into sRGB with a note otherwise; Lab and CMYK wait for colour spaces in the display
+list.  *Images*: `FlateDecode` with an `SMask` for alpha, the placed JPEG's bytes under
+`DCTDecode` when nothing resamples it, JPEG re-encoding under *JPEG*, downsampling by redrawing;
+`CCITTFaxDecode` is not written.  Link annotations come from `ExportNodeInfo.url` (the IO-027 sheet
+option is `linksFromURLs`).  Page boxes: media, trim, bleed (with *Page plus bleed*) and art.  Not
+written yet and reported in the summary: linearization, object streams, layers as optional
+content and the embedded package; PDF/X standards and *Convert to CMYK* are refused until IO-026
+and the CMS epic; encryption is IO-027's.  Tests open every file in PDFKit, rasterize its pages
+with Core Graphics and compare them with the reference renderer (at most 2% of pixels beyond 40/255
+at 2×), check text search per font kind, and run Ghostscript (`-dPDFSTOPONERROR`) over the corpus
+when `/opt/homebrew/bin/gs` exists; `qpdf` and `verapdf` are not installed on the build Mac.  *For
+IO-032*: every flat node keeps its `NodeID` and `PDFStreamWriter.write(_:)` is the one node walk
+producing content, so marked content and the structure tree can be added around it.
+
 === Build tasks
 
 [[IO-025]]

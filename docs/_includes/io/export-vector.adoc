@@ -373,6 +373,42 @@ Nothing.
   set from the units option; y axis flipped to DXF's y-up.
 * Undo: none.
 
+NOTE: Deviations recorded by IO-017 and IO-019 (`WTInterchange/Flatten`, `WTInterchange/SVG`).
+*Expansion*: WTRender keeps its effect pipeline, stroke expansion and live-group resolution
+internal, so the `Flattener` expands vector effects, blends and other live groups, arrowheads and
+Brush, Calligraphic and Custom strokes by rendering the item through the public
+`CoreGraphicsRenderer.renderPDF` and reading the page back with `CGPDFScanner`
+(`VectorCapture`): filled paths in sRGB, clips, constant alpha and transparency groups become flat
+nodes; a stream holding anything else (a shading, an image, a soft mask, a pattern) makes the item
+render to an image instead.  A public expansion API in WTRender would replace this.  *Live
+effects kept*: object- and element-level Basic transparency become group opacity, Gradient Mask a
+soft mask (SVG luminance mask, PDF luminosity group), Gaussian blur, drop shadow and outer glow SVG
+filters; Basic (box) blur, inner shadow and glow, bevels, sharpening and feathers render.
+Rectangle, Contour and Cone gradients, patterns, Custom, Textured and Tiled fills and lenses render
+at the raster resolution for SVG and PDF alike (PDF meshes are not written, export-pdf.adoc); a
+lens renders with everything beneath it over its bounds.  *Opaque targets*: a translucent solid
+fill over nothing but opaque solid fills (at most 48 of them) is planarized with GEO-002's Divide
+and composited in sRGB over the page colour or white; everything else translucent is rendered
+with what lies beneath by the `FlatRenderer` (the debug view, which also serves tests) and placed
+clipped to its outline.  *SVG*: geometry is written in page space (similarity transforms applied to
+the coordinates, others as `transform`); one user unit is one point and `px` is a point, as in
+Illustrator; `<text>` is written when a run's glyphs map one to one onto its characters and it has
+no per-glyph transforms or horizontal scale, otherwise outlines with a note; *Keep as text, embed
+fonts* embeds TrueType subsets (`glyf` fonts that allow embedding, not variable instances) as
+`@font-face` data URLs and outlines the rest; gradients are written as sRGB stops sampled from
+WTRender's OKLab ramp (Repeat, Reflect and Logarithmic unrolled); a gradient mask is a luminance
+mask painting white with the factor as `stop-opacity`; a display-list colour outside sRGB
+(extended components) is written as its clipped hex with a CSS Color 4 `color(display-p3 …)`
+declaration after it (in `style` for presentation attributes), clipping standing in for COLOR-024's
+gamut mapping.  Symbols reach the display list expanded, so *Symbols* is always *Expand*.  Links
+use `xlink:href` (valid in SVG 1.1 and read by SVG 2 viewers).  The IO-019 checks run as unit
+tests: XMLParser well-formedness, an element and attribute vocabulary check (SVG 1.1 plus
+`feDropShadow` and `vector-effect`), dangling references, unique ids and path geometry within the
+precision; the WebKit/Chromium screenshot comparison and the IMG importer round trip wait for a
+browser harness and IMG's SVG importer.  *For IO-031*: flat nodes keep their `NodeID`, and
+`SVGBuild.assignNodeIDs` reserves every name id before any generated id (`wt-g1`, `st1`…), so
+`aria-labelledby` ids can be generated the same way without colliding.
+
 === Build tasks
 
 [[IO-017]]

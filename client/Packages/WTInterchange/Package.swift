@@ -26,7 +26,14 @@ let package = Package(
         ),
         .testTarget(
             name: "WTInterchangeTests",
-            dependencies: ["WTInterchange"]
+            dependencies: [
+                "WTInterchange",
+                .product(name: "WTRender", package: "WTRender"),
+                .product(name: "WTGeometry", package: "WTGeometry"),
+            ],
+            // Golden PNGs are read by path from the source tree, not bundled, so
+            // `WTINTERCHANGE_RECORD_GOLDENS=1` can write them back in place.
+            exclude: ["Goldens"]
         ),
     ],
     swiftLanguageModes: [.v6]

@@ -242,6 +242,25 @@ own writers for Targa, PSD, EPS, SVG, DXF, RTF, and a bundled `libavif` for AVIF
 `libwebp` on systems whose ImageIO lacks a WebP encoder).  Per-format detail is on the format
 pages.
 
+NOTE: As built by IO-013 (`WTInterchange/Export`).  The exporter reads an `ExportScene` -- one
+WTRender `DisplayList` per page with the page bounds, the page colour and bleed, plus
+`ExportNodeInfo` (name, alt text, *Decorative*, URL, layer flag) keyed by the display list's
+`NodeID`s, placed images' pixels by asset id and Document Info -- so no exporter imports `WTModel`;
+IO-014's `SceneSnapshot` fills it.  Nested items take their node ids from
+`ExportPage.nestedNodeIDs` (index path → id), because `DisplayList.nodeIDs` covers top-level items
+only.  `Exporter` is `format`, `optionsType`, `capabilities` and
+`export(scene:options:to:) -> ExportSummary`, where the destination is an `ExportDestination`
+(the chosen URL plus an optional `FileNamePattern`); options are typed per format and a wrong
+type is `ExportError.wrongOptions`.  `ExportRegistry.validate(_:)` rejects alpha on a format
+without it, several scales on a format without scales, and several pages on a one-file-per-page
+format without a pattern holding `{page}`, `{page:N}` or `{pagename}` (a pattern without
+`{scale}` gets the suffix appended rather than being refused).  `ExportRegistry.standard`
+registers PDF, SVG, PNG, JPEG, TIFF, BMP and Targa; every other format is listed with its
+extension, UTI and capabilities and throws `notImplemented` until its task lands.  `StubExporter`
+writes one text file per page, with an optional per-page delay for IO-014's cancellation tests.
+PDF content streams come from WTInterchange's own writer over the flattened scene, not a
+`WTRender` PDF backend (export-pdf.adoc).
+
 === Build tasks
 
 [[IO-013]]
