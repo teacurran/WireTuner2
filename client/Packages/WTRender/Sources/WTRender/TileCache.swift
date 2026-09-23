@@ -143,13 +143,35 @@ public actor TileCache {
     /// zoom step or rotation.  Returns the dropped keys.
     @discardableResult
     public func invalidate(pasteboardRect rect: Rect, canvas: CanvasID) -> [TileKey] {
+        invalidate(pasteboardRects: [rect], canvas: canvas)
+    }
+
+    /// Drops every tile of `canvas` that any of `rects` touches, whatever its zoom step or
+    /// rotation (REND-004's dirty rects).  A rectangle reaches half a device pixel past its
+    /// edge at the tile's scale, where anti-aliasing and hairlines paint.  Returns the dropped
+    /// keys.
+    @discardableResult
+    public func invalidate(pasteboardRects rects: [Rect], canvas: CanvasID) -> [TileKey] {
+        guard !rects.isEmpty else {
+            return []
+        }
         let victims = store.keys.filter { key in
-            key.canvas == canvas && TileGeometry(key: key, tileSize: tileSize).pasteboardBounds(of: key).intersects(rect)
+            guard key.canvas == canvas else {
+                return false
+            }
+            let geometry = TileGeometry(key: key, tileSize: tileSize)
+            return TileCache.touches(geometry.pasteboardBounds(of: key), rects: rects, scale: geometry.zoomStep.scale)
         }
         for key in victims {
             store.remove(key)
         }
         return victims
+    }
+
+    /// Whether a tile's pasteboard bounds meet any of `rects` grown by half a device pixel.
+    static func touches(_ tileBounds: Rect, rects: [Rect], scale: Double) -> Bool {
+        let margin = 0.25 / scale
+        return rects.contains { tileBounds.intersects($0, tolerance: margin) }
     }
 
     /// Drops every tile of `canvas`.

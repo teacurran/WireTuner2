@@ -1,0 +1,54 @@
+[
+  {
+    "container" : 0,
+    "glyph" : 58,
+    "offset" : 0,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      21.102,
+      68.934
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 68,
+    "offset" : 1,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      32.112,
+      61.241
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 89,
+    "offset" : 2,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      39,
+      56.947
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 72,
+    "offset" : 3,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      45.135,
+      53.495
+    ]
+  }
+]

@@ -38,6 +38,33 @@ extension DisplayPath {
     }
 }
 
+extension DisplayPath {
+    /// The elements of `cgPath` (glyph outlines, Core Graphics strokes).
+    init(cgPath: CGPath) {
+        var elements: [Element] = []
+        cgPath.applyWithBlock { pointer in
+            let element = pointer.pointee
+            let points = element.points
+            func point(_ index: Int) -> Point {
+                Point(x: Double(points[index].x), y: Double(points[index].y))
+            }
+            switch element.type {
+            case .moveToPoint:
+                elements.append(.move(to: point(0)))
+            case .addLineToPoint:
+                elements.append(.line(to: point(0)))
+            case .addQuadCurveToPoint:
+                elements.append(.quadCurve(control: point(0), end: point(1)))
+            case .addCurveToPoint:
+                elements.append(.cubicCurve(control1: point(0), control2: point(1), end: point(2)))
+            default:
+                elements.append(.close)
+            }
+        }
+        self.init(elements: elements)
+    }
+}
+
 extension Color {
     /// The colour in the sRGB colour space (`CoreGraphicsRenderer.colorSpace`).
     var cg: CGColor {

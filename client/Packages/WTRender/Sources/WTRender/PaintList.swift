@@ -110,6 +110,8 @@ struct PaintListBuilder: Sendable {
             let transform = text.transform.concatenating(base)
             if shouldGreek(text) {
                 addFill(DisplayPath(rect: text.bounds), transform: transform, rule: .nonZero, color: Color(white: 0.7), state: state, into: &result)
+            } else if let run = text.glyphRun {
+                addFill(run.outline, transform: transform, rule: .nonZero, color: text.color, declaredRule: false, state: state, into: &result)
             } else {
                 addFill(DisplayPath(rect: text.bounds), transform: transform, rule: .nonZero, color: text.color.withAlpha(multipliedBy: 0.15), state: state, into: &result)
                 var baseline = DisplayPath()
@@ -196,6 +198,8 @@ struct PaintListBuilder: Sendable {
             let transform = text.transform.concatenating(base)
             if shouldGreek(text) {
                 addFill(DisplayPath(rect: text.bounds), transform: transform, rule: .nonZero, color: Color(white: 0.7), state: State(), into: &result)
+            } else if let run = text.glyphRun {
+                addFill(run.outline, transform: transform, rule: .nonZero, color: state.highlight, declaredRule: false, state: State(), into: &result)
             } else {
                 var outline = DisplayPath(rect: text.bounds)
                 outline.move(to: Point(x: text.bounds.minX, y: text.origin.y))

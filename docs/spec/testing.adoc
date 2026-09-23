@@ -135,6 +135,16 @@ itself.  The frame-time gate (`MetalFrameTimeTests`) plays a 10 s pan, pinch and
 GPU time; it enforces 8.3 ms only in release builds (`swift test -c release -Xswiftc
 -enable-testing`) and reports debug figures.
 * `WTText`: layout goldens for the type chapter's features (columns, tabs, rules, on-path).
++
+NOTE: As built by TXT-001 (`WTTextTests/Support/Goldens.swift`).  Each golden case is two files
+under `WTTextTests/Goldens`: every glyph's id, character offset, container and glyph-to-local
+transform as JSON, compared within 0.05 pt, and the layout's display items drawn by the Core
+Graphics reference renderer at 2× as PNG, where at most 0.2% of pixels may differ by more than
+24/255 per channel.  `WTTEXT_RECORD_GOLDENS=1 swift test` rewrites them.  The cases also assert
+the features' geometry directly (justified edges, tab and indent positions, glyphs on the path,
+caret positions).  The 200,000-character incremental relayout is `IncrementalLayoutTests`; it
+enforces 100 ms only in release builds (`swift test -c release -Xswiftc -enable-testing`) and
+reports debug figures.
 
 == Import and export
 

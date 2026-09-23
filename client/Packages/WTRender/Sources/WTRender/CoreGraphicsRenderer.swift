@@ -168,6 +168,8 @@ public struct CoreGraphicsRenderer: WTRender {
         case .text(let text):
             if shouldGreek(text) {
                 drawGreeked(text, into: context)
+            } else if let run = text.glyphRun {
+                drawGlyphs(run, transform: text.transform, color: text.color, into: context)
             } else {
                 drawTextPlaceholder(text, into: context)
             }
@@ -302,6 +304,20 @@ public struct CoreGraphicsRenderer: WTRender {
         context.restoreGState()
     }
 
+    /// Glyph outlines filled non-zero: the same polygons the Metal renderer fills.
+    private func drawGlyphs(_ run: GlyphRun, transform: AffineTransform, color: Color, into context: CGContext) {
+        let outline = run.outline
+        guard !outline.isEmpty else {
+            return
+        }
+        context.saveGState()
+        context.concatenate(transform.cg)
+        context.addPath(outline.cgPath)
+        context.setFillColor(color.cg)
+        context.fillPath(using: .winding)
+        context.restoreGState()
+    }
+
     /// Whether the fast modes draw `item` as a grey bar: text whose on-page height is at most
     /// `ViewMode.greekingThreshold`.
     private func shouldGreek(_ item: TextRunItem) -> Bool {
@@ -372,6 +388,9 @@ public struct CoreGraphicsRenderer: WTRender {
         case .text(let text):
             if shouldGreek(text) {
                 drawGreeked(text, into: context)
+            } else if let run = text.glyphRun {
+                // Keyline keeps type legible: glyphs filled in the highlight colour.
+                drawGlyphs(run, transform: text.transform, color: state.highlight, into: context)
             } else {
                 var outline = DisplayPath(rect: text.bounds)
                 outline.move(to: Point(x: text.bounds.minX, y: text.origin.y))

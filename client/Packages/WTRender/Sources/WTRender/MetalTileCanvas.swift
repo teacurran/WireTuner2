@@ -9,7 +9,8 @@
 //
 // Fallback: with no Metal device, or after three command buffers in a row fail, the canvas
 // swaps its layer content for the Core Graphics `TiledCanvasLayer` over the same tile keys and
-// logs why.  Until REND-004, a changed display list invalidates the whole canvas.
+// logs why.  A changed display list invalidates the whole canvas unless it comes with its
+// `ChangeSummary` (REND-004), which drops only the tiles under the touched nodes.
 
 import WTGeometry
 import Foundation
@@ -146,23 +147,29 @@ public final class MetalTileCanvas {
 
     // MARK: State
 
-    /// Shows `displayList` through `viewport`.  A changed list drops every tile; a changed
-    /// transform only schedules a frame, plus rasterization of tiles that do not exist yet.
-    public func update(displayList: DisplayList, viewport: Viewport) {
-        let listChanged = self.displayList != displayList
+    /// Shows `displayList` through `viewport`.  A changed list drops every tile -- or, with
+    /// `changes` (what turned the shown list into this one), only the tiles under the touched
+    /// nodes; a changed transform only schedules a frame, plus rasterization of tiles that do
+    /// not exist yet.
+    public func update(displayList: DisplayList, viewport: Viewport, changes: ChangeSummary? = nil, mapper: InvalidationMapper = InvalidationMapper()) {
+        let previous = self.displayList
+        let listChanged = previous != displayList
         self.displayList = displayList
         self.viewport = viewport
         let bounds = CGRect(x: 0, y: 0, width: viewport.size.width, height: viewport.size.height)
         layer.bounds = bounds
         if let fallbackCanvas {
             fallbackCanvas.layer.frame = bounds
-            fallbackCanvas.update(displayList: displayList, viewport: viewport)
+            fallbackCanvas.update(displayList: displayList, viewport: viewport, changes: changes, mapper: mapper)
             return
         }
         metalLayer.frame = bounds
         metalLayer.contentsScale = backingScale
         metalLayer.drawableSize = CGSize(width: viewport.size.width * backingScale, height: viewport.size.height * backingScale)
-        if listChanged {
+        if listChanged, let changes, let previous, previous.canvas == displayList.canvas {
+            let rects = mapper.dirtyRegion(for: changes, before: [previous], after: [displayList]).rects(for: displayList.canvas)
+            dropTiles(touching: rects)
+        } else if listChanged {
             dropTiles { _ in true }
         }
         let target = TileGeometry(viewport: viewport, backingScale: backingScale)
@@ -203,14 +210,32 @@ public final class MetalTileCanvas {
 
     /// Drops the tiles under a changed pasteboard rectangle, at every zoom step and angle.
     public func invalidate(pasteboardRect rect: Rect) {
+        invalidate(pasteboardRects: [rect])
+    }
+
+    /// Drops the tiles under any of `rects`, at every zoom step and angle.
+    public func invalidate(pasteboardRects rects: [Rect]) {
         if let fallbackCanvas {
-            fallbackCanvas.invalidate(pasteboardRect: rect)
+            fallbackCanvas.invalidate(pasteboardRects: rects)
             return
         }
-        dropTiles { key in
-            TileGeometry(key: key).pasteboardBounds(of: key).intersects(rect)
-        }
+        dropTiles(touching: rects)
         requestMissingTiles()
+    }
+
+    /// Drops the tiles any of `rects` touches (half a device pixel of slack, as the tile cache).
+    /// No generation bump: a dropped key that is rendering right now loses its slot, so the
+    /// batch's completion cannot mark it ready (and no slot is reallocated while a batch is in
+    /// flight); the other keys of the batch are untouched by the change and are kept.
+    private func dropTiles(touching rects: [Rect]) {
+        guard !rects.isEmpty else {
+            return
+        }
+        atlas?.slots.removeAll { key in
+            let geometry = TileGeometry(key: key)
+            return TileCache.touches(geometry.pasteboardBounds(of: key), rects: rects, scale: geometry.zoomStep.scale)
+        }
+        setNeedsDisplay()
     }
 
     /// Waits until no tile is rendering (and, on the fallback, until its tiles have landed).
@@ -550,5 +575,19 @@ private final class DisplayLinkTarget: NSObject, @preconcurrency CAMetalDisplayL
 
     func metalDisplayLink(_ link: CAMetalDisplayLink, needsUpdate update: CAMetalDisplayLink.Update) {
         canvas?.displayLinkFired(update.drawable)
+    }
+}
+
+extension MetalTileCanvas: InvalidationTarget {
+    public var displayedCanvas: CanvasID? { displayList?.canvas }
+
+    /// Takes the list after a coalesced change without dropping every tile, and repaints the
+    /// tiles under `rects` (REND-004's batched delivery).
+    public func apply(displayList newList: DisplayList?, invalidating rects: [Rect]) {
+        if let newList {
+            displayList = newList
+            fallbackCanvas?.apply(displayList: newList, invalidating: [])
+        }
+        invalidate(pasteboardRects: rects)
     }
 }

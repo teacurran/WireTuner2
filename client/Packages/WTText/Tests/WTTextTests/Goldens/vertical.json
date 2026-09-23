@@ -1,0 +1,80 @@
+[
+  {
+    "container" : 0,
+    "glyph" : 2382,
+    "offset" : 0,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      46,
+      12.32
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 2427,
+    "offset" : 1,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      46,
+      26.32
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 854,
+    "offset" : 2,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      46,
+      40.32
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 34,
+    "offset" : 4,
+    "transform" : [
+      0,
+      1,
+      -1,
+      0,
+      30.88,
+      0
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 67,
+    "offset" : 5,
+    "transform" : [
+      0,
+      1,
+      -1,
+      0,
+      30.88,
+      10.5
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 68,
+    "offset" : 6,
+    "transform" : [
+      0,
+      1,
+      -1,
+      0,
+      30.88,
+      19.544
+    ]
+  }
+]

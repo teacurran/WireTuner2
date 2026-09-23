@@ -11,7 +11,6 @@ let package = Package(
     dependencies: [
         .package(path: "../WTRender"),
         .package(path: "../WTGeometry"),
-        .package(path: "../WTModel"),
     ],
     targets: [
         .target(
@@ -19,12 +18,18 @@ let package = Package(
             dependencies: [
                 .product(name: "WTRender", package: "WTRender"),
                 .product(name: "WTGeometry", package: "WTGeometry"),
-                .product(name: "WTModel", package: "WTModel"),
             ]
         ),
         .testTarget(
             name: "WTTextTests",
-            dependencies: ["WTText"]
+            dependencies: [
+                "WTText",
+                .product(name: "WTRender", package: "WTRender"),
+                .product(name: "WTGeometry", package: "WTGeometry"),
+            ],
+            // Layout goldens (glyph positions as JSON, renders as PNG) are read by path from the
+            // source tree, so `WTTEXT_RECORD_GOLDENS=1` can write them back in place.
+            exclude: ["Goldens"]
         ),
     ],
     swiftLanguageModes: [.v6]

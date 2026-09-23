@@ -38,6 +38,15 @@ Dependency direction is strictly downward in the table: `WTApp` may import every
 * Every change, local or remote, produces a `ChangeSummary` (touched nodes, touched fields,
   dirty rect) that the renderer, the panels and the presence overlay subscribe to.
 
+NOTE: Deviation recorded by SYNC-001 and APP-011.  The merge state of an open document is held
+by a `WTModel.DocumentBackend` actor -- `WTSync.LocalStore` for a stored document,
+`WTModel.MemoryBackend` otherwise -- as a `DocumentCore` (the `EngineState`, replica, next seq,
+last server seq and undo stack), not by a `WTCRDT.Engine` actor: a local change must be applied
+and appended to the outbox in one database transaction, which an `await` on a separate actor
+cannot give, and `Engine` cannot be created from a decoded snapshot.  `Document` is the
+`@MainActor @Observable` façade over the backend; it publishes `revision`, `lastChange` and the
+Edit menu state.  `ChangeSummary` is not produced yet (the backend returns the applied change).
+
 == The document window
 
 [listing]
@@ -295,6 +304,62 @@ Tests build canvases with `CanvasView.makeFallbackTiles()` so layer snapshots (t
 read Core Graphics tiles, and run the Metal tests only on an Apple-family GPU.  `ViewMode` is
 WTRender's; WTApp adds its `title` and the stored `DrawingMode` spelling.
 
+NOTE: As built by REND-004 (`WTRender/ChangeSummary.swift`, `Invalidation.swift`).  WTRender cannot
+import the merge engine, so `ChangeSummary` is WTRender's, with its own `NodeID` and `FieldPath`
+mirrors of `OpID` and `RegisterPath`; WTModel builds it.  Instead of one dirty rect it carries
+touched nodes, touched field paths per node, per-node painted bounds before and after
+(`NodeBounds`: canvas, own rect, effect-expanded rect), an origin (local or remote) and a
+structural flag; merging keeps each node's earliest `old` and latest `new`.  `InvalidationMapper`
+turns a summary into a `DirtyRegion` (rects per canvas, intersecting rects merged, at most 32 per
+canvas by least-growth merging, a burst of over 512 collapsed to one bounding rect); a touched
+node without recorded bounds is looked up by id in the display lists before and after, for which
+`DisplayList` gained optional `nodeIDs` parallel to its top-level items (`DisplayListBuilder.add`
+takes a `node`).  `TiledCanvasLayer`, `TileCache` and `MetalTileCanvas` take `update(displayList:
+viewport:changes:)` and `invalidate(pasteboardRects:)`; a tile is dirty when its pasteboard bounds
+meet a rect grown by half a device pixel at the tile's scale (anti-aliasing and hairlines); the
+Metal canvas drops only the dirty keys, without discarding batches in flight.  Without a summary
+a changed list still repaints every tile.  `InvalidationBatcher` delivers to `InvalidationTarget`s
+(both canvases): local changes at once, remote ones coalesced until the next frame (1/120 s on the
+main queue by default), with the list after the burst.  `HitTester.update(displayList:changes:)`
+updates the R-tree in place for the touched nodes' items and rebuilds when the change is
+structural or an item's index moved.  WTRender and WTText no longer depend on `WTModel`, which
+neither imports; the builder from `WTModel` adds the dependency back when it lands.
+
+NOTE: As built by TXT-001 (`WTText`) and its display-list half in WTRender.  *Input*: WTText lays
+out a `TextContent` -- attributed runs, one `ParagraphStyle` per paragraph, one `CharID` per
+Unicode scalar (the engine's offsets are scalars) -- independent of WTCRDT, which WTModel adapts;
+missing styles read as the default and missing ids are synthesised.  *Glyph runs*: `TextRunItem`
+gained `glyphRun` (a `GlyphFont` by value -- PostScript name, size, variation axes, horizontal
+scale -- and positioned glyphs, each with an optional glyph-to-local transform for paths and
+vertical text).  Both renderers fill glyph outlines from `CTFontCreatePathForGlyph` for every
+glyph, so there is no glyph atlas yet: the Metal renderer fills glyphs through the path route,
+which passes REND-007 parity; PDF output therefore carries outlines rather than text until IO-025;
+Keyline fills glyphs in the highlight colour.  *Layout*: cells are `column_height` tall and
+`row_width` wide (0 divides the block's text area); ragged width is the percentage of the column
+at which non-justified lines break; defaults are flush zone 100, word spacing 80/100/150 and letter
+spacing 0/0/5.  Tab stops go to Core Text (a decimal tab is a right tab ending at `.`, which
+Core Text centres on the stop), default stops are set explicitly every 36 pt from the column
+edge, leaders are WTText's; a wrapping tab positions like a left tab (its sub-column wrapping is
+left to TYPE-025).  Justification stretches (never shrinks) and only after a line's last
+tab.  Hyphenation needs words of 5 letters and keeps 2 on each side.  Keeps are applied greedily
+with one line of look-ahead and give way at the top of a column.  Balance, modify leading,
+copyfit, text wrap, inline graphics and text effects are not part of TXT-001.  *Vertical*: lines
+are laid out along a logical axis and turned a quarter clockwise; characters in the CJK, kana,
+Hangul and fullwidth blocks stand upright with the `vert` feature rather than through
+`kCTVerticalFormsAttributeName`, whose runs report positions in a rotated space.  *On a path*: a
+closed path's top run uses the first half of the path, the bottom run the first half of the
+reversed path, each within the Left and Right offsets; a run aligned *None* consumes its text; on an
+open path the text after the first tab flows on; respacing advances a glyph 0.5 pt at a time until
+its advance box clears the previous one; text inside a path fills the widest span a scanline of
+the flattened contour leaves at the band's top, middle and bottom, narrowed by the left and right
+inset (not a GEO-003 offset), skipping bands that fit only part of a word.  *Carets*: `Caret` is a
+segment in the container's space; an anchor after a character at a soft break stays on the earlier
+line, after a newline it starts the next paragraph; hit tests return the nearest boundary as an
+anchor.  Left-to-right text only.  *Incremental*: paragraphs are cached by what their shaping
+depends on and lines by (start, column width, hyphens before); a 200,000-character flow through
+81 linked blocks relays out in 9--15 ms after a one-paragraph edit (release, M-series; full layout
+0.2--0.5 s).
+
 == Undo
 
 NOTE: Selection lives in `WTApp/Selection` (`SelectionModel`, `SelectionController`) until `WTModel` lands; ids are display-list index paths, renumbered when items are removed.  The Pointer tool is only the selection part of OBJ-005.  The sketch rectangle is one `PathItem`.
@@ -303,6 +368,25 @@ NOTE: Selection lives in `WTApp/Selection` (`SelectionModel`, `SelectionControll
 holds pairs; undo emits the inverse *filtered* by the rule in xref:crdt-model.adoc[CRDT model].
 Menu titles come from the change label ("Undo Move 3 Objects").  Drags register one entry;
 typing coalesces per word and per 1 s pause.
+
+NOTE: As built by APP-011 (`WTModel`).  A `Command` appends ops to a `ChangeBuilder` against the
+current `EngineState`; `Document.perform` has the backend number the change, apply it with
+`applyLocal` and record the inverse on `UndoStack` (the per-document stack; there is no
+`UndoManager` type).  Commands between `Document.beginGroup()` and `endGroup()` join one entry;
+`UndoCoalescing.typing` commands join one entry until a keystroke ends a word or a pause of 1 s.
+An undo or redo emits `EngineState.undoChange` of the top entry (labelled `Undo <label>` or
+`Redo <label>`) and moves the entry even when nothing was left to change.  Deviation: after
+every undo and redo the rest of the stack is *rebased* (`UndoRebase.swift`).  The engine restores
+a target only where it still holds the exact OpId the inverse recorded, and an undo is itself a
+new write, so without the rebase a second consecutive undo of the same register (or placement,
+flag, element, member, or of typing after its deletion was undone) would be skipped as if someone
+else had written it.  The rebase makes each step name the reversal's write where the reversal
+restored that step's value, counts an un-deletion by the reversal as the creating step's own,
+adds a re-added member's tag to the steps that added it, and maps re-inserted characters to the
+originals in the steps that typed them.  WTCRDT gives `Inverse` (and `MemberField`,
+`DeletedChar`, `ParagraphRegister`, `PriorFormat`) no public initialiser, so `WTModel` assembles
+them from their public fields (`InverseAssembly.swift`, checked field for field against recorded
+values) to join a group's inverses and to read the persisted stack back.
 
 == Help
 

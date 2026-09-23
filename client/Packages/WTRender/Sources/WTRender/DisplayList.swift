@@ -182,8 +182,9 @@ public struct ImageItem: Hashable, Sendable {
     }
 }
 
-/// A positioned run of text.  `WTText` supplies glyph runs later; until then the renderers
-/// draw the run's bounds and baseline as a placeholder.
+/// A positioned run of text.  With a `glyphRun` (from `WTText`, TXT-001) the renderers fill
+/// its glyph outlines in `color`; without one they draw the run's bounds and baseline as a
+/// placeholder.
 public struct TextRunItem: Hashable, Sendable {
     public var text: String
     /// The baseline origin in local space.
@@ -193,13 +194,29 @@ public struct TextRunItem: Hashable, Sendable {
     public var color: Color
     /// Local → pasteboard.
     public var transform: AffineTransform
+    /// The laid-out glyphs, in local space.
+    public var glyphRun: GlyphRun?
 
-    public init(text: String, origin: Point, bounds: Rect, color: Color = .black, transform: AffineTransform = .identity) {
+    public init(text: String, origin: Point, bounds: Rect, color: Color = .black, transform: AffineTransform = .identity, glyphRun: GlyphRun? = nil) {
         self.text = text
         self.origin = origin
         self.bounds = bounds
         self.color = color
         self.transform = transform
+        self.glyphRun = glyphRun
+    }
+
+    /// A run of laid-out glyphs, its bounds the glyphs' ink (or the origin alone for a run
+    /// without ink, such as spaces).
+    public init(text: String, glyphRun: GlyphRun, origin: Point, color: Color = .black, transform: AffineTransform = .identity) {
+        self.init(
+            text: text,
+            origin: origin,
+            bounds: glyphRun.inkBounds ?? Rect(x: origin.x, y: origin.y, width: 0, height: 0),
+            color: color,
+            transform: transform,
+            glyphRun: glyphRun
+        )
     }
 }
 
@@ -297,17 +314,53 @@ public struct DisplayList: Hashable, Sendable {
     public let itemBounds: [Rect?]
     /// The union of every item's bounds; nil for a list that paints nothing.
     public let bounds: Rect?
+    /// The document node each top-level item was built from (REND-004), parallel to `items`;
+    /// empty when the builder supplied none, nil for an item that has no node of its own.
+    public let nodeIDs: [NodeID?]
+    /// Top-level item index by node id.
+    private let nodeIndex: [NodeID: Int]
 
-    public init(canvas: CanvasID, items: [DisplayItem]) {
+    public init(canvas: CanvasID, items: [DisplayItem], nodeIDs: [NodeID?] = []) {
         self.canvas = canvas
         self.items = items
         let itemBounds = items.map(\.bounds)
         self.itemBounds = itemBounds
         self.bounds = DisplayList.union(of: itemBounds.compactMap { $0 })
+        // Normalized to the item count so a short or long id list cannot misaddress items.
+        let ids = nodeIDs.isEmpty ? [] : Array((nodeIDs + Array(repeating: nil, count: max(items.count - nodeIDs.count, 0))).prefix(items.count))
+        self.nodeIDs = ids
+        var index: [NodeID: Int] = [:]
+        index.reserveCapacity(ids.count)
+        for (position, id) in ids.enumerated() {
+            if let id {
+                index[id] = position
+            }
+        }
+        nodeIndex = index
     }
 
     public var count: Int { items.count }
     public var isEmpty: Bool { items.isEmpty }
+
+    /// The index of the top-level item built from `node`, if the list has one.
+    public func index(of node: NodeID) -> Int? {
+        nodeIndex[node]
+    }
+
+    /// The pasteboard bounds of the item built from `node`, if it paints anything.
+    public func bounds(of node: NodeID) -> Rect? {
+        index(of: node).flatMap { itemBounds[$0] }
+    }
+
+    public static func == (lhs: DisplayList, rhs: DisplayList) -> Bool {
+        lhs.canvas == rhs.canvas && lhs.nodeIDs == rhs.nodeIDs && lhs.items == rhs.items
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(canvas)
+        hasher.combine(items)
+        hasher.combine(nodeIDs)
+    }
 
     /// The indices of the items whose bounds intersect `rect`, in draw order.
     public func indices(intersecting rect: Rect) -> [Int] {
@@ -340,6 +393,7 @@ public struct DisplayListBuilder: Sendable {
         let z: Int
         let sequence: Int
         let item: DisplayItem
+        let node: NodeID?
     }
 
     public let canvas: CanvasID
@@ -351,9 +405,10 @@ public struct DisplayListBuilder: Sendable {
 
     public var count: Int { entries.count }
 
-    /// Adds `item` at depth `z`; larger z draws later (on top).
-    public mutating func add(_ item: DisplayItem, z: Int = 0) {
-        entries.append(Entry(z: z, sequence: entries.count, item: item))
+    /// Adds `item` at depth `z`; larger z draws later (on top).  `node` names the document
+    /// node it was built from, for change-driven invalidation and hit testing (REND-004).
+    public mutating func add(_ item: DisplayItem, z: Int = 0, node: NodeID? = nil) {
+        entries.append(Entry(z: z, sequence: entries.count, item: item, node: node))
     }
 
     /// The list, sorted by z then insertion order.
@@ -361,6 +416,7 @@ public struct DisplayListBuilder: Sendable {
         let sorted = entries.sorted { lhs, rhs in
             lhs.z != rhs.z ? lhs.z < rhs.z : lhs.sequence < rhs.sequence
         }
-        return DisplayList(canvas: canvas, items: sorted.map(\.item))
+        let nodes = sorted.map(\.node)
+        return DisplayList(canvas: canvas, items: sorted.map(\.item), nodeIDs: nodes.contains { $0 != nil } ? nodes : [])
     }
 }

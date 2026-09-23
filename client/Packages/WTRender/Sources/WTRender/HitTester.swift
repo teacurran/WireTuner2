@@ -179,6 +179,27 @@ public struct HitTester: Sendable {
         displayList = newList
     }
 
+    /// Replaces the list after `changes` (REND-004): the index is updated in place for the
+    /// items built from the touched nodes when the change kept every item's index (same length,
+    /// not structural, every touched node's item found by id), and rebuilt otherwise.
+    public mutating func update(displayList newList: DisplayList, changes: ChangeSummary) {
+        guard !changes.isStructural, newList.count == displayList.count, !newList.nodeIDs.isEmpty else {
+            update(displayList: newList)
+            return
+        }
+        var changed: [Int] = []
+        for node in changes.touchedNodes {
+            let index = newList.index(of: node)
+            guard let index, index == displayList.index(of: node) else {
+                // A node that appeared, vanished or moved to another index shifts others.
+                update(displayList: newList)
+                return
+            }
+            changed.append(index)
+        }
+        update(displayList: newList, changedIndices: changed)
+    }
+
     // MARK: Point hits
 
     /// Everything under `viewPoint` (view points), top-most first: one result per top-level

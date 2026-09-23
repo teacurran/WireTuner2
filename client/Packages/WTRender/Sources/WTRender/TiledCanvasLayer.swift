@@ -3,8 +3,9 @@
 // sublayer per visible tile; tiles are rasterized by the `TileCache` actor off the main actor
 // and their images land in `contents` when ready.  Pan is a lookup: frames move, keys stay.
 //
-// Until REND-004 wires change-driven invalidation, a changed display list invalidates the
-// whole canvas (`update` compares the list by value; passing the same value is O(1)).
+// A changed display list invalidates the whole canvas unless the change comes with its
+// `ChangeSummary` (REND-004), which repaints only the tiles under the touched nodes
+// (`update` compares the list by value; passing the same value is O(1)).
 
 import WTGeometry
 import QuartzCore
@@ -55,9 +56,13 @@ public final class TiledCanvasLayer {
 
     /// Shows `displayList` through `viewport`: lays out the visible tiles, drops the others
     /// and requests any that have no image yet.  Returns the layout it applied.
+    ///
+    /// With `changes` (the summary of what turned the shown list into `displayList`), a changed
+    /// list repaints only the tiles under the touched nodes instead of every tile.
     @discardableResult
-    public func update(displayList: DisplayList, viewport: Viewport) -> TileLayout {
-        let listChanged = self.displayList != displayList
+    public func update(displayList: DisplayList, viewport: Viewport, changes: ChangeSummary? = nil, mapper: InvalidationMapper = InvalidationMapper()) -> TileLayout {
+        let previous = self.displayList
+        let listChanged = previous != displayList
         self.displayList = displayList
         self.viewport = viewport
         layer.bounds = CGRect(x: 0, y: 0, width: viewport.size.width, height: viewport.size.height)
@@ -75,7 +80,10 @@ public final class TiledCanvasLayer {
             let tileLayer = tileLayers[placement.key] ?? makeTileLayer(for: placement.key)
             tileLayer.frame = TileLayout.layerFrame(placement.frame, inHeight: viewport.size.height).cg
         }
-        if listChanged {
+        if listChanged, let changes, let previous, previous.canvas == displayList.canvas {
+            let region = mapper.dirtyRegion(for: changes, before: [previous], after: [displayList])
+            invalidate(pasteboardRects: region.rects(for: displayList.canvas))
+        } else if listChanged {
             invalidateAll()
         } else {
             requestMissingTiles()
@@ -86,17 +94,28 @@ public final class TiledCanvasLayer {
     /// Drops the cached tiles under a changed pasteboard rectangle and re-requests the
     /// visible ones (REND-004 feeds this from `ChangeSummary`).
     public func invalidate(pasteboardRect rect: Rect) {
+        invalidate(pasteboardRects: [rect])
+    }
+
+    /// Drops the cached tiles under any of `rects` and re-requests the visible ones, in one
+    /// trip to the cache.
+    public func invalidate(pasteboardRects rects: [Rect]) {
         guard let displayList, let layout else {
             return
         }
-        let affected = tileLayers.keys.filter { layout.geometry.pasteboardBounds(of: $0).intersects(rect) }
+        guard !rects.isEmpty else {
+            requestMissingTiles()
+            return
+        }
+        let scale = layout.geometry.zoomStep.scale
+        let affected = tileLayers.keys.filter { TileCache.touches(layout.geometry.pasteboardBounds(of: $0), rects: rects, scale: scale) }
         for key in affected {
             cancelRequest(for: key)
             tileLayers[key]?.contents = nil
         }
         let canvas = displayList.canvas
         runInvalidation { cache in
-            await cache.invalidate(pasteboardRect: rect, canvas: canvas)
+            await cache.invalidate(pasteboardRects: rects, canvas: canvas)
         }
     }
 
@@ -196,5 +215,18 @@ public final class TiledCanvasLayer {
         tileLayers[key] = tileLayer
         layer.addSublayer(tileLayer)
         return tileLayer
+    }
+}
+
+extension TiledCanvasLayer: InvalidationTarget {
+    public var displayedCanvas: CanvasID? { displayList?.canvas }
+
+    /// Takes the list after a coalesced change without dropping every tile, and repaints the
+    /// tiles under `rects` (REND-004's batched delivery).
+    public func apply(displayList newList: DisplayList?, invalidating rects: [Rect]) {
+        if let newList {
+            displayList = newList
+        }
+        invalidate(pasteboardRects: rects)
     }
 }

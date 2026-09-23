@@ -5,6 +5,7 @@
 
 import WTGeometry
 import CoreGraphics
+import CoreText
 import Foundation
 import ImageIO
 import UniformTypeIdentifiers
@@ -217,10 +218,48 @@ enum ReferenceCorpus {
                 transform: AffineTransform.scale(x: 1.3, y: 1).concatenating(.rotation(degrees: -20)).concatenating(.translation(x: 64, y: 48))
             ),
         ])),
+        ReferenceCase(name: "glyphRuns", list: glyphRuns),
+        ReferenceCase(name: "glyphRunsKeyline", list: glyphRuns, viewMode: .keyline),
         ReferenceCase(name: "keyline", list: mixed, viewMode: .keyline),
         ReferenceCase(name: "fastPreview", list: mixed, viewMode: .fastPreview),
         ReferenceCase(name: "fastKeyline", list: mixed, viewMode: .fastKeyline),
     ]
+}
+
+extension ReferenceCorpus {
+    /// TXT-001's glyph runs: a plain line, a horizontally scaled one in a variable font's
+    /// bold instance, and glyphs placed by per-glyph transforms (rotated and skewed, as on a
+    /// path).
+    static let glyphRuns = list([
+        .text(TextRunItem(text: "Type 12", glyphRun: makeGlyphRun("Type 12", font: GlyphFont(postScriptName: "Helvetica", size: 22), at: Point(x: 6, y: 28)), origin: Point(x: 6, y: 28), color: .black)),
+        .text(TextRunItem(text: "Wide", glyphRun: makeGlyphRun("Wide", font: GlyphFont(postScriptName: "Helvetica-Bold", size: 18, horizontalScale: 1.4), at: Point(x: 6, y: 56)), origin: Point(x: 6, y: 56), color: blue)),
+        .text(TextRunItem(text: "path", glyphRun: GlyphRun(font: GlyphFont(postScriptName: "Times-Roman", size: 20), glyphs: {
+            let base = makeGlyphRun("path", font: GlyphFont(postScriptName: "Times-Roman", size: 20), at: .zero).glyphs
+            return base.enumerated().map { index, glyph in
+                let angle = Double(index - 1) * 0.25
+                let place = AffineTransform.rotation(radians: angle).concatenating(.translation(x: 70 + Double(index) * 13, y: 82 - Double(index) * 4))
+                let skew = AffineTransform(a: 1, b: 0, c: -0.3, d: 1, tx: 0, ty: 0)
+                return PositionedGlyph(glyph: glyph.glyph, position: glyph.position, transform: index.isMultiple(of: 2) ? place : skew.concatenating(place))
+            }
+        }()), origin: Point(x: 70, y: 82), color: red)),
+    ])
+
+    /// `string`'s glyphs in `font` from `origin` by nominal advances.
+    static func makeGlyphRun(_ string: String, font: GlyphFont, at origin: Point) -> GlyphRun {
+        let ctFont = font.ctFont
+        let characters = Array(string.utf16)
+        var glyphs = [CGGlyph](repeating: 0, count: characters.count)
+        CTFontGetGlyphsForCharacters(ctFont, characters, &glyphs, characters.count)
+        var advances = [CGSize](repeating: .zero, count: glyphs.count)
+        CTFontGetAdvancesForGlyphs(ctFont, .horizontal, glyphs, &advances, glyphs.count)
+        var x = origin.x
+        var placed: [PositionedGlyph] = []
+        for (glyph, advance) in zip(glyphs, advances) {
+            placed.append(PositionedGlyph(glyph: glyph, position: Point(x: x, y: origin.y)))
+            x += Double(advance.width)
+        }
+        return GlyphRun(font: font, glyphs: placed)
+    }
 }
 
 /// Golden PNGs on disk next to this test target.
