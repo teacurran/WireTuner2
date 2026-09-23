@@ -133,14 +133,14 @@ import WTRender
 
     @Test func rulesOnlyWhereTheirParagraphStartsOrEnds() {
         let long = Fixture.lorem
-        let stroke = RuleStroke()
-        var columns = TextBlock(width: 300, height: 50, ruleStroke: stroke)
+        let stroke = StrokePaint(paint: .solid(.black), style: StrokeStyle(width: 1))
+        var columns = TextBlock(width: 300, height: 50, appearance: Appearance([.stroke(stroke)]))
         columns.columns = ColumnsRows(columns: 2, columnSpacing: 10)
         for above in [false, true] {
             let content = TextContent(runs: [TextRun(long, attributes: Fixture.body)], paragraphs: [ParagraphStyle(rule: ParagraphRule(mode: .centered, above: above))])
-            let layout = TextLayoutEngine().layout(content, in: [.block(columns), Fixture.block(width: 145, height: 200) { $0.ruleStroke = stroke }])
-            let first = layout.displayItems(forContainer: 0).filter { if case .stroke = $0 { return true } else { return false } }
-            let second = layout.displayItems(forContainer: 1).filter { if case .stroke = $0 { return true } else { return false } }
+            let layout = TextLayoutEngine().layout(content, in: [.block(columns), Fixture.block(width: 145, height: 200) { $0.appearance = Appearance([.stroke(stroke)]) }])
+            let first = Fixture.strokePaths(layout.displayItems(forContainer: 0))
+            let second = Fixture.strokePaths(layout.displayItems(forContainer: 1))
             #expect(first.count == (above ? 1 : 0) && second.count == (above ? 0 : 1))
         }
     }

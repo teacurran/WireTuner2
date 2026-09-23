@@ -172,6 +172,25 @@ a single implementation).  Rules and borders are drawn from the block stroke by 
 
 Inspector:: Two sections registered with APP-007.  Undo: one step per field commit.
 
+NOTE: As built by TYPE-032 and TYPE-033 (`WTText`).  Deviation: WTText, not WTRender, draws the
+block's fill, border and column and row rules, in `TextLayout.displayItems` from
+`TextBlock.appearance` (the resolved `block_appearance`) and `displayBorder`: the fills behind the
+text, then the rules and the border in front, all with the block's strokes.  *Display border* off
+hides the fills and the border; the column and row rules and the paragraph rules stay (the guide's
+table recipe).  Rules sit mid-gutter; Inset rules span the text area, Full rules the block (after
+auto sizing).  U+000C behaves as U+2028 in a lone block of one cell and in a lone path.  *Balance*
+lays the block out, and when the flow ends in it lays it out again with each cell holding its
+share of the lines (the first cells one more where they do not divide), allowing one more line per
+cell until the flow fits (a cell break can defeat the even split); it is off where text wraps
+around objects.  *Modify leading* then spreads the slack below the last line of every cell at
+least the threshold full evenly between its lines.  *Copyfit* reads the first container's
+settings and scales the whole flow's sizes and Extra and Fixed leading values (a percentage
+already follows the size) by the largest factor in the range at which nothing overflows: the
+maximum is tried, then the minimum, then bisection, eight layouts at most, the same operations in
+the same order everywhere; `TextLayout.copyfitScale` and `copyfitIterations` report it.  Text
+inside a path copyfits; balance and modify leading are for blocks.  The Columns and Rows and
+Adjust Columns inspector sections are client-ui work (WTApp) and not part of these tasks.
+
 === Build tasks
 
 [[TYPE-032]]

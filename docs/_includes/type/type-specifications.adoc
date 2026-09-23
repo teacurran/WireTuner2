@@ -376,6 +376,49 @@ IO-017 and IO-019.
 Undo grouping:: One step per field commit; the size field's stepper coalesces within 1 s; an
 axis slider drag is one step and coalesces to one mark in the outbox.
 
+NOTE: As built by TYPE-021 and TYPE-047 (`WTText`: `FontResolver.swift`, `ParagraphTypesetter.swift`;
+`WTRender`: `GlyphRun.swift`, `RoundOutline.swift`).  *Attributes*: pair kerning, range kerning and the
+paragraph's optimum letter spacing go to `kCTKernAttributeName` together, on top of the font's own
+kerning; the horizontal scale is the run font's matrix, which the glyph run carries
+(`GlyphFont.horizontalScale`); baseline shift is a y offset WTText applies to the run's glyphs
+rather than `kCTBaselineOffsetAttributeName` (whose shift Core Text's run positions do not
+report), and a line's ascent and descent grow with its raised and lowered runs.  A size outside
+1--10,000 reads as 12 and a horizontal scale at or below 0 as 100.  `CaseStyle.SMALL_CAPS` shapes
+every lowercase letter whose capital is one scalar of the same UTF-16 length as that capital at 70%
+of the size, in any font (a letter such as ß stays as it is); the `smcp` feature is a feature mark
+like any other.  *Faces*: the face is looked up by style name among the family's faces, then by
+its bold and italic traits; failing both it is synthesized -- a slant of tan 12° in the font
+matrix (`GlyphFont.obliqueness`) and a bold weight drawn as a `RoundOutline` region 4% of the size
+wide in the fill colour -- and listed in `TextLayout.fontReport.synthesizedFaces` for the Object
+panel's warning.  A family that is not installed lays out in Helvetica until TXT-002 and is listed
+in `fontReport.missingFamilies`.  *Greeking* is renderer state: `greekTypeBelow` (device pixels,
+0 off) on both renderers and `MetalTileCanvas.setGreekTypeBelow`, applied to runs whose type size
+under the tile's transform is smaller, never in PDF; `TextRunItem.greekable` is how the builder
+keeps selected and edited text whole (WTApp supplies the preference, 8 by default); the fast modes'
+50 pt rule stands.  *Glyph fill and stroke*: `stroke` is a `StrokePaint` on the glyph outlines,
+stroked like any path; `overprint` is `TextRunItem.overprint`, composited with multiply under
+overprint preview by both renderers.  *Inline graphics*: WTText takes the graphic on the U+FFFC's
+attributes (`InlineGraphic`: its bounds and display items, nil items for a missing node), sets a
+Core Text run delegate its width and height, draws its items at the glyph origin through the
+block's transforms and reports `inlineGraphics(inContainer:)`; a missing node draws an empty box
+the type size square, a bare U+FFFC takes no room, a path does not draw inline graphics, and
+drawing a node referred to twice only at the first is WTModel's.  *Axes*: layered over the
+variation of the face the style names, clamped to the resolved font's ranges; tags it lacks are
+dropped and listed in `fontReport.droppedAxes` (the input is one value per tag: WTModel keeps the
+last of duplicates).  With `opsz` unset the font gets `kCTFontOpticalSizeAttribute` "auto"; no
+font the public API reaches on macOS 26 has an `opsz` axis (the system faces do but are private),
+so that line is untested.  *Features*: a font offers the tags in its GSUB and GPOS feature lists,
+the tags Core Text reports for it, and the tags its AAT selectors stand for (ligatures, small
+caps, number case and spacing, fractions, swashes, contextual and stylistic alternates); others
+are dropped and listed in `fontReport.droppedFeatures`.  Run fonts are cached by (family, style,
+size, horizontal scale, axis tuple, feature set, upright); `TextLayoutEngine.fontLookups` and
+`fontHits` count the lookups of the paragraphs typeset.  "Pixel for pixel with Core Text" is
+checked as identical glyph ids and positions to a `CTLine` of the same font and settings (the same
+outlines then fill the same pixels), with goldens for three STIX Two Text weights and six Mukta
+Mahee features.  The 200,000-character relayouts after a one-paragraph edit take 25--40 ms with
+mixed attributes and 18--20 ms with axes on every paragraph in release (the budgets are enforced
+there), with every run font of the edited paragraph from the cache.
+
 === Build tasks
 
 [[TYPE-020]]

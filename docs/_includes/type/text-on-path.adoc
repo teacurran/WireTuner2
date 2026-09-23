@@ -201,6 +201,16 @@ Handle:: The triangle is a canvas overlay; dragging projects the pointer onto th
 
 Undo:: One step per attach, detach, drag or field commit.
 
+NOTE: As built by TYPE-042 (the parts TXT-001 left).  With both runs aligned *None* (or the only run
+of an open path) nothing is placed and the text overflows; a run aligned *None* beside a visible
+one still consumes its text.  `INSIDE` on an open path closes it.  Selections along the curve are
+one glyph box per selected glyph (`TextLayout.selection`); carets and remote carets map through
+the glyph frames as TXT-001 built them.  Line effects follow the curve glyph by glyph; inline
+graphics are not drawn on a path.  Goldens cover the four orientations with the three alignments
+on a circle and an S-curve (glyph placements for all twelve, renders for the four orientations).
+Re-laying 500 characters on a reshaped path takes 3.3--3.5 ms in release; the 8 ms budget is
+enforced there.
+
 === Build tasks
 
 [[TYPE-041]]

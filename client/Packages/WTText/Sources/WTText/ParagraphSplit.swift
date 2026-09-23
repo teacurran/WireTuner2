@@ -69,7 +69,7 @@ extension TextContent {
         var spans: [AttributeSpan] = []
         var length = 0
         var start = 0
-        var lastAttributes = runs.last?.attributes ?? TextAttributes()
+        var lastAttributes = runs.last?.attributes.normalized ?? TextAttributes()
 
         func append(_ piece: Substring.UnicodeScalarView, count: Int, attributes: TextAttributes) {
             guard count > 0 else {
@@ -95,7 +95,8 @@ extension TextContent {
             length = 0
         }
 
-        for run in runs {
+        for sourceRun in runs {
+            let run = TextRun(sourceRun.text, attributes: sourceRun.attributes.normalized)
             let scalars = Substring(run.text).unicodeScalars
             var segmentStart = scalars.startIndex
             var count = 0

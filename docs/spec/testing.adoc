@@ -221,6 +221,22 @@ the features' geometry directly (justified edges, tab and indent positions, glyp
 caret positions).  The 200,000-character incremental relayout is `IncrementalLayoutTests`; it
 enforces 100 ms only in release builds (`swift test -c release -Xswiftc -enable-testing`) and
 reports debug figures.
++
+NOTE: As built by the type render tasks (TYPE-021 to TYPE-047).  `WTTextTests` adds goldens for every
+character attribute, three variable weights and six OpenType features (each also held to the
+glyphs and positions of a `CTLine` with the same settings), a wrapping-tab table, grids flowing
+down and across with rules and border, balance, modify leading, copyfit in a block and in a path,
+every text effect, effects on a path, a pull quote with text wrapped around it, mixed vertical
+text, and the four orientations with three alignments on a circle and an S-curve (glyph goldens
+for all, renders for the orientations).  The budgets -- 200,000 characters with mixed attributes,
+with axes on every paragraph and justified (100 ms), a 1,000-row tab table (50 ms), 10,000
+effected characters laid out and drawn (100 ms), re-wrapping a page (16 ms) and re-laying 500
+characters on a reshaped path (8 ms) -- are enforced in release builds only, like
+`IncrementalLayoutTests`.  `WTRenderTests/Support/TextCorpus.swift` adds four golden-corpus cases
+that run through REND-007's parity like the rest: text effects in Preview and in Keyline (the
+effects' groups hidden), overprinting glyphs under overprint preview, and greeking by device pixel
+size (not compared with PDF, which never greeks); the fill-rule self-test counts the effects cases
+among those whose rules decide pixels, since a `RoundOutline` region's polygons overlap.
 
 == Import and export
 

@@ -79,6 +79,10 @@ extension LayoutPass {
         }
         let forward = ArcLength(path.contour)
         if path.contour.isClosed {
+            // Both runs hidden: nothing is drawn and the text overflows (text-on-path).
+            guard path.top != .none || path.bottom != .none else {
+                return
+            }
             let reversed = ArcLength(path.contour.reversed())
             let upper = forward.total / 2 - path.offsetEnd
             guard placeRun(on: forward, range: path.offsetStart...max(upper, path.offsetStart), alignment: path.top, path: path, container: container, stopsAtTab: false) else {
@@ -86,6 +90,9 @@ extension LayoutPass {
             }
             _ = placeRun(on: reversed, range: path.offsetStart...max(upper, path.offsetStart), alignment: path.bottom, path: path, container: container, stopsAtTab: false)
         } else {
+            guard path.top != .none else {
+                return
+            }
             let upper = forward.total - path.offsetEnd
             _ = placeRun(on: forward, range: path.offsetStart...max(upper, path.offsetStart), alignment: path.top, path: path, container: container, stopsAtTab: true)
         }
@@ -239,10 +246,11 @@ extension LayoutPass {
     // MARK: Inside
 
     private mutating func placeInside(_ path: PathText, bounds: Rect, container: Int) {
-        guard path.contour.isClosed, !path.contour.isEmpty else {
+        // An open path is closed for layout (text-on-path, read-time normalizations).
+        guard !path.contour.isEmpty else {
             return
         }
-        let polygon = flatten(path.contour)
+        let polygon = flattenContour(path.contour)
         let top = bounds.minY + path.inset.top
         let bottom = bounds.maxY - path.inset.bottom
         let region = Rect(minX: bounds.minX, minY: top, maxX: bounds.maxX, maxY: bottom)
@@ -275,7 +283,7 @@ extension LayoutPass {
                 }
                 baseline += 1
             }
-            guard let (line, span, lineBaseline) = placed ?? fallback, lineBaseline + line.descent <= bottom + 0.001 else {
+            guard let (line, span, lineBaseline) = placed ?? fallback, lineBaseline + line.extraDepth + line.descent <= bottom + 0.001 else {
                 return
             }
             baseline = lineBaseline
@@ -286,33 +294,17 @@ extension LayoutPass {
                 line: line, origin: Point(x: span.lowerBound, y: baseline), cell: cell,
                 frame: .identity, vertical: false, path: nil
             ))
-            lastBaseline = baseline
+            lastBaseline = baseline + line.extraDepth
             position.hyphens = line.hyphenated ? position.hyphens + 1 : 0
             if line.endsParagraph {
                 finishParagraph(spaceBelow: style.spaceBelow)
             } else {
                 position.offset = line.end
             }
-            if line.cellBreak {
+            if line.cellBreak && !singleCell {
                 return
             }
         }
-    }
-
-    /// The contour as a closed polygon.
-    private func flatten(_ contour: Contour) -> [Point] {
-        var points: [Point] = []
-        var segments = contour.segments
-        if contour.isClosed, let closing = contour.closingSegment {
-            segments.append(closing)
-        }
-        for segment in segments {
-            let steps = segment.isLinear() ? 1 : 24
-            for step in 0..<steps {
-                points.append(segment.evaluate(Double(step) / Double(steps)))
-            }
-        }
-        return points
     }
 
     /// The widest horizontal span inside `polygon` (even-odd) across the band `top...bottom`,

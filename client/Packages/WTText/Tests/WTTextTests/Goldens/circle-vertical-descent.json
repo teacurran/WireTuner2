@@ -1,0 +1,353 @@
+[
+  {
+    "container" : 0,
+    "glyph" : 55,
+    "offset" : 0,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      34.317,
+      96.866
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 82,
+    "offset" : 1,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      35.797,
+      84.638
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 83,
+    "offset" : 2,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      40.372,
+      72.218
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 3,
+    "offset" : 3,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      47.135,
+      63.693
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 82,
+    "offset" : 4,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      50.751,
+      57.211
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 73,
+    "offset" : 5,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      57.714,
+      52.155
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 3,
+    "offset" : 6,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      61.271,
+      49.347
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 87,
+    "offset" : 7,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      65.02,
+      46.801
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 75,
+    "offset" : 8,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      68.361,
+      43.969
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 72,
+    "offset" : 9,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      75.245,
+      40.99
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 3,
+    "offset" : 10,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      82.412,
+      39.278
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 70,
+    "offset" : 11,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      85.846,
+      38.229
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 76,
+    "offset" : 12,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      91.999,
+      37.59
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 85,
+    "offset" : 13,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      94.807,
+      37.32
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 70,
+    "offset" : 14,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      99.027,
+      37.272
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 79,
+    "offset" : 15,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      105.213,
+      37.578
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 72,
+    "offset" : 16,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      108.044,
+      38.27
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 37,
+    "offset" : 18,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      38.883,
+      103.818
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 82,
+    "offset" : 19,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      41.648,
+      115.86
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 87,
+    "offset" : 20,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      48.478,
+      128.145
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 87,
+    "offset" : 21,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      52.004,
+      133.625
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 82,
+    "offset" : 22,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      55.553,
+      139.831
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 80,
+    "offset" : 23,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      62.494,
+      147.12
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 3,
+    "offset" : 24,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      72.513,
+      151.101
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 85,
+    "offset" : 25,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      76.226,
+      152.954
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 88,
+    "offset" : 26,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      80.585,
+      154.952
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 81,
+    "offset" : 27,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      87.252,
+      156.471
+    ]
+  }
+]

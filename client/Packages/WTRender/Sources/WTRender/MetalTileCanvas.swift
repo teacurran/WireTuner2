@@ -208,6 +208,19 @@ public final class MetalTileCanvas {
         requestMissingTiles()
     }
 
+    /// Applies the *Greek type below* preference (pixels; 0 turns greeking off): every tile is
+    /// re-rendered.
+    public func setGreekTypeBelow(_ pixels: Double) {
+        fallbackRenderer.greekTypeBelow = pixels
+        if let fallbackCanvas {
+            fallbackCanvas.setRenderer(fallbackRenderer)
+            return
+        }
+        renderer?.greekTypeBelow = pixels
+        dropTiles { _ in true }
+        requestMissingTiles()
+    }
+
     /// Drops the tiles under a changed pasteboard rectangle, at every zoom step and angle.
     public func invalidate(pasteboardRect rect: Rect) {
         invalidate(pasteboardRects: [rect])

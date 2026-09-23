@@ -65,6 +65,16 @@ structural flag when items were added, removed or restacked.  The builder reuses
 nodes a change did not touch.  It is named `DocumentDisplayListBuilder` because WTRender's
 low-level `DisplayListBuilder` would be ambiguous in every file importing both.
 
+NOTE: As built by the OBJ, DRAW and LIB model tasks and the sync UI's request.  `Document.reload()`
+re-reads the backend after its state was replaced wholesale (WTSync's `SyncEvent.stateReplaced`:
+snapshot bootstrap, salvage) and publishes one `DocumentEvent` of origin `.reload` with an empty
+change; `DocumentDisplayListBuilder.reload(_:)` rebuilds without its cache and returns a structural
+summary naming every object before and after, and WTApp's `DocumentHandle.reload()` routes it
+(the selection then drops what no longer resolves).  `MemoryBackend.replace(with:)` replaces a
+memory document's core.  The builder draws layers in `LayerOrder` (layers.adoc) and records each
+object's layer and lock state; `NodeKind` gained `polygon` (23).  Deep copies (duplicate layer,
+paste, duplicate, clone, transform copies) are `NodeCopier`, generic over the merge table.
+
 == The document window
 
 [listing]
@@ -118,6 +128,13 @@ canvases' tile canvases (local changes at once, remote ones per frame).  `Comman
 `perform(_ command: WTModel.Command) -> Task<Change?, Never>`; a command that throws is logged
 (subsystem `com.villagecompute.wiretuner`, category `document`) and performs nothing.  The local
 store is closed when the document's last view closes.
+
+NOTE: As built by the OBJ tasks.  Each window has an `ObjectEditing` (`WTApp/Document`) that is its tools'
+`CommandSink` (`ToolContext.commandSink`, also `ToolContext.objectEditing`): it performs every tool
+command and keeps the power-duplicate memory and the last transformation, and it implements the
+clipboard, Duplicate, Clone, Group, Ungroup, Lock, Arrange, *Transform Again*, Add Points and
+arrow-key nudging (`ObjectMenuCommands` puts them in the menus).  `DrawingSettings` gained *Auto-join
+paths*, the arrow-key distances and the drawing tools' sheet settings (`DrawingToolOptions`).
 
 == Tools
 
@@ -391,6 +408,26 @@ anchor.  Left-to-right text only.  *Incremental*: paragraphs are cached by what 
 depends on and lines by (start, column width, hyphens before); a 200,000-character flow through
 81 linked blocks relays out in 9--15 ms after a one-paragraph edit (release, M-series; full layout
 0.2--0.5 s).
+
+NOTE: As built by TYPE-021, TYPE-025, TYPE-028, TYPE-032, TYPE-033, TYPE-036, TYPE-039, TYPE-040,
+TYPE-042 and TYPE-047 (the type pages' Client notes have the detail).  This supersedes the TXT-001
+note where they differ: wrapping tabs, balance, modify leading, copyfit, text wrap, inline graphics
+and text effects are built, and vertical forms are substituted per glyph.  *WTRender*:
+`TextRunItem` gained `overprint` (multiply under overprint preview) and `greekable`; `GroupItem`
+gained `hiddenInKeyline`, which both renderers skip in Keyline (WTText puts text effects, glyph
+strokes and synthesized bold there); `GlyphFont` gained `obliqueness` (a synthesized slant in the
+font matrix); both renderers gained `greekTypeBelow` (device pixels, never in PDF) and
+`MetalTileCanvas` `setGreekTypeBelow`; `RoundOutline` builds a round stroke's region from a quad
+per flattened segment and the arc on the outer side of each turn, without boolean operations
+(`GlyphRun.roundOutlineItems` places the cached per-glyph regions as items without copying them),
+for the inline effect and synthesized bold, because GEO-003's stroker returns nothing, or no outer
+edge, for some glyph outlines at some widths (a WTGeometry defect that still affects glyph
+strokes, which are stroked like any path); glyph outlines are cached per font with their bounds
+(`GlyphOutlines.table(for:)`), which cut building a 10,000-character text's display items about
+sixfold.  There is still no glyph atlas.  *WTText* draws the block's fill, border and
+column and row rules itself (`TextBlock.appearance`, `displayBorder`), takes exclusions for text
+wrap (`TextBlock.exclusions`) and inline graphics (`TextAttributes.inlineGraphic`) as input from
+WTModel, and reports what its fonts could not honour (`TextLayout.fontReport`).
 
 NOTE: As built by ATTR-004, ATTR-007, ATTR-010 to ATTR-012, ATTR-014, ATTR-018, ATTR-019, ATTR-021
 and ATTR-027 (the ATTR paints).  This supersedes the "until GEO-003" statements in the REND-001,

@@ -196,6 +196,23 @@ under the wrapping stop.
 
 Undo grouping:: One step per ruler drag, per sheet btn:[OK], per Object panel field.
 
+NOTE: As built by TYPE-025 (`WTText/TabRow.swift`).  Lines without a wrapping stop still use Core
+Text's tabs (TXT-001's note on xref:client.adoc[Client]).  A line whose tabs reach a
+wrapping stop is laid out by WTText as a *row*: the cells between tabs are set one by one, a cell
+after a wrapping stop breaks within the sub-column up to the next stop (or the line's right edge)
+into sub-lines one leading (the row's largest) apart under the stop, and the cells after it stay
+on the row's first line; left, right, centre and decimal stops align as Core Text aligns them,
+default stops continue every 36 pt past the last set stop, and leaders fill the gap before a
+non-wrapping stop in the preceding character's font.  A row ends at the paragraph's end or a
+mandatory break; a first cell wider than the line leaves the line to Core Text.  Rows ignore the
+paragraph's alignment and justification.  Carets, hit tests and selections follow the sub-lines,
+and the line after a row starts below its deepest sub-line.  Decimal stops (rows and Core Text
+alike) align on the decimal separator of the paragraph's hyphenation language, else its first
+run's language, else `en_US`.  A stop beyond the column width is ignored in rows; Core Text treats
+one as a break.  Vertical text ignores tab stops (the default stops remain).  Relaying out a
+1,000-row wrapping table after a one-row edit takes 22--48 ms in release on this Mac, busy with
+other builds (25--34 ms in debug); the 50 ms budget is enforced in release.
+
 === Build tasks
 
 [[TYPE-023]]

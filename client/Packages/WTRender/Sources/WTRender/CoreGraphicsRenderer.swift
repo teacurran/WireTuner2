@@ -43,6 +43,11 @@ public struct CoreGraphicsRenderer: WTRender {
     /// draws without them and with a badge.  Nil renders them before returning.
     public var rasterEffectsReady: (@Sendable (Rect) -> Void)?
 
+    /// The *Greek type below* preference (type-specifications, "Font, size and style"): glyph
+    /// runs whose type is smaller than this many device pixels draw as grey bars in every mode,
+    /// unless the run is not `greekable`.  0 turns it off; PDF output never greeks.
+    public var greekTypeBelow: Double = 0
+
     /// Whether the context is vector output (PDF): raster effects are placed as images at the
     /// objects' own resolution and masks become image soft masks.
     var vectorOutput = false
@@ -243,10 +248,10 @@ public struct CoreGraphicsRenderer: WTRender {
                 drawImagePlaceholder(image, into: context)
             }
         case .text(let text):
-            if shouldGreek(text) {
+            if shouldGreek(text, in: context) {
                 drawGreeked(text, into: context)
             } else if let run = text.glyphRun {
-                drawGlyphs(run, transform: text.transform, color: text.color, into: context)
+                drawGlyphs(run, transform: text.transform, color: text.color, overprint: text.overprint, into: context)
             } else {
                 drawTextPlaceholder(text, into: context)
             }
@@ -390,12 +395,13 @@ public struct CoreGraphicsRenderer: WTRender {
     }
 
     /// Glyph outlines filled non-zero: the same polygons the Metal renderer fills.
-    private func drawGlyphs(_ run: GlyphRun, transform: AffineTransform, color: Color, into context: CGContext) {
+    private func drawGlyphs(_ run: GlyphRun, transform: AffineTransform, color: Color, overprint: Bool = false, into context: CGContext) {
         let outline = run.outline
         guard !outline.isEmpty else {
             return
         }
         context.saveGState()
+        applyOverprint(overprint, to: context)
         context.concatenate(transform.cg)
         context.addPath(outline.cgPath)
         context.setFillColor(color.cg)
@@ -403,10 +409,17 @@ public struct CoreGraphicsRenderer: WTRender {
         context.restoreGState()
     }
 
-    /// Whether the fast modes draw `item` as a grey bar: text whose on-page height is at most
-    /// `ViewMode.greekingThreshold`.
-    private func shouldGreek(_ item: TextRunItem) -> Bool {
-        viewMode.greeksText && item.bounds.applying(item.transform).height <= ViewMode.greekingThreshold
+    /// Whether `item` draws as a grey bar: in the fast modes, text whose on-page height is at
+    /// most `ViewMode.greekingThreshold`; in every mode but PDF output, greekable type smaller
+    /// on the device than `greekTypeBelow` pixels.
+    private func shouldGreek(_ item: TextRunItem, in context: CGContext) -> Bool {
+        if viewMode.greeksText && item.bounds.applying(item.transform).height <= ViewMode.greekingThreshold {
+            return true
+        }
+        guard greekTypeBelow > 0, item.greekable, !vectorOutput else {
+            return false
+        }
+        return item.pixelSize(under: AffineTransform(context.ctm)) < greekTypeBelow
     }
 
     /// Greeked text: the run's bounds as a flat grey bar.
@@ -487,7 +500,7 @@ public struct CoreGraphicsRenderer: WTRender {
         case .image(let image):
             drawImageBox(image, color: state.highlight, into: context)
         case .text(let text):
-            if shouldGreek(text) {
+            if shouldGreek(text, in: context) {
                 drawGreeked(text, into: context)
             } else if let run = text.glyphRun {
                 // Keyline keeps type legible: glyphs filled in the highlight colour.
@@ -499,7 +512,10 @@ public struct CoreGraphicsRenderer: WTRender {
                 strokeHairline(outline, transform: text.transform, color: state.highlight, into: context)
             }
         case .group(let group):
-            drawGroup(group, state: state, cull: cull, into: context)
+            // Text effects never show in Keyline.
+            if !group.hiddenInKeyline {
+                drawGroup(group, state: state, cull: cull, into: context)
+            }
         }
     }
 

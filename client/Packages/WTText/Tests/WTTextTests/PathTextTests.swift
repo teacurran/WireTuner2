@@ -75,7 +75,7 @@ import WTRender
         #expect(approx(glyph(.ascent).origin.y, 50 + 9.24, 0.01), "the ascent touches the path: text hangs below")
         #expect(approx(glyph(.descent).origin.y, 50 - 2.76, 0.01), "the descent touches the path")
         let hidden = Fixture.layout(text, in: [.path(PathText(contour: Contour(polygon: [Point(x: 0, y: 50), Point(x: 200, y: 50)], closed: false), top: .none))])
-        #expect(hidden.glyphs().isEmpty && !hidden.overflows, "hidden, not overflowing")
+        #expect(hidden.glyphs().isEmpty && hidden.overflows, "nothing drawn, the overflow dot shown (text-on-path)")
 
         let line = Contour(polygon: [Point(x: 0, y: 50), Point(x: 200, y: 50)], closed: false)
         let width = Fixture.layout(text, in: [.path(PathText(contour: line))]).glyphs().map { $0.origin.x + $0.advance }.max()!
@@ -165,10 +165,13 @@ import WTRender
         let widths = extents.map { $0.end - $0.start }
         #expect(widths[0] < widths[widths.count / 2])
         Goldens.check(layout, name: "pathInside", size: Size(width: 200, height: 200))
-        // An open path holds nothing inside; a paragraph break continues; a cell break stops.
-        #expect(Fixture.layout("x", in: [.path(PathText(contour: PathTextTests.arch, mode: .inside))]).lineCount == 0)
-        let breaks = Fixture.layout("one\ntwo\u{000C}three", in: [.path(path)])
-        #expect(breaks.lineCount == 2 && breaks.overflows)
+        // An open path is closed for layout; a paragraph break continues; a cell break moves to
+        // the next linked container, and in a lone container is a line break.
+        #expect(Fixture.layout("x", in: [.path(PathText(contour: PathTextTests.arch, mode: .inside))]).lineCount == 1)
+        let breaks = Fixture.layout("one\ntwo\u{000C}three", in: [.path(path), Fixture.block()])
+        #expect(breaks.lineCount(inContainer: 0) == 2 && breaks.lineCount(inContainer: 1) == 1 && !breaks.overflows)
+        let lone = Fixture.layout("one\ntwo\u{000C}three", in: [.path(path)])
+        #expect(lone.lineCount == 3 && !lone.overflows)
         let spaced = TextContent(runs: [TextRun("a\nb", attributes: Fixture.body)], paragraphs: [ParagraphStyle(spaceBelow: 10), ParagraphStyle()])
         let spacedLayout = TextLayoutEngine().layout(spaced, in: [.path(path)])
         #expect(approx(spacedLayout.lineOrigins[1].y - spacedLayout.lineOrigins[0].y, 24.4, 0.01))

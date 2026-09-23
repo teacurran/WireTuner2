@@ -43,11 +43,15 @@ struct MetalParityTests {
         }
 
         var cg: CoreGraphicsRenderer {
-            CoreGraphicsRenderer(background: .white, viewMode: mode, overprintPreview: reference.overprintPreview)
+            var renderer = CoreGraphicsRenderer(background: .white, viewMode: mode, overprintPreview: reference.overprintPreview)
+            renderer.greekTypeBelow = reference.greekTypeBelow
+            return renderer
         }
 
         func metal(_ context: MetalContext) -> MetalRenderer {
-            MetalRenderer(context: context, background: .white, viewMode: mode, overprintPreview: reference.overprintPreview)
+            var renderer = MetalRenderer(context: context, background: .white, viewMode: mode, overprintPreview: reference.overprintPreview)
+            renderer.greekTypeBelow = reference.greekTypeBelow
+            return renderer
         }
     }
 
@@ -155,8 +159,9 @@ struct MetalFillRuleSelfTests {
             #expect(failing == expected, "\(configuration): failing \(failing.sorted { $0.description < $1.description }) expected \(expected.sorted { $0.description < $1.description })")
             affectedCount += expected.count
         }
-        // The Duet rosette's petals overlap, so their fill rule decides the overlaps.
-        let decidesRules = ["fillRules", "multiContourRules", "effectsBendDuetTransform"].contains(name)
+        // The Duet rosette's petals overlap, so their fill rule decides the overlaps; so do the
+        // quads and fans of a RoundOutline region (the type effects' inline rings and bold).
+        let decidesRules = ["fillRules", "multiContourRules", "effectsBendDuetTransform", "textEffects", "textEffectsKeyline"].contains(name)
         #expect((affectedCount > 0) == decidesRules, "\(name): \(affectedCount) affected tiles")
     }
 }

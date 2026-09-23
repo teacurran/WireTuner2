@@ -86,6 +86,11 @@ enum Goldens {
             Issue.record("\(name): no render", sourceLocation: sourceLocation)
             return
         }
+        checkImage(image, name: name, sourceLocation: sourceLocation)
+    }
+
+    /// Compares (or records) a render.
+    static func checkImage(_ image: CGImage, name: String, sourceLocation: SourceLocation = #_sourceLocation) {
         let url = directory.appendingPathComponent("\(name).png")
         if isRecording {
             #expect(write(image, to: url), sourceLocation: sourceLocation)
@@ -140,6 +145,14 @@ enum Fixture {
 
     static func layout(_ text: String, style: ParagraphStyle = ParagraphStyle(), attributes: TextAttributes = body, in containers: [TextContainer]) -> TextLayout {
         TextLayoutEngine().layout(TextContent(text, attributes: attributes, style: style), in: containers)
+    }
+
+    /// The top-level paths drawn with strokes only: rules and borders.
+    static func strokePaths(_ items: [DisplayItem]) -> [PathItem] {
+        items.compactMap { item -> PathItem? in
+            if case .path(let path) = item, !path.appearance.strokes.isEmpty, path.appearance.fills.isEmpty { return path }
+            return nil
+        }
     }
 
     /// Where each placed line's first visible glyph starts and its last one ends (x).

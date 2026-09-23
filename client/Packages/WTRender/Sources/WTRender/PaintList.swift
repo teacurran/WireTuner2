@@ -73,6 +73,8 @@ struct PaintListBuilder: Sendable {
     /// Debug switch for REND-007's self-test: every declared fill rule is swapped (non-zero
     /// for even-odd and back), which must fail exactly the tiles the rule matters in.
     let swapsFillRules: Bool
+    /// As `CoreGraphicsRenderer.greekTypeBelow`.
+    let greekTypeBelow: Double
     /// The surface in device pixels; geometry is clipped to it (with a margin) before it is
     /// handed to the GPU.
     private let clipBounds: Rect
@@ -86,14 +88,17 @@ struct PaintListBuilder: Sendable {
         swapsFillRules: Bool = false,
         referenceTolerance: FlatteningTolerance = .standard,
         rasterPreview: RasterPreview = .screen,
-        rasterEffectsReady: (@Sendable (Rect) -> Void)? = nil
+        rasterEffectsReady: (@Sendable (Rect) -> Void)? = nil,
+        greekTypeBelow: Double = 0
     ) {
+        self.greekTypeBelow = greekTypeBelow
         self.viewMode = viewMode
         self.overprintPreview = overprintPreview
         flattener = PathFlattener(tolerance: tolerance)
         var reference = CoreGraphicsRenderer(flatteningTolerance: referenceTolerance, viewMode: viewMode, overprintPreview: overprintPreview)
         reference.rasterPreview = rasterPreview
         reference.rasterEffectsReady = rasterEffectsReady
+        reference.greekTypeBelow = greekTypeBelow
         self.reference = reference
         self.swapsFillRules = swapsFillRules
         self.surface = surface
@@ -153,10 +158,10 @@ struct PaintListBuilder: Sendable {
             }
         case .text(let text):
             let transform = text.transform.concatenating(base)
-            if shouldGreek(text) {
+            if shouldGreek(text, base: base) {
                 addFill(DisplayPath(rect: text.bounds), transform: transform, rule: .nonZero, color: Color(white: 0.7), state: state, into: &result)
             } else if let run = text.glyphRun {
-                addFill(run.outline, transform: transform, rule: .nonZero, color: text.color, declaredRule: false, state: state, into: &result)
+                addFill(run.outline, transform: transform, rule: .nonZero, color: text.color, blend: blend(text.overprint), declaredRule: false, state: state, into: &result)
             } else {
                 addFill(DisplayPath(rect: text.bounds), transform: transform, rule: .nonZero, color: text.color.withAlpha(multipliedBy: 0.15), state: state, into: &result)
                 var baseline = DisplayPath()
@@ -386,7 +391,7 @@ struct PaintListBuilder: Sendable {
             addImageBox(image, transform: image.transform.concatenating(base), color: state.highlight, lineWidth: nil, state: State(), into: &result)
         case .text(let text):
             let transform = text.transform.concatenating(base)
-            if shouldGreek(text) {
+            if shouldGreek(text, base: base) {
                 addFill(DisplayPath(rect: text.bounds), transform: transform, rule: .nonZero, color: Color(white: 0.7), state: State(), into: &result)
             } else if let run = text.glyphRun {
                 addFill(run.outline, transform: transform, rule: .nonZero, color: state.highlight, declaredRule: false, state: State(), into: &result)
@@ -397,14 +402,21 @@ struct PaintListBuilder: Sendable {
                 addHairline(outline, transform: transform, color: state.highlight, into: &result)
             }
         case .group(let group):
-            lowerGroup(group, base: base, state: state, cull: cull, into: &result)
+            // Text effects never show in Keyline.
+            if !group.hiddenInKeyline {
+                lowerGroup(group, base: base, state: state, cull: cull, into: &result)
+            }
         }
     }
 
     // MARK: Primitives
 
-    private func shouldGreek(_ item: TextRunItem) -> Bool {
-        viewMode.greeksText && item.bounds.applying(item.transform).height <= ViewMode.greekingThreshold
+    /// As `CoreGraphicsRenderer.shouldGreek`, with `base` the pasteboard → device transform.
+    private func shouldGreek(_ item: TextRunItem, base: AffineTransform) -> Bool {
+        if viewMode.greeksText && item.bounds.applying(item.transform).height <= ViewMode.greekingThreshold {
+            return true
+        }
+        return greekTypeBelow > 0 && item.greekable && item.pixelSize(under: base) < greekTypeBelow
     }
 
     private func blend(_ overprint: Bool) -> PaintBlend {

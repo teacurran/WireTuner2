@@ -28,6 +28,8 @@ struct ReferenceCase: Sendable {
     /// PDF and at device resolution in bitmaps, so those cases compare against their own PDF
     /// separately or not at all.
     var comparesPDF = true
+    /// The *Greek type below* preference, in device pixels (0 for off).
+    var greekTypeBelow = 0.0
 
     /// Whether the render contains one-device-pixel hairlines (hairline strokes, Keyline, the
     /// fast modes' image boxes).  A hairline is one device pixel in a bitmap but one point in a
@@ -37,7 +39,9 @@ struct ReferenceCase: Sendable {
     }
 
     var renderer: CoreGraphicsRenderer {
-        CoreGraphicsRenderer(background: .white, viewMode: viewMode, overprintPreview: overprintPreview)
+        var renderer = CoreGraphicsRenderer(background: .white, viewMode: viewMode, overprintPreview: overprintPreview)
+        renderer.greekTypeBelow = greekTypeBelow
+        return renderer
     }
 }
 
@@ -116,8 +120,8 @@ enum ReferenceCorpus {
         .text(TextRunItem(text: "Label", origin: Point(x: 76, y: 92), bounds: Rect(x: 76, y: 82, width: 44, height: 12), color: .black)),
     ])
 
-    /// REND-002's cases, the ATTR cases and the FX cases.
-    static let cases: [ReferenceCase] = baseCases + AttributeCorpus.cases + EffectCorpus.cases
+    /// REND-002's cases, the ATTR cases, the FX cases and the type cases.
+    static let cases: [ReferenceCase] = baseCases + AttributeCorpus.cases + EffectCorpus.cases + TextCorpus.cases
 
     static let baseCases: [ReferenceCase] = [
         ReferenceCase(name: "fillRules", list: list([

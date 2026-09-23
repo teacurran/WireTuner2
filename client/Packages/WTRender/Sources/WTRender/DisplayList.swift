@@ -220,27 +220,45 @@ public struct TextRunItem: Hashable, Sendable {
     public var transform: AffineTransform
     /// The laid-out glyphs, in local space.
     public var glyphRun: GlyphRun?
+    /// The glyph fill prints over what is beneath it (`TextMarkValue.overprint`): composited
+    /// with the multiply blend mode under overprint preview, as overprinting paths are.
+    public var overprint: Bool
+    /// Whether the run may be greeked when its type is smaller on screen than the renderer's
+    /// `greekTypeBelow` (type-specifications: selected text is always drawn in full, so the
+    /// builder clears this for text being edited or selected).
+    public var greekable: Bool
 
-    public init(text: String, origin: Point, bounds: Rect, color: Color = .black, transform: AffineTransform = .identity, glyphRun: GlyphRun? = nil) {
+    public init(text: String, origin: Point, bounds: Rect, color: Color = .black, transform: AffineTransform = .identity, glyphRun: GlyphRun? = nil, overprint: Bool = false, greekable: Bool = true) {
         self.text = text
         self.origin = origin
         self.bounds = bounds
         self.color = color
         self.transform = transform
         self.glyphRun = glyphRun
+        self.overprint = overprint
+        self.greekable = greekable
     }
 
     /// A run of laid-out glyphs, its bounds the glyphs' ink (or the origin alone for a run
     /// without ink, such as spaces).
-    public init(text: String, glyphRun: GlyphRun, origin: Point, color: Color = .black, transform: AffineTransform = .identity) {
+    public init(text: String, glyphRun: GlyphRun, origin: Point, color: Color = .black, transform: AffineTransform = .identity, overprint: Bool = false, greekable: Bool = true) {
         self.init(
             text: text,
             origin: origin,
             bounds: glyphRun.inkBounds ?? Rect(x: origin.x, y: origin.y, width: 0, height: 0),
             color: color,
             transform: transform,
-            glyphRun: glyphRun
+            glyphRun: glyphRun,
+            overprint: overprint,
+            greekable: greekable
         )
+    }
+
+    /// The type size in device pixels under `transform` (local → device): the run's font size
+    /// scaled, or its bounds' height for a placeholder run.
+    func pixelSize(under transform: AffineTransform) -> Double {
+        let size = glyphRun.map { $0.font.size } ?? bounds.height
+        return size * abs(self.transform.concatenating(transform).determinant).squareRoot()
     }
 }
 
@@ -263,6 +281,9 @@ public struct GroupItem: Hashable, Sendable {
     /// A live wrapper kind whose drawing is derived from the children on read (blend,
     /// extrusion, envelope, perspective); nil for a plain group.
     public var live: LiveGroup?
+    /// Drawn in Preview and the fast modes but never in Keyline: the text effects `WTText`
+    /// emits around glyph runs (text-effects, "Keyline view never shows them").
+    public var hiddenInKeyline: Bool
 
     public init(
         children: [DisplayItem],
@@ -272,8 +293,10 @@ public struct GroupItem: Hashable, Sendable {
         transform: AffineTransform = .identity,
         highlightColor: Color? = nil,
         appearance: Appearance = Appearance(),
-        live: LiveGroup? = nil
+        live: LiveGroup? = nil,
+        hiddenInKeyline: Bool = false
     ) {
+        self.hiddenInKeyline = hiddenInKeyline
         self.children = children
         self.clip = clip
         self.clipRule = clipRule

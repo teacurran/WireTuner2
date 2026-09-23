@@ -4,7 +4,9 @@
 // ragged width, hyphenation through `CFStringGetHyphenationLocationBeforeIndex` with the
 // paragraph's locale (consecutive limit, capitalized words, inhibited spans, discretionary
 // hyphens), "Selected words" that never break, tab leaders in the preceding character's font,
-// hanging punctuation, baseline shift and per-line maximum leading.
+// hanging punctuation, baseline shift and per-line maximum leading; small capitals drawn as
+// scaled capitals in any font; inline graphics as run delegates the graphic's size; wrapping
+// tabs as rows of sub-columns (TabRow.swift).
 //
 // Lines are memoized by (start, column width, hyphens before): with columns of one width an
 // unchanged paragraph is never re-broken, which is what makes incremental relayout cheap.
@@ -37,6 +39,24 @@ struct LineGlyphRun: Sendable {
     let descent: Double
     /// The characters the glyphs came from.
     let text: String
+    /// The span's attributes (effects, glyph stroke, overprint).
+    let attributes: TextAttributes
+    /// The stroke width synthesizing a bold face; 0 for none.
+    let emboldening: Double
+}
+
+/// An inline graphic placed on a line (text-effects, "Inline graphics").
+struct LineInline: Sendable {
+    /// The paragraph scalar (U+FFFC) it stands for.
+    let char: Int
+    let graphic: InlineGraphic
+    /// Where its advance starts, column coordinates.
+    let x: Double
+    /// The baseline shift (and a row's sub-line), y down.
+    let yOffset: Double
+    /// The type size (a missing graphic's box).
+    let size: Double
+    let fill: Color
 }
 
 /// One broken line of a paragraph, in column coordinates (x from the column's left edge after
@@ -63,8 +83,20 @@ final class TypesetLine: Sendable {
     let cellBreak: Bool
     /// Broken inside a word without a hyphen, because no word fitted.
     let emergency: Bool
+    /// The index after the last character that is not whitespace or a control.
+    let visibleEnd: Int
+    /// Inline graphics on the line.
+    let inlines: [LineInline]
+    /// A wrapping-tab row's sub-lines: each boundary's y below the baseline (nil: all on it),
+    /// and how far the last sub-line's baseline sits below the first.
+    let caretY: [Double]?
+    let extraDepth: Double
 
-    init(start: Int, end: Int, runs: [LineGlyphRun], caretX: [Double], left: Double, width: Double, ascent: Double, descent: Double, distance: Double, size: Double, hyphenated: Bool, endsParagraph: Bool, cellBreak: Bool, emergency: Bool = false) {
+    init(start: Int, end: Int, runs: [LineGlyphRun], caretX: [Double], left: Double, width: Double, ascent: Double, descent: Double, distance: Double, size: Double, hyphenated: Bool, endsParagraph: Bool, cellBreak: Bool, emergency: Bool = false, visibleEnd: Int? = nil, inlines: [LineInline] = [], caretY: [Double]? = nil, extraDepth: Double = 0) {
+        self.visibleEnd = visibleEnd ?? end
+        self.inlines = inlines
+        self.caretY = caretY
+        self.extraDepth = extraDepth
         self.start = start
         self.end = end
         self.runs = runs
@@ -84,6 +116,11 @@ final class TypesetLine: Sendable {
     /// Caret x at paragraph boundary `index` (clamped to the line).
     func caret(at index: Int) -> Double {
         caretX[min(max(index - start, 0), caretX.count - 1)]
+    }
+
+    /// The caret's baseline below the line's at paragraph boundary `index` (a row's sub-line).
+    func caretDepth(at index: Int) -> Double {
+        caretY.map { $0[min(max(index - start, 0), $0.count - 1)] } ?? 0
     }
 }
 
@@ -125,6 +162,71 @@ let unboundedWidth = 1.0e7
 nonisolated(unsafe) private let spanAttributeKey = "WTSpan" as CFString
 nonisolated(unsafe) private let uprightAttributeKey = "WTUpright" as CFString
 
+/// A run delegate's metrics: an inline graphic's box, or nothing for a bare U+FFFC.
+private final class InlineMetrics {
+    let ascent: Double
+    let descent: Double
+    let width: Double
+
+    init(ascent: Double, descent: Double, width: Double) {
+        self.ascent = ascent
+        self.descent = descent
+        self.width = width
+    }
+
+    /// A Core Text run delegate reporting these metrics.
+    func delegate() -> CTRunDelegate? {
+        var callbacks = CTRunDelegateCallbacks(
+            version: kCTRunDelegateVersion1,
+            dealloc: { Unmanaged<InlineMetrics>.fromOpaque($0).release() },
+            getAscent: { CGFloat(Unmanaged<InlineMetrics>.fromOpaque($0).takeUnretainedValue().ascent) },
+            getDescent: { CGFloat(Unmanaged<InlineMetrics>.fromOpaque($0).takeUnretainedValue().descent) },
+            getWidth: { CGFloat(Unmanaged<InlineMetrics>.fromOpaque($0).takeUnretainedValue().width) }
+        )
+        return CTRunDelegateCreate(&callbacks, Unmanaged.passRetained(self).toOpaque())
+    }
+}
+
+/// Vertical forms by font and character.
+final class VerticalForms: @unchecked Sendable {
+    static let shared = VerticalForms()
+
+    private struct Key: Hashable {
+        let font: String
+        let size: CGFloat
+        let scalar: Unicode.Scalar
+    }
+
+    private let lock = NSLock()
+    private var glyphs: [Key: CGGlyph] = [:]
+
+    func glyph(for scalar: Unicode.Scalar, glyph: CGGlyph, in font: CTFont) -> CGGlyph {
+        let key = Key(font: CTFontCopyPostScriptName(font) as String, size: CTFontGetSize(font), scalar: scalar)
+        lock.lock()
+        if let known = glyphs[key] {
+            lock.unlock()
+            return known == 0 ? glyph : known
+        }
+        lock.unlock()
+        let attributed = NSAttributedString(string: String(scalar), attributes: [
+            NSAttributedString.Key(kCTFontAttributeName as String): font,
+            NSAttributedString.Key(kCTVerticalFormsAttributeName as String): true,
+        ])
+        var found: CGGlyph = 0
+        let runs = CTLineGetGlyphRuns(CTLineCreateWithAttributedString(attributed)) as! [CTRun]
+        if runs.count == 1, CTRunGetGlyphCount(runs[0]) == 1 {
+            CTRunGetGlyphs(runs[0], CFRange(location: 0, length: 1), &found)
+        }
+        lock.lock()
+        glyphs[key] = found
+        lock.unlock()
+        return found == 0 ? glyph : found
+    }
+}
+
+/// The object replacement character: an inline graphic's place in the text.
+let objectReplacement: Unicode.Scalar = "\u{FFFC}"
+
 final class TypesetParagraph {
     let key: ParagraphKey
     let length: Int
@@ -134,12 +236,22 @@ final class TypesetParagraph {
     private let scalarAtUTF16: [Int32]
     /// Attributes per span; `spanStarts[i]` is span i's first scalar.
     let attributes: [TextAttributes]
-    private let spanStarts: [Int]
-    private let fonts: [CTFont]
+    let spanStarts: [Int]
+    let fonts: [CTFont]
+    /// Per span: the stroke width synthesizing a bold face.
+    let emboldening: [Double]
+    /// What the fonts could not honour.
+    let fontReport: FontReport
+    /// Run fonts looked up while typesetting, and how many came from the cache.
+    let fontLookups: Int
+    let fontHits: Int
+    /// The paragraph's text, for hyphenation (Core Text shapes small capitals uppercased).
     private let string: CFString
-    private let typesetter: CTTypesetter
+    let typesetter: CTTypesetter
     private let locale: CFLocale
-    private let sortedTabs: [TabStop]
+    /// The locale's decimal separator (decimal tabs align on it).
+    let decimalSeparator: String
+    let sortedTabs: [TabStop]
     private var memo: [LineRequest: TypesetLine] = [:]
     /// Lines broken (memo misses): the incremental-relayout counter.
     private(set) var linesBroken = 0
@@ -182,16 +294,45 @@ final class TypesetParagraph {
         self.attributes = attributes
         spanStarts = starts
         let resolver = FontResolver.shared
-        fonts = attributes.map { resolver.font(for: $0) }
-        sortedTabs = key.style.sortedTabs
+        var report = FontReport()
+        var lookups = 0
+        var hits = 0
+        func resolve(_ attributes: TextAttributes, upright: Bool = false) -> ResolvedFont {
+            let (font, hit) = resolver.resolve(attributes, upright: upright)
+            lookups += 1
+            hits += hit ? 1 : 0
+            report.merge(font.report)
+            return font
+        }
+        let resolved = attributes.map { resolve($0) }
+        fonts = resolved.map(\.font)
+        emboldening = resolved.map(\.emboldening)
+        // Tab stops are horizontal-only (text-effects, "Vertical text").
+        sortedTabs = key.vertical ? [] : key.style.sortedTabs
         let language = key.style.hyphenation.language ?? attributes.first?.language ?? "en_US"
-        locale = Locale(identifier: language) as CFLocale
+        let paragraphLocale = Locale(identifier: language)
+        locale = paragraphLocale as CFLocale
+        decimalSeparator = paragraphLocale.decimalSeparator ?? "."
 
         string = key.text as CFString
+        // Small capitals are the capitals of lowercase letters, set smaller; only letters whose
+        // capital is one scalar of the same UTF-16 length change, so offsets stay put.
+        var shaped = String.UnicodeScalarView()
+        var smallCap = [Bool](repeating: false, count: scalars.count)
+        for (index, scalar) in scalars.enumerated() {
+            let spanIndex = TypesetParagraph.span(at: index, starts: starts)
+            if attributes[spanIndex].smallCaps, scalar.properties.isLowercase,
+               let upper = TypesetParagraph.singleUppercase(scalar), upper.utf16.count == scalar.utf16.count {
+                shaped.append(upper)
+                smallCap[index] = true
+            } else {
+                shaped.append(scalar)
+            }
+        }
         let attributed = CFAttributedStringCreateMutable(nil, 0)!
-        CFAttributedStringReplaceString(attributed, CFRange(location: 0, length: 0), string)
+        CFAttributedStringReplaceString(attributed, CFRange(location: 0, length: 0), String(shaped) as CFString)
         CFAttributedStringBeginEditing(attributed)
-        let paragraphStyle = TypesetParagraph.paragraphStyle(tabs: sortedTabs)
+        let paragraphStyle = TypesetParagraph.paragraphStyle(tabs: sortedTabs, decimalSeparator: decimalSeparator)
         let whole = CFRange(location: 0, length: utf16)
         if utf16 > 0 {
             CFAttributedStringSetAttribute(attributed, whole, kCTParagraphStyleAttributeName, paragraphStyle)
@@ -212,24 +353,67 @@ final class TypesetParagraph {
                 CFAttributedStringSetAttribute(attributed, range, kCTLanguageAttributeName, language as CFString)
             }
             let wordExtra = (key.style.wordSpacing.optimum / 100 - 1) * TypesetParagraph.spaceAdvance(font)
+            var smallCapFont: CTFont?
             for scalarIndex in first..<last {
                 let scalar = scalars[scalarIndex]
                 let single = CFRange(location: offsets[scalarIndex], length: offsets[scalarIndex + 1] - offsets[scalarIndex])
                 if scalar == " " && wordExtra != 0 {
                     CFAttributedStringSetAttribute(attributed, single, kCTKernAttributeName, NSNumber(value: kern + wordExtra))
                 }
-                if key.vertical && isUpright(scalar) {
-                    CFAttributedStringSetAttribute(attributed, single, kCTFontAttributeName, resolver.font(for: span, upright: true))
+                if scalar == objectReplacement {
+                    // An inline graphic advances by its width and rises by its height; a bare
+                    // U+FFFC takes no room at all.
+                    let metrics: InlineMetrics
+                    if let graphic = span.inlineGraphic {
+                        let box = graphic.items == nil ? Rect(x: 0, y: 0, width: size, height: size) : graphic.bounds
+                        metrics = InlineMetrics(ascent: box.height, descent: 0, width: box.width)
+                    } else {
+                        metrics = InlineMetrics(ascent: 0, descent: 0, width: 0)
+                    }
+                    if let delegate = metrics.delegate() {
+                        CFAttributedStringSetAttribute(attributed, single, kCTRunDelegateAttributeName, delegate)
+                    }
+                } else if key.vertical && isUpright(scalar) {
+                    CFAttributedStringSetAttribute(attributed, single, kCTFontAttributeName, resolve(span, upright: true).font)
                     CFAttributedStringSetAttribute(attributed, single, uprightAttributeKey, kCFBooleanTrue)
+                } else if smallCap[scalarIndex] {
+                    if smallCapFont == nil {
+                        smallCapFont = resolve(span.scaled(by: TextAttributes.smallCapsScale)).font
+                    }
+                    CFAttributedStringSetAttribute(attributed, single, kCTFontAttributeName, smallCapFont)
                 }
             }
         }
         CFAttributedStringEndEditing(attributed)
         typesetter = CTTypesetterCreateWithAttributedString(attributed)
+        fontReport = report
+        fontLookups = lookups
+        fontHits = hits
     }
 
-    private static func paragraphStyle(tabs: [TabStop]) -> CTParagraphStyle {
-        let terminators = CFCharacterSetCreateWithCharactersInString(nil, "." as CFString)!
+    /// The capital of a lowercase letter when it is a single scalar.
+    static func singleUppercase(_ scalar: Unicode.Scalar) -> Unicode.Scalar? {
+        let upper = scalar.properties.uppercaseMapping.unicodeScalars
+        return upper.count == 1 ? upper.first : nil
+    }
+
+    /// The span holding scalar `index` among spans starting at `starts`.
+    static func span(at index: Int, starts: [Int]) -> Int {
+        var low = 0
+        var high = starts.count - 1
+        while low < high {
+            let mid = (low + high + 1) / 2
+            if starts[mid] <= index {
+                low = mid
+            } else {
+                high = mid - 1
+            }
+        }
+        return low
+    }
+
+    private static func paragraphStyle(tabs: [TabStop], decimalSeparator: String) -> CTParagraphStyle {
+        let terminators = CFCharacterSetCreateWithCharactersInString(nil, decimalSeparator as CFString)!
         // Default tabs sit every half inch from the column edge, not from the last stop (Core
         // Text's default interval counts from the last stop): set them explicitly past it.
         let lastStop = tabs.last?.position ?? 0
@@ -248,7 +432,8 @@ final class TypesetParagraph {
             case .center:
                 return CTTextTabCreate(.center, stop.position, nil)
             case .decimal:
-                // A right tab whose column ends at the decimal separator (NSTextTab's decimal).
+                // A right tab whose column ends at the locale's decimal separator (NSTextTab's
+                // decimal); text without one right-aligns.
                 let options = [kCTTabColumnTerminatorsAttributeName: terminators] as CFDictionary
                 return CTTextTabCreate(.right, stop.position, options)
             }
@@ -286,17 +471,7 @@ final class TypesetParagraph {
 
     /// The span holding scalar `index` (the last span for the end).
     func span(at index: Int) -> Int {
-        var low = 0
-        var high = spanStarts.count - 1
-        while low < high {
-            let mid = (low + high + 1) / 2
-            if spanStarts[mid] <= index {
-                low = mid
-            } else {
-                high = mid - 1
-            }
-        }
-        return low
+        TypesetParagraph.span(at: index, starts: spanStarts)
     }
 
     func scalar(atUTF16 offset: Int) -> Int {
@@ -325,11 +500,17 @@ final class TypesetParagraph {
         return line
     }
 
+    /// Whether a stop is a wrapping tab: lines with tabs are then laid out as rows.
+    var hasWrappingTabs: Bool { sortedTabs.contains { $0.kind == .wrapping } }
+
     private func breakLine(_ request: LineRequest) -> TypesetLine {
         let start = request.start
         let (boxLeft, boxWidth) = box(start: start, columnWidth: request.columnWidth)
         guard start < length else {
             return emptyLine(at: start, boxLeft: boxLeft, boxWidth: boxWidth)
+        }
+        if hasWrappingTabs, let row = rowLine(start: start, boxLeft: boxLeft, boxWidth: boxWidth, columnWidth: request.columnWidth) {
+            return row
         }
         let justified = style.alignment == .justified
         let breakWidth = justified ? boxWidth : boxWidth * min(max(style.raggedWidth, 1), 100) / 100
@@ -410,11 +591,11 @@ final class TypesetParagraph {
         return points.reversed()
     }
 
-    private func isLetter(_ scalar: Unicode.Scalar) -> Bool {
+    func isLetter(_ scalar: Unicode.Scalar) -> Bool {
         scalar.properties.isAlphabetic
     }
 
-    private func isMandatoryBreak(_ scalar: Unicode.Scalar) -> Bool {
+    func isMandatoryBreak(_ scalar: Unicode.Scalar) -> Bool {
         scalar == "\u{000C}" || scalar == "\u{2028}" || scalar == "\u{2029}" || scalar == "\u{000B}"
     }
 
@@ -425,7 +606,7 @@ final class TypesetParagraph {
         return CTLineGetTypographicBounds(line, nil, nil, nil) - CTLineGetTrailingWhitespaceWidth(line)
     }
 
-    private func hyphenGlyph(at index: Int) -> (glyph: CGGlyph, advance: Double, span: Int)? {
+    func hyphenGlyph(at index: Int) -> (glyph: CGGlyph, advance: Double, span: Int)? {
         let spanIndex = span(at: index)
         return TypesetParagraph.glyphAdvance(of: "-", in: fonts[spanIndex]).map { ($0.glyph, $0.advance, spanIndex) }
     }
@@ -452,7 +633,7 @@ final class TypesetParagraph {
 
     // MARK: Assembly
 
-    private struct RawGlyph {
+    struct RawGlyph {
         var glyph: CGGlyph
         var x: Double
         var advance: Double
@@ -460,17 +641,12 @@ final class TypesetParagraph {
         var span: Int
         var font: CTFont
         var upright: Bool
+        /// A row's sub-line: the baseline below the line's, y down.
+        var depth: Double = 0
     }
 
-    private func makeLine(start: Int, end: Int, boxLeft: Double, boxWidth: Double, hyphenated: Bool) -> TypesetLine {
-        let range = CFRange(location: utf16Offsets[start], length: utf16Offsets[end] - utf16Offsets[start])
-        let ctLine = CTTypesetterCreateLineWithOffset(typesetter, range, boxLeft)
-        var ascent: CGFloat = 0
-        var descent: CGFloat = 0
-        let typographicWidth = CTLineGetTypographicBounds(ctLine, &ascent, &descent, nil)
-        var naturalWidth = typographicWidth - CTLineGetTrailingWhitespaceWidth(ctLine)
-
-        // Glyphs in line order, positions from the line origin (at boxLeft).
+    /// `ctLine`'s glyphs in line order, x from the line origin plus `xOffset`.
+    func rawGlyphs(of ctLine: CTLine, xOffset: Double = 0) -> [RawGlyph] {
         var glyphs: [RawGlyph] = []
         for run in CTLineGetGlyphRuns(ctLine) as! [CTRun] {
             let count = CTRunGetGlyphCount(run)
@@ -480,8 +656,8 @@ final class TypesetParagraph {
             var indices = [CFIndex](repeating: 0, count: count)
             CTRunGetGlyphs(run, CFRange(), &ids)
             CTRunGetPositions(run, CFRange(), &positions)
-            // A run in a font with a matrix (horizontal scale) reports positions in the
-            // matrix's space.
+            // A run in a font with a matrix (horizontal scale, synthesized slant) reports
+            // positions in the matrix's space.
             let textMatrix = CTRunGetTextMatrix(run)
             if !textMatrix.isIdentity {
                 positions = positions.map { $0.applying(textMatrix) }
@@ -493,17 +669,115 @@ final class TypesetParagraph {
             let spanIndex = (runAttributes[spanAttributeKey] as? NSNumber)?.intValue ?? span(at: scalar(atUTF16: indices.first ?? 0))
             let upright = runAttributes[uprightAttributeKey] != nil
             for index in 0..<count {
+                let char = scalar(atUTF16: indices[index])
                 glyphs.append(RawGlyph(
-                    glyph: ids[index], x: Double(positions[index].x), advance: Double(advances[index].width),
-                    char: scalar(atUTF16: indices[index]), span: spanIndex, font: font, upright: upright
+                    glyph: upright ? TypesetParagraph.verticalForm(of: scalars[char], glyph: ids[index], in: font) : ids[index],
+                    x: xOffset + Double(positions[index].x), advance: Double(advances[index].width),
+                    char: char, span: spanIndex, font: font, upright: upright
                 ))
             }
         }
-        // Invisible controls draw nothing.
-        glyphs.removeAll { raw in
-            let scalar = scalars[raw.char]
-            return scalar == "\u{000C}" || scalar == "\u{00AD}" || scalar == "\t" || scalar == "\u{2028}"
+        return glyphs
+    }
+
+    /// The vertical form of an upright character's glyph (vertical punctuation, brackets,
+    /// the long vowel mark): Core Text substitutes vertical forms only under
+    /// `kCTVerticalFormsAttributeName`, whose runs report positions in a rotated space, so the
+    /// glyph is looked up on its own and swapped in; its advance is the em box either way.
+    static func verticalForm(of scalar: Unicode.Scalar, glyph: CGGlyph, in font: CTFont) -> CGGlyph {
+        VerticalForms.shared.glyph(for: scalar, glyph: glyph, in: font)
+    }
+
+    /// Whether a glyph of `scalar` is never drawn: controls, tabs, soft hyphens and the object
+    /// replacement character (an inline graphic is drawn by itself).
+    func isInvisible(_ scalar: Unicode.Scalar) -> Bool {
+        scalar == "\u{000C}" || scalar == "\u{00AD}" || scalar == "\t" || scalar == "\u{2028}" || scalar == objectReplacement
+    }
+
+    /// Glyph runs of one font, span, orientation and sub-line from `glyphs` placed at `xs`.
+    func makeRuns(_ glyphs: [RawGlyph], xs: [Double]) -> [LineGlyphRun] {
+        var runs: [LineGlyphRun] = []
+        var current: [Int] = []
+        func flush() {
+            guard let firstIndex = current.first else {
+                return  // a line of controls only
+            }
+            let first = glyphs[firstIndex]
+            let attributes = self.attributes[first.span]
+            let matrix = CTFontGetMatrix(first.font)
+            runs.append(LineGlyphRun(
+                span: first.span,
+                font: GlyphFont(first.font, horizontalScale: Double(matrix.a), obliqueness: Double(matrix.c)),
+                color: attributes.fill,
+                glyphs: current.map { glyphs[$0].glyph },
+                xs: current.map { xs[$0] },
+                advances: current.map { glyphs[$0].advance },
+                charIndices: current.map { glyphs[$0].char },
+                yOffset: first.depth - attributes.baselineShift,
+                upright: first.upright,
+                ascent: Double(CTFontGetAscent(first.font)),
+                descent: Double(CTFontGetDescent(first.font)),
+                text: text(of: current.map { glyphs[$0].char }),
+                attributes: attributes,
+                emboldening: emboldening[first.span]
+            ))
+            current = []
         }
+        for (index, glyph) in glyphs.enumerated() {
+            if let last = current.last, glyphs[last].span != glyph.span || glyphs[last].upright != glyph.upright
+                || glyphs[last].font != glyph.font || glyphs[last].depth != glyph.depth {
+                flush()
+            }
+            current.append(index)
+        }
+        flush()
+        return runs
+    }
+
+    /// The inline graphics among `start..<end` at the caret positions `carets` (boundaries
+    /// `start...end`), each `depth` below the baseline.
+    func inlines(start: Int, end: Int, carets: [Double], depths: [Double]? = nil) -> [LineInline] {
+        var result: [LineInline] = []
+        for index in start..<end where scalars[index] == objectReplacement {
+            let attributes = self.attributes[span(at: index)]
+            guard let graphic = attributes.inlineGraphic else {
+                continue
+            }
+            let depth = depths.map { $0[index - start] } ?? 0
+            result.append(LineInline(char: index, graphic: graphic, x: carets[index - start], yOffset: depth - attributes.baselineShift, size: attributes.size, fill: attributes.fill))
+        }
+        return result
+    }
+
+    /// The line's metrics over spans `start..<end`: the tallest font, raised or lowered by its
+    /// shift, and the largest leading and size.
+    func metrics(start: Int, end: Int, ascent: Double, descent: Double) -> (ascent: Double, descent: Double, distance: Double, size: Double) {
+        var lineAscent = ascent
+        var lineDescent = descent
+        var distance = 0.0
+        var size = 0.0
+        for index in span(at: start)...span(at: max(end - 1, start)) {
+            let attributes = self.attributes[index]
+            distance = max(distance, attributes.lineDistance)
+            size = max(size, attributes.size)
+            let font = fonts[index]
+            lineAscent = max(lineAscent, Double(CTFontGetAscent(font)) + attributes.baselineShift)
+            lineDescent = max(lineDescent, Double(CTFontGetDescent(font)) - attributes.baselineShift)
+        }
+        return (lineAscent, lineDescent, distance, size)
+    }
+
+    private func makeLine(start: Int, end: Int, boxLeft: Double, boxWidth: Double, hyphenated: Bool) -> TypesetLine {
+        let range = CFRange(location: utf16Offsets[start], length: utf16Offsets[end] - utf16Offsets[start])
+        let ctLine = CTTypesetterCreateLineWithOffset(typesetter, range, boxLeft)
+        var ascent: CGFloat = 0
+        var descent: CGFloat = 0
+        let typographicWidth = CTLineGetTypographicBounds(ctLine, &ascent, &descent, nil)
+        var naturalWidth = typographicWidth - CTLineGetTrailingWhitespaceWidth(ctLine)
+
+        // Glyphs in line order, positions from the line origin (at boxLeft).
+        var glyphs = rawGlyphs(of: ctLine)
+        glyphs.removeAll { isInvisible(scalars[$0.char]) }
         let tabStarts = tabLeaderGlyphs(start: start, end: end, boxLeft: boxLeft, line: ctLine)
         if hyphenated, let hyphen = hyphenGlyph(at: end - 1) {
             glyphs.append(RawGlyph(glyph: hyphen.glyph, x: naturalWidth, advance: hyphen.advance, char: end - 1, span: hyphen.span, font: fonts[hyphen.span], upright: false))
@@ -540,43 +814,12 @@ final class TypesetParagraph {
         }
         let origin = boxLeft + alignShift - hangLeft
 
-        // Runs of one font, span and orientation.
-        var runs: [LineGlyphRun] = []
-        var current: [Int] = []
-        func flush() {
-            guard let firstIndex = current.first else {
-                return  // a line of controls only
-            }
-            let first = glyphs[firstIndex]
-            let attributes = self.attributes[first.span]
-            runs.append(LineGlyphRun(
-                span: first.span,
-                font: GlyphFont(first.font, horizontalScale: Double(CTFontGetMatrix(first.font).a)),
-                color: attributes.fill,
-                glyphs: current.map { glyphs[$0].glyph },
-                xs: current.map { origin + glyphs[$0].x + shifts[$0] },
-                advances: current.map { glyphs[$0].advance },
-                charIndices: current.map { glyphs[$0].char },
-                yOffset: -attributes.baselineShift,
-                upright: first.upright,
-                ascent: Double(CTFontGetAscent(first.font)),
-                descent: Double(CTFontGetDescent(first.font)),
-                text: text(of: current.map { glyphs[$0].char })
-            ))
-            current = []
-        }
-        for (index, glyph) in glyphs.enumerated() {
-            if let last = current.last, glyphs[last].span != glyph.span || glyphs[last].upright != glyph.upright || glyphs[last].font != glyph.font {
-                flush()
-            }
-            current.append(index)
-        }
-        flush()
+        var runs = makeRuns(glyphs, xs: glyphs.indices.map { origin + glyphs[$0].x + shifts[$0] })
         runs.append(contentsOf: tabStarts.map { leader in
             LineGlyphRun(span: leader.span, font: leader.font, color: attributes[leader.span].fill, glyphs: leader.glyphs,
                          xs: leader.xs.map { $0 + alignShift - hangLeft }, advances: leader.advances,
                          charIndices: Array(repeating: leader.char, count: leader.glyphs.count), yOffset: 0, upright: false,
-                         ascent: 0, descent: 0, text: "")
+                         ascent: 0, descent: 0, text: "", attributes: attributes[leader.span], emboldening: 0)
         })
 
         // Carets from Core Text's offsets plus the shift of the glyph at each boundary.
@@ -592,37 +835,27 @@ final class TypesetParagraph {
             carets.append(origin + offset + shift)
         }
 
-        // Metrics: the tallest font, raised or lowered by its shift; the largest leading.
-        var lineAscent = Double(ascent)
-        var lineDescent = Double(descent)
-        var distance = 0.0
-        var size = 0.0
-        for index in span(at: start)...span(at: max(end - 1, start)) {
-            let attributes = self.attributes[index]
-            distance = max(distance, attributes.lineDistance)
-            size = max(size, attributes.size)
-            let font = fonts[index]
-            lineAscent = max(lineAscent, Double(CTFontGetAscent(font)) + attributes.baselineShift)
-            lineDescent = max(lineDescent, Double(CTFontGetDescent(font)) - attributes.baselineShift)
-        }
+        let metrics = metrics(start: start, end: end, ascent: Double(ascent), descent: Double(descent))
         return TypesetLine(
             start: start, end: end, runs: runs, caretX: carets, left: origin + hangLeft,
             width: justify ? min(setWidth + extraTotal, boxWidth) : setWidth,
-            ascent: lineAscent, descent: lineDescent, distance: distance, size: size, hyphenated: hyphenated,
+            ascent: metrics.ascent, descent: metrics.descent, distance: metrics.distance, size: metrics.size, hyphenated: hyphenated,
             endsParagraph: endsParagraph, cellBreak: cellBreak,
-            emergency: !hyphenated && !endsParagraph && isLetter(scalars[end - 1]) && isLetter(scalars[end])
+            emergency: !hyphenated && !endsParagraph && isLetter(scalars[end - 1]) && isLetter(scalars[end]),
+            visibleEnd: visibleEnd,
+            inlines: inlines(start: start, end: end, carets: carets)
         )
     }
 
     /// The characters from the first to the last of `indices` (never empty).
-    private func text(of indices: [Int]) -> String {
+    func text(of indices: [Int]) -> String {
         var result = String.UnicodeScalarView()
         result.append(contentsOf: scalars[indices.min()!...indices.max()!])
         return String(result)
     }
 
     /// The index after the last character that is not whitespace or a control.
-    private func lastVisible(start: Int, end: Int) -> Int {
+    func lastVisible(start: Int, end: Int) -> Int {
         var index = end
         while index > start {
             let scalar = scalars[index - 1]
@@ -686,7 +919,7 @@ final class TypesetParagraph {
         return running
     }
 
-    private struct Leader {
+    struct Leader {
         let span: Int
         let font: GlyphFont
         let glyphs: [CGGlyph]
@@ -707,30 +940,41 @@ final class TypesetParagraph {
             let tabX = boxLeft + Double(CTLineGetOffsetForStringIndex(line, utf16Offsets[index], nil))
             let nextX = boxLeft + Double(CTLineGetOffsetForStringIndex(line, utf16Offsets[index + 1], nil))
             guard let stop = sortedTabs.first(where: { $0.position > tabX + 0.001 }), stop.kind != .wrapping,
-                  let character = stop.leader.first
+                  let leader = leader(stop.leader, tab: index, from: tabX, to: nextX)
             else {
                 continue
             }
-            let spanIndex = span(at: max(index - 1, 0))
-            let font = fonts[spanIndex]
-            guard let (glyph, advance) = TypesetParagraph.glyphAdvance(of: character, in: font), advance > 0 else {
-                continue
-            }
-            var xs: [Double] = []
-            var slot = (tabX / advance).rounded(.up)
-            while (slot + 1) * advance <= nextX + 0.01 {
-                xs.append(slot * advance)
-                slot += 1
-            }
-            guard !xs.isEmpty else {
-                continue
-            }
-            leaders.append(Leader(
-                span: spanIndex, font: GlyphFont(font, horizontalScale: Double(CTFontGetMatrix(font).a)),
-                glyphs: Array(repeating: glyph, count: xs.count), xs: xs,
-                advances: Array(repeating: advance, count: xs.count), char: index
-            ))
+            leaders.append(leader)
         }
         return leaders
+    }
+
+    /// `character` (a leader's first) repeated on a grid of its advance from the column edge
+    /// between `tabX` and `nextX`, in the font of the character before tab `index`; nil when
+    /// nothing fits or the font lacks the character.
+    func leader(_ leader: String, tab index: Int, from tabX: Double, to nextX: Double) -> Leader? {
+        guard let character = leader.first else {
+            return nil
+        }
+        let spanIndex = span(at: max(index - 1, 0))
+        let font = fonts[spanIndex]
+        guard let (glyph, advance) = TypesetParagraph.glyphAdvance(of: character, in: font), advance > 0 else {
+            return nil
+        }
+        var xs: [Double] = []
+        var slot = (tabX / advance).rounded(.up)
+        while (slot + 1) * advance <= nextX + 0.01 {
+            xs.append(slot * advance)
+            slot += 1
+        }
+        guard !xs.isEmpty else {
+            return nil
+        }
+        let matrix = CTFontGetMatrix(font)
+        return Leader(
+            span: spanIndex, font: GlyphFont(font, horizontalScale: Double(matrix.a), obliqueness: Double(matrix.c)),
+            glyphs: Array(repeating: glyph, count: xs.count), xs: xs,
+            advances: Array(repeating: advance, count: xs.count), char: index
+        )
     }
 }

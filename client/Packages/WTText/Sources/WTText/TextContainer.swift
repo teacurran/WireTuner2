@@ -32,6 +32,15 @@ public enum FlowOrder: Hashable, Sendable {
     case across
 }
 
+/// How far the lines between columns or rows reach (columns-tables, `RuleExtent`).
+public enum RuleExtent: Hashable, Sendable {
+    case none
+    /// As tall (or wide) as the text area: the block minus its inset.
+    case inset
+    /// The block's full height (or width).
+    case full
+}
+
 /// Columns and rows (columns-tables, `ColumnsRows`).
 public struct ColumnsRows: Hashable, Sendable {
     public var columns: Int
@@ -45,8 +54,12 @@ public struct ColumnsRows: Hashable, Sendable {
     /// Gutter between rows.
     public var rowSpacing: Double
     public var flow: FlowOrder
+    /// Lines between columns, drawn with the block's stroke.
+    public var columnRules: RuleExtent
+    /// Lines between rows, drawn with the block's stroke.
+    public var rowRules: RuleExtent
 
-    public init(columns: Int = 1, columnHeight: Double = 0, columnSpacing: Double = 0, rows: Int = 1, rowWidth: Double = 0, rowSpacing: Double = 0, flow: FlowOrder = .down) {
+    public init(columns: Int = 1, columnHeight: Double = 0, columnSpacing: Double = 0, rows: Int = 1, rowWidth: Double = 0, rowSpacing: Double = 0, flow: FlowOrder = .down, columnRules: RuleExtent = .none, rowRules: RuleExtent = .none) {
         self.columns = columns
         self.columnHeight = columnHeight
         self.columnSpacing = columnSpacing
@@ -54,6 +67,56 @@ public struct ColumnsRows: Hashable, Sendable {
         self.rowWidth = rowWidth
         self.rowSpacing = rowSpacing
         self.flow = flow
+        self.columnRules = columnRules
+        self.rowRules = rowRules
+    }
+}
+
+/// Fitting text to its container (columns-tables, `AdjustColumns`; first-line leading is
+/// `TextBlock.firstLineLeading`).
+public struct AdjustColumns: Hashable, Sendable {
+    /// Spread the lines evenly among the cells.
+    public var balance: Bool
+    /// Add leading so the lines fill each cell that is at least `thresholdPercent` full.
+    public var modifyLeading: Bool
+    public var thresholdPercent: Double
+    /// The range, in percent of the set size, copyfit may scale the size and leading within;
+    /// 100 and 100 turn copyfit off.
+    public var copyfitMinPercent: Double
+    public var copyfitMaxPercent: Double
+
+    public init(balance: Bool = false, modifyLeading: Bool = false, thresholdPercent: Double = 50, copyfitMinPercent: Double = 100, copyfitMaxPercent: Double = 100) {
+        self.balance = balance
+        self.modifyLeading = modifyLeading
+        self.thresholdPercent = thresholdPercent
+        self.copyfitMinPercent = copyfitMinPercent
+        self.copyfitMaxPercent = copyfitMaxPercent
+    }
+
+    /// The copyfit range as scale factors, normalized: a minimum above the maximum reads as
+    /// both at the minimum; nil when copyfit is off.
+    var copyfitRange: ClosedRange<Double>? {
+        let low = max(copyfitMinPercent, 1) / 100
+        let high = max(copyfitMaxPercent, 1) / 100
+        let range = low <= high ? low...high : low...low
+        return range == 1...1 ? nil : range
+    }
+}
+
+/// An object text flows around (text-effects, "Wrapping text around objects"): its outline
+/// in its own space, placed into the block, kept `standoff` points clear of the text.
+public struct TextExclusion: Hashable, Sendable {
+    /// The object's outline (its painted shape), in its own space.
+    public var contours: [Contour]
+    /// The object's space to the block's local space.
+    public var transform: AffineTransform
+    /// Points; negative lets text run under the object's edge.
+    public var standoff: Double
+
+    public init(contours: [Contour], transform: AffineTransform = .identity, standoff: Double = 0) {
+        self.contours = contours
+        self.transform = transform
+        self.standoff = standoff
     }
 }
 
@@ -80,10 +143,18 @@ public struct TextBlock: Hashable, Sendable {
     /// The space above each column's first line (columns-tables, *First line leading*); nil
     /// sets the first baseline at the line's ascent.
     public var firstLineLeading: Leading?
+    /// Balance, modify leading and copyfit.
+    public var adjust: AdjustColumns
     /// Block (local) space to pasteboard.
     public var transform: AffineTransform
-    /// The block's stroke, which draws paragraph rules without their own.
-    public var ruleStroke: RuleStroke?
+    /// The block's fill and stroke (`block_appearance`, resolved).  Its strokes draw the
+    /// column and row rules and the paragraph rules that have no stroke of their own; the
+    /// fills and the border are drawn only with `displayBorder`.
+    public var appearance: Appearance
+    /// Draw the block's fill and outline.
+    public var displayBorder: Bool
+    /// Objects in front of the block that text wraps around (horizontal writing).
+    public var exclusions: [TextExclusion]
 
     public init(
         width: Double = 200,
@@ -94,8 +165,11 @@ public struct TextBlock: Hashable, Sendable {
         columns: ColumnsRows = ColumnsRows(),
         direction: WritingDirection = .horizontal,
         firstLineLeading: Leading? = nil,
+        adjust: AdjustColumns = AdjustColumns(),
         transform: AffineTransform = .identity,
-        ruleStroke: RuleStroke? = nil
+        appearance: Appearance = Appearance(),
+        displayBorder: Bool = false,
+        exclusions: [TextExclusion] = []
     ) {
         self.width = width
         self.height = height
@@ -105,8 +179,17 @@ public struct TextBlock: Hashable, Sendable {
         self.columns = columns
         self.direction = direction
         self.firstLineLeading = firstLineLeading
+        self.adjust = adjust
         self.transform = transform
-        self.ruleStroke = ruleStroke
+        self.appearance = appearance
+        self.displayBorder = displayBorder
+        self.exclusions = exclusions
+    }
+
+    /// The block's strokes, bottom first, as a stack of their own (rules are drawn with them).
+    var strokeAppearance: Appearance? {
+        let strokes = appearance.strokes
+        return strokes.isEmpty ? nil : Appearance(strokes.map { .stroke($0) })
     }
 }
 
@@ -151,6 +234,8 @@ public struct PathText: Hashable, Sendable {
     public var offsetEnd: Double
     /// Inside mode: kept clear of the path's edges.
     public var inset: Inset
+    /// Inside mode: copyfit (columns-tables, "Balancing and fitting columns").
+    public var adjust: AdjustColumns
     /// Local space to pasteboard.
     public var transform: AffineTransform
 
@@ -163,8 +248,10 @@ public struct PathText: Hashable, Sendable {
         offsetStart: Double = 0,
         offsetEnd: Double = 0,
         inset: Inset = .zero,
+        adjust: AdjustColumns = AdjustColumns(),
         transform: AffineTransform = .identity
     ) {
+        self.adjust = adjust
         self.contour = contour
         self.mode = mode
         self.orientation = orientation
@@ -189,6 +276,14 @@ public enum TextContainer: Hashable, Sendable {
         case .path(let path): return path.transform
         }
     }
+
+    /// Balance, modify leading and copyfit.
+    var adjust: AdjustColumns {
+        switch self {
+        case .block(let block): return block.adjust
+        case .path(let path): return path.adjust
+        }
+    }
 }
 
 /// A block's cells in its *logical* space: horizontal writing is the block itself; vertical
@@ -204,6 +299,11 @@ struct BlockGeometry {
     let rows: Int
 
     init(_ block: TextBlock) {
+        var block = block
+        if block.direction == .vertical {
+            // Columns and rows are horizontal-only (text-effects, "Vertical text").
+            block.columns = ColumnsRows()
+        }
         self.block = block
         if block.direction == .vertical {
             logicalWidth = block.height
@@ -225,14 +325,24 @@ struct BlockGeometry {
     /// Whether the line stack has no limit (auto height in horizontal writing).
     var autoLines: Bool { block.direction == .vertical ? block.autoWidth : block.autoHeight }
 
-    /// The cells in flow order, logical space; `measure` replaces the cell width when the
-    /// block is auto-measured.
-    func cells(measure: Double? = nil) -> [Rect] {
+    /// A cell's width and height (logical space); `measure` replaces the width when the block
+    /// is auto-measured.
+    func cellSize(measure: Double? = nil) -> Size {
         let spec = block.columns
         let contentWidth = logicalWidth - inset.left - inset.right
         let contentHeight = logicalHeight - inset.top - inset.bottom
         let cellWidth = measure ?? (spec.rowWidth > 0 ? spec.rowWidth : max((contentWidth - Double(columns - 1) * spec.columnSpacing) / Double(columns), 1))
         let cellHeight = autoLines ? Double.greatestFiniteMagnitude / 4 : (spec.columnHeight > 0 ? spec.columnHeight : max((contentHeight - Double(rows - 1) * spec.rowSpacing) / Double(rows), 0))
+        return Size(width: cellWidth, height: cellHeight)
+    }
+
+    /// The cells in flow order, logical space; `measure` replaces the cell width when the
+    /// block is auto-measured.
+    func cells(measure: Double? = nil) -> [Rect] {
+        let spec = block.columns
+        let size = cellSize(measure: measure)
+        let cellWidth = size.width
+        let cellHeight = size.height
         var result: [Rect] = []
         func cell(column: Int, row: Int) -> Rect {
             Rect(

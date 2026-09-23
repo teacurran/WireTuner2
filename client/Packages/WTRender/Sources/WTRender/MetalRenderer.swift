@@ -26,6 +26,8 @@ public struct MetalRenderer: WTRender {
     public var rasterPreview: RasterPreview = .screen
     /// As `CoreGraphicsRenderer.rasterEffectsReady`.
     public var rasterEffectsReady: (@Sendable (Rect) -> Void)?
+    /// As `CoreGraphicsRenderer.greekTypeBelow`.
+    public var greekTypeBelow: Double = 0
 
     /// The fraction of the shared tolerance this renderer flattens to.  The shared tolerance
     /// is the bound both renderers honour, but Core Graphics' scan converter subdivides curves
@@ -132,7 +134,8 @@ public struct MetalRenderer: WTRender {
             swapsFillRules: swapsFillRules,
             referenceTolerance: flatteningTolerance,
             rasterPreview: rasterPreview,
-            rasterEffectsReady: rasterEffectsReady
+            rasterEffectsReady: rasterEffectsReady,
+            greekTypeBelow: greekTypeBelow
         )
         return builder.operations(for: displayList, pasteboardTransform: pasteboardTransform, cull: cull)
     }

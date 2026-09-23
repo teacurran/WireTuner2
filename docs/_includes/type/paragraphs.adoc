@@ -228,6 +228,15 @@ negative glyph origins for the fixed set, and rules as strokes drawn in the text
 
 Undo grouping:: One step per field commit; the sheets commit on btn:[OK].
 
+NOTE: As built by TYPE-028 (the parts TXT-001 left; `WTText/TextLayoutEngine.swift`,
+`TextLayout.swift`).  Keep with next requires the next paragraph's first lines -- as many as its
+own *Keep lines together* asks for, at least one -- to fit after the paragraph's last line;
+keeps still give way at the top of a column, so they never leave a column empty.  Paragraph rules
+are attribute-stack paths: the rule's own `StrokePaint` or else every stroke of the block's
+appearance; a rule below a wrapping-tab row sits below its deepest sub-line.  A 200,000-character
+justified, hyphenated flow relays out in 19--21 ms in release after a one-paragraph edit; the
+budget is enforced there.
+
 === Build tasks
 
 [[TYPE-026]]

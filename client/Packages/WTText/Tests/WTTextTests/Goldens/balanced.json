@@ -1,0 +1,795 @@
+[
+  {
+    "container" : 0,
+    "glyph" : 47,
+    "offset" : 0,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      0,
+      9.24
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 76,
+    "offset" : 1,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      6.674,
+      9.24
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 81,
+    "offset" : 2,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      9.34,
+      9.24
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 72,
+    "offset" : 3,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      16.014,
+      9.24
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 3,
+    "offset" : 4,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      22.688,
+      9.24
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 20,
+    "offset" : 5,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      26.021,
+      9.24
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 47,
+    "offset" : 7,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      0,
+      23.64
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 76,
+    "offset" : 8,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      6.674,
+      23.64
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 81,
+    "offset" : 9,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      9.34,
+      23.64
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 72,
+    "offset" : 10,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      16.014,
+      23.64
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 3,
+    "offset" : 11,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      22.688,
+      23.64
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 21,
+    "offset" : 12,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      26.021,
+      23.64
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 47,
+    "offset" : 14,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      0,
+      38.04
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 76,
+    "offset" : 15,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      6.674,
+      38.04
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 81,
+    "offset" : 16,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      9.34,
+      38.04
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 72,
+    "offset" : 17,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      16.014,
+      38.04
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 3,
+    "offset" : 18,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      22.688,
+      38.04
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 22,
+    "offset" : 19,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      26.021,
+      38.04
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 47,
+    "offset" : 21,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      0,
+      52.44
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 76,
+    "offset" : 22,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      6.674,
+      52.44
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 81,
+    "offset" : 23,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      9.34,
+      52.44
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 72,
+    "offset" : 24,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      16.014,
+      52.44
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 3,
+    "offset" : 25,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      22.688,
+      52.44
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 23,
+    "offset" : 26,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      26.021,
+      52.44
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 47,
+    "offset" : 28,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      103.333,
+      9.24
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 76,
+    "offset" : 29,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      110.007,
+      9.24
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 81,
+    "offset" : 30,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      112.673,
+      9.24
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 72,
+    "offset" : 31,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      119.347,
+      9.24
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 3,
+    "offset" : 32,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      126.021,
+      9.24
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 24,
+    "offset" : 33,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      129.355,
+      9.24
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 47,
+    "offset" : 35,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      103.333,
+      23.64
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 76,
+    "offset" : 36,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      110.007,
+      23.64
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 81,
+    "offset" : 37,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      112.673,
+      23.64
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 72,
+    "offset" : 38,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      119.347,
+      23.64
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 3,
+    "offset" : 39,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      126.021,
+      23.64
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 25,
+    "offset" : 40,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      129.355,
+      23.64
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 47,
+    "offset" : 42,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      103.333,
+      38.04
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 76,
+    "offset" : 43,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      110.007,
+      38.04
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 81,
+    "offset" : 44,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      112.673,
+      38.04
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 72,
+    "offset" : 45,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      119.347,
+      38.04
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 3,
+    "offset" : 46,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      126.021,
+      38.04
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 26,
+    "offset" : 47,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      129.355,
+      38.04
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 47,
+    "offset" : 49,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      206.667,
+      9.24
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 76,
+    "offset" : 50,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      213.34,
+      9.24
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 81,
+    "offset" : 51,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      216.007,
+      9.24
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 72,
+    "offset" : 52,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      222.68,
+      9.24
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 3,
+    "offset" : 53,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      229.354,
+      9.24
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 27,
+    "offset" : 54,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      232.688,
+      9.24
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 47,
+    "offset" : 56,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      206.667,
+      23.64
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 76,
+    "offset" : 57,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      213.34,
+      23.64
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 81,
+    "offset" : 58,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      216.007,
+      23.64
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 72,
+    "offset" : 59,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      222.68,
+      23.64
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 3,
+    "offset" : 60,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      229.354,
+      23.64
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 28,
+    "offset" : 61,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      232.688,
+      23.64
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 47,
+    "offset" : 63,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      206.667,
+      38.04
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 76,
+    "offset" : 64,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      213.34,
+      38.04
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 81,
+    "offset" : 65,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      216.007,
+      38.04
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 72,
+    "offset" : 66,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      222.68,
+      38.04
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 3,
+    "offset" : 67,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      229.354,
+      38.04
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 20,
+    "offset" : 68,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      232.688,
+      38.04
+    ]
+  },
+  {
+    "container" : 0,
+    "glyph" : 19,
+    "offset" : 69,
+    "transform" : [
+      1,
+      0,
+      0,
+      1,
+      239.362,
+      38.04
+    ]
+  }
+]

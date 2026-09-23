@@ -156,6 +156,12 @@ struct MetalTileCanvasTests {
         await canvas.settle()
         #expect(canvas.rasterizedTileCount == 13, "only the tile under the dirty rect re-renders")
 
+        // The Greek type below preference re-renders every visible tile too.
+        canvas.setGreekTypeBelow(8)
+        #expect(canvas.renderer?.greekTypeBelow == 8)
+        await canvas.settle()
+        #expect(canvas.rasterizedTileCount == 19)
+
         // A changed list drops everything, including tiles still rendering.
         canvas.update(displayList: Corpus.ellipse, viewport: viewport)
         canvas.update(displayList: Corpus.solidRect, viewport: viewport)
@@ -230,6 +236,9 @@ struct MetalTileCanvasTests {
         canvas.setViewMode(.keyline)
         await canvas.settle()
         #expect(await fallback.cache.viewMode == .keyline)
+        canvas.setGreekTypeBelow(8)
+        await canvas.settle()
+        #expect(canvas.renderer == nil)
         canvas.invalidate(pasteboardRect: Rect(x: 0, y: 0, width: 10, height: 10))
         await canvas.settle()
         canvas.backingScale = 1

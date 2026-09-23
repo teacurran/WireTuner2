@@ -83,6 +83,115 @@ public enum FeatureState: Hashable, Sendable {
     case off
 }
 
+/// A highlight, underline or strikethrough (text-effects, `TextLineEffect`).
+public struct TextLineEffect: Hashable, Sendable {
+    /// Points from the baseline, positive above.  A highlight's band starts here and rises by
+    /// its width; an underline or strikethrough is centred here.
+    public var position: Double
+    /// Points: the line's thickness or the highlight band's height.  0 reads as the font's
+    /// underline thickness for a line and as the line's ascent-to-descent height (position
+    /// ignored) for a highlight.
+    public var width: Double
+    /// Alternating dash and gap lengths; empty for solid.
+    public var dash: [Double]
+    public var color: Color
+    public var overprint: Bool
+
+    public init(position: Double = 0, width: Double = 0, dash: [Double] = [], color: Color = .black, overprint: Bool = false) {
+        self.position = position
+        self.width = width
+        self.dash = dash
+        self.color = color
+        self.overprint = overprint
+    }
+}
+
+/// The inline effect: outlines ringing each glyph with background bands between them.
+public struct TextInlineEffect: Hashable, Sendable {
+    /// Outlines per glyph; 0 reads as 1.
+    public var count: Int
+    public var strokeWidth: Double
+    public var strokeColor: Color
+    /// The band between the glyph (or the previous outline) and the next outline.
+    public var backgroundWidth: Double
+    public var backgroundColor: Color
+
+    public init(count: Int = 1, strokeWidth: Double = 1, strokeColor: Color = .black, backgroundWidth: Double = 1, backgroundColor: Color = .white) {
+        self.count = count
+        self.strokeWidth = strokeWidth
+        self.strokeColor = strokeColor
+        self.backgroundWidth = backgroundWidth
+        self.backgroundColor = backgroundColor
+    }
+}
+
+/// The text shadow: a copy of the glyphs behind them, offset and tinted.
+public struct TextShadowEffect: Hashable, Sendable {
+    /// Offsets in percent of the type size (text.proto); positive y falls down the page.
+    public var offsetX: Double
+    public var offsetY: Double
+    public var color: Color
+    /// Percent of `color` over white, 0...100.
+    public var tint: Double
+
+    public init(offsetX: Double = 10, offsetY: Double = 10, color: Color = .black, tint: Double = 50) {
+        self.offsetX = offsetX
+        self.offsetY = offsetY
+        self.color = color
+        self.tint = tint
+    }
+}
+
+/// The zoom effect: the glyphs extruded back to a scaled copy at an offset.
+public struct TextZoomEffect: Hashable, Sendable {
+    /// The back copy's size, percent of the text.
+    public var zoomTo: Double
+    /// The back copy's offset, percent of the type size.
+    public var offsetX: Double
+    public var offsetY: Double
+    /// The colour at the front (next to the glyphs) and at the back.
+    public var from: Color
+    public var to: Color
+
+    public init(zoomTo: Double = 50, offsetX: Double = 20, offsetY: Double = -20, from: Color = .black, to: Color = .white) {
+        self.zoomTo = zoomTo
+        self.offsetX = offsetX
+        self.offsetY = offsetY
+        self.from = from
+        self.to = to
+    }
+}
+
+/// One text effect with its options (text-effects, `TextEffect`): one per character.
+public enum TextEffect: Hashable, Sendable {
+    case highlight(TextLineEffect)
+    case underline(TextLineEffect)
+    case strikethrough(TextLineEffect)
+    case inline(TextInlineEffect)
+    case shadow(TextShadowEffect)
+    case zoom(TextZoomEffect)
+}
+
+/// An object drawn in place of U+FFFC (text-effects, "Inline graphics"): it sits on the
+/// baseline, advances by its own width and rises by its own height.
+public struct InlineGraphic: Hashable, Sendable {
+    /// The graphic's bounds in its own space (y down); its bottom-left corner sits at the
+    /// glyph origin on the (shifted) baseline.
+    public var bounds: Rect
+    /// The graphic's display items in its own space; nil when its node is missing, which
+    /// draws an empty box the type size tall and wide.
+    public var items: [DisplayItem]?
+
+    public init(bounds: Rect, items: [DisplayItem]?) {
+        self.bounds = bounds
+        self.items = items
+    }
+}
+
+/// The type size read in place of one outside 1...10,000 points (creating-text, read-time
+/// normalizations).
+public let defaultTypeSize = 12.0
+
 /// Character formatting: the resolved winning marks of one run.
 public struct TextAttributes: Hashable, Sendable {
     /// Family name ("Helvetica"); nil for the default family.
@@ -102,17 +211,27 @@ public struct TextAttributes: Hashable, Sendable {
     /// Percent, 100 = normal.
     public var horizontalScale: Double
     public var fill: Color
+    /// The glyph stroke (`TextMarkValue.stroke`); nil for none.
+    public var stroke: StrokePaint?
+    /// The glyph fill (and stroke) overprint when printed.
+    public var overprint: Bool
+    /// The one effect on these characters.
+    public var effect: TextEffect?
     /// BCP 47; hyphenation and shaping.
     public var language: String?
     /// "Selected words": never break a line inside the span.
     public var noBreak: Bool
     /// "Inhibit hyphens in selection".
     public var noHyphen: Bool
+    /// `CaseStyle.SMALL_CAPS`: lowercase letters drawn as capitals at `smallCapsScale` of the
+    /// size, in any font (the OpenType `smcp` feature is `features["smcp"]`).
     public var smallCaps: Bool
     /// OpenType features by tag.
     public var features: [String: FeatureState]
     /// Variation axis values by tag.
     public var axes: [String: Double]
+    /// Set on U+FFFC characters carrying an `inline_graphic` mark.
+    public var inlineGraphic: InlineGraphic?
 
     public init(
         fontFamily: String? = nil,
@@ -124,12 +243,16 @@ public struct TextAttributes: Hashable, Sendable {
         baselineShift: Double = 0,
         horizontalScale: Double = 100,
         fill: Color = .black,
+        stroke: StrokePaint? = nil,
+        overprint: Bool = false,
+        effect: TextEffect? = nil,
         language: String? = nil,
         noBreak: Bool = false,
         noHyphen: Bool = false,
         smallCaps: Bool = false,
         features: [String: FeatureState] = [:],
-        axes: [String: Double] = [:]
+        axes: [String: Double] = [:],
+        inlineGraphic: InlineGraphic? = nil
     ) {
         self.fontFamily = fontFamily
         self.fontStyle = fontStyle
@@ -140,17 +263,52 @@ public struct TextAttributes: Hashable, Sendable {
         self.baselineShift = baselineShift
         self.horizontalScale = horizontalScale
         self.fill = fill
+        self.stroke = stroke
+        self.overprint = overprint
+        self.effect = effect
         self.language = language
         self.noBreak = noBreak
         self.noHyphen = noHyphen
         self.smallCaps = smallCaps
         self.features = features
         self.axes = axes
+        self.inlineGraphic = inlineGraphic
     }
+
+    /// Small capitals are this fraction of the size.
+    public static let smallCapsScale = 0.7
 
     /// The baseline distance of a line holding this run (the line takes the maximum).
     public var lineDistance: Double {
         (leading ?? .auto).distance(forSize: size)
+    }
+
+    /// The attributes as layout reads them (type-specifications, read-time normalizations): a
+    /// size outside 1...10,000 is the default size, a horizontal scale at or below 0 is 100.
+    var normalized: TextAttributes {
+        guard !(1...10_000).contains(size) || !(horizontalScale > 0) else {
+            return self
+        }
+        var result = self
+        if !(1...10_000).contains(size) {
+            result.size = defaultTypeSize
+        }
+        if !(horizontalScale > 0) {
+            result.horizontalScale = 100
+        }
+        return result
+    }
+
+    /// The attributes with the size and leading scaled by `factor` (copyfit, columns-tables):
+    /// Extra and Fixed leading values scale, a percentage already follows the size.
+    func scaled(by factor: Double) -> TextAttributes {
+        var result = self
+        result.size = size * factor
+        if var leading, leading.mode != .percent {
+            leading.value *= factor
+            result.leading = leading
+        }
+        return result
     }
 }
 
@@ -216,17 +374,6 @@ public struct Hyphenation: Hashable, Sendable {
     }
 }
 
-/// The stroke a rule is drawn with.
-public struct RuleStroke: Hashable, Sendable {
-    public var style: StrokeStyle
-    public var color: Color
-
-    public init(style: StrokeStyle = StrokeStyle(width: 1), color: Color = .black) {
-        self.style = style
-        self.color = color
-    }
-}
-
 /// A paragraph rule (paragraphs, "Paragraph rules").
 public struct ParagraphRule: Hashable, Sendable {
     public enum Mode: Hashable, Sendable {
@@ -248,10 +395,10 @@ public struct ParagraphRule: Hashable, Sendable {
     /// Points below the last baseline, or above the first line's top when `above`.
     public var position: Double
     public var above: Bool
-    /// Overrides the block's stroke.
-    public var stroke: RuleStroke?
+    /// Overrides the block's stroke (`ParagraphRule.stroke`, a stroke of the ATTR epic).
+    public var stroke: StrokePaint?
 
-    public init(mode: Mode = .none, widthPercent: Double = 100, basis: Basis = .lastLine, position: Double = 0, above: Bool = false, stroke: RuleStroke? = nil) {
+    public init(mode: Mode = .none, widthPercent: Double = 100, basis: Basis = .lastLine, position: Double = 0, above: Bool = false, stroke: StrokePaint? = nil) {
         self.mode = mode
         self.widthPercent = widthPercent
         self.basis = basis
@@ -339,9 +486,21 @@ public struct ParagraphStyle: Hashable, Sendable {
         self.letterSpacing = letterSpacing
     }
 
-    /// Tab stops ordered by position (tabs-indents: order is by position at read time).
+    /// Tab stops ordered by position (tabs-indents: order is by position at read time, equal
+    /// positions keep their order); a negative position reads as 0 and a leader on a wrapping
+    /// tab is ignored.
     var sortedTabs: [TabStop] {
-        tabs.enumerated().sorted { ($0.element.position, $0.offset) < ($1.element.position, $1.offset) }.map(\.element)
+        tabs.enumerated()
+            .map { index, stop -> (TabStop, Int) in
+                var stop = stop
+                stop.position = max(stop.position, 0)
+                if stop.kind == .wrapping {
+                    stop.leader = ""
+                }
+                return (stop, index)
+            }
+            .sorted { ($0.0.position, $0.1) < ($1.0.position, $1.1) }
+            .map(\.0)
     }
 }
 
@@ -360,6 +519,16 @@ public struct TextContent: Hashable, Sendable {
         self.runs = runs
         self.paragraphs = paragraphs
         self.charIDs = charIDs
+    }
+
+    /// The content with every run's size and leading scaled by `factor` (copyfit).
+    func scaled(by factor: Double) -> TextContent {
+        guard factor != 1 else {
+            return self
+        }
+        var result = self
+        result.runs = runs.map { TextRun($0.text, attributes: $0.attributes.scaled(by: factor)) }
+        return result
     }
 
     /// Plain text with sequential ids from `firstID`, all in `attributes`, every paragraph in

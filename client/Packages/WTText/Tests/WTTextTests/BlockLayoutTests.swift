@@ -68,9 +68,12 @@ import WTRender
         let broken = Fixture.layout("one two\u{000C}three", in: [.block(block)])
         #expect(broken.lineCount == 2)
         #expect(approx(broken.lineOrigins[1].x, 75, 1))
-        // In the last cell a column break ends the block: the rest overflows.
-        let last = Fixture.layout("a\u{000C}b", in: [Fixture.block(width: 100, height: 100)])
-        #expect(last.overflows && last.laidOutEnd == 2)
+        // In the last cell of a linked block a column break ends the block: the rest flows on.
+        let last = Fixture.layout("a\u{000C}b", in: [Fixture.block(width: 100, height: 100), Fixture.block(width: 100, height: 100)])
+        #expect(last.lineCount(inContainer: 0) == 1 && last.lineCount(inContainer: 1) == 1)
+        // In a lone block of one cell it is a line break (columns-tables, read-time normalizations).
+        let lone = Fixture.layout("a\u{000C}b", in: [Fixture.block(width: 100, height: 100)])
+        #expect(!lone.overflows && lone.lineCount == 2)
     }
 
     @Test func explicitCellSizesGrowTheBlock() {
@@ -124,8 +127,8 @@ import WTRender
     }
 
     @Test func paragraphRulesAboveAndBelow() throws {
-        let block = RuleStroke(style: StrokeStyle(width: 2), color: Color(red: 0.8, green: 0, blue: 0))
-        let heavy = RuleStroke(style: StrokeStyle(width: 4), color: .black)
+        let block = StrokePaint(paint: .solid(Color(red: 0.8, green: 0, blue: 0)), style: StrokeStyle(width: 2))
+        let heavy = StrokePaint(paint: .solid(.black), style: StrokeStyle(width: 4))
         let styles = [
             ParagraphStyle(rule: ParagraphRule(mode: .centered, widthPercent: 50, basis: .column, position: 4)),
             ParagraphStyle(alignment: .right, rule: ParagraphRule(mode: .paragraph, widthPercent: 100, basis: .lastLine, position: 3)),
@@ -136,14 +139,11 @@ import WTRender
             ParagraphStyle(rule: ParagraphRule(mode: .none)),
         ]
         let content = TextContent(runs: [TextRun("Centered\nRight rule\nAbove\nLeft\nRight half\nMiddle\nNone", attributes: Fixture.body)], paragraphs: styles)
-        let container = TextBlock(width: 200, height: 200, ruleStroke: block)
+        let container = TextBlock(width: 200, height: 200, appearance: Appearance([.stroke(block)]))
         let layout = TextLayoutEngine().layout(content, in: [.block(container)])
-        let strokes = layout.displayItems(forContainer: 0).compactMap { item -> StrokeItem? in
-            if case .stroke(let stroke) = item { return stroke }
-            return nil
-        }
+        let strokes = Fixture.strokePaths(layout.displayItems(forContainer: 0))
         #expect(strokes.count == 6)
-        func span(_ stroke: StrokeItem) -> (x0: Double, x1: Double, y: Double) {
+        func span(_ stroke: PathItem) -> (x0: Double, x1: Double, y: Double) {
             guard case .move(let a) = stroke.path.elements[0], case .line(let b) = stroke.path.elements[1] else {
                 return (0, 0, 0)
             }
@@ -152,14 +152,14 @@ import WTRender
         let origins = layout.lineOrigins
         let centered = span(strokes[0])
         #expect(approx(centered.x0, 50) && approx(centered.x1, 150) && approx(centered.y, origins[0].y + 4))
-        #expect(strokes[0].style.width == 2 && strokes[0].paint == .solid(block.color))
+        #expect(strokes[0].appearance.strokes == [block])
         let right = span(strokes[1])
         let extents = Fixture.lineExtents(layout, text: "Centered\nRight rule\nAbove\nLeft\nRight half\nMiddle\nNone")
         #expect(approx(right.x1, 200, 0.5) && approx(right.x0, extents[1].start, 1.0))
         let above = span(strokes[2])
         #expect(approx(above.x0, 0) && approx(above.x1, 200))
         #expect(above.y < origins[2].y - 8)
-        #expect(strokes[2].style.width == 4, "the rule's own stroke overrides the block's")
+        #expect(strokes[2].appearance.strokes == [heavy], "the rule's own stroke overrides the block's")
         #expect(approx(span(strokes[3]).x0, 0) && approx(span(strokes[3]).x1, 100))
         #expect(approx(span(strokes[4]).x0, 100) && approx(span(strokes[4]).x1, 200))
         let middle = span(strokes[5])
@@ -168,13 +168,13 @@ import WTRender
 
         // No stroke on the block and none on the rule: nothing is drawn.
         let bare = TextLayoutEngine().layout(content, in: [.block(TextBlock(width: 200, height: 200))])
-        #expect(bare.displayItems(forContainer: 0).filter { if case .stroke = $0 { return true } else { return false } }.count == 1, "only the rule with its own stroke")
+        #expect(Fixture.strokePaths(bare.displayItems(forContainer: 0)).count == 1, "only the rule with its own stroke")
         // A rule is drawn only where its paragraph ends (or starts, above).
         let split = TextContent(runs: [TextRun("a\nb\nc\nd\ne", attributes: Fixture.body)], paragraphs: Array(repeating: ParagraphStyle(rule: ParagraphRule(mode: .centered, above: true)), count: 5))
-        var columns = TextBlock(width: 100, height: 30, ruleStroke: block)
+        var columns = TextBlock(width: 100, height: 30, appearance: Appearance([.stroke(block)]))
         columns.columns = ColumnsRows(columns: 2)
         let splitLayout = TextLayoutEngine().layout(split, in: [.block(columns)])
-        #expect(splitLayout.displayItems(forContainer: 0).filter { if case .stroke = $0 { return true } else { return false } }.count == splitLayout.lineCount)
+        #expect(Fixture.strokePaths(splitLayout.displayItems(forContainer: 0)).count == splitLayout.lineCount)
         #expect(splitLayout.displayItems(forContainer: 7).isEmpty)
     }
 
