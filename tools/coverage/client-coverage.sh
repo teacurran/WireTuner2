@@ -27,7 +27,9 @@
 # The app build lives in client/build/DerivedData so the .profdata is at a known path.
 set -euo pipefail
 
-root="$(cd "$(dirname "$0")/../.." && pwd)"
+# Physical path: under /tmp (a symlink to /private/tmp) Xcode and SwiftPM would otherwise record
+# the same sources under two spellings and the gate would count each file twice.
+root="$(cd "$(dirname "$0")/../.." && pwd -P)"
 client="$root/client"
 out="$client/build/coverage"
 derived="$client/build/DerivedData"
