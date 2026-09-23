@@ -218,6 +218,20 @@ As built (COLOR-020, `api/.../library`, V13):
   dot from `updated_ms` comparison).
 * `WTModel`: `UpdateSwatchesFromLibrary` command.
 
+NOTE: As built by COLOR-021's model and sync halves.  `WTSync.ColorLibraryClient` (an actor over
+`ColorLibraryTransport`; `GRPCColorLibraryTransport` is grpc-swift 2 with the usual metadata, on
+its own connection) pages through `ListColorLibraries`, caches the listing and each fetched
+`FetchColorLibraryResponse` as files in `~/Library/Application Support/WireTuner/Colors/team/`,
+sends the cached `published_seq` as `known_seq` and keeps the cached colours when the answer
+leaves them out, falls back to the cache when the server cannot be reached, and lights the update
+dot only on a current listing, for a cached library whose `updated_ms` is newer than the cached
+one.  In `WTModel`, `ImportLibraryColors` with `ColorLibraries.teamOrigin(id)` records the origin,
+`LibraryUpdate.classify` makes the three-way listing and `UpdateSwatchesFromLibrary` writes it.
+*Deviation*: the listing needs no stored base version -- an import or update writes
+`library_key` in the same op as the colour, name and spot, so a register written by a later op
+means "edited locally" and a difference without one means "library changed" (both changed reads
+as edited locally).  The menu items and the sheet are WTApp's.
+
 === Build tasks
 
 [[COLOR-018]]

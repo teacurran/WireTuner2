@@ -195,6 +195,14 @@ Nothing beyond storing and relaying changes.
 * Color arithmetic from COLOR-002; gamut mapping and the display query from COLOR-024.
 * Undo grouping: nothing in the Mixer is undoable until applied; live mode groups per drag.
 
+NOTE: The `ColorRef` pasteboard payload is defined in `WTModel` (`ColorRefPasteboard`, ahead of
+COLOR-008): type `com.villagecompute.wiretuner.colorref`, a binary property list of the encoded
+`ColorRef`, the resolved `Color` (space included), the name, the spot flag, the source document
+id and, for a swatch drag, the swatch and its tints as an encoded `ColorLibrary`.
+`reference(in:document:)` gives what a drop writes (the reference in its own document, else the
+colour inline, after the panel imports the library); `foreignColor` is the colour for `NSColor`.
+WTApp registers the type and builds the views.
+
 === Build tasks
 
 [[COLOR-008]]

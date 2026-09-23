@@ -499,6 +499,15 @@ points are equal, as when a proof device is Working CMYK).  Other intents ignore
 now separates to no ink, sRGB black to the profile's rich black, and without compensation colours
 agree with Core Graphics' conversion within 1/255 (`BlackPointCompensationTests`).
 
+NOTE: As built by CMS-004 (`WTModel/ColorSettings.swift`).  `ColorSettings` reads
+`SettingsProps.color` with the normalizations above into `WTColor.ProfileRef`s (an unknown
+`bundled_id` or a reference without a space also reads as unset); `pending` lists the custom
+profiles whose bytes the `isAvailable` closure (the blob cache, CMS-008) does not have, and
+`colorManagement(workingSpace:proofing:)` gives the renderer state with a pending Working CMYK
+replaced by its fallback.  `ChangeColorSettings` takes the sheet's draft (`ColorSettings.draft`)
+and writes only the registers that differ.  The conformance vector is not written here (another
+track's directory); the merge and undo test is WTModel's `ColorLibraryTests`.
+
 === Build tasks
 
 [[CMS-001]]

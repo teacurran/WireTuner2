@@ -334,6 +334,20 @@ window owner rebuilds it on the screen notifications (`MetalTileCanvas.displayCo
 `Color.cgColor` is the tagged render path.  The merge test and conformance vector are
 `WTModel`'s (COLOR-005) and have not been written here.
 
+NOTE: As built by COLOR-002's and COLOR-005's `WTModel` half.  `ColorValues` reads a stored
+`Color` into `WTRender.Color` by the read-time rules above (an unknown tag stays in the message)
+and writes one back; `ColorText` formats the default names and the value field's form and parses
+every form listed, `#hex` (3, 4, 6 or 8 digits; alpha ignored), `rgb()`/`rgba()`, `color(srgb …)`
+and `color(display-p3 …)`, `p3(…)`, `lab()`, `oklab()`, `oklch()` with CSS Color 4's percentage
+scales, and the `0c 80m 90y 0k` and `230r 57g 70b` names (`hsl()` is not accepted); `ColorModels`
+has HLS and HSV over either RGB space, web-safe snapping, nearest by ΔE OK and the in-gamut test.
+`ColorConverting` is the conversion protocol; `FormulaColorConversion` (the naive CMYK pair) is the
+default until the CMS epic passes a profile conversion to `ConvertSwatchSpace`.  `SetSwatchSpot`
+skips protected swatches and tints; `ConvertSwatchSpace` renames a default-named swatch with its
+new values (*Auto-rename colors*).  `ImportLibraryColors` (COLOR-013's model half) takes a
+`ColorLibrary` from `colorlib.proto`.  The conformance vectors are not written here (another
+track's directory); the merge tests are WTModel's `SwatchMergeTests`.
+
 === Build tasks
 
 [[COLOR-002]]

@@ -284,6 +284,20 @@ resolver, the dependents index, the vectors and the merge test are `WTModel`'s a
 * Undo grouping: drops and palette picks are single changes; Mixer-bound edits group per
   slider drag.
 
+NOTE: As built by COLOR-006's `WTModel` half (`ColorResolver.swift`, `ColorUses.swift`,
+`SwatchIndex.swift`).  `ColorResolver` is the ladder above over the swatches of one state, with
+the tint chain rule and loop cut of xref:tints.adoc[Tints]; a spot base puts its ink on
+`Color.spot` (`SpotInk` named by the base swatch, tinted by the chain), Registration resolves to
+`Color.registration`, Black is spot for the panel but prints as process K.  An *unset* `ColorRef`
+reads as no paint, as `common.proto` says.  It also writes references with their cache
+(`reference(to:)`, `tint(of:percent:)`, `inline`).  `ColorUses` finds every colour use of a node
+through the merge table -- any `ColorRef` register, a `ColorRef` inside an ATOMIC message, a text
+mark's `fill`, a tint swatch's `parent` -- so a new kind's colours are indexed without a list of
+fields; `SwatchIndex` keeps them per swatch.  The display list still resolves colours through
+`Appearances.color` (the reference's cache); moving `DocumentDisplayListBuilder` onto
+`ColorResolver` (and the swatch → dependents invalidation onto `SwatchIndex`) is the scene
+builder's change.  The merge test and vectors run as WTModel tests (`SwatchMergeTests.swift`).
+
 === Build tasks
 
 [[COLOR-006]]

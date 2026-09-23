@@ -439,6 +439,32 @@ Nothing beyond storing and relaying changes.
 * Rendering: swatch → dependents invalidation lives on
   xref:applying-color.adoc[Applying color] (COLOR-006).
 
+NOTE: As built by COLOR-003 and COLOR-004 (`WTModel`: `Swatches.swift`, `SwatchIndex.swift`,
+`SwatchCommands.swift`, `SwatchOrder.swift`).  `Swatch` is the read-out of one swatch (display
+name with the derived tint name and the ` (2)` duplicate suffix, resolved colour, effective role
+and spot, base state, list depth and section); `SwatchList` applies every read-time rule above and
+the list order (defaults by role, then sibling order with each colour's tints under it, depth
+first; sections: ungrouped first, then groups by first appearance).  `SwatchIndex` holds the list
+and the dependents (the `SwatchDependents` of xref:applying-color.adoc[Applying color] is the same
+index) and is kept by `apply(_:)` from each `DocumentEvent`: only the nodes the change names are
+re-read, the list when a swatch is among them, everything on a reload; liveness is read at query
+time.  `SwatchesModel` is the `@Observable` panel model over a `Document`.  The drag command is
+`MoveSwatches` (several at once); the canonical sort ladder is a length byte `0x10 + n` then the
+rank in `n` base-254 digits written as bytes 1--254.  *Auto-rename colors* is the `autoRename`
+parameter of `RedefineSwatch` and `ConvertSwatchSpace`; the preference itself is WTApp's.  Beyond
+the page: `RemoveSwatches` refreshes, in the same change, the `cached` colour of every reference to
+a removed swatch whose cache is older than the swatch's colour (a swatch recoloured after it was
+applied), so removal never changes a look -- references keep naming the swatch, so *Restore*
+still re-links them with no write; `AddSwatch` takes `relink` registers (*Add to Swatches…* points
+the object at the new swatch in the same change); `SetSwatchGroup` leaves the protected swatches
+ungrouped.  *Name All Colors* rewrites `ColorRef` registers; colours in text marks and inside
+ATOMIC messages are indexed (they count as uses) but not rewritten.  `CreateDefaultSwatches` makes
+the three defaults (skipping any role present) and belongs in the first change of a new document;
+no document template exists yet, so creating it there is the DOC/WTApp task's.  *Not done here*:
+the conformance vectors (`crdt-conformance/`, another track's directory); the merge cases run as
+WTModel tests through two in-process replicas (`SwatchMergeTests.swift`), and the index test
+applies changes in an order neither replica saw.
+
 === Build tasks
 
 [[COLOR-001]]

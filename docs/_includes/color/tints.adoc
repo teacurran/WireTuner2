@@ -182,6 +182,13 @@ Nothing beyond storing and relaying changes.
   swatches, minus Registration).  Drops onto tint swatches in the Swatches panel read
   kbd:[Option] at drop time to choose re-base vs replace.
 
+NOTE: As built by COLOR-009 (`WTModel/TintCommands.swift`, `ColorResolver.swift`,
+`Swatches.swift`).  `RebaseTint` refuses the tint itself and its own tints (only concurrent
+re-basing makes a loop); `FlattenTint` writes the colour the tint shows and its base's spot flag,
+and stores the derived name when the tint had none.  The "tint of a deleted color" review kind is
+SYNC-007's; the model exposes it as `Swatch.baseRemoved`.  Conformance vectors: see
+xref:spot-process.adoc[Spot and process colors].
+
 === Build tasks
 
 [[COLOR-009]]
