@@ -1,0 +1,59 @@
+# crdt-conformance/vectors/registers/totality-no-ops.textproto (CRDT-001; schema: crdt-conformance/schema/vector.proto)
+name: "registers/totality-no-ops"
+description: "Ops the engine cannot use are deterministic no-ops: an unknown node, a well-known collection without properties, a kind-less CreateNode, a wrong-kind path, a path past an ATOMIC field or into a NodeRef, an unknown field, an element segment, a Noop. Only the write to the document node applies."
+setup {
+    change {
+      replica: 7 seq: 1 start_counter: 1 label: "Create layer"
+      ops { create { parent { counter: 4 } position: "\x80" props { layer { common { name: "Layer 1" } } } } }
+    }
+}
+replica {
+    id: 1
+    change {
+      replica: 1 seq: 1 start_counter: 2 label: "No-ops"
+      ops { set { node { counter: 99 replica: 9 }
+        paths { segments { field: 150 } segments { field: 1 } segments { field: 1 } }
+        values { layer { common { name: "ghost" } } } } }
+      ops { set { node { counter: 4 replica: 0 }
+        paths { segments { field: 150 } segments { field: 1 } segments { field: 1 } }
+        values { layer { common { name: "layers" } } } } }
+      ops { create { parent { counter: 4 } position: "\x81" props { } } }
+      ops { set { node { counter: 4 replica: 1 }
+        paths { segments { field: 150 } segments { field: 1 } segments { field: 1 } }
+        values { layer { common { name: "kindless" } } } } }
+      ops { set { node { counter: 1 replica: 7 }
+        paths { segments { field: 3 } segments { field: 1 } segments { field: 1 } }
+        values { page { common { name: "page" } } } } }
+      ops { set { node { counter: 1 replica: 7 }
+        paths { segments { field: 150 } segments { field: 1 } segments { field: 1 } segments { field: 5 } }
+        paths { segments { field: 150 } segments { field: 1 } segments { field: 7 } segments { field: 1 } segments { field: 1 } }
+        paths { segments { field: 150 } segments { field: 1 } segments { field: 999 } }
+        paths { segments { field: 150 } segments { element { counter: 1 replica: 1 } } }
+        values { layer { common { name: "x" style { id { counter: 3 } } } } } } }
+      ops { noop { } }
+      ops { set { node { counter: 0 replica: 0 }
+        paths { segments { field: 1 } segments { field: 1 } segments { field: 1 } }
+        values { document { common { name: "Doc" } } } } }
+    }
+}
+expect {
+  state_hash: "f2040994df1560250f70cb2f3a5fd21dc0ca3e0eaa78d98fe29188039d426fe7"
+  node {
+    id { counter: 1 replica: 7 }
+    node_hash: "6caf603d174a9358e3a0eea585a9177bae0a9b4862e6a9669a951e9625ad9e51"
+    register {
+      path { segments { field: 150 } segments { field: 1 } segments { field: 1 } }
+      value { layer { common { name: "Layer 1" } } }
+      op { counter: 1 replica: 7 }
+    }
+  }
+  node {
+    id { counter: 0 replica: 0 }
+    node_hash: "abf3fd82ce3cdbbaf6e24ed21c71ad35314556aea170bdef4418df1dd977d257"
+    register {
+      path { segments { field: 1 } segments { field: 1 } segments { field: 1 } }
+      value { document { common { name: "Doc" } } }
+      op { counter: 9 replica: 1 }
+    }
+  }
+}

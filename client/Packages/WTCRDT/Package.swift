@@ -11,6 +11,9 @@ let package = Package(
     ],
     dependencies: [
         .package(path: "../WTProto"),
+        // The conformance runner's vector messages (Tests/WTCRDTTests/Conformance/Generated) are
+        // swift-protobuf code; same version line as WTProto.
+        .package(url: "https://github.com/apple/swift-protobuf", from: "1.38.0"),
     ],
     targets: [
         .target(
@@ -33,7 +36,12 @@ let package = Package(
         ),
         .testTarget(
             name: "WTCRDTTests",
-            dependencies: ["WTCRDT", "WTCRDTSchema"]
+            dependencies: [
+                "WTCRDT",
+                "WTCRDTSchema",
+                .product(name: "WTProto", package: "WTProto"),
+                .product(name: "SwiftProtobuf", package: "swift-protobuf"),
+            ]
         ),
     ],
     swiftLanguageModes: [.v6]

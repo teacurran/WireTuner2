@@ -1,0 +1,50 @@
+# crdt-conformance/vectors/registers/atomic-message-replacement.textproto (CRDT-001; schema: crdt-conformance/schema/vector.proto)
+name: "registers/atomic-message-replacement"
+description: "An ATOMIC message (Transform, and Halftone by annotation) is one register: the later write replaces it whole, so no component of the earlier write survives."
+setup {
+    change {
+      replica: 7 seq: 1 start_counter: 1 label: "Create layer"
+      ops { create { parent { counter: 4 } position: "\x80" props { layer { common { name: "Layer 1" } } } } }
+    }
+}
+replica {
+    id: 1
+    change {
+      replica: 1 seq: 1 start_counter: 2 label: "Scale and screen"
+      ops { set { node { counter: 1 replica: 7 }
+        paths { segments { field: 150 } segments { field: 1 } segments { field: 4 } }
+        paths { segments { field: 150 } segments { field: 1 } segments { field: 11 } }
+        values { layer { common { transform { a: 1 d: 1 tx: 5 } halftone { shape: HALFTONE_SHAPE_ROUND angle: 45 } } } } } }
+    }
+}
+replica {
+    id: 2
+    change {
+      replica: 2 seq: 1 start_counter: 3 label: "Scale and screen"
+      ops { set { node { counter: 1 replica: 7 }
+        paths { segments { field: 150 } segments { field: 1 } segments { field: 4 } }
+        paths { segments { field: 150 } segments { field: 1 } segments { field: 11 } }
+        values { layer { common { transform { a: 2 d: 2 ty: 7 } halftone { frequency: 150 } } } } } }
+    }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "96d03fd6cbbaae94c0a6658f5890e4e8e16ced013849c825b05082d38960ee2e"
+  node {
+    id { counter: 1 replica: 7 }
+    node_hash: "1045a0c38531b27d544ea617b35ae7de3885ba13104c2c972e218f1e9acc853d"
+    register {
+      path { segments { field: 150 } segments { field: 1 } segments { field: 4 } }
+      value { layer { common { transform { a: 2 d: 2 ty: 7 } } } }
+      op { counter: 3 replica: 2 }
+      losing { counter: 2 replica: 1 }
+    }
+    register {
+      path { segments { field: 150 } segments { field: 1 } segments { field: 11 } }
+      value { layer { common { halftone { frequency: 150 } } } }
+      op { counter: 3 replica: 2 }
+      losing { counter: 2 replica: 1 }
+    }
+  }
+}

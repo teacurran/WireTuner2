@@ -23,7 +23,42 @@ server/
 
 `wt-crdt` mirrors `WTCRDT` type for type: `Engine`, `NodeStore`, `Register`, `MoveLog`,
 `FugueText`, `MarkSet`, `FractionalIndex`, `Snapshot`, `StateHash`.  The generated merge table
-(`protoc-gen-wtcrdt`) is the only feature-specific input.
+(`protoc-gen-wtcrdt`) is the only feature-specific input.  One difference is deliberate: Swift's
+`Engine` is an actor over the value type `EngineState`, and Java's `Engine` is that value type's
+twin -- not thread-safe, one instance per document in the snapshotter.
+
+[[generated-code]]
+=== Generated code
+
+`wt-crdt` is a plain library with no Quarkus, so it does not use Quarkus `generate-code`; it
+generates its own inputs at `generate-sources` (CRDT-001):
+
+* *doc.v1 messages.*  `protobuf-maven-plugin` (org.xolstice, with `os-maven-plugin` picking the
+  protoc binary) compiles `proto/wiretuner/doc/v1/*.proto` and `proto/wt/crdt/options.proto` into
+  `target/generated-sources/protobuf/java`.  protoc is the Maven artifact
+  `com.google.protobuf:protoc` pinned to the protobuf-java runtime the Quarkus BOM manages (4.35.0
+  for Quarkus 3.39.4; `version.protoc` in `wt-crdt/pom.xml`, bumped with the BOM), so gencode is
+  never newer than its runtime whatever protoc a machine has installed.  `buf/validate/validate.proto`
+  is read from the `build.buf:protovalidate` jar, which `wt-crdt` depends on for the classes the
+  generated descriptors link against.  The `.proto` sources are attached to the jar.
+* *The merge table.*  `exec-maven-plugin` runs `make -C tools/protoc-gen-wtcrdt generate-java`,
+  the Java half of the generator's `generate` target, which writes `MergeTable.java` and
+  `merge-table.json` into `target/generated-sources/wtcrdt` and never touches the client's
+  committed Swift; `build-helper-maven-plugin` adds the directory as a source root and the JSON as a
+  resource beside `MergeTable`.  A server build therefore needs Go and protoc on the `PATH`
+  (the generator is Go and drives protoc), in CI as well.
+
+Why `wt-crdt` owns the doc.v1 classes rather than taking them from `api`: the dependency points
+the other way (`api` depends on `wt-crdt`), and the engine must not pull in Quarkus.  For now
+`api` still generates every file under `proto/` itself (its `src/main/proto` symlink), so the
+doc.v1 classes exist twice on `api`'s classpath, identical and from the same protoc; `api`'s own
+copy wins.  The intended end state is that `api` generates only its service packages and resolves
+the doc.v1 imports from the `.proto` files in the `wt-crdt` jar
+(`quarkus.generate-code.grpc.scan-for-imports=all` already allows that), which is an `api` change.
+
+The `conformance` module generates Java for `crdt-conformance/schema/vector.proto` the same way,
+importing doc.v1 from the `wt-crdt` jar, and replays every vector in `ConformanceTest`
+(xref:testing.adoc[Testing]).  Both modules' JaCoCo reports exclude the generated packages.
 
 == Services
 

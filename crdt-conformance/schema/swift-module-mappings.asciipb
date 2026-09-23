@@ -1,0 +1,8 @@
+# swift-protobuf ProtoPathModuleMappings for `make -C crdt-conformance generate`: the doc.v1
+# messages vector.proto imports are WTProto's, not regenerated beside the vectors' Swift.
+mapping {
+  module_name: "WTProto"
+  proto_file_path: "wiretuner/doc/v1/change.proto"
+  proto_file_path: "wiretuner/doc/v1/common.proto"
+  proto_file_path: "wiretuner/doc/v1/node.proto"
+}

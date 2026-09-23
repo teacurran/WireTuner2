@@ -9,6 +9,8 @@ on:
       - "tools/coverage/jacoco-gate.sh"
       - "tools/sonar/**"
       - ".github/workflows/server.yml"
+      - 'tools/protoc-gen-wtcrdt/**'
+      - 'crdt-conformance/**'
   pull_request:
     paths:
       - "server/**"
@@ -16,6 +18,8 @@ on:
       - "tools/coverage/jacoco-gate.sh"
       - "tools/sonar/**"
       - ".github/workflows/server.yml"
+      - 'tools/protoc-gen-wtcrdt/**'
+      - 'crdt-conformance/**'
 
 permissions:
   contents: read

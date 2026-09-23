@@ -14,8 +14,32 @@
   <name>wt-crdt</name>
   <description>The Java merge engine: a pure library, no Quarkus (docs/spec/server.adoc).</description>
 
+  <properties>
+    <!-- The repository's proto/ tree and the generator that reads its wt.crdt options. -->
+    <wtcrdt.proto.root>${project.basedir}/../../proto</wtcrdt.proto.root>
+    <wtcrdt.generator.dir>${project.basedir}/../../tools/protoc-gen-wtcrdt</wtcrdt.generator.dir>
+    <!-- protoc must emit gencode no newer than the protobuf-java runtime the Quarkus BOM
+         manages (4.35.0 in Quarkus 3.39.4), so it is pinned to that runtime and bumped with
+         the BOM (docs/spec/server.adoc, "Generated code"). -->
+    <version.protoc>4.35.0</version.protoc>
+    <os-plugin.version>1.7.1</os-plugin.version>
+    <protobuf-plugin.version>0.6.1</protobuf-plugin.version>
+    <exec-plugin.version>3.6.3</exec-plugin.version>
+    <build-helper-plugin.version>3.6.1</build-helper-plugin.version>
+  </properties>
+
   <dependencies>
     <!-- Versions come from the Quarkus BOM imported by the parent; no Quarkus code here. -->
+    <dependency>
+      <groupId>com.google.protobuf</groupId>
+      <artifactId>protobuf-java</artifactId>
+    </dependency>
+    <!-- doc.v1 imports buf/validate/validate.proto: protoc reads it from this jar and the
+         generated descriptors link against its build.buf.validate classes. -->
+    <dependency>
+      <groupId>build.buf</groupId>
+      <artifactId>protovalidate</artifactId>
+    </dependency>
     <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter</artifactId>
@@ -27,4 +51,132 @@
       <scope>test</scope>
     </dependency>
   </dependencies>
+
+  <build>
+    <extensions>
+      <!-- ${os.detected.classifier} for the protoc artifact below. -->
+      <extension>
+        <groupId>kr.motd.maven</groupId>
+        <artifactId>os-maven-plugin</artifactId>
+        <version>${os-plugin.version}</version>
+      </extension>
+    </extensions>
+
+    <plugins>
+      <!-- protobuf-java messages for the document schema (doc.v1 and the wt.crdt options it
+           imports) into target/generated-sources/protobuf/java.  The engine is a plain library,
+           so it does not use Quarkus generate-code; the .proto files are attached to the jar so
+           a consumer can import them without compiling its own copy. -->
+      <plugin>
+        <groupId>org.xolstice.maven.plugins</groupId>
+        <artifactId>protobuf-maven-plugin</artifactId>
+        <version>${protobuf-plugin.version}</version>
+        <configuration>
+          <protocArtifact>com.google.protobuf:protoc:${version.protoc}:exe:${os.detected.classifier}</protocArtifact>
+          <protoSourceRoot>${wtcrdt.proto.root}</protoSourceRoot>
+          <includes>
+            <include>wiretuner/doc/v1/*.proto</include>
+            <include>wt/crdt/*.proto</include>
+          </includes>
+          <attachProtoSources>true</attachProtoSources>
+        </configuration>
+        <executions>
+          <execution>
+            <goals>
+              <goal>compile</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+
+      <!-- The merge table (protoc-gen-wtcrdt, PROTO-005): MergeTable.java and merge-table.json
+           into target/generated-sources/wtcrdt.  Java only, so the server build never rewrites
+           the client's committed Swift.  Needs Go and protoc on the PATH. -->
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <version>${exec-plugin.version}</version>
+        <executions>
+          <execution>
+            <id>wtcrdt-merge-table</id>
+            <phase>generate-sources</phase>
+            <goals>
+              <goal>exec</goal>
+            </goals>
+            <configuration>
+              <executable>make</executable>
+              <arguments>
+                <argument>--no-print-directory</argument>
+                <argument>-s</argument>
+                <argument>-C</argument>
+                <argument>${wtcrdt.generator.dir}</argument>
+                <argument>generate-java</argument>
+              </arguments>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>build-helper-maven-plugin</artifactId>
+        <version>${build-helper-plugin.version}</version>
+        <executions>
+          <execution>
+            <id>wtcrdt-sources</id>
+            <phase>generate-sources</phase>
+            <goals>
+              <goal>add-source</goal>
+            </goals>
+            <configuration>
+              <sources>
+                <source>${project.build.directory}/generated-sources/wtcrdt</source>
+              </sources>
+            </configuration>
+          </execution>
+          <execution>
+            <id>wtcrdt-resources</id>
+            <phase>generate-resources</phase>
+            <goals>
+              <goal>add-resource</goal>
+            </goals>
+            <configuration>
+              <resources>
+                <resource>
+                  <directory>${project.build.directory}/generated-sources/wtcrdt</directory>
+                  <includes>
+                    <include>**/*.json</include>
+                  </includes>
+                </resource>
+              </resources>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>org.jacoco</groupId>
+        <artifactId>jacoco-maven-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>report</id>
+            <configuration>
+              <!-- Generated code only (docs/spec/building.adoc): the doc.v1 messages, the
+                   wt.crdt option classes protoc emits into the engine's package, and the merge
+                   table.  Sonar drops them through sonar.exclusions (generated-sources). -->
+              <excludes>
+                <exclude>com/villagecompute/wiretuner/doc/v1/**</exclude>
+                <exclude>com/villagecompute/wiretuner/crdt/schema/**</exclude>
+                <exclude>com/villagecompute/wiretuner/crdt/Options*</exclude>
+                <exclude>com/villagecompute/wiretuner/crdt/FieldOptions*</exclude>
+                <exclude>com/villagecompute/wiretuner/crdt/Merge.class</exclude>
+                <exclude>com/villagecompute/wiretuner/crdt/Merge$*</exclude>
+                <exclude>com/villagecompute/wiretuner/crdt/RefFallback*</exclude>
+              </excludes>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
 </project>

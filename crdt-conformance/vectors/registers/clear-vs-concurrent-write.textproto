@@ -1,0 +1,58 @@
+# crdt-conformance/vectors/registers/clear-vs-concurrent-write.textproto (CRDT-001; schema: crdt-conformance/schema/vector.proto)
+name: "registers/clear-vs-concurrent-write"
+description: "Clearing a field (a path with no value) writes unset with the op's id and competes with concurrent writes by the same rule: the greater OpId wins whether it is the clear or the write."
+setup {
+    change {
+      replica: 7 seq: 1 start_counter: 1 label: "Create layer"
+      ops { create { parent { counter: 4 } position: "\x80" props { layer { common { name: "Layer 1" } } } } }
+    }
+    change {
+      replica: 7 seq: 2 start_counter: 2 label: "Attach URL and note"
+      ops { set { node { counter: 1 replica: 7 }
+        paths { segments { field: 150 } segments { field: 1 } segments { field: 6 } }
+        paths { segments { field: 150 } segments { field: 1 } segments { field: 2 } }
+        values { layer { common { note: "n" url: "https://a.example" } } } } }
+    }
+}
+replica {
+    id: 1
+    change {
+      replica: 1 seq: 1 start_counter: 3 label: "Clear URL, clear note"
+      ops { set { node { counter: 1 replica: 7 }
+        paths { segments { field: 150 } segments { field: 1 } segments { field: 6 } } } }
+      ops { set { node { counter: 1 replica: 7 }
+        paths { segments { field: 150 } segments { field: 1 } segments { field: 2 } } } }
+    }
+}
+replica {
+    id: 2
+    change {
+      replica: 2 seq: 1 start_counter: 3 label: "Set URL and note"
+      ops { set { node { counter: 1 replica: 7 }
+        paths { segments { field: 150 } segments { field: 1 } segments { field: 6 } }
+        paths { segments { field: 150 } segments { field: 1 } segments { field: 2 } }
+        values { layer { common { note: "m" url: "https://b.example" } } } } }
+    }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "67c28f9c403ab43d3a3bd055631f01652fd705862f68ab146890377919a4e525"
+  node {
+    id { counter: 1 replica: 7 }
+    node_hash: "7f08812edb8c4124397be6ea703535ee0f443d18960795927f1ce4a3195ef4c0"
+    register {
+      path { segments { field: 150 } segments { field: 1 } segments { field: 6 } }
+      value { layer { common { url: "https://b.example" } } }
+      op { counter: 3 replica: 2 }
+      losing { counter: 2 replica: 7 }
+      losing { counter: 3 replica: 1 }
+    }
+    register {
+      path { segments { field: 150 } segments { field: 1 } segments { field: 2 } }
+      op { counter: 4 replica: 1 }
+      losing { counter: 2 replica: 7 }
+      losing { counter: 3 replica: 2 }
+    }
+  }
+}

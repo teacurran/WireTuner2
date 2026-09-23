@@ -1,0 +1,59 @@
+# crdt-conformance/vectors/registers/sibling-struct-fields.textproto (CRDT-001; schema: crdt-conformance/schema/vector.proto)
+name: "registers/sibling-struct-fields"
+description: "Concurrent writes to different fields of one STRUCT (CommonProps, and TextWrap nested in it) all survive."
+setup {
+    change {
+      replica: 7 seq: 1 start_counter: 1 label: "Create layer"
+      ops { create { parent { counter: 4 } position: "\x80" props { layer { common { name: "Layer 1" } } } } }
+    }
+}
+replica {
+    id: 1
+    change {
+      replica: 1 seq: 1 start_counter: 2 label: "Rename and wrap"
+      ops { set { node { counter: 1 replica: 7 }
+        paths { segments { field: 150 } segments { field: 1 } segments { field: 1 } }
+        paths { segments { field: 150 } segments { field: 1 } segments { field: 13 } segments { field: 1 } }
+        values { layer { common { name: "Alice" text_wrap { enabled: true } } } } } }
+    }
+}
+replica {
+    id: 2
+    change {
+      replica: 2 seq: 1 start_counter: 2 label: "Lock and standoff"
+      ops { set { node { counter: 1 replica: 7 }
+        paths { segments { field: 150 } segments { field: 1 } segments { field: 3 } }
+        paths { segments { field: 150 } segments { field: 1 } segments { field: 13 } segments { field: 2 } }
+        values { layer { common { locked: true text_wrap { standoff: 4.5 } } } } } }
+    }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "d2251916d07712192a024cf71af4ec1d11017fb27ef74f5e43dce3b70a42c7ff"
+  node {
+    id { counter: 1 replica: 7 }
+    node_hash: "98a762254ad2f7fbdfb45e073b07601fa0f1450c7e5623b67966b0176c3bfeb9"
+    register {
+      path { segments { field: 150 } segments { field: 1 } segments { field: 1 } }
+      value { layer { common { name: "Alice" } } }
+      op { counter: 2 replica: 1 }
+      losing { counter: 1 replica: 7 }
+    }
+    register {
+      path { segments { field: 150 } segments { field: 1 } segments { field: 3 } }
+      value { layer { common { locked: true } } }
+      op { counter: 2 replica: 2 }
+    }
+    register {
+      path { segments { field: 150 } segments { field: 1 } segments { field: 13 } segments { field: 1 } }
+      value { layer { common { text_wrap { enabled: true } } } }
+      op { counter: 2 replica: 1 }
+    }
+    register {
+      path { segments { field: 150 } segments { field: 1 } segments { field: 13 } segments { field: 2 } }
+      value { layer { common { text_wrap { standoff: 4.5 } } } }
+      op { counter: 2 replica: 2 }
+    }
+  }
+}

@@ -1,0 +1,123 @@
+// crdt-conformance/schema/vector.proto
+//
+// The conformance vector format (docs/spec/testing.adoc, "Conformance vectors"; CRDT-011).  A
+// vector is one `Vector` in protobuf text format at crdt-conformance/vectors/<area>/<name>.textproto.
+// Both engines replay it -- WTCRDT's ConformanceTests (Swift) and server/conformance (Java) --
+// and must reach the expected state hash on every delivery order.
+//
+// This schema is test tooling, not API: it lives outside proto/ so buf lint, buf breaking and
+// the merge-table generator never see it, and it may change with the runners.  Generated code:
+// Swift in client/Packages/WTCRDT/Tests/WTCRDTTests/Conformance/Generated (committed,
+// `make -C crdt-conformance generate`), Java in server/conformance/target (protoc at build time).
+syntax = "proto3";
+
+package wiretuner.conformance.v1;
+
+import "wiretuner/doc/v1/change.proto";
+import "wiretuner/doc/v1/common.proto";
+import "wiretuner/doc/v1/node.proto";
+
+option java_multiple_files = true;
+option java_package = "com.villagecompute.wiretuner.conformance.v1";
+
+// One conformance vector.
+message Vector {
+  // "<area>/<file name without .textproto>"; the runners check it against the file's path.
+  string name = 1;
+  // What the vector proves, in one or two sentences.
+  string description = 2;
+  // Changes applied, in order, to every replica before any delivery order.
+  Setup setup = 3;
+  // The concurrent work: each replica's changes, in that replica's seq order.
+  repeated Replica replica = 4;
+  // Delivery orders.  Each must converge to the same state; with none, the replicas' changes
+  // are delivered once in replica-id order.
+  repeated Delivery deliveries = 5;
+  // What every delivery order must produce.
+  Expect expect = 6;
+  // Test-only changes to the generated merge table, for merge rules no schema field uses yet.
+  repeated SchemaOverride schema_override = 7;
+}
+
+// The shared starting point.
+message Setup {
+  // Applied in order.
+  repeated wiretuner.doc.v1.Change change = 1;
+}
+
+// One replica's concurrent changes.
+message Replica {
+  // The replica id; every change's `replica` must equal it.
+  fixed64 id = 1;
+  // In seq order: a delivery order delivers them in this order.
+  repeated wiretuner.doc.v1.Change change = 2;
+}
+
+// One delivery order.
+message Delivery {
+  // Replica ids; each occurrence delivers that replica's next undelivered change.  Every change
+  // of every replica must be named exactly once.
+  repeated fixed64 order = 1;
+}
+
+// The expected merged state.
+message Expect {
+  // Lower-case hex SHA-256 of the canonical encoding (docs/spec/crdt-model.adoc, "Snapshots").
+  string state_hash = 1;
+  // Expected read-outs.  Nodes not listed are only checked through `state_hash`.
+  repeated ExpectNode node = 2;
+}
+
+// Read-outs of one node.
+message ExpectNode {
+  // The node.
+  wiretuner.doc.v1.OpId id = 1;
+  // Lower-case hex SHA-256 of the node's canonical encoding; when set, a hash mismatch names
+  // this node as differing.
+  string node_hash = 2;
+  // Expected registers.  Registers not listed are only checked through the hashes.
+  repeated ExpectRegister register = 3;
+}
+
+// One expected register.
+message ExpectRegister {
+  // The register's path (field numbers from NodeProps to an ATOMIC field).
+  wiretuner.doc.v1.FieldPath path = 1;
+  // A sparse NodeProps holding the expected value at `path`.  Leave it out to expect unset.
+  wiretuner.doc.v1.NodeProps value = 2;
+  // The OpId of the write that holds the register.
+  wiretuner.doc.v1.OpId op = 3;
+  // The OpIds of the retained losing writes, ascending.
+  repeated wiretuner.doc.v1.OpId losing = 4;
+}
+
+// One change to the merge table, applied before the vector runs.
+message SchemaOverride {
+  // What to change.
+  oneof change {
+    // Replace one field's merge policy.
+    PolicyOverride policy = 1;
+    // Declare a message MERGE_VARIANT.
+    VariantOverride variant = 2;
+  }
+}
+
+// Replaces the merge policy of one field.
+message PolicyOverride {
+  // Fully qualified message name, e.g. "wiretuner.doc.v1.CommonProps".
+  string message = 1;
+  // The field number.
+  uint32 field = 2;
+  // The policy as the merge table spells it: "ATOMIC", "STRUCT", "VARIANT", ...
+  string policy = 3;
+}
+
+// Declares a message MERGE_VARIANT, as the merge table's "variants" section does.
+message VariantOverride {
+  // Fully qualified message name.
+  string message = 1;
+  // The enum discriminator's field number.
+  uint32 kind_field = 2;
+  // The field numbers of the case messages.
+  repeated uint32 case_fields = 3;
+}

@@ -8,12 +8,14 @@ on:
       - "tools/coverage/**"
       - "tools/sonar/**"
       - ".github/workflows/client.yml"
+      - 'crdt-conformance/**'
   pull_request:
     paths:
       - "client/**"
       - "tools/coverage/**"
       - "tools/sonar/**"
       - ".github/workflows/client.yml"
+      - 'crdt-conformance/**'
 
 permissions:
   contents: read

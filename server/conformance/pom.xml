@@ -12,9 +12,17 @@
 
   <artifactId>conformance</artifactId>
   <name>conformance</name>
-  <description>Runs the crdt-conformance vectors against wt-crdt (CRDT-00x fill it in).</description>
+  <description>Replays the crdt-conformance vectors through wt-crdt (docs/spec/testing.adoc, CRDT-011).</description>
+
+  <properties>
+    <conformance.root>${project.basedir}/../../crdt-conformance</conformance.root>
+    <!-- Same protoc as wt-crdt: the runtime is the Quarkus BOM's protobuf-java. -->
+    <version.protoc>4.35.0</version.protoc>
+  </properties>
 
   <dependencies>
+    <!-- Brings the doc.v1 messages and their .proto files (attached to its jar), which
+         vector.proto imports. -->
     <dependency>
       <groupId>com.villagecompute.wiretuner</groupId>
       <artifactId>wt-crdt</artifactId>
@@ -30,4 +38,59 @@
       <scope>test</scope>
     </dependency>
   </dependencies>
+
+  <build>
+    <extensions>
+      <extension>
+        <groupId>kr.motd.maven</groupId>
+        <artifactId>os-maven-plugin</artifactId>
+        <version>1.7.1</version>
+      </extension>
+    </extensions>
+
+    <plugins>
+      <!-- Java for crdt-conformance/schema/vector.proto only; doc.v1 comes from wt-crdt. -->
+      <plugin>
+        <groupId>org.xolstice.maven.plugins</groupId>
+        <artifactId>protobuf-maven-plugin</artifactId>
+        <version>0.6.1</version>
+        <configuration>
+          <protocArtifact>com.google.protobuf:protoc:${version.protoc}:exe:${os.detected.classifier}</protocArtifact>
+          <protoSourceRoot>${conformance.root}/schema</protoSourceRoot>
+          <attachProtoSources>false</attachProtoSources>
+        </configuration>
+        <executions>
+          <execution>
+            <goals>
+              <goal>compile</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <systemPropertyVariables>
+            <!-- ConformanceTest replays every vector under this directory. -->
+            <crdt.conformance.vectors>${conformance.root}/vectors</crdt.conformance.vectors>
+          </systemPropertyVariables>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.jacoco</groupId>
+        <artifactId>jacoco-maven-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>report</id>
+            <configuration>
+              <!-- Generated code only: the vector messages protoc emits. -->
+              <excludes>
+                <exclude>com/villagecompute/wiretuner/conformance/v1/**</exclude>
+              </excludes>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
 </project>

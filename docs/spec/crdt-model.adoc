@@ -236,6 +236,46 @@ field number or, inside a SEQUENCE, an element id (`FieldPath` / `PathSegment` i
 addresses one anchor point.  The generated merge tables tell both engines which segments are
 STRUCT, SEQUENCE and so on; the engines themselves contain no per-feature code.
 
+[[field-paths]]
+=== Field paths and registers
+
+Both engines resolve a `SetFields` path the same way (CRDT-001; `PathResolver` in `WTCRDT` and
+`wt-crdt`).  The first segment must be the node's kind (the set case of `NodeProps.kind`); each
+later segment is looked up in the merge table of the message reached so far.
+
+* A path ending at an ATOMIC field is one register.  Its value is that field's protobuf records
+  in `values` exactly as they arrived (tag and payload, every occurrence in order), or *unset* when
+  `values` holds none.  Proto3 cannot tell a default scalar from an absent one, so writing a
+  default value and clearing the field are the same write.
+* A path ending at a STRUCT field stands for every register beneath it in the table, each written
+  from `values` (leaves absent from `values` are written unset).  A message already on the current
+  branch of the walk is not entered again, so a recursive schema expands finitely and identically
+  in both engines.
+* Beneath a MERGE_VARIANT message that is present in `values`, only the case messages present are
+  written; the discriminator and non-case fields are written as usual.  A kind switch therefore
+  never touches another case's registers.  A variant that is cleared (absent from `values`) clears
+  every case.
+* A path is a no-op when a segment is unknown, runs past an ATOMIC field, is an element segment,
+  or names a SEQUENCE, TEXT or SET field or a repeated or untyped message (those merge by their
+  own ops, CRDT-004..007).  The other paths of the same op still apply.
+* The engines walk `values` at the wire level with the table, not through generated classes, so a
+  field newer than the replica still merges and is kept byte for byte.  `values` that are not
+  well-formed protobuf (for example an unknown group) make the whole op a no-op.
+
+`CreateNode` writes, with its own OpId, only the leaves present in `props`; it is causally before
+every other op on the node, so "never written" and "unset at the creation id" read the same.  A
+kind case must be a length-delimited record (as a protobuf parser reads a oneof of messages);
+`props` without a known kind creates nothing.  Of the well-known nodes, `document` (0:0, kind
+`document`) and `settings` (0:1, kind `settings`) carry properties; the other collections have
+no kind, and `SetFields` on them is a no-op.  A replay of an op already applied to a register is
+ignored and not logged twice.
+
+The engines apply the reference rule of *References* below to the table: a singular `NodeRef`
+field is one ATOMIC register even where the generated table says STRUCT (the generator's default
+for a singular message).  Without it, an id's counter and replica could come from two different
+writes and name a node nobody referenced.  (Deviation, CRDT-001: `protoc-gen-wtcrdt` should emit
+ATOMIC for `NodeRef` itself; until it does, the engines normalise the table.)
+
 == Operations
 
 Operations are fixed; features add fields, not operations.
@@ -416,6 +456,36 @@ over a canonical encoding -- nodes by id, stamps and elements by path, the hash 
 empty; CRDT-009 fixes the rest) that both engines compute identically.  Clients compare their own hash to the server's at the same
 sequence number whenever their outbox is empty.  A mismatch is a bug report plus an automatic
 re-bootstrap from the snapshot.
+
+[[canonical-encoding]]
+=== Canonical encoding
+
+CRDT-001 fixes the register part of the canonical encoding; CRDT-009 extends it with tree state,
+elements, the move log and replica state (and every conformance vector's expected hash is then
+re-recorded).  `StateHash` in both engines is SHA-256 over these bytes.  All integers are
+big-endian and fixed width:
+
+[listing]
+....
+state    = u32 node_count, node*                                   nodes ascending by OpId
+node     = id, u32 kind, u32 register_count, register*             registers ascending by path
+register = u32 path_len, path, id, u8 set, [u32 value_len, value]  set = 1 iff not unset
+path     = segment*
+segment  = 0x01, u32 field_number                                  (0x02 is reserved for element ids, CRDT-004)
+id       = u64 counter, u64 replica
+....
+
+* The nodes are every node created by an op plus every well-known node holding a register.
+  `kind` is the field number of the node's `NodeProps.kind` case (0 for none).
+* Paths order by their encoding compared bytewise, which equals comparing segments in order,
+  shorter prefix first.
+* `value` is the register's stored records (see <<field-paths>>).  Losing writes retained in the
+  change log are not part of the state and not hashed.
+* The hash of one node is SHA-256 of its `node` encoding; the conformance runners use it to name
+  the first differing node.
+
+The empty state hashes to `df3f6198…b81119` (SHA-256 of four zero bytes); `StateHashTest` in both
+engines pins a sample encoding byte for byte.
 
 == Garbage collection
 

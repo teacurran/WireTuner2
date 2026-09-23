@@ -1,0 +1,54 @@
+# crdt-conformance/vectors/registers/concurrent-writes-one-register.textproto (CRDT-001; schema: crdt-conformance/schema/vector.proto)
+name: "registers/concurrent-writes-one-register"
+description: "Three replicas rename one layer at the same counter; the greatest replica id, compared unsigned, wins and the other two writes are retained as losing."
+setup {
+    change {
+      replica: 7 seq: 1 start_counter: 1 label: "Create layer"
+      ops { create { parent { counter: 4 } position: "\x80" props { layer { common { name: "Layer 1" } } } } }
+    }
+}
+replica {
+    id: 1
+    change {
+      replica: 1 seq: 1 start_counter: 2 label: "Rename"
+      ops { set { node { counter: 1 replica: 7 }
+        paths { segments { field: 150 } segments { field: 1 } segments { field: 1 } }
+        values { layer { common { name: "Alice" } } } } }
+    }
+}
+replica {
+    id: 2
+    change {
+      replica: 2 seq: 1 start_counter: 2 label: "Rename"
+      ops { set { node { counter: 1 replica: 7 }
+        paths { segments { field: 150 } segments { field: 1 } segments { field: 1 } }
+        values { layer { common { name: "Bob" } } } } }
+    }
+}
+replica {
+    id: 18446744073709551600
+    change {
+      replica: 18446744073709551600 seq: 1 start_counter: 2 label: "Rename"
+      ops { set { node { counter: 1 replica: 7 }
+        paths { segments { field: 150 } segments { field: 1 } segments { field: 1 } }
+        values { layer { common { name: "Carol" } } } } }
+    }
+}
+deliveries { order: [1, 2, 18446744073709551600] }
+deliveries { order: [18446744073709551600, 2, 1] }
+deliveries { order: [2, 18446744073709551600, 1] }
+expect {
+  state_hash: "61097e75f4395bb55e11b211876fed18bf6a3a485eff988659ad092fa0950475"
+  node {
+    id { counter: 1 replica: 7 }
+    node_hash: "f121516ac4485d459109ff7f9acc4dd310a4da447e3264345b8a28f90704a22c"
+    register {
+      path { segments { field: 150 } segments { field: 1 } segments { field: 1 } }
+      value { layer { common { name: "Carol" } } }
+      op { counter: 2 replica: 18446744073709551600 }
+      losing { counter: 1 replica: 7 }
+      losing { counter: 2 replica: 1 }
+      losing { counter: 2 replica: 2 }
+    }
+  }
+}

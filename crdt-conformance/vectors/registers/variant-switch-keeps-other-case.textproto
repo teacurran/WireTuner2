@@ -1,0 +1,74 @@
+# crdt-conformance/vectors/registers/variant-switch-keeps-other-case.textproto (CRDT-001; schema: crdt-conformance/schema/vector.proto)
+name: "registers/variant-switch-keeps-other-case"
+description: "A kind switch writes the discriminator register and leaves every case's registers alone, so a concurrent edit inside the old case survives and switching back restores it. The schema has no MERGE_VARIANT message yet, so NavigationProps is declared one here (kind = target, case = go_to_page)."
+schema_override { policy { message: "wiretuner.doc.v1.CommonProps" field: 8 policy: "VARIANT" } }
+schema_override { variant { message: "wiretuner.doc.v1.NavigationProps" kind_field: 2 case_fields: [3] } }
+schema_override { policy { message: "wiretuner.doc.v1.NavigationProps" field: 3 policy: "STRUCT" } }
+setup {
+    change {
+      replica: 7 seq: 1 start_counter: 1 label: "Create layer"
+      ops { create { parent { counter: 4 } position: "\x80" props { layer { common { name: "Layer 1" } } } } }
+    }
+    change {
+      replica: 7 seq: 2 start_counter: 2 label: "Link to page"
+      ops { set { node { counter: 1 replica: 7 }
+        paths { segments { field: 150 } segments { field: 1 } segments { field: 8 } }
+        values { layer { common { navigation { target: LINK_TARGET_NEW_TAB go_to_page { cached: "p2" } } } } } } }
+    }
+}
+replica {
+    id: 1
+    change {
+      replica: 1 seq: 1 start_counter: 3 label: "Edit case"
+      ops { set { node { counter: 1 replica: 7 }
+        paths { segments { field: 150 } segments { field: 1 } segments { field: 8 } segments { field: 3 } segments { field: 2 } }
+        values { layer { common { navigation { go_to_page { cached: "p3" } } } } } } }
+    }
+}
+replica {
+    id: 2
+    change {
+      replica: 2 seq: 1 start_counter: 3 label: "Switch kind"
+      ops { set { node { counter: 1 replica: 7 }
+        paths { segments { field: 150 } segments { field: 1 } segments { field: 8 } }
+        values { layer { common { navigation { target: LINK_TARGET_SAME_WINDOW } } } } } }
+    }
+    change {
+      replica: 2 seq: 2 start_counter: 5 label: "Switch back"
+      ops { set { node { counter: 1 replica: 7 }
+        paths { segments { field: 150 } segments { field: 1 } segments { field: 8 } segments { field: 2 } }
+        values { layer { common { navigation { target: LINK_TARGET_NEW_TAB } } } } } }
+    }
+}
+deliveries { order: [1, 2, 2] }
+deliveries { order: [2, 2, 1] }
+deliveries { order: [2, 1, 2] }
+expect {
+  state_hash: "3a357105e4258a86d10b0af3a3bed1c4e65c3f52eaa16e9a6caad11321391975"
+  node {
+    id { counter: 1 replica: 7 }
+    node_hash: "31782aa19b3c6f5570be3780b132803fe3abf838a593af779e94e2b84f591228"
+    register {
+      path { segments { field: 150 } segments { field: 1 } segments { field: 8 } segments { field: 2 } }
+      value { layer { common { navigation { target: LINK_TARGET_NEW_TAB } } } }
+      op { counter: 5 replica: 2 }
+      losing { counter: 2 replica: 7 }
+      losing { counter: 3 replica: 2 }
+    }
+    register {
+      path { segments { field: 150 } segments { field: 1 } segments { field: 8 } segments { field: 3 } segments { field: 2 } }
+      value { layer { common { navigation { go_to_page { cached: "p3" } } } } }
+      op { counter: 3 replica: 1 }
+      losing { counter: 2 replica: 7 }
+    }
+    register {
+      path { segments { field: 150 } segments { field: 1 } segments { field: 8 } segments { field: 3 } segments { field: 1 } segments { field: 1 } }
+      op { counter: 2 replica: 7 }
+    }
+    register {
+      path { segments { field: 150 } segments { field: 1 } segments { field: 8 } segments { field: 1 } }
+      op { counter: 3 replica: 2 }
+      losing { counter: 2 replica: 7 }
+    }
+  }
+}

@@ -88,3 +88,8 @@ sonar-tools-test:
 	tools/coverage/Tests/run.sh
 	tools/sonar/Tests/run.sh
 	tools/sonar/check-no-token.sh
+
+.PHONY: conformance
+# Both engines replay every crdt-conformance vector (docs/spec/testing.adoc, CRDT-011).
+conformance:
+	$(MAKE) -C crdt-conformance run
