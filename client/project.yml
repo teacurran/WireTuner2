@@ -80,6 +80,12 @@ targets:
         # started only once it is present (see AppDelegate).
         SUFeedURL: https://updates.villagecompute.com/wiretuner/appcast.xml
         SUEnableInstallerLauncherService: true
+        # Sign-in and API endpoints (APP-008), from the build settings below.
+        WTAuthIssuer: $(WT_AUTH_ISSUER)
+        WTAPIURL: $(WT_API_URL)
+        # The compose realm and API are plain HTTP on localhost.
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
     entitlements:
       path: WTApp/WireTuner.entitlements
       properties:
@@ -93,6 +99,10 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.villagecompute.wiretuner
         PRODUCT_NAME: WireTuner
+        # The Keycloak realm (issuer) and the API.  Defaults: the compose stack (keycloak on
+        # host port 8180, api on 8080); override per configuration or on the command line.
+        WT_AUTH_ISSUER: http://localhost:8180/realms/wiretuner
+        WT_API_URL: http://localhost:8080
         GENERATE_INFOPLIST_FILE: NO
         # App only: a hardened XCUITest runner refuses to load an ad-hoc-signed test bundle
         # ("different Team IDs"), so the test targets are not hardened.

@@ -86,11 +86,14 @@ struct ToolContext {
     let document: DocumentHandle
     unowned let host: any CanvasHost
     var snapping: SnappingContext
+    /// The window's selection (APP-006); a fresh one over `document` when none is given.
+    let selection: SelectionController
 
-    init(document: DocumentHandle, host: any CanvasHost, snapping: SnappingContext = SnappingContext()) {
+    init(document: DocumentHandle, host: any CanvasHost, snapping: SnappingContext = SnappingContext(), selection: SelectionController? = nil) {
         self.document = document
         self.host = host
         self.snapping = snapping
+        self.selection = selection ?? SelectionController(document: document)
     }
 
     var commandSink: CommandSink { document.commandSink }

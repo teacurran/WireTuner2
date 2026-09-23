@@ -59,7 +59,7 @@ cursor on a page you are not looking at is simply out of view.
 == Selections and carets
 
 An object in someone else's selection gets an outline in their color with a small name tag at
-its top-left corner.  When several people have selected the same object, the outlines nest.
+its top-right corner.  When several people have selected the same object, the outlines nest.
 Their selection highlights points and segments too when they are editing a path
 (xref:editing-paths.adoc[Editing paths]): the selected points show as small squares in their
 color.

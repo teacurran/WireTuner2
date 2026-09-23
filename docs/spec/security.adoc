@@ -4,6 +4,8 @@ include::_attributes.adoc[]
 
 == Accounts
 
+NOTE: The client's account window is read-only: it shows identities and the current device from `Me`.  Adding or removing identities and the full `ListDevices` list are SEC-003's; UI tests for passkey, Apple and workspace sign-in need SEC-004's compose realm.
+
 Every person has one *personal account*, identified by a Keycloak subject.  Sign-in is OIDC
 with PKCE from the Mac (`ASWebAuthenticationSession`); Keycloak owns every credential and
 the server never sees one.  The realm declares, in this order of preference:
@@ -166,24 +168,10 @@ on xref:api-conventions.adoc[API conventions].
   `wiretuner-test-sso` (hardcoded `wt_auth_method = sso:acme`); the realm also gains the test
   people alice, bob, carol, dave and erin.
 
-.Error reasons added by SEC-001 (to be added to the table in xref:api-conventions.adoc[API conventions] and to `sync.v1.ErrorReason`)
-[cols="1,1,3"]
-|===
-|Code |Reason |Meaning
-
-|`NOT_FOUND` |`TEAM_NOT_FOUND` |The caller is not a member of the team, or the team is deleted.
-|`NOT_FOUND` |`MEMBER_NOT_FOUND` |The account named is not a member of the team.
-|`NOT_FOUND` |`INVITE_INVALID` |The invitation token is unknown, expired, used or withdrawn, or its team was deleted.
-|`NOT_FOUND` |`DOMAIN_NOT_FOUND` |The workspace has not claimed the domain.
-|`ALREADY_EXISTS` |`SLUG_TAKEN` |Another team has the slug.
-|`ALREADY_EXISTS` |`ALREADY_MEMBER` |The invited address belongs to a member (account email or a linked identity).
-|`ALREADY_EXISTS` |`DOMAIN_TAKEN` |Another team has verified the domain.
-|`FAILED_PRECONDITION` |`OWNER_MUST_TRANSFER` |The owner cannot leave, be removed or change role; transfer ownership first.
-|`FAILED_PRECONDITION` |`TEAM_ROLE_INVALID` |The member's team role does not allow it (a guest cannot own the team).
-|`FAILED_PRECONDITION` |`EMAIL_NOT_VERIFIED` |The caller holds no verified identity for the invited address.
-|`FAILED_PRECONDITION` |`SSO_REQUIRED` |The workspace requires signing in through its SSO connection.
-|`FAILED_PRECONDITION` |`DOMAIN_UNVERIFIED` |Requiring SSO or auto-admitting needs at least one verified domain.
-|===
+SEC-001 added the reasons `TEAM_NOT_FOUND`, `MEMBER_NOT_FOUND`, `INVITE_INVALID`, `DOMAIN_NOT_FOUND`,
+`SLUG_TAKEN`, `ALREADY_MEMBER`, `DOMAIN_TAKEN`, `OWNER_MUST_TRANSFER`, `TEAM_ROLE_INVALID`,
+`EMAIL_NOT_VERIFIED`, `SSO_REQUIRED` and `DOMAIN_UNVERIFIED`; they are rows of the Errors table in
+xref:api-conventions.adoc[API conventions] and values of `sync.v1.ErrorReason`.
 
 == Document roles
 

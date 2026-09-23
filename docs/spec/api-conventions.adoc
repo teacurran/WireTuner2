@@ -206,6 +206,24 @@ responses.  A row is added here and a value there in the same change.
 |`PERMISSION_DENIED` |`LINK_PASSWORD_REQUIRED` |The share link needs a password, or the one given is wrong (xref:sharing.adoc[Sharing]).
 |`NOT_FOUND` |`LINK_INVALID` |The share link is unknown, expired or revoked.
 |`FAILED_PRECONDITION` |`MERGE_STALE` |The parent advanced past the reviewed head by changes touching nodes the merge review decided on; review again (xref:branches.adoc[Branches]).
+|`ALREADY_EXISTS` |`DOCUMENT_EXISTS` |A Create, Fork or Duplicate id belongs to a different document (another space, another owner, other first change); generate a new id (xref:server.adoc[Server]).
+|`NOT_FOUND` |`SPACE_NOT_FOUND` |The space is neither the caller's account nor a team they belong to (or the team is deleted, for creating).
+|`NOT_FOUND` |`FOLDER_NOT_FOUND` |The folder does not exist in the space, or the caller may not see it.
+|`FAILED_PRECONDITION` |`HISTORY_UNAVAILABLE` |The requested `server_seq` is beyond the head or within history that is not available: a fork point or `FetchChanges` range already compacted out of the hot log (until cold segments are served, SRV-007), or a `FetchSnapshot` with no snapshot at or before it (xref:sync-protocol.adoc[Sync protocol]).
+|`NOT_FOUND` |`BLOB_NOT_FOUND` |The document does not reference the blob (nor shows it as its thumbnail), or it has not arrived.
+|`INVALID_ARGUMENT` |`BLOB_MISMATCH` |An upload's content disagrees with its header (size or sha256), or its frames are out of order (no header first, a second header, no frames).
+|`NOT_FOUND` |`TEAM_NOT_FOUND` |The caller is not a member of the team, or the team is deleted (xref:security.adoc[Accounts, teams and security]).
+|`NOT_FOUND` |`MEMBER_NOT_FOUND` |The account named is not a member of the team.
+|`NOT_FOUND` |`INVITE_INVALID` |The invitation token is unknown, expired, used or withdrawn, or its team was deleted.
+|`NOT_FOUND` |`DOMAIN_NOT_FOUND` |The workspace has not claimed the domain.
+|`ALREADY_EXISTS` |`SLUG_TAKEN` |Another team has the slug.
+|`ALREADY_EXISTS` |`ALREADY_MEMBER` |The invited address belongs to a member (account email or a linked identity).
+|`ALREADY_EXISTS` |`DOMAIN_TAKEN` |Another team has verified the domain.
+|`FAILED_PRECONDITION` |`OWNER_MUST_TRANSFER` |The owner cannot leave, be removed or change role; transfer ownership first.
+|`FAILED_PRECONDITION` |`TEAM_ROLE_INVALID` |The member's team role does not allow it (a guest cannot own the team).
+|`FAILED_PRECONDITION` |`EMAIL_NOT_VERIFIED` |The caller holds no verified identity for the invited address.
+|`FAILED_PRECONDITION` |`SSO_REQUIRED` |The workspace requires signing in through its SSO connection.
+|`FAILED_PRECONDITION` |`DOMAIN_UNVERIFIED` |Requiring SSO or auto-admitting needs at least one verified domain.
 |===
 
 == Metadata

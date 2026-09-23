@@ -32,6 +32,18 @@ final class CanvasView: NSView, CanvasHost {
     var onStatusMessage: (@MainActor (String) -> Void)?
     private var documentObservation: DocumentHandle.ObservationToken?
 
+    /// The window's selection, drawn under the tool overlay (APP-006).
+    var selectionController: SelectionController? {
+        didSet { selectionDidChange() }
+    }
+    /// The other participants whose selections are outlined.
+    var presence: (any PresenceProviding)?
+    /// *Show others' selections*.
+    var showsRemoteSelections: @MainActor () -> Bool = { true }
+    /// Extra state for UI tests, appended to the accessibility value (the socket audit's
+    /// counts under `-WTSocketAudit`); nil adds nothing.
+    var diagnostics: @MainActor () -> String? = { nil }
+
     init(document: DocumentHandle, cache: TileCache = TileCache(renderer: CoreGraphicsRenderer()), frame: NSRect = NSRect(x: 0, y: 0, width: 800, height: 600)) {
         self.document = document
         tiles = TiledCanvasLayer(cache: cache, backingScale: 2)
@@ -59,6 +71,7 @@ final class CanvasView: NSView, CanvasHost {
 
         documentObservation = document.observe { [weak self] dirty in self?.documentDidChange(dirty: dirty) }
         viewport = navigation.clamped(viewport)
+        updateAccessibilityValue()
         render()
     }
 
@@ -110,7 +123,28 @@ final class CanvasView: NSView, CanvasHost {
     }
 
     private func documentDidChange(dirty: Rect?) {
+        updateAccessibilityValue()
         render()
+    }
+
+    /// The selection or a collaborator's selection changed.
+    func selectionDidChange() {
+        updateAccessibilityValue()
+        overlay.setNeedsDisplay()
+    }
+
+    // MARK: Accessibility
+
+    /// The canvas's accessibility value, which UI tests read to observe the document without
+    /// pixels: `"changes=<n> selected=<n>"`, then any diagnostics (TEST-002; testing.adoc, "UI").
+    static func accessibilityStatus(changes: Int, selected: Int, diagnostics: String? = nil) -> String {
+        ["changes=\(changes) selected=\(selected)", diagnostics].compactMap { $0 }.joined(separator: " ")
+    }
+
+    func updateAccessibilityValue() {
+        setAccessibilityValue(Self.accessibilityStatus(
+            changes: document.changeCount, selected: selectionController?.model.count ?? 0, diagnostics: diagnostics()
+        ))
     }
 
     // MARK: CanvasHost
@@ -128,7 +162,13 @@ final class CanvasView: NSView, CanvasHost {
         onStatusMessage?(message)
     }
 
-    private func drawOverlay(in ctx: CGContext) {
+    func drawOverlay(in ctx: CGContext) {
+        if let selectionController {
+            SelectionOverlay(document: document, viewport: viewport).draw(
+                in: ctx, selection: selectionController.selection, participants: presence?.participants ?? [],
+                showsRemote: showsRemoteSelections(), accent: NSColor.controlAccentColor.cgColor
+            )
+        }
         toolManager?.drawOverlay(in: ctx, viewport: viewport)
     }
 

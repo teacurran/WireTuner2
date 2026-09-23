@@ -1,8 +1,8 @@
 import Foundation
 
 /// The View and File commands the document window delivers in place of the standard
-/// placeholders: Zoom In/Out, Fit to Page, Fit All, Fit Selection (disabled until APP-006
-/// gives a selection), the Magnification presets, Keyline and Fast Mode (bound to the
+/// placeholders: Zoom In/Out, Fit to Page, Fit All, Fit Selection (disabled while nothing is
+/// selected), the Magnification presets, Keyline and Fast Mode (bound to the
 /// window's `ViewMode`), and File > New.  Each acts on the key document window.
 enum ViewCommands {
     static let noDocument = "No document is open"
@@ -29,8 +29,11 @@ enum ViewCommands {
             windowCommand(ids.fitAll, "Fit All", KeyEquivalent("w", [.command, .option, .shift])) { $0.fitAll() },
             Command(
                 id: ids.fitSelection, title: "Fit Selection", key: KeyEquivalent("0", [.command, .option]), menu: MenuPath(menu),
-                validation: { target() == nil ? .disabled(noDocument) : .disabled(nothingSelected) },
-                action: .perform { target()?.fit(selection: nil) }
+                validation: {
+                    guard let window = target() else { return .disabled(noDocument) }
+                    return window.selection.model.isEmpty ? .disabled(nothingSelected) : .enabled
+                },
+                action: .perform { target()?.fitSelection() }
             ),
         ]
         for level in StandardCommands.magnificationLevels {

@@ -244,7 +244,46 @@ marquee enclosure and contact are judged on path geometry (not stroke width) in 
 The R-tree is keyed by top-level item index and maintained incrementally when a changed list
 keeps its length, rebuilt (STR bulk load, 8 ms for 50,000 items in release) otherwise.
 
+NOTE: Deviations recorded by REND-006.  *Coverage, not MSAA*: the stencil is a 16-sample
+winding counter per pixel (8 bits per sample in a memoryless `RGBA32Uint` attachment, the
+standard 16× sample pattern); each fan triangle covers its pixel bounding box and the fragment
+tests the 16 positions against the triangle's edges with the top-left rule, adding +1 or -1 by
+the triangle's orientation.  The cover pass turns the counters into coverage with the fill rule,
+zeroes them, and blends colour × coverage into the tile by reading it (programmable blending,
+ordered by a raster order group).  Hardware 4× MSAA failed REND-007 on 5–25% of the corpus
+tiles (edge errors to 128/255); 16 samples by MSAA over a 2× supersampled tile still failed
+wherever separately drawn shapes share or repeat an edge, because MSAA blends per sample while
+Core Graphics blends each draw at pixel coverage (a pixel covered c by one shape and 1 − c by
+the next lets c(1 − c) of the background through in Core Graphics, none under MSAA: up to
+64/255).  Blending per draw at pixel coverage matches Core Graphics there and passes every
+tile.  Programmable blending needs an Apple-family GPU (`supportsFamily(.apple4)` and raster
+order groups); on other GPUs the canvas uses the Core Graphics fallback.  *Tolerance*: the Metal
+renderer flattens at a quarter of the shared tolerance (`MetalRenderer.flatteningRefinement`):
+Core Graphics subdivides well inside its flatness bound, and flattening at the bound itself puts
+the two edges up to a quarter pixel apart on curves.  *Strokes*: until GEO-003's outlines are in
+the display list, the stroked outline is Core Graphics' `copy(strokingWithWidth:)` of the
+centreline (dashed first with `copy(dashingWithPhase:)` in local units), stroked in local units
+scaled to about one per device pixel: the Core Graphics stroker merges points closer than a
+fixed epsilon in path units, which breaks the outline of a hairline on a heavily scaled
+arrowhead.  *Atlas*: a `texture2DArray` of 256 × 256 slices (256 slices hold one 4096² sheet),
+because a render pass can target a slice but not a sub-rectangle.  *Shaders*: the Metal Shading
+Language source ships as `Shaders/TileShaders.msl`, a copied resource, and is compiled at run
+time with `makeLibrary(source:)`: Xcode 26 installs the offline Metal compiler only on request
+(`xcodebuild -downloadComponent MetalToolchain`), and a `.metal` file would make every SwiftPM
+and Xcode build and every CI runner need it.  *Canvas*: WTRender delivers `MetalTileCanvas`, a
+`CAMetalLayer` driven by a `CAMetalDisplayLink` (paused until `setNeedsDisplay`, 60–120 Hz),
+whose `layer` replaces the `TiledCanvasLayer`'s inside WTApp's `CanvasView` (same `update`,
+`invalidate`, `settle` surface; gestures add `beginGesture`/`endGesture`); while a new zoom step or angle renders, the last tiling
+whose visible tiles were all drawable is drawn beneath it.  The fallback also engages when the
+shaders or the atlas cannot be created, and logs under subsystem
+`com.villagecompute.wiretuner`, category `render`.  The glyph atlas, Core Image into textures
+and image textures wait for the display list to carry glyph runs, raster effects and images
+(TXT-001, FX, the image pipeline); until then Metal draws the same placeholders as Core
+Graphics.
+
 == Undo
+
+NOTE: Selection lives in `WTApp/Selection` (`SelectionModel`, `SelectionController`) until `WTModel` lands; ids are display-list index paths, renumbered when items are removed.  The Pointer tool is only the selection part of OBJ-005.  The sketch rectangle is one `PathItem`.
 
 `Command` execution returns a `Change` and its inverse.  The `UndoManager` is per document and
 holds pairs; undo emits the inverse *filtered* by the rule in xref:crdt-model.adoc[CRDT model].

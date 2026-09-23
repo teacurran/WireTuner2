@@ -108,7 +108,7 @@ import WTRender
         manager.mouseUp(TestEvents.point(20, 10, .shift))
         #expect(content.edits.count == 1)
         #expect(content.edits[0].insertedItems == RectangleSketchTool.items(for: Rect(x: 0, y: 0, width: 20, height: 20)))
-        #expect(content.displayList.count == 4, "the page's fill and stroke plus the rectangle's")
+        #expect(content.displayList.count == 3, "the page's fill and stroke plus the rectangle's one path")
         #expect(document.displayList == content.displayList)
         #expect(dirty.count == 1)
     }

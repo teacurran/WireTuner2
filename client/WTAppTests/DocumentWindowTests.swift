@@ -449,7 +449,7 @@ final class TargetBox {
         let items = RectangleSketchTool.items(for: Rect(x: 0, y: 0, width: 5, height: 5))
         document.commandSink.submit(DocumentEdit(label: "Rectangle", insertedItems: items))
         #expect(content.edits.count == 1)
-        #expect(document.displayList.count == 4)
+        #expect(document.displayList.count == 3, "the page's fill and stroke plus the rectangle's one path")
         #expect(seen.count == 1)
         document.stopObserving(token)
         document.contentDidChange(dirty: nil)

@@ -18,6 +18,10 @@ struct DocumentEnvironment {
     var perform: @MainActor (CommandID) -> Bool
     /// A fresh tile cache per window.
     var makeTileCache: @MainActor () -> TileCache = { TileCache(renderer: CoreGraphicsRenderer()) }
+    /// Appended to each canvas's accessibility value (the socket audit's counts).
+    var diagnostics: @MainActor () -> String? = { nil }
+    /// The presence source per window; the stub (nobody else) until SYNC-009.
+    var makePresence: @MainActor (DocumentHandle) -> any PresenceProviding = { _ in StubPresenceModel() }
 
     /// The command bound to `key` in the active set, run through the registry.
     func runShortcut(_ key: KeyEquivalent) -> Bool {
@@ -30,7 +34,7 @@ struct DocumentEnvironment {
 /// the status bar below them, the panel dock at the right edge.  Owns the canvas's tool
 /// manager and the window's view state; zoom commands act on the key window's controller.
 @MainActor
-final class DocumentWindowController: NSWindowController, NSWindowDelegate {
+final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMenuItemValidation {
     /// Kept from APP-004 so UI tests find the window: every document window carries it.
     static let windowIdentifier = NSUserInterfaceItemIdentifier("main-window")
     static let tabbingIdentifier = NSWindow.TabbingIdentifier("com.villagecompute.wiretuner.document")
@@ -42,6 +46,8 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate {
     let rulerHost: RulerHostView
     let statusBar = StatusBarView()
     let dock: PanelDockController
+    let selection: SelectionController
+    let presence: any PresenceProviding
     private(set) var toolManager: ToolManager!
 
     private(set) var viewMode: ViewMode = .preview {
@@ -52,6 +58,8 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate {
     var onClose: (@MainActor (DocumentWindowController) -> Void)?
     var onBecomeMain: (@MainActor (DocumentWindowController) -> Void)?
     var onToolChange: (@MainActor (DocumentWindowController, ToolID) -> Void)?
+    /// Called after the selection changes (the app republishes it to the panels).
+    var onSelectionChange: (@MainActor (DocumentWindowController) -> Void)?
 
     /// False until the saved state has been applied: window moves during setup (`center()`)
     /// must not overwrite the state about to be restored.
@@ -66,6 +74,13 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate {
         canvas = CanvasView(document: document, cache: environment.makeTileCache())
         rulerHost = RulerHostView(canvas: canvas)
         dock = PanelDockController(panels: environment.panels, layout: environment.layout)
+        let preferences = environment.preferences
+        selection = SelectionController(
+            document: document,
+            contactSensitive: { preferences[SelectionToolOptions.contactSensitive] },
+            pickDistance: { Double(preferences[PreferenceCatalog.General.pickDistance]) }
+        )
+        presence = environment.makePresence(document)
 
         let window = NSWindow(
             contentRect: NSRect(origin: .zero, size: Self.defaultContentSize),
@@ -83,12 +98,11 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate {
         window.delegate = self
 
         buildContent(in: window)
-        let preferences = environment.preferences
         let context = ToolContext(document: document, host: canvas, snapping: SnappingContext(
             snapDistance: { Double(preferences[PreferenceCatalog.General.snapDistance]) },
             pickDistance: { Double(preferences[PreferenceCatalog.General.pickDistance]) },
             smartGuidesEnabled: { preferences[PreferenceCatalog.General.smartGuides] }
-        ))
+        ), selection: selection)
         let manager = ToolManager(registry: environment.tools, context: context, initialTool: initialTool) { [environment] key in
             environment.runShortcut(key)
         }
@@ -98,6 +112,17 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate {
         }
         toolManager = manager
         canvas.toolManager = manager
+        canvas.selectionController = selection
+        canvas.presence = presence
+        canvas.showsRemoteSelections = { preferences[PreferenceCatalog.Sync.showSelections] }
+        canvas.diagnostics = environment.diagnostics
+        canvas.updateAccessibilityValue()
+        selection.model.observe { [weak self] _ in
+            guard let self else { return }
+            self.canvas.selectionDidChange()
+            self.onSelectionChange?(self)
+        }
+        presence.observe { [weak self] in self?.canvas.selectionDidChange() }
         canvas.onViewportChange = { [weak self] viewport in self?.viewportDidChange(viewport) }
         canvas.onStatusMessage = { [weak self] message in self?.statusBar.show(message: message) }
         statusBar.onMagnification = { [weak self] text in self?.enterMagnification(text) }
@@ -178,10 +203,47 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate {
         setViewport(navigation.fit(viewport, rect: pages))
     }
 
-    /// Fit Selection: zooms to `selection` (APP-006 supplies the selection's bounds).
+    /// Fit Selection: zooms to `selection`.
     func fit(selection: Rect?) {
         guard let selection else { return }
         setViewport(navigation.fit(viewport, rect: selection))
+    }
+
+    /// menu:View[Fit Selection]: zooms to the selection's bounds; beeps with nothing selected.
+    func fitSelection() {
+        guard let bounds = selection.selectedBounds else {
+            beep()
+            return
+        }
+        fit(selection: bounds)
+    }
+
+    // MARK: Select commands (responder chain; `SelectionCommands`)
+
+    override func selectAll(_ sender: Any?) { selection.selectAll() }
+    @objc func selectNone(_ sender: Any?) { selection.selectNone() }
+    @objc func invertSelection(_ sender: Any?) { selection.invert() }
+
+    /// Whether a text field has key focus in this window (its field editor is first
+    /// responder); kbd:[Tab] must then reach the field, not deselect.
+    var isEditingText: Bool { window?.firstResponder is NSText }
+
+    /// Validation of the select commands.  Select All reaches this controller only when no
+    /// text view took it first.
+    func validate(selector: Selector) -> Bool {
+        switch selector {
+        case #selector(selectAll(_:)), #selector(invertSelection(_:)):
+            return selection.canSelectAll
+        case #selector(selectNone(_:)):
+            return !isEditingText && !selection.model.isEmpty
+        default:
+            return true
+        }
+    }
+
+    func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        guard let action = menuItem.action else { return true }
+        return validate(selector: action)
     }
 
     /// The magnification field: a percentage, a multiplier or a Fit entry; invalid or clamped
@@ -190,7 +252,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate {
         switch text {
         case StatusBarView.fitPageTitle: fitPage()
         case StatusBarView.fitAllTitle: fitAll()
-        case StatusBarView.fitSelectionTitle: beep()
+        case StatusBarView.fitSelectionTitle: fitSelection()
         default:
             if let parsed = MagnificationFormat.parse(text) {
                 if parsed.wasClamped { beep() }

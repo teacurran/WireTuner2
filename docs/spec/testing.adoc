@@ -88,6 +88,21 @@ transitions:
   and no more than 0.1% of the tile's pixels fail either bound.  A failing tile is written out
   as a triptych (CG, Metal, difference) named by document and tile key.  The test runs on the
   CI Mac's GPU; a Mac without one skips it and CI marks the run incomplete rather than green.
++
+NOTE: As built by REND-007 (`WTRenderTests/MetalParityTests.swift`).  "More than one pixel
+away from an edge" is judged on the Core Graphics tile: a pixel whose 3 × 3 neighbourhood is
+one colour.  Tiles have a white background; every corpus case runs in Preview, Keyline and its
+own mode.  Triptychs go to `$TMPDIR/WTRenderParity/<case>@<scale>x_<angle>deg_<mode>_<tile
+key>.png`.  Without a usable Metal device the parity, canvas and frame-time suites are disabled
+through Swift Testing's `.enabled(if:)` and report as skipped, never passed; the client
+workflow should fail its parity step when `swift test` reports those suites skipped on the
+GPU runner.  The self-test swaps every declared fill rule in the Metal path and asserts that
+the failing tiles are exactly those where Core Graphics, given the swapped rules, fails against
+itself.  The frame-time gate (`MetalFrameTimeTests`) plays a 10 s pan, pinch and rotate of the
+50,000-rectangle design point at 120 Hz wall-clock pacing through `MetalTileCanvas` into a
+2880 × 1800 offscreen texture and sums each frame's main-actor update and encode time with its
+GPU time; it enforces 8.3 ms only in release builds (`swift test -c release -Xswiftc
+-enable-testing`) and reports debug figures.
 * `WTText`: layout goldens for the type chapter's features (columns, tabs, rules, on-path).
 
 == Import and export
@@ -101,6 +116,77 @@ UFO reference fonts) are vendored with their licences.
 XCUITest through the harness in TEST-002.  Each feature page's tasks name their UI tests.  The
 harness runs with a real compose server for collaboration tests (two app instances on the CI
 Mac, driven in one test).
+
+The harness lives in `client/WTAppUITests/Support`:
+
+[cols="1,3"]
+|===
+|Helper |What it does
+
+|`WireTunerUI.launch()`
+|Launches the app with `-WTUITesting` and `-WTSocketAudit` (tokens in memory, no keychain, no stored session that
+could open a socket) and waits for the document window.  `element(_:)` finds anything by
+accessibility identifier; `canvas`, `selectTool(_:)`, `drag(from:to:modifiers:)` and
+`click(at:modifiers:)` (points in canvas view points, modifiers held for the whole gesture),
+`chooseMenu(["Edit", "Select", "All"])` (a path of titles, submenus hovered) and
+`chooseMenuItem(command:in:)` (by `menu.<command id>`), `panel(_:title:)` (a panel body,
+shown through the Window menu and brought to the front of its group when needed).
+
+|`canvasState`, `waitForCanvas(_:toBe:)`
+|The canvas's accessibility value is `changes=<n> selected=<n>`: the number of document changes
+and of selected objects.  Tests observe the document through it instead of pixels; a tool test
+asserts "one drag, one change" by waiting for `changes` to step by one.
+
+|`ScreenshotCapture.capture(_:named:in:)`
+|Attaches a screenshot to the result and, when `WT_DOCS_IMAGES` names a directory, writes it
+there as `<name>.png`.  The UI test runner receives only variables with the `TEST_RUNNER_`
+prefix, so the book's screenshots are refreshed with
+`TEST_RUNNER_WT_DOCS_IMAGES="$PWD/docs/images" xcodebuild test -only-testing:WireTunerUITests ...`.
+
+|`SandboxAudit.assertNoSockets(in:) { ... }`
+|Fails the test if the app opened a socket while the block ran (the on-device ML and scripting
+tasks use it).  The app audits itself: a DEBUG build launched with `-WTSocketAudit` (which
+`launch()` always passes) runs `SocketMonitor`, which `fstat`s every descriptor of the process
+every 5 ms and tells sockets apart by descriptor and inode, and the canvas's accessibility value
+gains `net=<n> unix=<n>`, the distinct internet and Unix-domain sockets seen since launch.  The
+audit compares the counts before and after the block (after a 250 ms settle) and fails on any
+new internet socket, and on a new Unix-domain socket when asked (`includeUnixDomain`; system
+frameworks may open those themselves).  Auditing from the runner with `lsof -p` was preferred --
+no code in the app, and it would audit the release build -- but Xcode signs the XCUITest runner
+with the App Sandbox (`com.apple.security.app-sandbox` in its entitlements), which cannot
+inspect another process; self-reporting also samples 10 times more often than `lsof` can run.
+Its limits: DEBUG builds only, and a socket that lives less than one 5 ms interval can be
+missed.
+
+|`canvasState` diagnostics
+|With the audit on, the canvas value reads `changes=<n> selected=<n> net=<n> unix=<n>`.
+|===
+
+[[accessibility-identifiers]]
+Accessibility identifiers are the UI tests' only handle on the app (client.adoc, "Accessibility
+and localisation"), so every control gets one, stable across releases and never localised:
+lower-case, dot-separated, the area first.
+
+[cols="1,2"]
+|===
+|Identifier |Element
+
+|`main-window`, `account-window`, `preferences-window` |Windows
+|`canvas` |The canvas view (its value is the state above)
+|`canvas.scroller.horizontal`, `ruler.horizontal`, `ruler.corner` |Canvas chrome
+|`tool.<tool id>` |A Tools panel button (`tool.rectangle`); the same string is the tool's command id
+|`menu.<command id>` |A menu item (`menu.edit.selectAll`, `menu.account.signIn`)
+|`panel-dock`, `panel-group.<group id>`, `panel-tab.<panel id>`, `panel.<panel id>` |The dock, a group, a tab, a panel's body
+|`<panel id>.<control>` |A control inside a panel (`object.selection-summary`)
+|`status-bar`, `status.<part>` |The status bar and its controls (`status.magnification`)
+|`pref.<preference id>`, `pref-sidebar.<category>` |Preferences rows and categories
+|`account.<part>` |Account window controls (`account.signIn`, `account.device.<device id>`)
+|===
+
+UI tests need macOS Automation Mode (`sudo automationmodetool
+enable-automationmode-without-authentication`); without it `xcodebuild` fails the UI test runner
+at start-up ("Timed out while enabling automation mode"), and `make client-test` skips the UI
+tests.
 
 == Server
 

@@ -22,8 +22,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let layout: PanelLayoutController
     let preferences: PreferenceStore
     let toolPalette = ToolPaletteModel()
+    /// The front window's selection, published to the panels.
+    let activeSelection = ActiveSelection()
     private(set) var documents: DocumentController!
     private(set) var preferencesWindowController: PreferencesWindowController?
+    let launchEnvironment: LaunchEnvironment
+    /// The signed-in account (APP-008).
+    let account: AccountModel
+    private(set) var accountWindowController: AccountWindowController?
+    /// The UI tests' socket audit, running only when the launch asked for it (DEBUG builds).
+    let socketMonitor: SocketMonitor?
 
     /// The active shortcut set; BASIC-026 makes it selectable.
     private(set) var shortcuts: ShortcutSet
@@ -33,18 +41,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     ///   - layoutStore: where the panel layout persists; `nil` keeps it in memory (tests).
     ///   - defaults: the preferences' `UserDefaults`.
     ///   - windowStates: where document window state persists; `nil` keeps none (tests).
-    init(layoutStore: PanelLayoutStore?, defaults: UserDefaults = PreferenceStore.makeDefaults(), windowStates: WindowStateStore? = nil) {
+    init(
+        layoutStore: PanelLayoutStore?, defaults: UserDefaults = PreferenceStore.makeDefaults(), windowStates: WindowStateStore? = nil,
+        launchEnvironment: LaunchEnvironment = LaunchEnvironment(), account: AccountModel? = nil
+    ) {
         layout = PanelLayoutController(registry: panels, store: layoutStore)
         preferences = PreferenceStore(defaults: defaults)
+        self.launchEnvironment = launchEnvironment
+        self.account = account ?? launchEnvironment.makeAccountModel(infoDictionary: Bundle.main.infoDictionary, defaults: defaults)
+        socketMonitor = launchEnvironment.auditsSockets ? SocketMonitor() : nil
         shortcuts = ShortcutSet.builtInDefault(commands: [])
         super.init()
-        let environment = DocumentEnvironment(
+        var environment = DocumentEnvironment(
             commands: commands, panels: panels, layout: layout, tools: tools, preferences: preferences,
             windowStates: windowStates,
             shortcuts: { [weak self] in self?.shortcuts ?? ShortcutSet.builtInDefault(commands: []) },
             perform: { [weak self] id in self?.menuTarget?.perform(id) ?? false }
         )
+        if let socketMonitor {
+            environment.diagnostics = { socketMonitor.counts.accessibilityText }
+        }
         documents = DocumentController(environment: environment)
+        socketMonitor?.onChange = { [weak self] _ in self?.socketCountsDidChange() }
+        socketMonitor?.start()
     }
 
     override convenience init() {
@@ -71,8 +90,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
         PreferenceCommands.install(into: commands, store: preferences) { [weak self] in self?.showPreferences() }
         installTools()
+        AccountCommands.install(into: commands, model: account) { [weak self] in self?.showAccount() }
+        let account = account
+        Task { await account.start() }
 
-        PlaceholderPanels.register(into: panels)
+        PlaceholderPanels.register(into: panels, selection: activeSelection)
         panels.registerIfAbsent(ToolsPanel.descriptor(model: toolPalette))
         layout.load()
         panels.onChange = { [weak self] in self?.panelsDidChange() }
@@ -89,6 +111,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func installTools() {
         tools.registerBuiltIn()
+        SelectionCommands.install(commands: commands, tools: tools)
         let documents = documents!
         let toolCommands = tools.commands(
             activate: { id in documents.activeWindowController?.toolManager.select(id) },
@@ -109,6 +132,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// The key window or its tool changed: the Tools panel follows it.
     func documentsDidChange() {
         toolPalette.activeToolID = documents.activeWindowController?.toolManager.activeToolID
+        activeSelection.model = documents.activeWindowController?.selection.model
     }
 
     func rebuildMainMenu() {
@@ -124,6 +148,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             model: PreferencesWindowModel(store: preferences) { [weak self] in self?.layout.resetToDefault() }
         )
         preferencesWindowController = controller
+        controller.show()
+    }
+
+    /// The audit's counts changed: every canvas republishes its accessibility value.
+    func socketCountsDidChange() {
+        for controller in documents.windowControllers.values { controller.canvas.updateAccessibilityValue() }
+    }
+
+    /// menu:WireTuner[Account…].
+    func showAccount() {
+        let controller = accountWindowController ?? AccountWindowController(model: account)
+        accountWindowController = controller
         controller.show()
     }
 

@@ -24,6 +24,11 @@
 	<string>public.app-category.graphics-design</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>$(MACOSX_DEPLOYMENT_TARGET)</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>NSHumanReadableCopyright</key>
@@ -36,5 +41,9 @@
 	<true/>
 	<key>SUFeedURL</key>
 	<string>https://updates.villagecompute.com/wiretuner/appcast.xml</string>
+	<key>WTAPIURL</key>
+	<string>$(WT_API_URL)</string>
+	<key>WTAuthIssuer</key>
+	<string>$(WT_AUTH_ISSUER)</string>
 </dict>
 </plist>

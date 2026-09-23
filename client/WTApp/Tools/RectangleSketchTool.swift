@@ -44,13 +44,10 @@ final class RectangleSketchTool: Tool {
         return Rect(anchor, Point(x: anchor.x + dx, y: anchor.y + dy))
     }
 
-    /// The display items a committed rectangle adds.
+    /// The display items a committed rectangle adds: one path painted by a fill and a stroke,
+    /// so the rectangle is one object to hit test and select.
     static func items(for rect: Rect) -> [DisplayItem] {
-        let path = DisplayPath(rect: rect)
-        return [
-            .fill(FillItem(path: path, paint: .solid(fillColor))),
-            .stroke(StrokeItem(path: path, style: StrokeStyle(width: 1), paint: .solid(strokeColor))),
-        ]
+        [.path(PathItem(path: DisplayPath(rect: rect), appearance: .fillAndStroke(fill: fillColor, stroke: strokeColor)))]
     }
 
     func activate(in context: ToolContext) {
