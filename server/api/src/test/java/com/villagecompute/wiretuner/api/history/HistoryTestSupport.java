@@ -24,6 +24,14 @@ public abstract class HistoryTestSupport extends SyncTestSupport {
     @Inject
     protected BlobStore store;
 
+    @Inject
+    TrashJob trashJob;
+
+    /** One run of the Trash job (for tests outside this package, TXT-002's font library). */
+    protected void runTrash() {
+        run(() -> trashJob.run());
+    }
+
     /** Runs reactive work on a Vert.x context and waits for it. */
     public static <T> T run(Supplier<Uni<T>> work) {
         try {

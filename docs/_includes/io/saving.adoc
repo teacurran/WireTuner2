@@ -554,7 +554,9 @@ sink) and closed when `saved` or parked.
 +
 NOTE: As built by IO-008 (`api/.../blob/StorageQuota`).  The quota is per space -- the personal
 account or the team the document is in (the paragraph above says "the team's"; a personal space has
-one too).  A space uses the bytes of the distinct blobs its documents reference (`document_blob`):
+one too).  A space uses the bytes of the distinct blobs its documents reference (`document_blob`)
+and, for a team, the files of its font library (`team_font`, a removed font until the Trash job
+deletes it; TXT-002, xref:font-substitution.adoc[Font substitution]):
 a blob two of its documents share counts once, a thumbnail (never a reference) not at all, and a
 trashed document's blobs until the Trash job deletes it.  Usage is computed when asked, not kept as
 a counter, so it is exact after dedup and drops as soon as the Trash job has run -- the

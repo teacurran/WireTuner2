@@ -14,7 +14,11 @@ import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
-/** Who may use a team's libraries: its members above guest (COLLAB-012, COLOR-020). */
+/**
+ * Who may use a team's libraries: its members above guest (COLLAB-012, COLOR-020, the team font
+ * library); who may manage the font library: its admins and owner (TXT-002, as D-062 has it for
+ * credentials).
+ */
 @ApplicationScoped
 public class TeamMembership {
 
@@ -29,12 +33,20 @@ public class TeamMembership {
      * {@code ROLE_INSUFFICIENT} for a guest; a workspace that requires SSO holds members to it.
      */
     public Uni<Void> require(Principal principal, UUID teamId) {
+        return require(principal, teamId, TeamRoles.MEMBER);
+    }
+
+    /**
+     * The caller's membership of the team with at least {@code minimum}: {@code TEAM_NOT_FOUND} for an
+     * outsider, {@code ROLE_INSUFFICIENT} below it; a workspace that requires SSO holds members to it.
+     */
+    public Uni<Void> require(Principal principal, UUID teamId, String minimum) {
         return teamMembers.findById(new TeamMemberId(teamId, principal.accountId())).flatMap(member -> {
             if (member == null) {
                 return Uni.createFrom().failure(StatusExceptions.teamNotFound());
             }
-            if (!TeamRoles.atLeast(member.role, TeamRoles.MEMBER)) {
-                return Uni.createFrom().failure(StatusExceptions.roleInsufficient(TeamRoles.MEMBER, member.role));
+            if (!TeamRoles.atLeast(member.role, minimum)) {
+                return Uni.createFrom().failure(StatusExceptions.roleInsufficient(minimum, member.role));
             }
             return workspaces.requireSso(principal, teamId);
         });

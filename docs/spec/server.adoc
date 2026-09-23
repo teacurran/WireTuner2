@@ -78,6 +78,7 @@ importing doc.v1 from the `wt-crdt` jar, and replays every vector in `Conformanc
 |`VersionService` |`VersionGrpcService` |Named versions, restore-as-copy.
 |`BlobService` |`BlobGrpcService` |Content-addressed storage in R2/MinIO.
 |`AccountService`, `TeamService` |`AccountGrpcService`, `TeamGrpcService` |xref:security.adoc[Accounts, teams and security].
+|`FontLibraryService` |`FontLibraryGrpcService` |Team font libraries: admins upload licensed font files (read and licence-checked by `FontFiles`, stored as blobs), members list the catalog with a version to cache by and fetch the files, removal through the trash (TXT-002, xref:font-substitution.adoc[Font substitution], Server).
 |`DataSourceService` |`DataSourceGrpcService` |Credentials, host allowlists, the server-side fetch proxy with SSRF guard, pagination and audit (xref:data-merge.adoc[Data merge]; as built in `api/.../data`, xref:data-merge.adoc#as-built-server[As built]).  The server's only outbound HTTP client (`Egress`).
 |`grpc.health.v1.Health` |built-in |Liveness for compose and the load balancer.
 |===
@@ -179,6 +180,7 @@ Postgres holds the truth; object storage holds bulk.
 |`comment_thread`, `comment`, `comment_read`, `comment_notification` |V9 (COLLAB-030): the server's record of comments kept from the ingested ops (opener, author, `resolved` and `deleted` by last-writer-wins, a 200-character preview), read marks, and mention / reply / resolve notifications with `seen_at` and `emailed_at` (xref:comments.adoc[Comments], As built).
 |`publish`, `publish_file` |V9 (WEB-012): published bundles (one current per document) and their files as blob references (xref:publish-html.adoc[Publish as HTML], As built).
 |`color_library` |V13 (COLOR-020): a document whose colors are published to a team, with its name, mode (`manual`), and in manual mode the published `server_seq` and the colors extracted from it (xref:exporting-colors.adoc[Exporting and sharing colors], As built).
+|`team_font` |V14 (TXT-002): a font file in a team's font library: the team, the blob's sha256, file name, media type, the first face's family (the list order), the faces read from the file (encoded), uploader, upload time and `removed_at`; V14 also adds `team.font_library_version`, the catalog version `ListFonts.known_version` compares with (xref:font-substitution.adoc[Font substitution], As built).
 |===
 
 Migrations are Flyway, applied by the `main-db-migrations` compose job before the API starts,
@@ -282,7 +284,7 @@ As built (SRV-004, SRV-005; `api/.../sync`):
 |Apple secret |every 30 days |Regenerate the Sign in with Apple client secret (a JWT signed with the team's `.p8` key, valid at most six months) and update the Keycloak identity provider through the admin API (xref:security.adoc[Accounts, teams and security]).
 |Compactor |hourly |Move `change_log` rows up to `min(newest_snapshot_seq, head_seq - 10,000)` into cold segments (zstd, 8 MiB each); delete the rows.
 |Stability |every 5 min |Retire replicas silent past the window (90 days); compute `stable_seq = min(last_ack_seq over live replicas)` and the collection point (_C_, _T_) (D-067), publish both.
-|Trash |daily |Delete documents trashed over 30 days ago and their orphaned blobs.
+|Trash |daily |Delete documents trashed over 30 days ago, team fonts removed as long ago, and their orphaned blobs.
 |Invitations |daily |Expire stale invitations and share links.
 |Comment digest |every 5 min |Mail each account one digest per document of the mentions it has not seen for 10 minutes while away (COLLAB-031).
 |Domains |hourly |Re-verify workspace DNS records.
@@ -361,8 +363,9 @@ As built (SRV-007, SRV-013, D-067; `api/.../history`):
   and subscriptions then answer `REPLICA_EXPIRED`, and it no longer counts towards the stable point
   or the collection point.
 * *Trash* (`TrashJob`, daily).  Deletes documents trashed 30 days ago with their branches, after
-  deleting their snapshot and cold-segment objects, then every blob no document, thumbnail or
-  published file references that is at least a day old (so an upload whose reference is being
+  deleting their snapshot and cold-segment objects, and team fonts removed 30 days ago (TXT-002),
+  then every blob no document, thumbnail, published file or team font references that is at least
+  a day old (so an upload whose reference is being
   written is not taken), object first, and logs how many documents and blobs went.  Share-link
   expiry stays in the Invitations job.
 

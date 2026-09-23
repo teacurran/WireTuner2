@@ -22,7 +22,7 @@ import software.amazon.awssdk.services.s3.model.CompletedPart;
  * the multipart upload the chunks are buffered into. Frames arrive one at a time (the service
  * concatenates them), so no field needs synchronisation.
  */
-final class Upload {
+public final class Upload {
 
     /** Multipart part size: S3 needs at least 5 MiB for every part but the last. */
     static final int PART_SIZE = 8 * 1024 * 1024;
@@ -43,7 +43,8 @@ final class Upload {
         this.store = store;
     }
 
-    static MessageDigest digest(String algorithm) {
+    /** A message digest the JDK always has (SHA-256); also the team font library's (TXT-002). */
+    public static MessageDigest digest(String algorithm) {
         try {
             return MessageDigest.getInstance(algorithm);
         } catch (NoSuchAlgorithmException e) {

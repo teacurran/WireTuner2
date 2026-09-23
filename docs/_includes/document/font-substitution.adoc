@@ -106,8 +106,54 @@ Substitution:: Never merged: it is not in the document.
 
 === Server
 
-Nothing beyond storing and relaying changes.  The team font library itself is an `AccountService`
-feature specified with sharing.
+Nothing beyond storing and relaying changes for substitution and replacement.  The team font
+library is `FontLibraryService` below.
+
+As built (TXT-002's server half; `proto/wiretuner/account/v1/fontlib.proto`, `api/.../font`, V14):
+
+* *Service.*  The team font library was to be an `AccountService` feature specified with sharing;
+  nothing there specified it, so it is its own service in `wiretuner.account.v1` beside
+  `TeamService` (deviation): `UploadFont` (client-streaming: an `UploadFontHeader` with the team,
+  the file's sha256, its size and file name, then chunks of at most 1 MiB), `ListFonts` (paged,
+  at most 50 a page, by the first face's family, then file name, then hash), `FetchFont`
+  (server-streaming: the `TeamFont` entry, then chunks of at most 1 MiB) and `RemoveFont`.  A
+  `TeamFont` is the file's sha256 (its identity), team, file name, size, media type (`font/otf`,
+  `font/ttf`, `font/collection`), uploader, upload time and its faces (`FontFace`: family --
+  name ID 16, else 1 --, style -- 17, else 2 --, PostScript name and `OS/2.fsType`).
+* *Files are blobs.*  A font file is a content-addressed row of `blob` with its object in storage,
+  exactly as `BlobService` keeps them, referenced by the team (`team_font`) instead of a document:
+  a font a document also embeds, or two teams hold, is stored once.  An upload is held in memory
+  (at most 64 MiB, the header's cap, a large CJK collection included) and read whole before
+  anything is stored; its size and sha256 must match the header (`INVALID_ARGUMENT /
+  BLOB_MISMATCH`), and a header must come first and once.  The file counts towards the team's
+  storage quota (xref:saving.adoc[Saving], Server), checked at the header; a font the team holds
+  already, removed or not, is always accepted.
+* *Only licensed fonts.*  `FontFiles` reads the file's table directory, `name` and `OS/2` (every
+  offset bounds-checked): an OpenType (`OTTO`), TrueType (`0x00010000`, `true`) font or a TrueType
+  collection (`ttcf`, 1 to 256 fonts) whose every face has a `cmap`, a `name` with a family, and
+  outlines (`glyf`, `CFF ` or `CFF2`), and whose every face's `fsType` passes WTText's
+  `FontEmbedding.allowsDocumentEmbedding`: installable or editable (the least restrictive usage bit
+  applies), not bitmap-only; a face with no `OS/2` is installable.  Anything else -- WOFF, Type 1,
+  a restricted or preview & print font, a truncated file -- is `INVALID_ARGUMENT /
+  VALIDATION_FAILED` with the reason under the field `content`, and nothing is stored.
+* *Access.*  Uploading and removing need the team's admin or owner role (as D-062 has it for
+  credentials); listing and fetching need membership above guest.  A guest gets
+  `PERMISSION_DENIED / ROLE_INSUFFICIENT`; to anyone outside the team the team is absent (`NOT_FOUND
+  / TEAM_NOT_FOUND`), on every call.  A font the library does not hold, or removed, is `NOT_FOUND
+  / BLOB_NOT_FOUND`.
+* *Caching.*  Every upload that changes the library and every removal moves
+  `team.font_library_version`, which every `ListFonts` page carries as `version`.  A first page
+  asked with `known_version` equal to it answers `unchanged` and no fonts; a client whose pages
+  come back with different versions starts again.  Uploading a font the library holds changes
+  nothing (the first upload's name and uploader stay).
+* *Removing.*  `RemoveFont` hides the font at once and moves the version; removing a font the
+  library does not hold succeeds without moving it.  Uploading a removed font brings it back.  The
+  Trash job deletes rows removed 30 days ago, then the blob with the other orphans unless a
+  document or another team holds it.  Deleting a team ends its memberships at once, so nobody can list
+  or fetch its fonts; its rows go with the team row (`ON DELETE CASCADE`) whenever that is deleted.
+* *Budgets* (`FontFilesTest`, `FontLibraryServiceTest`, perf profile): reading a 256-face
+  collection under 50 ms (1 ms on the development Mac); `FetchFont` of a 16 MiB font under 1 s
+  (about 90 ms); `UploadFont` of a 16 MiB font, verified, read and stored, under 2 s (about 220 ms).
 
 === Client
 
@@ -121,6 +167,13 @@ feature specified with sharing.
 * `WTModel.replaceFont(old:new:)` walks every text node's marks and emits one change.
 * Preferences pane *Text > Font substitutions* table; *Default substitute* row; *Remember this
   substitution* toggle in the sheet (on by default).
+* `WTSync.FontLibraryClient` (TXT-002's sync half): `catalog(team:)` lists the team's catalog
+  with the cached `version` as `known_version`, keeps it as a file (the families are known
+  offline) and restarts a listing whose version moved (at most three times);
+  `files(forFamily:team:)` and `file(for:)` fetch font files into the content-addressed
+  `BlobCache`, verified against their sha256, so a font once fetched activates offline;
+  `upload(fileAt:name:team:)` and `remove(_:)` are the admin's.  `GRPCFontLibraryTransport` is its
+  network transport.
 
 NOTE: As built by TXT-002 (`WTText/FontManager.swift`, `FontResolver.swift`,
 `TextLayoutEngine.swift`; `WTRender/GlyphRun.swift`).  `FontManager.resolve(_:)` answers a
@@ -156,9 +209,11 @@ answer bumps `generation`: the resolver drops its fonts, the layout engine
 the paragraphs whose faces now resolve differently, and activation calls
 `GlyphFont.fontsChanged()` so WTRender drops cached fonts and outlines (`GlyphFont.isAvailable`
 says whether a PostScript name loads that face).  Tests write their own TrueType fixtures.
-Still to do elsewhere: the sheet, the preference table and the badge (DOC-024, `WTApp`); the
-team library's catalog and fetch through `AccountService` and caching fetched fonts as blobs
-(server and `WTSync`/`WTApp`); embedding a document's fonts as blobs and activating them on open
+Still to do elsewhere: the sheet, the preference table and the badge (DOC-024, `WTApp`); wiring
+the team library into `WTApp` -- `FontLibraryClient.catalog(team:).families` as
+`teamLibraryFamilies` for a team document, and on `teamLibraryPending` the fetched
+`files(forFamily:team:)` into `activate(fontsAt:source:)` -- and a team settings pane for admins to
+upload and remove fonts (the server and `WTSync` halves are built, Server and Client above); embedding a document's fonts as blobs and activating them on open
 (`WTModel`/`WTApp`); and repainting canvases after an activation, since tiles keep what they drew.
 
 === Build tasks

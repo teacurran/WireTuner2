@@ -1,0 +1,192 @@
+// proto/wiretuner/account/v1/fontlib.proto
+//
+// Team font libraries (docs/_includes/document/font-substitution.adoc, "Team font library";
+// TXT-002's server half).  A team's admins upload licensed font files; every member above guest
+// lists the catalog and fetches the files, which WTText activates for the process only when a
+// document names a family the Mac does not have.  A font file is a content-addressed blob (the
+// `blob` table and object storage, as BlobService keeps them) referenced by the team rather than
+// by a document.  Only files whose every face's OpenType `OS/2.fsType` allows document embedding
+// (installable or editable, with outlines) are accepted: the rule WTText's `FontEmbedding`
+// applies before a font is embedded in a document.
+syntax = "proto3";
+
+package wiretuner.account.v1;
+
+import "buf/validate/validate.proto";
+
+option java_multiple_files = true;
+option java_package = "com.villagecompute.wiretuner.account.v1";
+option optimize_for = SPEED;
+
+// Upload, list, fetch and remove a team's fonts.  Uploading and removing need the team's admin
+// or owner role; listing and fetching need membership above guest.  A guest gets
+// PERMISSION_DENIED / ROLE_INSUFFICIENT; to anyone outside the team the team reads as absent
+// (NOT_FOUND / TEAM_NOT_FOUND).  A font the library does not hold, or that was removed, is
+// NOT_FOUND / BLOB_NOT_FOUND.
+service FontLibraryService {
+  // Upload one font file as a stream: the first frame is the header, every following frame a
+  // chunk of at most 1 MiB.  The server verifies the size and sha256 (INVALID_ARGUMENT /
+  // BLOB_MISMATCH), then reads the file: an OpenType, TrueType or TrueType collection whose
+  // every face allows document embedding, else INVALID_ARGUMENT / VALIDATION_FAILED naming why.
+  // The file counts towards the team's storage quota (RESOURCE_EXHAUSTED / STORAGE_QUOTA),
+  // checked at the header.  Idempotent by hash; uploading a removed font brings it back.
+  rpc UploadFont(stream UploadFontRequest) returns (UploadFontResponse);
+  // The team's fonts, by family.  `known_version` lets a client that cached the catalog skip it.
+  rpc ListFonts(ListFontsRequest) returns (ListFontsResponse);
+  // Download one font file: the first frame carries the font's catalog entry, every following
+  // frame a chunk of at most 1 MiB, in order.
+  rpc FetchFont(FetchFontRequest) returns (stream FetchFontResponse);
+  // Remove a font from the library at once; its file is deleted with the trash 30 days later
+  // unless it is uploaded again.  Removing a font the library does not hold succeeds.
+  rpc RemoveFont(RemoveFontRequest) returns (RemoveFontResponse);
+}
+
+// One face of a font file, as its `name` and `OS/2` tables give it.
+message FontFace {
+  // The typographic family (name ID 16), else the family (name ID 1): what WTText looks up.
+  string family = 1 [(buf.validate.field).string.max_len = 256];
+  // The typographic subfamily (name ID 17), else the subfamily (name ID 2): "Bold Italic".
+  string style = 2 [(buf.validate.field).string.max_len = 256];
+  // The PostScript name (name ID 6); empty when the font has none.
+  string postscript_name = 3 [(buf.validate.field).string.max_len = 256];
+  // `OS/2.fsType`, the embedding licence; 0 (installable) when the face has no OS/2 table.
+  uint32 fs_type = 4 [(buf.validate.field).uint32.lte = 65535];
+}
+
+// A font file in a team's library.
+message TeamFont {
+  // The file's sha256, 32 raw bytes: its identity in the library and its blob.
+  bytes sha256 = 1 [(buf.validate.field).bytes.len = 32];
+  // The team whose library holds it.
+  string team_id = 2 [(buf.validate.field).string.uuid = true];
+  // The file name the admin uploaded it under, for the library list.
+  string file_name = 3 [(buf.validate.field).string.max_len = 255];
+  // Size in bytes.
+  uint64 size = 4;
+  // Its faces in file order: one for a font, several for a collection.
+  repeated FontFace faces = 5 [(buf.validate.field).repeated.max_items = 256];
+  // The `blob` media type: `font/otf`, `font/ttf` or `font/collection`.
+  string media_type = 6 [(buf.validate.field).string.max_len = 64];
+  // The admin who uploaded it (last); empty when that account is gone.
+  string uploaded_by_account_id = 7 [
+    (buf.validate.field).string.uuid = true,
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+  // When it was uploaded (last), epoch milliseconds.
+  int64 uploaded_ms = 8;
+}
+
+// The first frame of a font upload.
+message UploadFontHeader {
+  // The team whose library receives the font.
+  string team_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+  // The sha256 of the complete file, 32 raw bytes; the server verifies it over the chunks.
+  bytes sha256 = 2 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).bytes.len = 32
+  ];
+  // Total size in bytes across every chunk; at most 64 MiB (a large CJK collection fits).
+  uint64 size = 3 [
+    (buf.validate.field).uint64.gt = 0,
+    (buf.validate.field).uint64.lte = 67108864
+  ];
+  // The file name shown in the library list ("Inter.ttc"); empty is kept empty.
+  string file_name = 4 [(buf.validate.field).string.max_len = 255];
+}
+
+// One frame of a font upload stream.
+message UploadFontRequest {
+  // The header on the first frame, a chunk on every later one.
+  oneof frame {
+    option (buf.validate.oneof).required = true;
+    // The file's identity and size; exactly once, first.
+    UploadFontHeader header = 1;
+    // The next run of file bytes, at most 1 MiB.
+    bytes chunk = 2 [(buf.validate.field).bytes.max_len = 1048576];
+  }
+}
+
+// The font as the library now holds it.
+message UploadFontResponse {
+  // The catalog entry.
+  TeamFont font = 1;
+  // The catalog's version after the upload (unchanged when the font was already there).
+  uint64 version = 2;
+}
+
+// Lists a team's fonts.
+message ListFontsRequest {
+  // The team.
+  string team_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+  // Opaque cursor from a previous response; empty for the first page.
+  string cursor = 2 [(buf.validate.field).string.max_len = 1024];
+  // Fonts per page; 0 selects the server's default, at most 50.
+  uint32 page_size = 3 [(buf.validate.field).uint32.lte = 50];
+  // First page only: the `version` of the catalog the client has cached; 0 = none.  When it is
+  // the current version the response is `unchanged` and carries no fonts.
+  uint64 known_version = 4;
+}
+
+// One page of a team's fonts.
+message ListFontsResponse {
+  // The fonts, by their first face's family, then file name, then hash.
+  repeated TeamFont fonts = 1;
+  // Cursor for the next page; empty when this is the last page.
+  string next_cursor = 2;
+  // The catalog's version: it moves with every upload and removal.  A client paging through a
+  // catalog whose version moved between pages starts again.
+  uint64 version = 3;
+  // True when `known_version` is the current version: the client's copy is the catalog.
+  bool unchanged = 4;
+}
+
+// Asks for a font file.
+message FetchFontRequest {
+  // The team whose library holds it.
+  string team_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+  // The font's sha256, 32 raw bytes.
+  bytes sha256 = 2 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).bytes.len = 32
+  ];
+}
+
+// One frame of a font download.
+message FetchFontResponse {
+  // The catalog entry on the first frame, a chunk on every later one.
+  oneof frame {
+    // The font's catalog entry; exactly once, first.
+    TeamFont font = 1;
+    // The next run of file bytes, at most 1 MiB, in order.
+    bytes chunk = 2 [(buf.validate.field).bytes.max_len = 1048576];
+  }
+}
+
+// Removes a font from a team's library.
+message RemoveFontRequest {
+  // The team.
+  string team_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+  // The font's sha256, 32 raw bytes.
+  bytes sha256 = 2 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).bytes.len = 32
+  ];
+}
+
+// The catalog after the removal.
+message RemoveFontResponse {
+  // The catalog's version (unchanged when the library did not hold the font).
+  uint64 version = 1;
+}

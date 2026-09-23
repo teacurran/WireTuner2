@@ -34,7 +34,7 @@ class SchemaTest {
             "cold_segment", "blob", "document_blob", "folder", "document_invite", "access_request", "data_credential",
             "data_allowed_host", "data_fetch_audit", "library", "comment_thread", "comment", "comment_read",
             "comment_notification", "publish", "publish_file", "change_node", "node_name", "history_backfill",
-            "color_library");
+            "color_library", "team_font");
 
     @Inject
     Flyway flyway;
@@ -43,8 +43,8 @@ class SchemaTest {
     DataSource dataSource;
 
     @Test
-    void flywayReachedV13() {
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("13");
+    void flywayReachedV14() {
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("14");
         assertThat(flyway.info().pending()).isEmpty();
     }
 

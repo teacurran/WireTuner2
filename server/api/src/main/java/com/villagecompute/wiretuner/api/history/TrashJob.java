@@ -26,8 +26,9 @@ import jakarta.inject.Inject;
  * The daily Trash job (SRV-013; docs/spec/server.adoc, Jobs). A document trashed more than
  * {@code wt.trash.ttl} (30 days) ago is deleted for good with its branches: its snapshot and cold
  * segment objects are removed from object storage, then its row (every table referencing it
- * cascades). Then every blob nothing references any more -- no document, thumbnail or published
- * file, and older than {@code wt.trash.blob-grace} (a day, so an upload whose reference is still
+ * cascades). Fonts removed from a team's font library as long ago are deleted too (TXT-002). Then
+ * every blob nothing references any more -- no document, thumbnail, published file or team font, and
+ * older than {@code wt.trash.blob-grace} (a day, so an upload whose reference is still
  * being written is never taken) -- is removed from object storage and from {@code blob}; this is
  * also where replaced thumbnails go (sync-protocol.adoc, Blobs).
  */
@@ -58,8 +59,12 @@ public class TrashJob {
               AND NOT EXISTS (SELECT 1 FROM document_blob r WHERE r.sha256 = b.sha256)
               AND NOT EXISTS (SELECT 1 FROM document d WHERE d.thumbnail_blob = b.sha256)
               AND NOT EXISTS (SELECT 1 FROM publish_file f WHERE f.sha256 = b.sha256)
+              AND NOT EXISTS (SELECT 1 FROM team_font t WHERE t.sha256 = b.sha256)
             LIMIT $2
             """;
+
+    /** Fonts removed from a team's font library over {@code wt.trash.ttl} ago (TXT-002). */
+    static final String REMOVED_FONTS = "DELETE FROM team_font WHERE removed_at < now() - make_interval(secs => $1)";
 
     static final String DELETE_BLOB = "DELETE FROM blob WHERE sha256 = $1";
 
@@ -91,7 +96,7 @@ public class TrashJob {
     record Deleted(int documents, int blobs) {
     }
 
-    /** One run: expired documents, then orphaned blobs; the result is how many of each went. */
+    /** One run: expired documents, then removed team fonts, then orphaned blobs; the result is how many documents and blobs went. */
     Uni<Deleted> run() {
         return pool.preparedQuery(EXPIRED).execute(Tuple.of(ttl.toSeconds(), batch))
                 .chain(rows -> Multi.createFrom().iterable(ids(rows))
@@ -99,6 +104,8 @@ public class TrashJob {
                         .collect().asList())
                 .map(List::size)
                 .invoke(documents -> LOG.infof("trash: %d documents deleted", documents))
+                .call(() -> pool.preparedQuery(REMOVED_FONTS).execute(Tuple.of(ttl.toSeconds()))
+                        .invoke(rows -> LOG.infof("trash: %d removed team fonts deleted", rows.rowCount())))
                 .chain(documents -> pool.preparedQuery(ORPHANS).execute(Tuple.of(blobGrace.toSeconds(), batch))
                         .chain(rows -> {
                             List<Row> orphans = new ArrayList<>();
