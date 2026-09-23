@@ -4,6 +4,7 @@ import UniformTypeIdentifiers
 import WTCRDT
 import WTModel
 import WTProto
+import WTRender
 
 extension AttributesListModel {
     /// Performs an add and returns the row it added to the first target (to select it).
@@ -72,15 +73,23 @@ struct AttributesListView: View {
         Binding(get: { item.hidden == .off }, set: { model.perform(model.setHidden(item, !$0)) })
     }
 
-    /// Colours a drag can carry: an `NSColor` from a colour well or the Colors panel.
-    static let colorTypes: [UTType] = [UTType(importedAs: NSPasteboard.PasteboardType.color.rawValue)]
+    /// Colours a drag can carry: the `ColorRef` payload of the colour panels and wells
+    /// (COLOR-008), or an `NSColor` from another application or the Colors panel.
+    static let colorTypes: [UTType] = ColorDrag.dropTypes
 
-    /// A colour dropped on `item`, read from the drag pasteboard: applied to that row only.
-    /// False when the drag carries no colour.
+    /// A colour dropped on `item`, read from the drag pasteboard: applied to that row only (a
+    /// swatch from another document is created here first, `ColorDrop`).  False when the drag
+    /// carries no colour or the row takes none.
     @discardableResult
-    static func drop(from pasteboard: NSPasteboard, on item: AttributeRowItem, model: AttributesListModel) -> Bool {
-        guard let color = NSColor(from: pasteboard), let command = model.drop(ColorBridge.ref(color), on: item) else { return false }
-        model.perform(command)
+    static func drop(from pasteboard: NSPasteboard, on item: AttributeRowItem, model: AttributesListModel,
+                     defaultSpace: RenderColor.Space = .displayP3) -> Bool {
+        guard let payload = ColorDrag.read(from: pasteboard, defaultSpace: defaultSpace), model.drop(ColorBridge.none, on: item) != nil else { return false }
+        let document = model.document
+        guard ColorDrop.needsImport(payload, into: document.id) else {
+            model.perform(model.drop(payload.reference(in: document.state, document: document.id), on: item))
+            return true
+        }
+        Task { @MainActor in model.perform(model.drop(await ColorDrop.reference(for: payload, in: document), on: item)) }
         return true
     }
 

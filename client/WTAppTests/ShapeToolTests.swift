@@ -86,7 +86,8 @@ import WTRender
         let fixture = Fixture(RectangleTool())
         fixture.drag(Point(x: 10, y: 10), Point(x: 10.4, y: 10.9))
         await fixture.document.settle()
-        #expect(fixture.document.state.store.nodes.allSatisfy { !fixture.document.state.store.isCreated($0) })
+        let store = fixture.document.state.store
+        #expect(store.nodes.allSatisfy { !store.isCreated($0) || store.kind($0) == SwatchFields.kind }, "only the new document's default swatches")
         #expect(!fixture.document.canUndo)
         #expect(fixture.document.changeCount == 0)
     }

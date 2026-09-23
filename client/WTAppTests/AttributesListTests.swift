@@ -161,7 +161,7 @@ final class AttributeFixture {
         var effect = list.rows[0]
         effect.list = .effects
         #expect(list.drop(ColorBridge.none, on: effect) == nil && !AttributesListView.drop(from: pasteboard, on: effect, model: list))
-        #expect(AttributesListView.colorTypes.count == 1)
+        #expect(AttributesListView.colorTypes == ColorDrag.dropTypes)
     }
 
     @Test func severalObjectsShareRowsOnlyWhenTheirStacksMatch() async throws {

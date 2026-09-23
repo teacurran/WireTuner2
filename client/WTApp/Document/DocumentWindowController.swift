@@ -55,10 +55,15 @@ struct DocumentEnvironment {
     /// nil refuses drops (tests).
     var importFiles: (@MainActor (DocumentWindowController, [URL], Point) -> Bool)?
 
-    /// A document `id` titled `title` whose model `openModel` opens.
-    func makeDocument(id: String = UUID().uuidString, title: String) -> DocumentHandle {
+    /// A document `id` titled `title` whose model `openModel` opens.  A document created on
+    /// this Mac (`isNew`) gets the new-document template as its first change.
+    func makeDocument(id: String = UUID().uuidString, title: String, isNew: Bool = false) -> DocumentHandle {
         let open = openModel
-        return DocumentHandle(id: id, title: title) { try await open(id) }
+        return DocumentHandle(id: id, title: title) {
+            let model = try await open(id)
+            if isNew { await DocumentOpener.applyTemplate(to: model) }
+            return model
+        }
     }
 
     /// The command bound to `key` in the active set, run through the registry.

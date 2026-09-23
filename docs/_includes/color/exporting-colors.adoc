@@ -232,6 +232,19 @@ one.  In `WTModel`, `ImportLibraryColors` with `ColorLibraries.teamOrigin(id)` r
 means "edited locally" and a difference without one means "library changed" (both changed reads
 as edited locally).  The menu items and the sheet are WTApp's.
 
+NOTE: As built by COLOR-019's and COLOR-021's WTApp halves (`WTApp/Color/ColorWell.swift`
+`ColorDrop`, `ColorSheets.swift`, `TeamColorLibraries.swift`, `ColorFeatures.swift`).  A swatch
+dragged to another document's panel, well or attribute row is created there with its tints by
+`ImportLibraryColors` (origin `document:<source id>`, fresh node ids, the clash rule) and then
+referenced; *Import from Document…* lists the other open documents' colours to tick.  The *Team
+Libraries…* sheet (from the Swatches Options menu, marked `•` when a library has an update) lists
+each team's libraries from `ColorLibraryClient` (`GRPCColorLibraryTransport.http2`, cached in
+`ColorLibraryClient.defaultDirectory()`), adds a library's colours with the `team:<id>` origin and
+opens *Update from Library…* with the three-way listing ticked where the library changed.
+menu:File[Make Team Color Library…] (a team picker) and menu:File[Publish Library Version] are
+disabled without a document or a client and, once a listing has fallen back to the cache, offline
+with the explanation.  *Not done*: paste carrying named colours (the clipboard's, not this panel's).
+
 === Build tasks
 
 [[COLOR-018]]

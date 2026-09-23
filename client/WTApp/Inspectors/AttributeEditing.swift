@@ -154,38 +154,33 @@ struct AttributePreviewImage: View {
     }
 }
 
-/// A colour control: a colour well and a *None* button; "Mixed" when the targets differ.
+/// A colour control of the attribute editors: the shared colour well (COLOR-011) -- chip and
+/// palette, the pop-up with *None*, the swatches, *Add to Swatches…*, *Detach* and *Restore*,
+/// and the value field -- over `document`'s swatches; "Mixed" when the targets differ.
 struct AttributeColorControl: View {
     let title: String
     /// The colour, or nil when the targets differ.
     let color: Wiretuner_Doc_V1_ColorRef?
     let identifier: String
+    /// The document the targets are in (its swatches fill the pop-up).
+    var document: DocumentHandle?
     let commit: (Wiretuner_Doc_V1_ColorRef) -> Void
 
-    /// The well's binding: shows the colour (clear for *None* or mixed), commits a pick.
-    static func binding(_ color: Wiretuner_Doc_V1_ColorRef?, commit: @escaping (Wiretuner_Doc_V1_ColorRef) -> Void) -> Binding<CGColor> {
-        Binding(get: { color.flatMap(ColorBridge.cgColor) ?? CGColor(gray: 0, alpha: 0) }, set: { commit(ColorBridge.ref($0)) })
+    init(title: String, color: Wiretuner_Doc_V1_ColorRef?, identifier: String, document: DocumentHandle? = nil,
+         commit: @escaping (Wiretuner_Doc_V1_ColorRef) -> Void) {
+        self.title = title
+        self.color = color
+        self.identifier = identifier
+        self.document = document
+        self.commit = commit
     }
 
-    /// btn:[None]'s action.
-    static func none(_ commit: @escaping (Wiretuner_Doc_V1_ColorRef) -> Void) -> () -> Void {
-        { commit(ColorBridge.none) }
-    }
-
-    /// What the control says beside the well.
-    static func caption(_ color: Wiretuner_Doc_V1_ColorRef?) -> String {
-        guard let color else { return "Mixed" }
-        return ColorBridge.isNone(color) ? "None" : ""
+    var model: ColorWellModel {
+        ColorWellModel(ref: color, state: document?.state ?? EngineState(), documentID: document?.id ?? "")
     }
 
     var body: some View {
-        HStack {
-            ColorPicker(title, selection: Self.binding(color, commit: commit))
-                .accessibilityIdentifier(identifier)
-            Text(Self.caption(color)).font(.caption).foregroundStyle(.secondary)
-            Button("None", action: Self.none(commit))
-                .accessibilityIdentifier("\(identifier).none")
-        }
+        ColorWellView(title: title, model: model, actions: ColorWellActions(document: document, commit: commit), identifier: identifier)
     }
 }
 

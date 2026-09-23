@@ -193,7 +193,8 @@ final class DocumentHandle: Identifiable, CommandSink {
         self.model = model
         builder.rebuild(model.state)
         modelObservation = model.observe { [weak self] event in self?.modelDidChange(event) }
-        if model.state.store.nodes.contains(where: { model.state.store.isCreated($0) }) {
+        // The template's swatches are not content to draw.
+        if model.state.store.nodes.contains(where: { model.state.store.isCreated($0) && model.state.store.kind($0) != SwatchFields.kind }) {
             changeCount += 1
             let summary = ChangeSummary(origin: .local, isStructural: true)
             invalidation.submit(summary, after: [builder.scene.displayList])

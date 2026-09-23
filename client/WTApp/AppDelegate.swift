@@ -88,6 +88,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Where the launch looks for stores to upload headlessly (the documents folder in the app).
     let storesDirectory: @Sendable () throws -> URL
     private(set) var menuTarget: CommandMenuTarget?
+    /// The colour panels, sheets and commands (COLOR, CMS epics).
+    private(set) lazy var colors = ColorFeatures(
+        selection: activeSelection, preferences: preferences, defaults: preferences.defaults,
+        libraryClient: launchEnvironment.makeColorLibraryClient(account: account, infoDictionary: Bundle.main.infoDictionary, defaults: preferences.defaults),
+        teams: { [weak self] in self?.library.cache.teams.map { TeamLibrariesModel.Team(id: $0.id, name: $0.name) } ?? [] }
+    )
     /// menu:File[Import…] and files dropped on a canvas (IMG-005, IMG-008, WEB-025).
     private(set) lazy var imports = ImportController(preferences: preferences)
     /// menu:File[Export a Package…], menu:File[Open Package…] and packages opened from the Finder
@@ -210,7 +216,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let documents = documents!
         let library = library
         library.onOpen = { opened in
-            for document in opened { documents.open(documents.environment.makeDocument(id: document.id, title: document.name)) }
+            for document in opened {
+                documents.open(documents.environment.makeDocument(id: document.id, title: document.name, isNew: document.isPendingUpload))
+            }
         }
         let preferences = preferences
         ViewCommands.install(
@@ -234,6 +242,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         installContextMenus()
         layersPanel.clickMoves = { preferences[PreferenceCatalog.Panels.layerClickMoves] }
+        colors.install(commands: commands, panels: panels, extensions: toolbars.extensions) { documents.documents }
         PanelCatalog.register(into: panels, selection: activeSelection, help: helpModel, layers: layersPanel)
         panels.registerIfAbsent(ToolsPanel.descriptor(model: toolPalette))
         installToolbars()

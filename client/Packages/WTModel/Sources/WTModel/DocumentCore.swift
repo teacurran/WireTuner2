@@ -93,8 +93,9 @@ public struct DocumentCore: Sendable {
         default:
             (recording.group.map(CoalesceKey.group), true)
         }
-        let edit = undoStack.recording(inverse, label: command.label, key: key, stillOpen: stillOpen,
-                                       now: recording.now, limit: recording.limit)
+        let edit = command.recordsUndo
+            ? undoStack.recording(inverse, label: command.label, key: key, stillOpen: stillOpen, now: recording.now, limit: recording.limit)
+            : nil
         if let edit {
             undoStack.apply(edit)
         }

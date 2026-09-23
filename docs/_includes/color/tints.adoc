@@ -189,6 +189,14 @@ and stores the derived name when the tint had none.  The "tint of a deleted colo
 SYNC-007's; the model exposes it as `Swatch.baseRemoved`.  Conformance vectors: see
 xref:spot-process.adoc[Spot and process colors].
 
+NOTE: As built by COLOR-010 (`WTApp/Color/TintsPanel.swift`).  `TintsModel` holds the base (a named
+swatch, or an unnamed colour dropped on the base well), the percentage and the loaded tint; the base
+colour is read live, so a collaborator's recolour shows mid-drag, and a loaded tint whose base was
+removed reads its cached base and shows the badge.  btn:[Apply] writes an unnamed tint of a named
+base (`ColorResolver.tint`), else the tinted colour; btn:[Add to Swatches] adds a named tint with the
+derived name, or offers to add an unnamed base first.  The base pop-up is a SwiftUI `Picker` fed from
+the colour list (not an `NSPopUpButton`).
+
 === Build tasks
 
 [[COLOR-009]]

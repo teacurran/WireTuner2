@@ -263,12 +263,8 @@ import WTRender
         #expect(ColorBridge.ref(NSColor(srgbRed: 0, green: 0, blue: 1, alpha: 1)).inline.rgb.b == 1)
         #expect(ColorBridge.isNone(ColorBridge.none) && !ColorBridge.isNone(srgb) && ColorBridge.cgColor(ColorBridge.none) == nil)
         #expect(ColorBridge.cgColor(srgb) != nil)
-        var picked: Wiretuner_Doc_V1_ColorRef?
-        let binding = AttributeColorControl.binding(nil) { picked = $0 }
-        #expect(binding.wrappedValue.alpha == 0)
-        binding.wrappedValue = CGColor(srgbRed: 0, green: 1, blue: 0, alpha: 1)
-        #expect(picked?.inline.rgb.g == 1)
-        #expect(AttributeColorControl.binding(srgb) { _ in }.wrappedValue.alpha == 1)
+        #expect(ColorWellModel(ref: nil, state: EngineState()).chip == .mixed)
+        #expect(ColorWellModel(ref: srgb, state: EngineState()).valueText == "#FF8000")
         var toggled: Bool?
         let toggle = AttributeToggle.binding(nil) { toggled = $0 }
         #expect(!toggle.wrappedValue)

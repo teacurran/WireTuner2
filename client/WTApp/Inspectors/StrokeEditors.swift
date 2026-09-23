@@ -428,7 +428,7 @@ struct StrokeEditorView: View {
     private func paste() { message = Self.paste(model) }
 
     @ViewBuilder private var basic: some View {
-        AttributeColorControl(title: "Color", color: model.basicColor, identifier: "stroke.basic.color", commit: model.context.committing(model.setBasicColor))
+        AttributeColorControl(title: "Color", color: model.basicColor, identifier: "stroke.basic.color", document: model.context.document, commit: model.context.committing(model.setBasicColor))
         WidthField(model: model, value: model.basicWidth, identifier: "stroke.basic.width", command: model.setBasicWidth)
         AttributePicker(title: "Cap", value: model.cap, choices: StrokeEditorModel.caps, identifier: "stroke.basic.cap", commit: model.context.committing(model.setCap))
             .pickerStyle(.segmented)
@@ -466,7 +466,7 @@ struct StrokeEditorView: View {
     }
 
     @ViewBuilder private var calligraphic: some View {
-        AttributeColorControl(title: "Color", color: model.calligraphicColor, identifier: "stroke.calligraphic.color",
+        AttributeColorControl(title: "Color", color: model.calligraphicColor, identifier: "stroke.calligraphic.color", document: model.context.document,
                               commit: model.context.committing(model.setCalligraphicColor))
         CommitField(title: "Width", value: model.nibWidth, identifier: "stroke.calligraphic.width", commit: model.context.committing(model.setNibWidth))
         CommitField(title: "Height", value: model.nibHeight, identifier: "stroke.calligraphic.height", commit: model.context.committing(model.setNibHeight))
@@ -493,21 +493,21 @@ struct StrokeEditorView: View {
         AttributePicker(title: "Pattern", value: model.customPattern, choices: AttributeNames.customStrokePatterns, identifier: "stroke.custom.pattern",
                         commit: model.context.committing(model.setCustomPattern))
         AttributePreviewImage(image: model.preview, identifier: "stroke.custom.preview")
-        AttributeColorControl(title: "Color", color: model.customColor, identifier: "stroke.custom.color", commit: model.context.committing(model.setCustomColor))
+        AttributeColorControl(title: "Color", color: model.customColor, identifier: "stroke.custom.color", document: model.context.document, commit: model.context.committing(model.setCustomColor))
         WidthField(model: model, value: model.customWidth, identifier: "stroke.custom.width", command: model.setCustomWidth)
         CommitField(title: "Length", value: model.customLength, identifier: "stroke.custom.length", commit: model.context.committing(model.setCustomLength))
         CommitField(title: "Spacing", value: model.customSpacing, identifier: "stroke.custom.spacing", commit: model.context.committing(model.setCustomSpacing))
     }
 
     @ViewBuilder private var pattern: some View {
-        AttributeColorControl(title: "Color", color: model.patternColor, identifier: "stroke.pattern.color", commit: model.context.committing(model.setPatternColor))
+        AttributeColorControl(title: "Color", color: model.patternColor, identifier: "stroke.pattern.color", document: model.context.document, commit: model.context.committing(model.setPatternColor))
         WidthField(model: model, value: model.patternWidth, identifier: "stroke.pattern.width", command: model.setPatternWidth)
         PatternEditorView(bitmap: model.bitmap, color: StrokeEditorModel.renderColor(model.patternColor), state: patternState,
                           commit: model.context.committing(model.setBitmap))
     }
 
     @ViewBuilder private var brush: some View {
-        AttributeColorControl(title: "Color", color: model.brushColor, identifier: "stroke.brush.color", commit: model.context.committing(model.setBrushColor))
+        AttributeColorControl(title: "Color", color: model.brushColor, identifier: "stroke.brush.color", document: model.context.document, commit: model.context.committing(model.setBrushColor))
         CommitField(title: "Width %", value: model.brushWidth, identifier: "stroke.brush.width", commit: model.context.committing(model.setBrushWidth))
         Text("Brushes are chosen and edited with the brush pop-up once the brush editor is available.")
             .font(.caption).foregroundStyle(.secondary)

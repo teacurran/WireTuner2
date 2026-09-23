@@ -459,11 +459,35 @@ still re-links them with no write; `AddSwatch` takes `relink` registers (*Add to
 the object at the new swatch in the same change); `SetSwatchGroup` leaves the protected swatches
 ungrouped.  *Name All Colors* rewrites `ColorRef` registers; colours in text marks and inside
 ATOMIC messages are indexed (they count as uses) but not rewritten.  `CreateDefaultSwatches` makes
-the three defaults (skipping any role present) and belongs in the first change of a new document;
-no document template exists yet, so creating it there is the DOC/WTApp task's.  *Not done here*:
+the three defaults (skipping any role present) and belongs in the first change of a new document:
+`DocumentTemplate` (WTModel) runs it as a change that is not an undo step (`Command.recordsUndo`),
+and WTApp writes it for every document created on this Mac -- a memory document, menu:File[New],
+a document the library created and has not uploaded yet (writing nothing when the defaults are
+there).  *Not done here*:
 the conformance vectors (`crdt-conformance/`, another track's directory); the merge cases run as
 WTModel tests through two in-process replicas (`SwatchMergeTests.swift`), and the index test
 applies changes in an order neither replica saw.
+
+NOTE: As built by COLOR-007 (`WTApp/Color/SwatchesPanel.swift`; the shared `ColorWorkspace`,
+`ColorDrag` and `ColorFeatures`).  `SwatchesPanelModel` holds the panel's local state -- the
+selected swatches, *Hide Names*, collapsed groups, the rename field -- and its actions; the body is
+SwiftUI in the panel framework.  A click applies the swatch to the selection (`ApplyColor`, one
+change, `Apply "Grape" to 12 objects`) when objects are selected, otherwise selects (kbd:[Shift]
+extends, kbd:[Cmd] toggles); kbd:[Option]-click loads the Tints panel.  A rename that clashes shakes
+the field and keeps it open; the field's text lives in the model, so remote changes never reset it.
+Drops read the `ColorRef` payload or an `NSColor`: on a swatch they redefine it (*Auto-rename
+colors* passed through), on a tint with kbd:[Option] held and a swatch payload they re-base it, and
+the Tints panel's well dropped back on a tint of the same base sets its percentage; below the list
+or on the Add arrow they add, and a swatch from another document arrives with its tints
+(`ColorDrop`).  A swatch dragged onto a group header joins the group.  The Fill / Stroke / Both
+wells show the selection's topmost Basic fill and stroke (mixed as `?`).  *Deviations*: the Options
+menu has Duplicate, Remove, Make Spot, Make Process, Convert to (sRGB, Display P3, CMYK), Hide /
+Show Names, New Group…, Import from Document…, Team Libraries… (a sheet, not a submenu: panel
+menus are flat) and Restore Deleted Colors…; Replace… (COLOR-015), the bundled libraries and
+Import… (COLOR-013's readers and sheet), Export… (COLOR-018) and Color Control… (COLOR-017, which
+waits for COLOR-014's commands) are not built, nor is menu:Extensions[Colors > Import RGB Color
+Table…] (no `.act` reader yet).  The UI tests run as WTAppTests over the models
+(`SwatchesPanelTests`).
 
 === Build tasks
 

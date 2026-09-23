@@ -51,6 +51,9 @@ public protocol Command: Sendable {
     var label: String { get }
     /// Whether the undo step may join its neighbours.
     var coalescing: UndoCoalescing { get }
+    /// Whether the change is an undo step at all: false for a new document's template
+    /// (`DocumentTemplate`), which is part of the document rather than something the user did.
+    var recordsUndo: Bool { get }
     /// Appends the change's ops to `builder`, reading `state` (the merged state before the
     /// change).  Appending nothing performs nothing.
     func execute(_ builder: inout ChangeBuilder, state: EngineState) throws
@@ -58,6 +61,7 @@ public protocol Command: Sendable {
 
 extension Command {
     public var coalescing: UndoCoalescing { .none }
+    public var recordsUndo: Bool { true }
 }
 
 /// A command of fixed ops, for callers that already hold them (tools emitting one change per

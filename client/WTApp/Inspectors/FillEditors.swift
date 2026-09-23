@@ -397,7 +397,7 @@ struct FillEditorView: View {
     }
 
     @ViewBuilder private var basic: some View {
-        AttributeColorControl(title: "Color", color: model.basicColor, identifier: "fill.basic.color", commit: model.context.committing(model.setBasicColor))
+        AttributeColorControl(title: "Color", color: model.basicColor, identifier: "fill.basic.color", document: model.context.document, commit: model.context.committing(model.setBasicColor))
         AttributeToggle(title: "Overprint", value: model.basicOverprint, identifier: "fill.basic.overprint", commit: model.context.committing(model.setBasicOverprint))
     }
 
@@ -406,7 +406,7 @@ struct FillEditorView: View {
         AttributePreviewImage(image: model.preview, identifier: "fill.custom.preview")
         ForEach(CustomFillOption.options(model.customPattern ?? .unspecified), id: \.self) { option in
             if option.isColor {
-                AttributeColorControl(title: option.title, color: model.customColor(option), identifier: "fill.custom.\(option)", commit: model.context.committing(model.colorSetter(option)))
+                AttributeColorControl(title: option.title, color: model.customColor(option), identifier: "fill.custom.\(option)", document: model.context.document, commit: model.context.committing(model.colorSetter(option)))
             } else {
                 CommitField(title: option.title, value: model.customNumber(option), identifier: "fill.custom.\(option)", commit: model.context.committing(model.numberSetter(option)))
             }
@@ -418,7 +418,7 @@ struct FillEditorView: View {
         let type = model.lensType
         AttributePicker(title: "Lens", value: type, choices: AttributeNames.lensTypes, identifier: "fill.lens.type", commit: model.context.committing(model.setLensType))
         if FillEditorModel.showsColor(type) {
-            AttributeColorControl(title: "Color", color: model.lensColor, identifier: "fill.lens.color", commit: model.context.committing(model.setLensColor))
+            AttributeColorControl(title: "Color", color: model.lensColor, identifier: "fill.lens.color", document: model.context.document, commit: model.context.committing(model.setLensColor))
         }
         if FillEditorModel.showsAmount(type) {
             AttributeSlider(title: "Amount", value: model.lensAmount, range: 0...100, identifier: "fill.lens.amount", context: model.context, commit: model.context.committing(model.setLensAmount))
@@ -432,7 +432,7 @@ struct FillEditorView: View {
     }
 
     @ViewBuilder private var pattern: some View {
-        AttributeColorControl(title: "Color", color: model.patternColor, identifier: "fill.pattern.color", commit: model.context.committing(model.setPatternColor))
+        AttributeColorControl(title: "Color", color: model.patternColor, identifier: "fill.pattern.color", document: model.context.document, commit: model.context.committing(model.setPatternColor))
         PatternEditorView(bitmap: model.bitmap, color: StrokeEditorModel.renderColor(model.patternColor), state: patternState, commit: model.context.committing(model.setBitmap))
         AttributeToggle(title: "Overprint", value: model.patternOverprint, identifier: "fill.pattern.overprint", commit: model.context.committing(model.setPatternOverprint))
     }
@@ -440,7 +440,7 @@ struct FillEditorView: View {
     @ViewBuilder private var textured: some View {
         AttributePicker(title: "Texture", value: model.texture, choices: AttributeNames.textures, identifier: "fill.textured.texture", commit: model.context.committing(model.setTexture))
         AttributePreviewImage(image: model.preview, identifier: "fill.textured.preview")
-        AttributeColorControl(title: "Color", color: model.texturedColor, identifier: "fill.textured.color", commit: model.context.committing(model.setTexturedColor))
+        AttributeColorControl(title: "Color", color: model.texturedColor, identifier: "fill.textured.color", document: model.context.document, commit: model.context.committing(model.setTexturedColor))
         AttributeToggle(title: "Overprint", value: model.texturedOverprint, identifier: "fill.textured.overprint", commit: model.context.committing(model.setTexturedOverprint))
     }
 

@@ -187,15 +187,15 @@ each pixel takes the screen of the top-most object there.  The result is a 1-bit
 (`makeImage()` for the sheet).  Measured: a letter plate at 2,400 dpi screens in 0.81 s in a
 release build (the 4 s budget is enforced in release builds only).
 
-NOTE: As built by PRINT-007 (model half; `WTModel/SpotInks.swift`).  While the builder builds,
-`SpotInks.current` holds every swatch's ink: a swatch is spot when the base at the end of its
-`parent` chain is, the ink is that base (named by its `CommonProps.name`) at the product of the
-chain's `tint_percent`s, and a loop, dangling base or process base reads as process;
+NOTE: As built by PRINT-007 (model half), and since COLOR-006's scene hook through
+`WTModel/ColorResolver.swift` (`SpotInks.swift` retired).  While the builder builds,
+`ColorResolver.current` resolves every swatch reference: a swatch is spot when the base at the end
+of its `parent` chain is, the ink is that base (named by its `CommonProps.name`) at the product of
+the chain's `tint_percent`s, and a loop, dangling base or process base reads as process;
 `SWATCH_ROLE_REGISTRATION` resolves to `Color.registration`.  `Appearances.color` puts the ink on
-the resolved colour (`Color.spot`), an unnamed tint of a spot swatch at its percentage; the colour's
-components are still the reference's cached value.  A change to any swatch rebuilds every item and
-repaints the objects whose drawing changed.  This is the spot part of the swatch resolver COLOR-006
-names; the rest of that resolver (live base colours) is not built.
+the resolved colour (`Color.spot`), an unnamed tint of a spot swatch at its percentage, and the
+components are the swatch's live colour.  A change to a swatch rebuilds and repaints the objects
+using it or a tint of it (`SwatchIndex`), no others.
 
 === Build tasks
 

@@ -508,6 +508,18 @@ replaced by its fallback.  `ChangeColorSettings` takes the sheet's draft (`Color
 and writes only the registers that differ.  The conformance vector is not written here (another
 track's directory); the merge and undo test is WTModel's `ColorLibraryTests`.
 
+NOTE: As built by CMS-005 (`WTApp/Color/ColorSettingsSheet.swift`, menu:File[Color Settings…] in
+`ColorFeatures`).  `ColorSettingsModel` edits a draft; each profile menu lists only profiles of its
+field's space (bundled, the document's own, installed), and a file from an installed entry or
+*Other…* is refused with a message when its space does not fit.  The model records which settings
+the user touched, and btn:[OK] writes those over the document as it is then, so a collaborator's
+change to another setting while the sheet was open survives; the current-value labels follow the
+document.  *Deviations*: the sheet is SwiftUI hosted in a window sheet rather than an `NSPanel` of
+pop-up buttons; *Other…* registers the profile in this process's registry only (CMS-008's blob
+upload is not built); the Document panel button waits for the Document panel; the *Monitor
+profile* row is still the chooser the preferences catalog had, and *Embedded image profiles* is the
+Import row of xref:preferences.adoc[Preferences], where that page's table puts it.
+
 === Build tasks
 
 [[CMS-001]]

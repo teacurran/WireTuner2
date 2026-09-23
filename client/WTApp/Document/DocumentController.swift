@@ -67,7 +67,7 @@ final class DocumentController {
     /// menu:File[New]: a blank document in a new tab.
     @discardableResult
     func newDocument(show: Bool = true) -> DocumentWindowController {
-        open(environment.makeDocument(title: nextUntitledTitle()), show: show)
+        open(environment.makeDocument(title: nextUntitledTitle(), isNew: true), show: show)
     }
 
     /// Where a newly opened document's window goes.

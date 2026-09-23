@@ -284,6 +284,20 @@ resolver, the dependents index, the vectors and the merge test are `WTModel`'s a
 * Undo grouping: drops and palette picks are single changes; Mixer-bound edits group per
   slider drag.
 
+NOTE: As built by COLOR-011's Object panel half (`WTApp/Color/ColorWell.swift`; `WTModel`'s
+`ApplyColor`).  `ColorWellView` over `ColorWellModel` replaces the attribute editors' colour well
+and None button: the chip (colour, *None*'s red diagonal, mixed `?`) opens the palette (Swatches
+with *None* first, or Color Cubes with a hex field; the choice persists in `UserDefaults`), drags
+out the `ColorRef` payload and takes drops; the pop-up lists *None*, every swatch (tints indented),
+*Add to Swatches…* for an unnamed colour, *Detach* for a named one and *Restore "<name>"* for a
+dangling reference; the value field shows an unnamed colour in its own space's form and parses
+every form the Mixer's field does.  `ApplyColor` writes the topmost Basic fill, stroke or both of
+each object (groups expanded) in one change.  *Deviations*: *Add to Swatches…* is two changes (the
+swatch, then the reference) and two undo steps, because the editors commit a reference rather than
+a register path; the Tools panel wells, the canvas drop targets and the kbd:[Shift] / kbd:[Cmd] /
+kbd:[Option] drop rules are not built here (the Tools panel and canvas belong to other tasks), nor
+is COLOR-012's Eyedropper.
+
 NOTE: As built by COLOR-006's `WTModel` half (`ColorResolver.swift`, `ColorUses.swift`,
 `SwatchIndex.swift`).  `ColorResolver` is the ladder above over the swatches of one state, with
 the tint chain rule and loop cut of xref:tints.adoc[Tints]; a spot base puts its ink on
@@ -293,10 +307,12 @@ reads as no paint, as `common.proto` says.  It also writes references with their
 (`reference(to:)`, `tint(of:percent:)`, `inline`).  `ColorUses` finds every colour use of a node
 through the merge table -- any `ColorRef` register, a `ColorRef` inside an ATOMIC message, a text
 mark's `fill`, a tint swatch's `parent` -- so a new kind's colours are indexed without a list of
-fields; `SwatchIndex` keeps them per swatch.  The display list still resolves colours through
-`Appearances.color` (the reference's cache); moving `DocumentDisplayListBuilder` onto
-`ColorResolver` (and the swatch → dependents invalidation onto `SwatchIndex`) is the scene
-builder's change.  The merge test and vectors run as WTModel tests (`SwatchMergeTests.swift`).
+fields; `SwatchIndex` keeps them per swatch.  `DocumentDisplayListBuilder` resolves through one
+`ColorResolver` per build (`ColorResolver.current`, read by `Appearances.color`; `SpotInks` is
+retired), so a swatch recolour shows at once, and keeps a `SwatchIndex` from the changes it applies:
+a change touching a swatch rebuilds only the objects using it, through tints of it too (then their
+`DependencyIndex` dependents: symbol instances, charts).  An unset `ColorRef` still reads black in
+the display list, as it did before (existing documents and goldens).  The merge test and vectors run as WTModel tests (`SwatchMergeTests.swift`).
 
 === Build tasks
 

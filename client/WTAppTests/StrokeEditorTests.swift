@@ -261,8 +261,8 @@ import WTRender
         let both = Self.model(fixture)
         #expect(both.kind == nil && both.customPattern == nil)
         AttributeFixture.render(StrokeEditorView(model: both))
-        #expect(AttributeColorControl.caption(nil) == "Mixed" && AttributeColorControl.caption(ColorBridge.none) == "None"
-                && AttributeColorControl.caption(Self.red).isEmpty)
+        #expect(ColorWellModel(ref: nil, state: EngineState()).caption == "Mixed" && ColorWellModel(ref: ColorBridge.none, state: EngineState()).caption == "None"
+                && ColorWellModel(ref: Self.red, state: EngineState()).caption.isEmpty)
     }
 
     @Test func presetSheetsAndStoreFiles() async throws {
@@ -318,7 +318,7 @@ import WTRender
         AttributeFixture.render(StrokeEditorView(model: both))
         AttributeFixture.render(StrokeEditorView(model: Self.model(fixture, ids: [fixture.ids[1]])))
         var picked: Wiretuner_Doc_V1_ColorRef?
-        AttributeColorControl.none { picked = $0 }()
+        ColorWellActions { picked = $0 }.run(.none, model: ColorWellModel(ref: Self.red, state: EngineState()))
         #expect(picked == ColorBridge.none)
         var slid: Double?
         AttributeSlider.clamping(0...10) { slid = $0 }(30)

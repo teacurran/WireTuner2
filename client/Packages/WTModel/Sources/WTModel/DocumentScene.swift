@@ -93,11 +93,14 @@ public struct DocumentScene: Hashable, Sendable {
 /// hidden layers contribute nothing), deleted nodes skipped, each object a top-level item tagged
 /// with its node id (group members nested), transforms flattened, attribute stacks resolved.
 /// Symbol instances draw their symbol's artwork through `SymbolRenderer` (LIB-010/026), charts
-/// their `ChartLayout` (DRAW-032), barcodes their bars (DATA-018); colours from spot swatches
-/// carry their ink (PRINT-007).  Items for nodes a change did not touch are reused; a change's
-/// touched nodes are expanded through the `DependencyIndex` (an edited symbol or master node
-/// reaches every instance of it, a pictograph's nodes their chart), and every change yields a
-/// `ChangeSummary` for the invalidation pipeline.  Background items (the page furniture the window
+/// their `ChartLayout` (DRAW-032), barcodes their bars (DATA-018).  Colours resolve through one
+/// `ColorResolver` per build (`ColorResolver.current`): a swatch reference shows the swatch's
+/// colour as it is now, and colours from spot swatches carry their ink (PRINT-007).  Items for
+/// nodes a change did not touch are reused; a change's touched nodes are expanded through the
+/// `DependencyIndex` (an edited symbol or master node reaches every instance of it, a
+/// pictograph's nodes their chart) and a touched swatch through the `SwatchIndex` (every object
+/// using it or a tint of it, COLOR-006), and every change yields a `ChangeSummary` for the
+/// invalidation pipeline.  Background items (the page furniture the window
 /// draws until pages are nodes) come first and carry no node id.
 ///
 /// Named `DocumentDisplayListBuilder` rather than `DisplayListBuilder`, which is WTRender's
@@ -113,6 +116,9 @@ public struct DocumentDisplayListBuilder: Sendable {
     public private(set) var dependencies = DependencyIndex()
     /// The document's symbols as of the last build.
     public private(set) var library = SymbolLibrary([])
+    /// Swatch → the objects using it, kept from the changes `apply` sees (read in full by
+    /// `rebuild` and `reload`, or on the first `apply`).
+    public private(set) var swatchIndex: SwatchIndex?
     private var cache: [OpID: Built] = [:]
     private let symbolRenderer = SymbolRenderer()
     private let labels = CoreTextLabels()
@@ -142,6 +148,7 @@ public struct DocumentDisplayListBuilder: Sendable {
     @discardableResult
     public mutating func rebuild(_ state: EngineState) -> DocumentScene {
         cache = [:]
+        swatchIndex = SwatchIndex(state)
         scene = build(state)
         return scene
     }
@@ -152,6 +159,7 @@ public struct DocumentDisplayListBuilder: Sendable {
     public mutating func reload(_ state: EngineState, origin: ChangeOrigin = .remote) -> (DocumentScene, ChangeSummary) {
         let before = scene
         cache = [:]
+        swatchIndex = SwatchIndex(state)
         scene = build(state)
         var summary = ChangeSummary(origin: origin, isStructural: true)
         for id in Set(before.objects.keys).union(scene.objects.keys) {
@@ -173,7 +181,8 @@ public struct DocumentDisplayListBuilder: Sendable {
     /// and every node drawn from them (`dependencies`), and returns the scene with the change's
     /// summary (touched nodes and their dependents with fields and painted bounds before and
     /// after, structural when items were added, removed or reordered).  A change to a swatch
-    /// rebuilds every item and names each object whose drawing changed.
+    /// rebuilds and names the objects using it, directly or through a tint of it
+    /// (`recoloured(by:)`); every other item is reused.
     public mutating func apply(_ change: Wiretuner_Doc_V1_Change, state: EngineState, origin: ChangeOrigin) -> (DocumentScene, ChangeSummary) {
         let before = scene
         var touched: [OpID: [FieldPath]] = [:]
@@ -183,20 +192,19 @@ public struct DocumentDisplayListBuilder: Sendable {
         for (op, id) in zip(change.ops, change.opIDs) {
             if case .create = op.op { touched[id, default: []] += [] }
         }
-        let dependents = dependencies.dependents(of: touched.keys.map(NodeID.init))
-        for node in touched.keys { cache[node] = nil }
+        let recoloured = recoloured(by: change, state: state)
+        let seeds = Set(touched.keys).union(recoloured)
+        let dependents = dependencies.dependents(of: seeds.map(NodeID.init))
+        for node in seeds { cache[node] = nil }
         for node in dependents { cache[OpID(node)] = nil }
-        let swatches = touched.keys.contains { $0 == WellKnown.swatches || state.store.kind($0) == Self.swatchKind }
-        if swatches { cache = [:] }
         scene = build(state)
         var summary = ChangeSummary(origin: origin, isStructural: before.displayList.nodeIDs != scene.displayList.nodeIDs
             || before.objects.mapValues(\.itemPath) != scene.objects.mapValues(\.itemPath))
-        var affected = Set(touched.keys.map(NodeID.init)).union(dependents).union(dependencies.dependents(of: touched.keys.map(NodeID.init)))
+        var affected = Set(seeds.map(NodeID.init)).union(dependents).union(dependencies.dependents(of: seeds.map(NodeID.init)))
         let all = before.objects.merging(scene.objects, uniquingKeysWith: { $1 })
         // A touched group moves its members; a touched layer everything on it.
         for (id, object) in all {
             if let parent = object.parent, affected.contains(NodeID(parent)) { affected.insert(id) }
-            if swatches, before.objects[id]?.item != scene.objects[id]?.item { affected.insert(id) }
         }
         for node in touched.keys where state.nodeKind(node) == .layer {
             for child in state.store.children(node) { affected.insert(NodeID(child)) }
@@ -214,8 +222,28 @@ public struct DocumentDisplayListBuilder: Sendable {
         return (scene, summary)
     }
 
-    /// `NodeProps.swatch`.
-    static let swatchKind: UInt32 = 70
+    /// The nodes whose colours `change` altered by touching a swatch: every node using a touched
+    /// swatch -- directly, as an unnamed tint's base, or through a chain of tint swatches -- read
+    /// from `swatchIndex` after it takes the change.  Tint swatches themselves are not drawn and
+    /// are left out.
+    private mutating func recoloured(by change: Wiretuner_Doc_V1_Change, state: EngineState) -> Set<OpID> {
+        var index = swatchIndex ?? SwatchIndex(state)
+        if swatchIndex != nil { index.refresh(ColorUses.touched(by: change), in: state) }
+        swatchIndex = index
+        var pending = ColorUses.touched(by: change).filter { state.store.kind($0) == SwatchFields.kind }
+        var seen = Set(pending)
+        var result: Set<OpID> = []
+        while let swatch = pending.popFirst() {
+            for use in index.dependents(of: swatch) {
+                if use.location == .tintBase {
+                    if seen.insert(use.node).inserted { pending.insert(use.node) }
+                } else {
+                    result.insert(use.node)
+                }
+            }
+        }
+        return result
+    }
 
     /// The nodes an op writes, with the field paths it writes.
     static func targets(_ op: Wiretuner_Doc_V1_Op) -> [(OpID, [FieldPath])] {
@@ -243,7 +271,7 @@ public struct DocumentDisplayListBuilder: Sendable {
     /// only, hidden ones only with `includeHidden`, no dimming or keyline.  Built from the same
     /// cached items as the canvas; the scene is not changed.
     public mutating func outputDisplayList(_ state: EngineState, includeHidden: Bool = false) -> DisplayList {
-        SpotInks.$current.withValue(SpotInks(state)) {
+        ColorResolver.$current.withValue(ColorResolver(state)) {
             var scratch: [NodeID: SceneObject] = [:]
             let order = LayerOrder(state)
             let contents = layerContents(state, order: order, includeHidden: includeHidden, objects: &scratch).contents
@@ -254,7 +282,7 @@ public struct DocumentDisplayListBuilder: Sendable {
     // MARK: Building
 
     private mutating func build(_ state: EngineState) -> DocumentScene {
-        SpotInks.$current.withValue(SpotInks(state)) { buildScene(state) }
+        ColorResolver.$current.withValue(ColorResolver(state)) { buildScene(state) }
     }
 
     private mutating func buildScene(_ state: EngineState) -> DocumentScene {

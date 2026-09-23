@@ -29,9 +29,17 @@ enum DocumentOpener {
         launch.isTesting ? memory : localStore(undoLevels: { preferences[PreferenceCatalog.Sync.undoLevels] }, location: location)
     }
 
-    /// A memory document (nothing persists) writing as a fresh random replica.
+    /// A memory document (nothing persists) writing as a fresh random replica: a new document,
+    /// so it starts with the template (the default swatches, `DocumentTemplate`).
     static func memoryDocument(undoLevels: Int = WTModel.Document.defaultUndoLevels) -> WTModel.Document {
-        WTModel.Document(memory: DocumentCore(state: EngineState(), replica: UInt64.random(in: 1...UInt64.max)), undoLevels: undoLevels)
+        WTModel.Document(memory: DocumentTemplate.core(replica: UInt64.random(in: 1...UInt64.max)), undoLevels: undoLevels)
+    }
+
+    /// Writes a new document's template as its first change (swatches.adoc, "Default colors"):
+    /// a local store opened for a document created on this Mac.  Not an undo step; nothing is
+    /// written when the document already has the defaults.
+    static func applyTemplate(to document: WTModel.Document) async {
+        _ = try? await document.perform(DocumentTemplate())
     }
 
     /// The opener that makes memory documents.

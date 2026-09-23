@@ -97,13 +97,14 @@ import WTRender
         var rebase = Wiretuner_Doc_V1_NodeProps()
         rebase.swatch.parent.id = loopB.proto
         try a.perform(OpsCommand("r", ops: [Ops.set(loopA, [RegisterPath([70, 4])], values: rebase)]))
-        let inks = SpotInks(a.state)
-        #expect(inks.swatches[pms] == .ink(SpotInk(swatch: NodeID(pms), name: "PMS 185")))
-        #expect(inks.swatches[tint] == .ink(SpotInk(swatch: NodeID(pms), name: "PMS 185", tint: 0.5)))
-        #expect(inks.swatches[tintOfTint] == .ink(SpotInk(swatch: NodeID(pms), name: "PMS 185", tint: 0.5)))
-        #expect(inks.swatches[process] == nil && inks.swatches[dangling] == nil && inks.swatches[loopA] == nil && inks.swatches[loopB] == nil)
-        #expect(inks.swatches[registration] == .registration)
-        SpotInks.$current.withValue(inks) {
+        let resolver = ColorResolver(a.state)
+        func ink(_ swatch: OpID) -> SpotInk? { resolver.color(ofSwatch: swatch)?.spot }
+        #expect(ink(pms) == SpotInk(swatch: NodeID(pms), name: "PMS 185"))
+        #expect(ink(tint) == SpotInk(swatch: NodeID(pms), name: "PMS 185", tint: 0.5))
+        #expect(ink(tintOfTint) == SpotInk(swatch: NodeID(pms), name: "PMS 185", tint: 0.5))
+        #expect(ink(process) == nil && ink(dangling) == nil && ink(loopA) == nil && ink(loopB) == nil)
+        #expect(resolver.color(ofSwatch: registration) == .registration)
+        ColorResolver.$current.withValue(resolver) {
             #expect(Appearances.color(Self.reference(pms))?.spot == SpotInk(swatch: NodeID(pms), name: "PMS 185"))
             #expect(Appearances.color(Self.reference(process))?.spot == nil)
             #expect(Appearances.color(Self.reference(registration)) == .registration)

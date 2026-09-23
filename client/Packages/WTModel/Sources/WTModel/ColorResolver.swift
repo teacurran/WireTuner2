@@ -19,8 +19,14 @@ import WTRender
 /// `Color.spot` (named by the base swatch); Registration resolves to `Color.registration`.
 ///
 /// The resolver reads the swatches under the well-known `swatches` node (0:5) once; build a new
-/// one after a change touching them.
+/// one after a change touching them.  `DocumentDisplayListBuilder` builds one per build and
+/// makes it `current`, so `Appearances.color` resolves swatch references live (a swatch recolour
+/// shows at once) and spot swatches carry their inks (PRINT-007).
 public struct ColorResolver: Sendable {
+    /// The resolver in force while a scene is built; nil outside a build, where references read
+    /// their caches.
+    @TaskLocal public static var current: ColorResolver?
+
     /// One swatch node as read.
     struct Entry: Sendable {
         var props: Wiretuner_Doc_V1_SwatchProps

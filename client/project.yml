@@ -102,6 +102,9 @@ targets:
             UTTypeTagSpecification:
               public.filename-extension: [wiretuner]
               public.mime-type: [application/vnd.villagecompute.wiretuner]
+          - UTTypeIdentifier: com.villagecompute.wiretuner.colorref
+            UTTypeDescription: WireTuner Color
+            UTTypeConformsTo: [public.data]
         CFBundleDocumentTypes:
           - CFBundleTypeName: WireTuner Package
             CFBundleTypeRole: Editor

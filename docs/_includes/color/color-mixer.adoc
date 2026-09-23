@@ -203,6 +203,22 @@ id and, for a swatch drag, the swatch and its tints as an encoded `ColorLibrary`
 colour inline, after the panel imports the library); `foreignColor` is the colour for `NSColor`.
 WTApp registers the type and builds the views.
 
+NOTE: As built by COLOR-008's WTApp half, with COLOR-023's P3 and OKLCH modes
+(`WTApp/Color/ColorMixerPanel.swift`, `ColorDrag.swift`).  `ColorMixerModel` keeps the mode, the new
+and original colours and the slider values in the mode's units, and persists them (and the last
+spot/process choice) in `UserDefaults` under `wt.colors.mixer`.  Modes: CMYK (percent), RGB and P3
+(0--255), OKLCH (L %, C 0--0.4, H°), HLS (in the default space), Grayscale (CMYK black only) and
+System (`NSColorPanel`, continuous, taken as Display P3 or gamut-mapped sRGB).  The field parses
+every COLOR-002 form and switches the mode to the entry's space; *Web Safe* snaps; the indicator reads
+*sRGB*, *P3* or *Out of gamut*.  The original half follows a loaded swatch's remote edits; clicking it
+copies it back.  *Apply as you mix* groups a slider drag's changes into one undo step.  `ColorDrag`
+writes the payload and an archived `NSColor` (Display P3 when the colour is, else sRGB) and reads
+either, an `NSColor` outside sRGB and Display P3 converting into the default space.  *Deviations*:
+HLS is three sliders rather than a wheel; the sliders are plain (no gradient tracks or out-of-P3
+hatching); the display-gamut *clipped on this display* note is not shown.  The pasteboard type
+needs its UTI exported in the app's Info.plist (`com.villagecompute.wiretuner.colorref`, conforming
+to `public.data`).
+
 === Build tasks
 
 [[COLOR-008]]
