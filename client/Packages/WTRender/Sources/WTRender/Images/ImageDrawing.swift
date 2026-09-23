@@ -73,6 +73,9 @@ enum ImageDrawing {
            let copy = image.copy(colorSpace: space) {
             tagged = copy
         }
+        if let plate = renderer.plate {
+            return plate.channelImage(tagged)
+        }
         // Proofing converts RGBA pixels: an image in another model is drawn into sRGB first.
         let drawSpace = tagged.colorSpace.flatMap { $0.model == .rgb ? $0 : nil } ?? WTColor.Spaces.sRGB
         guard !renderer.vectorOutput,

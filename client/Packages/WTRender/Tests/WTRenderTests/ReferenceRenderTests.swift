@@ -13,7 +13,7 @@ import Testing
     static let edgeTolerance = CoreGraphicsRendererTests.edgeTolerance
 
     static func interiorTolerance(for list: DisplayList) -> Int {
-        CoreGraphicsRendererTests.hasTranslucentGroup(list.items) ? CoreGraphicsRendererTests.translucentGroupInteriorTolerance : 0
+        CoreGraphicsRendererTests.hasTranslucentGroup(list.items) || list.layers.contains(where: { $0.layer.opacity < 1 }) ? CoreGraphicsRendererTests.translucentGroupInteriorTolerance : 0
     }
 
     @Test func corpusIsLargeAndNamedUniquely() {

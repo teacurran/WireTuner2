@@ -1332,6 +1332,20 @@ chunks.  Preview changes are not undoable (view state).
   sockets; network only through `wt.fetch`, which is the proxy above; wall-clock limit per
   record.
 
+NOTE: As built by DATA-018 (render half; `WTRender/Barcodes`).  `QRCode.encode` (byte mode, UTF-8,
+versions 1--40, four levels, the eight masks with ISO 18004's penalty rules) and `Code128` (the
+shortest symbol over sets A, B and C with changes and shifts, by dynamic programming; modulo-103
+check) are pure Swift.  `BarcodeRendering.item` draws a `BarcodeSpec` as one atomic group: a clear
+fill over the bounds (so the bounds rectangle hits), the bars as one path of rectangles -- a QR
+code's dark modules merged into one rectangle per horizontal run -- in the first fill's paint, and
+for Code 128 with *Show text* the value centred under the bars.  Code 128 bars are 15% of the
+symbol's width tall, at least 18 pt.  `BarcodeRendering.paths` gives *Convert to Paths* its
+rectangles.  An unencodable value draws `HatchedPlaceholder` (29 × 29 pt for QR, 60 × 30 pt for
+Code 128).  The ISO 18004 annex vectors use numeric and alphanumeric modes, which this encoder does
+not; module-for-module agreement is checked against `CIQRCodeGenerator` instead (with the mask it
+chose), decoding with `CIDetector`; Vision's `VNDetectBarcodesRequest` is the Code 128 reference
+decoder.  The Object panel section, *Insert Barcode…* and the merge test are WTApp's and WTModel's.
+
 === Build tasks
 
 [[DATA-001]]

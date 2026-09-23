@@ -59,6 +59,10 @@ public struct CoreGraphicsRenderer: WTRender {
     /// unless the run is not `greekable`.  0 turns it off; PDF output never greeks.
     public var greekTypeBelow: Double = 0
 
+    /// Plate mode (PRINT-007): every colour is mapped onto one plate of a separation before it
+    /// reaches Core Graphics, and the sheet starts white.  Nil draws the composite.
+    public var plate: PlateContext?
+
     /// Whether the context is vector output (PDF): raster effects are placed as images at the
     /// objects' own resolution and masks become image soft masks.
     var vectorOutput = false
@@ -195,17 +199,54 @@ public struct CoreGraphicsRenderer: WTRender {
         context.setFlatness(CGFloat(flatteningTolerance.devicePixels))
         context.translateBy(x: 0, y: CGFloat(surface.height))
         context.scaleBy(x: 1, y: -1)
-        if let background {
+        if let background = plate == nil ? background : .white {
             context.setFillColor(fillColor(background))
             context.fill(surface.cg)
         }
         context.concatenate(pasteboardTransform.cg)
         let base = DrawState(canvas: displayList, canvasToBase: context.ctm)
-        for index in displayList.indices(intersecting: cull) {
-            var state = base
-            state.indexPath = [index]
-            draw(displayList.items[index], state: state, cull: cull, into: context)
+        for run in displayList.layerRuns(displayList.indices(intersecting: cull)) {
+            guard let span = run.span else {
+                for index in run.indices {
+                    var state = base
+                    state.indexPath = [index]
+                    draw(displayList.items[index], state: state, cull: cull, into: context)
+                }
+                continue
+            }
+            drawLayer(span.layer, indices: run.indices, of: displayList, base: base, cull: cull, into: context)
         }
+    }
+
+    /// The items at `indices` by their layer's rules (LIB-005): outlines in every mode for a
+    /// keyline layer or guides, the layer highlight for hairlines, a background layer composited
+    /// at 50% as one group (Keyline ignores opacity, as for any group).
+    private func drawLayer(_ layer: LayerRendering, indices: [Int], of displayList: DisplayList, base: DrawState, cull: Rect, into context: CGContext) {
+        var renderer = self
+        if layer.forcesKeyline && !viewMode.isKeyline {
+            renderer.viewMode = viewMode.isFast ? .fastKeyline : .keyline
+        }
+        var state = base
+        state.highlight = layer.highlight
+        context.saveGState()
+        let translucent = layer.opacity < 1
+        let layered = translucent && renderer.viewMode.drawsTransparencyGroups
+        if layered {
+            context.setAlpha(CGFloat(layer.opacity))
+            context.beginTransparencyLayer(auxiliaryInfo: nil)
+        } else if translucent && !renderer.viewMode.isKeyline {
+            state.alpha = layer.opacity
+            context.setAlpha(CGFloat(layer.opacity))
+        }
+        for index in indices {
+            var itemState = state
+            itemState.indexPath = [index]
+            renderer.draw(displayList.items[index], state: itemState, cull: cull, into: context)
+        }
+        if layered {
+            context.endTransparencyLayer()
+        }
+        context.restoreGState()
     }
 
     /// Draws canvas items (a lens's backdrop: a prefix of `canvas`, positions unchanged) with
@@ -310,7 +351,8 @@ public struct CoreGraphicsRenderer: WTRender {
     private func drawRegions(_ regions: [PaintedRegion], path: DisplayPath, rule: FillRule, overprint: Bool, state: DrawState, into context: CGContext) {
         for region in regions {
             switch region {
-            case .fill(let shape, let shapeRule, let paint):
+            case .fill(let shape, let shapeRule, let composite):
+                let paint = plate.map { $0.paint(composite, overprint: overprint) } ?? composite
                 if paint.isNone {
                     continue
                 }
@@ -365,6 +407,15 @@ public struct CoreGraphicsRenderer: WTRender {
         vectorOutput ? colorManagement.taggedCGColor(color) : colorManagement.cgColor(color)
     }
 
+    /// `color` as it paints: on the plate in plate mode (nil when an overprinting colour covers
+    /// nothing there), itself otherwise.
+    func ink(_ color: Color, overprint: Bool = false) -> Color? {
+        guard let plate else {
+            return color
+        }
+        return plate.plateColor(color, overprint: overprint)
+    }
+
     private func applyOverprint(_ overprint: Bool, to context: CGContext) {
         if overprint && overprintPreview {
             context.setBlendMode(.multiply)
@@ -387,10 +438,10 @@ public struct CoreGraphicsRenderer: WTRender {
         let frame = item.visibleRect
         context.saveGState()
         context.concatenate(item.transform.cg)
-        context.setFillColor(fillColor(Color(white: 0.75)))
+        context.setFillColor(fillColor(ink(Color(white: 0.75))!))
         context.fill(frame.cg)
         if let bar = ImageDrawing.progressBar(for: item, store: imageStore) {
-            context.setFillColor(fillColor(Color(white: 0.45)))
+            context.setFillColor(fillColor(ink(Color(white: 0.45))!))
             context.fill(bar.cg)
         }
         context.restoreGState()
@@ -408,7 +459,7 @@ public struct CoreGraphicsRenderer: WTRender {
     private func drawTextPlaceholder(_ item: TextRunItem, into context: CGContext) {
         context.saveGState()
         context.concatenate(item.transform.cg)
-        context.setFillColor(fillColor(item.color.withAlpha(multipliedBy: 0.15)))
+        context.setFillColor(fillColor(ink(item.color.withAlpha(multipliedBy: 0.15))!))
         context.fill(item.bounds.cg)
         context.restoreGState()
         var baseline = DisplayPath()
@@ -418,7 +469,8 @@ public struct CoreGraphicsRenderer: WTRender {
     }
 
     /// A decoration line (`HairlineOutline`): `width` local units, or one device pixel when nil.
-    private func drawLine(_ path: DisplayPath, width: Double?, transform: AffineTransform, color: Color, into context: CGContext) {
+    private func drawLine(_ path: DisplayPath, width: Double?, transform: AffineTransform, color composite: Color, into context: CGContext) {
+        let color = ink(composite)!
         context.saveGState()
         context.concatenate(transform.cg)
         let ctm = context.ctm
@@ -433,7 +485,7 @@ public struct CoreGraphicsRenderer: WTRender {
     /// Glyph outlines filled non-zero: the same polygons the Metal renderer fills.
     private func drawGlyphs(_ run: GlyphRun, transform: AffineTransform, color: Color, overprint: Bool = false, into context: CGContext) {
         let outline = run.outline
-        guard !outline.isEmpty else {
+        guard !outline.isEmpty, let color = ink(color, overprint: overprint) else {
             return
         }
         context.saveGState()
@@ -462,7 +514,7 @@ public struct CoreGraphicsRenderer: WTRender {
     private func drawGreeked(_ item: TextRunItem, into context: CGContext) {
         context.saveGState()
         context.concatenate(item.transform.cg)
-        context.setFillColor(fillColor(Color(white: 0.7)))
+        context.setFillColor(fillColor(ink(Color(white: 0.7))!))
         context.fill(item.bounds.cg)
         context.restoreGState()
     }

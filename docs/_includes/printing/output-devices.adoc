@@ -158,6 +158,35 @@ Rasterize output::
 The composite (or each plate) is rendered to an RGB (or gray) bitmap at `rasterize_dpi` and
 drawn as one image per sheet.  Marks and labels remain vector.
 
+NOTE: As built by PRINT-007 and PRINT-009 (render half; `WTRender/Plates`).  *Plate mode* is
+`CoreGraphicsRenderer.plate` (a `PlateContext`): the composite list is drawn per plate unchanged,
+every solid colour, sampled paint's colours and glyph colour mapped at draw time; `PlateRenderer`
+renders plates (`renderPlate`, `renderPlates`, `drawPlate` for a PDF or print sheet, `inks(in:)` as
+a fallback plate list) and `GrayPlate` is the 8-bit sheet (0 full ink).  Deviations: the gray is
+written as a neutral sRGB colour on an sRGB surface (every channel equal, so the byte is the value;
+not a `DeviceGray` context), and a PDF sheet carries those neutral sRGB grays.  A spot colour keeps
+its identity on the resolved colour (`Color.spot`, a `SpotInk`: swatch, name, tint; `tinted`
+scales the tint; `Color.registration` is 100% on every plate) because the display list carries
+resolved values only; WTModel sets it when it resolves a spot swatch.  Gradients map each stop and
+insert 127 stops between each pair (`PlateContext.gradientSubdivisions`), because the renderer
+interpolates ramps in OKLab; ramps are then linear in coverage within 1/255.  Transparency, raster
+effects and lenses are not rasterized in CMYK: they composite the plate grays, which is the same
+arithmetic on `1 - coverage` for normal blending; custom fills' fixed shades (grass, leaves) and a
+lens's paper are not mapped.  Images are separated per decoded level and plate
+(`PlateImageCache`): a CMYK image drawn into Working CMYK contributes its channel, any other image
+is drawn into sRGB and converted per pixel through the same ColorSync chain as solid colours;
+1-bit images and masks are treated like any other image.  *Screener* is `WTRender.Screener`, not
+`WTInterchange/Print/Screener` (the plan's `screen_in_app` wiring stays with PRINT-008 in
+WTInterchange): plates render in bands of at most 8,192 × `bandHeight` pixels in parallel and are
+thresholded in fixed point against a 256 × 256 threshold cell per shape -- each sample's rank by
+the spot function (round, ellipse 1:0.6, line, diamond, square, cross), equal values sharing a rank
+so a Line screen inks whole rows -- anchored at the sheet's top-left pixel, angles counter-clockwise
+on the page.  Object screens (`objectScreens`, keyed by top-level node id, the effective screen
+WTModel resolved) are found by an aliased render in which every object paints its screen's index;
+each pixel takes the screen of the top-most object there.  The result is a 1-bit `BitPlate`
+(`makeImage()` for the sheet).  Measured: a letter plate at 2,400 dpi screens in 0.81 s in a
+release build (the 4 s budget is enforced in release builds only).
+
 === Build tasks
 
 [[PRINT-007]]

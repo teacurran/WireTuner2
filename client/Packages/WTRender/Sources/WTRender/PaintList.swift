@@ -67,11 +67,11 @@ indirect enum PaintOperation: Hashable, Sendable {
 
 /// Lowers a display list for one surface (a tile or a view) to paint operations.
 struct PaintListBuilder: Sendable {
-    let viewMode: ViewMode
+    private(set) var viewMode: ViewMode
     let overprintPreview: Bool
     let flattener: PathFlattener
     /// Draws paint textures exactly as the reference renderer draws those paints.
-    let reference: CoreGraphicsRenderer
+    private(set) var reference: CoreGraphicsRenderer
     /// Debug switch for REND-007's self-test: every declared fill rule is swapped (non-zero
     /// for even-odd and back), which must fail exactly the tiles the rule matters in.
     let swapsFillRules: Bool
@@ -126,11 +126,46 @@ struct PaintListBuilder: Sendable {
     /// mapped through `pasteboardTransform` (pasteboard → device pixels).
     func operations(for displayList: DisplayList, pasteboardTransform: AffineTransform, cull: Rect) -> [PaintOperation] {
         var result: [PaintOperation] = []
-        for index in displayList.indices(intersecting: cull) {
-            let state = State(canvas: displayList, indexPath: [index], canvasToDevice: pasteboardTransform)
-            lower(displayList.items[index], base: pasteboardTransform, state: state, cull: cull, into: &result)
+        for run in displayList.layerRuns(displayList.indices(intersecting: cull)) {
+            guard let span = run.span else {
+                for index in run.indices {
+                    let state = State(canvas: displayList, indexPath: [index], canvasToDevice: pasteboardTransform)
+                    lower(displayList.items[index], base: pasteboardTransform, state: state, cull: cull, into: &result)
+                }
+                continue
+            }
+            lowerLayer(span.layer, indices: run.indices, of: displayList, pasteboardTransform: pasteboardTransform, cull: cull, into: &result)
         }
         return result
+    }
+
+    /// As `CoreGraphicsRenderer.drawLayer`: a keyline layer or guides lowered in Keyline, the
+    /// layer highlight inherited, a background layer composited at 50% as one group.
+    private func lowerLayer(_ layer: LayerRendering, indices: [Int], of displayList: DisplayList, pasteboardTransform: AffineTransform, cull: Rect, into result: inout [PaintOperation]) {
+        var builder = self
+        if layer.forcesKeyline && !viewMode.isKeyline {
+            let mode: ViewMode = viewMode.isFast ? .fastKeyline : .keyline
+            builder.viewMode = mode
+            builder.reference.viewMode = mode
+        }
+        let translucent = layer.opacity < 1
+        let layered = translucent && builder.viewMode.drawsTransparencyGroups
+        var children: [PaintOperation] = []
+        for index in indices {
+            var state = State(canvas: displayList, indexPath: [index], canvasToDevice: pasteboardTransform)
+            state.highlight = layer.highlight
+            if translucent && !layered && !builder.viewMode.isKeyline {
+                state.alpha = layer.opacity
+            }
+            builder.lower(displayList.items[index], base: pasteboardTransform, state: state, cull: cull, into: &children)
+        }
+        if layered {
+            if !children.isEmpty {
+                result.append(.group(PaintGroup(operations: children, clip: nil, clipRule: .nonZero, opacity: layer.opacity)))
+            }
+        } else {
+            result.append(contentsOf: children)
+        }
     }
 
     // MARK: Items

@@ -315,6 +315,18 @@ Nothing beyond storing and relaying changes.
    pixels.  Runs off the main actor with progress.
 * Undo: Release to Layers is one step, "Release to Layers"; setting edits are one step each.
 
+NOTE: As built by WEB-016 (`WTRender/Animation/FrameComposer.swift`).  `FrameComposer.frames` takes the
+layers in `LayerOrder` as `AnimationLayer`s (printing, visible, excluded, hold, Guides) and the page
+rectangles; hidden, excluded and Guides layers are in no frame, background layers in every frame
+of the Layers and Pages-and-layers sources, and a Pages frame shows every animating layer.  A frame
+is drawn from the canvas list restricted to its layers (`DisplayList.restricted(toLayers:)`, which
+reuses the items and their bounds), so nothing is rebuilt or written.  `rasterize` draws a frame at
+a pixel size.  Playback is `AnimationPlayer` over an `AnimationTimeline` (fps 0 reads as 12, holds
+multiply the period, frames are dropped rather than slowed) driven by a `PlaybackTicker`: WTApp
+drives it from the canvas's display link; `TimerTicker` is a main-queue timer for when none is at
+hand.  `CVDisplayLink` is deprecated on macOS 15, so WTRender does not use it.  Measured: 100 frames of
+a 2,000-object document drawn at 520 × 200 px, worst frame 0.8 ms (release; 33 ms budget).
+
 === Build tasks
 
 [[WEB-014]]

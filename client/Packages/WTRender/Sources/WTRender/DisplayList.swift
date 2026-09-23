@@ -333,6 +333,9 @@ public struct GroupItem: Hashable, Sendable {
     /// Drawn in Preview and the fast modes but never in Keyline: the text effects `WTText`
     /// emits around glyph runs (text-effects, "Keyline view never shows them").
     public var hiddenInKeyline: Bool
+    /// Hit testing treats the group as one object even under Subselect: a symbol instance
+    /// (LIB-010) or a barcode (DATA-018), whose contents are never selected on the canvas.
+    public var atomic: Bool = false
 
     public init(
         children: [DisplayItem],
@@ -436,12 +439,21 @@ public struct DisplayList: Hashable, Sendable {
     /// The top-level items that carry a lens fill (at any depth): they repaint whenever
     /// anything beneath them does (ATTR-019).
     public let lensIndices: [Int]
+    /// The layers the items are on (LIB-005): runs of top-level items, in item order, each
+    /// drawn and hit tested by its layer's rules.  Empty when the builder supplied none; items
+    /// outside every span draw as they are.
+    public let layers: [LayerSpan]
 
-    public init(canvas: CanvasID, items: [DisplayItem], nodeIDs: [NodeID?] = []) {
+    public init(canvas: CanvasID, items: [DisplayItem], nodeIDs: [NodeID?] = [], layers: [LayerSpan] = []) {
+        self.init(canvas: canvas, items: items, itemBounds: items.map(\.bounds), nodeIDs: nodeIDs, layers: layers)
+    }
+
+    /// A list over items whose bounds are already known (a subset of another list's).
+    init(canvas: CanvasID, items: [DisplayItem], itemBounds: [Rect?], nodeIDs: [NodeID?], layers: [LayerSpan]) {
         self.canvas = canvas
         self.items = items
-        let itemBounds = items.map(\.bounds)
         self.itemBounds = itemBounds
+        self.layers = LayerSpan.normalized(layers, count: items.count)
         self.bounds = DisplayList.union(of: itemBounds.compactMap { $0 })
         // Normalized to the item count so a short or long id list cannot misaddress items.
         let ids = nodeIDs.isEmpty ? [] : Array((nodeIDs + Array(repeating: nil, count: max(items.count - nodeIDs.count, 0))).prefix(items.count))
@@ -491,13 +503,14 @@ public struct DisplayList: Hashable, Sendable {
     }
 
     public static func == (lhs: DisplayList, rhs: DisplayList) -> Bool {
-        lhs.canvas == rhs.canvas && lhs.nodeIDs == rhs.nodeIDs && lhs.items == rhs.items
+        lhs.canvas == rhs.canvas && lhs.nodeIDs == rhs.nodeIDs && lhs.layers == rhs.layers && lhs.items == rhs.items
     }
 
     public func hash(into hasher: inout Hasher) {
         hasher.combine(canvas)
         hasher.combine(items)
         hasher.combine(nodeIDs)
+        hasher.combine(layers)
     }
 
     /// The indices of the items whose bounds intersect `rect`, in draw order.

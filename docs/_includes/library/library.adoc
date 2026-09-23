@@ -639,6 +639,26 @@ window are ordinary object edits with their own undo steps.  Override commands a
 each: "Override text", "Override fill", "Hide Star", "Reset override", "Reset all overrides",
 "Detach instance"; typing into a text override groups as typing does.
 
+NOTE: As built by LIB-010 and LIB-026 (render half; `WTRender/Symbols`).  WTModel hands WTRender each
+symbol as a `SymbolArtwork` (id, name, subtree version, origin, and its children as `SymbolNode`s:
+a leaf's display item, a group's own properties over its members, or a nested `SymbolInstance`)
+in a `SymbolLibrary`, and each instance as a `SymbolInstance` (symbol, transform, its live
+overrides after the read-time rules as `InstanceOverride`s, its own appearance, the placeholder
+name and rectangle).  `SymbolRenderer` resolves artwork once per symbol, version and overrides
+(the version folded with every nested symbol's, so editing a nested symbol rebuilds its hosts) and
+places it with `translation(-origin) · transform` as one *atomic* group (`GroupItem.atomic`: hit
+testing returns the group even under Subselect, and marquee anchors inside it are not offered).  A
+text override arrives as the display items WTModel laid out with WTText in the master block's
+geometry; fill and stroke overrides recolour solid paints (glyph colours count as fills) at any
+depth of the overridden node; image overrides swap the asset id; a missing symbol or a nesting
+cycle draws `HatchedPlaceholder` with the name.  Dirty-rect propagation is `DependencyIndex`
+(`WTRender/Dependencies.swift`), which WTModel maintains from the merged state
+(`SymbolLibrary.addDependencies(of:on:to:)` for instances); `ChangeSummary.touchingDependents(in:)`
+touches every instance of an edited symbol, while an override edit touches only its instance.
+The 16 ms budget is held by the instance machinery: 1,000 instances of one symbol are built into
+the list in 5.8 ms after the first build (release); drawing them is the tile renderers' budget (the
+reference renderer's whole 880 × 550 pt view of them took 24 ms on a heavily loaded machine).
+
 === Build tasks
 
 [[LIB-008]]

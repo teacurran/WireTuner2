@@ -31,12 +31,17 @@ public struct Color: Hashable, Sendable {
     public var space: Space
     public var components: SIMD4<Double>
     public var alpha: Double
+    /// The spot ink the colour stands for (spot-process.adoc; PRINT-007): `components` are the
+    /// ink's alternate as composite output shows it, `spot` names the ink and its tint so a
+    /// separation puts the colour on the ink's own plate.  Nil for a process or RGB colour.
+    public var spot: SpotInk?
 
     /// A colour of `space` from its components; channels past the space's count are dropped.
-    public init(space: Space, components: SIMD4<Double>, alpha: Double = 1) {
+    public init(space: Space, components: SIMD4<Double>, alpha: Double = 1, spot: SpotInk? = nil) {
         self.space = space
         self.components = space == .cmyk ? components : SIMD4(components.x, components.y, components.z, 0)
         self.alpha = alpha
+        self.spot = spot
     }
 
     /// An sRGB colour (the space every colour had before D-052).
@@ -81,7 +86,14 @@ public struct Color: Hashable, Sendable {
 
     /// The colour with its alpha multiplied by `factor`.
     public func withAlpha(multipliedBy factor: Double) -> Color {
-        Color(space: space, components: components, alpha: alpha * factor)
+        Color(space: space, components: components, alpha: alpha * factor, spot: spot)
+    }
+
+    /// The colour as the spot ink `ink` at its full strength: `self` is the ink's alternate.
+    public func asSpot(_ ink: SpotInk) -> Color {
+        var result = self
+        result.spot = ink
+        return result
     }
 
     // MARK: sRGB view
@@ -152,7 +164,7 @@ public struct Color: Hashable, Sendable {
         case .oklab: white = SIMD4(1, 0, 0, 0)
         case .cmyk: white = .zero
         }
-        return Color(space: space, components: white + (components - white) * t, alpha: alpha)
+        return Color(space: space, components: white + (components - white) * t, alpha: alpha, spot: spot.map { $0.tinted(t) })
     }
 
     /// The components clamped to the space's range, as the read-time rules clamp an

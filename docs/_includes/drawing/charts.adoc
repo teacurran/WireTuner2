@@ -371,6 +371,25 @@ transform; text elements become text blocks; pictograph instances become groups.
 Undo:: One group per cell commit, per Apply, per override write, per pictograph change, per
 ungroup.
 
+NOTE: As built by DRAW-032 (render half; `WTRender/Charts`).  `ChartLayout(spec:typesetter:)` lays out a
+`ChartSpec` -- the chart node, type, plot size, the normalized `ChartTable` (series and categories
+by element id, `values[category][series]`; WTModel applies transposition, switch XY, dedup and the
+missing-cell rule), `ChartOptions`, the two `ChartAxis` (manual `ChartAxisRange`), precision,
+separator, and series and element `ChartStyle`s (appearance, extra transform about the element's
+centre, pictograph, repeating) -- into `ChartElement`s with `ChartElementID(chart, series, index,
+role, ordinal)`; `displayItem(transform:)` draws them as one group.  WTText depends on WTRender, so
+labels are shaped by a `LabelTypesetter` (`CoreTextLabels`: one Core Text line per label, Helvetica
+9 pt by default).  Choices the spec leaves open: automatic axes include 0 and step in 1, 2 or 5 ×
+10ⁿ for about five intervals; scatter plots each pair of columns as a series (x from the first) and
+reads markers *None* as squares; area bands stack in series order; pies are laid out side by side,
+one per category, clockwise from twelve o'clock, separation moving each wedge out along its bisector;
+the drop shadow is the element filled 50% gray, 3 units behind and to the right, cut at the
+baseline for columns; the legend sits 12 units right of the plot (beyond right-axis labels) or
+across the top; data numbers use the chart's precision and separator, axis labels the step's
+decimals with the axis prefix and suffix.  WTModel's `Chart`, its commands, merge tests and ungroup
+are the model half of DRAW-032 and are not delivered here.  Measured: a 100 × 20 table lays out in
+0.7 ms in a release build (the 5 ms budget is enforced in release builds only).
+
 === Build tasks
 
 [[DRAW-031]]

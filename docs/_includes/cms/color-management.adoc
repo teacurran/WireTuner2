@@ -488,6 +488,17 @@ state.  The toast for remote changes uses the shared notification strip from the
 Undo:: One change per btn:[OK] labelled "Change Color Settings"; the sheet edits a draft and
 writes only the registers that differ from the current values.
 
+NOTE: Deviation recorded with PRINT-007.  Black point compensation is WTColor's own, not
+ColorSync's: ColorSync's compensation moved the white point of some pairs (sRGB white into Generic
+CMYK came out as about C 11% M 8% under relative colorimetric, as `CGColor.converted` with its black
+point option also gives), which put ink under white paper on every separation.  A chain is split
+through Generic Lab at each relative colorimetric step that asks for compensation; the two profiles'
+black points (Lab black taken into the device and back) are matched linearly in XYZ with the D50
+white fixed, and runs between splits stay single ColorSync transforms (no split where the black
+points are equal, as when a proof device is Working CMYK).  Other intents ignore the flag.  White
+now separates to no ink, sRGB black to the profile's rich black, and without compensation colours
+agree with Core Graphics' conversion within 1/255 (`BlackPointCompensationTests`).
+
 === Build tasks
 
 [[CMS-001]]

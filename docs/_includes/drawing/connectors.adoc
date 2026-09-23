@@ -152,6 +152,25 @@ and lets the user pick the side from a pop-up; the stroke section is the ordinar
 
 Undo:: One group per creation, per end drag, per handle drag.
 
+NOTE: As built by DRAW-035 and DRAW-037 (render half; `WTRender/Connectors`).  Routing is
+`WTRender.ConnectorRouter.route(_:bounds:)`, not `WTGeometry.routeConnector` (WTGeometry is another
+track's), and takes a `ConnectorSpec` (ends, routing, run offsets, strokes).  Besides the orthogonal
+router it offers `.straight` and `.curved` (one cubic leaving each side along its normal, handles
+half the distance) for WTModel to expose if the schema gains a routing field; `connector.proto`,
+the tool and the Object panel are other tracks'.  An end with `SIDE_UNSPECIFIED` takes the side of
+its object facing the other end.  Orthogonal joins: stubs facing each other with room between meet
+at the middle; facing the same way, beyond the further stub; facing away, around through the middle
+of the other axis; one horizontal and one vertical stub, one bend when it is ahead of both, else
+two.  Intermediate runs are the route's segments other than the first and last (after merging
+collinear corners); an offset moves its run to the right of its direction.  An attached end sits
+on the item's geometry grown by half its widest stroke (`ConnectorRendering.attachmentBounds`), not
+on the conservative culling bounds.  The reverse index is `DependencyIndex`
+(`ConnectorSpec.addDependencies(to:)`), maintained by WTModel; `ChangeSummary.touchingDependents(in:)`
+touches every connector of a moved node so the builder rebuilds it and REND-004 repaints it.
+`ConnectorRendering.selectionOutline` is the route stroked for the overlay (selection or remote
+tint).  Measured: 1,000 connectors of one node rerouted and invalidated in 11 ms in a release
+build (the one-frame budget is enforced in release builds only).
+
 === Build tasks
 
 [[DRAW-035]]

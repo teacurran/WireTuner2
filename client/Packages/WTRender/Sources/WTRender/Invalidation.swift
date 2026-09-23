@@ -126,7 +126,7 @@ public struct InvalidationMapper: Hashable, Sendable {
                 continue
             }
             for list in before + after {
-                if let rect = list.bounds(of: node) {
+                if let rect = list.bounds(of: node) ?? list.bounds(ofLayer: node) {
                     region.add(rect, canvas: list.canvas)
                 }
             }

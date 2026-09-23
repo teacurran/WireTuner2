@@ -130,6 +130,10 @@ Nothing beyond storing and relaying changes.
   the plate.
 * Undo: one change per panel commit; dial and slider drags group from mouse down to mouse up.
 
+NOTE: As built by PRINT-009 (render half).  `HalftoneScreen` (`WTRender/Plates/Halftone.swift`)
+reduces the angle modulo 360 and reads a frequency outside 1--600 as 60; inheritance (*Default*,
+frequency 0) is resolved by WTModel before the screener sees a screen.
+
 === Build tasks
 
 [[PRINT-010]]

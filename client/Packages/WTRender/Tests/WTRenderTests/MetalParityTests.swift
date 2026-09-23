@@ -141,7 +141,7 @@ struct MetalFillRuleSelfTests {
     func misSetFillRuleFailsExactlyTheAffectedTiles(name: String) throws {
         let context = try #require(MetalAvailability.context)
         let reference = try #require(ReferenceCorpus.cases.first { $0.name == name })
-        let swapped = DisplayList(canvas: reference.list.canvas, items: Self.swappingRules(reference.list.items))
+        let swapped = DisplayList(canvas: reference.list.canvas, items: Self.swappingRules(reference.list.items), nodeIDs: reference.list.nodeIDs, layers: reference.list.layers)
         var affectedCount = 0
         for configuration in MetalParityTests.configurations(for: reference) {
             var metal = configuration.metal(context)

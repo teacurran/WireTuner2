@@ -30,14 +30,22 @@ public struct HitOptions: Hashable, Sendable {
     public var pickPoints: Bool
     /// Whether curve control points are hit as `.handle` (they are only shown on selected paths).
     public var pickHandles: Bool
+    /// The window's active layer (LIB-004), for *Edit current layer only*.
+    public var activeLayer: NodeID?
+    /// *Edit current layer only* (layers.adoc): only objects on `activeLayer` are hit.
+    public var editCurrentLayerOnly: Bool
 
     public init(
         subselect: Bool = false,
         contactSensitive: Bool = false,
         pickDistanceInViewPixels: Double = HitOptions.defaultPickDistance,
         pickPoints: Bool = true,
-        pickHandles: Bool = false
+        pickHandles: Bool = false,
+        activeLayer: NodeID? = nil,
+        editCurrentLayerOnly: Bool = false
     ) {
+        self.activeLayer = activeLayer
+        self.editCurrentLayerOnly = editCurrentLayerOnly
         self.subselect = subselect
         self.contactSensitive = contactSensitive
         self.pickDistanceInViewPixels = HitOptions.clampedPickDistance(pickDistanceInViewPixels)
@@ -209,16 +217,67 @@ public struct HitTester: Sendable {
     /// Everything under `viewPoint` (view points), top-most first: one result per top-level
     /// item, or with `subselect` one per member hit.
     public func hitTest(viewPoint: Point) -> [HitResult] {
+        hitTest(viewPoint: viewPoint, guides: false)
+    }
+
+    /// Guides under `viewPoint` (objects on the Guides layer), top-most first: they are hit
+    /// only for the double-click that opens the Guides sheet (layers.adoc).
+    public func hitTestGuides(viewPoint: Point) -> [HitResult] {
+        hitTest(viewPoint: viewPoint, guides: true)
+    }
+
+    /// Whether top-level item `top` may be hit (LIB-005): never on a locked layer or the Guides
+    /// layer (guides only when `guides`), and with *Edit current layer only* only on the
+    /// active layer.  A list without layers applies no layer rule.
+    func isPickable(_ top: Int, guides: Bool = false) -> Bool {
+        guard !displayList.layers.isEmpty else {
+            return !guides
+        }
+        guard let layer = displayList.layerSpan(containing: top)?.layer else {
+            return !guides && !options.editCurrentLayerOnly
+        }
+        if guides {
+            return layer.isGuides
+        }
+        if !layer.isHittable {
+            return false
+        }
+        return !options.editCurrentLayerOnly || layer.id == options.activeLayer
+    }
+
+    /// `path` cut after the first atomic group on it (an instance or a barcode is one object
+    /// even to Subselect).
+    func atomicPrefix(_ path: [Int]) -> [Int] {
+        var items = displayList.items
+        for (depth, index) in path.enumerated() {
+            guard items.indices.contains(index), case .group(let group) = items[index] else {
+                return path
+            }
+            if group.atomic {
+                return Array(path.prefix(depth + 1))
+            }
+            items = group.children
+        }
+        return path
+    }
+
+    private func hitTest(viewPoint: Point, guides: Bool) -> [HitResult] {
         let point = viewport.toPasteboard(viewPoint)
         let tolerance = options.pasteboardTolerance(for: viewport)
         let probe = Rect(x: point.x - tolerance, y: point.y - tolerance, width: 2 * tolerance, height: 2 * tolerance)
         var results: [HitResult] = []
-        for top in index.query(probe).sorted(by: >) {
+        for top in index.query(probe).sorted(by: >) where isPickable(top, guides: guides) {
             let hits = self.hits(displayList.items[top], path: [top], point: point, tolerance: tolerance)
             if options.subselect {
-                results.append(contentsOf: hits.map {
-                    HitResult(itemPath: $0.leafPath, leafPath: $0.leafPath, kind: $0.kind, distance: $0.distance)
-                })
+                var atomicHits: Set<[Int]> = []
+                for hit in hits {
+                    let path = atomicPrefix(hit.leafPath)
+                    // An atomic group is one result, however many of its members were hit.
+                    if path != hit.leafPath && !atomicHits.insert(path).inserted {
+                        continue
+                    }
+                    results.append(HitResult(itemPath: path, leafPath: path, kind: hit.kind, distance: hit.distance))
+                }
             } else if let first = hits.first {
                 results.append(HitResult(itemPath: [top], leafPath: first.leafPath, kind: first.kind, distance: first.distance))
             }
@@ -467,21 +526,37 @@ public struct HitTester: Sendable {
         let contact = contactSensitive ?? options.contactSensitive
         let toView = viewport.pasteboardToView
         var results: [MarqueeHit] = []
-        for top in index.query(viewRect.applying(viewport.viewToPasteboard)).sorted(by: >) {
+        for top in index.query(viewRect.applying(viewport.viewToPasteboard)).sorted(by: >) where isPickable(top) {
             let leaves = HitTester.leaves(of: displayList.items[top], path: [top])
             let tests = leaves.map { leaf in
                 (leaf.path, marqueeTest(leaf.item, path: leaf.path, viewRect: viewRect, toView: toView))
             }
             if options.subselect {
+                var atomic: [[Int]: [MarqueeTest]] = [:]
+                var order: [[Int]] = []
                 for (path, test) in tests {
+                    let prefix = atomicPrefix(path)
+                    guard prefix == path else {
+                        if atomic[prefix] == nil {
+                            order.append(prefix)
+                        }
+                        atomic[prefix, default: []].append(test)
+                        continue
+                    }
                     let selected = contact ? test.touched : test.enclosed
                     if selected || !test.anchors.isEmpty {
                         results.append(MarqueeHit(itemPath: path, selected: selected, anchors: test.anchors))
                     }
                 }
+                for path in order {
+                    let group = atomic[path]!
+                    if contact ? group.contains(where: \.touched) : group.allSatisfy(\.enclosed) {
+                        results.append(MarqueeHit(itemPath: path, selected: true, anchors: []))
+                    }
+                }
             } else {
                 let selected = contact ? tests.contains { $0.1.touched } : !tests.isEmpty && tests.allSatisfy { $0.1.enclosed }
-                let anchors = tests.flatMap { $0.1.anchors }
+                let anchors = tests.filter { atomicPrefix($0.0) == $0.0 }.flatMap { $0.1.anchors }
                 if selected || !anchors.isEmpty {
                     results.append(MarqueeHit(itemPath: [top], selected: selected, anchors: anchors))
                 }
