@@ -48,6 +48,14 @@ jobs:
           distribution: 'temurin'
           # No `cache: maven`: the runner's ~/.m2 survives between jobs.
 
+      - name: Set up Go and protoc (wt-crdt generates its merge table and protobuf Java)
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: tools/protoc-gen-wtcrdt/go.mod
+      - uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Docker is available for Testcontainers
         run: |
           if ! docker info >/dev/null 2>&1; then
@@ -123,6 +131,17 @@ jobs:
         with:
           java-version: '25'
           distribution: 'temurin'
+
+      - name: Set up Go and protoc
+        if: steps.preflight.outputs.enabled == 'true'
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: tools/protoc-gen-wtcrdt/go.mod
+      - name: Set up protoc
+        if: steps.preflight.outputs.enabled == 'true'
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Download coverage from verify
         if: steps.preflight.outputs.enabled == 'true'
