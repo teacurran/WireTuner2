@@ -6,6 +6,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.google.protobuf.TextFormat;
 import com.villagecompute.wiretuner.conformance.v1.Vector;
 import com.villagecompute.wiretuner.crdt.Engine;
+import com.villagecompute.wiretuner.crdt.FractionalIndex;
+import com.villagecompute.wiretuner.crdt.SplitMix64;
 import com.villagecompute.wiretuner.crdt.OpId;
 import com.villagecompute.wiretuner.doc.v1.Change;
 import com.villagecompute.wiretuner.doc.v1.CreateNode;
@@ -156,7 +158,8 @@ class ConformanceRunnerTest {
     @Test
     void aReplayerSeesSetupBeforeTheOrder() throws IOException {
         ConformanceRunner.Replayer checking = (schema, changes) -> {
-            assertThat(changes.get(0).getReplica()).isEqualTo(7);
+            assertThat(changes.get(0).change().getReplica()).isEqualTo(7);
+            assertThat(changes.get(0).serverSeq()).isEqualTo(1L);
             return ConformanceRunner.ENGINE.replay(schema, changes);
         };
         assertThat(ConformanceRunner.run(vector("name: \"t/v\"\n" + CREATE), "t/v", checking).failures()).hasSize(1);
@@ -170,11 +173,11 @@ class ConformanceRunnerTest {
 
         ConformanceRunner.Outcome outcome = run(text + "expect { state_hash: \"wrong\""
                 + " node { id { counter: 1 replica: 7 } node_hash: \"" + nodeHash + "\""
-                + "   register { path { segments { field: 150 } segments { element { counter: 1 } } } } }"
+                + "   register { } }"
                 + " node { id { counter: 9 replica: 9 } node_hash: \"00\" } }");
 
         assertThat(outcome.failures().get(0)).endsWith("; first differing node 9:9");
-        assertThat(outcome.failures()).contains("node 1:7: expected register path must be field numbers only");
+        assertThat(outcome.failures()).contains("node 1:7: expected register has an empty path");
     }
 
     @Test
@@ -204,5 +207,142 @@ class ConformanceRunnerTest {
     void firstDifferenceIsNullForEqualStates() {
         assertThat(ConformanceRunner.firstDifference(new Engine(),
                 new Engine())).isNull();
+    }
+
+    private static final String TEST_NODE = """
+            setup { change { replica: 1 seq: 1 start_counter: 1
+              ops { create { parent { counter: 4 } position: "\\x80" props { test { label: "t" } } } }
+              ops { element_insert { node { counter: 1 replica: 1 }
+                sequence { segments { field: 1000 } segments { field: 8 } }
+                positions: "\\x40" positions: "\\x80"
+                values { test { stops { color: "red" } } } } }
+              ops { set_add { node { counter: 1 replica: 1 } set { segments { field: 1000 } segments { field: 3 } }
+                values { test { tags: "a" } } } } } }
+            """;
+
+    @Test
+    void testKindsSequencesSetsAndTheTreeReadOut() throws IOException {
+        String expect = "expect { node { id { counter: 1 replica: 1 }"
+                + " tree { parent { counter: 4 } position: \"\\x80\" }"
+                + " sequence { path { segments { field: 1000 } segments { field: 8 } }"
+                + "   elements { counter: 2 replica: 1 } elements { counter: 3 replica: 1 } }"
+                + " set { path { segments { field: 1000 } segments { field: 3 } } members { test { tags: \"a\" } } }"
+                + " register { path { segments { field: 1000 } segments { field: 8 } segments { element { counter: 2 replica: 1 } }"
+                + "   segments { field: 3 } } value { test { stops { color: \"red\" } } } op { counter: 2 replica: 1 } } }"
+                + " node { id { counter: 4 } tree { parent { } children { counter: 1 replica: 1 } } } }";
+        ConformanceRunner.Outcome outcome = run(TEST_NODE + expect);
+        assertThat(outcome.failures()).singleElement().asString().startsWith("state_hash:");
+
+        ConformanceRunner.Outcome wrong = run(TEST_NODE + "expect { state_hash: \"" + outcome.stateHash() + "\""
+                + " node { id { counter: 1 replica: 1 } tree { deleted: true children { counter: 9 } }"
+                + " sequence { path { segments { field: 1000 } segments { field: 8 } } deleted { counter: 2 replica: 1 } }"
+                + " sequence { }"
+                + " set { path { segments { field: 1000 } segments { field: 3 } } }"
+                + " set { path { segments { field: 1000 } segments { field: 2 } } }"
+                + " set { } } }");
+        assertThat(wrong.failures()).containsExactly(
+                "node 1:1: expected parent none position , got 4:0/80@1:1",
+                "node 1:1: expected deleted true, got false",
+                "node 1:1: expected children [9:0], got []",
+                "node 1:1 sequence 1000.8: expected [] deleted [2:1], got [2:1, 3:1] deleted []",
+                "node 1:1: expected sequence has an empty path",
+                "node 1:1 set 1000.3: expected [], got [61]",
+                "node 1:1 set 1000.2: expected [], got []",
+                "node 1:1: expected set has an empty path");
+    }
+
+    @Test
+    void theTreeReadOutComparesPositions() throws IOException {
+        String hash = run(TEST_NODE).stateHash();
+        assertThat(run(TEST_NODE + "expect { state_hash: \"" + hash + "\" node { id { counter: 1 replica: 1 }"
+                + " tree { parent { counter: 4 } position: \"\\x81\" } } }").failures())
+                .containsExactly("node 1:1: expected parent 4:0 position 81, got 4:0/80@1:1");
+        assertThat(run(TEST_NODE + "expect { state_hash: \"" + hash + "\" node { id { counter: 1 replica: 1 }"
+                + " tree { parent { counter: 5 } position: \"\\x80\" } } }").failures()).hasSize(1);
+        assertThat(run(TEST_NODE + "expect { state_hash: \"" + hash + "\" node { id { counter: 9 replica: 9 }"
+                + " tree { parent { counter: 4 } } } }").failures())
+                .containsExactly("node 9:9: expected parent 4:0 position , got none");
+    }
+
+    @Test
+    void positionsAndAppendRunsAreGeneratedAndCompared() throws IOException {
+        byte[] key = FractionalIndex.between(null, null, new SplitMix64(5));
+        String escaped = escape(key);
+        byte[] last = null;
+        SplitMix64 random = new SplitMix64(1);
+        for (int i = 0; i < 10; i++) {
+            last = FractionalIndex.between(last, null, random);
+        }
+        String hash = run("").stateHash();
+        String ok = "expect { state_hash: \"" + hash + "\" }"
+                + " position { seed: 5 expect: \"" + escaped + "\" }"
+                + " append_run { seed: 1 count: 10 max_length: 40 last: \"" + escape(last) + "\" }";
+        assertThat(run(ok).failures()).isEmpty();
+
+        ConformanceRunner.Outcome bad = run("expect { state_hash: \"" + hash + "\" }"
+                + " position { lo: \"\\x80\" hi: \"\\x10\" seed: 5 expect: \"\\x01\" }"
+                + " position { seed: 5 expect: \"\\x01\" }"
+                + " append_run { seed: 1 count: 10 max_length: 2 last: \"" + escape(last) + "\" }"
+                + " append_run { seed: 1 count: 10 max_length: 40 }"
+                + " append_run { seed: 1 max_length: 40 last: \"\\x01\" }");
+        assertThat(bad.failures()).hasSize(5);
+        assertThat(bad.failures().get(0)).isEqualTo("position between 80 and 10 seed 5: expected 01, got an error");
+        assertThat(bad.failures().get(1)).startsWith("position between  and  seed 5: expected 01, got 80");
+        assertThat(bad.failures().get(4)).isEqualTo("append run seed 1: longest key 0 bytes (limit 40), last , expected 01");
+    }
+
+    private static String escape(byte[] bytes) {
+        StringBuilder text = new StringBuilder();
+        for (byte b : bytes) {
+            text.append(String.format("\\x%02x", b & 0xFF));
+        }
+        return text.toString();
+    }
+
+    @Test
+    void fieldRowOverridesDeclareMessagesAndReportBadPolicies() throws IOException {
+        ConformanceRunner.Outcome outcome = run(CREATE
+                + "schema_override { field { message: \"t.X\" field: 1 name: \"x\" policy: \"BOGUS\" type: \"string\" } }\n"
+                + "schema_override { field { message: \"t.X\" field: 2 name: \"y\" policy: \"SEQUENCE\" type: \"message\""
+                + " repeated: true type_name: \"t.X\" } }\n");
+        assertThat(outcome.failures()).singleElement().asString().startsWith("schema_override: ");
+    }
+
+    @Test
+    void theTestKindsAreLoadedFromTheClasspath() {
+        assertThat(ConformanceRunner.TEST_KINDS).isNotEmpty();
+        assertThatThrownBy(() -> ConformanceRunner.loadTestKinds("/no-such-file.textproto"))
+                .isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> ConformanceRunner.loadTestKinds("/test-kinds-broken.textproto"))
+                .isInstanceOf(java.io.UncheckedIOException.class);
+    }
+
+    @Test
+    void serverSeqsTravelBesideTheChange() throws IOException {
+        List<Long> seen = new java.util.ArrayList<>();
+        ConformanceRunner.Replayer recording = (schema, changes) -> {
+            changes.forEach(delivered -> seen.add(delivered.serverSeq()));
+            return ConformanceRunner.ENGINE.replay(schema, changes);
+        };
+        ConformanceRunner.run(vector("name: \"t/v\"\n" + CREATE
+                + "setup { change { replica: 7 seq: 2 start_counter: 2 server_seq: 9 ops { noop { } } } }\n"
+                + "replica { id: 1 change { replica: 1 seq: 1 start_counter: 5 server_seq: 12 ops { noop { } } }"
+                + " change { replica: 1 seq: 2 start_counter: 6 ops { noop { } } } }"), "t/v", recording);
+        assertThat(seen).containsExactly(1L, 9L, 12L, null);
+        assertThat(ConformanceRunner.docChange(com.villagecompute.wiretuner.conformance.v1.Change.newBuilder()
+                .setReplica(3).setServerSeq(4).build())).isEqualTo(Change.newBuilder().setReplica(3).build());
+    }
+
+    @Test
+    void theVectorNodePropsMirrorsEveryDocKind() {
+        var doc = NodeProps.getDescriptor();
+        var mirror = com.villagecompute.wiretuner.conformance.v1.NodeProps.getDescriptor();
+        for (var field : doc.getFields()) {
+            var twin = mirror.findFieldByNumber(field.getNumber());
+            assertThat(twin).as("conformance NodeProps lacks %s", field.getName()).isNotNull();
+            assertThat(twin.getName()).isEqualTo(field.getName());
+            assertThat(twin.getMessageType().getFullName()).isEqualTo(field.getMessageType().getFullName());
+            assertThat(twin.getContainingOneof().getName()).isEqualTo(field.getContainingOneof().getName());
+        }
     }
 }

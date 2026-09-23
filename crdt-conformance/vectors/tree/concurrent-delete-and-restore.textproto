@@ -1,0 +1,47 @@
+# crdt-conformance/vectors/tree/concurrent-delete-and-restore.textproto (CRDT-002; schema: crdt-conformance/schema/vector.proto)
+name: "tree/concurrent-delete-and-restore"
+description: "X was deleted.  Replica 1 restores it (deleted = false at 4:1) while replica 2 deletes it again and replica 3 restores it at a later counter; the `deleted` register takes the greatest OpId (5:3, restored) and the other writes are retained."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Create layer and X"
+    ops { create { parent { counter: 4 } position: "\x80" props { layer { common { name: "Layer 1" } } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x80" props { group { common { name: "X" } } } } }
+  }
+  change {
+    replica: 7 seq: 2 start_counter: 3 label: "Delete"
+    ops { set_deleted { node { counter: 2 replica: 7 } deleted: true } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 4 base_server_seq: 2 label: "Restore"
+    ops { set_deleted { node { counter: 2 replica: 7 } deleted: false } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 4 base_server_seq: 2 label: "Delete"
+    ops { set_deleted { node { counter: 2 replica: 7 } deleted: true } }
+  }
+}
+replica {
+  id: 3
+  change {
+    replica: 3 seq: 1 start_counter: 4 base_server_seq: 2 label: "Restore, after another op"
+    ops { noop {} }
+    ops { set_deleted { node { counter: 2 replica: 7 } deleted: false } }
+  }
+}
+deliveries { order: [1, 2, 3] }
+deliveries { order: [3, 2, 1] }
+deliveries { order: [2, 3, 1] }
+expect {
+  state_hash: "d70e4732d4556bbf5c825254f2d839cef93eb235e12cc73a7d464b5e3d464937"
+  node {
+    id { counter: 2 replica: 7 }
+    node_hash: "8604a08b2a59bd5d59dba0c1e7dc4cadf00cd1406be589bc91ad4435f25d71f4"
+    tree { parent { counter: 1 replica: 7 } position: "\x80" deleted: false }
+  }
+}

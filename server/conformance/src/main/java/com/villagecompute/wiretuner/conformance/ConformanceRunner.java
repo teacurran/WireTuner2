@@ -1,22 +1,40 @@
 package com.villagecompute.wiretuner.conformance;
 
 import com.google.protobuf.TextFormat;
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.villagecompute.wiretuner.conformance.v1.AppendRun;
+import com.villagecompute.wiretuner.conformance.v1.Change;
 import com.villagecompute.wiretuner.conformance.v1.Delivery;
 import com.villagecompute.wiretuner.conformance.v1.ExpectNode;
 import com.villagecompute.wiretuner.conformance.v1.ExpectRegister;
+import com.villagecompute.wiretuner.conformance.v1.ExpectSequence;
+import com.villagecompute.wiretuner.conformance.v1.ExpectSet;
+import com.villagecompute.wiretuner.conformance.v1.ExpectTree;
+import com.villagecompute.wiretuner.conformance.v1.FieldRow;
+import com.villagecompute.wiretuner.conformance.v1.PositionCase;
 import com.villagecompute.wiretuner.conformance.v1.Replica;
 import com.villagecompute.wiretuner.conformance.v1.SchemaOverride;
+import com.villagecompute.wiretuner.conformance.v1.SchemaOverrides;
 import com.villagecompute.wiretuner.conformance.v1.Vector;
 import com.villagecompute.wiretuner.crdt.Engine;
+import com.villagecompute.wiretuner.crdt.FractionalIndex;
 import com.villagecompute.wiretuner.crdt.OpId;
+import com.villagecompute.wiretuner.crdt.Placement;
 import com.villagecompute.wiretuner.crdt.Register;
 import com.villagecompute.wiretuner.crdt.RegisterPath;
 import com.villagecompute.wiretuner.crdt.Schema;
+import com.villagecompute.wiretuner.crdt.SplitMix64;
 import com.villagecompute.wiretuner.crdt.StateHash;
 import com.villagecompute.wiretuner.crdt.Write;
+import com.villagecompute.wiretuner.crdt.schema.MergeTable.FieldPolicy;
 import com.villagecompute.wiretuner.crdt.schema.MergeTable.Policy;
-import com.villagecompute.wiretuner.doc.v1.Change;
+import com.villagecompute.wiretuner.crdt.schema.MergeTable.RefFallback;
+import com.villagecompute.wiretuner.doc.v1.ElementId;
+import com.villagecompute.wiretuner.doc.v1.NodeProps;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.UncheckedIOException;
+import java.util.HexFormat;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -41,6 +59,25 @@ public final class ConformanceRunner {
     public static final Path VECTORS_DIR = Path.of("crdt-conformance", "vectors");
 
     private static final String VECTOR_SUFFIX = ".textproto";
+
+    /**
+     * The test kinds' merge table every vector runs with: crdt-conformance/schema/test-kinds.textproto,
+     * copied onto the classpath by the build.
+     */
+    static final List<SchemaOverride> TEST_KINDS = loadTestKinds("/test-kinds.textproto");
+
+    static List<SchemaOverride> loadTestKinds(String resource) {
+        try (InputStream in = ConformanceRunner.class.getResourceAsStream(resource)) {
+            if (in == null) {
+                throw new IllegalStateException(resource + " is not on the classpath");
+            }
+            SchemaOverrides.Builder overrides = SchemaOverrides.newBuilder();
+            TextFormat.merge(new String(in.readAllBytes(), StandardCharsets.UTF_8), overrides);
+            return overrides.build().getOverrideList();
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
 
     private ConformanceRunner() {
     }
@@ -103,17 +140,39 @@ public final class ConformanceRunner {
         return run(load(file), expectedName(root, file));
     }
 
+    /** One change to apply, with the server_seq it was sequenced at ({@code null}: not sequenced). */
+    record Delivered(com.villagecompute.wiretuner.doc.v1.Change change, Long serverSeq) {
+    }
+
     /** Turns the changes of one delivery order (setup first) into a merged state. */
     interface Replayer {
-        Engine replay(Schema schema, List<Change> changes);
+        Engine replay(Schema schema, List<Delivered> changes);
     }
 
     /** The replayer vectors run with: a fresh {@link Engine} applying every change in order. */
     static final Replayer ENGINE = (schema, changes) -> {
         Engine engine = new Engine(schema);
-        changes.forEach(engine::apply);
+        changes.forEach(delivered -> engine.apply(delivered.change(), delivered.serverSeq()));
         return engine;
     };
+
+    /** The doc.v1 Change a vector change encodes (the test kind becomes an unknown field). */
+    static com.villagecompute.wiretuner.doc.v1.Change docChange(Change change) {
+        try {
+            return com.villagecompute.wiretuner.doc.v1.Change.parseFrom(change.toBuilder().clearServerSeq().build().toByteArray());
+        } catch (InvalidProtocolBufferException e) {
+            // Both messages are proto3 with the same field numbers and types.
+            throw new IllegalStateException(e);
+        }
+    }
+
+    private static NodeProps docProps(com.villagecompute.wiretuner.conformance.v1.NodeProps props) {
+        try {
+            return NodeProps.parseFrom(props.toByteArray());
+        } catch (InvalidProtocolBufferException e) {
+            throw new IllegalStateException(e);
+        }
+    }
 
     /** Replays {@code vector}, which must be named {@code expectedName}. */
     public static Outcome run(Vector vector, String expectedName) {
@@ -128,14 +187,22 @@ public final class ConformanceRunner {
         }
         Schema schema = schema(vector, failures);
         List<List<Change>> orders = deliveryOrders(vector, failures);
+        checkPositions(vector, failures);
         if (!failures.isEmpty()) {
             return new Outcome(expectedName, failures, "");
         }
         Engine reference = null;
         String referenceOrder = "";
         for (int i = 0; i < orders.size(); i++) {
-            List<Change> changes = new ArrayList<>(vector.getSetup().getChangeList());
-            changes.addAll(orders.get(i));
+            List<Delivered> changes = new ArrayList<>();
+            List<Change> setup = vector.getSetup().getChangeList();
+            for (int s = 0; s < setup.size(); s++) {
+                Change change = setup.get(s);
+                changes.add(new Delivered(docChange(change), change.getServerSeq() == 0 ? s + 1 : change.getServerSeq()));
+            }
+            for (Change change : orders.get(i)) {
+                changes.add(new Delivered(docChange(change), change.getServerSeq() == 0 ? null : change.getServerSeq()));
+            }
             Engine engine = replayer.replay(schema, changes);
             String order = describe(vector, i);
             if (reference == null) {
@@ -150,16 +217,19 @@ public final class ConformanceRunner {
         return new Outcome(expectedName, failures, StateHash.hex(reference.stateHash()));
     }
 
-    /** The generated merge table with the vector's overrides applied. */
+    /** The generated merge table with the test kinds and the vector's overrides applied. */
     static Schema schema(Vector vector, List<String> failures) {
         Schema schema = Schema.generated();
-        for (SchemaOverride override : vector.getSchemaOverrideList()) {
+        List<SchemaOverride> overrides = new ArrayList<>(TEST_KINDS);
+        overrides.addAll(vector.getSchemaOverrideList());
+        for (SchemaOverride override : overrides) {
             try {
                 schema = switch (override.getChangeCase()) {
                     case POLICY -> schema.withPolicy(override.getPolicy().getMessage(),
                             override.getPolicy().getField(), Policy.valueOf(override.getPolicy().getPolicy()));
                     case VARIANT -> schema.withVariant(override.getVariant().getMessage(),
                             override.getVariant().getKindField(), override.getVariant().getCaseFieldsList());
+                    case FIELD -> schema.withField(override.getField().getMessage(), row(override.getField()));
                     case CHANGE_NOT_SET -> throw new IllegalArgumentException("empty schema_override");
                 };
             } catch (IllegalArgumentException e) {
@@ -167,6 +237,53 @@ public final class ConformanceRunner {
             }
         }
         return schema;
+    }
+
+    private static FieldPolicy row(FieldRow row) {
+        Policy policy = Policy.valueOf(row.getPolicy());
+        String typeName = row.getTypeName().isEmpty() ? null : row.getTypeName();
+        return new FieldPolicy(row.getField(), row.getName(), policy, RefFallback.UNSET, false, row.getType(),
+                row.getRepeated(), typeName, policy == Policy.SEQUENCE ? typeName : null,
+                row.getOneof().isEmpty() ? null : row.getOneof());
+    }
+
+    private static String hex(byte[] bytes) {
+        return HexFormat.of().formatHex(bytes);
+    }
+
+    /** Generates every {@code position} and {@code append_run} of the vector and compares. */
+    static void checkPositions(Vector vector, List<String> failures) {
+        for (PositionCase check : vector.getPositionList()) {
+            byte[] lo = check.getLo().isEmpty() ? null : check.getLo().toByteArray();
+            byte[] hi = check.getHi().isEmpty() ? null : check.getHi().toByteArray();
+            String key;
+            try {
+                key = hex(FractionalIndex.between(lo, hi, new SplitMix64(check.getSeed())));
+            } catch (IllegalArgumentException e) {
+                key = null;
+            }
+            String expected = hex(check.getExpect().toByteArray());
+            if (!expected.equals(key)) {
+                failures.add("position between " + hex(check.getLo().toByteArray()) + " and " + hex(check.getHi().toByteArray())
+                        + " seed " + Long.toUnsignedString(check.getSeed()) + ": expected " + expected + ", got "
+                        + (key == null ? "an error" : key));
+            }
+        }
+        for (AppendRun run : vector.getAppendRunList()) {
+            SplitMix64 random = new SplitMix64(run.getSeed());
+            byte[] last = null;
+            int longest = 0;
+            for (int i = 0; i < run.getCount(); i++) {
+                last = FractionalIndex.between(last, null, random);
+                longest = Math.max(longest, last.length);
+            }
+            String lastHex = last == null ? "" : hex(last);
+            if (longest >= run.getMaxLength() || !lastHex.equals(hex(run.getLast().toByteArray()))) {
+                failures.add("append run seed " + Long.toUnsignedString(run.getSeed()) + ": longest key " + longest
+                        + " bytes (limit " + run.getMaxLength() + "), last " + lastHex + ", expected "
+                        + hex(run.getLast().toByteArray()));
+            }
+        }
     }
 
     /** The changes of each delivery order, validated against the replicas. */
@@ -248,6 +365,71 @@ public final class ConformanceRunner {
             for (ExpectRegister register : node.getRegisterList()) {
                 checkRegister(engine, id, register, failures);
             }
+            if (node.hasTree()) {
+                checkTree(engine, id, node.getTree(), failures);
+            }
+            for (ExpectSequence sequence : node.getSequenceList()) {
+                checkSequence(engine, id, sequence, failures);
+            }
+            for (ExpectSet set : node.getSetList()) {
+                checkSet(engine, id, set, failures);
+            }
+        }
+    }
+
+    private static void checkTree(Engine engine, OpId node, ExpectTree expected, List<String> failures) {
+        Placement placement = engine.store().placement(node);
+        OpId parent = expected.hasParent() ? OpId.of(expected.getParent()) : null;
+        byte[] position = placement == null ? new byte[0] : placement.position();
+        if (!java.util.Objects.equals(placement == null ? null : placement.parent(), parent)
+                || !Arrays.equals(position, expected.getPosition().toByteArray())) {
+            failures.add("node " + node + ": expected parent " + (parent == null ? "none" : parent) + " position "
+                    + hex(expected.getPosition().toByteArray()) + ", got " + (placement == null ? "none" : placement));
+        }
+        boolean deleted = engine.store().deleted(node) != null && engine.store().deleted(node).current().value();
+        if (deleted != expected.getDeleted()) {
+            failures.add("node " + node + ": expected deleted " + expected.getDeleted() + ", got " + deleted);
+        }
+        List<OpId> children = engine.store().children(node);
+        List<OpId> want = expected.getChildrenList().stream().map(OpId::of).toList();
+        if (!children.equals(want)) {
+            failures.add("node " + node + ": expected children " + want + ", got " + children);
+        }
+    }
+
+    private static OpId id(ElementId id) {
+        return new OpId(id.getCounter(), id.getReplica());
+    }
+
+    private static void checkSequence(Engine engine, OpId node, ExpectSequence expected, List<String> failures) {
+        RegisterPath path = RegisterPath.of(expected.getPath());
+        if (path == null) {
+            failures.add("node " + node + ": expected sequence has an empty path");
+            return;
+        }
+        List<OpId> order = engine.store().elementOrder(node, path);
+        List<OpId> deleted = order.stream().filter(e -> engine.store().element(node, path.element(e)).isDeleted()).toList();
+        List<OpId> live = order.stream().filter(e -> !deleted.contains(e)).toList();
+        List<OpId> want = expected.getElementsList().stream().map(ConformanceRunner::id).toList();
+        List<OpId> wantDeleted = expected.getDeletedList().stream().map(ConformanceRunner::id).toList();
+        if (!live.equals(want) || !deleted.equals(wantDeleted)) {
+            failures.add("node " + node + " sequence " + path + ": expected " + want + " deleted " + wantDeleted
+                    + ", got " + live + " deleted " + deleted);
+        }
+    }
+
+    private static void checkSet(Engine engine, OpId node, ExpectSet expected, List<String> failures) {
+        RegisterPath path = RegisterPath.of(expected.getPath());
+        if (path == null) {
+            failures.add("node " + node + ": expected set has an empty path");
+            return;
+        }
+        List<byte[]> want = engine.members(docProps(expected.getMembers()), engine.store().kind(node), expected.getPath());
+        List<String> wantHex = want == null ? null : want.stream().sorted(Arrays::compareUnsigned).map(ConformanceRunner::hex).toList();
+        List<String> actual = engine.store().members(node, path).stream().map(ConformanceRunner::hex).toList();
+        if (!actual.equals(wantHex)) {
+            failures.add("node " + node + " set " + path + ": expected " + (wantHex == null ? List.of() : wantHex)
+                    + ", got " + actual);
         }
     }
 
@@ -269,7 +451,7 @@ public final class ConformanceRunner {
     private static void checkRegister(Engine engine, OpId node, ExpectRegister expected, List<String> failures) {
         RegisterPath path = RegisterPath.of(expected.getPath());
         if (path == null) {
-            failures.add("node " + node + ": expected register path must be field numbers only");
+            failures.add("node " + node + ": expected register has an empty path");
             return;
         }
         Register actual = engine.register(node, path);

@@ -1,0 +1,45 @@
+# crdt-conformance/vectors/sequences/delete-then-restore.textproto (CRDT-004; schema: crdt-conformance/schema/vector.proto)
+name: "sequences/delete-then-restore"
+description: "Both stops were deleted.  Replica 1 restores both (ElementDelete with deleted = false, 5:1) while replica 2 deletes 3:7 again (5:2) and edits 2:7.  Each element's deleted register takes the greatest OpId: 2:7 is back with the edit, 3:7 stays a tombstone."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Create"
+    ops { create { parent { counter: 4 } position: "\x80" props { test { label: "T" } } } }
+  }
+  change {
+    replica: 7 seq: 2 start_counter: 2 label: "Add stops"
+    ops { element_insert { node { counter: 1 replica: 7 } sequence { segments { field: 1000 } segments { field: 8 } } positions: ["\x80", "\x81"]
+      values { test { stops { offset: 0.25 } stops { offset: 0.75 } } } } }
+  }
+  change {
+    replica: 7 seq: 3 start_counter: 4 label: "Delete both"
+    ops { element_delete { node { counter: 1 replica: 7 } elements { segments { field: 1000 } segments { field: 8 } segments { element { counter: 2 replica: 7 } } } elements { segments { field: 1000 } segments { field: 8 } segments { element { counter: 3 replica: 7 } } } deleted: true } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 5 base_server_seq: 3 label: "Restore"
+    ops { element_delete { node { counter: 1 replica: 7 } elements { segments { field: 1000 } segments { field: 8 } segments { element { counter: 2 replica: 7 } } } elements { segments { field: 1000 } segments { field: 8 } segments { element { counter: 3 replica: 7 } } } deleted: false } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 5 base_server_seq: 3 label: "Delete again, edit"
+    ops { element_delete { node { counter: 1 replica: 7 } elements { segments { field: 1000 } segments { field: 8 } segments { element { counter: 3 replica: 7 } } } deleted: true } }
+    ops { set { node { counter: 1 replica: 7 } paths { segments { field: 1000 } segments { field: 8 } segments { element { counter: 2 replica: 7 } } segments { field: 2 } } values { test { stops { offset: 0.5 } } } } }
+  }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "cb12ce8bc22ba53c57a602d5d15f586bad8d9feb217e79fc8cca9f87ae241305"
+  node {
+    id { counter: 1 replica: 7 }
+    node_hash: "87bdc23aaa2fc5d12a88f741ebfe651f80061acb2ff3a3666b65b47c2f14d71a"
+    sequence { path { segments { field: 1000 } segments { field: 8 } } elements { counter: 2 replica: 7 } deleted { counter: 3 replica: 7 } }
+    register { path { segments { field: 1000 } segments { field: 8 } segments { element { counter: 2 replica: 7 } } segments { field: 2 } } value { test { stops { offset: 0.5 } } } op { counter: 6 replica: 2 }
+      losing { counter: 2 replica: 7 } }
+  }
+}

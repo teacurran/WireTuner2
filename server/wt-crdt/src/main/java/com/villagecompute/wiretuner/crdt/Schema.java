@@ -13,12 +13,9 @@ import java.util.TreeMap;
 
 /**
  * The merge table as the engine reads it: the generated {@link MergeTable} (or another table of
- * the same shape) with the model's reference rule applied. It is the only feature-specific input
- * the engine has (docs/spec/crdt-model.adoc, "Merge policies").
- *
- * <p>The reference rule: a {@code NodeRef} field is one ATOMIC register ("References" under
- * "Merge rules") whatever policy the table gives it, so an id's counter and replica can never
- * come from two different writes.
+ * the same shape). It is the only feature-specific input the engine has
+ * (docs/spec/crdt-model.adoc, "Merge policies"); the engine uses its policies as given (a
+ * singular {@code NodeRef} is ATOMIC because protoc-gen-wtcrdt emits it so).
  */
 public final class Schema {
 
@@ -27,8 +24,6 @@ public final class Schema {
 
     /** The oneof of {@link #ROOT} whose set case is a node's kind. */
     public static final String KIND_ONEOF = "kind";
-
-    static final String NODE_REF = "wiretuner.doc.v1.NodeRef";
 
     private final Map<String, Map<Integer, FieldPolicy>> messages;
     private final Map<String, VariantPolicy> variants;
@@ -49,20 +44,15 @@ public final class Schema {
         return of(MergeTable.MESSAGES, MergeTable.VARIANTS);
     }
 
-    /** A table of the generated shape, with the reference rule applied. */
+    /** A table of the generated shape. */
     public static Schema of(Map<String, MessagePolicy> messages, Map<String, VariantPolicy> variants) {
         Map<String, Map<Integer, FieldPolicy>> rows = new HashMap<>();
         messages.forEach((name, message) -> {
             Map<Integer, FieldPolicy> fields = new TreeMap<>();
-            message.fields().forEach((number, row) -> fields.put(number, referenceRule(row)));
+            message.fields().forEach((number, row) -> fields.put(number, row));
             rows.put(name, fields);
         });
         return new Schema(rows, new HashMap<>(variants));
-    }
-
-    private static FieldPolicy referenceRule(FieldPolicy row) {
-        boolean singularRef = NODE_REF.equals(row.typeName()) && !row.repeated();
-        return singularRef && row.policy() == Policy.STRUCT ? withPolicy(row, Policy.ATOMIC) : row;
     }
 
     private static FieldPolicy withPolicy(FieldPolicy row, Policy policy) {
@@ -85,6 +75,19 @@ public final class Schema {
         Map<String, Map<Integer, FieldPolicy>> rows = new HashMap<>(messages);
         Map<Integer, FieldPolicy> fields = new TreeMap<>(rows.get(message));
         fields.put(field, withPolicy(row, policy));
+        rows.put(message, fields);
+        return new Schema(rows, variants);
+    }
+
+    /**
+     * This table with {@code row} added to {@code message} (or replacing its field of the same
+     * number); the message is created when the table has none. For conformance vectors that
+     * declare test messages (see {@link #withPolicy}).
+     */
+    public Schema withField(String message, FieldPolicy row) {
+        Map<String, Map<Integer, FieldPolicy>> rows = new HashMap<>(messages);
+        Map<Integer, FieldPolicy> fields = new TreeMap<>(rows.getOrDefault(message, Map.of()));
+        fields.put(row.fieldNumber(), row);
         rows.put(message, fields);
         return new Schema(rows, variants);
     }

@@ -10,7 +10,8 @@ struct WireMessage {
 
     private static let maxFieldNumber: UInt64 = 0x1FFF_FFFF
 
-    /// One record: field number, wire type, and where the record and its payload start and end.
+    /// One record: field number, wire type, and where the record and its payload start and end
+    /// (for a VARINT record the payload start is its end; the value follows the tag).
     struct Field {
         let number: UInt32
         let wireType: Int
@@ -66,6 +67,94 @@ struct WireMessage {
         return out.flatMap(Self.parse)
     }
 
+    /// Each LEN record of `number` parsed on its own, in order; nil for one that does not parse.
+    /// The elements an `ElementInsert` carries are the occurrences of the SEQUENCE field.
+    func occurrences(_ number: UInt32) -> [WireMessage?] {
+        fields.filter { $0.number == number && $0.wireType == Self.len }
+            .map { Self.parse(Array(bytes[$0.payloadStart..<$0.end])) }
+    }
+
+    /// The protobuf scalar types by the wire type of one unpacked value.
+    private static let varintTypes: Set<String> = ["int32", "int64", "uint32", "uint64", "sint32", "sint64", "bool", "enum"]
+    private static let fixed64Types: Set<String> = ["fixed64", "sfixed64", "double"]
+    private static let fixed32Types: Set<String> = ["fixed32", "sfixed32", "float"]
+    /// Message types a SET may hold, compared as ids.
+    static let idTypes: Set<String> = ["wiretuner.doc.v1.ElementId", "wiretuner.doc.v1.OpId"]
+
+    /// The members of the SET field `number` of protobuf `type` (`typeName` for messages), each in
+    /// its canonical form (docs/spec/crdt-model.adoc, "Sets"): a string's or bytes' payload; a
+    /// varint scalar's value as a big-endian uint64; a fixed-width scalar's little-endian wire
+    /// bytes; an ElementId or OpId as its counter and replica, big-endian uint64s.  Packed and
+    /// unpacked scalars are both read.  A record of the wrong wire type, or a packed record or id
+    /// message that does not parse, holds no members.  Nil for a type a SET cannot hold.
+    func members(_ number: UInt32, type: String, typeName: String?) -> [[UInt8]]? {
+        let records = fields.filter { $0.number == number }
+        var out: [[UInt8]] = []
+        if type == "string" || type == "bytes" {
+            for field in records where field.wireType == Self.len {
+                out.append(Array(bytes[field.payloadStart..<field.end]))
+            }
+        } else if Self.varintTypes.contains(type) {
+            for field in records {
+                out += scalars(field, unpacked: Self.varint) { cursor in
+                    var member: [UInt8] = []
+                    Bytes.u64(cursor.varint(), into: &member)
+                    return member
+                }
+            }
+        } else if let width = Self.fixed64Types.contains(type) ? 8 : Self.fixed32Types.contains(type) ? 4 : nil {
+            for field in records {
+                out += scalars(field, unpacked: width == 8 ? Self.fixed64 : Self.fixed32) { cursor in
+                    cursor.take(width)
+                }
+            }
+        } else if type == "message", let typeName, Self.idTypes.contains(typeName) {
+            for field in records where field.wireType == Self.len {
+                guard let id = Self.parse(Array(bytes[field.payloadStart..<field.end])) else { continue }
+                var member: [UInt8] = []
+                Bytes.u64(id.lastVarint(1), into: &member)
+                Bytes.u64(id.lastFixed64(2), into: &member)
+                out.append(member)
+            }
+        } else {
+            return nil
+        }
+        return out
+    }
+
+    // The values of one scalar record: the record itself when it has the unpacked wire type, the
+    // packed values when it is LEN and parses completely, else none.
+    private func scalars(_ field: Field, unpacked: Int, _ read: (inout Cursor) -> [UInt8]) -> [[UInt8]] {
+        let start = field.wireType == unpacked ? field.start : field.payloadStart
+        guard field.wireType == unpacked || field.wireType == Self.len else { return [] }
+        var cursor = Cursor(bytes: Array(bytes[start..<field.end]))
+        if field.wireType == unpacked {
+            _ = cursor.varint()  // the tag
+            return [read(&cursor)]
+        }
+        var values: [[UInt8]] = []
+        while !cursor.atEnd {
+            let value = read(&cursor)
+            guard !cursor.failed else { return [] }
+            values.append(value)
+        }
+        return values
+    }
+
+    /// The value of the last VARINT record of `number`, or 0.
+    func lastVarint(_ number: UInt32) -> UInt64 {
+        guard let field = fields.last(where: { $0.number == number && $0.wireType == Self.varint }) else { return 0 }
+        var cursor = Cursor(bytes: Array(bytes[field.start..<field.end]))
+        _ = cursor.varint()  // the tag
+        return cursor.varint()
+    }
+
+    /// The value of the last FIXED64 record of `number` (little-endian), or 0.
+    func lastFixed64(_ number: UInt32) -> UInt64 {
+        guard let field = fields.last(where: { $0.number == number && $0.wireType == Self.fixed64 }) else { return 0 }
+        return bytes[field.payloadStart..<field.end].reversed().reduce(0) { $0 << 8 | UInt64($1) }
+    }
+
     /// The field number of the last LEN record whose number is in `candidates`, or 0 if none: the
     /// set case of a oneof of messages, as a protobuf parser reads it.
     func lastMessage(of candidates: Set<UInt32>) -> UInt32 {
@@ -79,6 +168,16 @@ struct WireMessage {
         var failed = false
 
         var atEnd: Bool { pos >= bytes.count }
+
+        /// The next `count` bytes, or none (latching `failed`) when fewer remain.
+        mutating func take(_ count: Int) -> [UInt8] {
+            guard bytes.count - pos >= count else {
+                failed = true
+                return []
+            }
+            pos += count
+            return Array(bytes[(pos - count)..<pos])
+        }
 
         mutating func varint() -> UInt64 {
             var value: UInt64 = 0

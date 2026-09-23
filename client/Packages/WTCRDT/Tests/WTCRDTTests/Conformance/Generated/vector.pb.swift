@@ -19,7 +19,19 @@
 /// the merge-table generator never see it, and it may change with the runners.  Generated code:
 /// Swift in client/Packages/WTCRDT/Tests/WTCRDTTests/Conformance/Generated (committed,
 /// `make -C crdt-conformance generate`), Java in server/conformance/target (protoc at build time).
+///
+/// Changes are written with the wire-compatible `Change` below rather than doc.v1's, so that a
+/// vector can use the test kinds (`TestProps`, NodeProps field 1000) for merge rules no doc.v1
+/// field uses yet.  The runners turn each into a doc.v1 Change by encoding and decoding it: the
+/// test kind then travels as an unknown field of doc.v1.NodeProps, exactly as a field newer than
+/// the replica would.  crdt-conformance/schema/test-kinds.textproto declares the test kinds' merge
+/// table; both runners apply it to every vector.
 
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
+import Foundation
+#endif
 import SwiftProtobuf
 
 import WTProto
@@ -76,6 +88,12 @@ nonisolated struct Wiretuner_Conformance_V1_Vector: Sendable {
   /// Test-only changes to the generated merge table, for merge rules no schema field uses yet.
   var schemaOverride: [Wiretuner_Conformance_V1_SchemaOverride] = []
 
+  /// Fractional positions both engines must generate byte for byte (CRDT-003).
+  var position: [Wiretuner_Conformance_V1_PositionCase] = []
+
+  /// Runs of sequential appends both engines must generate byte for byte (CRDT-003).
+  var appendRun: [Wiretuner_Conformance_V1_AppendRun] = []
+
   var unknownFields = SwiftProtobuf.UnknownStorage()
 
   init() {}
@@ -90,8 +108,8 @@ nonisolated struct Wiretuner_Conformance_V1_Setup: Sendable {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  /// Applied in order.
-  var change: [WTProto.Wiretuner_Doc_V1_Change] = []
+  /// Applied in order.  A setup change without `server_seq` is sequenced at its index + 1.
+  var change: [Wiretuner_Conformance_V1_Change] = []
 
   var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -108,7 +126,7 @@ nonisolated struct Wiretuner_Conformance_V1_Replica: Sendable {
   var id: UInt64 = 0
 
   /// In seq order: a delivery order delivers them in this order.
-  var change: [WTProto.Wiretuner_Doc_V1_Change] = []
+  var change: [Wiretuner_Conformance_V1_Change] = []
 
   var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -130,13 +148,601 @@ nonisolated struct Wiretuner_Conformance_V1_Delivery: Sendable {
   init() {}
 }
 
+/// wiretuner.doc.v1.Change, field for field, with test-kind values and the server's sequence
+/// number.
+nonisolated struct Wiretuner_Conformance_V1_Change: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  var replica: UInt64 = 0
+
+  var seq: UInt64 = 0
+
+  var startCounter: UInt64 = 0
+
+  var baseServerSeq: UInt64 = 0
+
+  var wallTimeMs: Int64 = 0
+
+  var label: String = String()
+
+  var ops: [Wiretuner_Conformance_V1_Op] = []
+
+  /// Not part of doc.v1.Change: the server_seq the server gave this change, passed to the engine
+  /// beside it (sets judge a remove by its causal past, crdt-model.adoc "Sets").  0 = not
+  /// sequenced (only for replica changes; setup changes default to their index + 1).
+  var serverSeq: UInt64 = 0
+
+  var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  init() {}
+}
+
+/// wiretuner.doc.v1.Op, case for case; the ops that carry NodeProps use the test-kind NodeProps.
+nonisolated struct Wiretuner_Conformance_V1_Op: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  var op: Wiretuner_Conformance_V1_Op.OneOf_Op? = nil
+
+  var create: Wiretuner_Conformance_V1_CreateNode {
+    get {
+      if case .create(let v)? = op {return v}
+      return Wiretuner_Conformance_V1_CreateNode()
+    }
+    set {op = .create(newValue)}
+  }
+
+  var set: Wiretuner_Conformance_V1_SetFields {
+    get {
+      if case .set(let v)? = op {return v}
+      return Wiretuner_Conformance_V1_SetFields()
+    }
+    set {op = .set(newValue)}
+  }
+
+  var move: WTProto.Wiretuner_Doc_V1_MoveNode {
+    get {
+      if case .move(let v)? = op {return v}
+      return WTProto.Wiretuner_Doc_V1_MoveNode()
+    }
+    set {op = .move(newValue)}
+  }
+
+  var setDeleted: WTProto.Wiretuner_Doc_V1_SetDeleted {
+    get {
+      if case .setDeleted(let v)? = op {return v}
+      return WTProto.Wiretuner_Doc_V1_SetDeleted()
+    }
+    set {op = .setDeleted(newValue)}
+  }
+
+  var elementInsert: Wiretuner_Conformance_V1_ElementInsert {
+    get {
+      if case .elementInsert(let v)? = op {return v}
+      return Wiretuner_Conformance_V1_ElementInsert()
+    }
+    set {op = .elementInsert(newValue)}
+  }
+
+  var elementMove: WTProto.Wiretuner_Doc_V1_ElementMove {
+    get {
+      if case .elementMove(let v)? = op {return v}
+      return WTProto.Wiretuner_Doc_V1_ElementMove()
+    }
+    set {op = .elementMove(newValue)}
+  }
+
+  var elementDelete: WTProto.Wiretuner_Doc_V1_ElementDelete {
+    get {
+      if case .elementDelete(let v)? = op {return v}
+      return WTProto.Wiretuner_Doc_V1_ElementDelete()
+    }
+    set {op = .elementDelete(newValue)}
+  }
+
+  var textInsert: WTProto.Wiretuner_Doc_V1_TextInsert {
+    get {
+      if case .textInsert(let v)? = op {return v}
+      return WTProto.Wiretuner_Doc_V1_TextInsert()
+    }
+    set {op = .textInsert(newValue)}
+  }
+
+  var textDelete: WTProto.Wiretuner_Doc_V1_TextDelete {
+    get {
+      if case .textDelete(let v)? = op {return v}
+      return WTProto.Wiretuner_Doc_V1_TextDelete()
+    }
+    set {op = .textDelete(newValue)}
+  }
+
+  var textMark: WTProto.Wiretuner_Doc_V1_TextMark {
+    get {
+      if case .textMark(let v)? = op {return v}
+      return WTProto.Wiretuner_Doc_V1_TextMark()
+    }
+    set {op = .textMark(newValue)}
+  }
+
+  var setAdd: Wiretuner_Conformance_V1_SetAdd {
+    get {
+      if case .setAdd(let v)? = op {return v}
+      return Wiretuner_Conformance_V1_SetAdd()
+    }
+    set {op = .setAdd(newValue)}
+  }
+
+  var setRemove: Wiretuner_Conformance_V1_SetRemove {
+    get {
+      if case .setRemove(let v)? = op {return v}
+      return Wiretuner_Conformance_V1_SetRemove()
+    }
+    set {op = .setRemove(newValue)}
+  }
+
+  var noop: WTProto.Wiretuner_Doc_V1_Noop {
+    get {
+      if case .noop(let v)? = op {return v}
+      return WTProto.Wiretuner_Doc_V1_Noop()
+    }
+    set {op = .noop(newValue)}
+  }
+
+  var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  nonisolated enum OneOf_Op: Equatable, Sendable {
+    case create(Wiretuner_Conformance_V1_CreateNode)
+    case set(Wiretuner_Conformance_V1_SetFields)
+    case move(WTProto.Wiretuner_Doc_V1_MoveNode)
+    case setDeleted(WTProto.Wiretuner_Doc_V1_SetDeleted)
+    case elementInsert(Wiretuner_Conformance_V1_ElementInsert)
+    case elementMove(WTProto.Wiretuner_Doc_V1_ElementMove)
+    case elementDelete(WTProto.Wiretuner_Doc_V1_ElementDelete)
+    case textInsert(WTProto.Wiretuner_Doc_V1_TextInsert)
+    case textDelete(WTProto.Wiretuner_Doc_V1_TextDelete)
+    case textMark(WTProto.Wiretuner_Doc_V1_TextMark)
+    case setAdd(Wiretuner_Conformance_V1_SetAdd)
+    case setRemove(Wiretuner_Conformance_V1_SetRemove)
+    case noop(WTProto.Wiretuner_Doc_V1_Noop)
+
+  }
+
+  init() {}
+}
+
+/// wiretuner.doc.v1.CreateNode.
+nonisolated struct Wiretuner_Conformance_V1_CreateNode: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  var parent: WTProto.Wiretuner_Doc_V1_OpId {
+    get {_parent ?? WTProto.Wiretuner_Doc_V1_OpId()}
+    set {_parent = newValue}
+  }
+  /// Returns true if `parent` has been explicitly set.
+  var hasParent: Bool {self._parent != nil}
+  /// Clears the value of `parent`. Subsequent reads from it will return its default value.
+  mutating func clearParent() {self._parent = nil}
+
+  var position: Data = Data()
+
+  var props: Wiretuner_Conformance_V1_NodeProps {
+    get {_props ?? Wiretuner_Conformance_V1_NodeProps()}
+    set {_props = newValue}
+  }
+  /// Returns true if `props` has been explicitly set.
+  var hasProps: Bool {self._props != nil}
+  /// Clears the value of `props`. Subsequent reads from it will return its default value.
+  mutating func clearProps() {self._props = nil}
+
+  var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  init() {}
+
+  fileprivate var _parent: WTProto.Wiretuner_Doc_V1_OpId? = nil
+  fileprivate var _props: Wiretuner_Conformance_V1_NodeProps? = nil
+}
+
+/// wiretuner.doc.v1.SetFields.
+nonisolated struct Wiretuner_Conformance_V1_SetFields: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  var node: WTProto.Wiretuner_Doc_V1_OpId {
+    get {_node ?? WTProto.Wiretuner_Doc_V1_OpId()}
+    set {_node = newValue}
+  }
+  /// Returns true if `node` has been explicitly set.
+  var hasNode: Bool {self._node != nil}
+  /// Clears the value of `node`. Subsequent reads from it will return its default value.
+  mutating func clearNode() {self._node = nil}
+
+  var paths: [WTProto.Wiretuner_Doc_V1_FieldPath] = []
+
+  var values: Wiretuner_Conformance_V1_NodeProps {
+    get {_values ?? Wiretuner_Conformance_V1_NodeProps()}
+    set {_values = newValue}
+  }
+  /// Returns true if `values` has been explicitly set.
+  var hasValues: Bool {self._values != nil}
+  /// Clears the value of `values`. Subsequent reads from it will return its default value.
+  mutating func clearValues() {self._values = nil}
+
+  var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  init() {}
+
+  fileprivate var _node: WTProto.Wiretuner_Doc_V1_OpId? = nil
+  fileprivate var _values: Wiretuner_Conformance_V1_NodeProps? = nil
+}
+
+/// wiretuner.doc.v1.ElementInsert.
+nonisolated struct Wiretuner_Conformance_V1_ElementInsert: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  var node: WTProto.Wiretuner_Doc_V1_OpId {
+    get {_node ?? WTProto.Wiretuner_Doc_V1_OpId()}
+    set {_node = newValue}
+  }
+  /// Returns true if `node` has been explicitly set.
+  var hasNode: Bool {self._node != nil}
+  /// Clears the value of `node`. Subsequent reads from it will return its default value.
+  mutating func clearNode() {self._node = nil}
+
+  var sequence: WTProto.Wiretuner_Doc_V1_FieldPath {
+    get {_sequence ?? WTProto.Wiretuner_Doc_V1_FieldPath()}
+    set {_sequence = newValue}
+  }
+  /// Returns true if `sequence` has been explicitly set.
+  var hasSequence: Bool {self._sequence != nil}
+  /// Clears the value of `sequence`. Subsequent reads from it will return its default value.
+  mutating func clearSequence() {self._sequence = nil}
+
+  var positions: [Data] = []
+
+  var values: Wiretuner_Conformance_V1_NodeProps {
+    get {_values ?? Wiretuner_Conformance_V1_NodeProps()}
+    set {_values = newValue}
+  }
+  /// Returns true if `values` has been explicitly set.
+  var hasValues: Bool {self._values != nil}
+  /// Clears the value of `values`. Subsequent reads from it will return its default value.
+  mutating func clearValues() {self._values = nil}
+
+  var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  init() {}
+
+  fileprivate var _node: WTProto.Wiretuner_Doc_V1_OpId? = nil
+  fileprivate var _sequence: WTProto.Wiretuner_Doc_V1_FieldPath? = nil
+  fileprivate var _values: Wiretuner_Conformance_V1_NodeProps? = nil
+}
+
+/// wiretuner.doc.v1.SetAdd.
+nonisolated struct Wiretuner_Conformance_V1_SetAdd: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  var node: WTProto.Wiretuner_Doc_V1_OpId {
+    get {_node ?? WTProto.Wiretuner_Doc_V1_OpId()}
+    set {_node = newValue}
+  }
+  /// Returns true if `node` has been explicitly set.
+  var hasNode: Bool {self._node != nil}
+  /// Clears the value of `node`. Subsequent reads from it will return its default value.
+  mutating func clearNode() {self._node = nil}
+
+  var set: WTProto.Wiretuner_Doc_V1_FieldPath {
+    get {_set ?? WTProto.Wiretuner_Doc_V1_FieldPath()}
+    set {_set = newValue}
+  }
+  /// Returns true if `set` has been explicitly set.
+  var hasSet: Bool {self._set != nil}
+  /// Clears the value of `set`. Subsequent reads from it will return its default value.
+  mutating func clearSet() {self._set = nil}
+
+  var values: Wiretuner_Conformance_V1_NodeProps {
+    get {_values ?? Wiretuner_Conformance_V1_NodeProps()}
+    set {_values = newValue}
+  }
+  /// Returns true if `values` has been explicitly set.
+  var hasValues: Bool {self._values != nil}
+  /// Clears the value of `values`. Subsequent reads from it will return its default value.
+  mutating func clearValues() {self._values = nil}
+
+  var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  init() {}
+
+  fileprivate var _node: WTProto.Wiretuner_Doc_V1_OpId? = nil
+  fileprivate var _set: WTProto.Wiretuner_Doc_V1_FieldPath? = nil
+  fileprivate var _values: Wiretuner_Conformance_V1_NodeProps? = nil
+}
+
+/// wiretuner.doc.v1.SetRemove.
+nonisolated struct Wiretuner_Conformance_V1_SetRemove: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  var node: WTProto.Wiretuner_Doc_V1_OpId {
+    get {_node ?? WTProto.Wiretuner_Doc_V1_OpId()}
+    set {_node = newValue}
+  }
+  /// Returns true if `node` has been explicitly set.
+  var hasNode: Bool {self._node != nil}
+  /// Clears the value of `node`. Subsequent reads from it will return its default value.
+  mutating func clearNode() {self._node = nil}
+
+  var set: WTProto.Wiretuner_Doc_V1_FieldPath {
+    get {_set ?? WTProto.Wiretuner_Doc_V1_FieldPath()}
+    set {_set = newValue}
+  }
+  /// Returns true if `set` has been explicitly set.
+  var hasSet: Bool {self._set != nil}
+  /// Clears the value of `set`. Subsequent reads from it will return its default value.
+  mutating func clearSet() {self._set = nil}
+
+  var values: Wiretuner_Conformance_V1_NodeProps {
+    get {_values ?? Wiretuner_Conformance_V1_NodeProps()}
+    set {_values = newValue}
+  }
+  /// Returns true if `values` has been explicitly set.
+  var hasValues: Bool {self._values != nil}
+  /// Clears the value of `values`. Subsequent reads from it will return its default value.
+  mutating func clearValues() {self._values = nil}
+
+  var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  init() {}
+
+  fileprivate var _node: WTProto.Wiretuner_Doc_V1_OpId? = nil
+  fileprivate var _set: WTProto.Wiretuner_Doc_V1_FieldPath? = nil
+  fileprivate var _values: Wiretuner_Conformance_V1_NodeProps? = nil
+}
+
+/// wiretuner.doc.v1.NodeProps plus the test kinds.  Every doc.v1 kind is mirrored here with its
+/// number and name (server/conformance's ConformanceRunnerTest checks it), so vectors write
+/// doc.v1 kinds exactly as doc.v1 does.
+nonisolated struct Wiretuner_Conformance_V1_NodeProps: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  var kind: Wiretuner_Conformance_V1_NodeProps.OneOf_Kind? = nil
+
+  var document: WTProto.Wiretuner_Doc_V1_DocumentProps {
+    get {
+      if case .document(let v)? = kind {return v}
+      return WTProto.Wiretuner_Doc_V1_DocumentProps()
+    }
+    set {kind = .document(newValue)}
+  }
+
+  var settings: WTProto.Wiretuner_Doc_V1_SettingsProps {
+    get {
+      if case .settings(let v)? = kind {return v}
+      return WTProto.Wiretuner_Doc_V1_SettingsProps()
+    }
+    set {kind = .settings(newValue)}
+  }
+
+  var page: WTProto.Wiretuner_Doc_V1_PageProps {
+    get {
+      if case .page(let v)? = kind {return v}
+      return WTProto.Wiretuner_Doc_V1_PageProps()
+    }
+    set {kind = .page(newValue)}
+  }
+
+  var masterPage: WTProto.Wiretuner_Doc_V1_MasterPageProps {
+    get {
+      if case .masterPage(let v)? = kind {return v}
+      return WTProto.Wiretuner_Doc_V1_MasterPageProps()
+    }
+    set {kind = .masterPage(newValue)}
+  }
+
+  var group: WTProto.Wiretuner_Doc_V1_GroupProps {
+    get {
+      if case .group(let v)? = kind {return v}
+      return WTProto.Wiretuner_Doc_V1_GroupProps()
+    }
+    set {kind = .group(newValue)}
+  }
+
+  var layer: WTProto.Wiretuner_Doc_V1_LayerProps {
+    get {
+      if case .layer(let v)? = kind {return v}
+      return WTProto.Wiretuner_Doc_V1_LayerProps()
+    }
+    set {kind = .layer(newValue)}
+  }
+
+  /// Test kind; its merge table is in test-kinds.textproto.
+  var test: Wiretuner_Conformance_V1_TestProps {
+    get {
+      if case .test(let v)? = kind {return v}
+      return Wiretuner_Conformance_V1_TestProps()
+    }
+    set {kind = .test(newValue)}
+  }
+
+  var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  nonisolated enum OneOf_Kind: Equatable, Sendable {
+    case document(WTProto.Wiretuner_Doc_V1_DocumentProps)
+    case settings(WTProto.Wiretuner_Doc_V1_SettingsProps)
+    case page(WTProto.Wiretuner_Doc_V1_PageProps)
+    case masterPage(WTProto.Wiretuner_Doc_V1_MasterPageProps)
+    case group(WTProto.Wiretuner_Doc_V1_GroupProps)
+    case layer(WTProto.Wiretuner_Doc_V1_LayerProps)
+    /// Test kind; its merge table is in test-kinds.textproto.
+    case test(Wiretuner_Conformance_V1_TestProps)
+
+  }
+
+  init() {}
+}
+
+/// A test node kind with one field per merge rule the doc.v1 schema does not use yet.
+nonisolated struct Wiretuner_Conformance_V1_TestProps: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// STRUCT
+  var common: WTProto.Wiretuner_Doc_V1_CommonProps {
+    get {_common ?? WTProto.Wiretuner_Doc_V1_CommonProps()}
+    set {_common = newValue}
+  }
+  /// Returns true if `common` has been explicitly set.
+  var hasCommon: Bool {self._common != nil}
+  /// Clears the value of `common`. Subsequent reads from it will return its default value.
+  mutating func clearCommon() {self._common = nil}
+
+  /// ATOMIC
+  var label: String = String()
+
+  /// SET of strings
+  var tags: [String] = []
+
+  /// SET of varint scalars (packed)
+  var codes: [UInt32] = []
+
+  /// SET of ElementIds
+  var points: [WTProto.Wiretuner_Doc_V1_ElementId] = []
+
+  /// SET of OpIds
+  var nodes: [WTProto.Wiretuner_Doc_V1_OpId] = []
+
+  /// SEQUENCE, with a nested SEQUENCE
+  var contours: [Wiretuner_Conformance_V1_TestContour] = []
+
+  /// SEQUENCE
+  var stops: [Wiretuner_Conformance_V1_TestStop] = []
+
+  var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  init() {}
+
+  fileprivate var _common: WTProto.Wiretuner_Doc_V1_CommonProps? = nil
+}
+
+/// A sequence element holding a nested sequence (contour -> points).
+nonisolated struct Wiretuner_Conformance_V1_TestContour: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  var id: WTProto.Wiretuner_Doc_V1_ElementId {
+    get {_id ?? WTProto.Wiretuner_Doc_V1_ElementId()}
+    set {_id = newValue}
+  }
+  /// Returns true if `id` has been explicitly set.
+  var hasID: Bool {self._id != nil}
+  /// Clears the value of `id`. Subsequent reads from it will return its default value.
+  mutating func clearID() {self._id = nil}
+
+  /// ATOMIC
+  var closed: Bool = false
+
+  /// SEQUENCE
+  var anchors: [Wiretuner_Conformance_V1_TestPoint] = []
+
+  /// ATOMIC
+  var name: String = String()
+
+  /// SET inside an element
+  var tags: [String] = []
+
+  var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  init() {}
+
+  fileprivate var _id: WTProto.Wiretuner_Doc_V1_ElementId? = nil
+}
+
+/// An element of a nested sequence.
+nonisolated struct Wiretuner_Conformance_V1_TestPoint: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  var id: WTProto.Wiretuner_Doc_V1_ElementId {
+    get {_id ?? WTProto.Wiretuner_Doc_V1_ElementId()}
+    set {_id = newValue}
+  }
+  /// Returns true if `id` has been explicitly set.
+  var hasID: Bool {self._id != nil}
+  /// Clears the value of `id`. Subsequent reads from it will return its default value.
+  mutating func clearID() {self._id = nil}
+
+  /// ATOMIC
+  var anchor: WTProto.Wiretuner_Doc_V1_Point {
+    get {_anchor ?? WTProto.Wiretuner_Doc_V1_Point()}
+    set {_anchor = newValue}
+  }
+  /// Returns true if `anchor` has been explicitly set.
+  var hasAnchor: Bool {self._anchor != nil}
+  /// Clears the value of `anchor`. Subsequent reads from it will return its default value.
+  mutating func clearAnchor() {self._anchor = nil}
+
+  /// ATOMIC
+  var weight: Double = 0
+
+  var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  init() {}
+
+  fileprivate var _id: WTProto.Wiretuner_Doc_V1_ElementId? = nil
+  fileprivate var _anchor: WTProto.Wiretuner_Doc_V1_Point? = nil
+}
+
+/// A flat sequence element.
+nonisolated struct Wiretuner_Conformance_V1_TestStop: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  var id: WTProto.Wiretuner_Doc_V1_ElementId {
+    get {_id ?? WTProto.Wiretuner_Doc_V1_ElementId()}
+    set {_id = newValue}
+  }
+  /// Returns true if `id` has been explicitly set.
+  var hasID: Bool {self._id != nil}
+  /// Clears the value of `id`. Subsequent reads from it will return its default value.
+  mutating func clearID() {self._id = nil}
+
+  /// ATOMIC
+  var offset: Double = 0
+
+  /// ATOMIC
+  var color: String = String()
+
+  var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  init() {}
+
+  fileprivate var _id: WTProto.Wiretuner_Doc_V1_ElementId? = nil
+}
+
 /// The expected merged state.
 nonisolated struct Wiretuner_Conformance_V1_Expect: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  /// Lower-case hex SHA-256 of the canonical encoding (docs/spec/crdt-model.adoc, "Snapshots").
+  /// Lower-case hex SHA-256 of the canonical encoding (docs/spec/crdt-model.adoc, "Canonical
+  /// encoding").
   var stateHash: String = String()
 
   /// Expected read-outs.  Nodes not listed are only checked through `state_hash`.
@@ -170,11 +776,28 @@ nonisolated struct Wiretuner_Conformance_V1_ExpectNode: Sendable {
   /// Expected registers.  Registers not listed are only checked through the hashes.
   var register: [Wiretuner_Conformance_V1_ExpectRegister] = []
 
+  /// When present, the node's place in the tree and its deleted flag.
+  var tree: Wiretuner_Conformance_V1_ExpectTree {
+    get {_tree ?? Wiretuner_Conformance_V1_ExpectTree()}
+    set {_tree = newValue}
+  }
+  /// Returns true if `tree` has been explicitly set.
+  var hasTree: Bool {self._tree != nil}
+  /// Clears the value of `tree`. Subsequent reads from it will return its default value.
+  mutating func clearTree() {self._tree = nil}
+
+  /// Expected sequences.
+  var sequence: [Wiretuner_Conformance_V1_ExpectSequence] = []
+
+  /// Expected sets.
+  var set: [Wiretuner_Conformance_V1_ExpectSet] = []
+
   var unknownFields = SwiftProtobuf.UnknownStorage()
 
   init() {}
 
   fileprivate var _id: WTProto.Wiretuner_Doc_V1_OpId? = nil
+  fileprivate var _tree: Wiretuner_Conformance_V1_ExpectTree? = nil
 }
 
 /// One expected register.
@@ -183,7 +806,8 @@ nonisolated struct Wiretuner_Conformance_V1_ExpectRegister: Sendable {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  /// The register's path (field numbers from NodeProps to an ATOMIC field).
+  /// The register's path (field numbers, and element ids after SEQUENCE fields, from NodeProps to
+  /// an ATOMIC field).
   var path: WTProto.Wiretuner_Doc_V1_FieldPath {
     get {_path ?? WTProto.Wiretuner_Doc_V1_FieldPath()}
     set {_path = newValue}
@@ -193,9 +817,10 @@ nonisolated struct Wiretuner_Conformance_V1_ExpectRegister: Sendable {
   /// Clears the value of `path`. Subsequent reads from it will return its default value.
   mutating func clearPath() {self._path = nil}
 
-  /// A sparse NodeProps holding the expected value at `path`.  Leave it out to expect unset.
-  var value: WTProto.Wiretuner_Doc_V1_NodeProps {
-    get {_value ?? WTProto.Wiretuner_Doc_V1_NodeProps()}
+  /// A sparse NodeProps holding the expected value at `path` (element segments are skipped: hold
+  /// just that element).  Leave it out to expect unset.
+  var value: Wiretuner_Conformance_V1_NodeProps {
+    get {_value ?? Wiretuner_Conformance_V1_NodeProps()}
     set {_value = newValue}
   }
   /// Returns true if `value` has been explicitly set.
@@ -221,8 +846,105 @@ nonisolated struct Wiretuner_Conformance_V1_ExpectRegister: Sendable {
   init() {}
 
   fileprivate var _path: WTProto.Wiretuner_Doc_V1_FieldPath? = nil
-  fileprivate var _value: WTProto.Wiretuner_Doc_V1_NodeProps? = nil
+  fileprivate var _value: Wiretuner_Conformance_V1_NodeProps? = nil
   fileprivate var _op: WTProto.Wiretuner_Doc_V1_OpId? = nil
+}
+
+/// A node's place in the tree.
+nonisolated struct Wiretuner_Conformance_V1_ExpectTree: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The parent; leave it out for no parent (the document root, or a node whose create named a
+  /// parent that does not exist).
+  var parent: WTProto.Wiretuner_Doc_V1_OpId {
+    get {_parent ?? WTProto.Wiretuner_Doc_V1_OpId()}
+    set {_parent = newValue}
+  }
+  /// Returns true if `parent` has been explicitly set.
+  var hasParent: Bool {self._parent != nil}
+  /// Clears the value of `parent`. Subsequent reads from it will return its default value.
+  mutating func clearParent() {self._parent = nil}
+
+  /// The position among the parent's children.
+  var position: Data = Data()
+
+  /// The deleted flag.
+  var deleted: Bool = false
+
+  /// The children, deleted ones included, in order: by position, then id.
+  var children: [WTProto.Wiretuner_Doc_V1_OpId] = []
+
+  var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  init() {}
+
+  fileprivate var _parent: WTProto.Wiretuner_Doc_V1_OpId? = nil
+}
+
+/// One expected sequence.
+nonisolated struct Wiretuner_Conformance_V1_ExpectSequence: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The SEQUENCE field's path.
+  var path: WTProto.Wiretuner_Doc_V1_FieldPath {
+    get {_path ?? WTProto.Wiretuner_Doc_V1_FieldPath()}
+    set {_path = newValue}
+  }
+  /// Returns true if `path` has been explicitly set.
+  var hasPath: Bool {self._path != nil}
+  /// Clears the value of `path`. Subsequent reads from it will return its default value.
+  mutating func clearPath() {self._path = nil}
+
+  /// The live elements, in order: by position, then id.
+  var elements: [WTProto.Wiretuner_Doc_V1_ElementId] = []
+
+  /// The tombstones, in the same order.
+  var deleted: [WTProto.Wiretuner_Doc_V1_ElementId] = []
+
+  var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  init() {}
+
+  fileprivate var _path: WTProto.Wiretuner_Doc_V1_FieldPath? = nil
+}
+
+/// One expected set.
+nonisolated struct Wiretuner_Conformance_V1_ExpectSet: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The SET field's path.
+  var path: WTProto.Wiretuner_Doc_V1_FieldPath {
+    get {_path ?? WTProto.Wiretuner_Doc_V1_FieldPath()}
+    set {_path = newValue}
+  }
+  /// Returns true if `path` has been explicitly set.
+  var hasPath: Bool {self._path != nil}
+  /// Clears the value of `path`. Subsequent reads from it will return its default value.
+  mutating func clearPath() {self._path = nil}
+
+  /// A sparse NodeProps holding exactly the expected members at `path`, in any order; leave it out
+  /// for an empty set.
+  var members: Wiretuner_Conformance_V1_NodeProps {
+    get {_members ?? Wiretuner_Conformance_V1_NodeProps()}
+    set {_members = newValue}
+  }
+  /// Returns true if `members` has been explicitly set.
+  var hasMembers: Bool {self._members != nil}
+  /// Clears the value of `members`. Subsequent reads from it will return its default value.
+  mutating func clearMembers() {self._members = nil}
+
+  var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  init() {}
+
+  fileprivate var _path: WTProto.Wiretuner_Doc_V1_FieldPath? = nil
+  fileprivate var _members: Wiretuner_Conformance_V1_NodeProps? = nil
 }
 
 /// One change to the merge table, applied before the vector runs.
@@ -252,6 +974,15 @@ nonisolated struct Wiretuner_Conformance_V1_SchemaOverride: Sendable {
     set {change = .variant(newValue)}
   }
 
+  /// Add a row (or replace one), creating the message if needed.
+  var field: Wiretuner_Conformance_V1_FieldRow {
+    get {
+      if case .field(let v)? = change {return v}
+      return Wiretuner_Conformance_V1_FieldRow()
+    }
+    set {change = .field(newValue)}
+  }
+
   var unknownFields = SwiftProtobuf.UnknownStorage()
 
   /// What to change.
@@ -260,8 +991,23 @@ nonisolated struct Wiretuner_Conformance_V1_SchemaOverride: Sendable {
     case policy(Wiretuner_Conformance_V1_PolicyOverride)
     /// Declare a message MERGE_VARIANT.
     case variant(Wiretuner_Conformance_V1_VariantOverride)
+    /// Add a row (or replace one), creating the message if needed.
+    case field(Wiretuner_Conformance_V1_FieldRow)
 
   }
+
+  init() {}
+}
+
+/// The whole of test-kinds.textproto: overrides both runners apply to every vector first.
+nonisolated struct Wiretuner_Conformance_V1_SchemaOverrides: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  var override: [Wiretuner_Conformance_V1_SchemaOverride] = []
+
+  var unknownFields = SwiftProtobuf.UnknownStorage()
 
   init() {}
 }
@@ -306,13 +1052,89 @@ nonisolated struct Wiretuner_Conformance_V1_VariantOverride: Sendable {
   init() {}
 }
 
+/// One merge-table row, spelled as the table's JSON spells it.
+nonisolated struct Wiretuner_Conformance_V1_FieldRow: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Fully qualified message name.
+  var message: String = String()
+
+  var field: UInt32 = 0
+
+  var name: String = String()
+
+  var policy: String = String()
+
+  /// The protobuf type: "string", "uint32", "message", ...
+  var type: String = String()
+
+  var repeated: Bool = false
+
+  /// The message or enum type, for those types.
+  var typeName: String = String()
+
+  /// The oneof the field belongs to ("kind" for a NodeProps kind).
+  var oneof: String = String()
+
+  var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  init() {}
+}
+
+/// One fractional position to generate: FractionalIndex between `lo` and `hi` with the suffix
+/// value SplitMix64(seed) produces first.
+nonisolated struct Wiretuner_Conformance_V1_PositionCase: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The lower neighbour; empty for the start of the list.
+  var lo: Data = Data()
+
+  /// The upper neighbour; empty for the end of the list.
+  var hi: Data = Data()
+
+  var seed: UInt64 = 0
+
+  /// The generated key.
+  var expect: Data = Data()
+
+  var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  init() {}
+}
+
+/// `count` sequential appends to an empty list, each key after the previous one, the suffixes
+/// drawn from one SplitMix64(seed).
+nonisolated struct Wiretuner_Conformance_V1_AppendRun: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  var seed: UInt64 = 0
+
+  var count: UInt32 = 0
+
+  /// Every key must be shorter than this.
+  var maxLength: UInt32 = 0
+
+  /// The key of the last append.
+  var last: Data = Data()
+
+  var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  init() {}
+}
+
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
 fileprivate nonisolated let _protobuf_package = "wiretuner.conformance.v1"
 
 nonisolated extension Wiretuner_Conformance_V1_Vector: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   static let protoMessageName: String = _protobuf_package + ".Vector"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}name\0\u{1}description\0\u{1}setup\0\u{1}replica\0\u{1}deliveries\0\u{1}expect\0\u{3}schema_override\0")
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}name\0\u{1}description\0\u{1}setup\0\u{1}replica\0\u{1}deliveries\0\u{1}expect\0\u{3}schema_override\0\u{1}position\0\u{3}append_run\0")
 
   mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -327,6 +1149,8 @@ nonisolated extension Wiretuner_Conformance_V1_Vector: SwiftProtobuf.Message, Sw
       case 5: try { try decoder.decodeRepeatedMessageField(value: &self.deliveries) }()
       case 6: try { try decoder.decodeSingularMessageField(value: &self._expect) }()
       case 7: try { try decoder.decodeRepeatedMessageField(value: &self.schemaOverride) }()
+      case 8: try { try decoder.decodeRepeatedMessageField(value: &self.position) }()
+      case 9: try { try decoder.decodeRepeatedMessageField(value: &self.appendRun) }()
       default: break
       }
     }
@@ -358,6 +1182,12 @@ nonisolated extension Wiretuner_Conformance_V1_Vector: SwiftProtobuf.Message, Sw
     if !self.schemaOverride.isEmpty {
       try visitor.visitRepeatedMessageField(value: self.schemaOverride, fieldNumber: 7)
     }
+    if !self.position.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.position, fieldNumber: 8)
+    }
+    if !self.appendRun.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.appendRun, fieldNumber: 9)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -369,6 +1199,8 @@ nonisolated extension Wiretuner_Conformance_V1_Vector: SwiftProtobuf.Message, Sw
     if lhs.deliveries != rhs.deliveries {return false}
     if lhs._expect != rhs._expect {return false}
     if lhs.schemaOverride != rhs.schemaOverride {return false}
+    if lhs.position != rhs.position {return false}
+    if lhs.appendRun != rhs.appendRun {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -469,6 +1301,913 @@ nonisolated extension Wiretuner_Conformance_V1_Delivery: SwiftProtobuf.Message, 
   }
 }
 
+nonisolated extension Wiretuner_Conformance_V1_Change: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  static let protoMessageName: String = _protobuf_package + ".Change"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}replica\0\u{1}seq\0\u{3}start_counter\0\u{3}base_server_seq\0\u{3}wall_time_ms\0\u{1}label\0\u{1}ops\0\u{4}]\u{1}server_seq\0")
+
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularFixed64Field(value: &self.replica) }()
+      case 2: try { try decoder.decodeSingularUInt64Field(value: &self.seq) }()
+      case 3: try { try decoder.decodeSingularUInt64Field(value: &self.startCounter) }()
+      case 4: try { try decoder.decodeSingularUInt64Field(value: &self.baseServerSeq) }()
+      case 5: try { try decoder.decodeSingularInt64Field(value: &self.wallTimeMs) }()
+      case 6: try { try decoder.decodeSingularStringField(value: &self.label) }()
+      case 7: try { try decoder.decodeRepeatedMessageField(value: &self.ops) }()
+      case 100: try { try decoder.decodeSingularUInt64Field(value: &self.serverSeq) }()
+      default: break
+      }
+    }
+  }
+
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.replica != 0 {
+      try visitor.visitSingularFixed64Field(value: self.replica, fieldNumber: 1)
+    }
+    if self.seq != 0 {
+      try visitor.visitSingularUInt64Field(value: self.seq, fieldNumber: 2)
+    }
+    if self.startCounter != 0 {
+      try visitor.visitSingularUInt64Field(value: self.startCounter, fieldNumber: 3)
+    }
+    if self.baseServerSeq != 0 {
+      try visitor.visitSingularUInt64Field(value: self.baseServerSeq, fieldNumber: 4)
+    }
+    if self.wallTimeMs != 0 {
+      try visitor.visitSingularInt64Field(value: self.wallTimeMs, fieldNumber: 5)
+    }
+    if !self.label.isEmpty {
+      try visitor.visitSingularStringField(value: self.label, fieldNumber: 6)
+    }
+    if !self.ops.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.ops, fieldNumber: 7)
+    }
+    if self.serverSeq != 0 {
+      try visitor.visitSingularUInt64Field(value: self.serverSeq, fieldNumber: 100)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  static func ==(lhs: Wiretuner_Conformance_V1_Change, rhs: Wiretuner_Conformance_V1_Change) -> Bool {
+    if lhs.replica != rhs.replica {return false}
+    if lhs.seq != rhs.seq {return false}
+    if lhs.startCounter != rhs.startCounter {return false}
+    if lhs.baseServerSeq != rhs.baseServerSeq {return false}
+    if lhs.wallTimeMs != rhs.wallTimeMs {return false}
+    if lhs.label != rhs.label {return false}
+    if lhs.ops != rhs.ops {return false}
+    if lhs.serverSeq != rhs.serverSeq {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Conformance_V1_Op: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  static let protoMessageName: String = _protobuf_package + ".Op"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}create\0\u{1}set\0\u{1}move\0\u{3}set_deleted\0\u{3}element_insert\0\u{3}element_move\0\u{3}element_delete\0\u{3}text_insert\0\u{3}text_delete\0\u{3}text_mark\0\u{3}set_add\0\u{3}set_remove\0\u{1}noop\0")
+
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try {
+        var v: Wiretuner_Conformance_V1_CreateNode?
+        var hadOneofValue = false
+        if let current = self.op {
+          hadOneofValue = true
+          if case .create(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.op = .create(v)
+        }
+      }()
+      case 2: try {
+        var v: Wiretuner_Conformance_V1_SetFields?
+        var hadOneofValue = false
+        if let current = self.op {
+          hadOneofValue = true
+          if case .set(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.op = .set(v)
+        }
+      }()
+      case 3: try {
+        var v: WTProto.Wiretuner_Doc_V1_MoveNode?
+        var hadOneofValue = false
+        if let current = self.op {
+          hadOneofValue = true
+          if case .move(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.op = .move(v)
+        }
+      }()
+      case 4: try {
+        var v: WTProto.Wiretuner_Doc_V1_SetDeleted?
+        var hadOneofValue = false
+        if let current = self.op {
+          hadOneofValue = true
+          if case .setDeleted(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.op = .setDeleted(v)
+        }
+      }()
+      case 5: try {
+        var v: Wiretuner_Conformance_V1_ElementInsert?
+        var hadOneofValue = false
+        if let current = self.op {
+          hadOneofValue = true
+          if case .elementInsert(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.op = .elementInsert(v)
+        }
+      }()
+      case 6: try {
+        var v: WTProto.Wiretuner_Doc_V1_ElementMove?
+        var hadOneofValue = false
+        if let current = self.op {
+          hadOneofValue = true
+          if case .elementMove(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.op = .elementMove(v)
+        }
+      }()
+      case 7: try {
+        var v: WTProto.Wiretuner_Doc_V1_ElementDelete?
+        var hadOneofValue = false
+        if let current = self.op {
+          hadOneofValue = true
+          if case .elementDelete(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.op = .elementDelete(v)
+        }
+      }()
+      case 8: try {
+        var v: WTProto.Wiretuner_Doc_V1_TextInsert?
+        var hadOneofValue = false
+        if let current = self.op {
+          hadOneofValue = true
+          if case .textInsert(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.op = .textInsert(v)
+        }
+      }()
+      case 9: try {
+        var v: WTProto.Wiretuner_Doc_V1_TextDelete?
+        var hadOneofValue = false
+        if let current = self.op {
+          hadOneofValue = true
+          if case .textDelete(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.op = .textDelete(v)
+        }
+      }()
+      case 10: try {
+        var v: WTProto.Wiretuner_Doc_V1_TextMark?
+        var hadOneofValue = false
+        if let current = self.op {
+          hadOneofValue = true
+          if case .textMark(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.op = .textMark(v)
+        }
+      }()
+      case 11: try {
+        var v: Wiretuner_Conformance_V1_SetAdd?
+        var hadOneofValue = false
+        if let current = self.op {
+          hadOneofValue = true
+          if case .setAdd(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.op = .setAdd(v)
+        }
+      }()
+      case 12: try {
+        var v: Wiretuner_Conformance_V1_SetRemove?
+        var hadOneofValue = false
+        if let current = self.op {
+          hadOneofValue = true
+          if case .setRemove(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.op = .setRemove(v)
+        }
+      }()
+      case 13: try {
+        var v: WTProto.Wiretuner_Doc_V1_Noop?
+        var hadOneofValue = false
+        if let current = self.op {
+          hadOneofValue = true
+          if case .noop(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.op = .noop(v)
+        }
+      }()
+      default: break
+      }
+    }
+  }
+
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    switch self.op {
+    case .create?: try {
+      guard case .create(let v)? = self.op else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    }()
+    case .set?: try {
+      guard case .set(let v)? = self.op else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    }()
+    case .move?: try {
+      guard case .move(let v)? = self.op else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    }()
+    case .setDeleted?: try {
+      guard case .setDeleted(let v)? = self.op else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
+    }()
+    case .elementInsert?: try {
+      guard case .elementInsert(let v)? = self.op else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
+    }()
+    case .elementMove?: try {
+      guard case .elementMove(let v)? = self.op else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 6)
+    }()
+    case .elementDelete?: try {
+      guard case .elementDelete(let v)? = self.op else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 7)
+    }()
+    case .textInsert?: try {
+      guard case .textInsert(let v)? = self.op else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 8)
+    }()
+    case .textDelete?: try {
+      guard case .textDelete(let v)? = self.op else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 9)
+    }()
+    case .textMark?: try {
+      guard case .textMark(let v)? = self.op else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 10)
+    }()
+    case .setAdd?: try {
+      guard case .setAdd(let v)? = self.op else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 11)
+    }()
+    case .setRemove?: try {
+      guard case .setRemove(let v)? = self.op else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 12)
+    }()
+    case .noop?: try {
+      guard case .noop(let v)? = self.op else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 13)
+    }()
+    case nil: break
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  static func ==(lhs: Wiretuner_Conformance_V1_Op, rhs: Wiretuner_Conformance_V1_Op) -> Bool {
+    if lhs.op != rhs.op {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Conformance_V1_CreateNode: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  static let protoMessageName: String = _protobuf_package + ".CreateNode"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}parent\0\u{1}position\0\u{1}props\0")
+
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._parent) }()
+      case 2: try { try decoder.decodeSingularBytesField(value: &self.position) }()
+      case 3: try { try decoder.decodeSingularMessageField(value: &self._props) }()
+      default: break
+      }
+    }
+  }
+
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._parent {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    if !self.position.isEmpty {
+      try visitor.visitSingularBytesField(value: self.position, fieldNumber: 2)
+    }
+    try { if let v = self._props {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  static func ==(lhs: Wiretuner_Conformance_V1_CreateNode, rhs: Wiretuner_Conformance_V1_CreateNode) -> Bool {
+    if lhs._parent != rhs._parent {return false}
+    if lhs.position != rhs.position {return false}
+    if lhs._props != rhs._props {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Conformance_V1_SetFields: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  static let protoMessageName: String = _protobuf_package + ".SetFields"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}node\0\u{1}paths\0\u{1}values\0")
+
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._node) }()
+      case 2: try { try decoder.decodeRepeatedMessageField(value: &self.paths) }()
+      case 3: try { try decoder.decodeSingularMessageField(value: &self._values) }()
+      default: break
+      }
+    }
+  }
+
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._node {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    if !self.paths.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.paths, fieldNumber: 2)
+    }
+    try { if let v = self._values {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  static func ==(lhs: Wiretuner_Conformance_V1_SetFields, rhs: Wiretuner_Conformance_V1_SetFields) -> Bool {
+    if lhs._node != rhs._node {return false}
+    if lhs.paths != rhs.paths {return false}
+    if lhs._values != rhs._values {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Conformance_V1_ElementInsert: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  static let protoMessageName: String = _protobuf_package + ".ElementInsert"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}node\0\u{1}sequence\0\u{1}positions\0\u{1}values\0")
+
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._node) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._sequence) }()
+      case 3: try { try decoder.decodeRepeatedBytesField(value: &self.positions) }()
+      case 4: try { try decoder.decodeSingularMessageField(value: &self._values) }()
+      default: break
+      }
+    }
+  }
+
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._node {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._sequence {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    if !self.positions.isEmpty {
+      try visitor.visitRepeatedBytesField(value: self.positions, fieldNumber: 3)
+    }
+    try { if let v = self._values {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  static func ==(lhs: Wiretuner_Conformance_V1_ElementInsert, rhs: Wiretuner_Conformance_V1_ElementInsert) -> Bool {
+    if lhs._node != rhs._node {return false}
+    if lhs._sequence != rhs._sequence {return false}
+    if lhs.positions != rhs.positions {return false}
+    if lhs._values != rhs._values {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Conformance_V1_SetAdd: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  static let protoMessageName: String = _protobuf_package + ".SetAdd"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}node\0\u{1}set\0\u{1}values\0")
+
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._node) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._set) }()
+      case 3: try { try decoder.decodeSingularMessageField(value: &self._values) }()
+      default: break
+      }
+    }
+  }
+
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._node {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._set {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try { if let v = self._values {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  static func ==(lhs: Wiretuner_Conformance_V1_SetAdd, rhs: Wiretuner_Conformance_V1_SetAdd) -> Bool {
+    if lhs._node != rhs._node {return false}
+    if lhs._set != rhs._set {return false}
+    if lhs._values != rhs._values {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Conformance_V1_SetRemove: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  static let protoMessageName: String = _protobuf_package + ".SetRemove"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}node\0\u{1}set\0\u{1}values\0")
+
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._node) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._set) }()
+      case 3: try { try decoder.decodeSingularMessageField(value: &self._values) }()
+      default: break
+      }
+    }
+  }
+
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._node {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._set {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try { if let v = self._values {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  static func ==(lhs: Wiretuner_Conformance_V1_SetRemove, rhs: Wiretuner_Conformance_V1_SetRemove) -> Bool {
+    if lhs._node != rhs._node {return false}
+    if lhs._set != rhs._set {return false}
+    if lhs._values != rhs._values {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Conformance_V1_NodeProps: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  static let protoMessageName: String = _protobuf_package + ".NodeProps"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}document\0\u{1}settings\0\u{1}page\0\u{3}master_page\0\u{2}.group\0\u{2}d\u{1}layer\0\u{2}R\u{d}test\0")
+
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try {
+        var v: WTProto.Wiretuner_Doc_V1_DocumentProps?
+        var hadOneofValue = false
+        if let current = self.kind {
+          hadOneofValue = true
+          if case .document(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.kind = .document(v)
+        }
+      }()
+      case 2: try {
+        var v: WTProto.Wiretuner_Doc_V1_SettingsProps?
+        var hadOneofValue = false
+        if let current = self.kind {
+          hadOneofValue = true
+          if case .settings(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.kind = .settings(v)
+        }
+      }()
+      case 3: try {
+        var v: WTProto.Wiretuner_Doc_V1_PageProps?
+        var hadOneofValue = false
+        if let current = self.kind {
+          hadOneofValue = true
+          if case .page(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.kind = .page(v)
+        }
+      }()
+      case 4: try {
+        var v: WTProto.Wiretuner_Doc_V1_MasterPageProps?
+        var hadOneofValue = false
+        if let current = self.kind {
+          hadOneofValue = true
+          if case .masterPage(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.kind = .masterPage(v)
+        }
+      }()
+      case 50: try {
+        var v: WTProto.Wiretuner_Doc_V1_GroupProps?
+        var hadOneofValue = false
+        if let current = self.kind {
+          hadOneofValue = true
+          if case .group(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.kind = .group(v)
+        }
+      }()
+      case 150: try {
+        var v: WTProto.Wiretuner_Doc_V1_LayerProps?
+        var hadOneofValue = false
+        if let current = self.kind {
+          hadOneofValue = true
+          if case .layer(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.kind = .layer(v)
+        }
+      }()
+      case 1000: try {
+        var v: Wiretuner_Conformance_V1_TestProps?
+        var hadOneofValue = false
+        if let current = self.kind {
+          hadOneofValue = true
+          if case .test(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.kind = .test(v)
+        }
+      }()
+      default: break
+      }
+    }
+  }
+
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    switch self.kind {
+    case .document?: try {
+      guard case .document(let v)? = self.kind else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    }()
+    case .settings?: try {
+      guard case .settings(let v)? = self.kind else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    }()
+    case .page?: try {
+      guard case .page(let v)? = self.kind else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    }()
+    case .masterPage?: try {
+      guard case .masterPage(let v)? = self.kind else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
+    }()
+    case .group?: try {
+      guard case .group(let v)? = self.kind else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 50)
+    }()
+    case .layer?: try {
+      guard case .layer(let v)? = self.kind else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 150)
+    }()
+    case .test?: try {
+      guard case .test(let v)? = self.kind else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1000)
+    }()
+    case nil: break
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  static func ==(lhs: Wiretuner_Conformance_V1_NodeProps, rhs: Wiretuner_Conformance_V1_NodeProps) -> Bool {
+    if lhs.kind != rhs.kind {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Conformance_V1_TestProps: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  static let protoMessageName: String = _protobuf_package + ".TestProps"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}common\0\u{1}label\0\u{1}tags\0\u{1}codes\0\u{1}points\0\u{1}nodes\0\u{1}contours\0\u{1}stops\0")
+
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._common) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.label) }()
+      case 3: try { try decoder.decodeRepeatedStringField(value: &self.tags) }()
+      case 4: try { try decoder.decodeRepeatedUInt32Field(value: &self.codes) }()
+      case 5: try { try decoder.decodeRepeatedMessageField(value: &self.points) }()
+      case 6: try { try decoder.decodeRepeatedMessageField(value: &self.nodes) }()
+      case 7: try { try decoder.decodeRepeatedMessageField(value: &self.contours) }()
+      case 8: try { try decoder.decodeRepeatedMessageField(value: &self.stops) }()
+      default: break
+      }
+    }
+  }
+
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._common {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    if !self.label.isEmpty {
+      try visitor.visitSingularStringField(value: self.label, fieldNumber: 2)
+    }
+    if !self.tags.isEmpty {
+      try visitor.visitRepeatedStringField(value: self.tags, fieldNumber: 3)
+    }
+    if !self.codes.isEmpty {
+      try visitor.visitPackedUInt32Field(value: self.codes, fieldNumber: 4)
+    }
+    if !self.points.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.points, fieldNumber: 5)
+    }
+    if !self.nodes.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.nodes, fieldNumber: 6)
+    }
+    if !self.contours.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.contours, fieldNumber: 7)
+    }
+    if !self.stops.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.stops, fieldNumber: 8)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  static func ==(lhs: Wiretuner_Conformance_V1_TestProps, rhs: Wiretuner_Conformance_V1_TestProps) -> Bool {
+    if lhs._common != rhs._common {return false}
+    if lhs.label != rhs.label {return false}
+    if lhs.tags != rhs.tags {return false}
+    if lhs.codes != rhs.codes {return false}
+    if lhs.points != rhs.points {return false}
+    if lhs.nodes != rhs.nodes {return false}
+    if lhs.contours != rhs.contours {return false}
+    if lhs.stops != rhs.stops {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Conformance_V1_TestContour: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  static let protoMessageName: String = _protobuf_package + ".TestContour"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}closed\0\u{1}anchors\0\u{1}name\0\u{1}tags\0")
+
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._id) }()
+      case 2: try { try decoder.decodeSingularBoolField(value: &self.closed) }()
+      case 3: try { try decoder.decodeRepeatedMessageField(value: &self.anchors) }()
+      case 4: try { try decoder.decodeSingularStringField(value: &self.name) }()
+      case 5: try { try decoder.decodeRepeatedStringField(value: &self.tags) }()
+      default: break
+      }
+    }
+  }
+
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._id {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    if self.closed != false {
+      try visitor.visitSingularBoolField(value: self.closed, fieldNumber: 2)
+    }
+    if !self.anchors.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.anchors, fieldNumber: 3)
+    }
+    if !self.name.isEmpty {
+      try visitor.visitSingularStringField(value: self.name, fieldNumber: 4)
+    }
+    if !self.tags.isEmpty {
+      try visitor.visitRepeatedStringField(value: self.tags, fieldNumber: 5)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  static func ==(lhs: Wiretuner_Conformance_V1_TestContour, rhs: Wiretuner_Conformance_V1_TestContour) -> Bool {
+    if lhs._id != rhs._id {return false}
+    if lhs.closed != rhs.closed {return false}
+    if lhs.anchors != rhs.anchors {return false}
+    if lhs.name != rhs.name {return false}
+    if lhs.tags != rhs.tags {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Conformance_V1_TestPoint: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  static let protoMessageName: String = _protobuf_package + ".TestPoint"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}anchor\0\u{1}weight\0")
+
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._id) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._anchor) }()
+      case 3: try { try decoder.decodeSingularDoubleField(value: &self.weight) }()
+      default: break
+      }
+    }
+  }
+
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._id {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._anchor {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    if self.weight.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.weight, fieldNumber: 3)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  static func ==(lhs: Wiretuner_Conformance_V1_TestPoint, rhs: Wiretuner_Conformance_V1_TestPoint) -> Bool {
+    if lhs._id != rhs._id {return false}
+    if lhs._anchor != rhs._anchor {return false}
+    if lhs.weight != rhs.weight {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Conformance_V1_TestStop: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  static let protoMessageName: String = _protobuf_package + ".TestStop"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}offset\0\u{1}color\0")
+
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._id) }()
+      case 2: try { try decoder.decodeSingularDoubleField(value: &self.offset) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.color) }()
+      default: break
+      }
+    }
+  }
+
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._id {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    if self.offset.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.offset, fieldNumber: 2)
+    }
+    if !self.color.isEmpty {
+      try visitor.visitSingularStringField(value: self.color, fieldNumber: 3)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  static func ==(lhs: Wiretuner_Conformance_V1_TestStop, rhs: Wiretuner_Conformance_V1_TestStop) -> Bool {
+    if lhs._id != rhs._id {return false}
+    if lhs.offset != rhs.offset {return false}
+    if lhs.color != rhs.color {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
 nonisolated extension Wiretuner_Conformance_V1_Expect: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   static let protoMessageName: String = _protobuf_package + ".Expect"
   static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}state_hash\0\u{1}node\0")
@@ -506,7 +2245,7 @@ nonisolated extension Wiretuner_Conformance_V1_Expect: SwiftProtobuf.Message, Sw
 
 nonisolated extension Wiretuner_Conformance_V1_ExpectNode: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   static let protoMessageName: String = _protobuf_package + ".ExpectNode"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{3}node_hash\0\u{1}register\0")
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{3}node_hash\0\u{1}register\0\u{1}tree\0\u{1}sequence\0\u{1}set\0")
 
   mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -517,6 +2256,9 @@ nonisolated extension Wiretuner_Conformance_V1_ExpectNode: SwiftProtobuf.Message
       case 1: try { try decoder.decodeSingularMessageField(value: &self._id) }()
       case 2: try { try decoder.decodeSingularStringField(value: &self.nodeHash) }()
       case 3: try { try decoder.decodeRepeatedMessageField(value: &self.register) }()
+      case 4: try { try decoder.decodeSingularMessageField(value: &self._tree) }()
+      case 5: try { try decoder.decodeRepeatedMessageField(value: &self.sequence) }()
+      case 6: try { try decoder.decodeRepeatedMessageField(value: &self.set) }()
       default: break
       }
     }
@@ -536,6 +2278,15 @@ nonisolated extension Wiretuner_Conformance_V1_ExpectNode: SwiftProtobuf.Message
     if !self.register.isEmpty {
       try visitor.visitRepeatedMessageField(value: self.register, fieldNumber: 3)
     }
+    try { if let v = self._tree {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
+    } }()
+    if !self.sequence.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.sequence, fieldNumber: 5)
+    }
+    if !self.set.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.set, fieldNumber: 6)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -543,6 +2294,9 @@ nonisolated extension Wiretuner_Conformance_V1_ExpectNode: SwiftProtobuf.Message
     if lhs._id != rhs._id {return false}
     if lhs.nodeHash != rhs.nodeHash {return false}
     if lhs.register != rhs.register {return false}
+    if lhs._tree != rhs._tree {return false}
+    if lhs.sequence != rhs.sequence {return false}
+    if lhs.set != rhs.set {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -597,9 +2351,141 @@ nonisolated extension Wiretuner_Conformance_V1_ExpectRegister: SwiftProtobuf.Mes
   }
 }
 
+nonisolated extension Wiretuner_Conformance_V1_ExpectTree: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  static let protoMessageName: String = _protobuf_package + ".ExpectTree"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}parent\0\u{1}position\0\u{1}deleted\0\u{1}children\0")
+
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._parent) }()
+      case 2: try { try decoder.decodeSingularBytesField(value: &self.position) }()
+      case 3: try { try decoder.decodeSingularBoolField(value: &self.deleted) }()
+      case 4: try { try decoder.decodeRepeatedMessageField(value: &self.children) }()
+      default: break
+      }
+    }
+  }
+
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._parent {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    if !self.position.isEmpty {
+      try visitor.visitSingularBytesField(value: self.position, fieldNumber: 2)
+    }
+    if self.deleted != false {
+      try visitor.visitSingularBoolField(value: self.deleted, fieldNumber: 3)
+    }
+    if !self.children.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.children, fieldNumber: 4)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  static func ==(lhs: Wiretuner_Conformance_V1_ExpectTree, rhs: Wiretuner_Conformance_V1_ExpectTree) -> Bool {
+    if lhs._parent != rhs._parent {return false}
+    if lhs.position != rhs.position {return false}
+    if lhs.deleted != rhs.deleted {return false}
+    if lhs.children != rhs.children {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Conformance_V1_ExpectSequence: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  static let protoMessageName: String = _protobuf_package + ".ExpectSequence"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}path\0\u{1}elements\0\u{1}deleted\0")
+
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._path) }()
+      case 2: try { try decoder.decodeRepeatedMessageField(value: &self.elements) }()
+      case 3: try { try decoder.decodeRepeatedMessageField(value: &self.deleted) }()
+      default: break
+      }
+    }
+  }
+
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._path {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    if !self.elements.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.elements, fieldNumber: 2)
+    }
+    if !self.deleted.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.deleted, fieldNumber: 3)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  static func ==(lhs: Wiretuner_Conformance_V1_ExpectSequence, rhs: Wiretuner_Conformance_V1_ExpectSequence) -> Bool {
+    if lhs._path != rhs._path {return false}
+    if lhs.elements != rhs.elements {return false}
+    if lhs.deleted != rhs.deleted {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Conformance_V1_ExpectSet: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  static let protoMessageName: String = _protobuf_package + ".ExpectSet"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}path\0\u{1}members\0")
+
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._path) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._members) }()
+      default: break
+      }
+    }
+  }
+
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._path {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._members {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  static func ==(lhs: Wiretuner_Conformance_V1_ExpectSet, rhs: Wiretuner_Conformance_V1_ExpectSet) -> Bool {
+    if lhs._path != rhs._path {return false}
+    if lhs._members != rhs._members {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
 nonisolated extension Wiretuner_Conformance_V1_SchemaOverride: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   static let protoMessageName: String = _protobuf_package + ".SchemaOverride"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}policy\0\u{1}variant\0")
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}policy\0\u{1}variant\0\u{1}field\0")
 
   mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -633,6 +2519,19 @@ nonisolated extension Wiretuner_Conformance_V1_SchemaOverride: SwiftProtobuf.Mes
           self.change = .variant(v)
         }
       }()
+      case 3: try {
+        var v: Wiretuner_Conformance_V1_FieldRow?
+        var hadOneofValue = false
+        if let current = self.change {
+          hadOneofValue = true
+          if case .field(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.change = .field(v)
+        }
+      }()
       default: break
       }
     }
@@ -652,6 +2551,10 @@ nonisolated extension Wiretuner_Conformance_V1_SchemaOverride: SwiftProtobuf.Mes
       guard case .variant(let v)? = self.change else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
     }()
+    case .field?: try {
+      guard case .field(let v)? = self.change else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    }()
     case nil: break
     }
     try unknownFields.traverse(visitor: &visitor)
@@ -659,6 +2562,36 @@ nonisolated extension Wiretuner_Conformance_V1_SchemaOverride: SwiftProtobuf.Mes
 
   static func ==(lhs: Wiretuner_Conformance_V1_SchemaOverride, rhs: Wiretuner_Conformance_V1_SchemaOverride) -> Bool {
     if lhs.change != rhs.change {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Conformance_V1_SchemaOverrides: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  static let protoMessageName: String = _protobuf_package + ".SchemaOverrides"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}override\0")
+
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeRepeatedMessageField(value: &self.override) }()
+      default: break
+      }
+    }
+  }
+
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.override.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.override, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  static func ==(lhs: Wiretuner_Conformance_V1_SchemaOverrides, rhs: Wiretuner_Conformance_V1_SchemaOverrides) -> Bool {
+    if lhs.override != rhs.override {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -739,6 +2672,161 @@ nonisolated extension Wiretuner_Conformance_V1_VariantOverride: SwiftProtobuf.Me
     if lhs.message != rhs.message {return false}
     if lhs.kindField != rhs.kindField {return false}
     if lhs.caseFields != rhs.caseFields {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Conformance_V1_FieldRow: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  static let protoMessageName: String = _protobuf_package + ".FieldRow"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}message\0\u{1}field\0\u{1}name\0\u{1}policy\0\u{1}type\0\u{1}repeated\0\u{3}type_name\0\u{1}oneof\0")
+
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.message) }()
+      case 2: try { try decoder.decodeSingularUInt32Field(value: &self.field) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.name) }()
+      case 4: try { try decoder.decodeSingularStringField(value: &self.policy) }()
+      case 5: try { try decoder.decodeSingularStringField(value: &self.type) }()
+      case 6: try { try decoder.decodeSingularBoolField(value: &self.repeated) }()
+      case 7: try { try decoder.decodeSingularStringField(value: &self.typeName) }()
+      case 8: try { try decoder.decodeSingularStringField(value: &self.oneof) }()
+      default: break
+      }
+    }
+  }
+
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.message.isEmpty {
+      try visitor.visitSingularStringField(value: self.message, fieldNumber: 1)
+    }
+    if self.field != 0 {
+      try visitor.visitSingularUInt32Field(value: self.field, fieldNumber: 2)
+    }
+    if !self.name.isEmpty {
+      try visitor.visitSingularStringField(value: self.name, fieldNumber: 3)
+    }
+    if !self.policy.isEmpty {
+      try visitor.visitSingularStringField(value: self.policy, fieldNumber: 4)
+    }
+    if !self.type.isEmpty {
+      try visitor.visitSingularStringField(value: self.type, fieldNumber: 5)
+    }
+    if self.repeated != false {
+      try visitor.visitSingularBoolField(value: self.repeated, fieldNumber: 6)
+    }
+    if !self.typeName.isEmpty {
+      try visitor.visitSingularStringField(value: self.typeName, fieldNumber: 7)
+    }
+    if !self.oneof.isEmpty {
+      try visitor.visitSingularStringField(value: self.oneof, fieldNumber: 8)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  static func ==(lhs: Wiretuner_Conformance_V1_FieldRow, rhs: Wiretuner_Conformance_V1_FieldRow) -> Bool {
+    if lhs.message != rhs.message {return false}
+    if lhs.field != rhs.field {return false}
+    if lhs.name != rhs.name {return false}
+    if lhs.policy != rhs.policy {return false}
+    if lhs.type != rhs.type {return false}
+    if lhs.repeated != rhs.repeated {return false}
+    if lhs.typeName != rhs.typeName {return false}
+    if lhs.oneof != rhs.oneof {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Conformance_V1_PositionCase: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  static let protoMessageName: String = _protobuf_package + ".PositionCase"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}lo\0\u{1}hi\0\u{1}seed\0\u{1}expect\0")
+
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularBytesField(value: &self.lo) }()
+      case 2: try { try decoder.decodeSingularBytesField(value: &self.hi) }()
+      case 3: try { try decoder.decodeSingularUInt64Field(value: &self.seed) }()
+      case 4: try { try decoder.decodeSingularBytesField(value: &self.expect) }()
+      default: break
+      }
+    }
+  }
+
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.lo.isEmpty {
+      try visitor.visitSingularBytesField(value: self.lo, fieldNumber: 1)
+    }
+    if !self.hi.isEmpty {
+      try visitor.visitSingularBytesField(value: self.hi, fieldNumber: 2)
+    }
+    if self.seed != 0 {
+      try visitor.visitSingularUInt64Field(value: self.seed, fieldNumber: 3)
+    }
+    if !self.expect.isEmpty {
+      try visitor.visitSingularBytesField(value: self.expect, fieldNumber: 4)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  static func ==(lhs: Wiretuner_Conformance_V1_PositionCase, rhs: Wiretuner_Conformance_V1_PositionCase) -> Bool {
+    if lhs.lo != rhs.lo {return false}
+    if lhs.hi != rhs.hi {return false}
+    if lhs.seed != rhs.seed {return false}
+    if lhs.expect != rhs.expect {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Conformance_V1_AppendRun: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  static let protoMessageName: String = _protobuf_package + ".AppendRun"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}seed\0\u{1}count\0\u{3}max_length\0\u{1}last\0")
+
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularUInt64Field(value: &self.seed) }()
+      case 2: try { try decoder.decodeSingularUInt32Field(value: &self.count) }()
+      case 3: try { try decoder.decodeSingularUInt32Field(value: &self.maxLength) }()
+      case 4: try { try decoder.decodeSingularBytesField(value: &self.last) }()
+      default: break
+      }
+    }
+  }
+
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.seed != 0 {
+      try visitor.visitSingularUInt64Field(value: self.seed, fieldNumber: 1)
+    }
+    if self.count != 0 {
+      try visitor.visitSingularUInt32Field(value: self.count, fieldNumber: 2)
+    }
+    if self.maxLength != 0 {
+      try visitor.visitSingularUInt32Field(value: self.maxLength, fieldNumber: 3)
+    }
+    if !self.last.isEmpty {
+      try visitor.visitSingularBytesField(value: self.last, fieldNumber: 4)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  static func ==(lhs: Wiretuner_Conformance_V1_AppendRun, rhs: Wiretuner_Conformance_V1_AppendRun) -> Bool {
+    if lhs.seed != rhs.seed {return false}
+    if lhs.count != rhs.count {return false}
+    if lhs.maxLength != rhs.maxLength {return false}
+    if lhs.last != rhs.last {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

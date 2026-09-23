@@ -1,0 +1,43 @@
+# crdt-conformance/vectors/tree/delete-vs-edit.textproto (CRDT-002; schema: crdt-conformance/schema/vector.proto)
+name: "tree/delete-vs-edit"
+description: "Replica 1 deletes object X while replica 2 renames it.  `deleted` is a register on the node and the rename still applies to the deleted node, so X is deleted, keeps its place in the tree and carries the new name, ready for Restore."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Create layer and X"
+    ops { create { parent { counter: 4 } position: "\x80" props { layer { common { name: "Layer 1" } } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x80" props { group { common { name: "X" } } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 3 base_server_seq: 1 label: "Delete"
+    ops { set_deleted { node { counter: 2 replica: 7 } deleted: true } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 3 base_server_seq: 1 label: "Rename"
+    ops { set { node { counter: 2 replica: 7 }
+      paths { segments { field: 50 } segments { field: 1 } segments { field: 1 } }
+      values { group { common { name: "Renamed" } } } } }
+  }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "78e129a75526f23a048d10ed1c2408284680fa4a505cea9f7f1b2f863e9af2f4"
+  node {
+    id { counter: 2 replica: 7 }
+    node_hash: "49a651f1b8e1af2287f9ed889ef09713d85b37ee38df3deb250f040d1c8cd116"
+    tree { parent { counter: 1 replica: 7 } position: "\x80" deleted: true }
+    register {
+      path { segments { field: 50 } segments { field: 1 } segments { field: 1 } }
+      value { group { common { name: "Renamed" } } }
+      op { counter: 3 replica: 2 }
+      losing { counter: 2 replica: 7 }
+    }
+  }
+  node { id { counter: 1 replica: 7 } tree { parent { counter: 4 } position: "\x80" children { counter: 2 replica: 7 } } }
+}

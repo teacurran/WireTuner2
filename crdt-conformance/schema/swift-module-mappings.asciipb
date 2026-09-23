@@ -4,5 +4,10 @@ mapping {
   module_name: "WTProto"
   proto_file_path: "wiretuner/doc/v1/change.proto"
   proto_file_path: "wiretuner/doc/v1/common.proto"
+  proto_file_path: "wiretuner/doc/v1/document.proto"
+  proto_file_path: "wiretuner/doc/v1/group.proto"
+  proto_file_path: "wiretuner/doc/v1/layer.proto"
   proto_file_path: "wiretuner/doc/v1/node.proto"
+  proto_file_path: "wiretuner/doc/v1/ops.proto"
+  proto_file_path: "wiretuner/doc/v1/text.proto"
 }

@@ -3,7 +3,7 @@ import Testing
 import WTProto
 
 @Suite struct SchemaTests {
-    @Test func generatedTableKnowsTheKindsAndAppliesTheReferenceRule() {
+    @Test func generatedTableKnowsTheKindsAndMakesReferencesAtomic() {
         let schema = Schema.generated
         #expect(schema.kinds.isSuperset(of: [1, 2, 3, 4, 50, 150]))
         #expect(schema.field("wiretuner.doc.v1.CommonProps", 1)?.policy == .atomic)
@@ -16,15 +16,20 @@ import WTProto
         #expect(schema.variant("wiretuner.doc.v1.NavigationProps") == nil)
     }
 
-    @Test func referenceRuleLeavesRepeatedAndExplicitReferencesAlone() {
+    @Test func tablesAreUsedAsGiven() {
         let schema = Tables.shapes
-        #expect(schema.field("t.K", 7)?.policy == .atomic)
         #expect(schema.field("t.K", 8)?.policy == .structure)
         #expect(schema.fields("t.K").map(\.fieldNumber) == [1, 2, 3, 4, 5, 6, 7, 8])
-        let explicit = Schema(messages: Dictionary(uniqueKeysWithValues: [
-            Tables.message("t.R", [Tables.row(1, .atomic, "message", false, Schema.nodeRef)])]), variants: [:])
-        #expect(explicit.field("t.R", 1)?.policy == .atomic)
         #expect(Schema(messages: [:], variants: [:]).kinds.isEmpty)
+    }
+
+    @Test func rowsCanBeAddedToNewAndExistingMessages() {
+        let schema = Schema(messages: [:], variants: [:])
+            .with(Schema.root, row: Tables.row(1000, .structure, "message", false, "t.K", "kind"))
+            .with("t.K", row: Tables.row(1, .atomic, "string", false, nil))
+            .with("t.K", row: Tables.row(1, .set, "string", true, nil))
+        #expect(schema.kinds == [1000])
+        #expect(schema.field("t.K", 1)?.policy == .set)
     }
 
     @Test func overridesReplaceAPolicyOrDeclareAVariant() throws {
@@ -51,7 +56,7 @@ import WTProto
     }
 
     @Test func versionMatchesWtCrdt() {
-        #expect(EngineState.version == "0.1.0")
+        #expect(EngineState.version == "0.2.0")
         #expect(EngineState().schema.kinds == Schema.generated.kinds)
     }
 

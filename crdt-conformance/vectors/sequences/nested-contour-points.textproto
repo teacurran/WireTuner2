@@ -1,0 +1,56 @@
+# crdt-conformance/vectors/sequences/nested-contour-points.textproto (CRDT-004; schema: crdt-conformance/schema/vector.proto)
+name: "sequences/nested-contour-points"
+description: "A nested sequence (contour -> anchors), addressed through the contour's element id.  Replica 1 edits anchor 4:7's weight and moves anchor 3:7 to the end; replica 2 inserts an anchor between 4:7 and 5:7, renames the contour, tags it (a SET inside an element) and deletes anchor 5:7.  Everything merges: anchors read 4:7, 6:2, 3:7 with 5:7 a tombstone."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Create"
+    ops { create { parent { counter: 4 } position: "\x80" props { test { label: "T" } } } }
+  }
+  change {
+    replica: 7 seq: 2 start_counter: 2 label: "Draw contour"
+    ops { element_insert { node { counter: 1 replica: 7 } sequence { segments { field: 1000 } segments { field: 7 } } positions: "\x80"
+      values { test { contours { name: "outer" closed: true } } } } }
+    ops { element_insert { node { counter: 1 replica: 7 } sequence { segments { field: 1000 } segments { field: 7 } segments { element { counter: 2 replica: 7 } } segments { field: 3 } } positions: ["\x80", "\x81", "\x82"]
+      values { test { contours { anchors { anchor { x: 1 y: 1 } weight: 1 } anchors { anchor { x: 2 y: 1 } weight: 1 }
+        anchors { anchor { x: 2 y: 2 } weight: 1 } } } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 6 base_server_seq: 2 label: "Edit anchors"
+    ops { set { node { counter: 1 replica: 7 } paths { segments { field: 1000 } segments { field: 7 } segments { element { counter: 2 replica: 7 } } segments { field: 3 } segments { element { counter: 4 replica: 7 } } segments { field: 3 } }
+      values { test { contours { anchors { weight: 2 } } } } } }
+    ops { element_move { node { counter: 1 replica: 7 } element { segments { field: 1000 } segments { field: 7 } segments { element { counter: 2 replica: 7 } } segments { field: 3 } segments { element { counter: 3 replica: 7 } } } position: "\x83" } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 6 base_server_seq: 2 label: "Add anchor, rename, delete"
+    ops { element_insert { node { counter: 1 replica: 7 } sequence { segments { field: 1000 } segments { field: 7 } segments { element { counter: 2 replica: 7 } } segments { field: 3 } } positions: "\x81\x80"
+      values { test { contours { anchors { anchor { x: 3 y: 3 } } } } } } }
+    ops { set { node { counter: 1 replica: 7 } paths { segments { field: 1000 } segments { field: 7 } segments { element { counter: 2 replica: 7 } } segments { field: 4 } } values { test { contours { name: "inner" } } } } }
+    ops { set_add { node { counter: 1 replica: 7 } set { segments { field: 1000 } segments { field: 7 } segments { element { counter: 2 replica: 7 } } segments { field: 5 } } values { test { contours { tags: "hole" } } } } }
+    ops { element_delete { node { counter: 1 replica: 7 } elements { segments { field: 1000 } segments { field: 7 } segments { element { counter: 2 replica: 7 } } segments { field: 3 } segments { element { counter: 5 replica: 7 } } } deleted: true } }
+  }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "6e4a9dc09bd927df88b6faea08372e9dfd32094c13545aa5aeb426d166406c49"
+  node {
+    id { counter: 1 replica: 7 }
+    node_hash: "63e4d296b7983d41b873adefc7105074549539e7988fc34a48f1980703853ff6"
+    sequence { path { segments { field: 1000 } segments { field: 7 } } elements { counter: 2 replica: 7 } }
+    sequence { path { segments { field: 1000 } segments { field: 7 } segments { element { counter: 2 replica: 7 } } segments { field: 3 } } elements { counter: 4 replica: 7 } elements { counter: 6 replica: 2 } elements { counter: 3 replica: 7 }
+      deleted { counter: 5 replica: 7 } }
+    set { path { segments { field: 1000 } segments { field: 7 } segments { element { counter: 2 replica: 7 } } segments { field: 5 } } members { test { contours { tags: "hole" } } } }
+    register { path { segments { field: 1000 } segments { field: 7 } segments { element { counter: 2 replica: 7 } } segments { field: 2 } } value { test { contours { closed: true } } } op { counter: 2 replica: 7 } }
+    register { path { segments { field: 1000 } segments { field: 7 } segments { element { counter: 2 replica: 7 } } segments { field: 4 } } value { test { contours { name: "inner" } } } op { counter: 7 replica: 2 }
+      losing { counter: 2 replica: 7 } }
+    register { path { segments { field: 1000 } segments { field: 7 } segments { element { counter: 2 replica: 7 } } segments { field: 3 } segments { element { counter: 4 replica: 7 } } segments { field: 3 } } value { test { contours { anchors { weight: 2 } } } } op { counter: 6 replica: 1 }
+      losing { counter: 4 replica: 7 } }
+    register { path { segments { field: 1000 } segments { field: 7 } segments { element { counter: 2 replica: 7 } } segments { field: 3 } segments { element { counter: 6 replica: 2 } } segments { field: 2 } } value { test { contours { anchors { anchor { x: 3 y: 3 } } } } } op { counter: 6 replica: 2 } }
+  }
+}

@@ -1,0 +1,48 @@
+# crdt-conformance/vectors/sequences/concurrent-reorder-vs-edit.textproto (CRDT-004; schema: crdt-conformance/schema/vector.proto)
+name: "sequences/concurrent-reorder-vs-edit"
+description: "Replica 1 moves stop 2:7 to the end while replica 2 recolours it and replica 3 moves it between the other two.  An element's position and fields are independent registers: the recolour is kept, and the move with the greater OpId (5:3) decides the order."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Create"
+    ops { create { parent { counter: 4 } position: "\x80" props { test { label: "T" } } } }
+  }
+  change {
+    replica: 7 seq: 2 start_counter: 2 label: "Add stops"
+    ops { element_insert { node { counter: 1 replica: 7 } sequence { segments { field: 1000 } segments { field: 8 } } positions: ["\x80", "\x81", "\x82"]
+      values { test { stops { color: "a" } stops { color: "b" } stops { color: "c" } } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 5 base_server_seq: 2 label: "Move to end"
+    ops { element_move { node { counter: 1 replica: 7 } element { segments { field: 1000 } segments { field: 8 } segments { element { counter: 2 replica: 7 } } } position: "\x83" } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 5 base_server_seq: 2 label: "Recolour"
+    ops { set { node { counter: 1 replica: 7 } paths { segments { field: 1000 } segments { field: 8 } segments { element { counter: 2 replica: 7 } } segments { field: 3 } } values { test { stops { color: "red" } } } } }
+  }
+}
+replica {
+  id: 3
+  change {
+    replica: 3 seq: 1 start_counter: 5 base_server_seq: 2 label: "Move between"
+    ops { element_move { node { counter: 1 replica: 7 } element { segments { field: 1000 } segments { field: 8 } segments { element { counter: 2 replica: 7 } } } position: "\x81\x80" } }
+  }
+}
+deliveries { order: [1, 2, 3] }
+deliveries { order: [3, 2, 1] }
+deliveries { order: [2, 3, 1] }
+expect {
+  state_hash: "9a85b1b45520ccce6bc9fd7b727d1a6eedd1e1bfb9be274f794e991bc6b6135f"
+  node {
+    id { counter: 1 replica: 7 }
+    node_hash: "e41d8501dc697f35203d3b2d70c2b1d5f7ffc13d4efde626d702ed14897df237"
+    sequence { path { segments { field: 1000 } segments { field: 8 } } elements { counter: 3 replica: 7 } elements { counter: 2 replica: 7 } elements { counter: 4 replica: 7 } }
+    register { path { segments { field: 1000 } segments { field: 8 } segments { element { counter: 2 replica: 7 } } segments { field: 3 } } value { test { stops { color: "red" } } } op { counter: 5 replica: 2 }
+      losing { counter: 2 replica: 7 } }
+  }
+}

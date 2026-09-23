@@ -150,7 +150,7 @@ class EngineTest {
                         .addPaths(elementHead)
                         .addPaths(elementLater)).build(),
                 Op.newBuilder().setNoop(Noop.getDefaultInstance()).build(),
-                Op.newBuilder().setMove(MoveNode.newBuilder().setNode(LAYER.toProto())).build(),
+                Op.newBuilder().setMove(MoveNode.getDefaultInstance()).build(),   // a well-known node
                 Op.getDefaultInstance()));
 
         assertThat(engine.stateHash()).isEqualTo(before);

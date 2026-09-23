@@ -1,12 +1,9 @@
 import WTCRDTSchema
 
 /// The merge table as the engine reads it: the generated `WTMergeTable` (or another table of the
-/// same shape) with the model's reference rule applied.  It is the only feature-specific input
-/// the engine has (docs/spec/crdt-model.adoc, "Merge policies").
-///
-/// The reference rule: a `NodeRef` field is one ATOMIC register ("References" under "Merge
-/// rules") whatever policy the table gives it, so an id's counter and replica can never come
-/// from two different writes.
+/// same shape).  It is the only feature-specific input the engine has
+/// (docs/spec/crdt-model.adoc, "Merge policies"); the engine uses its policies as given (a
+/// singular `NodeRef` is ATOMIC because protoc-gen-wtcrdt emits it so).
 public struct Schema: Sendable {
     public typealias Policy = WTMergeTable.Policy
     public typealias FieldPolicy = WTMergeTable.FieldPolicy
@@ -16,8 +13,6 @@ public struct Schema: Sendable {
     public static let root = "wiretuner.doc.v1.NodeProps"
     /// The oneof of `root` whose set case is a node's kind.
     public static let kindOneof = "kind"
-
-    static let nodeRef = "wiretuner.doc.v1.NodeRef"
 
     private let messages: [String: [Int: FieldPolicy]]
     private let variants: [String: VariantPolicy]
@@ -34,17 +29,9 @@ public struct Schema: Sendable {
     /// The generated table (protoc-gen-wtcrdt over proto/).
     public static let generated = Schema(messages: WTMergeTable.messages, variants: WTMergeTable.variants)
 
-    /// A table of the generated shape, with the reference rule applied.
+    /// A table of the generated shape.
     public init(messages: [String: WTMergeTable.MessagePolicy], variants: [String: VariantPolicy]) {
-        self.init(
-            messages: messages.mapValues { $0.fields.mapValues(Self.referenceRule) },
-            variants: variants
-        )
-    }
-
-    private static func referenceRule(_ row: FieldPolicy) -> FieldPolicy {
-        let singularRef = row.typeName == nodeRef && !row.repeated
-        return singularRef && row.policy == .structure ? with(row, policy: .atomic) : row
+        self.init(messages: messages.mapValues(\.fields), variants: variants)
     }
 
     private static func with(_ row: FieldPolicy, policy: Policy) -> FieldPolicy {
@@ -69,6 +56,15 @@ public struct Schema: Sendable {
         }
         var rows = messages
         rows[message]?[field] = Self.with(row, policy: policy)
+        return Schema(messages: rows, variants: variants)
+    }
+
+    /// This table with `row` added to `message` (or replacing its field of the same number); the
+    /// message is created when the table has none.  For conformance vectors that declare test
+    /// messages (see `with(_:field:policy:)`).
+    public func with(_ message: String, row: FieldPolicy) -> Schema {
+        var rows = messages
+        rows[message, default: [:]][row.fieldNumber] = row
         return Schema(messages: rows, variants: variants)
     }
 

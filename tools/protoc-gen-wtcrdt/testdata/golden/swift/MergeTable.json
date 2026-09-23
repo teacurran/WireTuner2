@@ -107,7 +107,7 @@
           "name": "canvas",
           "on_dangling": "UNSET",
           "oneof": null,
-          "policy": "STRUCT",
+          "policy": "ATOMIC",
           "repeated": false,
           "type": "message",
           "type_name": "wiretuner.doc.v1.NodeRef"
@@ -129,7 +129,7 @@
           "name": "style",
           "on_dangling": "UNSET",
           "oneof": null,
-          "policy": "STRUCT",
+          "policy": "ATOMIC",
           "repeated": false,
           "type": "message",
           "type_name": "wiretuner.doc.v1.NodeRef"
@@ -337,7 +337,7 @@
           "name": "go_to_page",
           "on_dangling": "UNSET",
           "oneof": null,
-          "policy": "STRUCT",
+          "policy": "ATOMIC",
           "repeated": false,
           "type": "message",
           "type_name": "wiretuner.doc.v1.NodeRef"
@@ -653,5 +653,5 @@
     }
   },
   "variants": {},
-  "version": "d6cf77d86d213a1fceaab3b6cfa91df6c0ae2673e43a2023c8d03a4b45b05090"
+  "version": "0897b60ae2842b2307cadc1f53ee7b47cff864ef788a2df548429152c99fbe70"
 }

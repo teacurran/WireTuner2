@@ -9,13 +9,22 @@
 // the merge-table generator never see it, and it may change with the runners.  Generated code:
 // Swift in client/Packages/WTCRDT/Tests/WTCRDTTests/Conformance/Generated (committed,
 // `make -C crdt-conformance generate`), Java in server/conformance/target (protoc at build time).
+//
+// Changes are written with the wire-compatible `Change` below rather than doc.v1's, so that a
+// vector can use the test kinds (`TestProps`, NodeProps field 1000) for merge rules no doc.v1
+// field uses yet.  The runners turn each into a doc.v1 Change by encoding and decoding it: the
+// test kind then travels as an unknown field of doc.v1.NodeProps, exactly as a field newer than
+// the replica would.  crdt-conformance/schema/test-kinds.textproto declares the test kinds' merge
+// table; both runners apply it to every vector.
 syntax = "proto3";
 
 package wiretuner.conformance.v1;
 
-import "wiretuner/doc/v1/change.proto";
 import "wiretuner/doc/v1/common.proto";
-import "wiretuner/doc/v1/node.proto";
+import "wiretuner/doc/v1/document.proto";
+import "wiretuner/doc/v1/group.proto";
+import "wiretuner/doc/v1/layer.proto";
+import "wiretuner/doc/v1/ops.proto";
 
 option java_multiple_files = true;
 option java_package = "com.villagecompute.wiretuner.conformance.v1";
@@ -37,12 +46,16 @@ message Vector {
   Expect expect = 6;
   // Test-only changes to the generated merge table, for merge rules no schema field uses yet.
   repeated SchemaOverride schema_override = 7;
+  // Fractional positions both engines must generate byte for byte (CRDT-003).
+  repeated PositionCase position = 8;
+  // Runs of sequential appends both engines must generate byte for byte (CRDT-003).
+  repeated AppendRun append_run = 9;
 }
 
 // The shared starting point.
 message Setup {
-  // Applied in order.
-  repeated wiretuner.doc.v1.Change change = 1;
+  // Applied in order.  A setup change without `server_seq` is sequenced at its index + 1.
+  repeated Change change = 1;
 }
 
 // One replica's concurrent changes.
@@ -50,7 +63,7 @@ message Replica {
   // The replica id; every change's `replica` must equal it.
   fixed64 id = 1;
   // In seq order: a delivery order delivers them in this order.
-  repeated wiretuner.doc.v1.Change change = 2;
+  repeated Change change = 2;
 }
 
 // One delivery order.
@@ -60,9 +73,132 @@ message Delivery {
   repeated fixed64 order = 1;
 }
 
+// wiretuner.doc.v1.Change, field for field, with test-kind values and the server's sequence
+// number.
+message Change {
+  fixed64 replica = 1;
+  uint64 seq = 2;
+  uint64 start_counter = 3;
+  uint64 base_server_seq = 4;
+  int64 wall_time_ms = 5;
+  string label = 6;
+  repeated Op ops = 7;
+  // Not part of doc.v1.Change: the server_seq the server gave this change, passed to the engine
+  // beside it (sets judge a remove by its causal past, crdt-model.adoc "Sets").  0 = not
+  // sequenced (only for replica changes; setup changes default to their index + 1).
+  uint64 server_seq = 100;
+}
+
+// wiretuner.doc.v1.Op, case for case; the ops that carry NodeProps use the test-kind NodeProps.
+message Op {
+  oneof op {
+    CreateNode create = 1;
+    SetFields set = 2;
+    wiretuner.doc.v1.MoveNode move = 3;
+    wiretuner.doc.v1.SetDeleted set_deleted = 4;
+    ElementInsert element_insert = 5;
+    wiretuner.doc.v1.ElementMove element_move = 6;
+    wiretuner.doc.v1.ElementDelete element_delete = 7;
+    wiretuner.doc.v1.TextInsert text_insert = 8;
+    wiretuner.doc.v1.TextDelete text_delete = 9;
+    wiretuner.doc.v1.TextMark text_mark = 10;
+    SetAdd set_add = 11;
+    SetRemove set_remove = 12;
+    wiretuner.doc.v1.Noop noop = 13;
+  }
+}
+
+// wiretuner.doc.v1.CreateNode.
+message CreateNode {
+  wiretuner.doc.v1.OpId parent = 1;
+  bytes position = 2;
+  NodeProps props = 3;
+}
+
+// wiretuner.doc.v1.SetFields.
+message SetFields {
+  wiretuner.doc.v1.OpId node = 1;
+  repeated wiretuner.doc.v1.FieldPath paths = 2;
+  NodeProps values = 3;
+}
+
+// wiretuner.doc.v1.ElementInsert.
+message ElementInsert {
+  wiretuner.doc.v1.OpId node = 1;
+  wiretuner.doc.v1.FieldPath sequence = 2;
+  repeated bytes positions = 3;
+  NodeProps values = 4;
+}
+
+// wiretuner.doc.v1.SetAdd.
+message SetAdd {
+  wiretuner.doc.v1.OpId node = 1;
+  wiretuner.doc.v1.FieldPath set = 2;
+  NodeProps values = 3;
+}
+
+// wiretuner.doc.v1.SetRemove.
+message SetRemove {
+  wiretuner.doc.v1.OpId node = 1;
+  wiretuner.doc.v1.FieldPath set = 2;
+  NodeProps values = 3;
+}
+
+// wiretuner.doc.v1.NodeProps plus the test kinds.  Every doc.v1 kind is mirrored here with its
+// number and name (server/conformance's ConformanceRunnerTest checks it), so vectors write
+// doc.v1 kinds exactly as doc.v1 does.
+message NodeProps {
+  oneof kind {
+    wiretuner.doc.v1.DocumentProps document = 1;
+    wiretuner.doc.v1.SettingsProps settings = 2;
+    wiretuner.doc.v1.PageProps page = 3;
+    wiretuner.doc.v1.MasterPageProps master_page = 4;
+    wiretuner.doc.v1.GroupProps group = 50;
+    wiretuner.doc.v1.LayerProps layer = 150;
+    // Test kind; its merge table is in test-kinds.textproto.
+    TestProps test = 1000;
+  }
+}
+
+// A test node kind with one field per merge rule the doc.v1 schema does not use yet.
+message TestProps {
+  wiretuner.doc.v1.CommonProps common = 1;                  // STRUCT
+  string label = 2;                                         // ATOMIC
+  repeated string tags = 3;                                 // SET of strings
+  repeated uint32 codes = 4;                                // SET of varint scalars (packed)
+  repeated wiretuner.doc.v1.ElementId points = 5;           // SET of ElementIds
+  repeated wiretuner.doc.v1.OpId nodes = 6;                 // SET of OpIds
+  repeated TestContour contours = 7;                        // SEQUENCE, with a nested SEQUENCE
+  repeated TestStop stops = 8;                              // SEQUENCE
+}
+
+// A sequence element holding a nested sequence (contour -> points).
+message TestContour {
+  wiretuner.doc.v1.ElementId id = 1;
+  bool closed = 2;                                          // ATOMIC
+  repeated TestPoint anchors = 3;                           // SEQUENCE
+  string name = 4;                                          // ATOMIC
+  repeated string tags = 5;                                 // SET inside an element
+}
+
+// An element of a nested sequence.
+message TestPoint {
+  wiretuner.doc.v1.ElementId id = 1;
+  wiretuner.doc.v1.Point anchor = 2;                        // ATOMIC
+  double weight = 3;                                        // ATOMIC
+}
+
+// A flat sequence element.
+message TestStop {
+  wiretuner.doc.v1.ElementId id = 1;
+  double offset = 2;                                        // ATOMIC
+  string color = 3;                                         // ATOMIC
+}
+
 // The expected merged state.
 message Expect {
-  // Lower-case hex SHA-256 of the canonical encoding (docs/spec/crdt-model.adoc, "Snapshots").
+  // Lower-case hex SHA-256 of the canonical encoding (docs/spec/crdt-model.adoc, "Canonical
+  // encoding").
   string state_hash = 1;
   // Expected read-outs.  Nodes not listed are only checked through `state_hash`.
   repeated ExpectNode node = 2;
@@ -77,18 +213,58 @@ message ExpectNode {
   string node_hash = 2;
   // Expected registers.  Registers not listed are only checked through the hashes.
   repeated ExpectRegister register = 3;
+  // When present, the node's place in the tree and its deleted flag.
+  ExpectTree tree = 4;
+  // Expected sequences.
+  repeated ExpectSequence sequence = 5;
+  // Expected sets.
+  repeated ExpectSet set = 6;
 }
 
 // One expected register.
 message ExpectRegister {
-  // The register's path (field numbers from NodeProps to an ATOMIC field).
+  // The register's path (field numbers, and element ids after SEQUENCE fields, from NodeProps to
+  // an ATOMIC field).
   wiretuner.doc.v1.FieldPath path = 1;
-  // A sparse NodeProps holding the expected value at `path`.  Leave it out to expect unset.
-  wiretuner.doc.v1.NodeProps value = 2;
+  // A sparse NodeProps holding the expected value at `path` (element segments are skipped: hold
+  // just that element).  Leave it out to expect unset.
+  NodeProps value = 2;
   // The OpId of the write that holds the register.
   wiretuner.doc.v1.OpId op = 3;
   // The OpIds of the retained losing writes, ascending.
   repeated wiretuner.doc.v1.OpId losing = 4;
+}
+
+// A node's place in the tree.
+message ExpectTree {
+  // The parent; leave it out for no parent (the document root, or a node whose create named a
+  // parent that does not exist).
+  wiretuner.doc.v1.OpId parent = 1;
+  // The position among the parent's children.
+  bytes position = 2;
+  // The deleted flag.
+  bool deleted = 3;
+  // The children, deleted ones included, in order: by position, then id.
+  repeated wiretuner.doc.v1.OpId children = 4;
+}
+
+// One expected sequence.
+message ExpectSequence {
+  // The SEQUENCE field's path.
+  wiretuner.doc.v1.FieldPath path = 1;
+  // The live elements, in order: by position, then id.
+  repeated wiretuner.doc.v1.ElementId elements = 2;
+  // The tombstones, in the same order.
+  repeated wiretuner.doc.v1.ElementId deleted = 3;
+}
+
+// One expected set.
+message ExpectSet {
+  // The SET field's path.
+  wiretuner.doc.v1.FieldPath path = 1;
+  // A sparse NodeProps holding exactly the expected members at `path`, in any order; leave it out
+  // for an empty set.
+  NodeProps members = 2;
 }
 
 // One change to the merge table, applied before the vector runs.
@@ -99,7 +275,14 @@ message SchemaOverride {
     PolicyOverride policy = 1;
     // Declare a message MERGE_VARIANT.
     VariantOverride variant = 2;
+    // Add a row (or replace one), creating the message if needed.
+    FieldRow field = 3;
   }
+}
+
+// The whole of test-kinds.textproto: overrides both runners apply to every vector first.
+message SchemaOverrides {
+  repeated SchemaOverride override = 1;
 }
 
 // Replaces the merge policy of one field.
@@ -120,4 +303,43 @@ message VariantOverride {
   uint32 kind_field = 2;
   // The field numbers of the case messages.
   repeated uint32 case_fields = 3;
+}
+
+// One merge-table row, spelled as the table's JSON spells it.
+message FieldRow {
+  // Fully qualified message name.
+  string message = 1;
+  uint32 field = 2;
+  string name = 3;
+  string policy = 4;
+  // The protobuf type: "string", "uint32", "message", ...
+  string type = 5;
+  bool repeated = 6;
+  // The message or enum type, for those types.
+  string type_name = 7;
+  // The oneof the field belongs to ("kind" for a NodeProps kind).
+  string oneof = 8;
+}
+
+// One fractional position to generate: FractionalIndex between `lo` and `hi` with the suffix
+// value SplitMix64(seed) produces first.
+message PositionCase {
+  // The lower neighbour; empty for the start of the list.
+  bytes lo = 1;
+  // The upper neighbour; empty for the end of the list.
+  bytes hi = 2;
+  uint64 seed = 3;
+  // The generated key.
+  bytes expect = 4;
+}
+
+// `count` sequential appends to an empty list, each key after the previous one, the suffixes
+// drawn from one SplitMix64(seed).
+message AppendRun {
+  uint64 seed = 1;
+  uint32 count = 2;
+  // Every key must be shorter than this.
+  uint32 max_length = 3;
+  // The key of the last append.
+  bytes last = 4;
 }

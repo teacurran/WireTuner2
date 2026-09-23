@@ -1,0 +1,65 @@
+# crdt-conformance/vectors/tree/reparent-across-layers.textproto (CRDT-002; schema: crdt-conformance/schema/vector.proto)
+name: "tree/reparent-across-layers"
+description: "Replica 1 moves O1 from layer 1 to the front of layer 2 and renames it; replica 2 moves O2 to the back of layer 2 and P from layer 2 to layer 1, then locks O1.  Every move applies (no conflict), both layers read the same children on every delivery order, and the edits follow the moved nodes."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Create layers and objects"
+    ops { create { parent { counter: 4 } position: "\x80" props { layer { common { name: "Layer 1" } } } } }
+    ops { create { parent { counter: 4 } position: "\x81" props { layer { common { name: "Layer 2" } } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x80" props { group { common { name: "O1" } } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x81" props { group { common { name: "O2" } } } } }
+    ops { create { parent { counter: 2 replica: 7 } position: "\x80" props { group { common { name: "P" } } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 6 base_server_seq: 1 label: "Move O1 to layer 2"
+    ops { move { node { counter: 3 replica: 7 } parent { counter: 2 replica: 7 } position: "\x81" } }
+    ops { set { node { counter: 3 replica: 7 }
+      paths { segments { field: 50 } segments { field: 1 } segments { field: 1 } }
+      values { group { common { name: "O1 moved" } } } } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 6 base_server_seq: 1 label: "Move O2 to layer 2, P to layer 1"
+    ops { move { node { counter: 4 replica: 7 } parent { counter: 2 replica: 7 } position: "\x7f" } }
+    ops { move { node { counter: 5 replica: 7 } parent { counter: 1 replica: 7 } position: "\x90" } }
+  }
+  change {
+    replica: 2 seq: 2 start_counter: 8 base_server_seq: 1 label: "Lock O1"
+    ops { set { node { counter: 3 replica: 7 }
+      paths { segments { field: 50 } segments { field: 1 } segments { field: 3 } }
+      values { group { common { locked: true } } } } }
+  }
+}
+deliveries { order: [1, 2, 2] }
+deliveries { order: [2, 2, 1] }
+deliveries { order: [2, 1, 2] }
+expect {
+  state_hash: "31b95206a4aebf92c477b7ac6f0a0b368d6be5ed012938a0b443c95c440af199"
+  node { id { counter: 1 replica: 7 } node_hash: "84bddb19cfc8e52a96b4205be5f1b4cc5f605bda898cba76616632f75692263b" tree { parent { counter: 4 } position: "\x80" children { counter: 5 replica: 7 } } }
+  node {
+    id { counter: 2 replica: 7 }
+    node_hash: "7ca9694435edb22e9c72f05f0cc276223a85c3bcf4be6af0896ac35ecaed2033"
+    tree { parent { counter: 4 } position: "\x81" children { counter: 4 replica: 7 } children { counter: 3 replica: 7 } }
+  }
+  node {
+    id { counter: 3 replica: 7 }
+    node_hash: "4b9164c92af97c177b247c2a033498ddae6b88a8befa03004e7324d4ba2e4c50"
+    tree { parent { counter: 2 replica: 7 } position: "\x81" }
+    register {
+      path { segments { field: 50 } segments { field: 1 } segments { field: 1 } }
+      value { group { common { name: "O1 moved" } } }
+      op { counter: 7 replica: 1 }
+      losing { counter: 3 replica: 7 }
+    }
+    register {
+      path { segments { field: 50 } segments { field: 1 } segments { field: 3 } }
+      value { group { common { locked: true } } }
+      op { counter: 8 replica: 2 }
+    }
+  }
+}

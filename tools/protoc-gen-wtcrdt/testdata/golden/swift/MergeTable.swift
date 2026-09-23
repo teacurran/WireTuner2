@@ -93,7 +93,7 @@ public enum WTMergeTable {
     }
 
     /// SHA-256 (hex) of the canonical JSON table without its `version` key.
-    public static let version = "d6cf77d86d213a1fceaab3b6cfa91df6c0ae2673e43a2023c8d03a4b45b05090"
+    public static let version = "0897b60ae2842b2307cadc1f53ee7b47cff864ef788a2df548429152c99fbe70"
 
     /// The rows of every message, by fully qualified proto name.
     public static let messages: [String: MessagePolicy] = [
@@ -238,7 +238,7 @@ public enum WTMergeTable {
           "name": "canvas",
           "on_dangling": "UNSET",
           "oneof": null,
-          "policy": "STRUCT",
+          "policy": "ATOMIC",
           "repeated": false,
           "type": "message",
           "type_name": "wiretuner.doc.v1.NodeRef"
@@ -260,7 +260,7 @@ public enum WTMergeTable {
           "name": "style",
           "on_dangling": "UNSET",
           "oneof": null,
-          "policy": "STRUCT",
+          "policy": "ATOMIC",
           "repeated": false,
           "type": "message",
           "type_name": "wiretuner.doc.v1.NodeRef"
@@ -468,7 +468,7 @@ public enum WTMergeTable {
           "name": "go_to_page",
           "on_dangling": "UNSET",
           "oneof": null,
-          "policy": "STRUCT",
+          "policy": "ATOMIC",
           "repeated": false,
           "type": "message",
           "type_name": "wiretuner.doc.v1.NodeRef"
@@ -784,7 +784,7 @@ public enum WTMergeTable {
     }
   },
   "variants": {},
-  "version": "d6cf77d86d213a1fceaab3b6cfa91df6c0ae2673e43a2023c8d03a4b45b05090"
+  "version": "0897b60ae2842b2307cadc1f53ee7b47cff864ef788a2df548429152c99fbe70"
 }
 """#
 
@@ -812,7 +812,7 @@ public enum WTMergeTable {
                 elementMessage: nil, oneof: nil
             ),
             5: FieldPolicy(
-                fieldNumber: 5, name: "canvas", policy: .structure, onDangling: .unset,
+                fieldNumber: 5, name: "canvas", policy: .atomic, onDangling: .unset,
                 localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.NodeRef",
                 elementMessage: nil, oneof: nil
             ),
@@ -822,7 +822,7 @@ public enum WTMergeTable {
                 elementMessage: nil, oneof: nil
             ),
             7: FieldPolicy(
-                fieldNumber: 7, name: "style", policy: .structure, onDangling: .unset,
+                fieldNumber: 7, name: "style", policy: .atomic, onDangling: .unset,
                 localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.NodeRef",
                 elementMessage: nil, oneof: nil
             ),
@@ -975,7 +975,7 @@ public enum WTMergeTable {
                 elementMessage: nil, oneof: nil
             ),
             3: FieldPolicy(
-                fieldNumber: 3, name: "go_to_page", policy: .structure, onDangling: .unset,
+                fieldNumber: 3, name: "go_to_page", policy: .atomic, onDangling: .unset,
                 localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.NodeRef",
                 elementMessage: nil, oneof: nil
             ),

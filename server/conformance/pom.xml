@@ -48,6 +48,16 @@
       </extension>
     </extensions>
 
+    <resources>
+      <!-- The test kinds' merge table every vector runs with (ConformanceRunner.TEST_KINDS). -->
+      <resource>
+        <directory>${conformance.root}/schema</directory>
+        <includes>
+          <include>test-kinds.textproto</include>
+        </includes>
+      </resource>
+    </resources>
+
     <plugins>
       <!-- Java for crdt-conformance/schema/vector.proto only; doc.v1 comes from wt-crdt. -->
       <plugin>

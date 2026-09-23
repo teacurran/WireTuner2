@@ -203,7 +203,8 @@ func fallbackOf(f wtcrdtpb.RefFallback) Fallback {
 }
 
 // effectivePolicy applies the defaults (scalars, strings, bytes, enums and repeated scalars
-// ATOMIC; singular messages STRUCT) and checks an explicit policy against the field's shape.
+// ATOMIC; a singular NodeRef ATOMIC, since a reference is one register -- crdt-model.adoc,
+// "References"; other singular messages STRUCT) and checks an explicit policy against the field's shape.
 func effectivePolicy(fd protoreflect.FieldDescriptor) (Field, *Variant, []string) {
 	where := string(fd.FullName())
 	f := Field{
@@ -249,6 +250,8 @@ func effectivePolicy(fd protoreflect.FieldDescriptor) (Field, *Variant, []string
 			f.Policy = PolicyAtomic
 		case isMessage && f.Repeated:
 			problems = append(problems, fmt.Sprintf("%s: a repeated message field has no default merge policy; annotate it [(wt.crdt.field).merge = MERGE_SEQUENCE] (elements need `%s id = 1`) or MERGE_ATOMIC", where, elementIDName))
+			f.Policy = PolicyAtomic
+		case isMessage && f.TypeName == nodeRefName:
 			f.Policy = PolicyAtomic
 		case isMessage:
 			f.Policy = PolicyStruct

@@ -21,8 +21,8 @@ import java.util.Map;
  *            4 many  STRUCT repeated   (not walkable)
  *            5 bare  STRUCT, no type   (not walkable)
  *            6 v     VARIANT t.V
- *            7 ref   STRUCT NodeRef    (the reference rule makes it ATOMIC)
- *            8 refs  STRUCT NodeRef repeated (left alone)
+ *            7 ref   ATOMIC NodeRef    (as protoc-gen-wtcrdt emits it)
+ *            8 refs  STRUCT NodeRef repeated (not walkable)
  * t.V        1 kind  ATOMIC enum; 2 c1 STRUCT t.C; 3 c2 STRUCT t.C; 4 note ATOMIC
  * t.C        1 x     ATOMIC
  * </pre>
@@ -31,6 +31,8 @@ final class Tables {
 
     /** The kind (NodeProps field number) of the test table. */
     static final int K = 1000;
+
+    static final String NODE_REF = "wiretuner.doc.v1.NodeRef";
 
     private Tables() {
     }
@@ -50,8 +52,8 @@ final class Tables {
                         4, row(4, Policy.STRUCT, "message", true, "t.C", null),
                         5, row(5, Policy.STRUCT, "message", false, null, null),
                         6, row(6, Policy.VARIANT, "message", false, "t.V", null),
-                        7, row(7, Policy.STRUCT, "message", false, Schema.NODE_REF, null),
-                        8, row(8, Policy.STRUCT, "message", true, Schema.NODE_REF, null))),
+                        7, row(7, Policy.ATOMIC, "message", false, NODE_REF, null),
+                        8, row(8, Policy.STRUCT, "message", true, NODE_REF, null))),
                 "t.V", new MessagePolicy("t.V", Map.of(
                         1, row(1, Policy.ATOMIC, "enum", false, "t.Kind", null),
                         2, row(2, Policy.STRUCT, "message", false, "t.C", null),

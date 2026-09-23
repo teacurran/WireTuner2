@@ -239,42 +239,53 @@ STRUCT, SEQUENCE and so on; the engines themselves contain no per-feature code.
 [[field-paths]]
 === Field paths and registers
 
-Both engines resolve a `SetFields` path the same way (CRDT-001; `PathResolver` in `WTCRDT` and
-`wt-crdt`).  The first segment must be the node's kind (the set case of `NodeProps.kind`); each
-later segment is looked up in the merge table of the message reached so far.
+Both engines resolve a path the same way (CRDT-001, extended by CRDT-004 and CRDT-007;
+`PathResolver` in `WTCRDT` and `wt-crdt`).  The first segment must be the node's kind (the set
+case of `NodeProps.kind`); each later segment is looked up in the merge table of the message
+reached so far, and an element segment may follow only a SEQUENCE field.
 
 * A path ending at an ATOMIC field is one register.  Its value is that field's protobuf records
   in `values` exactly as they arrived (tag and payload, every occurrence in order), or *unset* when
   `values` holds none.  Proto3 cannot tell a default scalar from an absent one, so writing a
   default value and clearing the field are the same write.
-* A path ending at a STRUCT field stands for every register beneath it in the table, each written
-  from `values` (leaves absent from `values` are written unset).  A message already on the current
-  branch of the walk is not entered again, so a recursive schema expands finitely and identically
-  in both engines.
+* A path ending at a STRUCT field, or at a sequence element, stands for every register beneath it
+  in the table, each written from `values` (leaves absent from `values` are written unset).  A
+  message already on the current branch of the walk is not entered again, so a recursive schema
+  expands finitely and identically in both engines.  An element's `id` (field 1) is never a
+  register: it is the element segment.
 * Beneath a MERGE_VARIANT message that is present in `values`, only the case messages present are
   written; the discriminator and non-case fields are written as usual.  A kind switch therefore
   never touches another case's registers.  A variant that is cleared (absent from `values`) clears
   every case.
-* A path is a no-op when a segment is unknown, runs past an ATOMIC field, is an element segment,
-  or names a SEQUENCE, TEXT or SET field or a repeated or untyped message (those merge by their
-  own ops, CRDT-004..007).  The other paths of the same op still apply.
+* A SEQUENCE field is entered only through an element segment naming an element that exists
+  (inserted and not collected; a tombstone counts), so `[kind, contours, <elem 91:7>, points,
+  <elem 91:12>, anchor]` addresses one register of a nested element.  `ElementInsert` names the
+  SEQUENCE field itself; `ElementMove` and `ElementDelete` name elements; `SetAdd` and `SetRemove`
+  name a SET field.  Each op uses only the targets its kind takes.
+* A path is a no-op when a segment is unknown, runs past an ATOMIC or SET field, names an element
+  that does not exist, puts an element segment anywhere but directly after a SEQUENCE field, or
+  names a field the op does not take (a whole SEQUENCE or a SET in `SetFields`, a TEXT field or a
+  repeated or untyped message anywhere until CRDT-005).  The other paths of the same op still
+  apply.
+* Element segments are transparent in `values`: at a SEQUENCE field the sparse message holds only
+  the element the path names (its `id` is not checked), and the walk reads it like a STRUCT.
 * The engines walk `values` at the wire level with the table, not through generated classes, so a
   field newer than the replica still merges and is kept byte for byte.  `values` that are not
   well-formed protobuf (for example an unknown group) make the whole op a no-op.
 
 `CreateNode` writes, with its own OpId, only the leaves present in `props`; it is causally before
-every other op on the node, so "never written" and "unset at the creation id" read the same.  A
+every other op on the node, so "never written" and "unset at the creation id" read the same.
+SEQUENCE and SET fields in `props` are ignored: elements and members arrive by their own ops.  A
 kind case must be a length-delimited record (as a protobuf parser reads a oneof of messages);
 `props` without a known kind creates nothing.  Of the well-known nodes, `document` (0:0, kind
 `document`) and `settings` (0:1, kind `settings`) carry properties; the other collections have
-no kind, and `SetFields` on them is a no-op.  A replay of an op already applied to a register is
-ignored and not logged twice.
+no kind, and field-path ops on them are no-ops.  A replay of an op already applied to a register,
+element or set is ignored and not logged twice.
 
-The engines apply the reference rule of *References* below to the table: a singular `NodeRef`
-field is one ATOMIC register even where the generated table says STRUCT (the generator's default
-for a singular message).  Without it, an id's counter and replica could come from two different
-writes and name a node nobody referenced.  (Deviation, CRDT-001: `protoc-gen-wtcrdt` should emit
-ATOMIC for `NodeRef` itself; until it does, the engines normalise the table.)
+The engines use the table's policies as given.  A singular `NodeRef` field is one ATOMIC register
+(*References* below) because `protoc-gen-wtcrdt` emits ATOMIC as its default policy, so an id's
+counter and replica can never come from two different writes.  (CRDT-001 normalised this in the
+engines; the generator does it since CRDT-002, which changed the merge table's `version`.)
 
 == Operations
 
@@ -354,7 +365,8 @@ paste, one typed word -- and the unit of sync, undo and history.
 message Change {
   fixed64 replica = 1;
   uint64 seq = 2;               // 1, 2, 3 ... per replica, no gaps
-  uint64 start_counter = 3;     // op i has counter start_counter + i
+  uint64 start_counter = 3;     // op i has counter start_counter + i, plus the extra counters
+                                // the inserts before it took (one per element or character)
   uint64 base_server_seq = 4;   // causal past: everything the server had sequenced up to here
   int64 wall_time_ms = 5;       // informational only (history UI); never used to merge
   string label = 6;             // "Move 3 objects": history and undo menu
@@ -381,21 +393,55 @@ ops are applied in OpId order using the undo-do-redo scheme of Kleppmann et al.:
 arrives out of order, later moves are undone, the new op applied, and the later ones redone.  A
 move that would make a node its own ancestor is skipped.  Only moves not yet causally stable
 need to be kept for this, which keeps the log short.
++
+In detail (CRDT-002; `Tree` in both engines): every `CreateNode` and `MoveNode` is logged
+(`MoveLogEntry`: the op, the node's placement before it, whether it applied), so a replayed op is
+recognised by its OpId and ignored.  In OpId order, a `CreateNode` makes its node exist and
+places it under its parent when the parent exists; otherwise the node exists without a parent
+(not rendered) until a move places it.  A `MoveNode` applies when the node and the parent exist,
+the node is not well-known, and the parent is neither the node nor one of its descendants;
+otherwise it is skipped (logged with `applied = false`).  A node's placement records the op that
+set it.  The well-known nodes always exist and never move: 1..15 sit under the document (0:0)
+with an empty position, so they sort by id before any user node placed under the root.  Under
+causal delivery a late op is at worst a few hundred entries from the end of the log; applying a
+move that precedes the last 1,000 tree ops on a 50,000-node tree takes 0.77 ms (Swift, release,
+M-series) and 0.4 ms (Java, under JaCoCo).
 
 Sibling order:: Children sort by `position` (bytewise), then by node id.  Positions are
 fractional-index byte strings generated between neighbors with a random suffix, so two people
 inserting "between the same two objects" at once almost never produce equal keys, and the node
 id breaks any tie.  Positions are never rebalanced.  Interleaving of concurrent inserts, a
 known weakness of fractional indexing, is harmless for stacked objects and list items.
++
+Generation (CRDT-003; `FractionalIndex` in both engines, which produce the same key from the same
+random value): digits are bytes, and a generated key is never empty and never ends in `0x00`, so
+there is always room below it and between it and a longer key.  With no neighbours the body is
+`80`; after the last key `lo`, `lo` up to its first byte below `FF`, that byte plus one; before
+the first key `hi`, `hi`'s leading zeros then its first other byte minus one (`01` becomes
+`00 FF`); between `lo` and `hi`, their common prefix, then the midpoint digit when the next digits
+differ by two or more, else `lo`'s digit followed by the "after" body of the rest of `lo`.  The
+body is never a prefix of `hi`.  Two suffix bytes follow, from one 64-bit random value `r`:
+`r & FF` and `1 + (r >> 8) mod 255`.  Appends grow by one byte per ~128 keys (1,000 sequential
+appends stay at 11 bytes), and so do prepends.
 
 Deletion:: `deleted` is a register on the node.  A deleted node keeps its properties, children
 and history; it is simply not rendered or selectable.  Edits to a deleted node still apply, so
 restoring it (writing `deleted = false`) restores them too.  The conflict review lists "edited
-something that was deleted" and offers *Restore*.
+something that was deleted" and offers *Restore*.  `SetDeleted` on a well-known node or on a node
+not created is a no-op.
 
 Sequences:: An element is an id, a position register, a deleted register and STRUCT fields.
 Inserting, moving and deleting elements are independent registers, so one user reordering the
 fill stack while another edits a fill's color keeps both.
++
+In detail (CRDT-004): an `ElementInsert` of _n_ positions takes _n_ counters; element _i_ has id
+`(counter + i, replica)`, its position register holds `positions[i]` stamped with that id, and its
+initial fields are the leaves present in the _i_-th occurrence of the SEQUENCE field in `values`
+(written with the element's id, `id` ignored; fewer occurrences than positions leave the rest
+without fields).  An element that already exists is not inserted again.  `ElementMove` writes the
+position register and `ElementDelete` the deleted register of each named element, both by
+last-writer-wins with the losing writes retained; `deleted = false` restores.  Elements read by
+position (bytewise), then id, tombstones included until collected.
 
 Text:: Fugue ordering of character elements (maximally non-interleaving for concurrent typing
 at the same spot).  Deleted characters remain as tombstones until causally stable.  Formatting
@@ -405,6 +451,21 @@ indents, tabs, rules, spacing, paragraph style) are STRUCT registers on the para
 terminating newline element, so they travel with the paragraph.
 
 Sets:: Add-wins: a concurrent add and remove of the same member keeps it.
++
+In detail (CRDT-007): a set is an observed-remove set whose tags are the `SetAdd` ops.  A
+`SetRemove` carries only values, so what it observed is its causal past as the hub defines it
+(*Operations* above): an add is observed by a remove when it is an earlier op of the same replica,
+or when the server sequenced the add's change at or before the remove's `base_server_seq`.  A
+member is present while any of its adds is observed by none of its removes.  The engines are
+therefore told each change's `server_seq` when it is known -- `apply(change, serverSeq)` for a
+change from the server's log, `acknowledge(replica, seq, serverSeq)` when a local change is acked
+-- and presence is computed from the logged adds and removes, so a late ack or any arrival order
+gives the same result.  Members compare by value in a canonical form: a string's or bytes'
+payload; a varint scalar's value as a big-endian uint64 (packed or not); a fixed-width scalar's
+little-endian wire bytes; an `ElementId` or `OpId` as its counter and replica, big-endian (field
+order and unknown fields ignored).  A record of the wrong wire type, or a packed run or id that
+does not parse, holds no member.  (Deviation, CRDT-007: the rule needs the server's sequence
+numbers, which `SetRemove` cannot carry; the engine API takes them beside the change.)
 
 References:: A `NodeRef` is an ATOMIC register.  If its target is deleted, unknown or the wrong
 kind, readers apply the field's `on_dangling` fallback; references never block a merge.
@@ -460,32 +521,45 @@ re-bootstrap from the snapshot.
 [[canonical-encoding]]
 === Canonical encoding
 
-CRDT-001 fixes the register part of the canonical encoding; CRDT-009 extends it with tree state,
-elements, the move log and replica state (and every conformance vector's expected hash is then
-re-recorded).  `StateHash` in both engines is SHA-256 over these bytes.  All integers are
-big-endian and fixed width:
+CRDT-001 fixed the register part of the canonical encoding; CRDT-002, CRDT-004 and CRDT-007
+added the tree placement, the `deleted` register, sequence elements and set members (and every
+conformance vector's expected hash was re-recorded); CRDT-009 may add the move log and replica
+state.  `StateHash` in both engines is SHA-256 over these bytes.  All integers are big-endian and
+fixed width:
 
 [listing]
 ....
 state    = u32 node_count, node*                                   nodes ascending by OpId
-node     = id, u32 kind, u32 register_count, register*             registers ascending by path
-register = u32 path_len, path, id, u8 set, [u32 value_len, value]  set = 1 iff not unset
+node     = id, u32 kind, tree, flag, u32 register_count, register*,
+           u32 element_count, element*, u32 set_count, set*
+tree     = u8 placed, [id parent, block position, id op]          placed = 1 iff it has a parent
+flag     = u8 written, [u8 value, id op]                          the deleted register; written = 1 iff set
+register = block path, id, u8 set, [block value]                  ascending by path; set = 1 iff not unset
+element  = block path, block position, id position_op, flag       ascending by path
+set      = block path, u32 member_count, member*                  ascending by path; non-empty sets only
+member   = block value, u32 tag_count, id*                        ascending bytewise; live tags ascending
 path     = segment*
-segment  = 0x01, u32 field_number                                  (0x02 is reserved for element ids, CRDT-004)
+segment  = 0x01, u32 field_number | 0x02, id                      0x02: an element id
+block    = u32 length, bytes
 id       = u64 counter, u64 replica
 ....
 
-* The nodes are every node created by an op plus every well-known node holding a register.
-  `kind` is the field number of the node's `NodeProps.kind` case (0 for none).
+* The nodes are every node created by an op plus every well-known node holding a register, a
+  `deleted` write, an element or a set member's history.  `kind` is the field number of the
+  node's `NodeProps.kind` case (0 for none).  A well-known node 1..15 encodes as placed under 0:0
+  with an empty position and op 0:0; the document root and a node without a parent as not placed.
 * Paths order by their encoding compared bytewise, which equals comparing segments in order,
-  shorter prefix first.
+  shorter prefix first.  An element's path is its SEQUENCE field's path plus its element segment;
+  a register inside an element continues from there.
 * `value` is the register's stored records (see <<field-paths>>).  Losing writes retained in the
-  change log are not part of the state and not hashed.
+  change log are not part of the state and not hashed.  A set member's live tags are the OpIds of
+  its adds that no remove observed (*Sets* above); a member without live tags is absent.
 * The hash of one node is SHA-256 of its `node` encoding; the conformance runners use it to name
   the first differing node.
 
 The empty state hashes to `df3f6198…b81119` (SHA-256 of four zero bytes); `StateHashTest` in both
-engines pins a sample encoding byte for byte.
+engines pins a sample encoding (placement, `deleted`, a register, an element and a set member)
+byte for byte.
 
 == Garbage collection
 

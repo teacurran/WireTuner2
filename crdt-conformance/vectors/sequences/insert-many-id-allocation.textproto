@@ -1,0 +1,44 @@
+# crdt-conformance/vectors/sequences/insert-many-id-allocation.textproto (CRDT-004; schema: crdt-conformance/schema/vector.proto)
+name: "sequences/insert-many-id-allocation"
+description: "An ElementInsert of n elements takes n counters: three stops inserted at 2 are 2:7, 3:7 and 4:7, so the next op of the change is 5:7; an insert of two positions with one element in values (6:7, 7:7) gives the second no initial fields.  A concurrent insert of two stops by replica 1 between the first two gets 10:1 and 11:1.  Elements read by position, then id."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Create"
+    ops { create { parent { counter: 4 } position: "\x80" props { test { label: "T" } } } }
+  }
+  change {
+    replica: 7 seq: 2 start_counter: 2 label: "Add stops"
+    ops { element_insert { node { counter: 1 replica: 7 } sequence { segments { field: 1000 } segments { field: 8 } } positions: ["\x80", "\x81", "\x82"]
+      values { test { stops { offset: 0.25 color: "red" } stops { offset: 0.5 color: "blue" } stops { offset: 0.75 } } } } }
+    ops { set { node { counter: 1 replica: 7 } paths { segments { field: 1000 } segments { field: 8 } segments { element { counter: 3 replica: 7 } } segments { field: 3 } } values { test { stops { color: "green" } } } } }
+    ops { element_insert { node { counter: 1 replica: 7 } sequence { segments { field: 1000 } segments { field: 8 } } positions: ["\x83", "\x84"]
+      values { test { stops { offset: 1.5 } } } } }
+    ops { noop {} }
+    ops { set { node { counter: 1 replica: 7 } paths { segments { field: 1000 } segments { field: 8 } segments { element { counter: 7 replica: 7 } } segments { field: 2 } } values { test { stops { offset: 2.5 } } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 10 base_server_seq: 2 label: "Add two stops"
+    ops { element_insert { node { counter: 1 replica: 7 } sequence { segments { field: 1000 } segments { field: 8 } } positions: ["\x80\x80", "\x80\x90"]
+      values { test { stops { color: "white" } stops { color: "black" } } } } }
+  }
+}
+expect {
+  state_hash: "69fde3122dd93b42e265277c4f58b6838d294418dbc7412b90c4a5992339b350"
+  node {
+    id { counter: 1 replica: 7 }
+    node_hash: "ad4bdc75faa0b2911a8e7ae42a6e2aca6074abc9fbce7007ab77956f7fb8a91b"
+    sequence { path { segments { field: 1000 } segments { field: 8 } }
+      elements { counter: 2 replica: 7 } elements { counter: 10 replica: 1 } elements { counter: 11 replica: 1 }
+      elements { counter: 3 replica: 7 } elements { counter: 4 replica: 7 } elements { counter: 6 replica: 7 }
+      elements { counter: 7 replica: 7 } }
+    register { path { segments { field: 1000 } segments { field: 8 } segments { element { counter: 2 replica: 7 } } segments { field: 2 } } value { test { stops { offset: 0.25 } } } op { counter: 2 replica: 7 } }
+    register { path { segments { field: 1000 } segments { field: 8 } segments { element { counter: 3 replica: 7 } } segments { field: 3 } } value { test { stops { color: "green" } } } op { counter: 5 replica: 7 }
+      losing { counter: 3 replica: 7 } }
+    register { path { segments { field: 1000 } segments { field: 8 } segments { element { counter: 6 replica: 7 } } segments { field: 2 } } value { test { stops { offset: 1.5 } } } op { counter: 6 replica: 7 } }
+    register { path { segments { field: 1000 } segments { field: 8 } segments { element { counter: 7 replica: 7 } } segments { field: 2 } } value { test { stops { offset: 2.5 } } } op { counter: 9 replica: 7 } }
+    register { path { segments { field: 1000 } segments { field: 8 } segments { element { counter: 11 replica: 1 } } segments { field: 3 } } value { test { stops { color: "black" } } } op { counter: 11 replica: 1 } }
+  }
+}

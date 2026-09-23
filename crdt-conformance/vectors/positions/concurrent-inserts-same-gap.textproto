@@ -1,0 +1,54 @@
+# crdt-conformance/vectors/positions/concurrent-inserts-same-gap.textproto (CRDT-003; schema: crdt-conformance/schema/vector.proto)
+name: "positions/concurrent-inserts-same-gap"
+description: "Three people insert between A and B at once: X and Y get different random suffixes and sort by position; Z happens to get X's exact position and the node id breaks the tie (X 4:1 before Z 4:3). Every delivery order reads A Y X Z B."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Create layer"
+    ops { create { parent { counter: 4 } position: "\x80" props { layer { common { name: "Layer 1" } } } } }
+  }
+  change {
+    replica: 7 seq: 2 start_counter: 2 label: "Draw A and B"
+    ops { create { parent { counter: 1 replica: 7 } position: "\x80\xc1\x9e" props { group { common { name: "A" } } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x81\xce\x0f" props { group { common { name: "B" } } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 4 base_server_seq: 2 label: "Draw X"
+    ops { create { parent { counter: 1 replica: 7 } position: "\x80\xc2\xc7\x37" props { group { common { name: "X" } } } } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 4 base_server_seq: 2 label: "Draw Y"
+    ops { create { parent { counter: 1 replica: 7 } position: "\x80\xc2\x0a\x6b" props { group { common { name: "Y" } } } } }
+  }
+}
+replica {
+  id: 3
+  change {
+    replica: 3 seq: 1 start_counter: 4 base_server_seq: 2 label: "Draw Z"
+    ops { create { parent { counter: 1 replica: 7 } position: "\x80\xc2\xc7\x37" props { group { common { name: "Z" } } } } }
+  }
+}
+deliveries { order: [1, 2, 3] }
+deliveries { order: [3, 1, 2] }
+deliveries { order: [2, 3, 1] }
+expect {
+  state_hash: "0157276003347364de4fc03faaf28089730dbd09d6b21de4ced28fea64010b28"
+  node {
+    id { counter: 1 replica: 7 }
+    node_hash: "84bddb19cfc8e52a96b4205be5f1b4cc5f605bda898cba76616632f75692263b"
+    tree {
+      parent { counter: 4 }
+      position: "\x80"
+      children { counter: 2 replica: 7 }
+      children { counter: 4 replica: 2 }
+      children { counter: 4 replica: 1 }
+      children { counter: 4 replica: 3 }
+      children { counter: 3 replica: 7 }
+    }
+  }
+}

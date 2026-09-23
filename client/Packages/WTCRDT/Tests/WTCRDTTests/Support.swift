@@ -58,6 +58,10 @@ enum Changes {
     static let wrap = RegisterPath([150, 1, 13])
 
     static func change(_ replica: UInt64, _ start: UInt64, _ ops: Wiretuner_Doc_V1_Op...) -> Wiretuner_Doc_V1_Change {
+        change(replica, start, ops)
+    }
+
+    static func change(_ replica: UInt64, _ start: UInt64, _ ops: [Wiretuner_Doc_V1_Op]) -> Wiretuner_Doc_V1_Change {
         var change = Wiretuner_Doc_V1_Change()
         change.replica = replica
         change.seq = 1
@@ -138,8 +142,8 @@ enum Tables {
                 row(4, .structure, "message", true, "t.C"),
                 row(5, .structure, "message", false, nil),
                 row(6, .variant, "message", false, "t.V"),
-                row(7, .structure, "message", false, Schema.nodeRef),
-                row(8, .structure, "message", true, Schema.nodeRef),
+                row(7, .atomic, "message", false, "wiretuner.doc.v1.NodeRef"),
+                row(8, .structure, "message", true, "wiretuner.doc.v1.NodeRef"),
             ]),
             message("t.V", [
                 row(1, .atomic, "enum", false, "t.Kind"),

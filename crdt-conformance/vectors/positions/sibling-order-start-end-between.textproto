@@ -1,0 +1,54 @@
+# crdt-conformance/vectors/positions/sibling-order-start-end-between.textproto (CRDT-003; schema: crdt-conformance/schema/vector.proto)
+name: "positions/sibling-order-start-end-between"
+description: "Children sort by position bytewise: concurrent inserts at the start (C, before A), between A and B (D) and at the end (E, after B), with positions generated as positions/generate-start-end-between does, read C A D B E on every delivery order."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Create layer"
+    ops { create { parent { counter: 4 } position: "\x80" props { layer { common { name: "Layer 1" } } } } }
+  }
+  change {
+    replica: 7 seq: 2 start_counter: 2 label: "Draw A and B"
+    ops { create { parent { counter: 1 replica: 7 } position: "\x80\xc1\x9e" props { group { common { name: "A" } } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x81\xce\x0f" props { group { common { name: "B" } } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 4 base_server_seq: 2 label: "Draw C at the back"
+    ops { create { parent { counter: 1 replica: 7 } position: "\x7f\xed\x8e" props { group { common { name: "C" } } } } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 4 base_server_seq: 2 label: "Draw D between A and B"
+    ops { create { parent { counter: 1 replica: 7 } position: "\x80\xc2\xca\xd9" props { group { common { name: "D" } } } } }
+  }
+}
+replica {
+  id: 3
+  change {
+    replica: 3 seq: 1 start_counter: 4 base_server_seq: 2 label: "Draw E at the front"
+    ops { create { parent { counter: 1 replica: 7 } position: "\x82\x5a\x9f" props { group { common { name: "E" } } } } }
+  }
+}
+deliveries { order: [1, 2, 3] }
+deliveries { order: [3, 2, 1] }
+deliveries { order: [2, 3, 1] }
+expect {
+  state_hash: "7f34190786929f28078a3d2caff99e29d32c0596f6d4eebe1abac2a049a0e29e"
+  node {
+    id { counter: 1 replica: 7 }
+    node_hash: "84bddb19cfc8e52a96b4205be5f1b4cc5f605bda898cba76616632f75692263b"
+    tree {
+      parent { counter: 4 }
+      position: "\x80"
+      children { counter: 4 replica: 1 }
+      children { counter: 2 replica: 7 }
+      children { counter: 4 replica: 2 }
+      children { counter: 3 replica: 7 }
+      children { counter: 4 replica: 3 }
+    }
+  }
+}

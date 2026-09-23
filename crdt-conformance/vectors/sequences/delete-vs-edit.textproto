@@ -1,0 +1,40 @@
+# crdt-conformance/vectors/sequences/delete-vs-edit.textproto (CRDT-004; schema: crdt-conformance/schema/vector.proto)
+name: "sequences/delete-vs-edit"
+description: "Replica 1 deletes stop 2:7 while replica 2 edits its offset.  The element becomes a tombstone that keeps its position and the edit, so a later Restore brings the edited stop back."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Create"
+    ops { create { parent { counter: 4 } position: "\x80" props { test { label: "T" } } } }
+  }
+  change {
+    replica: 7 seq: 2 start_counter: 2 label: "Add stops"
+    ops { element_insert { node { counter: 1 replica: 7 } sequence { segments { field: 1000 } segments { field: 8 } } positions: ["\x80", "\x81"]
+      values { test { stops { offset: 0.25 } stops { offset: 0.75 } } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 4 base_server_seq: 2 label: "Delete"
+    ops { element_delete { node { counter: 1 replica: 7 } elements { segments { field: 1000 } segments { field: 8 } segments { element { counter: 2 replica: 7 } } } deleted: true } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 4 base_server_seq: 2 label: "Edit"
+    ops { set { node { counter: 1 replica: 7 } paths { segments { field: 1000 } segments { field: 8 } segments { element { counter: 2 replica: 7 } } segments { field: 2 } } values { test { stops { offset: 0.5 } } } } }
+  }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "5e90989616c5e5503085187776b84676f41affdba439b75da4ef759fcdd88416"
+  node {
+    id { counter: 1 replica: 7 }
+    node_hash: "122452af7d7302ddd492fd7a9fd83edcf93fc620b4759d8f2181cb2f59a200ba"
+    sequence { path { segments { field: 1000 } segments { field: 8 } } elements { counter: 3 replica: 7 } deleted { counter: 2 replica: 7 } }
+    register { path { segments { field: 1000 } segments { field: 8 } segments { element { counter: 2 replica: 7 } } segments { field: 2 } } value { test { stops { offset: 0.5 } } } op { counter: 4 replica: 2 }
+      losing { counter: 2 replica: 7 } }
+  }
+}

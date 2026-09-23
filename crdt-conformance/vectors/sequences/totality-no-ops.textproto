@@ -1,0 +1,41 @@
+# crdt-conformance/vectors/sequences/totality-no-ops.textproto (CRDT-004, CRDT-007; schema: crdt-conformance/schema/vector.proto)
+name: "sequences/totality-no-ops"
+description: "Element and set ops the engine cannot use are deterministic no-ops that still take their counters: an insert into a field that is not a SEQUENCE, into the anchors of an unknown contour or on an unknown node; a move or delete naming an unknown element or no element; a write to an element's id or through an unknown element; a set op on a field that is not a SET.  An insert that replays element 2:7's OpId (a retried change) changes nothing.  Only the insert of 2:7, the write at 6:7 and the add at 13:7 apply."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Create"
+    ops { create { parent { counter: 4 } position: "\x80" props { test { label: "T" } } } }
+  }
+  change {
+    replica: 7 seq: 2 start_counter: 2 label: "Add a stop"
+    ops { element_insert { node { counter: 1 replica: 7 } sequence { segments { field: 1000 } segments { field: 8 } } positions: "\x80" values { test { stops { color: "a" } } } } }
+    ops { element_insert { node { counter: 1 replica: 7 } sequence { segments { field: 1000 } segments { field: 2 } } positions: ["\x80", "\x81"] } }
+    ops { element_insert { node { counter: 1 replica: 7 } sequence { segments { field: 1000 } segments { field: 7 }
+      segments { element { counter: 9 replica: 9 } } segments { field: 3 } } positions: "\x80" } }
+    ops { set { node { counter: 1 replica: 7 } paths { segments { field: 1000 } segments { field: 8 } segments { element { counter: 2 replica: 7 } } segments { field: 3 } } values { test { stops { color: "b" } } } } }
+    ops { element_insert { node { counter: 99 replica: 9 } sequence { segments { field: 1000 } segments { field: 8 } } positions: "\x80" } }
+    ops { element_move { node { counter: 1 replica: 7 } element { segments { field: 1000 } segments { field: 8 } segments { element { counter: 9 replica: 9 } } } position: "\x90" } }
+    ops { element_move { node { counter: 1 replica: 7 } element { segments { field: 1000 } segments { field: 8 } } position: "\x90" } }
+    ops { element_delete { node { counter: 1 replica: 7 } elements { segments { field: 1000 } segments { field: 8 } segments { element { counter: 9 replica: 9 } } } elements { segments { field: 1000 } segments { field: 8 } } deleted: true } }
+    ops { set { node { counter: 1 replica: 7 } paths { segments { field: 1000 } segments { field: 8 } segments { element { counter: 2 replica: 7 } } segments { field: 1 } } values { test { stops { color: "c" } } } } }
+    ops { set { node { counter: 1 replica: 7 } paths { segments { field: 1000 } segments { field: 8 } segments { element { counter: 9 replica: 9 } } segments { field: 3 } } values { test { stops { color: "d" } } } } }
+    ops { set_add { node { counter: 1 replica: 7 } set { segments { field: 1000 } segments { field: 3 } } values { test { tags: "t" } } } }
+    ops { set_add { node { counter: 1 replica: 7 } set { segments { field: 1000 } segments { field: 2 } } values { test { label: "x" } } } }
+    ops { set_remove { node { counter: 1 replica: 7 } set { segments { field: 1000 } segments { field: 8 } } values { test { } } } }
+  }
+  change {
+    replica: 7 seq: 2 start_counter: 2 label: "Add a stop (replayed)"
+    ops { element_insert { node { counter: 1 replica: 7 } sequence { segments { field: 1000 } segments { field: 8 } } positions: "\x80" values { test { stops { color: "z" } } } } }
+  }
+}
+expect {
+  state_hash: "64f08178fa6fb1af290bb123ac0f9b12d68920853bb7a7261c2435b03bb8892d"
+  node {
+    id { counter: 1 replica: 7 }
+    node_hash: "b524cb073a7e7abb9f10ee99725f8a640c012e36dbcd6e6a120f8d938df90d7e"
+    sequence { path { segments { field: 1000 } segments { field: 8 } } elements { counter: 2 replica: 7 } }
+    register { path { segments { field: 1000 } segments { field: 8 } segments { element { counter: 2 replica: 7 } } segments { field: 3 } } value { test { stops { color: "b" } } } op { counter: 6 replica: 7 }
+      losing { counter: 2 replica: 7 } }
+    set { path { segments { field: 1000 } segments { field: 3 } } members { test { tags: "t" } } }
+  }
+}

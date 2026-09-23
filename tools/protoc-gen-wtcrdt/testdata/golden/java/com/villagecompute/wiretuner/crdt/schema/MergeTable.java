@@ -44,7 +44,7 @@ public final class MergeTable {
   public record VariantPolicy(int kindField, List<Integer> caseFields) {}
 
   /** SHA-256 (hex) of the canonical JSON table without its version key. */
-  public static final String VERSION = "d6cf77d86d213a1fceaab3b6cfa91df6c0ae2673e43a2023c8d03a4b45b05090";
+  public static final String VERSION = "0897b60ae2842b2307cadc1f53ee7b47cff864ef788a2df548429152c99fbe70";
 
   /** The name of the JSON resource beside this class. */
   public static final String RESOURCE = "merge-table.json";
@@ -104,9 +104,9 @@ public final class MergeTable {
             Map.entry(2, new FieldPolicy(2, "note", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
             Map.entry(3, new FieldPolicy(3, "locked", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
             Map.entry(4, new FieldPolicy(4, "transform", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.Transform", null, null)),
-            Map.entry(5, new FieldPolicy(5, "canvas", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.NodeRef", null, null)),
+            Map.entry(5, new FieldPolicy(5, "canvas", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.NodeRef", null, null)),
             Map.entry(6, new FieldPolicy(6, "url", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
-            Map.entry(7, new FieldPolicy(7, "style", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.NodeRef", null, null)),
+            Map.entry(7, new FieldPolicy(7, "style", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.NodeRef", null, null)),
             Map.entry(8, new FieldPolicy(8, "navigation", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.NavigationProps", null, null)),
             Map.entry(9, new FieldPolicy(9, "alt", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
             Map.entry(10, new FieldPolicy(10, "decorative", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
@@ -183,7 +183,7 @@ public final class MergeTable {
         Map.ofEntries(
             Map.entry(1, new FieldPolicy(1, "alt", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
             Map.entry(2, new FieldPolicy(2, "target", Policy.ATOMIC, RefFallback.UNSET, false, "enum", false, "wiretuner.doc.v1.LinkTarget", null, null)),
-            Map.entry(3, new FieldPolicy(3, "go_to_page", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.NodeRef", null, null))
+            Map.entry(3, new FieldPolicy(3, "go_to_page", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.NodeRef", null, null))
         ));
   }
 

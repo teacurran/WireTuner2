@@ -10,7 +10,7 @@ import WTProto
 /// read-outs; a failure names the vector and the first differing node.
 enum ConformanceRunner {
     typealias Vector = Wiretuner_Conformance_V1_Vector
-    typealias Change = Wiretuner_Doc_V1_Change
+    typealias Change = Wiretuner_Conformance_V1_Change
 
     static let suffix = ".textproto"
 
@@ -30,6 +30,13 @@ enum ConformanceRunner {
         for _ in 0..<7 { url.deleteLastPathComponent() }  // Conformance, WTCRDTTests, Tests, WTCRDT, Packages, client
         return url.appendingPathComponent("crdt-conformance/vectors")
     }
+
+    /// The test kinds' merge table every vector runs with (crdt-conformance/schema/test-kinds.textproto).
+    static let testKinds: [Wiretuner_Conformance_V1_SchemaOverride] = {
+        let file = vectorsRoot.deletingLastPathComponent().appendingPathComponent("schema/test-kinds.textproto")
+        let text = try! String(contentsOf: file, encoding: .utf8)
+        return try! Wiretuner_Conformance_V1_SchemaOverrides(textFormatString: text).override
+    }()
 
     /// Every vector file under `root`, sorted by path (none when the directory is missing).
     static func vectors(_ root: URL) -> [URL] {
@@ -61,6 +68,7 @@ enum ConformanceRunner {
         }
         let schema = schema(vector, &failures)
         let orders = deliveryOrders(vector, &failures)
+        checkPositions(vector, &failures)
         guard failures.isEmpty else { return Outcome(name: expectedName, failures: failures, stateHash: "") }
         var reference: EngineState?
         var referenceOrder = ""
@@ -81,10 +89,10 @@ enum ConformanceRunner {
         return Outcome(name: expectedName, failures: failures, stateHash: StateHash.hex(reference!.stateHash))
     }
 
-    /// The generated merge table with the vector's overrides applied.
+    /// The generated merge table with the test kinds and the vector's overrides applied.
     static func schema(_ vector: Vector, _ failures: inout [String]) -> Schema {
         var schema = Schema.generated
-        for override in vector.schemaOverride {
+        for override in testKinds + vector.schemaOverride {
             switch override.change {
             case .policy(let change):
                 guard let policy = Schema.Policy(rawValue: change.policy) else {
@@ -99,6 +107,17 @@ enum ConformanceRunner {
             case .variant(let change):
                 schema = schema.withVariant(change.message, kindField: Int(change.kindField),
                                             caseFields: change.caseFields.map(Int.init))
+            case .field(let row):
+                guard let policy = Schema.Policy(rawValue: row.policy) else {
+                    failures.append("schema_override: no policy \(row.policy)")
+                    continue
+                }
+                let typeName = row.typeName.isEmpty ? nil : row.typeName
+                schema = schema.with(row.message, row: Schema.FieldPolicy(
+                    fieldNumber: Int(row.field), name: row.name, policy: policy, onDangling: .unset,
+                    localOnly: false, type: row.type, repeated: row.repeated, typeName: typeName,
+                    elementMessage: policy == .sequence ? typeName : nil,
+                    oneof: row.oneof.isEmpty ? nil : row.oneof))
             case nil:
                 failures.append("schema_override: empty schema_override")
             }
@@ -137,10 +156,56 @@ enum ConformanceRunner {
 
     private static func replay(_ schema: Schema, _ vector: Vector, _ order: [Change]) -> EngineState {
         var engine = EngineState(schema: schema)
-        for change in vector.setup.change + order {
-            engine.apply(change)
+        for (index, change) in vector.setup.change.enumerated() {
+            engine.apply(docChange(change), serverSeq: change.serverSeq == 0 ? UInt64(index + 1) : change.serverSeq)
+        }
+        for change in order {
+            engine.apply(docChange(change), serverSeq: change.serverSeq == 0 ? nil : change.serverSeq)
         }
         return engine
+    }
+
+    /// The doc.v1 Change a vector change encodes (the test kind becomes an unknown field).
+    static func docChange(_ change: Change) -> Wiretuner_Doc_V1_Change {
+        var change = change
+        change.serverSeq = 0
+        let bytes: [UInt8] = try! change.serializedBytes()
+        return try! Wiretuner_Doc_V1_Change(serializedBytes: bytes)
+    }
+
+    private static func bytes(_ props: Wiretuner_Conformance_V1_NodeProps) -> [UInt8] {
+        try! props.serializedBytes()
+    }
+
+    private static func hex(_ bytes: some Collection<UInt8>) -> String {
+        bytes.map { String(format: "%02x", $0) }.joined()
+    }
+
+    /// Generates every `position` and `append_run` of the vector and compares.
+    static func checkPositions(_ vector: Vector, _ failures: inout [String]) {
+        for check in vector.position {
+            var random = SplitMix64(seed: check.seed)
+            let lo = check.lo.isEmpty ? nil : Array(check.lo)
+            let hi = check.hi.isEmpty ? nil : Array(check.hi)
+            let key = try? FractionalIndex.between(lo, hi, using: &random)
+            if key != Array(check.expect) {
+                failures.append("position between \(hex(check.lo)) and \(hex(check.hi)) seed \(check.seed): expected "
+                    + "\(hex(check.expect)), got \(key.map(hex) ?? "an error")")
+            }
+        }
+        for run in vector.appendRun {
+            var random = SplitMix64(seed: run.seed)
+            var last: [UInt8]?
+            var longest = 0
+            for _ in 0..<run.count {
+                last = try! FractionalIndex.between(last, nil, using: &random)
+                longest = max(longest, last!.count)
+            }
+            if longest >= Int(run.maxLength) || (last ?? []) != Array(run.last) {
+                failures.append("append run seed \(run.seed): longest key \(longest) bytes (limit \(run.maxLength)), "
+                    + "last \(hex(last ?? [])), expected \(hex(run.last))")
+            }
+        }
     }
 
     private static func describe(_ vector: Vector, _ index: Int) -> String {
@@ -169,6 +234,67 @@ enum ConformanceRunner {
             for register in node.register {
                 checkRegister(engine, id, register, &failures)
             }
+            if node.hasTree {
+                checkTree(engine, id, node.tree, &failures)
+            }
+            for sequence in node.sequence {
+                checkSequence(engine, id, sequence, &failures)
+            }
+            for set in node.set {
+                checkSet(engine, id, set, &failures)
+            }
+        }
+    }
+
+    private static func checkTree(
+        _ engine: EngineState, _ node: OpID, _ expected: Wiretuner_Conformance_V1_ExpectTree, _ failures: inout [String]
+    ) {
+        let placement = engine.store.placement(node)
+        let parent = expected.hasParent ? OpID(expected.parent) : nil
+        if placement?.parent != parent || (placement?.position ?? []) != Array(expected.position) {
+            failures.append("node \(node): expected parent \(parent.map(String.init(describing:)) ?? "none") position "
+                + "\(hex(expected.position)), got \(placement.map(String.init(describing:)) ?? "none")")
+        }
+        let deleted = engine.store.deleted(node)?.current.value ?? false
+        if deleted != expected.deleted {
+            failures.append("node \(node): expected deleted \(expected.deleted), got \(deleted)")
+        }
+        let children = engine.store.children(node)
+        if children != expected.children.map(OpID.init) {
+            failures.append("node \(node): expected children \(expected.children.map(OpID.init)), got \(children)")
+        }
+    }
+
+    private static func checkSequence(
+        _ engine: EngineState, _ node: OpID, _ expected: Wiretuner_Conformance_V1_ExpectSequence, _ failures: inout [String]
+    ) {
+        guard let path = RegisterPath(expected.path) else {
+            failures.append("node \(node): expected sequence has an empty path")
+            return
+        }
+        let order = engine.store.elementOrder(node, path)
+        let deleted = order.filter { engine.store.element(node, path.element($0))!.isDeleted }
+        let live = order.filter { !deleted.contains($0) }
+        let want = expected.elements.map { OpID(counter: $0.counter, replica: $0.replica) }
+        let wantDeleted = expected.deleted.map { OpID(counter: $0.counter, replica: $0.replica) }
+        if live != want || deleted != wantDeleted {
+            failures.append("node \(node) sequence \(path): expected \(want) deleted \(wantDeleted), got \(live) deleted \(deleted)")
+        }
+    }
+
+    private static func checkSet(
+        _ engine: EngineState, _ node: OpID, _ expected: Wiretuner_Conformance_V1_ExpectSet, _ failures: inout [String]
+    ) {
+        guard let path = RegisterPath(expected.path) else {
+            failures.append("node \(node): expected set has an empty path")
+            return
+        }
+        let values = try! Wiretuner_Doc_V1_NodeProps(serializedBytes: bytes(expected.members))
+        let want = engine.members(in: values, kind: engine.store.kind(node), path: expected.path)?
+            .sorted(by: FractionalIndex.less)
+        let actual = engine.store.members(node, path)
+        if want != actual {
+            failures.append("node \(node) set \(path): expected \((want ?? []).map(hex)), got \(actual.map(hex))")
         }
     }
 
@@ -189,11 +315,11 @@ enum ConformanceRunner {
         _ failures: inout [String]
     ) {
         guard let path = RegisterPath(expected.path) else {
-            failures.append("node \(node): expected register path must be field numbers only")
+            failures.append("node \(node): expected register has an empty path")
             return
         }
         let actual = engine.register(node, path)
-        let value = expected.hasValue ? path.value(in: try! expected.value.serializedBytes()) : nil
+        let value = expected.hasValue ? path.value(in: bytes(expected.value)) : nil
         let want = Register(value: value, op: OpID(expected.op))
         if want != actual {
             failures.append("node \(node) register \(path): expected \(want), got \(actual.map(String.init(describing:)) ?? "null")")

@@ -37,10 +37,10 @@ replica {
     }
 }
 expect {
-  state_hash: "f2040994df1560250f70cb2f3a5fd21dc0ca3e0eaa78d98fe29188039d426fe7"
+  state_hash: "899f60cb387a778604e7d92b7980413a39316e60dbf44b719de7e4f6f461d84f"
   node {
     id { counter: 1 replica: 7 }
-    node_hash: "6caf603d174a9358e3a0eea585a9177bae0a9b4862e6a9669a951e9625ad9e51"
+    node_hash: "84bddb19cfc8e52a96b4205be5f1b4cc5f605bda898cba76616632f75692263b"
     register {
       path { segments { field: 150 } segments { field: 1 } segments { field: 1 } }
       value { layer { common { name: "Layer 1" } } }
@@ -49,7 +49,7 @@ expect {
   }
   node {
     id { counter: 0 replica: 0 }
-    node_hash: "abf3fd82ce3cdbbaf6e24ed21c71ad35314556aea170bdef4418df1dd977d257"
+    node_hash: "8e242940fcc550ea53654c262baca204d0d7f66f3225f453e0ca36181a7b1264"
     register {
       path { segments { field: 1 } segments { field: 1 } segments { field: 1 } }
       value { document { common { name: "Doc" } } }

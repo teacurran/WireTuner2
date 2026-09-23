@@ -2,6 +2,7 @@ package com.villagecompute.wiretuner.crdt;
 
 import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 
@@ -20,7 +21,10 @@ final class WireMessage {
 
     private static final long MAX_FIELD_NUMBER = 0x1FFF_FFFFL;
 
-    /** One record: field number, wire type, and where the record and its payload start and end. */
+    /**
+     * One record: field number, wire type, and where the record and its payload start and end
+     * (for a VARINT record the payload start is its end; the value follows the tag).
+     */
     record Field(int number, int wireType, int start, int payloadStart, int end) {
     }
 
@@ -96,6 +100,141 @@ final class WireMessage {
     }
 
     /**
+     * Each LEN record of {@code number} parsed on its own, in order; {@code null} for one that
+     * does not parse. The elements an {@code ElementInsert} carries are the occurrences of the
+     * SEQUENCE field.
+     */
+    List<WireMessage> occurrences(int number) {
+        List<WireMessage> out = new ArrayList<>();
+        for (Field field : fields) {
+            if (field.number() == number && field.wireType() == LEN) {
+                out.add(parse(Arrays.copyOfRange(bytes, field.payloadStart(), field.end())));
+            }
+        }
+        return out;
+    }
+
+    private static final Set<String> VARINT_TYPES = Set.of("int32", "int64", "uint32", "uint64", "sint32", "sint64", "bool", "enum");
+    private static final Set<String> FIXED64_TYPES = Set.of("fixed64", "sfixed64", "double");
+    private static final Set<String> FIXED32_TYPES = Set.of("fixed32", "sfixed32", "float");
+
+    /** Message types a SET may hold, compared as ids. */
+    static final Set<String> ID_TYPES = Set.of("wiretuner.doc.v1.ElementId", "wiretuner.doc.v1.OpId");
+
+    /**
+     * The members of the SET field {@code number} of protobuf {@code type} ({@code typeName} for
+     * messages), each in its canonical form (docs/spec/crdt-model.adoc, "Sets"): a string's or
+     * bytes' payload; a varint scalar's value as a big-endian uint64; a fixed-width scalar's
+     * little-endian wire bytes; an ElementId or OpId as its counter and replica, big-endian
+     * uint64s. Packed and unpacked scalars are both read. A record of the wrong wire type, or a
+     * packed record or id message that does not parse, holds no members. {@code null} for a type
+     * a SET cannot hold.
+     */
+    List<byte[]> members(int number, String type, String typeName) {
+        List<byte[]> out = new ArrayList<>();
+        boolean text = type.equals("string") || type.equals("bytes");
+        boolean id = type.equals("message") && typeName != null && ID_TYPES.contains(typeName);
+        int width = FIXED64_TYPES.contains(type) ? 8 : FIXED32_TYPES.contains(type) ? 4 : 0;
+        boolean varint = VARINT_TYPES.contains(type);
+        if (!text && !id && width == 0 && !varint) {
+            return null;
+        }
+        for (Field field : fields) {
+            if (field.number() != number) {
+                continue;
+            }
+            if (text || id) {
+                if (field.wireType() == LEN) {
+                    byte[] payload = Arrays.copyOfRange(bytes, field.payloadStart(), field.end());
+                    byte[] member = text ? payload : idMember(payload);
+                    if (member != null) {
+                        out.add(member);
+                    }
+                }
+            } else {
+                out.addAll(scalars(field, varint ? VARINT : width == 8 ? FIXED64 : FIXED32, width));
+            }
+        }
+        return out;
+    }
+
+    private static byte[] idMember(byte[] payload) {
+        WireMessage id = parse(payload);
+        if (id == null) {
+            return null;
+        }
+        ByteArrayOutputStream member = new ByteArrayOutputStream();
+        Bytes.writeU64(member, id.lastVarint(1));
+        Bytes.writeU64(member, id.lastFixed64(2));
+        return member.toByteArray();
+    }
+
+    // The values of one scalar record: the record itself when it has the unpacked wire type, the
+    // packed values when it is LEN and parses completely, else none.  width 0 = varint.
+    private List<byte[]> scalars(Field field, int unpacked, int width) {
+        if (field.wireType() != unpacked && field.wireType() != LEN) {
+            return List.of();
+        }
+        boolean single = field.wireType() == unpacked;
+        Cursor cursor = new Cursor(Arrays.copyOfRange(bytes, single ? field.start() : field.payloadStart(), field.end()));
+        if (single) {
+            cursor.varint(); // the tag
+            return List.of(readScalar(cursor, width));
+        }
+        List<byte[]> values = new ArrayList<>();
+        while (!cursor.atEnd()) {
+            byte[] value = readScalar(cursor, width);
+            if (cursor.failed) {
+                return List.of();
+            }
+            values.add(value);
+        }
+        return values;
+    }
+
+    private static byte[] readScalar(Cursor cursor, int width) {
+        if (width == 0) {
+            ByteArrayOutputStream member = new ByteArrayOutputStream();
+            Bytes.writeU64(member, cursor.varint());
+            return member.toByteArray();
+        }
+        return cursor.take(width);
+    }
+
+    /** The value of the last VARINT record of {@code number}, or 0. */
+    long lastVarint(int number) {
+        Field last = null;
+        for (Field field : fields) {
+            if (field.number() == number && field.wireType() == VARINT) {
+                last = field;
+            }
+        }
+        if (last == null) {
+            return 0;
+        }
+        Cursor cursor = new Cursor(Arrays.copyOfRange(bytes, last.start(), last.end()));
+        cursor.varint(); // the tag
+        return cursor.varint();
+    }
+
+    /** The value of the last FIXED64 record of {@code number} (little-endian), or 0. */
+    long lastFixed64(int number) {
+        Field last = null;
+        for (Field field : fields) {
+            if (field.number() == number && field.wireType() == FIXED64) {
+                last = field;
+            }
+        }
+        long value = 0;
+        if (last != null) {
+            for (int i = last.end() - 1; i >= last.payloadStart(); i--) {
+                value = value << 8 | (bytes[i] & 0xFF);
+            }
+        }
+        return value;
+    }
+
+    /**
      * The field number of the last LEN record whose number is in {@code candidates}, or 0 if none:
      * the set case of a oneof of messages, as a protobuf parser reads it.
      */
@@ -121,6 +260,16 @@ final class WireMessage {
 
         boolean atEnd() {
             return pos >= bytes.length;
+        }
+
+        /** The next {@code count} bytes, or none (latching {@code failed}) when fewer remain. */
+        byte[] take(int count) {
+            if (bytes.length - pos < count) {
+                failed = true;
+                return new byte[0];
+            }
+            pos += count;
+            return Arrays.copyOfRange(bytes, pos - count, pos);
         }
 
         long varint() {

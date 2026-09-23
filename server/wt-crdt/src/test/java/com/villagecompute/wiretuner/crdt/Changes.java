@@ -1,12 +1,16 @@
 package com.villagecompute.wiretuner.crdt;
 
+import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.villagecompute.wiretuner.doc.v1.Change;
 import com.villagecompute.wiretuner.doc.v1.CommonProps;
 import com.villagecompute.wiretuner.doc.v1.CreateNode;
+import com.villagecompute.wiretuner.doc.v1.GroupProps;
 import com.villagecompute.wiretuner.doc.v1.LayerProps;
+import com.villagecompute.wiretuner.doc.v1.MoveNode;
 import com.villagecompute.wiretuner.doc.v1.NodeProps;
 import com.villagecompute.wiretuner.doc.v1.Op;
+import com.villagecompute.wiretuner.doc.v1.SetDeleted;
 import com.villagecompute.wiretuner.doc.v1.SetFields;
 
 /** Builders for the changes the engine tests apply. */
@@ -33,6 +37,24 @@ final class Changes {
         return Op.newBuilder()
                 .setCreate(CreateNode.newBuilder().setParent(OpId.wellKnown(4).toProto()).setProps(props))
                 .build();
+    }
+
+    static Op createUnder(OpId parent, int position, NodeProps props) {
+        return Op.newBuilder().setCreate(CreateNode.newBuilder().setParent(parent.toProto())
+                .setPosition(ByteString.copyFrom(new byte[] {(byte) position})).setProps(props)).build();
+    }
+
+    static Op move(OpId node, OpId parent, int position) {
+        return Op.newBuilder().setMove(MoveNode.newBuilder().setNode(node.toProto()).setParent(parent.toProto())
+                .setPosition(ByteString.copyFrom(new byte[] {(byte) position}))).build();
+    }
+
+    static Op setDeleted(OpId node, boolean deleted) {
+        return Op.newBuilder().setSetDeleted(SetDeleted.newBuilder().setNode(node.toProto()).setDeleted(deleted)).build();
+    }
+
+    static NodeProps group() {
+        return NodeProps.newBuilder().setGroup(GroupProps.getDefaultInstance()).build();
     }
 
     static Op set(OpId node, NodeProps values, RegisterPath... paths) {

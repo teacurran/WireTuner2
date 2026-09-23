@@ -1,0 +1,50 @@
+# crdt-conformance/schema/test-kinds.textproto (schema: vector.proto, message SchemaOverrides)
+#
+# The merge table of the test kind (vector.proto `TestProps`, NodeProps field 1000): merge rules
+# no doc.v1 field uses yet.  Both runners apply these rows to the generated table before every
+# vector's own schema_override; a vector that never writes kind 1000 is unaffected.
+
+override { field { message: "wiretuner.doc.v1.NodeProps" field: 1000 name: "test" policy: "STRUCT"
+  type: "message" type_name: "wiretuner.conformance.v1.TestProps" oneof: "kind" } }
+
+override { field { message: "wiretuner.conformance.v1.TestProps" field: 1 name: "common" policy: "STRUCT"
+  type: "message" type_name: "wiretuner.doc.v1.CommonProps" } }
+override { field { message: "wiretuner.conformance.v1.TestProps" field: 2 name: "label" policy: "ATOMIC"
+  type: "string" } }
+override { field { message: "wiretuner.conformance.v1.TestProps" field: 3 name: "tags" policy: "SET"
+  type: "string" repeated: true } }
+override { field { message: "wiretuner.conformance.v1.TestProps" field: 4 name: "codes" policy: "SET"
+  type: "uint32" repeated: true } }
+override { field { message: "wiretuner.conformance.v1.TestProps" field: 5 name: "points" policy: "SET"
+  type: "message" repeated: true type_name: "wiretuner.doc.v1.ElementId" } }
+override { field { message: "wiretuner.conformance.v1.TestProps" field: 6 name: "nodes" policy: "SET"
+  type: "message" repeated: true type_name: "wiretuner.doc.v1.OpId" } }
+override { field { message: "wiretuner.conformance.v1.TestProps" field: 7 name: "contours" policy: "SEQUENCE"
+  type: "message" repeated: true type_name: "wiretuner.conformance.v1.TestContour" } }
+override { field { message: "wiretuner.conformance.v1.TestProps" field: 8 name: "stops" policy: "SEQUENCE"
+  type: "message" repeated: true type_name: "wiretuner.conformance.v1.TestStop" } }
+
+override { field { message: "wiretuner.conformance.v1.TestContour" field: 1 name: "id" policy: "STRUCT"
+  type: "message" type_name: "wiretuner.doc.v1.ElementId" } }
+override { field { message: "wiretuner.conformance.v1.TestContour" field: 2 name: "closed" policy: "ATOMIC"
+  type: "bool" } }
+override { field { message: "wiretuner.conformance.v1.TestContour" field: 3 name: "anchors" policy: "SEQUENCE"
+  type: "message" repeated: true type_name: "wiretuner.conformance.v1.TestPoint" } }
+override { field { message: "wiretuner.conformance.v1.TestContour" field: 4 name: "name" policy: "ATOMIC"
+  type: "string" } }
+override { field { message: "wiretuner.conformance.v1.TestContour" field: 5 name: "tags" policy: "SET"
+  type: "string" repeated: true } }
+
+override { field { message: "wiretuner.conformance.v1.TestPoint" field: 1 name: "id" policy: "STRUCT"
+  type: "message" type_name: "wiretuner.doc.v1.ElementId" } }
+override { field { message: "wiretuner.conformance.v1.TestPoint" field: 2 name: "anchor" policy: "ATOMIC"
+  type: "message" type_name: "wiretuner.doc.v1.Point" } }
+override { field { message: "wiretuner.conformance.v1.TestPoint" field: 3 name: "weight" policy: "ATOMIC"
+  type: "double" } }
+
+override { field { message: "wiretuner.conformance.v1.TestStop" field: 1 name: "id" policy: "STRUCT"
+  type: "message" type_name: "wiretuner.doc.v1.ElementId" } }
+override { field { message: "wiretuner.conformance.v1.TestStop" field: 2 name: "offset" policy: "ATOMIC"
+  type: "double" } }
+override { field { message: "wiretuner.conformance.v1.TestStop" field: 3 name: "color" policy: "ATOMIC"
+  type: "string" } }

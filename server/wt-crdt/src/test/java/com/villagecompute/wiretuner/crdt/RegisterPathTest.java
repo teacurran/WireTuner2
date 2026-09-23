@@ -31,9 +31,21 @@ class RegisterPathTest {
         assertThat(RegisterPath.of(path.toProto())).isEqualTo(path);
         assertThat(RegisterPath.of(FieldPath.getDefaultInstance())).isNull();
         FieldPath withElement = path.toProto().toBuilder()
-                .addSegments(PathSegment.newBuilder().setElement(ElementId.newBuilder().setCounter(1)))
+                .addSegments(PathSegment.newBuilder().setElement(ElementId.newBuilder().setCounter(3).setReplica(1)))
                 .build();
-        assertThat(RegisterPath.of(withElement)).isNull();
+        RegisterPath element = RegisterPath.of(withElement);
+        assertThat(element).isEqualTo(path.element(new OpId(3, 1))).hasToString("150.1.6.<3:1>");
+        assertThat(element.toProto()).isEqualTo(withElement);
+        assertThat(element.parent()).isEqualTo(path);
+        assertThat(element.last().isElement()).isTrue();
+        assertThat(element.fields()).containsExactly(150, 1, 6);
+        assertThat(element.segments()).hasSize(4);
+        assertThat(RegisterPath.of(150).parent()).isNull();
+        assertThat(RegisterPath.of(path.toProto().toBuilder().addSegments(PathSegment.getDefaultInstance()).build()))
+                .isNull();
+        assertThat(element.canonical()).hasSize(15 + 17).endsWith(0x02, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 1);
+        assertThat(RegisterPath.of(150, 1, 6, 1)).isLessThan(element);
+        assertThatThrownBy(() -> RegisterPath.of(java.util.List.of())).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(RegisterPath::of).isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -48,5 +60,8 @@ class RegisterPathTest {
         assertThat(RegisterPath.of(3, 1, 1).valueIn(props)).isNull();
         assertThat(RegisterPath.of(150).valueIn(props)).isNotNull();
         assertThat(RegisterPath.of(1).valueIn(new byte[] {0x0F})).isNull();
+        assertThat(RegisterPath.of(150, 1).element(new OpId(1, 1)).child(1).valueIn(props))
+                .as("element segments are transparent").isEqualTo(Wire.message().string(1, "A").build());
+        assertThat(RegisterPath.of(java.util.List.of(RegisterPath.Segment.element(OpId.ZERO))).valueIn(props)).isNull();
     }
 }

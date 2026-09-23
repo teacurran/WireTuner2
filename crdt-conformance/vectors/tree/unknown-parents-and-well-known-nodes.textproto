@@ -1,0 +1,42 @@
+# crdt-conformance/vectors/tree/unknown-parents-and-well-known-nodes.textproto (CRDT-002; schema: crdt-conformance/schema/vector.proto)
+name: "tree/unknown-parents-and-well-known-nodes"
+description: "Totality for tree ops: a create naming an unknown parent makes a node with no parent (a later move places it); moving or deleting a well-known node, moving a node under itself or under its own descendant, and moving an unknown node are logged and skipped.  The well-known collections stay under the document root."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Create layer, G and H"
+    ops { create { parent { counter: 4 } position: "\x80" props { layer { common { name: "Layer 1" } } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x80" props { group { common { name: "G" } } } } }
+    ops { create { parent { counter: 2 replica: 7 } position: "\x80" props { group { common { name: "H" } } } } }
+  }
+}
+replica {
+  id: 7
+  change {
+    replica: 7 seq: 2 start_counter: 4 base_server_seq: 1 label: "Odd ops"
+    ops { create { parent { counter: 99 replica: 9 } position: "\x80" props { group { common { name: "O" } } } } }
+    ops { move { node { counter: 4 } parent { counter: 1 replica: 7 } position: "\x80" } }
+    ops { set_deleted { node { counter: 4 } deleted: true } }
+    ops { move { node { counter: 2 replica: 7 } parent { counter: 3 replica: 7 } position: "\x80" } }
+    ops { move { node { counter: 2 replica: 7 } parent { counter: 2 replica: 7 } position: "\x80" } }
+    ops { move { node { counter: 50 replica: 9 } parent { counter: 1 replica: 7 } position: "\x80" } }
+  }
+  change {
+    replica: 7 seq: 3 start_counter: 10 base_server_seq: 1 label: "Place O"
+    ops { move { node { counter: 4 replica: 7 } parent { counter: 1 replica: 7 } position: "\x90" } }
+  }
+}
+expect {
+  state_hash: "dd29f57ea7026328d3ce276545dcc0b583b676d7a17471af48ce9705c8701df7"
+  node { id { counter: 4 } tree { parent { } children { counter: 1 replica: 7 } } }
+  node { id { } tree { children { counter: 1 } children { counter: 2 } children { counter: 3 } children { counter: 4 }
+    children { counter: 5 } children { counter: 6 } children { counter: 7 } children { counter: 8 } children { counter: 9 }
+    children { counter: 10 } children { counter: 11 } children { counter: 12 } children { counter: 13 } children { counter: 14 }
+    children { counter: 15 } } }
+  node {
+    id { counter: 1 replica: 7 }
+    node_hash: "84bddb19cfc8e52a96b4205be5f1b4cc5f605bda898cba76616632f75692263b"
+    tree { parent { counter: 4 } position: "\x80" children { counter: 2 replica: 7 } children { counter: 4 replica: 7 } }
+  }
+  node { id { counter: 2 replica: 7 } node_hash: "10916882dd1690e4dfe8211536362d7826cf0d2cd138c3a8a1b25ebc535a603f" tree { parent { counter: 1 replica: 7 } position: "\x80" children { counter: 3 replica: 7 } } }
+  node { id { counter: 4 replica: 7 } node_hash: "8da72667ee4e746aaf5c076294cd21958955fcfb14daf5639ed15af2505981f1" tree { parent { counter: 1 replica: 7 } position: "\x90" } }
+}

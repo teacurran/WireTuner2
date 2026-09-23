@@ -20,9 +20,13 @@ message TestProps {
   Inner inner = 7;
   optional bool flag = 8;
   oneof choice { string a = 9; Inner b = 10; }
+  NodeRef ref = 11;
+  repeated NodeRef refs = 12 [(wt.crdt.field).merge = MERGE_ATOMIC];
 }`)
+	// A singular NodeRef is one ATOMIC register (crdt-model.adoc, "References").
 	for number, want := range map[int32]Policy{2: PolicyAtomic, 3: PolicyAtomic, 4: PolicyAtomic, 5: PolicyAtomic,
-		6: PolicyAtomic, 7: PolicyStruct, 8: PolicyAtomic, 9: PolicyAtomic, 10: PolicyStruct, 1: PolicyStruct} {
+		6: PolicyAtomic, 7: PolicyStruct, 8: PolicyAtomic, 9: PolicyAtomic, 10: PolicyStruct, 1: PolicyStruct,
+		11: PolicyAtomic} {
 		f := field(t, tbl, "TestProps", number)
 		if f.Policy != want || f.Explicit {
 			t.Errorf("field %d (%s): policy %s explicit %v, want default %s", number, f.Name, f.Policy, f.Explicit, want)
@@ -75,7 +79,7 @@ message TestProps {
 	if f := field(t, tbl, "TestProps", 4); f.ElementMessage != "wiretuner.doc.v1.Stop" {
 		t.Errorf("sequence element: %q", f.ElementMessage)
 	}
-	if f := field(t, tbl, "TestProps", 10); f.OnDangling != FallbackCached || f.Policy != PolicyStruct {
+	if f := field(t, tbl, "TestProps", 10); f.OnDangling != FallbackCached || f.Policy != PolicyAtomic || f.Explicit {
 		t.Errorf("swatch: %+v", f)
 	}
 	if f := field(t, tbl, "TestProps", 11); f.OnDangling != FallbackPlaceholder {

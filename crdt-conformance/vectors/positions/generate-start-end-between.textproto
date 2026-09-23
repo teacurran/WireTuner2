@@ -1,0 +1,26 @@
+# crdt-conformance/vectors/positions/generate-start-end-between.textproto (CRDT-003; schema: crdt-conformance/schema/vector.proto)
+name: "positions/generate-start-end-between"
+description: "Both engines generate the same fractional position for an empty list, after the last key, before the first key and between two keys, from the same SplitMix64 suffix value; every key sorts strictly between its neighbours and never ends in 0x00."
+# empty list
+position { seed: 1 expect: "\x80\xc1\x9e" }
+# append after a key: the first byte below 0xff plus one
+position { lo: "\x80\x11\x22" seed: 2 expect: "\x81\xce\x0f" }
+# append after a run of 0xff
+position { lo: "\xff\xff\x05" seed: 3 expect: "\xff\xff\x06\xed\x8e" }
+# prepend before a key: its first byte minus one
+position { hi: "\x80\x11\x22" seed: 4 expect: "\x7f\xca\xd9" }
+# prepend before a leading 0x01: 0x00 0xff
+position { hi: "\x01\x40" seed: 5 expect: "\x00\xff\x5a\x9f" }
+# prepend before leading zeros
+position { hi: "\x00\x00\x07" seed: 6 expect: "\x00\x00\x06\x00\x21" }
+# between, wide gap: the midpoint digit
+position { lo: "\x20\x01" hi: "\x80\x01" seed: 7 expect: "\x50\xd7\x8f" }
+# between, adjacent digits: lo's digit, then after the rest of lo
+position { lo: "\x80\x10" hi: "\x81\x05" seed: 8 expect: "\x80\x11\x36\xb3" }
+# between, common prefix
+position { lo: "\x80\x10\x07" hi: "\x80\x12" seed: 9 expect: "\x80\x11\x64\x40" }
+# between, lo a prefix of hi
+position { lo: "\x80" hi: "\x80\x00\x03" seed: 10 expect: "\x80\x00\x01\xca\x73" }
+# between, adjacent digits with lo exhausted
+position { lo: "\x80" hi: "\x80\x01" seed: 11 expect: "\x80\x00\x01\x9d\xfc" }
+expect { state_hash: "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119" }
