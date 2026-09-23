@@ -350,10 +350,34 @@ the fake server, at most 11 ms).  Outgoing presence is `WTSync.LocalPresence`: W
 it, the sync client reads it at 20 Hz and sends it when it changed or every 10 s, two minutes
 without input reads as `IDLE`, and with *Show my cursor and selection to others* off
 (`LocalPresence.sharing`) pointer, tool, selection, sub-selection and caret are left out.
-Deviation: participants are keyed by account -- two Macs of one person show as one participant
-(the newest frame wins) and the local user's other Mac is excluded with the local user.  The
-server now fills `PresenceUpdate.session` (COLLAB-004); keying `PresenceModel` by
-`(branch_id, session)` and excluding only the local replica's entry is left to the client.
+Participants are sessions: `PresenceParticipant.id` is `<branch_id>/<session>` (the server-filled
+replica of the subscription, COLLAB-004), so one person's two Macs are two participants, and only
+this client's own entry -- `PresenceModel.localReplica` on `localBranchID`, which WTApp sets from
+the store once it is open and a `replicaRotated` event moves -- is left out.  A frame without a
+session (a server before COLLAB-004) is keyed and excluded by account as before.
++
+NOTE: As built by COLLAB-006, COLLAB-007, COLLAB-008 and COLLAB-009 (`WTApp/Collaboration`).
+*Where*: the avatar strip and the cloud indicator are one `NSTitlebarAccessoryViewController` at
+the trailing end of the title bar (`TitlebarCollaborationView`), not items of the customizable
+Main toolbar, whose autosaved configuration would otherwise change for everyone.  The hover card
+is the avatar's help tag (name · role · activity); `AvatarStripModel.activity` implements the
+guide's table (a page is found from the participant's viewport centre, since pages are not nodes
+yet; a branch is named "a branch" until branch names are resolvable).  The own avatar's menu holds
+*Spotlight Me* / *Stop Spotlighting*, *Stop Following* and the three display switches.  *Overlay*:
+the presence layer is a WTApp `CanvasOverlayLayer` between the tiles and the tool overlay
+(`CanvasView.presenceLayer`, drawn by `PresenceOverlay`), not a WTRender type -- it needs the scene
+objects, the selection geometry and the preferences WTApp owns; it never touches the tiles.
+Cursor tool badges show while the participant's `editing` set is non-empty.  *Carets* (COLLAB-008):
+there is no text editor in WTApp yet, so neither is the character-to-glyph mapping; a remote caret
+draws as a coloured flag at its text block's top-left corner, and outgoing carets are not published
+-- both wait for the text editing task.  *Follow* (`FollowController`): the view is centred on the
+target's visible rect at its zoom; local scroll, pinch, rotate, smart zoom, the zoom and page
+commands, *Stop*, and kbd:[Esc] with nothing else to cancel (`ToolManager.onIdleEscape`) end it.
+The banner text is "<name> wants you to follow them".  menu:View[Collaborators] has *Follow <name>*
+(the collaborator under the context menu, else the first one present -- the registry has no
+per-person submenu), *Stop Following*, *Spotlight Me* and the three switches.  *Inspect Selection*
+is COLLAB-037's.  Outgoing `editing` is the selection while a mouse button is down on the canvas;
+Object panel field focus does not publish it yet.
 * `WTRender`: a `PresenceOverlayLayer` above the tiled canvas draws cursors, labels,
   selection outlines, point highlights, carets and attribution flashes.  It is redrawn on
   presence changes and on scroll/zoom, never invalidating document tiles.  Hit testing

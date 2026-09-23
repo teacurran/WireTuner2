@@ -626,6 +626,53 @@ active layer is `ObjectEditing.activeLayer`, nil until then), the conformance ve
 default-layer rule and dead `merged_into` targets (CRDT track; the same cases are WTModel merge tests
 in `LayerTests.swift`), and the review model's *move vs move* listing (WTSync's).
 
+NOTE: As built by LIB-004 and LIB-007 (`WTApp/Panels/LayersPanel.swift`, `LayersPanelView.swift`).
+The panel is a SwiftUI `List` (not an `NSOutlineView`) over `LayersPanelModel`, a value read from the
+front window's document on every change, so a remote rename or reorder shows at once while a name
+being edited keeps its own text (`RenameField`).  Rows are frontmost first with the separator as a
+row of its own; SwiftUI's move offsets become one `ReorderLayer` (with `printing` when a layer
+crosses the separator) or, for the separator, one `SetLayerFlag(printing)` on the layers it crossed.
+Each flag column toggles its layer on click, every layer with kbd:[Option], and a vertical drag
+through the column applies the first row's new value to every row crossed as one change.  The name
+click, kbd:[Cmd]/kbd:[Shift] multi-selection, kbd:[Option]-click selecting the layer's objects,
+double-click rename (not Guides), the pen icon (`ObjectEditing.activeLayer`, a locked layer cannot
+become active), the options menu, the row context menu and the removal sheet are as the guide says;
+the canvas's warning strip shows while the active layer is hidden.  Deviations: the highlight colour
+is chosen with the swatch's colour panel (a `ColorPicker`); dropping colours from Swatches, the Mixer,
+the Object panel, another row or the Eyedropper waits for those panels' drag sources.  The tooltip
+names the layer's state but not who locked it: that needs History (COLLAB, HIST tasks).  UI tests of
+the gestures wait for TEST-002; the model is unit-tested gesture by gesture.  *Preferences*
+(LIB-007): *Clicking a layer name moves selected objects* is read by the name click; *Remember layer
+info* by `ObjectEditing`; *Edit current layer only* limits clicks and marquees to the active layer's
+objects through `SelectionController.canPick` in WTApp (WTRender's hit tester is unchanged).
+*Highlight selected paths* keeps the default *On* of preferences.adoc (this page's Client section
+says off; the two pages disagree and preferences.adoc is the catalog's source).
++
+LIB-005 is left to WTRender: `DocumentDisplayListBuilder` already skips hidden layers and records
+each object's layer; WTRender must draw a background (non-printing) layer's objects in a group at
+50% over the pasteboard colour, draw a Keyline layer's objects through the keyline path renderer
+whatever the view mode, draw objects on the Guides layer in the guide colour (black when that layer
+is Keyline), take the selection overlay's colour from the object's layer `highlight` (and stroke
+the selected path in it with *Highlight selected paths*), make the hit tester skip hidden and locked
+layers and honour *Edit current layer only*, and map a layer flag change to that layer's tiles only.
+WTApp's selection overlay still draws in the accent colour.
+
+NOTE: As built by LIB-005 (`WTRender/Layers/LayerScene.swift`).  `LayerScene.build` takes the layers
+in `LayerOrder` as `LayerContent` (a `LayerRendering` -- id, locked, printing, keyline, highlight,
+Guides -- plus visibility and the layer's items with their node ids) and page furniture beneath, and
+returns a list whose `DisplayList.layers` records each layer's run of top-level items (`LayerSpan`);
+objects stay top-level items, so index paths and node ids are unchanged.  `.screen(guideColor:)`
+skips hidden layers and gives the Guides layer the guide colour (black when it is Keyline);
+`.output(includeHidden:)` leaves out background and Guides layers and hidden ones unless asked, with
+keyline off.  Both renderers draw a run by its layer's rules: a keyline layer or the Guides layer
+in Keyline (Fast Keyline in the fast modes) whatever the view mode, hairlines in the layer
+highlight, and a background layer as one group at 50% (member by member in the fast modes; Keyline
+ignores opacity, as for any group).  Hit testing skips locked layers and guides (guides answer
+`hitTestGuides(viewPoint:)` only) and, with `HitOptions.editCurrentLayerOnly`, everything but
+`activeLayer`; a list without layers applies no layer rule.  A summary touching a layer's node id
+dirties the union of that layer's items (`DisplayList.bounds(ofLayer:)`), so a flag toggle repaints
+only its tiles.  Selection overlays are WTApp's: they read `LayerRendering.highlight`.
+
 === Build tasks
 
 [[LIB-001]]

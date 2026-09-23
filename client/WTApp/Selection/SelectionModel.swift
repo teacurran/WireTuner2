@@ -59,11 +59,24 @@ final class ActiveSelection {
     /// The front window's object commands (the Transform panel performs through them, so a
     /// transformation is remembered for *Transform Again* and power duplicating).
     var editing: ObjectEditing?
+    /// The front window's collaborators (the Object panel's "Priya is editing this object").
+    var presence: (any PresenceProviding)?
 
-    init(model: SelectionModel? = nil, document: DocumentHandle? = nil, editing: ObjectEditing? = nil) {
+    init(model: SelectionModel? = nil, document: DocumentHandle? = nil, editing: ObjectEditing? = nil, presence: (any PresenceProviding)? = nil) {
         self.model = model
         self.document = document
         self.editing = editing
+        self.presence = presence
+    }
+
+    /// "Priya is editing this object" when a collaborator is changing a selected object
+    /// (presence.adoc, "Selections and carets"); nil otherwise.
+    var editingLine: String? {
+        guard let selected = model?.ids, !selected.isEmpty, let participants = presence?.participants else { return nil }
+        let names = participants.filter { !Set($0.editing).isDisjoint(with: selected) }.map(\.name)
+        guard let first = names.first else { return nil }
+        let who = names.count == 1 ? first : "\(first) and \(names.count - 1) more"
+        return selected.count == 1 ? "\(who) \(names.count == 1 ? "is" : "are") editing this object" : "\(who) \(names.count == 1 ? "is" : "are") editing the selection"
     }
 
     /// "Nothing selected", "1 object selected", "3 objects selected".

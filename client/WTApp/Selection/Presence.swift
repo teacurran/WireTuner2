@@ -1,23 +1,91 @@
 import Foundation
 import Observation
+import WTCRDT
+import WTGeometry
 import WTRender
 
-/// One other person with the document open, as the selection overlay needs them
-/// (presence.adoc, "Selections and carets").  `WTSync.PresenceModel` (SYNC-009) fills these
-/// from `PresenceUpdate` frames; `selection` then holds node ids.
+/// A collaborator's text caret (presence.adoc, "Selections and carets"): the text block, the
+/// character the caret is before (`.zero`: the end) and the other end of a range.
+struct RemoteCaret: Hashable, Sendable {
+    var node: SelectionID
+    var position: OpID
+    var rangeEnd: OpID?
+
+    init(node: SelectionID, position: OpID, rangeEnd: OpID? = nil) {
+        self.node = node
+        self.position = position
+        self.rangeEnd = rangeEnd
+    }
+}
+
+/// One other person with the document open, as the canvas overlay, the avatar strip and the
+/// panels need them (presence.adoc).  `PresenceAdapter` fills these from `WTSync.PresenceModel`
+/// (SYNC-009); tests and the harness build them directly.
 struct RemoteParticipant: Identifiable, Hashable, Sendable {
-    /// The session id (one person may have two Macs open).
+    /// The participant's key: the account (`PresenceParticipant.id`).
     let id: String
     var name: String
     /// Index into the 12-colour palette, stable per (document, person); server-assigned.
     var colorIndex: Int
     var selection: [SelectionID]
+    /// The whole selection's size (a frame carries at most 200 ids).
+    var selectionCount: Int
+    /// Selected points of the selected paths (contour and point element ids).
+    var points: [PointElement]
+    /// Objects they are actively changing (a drag, a focused field).
+    var editing: [SelectionID]
+    /// Their pointer in pasteboard points; nil off the canvas.
+    var cursor: Point?
+    /// The active tool's id, for the cursor badge ("pointer", "pen", ...).
+    var tool: String
+    /// Their visible rect (pasteboard points) and zoom, for Follow.
+    var viewport: Rect?
+    var zoom: Double?
+    /// The page their view is mostly on.
+    var page: SelectionID?
+    var caret: RemoteCaret?
+    /// The document role, for the hover card.
+    var role: String
+    /// Set when they are on a branch of this document.
+    var branchID: String
+    /// No input for two minutes: the avatar is dimmed.
+    var isIdle: Bool
+    /// Their connection or ours dropped: drawn where they were, marked *Reconnecting*.
+    var isFrozen: Bool
+    /// They are spotlighting (asking everyone to follow them).
+    var spotlight: Bool
+    /// The user they follow, if any.
+    var followingUserID: String
 
-    init(id: String, name: String, colorIndex: Int, selection: [SelectionID] = []) {
+    /// A selected point: the contour element and the point element of a selected path.
+    struct PointElement: Hashable, Sendable {
+        var contour: OpID
+        var point: OpID
+    }
+
+    init(id: String, name: String, colorIndex: Int, selection: [SelectionID] = [], selectionCount: Int? = nil, points: [PointElement] = [],
+         editing: [SelectionID] = [], cursor: Point? = nil, tool: String = "", viewport: Rect? = nil, zoom: Double? = nil,
+         page: SelectionID? = nil, caret: RemoteCaret? = nil, role: String = "", branchID: String = "", isIdle: Bool = false,
+         isFrozen: Bool = false, spotlight: Bool = false, followingUserID: String = "") {
         self.id = id
         self.name = name
         self.colorIndex = colorIndex
         self.selection = selection
+        self.selectionCount = selectionCount ?? selection.count
+        self.points = points
+        self.editing = editing
+        self.cursor = cursor
+        self.tool = tool
+        self.viewport = viewport
+        self.zoom = zoom
+        self.page = page
+        self.caret = caret
+        self.role = role
+        self.branchID = branchID
+        self.isIdle = isIdle
+        self.isFrozen = isFrozen
+        self.spotlight = spotlight
+        self.followingUserID = followingUserID
     }
 
     var color: Color { PresencePalette.color(at: colorIndex) }
@@ -41,31 +109,41 @@ enum PresencePalette {
     }
 }
 
-/// Where the overlay reads the other participants from.  A protocol so the canvas does not
-/// depend on `WTSync`; SYNC-009's `PresenceModel` conforms to it when it lands.
+/// Where the overlay, the avatar strip and the Object panel read the other participants from.
+/// A protocol so the canvas does not depend on `WTSync`; `PresenceAdapter` adapts SYNC-009's
+/// `PresenceModel` to it.
 @MainActor
 protocol PresenceProviding: AnyObject {
-    /// Every remote participant, the local user excluded, in a stable order.
+    /// Every remote participant, the local user excluded, newest arrival last.
     var participants: [RemoteParticipant] { get }
+    /// The connection dropped more than a few seconds ago: "Offline -- working alone".
+    var isOffline: Bool { get }
     /// Calls `handler` after every change; returns a token for `stopObserving`.
     @discardableResult
     func observe(_ handler: @escaping @MainActor () -> Void) -> UUID
     func stopObserving(_ token: UUID)
 }
 
-/// The stand-in presence model until SYNC-009: holds whatever participants it is given
-/// (nobody, in the app; fixtures, in tests and UI screenshots).
+/// Presence without a session: whatever participants it is given (nobody, for a memory
+/// document; fixtures, in tests and UI screenshots).
 @MainActor
 @Observable
 final class StubPresenceModel: PresenceProviding {
     var participants: [RemoteParticipant] = [] {
-        didSet { for observer in observers.values { observer() } }
+        didSet { notify() }
+    }
+    var isOffline = false {
+        didSet { notify() }
     }
 
     @ObservationIgnored private var observers: [UUID: @MainActor () -> Void] = [:]
 
     init(participants: [RemoteParticipant] = []) {
         self.participants = participants
+    }
+
+    private func notify() {
+        for observer in observers.values { observer() }
     }
 
     @discardableResult

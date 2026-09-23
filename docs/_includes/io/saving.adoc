@@ -502,6 +502,37 @@ stop the rest of the outbox; `error` is entered for a repeated replica conflict,
 no longer exists, and a snapshot that twice could not be read.  `error`, `needsSignIn` and a removed
 access hold the session until `retry()` / `signedIn()`.
 
+NOTE: As built by the WTApp side of IO-001, IO-002 and IO-007 (`WTApp/Sync`,
+`WTApp/Collaboration/SyncIndicator.swift`).  Each open document has one `DocumentSession`
+(`DocumentSessions` in the app, however many windows show it): once its `LocalStore` is open it
+makes a `SyncClient` over a `GRPCSyncTransport` to `WT_API_URL` (also the `BlobQueue`'s transport),
+the account's tokens (`AuthTokenProvider`: a signed-out account or a refused refresh is
+`TokenFailure.signInRequired`), a `LocalPresence` and the review thresholds from Preferences; tells
+it `localChangesAvailable()` after every local, undo and redo change; mirrors `states()` into
+`SessionSyncStatus`; and turns events into window notices (`stateReplaced` reloads the document,
+`merged` is the toast, `reviewNeeded` opens the sheet, `salvaged` and `changeDropped` are status-bar
+messages, a collection point advances the horizon -- collecting at it still needs the `DocumentCore`
+entry point).  Test launches and memory documents run no session and show *Saved to cloud*.
+*Indicator*: the window title is the document's name alone and `NSWindow.subtitle` is the state's
+text; the cloud symbol with its popover sits in a trailing title-bar accessory beside the avatar
+strip rather than being an `NSToolbarItem` of the customizable Main toolbar, and the status bar
+keeps its glyph.  The symbols are as listed except `icloud.and.arrow.up` for syncing, uploading and
+the backlog (SF Symbols has no `arrow.up.icloud`) and `icloud` for *Opening…*.  The popover shows
+the state, why (the `readOnly` reason, the error), when the document was last fully synced on this
+Mac, who else has it open, and *Retry Now*, *Review Merge…*, *Sign In…* or *Export a Package…*
+(the latter runs `file.exportPackage` when an export task registers it).  VoiceOver announcement
+of changes, the *Sync Activity* window and the library badges are not delivered here.
+*Closing and quitting* (IO-007): a document whose last window closes while it is syncing,
+uploading or offline with changes keeps its session in the background until the state leaves
+those (a review, a sign-in or an error parks it), then stops and closes the store; opening it again
+first stops that session (`DocumentSessions.release`), and the new window takes over.  Quitting
+with anything waiting and *Warn when quitting with unsynced changes* on answers `.terminateLater`
+and shows the sheet (`QuitCoordinator`: *Quit Now*, *Quit When Uploaded* -- which quits as soon as
+nothing waits -- and *Cancel*) in its own panel, since the app may have no window.  On launch,
+before the session's windows reopen, every store under the documents folder with unsent changes or
+pending blobs and no review hold is uploaded headlessly (`HeadlessUploads`, the store as its own
+sink) and closed when `saved` or parked.
+
 === Server
 
 * `VersionService.Name` accepts a `server_seq` at or before head and a name; versions are rows

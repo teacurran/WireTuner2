@@ -38,7 +38,6 @@ final class StatusBarView: NSView, NSComboBoxDelegate {
     let message = NSTextField(labelWithString: "")
     let model = StatusBarModel()
     private(set) var syncHost: NSHostingView<SyncIndicatorView>!
-    private(set) var avatarHost: NSHostingView<AvatarStripView>!
     /// The named views listed after the Fit entries (BASIC-012 supplies them).
     private(set) var namedViews: [String] = []
     private(set) var pageCount = 0
@@ -99,11 +98,10 @@ final class StatusBarView: NSView, NSComboBoxDelegate {
         message.setAccessibilityIdentifier("status.message")
         message.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         syncHost = NSHostingView(rootView: SyncIndicatorView(model: model))
-        avatarHost = NSHostingView(rootView: AvatarStripView(model: model))
 
         compass.target = self
         compass.action = #selector(compassClicked(_:))
-        let stack = NSStackView(views: [addPage, previousPage, pageField, nextPage, magnification, compass, viewMode, units, syncHost, avatarHost, message])
+        let stack = NSStackView(views: [addPage, previousPage, pageField, nextPage, magnification, compass, viewMode, units, syncHost, message])
         stack.orientation = .horizontal
         stack.spacing = 6
         stack.edgeInsets = NSEdgeInsets(top: 0, left: 8, bottom: 0, right: 8)
@@ -192,10 +190,6 @@ final class StatusBarView: NSView, NSComboBoxDelegate {
 
     func show(sync state: SyncState) {
         model.syncState = state
-    }
-
-    func show(participants: [RemoteParticipant]) {
-        model.participants = participants
     }
 
     // MARK: Actions

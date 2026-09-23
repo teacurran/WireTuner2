@@ -28,7 +28,3 @@ extension Size {
 extension WTGeometry.AffineTransform {
     var cgAffineTransform: CGAffineTransform { CGAffineTransform(a: a, b: b, c: c, d: d, tx: tx, ty: ty) }
 }
-
-extension Color {
-    var cgColor: CGColor { CGColor(srgbRed: red, green: green, blue: blue, alpha: alpha) }
-}

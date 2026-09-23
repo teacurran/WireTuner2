@@ -6,13 +6,14 @@ import WTRender
 @testable import WireTuner
 
 @Suite @MainActor struct TitleAndPasteboardTests {
-    @Test func theTitleCarriesTheSyncState() {
-        #expect(DocumentTitle.format(name: "Poster", state: .synced) == "Poster")
-        #expect(DocumentTitle.format(name: "Poster", state: .syncing) == "Poster — Syncing")
-        #expect(DocumentTitle.format(name: "Poster", state: .offline(waiting: 12)) == "Poster — Offline (12 changes waiting)")
-        #expect(DocumentTitle.format(name: "Poster", state: .offline(waiting: 1)) == "Poster — Offline (1 change waiting)")
-        #expect(DocumentTitle.format(name: "Poster", state: .reviewNeeded) == "Poster — Review needed")
-        for state in [SyncState.synced, .syncing, .offline(waiting: 2), .reviewNeeded] {
+    @Test func theSubtitleCarriesTheSyncState() {
+        #expect(DocumentTitle.subtitle(for: .saved) == "Saved to cloud")
+        #expect(DocumentTitle.subtitle(for: .syncing(3)) == "Syncing 3 changes")
+        #expect(DocumentTitle.subtitle(for: .offline(12)) == "Offline — 12 changes waiting")
+        #expect(DocumentTitle.subtitle(for: .needsReview) == "Needs review")
+        let states: [SyncState] = [.opening, .saved, .syncing(1), .uploadingBlobs(2), .offline(0), .uploadingBacklog(42), .needsReview,
+                                   .readOnly(.role), .needsSignIn, .storageFull(2), .error("x")]
+        for state in states {
             #expect(NSImage(systemSymbolName: state.symbolName, accessibilityDescription: nil) != nil)
             #expect(!state.label.isEmpty)
         }
@@ -23,18 +24,22 @@ import WTRender
         document.makeSyncStatus = { _ in status }
         let controller = DocumentWindowController(document: .memory(title: "Poster"), environment: document)
         defer { controller.close() }
-        #expect(controller.window?.title == "Poster")
-        status.state = .syncing
-        #expect(controller.window?.title == "Poster — Syncing")
-        status.state = .offline(waiting: 12)
-        #expect(controller.window?.title == "Poster — Offline (12 changes waiting)")
-        #expect(controller.statusBar.model.syncState == .offline(waiting: 12))
-        status.state = .reviewNeeded
-        #expect(controller.window?.title == "Poster — Review needed")
+        #expect(controller.window?.title == "Poster" && controller.window?.subtitle == "Saved to cloud")
+        status.state = .syncing(2)
+        #expect(controller.window?.title == "Poster" && controller.window?.subtitle == "Syncing 2 changes")
+        status.state = .offline(12)
+        #expect(controller.window?.subtitle == "Offline — 12 changes waiting")
+        #expect(controller.statusBar.model.syncState == .offline(12))
+        #expect(controller.collaboration.sync.state == .offline(12))
+        status.state = .needsReview
         controller.documentHandle.title = "Flyer"
-        #expect(controller.window?.title == "Flyer — Review needed")
+        #expect(controller.window?.title == "Flyer" && controller.window?.subtitle == "Needs review")
+        status.details = SyncDetails(lastSynced: Date(), collaborators: ["Priya"])
+        #expect(controller.collaboration.sync.details.collaborators == ["Priya"])
         let token = status.observe {}
         status.stopObserving(token)
+        status.perform(.retryNow)
+        #expect(status.performed == [.retryNow])
     }
 
     @Test func pagesStayOnThePasteboard() {
@@ -195,17 +200,13 @@ import WTRender
         #expect(dots?.colors.count == 2)
         #expect(dots?.intrinsicContentSize.width == 2 * (TabPresenceDotsView.dotSize + 2))
         dots?.display()
-        #expect(controller.statusBar.model.participants.map(\.id) == ["p1", "p2"])
-        #expect(AvatarStripView.initials("Priya Shah") == "PS" && AvatarStripView.initials("sam") == "S")
-        var jumped: [String] = []
-        controller.statusBar.model.onParticipant = { jumped.append($0.id) }
-        controller.statusBar.model.onParticipant(presence.participants[0])
-        #expect(jumped == ["p1"])
-        for view in [NSHostingView(rootView: AvatarStripView(model: controller.statusBar.model)) as NSView, NSHostingView(rootView: SyncIndicatorView(model: controller.statusBar.model))] {
+        #expect(controller.collaboration.avatars.participants.map(\.id) == ["p1", "p2"])
+        #expect(AvatarStripModel.initials("Priya Shah") == "PS" && AvatarStripModel.initials("sam") == "S")
+        for view in [NSHostingView(rootView: AvatarStripView(model: controller.collaboration.avatars)) as NSView, NSHostingView(rootView: SyncIndicatorView(model: controller.statusBar.model))] {
             view.layoutSubtreeIfNeeded()
             #expect(view.fittingSize.width > 0)
         }
-        controller.statusBar.show(sync: .reviewNeeded)
+        controller.statusBar.show(sync: .needsReview)
         let review = NSHostingView(rootView: SyncIndicatorView(model: controller.statusBar.model))
         review.layoutSubtreeIfNeeded()
         presence.participants = []

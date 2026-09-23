@@ -318,6 +318,25 @@ last transformation's name.  The *Fills* and *Contents* toggles are not shown (s
 centre is not synchronised with transform handles, which are not delivered (OBJ-034), nor are
 double-click opening the panel's tab and the 60 fps preview measurement.
 
+NOTE: As built by OBJ-034 (`WTApp/Tools/TransformHandles.swift`, `PointerTool`).  The handles are a
+mode of the Pointer tool: a double-click on the selection (or on a member of it an Option-click
+picked) shows them when *Double-click enables transform handles* is on; kbd:[Esc] or a double-click
+on nothing puts them away, and they follow the selection (a new one resets the centre, none hides
+them).  `TransformHandles` holds the pasteboard bounds -- of the selected points when points are
+selected, else the objects' geometry bounds -- and the centre, and hit-tests in view points: the
+centre circle (5 px), the eight 8 px handles, 12 px outside a corner for rotation, 4 px of the
+dotted edge for skew, inside for move.  Drags: move (kbd:[Shift] to the constrain angle), scale about
+the centre (side handles one axis, kbd:[Shift] uniform), rotate about the centre (kbd:[Shift] 45°
+steps from the constrain angle), skew along the grabbed edge (top and bottom edges shear
+horizontally, the side edges vertically -- the axis the edge gives, so kbd:[Shift] has nothing left to
+constrain), the centre itself (kbd:[Shift]-click resets it).  Each release is one `TransformObjects`
+(kind move, scale, rotate or skew; kbd:[Option] makes one transformed copy, which becomes the
+selection) or one `TransformPoints` per path for selected points, so the points move and `transform`
+stays.  kbd:[~] (or kbd:[`]) goes up to the enclosing group keeping the centre.  The cursor shows the
+zone under the pointer, with the copy cursor while kbd:[Option] is down.  Deviations: the handles are
+drawn in the accent colour (the layer highlight colour is LIB-005's), scale drags do not snap to smart
+guides yet (OBJ-038/039), and the Transform panel's centre fields are not bound to the handles' centre.
+
 === Build tasks
 
 [[OBJ-031]]

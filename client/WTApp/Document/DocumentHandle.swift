@@ -212,6 +212,12 @@ final class DocumentHandle: Identifiable, CommandSink {
         await model?.settle()
     }
 
+    /// The model once it is open; nil when it failed to open.
+    func openedModel() async -> WTModel.Document? {
+        await opening?.value
+        return model
+    }
+
     /// Closes the model's backend (the window closed its last view).
     func close() {
         guard let model else { return }

@@ -143,6 +143,9 @@ struct ObjectPanelBody: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             SelectionSummaryBody(selection: selection)
+            if let line = selection?.editingLine {
+                Text(line).font(.caption).italic().foregroundStyle(.secondary).padding(.horizontal).accessibilityIdentifier("object.editingBy")
+            }
             if let model = model {
                 if let path = model.path { PathSectionView(section: path, model: model) }
                 if let point = model.point { PointSectionView(section: point, model: model) }

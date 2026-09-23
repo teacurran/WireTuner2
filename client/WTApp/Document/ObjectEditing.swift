@@ -48,8 +48,12 @@ final class ObjectEditing: CommandSink {
     var rememberLayerInfo: @MainActor () -> Bool = { false }
     /// Where a plain Paste centres the copy (the visible area's centre, pasteboard space).
     var visibleCenter: @MainActor () -> Point? = { nil }
-    /// The window's active layer (nil: the drawing layer).
-    var activeLayer: OpID?
+    /// The window's active layer (nil: the drawing layer), chosen in the Layers panel (LIB-004).
+    var activeLayer: OpID? {
+        didSet { if activeLayer != oldValue { onActiveLayerChange?() } }
+    }
+    /// Called after the active layer changes (the canvas's hidden-layer warning).
+    var onActiveLayerChange: (@MainActor () -> Void)?
     /// The path the Pen and Bezigon are building, shared so a switch between them continues it.
     var pathSession: PathBuildingSession?
     /// Groups a burst of nudges into one undo step: ended after this long without one.

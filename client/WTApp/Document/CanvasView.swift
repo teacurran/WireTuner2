@@ -34,6 +34,17 @@ final class CanvasView: NSView, CanvasHost {
     let document: DocumentHandle
     let tiles: MetalTileCanvas
     let overlay = CanvasOverlayLayer()
+    /// Collaborators' cursors, selections and pulses (presence.adoc, "Client"): its own layer
+    /// between the tiles and the tool overlay, so drawing it never repaints a document tile.
+    let presenceLayer = CanvasOverlayLayer()
+    /// Draws `presenceLayer` (the window's collaboration); nil draws nothing.
+    var presenceDrawer: (@MainActor (CGContext) -> Void)?
+    /// The pointer moved over the canvas (pasteboard points) or left it (nil): outgoing presence.
+    var onPointer: (@MainActor (Point?) -> Void)?
+    /// The user scrolled, zoomed or rotated the view: following ends.
+    var onUserNavigation: (@MainActor () -> Void)?
+    /// A mouse button went down (true) or up (false) on the canvas.
+    var onPress: (@MainActor (Bool) -> Void)?
     var navigation = CanvasNavigation()
     private(set) var viewport: Viewport
     var toolManager: ToolManager? {
@@ -86,13 +97,14 @@ final class CanvasView: NSView, CanvasHost {
         root.actions = ["sublayers": NSNull()]
         layer = root
         wantsLayer = true
-        for sublayer in [tiles.layer, overlay] as [CALayer] {
+        for sublayer in [tiles.layer, presenceLayer, overlay] as [CALayer] {
             sublayer.anchorPoint = .zero
             sublayer.position = .zero
             sublayer.actions = ["bounds": NSNull(), "position": NSNull(), "contents": NSNull()]
             root.addSublayer(sublayer)
         }
         overlay.drawer = { [weak self] ctx in self?.drawOverlay(in: ctx) }
+        presenceLayer.drawer = { [weak self] ctx in self?.presenceDrawer?(ctx) }
 
         setAccessibilityElement(true)
         setAccessibilityRole(.group)
@@ -136,6 +148,8 @@ final class CanvasView: NSView, CanvasHost {
         tiles.update(displayList: document.displayList, viewport: viewport)
         overlay.bounds = CGRect(origin: .zero, size: bounds.size)
         overlay.setNeedsDisplay()
+        presenceLayer.bounds = overlay.bounds
+        presenceLayer.setNeedsDisplay()
     }
 
     /// Draws the canvas in `mode` (REND-005); the display list is not rebuilt.
@@ -157,6 +171,7 @@ final class CanvasView: NSView, CanvasHost {
         if let scale = window?.backingScaleFactor {
             layer?.contentsScale = scale
             overlay.contentsScale = scale
+            presenceLayer.contentsScale = scale
         }
         render()
     }
@@ -192,12 +207,19 @@ final class CanvasView: NSView, CanvasHost {
     private func documentDidChange() {
         updateAccessibilityValue()
         overlay.setNeedsDisplay()
+        presenceLayer.setNeedsDisplay()
     }
 
     /// The selection or a collaborator's selection changed.
     func selectionDidChange() {
         updateAccessibilityValue()
         overlay.setNeedsDisplay()
+        presenceLayer.setNeedsDisplay()
+    }
+
+    /// Presence changed (a cursor moved, a pulse started or ended): only the presence layer redraws.
+    func setNeedsPresenceDisplay() {
+        presenceLayer.setNeedsDisplay()
     }
 
     // MARK: Accessibility
@@ -287,7 +309,7 @@ final class CanvasView: NSView, CanvasHost {
         if let selectionController {
             SelectionOverlay(document: document, viewport: viewport, glyphs: glyphStyle()).draw(
                 in: ctx, selection: selectionController.selection, participants: presence?.participants ?? [],
-                showsRemote: showsRemoteSelections(), accent: NSColor.controlAccentColor.cgColor
+                showsRemote: presenceDrawer == nil && showsRemoteSelections(), accent: NSColor.controlAccentColor.cgColor
             )
         }
         toolManager?.drawOverlay(in: ctx, viewport: viewport)
@@ -320,28 +342,37 @@ final class CanvasView: NSView, CanvasHost {
         }
         stopAutoscroll()
         toolManager?.mouseDown(canvasEvent(event))
+        onPress?(true)
     }
 
     /// The Info toolbar follows the pointer (BASIC-011).
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
         for area in trackingAreas where area.owner === self { removeTrackingArea(area) }
-        addTrackingArea(NSTrackingArea(rect: .zero, options: [.mouseMoved, .activeInKeyWindow, .inVisibleRect], owner: self))
+        addTrackingArea(NSTrackingArea(rect: .zero, options: [.mouseMoved, .mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect], owner: self))
     }
 
     override func mouseMoved(with event: NSEvent) {
-        toolManager?.pointerMoved(canvasEvent(event))
+        let translated = canvasEvent(event)
+        toolManager?.pointerMoved(translated)
+        onPointer?(translated.pasteboardPoint)
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        onPointer?(nil)
     }
 
     override func mouseDragged(with event: NSEvent) {
         let translated = canvasEvent(event)
         toolManager?.mouseDragged(translated)
         updateAutoscroll(translated)
+        onPointer?(translated.pasteboardPoint)
     }
 
     override func mouseUp(with event: NSEvent) {
         stopAutoscroll()
         toolManager?.mouseUp(canvasEvent(event))
+        onPress?(false)
     }
 
     override func menu(for event: NSEvent) -> NSMenu? {
@@ -377,6 +408,7 @@ final class CanvasView: NSView, CanvasHost {
     /// Scroll-wheel handling: pan, or with Option zoom about the pointer.
     func scroll(deltaX: Double, deltaY: Double, precise: Bool, modifierFlags: NSEvent.ModifierFlags, at appKitPoint: CGPoint) {
         smartZoom.reset()
+        onUserNavigation?()
         if modifierFlags.contains(.option) {
             let factor = CanvasEventTranslator.scrollZoomFactor(deltaY: deltaY, hasPreciseDeltas: precise)
             setViewport(navigation.magnify(viewport, by: factor, about: viewPoint(fromAppKit: appKitPoint)))
@@ -394,6 +426,7 @@ final class CanvasView: NSView, CanvasHost {
     /// Pinch: continuous zoom about the pointer.
     func magnify(by magnification: Double, at appKitPoint: CGPoint) {
         smartZoom.reset()
+        onUserNavigation?()
         setViewport(navigation.magnify(viewport, by: CanvasEventTranslator.pinchFactor(magnification: magnification), about: viewPoint(fromAppKit: appKitPoint)))
     }
 
@@ -428,6 +461,7 @@ final class CanvasView: NSView, CanvasHost {
     func rotate(byGestureDegrees delta: Double, phase: NSEvent.Phase = .changed, snapping: Bool, at appKitPoint: CGPoint) {
         guard rotatesWithTrackpad() else { return }
         smartZoom.reset()
+        onUserNavigation?()
         var state = rotationGesture ?? (start: viewport.rotationDegrees, accumulated: 0)
         state.accumulated += delta
         let angle = CanvasRotation.gestureAngle(start: state.start, accumulated: state.accumulated, snapping: snapping)
@@ -477,6 +511,7 @@ final class CanvasView: NSView, CanvasHost {
     /// Two-finger double-tap: fit the object under the pointer, else the page under it; again
     /// to go back.
     func smartMagnify(at appKitPoint: CGPoint) {
+        onUserNavigation?()
         let point = viewPoint(fromAppKit: appKitPoint)
         let target = smartZoomTarget(at: point)
         var state = smartZoom

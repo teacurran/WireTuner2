@@ -52,11 +52,12 @@ enum PanelCatalog {
     ]
 
     /// The fifteen panels in Window menu order (the order of panels.adoc's table).
-    static func descriptors(selection: ActiveSelection?, help: HelpPanelModel) -> [PanelDescriptor] {
+    @MainActor
+    static func descriptors(selection: ActiveSelection?, help: HelpPanelModel, layers: LayersPanelState = LayersPanelState()) -> [PanelDescriptor] {
         [
             PlaceholderPanels.objectPanel(selection: selection),
             stub("document", "Document", "doc.on.doc", Group.properties, 11, "document-panel", "Page thumbnails, sizes and bleed appear here."),
-            PlaceholderPanels.layers,
+            LayersPanel.descriptor(selection: selection, state: layers),
             stub("swatches", "Swatches", "square.grid.3x3.fill", Group.assets, 30, "swatches", "The document's colors appear here."),
             stub("styles", "Styles", "paintbrush", Group.assets, 31, "styles", "Graphic and text styles appear here."),
             stub("library", "Library", "books.vertical", Group.assets, 32, "library", "Symbols and team libraries appear here."),
@@ -89,9 +90,10 @@ enum PanelCatalog {
 
     /// Registers every panel not registered yet, and the default layout's group settings.
     @MainActor
-    static func register(into registry: PanelRegistry, selection: ActiveSelection? = nil, help: HelpPanelModel = HelpPanelModel()) {
+    static func register(into registry: PanelRegistry, selection: ActiveSelection? = nil, help: HelpPanelModel = HelpPanelModel(),
+                         layers: LayersPanelState = LayersPanelState()) {
         registry.groupDefaults.merge(groupDefaults) { current, _ in current }
-        for descriptor in descriptors(selection: selection, help: help) { registry.registerIfAbsent(descriptor) }
+        for descriptor in descriptors(selection: selection, help: help, layers: layers) { registry.registerIfAbsent(descriptor) }
     }
 }
 

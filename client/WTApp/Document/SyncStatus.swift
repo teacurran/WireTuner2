@@ -1,69 +1,132 @@
 import AppKit
 import Observation
 import SwiftUI
+import WTSync
 
-/// What the title bar and the status bar's cloud glyph show about syncing (workspace.adoc,
-/// "The document window"; saving.adoc).
-enum SyncState: Equatable, Sendable {
-    case synced
-    case syncing
-    /// Offline with this many local changes waiting to upload.
-    case offline(waiting: Int)
-    /// A merge needs the user's review (reconcile.adoc).
-    case reviewNeeded
+/// The sync state machine of saving.adoc ("Sync state machine"), as `WTSync` publishes it; WTApp
+/// never infers it from network state.
+typealias SyncState = WTSync.SyncState
 
-    /// "Syncing", "Offline (12 changes waiting)", "Review needed"; nil when synced.
-    var titleSuffix: String? {
+/// What the sync popover offers (saving.adoc, "The sync indicator").
+enum SyncAction: String, CaseIterable, Sendable {
+    case retryNow
+    case reviewMerge
+    case signIn
+    case exportPackage
+
+    var title: String {
         switch self {
-        case .synced: nil
-        case .syncing: "Syncing"
-        case let .offline(waiting): waiting == 1 ? "Offline (1 change waiting)" : "Offline (\(waiting) changes waiting)"
-        case .reviewNeeded: "Review needed"
+        case .retryNow: "Retry Now"
+        case .reviewMerge: "Review Merge…"
+        case .signIn: "Sign In…"
+        case .exportPackage: "Export a Package…"
         }
     }
+}
 
+extension WTSync.SyncState {
+    /// The toolbar symbol (saving.adoc, "Client").
     var symbolName: String {
         switch self {
-        case .synced: "checkmark.icloud"
-        case .syncing: "arrow.triangle.2.circlepath.icloud"
+        case .opening: "icloud"
+        case .saved: "checkmark.icloud"
+        // saving.adoc names `arrow.up.icloud`, which SF Symbols does not have.
+        case .syncing, .uploadingBlobs, .uploadingBacklog: "icloud.and.arrow.up"
         case .offline: "icloud.slash"
-        case .reviewNeeded: "exclamationmark.icloud"
+        case .needsReview, .storageFull, .error: "exclamationmark.icloud"
+        case .readOnly: "lock.icloud"
+        case .needsSignIn: "person.icloud"
         }
     }
 
-    var label: String { titleSuffix ?? "Synced" }
-}
+    /// The subtitle and the indicator's label.
+    var label: String { description }
 
-/// "<name>", "<name> — Syncing", "<name> — Offline (12 changes waiting)", "<name> — Review
-/// needed" (BASIC-003).  There is no unsaved marker: every change is kept.
-enum DocumentTitle {
-    static func format(name: String, state: SyncState) -> String {
-        state.titleSuffix.map { "\(name) — \($0)" } ?? name
+    /// Drawn in the attention colour: the user has something to do.
+    var needsAttention: Bool {
+        switch self {
+        case .needsReview, .needsSignIn, .storageFull, .error: true
+        default: false
+        }
+    }
+
+    /// The popover's actions in this state.
+    var actions: [SyncAction] {
+        switch self {
+        case .offline, .storageFull: [.retryNow]
+        case .readOnly(.accessRemoved): [.retryNow]
+        case .needsReview: [.reviewMerge]
+        case .needsSignIn: [.signIn]
+        case .error: [.retryNow, .exportPackage]
+        default: []
+        }
+    }
+
+    /// Changes or images made on this Mac have not all reached the cloud (the quit sheet).
+    var hasWaitingWork: Bool {
+        switch self {
+        case .saved, .opening, .readOnly(.role), .readOnly(.clientTooOld): false
+        case .offline(let count): count > 0
+        default: true
+        }
+    }
+
+    /// Why a `readOnly` document is view only (the popover says which).
+    var readOnlyReason: String? {
+        guard case .readOnly(let reason) = self else { return nil }
+        return switch reason {
+        case .role: "Your role on this document is viewer or commenter."
+        case .clientTooOld: "This document uses features newer than this version of WireTuner."
+        case .roleInsufficient: "Your role was changed while you were offline; your changes are kept on this Mac."
+        case .accessRemoved: "Your access to this document was removed."
+        }
     }
 }
 
-/// Where a window reads its document's sync state.  `WTSync`'s sync client conforms when
-/// SYNC-001 lands; until then `StubSyncStatus` holds whatever it is told (always *synced* in
-/// the app; any state in tests and the harness).
+/// The popover's details behind the state (saving.adoc, "The sync indicator").
+struct SyncDetails: Equatable, Sendable {
+    /// When the document was last fully synced.
+    var lastSynced: Date?
+    /// Who else has the document open.
+    var collaborators: [String] = []
+    /// The error text of `error`.
+    var errorDetail: String?
+}
+
+/// Where a window reads its document's sync state: `DocumentSession` (a `WTSync.SyncClient`
+/// per open document) in the app, `StubSyncStatus` for memory documents and tests.
 @MainActor
 protocol SyncStatusProviding: AnyObject {
     var state: SyncState { get }
+    var details: SyncDetails { get }
     @discardableResult
     func observe(_ handler: @escaping @MainActor () -> Void) -> UUID
     func stopObserving(_ token: UUID)
+    /// Runs a popover action.
+    func perform(_ action: SyncAction)
 }
 
+/// A sync state without a session: whatever it is told (*Saved to cloud* for a memory document;
+/// any state in tests and the harness); actions are recorded.
 @MainActor
 @Observable
 final class StubSyncStatus: SyncStatusProviding {
     var state: SyncState {
-        didSet { if state != oldValue { for observer in observers.values { observer() } } }
+        didSet { if state != oldValue { notify() } }
     }
+    var details = SyncDetails() {
+        didSet { if details != oldValue { notify() } }
+    }
+    private(set) var performed: [SyncAction] = []
 
     @ObservationIgnored private var observers: [UUID: @MainActor () -> Void] = [:]
 
-    init(state: SyncState = .synced) {
+    init(state: SyncState = .saved) {
         self.state = state
+    }
+
+    private func notify() {
+        for observer in observers.values { observer() }
     }
 
     @discardableResult
@@ -76,58 +139,37 @@ final class StubSyncStatus: SyncStatusProviding {
     func stopObserving(_ token: UUID) {
         observers[token] = nil
     }
+
+    func perform(_ action: SyncAction) {
+        performed.append(action)
+    }
 }
 
-/// What the status bar's SwiftUI hosts show: the sync glyph and the collaborators' avatars.
+/// The window's title and subtitle (saving.adoc): the title is the document's name alone -- there
+/// is no unsaved marker, every change is kept -- and the subtitle is the sync state.
+enum DocumentTitle {
+    static func subtitle(for state: SyncState) -> String { state.description }
+}
+
+/// What the status bar's SwiftUI host shows: the sync glyph.
 @MainActor
 @Observable
 final class StatusBarModel {
-    var syncState: SyncState = .synced
-    var participants: [RemoteParticipant] = []
-    @ObservationIgnored var onParticipant: @MainActor (RemoteParticipant) -> Void = { _ in }
+    var syncState: SyncState = .saved
 
     init() {}
 }
 
-/// The cloud glyph (workspace.adoc, "Sync indicator").
+/// The status bar's cloud glyph (workspace.adoc, "Sync indicator").
 struct SyncIndicatorView: View {
     let model: StatusBarModel
 
     var body: some View {
         Image(systemName: model.syncState.symbolName)
-            .foregroundStyle(model.syncState == .reviewNeeded ? SwiftUI.Color.orange : SwiftUI.Color.secondary)
+            .foregroundStyle(model.syncState.needsAttention ? SwiftUI.Color.orange : SwiftUI.Color.secondary)
             .help(model.syncState.label)
             .accessibilityLabel(model.syncState.label)
             .accessibilityIdentifier("status.sync")
-    }
-}
-
-/// The avatars of everyone with the document open; clicking one jumps to them (PRES epic).
-struct AvatarStripView: View {
-    let model: StatusBarModel
-
-    var body: some View {
-        HStack(spacing: -4) {
-            ForEach(model.participants) { participant in
-                let color = participant.color
-                Button { model.onParticipant(participant) } label: {
-                    Text(Self.initials(participant.name))
-                        .font(.system(size: 8, weight: .bold))
-                        .foregroundStyle(.white)
-                        .frame(width: 16, height: 16)
-                        .background(Circle().fill(SwiftUI.Color(red: color.red, green: color.green, blue: color.blue)))
-                }
-                .buttonStyle(.plain)
-                .help(participant.name)
-                .accessibilityIdentifier("status.avatar.\(participant.id)")
-            }
-        }
-        .accessibilityIdentifier("status.avatars")
-    }
-
-    /// "Priya Shah" → "PS"; one word → its first letter.
-    static func initials(_ name: String) -> String {
-        name.split(separator: " ").prefix(2).compactMap(\.first).map(String.init).joined().uppercased()
     }
 }
 

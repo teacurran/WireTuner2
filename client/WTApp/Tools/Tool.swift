@@ -161,6 +161,8 @@ struct ToolContext {
     var commandSink: CommandSink
     /// The window's object commands (nudging, the active layer), when the tool runs in a window.
     var objectEditing: ObjectEditing?
+    /// *Double-click enables transform handles* (transforming.adoc, OBJ-034).
+    var transformHandles: @MainActor () -> Bool = { true }
 
     init(document: DocumentHandle, host: any CanvasHost, snapping: SnappingContext = SnappingContext(), selection: SelectionController? = nil) {
         self.document = document
@@ -212,9 +214,13 @@ protocol Tool: AnyObject {
     func cancel()
     /// A Force click (stage 2 of a Force Touch press) at `e`; most tools ignore it.
     func forceClick(_ e: CanvasEvent)
+    /// Whether kbd:[Esc] would abandon something; with nothing, Esc ends following.
+    var hasSomethingToCancel: Bool { get }
 }
 
 extension Tool {
     var toolID: ToolID { Self.id }
     func forceClick(_ e: CanvasEvent) {}
+    /// Whether kbd:[Esc] would abandon something (a gesture, the transform handles).
+    var hasSomethingToCancel: Bool { false }
 }

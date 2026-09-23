@@ -18,6 +18,9 @@ final class SelectionController {
     var pickDistance: @MainActor () -> Double
     /// The Lasso's *Contact-sensitive selection*.
     var lassoContactSensitive: @MainActor () -> Bool = { false }
+    /// Whether clicks and marquees may pick the object: *Edit current layer only* limits them to
+    /// the active layer's objects (layers.adoc, LIB-007).
+    var canPick: @MainActor (SelectionID) -> Bool = { _ in true }
 
     /// Built on first use and after every content change; the viewport and options are set
     /// per query (they are plain values).
@@ -74,7 +77,7 @@ final class SelectionController {
     func pick(at viewPoint: Point, viewport: Viewport, subselect: Bool) -> (id: SelectionID, sub: SubSelection?)? {
         let hits = hitTester(viewport: viewport, subselect: subselect).hitTest(viewPoint: viewPoint)
         for hit in hits {
-            guard let id = document.selectionID(atItemPath: hit.itemPath), document.isSelectable(id) else { continue }
+            guard let id = document.selectionID(atItemPath: hit.itemPath), document.isSelectable(id), canPick(id) else { continue }
             return (id, subselect ? subSelection(for: hit, in: id) : nil)
         }
         return nil
@@ -120,7 +123,7 @@ final class SelectionController {
         var picked: [SelectionID] = []
         var sub: [SelectionID: SubSelection] = [:]
         for hit in hits.reversed() {
-            guard let id = document.selectionID(atItemPath: hit.itemPath), document.isSelectable(id) else { continue }
+            guard let id = document.selectionID(atItemPath: hit.itemPath), document.isSelectable(id), canPick(id) else { continue }
             let object = document.object(for: id)
             let anchors = hit.anchors.compactMap { object?.point(leafPath: $0.leafPath, element: $0.element) }
             if subselect, !anchors.isEmpty {

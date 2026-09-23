@@ -365,6 +365,20 @@ Nothing beyond storing and relaying changes.  The server attaches `author` to ev
 * Undo grouping: every review-sheet choice is one change with a label (`Use my fill for Logo
   mark`, `Keep both copies of Star badge`, `Restore Header bar`).
 
+NOTE: As built by COLLAB-001 (`WTApp/Collaboration/AttributionFlash.swift`,
+`WindowCollaboration`).  The author of a remote change is found from presence: each frame's
+server-filled `session` is the replica of that person's subscription (`DocumentSession.author(of:)`),
+because the document sink receives changes without their `SequencedChange.author`.  A change whose
+replica no one present is using (offline work arriving later, a person who left) therefore does not
+pulse -- the suppression this page asks for until the author is known, extended to authors no longer
+present.  The pulse lasts 1.5 s, fades, is labelled "Priya · Size, Position" from the merge table's
+field names (`RegisterNames`), and a node already pulsing joins further attribute names instead of
+restarting, so a burst gives one pulse per node per 1.5 s.  The deleted-selection notice ("Header
+bar deleted by Priya", "... by someone else" when the author is unknown) and the "Merged N changes
+from A, B" toast are status-bar messages; the toast names menu:File[Review Merge…] instead of
+carrying a *Review what changed* button.  The TEST-001/TEST-002 scenarios (drag in progress,
+two-client drag) and tile-invalidation counters are left to COLLAB-003.
+
 === Build tasks
 
 [[COLLAB-001]]

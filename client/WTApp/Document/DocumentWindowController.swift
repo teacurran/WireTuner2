@@ -3,6 +3,7 @@ import WTCRDT
 import WTGeometry
 import WTModel
 import WTRender
+import WTSync
 
 /// What every document window shares: the app's registries, preferences and stores.
 @MainActor
@@ -24,10 +25,22 @@ struct DocumentEnvironment {
     var snapSounds: SnapSoundPlayer?
     /// Appended to each canvas's accessibility value (the socket audit's counts).
     var diagnostics: @MainActor () -> String? = { nil }
-    /// The presence source per window; the stub (nobody else) until SYNC-009.
+    /// The document's sync session (one per document, `DocumentSessions`); nil runs none (tests),
+    /// and the window then reads `makePresence` and `makeSyncStatus`.
+    var session: @MainActor (DocumentHandle) -> DocumentSession? = { _ in nil }
+    /// The presence source per window without a session: nobody else, unless a test says so.
     var makePresence: @MainActor (DocumentHandle) -> any PresenceProviding = { _ in StubPresenceModel() }
-    /// The sync state per window; always *synced* until SYNC-001.
+    /// The sync state per window without a session: *Saved to cloud*, unless a test says so.
     var makeSyncStatus: @MainActor (DocumentHandle) -> any SyncStatusProviding = { _ in StubSyncStatus() }
+    /// The document's last view closed (`DocumentSessions.documentDidClose` in the app: a session
+    /// still uploading keeps running); closes the backend by default.
+    var documentDidClose: @MainActor (DocumentHandle) -> Void = { $0.close() }
+    /// Fork and CreateBranch for the review sheet; nil offline or signed out.
+    var reviewWork: @MainActor () -> (any ReviewWorkClient)? = { nil }
+    /// The signed-in person's display name (the own avatar, "Copy from Priya's offline edits").
+    var userName: @MainActor () -> String = { "" }
+    /// Opens a document by id and name (the review sheet's copy or branch).
+    var openDocument: @MainActor (String, String) -> Void = { _, _ in }
     /// *Help for <panel>* (the Help panel, BASIC-007).
     var showHelp: @MainActor (PanelDescriptor) -> Void = { _ in }
     /// Opens a document id's model: its local store in the app (`DocumentOpener.localStore`), a
@@ -79,6 +92,10 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
     let selection: SelectionController
     let presence: any PresenceProviding
     let syncStatus: any SyncStatusProviding
+    /// The document's sync session (nil for a window without one: tests).
+    let session: DocumentSession?
+    /// The avatar strip, sync indicator, Follow, pulses, outgoing presence and review sheet.
+    let collaboration: WindowCollaboration
     /// The object commands (clipboard, duplicate, group, lock, arrange, nudge) and the tools'
     /// command sink.
     let objectEditing: ObjectEditing
@@ -167,8 +184,11 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
             contactSensitive: { preferences[SelectionToolOptions.contactSensitive] },
             pickDistance: { Double(preferences[PreferenceCatalog.General.pickDistance]) }
         )
-        presence = environment.makePresence(document)
-        syncStatus = environment.makeSyncStatus(document)
+        let session = environment.session(document)
+        self.session = session
+        presence = session?.presence ?? environment.makePresence(document)
+        syncStatus = session?.status ?? environment.makeSyncStatus(document)
+        collaboration = WindowCollaboration(session: session, presence: presence, syncStatus: syncStatus)
         objectEditing = ObjectEditing(document: document, selection: selection, pasteboard: environment.makePasteboard())
         objectEditing.rememberLayerInfo = { preferences[PreferenceCatalog.General.rememberLayerInfo] }
         selection.lassoContactSensitive = { preferences[SelectionToolOptions.lassoContactSensitive] }
@@ -178,7 +198,8 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
             styleMask: [.titled, .closable, .miniaturizable, .resizable],
             backing: .buffered, defer: false
         )
-        window.title = DocumentTitle.format(name: document.title, state: syncStatus.state)
+        window.title = document.title
+        window.subtitle = DocumentTitle.subtitle(for: syncStatus.state)
         window.identifier = Self.windowIdentifier
         window.setAccessibilityIdentifier(Self.windowIdentifier.rawValue)
         window.tabbingMode = .preferred
@@ -199,6 +220,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         ), selection: selection)
         context.redraw = { RedrawSettings(preferences: preferences) }
         context.optionDragCopies = { preferences[PreferenceCatalog.Object.optionDragCopies] }
+        context.transformHandles = { preferences[PreferenceCatalog.General.doubleClickTransform] }
         context.drawing = { DrawingSettings(preferences: preferences) }
         context.commandSink = objectEditing
         context.objectEditing = objectEditing
@@ -209,6 +231,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
             guard let self else { return }
             // Choosing another kind of tool ends the Pen/Bezigon session; a temporary tool does not.
             if id != PenTool.id, id != PenTool.bezigonID, self.toolManager?.isTemporary != true { self.objectEditing.pathSession = nil }
+            self.collaboration.publisher?.tool(id)
             self.onToolChange?(self, id)
         }
         toolManager = manager
@@ -217,6 +240,16 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         objectEditing.visibleCenter = { [weak canvas] in canvas.map { $0.viewport.toPasteboard($0.viewport.viewCenter) } }
         canvas.presence = presence
         canvas.showsRemoteSelections = { preferences[PreferenceCatalog.Sync.showSelections] }
+        canvas.presenceDrawer = { [weak self] ctx in self?.collaboration.drawPresence(in: ctx) }
+        objectEditing.onActiveLayerChange = { [weak self] in self?.updateLayerWarning() }
+        selection.canPick = { [weak self] id in
+            guard let self, preferences[PreferenceCatalog.Object.editCurrentLayerOnly] else { return true }
+            return self.isOnActiveLayer(id)
+        }
+        canvas.onPointer = { [weak self] point in self?.collaboration.publisher?.pointer(point) }
+        canvas.onUserNavigation = { [weak self] in self?.collaboration.stopFollowing() }
+        canvas.onPress = { [weak self] down in self?.pressDidChange(down) }
+        manager.onIdleEscape = { [weak self] in self?.collaboration.stopFollowing() }
         canvas.glyphStyle = {
             SelectionOverlay.GlyphStyle(
                 smallerHandles: preferences[PreferenceCatalog.General.smallerHandles], solidPoints: preferences[PreferenceCatalog.General.solidPoints]
@@ -228,13 +261,14 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         canvas.onNamedViewRequest = { [weak self] target in self?.presentNamedViewSheet(target: target) }
         canvas.diagnostics = environment.diagnostics
         canvas.updateAccessibilityValue()
-        selection.model.observe { [weak self] _ in
+        selection.model.observe { [weak self] current in
             guard let self else { return }
             self.canvas.selectionDidChange()
+            self.collaboration.selectionDidChange(current)
             self.onSelectionChange?(self)
         }
         presence.observe { [weak self] in self?.presenceDidChange() }
-        syncStatus.observe { [weak self] in self?.updateTitle() }
+        document.observe { [weak self] change in self?.contentDidChange(change) }
         document.observeStructure { [weak self] in self?.structureDidChange() }
         preferences.observe { [weak self] change in
             if PanelAppearance.isAppearancePreference(change.id) { self?.panelAppearanceDidChange() }
@@ -253,6 +287,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         rulerHost.onHorizontalScroll = { [weak self] value in self?.scrollHorizontally(to: value) }
         rulerHost.onVerticalScroll = { [weak self] value in self?.scrollVertically(to: value) }
 
+        collaboration.install(on: self)
         window.center()
         restoreState()
         viewportDidChange(canvas.viewport)
@@ -305,6 +340,14 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
             right.bottomAnchor.constraint(equalTo: content.bottomAnchor),
             right.trailingAnchor.constraint(equalTo: content.trailingAnchor),
         ])
+        let banner = collaboration.bannerHost
+        banner.isHidden = true
+        content.addSubview(banner)
+        NSLayoutConstraint.activate([
+            banner.topAnchor.constraint(equalTo: rulerHost.topAnchor),
+            banner.leadingAnchor.constraint(equalTo: rulerHost.leadingAnchor),
+            banner.trailingAnchor.constraint(equalTo: rulerHost.trailingAnchor),
+        ])
         window.contentView = content
         content.layoutSubtreeIfNeeded()
     }
@@ -329,18 +372,96 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
 
     // MARK: Title, presence, pages, units
 
-    /// "<name>", "<name> — Syncing", ... (BASIC-003).
+    /// The title is the document's name; the subtitle and the status bar's glyph are the sync
+    /// state (saving.adoc, "The sync indicator").
     func updateTitle() {
-        window?.title = DocumentTitle.format(name: documentHandle.title, state: syncStatus.state)
+        window?.title = documentHandle.title
+        window?.subtitle = DocumentTitle.subtitle(for: syncStatus.state)
         statusBar.show(sync: syncStatus.state)
     }
 
-    /// The tab's collaborator dots and the status bar's avatars follow presence.
+    /// The tab's collaborator dots follow presence.
     func presenceDidChange() {
         canvas.selectionDidChange()
         let participants = presence.participants
-        statusBar.show(participants: participants)
         window?.tab.accessoryView = participants.isEmpty ? nil : TabPresenceDotsView(participants: participants)
+    }
+
+    /// A change was drawn: remote ones pulse and may announce a deletion; an open review sheet
+    /// previews the new state.
+    func contentDidChange(_ change: ContentChange) {
+        collaboration.contentDidChange(change)
+        collaboration.review.model?.stateDidChange(documentHandle.state)
+        updateLayerWarning()
+    }
+
+    /// Whether `id` is on the active layer (*Edit current layer only*).
+    func isOnActiveLayer(_ id: SelectionID) -> Bool {
+        let order = LayerOrder(documentHandle.state)
+        let active = objectEditing.activeLayer.flatMap { order.isLive($0) ? $0 : nil } ?? order.drawingLayer
+        return order.layer(of: id.opID, in: documentHandle.state) == active
+    }
+
+    /// The strip at the top of the canvas while the active layer is hidden (layers.adoc,
+    /// "Showing and hiding layers").
+    func updateLayerWarning() {
+        let order = LayerOrder(documentHandle.state)
+        let active = objectEditing.activeLayer.flatMap { order.isLive($0) ? $0 : nil } ?? order.drawingLayer
+        let hidden = active.flatMap { order.layer($0) }.map { !$0.visible } ?? false
+        collaboration.banner.warning = hidden ? "The active layer is hidden: objects you draw there are invisible until you show it" : nil
+        bannerDidChange()
+    }
+
+    /// The mouse went down or up on the canvas: while it is down the selection is the editing set
+    /// others see ("Priya is editing this object").
+    func pressDidChange(_ down: Bool) {
+        collaboration.publisher?.editing(down ? selection.model.ids : [])
+    }
+
+    /// Follow: the view moves to the followed person's visible rect and zoom.
+    func follow(visible: Rect, zoom: Double?) {
+        var target = canvas.viewport
+        if let zoom { target = navigation.zoom(target, to: zoom) }
+        canvas.setViewport(navigation.centring(target, on: visible.center))
+    }
+
+    /// The bar above the canvas changed: it shows only when it has something to say.
+    func bannerDidChange() {
+        collaboration.bannerHost.isHidden = collaboration.banner.isEmpty
+    }
+
+    // MARK: Review (SYNC-007)
+
+    /// Opens the review sheet on `review` (menu:File[Review Merge…], the popover, a held merge).
+    @discardableResult
+    func presentReview(_ review: ReviewModel) -> Task<Void, Never>? {
+        guard !collaboration.review.isShown else { return nil }
+        let preferences = environment.preferences
+        let session = self.session
+        let environment = self.environment
+        let objectEditing = self.objectEditing
+        let document = documentHandle
+        return Task { [weak self] in
+            let local = (try? await session?.localWork().changes) ?? []
+            let remote = (try? await session?.remoteWork()) ?? []
+            let context = ReviewContext(
+                documentID: document.id, documentTitle: document.title,
+                perform: { objectEditing.perform($0) },
+                resolve: { resolution in try await session?.resolveReview(resolution) },
+                localWork: { try await session?.localWork() ?? ([], 0) },
+                work: environment.reviewWork(), openDocument: environment.openDocument,
+                keepBothOffset: { preferences[PreferenceCatalog.Sync.keepBothOffset] }, userName: environment.userName()
+            )
+            let model = ReviewSheetModel(review: review, merged: document.state, local: local, remote: remote, context: context)
+            self?.collaboration.review.present(model, on: self?.window)
+        }
+    }
+
+    /// menu:File[Review Merge…]: the pending review, else the last merge read-only.
+    @discardableResult
+    func reviewMerge() -> Task<Void, Never>? {
+        guard let review = session?.pendingReview ?? session?.lastMerge else { return nil }
+        return presentReview(review)
     }
 
     /// Pages, the current page, units or the title changed (locally or remotely).
@@ -409,11 +530,14 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
     private func viewportDidChange(_ viewport: Viewport) {
         let scroller = canvas.navigation.scroller
         rulerHost.update(horizontal: scroller.horizontal(viewport), vertical: scroller.vertical(viewport), viewport: viewport)
+        collaboration.publisher?.viewport(viewport)
         statusBar.show(zoom: viewport.zoom)
         statusBar.show(rotation: viewport.rotationDegrees)
     }
 
+    /// A view change the user asked for (zoom commands, scroll bars, pages): it ends following.
     func setViewport(_ viewport: Viewport) {
+        collaboration.stopFollowing()
         canvas.setViewport(viewport)
     }
 
@@ -671,6 +795,8 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
     }
 
     func windowWillClose(_ notification: Notification) {
+        collaboration.review.dismiss()
+        collaboration.tearDown()
         saveState()
         onClose?(self)
     }

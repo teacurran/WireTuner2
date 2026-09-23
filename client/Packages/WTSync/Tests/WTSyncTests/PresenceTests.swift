@@ -98,6 +98,42 @@ import WTProto
         #expect(notified == 5)
     }
 
+    /// COLLAB-004: entries are sessions `(branch_id, session)`; only this client's own is left out.
+    @Test func sessionsAreParticipantsAndOnlyTheLocalOneIsSkipped() {
+        func frame(_ user: String, session: UInt64, branch: String = "", state: Wiretuner_Sync_V1_PresenceState = .active,
+                   tool: String = "pen") -> Wiretuner_Sync_V1_PresenceUpdate {
+            var update = Self.update(user, state: state, tool: tool)
+            update.session = session
+            update.branchID = branch
+            return update
+        }
+        let model = PresenceModel(localUserID: "me", localReplica: 10)
+        // My other Mac is listed; this one is not; the same replica on a branch is someone else's session.
+        model.apply(frame("me", session: 11))
+        model.apply(frame("me", session: 10))
+        model.apply(frame("u1", session: 20))
+        model.apply(frame("u1", session: 21))
+        model.apply(frame("u2", session: 10, branch: "b1"))
+        #expect(model.participants.map(\.id) == ["/11", "/20", "/21", "b1/10"])
+        #expect(model.participant("/20")?.session == 20 && model.participant("b1/10")?.branchID == "b1")
+        model.apply(frame("u1", session: 20, tool: "text"))
+        #expect(model.participant("/20")?.tool == "text" && model.participant("/21")?.tool == "pen")
+        model.apply(frame("u1", session: 21, state: .gone))
+        #expect(model.participants.map(\.id) == ["/11", "/20", "b1/10"])
+        model.apply(Self.snapshot([frame("u1", session: 20), frame("me", session: 10), frame("me", session: 12)]))
+        #expect(model.participants.map(\.id) == ["/20", "/12"])
+        // A rotation makes the new replica this client's own.
+        model.handle(.replicaRotated(from: 10, to: 12))
+        #expect(model.localReplica == 12)
+        model.apply(Self.snapshot([frame("u1", session: 20), frame("me", session: 12)]))
+        #expect(model.participants.map(\.id) == ["/20"])
+        model.localBranchID = "b1"
+        #expect(model.isLocal(frame("x", session: 12, branch: "b1")) && !model.isLocal(frame("x", session: 12)))
+        // A server that fills no session: keyed and skipped by account.
+        #expect(PresenceParticipant.key(userID: "u9", branchID: "b", session: 0) == "u9")
+        #expect(model.isLocal(Self.update("me")) && !model.isLocal(Self.update("u9")))
+    }
+
     @Test func goingOfflineFreezesThenClears() async throws {
         let model = PresenceModel(localUserID: "me", clearAfter: .milliseconds(50))
         model.apply(Self.update("u1"))

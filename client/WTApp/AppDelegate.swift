@@ -30,6 +30,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let sessionStore: SessionStore?
     /// The front window's selection, published to the panels.
     let activeSelection = ActiveSelection()
+    /// The Layers panel's selection and editing state (LIB-004).
+    let layersPanel = LayersPanelState()
     private(set) var documents: DocumentController!
     private(set) var preferencesWindowController: PreferencesWindowController?
     let launchEnvironment: LaunchEnvironment
@@ -62,19 +64,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var keyboardShortcutsWindowController: KeyboardShortcutsWindowController?
     /// The command palette (BASIC-033).
     let palette: CommandPaletteController
+    /// Every open document's sync session, closed windows still uploading and the launch's
+    /// headless uploads (IO-001, IO-007).
+    let sessions: DocumentSessions
+    /// The quit sheet (IO-007).
+    let quit: QuitCoordinator
+    /// Where the launch looks for stores to upload headlessly (the documents folder in the app).
+    let storesDirectory: @Sendable () throws -> URL
     private(set) var menuTarget: CommandMenuTarget?
 
     /// - Parameters:
     ///   - layoutStore: where the panel layout persists; `nil` keeps it in memory (tests).
     ///   - defaults: the preferences' `UserDefaults`.
     ///   - windowStates: where document window state persists; `nil` keeps none (tests).
+    ///   - syncConnector: the documents' sync connector; `nil` makes the app's (none in test launches).
+    ///   - storesDirectory: where the launch's headless uploads look for stores.
     init(
         layoutStore: PanelLayoutStore?, defaults: UserDefaults = PreferenceStore.makeDefaults(), windowStates: WindowStateStore? = nil,
         launchEnvironment: LaunchEnvironment = LaunchEnvironment(), account: AccountModel? = nil,
         libraryStore: LibraryCacheStore? = nil, thumbnailDirectory: URL? = nil, library: LibraryModel? = nil,
         sessionStore: SessionStore? = nil, toolbarStore: ToolbarStore? = nil, layoutsDirectory: URL? = nil,
-        shortcutSetsURL: URL? = nil, paletteHistoryURL: URL? = nil, collaboration: CollaborationServices? = nil
+        shortcutSetsURL: URL? = nil, paletteHistoryURL: URL? = nil, collaboration: CollaborationServices? = nil,
+        syncConnector: (any SyncConnecting)? = nil, storesDirectory: @escaping @Sendable () throws -> URL = { try HeadlessUploads.defaultDirectory() }
     ) {
+        self.storesDirectory = storesDirectory
         layout = PanelLayoutController(registry: panels, store: layoutStore)
         preferences = PreferenceStore(defaults: defaults)
         snapSounds = SnapSoundPlayer(preferences: preferences)
@@ -107,6 +120,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
         shortcutSets = ShortcutSetStore(url: shortcutSetsURL)
         palette = CommandPaletteController(model: CommandPaletteModel(history: PaletteHistory(url: paletteHistoryURL)))
+        let accountModel = self.account
+        let sessions = DocumentSessions(
+            connector: syncConnector ?? launchEnvironment.makeSyncConnector(account: accountModel, infoDictionary: Bundle.main.infoDictionary, defaults: defaults, preferences: preferences),
+            localUserID: { accountModel.profile?.accountID ?? "" }
+        )
+        self.sessions = sessions
+        let preferenceStore = preferences
+        quit = QuitCoordinator(sessions: sessions, warns: { preferenceStore[PreferenceCatalog.Document.warnUnsyncedQuit] })
         super.init()
         var environment = DocumentEnvironment(
             commands: commands, panels: panels, layout: layout, tools: tools, preferences: preferences,
@@ -116,8 +137,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
         environment.showHelp = { [weak self] descriptor in self?.showHelp(for: descriptor) }
         environment.snapSounds = snapSounds
-        environment.openModel = DocumentOpener.opener(for: launchEnvironment, preferences: preferences)
+        let opener = DocumentOpener.opener(for: launchEnvironment, preferences: preferences)
+        environment.openModel = { id in
+            // A closed window's upload or a headless one still holding the store gives it up first.
+            await sessions.release(id)
+            return try await opener(id)
+        }
         environment.makePasteboard = { SystemObjectPasteboard() }
+        environment.session = { sessions.session(for: $0) }
+        environment.documentDidClose = { sessions.documentDidClose($0) }
+        environment.userName = { accountModel.profile?.displayName ?? "" }
+        let reviewWork = launchEnvironment.makeReviewWork(account: accountModel, infoDictionary: Bundle.main.infoDictionary, defaults: defaults)
+        environment.reviewWork = { accountModel.isSignedIn ? reviewWork : nil }
+        environment.openDocument = { [weak self] id, name in
+            guard let documents = self?.documents else { return }
+            documents.open(documents.environment.makeDocument(id: id, title: name))
+        }
+        sessions.onSignIn = { [weak self] in self?.showAccount() }
+        sessions.onExportPackage = { [weak self] in _ = self?.menuTarget?.perform(CommandID("file.exportPackage")) }
         if let socketMonitor {
             environment.diagnostics = { socketMonitor.counts.accessibilityText }
         }
@@ -164,6 +201,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
         LibraryCommands.install(into: commands) { [weak self] in self?.showLibrary() }
         ShareCommands.install(into: commands, canShare: { documents.activeWindowController != nil }) { [weak self] in self?.showShare() }
+        CollaborationCommands.install(into: commands, window: { documents.activeWindowController }, preferences: preferences)
         PreferenceCommands.install(into: commands, store: preferences) { [weak self] in self?.showPreferences() }
         installTools()
         installShortcutsAndPalette()
@@ -172,7 +210,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Task { await account.start() }
 
         installContextMenus()
-        PanelCatalog.register(into: panels, selection: activeSelection, help: helpModel)
+        layersPanel.clickMoves = { preferences[PreferenceCatalog.Panels.layerClickMoves] }
+        PanelCatalog.register(into: panels, selection: activeSelection, help: helpModel, layers: layersPanel)
         panels.registerIfAbsent(ToolsPanel.descriptor(model: toolPalette))
         installToolbars()
         layout.load()
@@ -181,8 +220,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         connectFloatingPanels()
 
         documents.onChange = { [weak self] in self?.documentsDidChange() }
-        if restoreSession().isEmpty { documents.newDocument() }
+        let sessions = sessions
+        if let connector = sessions.connector, let directory = try? storesDirectory() {
+            // Stores with changes still waiting upload in the background before any window opens.
+            Task { [weak self] in
+                await HeadlessUploads.begin(in: directory, connector: connector, sessions: sessions) { id in
+                    library.cache.documents[id]?.name ?? "Untitled"
+                }
+                self?.openWindowsAtLaunch()
+            }
+        } else {
+            openWindowsAtLaunch()
+        }
         NSApp.activate()
+    }
+
+    /// The last session's windows, or a new document.
+    func openWindowsAtLaunch() {
+        if restoreSession().isEmpty { documents.newDocument() }
+    }
+
+    /// Quitting with changes waiting shows the quit sheet (IO-007).
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        quit.shouldTerminate()
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -271,6 +331,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         activeSelection.model = window?.selection.model
         activeSelection.document = window?.documentHandle
         activeSelection.editing = window?.objectEditing
+        activeSelection.presence = window?.presence
         floatingPanels.reattach()
         toolbarsDocumentsDidChange()
     }

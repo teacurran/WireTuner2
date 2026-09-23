@@ -239,7 +239,7 @@ final class DocumentController {
         list.remove(at: index)
         if list.isEmpty {
             views[id] = nil
-            controller.documentHandle.close()
+            environment.documentDidClose(controller.documentHandle)
             documents.removeAll { $0.id == id }
             if activeDocumentID == id { activeDocumentID = documents.last?.id }
         } else {

@@ -290,6 +290,6 @@ Depends on:: APP-002
 Size:: S
 Delivers:: Document title with sync-state suffix and offline change count bound to the `WTSync` state, and the pasteboard's fixed extent with scroll limits, background and page shadows drawn by the canvas.
 Done when::
-* The title reads "<name>", "<name> — Syncing", "<name> — Offline (12 changes waiting)" and "<name> — Review needed" as the sync state changes in the simulator.
+* The title reads "<name>", "<name> — Syncing", "<name> — Offline (12 changes waiting)" and "<name> — Review needed" as the sync state changes in the simulator.  (Superseded by IO-002, saving.adoc "The sync indicator": the title is the name alone and the window subtitle carries the state's text -- "Syncing 3 changes", "Offline — 12 changes waiting", "Needs review".)
 * The canvas cannot scroll beyond the 222 × 222 in pasteboard at any zoom; a page dragged past the edge is clamped (the drag itself belongs to the DOC epic).
 endif::spec[]

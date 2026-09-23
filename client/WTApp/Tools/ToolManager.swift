@@ -20,6 +20,8 @@ final class ToolManager {
     }
     /// Called when `info` changes (the Info toolbar, BASIC-011).
     var onInfoChange: (@MainActor (ToolInfo) -> Void)?
+    /// kbd:[Esc] pressed while the tool had nothing to cancel (the window ends following).
+    var onIdleEscape: (@MainActor () -> Void)?
 
     private(set) var machine: TemporaryToolMachine
     private(set) var activeTool: any Tool
@@ -149,7 +151,10 @@ final class ToolManager {
             return true
         }
         if event.keyCode == CanvasEventTranslator.escapeKeyCode {
+            let busy = activeTool.hasSomethingToCancel || machine.isDragging
             cancel()
+            // Esc with nothing else to cancel ends following (presence.adoc, "Following someone").
+            if !busy { onIdleEscape?() }
             return true
         }
         if activeTool.keyDown(event) {

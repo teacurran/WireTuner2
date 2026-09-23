@@ -234,7 +234,7 @@ struct SelectionOverlay {
         ctx.saveGState()
         defer { ctx.restoreGState() }
         if showsRemote {
-            for mark in remoteMarks(for: participants) { draw(mark, in: ctx) }
+            for mark in remoteMarks(for: participants) { drawMark(mark, in: ctx) }
         }
         ctx.setLineWidth(1)
         ctx.setStrokeColor(accent)
@@ -260,7 +260,8 @@ struct SelectionOverlay {
         }
     }
 
-    private func draw(_ mark: RemoteMark, in ctx: CGContext) {
+    /// One collaborator's outline and name tag.
+    func drawMark(_ mark: RemoteMark, in ctx: CGContext) {
         let color = mark.color.cgColor
         ctx.setLineWidth(1)
         ctx.setStrokeColor(color)

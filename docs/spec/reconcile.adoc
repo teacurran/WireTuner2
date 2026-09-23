@@ -184,6 +184,34 @@ and the next session downloads the server's state.  Deviation: *Review Merge…*
 the review is pending or until the next merge replaces `lastMerge`, not for 30 days; keeping every
 merged-from state is left to the history work.
 
+NOTE: As built by SYNC-007 (`WTApp/Review`: `ReviewSheetModel`, `ReviewSheetView`,
+`ReviewSheetController`, `ReviewSides`, `ReviewWorkClient`).  The window's `DocumentSession` opens
+the sheet on the document's primary window for `reviewNeeded` (and for the popover's or
+menu:File[Review Merge…]'s request); it is a SwiftUI sheet, resizable, and dismissing it resolves
+`.upload`.  *Filters*: *Conflicts* is the `ReviewModel`'s entries; *Mine* and *Theirs* list the
+objects only the unsent local changes, or only the remote changes since the previous head, touched
+(read from those changes with `RegisterNames.touched`, named with the author), and *Everything* is
+all three.  *Preview*: *Merged* is the merged state; *Mine* and *Theirs* are the merged state with
+that side's value of every conflicting property written back through `ReviewModel.useMine` (on a
+copy, as a preview replica), so an object's registers, flags and place read as that side left them;
+text is shown by the paragraph diff, not in these two states.  The preview renders the object over
+the merged document at 25% (`ReviewPreview`, Core Graphics), *Overlay* both sides at 50%.
+*Properties* are titled from the merge table (`RegisterNames`) and their values are the register's
+protobuf text; the literal "C=0 M=80 Y=90 K=0" colour formatting waits for the colour panel's
+formatter.  *Use mine* is `ReviewModel.useMine` relabelled "Use my <attribute> for <name>";
+*Keep both copies* deep-copies the object from the *Mine* state with `NodeCopier` beside the
+original, moved by *Keep both offset*, with "Copy from <user>'s offline edits, <date>" in its note;
+*Restore* is `ReviewModel.restore` relabelled "Restore <name>".  *Same text*: the paragraph diff is
+read from the merged text, tombstones included -- a character one side inserted is only that side's,
+one a side deleted is only the other's -- and *Use mine* for a paragraph deletes the characters only
+the others added and types again the run they deleted, *Keep both* inserts the local paragraph after
+the merged one.  *Save my version as a copy…* is `DocumentService.Fork` at the head before the
+reconnect with the unsent changes; *Keep my changes on a branch* is `BranchService.CreateBranch`
+with them as `initial_changes`, named "<user>'s offline edits"; both then resolve
+`.discardLocalChanges` and open the new document.  Deviation: over 1,000 unsent changes (the two
+requests' cap) the sheet says so and keeps the merged result instead of streaming the rest; the
+buttons are disabled offline or signed out.  UI tests and screenshots wait for TEST-002 and COLLAB-003.
+
 == Branches
 
 Branches exist for two reasons: the choice above, and deliberate long-form work ("try a new

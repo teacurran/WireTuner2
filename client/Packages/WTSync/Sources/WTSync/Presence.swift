@@ -18,10 +18,13 @@ public struct PresenceParticipant: Sendable, Hashable, Identifiable {
         public var rangeEnd: OpID?
     }
 
-    /// The participant's key: the account (the frame carries no session id, so two Macs of one
-    /// person are one participant; presence.adoc records this).
-    public var id: String { userID }
+    /// The participant's key: the session -- `(branch_id, session)`, the server-filled replica of
+    /// the subscription (COLLAB-004), so one person's two Macs are two participants -- or, from a
+    /// server that does not fill the session, the account.
+    public var id: String { Self.key(userID: userID, branchID: branchID, session: session) }
     public var userID: String
+    /// The session: the replica of the subscription the frame came from; 0 when not filled.
+    public var session: UInt64
     public var displayName: String
     /// The avatar's blob hash (32 raw bytes, or empty).
     public var avatarSHA256: Data
@@ -54,6 +57,7 @@ public struct PresenceParticipant: Sendable, Hashable, Identifiable {
     /// The participant a frame describes.
     public init(_ update: Wiretuner_Sync_V1_PresenceUpdate) {
         userID = update.user.userID
+        session = update.session
         displayName = update.user.displayName
         avatarSHA256 = update.user.avatarSha256
         role = update.user.role
@@ -76,6 +80,17 @@ public struct PresenceParticipant: Sendable, Hashable, Identifiable {
         spotlight = update.spotlight
         followingUserID = update.followingUserID
         frozen = false
+    }
+
+    /// The key of a frame's participant: `<branch_id>/<session>` when the server filled the
+    /// session, else the account.
+    public static func key(userID: String, branchID: String, session: UInt64) -> String {
+        session == 0 ? userID : "\(branchID)/\(session)"
+    }
+
+    /// The key of the participant `update` describes.
+    public static func key(_ update: Wiretuner_Sync_V1_PresenceUpdate) -> String {
+        key(userID: update.user.userID, branchID: update.branchID, session: update.session)
     }
 }
 
@@ -103,17 +118,30 @@ public protocol PresenceObservable: AnyObject {
 public final class PresenceModel: PresenceObservable {
     public private(set) var participants: [PresenceParticipant] = []
     public private(set) var isOffline = false
-    /// The signed-in account, never listed.
+    /// The signed-in account: its entries are not listed when a frame carries no session.
     public let localUserID: String
+    /// This client's own session -- the store's replica and the branch it is on -- the one entry
+    /// never listed (the same person's other Macs are); 0 until the store is open.
+    @ObservationIgnored public var localReplica: UInt64
+    @ObservationIgnored public var localBranchID: String
     @ObservationIgnored public let clearAfter: Duration
 
     @ObservationIgnored private var observers: [UUID: @MainActor () -> Void] = [:]
     @ObservationIgnored private var clearing: Task<Void, Never>?
     @ObservationIgnored private var feed: Task<Void, Never>?
 
-    public init(localUserID: String, clearAfter: Duration = .seconds(5)) {
+    public init(localUserID: String, localReplica: UInt64 = 0, localBranchID: String = "", clearAfter: Duration = .seconds(5)) {
         self.localUserID = localUserID
+        self.localReplica = localReplica
+        self.localBranchID = localBranchID
         self.clearAfter = clearAfter
+    }
+
+    /// Whether `update` is this client's own entry: its session (replica and branch) when the
+    /// server filled one, else its account.
+    public func isLocal(_ update: Wiretuner_Sync_V1_PresenceUpdate) -> Bool {
+        guard update.session != 0 else { return update.user.userID == localUserID }
+        return update.session == localReplica && update.branchID == localBranchID
     }
 
     /// Feeds the model from a sync client's events (`SyncClient.events()`) until `unbind`.
@@ -139,6 +167,7 @@ public final class PresenceModel: PresenceObservable {
         case .presence(let snapshot): apply(snapshot)
         case .presenceUpdate(let update): apply(update)
         case .connection(let connected): connectionChanged(connected)
+        case .replicaRotated(_, let to): localReplica = to
         default: break
         }
     }
@@ -150,7 +179,7 @@ public final class PresenceModel: PresenceObservable {
 
     /// Everyone present, replacing what was known; people already listed keep their place.
     public func apply(_ snapshot: Wiretuner_Sync_V1_PresenceSnapshot) {
-        let incoming = snapshot.participants.filter { $0.state != .gone && $0.user.userID != localUserID }.map(PresenceParticipant.init)
+        let incoming = snapshot.participants.filter { $0.state != .gone && !isLocal($0) }.map(PresenceParticipant.init)
         var next = participants.compactMap { known in incoming.last { $0.id == known.id } }
         for participant in incoming where !next.contains(where: { $0.id == participant.id }) {
             next.append(participant)
@@ -162,8 +191,8 @@ public final class PresenceModel: PresenceObservable {
 
     /// One participant's current state; `GONE` removes them.
     public func apply(_ update: Wiretuner_Sync_V1_PresenceUpdate) {
-        guard update.user.userID != localUserID else { return }
-        let id = update.user.userID
+        guard !isLocal(update) else { return }
+        let id = PresenceParticipant.key(update)
         if update.state == .gone {
             participants.removeAll { $0.id == id }
         } else if let index = participants.firstIndex(where: { $0.id == id }) {

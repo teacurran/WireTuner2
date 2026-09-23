@@ -348,9 +348,18 @@ or the `LocalStore` itself for a headless upload.  The settled details:
 * *Presence (SYNC-009).*  `SyncEvent.connection(Bool)` reports the subscription coming up (after
   `Welcome`) and ending; `WTSync.PresenceModel` consumes it with the presence frames
   (xref:presence.adoc[Presence]).  `WTSync.LocalPresence` is the `PresenceSource` WTApp writes the
-  caller's cursor, viewport, selection, editing set and caret into.
+  caller's cursor, viewport, selection, editing set and caret into.  Participants are keyed by
+  `(branch_id, session)`; only the entry of this client's replica (`PresenceModel.localReplica`,
+  which a `replicaRotated` event moves) is left out.
 * *Blobs (SYNC-008).*  `GRPCSyncTransport` is also the `BlobTransport` (`Stat`, a client-streaming
   `Upload` fed chunk by chunk from the cached file, `Download`) on the document's connection.
+* *In the app.*  WTApp's `DocumentSession` (one per open document, `WTApp/Sync`) creates the client
+  with the window's `Document` as the sink, the account's tokens, a `LocalPresence` and a
+  `BlobQueue` over the same `GRPCSyncTransport`, calls `localChangesAvailable()` after each local
+  change, and stops it (then closes the transport) when the document's last window closes and its
+  outbox is empty -- or, with work still going up, once it is (saving.adoc, IO-007).  The author of a
+  remote change for the attribution pulse is read from the presence frame whose `session` is the
+  change's replica.
 
 == Blobs
 

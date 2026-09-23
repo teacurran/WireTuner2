@@ -136,6 +136,20 @@ clipboard, Duplicate, Clone, Group, Ungroup, Lock, Arrange, *Transform Again*, A
 arrow-key nudging (`ObjectMenuCommands` puts them in the menus).  `DrawingSettings` gained *Auto-join
 paths*, the arrow-key distances and the drawing tools' sheet settings (`DrawingToolOptions`).
 
+NOTE: As built by the sync and collaboration UI (SYNC-007, IO-001/002/007, COLLAB-001/006-009,
+LIB-004/007, OBJ-034).  `DocumentEnvironment.session` gives a window its document's
+`DocumentSession` (`WTApp/Sync`; the app's `DocumentSessions` makes one per document), whose
+`status` and `presence` replace `makeSyncStatus` / `makePresence` (still the seams for windows
+without a session); `documentDidClose` replaces closing the backend directly, so a session still
+uploading outlives its windows.  Each window's `WindowCollaboration` owns the title-bar strip and
+cloud indicator, Follow and Spotlight, the attribution pulses, outgoing presence and the review
+sheet; `CanvasView.presenceLayer` draws presence between the tiles and the tool overlay, and the
+canvas reports pointer moves, presses and user navigation for them.  The window's title is the
+document's name and its subtitle the sync state.  The Layers panel is registered by `PanelCatalog`
+with an app-wide `LayersPanelState`; the Pointer tool gained the transform handles
+(`ToolContext.transformHandles` reads the preference), and `Tool.hasSomethingToCancel` lets
+kbd:[Esc] with nothing to cancel end following.
+
 == Tools
 
 A tool conforms to `Tool`:
@@ -450,6 +464,18 @@ paints on grids anchored at their space's origin, because the tile and the textu
 the same points; where Core Graphics' own resampling was not translation-invariant (patterns
 under rotation) the paint is computed per device pixel instead.  `CoreGraphicsRenderer.rasterScale`
 (4 in `renderPDF`) sets the resolution of sampled paints and lens backdrops in PDF.
+
+NOTE: As built by PRINT-007, PRINT-009, LIB-005, LIB-010, LIB-026, DRAW-032, DRAW-035, DRAW-037,
+WEB-016 and DATA-018 (render halves; the pages' Client notes have the detail).  The display list
+gained `Color.spot` (the spot ink a resolved colour stands for), `GroupItem.atomic` (hit as one
+object even under Subselect: instances, barcodes, placeholders) and `DisplayList.layers` (each
+layer's run of top-level items and its rendering rules, `LayerScene`); `CoreGraphicsRenderer.plate`
+draws a separation.  Derived drawing is built in WTRender from render-side inputs WTModel fills in
+-- `SymbolArtwork`/`SymbolInstance`, `ChartSpec`, `ConnectorSpec`, `AnimationLayer`,
+`BarcodeSpec` -- and `DependencyIndex` is the reverse index (node → nodes drawn from it) WTModel
+maintains so a change summary reaches connectors and instances.  WTText depends on WTRender, so
+derived labels are shaped by a `LabelTypesetter` (`CoreTextLabels`, one Core Text line) rather than
+by WTText.
 
 == Undo
 
