@@ -214,8 +214,15 @@ message LibraryColor {
   Color value = 3;
   bool spot = 4;
   string group = 5;                    // optional sub-group (a book's page)
+  string tint_of = 6;                  // a tint: its base's key in this library; empty = base not in it
+  double tint_percent = 7;             // a tint: 1..100 (value is the base's color); 0 = not a tint
 }
 ----
+
+As built: the file is `proto/wiretuner/lib/v1/colorlib.proto`, added by COLOR-020 (team color
+libraries return a `ColorLibrary`) with `tint_of` and `tint_percent`, which the sketch lacked and
+without which an exported or published tint could not come back as a tint of its base
+(xref:exporting-colors.adoc[Exporting and sharing colors]).
 
 === Merge semantics
 

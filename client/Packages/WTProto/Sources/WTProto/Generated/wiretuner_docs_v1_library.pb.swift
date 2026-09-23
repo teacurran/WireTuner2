@@ -18,8 +18,13 @@
 /// something from a library is a client-side copy into the consuming document that records
 /// where it came from in document data (`LibrarySource` on the copied node, doc.v1; decisions.adoc
 /// D-035: copy on use, no live cross-document references).  `Library.head_seq` is what the
-/// "update available" badge compares that provenance's `server_seq` with.  Color libraries add
-/// their own service to this file (COLOR-020).
+/// "update available" badge compares that provenance's `server_seq` with.
+///
+/// Team color libraries (docs/_includes/color/exporting-colors.adoc, "Team color libraries";
+/// COLOR-020) have their own service below: a document whose named colors are published to a
+/// team.  Unlike a team library, consumers never open the document: Fetch answers the swatches
+/// at the published server_seq as a wiretuner.lib.v1.ColorLibrary, computed by the server's
+/// merge engine from the document's snapshot and log -- the one place this file reads content.
 
 #if canImport(FoundationEssentials)
 import FoundationEssentials
@@ -36,6 +41,51 @@ import SwiftProtobuf
 fileprivate nonisolated struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAPIVersionCheck {
   struct _2: SwiftProtobuf.ProtobufAPIVersion_2 {}
   typealias Version = _2
+}
+
+/// When a color library's published version moves.
+public nonisolated enum Wiretuner_Docs_V1_ColorLibraryMode: SwiftProtobuf.Enum, Swift.CaseIterable {
+  public typealias RawValue = Int
+
+  /// In a request: keep the library's mode (automatic for a new library).  Never answered.
+  case unspecified // = 0
+
+  /// Every change to the document is the library's new version: `published_seq` is the head.
+  case automatic // = 1
+
+  /// The version moves only when the owner publishes one (File > Publish Library Version).
+  case manual // = 2
+  case UNRECOGNIZED(Int)
+
+  public init() {
+    self = .unspecified
+  }
+
+  public init?(rawValue: Int) {
+    switch rawValue {
+    case 0: self = .unspecified
+    case 1: self = .automatic
+    case 2: self = .manual
+    default: self = .UNRECOGNIZED(rawValue)
+    }
+  }
+
+  public var rawValue: Int {
+    switch self {
+    case .unspecified: return 0
+    case .automatic: return 1
+    case .manual: return 2
+    case .UNRECOGNIZED(let i): return i
+    }
+  }
+
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static let allCases: [Wiretuner_Docs_V1_ColorLibraryMode] = [
+    .unspecified,
+    .automatic,
+    .manual,
+  ]
+
 }
 
 /// A team library as the Library panel lists it.
@@ -201,9 +251,212 @@ public nonisolated struct Wiretuner_Docs_V1_GetLibraryResponse: Sendable {
   fileprivate var _library: Wiretuner_Docs_V1_Library? = nil
 }
 
+/// A team color library as the Team Libraries submenu lists it.
+public nonisolated struct Wiretuner_Docs_V1_ColorLibraryInfo: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The library document.
+  public var documentID: String = String()
+
+  /// The team whose documents can use it.
+  public var teamID: String = String()
+
+  /// The library's name in the submenu.
+  public var name: String = String()
+
+  /// The server_seq of the version consumers see: the document's head in automatic mode.
+  public var publishedSeq: UInt64 = 0
+
+  /// When that version was published, epoch milliseconds: the update dot compares it with the
+  /// value the client last fetched.
+  public var updatedMs: Int64 = 0
+
+  /// How the published version moves.
+  public var mode: Wiretuner_Docs_V1_ColorLibraryMode = .unspecified
+
+  /// The account that published it; empty when that account is gone.
+  public var publishedByAccountID: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// Publishes a document's colors, or updates the library.
+public nonisolated struct Wiretuner_Docs_V1_PublishColorLibraryRequest: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The library document.
+  public var documentID: String = String()
+
+  /// The team that can use it; empty = the document's team (required for a personal document).
+  public var teamID: String = String()
+
+  /// The name in the submenu; empty = the document's name for a new library, else unchanged.
+  public var name: String = String()
+
+  /// The mode; UNSPECIFIED keeps the current one (automatic for a new library).
+  public var mode: Wiretuner_Docs_V1_ColorLibraryMode = .unspecified
+
+  /// Manual mode only: the version to publish; 0 = the document's head.  At most the head.
+  /// Ignored in automatic mode.
+  public var serverSeq: UInt64 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// The library as published.
+public nonisolated struct Wiretuner_Docs_V1_PublishColorLibraryResponse: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The library.
+  public var library: Wiretuner_Docs_V1_ColorLibraryInfo {
+    get {_library ?? Wiretuner_Docs_V1_ColorLibraryInfo()}
+    set {_library = newValue}
+  }
+  /// Returns true if `library` has been explicitly set.
+  public var hasLibrary: Bool {self._library != nil}
+  /// Clears the value of `library`. Subsequent reads from it will return its default value.
+  public mutating func clearLibrary() {self._library = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _library: Wiretuner_Docs_V1_ColorLibraryInfo? = nil
+}
+
+/// Stops publishing a color library.
+public nonisolated struct Wiretuner_Docs_V1_UnpublishColorLibraryRequest: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The library document.
+  public var documentID: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// Unpublishing has no result beyond success.
+public nonisolated struct Wiretuner_Docs_V1_UnpublishColorLibraryResponse: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// Lists a team's color libraries.
+public nonisolated struct Wiretuner_Docs_V1_ListColorLibrariesRequest: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The team.
+  public var teamID: String = String()
+
+  /// Opaque cursor from a previous response; empty for the first page.
+  public var cursor: String = String()
+
+  /// Libraries per page; 0 selects the server's default, at most 50.
+  public var pageSize: UInt32 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// One page of color libraries.
+public nonisolated struct Wiretuner_Docs_V1_ListColorLibrariesResponse: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The libraries, by name.
+  public var libraries: [Wiretuner_Docs_V1_ColorLibraryInfo] = []
+
+  /// Cursor for the next page; empty when this is the last page.
+  public var nextCursor: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// Fetches a library's colors.
+public nonisolated struct Wiretuner_Docs_V1_FetchColorLibraryRequest: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The library document.
+  public var documentID: String = String()
+
+  /// The `published_seq` of the copy the client has cached; 0 = none.  When it is the library's
+  /// published version, the response carries no colors.
+  public var knownSeq: UInt64 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// The library and its colors.
+public nonisolated struct Wiretuner_Docs_V1_FetchColorLibraryResponse: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The library.
+  public var library: Wiretuner_Docs_V1_ColorLibraryInfo {
+    get {_library ?? Wiretuner_Docs_V1_ColorLibraryInfo()}
+    set {_library = newValue}
+  }
+  /// Returns true if `library` has been explicitly set.
+  public var hasLibrary: Bool {self._library != nil}
+  /// Clears the value of `library`. Subsequent reads from it will return its default value.
+  public mutating func clearLibrary() {self._library = nil}
+
+  /// The colors at `library.published_seq`: every live color and tint swatch in list order,
+  /// except the protected defaults (White, Black, Registration).  Unset when `known_seq` is
+  /// already that version.
+  public var colors: Wiretuner_Lib_V1_ColorLibrary {
+    get {_colors ?? Wiretuner_Lib_V1_ColorLibrary()}
+    set {_colors = newValue}
+  }
+  /// Returns true if `colors` has been explicitly set.
+  public var hasColors: Bool {self._colors != nil}
+  /// Clears the value of `colors`. Subsequent reads from it will return its default value.
+  public mutating func clearColors() {self._colors = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _library: Wiretuner_Docs_V1_ColorLibraryInfo? = nil
+  fileprivate var _colors: Wiretuner_Lib_V1_ColorLibrary? = nil
+}
+
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
 fileprivate nonisolated let _protobuf_package = "wiretuner.docs.v1"
+
+nonisolated extension Wiretuner_Docs_V1_ColorLibraryMode: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0COLOR_LIBRARY_MODE_UNSPECIFIED\0\u{1}COLOR_LIBRARY_MODE_AUTOMATIC\0\u{1}COLOR_LIBRARY_MODE_MANUAL\0")
+}
 
 nonisolated extension Wiretuner_Docs_V1_Library: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Library"
@@ -482,6 +735,348 @@ nonisolated extension Wiretuner_Docs_V1_GetLibraryResponse: SwiftProtobuf.Messag
 
   public static func ==(lhs: Wiretuner_Docs_V1_GetLibraryResponse, rhs: Wiretuner_Docs_V1_GetLibraryResponse) -> Bool {
     if lhs._library != rhs._library {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Docs_V1_ColorLibraryInfo: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ColorLibraryInfo"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}document_id\0\u{3}team_id\0\u{1}name\0\u{3}published_seq\0\u{3}updated_ms\0\u{1}mode\0\u{3}published_by_account_id\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.documentID) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.teamID) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.name) }()
+      case 4: try { try decoder.decodeSingularUInt64Field(value: &self.publishedSeq) }()
+      case 5: try { try decoder.decodeSingularInt64Field(value: &self.updatedMs) }()
+      case 6: try { try decoder.decodeSingularEnumField(value: &self.mode) }()
+      case 7: try { try decoder.decodeSingularStringField(value: &self.publishedByAccountID) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.documentID.isEmpty {
+      try visitor.visitSingularStringField(value: self.documentID, fieldNumber: 1)
+    }
+    if !self.teamID.isEmpty {
+      try visitor.visitSingularStringField(value: self.teamID, fieldNumber: 2)
+    }
+    if !self.name.isEmpty {
+      try visitor.visitSingularStringField(value: self.name, fieldNumber: 3)
+    }
+    if self.publishedSeq != 0 {
+      try visitor.visitSingularUInt64Field(value: self.publishedSeq, fieldNumber: 4)
+    }
+    if self.updatedMs != 0 {
+      try visitor.visitSingularInt64Field(value: self.updatedMs, fieldNumber: 5)
+    }
+    if self.mode != .unspecified {
+      try visitor.visitSingularEnumField(value: self.mode, fieldNumber: 6)
+    }
+    if !self.publishedByAccountID.isEmpty {
+      try visitor.visitSingularStringField(value: self.publishedByAccountID, fieldNumber: 7)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Wiretuner_Docs_V1_ColorLibraryInfo, rhs: Wiretuner_Docs_V1_ColorLibraryInfo) -> Bool {
+    if lhs.documentID != rhs.documentID {return false}
+    if lhs.teamID != rhs.teamID {return false}
+    if lhs.name != rhs.name {return false}
+    if lhs.publishedSeq != rhs.publishedSeq {return false}
+    if lhs.updatedMs != rhs.updatedMs {return false}
+    if lhs.mode != rhs.mode {return false}
+    if lhs.publishedByAccountID != rhs.publishedByAccountID {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Docs_V1_PublishColorLibraryRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".PublishColorLibraryRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}document_id\0\u{3}team_id\0\u{1}name\0\u{1}mode\0\u{3}server_seq\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.documentID) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.teamID) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.name) }()
+      case 4: try { try decoder.decodeSingularEnumField(value: &self.mode) }()
+      case 5: try { try decoder.decodeSingularUInt64Field(value: &self.serverSeq) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.documentID.isEmpty {
+      try visitor.visitSingularStringField(value: self.documentID, fieldNumber: 1)
+    }
+    if !self.teamID.isEmpty {
+      try visitor.visitSingularStringField(value: self.teamID, fieldNumber: 2)
+    }
+    if !self.name.isEmpty {
+      try visitor.visitSingularStringField(value: self.name, fieldNumber: 3)
+    }
+    if self.mode != .unspecified {
+      try visitor.visitSingularEnumField(value: self.mode, fieldNumber: 4)
+    }
+    if self.serverSeq != 0 {
+      try visitor.visitSingularUInt64Field(value: self.serverSeq, fieldNumber: 5)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Wiretuner_Docs_V1_PublishColorLibraryRequest, rhs: Wiretuner_Docs_V1_PublishColorLibraryRequest) -> Bool {
+    if lhs.documentID != rhs.documentID {return false}
+    if lhs.teamID != rhs.teamID {return false}
+    if lhs.name != rhs.name {return false}
+    if lhs.mode != rhs.mode {return false}
+    if lhs.serverSeq != rhs.serverSeq {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Docs_V1_PublishColorLibraryResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".PublishColorLibraryResponse"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}library\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._library) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._library {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Wiretuner_Docs_V1_PublishColorLibraryResponse, rhs: Wiretuner_Docs_V1_PublishColorLibraryResponse) -> Bool {
+    if lhs._library != rhs._library {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Docs_V1_UnpublishColorLibraryRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".UnpublishColorLibraryRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}document_id\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.documentID) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.documentID.isEmpty {
+      try visitor.visitSingularStringField(value: self.documentID, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Wiretuner_Docs_V1_UnpublishColorLibraryRequest, rhs: Wiretuner_Docs_V1_UnpublishColorLibraryRequest) -> Bool {
+    if lhs.documentID != rhs.documentID {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Docs_V1_UnpublishColorLibraryResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".UnpublishColorLibraryResponse"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    // Load everything into unknown fields
+    while try decoder.nextFieldNumber() != nil {}
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Wiretuner_Docs_V1_UnpublishColorLibraryResponse, rhs: Wiretuner_Docs_V1_UnpublishColorLibraryResponse) -> Bool {
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Docs_V1_ListColorLibrariesRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ListColorLibrariesRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}team_id\0\u{1}cursor\0\u{3}page_size\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.teamID) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.cursor) }()
+      case 3: try { try decoder.decodeSingularUInt32Field(value: &self.pageSize) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.teamID.isEmpty {
+      try visitor.visitSingularStringField(value: self.teamID, fieldNumber: 1)
+    }
+    if !self.cursor.isEmpty {
+      try visitor.visitSingularStringField(value: self.cursor, fieldNumber: 2)
+    }
+    if self.pageSize != 0 {
+      try visitor.visitSingularUInt32Field(value: self.pageSize, fieldNumber: 3)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Wiretuner_Docs_V1_ListColorLibrariesRequest, rhs: Wiretuner_Docs_V1_ListColorLibrariesRequest) -> Bool {
+    if lhs.teamID != rhs.teamID {return false}
+    if lhs.cursor != rhs.cursor {return false}
+    if lhs.pageSize != rhs.pageSize {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Docs_V1_ListColorLibrariesResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ListColorLibrariesResponse"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}libraries\0\u{3}next_cursor\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeRepeatedMessageField(value: &self.libraries) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.nextCursor) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.libraries.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.libraries, fieldNumber: 1)
+    }
+    if !self.nextCursor.isEmpty {
+      try visitor.visitSingularStringField(value: self.nextCursor, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Wiretuner_Docs_V1_ListColorLibrariesResponse, rhs: Wiretuner_Docs_V1_ListColorLibrariesResponse) -> Bool {
+    if lhs.libraries != rhs.libraries {return false}
+    if lhs.nextCursor != rhs.nextCursor {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Docs_V1_FetchColorLibraryRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".FetchColorLibraryRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}document_id\0\u{3}known_seq\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.documentID) }()
+      case 2: try { try decoder.decodeSingularUInt64Field(value: &self.knownSeq) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.documentID.isEmpty {
+      try visitor.visitSingularStringField(value: self.documentID, fieldNumber: 1)
+    }
+    if self.knownSeq != 0 {
+      try visitor.visitSingularUInt64Field(value: self.knownSeq, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Wiretuner_Docs_V1_FetchColorLibraryRequest, rhs: Wiretuner_Docs_V1_FetchColorLibraryRequest) -> Bool {
+    if lhs.documentID != rhs.documentID {return false}
+    if lhs.knownSeq != rhs.knownSeq {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Docs_V1_FetchColorLibraryResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".FetchColorLibraryResponse"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}library\0\u{1}colors\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._library) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._colors) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._library {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._colors {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Wiretuner_Docs_V1_FetchColorLibraryResponse, rhs: Wiretuner_Docs_V1_FetchColorLibraryResponse) -> Bool {
+    if lhs._library != rhs._library {return false}
+    if lhs._colors != rhs._colors {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

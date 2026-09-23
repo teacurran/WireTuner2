@@ -4,7 +4,8 @@ include::_attributes.adoc[]
 
 The server is deliberately dumb about artwork.  It authenticates, authorises, sequences,
 stores, relays, snapshots and compacts.  It runs the Java merge engine only to build snapshots,
-to extract each document's search record from them, and to verify hashes; it never interprets
+to extract each document's search record from them, to read a team color library's swatches
+(COLOR-020), and to verify hashes; it never interprets
 a path, lays out text or renders a pixel (thumbnails come from the client).  That keeps every feature
 task a client task, and keeps the server generic enough that a schema addition needs no server
 change beyond regenerating the merge table.
@@ -70,6 +71,7 @@ importing doc.v1 from the `wt-crdt` jar, and replays every vector in `Conformanc
 |`DocumentService` |`DocumentGrpcService` |Library CRUD, fork, duplicate, search; spaces (personal / team).
 |`ShareService` |`ShareGrpcService` |Members, roles, links, invitations, the per-document team access override.
 |`LibraryService` |`LibraryGrpcService` |Team libraries (COLLAB-012, xref:sharing.adoc[Sharing], Data model).
+|`ColorLibraryService` |`ColorLibraryGrpcService` |Team color libraries: publish a document's colors to a team, list, and fetch them as a `ColorLibrary` read from the document's state through `wt-crdt` (COLOR-020, xref:exporting-colors.adoc[Exporting and sharing colors], Server).
 |`CommentService` |`CommentGrpcService` |Unread comments, read marks, mentioned documents (COLLAB-030, xref:comments.adoc[Comments]).
 |`PublishService` |`PublishGrpcService` |Published web links; their files are served by the separate pub origin (`PubOrigin`, WEB-012, xref:publish-html.adoc[Publish as HTML]).
 |`BranchService` |`BranchGrpcService` |Fork points, merge by replay.
@@ -176,6 +178,7 @@ Postgres holds the truth; object storage holds bulk.
 |`library` |V9 (COLLAB-012): a team document marked as a team library, with its name, publisher and time; `document.is_library` mirrors it.  V9 also adds `document.team_access_override` and `share_link.expiry_announced_at` (COLLAB-011).
 |`comment_thread`, `comment`, `comment_read`, `comment_notification` |V9 (COLLAB-030): the server's record of comments kept from the ingested ops (opener, author, `resolved` and `deleted` by last-writer-wins, a 200-character preview), read marks, and mention / reply / resolve notifications with `seen_at` and `emailed_at` (xref:comments.adoc[Comments], As built).
 |`publish`, `publish_file` |V9 (WEB-012): published bundles (one current per document) and their files as blob references (xref:publish-html.adoc[Publish as HTML], As built).
+|`color_library` |V13 (COLOR-020): a document whose colors are published to a team, with its name, mode (`manual`), and in manual mode the published `server_seq` and the colors extracted from it (xref:exporting-colors.adoc[Exporting and sharing colors], As built).
 |===
 
 Migrations are Flyway, applied by the `main-db-migrations` compose job before the API starts,
@@ -365,7 +368,8 @@ As built (SRV-007, SRV-013, D-067; `api/.../history`):
 
 == Search
 
-The one place the server reads artwork, and only through the generic node tree.  The search
+The one place the server reads artwork, and only through the generic node tree (with the team
+color library's `Fetch`, which reads the swatch list the same way; COLOR-020).  The search
 extractor walks the snapshot the snapshotter just built and collects, without interpreting
 geometry or layout: `CommonProps.name` and `note` of every live node, the plain text of every
 text block (the character sequence read out, marks ignored), swatch, style, symbol and brush

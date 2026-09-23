@@ -10,7 +10,6 @@ import com.google.protobuf.Timestamp;
 import com.villagecompute.wiretuner.api.auth.Principal;
 import com.villagecompute.wiretuner.api.auth.Role;
 import com.villagecompute.wiretuner.api.auth.RoleGuard;
-import com.villagecompute.wiretuner.api.auth.WorkspacePolicy;
 import com.villagecompute.wiretuner.api.docs.DocumentMessages;
 import com.villagecompute.wiretuner.api.grpc.Cursors;
 import com.villagecompute.wiretuner.api.grpc.StatusExceptions;
@@ -18,9 +17,6 @@ import com.villagecompute.wiretuner.api.persistence.Document;
 import com.villagecompute.wiretuner.api.persistence.DocumentRepository;
 import com.villagecompute.wiretuner.api.persistence.TeamLibrary;
 import com.villagecompute.wiretuner.api.persistence.TeamLibraryRepository;
-import com.villagecompute.wiretuner.api.persistence.TeamMemberId;
-import com.villagecompute.wiretuner.api.persistence.TeamMemberRepository;
-import com.villagecompute.wiretuner.api.team.TeamRoles;
 import com.villagecompute.wiretuner.docs.v1.GetLibraryRequest;
 import com.villagecompute.wiretuner.docs.v1.GetLibraryResponse;
 import com.villagecompute.wiretuner.docs.v1.Library;
@@ -55,16 +51,13 @@ public class LibraryGrpcService extends MutinyLibraryServiceGrpc.LibraryServiceI
     RoleGuard guard;
 
     @Inject
-    WorkspacePolicy workspaces;
-
-    @Inject
     DocumentRepository documents;
 
     @Inject
     TeamLibraryRepository libraries;
 
     @Inject
-    TeamMemberRepository teamMembers;
+    TeamMembership membership;
 
     @Override
     public Uni<SetLibraryResponse> setLibrary(SetLibraryRequest request) {
@@ -105,7 +98,7 @@ public class LibraryGrpcService extends MutinyLibraryServiceGrpc.LibraryServiceI
         UUID teamId = UUID.fromString(request.getTeamId());
         int offset = request.getCursor().isEmpty() ? 0 : Cursors.offset(Cursors.decode(request.getCursor(), 1)[0]);
         int pageSize = Cursors.pageSize(request.getPageSize(), Cursors.SMALL_PAGE);
-        return tx(() -> guard.authenticated().flatMap(principal -> member(principal, teamId))
+        return tx(() -> guard.authenticated().flatMap(principal -> membership.require(principal, teamId))
                 .chain(() -> libraries.page(teamId, offset, pageSize + 1)))
                 .map(rows -> {
                     ListLibrariesResponse.Builder response = ListLibrariesResponse.newBuilder();
@@ -116,22 +109,6 @@ public class LibraryGrpcService extends MutinyLibraryServiceGrpc.LibraryServiceI
                             .forEach(row -> response.addLibraries(message((TeamLibrary) row[0], (Document) row[1])));
                     return response.build();
                 });
-    }
-
-    /**
-     * The caller's membership of the team, above guest: {@code TEAM_NOT_FOUND} for an outsider,
-     * {@code ROLE_INSUFFICIENT} for a guest; a workspace that requires SSO holds members to it.
-     */
-    private Uni<Void> member(Principal principal, UUID teamId) {
-        return teamMembers.findById(new TeamMemberId(teamId, principal.accountId())).flatMap(member -> {
-            if (member == null) {
-                return Uni.createFrom().failure(StatusExceptions.teamNotFound());
-            }
-            if (!TeamRoles.atLeast(member.role, TeamRoles.MEMBER)) {
-                return Uni.createFrom().failure(StatusExceptions.roleInsufficient(TeamRoles.MEMBER, member.role));
-            }
-            return workspaces.requireSso(principal, teamId);
-        });
     }
 
     @Override

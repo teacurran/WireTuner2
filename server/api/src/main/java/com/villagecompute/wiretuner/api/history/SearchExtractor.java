@@ -107,7 +107,7 @@ public final class SearchExtractor {
     }
 
     /** The register's records, or empty when never written or unset. */
-    static byte[] value(NodeStore store, OpId node, RegisterPath path) {
+    public static byte[] value(NodeStore store, OpId node, RegisterPath path) {
         Register register = store.register(node, path);
         byte[] value = register == null ? null : register.value();
         return value == null ? new byte[0] : value;
@@ -115,7 +115,7 @@ public final class SearchExtractor {
 
     /** {@code records} (the fields of one message) parsed as that message; the empty message when they do not parse. */
     @SuppressWarnings("unchecked")
-    static <T extends Message> T parse(byte[] records, T empty) {
+    public static <T extends Message> T parse(byte[] records, T empty) {
         try {
             return (T) empty.getParserForType().parseFrom(records);
         } catch (InvalidProtocolBufferException e) {

@@ -162,6 +162,51 @@ with the Java engine.  Access: `List`/`Fetch` for team members; `Publish`/`Unpub
 document's owner.  Unpublishing or deleting the library document leaves consumers' swatches
 intact (they are copies).
 
+As built (COLOR-020, `api/.../library`, V13):
+
+* *Names.*  The RPCs are `PublishColorLibrary`, `UnpublishColorLibrary`, `ListColorLibraries`
+  and `FetchColorLibrary` (request and response messages as sketched): buf's standard lint wants
+  `<Rpc>Request`, and `ListRequest` is already `DocumentService.List`'s in the package.
+  `ColorLibraryInfo` also carries `mode` (`ColorLibraryMode`: `AUTOMATIC`, `MANUAL`) and
+  `published_by_account_id`.  `ColorLibrary` and `LibraryColor` are in
+  `proto/wiretuner/lib/v1/colorlib.proto` as sketched on xref:spot-process.adoc[Spot and process
+  colors], added by this task ahead of COLOR-013, with two fields the sketch lacked so a tint
+  survives: `tint_of` (the base's key) and `tint_percent`; a tint's `value` is its base's color.
+* *Publishing.*  `PublishColorLibrary` needs the owner's powers on the document (its owner, or a
+  team admin on a team document).  A team document is published to its own team; a personal
+  document to a team named in `team_id` that its owner belongs to above guest; anything else is
+  `FAILED_PRECONDITION / TEAM_ROLE_INVALID`.  An empty name is the document's name for a new
+  library and "unchanged" for an existing one; `UNSPECIFIED` mode keeps the current mode
+  (automatic for a new library).  Publishing never touches the document's content or sharing.
+* *Automatic and manual versions.*  In automatic mode nothing is written on change: the published
+  version is the document's head, read when `List` or `Fetch` asks, and `updated_ms` is the later
+  of the last `PublishColorLibrary` and the time the head change was sequenced (the publish time
+  alone once that row has been compacted to a cold segment).  The update dot therefore also lights
+  for changes that touch no swatch; *Update from Library…* then shows nothing to update.  In
+  manual mode a publish takes `server_seq` (0 = the head; past the head is `INVALID_ARGUMENT /
+  VALIDATION_FAILED`), extracts the colors at that seq there and then, and stores them with the
+  row (`color_library.colors`), so a manual version older than the history retention window still
+  answers.  The menu:File[Publish Library Version] command is a `PublishColorLibrary` with no
+  other field.
+* *Fetch* (`ColorLibraries`) reads the document's state at the published seq through
+  `DocumentStates` (the newest snapshot at or before it plus the tail, as the snapshotter builds
+  it) and walks the swatches collection (0:5) in list order through the generic node tree, as the
+  search extractor does: live color and tint swatches, the protected defaults left out, gradient
+  swatches and any other kind skipped.  A color's key is its swatch's node id as
+  `<counter>:<replica>`; a tint whose base is not in the library carries the color it cached.  The
+  server computes no color.  `known_seq` equal to the published seq answers the library without
+  its colors.  A 5,000-swatch library fetches in about 80 ms on the development Mac under load
+  (budget 200 ms, `ColorLibraryServiceTest`, perf profile).
+* *Access.*  `List` and `Fetch` need membership of the library's team above guest (a guest is
+  `PERMISSION_DENIED / ROLE_INSUFFICIENT`), and no role on the document: a personal document's
+  colors reach the team without sharing the document.  To someone outside the team a library
+  reads as absent (`NOT_FOUND / DOCUMENT_NOT_FOUND`); `List` of another team is `TEAM_NOT_FOUND`.
+* *Deleting.*  A library whose document is in the trash is not listed and does not fetch (it is
+  unpublished for its consumers); restoring the document brings it back as it was, and purging the
+  document deletes the row (`ON DELETE CASCADE`).  `UnpublishColorLibrary` deletes the row and is a
+  no-op for a document that is not a library.  There is no `is_color_library` flag on the
+  document resource: the row is the flag.
+
 === Client
 
 * `WTInterchange`: `.wtcolors` and `.ase` writers; export sheet.

@@ -8,8 +8,13 @@
 // something from a library is a client-side copy into the consuming document that records
 // where it came from in document data (`LibrarySource` on the copied node, doc.v1; decisions.adoc
 // D-035: copy on use, no live cross-document references).  `Library.head_seq` is what the
-// "update available" badge compares that provenance's `server_seq` with.  Color libraries add
-// their own service to this file (COLOR-020).
+// "update available" badge compares that provenance's `server_seq` with.
+//
+// Team color libraries (docs/_includes/color/exporting-colors.adoc, "Team color libraries";
+// COLOR-020) have their own service below: a document whose named colors are published to a
+// team.  Unlike a team library, consumers never open the document: Fetch answers the swatches
+// at the published server_seq as a wiretuner.lib.v1.ColorLibrary, computed by the server's
+// merge engine from the document's snapshot and log -- the one place this file reads content.
 syntax = "proto3";
 
 package wiretuner.docs.v1;
@@ -17,6 +22,7 @@ package wiretuner.docs.v1;
 import "buf/validate/validate.proto";
 import "google/protobuf/timestamp.proto";
 import "wiretuner/docs/v1/document.proto";
+import "wiretuner/lib/v1/colorlib.proto";
 
 option java_multiple_files = true;
 option java_package = "com.villagecompute.wiretuner.docs.v1";
@@ -118,4 +124,139 @@ message GetLibraryRequest {
 message GetLibraryResponse {
   // The library.
   Library library = 1;
+}
+
+// Publish, list and fetch team color libraries.  Publishing and unpublishing need the owner's
+// powers on the document (its owner, or a team admin for a team document); listing and fetching
+// need membership of the library's team above guest, and no role on the document itself.  A
+// library the caller cannot see, or whose document is in the trash, answers NOT_FOUND with reason
+// DOCUMENT_NOT_FOUND; an outsider listing a team gets NOT_FOUND / TEAM_NOT_FOUND and a guest
+// PERMISSION_DENIED / ROLE_INSUFFICIENT.
+service ColorLibraryService {
+  // Makes a document a team color library, or updates one: its name, its team, its mode, and in
+  // manual mode the published version.  A team document is published to its own team; a
+  // personal document to a team its owner belongs to (FAILED_PRECONDITION / TEAM_ROLE_INVALID
+  // otherwise).  Publishing leaves the document's content and sharing untouched.
+  rpc PublishColorLibrary(PublishColorLibraryRequest) returns (PublishColorLibraryResponse);
+  // Stops publishing the document's colors.  Consumers' swatches stay (they are copies) and the
+  // document itself is untouched.  Unpublishing a document that is not a library succeeds.
+  rpc UnpublishColorLibrary(UnpublishColorLibraryRequest) returns (UnpublishColorLibraryResponse);
+  // The color libraries of one team, by name.  Offline, the client shows the last list it saw.
+  rpc ListColorLibraries(ListColorLibrariesRequest) returns (ListColorLibrariesResponse);
+  // The library's colors at its published server_seq.
+  rpc FetchColorLibrary(FetchColorLibraryRequest) returns (FetchColorLibraryResponse);
+}
+
+// When a color library's published version moves.
+enum ColorLibraryMode {
+  // In a request: keep the library's mode (automatic for a new library).  Never answered.
+  COLOR_LIBRARY_MODE_UNSPECIFIED = 0;
+  // Every change to the document is the library's new version: `published_seq` is the head.
+  COLOR_LIBRARY_MODE_AUTOMATIC = 1;
+  // The version moves only when the owner publishes one (File > Publish Library Version).
+  COLOR_LIBRARY_MODE_MANUAL = 2;
+}
+
+// A team color library as the Team Libraries submenu lists it.
+message ColorLibraryInfo {
+  // The library document.
+  string document_id = 1 [(buf.validate.field).string.uuid = true];
+  // The team whose documents can use it.
+  string team_id = 2 [(buf.validate.field).string.uuid = true];
+  // The library's name in the submenu.
+  string name = 3 [(buf.validate.field).string.max_len = 256];
+  // The server_seq of the version consumers see: the document's head in automatic mode.
+  uint64 published_seq = 4;
+  // When that version was published, epoch milliseconds: the update dot compares it with the
+  // value the client last fetched.
+  int64 updated_ms = 5;
+  // How the published version moves.
+  ColorLibraryMode mode = 6 [(buf.validate.field).enum.defined_only = true];
+  // The account that published it; empty when that account is gone.
+  string published_by_account_id = 7 [
+    (buf.validate.field).string.uuid = true,
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+}
+
+// Publishes a document's colors, or updates the library.
+message PublishColorLibraryRequest {
+  // The library document.
+  string document_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+  // The team that can use it; empty = the document's team (required for a personal document).
+  string team_id = 2 [
+    (buf.validate.field).string.uuid = true,
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+  // The name in the submenu; empty = the document's name for a new library, else unchanged.
+  string name = 3 [(buf.validate.field).string.max_len = 256];
+  // The mode; UNSPECIFIED keeps the current one (automatic for a new library).
+  ColorLibraryMode mode = 4 [(buf.validate.field).enum.defined_only = true];
+  // Manual mode only: the version to publish; 0 = the document's head.  At most the head.
+  // Ignored in automatic mode.
+  uint64 server_seq = 5;
+}
+
+// The library as published.
+message PublishColorLibraryResponse {
+  // The library.
+  ColorLibraryInfo library = 1;
+}
+
+// Stops publishing a color library.
+message UnpublishColorLibraryRequest {
+  // The library document.
+  string document_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+}
+
+// Unpublishing has no result beyond success.
+message UnpublishColorLibraryResponse {}
+
+// Lists a team's color libraries.
+message ListColorLibrariesRequest {
+  // The team.
+  string team_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+  // Opaque cursor from a previous response; empty for the first page.
+  string cursor = 2 [(buf.validate.field).string.max_len = 1024];
+  // Libraries per page; 0 selects the server's default, at most 50.
+  uint32 page_size = 3 [(buf.validate.field).uint32.lte = 50];
+}
+
+// One page of color libraries.
+message ListColorLibrariesResponse {
+  // The libraries, by name.
+  repeated ColorLibraryInfo libraries = 1;
+  // Cursor for the next page; empty when this is the last page.
+  string next_cursor = 2;
+}
+
+// Fetches a library's colors.
+message FetchColorLibraryRequest {
+  // The library document.
+  string document_id = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.uuid = true
+  ];
+  // The `published_seq` of the copy the client has cached; 0 = none.  When it is the library's
+  // published version, the response carries no colors.
+  uint64 known_seq = 2;
+}
+
+// The library and its colors.
+message FetchColorLibraryResponse {
+  // The library.
+  ColorLibraryInfo library = 1;
+  // The colors at `library.published_seq`: every live color and tint swatch in list order,
+  // except the protected defaults (White, Black, Registration).  Unset when `known_seq` is
+  // already that version.
+  wiretuner.lib.v1.ColorLibrary colors = 2;
 }

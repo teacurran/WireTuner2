@@ -8,8 +8,13 @@
 /// something from a library is a client-side copy into the consuming document that records
 /// where it came from in document data (`LibrarySource` on the copied node, doc.v1; decisions.adoc
 /// D-035: copy on use, no live cross-document references).  `Library.head_seq` is what the
-/// "update available" badge compares that provenance's `server_seq` with.  Color libraries add
-/// their own service to this file (COLOR-020).
+/// "update available" badge compares that provenance's `server_seq` with.
+///
+/// Team color libraries (docs/_includes/color/exporting-colors.adoc, "Team color libraries";
+/// COLOR-020) have their own service below: a document whose named colors are published to a
+/// team.  Unlike a team library, consumers never open the document: Fetch answers the swatches
+/// at the published server_seq as a wiretuner.lib.v1.ColorLibrary, computed by the server's
+/// merge engine from the document's snapshot and log -- the one place this file reads content.
 
 // DO NOT EDIT.
 // swift-format-ignore-file
@@ -505,6 +510,629 @@ extension Wiretuner_Docs_V1_LibraryService.ClientProtocol {
             metadata: metadata
         )
         return try await self.getLibrary(
+            request: request,
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+}
+
+// MARK: - wiretuner.docs.v1.ColorLibraryService
+
+/// Namespace containing generated types for the "wiretuner.docs.v1.ColorLibraryService" service.
+@available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
+public enum Wiretuner_Docs_V1_ColorLibraryService: Sendable {
+    /// Service descriptor for the "wiretuner.docs.v1.ColorLibraryService" service.
+    public static let descriptor = GRPCCore.ServiceDescriptor(fullyQualifiedService: "wiretuner.docs.v1.ColorLibraryService")
+    /// Namespace for method metadata.
+    public enum Method: Sendable {
+        /// Namespace for "PublishColorLibrary" metadata.
+        public enum PublishColorLibrary: Sendable {
+            /// Request type for "PublishColorLibrary".
+            public typealias Input = Wiretuner_Docs_V1_PublishColorLibraryRequest
+            /// Response type for "PublishColorLibrary".
+            public typealias Output = Wiretuner_Docs_V1_PublishColorLibraryResponse
+            /// Descriptor for "PublishColorLibrary".
+            public static let descriptor = GRPCCore.MethodDescriptor(
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "wiretuner.docs.v1.ColorLibraryService"),
+                method: "PublishColorLibrary",
+                type: .unary
+            )
+        }
+        /// Namespace for "UnpublishColorLibrary" metadata.
+        public enum UnpublishColorLibrary: Sendable {
+            /// Request type for "UnpublishColorLibrary".
+            public typealias Input = Wiretuner_Docs_V1_UnpublishColorLibraryRequest
+            /// Response type for "UnpublishColorLibrary".
+            public typealias Output = Wiretuner_Docs_V1_UnpublishColorLibraryResponse
+            /// Descriptor for "UnpublishColorLibrary".
+            public static let descriptor = GRPCCore.MethodDescriptor(
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "wiretuner.docs.v1.ColorLibraryService"),
+                method: "UnpublishColorLibrary",
+                type: .unary
+            )
+        }
+        /// Namespace for "ListColorLibraries" metadata.
+        public enum ListColorLibraries: Sendable {
+            /// Request type for "ListColorLibraries".
+            public typealias Input = Wiretuner_Docs_V1_ListColorLibrariesRequest
+            /// Response type for "ListColorLibraries".
+            public typealias Output = Wiretuner_Docs_V1_ListColorLibrariesResponse
+            /// Descriptor for "ListColorLibraries".
+            public static let descriptor = GRPCCore.MethodDescriptor(
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "wiretuner.docs.v1.ColorLibraryService"),
+                method: "ListColorLibraries",
+                type: .unary
+            )
+        }
+        /// Namespace for "FetchColorLibrary" metadata.
+        public enum FetchColorLibrary: Sendable {
+            /// Request type for "FetchColorLibrary".
+            public typealias Input = Wiretuner_Docs_V1_FetchColorLibraryRequest
+            /// Response type for "FetchColorLibrary".
+            public typealias Output = Wiretuner_Docs_V1_FetchColorLibraryResponse
+            /// Descriptor for "FetchColorLibrary".
+            public static let descriptor = GRPCCore.MethodDescriptor(
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "wiretuner.docs.v1.ColorLibraryService"),
+                method: "FetchColorLibrary",
+                type: .unary
+            )
+        }
+        /// Descriptors for all methods in the "wiretuner.docs.v1.ColorLibraryService" service.
+        public static let descriptors: [GRPCCore.MethodDescriptor] = [
+            PublishColorLibrary.descriptor,
+            UnpublishColorLibrary.descriptor,
+            ListColorLibraries.descriptor,
+            FetchColorLibrary.descriptor
+        ]
+    }
+}
+
+@available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
+extension GRPCCore.ServiceDescriptor {
+    /// Service descriptor for the "wiretuner.docs.v1.ColorLibraryService" service.
+    public static let wiretuner_docs_v1_ColorLibraryService = GRPCCore.ServiceDescriptor(fullyQualifiedService: "wiretuner.docs.v1.ColorLibraryService")
+}
+
+// MARK: wiretuner.docs.v1.ColorLibraryService (client)
+
+@available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
+extension Wiretuner_Docs_V1_ColorLibraryService {
+    /// Generated client protocol for the "wiretuner.docs.v1.ColorLibraryService" service.
+    ///
+    /// You don't need to implement this protocol directly, use the generated
+    /// implementation, ``Client``.
+    ///
+    /// > Source IDL Documentation:
+    /// >
+    /// > Publish, list and fetch team color libraries.  Publishing and unpublishing need the owner's
+    /// > powers on the document (its owner, or a team admin for a team document); listing and fetching
+    /// > need membership of the library's team above guest, and no role on the document itself.  A
+    /// > library the caller cannot see, or whose document is in the trash, answers NOT_FOUND with reason
+    /// > DOCUMENT_NOT_FOUND; an outsider listing a team gets NOT_FOUND / TEAM_NOT_FOUND and a guest
+    /// > PERMISSION_DENIED / ROLE_INSUFFICIENT.
+    public protocol ClientProtocol: Sendable {
+        /// Call the "PublishColorLibrary" method.
+        ///
+        /// > Source IDL Documentation:
+        /// >
+        /// > Makes a document a team color library, or updates one: its name, its team, its mode, and in
+        /// > manual mode the published version.  A team document is published to its own team; a
+        /// > personal document to a team its owner belongs to (FAILED_PRECONDITION / TEAM_ROLE_INVALID
+        /// > otherwise).  Publishing leaves the document's content and sharing untouched.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Wiretuner_Docs_V1_PublishColorLibraryRequest` message.
+        ///   - serializer: A serializer for `Wiretuner_Docs_V1_PublishColorLibraryRequest` messages.
+        ///   - deserializer: A deserializer for `Wiretuner_Docs_V1_PublishColorLibraryResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response and returns its result to
+        ///       the caller. Returning from the closure will cancel the RPC if it hasn't
+        ///       already finished.
+        /// - Returns: The result of `handleResponse`.
+        func publishColorLibrary<Result>(
+            request: GRPCCore.ClientRequest<Wiretuner_Docs_V1_PublishColorLibraryRequest>,
+            serializer: some GRPCCore.MessageSerializer<Wiretuner_Docs_V1_PublishColorLibraryRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Wiretuner_Docs_V1_PublishColorLibraryResponse>,
+            options: GRPCCore.CallOptions,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Wiretuner_Docs_V1_PublishColorLibraryResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
+
+        /// Call the "UnpublishColorLibrary" method.
+        ///
+        /// > Source IDL Documentation:
+        /// >
+        /// > Stops publishing the document's colors.  Consumers' swatches stay (they are copies) and the
+        /// > document itself is untouched.  Unpublishing a document that is not a library succeeds.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Wiretuner_Docs_V1_UnpublishColorLibraryRequest` message.
+        ///   - serializer: A serializer for `Wiretuner_Docs_V1_UnpublishColorLibraryRequest` messages.
+        ///   - deserializer: A deserializer for `Wiretuner_Docs_V1_UnpublishColorLibraryResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response and returns its result to
+        ///       the caller. Returning from the closure will cancel the RPC if it hasn't
+        ///       already finished.
+        /// - Returns: The result of `handleResponse`.
+        func unpublishColorLibrary<Result>(
+            request: GRPCCore.ClientRequest<Wiretuner_Docs_V1_UnpublishColorLibraryRequest>,
+            serializer: some GRPCCore.MessageSerializer<Wiretuner_Docs_V1_UnpublishColorLibraryRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Wiretuner_Docs_V1_UnpublishColorLibraryResponse>,
+            options: GRPCCore.CallOptions,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Wiretuner_Docs_V1_UnpublishColorLibraryResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
+
+        /// Call the "ListColorLibraries" method.
+        ///
+        /// > Source IDL Documentation:
+        /// >
+        /// > The color libraries of one team, by name.  Offline, the client shows the last list it saw.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Wiretuner_Docs_V1_ListColorLibrariesRequest` message.
+        ///   - serializer: A serializer for `Wiretuner_Docs_V1_ListColorLibrariesRequest` messages.
+        ///   - deserializer: A deserializer for `Wiretuner_Docs_V1_ListColorLibrariesResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response and returns its result to
+        ///       the caller. Returning from the closure will cancel the RPC if it hasn't
+        ///       already finished.
+        /// - Returns: The result of `handleResponse`.
+        func listColorLibraries<Result>(
+            request: GRPCCore.ClientRequest<Wiretuner_Docs_V1_ListColorLibrariesRequest>,
+            serializer: some GRPCCore.MessageSerializer<Wiretuner_Docs_V1_ListColorLibrariesRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Wiretuner_Docs_V1_ListColorLibrariesResponse>,
+            options: GRPCCore.CallOptions,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Wiretuner_Docs_V1_ListColorLibrariesResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
+
+        /// Call the "FetchColorLibrary" method.
+        ///
+        /// > Source IDL Documentation:
+        /// >
+        /// > The library's colors at its published server_seq.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Wiretuner_Docs_V1_FetchColorLibraryRequest` message.
+        ///   - serializer: A serializer for `Wiretuner_Docs_V1_FetchColorLibraryRequest` messages.
+        ///   - deserializer: A deserializer for `Wiretuner_Docs_V1_FetchColorLibraryResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response and returns its result to
+        ///       the caller. Returning from the closure will cancel the RPC if it hasn't
+        ///       already finished.
+        /// - Returns: The result of `handleResponse`.
+        func fetchColorLibrary<Result>(
+            request: GRPCCore.ClientRequest<Wiretuner_Docs_V1_FetchColorLibraryRequest>,
+            serializer: some GRPCCore.MessageSerializer<Wiretuner_Docs_V1_FetchColorLibraryRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Wiretuner_Docs_V1_FetchColorLibraryResponse>,
+            options: GRPCCore.CallOptions,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Wiretuner_Docs_V1_FetchColorLibraryResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
+    }
+
+    /// Generated client for the "wiretuner.docs.v1.ColorLibraryService" service.
+    ///
+    /// The ``Client`` provides an implementation of ``ClientProtocol`` which wraps
+    /// a `GRPCCore.GRPCCClient`. The underlying `GRPCClient` provides the long-lived
+    /// means of communication with the remote peer.
+    ///
+    /// > Source IDL Documentation:
+    /// >
+    /// > Publish, list and fetch team color libraries.  Publishing and unpublishing need the owner's
+    /// > powers on the document (its owner, or a team admin for a team document); listing and fetching
+    /// > need membership of the library's team above guest, and no role on the document itself.  A
+    /// > library the caller cannot see, or whose document is in the trash, answers NOT_FOUND with reason
+    /// > DOCUMENT_NOT_FOUND; an outsider listing a team gets NOT_FOUND / TEAM_NOT_FOUND and a guest
+    /// > PERMISSION_DENIED / ROLE_INSUFFICIENT.
+    public struct Client<Transport>: ClientProtocol where Transport: GRPCCore.ClientTransport {
+        private let client: GRPCCore.GRPCClient<Transport>
+
+        /// Creates a new client wrapping the provided `GRPCCore.GRPCClient`.
+        ///
+        /// - Parameters:
+        ///   - client: A `GRPCCore.GRPCClient` providing a communication channel to the service.
+        public init(wrapping client: GRPCCore.GRPCClient<Transport>) {
+            self.client = client
+        }
+
+        /// Call the "PublishColorLibrary" method.
+        ///
+        /// > Source IDL Documentation:
+        /// >
+        /// > Makes a document a team color library, or updates one: its name, its team, its mode, and in
+        /// > manual mode the published version.  A team document is published to its own team; a
+        /// > personal document to a team its owner belongs to (FAILED_PRECONDITION / TEAM_ROLE_INVALID
+        /// > otherwise).  Publishing leaves the document's content and sharing untouched.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Wiretuner_Docs_V1_PublishColorLibraryRequest` message.
+        ///   - serializer: A serializer for `Wiretuner_Docs_V1_PublishColorLibraryRequest` messages.
+        ///   - deserializer: A deserializer for `Wiretuner_Docs_V1_PublishColorLibraryResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response and returns its result to
+        ///       the caller. Returning from the closure will cancel the RPC if it hasn't
+        ///       already finished.
+        /// - Returns: The result of `handleResponse`.
+        public func publishColorLibrary<Result>(
+            request: GRPCCore.ClientRequest<Wiretuner_Docs_V1_PublishColorLibraryRequest>,
+            serializer: some GRPCCore.MessageSerializer<Wiretuner_Docs_V1_PublishColorLibraryRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Wiretuner_Docs_V1_PublishColorLibraryResponse>,
+            options: GRPCCore.CallOptions = .defaults,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Wiretuner_Docs_V1_PublishColorLibraryResponse>) async throws -> Result = { response in
+                try response.message
+            }
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
+                request: request,
+                descriptor: Wiretuner_Docs_V1_ColorLibraryService.Method.PublishColorLibrary.descriptor,
+                serializer: serializer,
+                deserializer: deserializer,
+                options: options,
+                onResponse: handleResponse
+            )
+        }
+
+        /// Call the "UnpublishColorLibrary" method.
+        ///
+        /// > Source IDL Documentation:
+        /// >
+        /// > Stops publishing the document's colors.  Consumers' swatches stay (they are copies) and the
+        /// > document itself is untouched.  Unpublishing a document that is not a library succeeds.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Wiretuner_Docs_V1_UnpublishColorLibraryRequest` message.
+        ///   - serializer: A serializer for `Wiretuner_Docs_V1_UnpublishColorLibraryRequest` messages.
+        ///   - deserializer: A deserializer for `Wiretuner_Docs_V1_UnpublishColorLibraryResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response and returns its result to
+        ///       the caller. Returning from the closure will cancel the RPC if it hasn't
+        ///       already finished.
+        /// - Returns: The result of `handleResponse`.
+        public func unpublishColorLibrary<Result>(
+            request: GRPCCore.ClientRequest<Wiretuner_Docs_V1_UnpublishColorLibraryRequest>,
+            serializer: some GRPCCore.MessageSerializer<Wiretuner_Docs_V1_UnpublishColorLibraryRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Wiretuner_Docs_V1_UnpublishColorLibraryResponse>,
+            options: GRPCCore.CallOptions = .defaults,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Wiretuner_Docs_V1_UnpublishColorLibraryResponse>) async throws -> Result = { response in
+                try response.message
+            }
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
+                request: request,
+                descriptor: Wiretuner_Docs_V1_ColorLibraryService.Method.UnpublishColorLibrary.descriptor,
+                serializer: serializer,
+                deserializer: deserializer,
+                options: options,
+                onResponse: handleResponse
+            )
+        }
+
+        /// Call the "ListColorLibraries" method.
+        ///
+        /// > Source IDL Documentation:
+        /// >
+        /// > The color libraries of one team, by name.  Offline, the client shows the last list it saw.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Wiretuner_Docs_V1_ListColorLibrariesRequest` message.
+        ///   - serializer: A serializer for `Wiretuner_Docs_V1_ListColorLibrariesRequest` messages.
+        ///   - deserializer: A deserializer for `Wiretuner_Docs_V1_ListColorLibrariesResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response and returns its result to
+        ///       the caller. Returning from the closure will cancel the RPC if it hasn't
+        ///       already finished.
+        /// - Returns: The result of `handleResponse`.
+        public func listColorLibraries<Result>(
+            request: GRPCCore.ClientRequest<Wiretuner_Docs_V1_ListColorLibrariesRequest>,
+            serializer: some GRPCCore.MessageSerializer<Wiretuner_Docs_V1_ListColorLibrariesRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Wiretuner_Docs_V1_ListColorLibrariesResponse>,
+            options: GRPCCore.CallOptions = .defaults,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Wiretuner_Docs_V1_ListColorLibrariesResponse>) async throws -> Result = { response in
+                try response.message
+            }
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
+                request: request,
+                descriptor: Wiretuner_Docs_V1_ColorLibraryService.Method.ListColorLibraries.descriptor,
+                serializer: serializer,
+                deserializer: deserializer,
+                options: options,
+                onResponse: handleResponse
+            )
+        }
+
+        /// Call the "FetchColorLibrary" method.
+        ///
+        /// > Source IDL Documentation:
+        /// >
+        /// > The library's colors at its published server_seq.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Wiretuner_Docs_V1_FetchColorLibraryRequest` message.
+        ///   - serializer: A serializer for `Wiretuner_Docs_V1_FetchColorLibraryRequest` messages.
+        ///   - deserializer: A deserializer for `Wiretuner_Docs_V1_FetchColorLibraryResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response and returns its result to
+        ///       the caller. Returning from the closure will cancel the RPC if it hasn't
+        ///       already finished.
+        /// - Returns: The result of `handleResponse`.
+        public func fetchColorLibrary<Result>(
+            request: GRPCCore.ClientRequest<Wiretuner_Docs_V1_FetchColorLibraryRequest>,
+            serializer: some GRPCCore.MessageSerializer<Wiretuner_Docs_V1_FetchColorLibraryRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Wiretuner_Docs_V1_FetchColorLibraryResponse>,
+            options: GRPCCore.CallOptions = .defaults,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Wiretuner_Docs_V1_FetchColorLibraryResponse>) async throws -> Result = { response in
+                try response.message
+            }
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
+                request: request,
+                descriptor: Wiretuner_Docs_V1_ColorLibraryService.Method.FetchColorLibrary.descriptor,
+                serializer: serializer,
+                deserializer: deserializer,
+                options: options,
+                onResponse: handleResponse
+            )
+        }
+    }
+}
+
+// Helpers providing default arguments to 'ClientProtocol' methods.
+@available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
+extension Wiretuner_Docs_V1_ColorLibraryService.ClientProtocol {
+    /// Call the "PublishColorLibrary" method.
+    ///
+    /// > Source IDL Documentation:
+    /// >
+    /// > Makes a document a team color library, or updates one: its name, its team, its mode, and in
+    /// > manual mode the published version.  A team document is published to its own team; a
+    /// > personal document to a team its owner belongs to (FAILED_PRECONDITION / TEAM_ROLE_INVALID
+    /// > otherwise).  Publishing leaves the document's content and sharing untouched.
+    ///
+    /// - Parameters:
+    ///   - request: A request containing a single `Wiretuner_Docs_V1_PublishColorLibraryRequest` message.
+    ///   - options: Options to apply to this RPC.
+    ///   - handleResponse: A closure which handles the response and returns its result to
+    ///       the caller. Returning from the closure will cancel the RPC if it hasn't
+    ///       already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func publishColorLibrary<Result>(
+        request: GRPCCore.ClientRequest<Wiretuner_Docs_V1_PublishColorLibraryRequest>,
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Wiretuner_Docs_V1_PublishColorLibraryResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        try await self.publishColorLibrary(
+            request: request,
+            serializer: GRPCProtobuf.ProtobufSerializer<Wiretuner_Docs_V1_PublishColorLibraryRequest>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Wiretuner_Docs_V1_PublishColorLibraryResponse>(),
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
+    /// Call the "UnpublishColorLibrary" method.
+    ///
+    /// > Source IDL Documentation:
+    /// >
+    /// > Stops publishing the document's colors.  Consumers' swatches stay (they are copies) and the
+    /// > document itself is untouched.  Unpublishing a document that is not a library succeeds.
+    ///
+    /// - Parameters:
+    ///   - request: A request containing a single `Wiretuner_Docs_V1_UnpublishColorLibraryRequest` message.
+    ///   - options: Options to apply to this RPC.
+    ///   - handleResponse: A closure which handles the response and returns its result to
+    ///       the caller. Returning from the closure will cancel the RPC if it hasn't
+    ///       already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func unpublishColorLibrary<Result>(
+        request: GRPCCore.ClientRequest<Wiretuner_Docs_V1_UnpublishColorLibraryRequest>,
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Wiretuner_Docs_V1_UnpublishColorLibraryResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        try await self.unpublishColorLibrary(
+            request: request,
+            serializer: GRPCProtobuf.ProtobufSerializer<Wiretuner_Docs_V1_UnpublishColorLibraryRequest>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Wiretuner_Docs_V1_UnpublishColorLibraryResponse>(),
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
+    /// Call the "ListColorLibraries" method.
+    ///
+    /// > Source IDL Documentation:
+    /// >
+    /// > The color libraries of one team, by name.  Offline, the client shows the last list it saw.
+    ///
+    /// - Parameters:
+    ///   - request: A request containing a single `Wiretuner_Docs_V1_ListColorLibrariesRequest` message.
+    ///   - options: Options to apply to this RPC.
+    ///   - handleResponse: A closure which handles the response and returns its result to
+    ///       the caller. Returning from the closure will cancel the RPC if it hasn't
+    ///       already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func listColorLibraries<Result>(
+        request: GRPCCore.ClientRequest<Wiretuner_Docs_V1_ListColorLibrariesRequest>,
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Wiretuner_Docs_V1_ListColorLibrariesResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        try await self.listColorLibraries(
+            request: request,
+            serializer: GRPCProtobuf.ProtobufSerializer<Wiretuner_Docs_V1_ListColorLibrariesRequest>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Wiretuner_Docs_V1_ListColorLibrariesResponse>(),
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
+    /// Call the "FetchColorLibrary" method.
+    ///
+    /// > Source IDL Documentation:
+    /// >
+    /// > The library's colors at its published server_seq.
+    ///
+    /// - Parameters:
+    ///   - request: A request containing a single `Wiretuner_Docs_V1_FetchColorLibraryRequest` message.
+    ///   - options: Options to apply to this RPC.
+    ///   - handleResponse: A closure which handles the response and returns its result to
+    ///       the caller. Returning from the closure will cancel the RPC if it hasn't
+    ///       already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func fetchColorLibrary<Result>(
+        request: GRPCCore.ClientRequest<Wiretuner_Docs_V1_FetchColorLibraryRequest>,
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Wiretuner_Docs_V1_FetchColorLibraryResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        try await self.fetchColorLibrary(
+            request: request,
+            serializer: GRPCProtobuf.ProtobufSerializer<Wiretuner_Docs_V1_FetchColorLibraryRequest>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Wiretuner_Docs_V1_FetchColorLibraryResponse>(),
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+}
+
+// Helpers providing sugared APIs for 'ClientProtocol' methods.
+@available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
+extension Wiretuner_Docs_V1_ColorLibraryService.ClientProtocol {
+    /// Call the "PublishColorLibrary" method.
+    ///
+    /// > Source IDL Documentation:
+    /// >
+    /// > Makes a document a team color library, or updates one: its name, its team, its mode, and in
+    /// > manual mode the published version.  A team document is published to its own team; a
+    /// > personal document to a team its owner belongs to (FAILED_PRECONDITION / TEAM_ROLE_INVALID
+    /// > otherwise).  Publishing leaves the document's content and sharing untouched.
+    ///
+    /// - Parameters:
+    ///   - message: request message to send.
+    ///   - metadata: Additional metadata to send, defaults to empty.
+    ///   - options: Options to apply to this RPC, defaults to `.defaults`.
+    ///   - handleResponse: A closure which handles the response and returns its result to
+    ///       the caller. Returning from the closure will cancel the RPC if it hasn't
+    ///       already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func publishColorLibrary<Result>(
+        _ message: Wiretuner_Docs_V1_PublishColorLibraryRequest,
+        metadata: GRPCCore.Metadata = [:],
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Wiretuner_Docs_V1_PublishColorLibraryResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Wiretuner_Docs_V1_PublishColorLibraryRequest>(
+            message: message,
+            metadata: metadata
+        )
+        return try await self.publishColorLibrary(
+            request: request,
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
+    /// Call the "UnpublishColorLibrary" method.
+    ///
+    /// > Source IDL Documentation:
+    /// >
+    /// > Stops publishing the document's colors.  Consumers' swatches stay (they are copies) and the
+    /// > document itself is untouched.  Unpublishing a document that is not a library succeeds.
+    ///
+    /// - Parameters:
+    ///   - message: request message to send.
+    ///   - metadata: Additional metadata to send, defaults to empty.
+    ///   - options: Options to apply to this RPC, defaults to `.defaults`.
+    ///   - handleResponse: A closure which handles the response and returns its result to
+    ///       the caller. Returning from the closure will cancel the RPC if it hasn't
+    ///       already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func unpublishColorLibrary<Result>(
+        _ message: Wiretuner_Docs_V1_UnpublishColorLibraryRequest,
+        metadata: GRPCCore.Metadata = [:],
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Wiretuner_Docs_V1_UnpublishColorLibraryResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Wiretuner_Docs_V1_UnpublishColorLibraryRequest>(
+            message: message,
+            metadata: metadata
+        )
+        return try await self.unpublishColorLibrary(
+            request: request,
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
+    /// Call the "ListColorLibraries" method.
+    ///
+    /// > Source IDL Documentation:
+    /// >
+    /// > The color libraries of one team, by name.  Offline, the client shows the last list it saw.
+    ///
+    /// - Parameters:
+    ///   - message: request message to send.
+    ///   - metadata: Additional metadata to send, defaults to empty.
+    ///   - options: Options to apply to this RPC, defaults to `.defaults`.
+    ///   - handleResponse: A closure which handles the response and returns its result to
+    ///       the caller. Returning from the closure will cancel the RPC if it hasn't
+    ///       already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func listColorLibraries<Result>(
+        _ message: Wiretuner_Docs_V1_ListColorLibrariesRequest,
+        metadata: GRPCCore.Metadata = [:],
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Wiretuner_Docs_V1_ListColorLibrariesResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Wiretuner_Docs_V1_ListColorLibrariesRequest>(
+            message: message,
+            metadata: metadata
+        )
+        return try await self.listColorLibraries(
+            request: request,
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
+    /// Call the "FetchColorLibrary" method.
+    ///
+    /// > Source IDL Documentation:
+    /// >
+    /// > The library's colors at its published server_seq.
+    ///
+    /// - Parameters:
+    ///   - message: request message to send.
+    ///   - metadata: Additional metadata to send, defaults to empty.
+    ///   - options: Options to apply to this RPC, defaults to `.defaults`.
+    ///   - handleResponse: A closure which handles the response and returns its result to
+    ///       the caller. Returning from the closure will cancel the RPC if it hasn't
+    ///       already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func fetchColorLibrary<Result>(
+        _ message: Wiretuner_Docs_V1_FetchColorLibraryRequest,
+        metadata: GRPCCore.Metadata = [:],
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Wiretuner_Docs_V1_FetchColorLibraryResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Wiretuner_Docs_V1_FetchColorLibraryRequest>(
+            message: message,
+            metadata: metadata
+        )
+        return try await self.fetchColorLibrary(
             request: request,
             options: options,
             onResponse: handleResponse

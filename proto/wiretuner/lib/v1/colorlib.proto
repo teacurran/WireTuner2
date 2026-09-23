@@ -1,0 +1,58 @@
+// proto/wiretuner/lib/v1/colorlib.proto
+//
+// A color library: the contents of a `.wtcolors` file (text protobuf; docs/_includes/color/
+// spot-process.adoc, "Data model") and what ColorLibraryService.Fetch answers for a team color
+// library (docs/_includes/color/exporting-colors.adoc, "Team color libraries").  Library files
+// are not part of the document: nothing here is a node, and no field carries a merge policy.
+syntax = "proto3";
+
+package wiretuner.lib.v1;
+
+import "buf/validate/validate.proto";
+import "wiretuner/doc/v1/common.proto";
+
+option java_multiple_files = true;
+option java_package = "com.villagecompute.wiretuner.lib.v1";
+option optimize_for = SPEED;
+
+// A named list of colors.
+message ColorLibrary {
+  // Shown in the Swatches Options menu.
+  string name = 1 [(buf.validate.field).string.max_len = 256];
+  // Free-form notes.
+  string notes = 2 [(buf.validate.field).string.max_len = 8192];
+  // Layout hint for the library sheet: rows; 0 = the sheet chooses.
+  uint32 rows = 3 [(buf.validate.field).uint32.lte = 1000];
+  // Layout hint for the library sheet: columns; 0 = the sheet chooses.
+  uint32 columns = 4 [(buf.validate.field).uint32.lte = 1000];
+  // The colors in list order.
+  repeated LibraryColor colors = 5;
+}
+
+// One color of a library.
+message LibraryColor {
+  // Stable identifier within the library ("PANTONE 300 C").  For a team color library it is the
+  // source swatch's node id as "<counter>:<replica>" in unsigned decimal, so Update from Library
+  // matches swatches after renames on either side.
+  string key = 1 [(buf.validate.field).string.max_len = 128];
+  // Display name; equals `key` when the vendor gives no other.
+  string name = 2 [(buf.validate.field).string.max_len = 256];
+  // The color, space included.  For a tint (`tint_percent` set) this is the base color, which
+  // the tint mixes toward white in its own space (docs/_includes/color/tints.adoc).
+  wiretuner.doc.v1.Color value = 3;
+  // Spot (true) or process (false).
+  bool spot = 4;
+  // Optional sub-group (a book's page, a swatch group header).
+  string group = 5 [(buf.validate.field).string.max_len = 128];
+  // For a tint: the `key` of its base color in this library; empty when the base is not in the
+  // library (then `value` is the base color the tint cached).
+  string tint_of = 6 [(buf.validate.field).string.max_len = 128];
+  // For a tint: its strength, 1 .. 100; 0 = not a tint.
+  double tint_percent = 7 [
+    (buf.validate.field).double = {
+      gte: 1
+      lte: 100
+    },
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+}
