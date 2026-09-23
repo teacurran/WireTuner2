@@ -199,6 +199,33 @@ Graphics until GEO-003 supplies pre-expanded outlines.  Tile keys quantize the r
 scale (zoom × backing scale) on a ladder of 64 steps per octave (`ZoomStep`), so the preset
 magnifications sit on the ladder and any settled zoom is within 0.55% of its step.
 
+NOTE: Deviations recorded by REND-002, REND-003 and REND-005.  *Attribute stacks*: a
+`PathItem` carries a resolved `Appearance` (fills and strokes bottom first in one list);
+`Paint` gained `.none`.  Until GEO-003, arrowheads are placed by WTRender itself (the path is
+trimmed by `pathTrim × width` with GEO-001's arc-length split and the head mapped by width,
+endpoint and GEO-001 tangent) and Core Graphics strokes the trimmed centreline.  *Hairlines*:
+Core Graphics paints nothing for line width 0 in bitmap contexts, so a hairline (and every
+Keyline line) is one device pixel computed from the CTM: a pixel in bitmaps and tiles, one
+point on a PDF page rather than PDF's device-thinnest `0 w`; the bitmap/PDF gate compares
+renders containing hairlines at 1× only.  *View modes*: Keyline draws in the nearest enclosing
+group's `highlightColor` (the layer highlight colour; black outside any layer, which is what
+the guide's "black hairlines" describes for the default layer colour), keeps clips and ignores
+opacity; the fast modes composite translucent groups member by member at the group's alpha
+instead of through a transparency layer, draw image placeholders as crossed boxes and greek
+text runs at most 50 pt tall as grey bars.  Blend steps and raster effects are not in the
+display list yet (`ViewMode.drawsRasterEffects` is the switch their renderer path will read).
+Tile keys do not carry the mode, so a mode change on the tile canvas swaps the cache's renderer
+and drops its tiles (`TileCache.replaceRenderer`, `TiledCanvasLayer.setRenderer`); the
+`WTRender` protocol gained `viewMode`.  Overprint preview composites overprinting paint with
+the multiply blend mode in the working space until the CMS epic supplies an ink simulation.
+*Hit testing*: results address items by index path (the display list carries no node ids
+yet); stroke hits measure distance to the centreline against the widest visible stroke's half
+width plus the pick distance, honouring butt and square caps at open ends but not excluding
+dash gaps or including miter spikes, until GEO-003's stroked outline replaces the centreline;
+marquee enclosure and contact are judged on path geometry (not stroke width) in view space.
+The R-tree is keyed by top-level item index and maintained incrementally when a changed list
+keeps its length, rebuilt (STR bulk load, 8 ms for 50,000 items in release) otherwise.
+
 == Undo
 
 `Command` execution returns a `Change` and its inverse.  The `UndoManager` is per document and

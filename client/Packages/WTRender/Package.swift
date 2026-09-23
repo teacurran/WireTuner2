@@ -22,7 +22,10 @@ let package = Package(
         ),
         .testTarget(
             name: "WTRenderTests",
-            dependencies: ["WTRender"]
+            dependencies: ["WTRender"],
+            // Golden PNGs are read by path from the source tree (ReferenceRenderTests), not
+            // bundled, so `WTRENDER_RECORD_GOLDENS=1` can write them back in place.
+            exclude: ["Goldens"]
         ),
     ],
     swiftLanguageModes: [.v6]

@@ -227,6 +227,7 @@ struct PixelComparison {
 /// A renderer whose tiles never materialize, for the cache's failure path.
 struct FailingRenderer: WTRender {
     let flatteningTolerance = FlatteningTolerance.standard
+    let viewMode = ViewMode.preview
 
     func render(_ displayList: DisplayList, viewport: Viewport, into context: CGContext) {}
     func render(_ displayList: DisplayList, tile key: TileKey, geometry: TileGeometry, into context: CGContext) {}

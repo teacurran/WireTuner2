@@ -14,6 +14,10 @@ public protocol WTRender: Sendable {
     /// The shared curve-flattening tolerance this renderer honours.
     var flatteningTolerance: FlatteningTolerance { get }
 
+    /// The drawing mode this renderer applies (REND-005).  Modes are renderer state: the same
+    /// display list value is drawn in every mode.
+    var viewMode: ViewMode { get }
+
     /// Draws what `viewport` shows into `context`, whose user space is view points (a PDF
     /// page or a bitmap context pre-scaled by the caller).
     func render(_ displayList: DisplayList, viewport: Viewport, into context: CGContext)

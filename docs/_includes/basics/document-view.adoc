@@ -175,7 +175,7 @@ textured fills draw as a gray placeholder pattern.
 (greeked).  Use it on a heavy document while you arrange things.
 
 |Keyline
-|Only the paths, as black hairlines, with no fills; images and imported EPS as crossed boxes.
+|Only the paths, as hairlines in each layer's highlight color, with no fills; images and imported EPS as crossed boxes.
 Best for selecting points and seeing structure.
 
 |Fast Keyline

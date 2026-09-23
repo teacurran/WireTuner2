@@ -91,7 +91,7 @@ extension LRUStore: Sendable where Key: Sendable, Value: Sendable {}
 public actor TileCache {
     public let capacity: Int
     public let tileSize: Int
-    private let renderer: any WTRender
+    private var renderer: any WTRender
     private var store: LRUStore<TileKey, CGImage>
     private(set) var renderCount = 0
 
@@ -160,6 +160,16 @@ public actor TileCache {
 
     /// Drops every tile.
     public func removeAll() {
+        store.removeAll()
+    }
+
+    /// The drawing mode tiles are rendered in.
+    public var viewMode: ViewMode { renderer.viewMode }
+
+    /// Renders from now on with `renderer` (another view mode, overprint preview toggled) and
+    /// drops every tile, since tile keys do not carry the mode.  The display list is untouched.
+    public func replaceRenderer(_ renderer: any WTRender) {
+        self.renderer = renderer
         store.removeAll()
     }
 }

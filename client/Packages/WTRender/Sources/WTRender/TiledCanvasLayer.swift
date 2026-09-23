@@ -115,6 +115,18 @@ public final class TiledCanvasLayer {
         }
     }
 
+    /// Switches the renderer -- a view mode change (REND-005) or overprint preview -- without
+    /// touching the display list: the cached tiles are dropped and the visible ones re-requested.
+    public func setRenderer(_ renderer: any WTRender) {
+        for key in tileLayers.keys {
+            cancelRequest(for: key)
+            tileLayers[key]?.contents = nil
+        }
+        runInvalidation { cache in
+            await cache.replaceRenderer(renderer)
+        }
+    }
+
     /// Waits until every invalidation has reached the cache and every requested tile has
     /// been applied (or dropped).
     public func settle() async {

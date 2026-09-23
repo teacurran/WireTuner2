@@ -55,7 +55,20 @@ public struct Color: Hashable, Sendable {
 
 /// What a fill or stroke is painted with.  Gradients and tiled fills join in the colour epic.
 public enum Paint: Hashable, Sendable {
+    /// The well-known *None*: paints nothing and, for hit testing, covers nothing
+    /// (docs/_includes/appearance/attribute-stack.adoc, "Hit testing").
+    case none
     case solid(Color)
+
+    /// The colour a solid paint paints with; nil for *None*.
+    public var color: Color? {
+        switch self {
+        case .none: return nil
+        case .solid(let color): return color
+        }
+    }
+
+    public var isNone: Bool { self == .none }
 }
 
 public enum LineCap: Hashable, Sendable {
@@ -100,6 +113,23 @@ public struct StrokeStyle: Hashable, Sendable {
     /// bounds: half the width times the worst of the miter limit and a square cap's diagonal.
     var outset: Double {
         width * max(miterLimit, 2.0.squareRoot()) / 2
+    }
+
+    /// A width of 0 is a hairline: one device pixel at any zoom
+    /// (docs/_includes/appearance/stroke-attributes.adoc, "Stroke width presets").
+    public var isHairline: Bool { width <= 0 }
+
+    /// The dash the renderers apply, normalized as the stroke page's read-time rules say: no
+    /// lengths, a negative or non-finite length, or all-zero lengths read as solid (empty); an
+    /// odd count repeats its cycle, which Core Graphics does natively (PDF semantics).
+    public var effectiveDash: [Double] {
+        guard !dash.isEmpty,
+              dash.allSatisfy({ $0.isFinite && $0 >= 0 }),
+              dash.contains(where: { $0 > 0 })
+        else {
+            return []
+        }
+        return dash
     }
 }
 
@@ -183,19 +213,24 @@ public struct GroupItem: Hashable, Sendable {
     public var opacity: Double
     /// Clip local → pasteboard.
     public var transform: AffineTransform
+    /// The layer highlight colour, set on the group a layer becomes: Keyline modes draw every
+    /// descendant's hairlines in the nearest ancestor's colour (REND-005).  Nil inherits.
+    public var highlightColor: Color?
 
     public init(
         children: [DisplayItem],
         clip: DisplayPath? = nil,
         clipRule: FillRule = .nonZero,
         opacity: Double = 1,
-        transform: AffineTransform = .identity
+        transform: AffineTransform = .identity,
+        highlightColor: Color? = nil
     ) {
         self.children = children
         self.clip = clip
         self.clipRule = clipRule
         self.opacity = min(max(opacity, 0), 1)
         self.transform = transform
+        self.highlightColor = highlightColor
     }
 }
 
@@ -203,6 +238,8 @@ public struct GroupItem: Hashable, Sendable {
 public indirect enum DisplayItem: Hashable, Sendable {
     case fill(FillItem)
     case stroke(StrokeItem)
+    /// A path painted by its attribute stack (REND-002).
+    case path(PathItem)
     case image(ImageItem)
     case text(TextRunItem)
     case group(GroupItem)
@@ -212,6 +249,7 @@ public indirect enum DisplayItem: Hashable, Sendable {
         switch self {
         case .fill(let item): return item.transform
         case .stroke(let item): return item.transform
+        case .path(let item): return item.transform
         case .image(let item): return item.transform
         case .text(let item): return item.transform
         case .group(let item): return item.transform
@@ -226,6 +264,9 @@ public indirect enum DisplayItem: Hashable, Sendable {
             return item.path.controlBounds.map { $0.applying(item.transform) }
         case .stroke(let item):
             let outset = item.style.outset
+            return item.path.controlBounds.map { $0.expanded(by: outset).applying(item.transform) }
+        case .path(let item):
+            let outset = item.appearance.outset
             return item.path.controlBounds.map { $0.expanded(by: outset).applying(item.transform) }
         case .image(let item):
             return item.rect.applying(item.transform)
