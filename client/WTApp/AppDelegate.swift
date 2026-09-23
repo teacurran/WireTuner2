@@ -39,6 +39,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// The document library (APP-009).
     let library: LibraryModel
     private(set) var libraryWindowController: LibraryWindowController?
+    /// Teams and sharing (SEC-003, COLLAB-013).
+    let collaboration: CollaborationServices
+    /// The Share sheet (menu:File[Share…], the toolbar's Share).
+    let sharePresenter: SharePresenter
     /// The UI tests' socket audit, running only when the launch asked for it (DEBUG builds).
     let socketMonitor: SocketMonitor?
     /// menu:View[Preview in Browser]'s exports (BASIC-017); the exporter arrives with WEB-029.
@@ -69,7 +73,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         launchEnvironment: LaunchEnvironment = LaunchEnvironment(), account: AccountModel? = nil,
         libraryStore: LibraryCacheStore? = nil, thumbnailDirectory: URL? = nil, library: LibraryModel? = nil,
         sessionStore: SessionStore? = nil, toolbarStore: ToolbarStore? = nil, layoutsDirectory: URL? = nil,
-        shortcutSetsURL: URL? = nil, paletteHistoryURL: URL? = nil
+        shortcutSetsURL: URL? = nil, paletteHistoryURL: URL? = nil, collaboration: CollaborationServices? = nil
     ) {
         layout = PanelLayoutController(registry: panels, store: layoutStore)
         preferences = PreferenceStore(defaults: defaults)
@@ -82,6 +86,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.library = library ?? launchEnvironment.makeLibraryModel(
             account: account, infoDictionary: Bundle.main.infoDictionary, defaults: defaults, store: libraryStore,
             thumbnails: ThumbnailCache(directory: thumbnailDirectory)
+        )
+        let collaboration = collaboration ?? launchEnvironment.makeCollaborationServices(
+            account: account, infoDictionary: Bundle.main.infoDictionary, defaults: defaults
+        )
+        self.collaboration = collaboration
+        let libraryModel = self.library
+        libraryModel.collaboration = collaboration
+        sharePresenter = SharePresenter(
+            services: collaboration,
+            accountID: { libraryModel.cache.personalSpaceID ?? account.profile?.accountID },
+            isOnline: { libraryModel.isOnline && account.isSignedIn }
         )
         socketMonitor = launchEnvironment.auditsSockets ? SocketMonitor() : nil
         shortcuts = ShortcutSet.builtInDefault(commands: [])
@@ -146,6 +161,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             )
         )
         LibraryCommands.install(into: commands) { [weak self] in self?.showLibrary() }
+        ShareCommands.install(into: commands, canShare: { documents.activeWindowController != nil }) { [weak self] in self?.showShare() }
         PreferenceCommands.install(into: commands, store: preferences) { [weak self] in self?.showPreferences() }
         installTools()
         installShortcutsAndPalette()
@@ -278,6 +294,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let controller = libraryWindowController ?? LibraryWindowController(model: library)
         libraryWindowController = controller
         return controller.show()
+    }
+
+    /// menu:File[Share…] and the toolbar's Share: the sheet for the front document.
+    @discardableResult
+    func showShare() -> ShareSheetModel? {
+        guard let controller = activeDocumentWindow, let window = controller.window else { return nil }
+        let handle = controller.documentHandle
+        let entry = library.cache.documents[handle.id]
+        let document = ShareDocument(
+            id: handle.id, name: entry?.name ?? handle.title, isUploaded: entry.map { !$0.isPendingUpload } ?? false, libraryRole: entry?.role
+        )
+        return sharePresenter.present(document, on: window)
+    }
+
+    /// `wiretuner://invite/<token>` (and an invitation's web link handed to the app): the
+    /// library comes forward with the Join Team sheet.
+    func application(_ application: NSApplication, open urls: [URL]) {
+        for url in urls { open(url) }
+    }
+
+    @discardableResult
+    func open(_ url: URL) -> Bool {
+        guard InviteLink.token(in: url) != nil else { return false }
+        showLibrary()
+        library.showJoinTeam(link: url.absoluteString)
+        return true
     }
 
     /// menu:WireTuner[Account…].

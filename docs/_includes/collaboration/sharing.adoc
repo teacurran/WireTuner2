@@ -568,6 +568,8 @@ requests, transfer, link passwords, `team_members_only` and `revoke_on_expiry` a
 
 === Client
 
+NOTE: As built (COLLAB-013): offline, Share opens the sheet with a notice instead of a popover; Copy Link works only for links made on this Mac since launch (the token is returned once); destructive actions are confirmed inline.  Not built yet: the access-request page after a failed link open, team-member suggestions in Invite, Move to…, editing an existing link, and the request badge on the Share button.
+
 * `WTApp/Sharing`: `ShareSheet` (SwiftUI sheet: People, Invite, Links, Actions menu),
   `AccessRequestPage` (the page shown by `OpenLink` failures), `MoveToSpaceSheet`.  The
   space switcher and team settings are `SEC-003`.

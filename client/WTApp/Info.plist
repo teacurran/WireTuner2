@@ -18,6 +18,17 @@
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
 	<string>$(MARKETING_VERSION)</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.villagecompute.wiretuner</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>wiretuner</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSApplicationCategoryType</key>
@@ -45,5 +56,7 @@
 	<string>$(WT_API_URL)</string>
 	<key>WTAuthIssuer</key>
 	<string>$(WT_AUTH_ISSUER)</string>
+	<key>WTLinksURL</key>
+	<string>$(WT_LINKS_URL)</string>
 </dict>
 </plist>

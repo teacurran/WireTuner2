@@ -2,8 +2,8 @@ import AppKit
 import SwiftUI
 
 /// The account window (menu:WireTuner[Account…]): sign-in entry points while signed out; the
-/// linked identities and devices, with each device's sign-in method, while signed in.  Adding
-/// and removing identities and revoking devices are SEC-003's; the lists here are read-only.
+/// linked identities and every device, with each device's sign-in method and a Revoke button for
+/// the other Macs (SEC-003), while signed in.
 @MainActor
 final class AccountWindowController: NSWindowController {
     static let identifier = NSUserInterfaceItemIdentifier("account-window")
@@ -41,6 +41,7 @@ struct AccountView: View {
         case signIn(SignInMethod)
         case refresh
         case signOut
+        case revokeDevice(String)
     }
 
     let model: AccountModel
@@ -56,6 +57,7 @@ struct AccountView: View {
         case let .signIn(method): await model.signIn(method)
         case .refresh: await model.loadProfile()
         case .signOut: await model.signOut()
+        case let .revokeDevice(id): await model.revokeDevice(id)
         }
     }
 
@@ -100,11 +102,19 @@ struct AccountView: View {
                 }
             }
             Text("Devices").font(.subheadline.bold())
-            ForEach(profile.devices) { device in
+            ForEach(model.shownDevices) { device in
                 HStack {
                     Text(device.name)
                     Text(device.methodTitle).foregroundStyle(.secondary)
-                    if device.isCurrent { Text("This Mac").font(.caption) }
+                        .accessibilityIdentifier("account.device.\(device.id).method")
+                    Spacer()
+                    if device.isCurrent {
+                        Text("This Mac").font(.caption)
+                    } else if model.deviceClient != nil {
+                        Button("Revoke", action: handler(.revokeDevice(device.id)))
+                            .help("Sign this Mac out: its session ends and it cannot refresh its sign-in")
+                            .accessibilityIdentifier("account.device.\(device.id).revoke")
+                    }
                 }
                 .accessibilityIdentifier("account.device.\(device.id)")
             }

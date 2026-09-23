@@ -39,8 +39,9 @@ struct LaunchEnvironment: Equatable, Sendable {
         let configuration = AuthConfiguration(infoDictionary: infoDictionary)
         let version = (infoDictionary?["CFBundleShortVersionString"] as? String ?? "0") + "/" + (infoDictionary?["CFBundleVersion"] as? String ?? "0")
         let auth = AuthService(configuration: configuration, store: tokenStore(), authenticator: WebAuthenticationSession())
-        let client = GRPCAccountClient(api: configuration.api, clientVersion: version, deviceID: DeviceIdentity.current(defaults: defaults))
-        return AccountModel(auth: auth, client: client)
+        let deviceID = DeviceIdentity.current(defaults: defaults)
+        let client = GRPCAccountClient(api: configuration.api, clientVersion: version, deviceID: deviceID)
+        return AccountModel(auth: auth, client: client, devices: GRPCTeamClient(api: configuration.api, clientVersion: version, deviceID: deviceID))
     }
 
     /// The library the app runs with: gRPC against the configured API, tokens from `account`.

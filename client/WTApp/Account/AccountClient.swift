@@ -24,6 +24,8 @@ struct AccountProfile: Equatable, Sendable {
         var authMethod: String
         var lastSeenAt: Date?
         var isCurrent: Bool
+        /// When the device was revoked; nil while it is active.
+        var revokedAt: Date? = nil
 
         /// "Passkey", "Apple", "Password" or the workspace alias (SEC-003's labels).
         var methodTitle: String { AccountProfile.methodTitle(authMethod) }
@@ -50,7 +52,7 @@ struct AccountProfile: Equatable, Sendable {
 
 extension AccountProfile {
     /// From `AccountService.Me`: the account, its identities and the calling device (the full
-    /// device list is `ListDevices`, SEC-003).
+    /// device list is `ListDevices`, `AccountModel.loadDevices`).
     init(_ response: Wiretuner_Account_V1_MeResponse) {
         let account = response.account
         self.init(
@@ -71,7 +73,8 @@ extension AccountProfile.Device {
     init(_ device: Wiretuner_Account_V1_Device) {
         self.init(
             id: device.id, name: device.name, platform: device.platform, authMethod: device.authMethod,
-            lastSeenAt: device.hasLastSeenAt ? device.lastSeenAt.date : nil, isCurrent: device.current
+            lastSeenAt: device.hasLastSeenAt ? device.lastSeenAt.date : nil, isCurrent: device.current,
+            revokedAt: device.hasRevokedAt ? device.revokedAt.date : nil
         )
     }
 }

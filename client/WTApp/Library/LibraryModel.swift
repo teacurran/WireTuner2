@@ -46,6 +46,8 @@ final class LibraryModel {
     @ObservationIgnored var makeID: @MainActor () -> String = { UUIDv7.make() }
     /// Opens documents in tabs (`DocumentController`).
     @ObservationIgnored var onOpen: @MainActor ([LibraryDocument]) -> Void = { _ in }
+    /// Team settings and joining a team (SEC-003); nil leaves them out.
+    @ObservationIgnored var collaboration: CollaborationServices?
 
     private(set) var cache: LibraryCacheFile
     private(set) var currentSpaceID: String?
@@ -60,6 +62,10 @@ final class LibraryModel {
     private(set) var thumbnailRevision = 0
     var selection: Set<String> = []
     var isShowingGallery = false
+    /// The team settings sheet, while shown.
+    var teamSettings: TeamSettingsModel?
+    /// The Join Team sheet, while shown.
+    var joinTeam: JoinTeamModel?
     var searchText = "" {
         didSet { if searchText != oldValue { searchTextDidChange() } }
     }
@@ -404,6 +410,44 @@ final class LibraryModel {
         cache.folders[id] = nil
         if section == .folder(id) { section = .folder(nil) }
         await reloadSection()
+    }
+
+    // MARK: Teams (SEC-003)
+
+    /// Whether the toolbar offers Team Settings: a team is the current space.
+    var canShowTeamSettings: Bool { collaboration != nil && currentSpace.kind == .team }
+
+    /// The team settings sheet for the current team space, loading.
+    @discardableResult
+    func showTeamSettings() -> Task<Void, Never>? {
+        guard let collaboration, currentSpace.kind == .team else { return nil }
+        let model = TeamSettingsModel(teamID: currentSpace.id, services: collaboration, accountID: cache.personalSpaceID)
+        model.onDone = { [weak self] in self?.teamSettings = nil }
+        teamSettings = model
+        return Task { await model.load() }
+    }
+
+    /// The Join Team sheet, with `link` (an invitation URL the app was asked to open) filled in.
+    @discardableResult
+    func showJoinTeam(link: String = "") -> JoinTeamModel? {
+        guard let collaboration else { return nil }
+        let model = JoinTeamModel(services: collaboration, link: link)
+        model.onDone = { [weak self] in self?.joinTeam = nil }
+        model.onJoined = { [weak self] team in await self?.didJoin(team) }
+        joinTeam = model
+        return model
+    }
+
+    /// The toolbar's and sidebar's buttons.
+    func openTeamSettings() { showTeamSettings() }
+    func openJoinTeam() { showJoinTeam() }
+
+    /// A joined team is a space at once (also in the offline cache), then shown.
+    func didJoin(_ team: TeamDetail) async {
+        if !cache.teams.contains(where: { $0.id == team.id }) { cache.teams.append(LibrarySpace(id: team.id, name: team.name, kind: .team)) }
+        save()
+        await refresh()
+        await switchSpace(to: team.id)
     }
 
     // MARK: Search

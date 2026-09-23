@@ -59,6 +59,8 @@ struct LibraryView: View {
         }
         .frame(minWidth: 640, minHeight: 420)
         .sheet(isPresented: $model.isShowingGallery) { TemplateGalleryView(model: model) }
+        .sheet(item: $model.teamSettings) { TeamSettingsView(model: $0) }
+        .sheet(item: $model.joinTeam) { JoinTeamView(model: $0) }
         .alert("Rename Document", isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } })) {
             TextField("Name", text: $newName)
             Button("Rename") { rename() }
@@ -92,6 +94,11 @@ struct LibrarySidebar: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("library.space.\(space.id)")
+                }
+                if model.collaboration != nil {
+                    Button(action: model.openJoinTeam) { Label("Join Team…", systemImage: "person.badge.plus") }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("library.joinTeam")
                 }
             }
         }
@@ -131,6 +138,11 @@ struct LibraryToolbar: View {
             }
             .fixedSize()
             .accessibilityIdentifier("library.new")
+            if model.canShowTeamSettings {
+                Button(action: model.openTeamSettings) { Image(systemName: "person.3.sequence") }
+                    .help("Team Settings…")
+                    .accessibilityIdentifier("library.teamSettings")
+            }
             Button("Open") { model.openSelection() }
                 .disabled(model.selection.isEmpty)
                 .accessibilityIdentifier("library.open")

@@ -4,7 +4,7 @@ include::_attributes.adoc[]
 
 == Accounts
 
-NOTE: The client's account window is read-only: it shows identities and the current device from `Me`.  Adding or removing identities and the full `ListDevices` list are SEC-003's; UI tests for passkey, Apple and workspace sign-in need SEC-004's compose realm.
+NOTE: As built (SEC-003): the account window lists every device (`ListDevices`) with its sign-in method and Revoke for other Macs; adding or removing linked identities is not built (`AccountService` has no RPC for it).  The team settings sheet covers members, invitations (resend = `InviteMember` again), default document access, domains with status and TXT record, and the three workspace switches; transfer, delete and leave team are not in the sheet, and the default role cannot be set back to None because `UpdateTeam` refuses UNSPECIFIED.  `wiretuner://invite/<token>`, an `https://…/invite/<token>` link or a bare token opens the Join Team sheet; the links host comes from `WT_LINKS_URL` (default `https://wiretuner.app`).
 
 Every person has one *personal account*, identified by a Keycloak subject.  Sign-in is OIDC
 with PKCE from the Mac (`ASWebAuthenticationSession`); Keycloak owns every credential and
