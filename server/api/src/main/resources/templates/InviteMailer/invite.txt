@@ -1,0 +1,6 @@
+{inviterName} invited you to join {teamName} on WireTuner as {role}.
+
+Open this link on your Mac to accept:
+{link}
+
+The invitation expires on {expiresAt}. If you did not expect it, ignore this mail.

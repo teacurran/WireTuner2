@@ -90,8 +90,8 @@ account_identity(account_id, provider, provider_subject, email, email_verified, 
 device(id, account_id, name, platform, auth_method, last_seen_at, revoked_at   -- keyed (account_id, id): one Mac, two people
 team(id, name, slug, owner_account_id, default_document_role, created_at, deleted_at)
 team_member(team_id, account_id, role, joined_at)
-team_invite(id, team_id, email, role, token_hash, expires_at, accepted_at)
-workspace(team_id, sso_idp_alias, require_sso, auto_admit, restrict_sharing)
+team_invite(id, team_id, email, role, token_hash, invited_by_account_id, expires_at, accepted_at)   -- invited_by: V6
+workspace(team_id, sso_idp_alias, require_sso, auto_admit, restrict_sharing, restrict_package_export)   -- restrict_package_export: V6
 workspace_domain(team_id, domain, verification_token, verified_at)
 space: a document row has owner_account_id XOR team_id; document also carries name
 hashes (blob, snapshot, thumbnail) are lower-case hex text
@@ -136,6 +136,54 @@ API does.  Every request carries protovalidate constraints; the team-specific re
 (last owner leaving, an invitation for an existing member, a domain another team verified)
 use `FAILED_PRECONDITION` and `ALREADY_EXISTS` with reasons SEC-001 adds to the error table
 on xref:api-conventions.adoc[API conventions].
+
+.As built (SEC-001)
+* A caller who is not a member of the team -- or any caller of anything but `GetTeam` and
+  `ListTeams` once the team is deleted -- gets `NOT_FOUND / TEAM_NOT_FOUND`; a member below the
+  RPC's role gets `PERMISSION_DENIED / ROLE_INSUFFICIENT` (a guest calling `ListMembers`
+  included).  `GetTeam` and `ListTeams` are open to guests.
+* Only the owner invites at the admin role, promotes to or demotes from admin, and removes an
+  admin; an admin does the rest of the member administration.
+* An invitation lives 7 days; its token (32 random bytes, base64url) is only in the mail, the row
+  keeps its sha256.  Inviting an address with a pending invitation replaces it.  The mail is the
+  Qute template `templates/InviteMailer/invite.{html,txt}` with the link
+  `<wt.links.base-url>/invite/<token>`.  `AcceptInvite` needs an `account_identity` row of the
+  caller with the invited address and `email_verified`; a workspace with require-SSO also needs
+  the session's `wt_auth_method` to be `sso:<its alias>`.  Accepting while already a member keeps
+  the current role.
+* Leaving or being removed deletes the membership *and* the account's `document_member` rows and
+  link uses on the team's documents, so the next role check (every RPC, the ingest path) finds no
+  role: `RoleGuard` answers `NOT_FOUND / DOCUMENT_NOT_FOUND` for a role of none, and
+  `ROLE_INSUFFICIENT` only for a role that is merely too low.
+* `DeleteTeam` sets `deleted_at`, trashes the team's live documents, ends every membership but
+  the owner's (the owner keeps the owner's powers on the documents to move them out) and drops
+  pending invitations.
+* A domain is verified when one of its TXT records is `wiretuner-verification=<token>` (the token
+  is 16 random bytes as hex); lookups use the non-blocking Vert.x DNS client against one resolver
+  (`wt.dns.host`, `wt.dns.port`; 1.1.1.1:53 by default) and any failed lookup reads as not
+  verified.  SEC-002's periodic re-verification reuses `DomainVerifier`.
+* Tokens for test sign-ins by workspace SSO come from the realm's test-only client
+  `wiretuner-test-sso` (hardcoded `wt_auth_method = sso:acme`); the realm also gains the test
+  people alice, bob, carol, dave and erin.
+
+.Error reasons added by SEC-001 (to be added to the table in xref:api-conventions.adoc[API conventions] and to `sync.v1.ErrorReason`)
+[cols="1,1,3"]
+|===
+|Code |Reason |Meaning
+
+|`NOT_FOUND` |`TEAM_NOT_FOUND` |The caller is not a member of the team, or the team is deleted.
+|`NOT_FOUND` |`MEMBER_NOT_FOUND` |The account named is not a member of the team.
+|`NOT_FOUND` |`INVITE_INVALID` |The invitation token is unknown, expired, used or withdrawn, or its team was deleted.
+|`NOT_FOUND` |`DOMAIN_NOT_FOUND` |The workspace has not claimed the domain.
+|`ALREADY_EXISTS` |`SLUG_TAKEN` |Another team has the slug.
+|`ALREADY_EXISTS` |`ALREADY_MEMBER` |The invited address belongs to a member (account email or a linked identity).
+|`ALREADY_EXISTS` |`DOMAIN_TAKEN` |Another team has verified the domain.
+|`FAILED_PRECONDITION` |`OWNER_MUST_TRANSFER` |The owner cannot leave, be removed or change role; transfer ownership first.
+|`FAILED_PRECONDITION` |`TEAM_ROLE_INVALID` |The member's team role does not allow it (a guest cannot own the team).
+|`FAILED_PRECONDITION` |`EMAIL_NOT_VERIFIED` |The caller holds no verified identity for the invited address.
+|`FAILED_PRECONDITION` |`SSO_REQUIRED` |The workspace requires signing in through its SSO connection.
+|`FAILED_PRECONDITION` |`DOMAIN_UNVERIFIED` |Requiring SSO or auto-admitting needs at least one verified domain.
+|===
 
 == Document roles
 

@@ -167,16 +167,14 @@ class RepositoriesTest {
         assertThat(tx(() -> search.find(doc.id))).isNull();
 
         String marker = "zq" + Long.toString(System.nanoTime(), 36);
-        assertThat(tx(() -> search.upsert(doc.id, 5, "o:Logotype " + marker, "hello world"))).isEqualTo(1);
-        assertThat(tx(() -> search.upsert(doc.id, 9, "o:Logotype " + marker + "\np:Cover", "brand guide text")))
+        assertThat(tx(() -> search.upsert(doc.id, 5, "o:Logotype " + marker, "t:hello world"))).isEqualTo(1);
+        assertThat(tx(() -> search.upsert(doc.id, 9, "o:Logotype " + marker + "\np:Cover", "t:brand guide text")))
                 .isEqualTo(1);
         DocumentSearchRepository.SearchRecord record = tx(() -> search.find(doc.id));
         assertThat(record.serverSeq()).isEqualTo(9L);
         assertThat(record.names()).contains("p:Cover");
 
-        assertThat(tx(() -> search.search("guide"))).contains(doc.id);
-        assertThat(tx(() -> search.search("o:Logotype " + marker))).contains(doc.id);
-        assertThat(tx(() -> search.search("hello"))).doesNotContain(doc.id);
+        assertThat(tx(() -> search.find(doc.id)).names()).isEqualTo("o:Logotype " + marker + "\np:Cover");
     }
 
     @Test

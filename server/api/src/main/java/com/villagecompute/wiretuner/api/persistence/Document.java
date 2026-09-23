@@ -28,11 +28,22 @@ public class Document {
     @Column(nullable = false)
     public String name = "";
 
-    @Column(nullable = false)
-    public String folder = "";
+    /** The folder it is in; null = the space's root. */
+    @Column(name = "folder_id")
+    public UUID folderId;
 
+    /** {@code illustration_single_page}, {@code illustration_multi_page} or {@code typeface}. */
     @Column(nullable = false)
-    public String kind = "document";
+    public String kind = "illustration_multi_page";
+
+    @Column(name = "is_template", nullable = false)
+    public boolean template;
+
+    @Column(name = "is_library", nullable = false)
+    public boolean library;
+
+    @Column(name = "created_by_account_id")
+    public UUID createdByAccountId;
 
     @Column(name = "feature_level", nullable = false)
     public int featureLevel;

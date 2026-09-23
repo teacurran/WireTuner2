@@ -22,6 +22,28 @@ public final class ErrorReasons {
     public static final String CREDENTIAL_MISSING = "CREDENTIAL_MISSING";
     public static final String RESPONSE_TOO_LARGE = "RESPONSE_TOO_LARGE";
     public static final String UPSTREAM_ERROR = "UPSTREAM_ERROR";
+    public static final String VALIDATION_FAILED = "VALIDATION_FAILED";
+
+    // Added by SRV-008, SRV-009 and SEC-001; recorded on docs/spec/server.adoc and
+    // docs/spec/security.adoc until the api-conventions table and sync.v1.ErrorReason carry them.
+    public static final String DOCUMENT_EXISTS = "DOCUMENT_EXISTS";
+    public static final String SPACE_NOT_FOUND = "SPACE_NOT_FOUND";
+    public static final String FOLDER_NOT_FOUND = "FOLDER_NOT_FOUND";
+    public static final String HISTORY_UNAVAILABLE = "HISTORY_UNAVAILABLE";
+    public static final String BLOB_NOT_FOUND = "BLOB_NOT_FOUND";
+    public static final String BLOB_MISMATCH = "BLOB_MISMATCH";
+    public static final String TEAM_NOT_FOUND = "TEAM_NOT_FOUND";
+    public static final String MEMBER_NOT_FOUND = "MEMBER_NOT_FOUND";
+    public static final String INVITE_INVALID = "INVITE_INVALID";
+    public static final String SLUG_TAKEN = "SLUG_TAKEN";
+    public static final String ALREADY_MEMBER = "ALREADY_MEMBER";
+    public static final String DOMAIN_TAKEN = "DOMAIN_TAKEN";
+    public static final String DOMAIN_NOT_FOUND = "DOMAIN_NOT_FOUND";
+    public static final String OWNER_MUST_TRANSFER = "OWNER_MUST_TRANSFER";
+    public static final String TEAM_ROLE_INVALID = "TEAM_ROLE_INVALID";
+    public static final String EMAIL_NOT_VERIFIED = "EMAIL_NOT_VERIFIED";
+    public static final String SSO_REQUIRED = "SSO_REQUIRED";
+    public static final String DOMAIN_UNVERIFIED = "DOMAIN_UNVERIFIED";
 
     private ErrorReasons() {
     }

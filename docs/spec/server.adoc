@@ -81,6 +81,42 @@ All services are `@Blocking`-free: Hibernate Reactive with the reactive PG clien
 dissipate-server.  Interceptors (in order): request id, OIDC token, principal resolution,
 protovalidate, rate limit, OpenTelemetry span.
 
+The protovalidate interceptor (`ValidationInterceptor`, delivered with SRV-009) checks every
+inbound message, each frame of a client stream included, and closes the call with
+`INVALID_ARGUMENT / VALIDATION_FAILED` and the violations in `google.rpc.BadRequest` (field path
+to rule message).  The gRPC server accepts inbound messages up to 2 MiB
+(`quarkus.grpc.server.max-inbound-message-size`): the Vert.x gRPC server's own default, 256 KiB,
+is below the 1 MiB bulk frames of xref:api-conventions.adoc[API conventions].
+
+`DocumentService` (SRV-009) checks document RPCs through `RoleGuard` and space RPCs (Create,
+List, Search, folders) through space membership: a space is the caller's own account or a team
+they belong to; any team member, a guest included, may list and search it and sees only the
+documents they can open; creating needs team member or above on a live team.  Deviation until
+SRV-007: Fork and Duplicate do not yet re-issue the source's state as one creation change; they
+copy the source's hot `change_log` rows up to the fork point row for row (keeping each
+`server_seq`), then append the caller's extra changes, carry over the source's blob references
+and thumbnail, and bind the caller's replicas on the copy.  A fork point part of which has been
+compacted is `FAILED_PRECONDITION / HISTORY_UNAVAILABLE`.
+
+`BlobService` (SRV-008) streams uploads into 8 MiB S3 multipart parts while hashing, completes
+the multipart upload only when size and sha256 match the header and aborts it otherwise, so a
+bad upload never becomes visible.  A blob the server already holds is still hashed end to end
+before the document gets its reference (a hash alone must not grant access) but is not stored
+again.
+
+.Error reasons added by SRV-008 and SRV-009 (to be added to the table in xref:api-conventions.adoc[API conventions] and to `sync.v1.ErrorReason`)
+[cols="1,1,3"]
+|===
+|Code |Reason |Meaning
+
+|`ALREADY_EXISTS` |`DOCUMENT_EXISTS` |A Create, Fork or Duplicate id belongs to a different document (another space, another owner, other first change); generate a new id.
+|`NOT_FOUND` |`SPACE_NOT_FOUND` |The space is neither the caller's account nor a team they belong to (or the team is deleted, for creating).
+|`NOT_FOUND` |`FOLDER_NOT_FOUND` |The folder does not exist in the space, or the caller may not see it.
+|`FAILED_PRECONDITION` |`HISTORY_UNAVAILABLE` |A fork point beyond the head, or within history already compacted.
+|`NOT_FOUND` |`BLOB_NOT_FOUND` |The document does not reference the blob (nor shows it as its thumbnail), or it has not arrived.
+|`INVALID_ARGUMENT` |`BLOB_MISMATCH` |An upload's content disagrees with its header (size or sha256), or its frames are out of order (no header first, a second header, no frames).
+|===
+
 == Persistence
 
 Postgres holds the truth; object storage holds bulk.
@@ -89,8 +125,9 @@ Postgres holds the truth; object storage holds bulk.
 |===
 |Table |Purpose
 
-|`document` |Identity, space (account XOR team), folder, feature level, `head_seq`, `stable_seq`, trash timestamp, document kind, `thumbnail_blob` (sha256 of the client-rendered thumbnail, nullable) and `thumbnail_at`.
-|`document_search` |`document_id` primary key, `server_seq` the record was extracted at, `names` (text: object names, swatch / style / symbol names, keywords, page names, one per line; trigram GIN index via `pg_trgm`), `body` (`tsvector` in the `simple` configuration: text block contents and notes; GIN index), `names_body` (a second `tsvector` over the names, so a name matches as a word as well as a substring).  Rewritten by the snapshotter; never read by sync.
+|`document` |Identity, space (account XOR team), `folder_id` (null = the space's root), feature level, `head_seq`, `stable_seq`, trash timestamp, document kind (`illustration_single_page`, `illustration_multi_page`, `typeface`), `is_template`, `is_library`, `created_by_account_id`, `thumbnail_blob` (sha256 of the client-rendered thumbnail, nullable) and `thumbnail_at`.
+|`folder` |Id, space (account XOR team), `parent_folder_id` (null = the root), name.  No roles: access is per document and per space (V6, SRV-009).
+|`document_search` |`document_id` primary key, `server_seq` the record was extracted at, `names` (text: object names, swatch / style / symbol names, keywords, page names, one per line; trigram GIN index via `pg_trgm`), `body` (`tsvector` in the `simple` configuration: text block contents and notes; GIN index), `names_body` (a second `tsvector` over the names, so a name matches as a word as well as a substring), `body_text` (the text and note lines behind `body`, prefixed like `names`, because `ts_headline` needs source text and a `tsvector` cannot be highlighted; V6).  The vectors are built from the lines with their prefixes stripped (`DocumentSearchRepository.upsert`).  Rewritten by the snapshotter; never read by sync.
 |`change_log` |`(document_id, server_seq)` primary key, replica, seq, `bytes` (the encoded `Change`), wall time, byte size.  Hash-partitioned by `document_id`, 16 partitions.  Rows older than the newest snapshot minus a margin are moved to cold segments.
 |`replica` |`(document_id, replica_id)`, account, device, `last_seq`, `last_ack_seq`, `last_seen_at`, `retired_at`.
 |`snapshot` |`(document_id, server_seq)`, object key, `state_hash`, size, node count.
@@ -98,7 +135,7 @@ Postgres holds the truth; object storage holds bulk.
 |`document_member`, `share_link`, `share_link_use` |Roles; `share_link_use(share_link_id, account_id, used_at)` records who used a link, which the effective-role rule needs.
 |`branch` |Child document id, parent document id, fork `server_seq`, merged at.
 |`version` |`(document_id, server_seq)`, name, author, created.
-|`blob`, `document_blob` |sha256, size, media type, storage key; references per document.
+|`blob`, `document_blob` |sha256, size, media type, storage key (`blobs/<first byte>/<sha256>`), `tag` the blob was first uploaded with (`content` or `thumbnail`); references per document.  A thumbnail upload sets `document.thumbnail_blob` and adds no reference.
 |`account`, `account_identity`, `device`, `team`, `team_member`, `team_invite`, `workspace`, `workspace_domain` |xref:security.adoc[Accounts, teams and security].
 |===
 
@@ -187,7 +224,20 @@ message SearchResponse { repeated SearchHit hits = 1; string next_cursor = 2; }
 `body @@ websearch_to_tsquery('simple', query)` or `names_body @@ ...`, joined to the caller's
 visible documents in the space, ordered by `ts_rank` then name similarity, cursor-paged by
 `(rank, document_id)`.  Highlights come from `ts_headline` on `body` and from the matching line
-of `names`; the field is recovered from a prefix each line carries (`o:`, `s:`, `p:` ...).  The
+of `names`; the field is recovered from a prefix each line carries (`o:`, `s:`, `p:` ...).
+
+As built (SRV-009): the whole-record `names % query` is diluted by every other line of a long
+record, so a name matches by `ILIKE '%query%'` (wildcards in the query escaped) or by word
+similarity `query <% names` (and the same two against the live `document.name`); text and names
+also match by word through the two vectors.  The rank is one number, `ts_rank(body) +
+ts_rank(names_body) + greatest(word_similarity(query, name), word_similarity(query, names))`,
+so the keyset is `(rank desc, document_id)`.  Highlights are computed per line: every line of
+`names` and `body_text` that contains the query or matches it by word; a names line matched as a
+substring has the substring bolded by the server, a line matched by word gets `ts_headline`'s
+`<b>` markers; text and note lines count only as word matches.  At most five lines are reported
+per hit, plus the document name when it matched.  The prefixes are `o:` object name, `s:` swatch,
+`st:` style, `sy:` symbol, `k:` keyword, title or description, `p:` page (in `names`), and `t:`
+text block, `n:` note (in `body_text`); SRV-007 writes them.  The
 index lags the log by the snapshotter's cadence (at most 2 minutes for a document being edited
 heavily, and one run after the last subscription closes), which the guide describes as "a few
 minutes".  Document *names* are also matched live from `document.name`, so a rename is
@@ -206,7 +256,9 @@ searchable at once.  Nothing here is on the ingest path.
   keeping it small.  Read replicas serve `FetchChanges`.
 * Object storage: R2 (no egress fees) in production, MinIO locally; presigned URLs are *not*
   used for documents (all reads go through the API for authorisation); they are used for blob
-  uploads over 8 MiB.
+  uploads over 8 MiB.  As built (SRV-008) every upload still streams through the API into S3
+  multipart parts, because `BlobService.Upload` has no presigned variant in `blob.proto`; a 200
+  MiB upload takes a few seconds against local MinIO.  Presigned uploads need a proto addition.
 
 == Observability
 

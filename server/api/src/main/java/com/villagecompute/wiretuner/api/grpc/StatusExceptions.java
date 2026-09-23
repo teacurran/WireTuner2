@@ -6,6 +6,7 @@ import java.util.Optional;
 
 import com.google.protobuf.Any;
 import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.rpc.BadRequest;
 import com.google.rpc.Code;
 import com.google.rpc.ErrorInfo;
 import com.google.rpc.RetryInfo;
@@ -114,6 +115,126 @@ public final class StatusExceptions {
     public static StatusRuntimeException upstreamError(int upstreamStatus) {
         return withReason(Code.UNAVAILABLE, ErrorReasons.UPSTREAM_ERROR,
                 "the upstream API answered " + upstreamStatus, Map.of("upstream_status", Integer.toString(upstreamStatus)));
+    }
+
+    /**
+     * {@code INVALID_ARGUMENT / VALIDATION_FAILED} with the violations in {@code google.rpc.BadRequest}:
+     * each entry is a field path and its rule's message.
+     */
+    public static StatusRuntimeException validationFailed(String description, Map<String, String> violations) {
+        BadRequest.Builder badRequest = BadRequest.newBuilder();
+        violations.forEach((field, message) -> badRequest.addFieldViolations(
+                BadRequest.FieldViolation.newBuilder().setField(field).setDescription(message)));
+        com.google.rpc.Status status = com.google.rpc.Status.newBuilder()
+                .setCode(Code.INVALID_ARGUMENT.getNumber())
+                .setMessage(description)
+                .addDetails(Any.pack(errorInfo(ErrorReasons.VALIDATION_FAILED, Map.of())))
+                .addDetails(Any.pack(badRequest.build()))
+                .build();
+        return StatusProto.toStatusRuntimeException(status);
+    }
+
+    /** {@code ALREADY_EXISTS / DOCUMENT_EXISTS}: the client-chosen document id is taken by a different document. */
+    public static StatusRuntimeException documentExists() {
+        return withReason(Code.ALREADY_EXISTS, ErrorReasons.DOCUMENT_EXISTS,
+                "a different document already has this id; generate a new one", Map.of());
+    }
+
+    /** {@code NOT_FOUND / SPACE_NOT_FOUND}: the space is neither the caller's account nor a team they belong to. */
+    public static StatusRuntimeException spaceNotFound() {
+        return withReason(Code.NOT_FOUND, ErrorReasons.SPACE_NOT_FOUND, "space not found", Map.of());
+    }
+
+    /** {@code NOT_FOUND / FOLDER_NOT_FOUND}: the folder does not exist in the space. */
+    public static StatusRuntimeException folderNotFound() {
+        return withReason(Code.NOT_FOUND, ErrorReasons.FOLDER_NOT_FOUND, "folder not found", Map.of());
+    }
+
+    /** {@code FAILED_PRECONDITION / HISTORY_UNAVAILABLE}: the requested server_seq is not within retained history. */
+    public static StatusRuntimeException historyUnavailable(long requested, long head) {
+        return withReason(Code.FAILED_PRECONDITION, ErrorReasons.HISTORY_UNAVAILABLE,
+                "server_seq " + requested + " is not within retained history (head " + head + ")",
+                Map.of("requested", Long.toString(requested), "head", Long.toString(head)));
+    }
+
+    /** {@code NOT_FOUND / BLOB_NOT_FOUND}: the document does not reference the blob, or it has not arrived. */
+    public static StatusRuntimeException blobNotFound() {
+        return withReason(Code.NOT_FOUND, ErrorReasons.BLOB_NOT_FOUND, "blob not found for this document", Map.of());
+    }
+
+    /** {@code INVALID_ARGUMENT / BLOB_MISMATCH}: the upload's content disagrees with its header, or frames are out of order. */
+    public static StatusRuntimeException blobMismatch(String description) {
+        return withReason(Code.INVALID_ARGUMENT, ErrorReasons.BLOB_MISMATCH, description, Map.of());
+    }
+
+    /** {@code NOT_FOUND / TEAM_NOT_FOUND}: the team does not exist or the caller may not see it. */
+    public static StatusRuntimeException teamNotFound() {
+        return withReason(Code.NOT_FOUND, ErrorReasons.TEAM_NOT_FOUND, "team not found", Map.of());
+    }
+
+    /** {@code NOT_FOUND / MEMBER_NOT_FOUND}: the account is not a member of the team. */
+    public static StatusRuntimeException memberNotFound() {
+        return withReason(Code.NOT_FOUND, ErrorReasons.MEMBER_NOT_FOUND, "the account is not a member of this team",
+                Map.of());
+    }
+
+    /** {@code NOT_FOUND / INVITE_INVALID}: the invitation token is unknown, expired, used or withdrawn. */
+    public static StatusRuntimeException inviteInvalid() {
+        return withReason(Code.NOT_FOUND, ErrorReasons.INVITE_INVALID, "the invitation is unknown, expired or withdrawn",
+                Map.of());
+    }
+
+    /** {@code ALREADY_EXISTS / SLUG_TAKEN}: another team has the slug. */
+    public static StatusRuntimeException slugTaken(String slug) {
+        return withReason(Code.ALREADY_EXISTS, ErrorReasons.SLUG_TAKEN, "the slug " + slug + " is taken",
+                Map.of("slug", slug));
+    }
+
+    /** {@code ALREADY_EXISTS / ALREADY_MEMBER}: the invited address belongs to a member. */
+    public static StatusRuntimeException alreadyMember() {
+        return withReason(Code.ALREADY_EXISTS, ErrorReasons.ALREADY_MEMBER, "the address belongs to a team member",
+                Map.of());
+    }
+
+    /** {@code ALREADY_EXISTS / DOMAIN_TAKEN}: another team has verified the domain. */
+    public static StatusRuntimeException domainTaken(String domain) {
+        return withReason(Code.ALREADY_EXISTS, ErrorReasons.DOMAIN_TAKEN, "another team has verified " + domain,
+                Map.of("domain", domain));
+    }
+
+    /** {@code NOT_FOUND / DOMAIN_NOT_FOUND}: the workspace has not claimed the domain. */
+    public static StatusRuntimeException domainNotFound(String domain) {
+        return withReason(Code.NOT_FOUND, ErrorReasons.DOMAIN_NOT_FOUND, "the workspace has not claimed " + domain,
+                Map.of("domain", domain));
+    }
+
+    /** {@code FAILED_PRECONDITION / OWNER_MUST_TRANSFER}: the owner cannot leave, be removed or change role. */
+    public static StatusRuntimeException ownerMustTransfer() {
+        return withReason(Code.FAILED_PRECONDITION, ErrorReasons.OWNER_MUST_TRANSFER,
+                "the team owner must transfer ownership first", Map.of());
+    }
+
+    /** {@code FAILED_PRECONDITION / TEAM_ROLE_INVALID}: the member's team role does not allow this (a guest as owner). */
+    public static StatusRuntimeException teamRoleInvalid(String description) {
+        return withReason(Code.FAILED_PRECONDITION, ErrorReasons.TEAM_ROLE_INVALID, description, Map.of());
+    }
+
+    /** {@code FAILED_PRECONDITION / EMAIL_NOT_VERIFIED}: the caller holds no verified identity for the invited address. */
+    public static StatusRuntimeException emailNotVerified() {
+        return withReason(Code.FAILED_PRECONDITION, ErrorReasons.EMAIL_NOT_VERIFIED,
+                "sign in with a verified identity for the invited address", Map.of());
+    }
+
+    /** {@code FAILED_PRECONDITION / SSO_REQUIRED}: the workspace requires signing in through its SSO connection. */
+    public static StatusRuntimeException ssoRequired(String idpAlias) {
+        return withReason(Code.FAILED_PRECONDITION, ErrorReasons.SSO_REQUIRED,
+                "this workspace requires signing in through " + idpAlias, Map.of("idp_alias", idpAlias));
+    }
+
+    /** {@code FAILED_PRECONDITION / DOMAIN_UNVERIFIED}: the setting needs at least one verified domain. */
+    public static StatusRuntimeException domainUnverified() {
+        return withReason(Code.FAILED_PRECONDITION, ErrorReasons.DOMAIN_UNVERIFIED,
+                "requiring SSO or auto-admitting needs a verified domain", Map.of());
     }
 
     /** The {@code ErrorInfo} carried by a WireTuner status error, if any. */

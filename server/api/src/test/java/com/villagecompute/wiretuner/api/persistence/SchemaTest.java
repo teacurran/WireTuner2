@@ -31,7 +31,7 @@ class SchemaTest {
     static final List<String> TABLES = List.of("account", "account_identity", "device", "team", "team_member",
             "team_invite", "workspace", "workspace_domain", "document", "document_member", "share_link",
             "share_link_use", "branch", "version", "document_search", "replica", "change_log", "snapshot",
-            "cold_segment", "blob", "document_blob");
+            "cold_segment", "blob", "document_blob", "folder");
 
     @Inject
     Flyway flyway;
@@ -40,8 +40,8 @@ class SchemaTest {
     DataSource dataSource;
 
     @Test
-    void flywayReachedV5() {
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("5");
+    void flywayReachedV6() {
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("6");
         assertThat(flyway.info().pending()).isEmpty();
     }
 
@@ -50,7 +50,7 @@ class SchemaTest {
         List<String> present = strings("SELECT tablename FROM pg_tables WHERE schemaname = 'public'");
         assertThat(present).containsAll(TABLES);
         assertThat(strings("SELECT extname FROM pg_extension")).contains("pg_trgm");
-        assertThat(strings("SELECT value FROM schema_info WHERE key = 'wiretuner.schema'")).containsExactly("SRV-003");
+        assertThat(strings("SELECT value FROM schema_info WHERE key = 'wiretuner.schema'")).containsExactly("SEC-001");
     }
 
     @Test

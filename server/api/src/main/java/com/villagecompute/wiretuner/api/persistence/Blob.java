@@ -21,6 +21,10 @@ public class Blob {
     @Column(name = "media_type", nullable = false)
     public String mediaType;
 
+    /** The tag it was first uploaded with: {@code content} or {@code thumbnail}. */
+    @Column(nullable = false)
+    public String tag = "content";
+
     @Column(name = "storage_key", nullable = false)
     public String storageKey;
 
