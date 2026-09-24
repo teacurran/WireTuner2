@@ -18,69 +18,12 @@ enum Pasteboard {
 
     /// US Letter, centred on the pasteboard: where a new document's first page goes.
     static let letterPage = Rect(x: (side - 612) / 2, y: (side - 792) / 2, width: 612, height: 792)
-    /// Space between pages that Add Page leaves.
-    static let pageGap = 36.0
-
     /// `page` moved (not resized) so it lies on the pasteboard: a page dragged past the edge
     /// stops at it.  A page larger than the pasteboard is pinned to its origin.
     static func clamp(_ page: Rect) -> Rect {
         let x = min(max(page.minX, 0), max(side - page.width, 0))
         let y = min(max(page.minY, 0), max(side - page.height, 0))
         return Rect(x: x, y: y, width: page.width, height: page.height)
-    }
-
-    /// Where Add Page puts a page of `size` after `current`: to the right of the rightmost
-    /// page in `current`'s row, or at the start of a new row below when the row is full.
-    static func placement(after current: Rect, among pages: [Rect]) -> Rect {
-        let row = pages.filter { $0.minY < current.maxY && current.minY < $0.maxY }
-        let right = row.map { $0.maxX }.max() ?? current.maxX
-        let beside = Rect(x: right + pageGap, y: current.minY, width: current.width, height: current.height)
-        if beside.maxX <= side { return beside }
-        let bottom = pages.map { $0.maxY }.max() ?? current.maxY
-        let left = pages.map { $0.minX }.min() ?? current.minX
-        return clamp(Rect(x: left, y: bottom + pageGap, width: current.width, height: current.height))
-    }
-}
-
-/// The document's unit of measure (document-panel.adoc; the status bar's units pop-up).
-enum DocumentUnits: String, CaseIterable, Codable, Sendable {
-    case points, picas, inches, decimalInches, millimeters, centimeters, pixels
-
-    var title: String {
-        switch self {
-        case .points: "Points"
-        case .picas: "Picas"
-        case .inches: "Inches"
-        case .decimalInches: "Decimal Inches"
-        case .millimeters: "Millimeters"
-        case .centimeters: "Centimeters"
-        case .pixels: "Pixels"
-        }
-    }
-}
-
-/// The `settings.units` register (ATOMIC, last writer wins, workspace.adoc "Merge semantics")
-/// as the window keeps it until the settings node is wired: the value with a Lamport stamp; the
-/// higher stamp wins, the replica id breaking ties, so every client converges on one value.
-struct UnitsRegister: Equatable, Sendable {
-    var value: DocumentUnits
-    var counter: UInt64
-    var replica: String
-
-    init(value: DocumentUnits = .points, counter: UInt64 = 0, replica: String = "") {
-        self.value = value
-        self.counter = counter
-        self.replica = replica
-    }
-
-    /// A local write by `replica`, stamped above everything seen.
-    func writing(_ value: DocumentUnits, replica: String) -> UnitsRegister {
-        UnitsRegister(value: value, counter: counter + 1, replica: replica)
-    }
-
-    /// The winner of the two.
-    func merged(with other: UnitsRegister) -> UnitsRegister {
-        (other.counter, other.replica) > (counter, replica) ? other : self
     }
 }
 
@@ -103,6 +46,15 @@ struct ContentChange: Sendable {
     let change: Wiretuner_Doc_V1_Change?
 }
 
+/// The pages before and after an applied change that changed them (the live notices for lost
+/// page settings and removed pages, DOC-004 and DOC-008).
+struct PageListChange {
+    let before: PageList
+    let after: PageList
+    let origin: ChangeOrigin
+    let change: Wiretuner_Doc_V1_Change?
+}
+
 /// An open document as the window sees it: identity, title, pages, the `WTModel.Document` and the
 /// scene built from it.  The model opens asynchronously (`LocalStore.open`); until then the scene
 /// is the page furniture alone and commands wait for it.  Every applied change -- local, undo,
@@ -120,19 +72,17 @@ final class DocumentHandle: Identifiable, CommandSink {
     var title: String {
         didSet { if title != oldValue { structureDidChange() } }
     }
-    /// The document's pages in pasteboard coordinates (Fit to Page, Fit All).
-    var pages: [Rect] {
-        didSet {
-            currentPageIndex = min(currentPageIndex, max(pages.count - 1, 0))
-            drawPages()
-            structureDidChange()
-        }
-    }
-    /// The page the page selector shows.
-    private(set) var currentPageIndex = 0
-    /// `settings.units`.
-    private(set) var unitsRegister = UnitsRegister()
-    /// This client's id for the units register's stamps.
+    /// The document's pages, master pages and setup settings as read (DOC-002 `PageList`): every
+    /// page in page order with its effective geometry, and the one Letter page a document without
+    /// pages reads as (until the model opens, too).
+    private(set) var pageList = PageList(EngineState())
+    /// The active page (pages.adoc, "Selecting pages"): the page the page selector, page settings,
+    /// the zero point and *Go to Page* refer to.  Presence, not document state; nil is page 1.
+    private(set) var activePageID: OpID?
+    /// The pages the Page tool or the Document panel selected (page settings apply to all of
+    /// them); empty selects the active page.
+    private(set) var selectedPageIDs: [OpID] = []
+    /// This client's id (the window's presence).
     let replicaID: String
     /// Top-level display items before this index are page furniture, not objects.
     let firstSelectableIndex = 1
@@ -156,6 +106,7 @@ final class DocumentHandle: Identifiable, CommandSink {
     private var modelObservation: WTModel.Document.ObservationToken?
     private var observers: [UUID: @MainActor (ContentChange) -> Void] = [:]
     private var structureObservers: [UUID: @MainActor () -> Void] = [:]
+    private var pageObservers: [UUID: @MainActor (PageListChange) -> Void] = [:]
     /// The command the canvases show as if performed (`preview`), and the scene drawn with it.
     private(set) var previewCommand: (any WTModel.Command)?
     private var previewScene: DocumentScene?
@@ -163,28 +114,26 @@ final class DocumentHandle: Identifiable, CommandSink {
     private var previewTouched: Set<NodeID> = []
 
     /// A document whose model is ready (a memory document, tests).
-    init(id: String = UUID().uuidString, title: String, pages: [Rect] = [Pasteboard.letterPage], replicaID: String = UUID().uuidString,
+    init(id: String = UUID().uuidString, title: String, replicaID: String = UUID().uuidString,
          model: WTModel.Document, invalidation: InvalidationBatcher = InvalidationBatcher()) {
         self.id = id
         self.title = title
-        self.pages = pages
         self.replicaID = replicaID
         self.invalidation = invalidation
-        builder = DocumentDisplayListBuilder(canvas: CanvasID(id), background: [Self.pagesItem(pages)])
+        builder = DocumentDisplayListBuilder(canvas: CanvasID(id), background: [Self.pagesItem(pageList)])
         builder.textLayout = TextSceneLayout(engine: textEngine)
         attach(model)
     }
 
     /// A document whose model `open` produces (a `LocalStore`-backed document).  The scene shows
     /// the pages until it is ready; commands issued before wait for it.
-    init(id: String = UUID().uuidString, title: String, pages: [Rect] = [Pasteboard.letterPage], replicaID: String = UUID().uuidString,
+    init(id: String = UUID().uuidString, title: String, replicaID: String = UUID().uuidString,
          invalidation: InvalidationBatcher = InvalidationBatcher(), open: @escaping @MainActor () async throws -> WTModel.Document) {
         self.id = id
         self.title = title
-        self.pages = pages
         self.replicaID = replicaID
         self.invalidation = invalidation
-        builder = DocumentDisplayListBuilder(canvas: CanvasID(id), background: [Self.pagesItem(pages)])
+        builder = DocumentDisplayListBuilder(canvas: CanvasID(id), background: [Self.pagesItem(pageList)])
         builder.textLayout = TextSceneLayout(engine: textEngine)
         opening = Task { [weak self] in
             do {
@@ -204,10 +153,13 @@ final class DocumentHandle: Identifiable, CommandSink {
 
     private func attach(_ model: WTModel.Document) {
         self.model = model
+        pageList = PageList(model.state)
         builder.rebuild(model.state)
+        _ = builder.setBackground([Self.pagesItem(pageList)], state: model.state)
         modelObservation = model.observe { [weak self] event in self?.modelDidChange(event) }
-        // The template's swatches are not content to draw.
-        if model.state.store.nodes.contains(where: { model.state.store.isCreated($0) && model.state.store.kind($0) != SwatchFields.kind }) {
+        // The template's swatches and first page are not content to draw.
+        let template: Set<UInt32> = [SwatchFields.kind, PageFields.kind]
+        if model.state.store.nodes.contains(where: { model.state.store.isCreated($0) && !template.contains(model.state.store.kind($0)) }) {
             changeCount += 1
             let summary = ChangeSummary(origin: .local, isStructural: true)
             invalidation.submit(summary, after: [builder.scene.displayList])
@@ -255,10 +207,40 @@ final class DocumentHandle: Identifiable, CommandSink {
         let (_, applied) = event.origin == .reload
             ? builder.reload(event.after, origin: origin)
             : builder.apply(event.change, state: event.after, origin: origin)
-        let summary = previewCommand == nil ? applied : refreshPreview(applied)
+        var summary = applied
+        let previousPages = pageList
+        let pagesChanged = readPages(event.after)
+        if pagesChanged.furniture {
+            // The page furniture is the scene's background: a page added, moved or resized redraws it.
+            let (_, redrawn) = builder.setBackground([Self.pagesItem(pageList)], state: event.after)
+            summary.merge(redrawn)
+        }
+        if previewCommand != nil { summary = refreshPreview(summary) }
         changeCount += 1
         invalidation.submit(summary, before: [before], after: [displayList])
         notify(ContentChange(summary: summary, before: before, after: displayList, change: event.change))
+        if pagesChanged.structure { structureDidChange() }
+        if pagesChanged.structure || (origin == .local && !event.change.createdObjects.isEmpty) {
+            let pageChange = PageListChange(before: previousPages, after: pageList, origin: origin, change: event.change)
+            for observer in pageObservers.values { observer(pageChange) }
+        }
+    }
+
+    /// Re-reads the pages and settings from `state`: whether the furniture (a page's rectangle or
+    /// bleed) changed, and whether anything the status bar and panels show did (pages, names,
+    /// masters, units, custom sizes, the grid).  A removed active page hands over to the nearest
+    /// page in page order.
+    private func readPages(_ state: EngineState) -> (furniture: Bool, structure: Bool) {
+        let old = pageList
+        let next = PageList(state)
+        guard next != old else { return (false, false) }
+        pageList = next
+        selectedPageIDs.removeAll { next[$0] == nil }
+        if let active = activePageID, next[active] == nil {
+            let index = old.number(of: active).map { $0 - 1 } ?? 0
+            activePageID = next.pages[min(index, next.pages.count - 1)].id
+        }
+        return (old.frames() != next.frames(), true)
     }
 
     // MARK: Preview (COLOR-017)
@@ -341,26 +323,16 @@ final class DocumentHandle: Identifiable, CommandSink {
         return layout
     }
 
-    private func drawPages() {
-        let before = builder.scene.displayList
-        let (scene, summary) = builder.setBackground([Self.pagesItem(pages)], state: state)
-        invalidation.submit(summary, before: [before], after: [scene.displayList])
-        notify(ContentChange(summary: summary, before: before, after: scene.displayList, change: nil))
+    /// The page furniture (DOC-009, `PageRendering`): the pasteboard, every page's white sheet,
+    /// bleed line and outline, as one group at index 0 so adding or removing a page never
+    /// renumbers the objects after it.  The active page's emphasis, the grid, guides and presence
+    /// dots are the canvas's own (`CanvasFurniture`), so choosing a page repaints no tile.
+    static func pagesItem(_ pages: PageList) -> DisplayItem {
+        PageRendering.item(pages.frames(), style: pageStyle)
     }
 
-    /// Every page's shadow, white sheet and border (BASIC-003).  The pages are one group at index
-    /// 0, so adding or removing a page never renumbers the objects after it.
-    static func pagesItem(_ pages: [Rect]) -> DisplayItem {
-        .group(GroupItem(children: pages.flatMap { page -> [DisplayItem] in
-            let path = DisplayPath(rect: page)
-            let shadow = DisplayPath(rect: Rect(x: page.minX + 3, y: page.minY + 3, width: page.width, height: page.height))
-            return [
-                .fill(FillItem(path: shadow, paint: .solid(Color(white: 0, alpha: 0.18)))),
-                .fill(FillItem(path: path, paint: .solid(.white))),
-                .stroke(StrokeItem(path: path, style: StrokeStyle(width: 0.5), paint: .solid(Color(white: 0.6)))),
-            ]
-        }))
-    }
+    /// The furniture's look: the canvas's pasteboard colour.
+    static let pageStyle = PageStyle(pasteboardColor: CanvasView.pasteboardTileColor)
 
     // MARK: Commands and undo
 
@@ -433,66 +405,83 @@ final class DocumentHandle: Identifiable, CommandSink {
     var canRedo: Bool { model?.canRedo ?? false }
 
     /// Fit All's rectangle: every page.
-    var allPagesBounds: Rect? { CanvasNavigation.union(pages) }
+    var allPagesBounds: Rect? { pageList.bounds }
 
-    /// The current page (the page selector's).
-    var currentPage: Rect? { pages.indices.contains(currentPageIndex) ? pages[currentPageIndex] : nil }
+    // MARK: Pages and units (DOC-002, DOC-008)
 
-    // MARK: Pages and units (BASIC-002)
+    /// The page rectangles in page order (Fit to Page, the page selector, the Export sheet).
+    /// Setting them replaces the document's pages with pages of those rectangles, in one change
+    /// ("Set pages"), after every command issued before (tests and templates).
+    var pages: [Rect] {
+        get { pageList.pages.map(\.rect) }
+        set { perform(ReplacePageRects(newValue, recordsUndo: false)) }
+    }
 
-    /// Selects page `index` (clamped to the pages there are).
+    /// The active page as read.
+    var activePage: Page { activePageID.flatMap { pageList[$0] } ?? pageList.pages[0] }
+    /// Its index in page order (the page selector's).
+    var currentPageIndex: Int { activePage.number - 1 }
+    /// The active page's rectangle.
+    var currentPage: Rect? { activePage.rect }
+    /// The document's setup settings as read.
+    var settings: DocumentSettings { pageList.settings }
+    /// The document's unit (`settings.units`).
+    var units: LengthUnit { settings.units }
+    /// Field entry and display in the document's units, custom ones included.
+    var unitConverter: Units { settings.unitConverter }
+
+    /// The selected pages as read, in page order: the Page tool's selection, else the active page.
+    var selectedPages: [Page] {
+        let live = pageList.pages.filter { selectedPageIDs.contains($0.id) }
+        return live.isEmpty ? [activePage] : live
+    }
+
+    /// Selects `ids` (pages the Page tool clicked or marqueed); the last becomes the active page.
+    func selectPages(_ ids: [OpID]) {
+        let live = ids.filter { pageList[$0] != nil }
+        guard live != selectedPageIDs else { return }
+        selectedPageIDs = live
+        if let last = live.last { activePageID = last }
+        structureDidChange()
+    }
+
+    /// Makes page `index` (clamped to the pages there are) the active page.
     func selectPage(_ index: Int) {
-        let clamped = min(max(index, 0), max(pages.count - 1, 0))
-        guard clamped != currentPageIndex else { return }
-        currentPageIndex = clamped
+        let clamped = min(max(index, 0), pageList.pages.count - 1)
+        selectPage(id: pageList.pages[clamped].id)
+    }
+
+    /// Makes the page `id` names the active page; an id naming no page is ignored.
+    func selectPage(id: OpID) {
+        guard pageList[id] != nil, id != activePage.id || activePageID == nil || selectedPageIDs != [id] else { return }
+        activePageID = id
+        selectedPageIDs = [id]
         structureDidChange()
     }
 
-    /// btn:[Add Page]: a page the size of the current one after it; it becomes current.
+    /// btn:[Add Page]: a page like the active one after it in page order (`AddPages`, "Add page"),
+    /// which becomes active once it exists.
     @discardableResult
-    func addPage() -> Int {
-        let current = currentPage ?? Pasteboard.letterPage
-        let page = Pasteboard.placement(after: current, among: pages)
-        let index = pages.isEmpty ? 0 : currentPageIndex + 1
-        changeCount += 1
-        pages.insert(page, at: index)
-        currentPageIndex = index
-        structureDidChange()
-        return index
-    }
-
-    /// A page deleted by someone else: a deleted current page moves the selector to the nearest
-    /// remaining page.
-    func removePage(at index: Int) {
-        guard pages.indices.contains(index) else { return }
-        if index < currentPageIndex || (index == currentPageIndex && index == pages.count - 1) {
-            currentPageIndex = max(currentPageIndex - 1, 0)
+    func addPage() -> Task<Void, Never> {
+        let after = activePage
+        let task = perform(AddPages(after: after.isSynthesized ? nil : after.id))
+        return Task { [weak self] in
+            guard await task.value != nil, let self else { return }
+            self.selectPage(after.number)
         }
-        changeCount += 1
-        pages.remove(at: index)
     }
 
-    var units: DocumentUnits { unitsRegister.value }
-
-    /// The units pop-up: one change labelled "Change Units".
-    func setUnits(_ units: DocumentUnits) {
-        guard units != self.units else { return }
-        unitsRegister = unitsRegister.writing(units, replica: replicaID)
-        changeCount += 1
-        structureDidChange()
-    }
-
-    /// A units register from another client (merge: last writer wins).
-    func mergeUnits(_ remote: UnitsRegister) {
-        let merged = unitsRegister.merged(with: remote)
-        guard merged != unitsRegister else { return }
-        unitsRegister = merged
-        structureDidChange()
+    /// The units pop-up: one change, "Change units".
+    @discardableResult
+    func setUnits(_ units: LengthUnit) -> Task<Wiretuner_Doc_V1_Change?, Never>? {
+        guard units != self.units else { return nil }
+        return perform(SetUnits(units))
     }
 
     // MARK: Observers
 
-    /// Calls `handler` after the title, pages, current page or units change (the status bar).
+    /// Calls `handler` after the title, the pages, the active page or the settings change (the
+    /// status bar, the Document panel).
     @discardableResult
     func observeStructure(_ handler: @escaping @MainActor () -> Void) -> ObservationToken {
         let id = UUID()
@@ -512,9 +501,19 @@ final class DocumentHandle: Identifiable, CommandSink {
         return ObservationToken(id: id)
     }
 
+    /// Calls `handler` after a change that changed the pages or settings, and after a local change
+    /// that created objects (the page notices follow what this person drew).
+    @discardableResult
+    func observePages(_ handler: @escaping @MainActor (PageListChange) -> Void) -> ObservationToken {
+        let id = UUID()
+        pageObservers[id] = handler
+        return ObservationToken(id: id)
+    }
+
     func stopObserving(_ token: ObservationToken) {
         observers[token.id] = nil
         structureObservers[token.id] = nil
+        pageObservers[token.id] = nil
     }
 
     private func notify(_ change: ContentChange) {

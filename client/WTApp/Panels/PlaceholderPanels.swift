@@ -8,7 +8,7 @@ enum PlaceholderPanels {
     /// The Object panel: the APP-007 inspector host (`ObjectPanelBody`) over `selection`.
     static func objectPanel(selection: ActiveSelection?) -> PanelDescriptor {
         PanelDescriptor(id: "object", title: "Object", icon: "slider.horizontal.3", defaultGroup: "Properties", menuOrder: 10, helpSlug: "object-panel") {
-            ObjectPanelBody(selection: selection)
+            DocumentUnitsScope(selection: selection) { ObjectPanelBody(selection: selection) }
         }
     }
 

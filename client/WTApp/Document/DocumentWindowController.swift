@@ -177,6 +177,31 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
     var onSelectionChange: (@MainActor (DocumentWindowController) -> Void)?
     /// Called after the drawing mode or a snap toggle changes (the Tools panel follows).
     var onViewStateChange: (@MainActor (DocumentWindowController) -> Void)?
+    /// Called after the pages, the active page or the document settings change (the Document
+    /// panel follows).
+    var onStructureChange: (@MainActor (DocumentWindowController) -> Void)?
+    /// What to do with the pages once the model opens: find the saved current page, or fit page 1.
+    private enum PageRestore {
+        case page(DocumentWindowState)
+        case fit
+    }
+    private var pendingPageRestore: PageRestore?
+    /// The grid, guides, page emphasis and page dots drawn over the tiles (DOC-018).
+    let furniture: CanvasFurniture
+    /// Guide dragging with the Pointer and Subselect tools.
+    let guideHandles: GuideHandles
+    /// The zero-point marker being dragged (pasteboard), drawn as crosshairs.
+    var zeroPointDrag: Point? {
+        didSet { canvas.setNeedsFurnitureDisplay() }
+    }
+    /// The Document panel's magnification (`view` table): 0 small, 1 medium, 2 large.
+    var documentPanelScale = 0 {
+        didSet { if documentPanelScale != oldValue { onViewStateChange?(self); onStructureChange?(self) } }
+    }
+    /// The last page the view settled on, for *Changing view sets the active page*.
+    var viewPageTask: Task<Void, Never>?
+    /// The page notices (*Reapply mine*, *Restore page*).
+    let pageNotices = PageNotices()
 
     /// False until the saved state has been applied: window moves during setup (`center()`)
     /// must not overwrite the state about to be restored.
@@ -184,6 +209,15 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
 
     /// Beeps on rejected magnification input; replaceable in tests.
     var beep: @MainActor () -> Void = { NSSound.beep() }
+    /// Asks to confirm (message, detail): an alert; replaceable in tests.
+    var confirm: @MainActor (String, String) -> Bool = { message, detail in
+        let alert = NSAlert()
+        alert.messageText = message
+        alert.informativeText = detail
+        alert.addButton(withTitle: "Remove")
+        alert.addButton(withTitle: "Cancel")
+        return alert.runModal() == .alertFirstButtonReturn
+    }
 
     init(document: DocumentHandle, environment: DocumentEnvironment, initialTool: ToolID = .pointer, initialState: DocumentWindowState? = nil) {
         self.documentHandle = document
@@ -191,6 +225,8 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         self.initialState = initialState
         canvas = CanvasView(document: document, tiles: environment.makeTiles())
         rulerHost = RulerHostView(canvas: canvas)
+        furniture = CanvasFurniture(document: document)
+        guideHandles = GuideHandles(furniture: furniture)
         let preferences = environment.preferences
         let interaction = PanelInteraction(panels: environment.panels, layout: environment.layout)
         interaction.appearance = { PanelAppearance(preferences: preferences) }
@@ -241,6 +277,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
             smartGuidesEnabled: { preferences[PreferenceCatalog.General.smartGuides] },
             didSnap: { kind in sounds?.snapped(kind) }
         ), selection: selection)
+        context.snapping.sources = { [weak self] in self?.snapSources() }
         context.redraw = { RedrawSettings(preferences: preferences) }
         context.optionDragCopies = { preferences[PreferenceCatalog.Object.optionDragCopies] }
         context.transformHandles = { preferences[PreferenceCatalog.General.doubleClickTransform] }
@@ -251,6 +288,8 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         context.selectTool = { [weak self] id in self?.toolManager?.select(id) }
         context.editText = { [weak self] node, point in self?.editText(node, at: point) }
         context.textCaretChanged = { [weak self] caret in self?.collaboration.publisher?.caret(caret) }
+        context.modifyPage = { [weak self] page in self?.presentModifyPageSheet(page: page) }
+        context.confirm = { [weak self] message, detail in self?.confirm(message, detail) ?? false }
         let manager = ToolManager(registry: environment.tools, context: context, initialTool: initialTool) { [environment] key in
             environment.runShortcut(key)
         }
@@ -263,6 +302,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         }
         toolManager = manager
         canvas.toolManager = manager
+        installDocumentSetup(manager: manager)
         canvas.selectionController = selection
         objectEditing.visibleCenter = { [weak canvas] in canvas.map { $0.viewport.toPasteboard($0.viewport.viewCenter) } }
         canvas.presence = presence
@@ -272,7 +312,14 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         selection.layerRule = { [weak self] in
             (self?.pickingLayer, preferences[PreferenceCatalog.Object.editCurrentLayerOnly])
         }
-        canvas.onPointer = { [weak self] point in self?.collaboration.publisher?.pointer(point) }
+        canvas.onPointer = { [weak self] point in
+            self?.collaboration.publisher?.pointer(point)
+            self?.rulerHost.horizontalRuler.pointer = point
+            self?.rulerHost.verticalRuler.pointer = point
+            let dragged = self?.draggedSelectionBounds
+            self?.rulerHost.horizontalRuler.trackedBounds = dragged
+            self?.rulerHost.verticalRuler.trackedBounds = dragged
+        }
         canvas.onUserNavigation = { [weak self] in self?.collaboration.stopFollowing() }
         canvas.onPress = { [weak self] down in self?.pressDidChange(down) }
         manager.onIdleEscape = { [weak self] in self?.collaboration.stopFollowing() }
@@ -299,6 +346,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         preferences.observe { [weak self] change in
             if PanelAppearance.isAppearancePreference(change.id) { self?.panelAppearanceDidChange() }
             if Self.glyphPreferences.contains(change.id) { self?.canvas.setNeedsOverlayDisplay() }
+            if Self.furniturePreferences.contains(change.id) { self?.canvas.setNeedsFurnitureDisplay() }
         }
         interaction.floatingFrame = { [weak window] in Self.floatingFrame(near: window?.frame) }
         canvas.onViewportChange = { [weak self] viewport in self?.viewportDidChange(viewport) }
@@ -496,18 +544,38 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         return presentReview(review)
     }
 
-    /// Pages, the current page, units or the title changed (locally or remotely).
+    /// Pages, the active page, the settings or the title changed (locally or remotely).  Once the
+    /// model has opened, a saved current page is found among its pages, and a window without a
+    /// saved view fits page 1.
     func structureDidChange() {
         let document = documentHandle
-        statusBar.show(pages: document.pages.count, current: document.currentPageIndex)
-        statusBar.show(units: document.units)
+        if document.model != nil, let pending = pendingPageRestore {
+            pendingPageRestore = nil
+            switch pending {
+            case .page(let state):
+                if let index = state.currentPageIndex(among: document.pages) { document.selectPage(index) }
+            case .fit:
+                document.selectPage(0)
+                fitPage()
+            }
+        }
+        statusBar.show(pages: document.pageList.pages.count, current: document.currentPageIndex, names: document.pageList.pages.map(\.name))
+        statusBar.show(units: document.units, converter: document.unitConverter)
+        updateRulers()
+        canvas.setNeedsFurnitureDisplay()
+        collaboration.publisher?.page(document.activePage.isSynthesized ? nil : document.activePage.id)
         updateTitle()
+        onStructureChange?(self)
     }
 
-    /// btn:[Add Page]: adds a page after the current one and scrolls to it.
-    func addPage() {
-        documentHandle.addPage()
-        showCurrentPage()
+    /// btn:[Add Page]: adds a page after the active one and scrolls to it once it exists.
+    @discardableResult
+    func addPage() -> Task<Void, Never> {
+        let added = documentHandle.addPage()
+        return Task { [weak self] in
+            await added.value
+            self?.showCurrentPage()
+        }
     }
 
     /// The page arrows and pop-up.
@@ -518,7 +586,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
 
     /// A typed page number or name; anything else beeps and shows the current page again.
     func enterPage(_ text: String) {
-        if let index = PageSelection.parse(text, pageCount: documentHandle.pages.count) {
+        if let index = PageSelection.parse(text, pageCount: documentHandle.pages.count, names: documentHandle.pageList.pages.map(\.name)) {
             goToPage(index)
         } else {
             beep()
@@ -565,6 +633,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         let scroller = canvas.navigation.scroller
         rulerHost.update(horizontal: scroller.horizontal(viewport), vertical: scroller.vertical(viewport), viewport: viewport)
         collaboration.publisher?.viewport(viewport)
+        viewDidMove()
         statusBar.show(zoom: viewport.zoom)
         statusBar.show(rotation: viewport.rotationDegrees)
     }
@@ -689,6 +758,12 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
             text.delete(.backspace)
             return
         }
+        if selection.model.isEmpty, let guide = guideHandles.deletionCommand() {
+            // A clicked guide goes when nothing else is selected (grid-guides.adoc).
+            guideHandles.deselect()
+            objectEditing.perform(guide)
+            return
+        }
         guard let command = deletionCommand() else { return }
         objectEditing.perform(command)
     }
@@ -778,7 +853,9 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
             return selection.canSelectAll
         case #selector(selectNone(_:)):
             return !isEditingText && !selection.model.isEmpty
-        case #selector(delete(_:)), #selector(cut(_:)), #selector(copy(_:)):
+        case #selector(delete(_:)):
+            return !isEditingText && (!selection.model.isEmpty || guideHandles.deletionCommand() != nil)
+        case #selector(cut(_:)), #selector(copy(_:)):
             return !isEditingText && !selection.model.isEmpty
         case #selector(paste(_:)):
             return !isEditingText && (objectEditing.canPaste || environment.pasteImport?.canPaste() == true)
@@ -825,6 +902,9 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         var state = DocumentWindowState(frame: frame, viewport: viewport, viewMode: viewMode)
         state.snap = snap
         state.pageRulers = pageRulersVisible
+        state.showGrid = furniture.showsGrid
+        state.showGuides = furniture.showsGuides
+        state.documentPanelScale = documentPanelScale
         state.currentPageFrame = documentHandle.currentPage.map { LayoutRect(x: $0.minX, y: $0.minY, width: $0.width, height: $0.height) }
         return state
     }
@@ -848,6 +928,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         } else {
             documentHandle.selectPage(0)
             fitPage()
+            if documentHandle.model == nil { pendingPageRestore = .fit }
         }
     }
 
@@ -857,7 +938,15 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         viewMode = state.viewMode
         snap = state.snap ?? SnapSettings()
         pageRulersVisible = state.pageRulers ?? true
-        if let index = state.currentPageIndex(among: documentHandle.pages) { documentHandle.selectPage(index) }
+        furniture.showsGrid = state.showGrid ?? false
+        furniture.showsGuides = state.showGuides ?? true
+        documentPanelScale = state.documentPanelScale ?? 0
+        if documentHandle.model == nil {
+            // The pages arrive with the model: the saved page is looked for then.
+            pendingPageRestore = .page(state)
+        } else if let index = state.currentPageIndex(among: documentHandle.pages) {
+            documentHandle.selectPage(index)
+        }
         setViewport(state.viewport(size: canvas.viewport.size))
     }
 

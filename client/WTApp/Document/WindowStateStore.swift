@@ -22,6 +22,13 @@ struct DocumentWindowState: Codable, Equatable, Sendable {
     var currentPageFrame: LayoutRect?
     /// `ViewState.page_rulers` (View > Page Rulers > Show); nil reads as shown.
     var pageRulers: Bool?
+    /// menu:View[Grid > Show] and menu:View[Guides > Show] (grid-guides.adoc, "Data model"); nil
+    /// reads as the defaults (grid hidden, guides shown).
+    var showGrid: Bool?
+    var showGuides: Bool?
+    /// The Document panel's magnification (0 small, 1 medium, 2 large; document-panel.adoc, "The
+    /// pasteboard view"); nil reads as small.
+    var documentPanelScale: Int?
 
     init(frame: LayoutRect? = nil, zoom: Double = 1, scrollX: Double = 0, scrollY: Double = 0, rotationDegrees: Double = 0, viewMode: ViewMode = .preview) {
         self.frame = frame

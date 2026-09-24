@@ -217,12 +217,31 @@ the main actor) looks for each of this device's broken links beside its old path
 first under the *Search for missing links in* folder to ten levels and 20,000 entries; another
 Mac's links are never searched.  Deviation: `AssetProps.bookmark` is `local_only`, but nothing in
 the outbox strips local-only paths yet, so a bookmark written as a register would be sent; the
-search returns each bookmark in `FoundLink` for the app to keep in the local store's `view` table
-under `FoundLink.bookmarkKey(asset)`, and only `link` (its `path`) is written.  `LinkReview` names
+search returns each bookmark in `FoundLink`, the app keeps it in the local store's `view` table
+under `FoundLink.bookmarkKey(asset)` (`MissingLinks.keepBookmarks`), and only `link` (its `path`) is
+written.  `LinkReview` names
 what a lost `link` write did (embed, relink, update) for the review sheet's entry; the entry
-itself is `WTSync`'s.  Not built: the Links window, the Object panel button and the preferences
-(DOC-023); `WTInterchange`'s re-read for Update and Change is the import decoders' job, called by
-the app.
+itself is `WTSync`'s.
+
+NOTE: As built by DOC-023 (`WTApp/Links/LinksModel.swift`, `LinksWindow.swift`,
+`Document/DocumentSetupFeatures.swift`).  menu:Edit[Links…] opens one window on the front document:
+a table (SwiftUI `Table`) of every asset with *Name* (italic when broken here, a cloud for a library
+link), *Kind* (from the media type), *Size*, *Page* (the page holding the top-left corner of the
+first object placing it, or *Pasteboard*) and *Status* (`LinkStatus` on this Mac's `wt-device` id;
+another Mac's path reads "Unavailable (another Mac)"), read on every render so a remote change
+updates the rows and keeps the selection.  Selecting a row selects the images and placed files
+naming the asset as `source` and centres them.  *Info* lists name, kind, size, source and modified
+date; *Change…* (`RelinkAsset`), *Update* and *Update All* (`UpdateLink`, `UpdateAllLinks`) read the
+file, store the blob through the import path's `BlobPlacement` and then perform; *Embed*
+(`EmbedAsset`); *Extract…* writes the stored copy (`LinkFiles.extract`, asking before replacing a
+file) and performs `ExtractAsset`.  When a document's first view opens and *Search for missing
+links* is on, `MissingLinks.repair` runs `LinkSearch.autoRelink` off the main actor with the
+*Missing links folder* and performs `RepairLinks`.  The *Embed images upon import* preference was
+already the importer's.  Deviations: Update and Change store the file's bytes with the type its
+extension names rather than decoding it as import does; the Object panel's btn:[Links…] and the
+uploading badge are not built (the Object panel has no image section yet, and blob upload progress
+is not exposed per asset); the *Done when* UI tests are unit tests hosted in the app
+(`LinksTests`).
 
 === Build tasks
 

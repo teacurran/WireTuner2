@@ -119,9 +119,9 @@ final class ExportController {
         for blob in DocumentPackage.referencedBlobs(in: document.state) where blobs.cached(blob.sha256) == nil && !missing.contains(blob.name) {
             missing.append(blob.name)
         }
-        return ExportContext(title: document.title, pages: document.pages, currentPage: document.currentPageIndex, selectionBounds: selectionBounds,
-                             outputArea: outputArea(window), syncNote: ExportContext.syncNote(window.syncStatus.state, lastSynced: window.syncStatus.details.lastSynced),
-                             missing: missing)
+        return ExportContext(title: document.title, pages: document.pages, currentPage: document.currentPageIndex, snapshotPages: document.pageList.exportPages,
+                             selectionBounds: selectionBounds, outputArea: outputArea(window),
+                             syncNote: ExportContext.syncNote(window.syncStatus.state, lastSynced: window.syncStatus.details.lastSynced), missing: missing)
     }
 
     // MARK: Exporting
@@ -202,7 +202,7 @@ final class ExportController {
             ? DocumentPackage.Info(documentID: document.id, title: document.title, exportedBy: account.id, exportedByName: account.name, appVersion: appVersion)
             : nil
         let request = ExportSnapshot.Request(
-            name: document.title, pages: context.pages.map { ExportSnapshot.Page(bounds: $0) }, scope: scope,
+            name: document.title, pages: context.snapshotPages.isEmpty ? context.pages.map { ExportSnapshot.Page(bounds: $0) } : context.snapshotPages, scope: scope,
             includePageBoundary: settings.includePageBoundary, pageColor: .white, animation: settings.format.family == .animation,
             text: settings.format.family == .text, package: package
         )

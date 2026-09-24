@@ -141,22 +141,22 @@ enum FontDocuments {
         let gone = try #require(await FontDocuments.text(document, ["Courier"]))
         _ = await document.perform(DeleteNodes(document.state.liveChildren(gone))).value
         #expect(DocumentFontIndex.namedFaces(in: document.state) == [FaceName(family: missing), FaceName(family: "Helvetica", style: "Bold")])
-        #expect(ReplaceFonts.face(of: []) == nil)
+        #expect(ReplaceFont.face(of: []) == nil)
         await FontDocuments.asset(document, byte: 1, mediaType: "FONT/TTF")
         await FontDocuments.asset(document, byte: 2, mediaType: "image/png")
         #expect(EmbeddedFont.all(in: document.state) == [EmbeddedFont(sha256: String(repeating: "01", count: 32), mediaType: "FONT/TTF")])
 
         // Replacing a face writes its runs' family (and style, when the replacement has one).
-        #expect(ReplaceFonts.matches(FaceName(family: "A", style: "Bold"), FaceName(family: "A")))
-        #expect(ReplaceFonts.matches(FaceName(family: "A", style: "Bold"), FaceName(family: "A", style: "bold")))
-        #expect(!ReplaceFonts.matches(FaceName(family: "A"), FaceName(family: "A", style: "Bold")))
-        let replace = ReplaceFonts([ReplaceFonts.Replacement(old: FaceName(family: missing), new: FaceName(family: "Georgia", style: "Italic"))])
+        #expect(ReplaceFont.matches(FaceName(family: "A", style: "Bold"), FaceName(family: "A")))
+        #expect(ReplaceFont.matches(FaceName(family: "A", style: "Bold"), FaceName(family: "A", style: "bold")))
+        #expect(!ReplaceFont.matches(FaceName(family: "A"), FaceName(family: "A", style: "Bold")))
+        let replace = ReplaceFont([ReplaceFont.Replacement(old: FaceName(family: missing), new: FaceName(family: "Georgia", style: "Italic"))])
         #expect(replace.label == "Replace font \(missing) with Georgia Italic")
         _ = await document.perform(replace).value
         #expect(document.undoTitle == "Undo \(replace.label)")
         #expect(DocumentFontIndex.namedFaces(in: document.state) == [FaceName(family: "Georgia", style: "Italic"), FaceName(family: "Helvetica", style: "Bold")])
-        let both = ReplaceFonts([ReplaceFonts.Replacement(old: FaceName(family: "Georgia"), new: FaceName(family: "Courier")),
-                                 ReplaceFonts.Replacement(old: FaceName(family: "Helvetica", style: "Bold"), new: FaceName(family: "Times"))])
+        let both = ReplaceFont([ReplaceFont.Replacement(old: FaceName(family: "Georgia"), new: FaceName(family: "Courier")),
+                                 ReplaceFont.Replacement(old: FaceName(family: "Helvetica", style: "Bold"), new: FaceName(family: "Times"))])
         #expect(both.label == "Replace 2 fonts")
         _ = await document.perform(both).value
         #expect(DocumentFontIndex.namedFaces(in: document.state) == [FaceName(family: "Courier", style: "Italic"), FaceName(family: "Times", style: "Bold")])
@@ -201,17 +201,17 @@ enum FontDocuments {
         #expect(model.decision == MissingFontsDecision(
             documentRows: [FontSubstitution(missing: lost, substitute: FaceName(family: "Courier"))],
             rememberedRows: [FontSubstitution(missing: gone, substitute: FaceName(family: "Georgia", style: "Italic"))],
-            replacements: [ReplaceFonts.Replacement(old: team, new: FaceName(family: "Georgia"))]))
+            replacements: [ReplaceFont.Replacement(old: team, new: FaceName(family: "Georgia"))]))
         // Keep original name off: a substitute (or the default one) is a replacement.
         model.setKeepOriginalName(false, for: lost)
         model.setKeepOriginalName(false, for: FaceName(family: "Nobody"))
-        #expect(model.decision.replacements.contains(ReplaceFonts.Replacement(old: lost, new: FaceName(family: "Courier"))))
+        #expect(model.decision.replacements.contains(ReplaceFont.Replacement(old: lost, new: FaceName(family: "Courier"))))
         model.selectAll()
         #expect(model.selected == [gone, lost, team])
         let plain = MissingFontsModel(faces: [lost], defaultSubstitute: FaceName(family: "Helvetica Neue"), catalog: FakeFontCatalog())
         #expect(plain.decision == MissingFontsDecision())
         plain.setKeepOriginalName(false, for: lost)
-        #expect(plain.decision.replacements == [ReplaceFonts.Replacement(old: lost, new: FaceName(family: "Helvetica Neue"))])
+        #expect(plain.decision.replacements == [ReplaceFont.Replacement(old: lost, new: FaceName(family: "Helvetica Neue"))])
     }
 
     @Test func fetchingFromTheTeamLibraryActivatesAndDropsRows() async throws {

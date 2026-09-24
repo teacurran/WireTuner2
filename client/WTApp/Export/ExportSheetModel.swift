@@ -12,6 +12,9 @@ struct ExportContext: Sendable {
     /// The document's pages on the pasteboard.
     var pages: [Rect]
     var currentPage: Int
+    /// The pages as the export snapshot takes them (names and bleed, `PageList.exportPages`);
+    /// empty takes `pages` as they are.
+    var snapshotPages: [ExportSnapshot.Page] = []
     /// The selected objects' bounds, nil with nothing selected.
     var selectionBounds: Rect?
     /// The output area, once one exists (the Output Area tool).

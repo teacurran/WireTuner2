@@ -112,10 +112,6 @@ import WTRender
         #expect(controller.viewport.zoom == fitted)
         controller.fit(selection: Rect(x: 8000, y: 8000, width: 10, height: 10))
         #expect(controller.viewport.zoom > 10)
-        controller.documentHandle.pages = []
-        controller.fitPage()
-        controller.fitAll()
-        #expect(controller.viewport.zoom > 10, "no pages: nothing to fit")
     }
 
     @Test func theMagnificationFieldParsesClampsAndBeeps() {

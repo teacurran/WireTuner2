@@ -108,17 +108,57 @@ struct CommitField: View {
 }
 
 /// A length in the document's unit: units, the pica-point form, arithmetic and `%` of the
-/// current value (`Measure`), stepping by one unit.
+/// current value, stepping by one unit.  With the document's `Units` (given, or the
+/// `documentUnits` environment value a panel sets) every unit reads -- kyus and the document's
+/// custom units included (DOC-003); without them the nearest `MeasureUnit` does.
 struct MeasureField: View {
     let title: String
     /// The value in points; nil shows `Mixed`.
     let value: Double?
     let unit: MeasureUnit
+    /// The document's units, overriding `unit` and the environment.
+    var units: Units?
     let identifier: String
     let commit: (Double) -> Void
+    @Environment(\.documentUnits) private var environmentUnits
+
+    init(title: String, value: Double?, unit: MeasureUnit, identifier: String, commit: @escaping (Double) -> Void) {
+        self.title = title
+        self.value = value
+        self.unit = unit
+        self.identifier = identifier
+        self.commit = commit
+    }
+
+    init(title: String, value: Double?, units: Units, identifier: String, commit: @escaping (Double) -> Void) {
+        self.init(title: title, value: value, unit: units.documentUnit.measureUnit, identifier: identifier, commit: commit)
+        self.units = units
+    }
 
     var body: some View {
-        InspectorField(title: title, value: value, format: .measure(unit), formatID: unit, identifier: identifier, commit: commit)
+        if let units = units ?? environmentUnits {
+            InspectorField(title: title, value: value, format: .length(units), formatID: units, identifier: identifier, commit: commit)
+        } else {
+            InspectorField(title: title, value: value, format: .measure(unit), formatID: unit, identifier: identifier, commit: commit)
+        }
+    }
+}
+
+extension EnvironmentValues {
+    /// The front document's units for the length fields under a panel (`MeasureField`); nil
+    /// leaves each field its own `MeasureUnit`.
+    @Entry var documentUnits: Units?
+}
+
+/// Gives the length fields of `content` the front document's units, following a change of them.
+struct DocumentUnitsScope<Content: View>: View {
+    let selection: ActiveSelection?
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        let document = selection?.document
+        let _ = document?.model?.revision
+        content().environment(\.documentUnits, document?.unitConverter)
     }
 }
 

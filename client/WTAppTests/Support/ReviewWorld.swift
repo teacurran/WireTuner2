@@ -63,9 +63,14 @@ struct ReviewWorld {
         return first
     }
 
+    /// The standard rules for offline work: the fixtures' changes carry no times, so every gap
+    /// would read as a brief reconnect (D-070, merged without review); and two overlapping
+    /// objects are enough for the share rule.
+    static let offlineWork = ReconcilePreferences(briefGap: .zero, shareMinimum: 2)
+
     func measure() -> ReviewModel {
         let divergence = Divergence.measure(local: local, remote: remote, state: state)
-        return ReviewModel(divergence, decision: divergence.decision(.standard), names: [Self.priya: "Priya"])
+        return ReviewModel(divergence, decision: divergence.decision(Self.offlineWork), names: [Self.priya: "Priya"])
     }
 
     /// A document over the merged state, writing as `me`.

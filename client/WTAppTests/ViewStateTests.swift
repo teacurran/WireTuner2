@@ -264,12 +264,12 @@ import WTRender
         #expect(single.windowShouldClose(single.window!), "a plain close closes one view")
     }
 
-    @Test func onlyThePrimaryViewPersistsAndReopeningRestoresTheView() throws {
+    @Test func onlyThePrimaryViewPersistsAndReopeningRestoresTheView() async throws {
         let environment = TestEnvironment()
         let id = UUID().uuidString
         let documents = DocumentController(environment: environment.document)
         let document = DocumentHandle.memory(id: id, title: "Persist")
-        document.addPage()
+        await document.addPage().value
         let primary = documents.open(document, show: false)
         primary.goToPage(1)
         primary.setViewMode(.fastPreview)
@@ -286,7 +286,7 @@ import WTRender
 
         // Reopened with the preference on: zoom, scroll, mode and current page come back.
         let reopenedDocument = DocumentHandle.memory(id: id, title: "Persist")
-        reopenedDocument.addPage()
+        await reopenedDocument.addPage().value
         let reopened = DocumentWindowController(document: reopenedDocument, environment: environment.document)
         #expect(reopened.viewport.zoom == 3 && reopened.viewMode == .fastPreview)
         #expect(reopened.documentHandle.currentPageIndex == 1)
@@ -302,7 +302,7 @@ import WTRender
         // With the preference off: Fit to Page on page 1.
         environment.preferences.set(false, for: PreferenceCatalog.Document.restoreView)
         let fresh = DocumentHandle.memory(id: id, title: "Persist")
-        fresh.addPage()
+        await fresh.addPage().value
         fresh.selectPage(1)
         let unrestored = DocumentWindowController(document: fresh, environment: environment.document)
         defer { unrestored.close() }
@@ -395,7 +395,7 @@ import WTRender
 
 /// View > Page Rulers > Show, Lock and Unlock, Add Page and the tab commands.
 @Suite(.serialized) @MainActor struct ViewMenuCommandTests {
-    @Test func rulersLockAndPageCommands() {
+    @Test func rulersLockAndPageCommands() async {
         let environment = TestEnvironment()
         let controller = DocumentWindowController(document: .memory(title: "Menu"), environment: environment.document)
         defer { controller.close() }
@@ -409,6 +409,7 @@ import WTRender
         #expect(registry.validate(ContextMenuCatalog.ID.unlock) == .disabled(ViewCommands.lockPending))
         let pages = controller.documentHandle.pages.count
         #expect(registry.perform(ContextMenuCatalog.ID.addPage))
+        await controller.documentHandle.settle()
         #expect(controller.documentHandle.pages.count == pages + 1)
         #expect(registry.perform(ContextMenuCatalog.ID.closeOtherTabs))
 

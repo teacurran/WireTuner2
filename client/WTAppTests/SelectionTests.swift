@@ -321,6 +321,7 @@ struct GroupOfRectangles: WTModel.Command {
         controller.selectNone()
         #expect(controller.selection.isEmpty)
         document.pages = [Rect(x: 1000, y: 1000, width: 10, height: 10)]
+        await document.settle()
         #expect(!controller.canSelectAll, "objects off the current page are not All")
     }
 

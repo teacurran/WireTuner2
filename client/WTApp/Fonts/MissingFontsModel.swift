@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import WTModel
 import WTText
 
 /// The families and styles the substitute pickers list (`FontManager` in the app).
@@ -38,7 +39,7 @@ struct MissingFontsDecision: Equatable {
     /// Substitutions remembered in the preference, for every document.
     var rememberedRows: [FontSubstitution] = []
     /// Replacements written to the document, as one change.
-    var replacements: [ReplaceFonts.Replacement] = []
+    var replacements: [ReplaceFont.Replacement] = []
 }
 
 /// The Missing Fonts sheet (font-substitution.adoc; DOC-024): each missing face with its style
@@ -231,9 +232,9 @@ final class MissingFontsModel {
             let substitute = FontSubstitution(missing: row.face, substitute: substitute(for: row))
             switch row.choice {
             case .replace(let face):
-                decision.replacements.append(ReplaceFonts.Replacement(old: row.face, new: face))
+                decision.replacements.append(ReplaceFont.Replacement(old: row.face, new: face))
             case _ where !row.keepOriginalName:
-                decision.replacements.append(ReplaceFonts.Replacement(old: row.face, new: substitute.substitute))
+                decision.replacements.append(ReplaceFont.Replacement(old: row.face, new: substitute.substitute))
             case .substitute(_, let remember):
                 if remember { decision.rememberedRows.append(substitute) } else { decision.documentRows.append(substitute) }
             case .defaultSubstitute:

@@ -249,11 +249,9 @@ objects (`SnapSources.guideObjects(in:)`, the Guides layer's contours, at guide 
 guides; and the grid, absolute or, with *Relative grid*, through the drag origin
 (`resolveDrag(of:by:)`, so a move keeps the in-cell offset).  `suspended` (kbd:[Control]) returns no
 snap; `SnapToggles` are the View menu's switches.  `SnapFeedback` names what won (point badge,
-path, guide with the crossing guide, guide object, smart guide, grid).  App glue (not in this
-task's directories): `WTApp`'s placeholder `SnappingContext.snap` should build `SnapSources` once
-per drag from the canvas's hit tester and `PageList`, call `SnapEngine.resolve`, and map
-`SnapResult.kind` to its sound kind (`.point` → point, `.path` → object, `.guide` → guide, `.grid` →
-grid).
+path, guide with the crossing guide, guide object, smart guide, grid).  The app's
+`SnappingContext.snap` resolves through it (DOC-018 below), mapping `SnapResult.kind` to its sound
+kind (`.point` → point, `.path` → object, `.guide` and `.smartGuide` → guide, `.grid` → grid).
 
 NOTE: As built by DOC-017 (`WTModel/GuideCommands.swift`).  `GuideOwner` is a page's or master's
 `guides` sequence.  `AddGuides(on:axis:at:)` ("Add guide" / "Add N guides"; one `ElementInsert` per
@@ -266,6 +264,35 @@ rules in `PageGuide.read`: coincident guides are one row holding every id; an un
 horizontal; a guide outside the page is kept.  Conformance vectors: none added -- `guides` uses the
 existing SEQUENCE policy, and the coincident read-out is a `WTModel` rule tested in
 `GuideCommandTests`.
+
+NOTE: As built by DOC-018 (`WTApp/Document/CanvasFurniture.swift`, `DocumentSetupWindow.swift`,
+`SetupSheets.swift`, `DocumentSetupFeatures.swift`, `Tools/Tool.swift`).  The canvas draws a
+furniture layer between the tiles and the presence layer: the grid (`GridRendering.item` for the
+visible area at the view's zoom, from the active page's zero point), every page's guides (a child's
+master's too) as hairlines across the bleed rectangle in the *Guide color*, a guide being dragged,
+the active page's emphasis and the collaborators' page dots.  Deviation: the grid is drawn over
+the artwork rather than between the page background and the content -- putting it in the tiles'
+display list would rebuild every item's bounds on each change or each scroll; the dots are one
+device pixel in the *Grid color* and rarely hide anything.  Guides are dragged with the Pointer and
+Subselect tools through a `CanvasHandleLayer` (`GuideHandles`): released over the page it moves
+(`MoveGuide`), over the pasteboard it is removed (`DeleteGuides`), kbd:[Shift] snaps it to the grid,
+kbd:[Delete] removes the last clicked guide while nothing is selected, a double-click opens the
+Guides sheet, locked guides only show a message, and a guide removed by someone else mid-drag ends
+the drag with a message.  Out of the rulers a drag adds a guide on the page under the release
+(`AddGuides`), with kbd:[Option] on every page crossed; over the pasteboard nothing.  The View menu:
+Grid > Show, Edit Grid… (the Grid sheet: size in the document's units and *Relative grid*,
+`SetGrid`), Guides > Show, Lock (`SetGuidesLocked`, shared), Edit… (the Guides sheet: the page's
+guides from its zero point, *Add* by count or increment over a page range, *Edit*, *Release*,
+*Delete*); Snap to Grid / Guides / Point / Object were BASIC-009's.  Show Grid and Show Guides are
+kept per document in the window's view state (`DocumentWindowState.showGrid`, `showGuides`) and
+never write a change.  `SnappingContext.snap` resolves through `SnapEngine` with sources the window
+builds (grid, `PageList.snapGuides`, guide objects, the hit tester's R-tree with the selection left
+out, the window's snap toggles and the *Smart guides* preference), kbd:[Control] suspends, and a
+snap onto a new target plays its sound (a path as *object*); the Pointer tool snaps a move by the
+pressed point, the drawing tools their points, the Page tool its pages.  Not built: *Dragging a
+guide scrolls the window* (guides do not auto-scroll), and the Layers panel's padlock and eye on
+the Guides layer (the LIB epic's panel does not list it yet).  The *Done when* UI tests are unit
+tests hosted in the app (`GridGuidesTests`, `SetupSheetTests`).
 
 === Build tasks
 

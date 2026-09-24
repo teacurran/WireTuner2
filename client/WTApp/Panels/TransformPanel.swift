@@ -88,8 +88,13 @@ struct TransformPanelBody: View {
         MeasureField(title: title, value: value.wrappedValue, unit: unit, identifier: identifier) { value.wrappedValue = $0 }
     }
 
+    /// A length field bound to one of the model's values, in the document's units.
+    static func field(_ title: String, _ value: Binding<Double>, units: Units, identifier: String) -> some View {
+        MeasureField(title: title, value: value.wrappedValue, units: units, identifier: identifier) { value.wrappedValue = $0 }
+    }
+
     var body: some View {
-        let unit = selection?.document?.units.measureUnit ?? .points
+        let units = selection?.document?.unitConverter ?? Units()
         VStack(alignment: .leading, spacing: 10) {
             Picker("Transform", selection: $model.tab) {
                 ForEach(TransformPanelModel.Tab.allCases) { Text($0.title).tag($0) }
@@ -99,8 +104,8 @@ struct TransformPanelBody: View {
             Form {
                 switch model.tab {
                 case .move:
-                    Self.field("X", $model.moveX, unit: unit, identifier: "transform.move.x")
-                    Self.field("Y", $model.moveY, unit: unit, identifier: "transform.move.y")
+                    Self.field("X", $model.moveX, units: units, identifier: "transform.move.x")
+                    Self.field("Y", $model.moveY, units: units, identifier: "transform.move.y")
                 case .rotate:
                     Self.field("Angle", $model.angle, unit: .points, identifier: "transform.rotate.angle")
                 case .scale:

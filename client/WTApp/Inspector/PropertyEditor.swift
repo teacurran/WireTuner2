@@ -52,6 +52,23 @@ extension FieldFormat where Value == Double {
     }
 }
 
+extension FieldFormat where Value == Double {
+    /// A length in the document's units (`WTModel.Units`, DOC-003): suffixes -- a custom unit's
+    /// name among them -- `7p6`, `+ - * /` with mixed units; `%` of the current value and
+    /// parentheses through `Measure`.  Shown rounded to the unit's display precision, stored in
+    /// points; steps by one document unit.
+    static func length(_ units: Units) -> FieldFormat {
+        let perUnit = units.pointsPerUnit(units.documentUnit)
+        return FieldFormat(
+            format: { value in value.map { units.format($0) } ?? "" },
+            parse: { text, value in
+                units.parse(text) ?? (try? Measure.parse(text, unit: units.documentUnit.measureUnit, current: value ?? 0))
+            },
+            step: { value, steps in value.map { $0 + steps * perUnit } }
+        )
+    }
+}
+
 extension FieldFormat where Value == String {
     /// Free text (a name, a note): any entry is accepted, `accepts` aside.
     static func text(accepts: @escaping (String) -> Bool = { _ in true }) -> FieldFormat {

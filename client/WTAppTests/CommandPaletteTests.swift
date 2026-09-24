@@ -69,7 +69,7 @@ import Testing
         #expect(model.results.contains { $0.item.id == StandardCommands.ID.commandPalette.rawValue } == false)
     }
 
-    @Test func panelsPagesAndStubSourcesAreSearched() {
+    @Test func panelsPagesAndStubSourcesAreSearched() async {
         let panels = PanelRegistry()
         PanelCatalog.register(into: panels, selection: ActiveSelection(), help: HelpPanelModel())
         let model = CommandPaletteModel(history: PaletteHistory(url: nil))
@@ -85,7 +85,7 @@ import Testing
         #expect(model.results.first?.item.id == "layer.bg")
 
         let document = DocumentHandle.memory(title: "Poster")
-        document.addPage()
+        await document.addPage().value
         var pages: [Int] = []
         model.register(PagePaletteSource(document: { document }, goToPage: { pages.append($0) }), id: "pages")
         model.query = "page 2"

@@ -303,6 +303,8 @@ final class FileDragging: NSObject, @preconcurrency NSDraggingInfo {
         let world = ImportWorld(importFiles: true)
         defer { world.close() }
         let canvas = world.window.canvas
+        // The window fits its page once the model has opened; drop after that.
+        _ = await world.window.documentHandle.openedModel()
         let png = world.files.png()
         let unknown = world.files.text("readme.xyz", "x")
         #expect(canvas.draggingEntered(FileDragging([png])) == .copy)

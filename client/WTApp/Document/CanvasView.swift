@@ -38,6 +38,10 @@ final class CanvasView: NSView, CanvasHost {
     /// Collaborators' cursors, selections and pulses (presence.adoc, "Client"): its own layer
     /// between the tiles and the tool overlay, so drawing it never repaints a document tile.
     let presenceLayer = CanvasOverlayLayer()
+    /// The grid, guides and page emphasis (`CanvasFurniture`): the layer right above the tiles.
+    let furnitureLayer = CanvasOverlayLayer()
+    /// Draws `furnitureLayer`; nil draws nothing.
+    var furnitureDrawer: (@MainActor (CGContext) -> Void)?
     /// Draws `presenceLayer` (the window's collaboration); nil draws nothing.
     var presenceDrawer: (@MainActor (CGContext) -> Void)?
     /// The pointer moved over the canvas (pasteboard points) or left it (nil): outgoing presence.
@@ -46,6 +50,9 @@ final class CanvasView: NSView, CanvasHost {
     var onUserNavigation: (@MainActor () -> Void)?
     /// A mouse button went down (true) or up (false) on the canvas.
     var onPress: (@MainActor (Bool) -> Void)?
+    /// A press on the canvas at a pasteboard point, before the tool sees it (*Using tools sets
+    /// the active page*).
+    var onPressAt: (@MainActor (Point) -> Void)?
     var navigation = CanvasNavigation()
     private(set) var viewport: Viewport
     var toolManager: ToolManager? {
@@ -115,7 +122,7 @@ final class CanvasView: NSView, CanvasHost {
         root.actions = ["sublayers": NSNull()]
         layer = root
         wantsLayer = true
-        for sublayer in [tiles.layer, presenceLayer, overlay] as [CALayer] {
+        for sublayer in [tiles.layer, furnitureLayer, presenceLayer, overlay] as [CALayer] {
             sublayer.anchorPoint = .zero
             sublayer.position = .zero
             sublayer.actions = ["bounds": NSNull(), "position": NSNull(), "contents": NSNull()]
@@ -123,6 +130,7 @@ final class CanvasView: NSView, CanvasHost {
         }
         overlay.drawer = { [weak self] ctx in self?.drawOverlay(in: ctx) }
         presenceLayer.drawer = { [weak self] ctx in self?.presenceDrawer?(ctx) }
+        furnitureLayer.drawer = { [weak self] ctx in self?.furnitureDrawer?(ctx) }
 
         setAccessibilityElement(true)
         setAccessibilityRole(.group)
@@ -203,6 +211,13 @@ final class CanvasView: NSView, CanvasHost {
         overlay.setNeedsDisplay()
         presenceLayer.bounds = overlay.bounds
         presenceLayer.setNeedsDisplay()
+        furnitureLayer.bounds = overlay.bounds
+        furnitureLayer.setNeedsDisplay()
+    }
+
+    /// The grid, guides or page emphasis changed: only their layer redraws.
+    func setNeedsFurnitureDisplay() {
+        furnitureLayer.setNeedsDisplay()
     }
 
     /// Draws the canvas in `mode` (REND-005); the display list is not rebuilt.
@@ -225,6 +240,7 @@ final class CanvasView: NSView, CanvasHost {
             layer?.contentsScale = scale
             overlay.contentsScale = scale
             presenceLayer.contentsScale = scale
+            furnitureLayer.contentsScale = scale
         }
         render()
     }
@@ -265,6 +281,7 @@ final class CanvasView: NSView, CanvasHost {
         updateAccessibilityValue()
         overlay.setNeedsDisplay()
         presenceLayer.setNeedsDisplay()
+        furnitureLayer.setNeedsDisplay()
     }
 
     /// The selection or a collaborator's selection changed.
@@ -403,7 +420,9 @@ final class CanvasView: NSView, CanvasHost {
             return
         }
         stopAutoscroll()
-        toolManager?.mouseDown(canvasEvent(event))
+        let translated = canvasEvent(event)
+        onPressAt?(translated.pasteboardPoint)
+        toolManager?.mouseDown(translated)
         onPress?(true)
     }
 
@@ -590,7 +609,7 @@ final class CanvasView: NSView, CanvasHost {
             return bounds
         }
         let point = viewport.toPasteboard(viewPoint)
-        return document.pages.first { $0.contains(point) }
+        return document.pageList.page(containing: point)?.rect
     }
 
     override func pressureChange(with event: NSEvent) {

@@ -1,16 +1,23 @@
 import AppKit
 import SwiftUI
+import WTModel
 import WTRender
 
 /// The page selector's text: a page number, or a page's name as its pop-up lists it.
 enum PageSelection {
-    /// "Page 1", "Page 2", ... until pages carry names (DOC epic).
+    /// "Page 1", "Page 2", ...: how the pop-up lists a page without a name.
     static func name(of index: Int) -> String { "Page \(index + 1)" }
 
-    /// The page index `text` names ("3", "Page 3"); nil when it names no page.
-    static func parse(_ text: String, pageCount: Int) -> Int? {
+    /// How the pop-up lists page `index` named `label`: its name, or "Page N" without one.
+    static func name(of index: Int, label: String) -> String { label.isEmpty ? name(of: index) : label }
+
+    /// The page index `text` names ("3", "Page 3", a page's name); nil when it names no page.
+    static func parse(_ text: String, pageCount: Int, names: [String] = []) -> Int? {
         let trimmed = text.trimmingCharacters(in: .whitespaces)
-        let number = Int(trimmed) ?? (0..<pageCount).first { name(of: $0).caseInsensitiveCompare(trimmed) == .orderedSame }.map { $0 + 1 }
+        let listed = (0..<pageCount).map { name(of: $0, label: names.indices.contains($0) ? names[$0] : "") }
+        let number = Int(trimmed)
+            ?? (0..<pageCount).first { name(of: $0).caseInsensitiveCompare(trimmed) == .orderedSame }.map { $0 + 1 }
+            ?? listed.firstIndex { $0.caseInsensitiveCompare(trimmed) == .orderedSame }.map { $0 + 1 }
         guard let number, number >= 1, number <= pageCount else { return nil }
         return number - 1
     }
@@ -42,15 +49,22 @@ final class StatusBarView: NSView, NSComboBoxDelegate {
     private(set) var namedViews: [String] = []
     private(set) var pageCount = 0
     private(set) var currentPage = 0
+    /// The pages' names in page order ("" for a page without one).
+    private(set) var pageNames: [String] = []
+    /// The units pop-up's items: the built-in units, then the document's custom units.
+    private(set) var unitChoices: [LengthUnit] = LengthUnit.standard
 
     /// Typed text or a chosen preset, as entered.
     var onMagnification: (@MainActor (String) -> Void)?
     var onViewMode: (@MainActor (ViewMode) -> Void)?
     var onAddPage: (@MainActor () -> Void)?
-    /// A page chosen by the arrows or the pop-up (index), or typed (text).
+    /// A page chosen by the arrows or the pop-up (index), or typed (text).  kbd:[Option]-click on
+    /// an arrow goes to the first or last page.
     var onPage: (@MainActor (Int) -> Void)?
     var onPageText: (@MainActor (String) -> Void)?
-    var onUnits: (@MainActor (DocumentUnits) -> Void)?
+    var onUnits: (@MainActor (LengthUnit) -> Void)?
+    /// Whether kbd:[Option] is down (the arrows' first/last page); replaceable in tests.
+    var optionDown: @MainActor () -> Bool = { NSEvent.modifierFlags.contains(.option) }
     var onResetRotation: (@MainActor () -> Void)?
 
     init() {
@@ -82,7 +96,7 @@ final class StatusBarView: NSView, NSComboBoxDelegate {
 
         for (popUp, identifier, titles, action) in [
             (viewMode, "status.viewMode", ViewMode.allCases.map(\.title), #selector(viewModeChosen(_:))),
-            (units, "status.units", DocumentUnits.allCases.map(\.title), #selector(unitsChosen(_:))),
+            (units, "status.units", LengthUnit.standard.map(\.name), #selector(unitsChosen(_:))),
         ] {
             popUp.controlSize = .small
             popUp.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
@@ -166,22 +180,31 @@ final class StatusBarView: NSView, NSComboBoxDelegate {
         viewMode.selectItem(at: ViewMode.allCases.firstIndex(of: mode) ?? 0)
     }
 
-    /// The document's units; never takes focus from a field being edited.
-    func show(units value: DocumentUnits) {
-        units.selectItem(at: DocumentUnits.allCases.firstIndex(of: value) ?? 0)
+    /// The document's unit among the built-in and custom units (named as `converter` names
+    /// them); never takes focus from a field being edited.
+    func show(units value: LengthUnit, converter: Units = Units()) {
+        let choices = LengthUnit.standard + converter.customUnits.map { LengthUnit.custom($0.id) }
+        if choices != unitChoices || units.numberOfItems != choices.count || units.itemTitles != choices.map(converter.name(of:)) {
+            unitChoices = choices
+            units.removeAllItems()
+            units.addItems(withTitles: choices.map(converter.name(of:)))
+        }
+        units.selectItem(at: choices.firstIndex(of: value) ?? 0)
     }
 
     func show(message text: String) {
         message.stringValue = text
     }
 
-    /// The page selector for `count` pages with `current` selected.
-    func show(pages count: Int, current: Int) {
-        if count != pageCount {
+    /// The page selector for `count` pages with `current` selected; `names` are the pages'
+    /// names in page order.
+    func show(pages count: Int, current: Int, names: [String] = []) {
+        if count != pageCount || names != pageNames {
             pageField.removeAllItems()
-            pageField.addItems(withObjectValues: (0..<count).map(PageSelection.name(of:)))
+            pageField.addItems(withObjectValues: (0..<count).map { PageSelection.name(of: $0, label: names.indices.contains($0) ? names[$0] : "") })
         }
         pageCount = count
+        pageNames = names
         currentPage = current
         previousPage.isEnabled = current > 0
         nextPage.isEnabled = current < count - 1
@@ -196,8 +219,8 @@ final class StatusBarView: NSView, NSComboBoxDelegate {
 
     @objc func addPageClicked(_ sender: Any?) { onAddPage?() }
     @objc func compassClicked(_ sender: Any?) { onResetRotation?() }
-    @objc func previousPageClicked(_ sender: Any?) { onPage?(currentPage - 1) }
-    @objc func nextPageClicked(_ sender: Any?) { onPage?(currentPage + 1) }
+    @objc func previousPageClicked(_ sender: Any?) { onPage?(optionDown() ? 0 : currentPage - 1) }
+    @objc func nextPageClicked(_ sender: Any?) { onPage?(optionDown() ? pageCount - 1 : currentPage + 1) }
 
     @objc func pageEntered(_ sender: NSComboBox) {
         onPageText?(sender.stringValue)
@@ -224,8 +247,8 @@ final class StatusBarView: NSView, NSComboBoxDelegate {
     }
 
     @objc func unitsChosen(_ sender: NSPopUpButton) {
-        let index = max(sender.indexOfSelectedItem, 0)
-        onUnits?(DocumentUnits.allCases[index])
+        let index = min(max(sender.indexOfSelectedItem, 0), unitChoices.count - 1)
+        onUnits?(unitChoices[index])
     }
 }
 

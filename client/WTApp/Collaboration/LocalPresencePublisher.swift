@@ -48,6 +48,13 @@ final class LocalPresencePublisher {
         }
     }
 
+    /// The active page (the Document panel's and the pages' presence dots); nil for none.
+    func page(_ id: OpID?) {
+        presence.update { update in
+            if let id { update.page = id.proto } else { update.clearPage() }
+        }
+    }
+
     func tool(_ id: ToolID) {
         presence.update { $0.tool = String(id.rawValue.prefix(32)) }
     }

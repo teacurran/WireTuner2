@@ -95,7 +95,7 @@ import WTSync
         let opened = try #require(await packages.controller.open(world.files.directory.appending(path: "Missing.wiretuner")))
         #expect(opened.state.liveChildren(WellKnown.assets).count == 2, "the photo's asset and a placeholder for the unnamed image")
         // A document without pages exports the Letter page's area.
-        let pageless = DocumentHandle(title: "Pageless", pages: [], model: DocumentOpener.memoryDocument())
+        let pageless = DocumentHandle(title: "Pageless", model: WTModel.Document(memory: DocumentTemplate.core(replica: 7)))
         _ = try await packages.controller.export(pageless, to: world.files.directory.appending(path: "Pageless.wiretuner"))
         // A document whose model never opened has nothing to export.
         let broken = DocumentHandle(title: "Broken") { throw CocoaError(.fileNoSuchFile) }

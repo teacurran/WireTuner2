@@ -79,12 +79,25 @@ import WTSync
         #expect(!unopened.state.store.isCreated(OpID(counter: 1, replica: 1)), "before the model opens the state is empty")
     }
 
-    @Test func pagesPlaceInRowsAndTheScenesAreReachable() {
-        let page = Rect(x: Pasteboard.side - 100, y: 0, width: 100, height: 100)
-        let placed = Pasteboard.placement(after: page, among: [])
-        #expect(placed.minX == page.minX && placed.minY == page.maxY + Pasteboard.pageGap, "a full row starts a new one below")
+    @Test func newDocumentsStartWithACentredLetterPage() async {
         let document = DocumentHandle.memory(title: "Scene")
         #expect(document.scene.displayList == document.displayList)
+        #expect(document.pages == [Pasteboard.letterPage] && document.pageList.pages[0].geometry.preset == "Letter")
+        #expect(!document.canUndo, "the first page is part of the template")
+        // A document created on this Mac gets the page with the template, once.
+        let model = WTModel.Document(memory: DocumentCore(state: EngineState(), replica: 3))
+        await DocumentOpener.applyTemplate(to: model)
+        await DocumentOpener.applyTemplate(to: model)
+        #expect(PageList(model.state).pages.map(\.rect) == [Pasteboard.letterPage])
+        // Page rectangles that cannot be pages are refused.
+        #expect(await document.perform(ReplacePageRects([Rect(x: 0, y: 0, width: 0, height: 10)])).value == nil)
+        document.pages = [Rect(x: 0, y: 0, width: 100, height: 100), Rect(x: 200, y: 0, width: 50, height: 60), Rect(x: 400, y: 0, width: 10, height: 10)]
+        await document.settle()
+        #expect(document.pages.count == 3 && document.pages[2] == Rect(x: 400, y: 0, width: 10, height: 10))
+        let pageless = DocumentHandle(title: "None", model: WTModel.Document(memory: DocumentTemplate.core(replica: 4)))
+        pageless.pages = [Rect(x: 1, y: 2, width: 30, height: 40), Rect(x: 100, y: 2, width: 30, height: 40)]
+        await pageless.settle()
+        #expect(pageless.pages == [Rect(x: 1, y: 2, width: 30, height: 40), Rect(x: 100, y: 2, width: 30, height: 40)])
     }
 
     @Test func aFailingCommandIsLoggedAndPerformsNothing() async {

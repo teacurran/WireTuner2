@@ -237,12 +237,15 @@ final class DocumentSession {
         replica == localReplica ? nil : authors[replica]
     }
 
-    /// "Recovered 12 changes from an expired session".
+    /// "Recovered 12 changes from an expired session"; for a change over the server's limits
+    /// (`SalvageReport.Reason.oversized`) "A large change was split to send it".
     static func salvageMessage(_ report: SalvageReport) -> String {
         let count = report.salvagedChanges
         let changes = count == 1 ? "1 change" : "\(count) changes"
-        return report.dropped.isEmpty ? "Recovered \(changes) from an expired session"
-            : "Recovered \(changes) from an expired session; \(report.dropped.count) could not be applied"
+        let what = report.reason == .oversized
+            ? (count == 1 ? "A large change was split to send it" : "\(count) large changes were split to send them")
+            : "Recovered \(changes) from an expired session"
+        return report.dropped.isEmpty ? what : "\(what); \(report.dropped.count) could not be applied"
     }
 
     // MARK: Actions

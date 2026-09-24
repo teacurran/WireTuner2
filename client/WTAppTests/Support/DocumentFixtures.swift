@@ -46,6 +46,18 @@ extension DocumentHandle {
         return node.map { SelectionID($0) }
     }
 
+    /// Performs `command` as another replica (`replica`) would on the state as it is now, and
+    /// applies its change here as a remote one; returns the change.
+    @discardableResult
+    func receiveRemote(_ command: any WTModel.Command, replica: UInt64 = 0xBEEF) async -> Wiretuner_Doc_V1_Change? {
+        await settle()
+        var core = DocumentCore(state: state, replica: replica)
+        guard let change = try? core.perform(command, recording: DocumentCore.Recording(limit: 1, now: Date()))?.change else { return nil }
+        _ = await receive(change).value
+        await settle()
+        return change
+    }
+
     /// The typed path of `id`, when it is a drawn path, rectangle or ellipse.
     func path(_ id: SelectionID) -> VectorPath? {
         object(for: id)?.path

@@ -147,6 +147,8 @@ func heldReview(_ node: OpID, kinds: Set<OverlapKind> = [.sameRegister], actions
         session.handle(.salvaged(SalvageReport(reason: .expired, salvagedChanges: 3, dropped: [
             droppedOp(),
         ])))
+        session.handle(.salvaged(SalvageReport(reason: .oversized, salvagedChanges: 1)))
+        session.handle(.salvaged(SalvageReport(reason: .oversized, salvagedChanges: 2, dropped: [droppedOp()])))
         session.handle(.changeDropped(seq: 4, message: "bad"))
         session.handle(.collectionPoint(seq: 1, timeMs: 0))
         session.handle(.collectionPoint(seq: 0, timeMs: 0))
@@ -157,6 +159,7 @@ func heldReview(_ node: OpID, kinds: Set<OverlapKind> = [.sameRegister], actions
         #expect(notices == [
             "merged:Merged 2 changes from Priya", "open", "review", "open", "Recovered 1 change from an expired session",
             "Recovered 3 changes from an expired session; 1 could not be applied",
+            "A large change was split to send it", "2 large changes were split to send them; 1 could not be applied",
             "A change could not be synced and was left out; it is kept on this Mac",
         ])
         session.stopObserving(token)

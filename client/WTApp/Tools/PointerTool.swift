@@ -92,11 +92,15 @@ final class PointerTool: Tool, PointerTracking {
         return Rect(start.viewPoint, current.viewPoint)
     }
 
-    /// The distance the selection is being moved (pasteboard space), constrained with Shift.
+    /// The distance the selection is being moved (pasteboard space), constrained with Shift, or
+    /// snapped by the point that was pressed (grid-guides.adoc, "Snapping to points and objects").
     var moveDelta: Vector? {
         guard gesture == .move || gesture == .movePoints, isDragging, let start, let current else { return nil }
         let delta = current.pasteboardPoint - start.pasteboardPoint
-        guard current.modifiers.contains(.shift), let context else { return delta }
+        guard let context else { return delta }
+        guard current.modifiers.contains(.shift) else {
+            return context.snapping.snapDrag(of: start.pasteboardPoint, by: delta, viewport: context.viewport)
+        }
         return context.drawing().constraint.constrain(delta)
     }
 

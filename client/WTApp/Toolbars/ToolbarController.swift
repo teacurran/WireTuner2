@@ -36,6 +36,9 @@ struct ToolbarDragPayload: Equatable, Sendable {
 @Observable
 final class InfoToolbarModel {
     var info = ToolInfo()
+    /// The key window's document: positions read from its active page's zero point in its units
+    /// (rulers.adoc, "Coordinates in the Info bar"); nil shows pasteboard points.
+    @ObservationIgnored weak var document: DocumentHandle?
 
     init() {}
 }
@@ -277,6 +280,7 @@ final class ToolbarController {
     /// The key window's tool manager feeds the Info toolbar; nil clears it.
     func attach(infoSource manager: ToolManager?) {
         info.info = manager?.info ?? ToolInfo()
+        info.document = manager?.context.document
         manager?.onInfoChange = { [weak self] info in self?.info.info = info }
     }
 }

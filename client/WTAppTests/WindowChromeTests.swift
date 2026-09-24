@@ -1,7 +1,9 @@
 import AppKit
 import SwiftUI
 import Testing
+import WTCRDT
 import WTGeometry
+import WTModel
 import WTRender
 @testable import WireTuner
 
@@ -46,13 +48,6 @@ import WTRender
         let side = Pasteboard.side
         #expect(Pasteboard.clamp(Rect(x: -50, y: side, width: 100, height: 100)) == Rect(x: 0, y: side - 100, width: 100, height: 100))
         #expect(Pasteboard.clamp(Rect(x: 10, y: 10, width: side * 2, height: 10)).minX == 0)
-        let first = Pasteboard.letterPage
-        let second = Pasteboard.placement(after: first, among: [first])
-        #expect(second.minX == first.maxX + Pasteboard.pageGap && second.minY == first.minY && second.width == first.width && second.height == first.height)
-        let edge = Rect(x: side - 700, y: 100, width: 612, height: 792)
-        let wrapped = Pasteboard.placement(after: edge, among: [edge])
-        #expect(wrapped.minY == edge.maxY + Pasteboard.pageGap && wrapped.minX == edge.minX)
-        #expect(Pasteboard.placement(after: first, among: []).minX == first.maxX + Pasteboard.pageGap)
     }
 }
 
@@ -61,21 +56,23 @@ import WTRender
         DocumentWindowController(document: .memory(title: "Pages"), environment: environment.document)
     }
 
-    @Test func addPageAndThePageSelector() {
+    @Test func addPageAndThePageSelector() async {
         let environment = TestEnvironment()
         let controller = window(environment)
         defer { controller.close() }
         let bar = controller.statusBar
         let document = controller.documentHandle
         #expect(bar.pageField.stringValue == "1" && !bar.previousPage.isEnabled && !bar.nextPage.isEnabled)
+        #expect(document.changeCount == 0, "a new document's page is not content")
         var beeps = 0
         controller.beep = { beeps += 1 }
 
-        bar.addPageClicked(nil)
+        await controller.addPage().value
         #expect(document.pages.count == 2 && document.currentPageIndex == 1)
         #expect(bar.pageField.stringValue == "2" && bar.previousPage.isEnabled && !bar.nextPage.isEnabled)
-        #expect(document.changeCount == 1)
+        #expect(document.changeCount == 1 && document.undoTitle == "Undo Add page")
         #expect(bar.pageField.numberOfItems == 2 && bar.pageField.itemObjectValue(at: 1) as? String == "Page 2")
+        #expect(document.pages[1].minX == document.pages[0].maxX + AddPages.gap, "to the right of the rightmost page, one inch apart")
         let viewport = controller.viewport
         #expect(viewport.toView(document.pages[1].center).isApproximatelyEqual(to: viewport.viewCenter, tolerance: 1e-6))
 
@@ -97,41 +94,63 @@ import WTRender
         #expect(document.currentPageIndex == 0)
         bar.comboBoxSelectionDidChange(Notification(name: NSComboBox.selectionDidChangeNotification))
 
+        // Option-click on an arrow goes to the last or first page.
+        await controller.addPage().value
+        document.selectPage(0)
+        bar.optionDown = { true }
+        bar.nextPageClicked(nil)
+        #expect(document.currentPageIndex == 2)
+        bar.previousPageClicked(nil)
+        #expect(document.currentPageIndex == 0)
+        bar.optionDown = { false }
+
+        // A named page is listed and found by its name.
+        _ = await document.perform(RenamePage(document.pageList.pages[1].id, to: "Cover")).value
+        #expect(bar.pageField.itemObjectValue(at: 1) as? String == "Cover")
+        bar.pageField.stringValue = "cover"
+        bar.pageEntered(bar.pageField)
+        #expect(document.currentPageIndex == 1)
+
+        // The status bar's button adds a page too.
+        bar.addPageClicked(nil)
+        await document.settle()
+        #expect(document.pages.count == 4)
+
         #expect(PageSelection.parse("0", pageCount: 2) == nil)
         #expect(PageSelection.parse("x", pageCount: 2) == nil)
-        #expect(PageSelection.name(of: 4) == "Page 5")
+        #expect(PageSelection.parse("Back", pageCount: 2, names: ["", "Back"]) == 1)
+        #expect(PageSelection.name(of: 4) == "Page 5" && PageSelection.name(of: 0, label: "Cover") == "Cover")
     }
 
-    @Test func aRemotelyDeletedCurrentPageMovesToTheNearest() {
+    @Test func aRemotelyDeletedCurrentPageMovesToTheNearest() async {
         let controller = window()
         defer { controller.close() }
         let document = controller.documentHandle
-        document.addPage()
-        document.addPage()
+        await document.addPage().value
+        await document.addPage().value
         #expect(document.pages.count == 3 && document.currentPageIndex == 2)
-        document.removePage(at: 2)
+        await document.receiveRemote(RemovePages([document.pageList.pages[2].id]))
         #expect(document.currentPageIndex == 1 && controller.statusBar.pageField.stringValue == "2")
         document.selectPage(0)
-        document.removePage(at: 0)
+        await document.receiveRemote(RemovePages([document.pageList.pages[0].id]))
         #expect(document.currentPageIndex == 0 && document.pages.count == 1)
-        document.addPage()
-        document.selectPage(1)
-        document.removePage(at: 0)
+        // Every page removed on two sides: the document reads as one Letter page at the origin.
+        await document.receiveRemote(OpsCommand("Remove", ops: [Ops.setDeleted(document.pageList.pages[0].id)]))
+        #expect(document.pageList.isSynthesized && document.currentPage == Rect(x: 0, y: 0, width: 612, height: 792))
+        await document.addPage().value
+        #expect(document.pages.count == 2 && !document.pageList.isSynthesized, "the next command writes the page")
+        // Replacing the pages keeps their objects where they are.
+        document.pages = [Rect(x: 10, y: 10, width: 100, height: 200)]
+        await document.settle()
+        #expect(document.pages == [Rect(x: 10, y: 10, width: 100, height: 200)])
+        document.pages = []
+        await document.settle()
+        #expect(document.pageList.isSynthesized)
+        document.selectPage(id: OpID(counter: 999, replica: 9))
         #expect(document.currentPageIndex == 0)
-        document.removePage(at: 5)
-        document.selectPage(0)
-        // Page changes count as content changes of any document.
-        let custom = DocumentHandle.memory(title: "C")
-        custom.addPage()
-        custom.removePage(at: 0)
-        #expect(custom.changeCount == 2 && custom.pages.count == 1)
-        custom.pages = []
-        #expect(custom.currentPage == nil)
-        custom.addPage()
-        #expect(custom.pages.count == 1)
     }
 
-    @Test func unitsWriteOneChangeAndMergeLastWriterWins() {
+    @Test func unitsWriteOneChangeAndFollowOthers() async {
         let controller = window()
         defer { controller.close() }
         let document = controller.documentHandle
@@ -139,34 +158,43 @@ import WTRender
         #expect(bar.units.titleOfSelectedItem == "Points")
         bar.units.selectItem(withTitle: "Millimeters")
         bar.unitsChosen(bar.units)
-        #expect(document.units == .millimeters)
-        document.setUnits(.millimeters)
+        await document.settle()
+        #expect(document.units == .millimeters && document.undoTitle == "Undo Change units")
+        #expect(document.setUnits(.millimeters) == nil, "choosing the same unit writes nothing")
         #expect(document.changeCount == 1)
 
         // A remote change updates the pop-up without taking focus from a field being edited.
         controller.window?.makeFirstResponder(bar.magnification)
         let focused = controller.window?.firstResponder
-        document.mergeUnits(UnitsRegister(value: .picas, counter: 9, replica: "zz"))
+        await document.receiveRemote(SetUnits(.picas))
         #expect(bar.units.titleOfSelectedItem == "Picas")
         #expect(controller.window?.firstResponder === focused)
-        document.mergeUnits(UnitsRegister(value: .inches, counter: 1, replica: "zz"))
-        #expect(document.units == .picas, "an older write loses")
-        #expect(DocumentUnits.allCases.map(\.title).count == 7)
+        #expect(bar.units.numberOfItems == LengthUnit.standard.count)
+
+        // Custom units join the pop-up by name.
+        await document.receiveRemote(AddCustomUnit(name: "ft", amount: 12, base: .inches))
+        let feet = document.settings.customUnits[0]
+        #expect(bar.units.itemTitles.last == "ft")
+        bar.units.selectItem(withTitle: "ft")
+        bar.unitsChosen(bar.units)
+        await document.settle()
+        #expect(document.units == .custom(feet.id) && bar.units.titleOfSelectedItem == "ft")
     }
 
-    @Test func twoClientsSettingUnitsConverge() {
+    @Test func twoClientsSettingUnitsConverge() async {
         let a = DocumentHandle.memory(title: "A")
-        let b = DocumentHandle.memory(title: "B")
-        a.setUnits(.inches)
-        b.setUnits(.centimeters)
-        let fromA = a.unitsRegister, fromB = b.unitsRegister
-        a.mergeUnits(fromB)
-        b.mergeUnits(fromA)
-        #expect(a.units == b.units)
-        #expect(a.unitsRegister == b.unitsRegister)
-        let tie = UnitsRegister(value: .pixels, counter: 1, replica: "b")
-        #expect(UnitsRegister(value: .points, counter: 1, replica: "a").merged(with: tie) == tie)
-        #expect(tie.merged(with: UnitsRegister(value: .points, counter: 1, replica: "a")) == tie)
+        let base = a.state
+        let fromA = await a.perform(SetUnits(.inches)).value
+        var other = DocumentCore(state: base, replica: 0xB)
+        let fromB = try? other.perform(SetUnits(.centimeters), recording: DocumentCore.Recording(limit: 1, now: Date()))?.change
+        if let fromB { _ = await a.receive(fromB).value }
+        await a.settle()
+        #expect(fromA != nil && fromB != nil)
+        // Later OpId wins: both replicas agree on one of the two.
+        var check = DocumentCore(state: base, replica: 0xC)
+        if let fromA { check.receive(fromA, serverSeq: 1) }
+        if let fromB { check.receive(fromB, serverSeq: 2) }
+        #expect(DocumentSettings(check.state).units == a.units)
     }
 
     @Test func magnificationListsPresetsFitsThenNamedViews() {

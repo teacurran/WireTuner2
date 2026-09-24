@@ -142,7 +142,7 @@ final class DocumentFonts {
             return
         }
         if !decision.replacements.isEmpty {
-            _ = await document.perform(ReplaceFonts(decision.replacements)).value
+            _ = await document.perform(ReplaceFont(decision.replacements)).value
         }
     }
 

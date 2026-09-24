@@ -18,13 +18,24 @@ final class CollaborationBannerModel {
     var offersBranch = false
     var banners: [FollowController.Banner] = []
     var warning: String?
+    /// Notices with a button (the page notices' *Reapply mine*, *Restore page*).
+    var actions: [BannerAction] = []
+    @ObservationIgnored var onAction: @MainActor (UUID) -> Void = { _ in }
+    @ObservationIgnored var onDismissAction: @MainActor (UUID) -> Void = { _ in }
     @ObservationIgnored var onStop: @MainActor () -> Void = {}
     @ObservationIgnored var onFollow: @MainActor (FollowController.Banner) -> Void = { _ in }
     @ObservationIgnored var onDismiss: @MainActor (FollowController.Banner) -> Void = { _ in }
 
     init() {}
 
-    var isEmpty: Bool { followText == nil && banners.isEmpty && warning == nil }
+    var isEmpty: Bool { followText == nil && banners.isEmpty && warning == nil && actions.isEmpty }
+}
+
+/// A notice in the bar above the canvas with one button and *Dismiss*.
+struct BannerAction: Identifiable, Equatable {
+    let id: UUID
+    let text: String
+    let button: String
 }
 
 struct CollaborationBannerView: View {
@@ -33,6 +44,8 @@ struct CollaborationBannerView: View {
     static func stop(_ model: CollaborationBannerModel) -> () -> Void { { model.onStop() } }
     static func follow(_ model: CollaborationBannerModel, _ banner: FollowController.Banner) -> () -> Void { { model.onFollow(banner) } }
     static func dismiss(_ model: CollaborationBannerModel, _ banner: FollowController.Banner) -> () -> Void { { model.onDismiss(banner) } }
+    static func act(_ model: CollaborationBannerModel, _ action: BannerAction) -> () -> Void { { model.onAction(action.id) } }
+    static func dismissAction(_ model: CollaborationBannerModel, _ action: BannerAction) -> () -> Void { { model.onDismissAction(action.id) } }
 
     var body: some View {
         VStack(spacing: 2) {
@@ -49,6 +62,17 @@ struct CollaborationBannerView: View {
                 .padding(.horizontal, 8).padding(.vertical, 3)
                 .background(SwiftUI.Color.accentColor.opacity(0.18))
                 .accessibilityIdentifier("follow.bar")
+            }
+            ForEach(model.actions) { action in
+                HStack {
+                    Text(action.text).font(.callout)
+                    Spacer()
+                    Button(action.button, action: Self.act(model, action)).accessibilityIdentifier("notice.action")
+                    Button("Dismiss", action: Self.dismissAction(model, action)).accessibilityIdentifier("notice.dismiss")
+                }
+                .padding(.horizontal, 8).padding(.vertical, 3)
+                .background(SwiftUI.Color.yellow.opacity(0.25))
+                .accessibilityIdentifier("notice.banner")
             }
             ForEach(model.banners) { banner in
                 HStack {

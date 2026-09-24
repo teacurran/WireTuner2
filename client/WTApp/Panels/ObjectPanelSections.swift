@@ -6,15 +6,17 @@ import WTModel
 import WTProto
 import WTRender
 
-extension DocumentUnits {
-    /// The measure unit numeric fields parse and format in.
+extension LengthUnit {
+    /// The nearest `MeasureUnit` (the older field parser's): kyus read as millimetres and a
+    /// custom unit as points.  Fields that know the document read `Units` instead
+    /// (`MeasureField(units:)`, the `documentUnits` environment value), which has every unit.
     var measureUnit: MeasureUnit {
         switch self {
-        case .points: .points
+        case .points, .custom: .points
         case .picas: .picas
         case .inches: .inches
         case .decimalInches: .decimalInches
-        case .millimeters: .millimeters
+        case .millimeters, .kyus: .millimeters
         case .centimeters: .centimeters
         case .pixels: .pixels
         }

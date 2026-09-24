@@ -50,11 +50,11 @@ Both are in menu:{product}[Settings… > Document] (kbd:[Cmd+,]):
 Changing view sets the active page::
 When on, scrolling the document window so that a different page fills most of the view makes that
 page active.  The page number at the bottom of the window and the highlight in the Document panel
-follow.  Off by default.
+follow.  On by default.
 
 Using tools sets the active page::
-When on, clicking on a page with any tool makes it the active page.  Off by default; with it off,
-only the Page tool and the page selector change the active page.
+When on, clicking on a page with any tool makes it the active page.  On by default; with it off,
+only the Page tool, the Document panel and the page selector change the active page.
 
 == Duplicating, removing and moving pages
 
@@ -276,10 +276,49 @@ line's dots stay the same at every zoom, `StrokeStyle` gained `dashInDevicePixel
 the dash is scaled by the hairline width, one device pixel, in `StrokeExpansion`, so Core Graphics
 and Metal agree).  The goldens `pageFurniture`, `pageFurniturePrint` and `pageGrid` join the
 reference corpus (Metal parity and the bitmap/PDF gate included).  WTModel's
-`PageList.frames(active:presence:)` makes the `PageFrame`s.  App glue (not in this task's
-directories): `DocumentHandle.pagesItem` should become `PageRendering.item(pageList.frames(...),
-style:)` as the scene's background item, with the grid item inserted per canvas; only the presence
-dots depend on the zoom.
+`PageList.frames(active:presence:)` makes the `PageFrame`s.  In the app (DOC-007/008 below)
+`DocumentHandle.pagesItem` is `PageRendering.item(pageList.frames(), style:)` as the scene's
+background item.
+
+NOTE: As built by DOC-007 and DOC-008 (`WTApp/Tools/PageTool.swift`, `Document/DocumentHandle.swift`,
+`DocumentPages.swift`, `StatusBarView.swift`, `PageSheets.swift`, `PageNotices.swift`,
+`DocumentSetupWindow.swift`).  `DocumentHandle` reads `PageList(model.state)` on every change
+(`pageList`, `settings`, `units`, `unitConverter`); the window's own page rectangles and units
+register are gone.  The *active page* is `activePageID` (presence, published as
+`PresenceUpdate.page`; a removed active page hands over to the page at its number), and the Page
+tool's or Document panel's selection is `selectedPageIDs` (`selectedPages` falls back to the active
+page); `pages` is the page rectangles in page order, and setting it writes them in one change
+(`ReplacePageRects`, "Set pages": tests and templates).  A new document is written with its first
+page, Letter centred on the pasteboard, as part of its template (not an undo step), so there is
+room on every side; a document without pages still reads as Letter at the origin.  The page
+furniture is the scene's background item, redrawn only when a page's rectangle or bleed changes;
+the active page's emphasis and the collaborators' page dots are drawn by the canvas
+(`CanvasFurniture`, grid-guides.adoc), so choosing a page repaints no tile.  btn:[Add Page] is
+`AddPages(after: active page)` ("Add page") and the new page becomes active; the page selector
+lists page names (or "Page N"), finds a page by number or name, and kbd:[Option]-clicked arrows go
+to the first or last page.  *Changing view sets the active page* makes the page with the largest
+area in the view active once the view has rested 200 ms; *Using tools sets the active page*
+selects the page under any tool's press.  Both preferences are on by default, as the preferences
+page has them (this page said off; changed above).  The Page tool: click, kbd:[Shift]-click,
+marquee; a drag moves the selected pages with their objects (`MovePage`, a batch for several, "Move
+N pages"), kbd:[Cmd] held at release moves the frames alone, kbd:[Shift] held during the drag
+constrains, the first page's corner snaps through `SnappingContext`, and pages stay on the
+pasteboard; kbd:[Option]-drag duplicates (`DuplicatePage`, then `MovePage` of the copy to the
+release point -- two changes in one undo group, a deviation from "one change": the copy's id is not
+known until the duplicate exists); the eight handles resize (the opposite edge fixed, kbd:[Shift]
+proportional, kbd:[Option] about the centre; a batch of the origin and `SetPageGeometry`, "Change
+page size"); 12 view points outside a corner handle rotates when the drag turns past 45°
+(`RotatePages`); a child of a master shows dimmed handles and refuses both; kbd:[Delete] removes
+the selected pages (`RemovePages`, confirming when objects go with them; the only page is kept);
+kbd:[Option]-double-click opens *Modify Page* (`ModifyPage`, only what changed).  *Add Pages…*
+(`AddPages` with the sheet's size, bleed and master) and *Move Page…* (`ReorderPage`) are sheets
+on the window; the page list reorders by dragging.  The live notices (`PageNotices`, in the bar
+above the canvas): a remote size overriding this person's size for a page set in the last two
+minutes -- "Priya changed page 2 to A4 while you set it to Letter" with *Reapply mine*
+(`SetPageGeometry`) -- and a remote removal of a page holding objects this person created in the
+last two minutes -- "Page 3 was removed by Tom; your 4 objects are on the pasteboard" with *Restore
+page* (`SetDeleted(page, false)`).  The *Done when* UI tests are unit tests hosted in the app
+(`PageToolTests`, `StatusBarTests`, `PageSheetTests`, `PageNoticeTests`).
 
 === Build tasks
 

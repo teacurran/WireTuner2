@@ -1,35 +1,6 @@
 import AppKit
 import WTRender
 
-/// An empty ruler strip.  DOC-014 draws ticks and labels in it from the viewport and the
-/// document's unit; until then it is a plain band of the right size.
-@MainActor
-final class RulerStripView: NSView {
-    enum Orientation: String {
-        case horizontal, vertical
-    }
-
-    let orientation: Orientation
-    /// Set by the host on every viewport change, for DOC-014's drawing.
-    var viewport: Viewport?
-
-    init(orientation: Orientation) {
-        self.orientation = orientation
-        super.init(frame: .zero)
-        wantsLayer = true
-        layer?.backgroundColor = NSColor.windowBackgroundColor.cgColor
-        setAccessibilityElement(true)
-        setAccessibilityRole(.ruler)
-        setAccessibilityIdentifier("ruler.\(orientation.rawValue)")
-        setAccessibilityLabel(orientation == .horizontal ? "Horizontal ruler" : "Vertical ruler")
-    }
-
-    @available(*, unavailable)
-    required init?(coder: NSCoder) {
-        fatalError("RulerStripView is built in code")
-    }
-}
-
 /// The canvas area: ruler strips along the top and left edges with the zero-point corner
 /// between them, the canvas, and the two scroll bars along the right and bottom edges.  Laid
 /// out by hand so the canvas gets every remaining point.  The scroll bars are plain
@@ -41,11 +12,11 @@ final class RulerHostView: NSView {
     let canvas: CanvasView
     let horizontalRuler = RulerStripView(orientation: .horizontal)
     let verticalRuler = RulerStripView(orientation: .vertical)
-    let corner = NSView()
+    let corner = RulerCornerView(frame: .zero)
     let horizontalScroller: NSScroller
     let verticalScroller: NSScroller
 
-    /// View menu > Page Rulers > Show (DOC-014 binds it to `ViewState.page_rulers`).
+    /// View menu > Page Rulers > Show (`ViewState.page_rulers`).
     var rulersVisible = true {
         didSet {
             horizontalRuler.isHidden = !rulersVisible
@@ -63,9 +34,6 @@ final class RulerHostView: NSView {
         horizontalScroller = NSScroller(frame: NSRect(x: 0, y: 0, width: 100, height: 15))
         verticalScroller = NSScroller(frame: NSRect(x: 0, y: 0, width: 15, height: 100))
         super.init(frame: NSRect(x: 0, y: 0, width: 800, height: 600))
-        corner.wantsLayer = true
-        corner.layer?.backgroundColor = NSColor.windowBackgroundColor.cgColor
-        corner.setAccessibilityIdentifier("ruler.corner")
         for scroller in [horizontalScroller, verticalScroller] {
             scroller.scrollerStyle = .legacy
             scroller.isEnabled = true

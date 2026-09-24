@@ -266,10 +266,10 @@ original name*.  btn:[Substitute…] and btn:[Replace…] open a family list and
 remembers the remembered rows in the preference (a row for the same face, style ignoring case, is
 replaced), keeps the others as the document's rows on this Mac, and writes the replacements -- and
 the substitutions whose *Keep original name* is off, the default substitute's included -- as one
-change: `ReplaceFonts` ("Replace font _old_ with _new_", "Replace _N_ fonts") writes a
-`font_family` mark, and a `font_style` mark when the replacement names a style, over each run of
-drawn text whose own marks name the face (DOC-025's `WTModel.replaceFont` is not built, so this
-command lives in `WTApp` until it is, and it leaves runs whose face comes from a character style).
+change: DOC-025's `WTModel.ReplaceFont` ("Replace font _old_ with _new_", "Replace _N_ fonts")
+writes a `font_family` mark, and a `font_style` mark when the replacement names a style, over each
+run of drawn text whose own marks name the face (runs whose face comes from a character style are
+left).
 btn:[Cancel] keeps the substitutions and closes the document without writing to it.  Closing a
 document stops its index and deactivates its embedded fonts unless another open document activated
 the same file.  `FontManager.shared` follows the preference.  *Font substitutions* in Preferences >
@@ -296,9 +296,8 @@ typing, one change "Replace font <old> with <new>" or "Replace N fonts"; other m
 runs styled only by a character style are left.  Tests: every run of 200,000 characters in one
 change inside the 200 ms budget; replace vs. replace (the later mark wins over the whole span);
 replace vs. typing inside the span (the new text takes the replacement); undo restores the old
-face on the runs this change wrote and leaves characters another replica re-marked since.  App
-glue (not in this task's directories): `WTApp/Fonts` should drop its `ReplaceFonts` and perform
-`WTModel.ReplaceFont` with the same replacements.
+face on the runs this change wrote and leaves characters another replica re-marked since.  The
+app's Missing Fonts sheet performs it; its own `ReplaceFonts` is gone.
 
 === Build tasks
 

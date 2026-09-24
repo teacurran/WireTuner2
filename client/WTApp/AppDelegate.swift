@@ -98,6 +98,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     )
     /// menu:File[Import…] and files dropped on a canvas (IMG-005, IMG-008, WEB-025).
     private(set) lazy var imports = ImportController(preferences: preferences)
+    /// The document setup features: Page tool, Document panel, grid, guides, units, links (DOC).
+    private(set) lazy var documentSetup = DocumentSetupFeatures(preferences: preferences, device: DeviceIdentity.current(defaults: preferences.defaults))
     /// menu:File[Export a Package…], menu:File[Open Package…] and packages opened from the Finder
     /// (IO-005, IO-006).
     private(set) lazy var packages = PackageController()
@@ -187,7 +189,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             sessions.documentDidClose(document)
             self?.fonts.documentDidClose(document)
         }
-        environment.documentDidOpen = { [weak self] window in Task { await self?.fonts.documentDidOpen(window) } }
+        environment.documentDidOpen = { [weak self] window in
+            Task { await self?.fonts.documentDidOpen(window) }
+            self?.documentSetup.documentDidOpen(window)
+        }
         environment.userName = { accountModel.profile?.displayName ?? "" }
         let reviewWork = launchEnvironment.makeReviewWork(account: accountModel, infoDictionary: Bundle.main.infoDictionary, defaults: defaults)
         environment.reviewWork = { accountModel.isSignedIn ? reviewWork : nil }
@@ -256,6 +261,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         installContextMenus()
         layersPanel.clickMoves = { preferences[PreferenceCatalog.Panels.layerClickMoves] }
+        installDocumentSetup()
         colors.install(commands: commands, panels: panels, extensions: toolbars.extensions) { documents.documents }
         PanelCatalog.register(into: panels, selection: activeSelection, help: helpModel, layers: layersPanel)
         panels.registerIfAbsent(ToolsPanel.descriptor(model: toolPalette))

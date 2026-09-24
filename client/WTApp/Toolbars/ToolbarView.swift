@@ -1,5 +1,7 @@
 import AppKit
 import SwiftUI
+import WTGeometry
+import WTModel
 
 /// One toolbar's buttons (toolbars.adoc, "Client": `ToolbarView`, an `NSStackView` row of
 /// `NSButton`s): a row when its host is wider than tall, a column otherwise.  Buttons follow
@@ -218,7 +220,7 @@ struct InfoReadoutView: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            ForEach(InfoReadout.fields(model.info), id: \.id) { field in
+            ForEach(InfoReadout.fields(model.info, frame: model.document.map(InfoReadout.frame(of:))), id: \.id) { field in
                 Text("\(field.label) \(field.value)")
                     .font(.system(size: 11).monospacedDigit())
                     .accessibilityIdentifier("toolbar.info.\(field.id)")
@@ -241,13 +243,37 @@ enum InfoReadout {
         value.formatted(.number.precision(.fractionLength(0...2)))
     }
 
-    static func fields(_ info: ToolInfo) -> [Field] {
+    /// How positions read: from a zero point, y upward, in a document's units.
+    struct Frame {
+        var units: Units
+        var zero: Point
+    }
+
+    /// `document`'s frame: its active page's zero point and its units.
+    @MainActor
+    static func frame(of document: DocumentHandle) -> Frame {
+        Frame(units: document.unitConverter, zero: document.activePage.zeroPoint)
+    }
+
+    static func fields(_ info: ToolInfo, frame: Frame? = nil) -> [Field] {
         var fields: [Field] = []
+        // Picas carry their unit in the `NpM` form.
+        let suffix = frame.map { $0.units.documentUnit == .picas ? "" : " " + $0.units.suffix(of: $0.units.documentUnit) } ?? ""
         if let position = info.position {
-            fields.append(Field(id: "position", label: "X/Y", value: "\(number(position.x)), \(number(position.y)) pt"))
+            if let frame {
+                let units = frame.units
+                fields.append(Field(id: "position", label: "X/Y",
+                                    value: "\(units.format(position.x - frame.zero.x)), \(units.format(frame.zero.y - position.y))\(suffix)"))
+            } else {
+                fields.append(Field(id: "position", label: "X/Y", value: "\(number(position.x)), \(number(position.y)) pt"))
+            }
         }
         if let delta = info.delta {
-            fields.append(Field(id: "delta", label: "Δ", value: "\(number(delta.dx)), \(number(delta.dy)) pt"))
+            if let units = frame?.units {
+                fields.append(Field(id: "delta", label: "Δ", value: "\(units.format(delta.dx)), \(units.format(-delta.dy))\(suffix)"))
+            } else {
+                fields.append(Field(id: "delta", label: "Δ", value: "\(number(delta.dx)), \(number(delta.dy)) pt"))
+            }
         }
         if let angle = info.angle { fields.append(Field(id: "angle", label: "∠", value: "\(number(angle))°")) }
         if let center = info.center {

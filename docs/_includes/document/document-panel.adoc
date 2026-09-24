@@ -425,9 +425,43 @@ document unit, except as a factor of `*` or the divisor of `/`, where it is a pl
 length times a length, or division by zero, is invalid; a custom unit's name wins only when longer
 than a built-in match; `p6` alone is six points), `format` (picas as `NpM`), `rounded` and
 `convert`.  Not built: the Document panel, the Page Sizes sheet and the units pop-up (DOC-004,
-DOC-005, DOC-014); the app's `DocumentHandle.pages` still holds the window's own page rectangles
-and should read `PageList(model.state)` (with `frames(active:presence:)` for drawing and
-`exportPages` for the Export sheet) when the panel lands.
+DOC-005, DOC-014) are the NOTE below; the app reads `PageList(model.state)`, drawing
+`frames()` and exporting `exportPages`.
+
+NOTE: As built by DOC-004 and DOC-005 (`WTApp/Panels/DocumentPanel.swift`, `PasteboardMiniature.swift`,
+`Document/PageSheets.swift`, `Inspector/InspectorField.swift`, `PropertyEditor.swift`).  The
+Document panel replaces the catalog's placeholder: a SwiftUI body over the front window
+(`DocumentPanelState`, which follows the document's structure changes) with the Page Size pop-up
+(the standard sizes, the document's custom sizes, *Custom*; blank when the selected pages differ),
+portrait and landscape buttons, *Edit…* (the Page Sizes sheet), the width and height under it,
+*Bleed* (a length field), *Printer Resolution* (the presets and a typed value), the *Master Page*
+pop-up, and the pasteboard view with its three magnification buttons and the page-list toggle.
+Each control is one change through the window's object commands (`SetPageGeometry`,
+`SetPageOrientation`, `SetBleed`, `SetPrinterResolution`, `ApplyMasterPage`/`DetachFromMaster`), on
+the selected pages; a child of a master shows the master's values disabled.  The Options menu:
+*Add Pages…*, *Duplicate*, *Remove*, *Move Page…*, *New Master Page*, *Convert to Master Page*,
+*Release Child Page*.  The pasteboard view is an `NSView`: the whole pasteboard fitted to the
+width, ×2 and ×4 (the magnification is the window's `view` state, `documentPanelScale`), page
+thumbnails rendered with `CoreGraphicsRenderer` about 128 pixels on the longer side and re-rendered
+250 ms after the document last changed, page numbers, the selected pages outlined, collaborators'
+dots; a click selects, a double-click also shows the page in the window, dragging a thumbnail
+moves the page with its objects (`MovePage`, one change on release), kbd:[Space]-drag scrolls.  The
+Units pop-up in the status bar lists the built-in units and the document's custom units and writes
+`SetUnits` ("Change units"); a remote change updates it without taking focus.  Length fields read
+the document's `Units` (`FieldFormat.length`: every suffix, custom names, `7p6`, mixed-unit
+arithmetic; `%` of the current value and parentheses still through `Measure`) -- given to
+`MeasureField(units:)`, or to every `MeasureField` under the Object panel through the
+`documentUnits` environment value (`DocumentUnitsScope`); `LengthUnit.measureUnit` maps a unit onto
+the older `MeasureUnit` for fields outside a panel (kyus read as millimetres there).  Numeric fields
+commit on kbd:[Return] or focus loss (APP-007's `FieldEditor`), so a remote write to a focused field
+does not replace the typed text.  The remote-override notice with *Reapply mine* is `PageNotices`
+(pages.adoc).  The Page Sizes sheet (DOC-005): the custom sizes with name, width and height in the
+document's units, btn:[New] ("Size N" at the active page's size, `AddCustomPageSize`), inline
+rename and resize (`EditCustomPageSize`: pages using the size follow it), btn:[Delete]
+(`RemoveCustomPageSize`: pages read *Custom* with their size).  Deviations: the *Done when* UI tests
+are unit tests hosted in the app (`DocumentPanelTests`, `PageSheetTests`); the merge test "rename
+on one replica and resize on another" is DOC-002's model test; the *Edit* button beside the Master
+Page pop-up is disabled until the master page tab exists (master-pages.adoc).
 
 === Build tasks
 

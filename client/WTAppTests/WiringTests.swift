@@ -95,10 +95,9 @@ private func mouse(_ type: NSEvent.EventType, x: CGFloat, in window: NSWindow) -
         defer { controller.close() }
         #expect(controller.snap == SnapSettings(), "a state saved before the snap toggles restores the defaults")
         #expect(controller.panelInteraction.floatingFrame().width == 260)
-        controller.documentHandle.pages = []
         controller.goToPage(3)
         controller.showCurrentPage()
-        #expect(controller.statusBar.pageField.stringValue == "")
+        #expect(controller.statusBar.pageField.stringValue == "1", "a document always has a page")
     }
 }
 

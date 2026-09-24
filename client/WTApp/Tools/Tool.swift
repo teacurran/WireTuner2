@@ -82,9 +82,11 @@ extension CanvasHost {
     func interpretKeys(_ event: NSEvent) -> Bool { false }
 }
 
-/// Snapping, as the tools see it.  A placeholder until GEO-005 and OBJ-039 deliver the
-/// resolver and the smart-guide engine: it reports the distances from Preferences and returns
-/// points unchanged.
+/// Snapping, as the tools see it (grid-guides.adoc, "Snapping to points and objects"; DOC-016's
+/// `SnapEngine`): `sources` gathers what there is to snap to -- the grid, every page's guides and
+/// the guide objects from `PageList`, the canvas's objects through the hit tester's R-tree --
+/// and the View menu's toggles; `snap` resolves a dragged point against them, and kbd:[Control]
+/// held suspends it.  Without sources (a tool outside a window) points come back unchanged.
 @MainActor
 struct SnappingContext {
     /// View pixels within which a point snaps (*Snap distance*).
@@ -92,11 +94,68 @@ struct SnappingContext {
     /// View pixels within which a click picks (*Pick distance*).
     var pickDistance: @MainActor () -> Double = { 3 }
     var smartGuidesEnabled: @MainActor () -> Bool = { true }
-    /// Called by the snap resolver each time a dragged point snaps (the Sounds preferences,
-    /// BASIC-025); GEO-005's resolver reports what it snapped to.
+    /// Called each time a dragged point snaps, with what it snapped to (the Sounds preferences,
+    /// BASIC-025; a path counts as an object).
     var didSnap: @MainActor (SnapKind) -> Void = { _ in }
+    /// What there is to snap to and the toggles that are on, read at each snap; nil snaps nothing.
+    var sources: @MainActor () -> (sources: SnapSources, toggles: SnapToggles)? = { nil }
+    /// Whether kbd:[Control] is held (it suspends snapping for the drag); replaceable in tests.
+    var suspended: @MainActor () -> Bool = { NSEvent.modifierFlags.contains(.control) }
+    /// The last snap, for the pointer's feedback (the triangle, the point badge); nil when the
+    /// last point snapped to nothing.
+    var feedback: SnapFeedbackBox = SnapFeedbackBox()
 
-    func snap(_ point: Point, viewport: Viewport) -> Point { point }
+    /// Where `point` (pasteboard) snaps at `viewport`'s zoom; `point` itself when nothing is in
+    /// reach, snapping is suspended, or there are no sources.
+    func snap(_ point: Point, viewport: Viewport) -> Point {
+        resolve(point, viewport: viewport)?.point ?? point
+    }
+
+    /// The snap of `point`, reporting what it snapped to.
+    func resolve(_ point: Point, viewport: Viewport, dragOrigin: Point? = nil) -> SnapResult? {
+        guard let (sources, toggles) = sources() else { return nil }
+        let engine = SnapEngine(snapDistance: snapDistance(), zoom: viewport.zoom, toggles: toggles)
+        let result = engine.resolve(point, sources: sources, dragOrigin: dragOrigin, suspended: suspended())
+        report(result)
+        return result
+    }
+
+    /// A drag of `point` by `delta` (the selection's snapping point): the delta that lands it on
+    /// what it snaps to, or `delta` unchanged.
+    func snapDrag(of point: Point, by delta: Vector, viewport: Viewport) -> Vector {
+        guard let (sources, toggles) = sources() else { return delta }
+        let engine = SnapEngine(snapDistance: snapDistance(), zoom: viewport.zoom, toggles: toggles)
+        let (snapped, result) = engine.resolveDrag(of: point, by: delta, sources: sources, suspended: suspended())
+        report(result)
+        return snapped
+    }
+
+    /// Remembers `result` and sounds a snap when the point lands on something new (not again
+    /// while it stays on the same target).
+    private func report(_ result: SnapResult?) {
+        let previous = feedback.result
+        feedback.result = result
+        guard let result, previous?.candidate != result.candidate else { return }
+        didSnap(SnapKind(result.kind))
+    }
+}
+
+/// The last snap, shared by the copies of a `SnappingContext` (the tools hold copies).
+@MainActor
+final class SnapFeedbackBox {
+    var result: SnapResult?
+}
+
+extension SnapKind {
+    /// The sound a snap to `kind` plays: a path is an object; smart guides sound as guides.
+    init(_ kind: WTGeometry.SnapKind) {
+        switch kind {
+        case .point: self = .point
+        case .path: self = .object
+        case .guide, .smartGuide: self = .guide
+        case .grid: self = .grid
+        }
+    }
 }
 
 /// What a dragged point snapped to (preferences.adoc, "Sounds").
@@ -178,6 +237,12 @@ struct ToolContext {
     /// The Text tool's insertion point moved: the block, the character it is before (zero: the
     /// end) and a selection's other end; nil when editing ends (outgoing presence).
     var textCaretChanged: @MainActor ((node: OpID, position: OpID, rangeEnd: OpID?)?) -> Void = { _ in }
+    /// The Page tool's kbd:[Option]-double-click: the *Modify Page* sheet on the page; nil outside
+    /// a window.
+    var modifyPage: (@MainActor (OpID) -> Void)?
+    /// Asks the person to confirm (a removal that takes objects with it): message, informative
+    /// text; true goes ahead.  Outside a window it always goes ahead.
+    var confirm: @MainActor (String, String) -> Bool = { _, _ in true }
 
     init(document: DocumentHandle, host: any CanvasHost, snapping: SnappingContext = SnappingContext(), selection: SelectionController? = nil) {
         self.document = document

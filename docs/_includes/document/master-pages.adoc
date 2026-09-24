@@ -235,8 +235,17 @@ the `NodeCopier` create), `DeleteMasterPage` and `RenamePage` (pages and masters
 "Rename master page").  `MasterContent.objects(of:in:)` lists a master's objects by layer;
 `MasterContent.releasedMaster(fromLabel:)` parses the tag for DOC-013.  Conformance vectors for the
 dangling-master read-outs: a `WTModel` read rule, tested in `MasterCommandTests` (as DOC-002).  Not
-built: master content rendering on children (DOC-011, which changes `DocumentDisplayListBuilder`),
-the master tab (DOC-012) and the reconcile overlaps (DOC-013).
+built: master content rendering on children (DOC-011, which changes `DocumentDisplayListBuilder`)
+and the reconcile overlaps (DOC-013).
+
+NOTE: Partly built by DOC-012 (`WTApp/Panels/DocumentPanel.swift`, `Tools/PageTool.swift`).  Built:
+the *Master Page* pop-up (a master applies to the selected pages, *None* detaches them), the
+Options menu's *New Master Page*, *Convert to Master Page* and *Release Child Page*, the *Add
+Pages* sheet's *Make child of master page*, the Modify Page sheet's master, and dimmed handles on
+child pages.  Not built, because they need master content drawn on its own canvas and on the
+children (DOC-011): the master page tab (the pop-up's btn:[Edit] is disabled with that reason),
+presence on masters, and the live notices for a stale release and a deleted master (their review
+entries are DOC-013's); the Library panel's master list and drag-to-apply are the LIB epic's.
 
 === Build tasks
 

@@ -147,7 +147,7 @@ extension DocumentHandle {
         #expect(fixture.tool.hasSomethingToCancel)
         fixture.tool.cancel()
         await fixture.settle()
-        #expect(fixture.document.textNodes.isEmpty && fixture.document.changeCount == 0)
+        #expect(fixture.document.textNodes.isEmpty && fixture.document.changeCount == 1, "the fixture's page alone")
         #expect(fixture.session == nil && fixture.selectedTools == [.pointer])
         // Emptying a block and leaving it deletes it.
         fixture.click(40, 60)

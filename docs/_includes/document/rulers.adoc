@@ -141,6 +141,26 @@ Nothing beyond storing and relaying changes.
   by the active page's origin.
 * The Units sheet is SwiftUI with an editable table; each edit commits one change.
 
+NOTE: As built by DOC-014 and DOC-015 (`WTApp/Document/RulerView.swift`, `RulerHostView.swift`,
+`DocumentSetupWindow.swift`, `SetupSheets.swift`, `Toolbars/ToolbarView.swift`).  `RulerStripView`
+draws ticks and labels from `RulerScale` -- label steps from the unit's natural subdivisions (points
+1, 6, 12, 36, 72, ...; picas down to a point; inches in powers of two; pixels in powers of ten;
+decimals otherwise), the smallest whose labels fit at least 40 view points apart, minor ticks at
+least 5 apart -- and `RulerMapping`, which measures along the pasteboard axis nearest the ruler's
+edge from the active page's zero point (y upward), so a rotated canvas turns the rulers with the
+pages.  The pointer and the edges of a selection being dragged are tracked by lines.  The
+zero-point corner (`RulerCornerView`) is dragged onto the canvas with crosshairs drawn by the
+furniture layer, snapped like any dragged point or with kbd:[Shift] to the active page's corners
+and centre, and writes `SetRulerOrigin` on release ("Move zero point"); a double-click resets it.
+The Info toolbar shows the pointer from the active page's zero point in the document's units.  The
+Units sheet (DOC-015, menu:View[Page Rulers > Edit Units…]): btn:[+] adds "Unit N" equal to a
+point, names and definitions are edited inline (`EditCustomUnit`), a name another unit already has
+is marked, btn:[-] removes the selected unit -- with `SetUnits(.points)` in the same change when the
+document used it.  Deviations: the drag-edge trackers follow the Pointer tool's moving selection
+only; *Done when*'s UI test is a unit test (`SetupSheetTests`) and reads 1,728 pt for `2ft` with
+1 ft = 12 in (the task said 144 pt, which is 2 in: corrected below); the merge tests are the
+model's (DOC-002).
+
 === Build tasks
 
 [[DOC-014]]
@@ -164,6 +184,6 @@ Size:: S
 Delivers:: menu:View[Page Rulers > Edit Units…] sheet: add, rename, redefine, delete custom units; the units appear in the Units pop-up and as field suffixes.
 Done when::
 * Each edit is one change; deleting the document's current unit switches the document to points in the same change.
-* UI test defines `ft = 12 in`, types `2ft` in a width field and reads 144 pt.
+* UI test defines `ft = 12 in`, types `2ft` in a width field and reads 1,728 pt.
 * Merge test: rename on one replica, redefine on another, converge with both.
 endif::spec[]

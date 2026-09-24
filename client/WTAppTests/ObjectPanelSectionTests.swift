@@ -168,7 +168,8 @@ import WTRender
         let points = FieldFormat<Double>.measure(.points), inches = FieldFormat<Double>.measure(.inches)
         #expect(points.parse("2p6", nil) == 30 && inches.parse("1", nil) == 72 && points.parse("50%", 30) == 15 && points.parse("12 qq", 30) == nil)
         #expect(inches.format(36) == "0.5" && points.format(nil) == "")
-        #expect(DocumentUnits.allCases.map(\.measureUnit) == MeasureUnit.allCases)
+        #expect(LengthUnit.standard.map(\.measureUnit) == [.points, .picas, .inches, .decimalInches, .millimeters, .centimeters, .millimeters, .pixels])
+        #expect(LengthUnit.custom(OpID(counter: 1, replica: 1)).measureUnit == .points)
         let text = FieldFormat<String>.text()
         #expect(text.format("remote") == "remote" && text.format(nil) == "" && text.parse("typed", nil) == "typed" && text.step == nil)
         _ = MeasureField(title: "X", value: 1, unit: .points, identifier: "x") { _ in }.body

@@ -30,15 +30,20 @@ enum DocumentOpener {
     }
 
     /// A memory document (nothing persists) writing as a fresh random replica: a new document,
-    /// so it starts with the template (the default swatches, `DocumentTemplate`).
+    /// so it starts with the template (the default swatches, `DocumentTemplate`) and its first
+    /// page (`ReplacePageRects.newDocument`).
     static func memoryDocument(undoLevels: Int = WTModel.Document.defaultUndoLevels) -> WTModel.Document {
-        WTModel.Document(memory: DocumentTemplate.core(replica: UInt64.random(in: 1...UInt64.max)), undoLevels: undoLevels)
+        var core = DocumentTemplate.core(replica: UInt64.random(in: 1...UInt64.max))
+        _ = try? core.perform(ReplacePageRects.newDocument, recording: DocumentCore.Recording(limit: 1, now: Date()))
+        return WTModel.Document(memory: core, undoLevels: undoLevels)
     }
 
-    /// Writes a new document's template as its first change (swatches.adoc, "Default colors"):
-    /// a local store opened for a document created on this Mac.  Not an undo step; nothing is
-    /// written when the document already has the defaults.
+    /// Writes a new document's template as its first changes (swatches.adoc, "Default colors";
+    /// the first page, Letter centred on the pasteboard): a local store opened for a document
+    /// created on this Mac.  Not undo steps; nothing is written when the document already has
+    /// the defaults, and no page when it has one.
     static func applyTemplate(to document: WTModel.Document) async {
+        if PageList(document.state).isSynthesized { _ = try? await document.perform(ReplacePageRects.newDocument) }
         _ = try? await document.perform(DocumentTemplate())
     }
 
