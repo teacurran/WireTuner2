@@ -468,6 +468,56 @@ records the hosts `wt.fetch` reached.  `wt.fetch` resolves through `ScriptFetchi
 `wt.records.merge` go to `ScriptHost`.  The Script Editor panel, the Scripts menu, the consent
 sheet and *Show Hosts* are WTApp's and not built.
 
+[[as-built-editor]]
+==== As built (DATA-013, DATA-014; the WTApp half of DATA-012)
+
+Where it is:: `WTApp/Scripts/`: `ScriptFeatures` (the Scripts menu, running, the typings),
+`ScriptsFolder` (the folder, its entries and `FolderWatcher` over FSEvents), `ScriptEditor` (model,
+text view and window), `ScriptSyntax` (coloring and `ScriptCompletions`), `ScriptUI` (`wt.ui` and
+`WindowScriptHost`).  The consent sheet and *Show Hosts* are the Data panel's
+(xref:data-merge.adoc#as-built-ui[Data merge, As built]).
+
+Script Editor (DATA-013)::
+* menu:Window[Script Editor] opens a window of its own, not a docked panel: an editor needs the
+room.  The chooser lists *Untitled*, the Scripts folder's files (subfolders as `Folder › Name`) and
+the front document's scripts; btn:[Run] (kbd:[Cmd+Return] while the editor is key), btn:[Stop],
+btn:[Save] (kbd:[Cmd+S]: the file, the document script in one change "Save script", or an untitled
+script into the Scripts folder through a save panel) and btn:[Save to Document] (a new document
+script).  Team libraries, btn:[Save to Library…] and *Update from Library* are not built: the
+library cache holds no scripts yet.
+* The editor is an `NSTextView` colored on every change (comments, strings, numbers, keywords) whose
+completion reads `wiretuner.d.ts` through `ScriptCompletions`: the members of each interface and
+object type, keyed by the expression they follow (`wt`, `wt.document`, `wt.ui`, `wt.records`;
+anything else offers an object's members), each with its doc comment.
+* The console lists each line with its level (`⚠︎` warnings, `✖︎` errors, `→` requests); an
+`exception` with a line marks that line in red and names line and column.  With *Show script
+console on error* on, a run from the Scripts menu that fails brings the editor forward.
+* A remote save of the open document script sets *Reload* and keeps the buffer; *Reload* takes the
+document's version.
+
+Scripts menu (DATA-014)::
+* Built from the Scripts folder (every `.js`, subfolders as submenus; `script:<relative path>`
+commands) and the front document's scripts under *Document Scripts*
+(`script:document:<counter>-<replica>`), then *Open Scripts Folder*, *Script Editor* and *Reload
+Scripts*.  Every entry is a registry command, so the palette finds it and the Shortcuts settings
+bind it.  The folder is watched with FSEvents; the front window's document is followed and the menu
+rebuilt only when its script names change.  *Scripts* sits before *Window* in the menu bar.
+* `wiretuner.d.ts` is written into the Scripts folder from `ScriptTypings.declarations` at launch
+whenever it differs from this build's (the README only when missing): there is no bundle resource
+to copy.  A test launch uses a folder of its own and watches nothing.
+* Nothing runs on its own: `ScriptFeatures.runs` counts runs, and only menu items, the palette, a
+shortcut and btn:[Run] start one.  Team library scripts are not listed (as above).
+
+Runs and `wt.ui` (DATA-012, WTApp half)::
+A run uses `ScriptRunner.runDetached` with a `DocumentScriptTarget` on the front window (setting
+`wt.document.selection` selects in the window), the window's records and current record
+(`wt.records`) and its session's `DataScriptFetcher` (consent in a personal document).
+`WindowScriptHost` blocks the script's thread while `ScriptUI` answers on the main actor: `alert`,
+`confirm`, `prompt` and `choose` are alerts on the window; `openFile` returns the chosen file's
+contents and `saveFile` a writer token, never a path; `progress` shows a sheet whose btn:[Cancel]
+stops the script after the current change; `wt.records.merge({ to, records, fileName })` runs the
+merge sheet's merge.  `wt.document.export` and `print` still refuse.
+
 === Build tasks
 
 [[DOC-026]]

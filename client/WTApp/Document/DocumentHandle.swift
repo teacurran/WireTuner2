@@ -320,6 +320,20 @@ final class DocumentHandle: Identifiable, CommandSink {
         if !text.isEmpty { relayout(text) }
     }
 
+    // MARK: Record preview
+
+    /// The record the canvases draw the placeholders, bound barcodes and visibility bindings with
+    /// (the Data panel's *Preview*, DATA-016); nil draws the placeholders.  Setting it is a view
+    /// invalidation of the nodes that read a field: nothing is written, the outbox stays empty.
+    var recordPreview: RecordSubstitution? { builder.substitution }
+
+    func previewRecord(_ substitution: RecordSubstitution?) {
+        let before = builder.scene.displayList
+        let (scene, summary) = builder.preview(substitution, state: state)
+        invalidation.submit(summary, before: [before], after: [scene.displayList])
+        notify(ContentChange(summary: summary, before: before, after: scene.displayList, change: nil))
+    }
+
     /// The layout of text node `node` as the canvas draws it (container space: the node's own
     /// space; `Objects.pasteboardTransform` places it), nil when it is not a text node.
     func textLayout(for node: OpID) -> TextLayout? {

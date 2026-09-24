@@ -107,6 +107,7 @@ final class InspectorRegistry {
             AnyView(EffectEditorView(model: EffectEditorModel(context: context, selection: environment.selection)))
         }
         EffectSections.register(into: registry)
+        DataSections.register(into: registry)
         return registry
     }()
 }

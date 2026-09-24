@@ -264,8 +264,10 @@ final class TextEditingSession {
                 gesture = (anchorOffset..<anchorOffset, .character)
                 setSelection(anchor: anchorOffset, focus: offset)
             } else {
-                gesture = (offset..<offset, .character)
-                setSelection(anchor: offset, focus: offset)
+                // A click inside a placeholder selects all of it.
+                let unit = placeholderUnit(offset..<offset)
+                gesture = (unit, .character)
+                setSelection(anchor: unit.lowerBound, focus: unit.upperBound)
             }
         case .word:
             let range = TextNavigation.wordRange(at: offset, in: all)
@@ -333,7 +335,10 @@ final class TextEditingSession {
         case .documentEnd: target = text.length
         }
         if !keepsGoal { goalX = nil }
-        setSelection(anchor: extend ? anchorOffset : target, focus: target, upstream: up)
+        // The caret steps over a placeholder, never into it.
+        let unit = placeholderUnit(target..<target)
+        let landed = unit.isEmpty ? target : (target < from ? unit.lowerBound : unit.upperBound)
+        setSelection(anchor: extend ? anchorOffset : landed, focus: landed, upstream: up)
     }
 
     // MARK: Editing
@@ -352,9 +357,44 @@ final class TextEditingSession {
             return
         }
         let range = selectedRange
-        perform(TextKeystroke(node: node, from: anchor, to: focus, .insert(string), marks: pendingFormat, typing: typing))
+        // Typing the closing braces of `{{name}}` makes the placeholder one unit (data-merge.adoc,
+        // "Text placeholders"; DATA-003): once the keystroke lands, it is retyped under the mark.
+        let closesPlaceholder = typing && string.hasSuffix("}")
+        perform(TextKeystroke(node: node, from: anchor, to: focus, .insert(string), marks: pendingFormat, typing: typing)) { session, _ in
+            if closesPlaceholder { session.convertTypedPlaceholder() }
+        }
         pendingFormat = []
         if !range.isEmpty { collapse(to: text.anchor(at: range.upperBound)) } else { changed() }
+    }
+
+    /// Converts a completed `{{name}}` just before the insertion point into a placeholder.
+    private func convertTypedPlaceholder() {
+        guard let node, let text, selectedRange.isEmpty, DataPlaceholders.completed(in: text, before: focusOffset) != nil else { return }
+        perform(ConvertTypedPlaceholder(node: node, caret: focus))
+    }
+
+    /// *Insert Field* and a field dragged from the Data panel: `{{name}}` under the field's mark
+    /// at the insertion point (over the selection), in the pending format; one change.
+    func insertField(_ field: OpID) {
+        enqueue { session in
+            guard let node = session.node, let text = session.text else { return }
+            let range = session.selectedRange
+            if !range.isEmpty {
+                session.applyDelete(.deleteSelection)
+                session.enqueue { $0.insertField(field) }
+                return
+            }
+            let marks = session.formatRuns.last ?? []
+            session.perform(InsertPlaceholder(node: node, at: text.anchor(at: range.lowerBound), field: field, marks: marks))
+            session.pendingFormat = []
+            session.changed()
+        }
+    }
+
+    /// `range` grown to whole placeholders (one unit for selecting and deleting).
+    private func placeholderUnit(_ range: Range<Int>) -> Range<Int> {
+        guard let text else { return range }
+        return DataPlaceholders.unitRange(range, in: text)
     }
 
     /// kbd:[Delete], kbd:[Fn+Delete], kbd:[Option+Delete] and Cut's removal.
@@ -365,8 +405,20 @@ final class TextEditingSession {
     private func applyDelete(_ action: TextKeystroke.Action) {
         goalX = nil
         guard case .node(let node) = target, let text else { return }
-        let range = selectedRange
+        var range = selectedRange
         if range.isEmpty, action == .deleteSelection { return }
+        // A placeholder is deleted as one unit: the selection grows to cover the ones it touches,
+        // and Delete or Forward Delete next to one takes all of it.
+        let reach: Range<Int> = if !range.isEmpty { range } else if action == .backspace { max(range.lowerBound - 1, 0)..<range.lowerBound }
+            else if action == .forwardDelete { range.lowerBound..<min(range.lowerBound + 1, text.length) } else { range }
+        let unit = placeholderUnit(reach)
+        if unit != reach, !unit.isEmpty {
+            setSelection(anchor: unit.lowerBound, focus: unit.upperBound)
+            range = unit
+            perform(TextKeystroke(node: node, from: anchor, to: focus, .deleteSelection, typing: false))
+            collapse(to: text.anchor(at: range.upperBound))
+            return
+        }
         perform(TextKeystroke(node: node, from: anchor, to: focus, action, typing: action == .backspace))
         if !range.isEmpty { collapse(to: text.anchor(at: range.upperBound)) } else { changed() }
     }

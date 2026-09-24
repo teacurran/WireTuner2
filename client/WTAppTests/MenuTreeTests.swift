@@ -35,7 +35,7 @@ import Testing
     }
 
     // Font and Glyph come with the typeface commands (TypefaceFeatures), not the standard registry.
-    static let menusWithoutExtensions = MenuTreeBuilder.standardMenuOrder.filter { !["Extensions", "Font", "Glyph"].contains($0) }
+    static let menusWithoutExtensions = MenuTreeBuilder.standardMenuOrder.filter { !["Extensions", "Font", "Glyph", "Scripts"].contains($0) }
     static let viewMenuTitles: [String?] = [
         "Fit Selection", "Fit to Page", "Fit All", "Magnification", "Zoom In", "Zoom Out", nil,
         "Custom", "Rotate Canvas", nil, "Preview in Browser", nil, "Keyline", "Fast Mode", nil,

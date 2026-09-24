@@ -75,6 +75,12 @@ final class PageNotices {
         }
     }
 
+    /// Posts a notice another feature raised (the Data panel's *field removed* with *Restore
+    /// field*, DATA-003) beside the page notices; its button performs `command`.
+    func post(_ text: String, action: String, command: any WTModel.Command) {
+        notices.append(Notice(text: text, action: action, command: command))
+    }
+
     /// Removes the notice `id` (dismissed, or its button pressed).
     func dismiss(_ id: UUID) {
         notices.removeAll { $0.id == id }

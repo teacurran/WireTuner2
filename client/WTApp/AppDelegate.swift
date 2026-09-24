@@ -107,6 +107,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private(set) lazy var exports = ExportController(defaults: preferences.defaults)
     /// The Missing Fonts sheet, the substitutions and each document's embedded fonts (DOC-024).
     private(set) lazy var fonts = DocumentFonts(preferences: preferences)
+    /// The data merge panel, sheets and commands, and the record preview (DATA epic).
+    private(set) lazy var dataMerge = DataFeatures(preferences: preferences)
+    /// The Scripts menu and the Script Editor (DATA-013, DATA-014).
+    let scripts = ScriptFeatures()
     /// Typeface documents: New Typeface, the glyph grid and tabs, Font Info, Metrics, Generate Fonts (FONT).
     private(set) lazy var typeface = TypefaceFeatures(preferences: preferences)
 
@@ -264,6 +268,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         installContextMenus()
         layersPanel.clickMoves = { preferences[PreferenceCatalog.Panels.layerClickMoves] }
         installDocumentSetup()
+        installDataMerge()
         installTypeface()
         colors.install(commands: commands, panels: panels, extensions: toolbars.extensions) { documents.documents }
         PanelCatalog.register(into: panels, selection: activeSelection, help: helpModel, layers: layersPanel)

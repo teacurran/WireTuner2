@@ -64,7 +64,7 @@ struct MenuTree: Equatable, Sendable {
 enum MenuTreeBuilder {
     /// The order of the standard menus; menus the registry adds beyond these follow in the
     /// order they were first registered.
-    static let standardMenuOrder = ["WireTuner", "File", "Edit", "View", "Modify", "Text", "Object", "Font", "Glyph", "Extensions", "Window", "Help"]
+    static let standardMenuOrder = ["WireTuner", "File", "Edit", "View", "Modify", "Text", "Object", "Font", "Glyph", "Extensions", "Scripts", "Window", "Help"]
 
     @MainActor
     static func build(

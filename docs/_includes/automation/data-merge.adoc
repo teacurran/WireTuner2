@@ -409,7 +409,8 @@ menu:{product}[Settings… > Automation] turns this on for every source you conn
 
 Turn on *Preview* in the Data panel and every placeholder, bound object and barcode on the
 canvas shows the current record.  Step through records with the arrows, type a number, or
-press kbd:[Cmd+Option+Right] and kbd:[Cmd+Option+Left].  The preview is live: edit the text
+choose menu:File[Data Merge > Next Record] and menu:File[Data Merge > Previous Record] (give them
+keys under menu:{product}[Settings… > Shortcuts]).  The preview is live: edit the text
 around a placeholder, move a bound image, restyle a barcode, and the preview follows.
 
 The preview is yours alone.  It changes nothing in the document, collaborators do not see it,
@@ -1396,8 +1397,7 @@ with the pattern or *Short*/*Medium*/*Long*; an empty pattern is *As is* for bot
 cannot be read is placed as it is and reported (`MergeIssue`).  A transform's `record` holds the
 record's raw values by field name.  Embedded samples and pasted tables are read and written by
 `DataTable` (RFC 4180 CSV with a header row, TSV for pasted tables, JSON arrays of objects); the
-DATA-004 file readers with delimiter and encoding detection, bookmarks and *Embed Sample* are not
-built.
+DATA-004 file readers are below (<<as-built-ui>>).
 
 Data service client (DATA-010, client half; `WTSync/DataSourceClient.swift`)::
 `DataSourceClient` lives in WTSync, not `WTInterchange.DataSources`: WTInterchange depends on
@@ -1447,6 +1447,127 @@ with `MergeFileNames` (the export tokens plus `{field}`, collisions suffixed ` 2
 stops after the current record when its progress closure says so.  One file per record is flat in
 memory; *One file* collects the pages before writing (the PDF writer is not incremental).  The
 `PrintPlanView` integration, the merge sheet and the progress sheet are WTApp's and not built.
+
+[[as-built-ui]]
+==== As built (DATA-004; DATA-017; DATA-010, DATA-016, DATA-018, DATA-020 and DATA-021 WTApp halves)
+
+File readers (DATA-004; `WTModel/DataFileReading.swift`, `WTModel/DataJSON.swift`)::
+* In `WTModel`, not `WTInterchange.DataSources`: the readers produce `DataRecord`s and `DataTable`s,
+which are WTModel's, and WTInterchange does not depend on WTModel.
+* `DataTextEncoding.detect` reads a byte-order mark (UTF-8, UTF-16 either way), then a BOM-less
+UTF-16 from the zero bytes on one side, then UTF-8 validity (a sequence cut at the end of the 64 KiB
+sample allowed), else Windows-1252.  `DataFileReader.detectDelimiter` picks among `,`, `;` and tab
+the one whose field count (more than one) is shared by the most of the first 50 rows, preferring
+more fields.  `FileSource.encoding` stores the IANA name (`utf-8`, `utf-16le`, `utf-16be`,
+`windows-1252`), `delimiter` the character.
+* `DelimitedByteParser` is the RFC 4180 state machine over bytes: the structural characters are
+single bytes in UTF-8 and Windows-1252, so a row is split before its fields are decoded; UTF-16 is
+transcoded to UTF-8 chunk by chunk (an odd byte or a high surrogate held back for the next chunk).
+`DataFileReader.forEachRow` reads 1 MiB at a time, so a file of any size streams in constant
+memory; the test streams 200,000 rows (the 1 M-row fixture and the 2 GB address-space bound are not
+run in the debug suite).  Empty values are absent, as in `DataTable`.
+* JSON files over 64 MiB are refused with their size; smaller ones are parsed into `JSONNode`, an
+order-keeping tree whose numbers keep their source text, and read with `JSONPath` -- the grammar
+above, refusals named `filter`, `script`, `slice`, `union`, `negative_index` and `syntax`.
+`DataJSON.records(in:recordsPath:paths:)` applies the server's records-path and field rules; the
+shared vectors (`server/api/src/test/resources/jsonpath-vectors/vectors.json`) run unchanged in
+`DataFileReaderTests`.  A JSON file's columns are the member names of its first 20 records; a
+mapping path is read as a JSONPath, a column by member name (so a member called `$ref` is a
+column).  Nesting deeper than 100 levels is refused.
+* `DataFileBookmarks` makes and resolves security-scoped, read-only bookmarks
+(`FileSource.bookmark`, local only).  A file source without one -- a collaborator's copy -- shows
+the embedded sample.  The pasted-table reader is `DataTable.pasted` (DATA-003).  The *Embed sample
+records* preference embeds the first five records again on every *Refresh*.
+
+Where it is (WTApp)::
+`WTApp/Data/`: `DataFeatures` (the panel, the menu:File[Data Merge] commands, one `DataSession` per
+window made when the window first becomes main), `DataSession`, `DataPanel`, `DataSheets` (field,
+Insert Field, file, script and pasted sources), `DataWebSource`, `DataCredentials` (credentials and
+*Show Hosts*), `DataObjectSections` (the Object panel's *Data* and *Barcode* sections, *Insert
+Barcode…*), `DataMerge` (the merge sheet and `MergePrintView`), `DataCanvasOverlay`,
+`DataServices` (scope, consent, messages, the app's client).  Additive edits elsewhere:
+`DocumentHandle.previewRecord` (the builder's substitution, a view invalidation),
+`PageNotices.post` (the *field removed* notice rides the page notices' banner),
+`TextEditingSession` (typed placeholders, units, *Insert Field*), `InspectorRegistry.standard`
+(`DataSections`), `MenuTreeBuilder.standardMenuOrder` (*Scripts* before *Window*) and
+`AppDelegate` (`dataMerge`, `scripts`, `installDataMerge`).
+
+Data panel and session (DATA-017)::
+* menu:Window[Data] is a panel in a *Data* group, closed in the default layout.  The body follows
+the front window; each window's `DataSession` holds the records it read, where they came from,
+typed `{{param}}` values, the record navigator and the preview.  The Fields list shows the
+previewed record's value and the uses of each field; double-click opens the field sheet (one
+labelled change per setting that changed: *Rename field*, *Change field type*, *Change field
+format*, *Change transform*); deleting a used field asks first.  The *Mapping* table shows while a
+field matches no column or a mapping entry exists; the sample table shows the first five records.
+* Records are read without connecting or running anything -- a pasted table or embedded records,
+the file through its bookmark, the last fetch cached on this Mac, the embedded sample -- when the
+session is made and whenever the connected source changes.  btn:[Refresh] rereads the file,
+fetches the API source (`DataSourceClient.fetchAll`) or runs the script source on a thread of its
+own; a fetch reports its failure (offline keeps the sample) rather than showing page progress, and
+there is no btn:[Stop] (`fetchAll` caches only a complete fetch).
+* The record navigator's steps are the commands *Next Record* and *Previous Record* in
+menu:File[Data Merge], unbound by default: kbd:[Cmd+Option+Right] and kbd:[Cmd+Option+Left] are the
+glyph strip's (xref:typeface-documents.adoc[Typeface documents], *Next Glyph* and *Previous Glyph*)
+and a shortcut set binds a key to one command only.  Bind them in the Shortcuts settings.
+* Drag-to-place from the Fields list is not built: the canvas takes no dropped text.  *Insert
+Field* and typing place fields.  The overflow count per record is not built.
+* Live remote updates: the panel re-reads on every change; the field sheet and the Object panel's
+text fields keep what is typed (`InspectorField`).  A remote delete of a used field posts "The
+field “name” was removed; N places use it" with *Restore field* (`RestoreField`) in the window's
+notice banner.
+
+Text placeholders (DATA-003, Text tool half)::
+Typing the closing `}}` of a `{{name}}` converts it once the keystroke lands
+(`ConvertTypedPlaceholder`); a click inside a placeholder selects all of it, the arrow keys step
+over it, and Delete, Forward Delete or a selection touching it delete the whole placeholder in one
+change.  *Insert Field* types one at the insertion point in the pending format (over the
+selection), or at the end of the one selected text block when the Text tool is not editing.
+
+Canvas marks (DATA-016, WTApp half)::
+`DataCanvasOverlay` draws with the canvas furniture: a light tint over each placeholder (the
+*Highlight data fields* preference; none while previewing, the tint would sit over values), red
+over a placeholder whose field is missing whatever the preference, and a dot at the top-right
+corner of each bound object -- red when its field is missing.  What to mark is read once per
+document change.
+
+Web API, credentials and hosts (DATA-010, WTApp half)::
+* The Web API sheet edits a draft; btn:[Connect] writes a new source in one change "Connect source"
+and an edited one in one change "Change source" (its registers, headers, parameters and mapping).
+A credential header or a URL that is not `https` is refused before anything is written.
+btn:[Test] streams the first page through the service.  The request log to the console is the
+Script Editor's for `wt.fetch` only; a source fetch is not logged.
+* Consent (personal documents): a `HOST_NOT_ALLOWED` without admins, in a document whose scope is
+the account, shows the consent alert once; *Allow* calls `PutAllowedHost` on the account scope and
+the fetch is tried again; *Don't Allow* fails with "Fetching from host was not permitted.".  A team
+document shows the host and the admins.
+* `DataScopes.scope` reads the document's space from the library cache: a team's (manage only with
+the caller's team role `admin` or `owner`, from `GetTeam`, D-062) or the account's (manage when
+this person owns the document).  The credentials sheet lists names, kinds, hosts and who stored
+them; btn:[+], btn:[Replace] and btn:[Remove] only for those who manage the scope; the secret fields
+are secure fields and are emptied as soon as `PutCredential` returns, whatever it answered.
+* *Show Hosts* lists each API source's URL host (`host[:port]`, lower case, port 443 dropped), the
+hosts the last script source run reached, and the scope's permitted hosts; the owner of a personal
+document can revoke one.  The Document Info host list is not built.
+
+Barcodes (DATA-018, WTApp half)::
+The *Barcode* section edits kind, content (*Text* or a field: a text binding), error correction
+(QR), quiet zone and *Show text* (Code 128), each one change.  *Insert Barcode…* places a 29 pt QR
+or 60 pt Code 128 symbol centred in the view, bound or with fixed text, in one change "Insert
+Barcode" (`InsertBoundBarcode`: the insert and the binding in one command).  The *Data* section
+binds any selection to a field of a suitable type (one change "Bind to field"; *None* unbinds).
+
+Merge sheet (DATA-020, DATA-021 WTApp halves)::
+* The templates are the selected pages (the Page tool's selection, else the active page); a grid
+copies the selected objects.  *Shrink to fit* is decided on the main actor for each record and
+text block with placeholders before `Document.mergeToPages` runs; blocks still overflowing are
+report rows.  btn:[Cancel] stops after the current chunk and undoes the merge.  The report lists
+each row; clicking one previews that record.
+* *Merge to PDF* asks for a folder and writes through `MergeExport` with the default PDF options
+(the export sheet's last options are not read).  *Print Merge* opens the Print dialog on
+`MergePrintView`: `knowsPageRange` is the merged page count, `rectForPage` each output page's
+template rectangle, and a page is drawn (as a one-page vector PDF) only when the print loop asks.
+The printing chapter's own pane is not built, so the dialog is the standard one.
 
 === Build tasks
 
