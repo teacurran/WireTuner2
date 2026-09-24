@@ -170,6 +170,11 @@ link to a page left out falls back to the object's URL.  The HTML publisher supp
 a link and a page target raises the unused-link warning (`ExportWarning.Kind.unusedLink`); a page
 link to a page left out raises `missingPage`.
 
+NOTE: As built: the Navigation panel's *On click* pop-up (WEB-021's panel half, in
+`WTApp/Web/NavigationPanel.swift`): *Nothing*, *Open link* and *Go to <page>* for each page, *(deleted
+page)* for a dangling target; choosing a page writes `go_to_page`, *Nothing* or *Open link* clears it
+and leaves `url`.  The link badge overlay and the Link tool (WEB-022) are not built.
+
 === Build tasks
 
 [[WEB-021]]

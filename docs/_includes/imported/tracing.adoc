@@ -270,6 +270,20 @@ fixtures are generated in code (line art, lettering, a gradient "photograph", a 
 scan), not a recorded corpus of real files.
 * Undo: one change per trace, labelled "Trace _name_".
 
+NOTE: As built by IMG-023 (`WTApp/Images/TraceTool.swift`; `WTModel/TracePlacement.swift`).  The Trace
+tool replaces its stub (kbd:[8], options on double-click).  A marquee (kbd:[Shift] square,
+kbd:[Option] from the centre) traces the image under its centre from the image's own pixels (decoded
+from the blob cache, at most 2,048 pixels on the long edge, what lies outside the marquee turned to
+paper), else the canvas rendered at *Resolution*; a click is the wand over the image's pixels (or the
+visible area), kbd:[Shift] adding, kbd:[Option] taking away, kbd:[Tab] inverting, shown with marching
+ants; kbd:[Return] traces the selection and kbd:[E] converts its edge to one unfilled path.  Traces
+run with `Trace.trace` off the main actor behind a progress sheet with btn:[Cancel]; the result is
+`PlaceTrace`: one group named "Trace of <object>" directly above the traced object (the top of the
+current layer over nothing), one change "Trace".  The options (colours, grays, noise, conformity,
+outer edge, centerline, uniform, resolution, wand tolerance) persist in the preferences' defaults.
+A placeholder image is refused with a message.  Not built: *Trace layers* choices and the wand
+options popover.
+
 === Build tasks
 
 [[IMG-021]]

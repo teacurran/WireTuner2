@@ -639,6 +639,17 @@ opened on another Mac equals the local state before the freeze).
   library`).  Sharing actions are not undoable (they are server calls); the sheet confirms
   destructive ones.
 
+NOTE: As built by COLLAB-014's UI (`WTApp/Collaboration/AccessBar.swift`,
+`SessionServices.swift`).  `SyncConnection` also carries the transport, the document copy calls (a
+`LazyDocumentCopyTransport`, which opens no connection until a copy or branch is made) and the
+tokens, so `DocumentSession.makeAccessController()` builds the session's `AccessController`.  The
+bar is a title-bar accessory at the bottom of the window (the bar under the toolbar), shown while
+`status.banner` has something to say, with the number of unsent changes and, while they are frozen,
+btn:[Save as a Copy…] (the copy is named "<title> (my changes)" and opened) and btn:[Discard].
+After a removal the window closes once the person has decided (at once when nothing was unsent),
+after `deleteStore()`.  `AccessBarModel` reads any `AccessOffering`, which `AccessController`
+conforms to, so the app tests drive it both with a fake and end to end over `FakeSyncServer`.
+
 === Build tasks
 
 [[COLLAB-010]]

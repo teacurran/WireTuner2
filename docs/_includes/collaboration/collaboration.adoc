@@ -379,6 +379,20 @@ from A, B" toast are status-bar messages; the toast names menu:File[Review Merge
 carrying a *Review what changed* button.  The TEST-001/TEST-002 scenarios (drag in progress,
 two-client drag) and tile-invalidation counters are left to COLLAB-003.
 
+NOTE: As built by COLLAB-002 (`WTApp/Review/DocumentComparison.swift`, `CompareSheet.swift`).
+`DocumentComparison(a:b:base:)` compares two `EngineState`s node by node -- live on one side only,
+or live on both with a different parent or different `props` (every register and live sequence
+element; TEXT fields are compared through the node's registers only) -- leaving the comments out,
+and with a `base` marks the nodes both sides changed since it.  *Deviation*: the third argument is
+the base state for overlap, not the live state; the live state is the sheet's write target
+(`CompareSheetModel(perform:current:)`).  The sheet lists the objects with their kind ("Changed",
+"Only in <A>", "Only in <B>", "· both"), the preview is `ReviewPreview`'s (A, B, or both at half
+strength with *Overlay*), the state buttons take the titles they are given (*Main* / *Branch*,
+*Older* / *Now*), and it is read-only without a write target.  With one, *Use <A>* re-asserts A's
+version of the object on the live state as one change (its registers in one `SetFields`, its
+deletion, or its return), and *Use <B>* writes nothing.  The 300 ms budget for 1,000 changed nodes is
+not measured.
+
 === Build tasks
 
 [[COLLAB-001]]

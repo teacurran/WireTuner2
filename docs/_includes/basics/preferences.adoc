@@ -252,6 +252,9 @@ others see of you.
 |Show others' selections |On |Draws collaborators' selection outlines.
 |Offline snapshot interval |5 minutes |How often the local copy of an open document is compacted, which bounds reopen time after a crash (local; 1--60).
 |Show names on collaborators' cursors |On |Draws each remote pointer with its owner's name. xref:presence.adoc[Presence]
+|Show Pins |On |Draws comment pins on the canvas; also menu:View[Comments]. xref:comments.adoc#showing-hiding[Comments]
+|Show Resolved Pins |Off |Draws the pins of resolved threads too, in gray.
+|Pins Follow Filter |Off |Draws only the pins of the threads the Comments panel lists.
 |===
 
 A team can set a floor for the review thresholds; when it has, the fields show the team's

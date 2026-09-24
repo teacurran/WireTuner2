@@ -399,6 +399,24 @@ paths (`ImportPointerTests`: click, marquee, kbd:[Shift] and kbd:[Option], three
 kbd:[Esc] after the second, kbd:[Return] stacking, paste of image, PDF and file data;
 `ImportTests`: drops, the locked-layer rule); XCUITest runs need Automation Mode on this Mac.
 
+NOTE: As built by IMG-006 and IMG-026's app half (`WTApp/Images/ImageFeatures.swift`, `ShareInbox.swift`).
+Each window draws image marks on a layer of its own above the furniture (never in an export or a
+print): an image whose blob waits in `blobs_pending` shows *Uploading* with a ring, or *Waiting for
+network* while the session is offline; an image whose blob is not in this Mac's cache shows its
+name and "uploading from <name>" (the author of the node's replica from the session, else
+"someone").  The marks are read from the state (image nodes, their natural rect through their
+pasteboard transform), not from display-list items, and redraw on document, sync-state and viewport
+changes.  Per-blob upload progress and the download progress ring are not built.  IMG-007: the
+*Downsample images larger than* preference (Preferences > Import, synced) reaches the importer through
+`ImportController.context`, the converters' "downsampled to N MP" notes show in the status bar and
+over-limit files are named in the import alert (IMG-005's paths); no other code was needed.  The
+share hand-off: `wiretuner-share://inbox/<uuid>?app=<name>[&option=1]` (the scheme is registered in
+the app's Info.plist) drains the app group's `Inbox/<uuid>/` into the front document, centred and
+stacked by the *Keep both offset*, one change per item labelled "Add from <app>", or into a new
+document ("Shared Items") with kbd:[Option] or no document open; the folder is removed after, and
+folders older than a day at launch.  Not built: the `WireTunerShare` extension target, its app group
+entitlement and sandbox profile, and the library window's picker.
+
 === Build tasks
 
 [[IMG-001]]

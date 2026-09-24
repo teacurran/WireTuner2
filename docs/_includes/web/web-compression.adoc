@@ -131,6 +131,13 @@ settings and sums the files, so the estimate is the written size.  The one-secon
 2,000 × 2,000-pixel page is a perf-run test (release, `WT_PERF=1`); in a debug build the rasterizer
 takes several seconds.  The Export sheet's preset pop-up and readout are the IO epic's sheet.
 
+NOTE: As built by WEB-006's sheet half (`WTApp/Export/ExportWebPresets.swift`).  The Export sheet gains a
+*Web preset* pop-up under *Preset*: the built-in four and the user's (`WebExportPresetStore` over the
+preferences' defaults); choosing one sets the format and writes the preset's options into that
+format's options, and the readout under it is `ExportSizeEstimate.bytes` of the current page at the
+preset (a scratch export, detached).  Managing the user's presets and `.wtpreset` files in the sheet
+is not built.
+
 === Build tasks
 
 [[WEB-006]]

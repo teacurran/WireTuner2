@@ -109,6 +109,7 @@ final class InspectorRegistry {
         EffectSections.register(into: registry)
         DataSections.register(into: registry)
         TextSections.register(into: registry)
+        WebSections.register(into: registry)
         return registry
     }()
 }

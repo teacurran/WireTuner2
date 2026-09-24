@@ -584,6 +584,39 @@ account ids are the caller's account id, which the app supplies (WTModel knows n
 * Presence: while the composer or a reply field has focus, `editing` carries the thread's
   node id, and the hover card renders a `comment_thread` id as _Commenting on <anchor name>_.
 
+NOTE: As built by COLLAB-027's app glue and the UI halves of COLLAB-028 and COLLAB-029
+(`WTApp/Collaboration/`: `CommentsFeatures`, `WindowComments`, `CommentTool`, `CommentThreadView`,
+`CommentsPanel`).  The pins are drawn by the app, not by a `WTRender.CommentPinLayer`: each window
+adds a `CanvasOverlayLayer` of its own above the presence layer (so a pin change or a scroll
+repaints no document tile), redrawn on document changes and viewport changes; pins are numbered
+circles in the opener's colour (a stable pick from `PresencePalette` by account id), grey when
+resolved, with a blue badge while the thread holds unread comments, and the hovered pin's first line
+beside it.  Hit testing is the layer's own (`WindowComments.thread(atView:viewport:)`).  Pins hide
+while the Pen, Bezigon, Freeform or Pencil tool is active.  The three switches are
+`PreferenceCatalog.Sync.showCommentPins`, `showResolvedPins` and `pinsFollowFilter`, listed under
+*Sync and collaboration* and in menu:View[Comments].  The Comment tool (kbd:[C], added to the Tools
+panel) starts a pending thread on the object under a click (`SelectionController.pick`) or at a
+point; nothing is written until btn:[Comment] (`CreateThread`), and kbd:[Esc] discards the pending
+pin.  A click on a pin opens the thread; a drag (a pin the caller may move) is `MovePin` onto the
+object under the drop or empty space.  menu:Object[Add Comment…] pins the first selected object at
+the selection's centre.  The popover is an `NSPopover` beside the pin with the thread, the composer
+(`MentionDraft`: kbd:[@] completes over the document's roster and its team, the tags becoming
+`CommentBody.Mention`s over the names still in the text), kbd:[Cmd+Return] to post, the per-comment
+menu (Edit, Delete -- confirmed, undoable), the reactions bar and Resolve/Reopen, each shown only
+when `CommentPermissions` allows it for the role (`LibraryDocument.Role` from the library cache; the
+owner for a document without one).  The Comments panel (menu:Window[Comments], a *Comments* group
+closed in the default layout) filters by state, page (*This page* is the active page), person and
+*Mentions me*, searches, shows the unread count, and its rows select-to-scroll (double-click zooms)
+with the row menu's Resolve/Reopen, Copy Link (`wiretuner://document/<id>?thread=<counter>.<replica>`)
+and the owner's Delete Thread.  Unread is kept on this Mac: comments present when the window opened
+count as read, a comment by someone else that arrives later is unread until its thread is displayed
+(at once, not after one second).  A remote comment that mentions the caller (or the document's team)
+shows "<name> mentioned you" with btn:[Show] in the bar above the canvas (the page notices'
+`BannerAction`s).  Not built: `CommentReadState` against the server (`GetUnread`, `MarkRead`) and
+`CommentEvent` handling, the toolbar Comments button with its count, the library window's mention
+dots (`ListMentionedDocuments`), the Pointer tool querying pins, `editing` presence while the
+composer has focus, and the UI tests (the app-hosted `CommentsFeatureTests` drive the same paths).
+
 === Build tasks
 
 [[COLLAB-025]]

@@ -295,6 +295,17 @@ registers carry one OpId), `SetSvgAnimationWeb` ("SVG Animation Playback") and
 the object commands (move, transform) do not yet act on it.  The vectors are
 `crdt-conformance/vectors/web/svg-animation-*`.
 
+NOTE: As built by WEB-027 (`WTApp/Web/SvgAnimationSection.swift`; `WTModel/SvgAnimationPosterFrame.swift`).
+The section is registered with the Object panel (`WebSections` in `InspectorRegistry.standard`) for
+one selected `svg_animation` node: size and *Scale* against the natural size, the poster scrubber
+(released: the frame at that time rendered by an offscreen `WKWebView` seeking the Web Animations
+and SMIL timelines, cached per asset and time for the session, stored as a blob and made the poster
+with `SetSvgAnimationPosterFrame` -- the asset and both registers in one change), *On the web*
+(`SetSvgAnimationWeb`), *Duration*, *Scripts*, the file line, btn:[Reveal] (the original when this
+Mac has it) and btn:[Save a Copy…].  The scene does not build items for placed animations yet
+(WEB-026), so such a node cannot be selected on the canvas and the panel lists no kind for it; the
+section shows once it can be.  Not built: btn:[Replace…] and btn:[Edit With…].
+
 === Build tasks
 
 [[WEB-024]]

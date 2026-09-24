@@ -27,6 +27,10 @@ struct ReviewContext {
     var openDocument: @MainActor (String, String) -> Void = { _, _ in }
     /// *Keep both offset*, points.
     var keepBothOffset: @MainActor () -> Double = { 10 }
+    /// *Keep my changes on a branch* on this Mac (`BranchStores`, `BranchCreator`): the unsent
+    /// changes go to a new branch store, created on the server when possible; returns its id.
+    /// Nil for a document without a local store, which falls back to `work`.
+    var keepOnBranch: (@MainActor (String) async throws -> String)?
     /// The local user's name, for "Copy from Priya's offline edits".
     var userName: String = ""
     var makeID: @MainActor () -> String = { UUIDv7.make() }
@@ -311,6 +315,15 @@ final class ReviewSheetModel {
         context.work == nil ? "Connect to save your version elsewhere" : nil
     }
 
+    /// Why `action` cannot run now: a branch kept on this Mac needs no connection.
+    func unavailableReason(_ action: ReviewModel.DocumentAction) -> String? {
+        switch action {
+        case .keepMerged: nil
+        case .keepBranch where context.keepOnBranch != nil: nil
+        default: workUnavailableReason
+        }
+    }
+
     /// Runs a whole-document choice.
     @discardableResult
     func perform(_ action: ReviewModel.DocumentAction) -> Task<Void, Never> {
@@ -322,6 +335,8 @@ final class ReviewSheetModel {
         switch action {
         case .keepMerged:
             await finish(.upload)
+        case .keepBranch where context.keepOnBranch != nil:
+            await keepOnBranch()
         case .saveCopy, .keepBranch:
             guard let work = context.work else {
                 message = workUnavailableReason
@@ -348,6 +363,22 @@ final class ReviewSheetModel {
             } catch {
                 message = LibraryModel.message(for: error) ?? "Your version could not be saved: \(error.localizedDescription)"
             }
+        }
+    }
+
+    /// *Keep my changes on a branch* through a branch store on this Mac: works offline.
+    private func keepOnBranch() async {
+        guard let keep = context.keepOnBranch else { return }
+        isWorking = true
+        defer { isWorking = false }
+        let name = Self.copyName(.keepBranch, title: context.documentTitle, user: context.userName)
+        do {
+            let id = try await keep(name)
+            await finish(.discardLocalChanges)
+            message = "Your changes were kept on the branch \(name)"
+            context.openDocument(id, name)
+        } catch {
+            message = "Your changes could not be kept on a branch: \(error.localizedDescription)"
         }
     }
 

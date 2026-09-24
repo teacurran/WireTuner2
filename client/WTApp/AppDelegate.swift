@@ -115,6 +115,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private(set) lazy var typeface = TypefaceFeatures(preferences: preferences)
     /// menu:File[Save Version…] and menu:File[Duplicate] (IO-003, IO-004).
     let versions = VersionFeatures()
+    /// Comment pins, the Comment tool, the thread popover and the Comments panel (COLLAB-027..029).
+    private(set) lazy var comments = CommentsFeatures(preferences: preferences)
+    /// Branches, compare mode, Restore Version, Inspect mode and the access bar (COLLAB).
+    let collaborationUI = CollaborationFeatures()
+    /// The Navigation and Animation panels, Release to Layers, Publish as HTML (WEB).
+    private(set) lazy var web = WebFeatures(preferences: preferences)
+    /// Image pixels and marks, the Trace tool and the share inbox (IMG).
+    private(set) lazy var images = ImageFeatures(preferences: preferences)
     /// Handoff and Spotlight continuations (IO-035, IO-036).
     let continuity = ContinuityOpener()
     /// The Align, Transform and Find & Replace panels and their menu items (OBJ-019, OBJ-033, TYPE-022).
@@ -210,6 +218,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             Task { await self?.fonts.documentDidOpen(window) }
             self?.documentSetup.documentDidOpen(window)
             self?.versions.documentDidOpen(window)
+            self?.comments.attach(window)
+            self?.collaborationUI.attach(window)
+            self?.web.attach(window)
+            self?.images.attach(window)
         }
         environment.userName = { accountModel.profile?.displayName ?? "" }
         let palette = toolPalette
@@ -290,6 +302,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         editingPanels.showPanel = { [weak self] in self?.layout.showPanel($0) }
         editingPanels.install(panels: panels, commands: commands, selection: activeSelection) { documents.activeWindowController?.objectEditing }
         TextFeatures.install(into: commands) { documents.activeWindowController }
+        installComments()
+        installCollaborationUI()
+        installWeb()
+        installImages()
         colors.install(commands: commands, panels: panels, extensions: toolbars.extensions) { documents.documents }
         PanelCatalog.register(into: panels, selection: activeSelection, help: helpModel, layers: layersPanel)
         panels.registerIfAbsent(ToolsPanel.descriptor(model: toolPalette))
@@ -479,6 +495,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @discardableResult
     func open(_ url: URL) -> Bool {
+        if images.inbox.opens(url) { return true }
         if PackageController.opens(url) {
             Task { await packages.openFile(url) }
             return true

@@ -366,6 +366,17 @@ rather than every combination.
 * Undo: *Transparent image* is one change "Remove background from _name_" that undoes to the
   prior `pixels` register; *Clipping path* one change "Clip _name_ to subject".
 
+NOTE: As built by IMG-017 and IMG-004's app glue (`WTApp/Images/ImageFeatures.swift`).  Each window
+sets an `ImageStore` over the blob cache (reduced levels under `<cache>/levels`) on its canvas tiles
+and forwards `onReady` to the tiles of the frames that blob draws in; *Gray boxes* takes the store
+away, so the renderer draws every image as its grey placeholder, and the marks layer names them.
+*Deviation*: *Proxy* draws as *High resolution* (the pyramid already keeps panning smooth; capping
+the level needs the renderer).  The document scene does not yet build `ImageItem`s from image nodes,
+so on screen images show only their marks until it does.  An image below *Warn when image
+resolution is below* (its pixel width over its placed width in inches) gets an amber frame with its
+ppi.  kbd:[Option]-drag resizing in printer-resolution steps is not built (the Pointer tool is
+another task's).
+
 [[IMG-016]]
 ==== IMG-016 Object panel image editor
 [horizontal]

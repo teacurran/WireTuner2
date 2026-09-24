@@ -446,6 +446,27 @@ simulator runs the done-when scenario (`CollaborationScenarioTests.offlineWorkKe
 * Undo: merge resolutions are ordinary changes in the parent (each undoable); the merge
   itself is not an undo step -- reverting it is a history action.
 
+NOTE: As built by COLLAB-016, in part, and the review sheet's *Keep my changes on a branch*
+(`WTApp/Collaboration/BranchSwitcher.swift`, `CollaborationFeatures.swift`, `SessionServices.swift`).
+`WindowBranches` reads the branch stores on this Mac (`BranchStores.branches`) and, online, the
+parent's branches (`GRPCBranchClient` over the app's `UnaryCaller`: `GetBranch` finds whether the
+open document is a branch and of which parent, `ListBranches` with archived ones, `CreateBranch`,
+`RenameBranch`, `SetBranchState`, `DeleteBranch`); local stores the server does not hold are listed
+as "Not yet on the server".  The branch popup is a title-bar accessory at the leading edge: *main*,
+each active branch with its last author and time, and *New Branch…* (disabled offline).
+menu:File[Branch] holds *New Branch…*, *Switch To…*, *Compare With…* (sheets listing *main* and the
+branches), *Merge…* (disabled: COLLAB-018), *Rename Branch…*, *Archive Branch*/*Restore Branch* and
+*Move Branch to Trash* (confirmed; the window goes back to main).  Switching opens the other
+document's own store and closes this window, so view state stays per branch.  *Compare With* opens
+the review sheet in compare mode, read-only, against the other document as this Mac holds it (its
+open window's state, else its store opened and closed).  In the review sheet, *Keep my changes on a
+branch* goes through `DocumentSession.keepChangesOnBranch` whenever the document has a local store:
+`BranchStores.keepChangesOnBranch` writes the branch store, `BranchCreator.ensureOnServer` creates
+it on the server when it can (offline it stays "not yet on the server"), then the review resolves
+with `.discardLocalChanges` and the branch opens; this works offline.  Not built: the library
+window's nesting, Archived and Trash lists, live updates from `BranchEvent`, creating pending
+branches at launch, and the merge flow (COLLAB-018).
+
 === Build tasks
 
 [[COLLAB-016]]

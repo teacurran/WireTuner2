@@ -247,11 +247,15 @@ enum PreferenceCatalog {
         static let showSelections = PreferenceKey<Bool>("sync.show_selections", "Show others' selections", category: c, default: true, control: .toggle, help: "presence")
         static let snapshotIntervalMinutes = PreferenceKey<Int>("sync.snapshot_interval_minutes", "Offline snapshot interval", category: c, scope: .local, default: 5, control: steps(1...60, "minutes"), help: "offline")
         static let showCursorNames = PreferenceKey<Bool>("sync.show_cursor_names", "Show names on collaborators' cursors", category: c, default: true, control: .toggle, help: "presence")
+        static let showCommentPins = PreferenceKey<Bool>("sync.comments_show_pins", "Show Pins", category: c, default: true, control: .toggle, help: "comments")
+        static let showResolvedPins = PreferenceKey<Bool>("sync.comments_show_resolved", "Show Resolved Pins", category: c, default: false, control: .toggle, help: "comments")
+        static let pinsFollowFilter = PreferenceKey<Bool>("sync.comments_follow_filter", "Pins Follow Filter", category: c, default: false, control: .toggle, help: "comments")
 
         static let all: [AnyPreferenceKey] = [
             enabled.erased, undoLevels.erased, autoMergeBelow.erased, askOverlapCount.erased, askOverlapShare.erased,
             alwaysAsk.erased, suggestReviewAfterHours.erased, keepBothOffset.erased, sharePresence.erased,
             showCursors.erased, showSelections.erased, snapshotIntervalMinutes.erased, showCursorNames.erased,
+            showCommentPins.erased, showResolvedPins.erased, pinsFollowFilter.erased,
         ]
     }
 

@@ -37,6 +37,9 @@ struct ExportAccessory: View {
             if let title = model.presetTitle, model.isModified {
                 Text(title + " (modified)").italic().font(.caption).foregroundStyle(.secondary)
             }
+            if let web = model.web {
+                ExportWebPresetSection(model: model, web: web)
+            }
             HStack {
                 TextField("Save as Preset", text: $model.presetName, prompt: Text("Preset name"))
                 Button("Save as Preset…", action: model.savePreset).disabled(model.presetName.isEmpty)

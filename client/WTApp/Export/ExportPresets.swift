@@ -80,7 +80,7 @@ final class ExportPresetStore {
     }
 
     static let key = "export.presets"
-    private let defaults: UserDefaults
+    let defaults: UserDefaults
     private(set) var userPresets: [ExportPreset]
 
     init(defaults: UserDefaults) {

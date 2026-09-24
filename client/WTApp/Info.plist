@@ -54,6 +54,7 @@
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>wiretuner</string>
+				<string>wiretuner-share</string>
 			</array>
 		</dict>
 	</array>
@@ -101,6 +102,7 @@
 				<key>public.filename-extension</key>
 				<array>
 					<string>wiretuner</string>
+				<string>wiretuner-share</string>
 				</array>
 				<key>public.mime-type</key>
 				<array>

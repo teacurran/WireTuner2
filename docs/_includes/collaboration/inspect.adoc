@@ -287,6 +287,17 @@ test, which needs the app's canvas.
   selection yields byte-identical snippets, which the tests snapshot.
 * Undo: none.  Copy actions do not enter the undo stack.
 
+NOTE: As built by COLLAB-035's app half (`WTApp/Collaboration/InspectMode.swift`).  menu:View[Inspect
+Mode] (kbd:[Cmd+Shift+I]) toggles `InspectModeController` per window: an `InspectOverlayLayer` is
+inserted above the presence layer and follows the viewport, `InspectTool` is pushed over the
+window's tool (hover measures with `InspectMeasurements.measure` from the hovered object's
+`SceneObject` bounds, the selection's bounds and the page -- kbd:[Option] every page's area -- with
+the format from the document's unit; a click selects; kbd:[Shift] freezes; kbd:[Esc] leaves; every
+other key is consumed, so tool shortcuts do nothing), and every document command is made inert:
+`DocumentHandle.commandTransform` hands the document an `InertCommand`, which throws, so nothing is
+written whatever a menu, key or tool asks for.  Not built: the toolbar button, entering the mode by
+default for a viewer, hovered path points, undo and redo being inert too, and the 2 ms frame budget.
+
 === Build tasks
 
 [[COLLAB-035]]

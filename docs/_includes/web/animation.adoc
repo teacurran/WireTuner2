@@ -412,6 +412,24 @@ loop, autoplay, background and pages.  *Deviation:* *Animated SVG* is not yet a 
 reaches the exporter directly.  The headless WebKit sampling of frames is manual acceptance and was
 not recorded.
 
+NOTE: As built by WEB-017, the Release to Layers sheet and the Animated SVG entry (`WTApp/Web/`:
+`AnimationPanel`, `ReleaseToLayersSheet`, `WebFeatures`; `WTModel/AnimationBackground.swift`).
+menu:Window[Animation] is a panel in the *Navigation* group: *Frames from*, *Frame rate* (rounded to
+0.01, 0.01 ... 120), *Loop*, *Autoplay* (`SetAnimationSettings`) and *Background*
+(`SetAnimationBackground`, added for the panel: one register, and like the settings command the first
+write also writes `loop`), then the transport: first, step back, play/stop, step forward, last, the
+counter and the scrubber, per window (`WindowWeb`), driving the canvas's `previewFrame` and
+`startPlayback` on the display link; stepping wraps when the document loops.  menu:Window[Animation]
+also lists *Play* (kbd:[Cmd+Option+Return]), *Step Forward*, *Step Backward*, *First Frame*
+(kbd:[Cmd+Option+Home]) and *Last Frame* (kbd:[Cmd+Option+End]).  *Deviation*: stepping has no
+default keys -- kbd:[Cmd+Option+Right] and kbd:[Cmd+Option+Left] are the glyph strip's (FONT).  The
+Layers panel's context menu gains *Hold…* and *Exclude from Animation* (`SetLayerFrame`) on the
+current layer.  menu:Extensions[Animate > Release to Layers…] opens a sheet with *Animate*, *Trail
+by*, *Reverse direction*, *Use existing layers* and *Send to back*, remembered in the preferences'
+defaults, and releases the selection as one change.  *Export Animated SVG…* (menu:File) writes the
+document's animation with `AnimatedSVGExporter` into a chosen folder.  Not built: *Show frame
+numbers* and the layer highlight during playback (the Layers panel is another task's).
+
 === Build tasks
 
 [[WEB-014]]

@@ -133,8 +133,8 @@ struct ReviewSheetView: View {
             HStack {
                 ForEach(model.documentActions, id: \.self) { action in
                     Button(model.documentActionTitle(action), action: Self.document(model, action))
-                        .disabled(model.isWorking || (action != .keepMerged && model.workUnavailableReason != nil))
-                        .help(action != .keepMerged ? model.workUnavailableReason ?? "" : "")
+                        .disabled(model.isWorking || model.unavailableReason(action) != nil)
+                        .help(model.unavailableReason(action) ?? "")
                         .accessibilityIdentifier("review.document.\(model.documentActionTitle(action))")
                 }
                 Spacer()

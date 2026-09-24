@@ -68,6 +68,8 @@ final class ExportSheetModel {
     var onShowOptions: @MainActor () -> Void = {}
     /// Dismisses the options sheet.
     var onCloseOptions: @MainActor () -> Void = {}
+    /// The *Web* presets and their size readout (WEB-006), when the sheet has a document to size.
+    var web: ExportWebPresetModel?
 
     init(context: ExportContext, settings: ExportSettings, presets: ExportPresetStore, registry: ExportRegistry, presetID: String? = nil) {
         self.context = context

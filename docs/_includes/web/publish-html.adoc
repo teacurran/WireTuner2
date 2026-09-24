@@ -437,6 +437,20 @@ stroke-only link (PNG output), clamped page, and rasterized effects (from the fl
 per page).  The outlined-font, missing-font, script-animation and pending-asset kinds exist with no
 producer yet.
 
+NOTE: As built by WEB-009 (`WTApp/Web/PublishSheets.swift`).  menu:File[Publish as HTML…] and
+menu:File[HTML Setup…].  The Publish sheet chooses the setting (remembered with
+`SelectHTMLSetting`), the pages (*All*, or a range such as `1-3, 5`), the folder (the setting's
+*Location* on this Mac, `SetHTMLSettingLocation`; the bundle goes into a subfolder named after the
+document), *Show output warnings* and *Open when done*.  The scene is captured on the main actor with
+the text-range link rectangles, `HTMLPublisher.publish` runs detached, and only a finished bundle is
+written (`HTMLBundle.write`), so btn:[Cancel] leaves nothing; the folder is revealed, `index.html`
+opened when asked, and the warnings listed with btn:[Show] (select and fit).  The HTML Setup sheet
+lists the settings with btn:[+] (`AddHTMLSetting`, "Setting N") and btn:[−] (not for the first),
+and every option; btn:[Apply] writes the name (`RenameHTMLSetting`) and the options edited in the
+sheet (`EditHTMLSetting` with just those), btn:[OK] applies and closes, and a remote change shows in
+the options not edited here.  Not built: publishing to a web link (WEB-013), the browser pop-up
+(the default browser opens), progress beyond the spinner, and the UI tests.
+
 === Build tasks
 
 [[WEB-007]]

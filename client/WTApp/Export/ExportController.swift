@@ -69,6 +69,7 @@ final class ExportController {
     /// The sheet over `window`, then the export it sets up; nil when it was cancelled.
     func present(_ settings: ExportSettings, for window: DocumentWindowController) async -> ExportOutcome? {
         let model = ExportSheetModel(context: context(for: window), settings: settings, presets: presets, registry: registry)
+        model.web = webPresets(for: window, sheet: model)
         let panel = makePanel(model)
         sheet = model
         defer { sheet = nil }

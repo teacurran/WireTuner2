@@ -468,6 +468,15 @@ through it.
 * Undo grouping: a restore is one change; naming a version is not undoable (it is a server
   call; delete instead).
 
+NOTE: As built: menu:File[Restore Version…] (`WTApp/Collaboration/RestoreVersion.swift`) until the
+History panel (COLLAB-022) exists.  It lists the named versions (`VersionService.ListVersions`,
+online), builds the chosen version's state with `DocumentSession.state(atServerSeq:)`
+(`VersionStates`: the local log when it can, else `FetchSnapshot` and `FetchChanges` through the
+session's transport), works out `RestoreCommand.summary` in a detached task and confirms with its
+sentence ("already matches" when there is nothing to do), then performs `RestoreCommand` -- one
+ordinary change labelled "Restore '<name>'".  btn:[Compare] shows the version against the document
+now in compare mode (*Older* / *Now*), read-only.
+
 === Build tasks
 
 [[COLLAB-020]]

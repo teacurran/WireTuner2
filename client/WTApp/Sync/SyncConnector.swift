@@ -42,6 +42,11 @@ struct AuthTokenProvider: TokenProvider {
 struct SyncConnection: Sendable {
     let client: SyncClient
     let close: @Sendable () async -> Void
+    /// The transport under the client (version states, a copy's remaining changes), the
+    /// document copy calls (`Fork`, `CreateBranch`) and the tokens they use; nil in tests.
+    var transport: (any SyncTransport)?
+    var copies: (any DocumentCopyTransport)?
+    var tokens: (any TokenProvider)?
 }
 
 /// Makes a document's `SyncClient` over its store (client.adoc, "Concurrency"): the gRPC
@@ -76,7 +81,13 @@ final class GRPCSyncConnector: SyncConnecting {
         let transport = try GRPCSyncTransport.http2(api: api, identity: identity)
         let blobs = BlobQueue(store: store, cache: BlobCache(directory: try blobDirectory()), transport: transport, tokens: tokens)
         let client = SyncClient(store: store, sink: sink, transport: transport, tokens: tokens, presence: presence, blobs: blobs, options: options())
-        return SyncConnection(client: client) { await transport.close() }
+        let api = api
+        let identity = identity
+        let copies = LazyDocumentCopyTransport { try GRPCDocumentCopyTransport<HTTP2ClientTransport.Posix>.http2(api: api, identity: identity) }
+        return SyncConnection(client: client, close: {
+            await transport.close()
+            await copies.close()
+        }, transport: transport, copies: copies, tokens: tokens)
     }
 }
 

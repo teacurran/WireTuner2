@@ -560,7 +560,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         return Task { [weak self] in
             let local = (try? await session?.localWork().changes) ?? []
             let remote = (try? await session?.remoteWork()) ?? []
-            let context = ReviewContext(
+            var context = ReviewContext(
                 documentID: document.id, documentTitle: document.title,
                 perform: { objectEditing.perform($0) },
                 resolve: { resolution in try await session?.resolveReview(resolution) },
@@ -568,6 +568,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
                 work: environment.reviewWork(), openDocument: environment.openDocument,
                 keepBothOffset: { preferences[PreferenceCatalog.Sync.keepBothOffset] }, userName: environment.userName()
             )
+            if let session, session.store != nil { context.keepOnBranch = { name in try await session.keepChangesOnBranch(name: name) } }
             let model = ReviewSheetModel(review: review, merged: document.state, local: local, remote: remote, context: context)
             self?.collaboration.review.present(model, on: self?.window)
         }

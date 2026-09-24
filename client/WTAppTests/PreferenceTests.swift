@@ -56,7 +56,7 @@ enum PreferencesPage {
             "Sync preferences with my account", "Undo levels", "Auto-merge below", "Ask when overlap exceeds",
             "Ask when overlap share exceeds", "Always ask when anything overlaps", "Suggest review after", "Keep both offset",
             "Show my cursor and selection to others", "Show others' cursors", "Show others' selections",
-            "Offline snapshot interval", "Show names on collaborators' cursors",
+            "Offline snapshot interval", "Show names on collaborators' cursors", "Show Pins", "Show Resolved Pins", "Pins Follow Filter",
         ]),
         (.automation, ["Highlight data fields", "Embed sample records", "Show script console on error"]),
         (.printing, ["Warn about missing fonts before printing"]),
@@ -82,7 +82,7 @@ enum PreferencesPage {
 @Suite @MainActor struct PreferenceCatalogTests {
     @Test func catalogCoversEveryRowOfThePage() {
         let pageRows = PreferencesPage.rows.flatMap(\.1)
-        #expect(pageRows.count == 123, "the page's tables have 123 rows")
+        #expect(pageRows.count == 126, "the page's tables have 126 rows")
         let mapped = Set(PreferenceCatalog.all.map(\.pageRow))
         let unmapped = pageRows.filter { !mapped.contains($0) }
         #expect(unmapped.isEmpty, "rows without a key: \(unmapped)")
@@ -92,8 +92,8 @@ enum PreferencesPage {
             let keys = PreferenceCatalog.keys(in: category)
             #expect(Array(NSOrderedSet(array: keys.map(\.pageRow))) as? [String] == rows, "\(category) rows in page order")
         }
-        // 123 rows; four rows hold several values, adding 1 + 1 + 1 + 2 keys.
-        #expect(PreferenceCatalog.all.count == 128)
+        // 126 rows; four rows hold several values, adding 1 + 1 + 1 + 2 keys.
+        #expect(PreferenceCatalog.all.count == 131)
         for (row, ids) in PreferencesPage.compoundRows {
             #expect(PreferenceCatalog.all.filter { $0.pageRow == row }.map(\.id) == ids)
         }

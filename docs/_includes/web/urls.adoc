@@ -304,6 +304,20 @@ completed URI, `/Contents` from the link's alt text, and one annotation per line
 link.  `WebLinks.warnings` lists invalid links for the exporters' summaries and the publisher.  The
 wrapped element's own `<title>` from the object's alt text is IO-031's, not written here.
 
+NOTE: As built by WEB-002 (`WTApp/Web/NavigationPanel.swift`, `WebFeatures.swift`).  menu:Window[Navigation]
+replaces the placeholder panel.  Each window keeps a `LinkIndex`, built from the state when the
+window opens and updated with `LinkIndex.apply` from every applied change (rebuilt when a change
+carries no record), which the *Link* pop-up lists and btn:[Find] reads.  The panel shows the
+selection's linkable objects' *Name* (`SetNameOrNote`), *Alt text* (`SetLinkAlt`), *Link*
+(`SetLink`), *Text*, *Opens in* (`SetLinkTarget`) and the *On click* slot (`SetGoToPage`; a dangling
+page reads *(deleted page)*), *Mixed* where values differ.  With the Text tool's selection non-empty
+the panel is in text-range mode: *Link* reads the range's mark and writes `SetTextLink` over the
+range's anchors, and *Text* shows the words.  btn:[Find] selects every object and text block using
+the link (status bar count, view fitted); editing *Link* while exactly what *Find* selected is still
+selected is *Update everywhere* (`ReplaceLink`, "Change link on N objects").  A text field keeps a
+draft once typed into, committed on kbd:[Return]; when the stored value changes underneath a draft
+the field says "Changed by someone else" (the author's name is not resolved).
+
 === Build tasks
 
 [[WEB-001]]
