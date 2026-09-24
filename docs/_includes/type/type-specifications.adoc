@@ -444,6 +444,18 @@ within 1 unit; the three-weight PDF passes `qpdf --check` (qpdf 12 from Homebrew
 task) and Ghostscript and searches in PDFKit; the whole font instances in 7.4 ms in release (budget
 200 ms, `PerfBudget`).  EPS and SVG outline variable instances, as specified.
 
+NOTE: As built by TYPE-022 (`WTApp/FindReplace/TypeAttributeSearch.swift`, `FindReplacePanel.swift`).
+Until OBJ-022 and OBJ-023 bring the other attributes and `ReplaceCommand`, the Find & Replace
+Graphics panel has the *Font* attribute in both tabs (and *Text effect* in the Select tab): family
+(*Any font* / *No change*), face (*Any style* / *No change*), a size range (both empty: any size;
+only *Min*: that size), the scope -- *Selection*, *Page* (blocks whose laid-out box meets the
+current page) or *Document* --, *Add to selection* / *Remove from selection*, and the count at the
+bottom.  A block matches when any of its runs does.  btn:[Change] writes one change of `TextMark`s
+over every matching run -- family, face and size marks only for what *To* sets -- labelled `Replace
+font <from> → <to> (N blocks)`.  Deviation: locked objects are skipped as well as objects on
+locked or hidden layers.  Tests: `TypeFindReplaceTests` (one change touching only matching runs;
+typing inside a matched run picks up the replacement).
+
 === Build tasks
 
 [[TYPE-020]]

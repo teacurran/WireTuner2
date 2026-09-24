@@ -430,6 +430,28 @@ Accessibility nor Screen Recording permission (window titles, which would, are n
 fails when the process exits or no such window appears within 30 s, and always terminates the
 app.  It needs a logged-in GUI session.
 
+[[tablet-input]]
+=== Tablet and Apple Pencil input (manual)
+
+Pressure has no automated end-to-end test beyond the synthetic event streams of DRAW-020
+(`PathEditingToolTests`), so a person runs this protocol before a release that touches
+`StrokeCapture`, the pressure pens or the Freeform tool's pressure options, once with a Wacom (or
+compatible) tablet and once with an iPad and Apple Pencil through Sidecar:
+
+. Settings: Variable Stroke Pen sheet *Min* 2 pt, *Max* 24 pt, *Pressure curve* 1.
+. Draw a stroke pressing lightly, then harder, then lightly: the outline swells and thins with the
+  pressure; its narrowest parts are about 2 pt and its widest about 24 pt (check in the Object
+  panel's W on straight test strokes).
+. While drawing with the pen in contact, press kbd:[{endsb}] several times: the width does not
+  change.  Lift the pen, draw with the mouse or trackpad and press kbd:[{endsb}]: the width steps
+  by 1 pt from where the keys left it.
+. Set *Pressure curve* to 2 and repeat the light stroke: it is visibly thinner at the same
+  pressure.
+. Freeform tool, *Pressure: Size* on: the push circle grows and shrinks with pressure.
+. Record the device, macOS version and result in the release notes.
+
+Not yet run: no tablet or Sidecar iPad was available on the build machine when DRAW-020 was built.
+
 == Server
 
 Quarkus tests with Testcontainers (postgres, valkey, minio, keycloak), one test class per

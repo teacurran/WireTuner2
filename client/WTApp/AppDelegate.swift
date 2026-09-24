@@ -117,6 +117,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let versions = VersionFeatures()
     /// Handoff and Spotlight continuations (IO-035, IO-036).
     let continuity = ContinuityOpener()
+    /// The Align, Transform and Find & Replace panels and their menu items (OBJ-019, OBJ-033, TYPE-022).
+    private(set) lazy var editingPanels = EditingPanels(defaults: preferences.defaults)
     /// The Spotlight items of the documents on this Mac (IO-035).
     let spotlight: SpotlightIndexer
 
@@ -285,6 +287,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         installDocumentSetup()
         installDataMerge()
         installTypeface()
+        editingPanels.showPanel = { [weak self] in self?.layout.showPanel($0) }
+        editingPanels.install(panels: panels, commands: commands, selection: activeSelection) { documents.activeWindowController?.objectEditing }
+        TextFeatures.install(into: commands) { documents.activeWindowController }
         colors.install(commands: commands, panels: panels, extensions: toolbars.extensions) { documents.documents }
         PanelCatalog.register(into: panels, selection: activeSelection, help: helpModel, layers: layersPanel)
         panels.registerIfAbsent(ToolsPanel.descriptor(model: toolPalette))
@@ -368,6 +373,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         tools.replace(TextTool.descriptor)
         let effects = EffectFeatures(target: { documents.activeWindowController?.objectEditing }, tools: { documents.activeWindowController?.toolManager })
         effects.install(commands: commands, tools: tools, extensions: toolbars.extensions)
+        PathEditingFeatures.install(tools: tools, commands: commands, store: preferences) { documents.activeWindowController?.objectEditing }
         colors.colorControl = { effects.colorControlMenuItem() }
         self.effects = effects
         let palette = toolPalette
@@ -382,6 +388,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         toolPalette.reload(from: tools)
         toolPalette.select = { id in documents.activeWindowController?.toolManager.select(id) }
         toolPalette.presentOptions = { descriptor in _ = documents.activeWindowController?.presentToolOptions(descriptor) }
+        toolPalette.presentOptions = editingPanels.toolOptions(previous: toolPalette.presentOptions)
         toolPalette.perform = { [weak self] id in _ = self?.menuTarget?.perform(id) }
         let layout = layout
         toolPalette.slotStore = (get: { layout.flyoutSlot($0) }, set: { layout.setFlyoutSlot($0, to: $1) })

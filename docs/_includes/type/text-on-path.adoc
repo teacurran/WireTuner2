@@ -211,6 +211,21 @@ on a circle and an S-curve (glyph placements for all twelve, renders for the fou
 Re-laying 500 characters on a reshaped path takes 3.3--3.5 ms in release; the 8 ms budget is
 enforced there.
 
+NOTE: As built by TYPE-043 (`WTApp/Text/TextOnPathSection.swift`).  The *Text on path* section shows
+while every selected text has `on_path` set and a live `path` child (the smallest id, as the
+normalizations say); each control writes its `TextOnPathProps` register on every selected text in
+one change (`SetTextOnPath`, a WTApp command writing `[130, 6, n]`).  The triangle is a
+`CanvasHandleLayer` (`TextPathHandle`) drawn with the Pointer and Subselect tools -- not yet while
+the Text tool edits the text -- at the left offset for left-aligned and justified text, the right
+offset for right-aligned, midway for centred (where a drag moves both offsets together).  A drag
+projects the pointer onto the path's first contour (arc length, GEO-001) and writes both offsets
+once on release, or with kbd:[Option] on every move inside one undo group (kbd:[Esc] undoes what
+it wrote).  *Not delivered*: the Text toolbar's btn:[Attach to Path], btn:[Flow Inside Path] and
+btn:[Detach from Path] (TYPE-041's commands and TYPE-017's toolbar do not exist yet), and text on
+a path is not drawn on the canvas until TYPE-041 wires the layout into the scene -- the settings
+are the registers it will read.  Tests: `TextBlockSectionTests` (each control's register, the
+handle with and without kbd:[Option], concurrent drags converging on the later offset).
+
 === Build tasks
 
 [[TYPE-041]]

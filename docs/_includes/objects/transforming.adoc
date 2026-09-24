@@ -314,9 +314,8 @@ reference, and the amount follows the pointer; scale factors clamp to ±0.01%.  
 and Y positive right and up, Rotate counter-clockwise, Reflect's axis 90° left-to-right and 0°
 top-to-bottom), a centre that defaults to the selection's bounds centre, *Copies* and *Strokes*;
 *Apply* performs one `TransformObjects` through the window's `ObjectEditing`, and the panel shows the
-last transformation's name.  The *Fills* and *Contents* toggles are not shown (see above), and the
-centre is not synchronised with transform handles, which are not delivered (OBJ-034), nor are
-double-click opening the panel's tab and the 60 fps preview measurement.
+last transformation's name.  The *Fills* and *Contents* toggles, the centre fields bound to the
+transform handles and opening the panel on a tab came later (OBJ-033's remainder, below).
 
 NOTE: As built by OBJ-034 (`WTApp/Tools/TransformHandles.swift`, `PointerTool`).  The handles are a
 mode of the Pointer tool: a double-click on the selection (or on a member of it an Option-click
@@ -335,7 +334,35 @@ selection) or one `TransformPoints` per path for selected points, so the points 
 stays.  kbd:[~] (or kbd:[`]) goes up to the enclosing group keeping the centre.  The cursor shows the
 zone under the pointer, with the copy cursor while kbd:[Option] is down.  Deviations: the handles are
 drawn in the accent colour (the layer highlight colour is LIB-005's), scale drags do not snap to smart
-guides yet (OBJ-038/039), and the Transform panel's centre fields are not bound to the handles' centre.
+guides yet (OBJ-038/039); the Transform panel's centre fields follow the handles' centre since
+OBJ-033's remainder (below).
+
+NOTE: As built by OBJ-033's remainder and OBJ-035 (`WTApp/Panels/TransformPanel.swift`,
+`TransformCenterLink.swift`, `EditingPanels.swift`; `WTApp/Tools/MirrorTool.swift`,
+`Rotation3DTool.swift`).  The panel shows *Center X* and *Y* on every tab but Move: the transform
+handles' centre while the Pointer shows them -- typing moves it -- else the selection's bounds
+centre, a typed centre being kept for *Apply*.  *Contents* and *Fills* are shown (and *Strokes* on
+the Scale tab); the three persist in the preferences' `UserDefaults` (`TransformOptions` still
+ignores *Fills* and *Contents*, as noted above).  menu:Modify[Transform > Rotate… … Move…] and a
+double-click on a transformation tool open the panel on that tab.  The 60 fps preview measurement
+is not done.  *Mirror*: a drag sets the centre; the release makes one copy per matrix of every
+selected object in one change "Mirror" (a `TransformObjects` with one copy each): *Horizontal*
+flips top to bottom, *Vertical* left to right, *Horizontal & Vertical* makes the three reflections,
+*Multiple* one copy per axis -- reflected across axes 180°/N apart, or with *Rotate* turned in
+360°/(N+1) steps.  kbd:[Option] turns the axes toward the pointer (kbd:[Shift]: 45° steps),
+kbd:[Up] / kbd:[Down] toggle reflect and rotate, kbd:[Right] / kbd:[Left] add or remove an axis;
+*Close paths* with one axis joins an open path whose ends lie within the snap distance of the axis
+with its reflection into one closed path.  *3D Rotation*: the drag turns the selection half a
+degree per view point about the page's vertical axis (horizontal drag) and horizontal axis
+(vertical drag), kbd:[Shift] snapping each to 45°; *Easy* writes the projection's first-order
+skew-and-scale matrix about the rotation point (the upper-left 2 × 2 of `R = Ry · Rx`: the
+perspective term vanishes there) as one `TransformObjects`; *Expert* projects every point and handle
+of the selected paths from the projection point at *Distance* (`RewritePath`, the points keep their
+ids) and gives other objects the Easy matrix.  Rotation points: the press, the bounds' centre, the
+paths' point centroid, the lower-left corner; the X/Y projection point falls back to the last
+pointer position while it is unset (0, 0).  Both tools replace their Freeform-flyout placeholders
+(the Extensions toolbar's entries select the same tools); their options are sheets over
+preferences, labelled "Mirror" and "3D rotate".
 
 === Build tasks
 

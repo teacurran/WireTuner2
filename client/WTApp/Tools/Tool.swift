@@ -38,21 +38,26 @@ struct CanvasEvent: Equatable, Sendable {
     let clickCount: Int
     /// Seconds since system start (`NSEvent.timestamp`).
     let timestamp: TimeInterval
+    /// A pen sample (`NSEvent.subtype == .tabletPoint`): a tablet or an Apple Pencil through
+    /// Sidecar in contact (freeform.adoc, "Tablet"; DRAW-020).
+    var isTablet = false
 
-    init(pasteboardPoint: Point, viewPoint: Point, modifiers: KeyModifiers = [], pressure: Double = 1, clickCount: Int = 1, timestamp: TimeInterval = 0) {
+    init(pasteboardPoint: Point, viewPoint: Point, modifiers: KeyModifiers = [], pressure: Double = 1, clickCount: Int = 1, timestamp: TimeInterval = 0,
+         isTablet: Bool = false) {
         self.pasteboardPoint = pasteboardPoint
         self.viewPoint = viewPoint
         self.modifiers = modifiers
         self.pressure = pressure
         self.clickCount = clickCount
         self.timestamp = timestamp
+        self.isTablet = isTablet
     }
 
     /// The same pointer position with different modifiers (a modifier change mid-drag).
     func with(modifiers: KeyModifiers, timestamp: TimeInterval? = nil) -> CanvasEvent {
         CanvasEvent(
             pasteboardPoint: pasteboardPoint, viewPoint: viewPoint, modifiers: modifiers, pressure: pressure,
-            clickCount: clickCount, timestamp: timestamp ?? self.timestamp
+            clickCount: clickCount, timestamp: timestamp ?? self.timestamp, isTablet: isTablet
         )
     }
 }

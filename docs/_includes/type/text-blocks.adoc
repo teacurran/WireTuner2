@@ -269,6 +269,18 @@ Undo grouping:: One drag = one change ("Resize text block"); toggles and inset e
 change each; link and unlink are one change each ("Link text blocks", "Unlink text blocks"),
 including the delete-and-splice case ("Delete text block").
 
+NOTE: As built by TYPE-006 (with TYPE-040's *Direction* pop-up; `WTApp/Text/TextBlockSection.swift`,
+registered by `TextSections`).  The section shows while every selected object is a text block;
+each control writes only its own register of `TextProps.block` on every selected block, as one
+change (one `SetTextBlock` per block): *Width* `[3]`, *Height* `[4]`, each inset side `[5, n]`,
+*Display border* `[6]`, *Direction* `[9]`.  btn:[Auto width] and btn:[Auto height] make every
+selected block auto-expanding, or -- when every one already is -- fix each at the size it is laid
+out at (the flag and the size in one change).  An auto dimension's field is dimmed and shows the
+laid-out size; a size at or below 0 shows as 1 pt.  With *Vertical* a note says tabs, columns,
+rows and path text are ignored.  The fields keep the APP-007 rule (`FieldEditor`).  Tests:
+`TextBlockSectionTests` (mixed values, the one-register write, a remote change under a draft,
+inset left and right from two replicas).
+
 === Build tasks
 
 [[TYPE-005]]

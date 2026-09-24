@@ -248,6 +248,16 @@ Nothing beyond storing and relaying changes.
   commands (`setAlt`, `setDecorative`).
 * Undo: one change per field edit, per reorder gesture, per inline fix.
 
+NOTE: As built by OBJ-021 (`WTApp/Panels/NameNoteFields.swift`; `WTModel/DisplayNames.swift`).  *Name*
+and *Note* on the root row write each burst of typing once it has paused 200 ms (`IdleTextEditor`),
+one change and one undo step; leaving the field writes at once, kbd:[Esc] drops the burst, and
+input stops at 256 and 8,192 characters.  `EngineState.displayName(of:)` is the name, else the
+kind's name (`NodeKind.title`); `namedLabel` gives `Move "name"` for one named object, used by the
+Pointer's drag, arrow-key nudges and the Object panel's X and Y.  The Info toolbar names the object
+under the Pointer.  `AppendNote` appends a line to notes (the keep-both tagging helper).  The note
+field is a growing `TextField` (two to six lines) rather than an `NSTextView`; menu:Object[Name…]
+and *Note…* stay placeholders.
+
 === Build tasks
 
 [[OBJ-021]]

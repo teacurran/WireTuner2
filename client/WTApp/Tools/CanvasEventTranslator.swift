@@ -24,7 +24,8 @@ enum CanvasEventTranslator {
             modifiers: KeyEquivalentResolver.modifiers(modifierFlags),
             pressure: normalizedPressure(pressure, isTablet: isTablet),
             clickCount: max(clickCount, 1),
-            timestamp: timestamp
+            timestamp: timestamp,
+            isTablet: isTablet
         )
     }
 

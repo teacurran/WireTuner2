@@ -354,6 +354,30 @@ menu:Edit[Clear] on selected segments deletes one segment per contour (`DeleteSe
 a selected path's segment inserts a point (`InsertPointOnSegment`, split by length on a straight
 segment); menu:Extensions[Distort > Add Points] is `AddPoints` (no toolbar button yet).
 
+NOTE: As built by DRAW-027 and DRAW-028 (`WTApp/Tools/FreeformTool.swift`, `KnifeTool.swift`,
+`PathCutting.swift`, `PathEditingFeatures.swift`; `WTModel/PathRewrite.swift`).  *Freeform*: the
+selected paths' contours are sampled densely (a sample per point of length); a pull *By length*
+moves the samples within *Length* (view pixels) of the grab point by the drag with a cosine
+falloff; *Between points* moves only the grabbed segment's two handles so the grabbed point follows
+the pointer (nothing else changes); a push shoves every sample inside the circle out to its edge
+(fast moves interpolated); Reshape moves the samples within the circle by the drag times the
+strength with a Gaussian falloff, decaying as `exp(-dragged / 3r)`.  On release each moved stretch
+is refitted at the mode's precision between the nearest points that did not move and written with
+`RewritePath`: points outside the stretches keep their ids and registers, points inside are
+replaced.  Deviation: the tool writes once on release, not on every drag event (the overlay
+previews).  kbd:[Option] after the drag began writes the reshaped path as a new node above the
+original ("Clone"); kbd:[{startsb}] / kbd:[{endsb}] step the pointer by 5 px, kbd:[Up] /
+kbd:[Down] the strength by 5%.  *Knife*: the cutting line -- freehand, smoothed (σ 1 sample) unless
+*Tight fit*, or straight -- is intersected with each selected path's contours in pasteboard space;
+with a *Width* the strip's two edges cut and the pieces whose middle lies inside the strip are
+dropped; *Close cut paths* closes each piece with a straight segment.  The piece holding a
+contour's first drawn point stays in the contour (its surviving points keep their ids, handles
+shortened at the cuts), the others become new paths just above it with its attributes.
+menu:Modify[Split] cuts at the selected points the same way (an open contour's own ends do not
+split); the item is shared -- with no points to split at it does what the Split it wraps does (a
+blend's, and OBJ-024's composite split once that registers under the same id).  Rectangles, ellipses and polygons are not cut until converted to paths.  Tests:
+`FreeformToolTests`, `PathEditingToolTests`.
+
 === Build tasks
 
 [[DRAW-025]]

@@ -1,3 +1,4 @@
+import Observation
 import SwiftUI
 import WTCRDT
 import WTGeometry
@@ -36,6 +37,27 @@ struct TransformPanelModel: Equatable {
     var centerY: Double?
     var copies = 0
     var strokes = false
+    /// *Fills* and *Contents* (transforming.adoc, "The Transform panel"), on by default.
+    var fills = true
+    var contents = true
+
+    static let strokesKey = "transform.strokes"
+    static let fillsKey = "transform.fills"
+    static let contentsKey = "transform.contents"
+
+    /// The options as last left, from `defaults` (the three toggles persist; the numbers do not).
+    init(defaults: UserDefaults? = nil) {
+        guard let defaults else { return }
+        strokes = defaults.bool(forKey: Self.strokesKey)
+        fills = defaults.object(forKey: Self.fillsKey) as? Bool ?? true
+        contents = defaults.object(forKey: Self.contentsKey) as? Bool ?? true
+    }
+
+    func saveOptions(to defaults: UserDefaults) {
+        defaults.set(strokes, forKey: Self.strokesKey)
+        defaults.set(fills, forKey: Self.fillsKey)
+        defaults.set(contents, forKey: Self.contentsKey)
+    }
 
     /// The pasteboard-space matrix of the current tab (about the origin).
     var matrix: WTGeometry.AffineTransform {
@@ -61,67 +83,139 @@ struct TransformPanelModel: Equatable {
 
     /// *Apply*: one `TransformObjects` of the selected objects (with copies when asked, "Rotate
     /// with 3 copies"); nil with nothing selected or a matrix that cannot be inverted.
-    func command(nodes: [OpID], state: EngineState) -> TransformObjects? {
+    func command(nodes: [OpID], state: EngineState, handlesCenter: Point? = nil) -> TransformObjects? {
         guard !nodes.isEmpty, matrix.isInvertible, let selectionCenter = Self.center(of: nodes, in: state) else { return nil }
-        let center = Point(x: centerX ?? selectionCenter.x, y: centerY ?? selectionCenter.y)
+        let base = handlesCenter ?? selectionCenter
+        let center = Point(x: centerX ?? base.x, y: centerY ?? base.y)
         return TransformObjects(nodes, matrix: matrix, about: tab == .move ? nil : center, kind: tab.kind,
-                                options: TransformOptions(strokes: strokes), copies: max(0, copies))
+                                options: TransformOptions(strokes: strokes, fills: fills, contents: contents), copies: max(0, copies))
     }
 }
 
-/// The Transform panel body: the five tabs, their fields (units and arithmetic), the centre,
-/// *Copies*, *Strokes*, *Apply*, and the last transformation's name.
+/// The Transform panel's state, one per app so a menu item or a double-click on a transformation
+/// tool can open it on a tab (OBJ-033): the model, the toggles persisted in `defaults`.
+@MainActor
+@Observable
+final class TransformPanelState {
+    var model: TransformPanelModel {
+        didSet { if let defaults { model.saveOptions(to: defaults) } }
+    }
+
+    @ObservationIgnored let defaults: UserDefaults?
+
+    init(defaults: UserDefaults? = nil) {
+        self.defaults = defaults
+        model = TransformPanelModel(defaults: defaults)
+    }
+
+    /// Opens on `tab` (menu:Modify[Transform > Rotate…], a double-click on the Rotate tool).
+    func show(_ tab: TransformPanelModel.Tab) {
+        model.tab = tab
+    }
+}
+
+/// The Transform panel body: the five tabs, their fields (units and arithmetic), the centre --
+/// the transform handles' centre while they are shown, and typing moves it (OBJ-033) --,
+/// *Copies*, *Strokes*, *Fills*, *Contents*, *Apply*, and the last transformation's name.
 struct TransformPanelBody: View {
     let selection: ActiveSelection?
-    @State private var model = TransformPanelModel()
+    @State private var state: TransformPanelState
 
-    /// Performs *Apply* for `model` on the front window's selection.
+    init(selection: ActiveSelection?, state: TransformPanelState? = nil) {
+        self.selection = selection
+        _state = State(initialValue: state ?? TransformPanelState())
+    }
+
+    /// Performs *Apply* for `model` on the front window's selection, about the handles' centre
+    /// when they are shown and no centre was typed.
     @discardableResult
-    static func apply(_ model: TransformPanelModel, selection: ActiveSelection?) -> Task<Wiretuner_Doc_V1_Change?, Never>? {
+    static func apply(_ model: TransformPanelModel, selection: ActiveSelection?, link: TransformCenterLink = .shared) -> Task<Wiretuner_Doc_V1_Change?, Never>? {
         guard let document = selection?.document, let ids = selection?.model?.selection.ids,
-              let command = model.command(nodes: ids.map(\.opID), state: document.state) else { return nil }
+              let command = model.command(nodes: ids.map(\.opID), state: document.state, handlesCenter: link.center(for: document)) else { return nil }
         return selection?.editing?.perform(command) ?? document.perform(command)
     }
 
+    /// The centre the fields show: the typed one, the handles' or the selection's bounds centre.
+    static func center(_ model: TransformPanelModel, selection: ActiveSelection?, link: TransformCenterLink = .shared) -> Point? {
+        guard let document = selection?.document else { return nil }
+        let ids = selection?.model?.selection.ids.map(\.opID) ?? []
+        guard let base = link.center(for: document) ?? TransformPanelModel.center(of: ids, in: document.state) else { return nil }
+        return Point(x: model.centerX ?? base.x, y: model.centerY ?? base.y)
+    }
+
+    /// A typed centre coordinate: moves the handles' centre when they are shown, else is kept
+    /// for *Apply*.
+    static func setCenter(_ value: Double, horizontal: Bool, state: TransformPanelState, selection: ActiveSelection?, link: TransformCenterLink = .shared) {
+        guard let current = center(state.model, selection: selection, link: link) else { return }
+        let point = horizontal ? Point(x: value, y: current.y) : Point(x: current.x, y: value)
+        if let document = selection?.document, link.move(to: point, for: document) {
+            state.model.centerX = nil
+            state.model.centerY = nil
+        } else {
+            state.model.centerX = point.x
+            state.model.centerY = point.y
+        }
+    }
+
     /// A number field bound to one of the model's values.
-    static func field(_ title: String, _ value: Binding<Double>, unit: MeasureUnit, identifier: String) -> some View {
+    static func field(_ title: String, _ value: Binding<Double>, unit: MeasureUnit, identifier: String) -> MeasureField {
         MeasureField(title: title, value: value.wrappedValue, unit: unit, identifier: identifier) { value.wrappedValue = $0 }
     }
 
     /// A length field bound to one of the model's values, in the document's units.
-    static func field(_ title: String, _ value: Binding<Double>, units: Units, identifier: String) -> some View {
+    static func field(_ title: String, _ value: Binding<Double>, units: Units, identifier: String) -> MeasureField {
         MeasureField(title: title, value: value.wrappedValue, units: units, identifier: identifier) { value.wrappedValue = $0 }
     }
 
+    /// *Apply*.
+    func applyNow() {
+        Self.apply(state.model, selection: selection)
+    }
+
     var body: some View {
+        @Bindable var state = state
         let units = selection?.document?.unitConverter ?? Units()
+        let _ = TransformCenterLink.shared.revision
+        let center = Self.center(state.model, selection: selection)
         VStack(alignment: .leading, spacing: 10) {
-            Picker("Transform", selection: $model.tab) {
+            Picker("Transform", selection: $state.model.tab) {
                 ForEach(TransformPanelModel.Tab.allCases) { Text($0.title).tag($0) }
             }
             .pickerStyle(.segmented)
             .accessibilityIdentifier("transform.tab")
             Form {
-                switch model.tab {
+                switch state.model.tab {
                 case .move:
-                    Self.field("X", $model.moveX, units: units, identifier: "transform.move.x")
-                    Self.field("Y", $model.moveY, units: units, identifier: "transform.move.y")
+                    Self.field("X", $state.model.moveX, units: units, identifier: "transform.move.x")
+                    Self.field("Y", $state.model.moveY, units: units, identifier: "transform.move.y")
                 case .rotate:
-                    Self.field("Angle", $model.angle, unit: .points, identifier: "transform.rotate.angle")
+                    Self.field("Angle", $state.model.angle, unit: .points, identifier: "transform.rotate.angle")
                 case .scale:
-                    Toggle("Uniform", isOn: $model.uniform).accessibilityIdentifier("transform.scale.uniform")
-                    Self.field(model.uniform ? "Scale %" : "H %", $model.scaleX, unit: .points, identifier: "transform.scale.x")
-                    if !model.uniform { Self.field("V %", $model.scaleY, unit: .points, identifier: "transform.scale.y") }
+                    Toggle("Uniform", isOn: $state.model.uniform).accessibilityIdentifier("transform.scale.uniform")
+                    Self.field(state.model.uniform ? "Scale %" : "H %", $state.model.scaleX, unit: .points, identifier: "transform.scale.x")
+                    if !state.model.uniform { Self.field("V %", $state.model.scaleY, unit: .points, identifier: "transform.scale.y") }
                 case .skew:
-                    Self.field("H", $model.skewX, unit: .points, identifier: "transform.skew.x")
-                    Self.field("V", $model.skewY, unit: .points, identifier: "transform.skew.y")
+                    Self.field("H", $state.model.skewX, unit: .points, identifier: "transform.skew.x")
+                    Self.field("V", $state.model.skewY, unit: .points, identifier: "transform.skew.y")
                 case .reflect:
-                    Self.field("Axis", $model.axis, unit: .points, identifier: "transform.reflect.axis")
+                    Self.field("Axis", $state.model.axis, unit: .points, identifier: "transform.reflect.axis")
                 }
-                Stepper("Copies: \(model.copies)", value: $model.copies, in: 0...1000).accessibilityIdentifier("transform.copies")
-                Toggle("Strokes", isOn: $model.strokes).accessibilityIdentifier("transform.strokes")
+                if state.model.tab != .move {
+                    MeasureField(title: "Center X", value: center?.x, units: units, identifier: "transform.center.x") {
+                        Self.setCenter($0, horizontal: true, state: state, selection: selection)
+                    }
+                    MeasureField(title: "Center Y", value: center?.y, units: units, identifier: "transform.center.y") {
+                        Self.setCenter($0, horizontal: false, state: state, selection: selection)
+                    }
+                }
+                Stepper("Copies: \(state.model.copies)", value: $state.model.copies, in: 0...1000).accessibilityIdentifier("transform.copies")
+                Toggle("Contents", isOn: $state.model.contents).accessibilityIdentifier("transform.contents")
+                Toggle("Fills", isOn: $state.model.fills).accessibilityIdentifier("transform.fills")
+                if state.model.tab == .scale {
+                    Toggle("Strokes", isOn: $state.model.strokes).accessibilityIdentifier("transform.strokes")
+                }
             }
-            Button("Apply") { Self.apply(model, selection: selection) }
+            Button("Apply", action: applyNow)
                 .keyboardShortcut(.defaultAction)
                 .accessibilityIdentifier("transform.apply")
             if let last = selection?.editing?.lastTransform {
@@ -131,15 +225,14 @@ struct TransformPanelBody: View {
         .padding()
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
-
 }
 
 /// The Transform panel's registration (it replaces the catalog's placeholder).
 enum TransformPanel {
-    static func descriptor(selection: ActiveSelection?) -> PanelDescriptor {
+    static func descriptor(selection: ActiveSelection?, state: TransformPanelState? = nil) -> PanelDescriptor {
         PanelDescriptor(id: "transform", title: "Transform", icon: "arrow.up.left.and.arrow.down.right", defaultGroup: PanelCatalog.Group.alignTransform,
                         menuOrder: 51, helpSlug: "transforming") {
-            TransformPanelBody(selection: selection)
+            TransformPanelBody(selection: selection, state: state)
         }
     }
 }

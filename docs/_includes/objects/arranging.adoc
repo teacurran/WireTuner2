@@ -216,6 +216,20 @@ enclosing group or its layer locked), and the scene marks `isEffectivelyLocked`.
 the *Edit locked objects* exception (appearance commands do not consult the lock at all yet), the lock
 toolbar buttons and the lock glyph, and the Align commands and panel (OBJ-019).
 
+NOTE: As built by OBJ-019 (`WTApp/Panels/Align/`).  `AlignLayout` is the arithmetic, in WTApp rather
+than an `AlignCommand` in WTModel: per axis *No change*; align the min edge, centre or max edge to
+the selection's bounds (or the page's with *Align to page*); distribute min edges, centres or max
+edges between the outermost two (across the page: the outermost land on the page's); or make the
+gaps equal.  Locked objects (and objects on locked layers) are anchors: they do not move, and when
+any is selected the others align to their bounds.  btn:[Apply] writes one change `Align N objects`
+of a `MoveObjects` per moved object; with points selected the points align or distribute by
+position (`MovePoints`, handles keep their offsets), `Align N points`.  The preview's three
+rectangles (four for a distribution) follow the settings; a click in an edge band of the preview
+picks that edge, in the middle band the centre.  The settings persist in the preferences'
+`UserDefaults`.  menu:Modify[Align > Left … Bottom] each apply one axis.  Tests: `AlignPanelTests`
+(every option combination on corpora of 3, 6 and 10 boxes to 0.001 pt, align against a concurrent
+remote move, points).
+
 === Build tasks
 
 [[OBJ-018]]

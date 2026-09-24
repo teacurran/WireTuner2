@@ -294,7 +294,7 @@ final class ObjectEditing: CommandSink {
         // Connectors follow the objects they join (connectors.adoc): they are not moved themselves.
         let movable = current.ids.map(\.opID).filter { document.state.nodeKind($0) != .connector }
         guard !movable.isEmpty else { return nil }
-        return MoveObjects(movable, by: delta)
+        return NamedChange.move(MoveObjects(movable, by: delta), nodes: movable, state: document.state)
     }
 
     /// An arrow press: nudges by `delta`, grouping a burst of presses (key repeat) into one undo

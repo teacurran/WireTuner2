@@ -451,6 +451,11 @@ plain paths: effects resolved to their vector geometry (raster stages drop out),
 outlines filled with the text colour, transforms baked in.  `EnvelopeWarp.inverse` is the caret
 map; Show Map draws 8 × 8 iso-curves as hairlines.
 
+NOTE: The Mirror and 3D Rotation tools were built by OBJ-035 (see xref:transforming.adoc[Transforming
+objects]); FX-035 and FX-036 are covered by it except Mirror's keyline preview of every object's
+outline (the overlay draws each copy's bounds) and 3D Rotation's trackball: the drag's two
+components are two independent angles.
+
 === Build tasks
 
 [[FX-030]]

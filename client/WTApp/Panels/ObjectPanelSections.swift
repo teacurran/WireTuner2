@@ -126,7 +126,7 @@ extension ObjectPanelModel {
             return MoveObjects([entry.id], by: delta)
         }
         guard !moves.isEmpty else { return nil }
-        return CompositeCommand(Objects.label("Move", count: moves.count), moves)
+        return CompositeCommand(state.namedLabel("Move", for: objects.map(\.id)) ?? Objects.label("Move", count: moves.count), moves)
     }
 
     /// Typing W or H: each object scales about its box's top-left corner; with the proportion lock
@@ -186,6 +186,7 @@ enum PanelProps {
         case .ellipse(let ellipse)?: ellipse.common
         case .polygon(let polygon)?: polygon.common
         case .group(let group)?: group.common
+        case .text(let text)?: text.common
         default: Wiretuner_Doc_V1_CommonProps()
         }
     }
@@ -226,8 +227,8 @@ struct CommonSectionView: View {
             MeasureField(title: "W", value: section.width, unit: model.unit, identifier: "object.w", commit: Self.size(model, horizontal: true, proportional: proportional))
             MeasureField(title: "H", value: section.height, unit: model.unit, identifier: "object.h", commit: Self.size(model, horizontal: false, proportional: proportional))
             Toggle("Keep proportions", isOn: $proportional).accessibilityIdentifier("object.proportional")
-            CommitTextField(title: "Name", value: section.name, identifier: "object.name", commit: Self.name(model))
-            CommitTextField(title: "Note", value: section.note, identifier: "object.note", commit: Self.note(model))
+            IdleTextField(title: "Name", value: section.name, limit: 256, identifier: "object.name", commit: Self.name(model))
+            IdleTextField(title: "Note", value: section.note, limit: 8_192, multiline: true, identifier: "object.note", commit: Self.note(model))
             Toggle("Locked", isOn: Self.locked(section, model))
                 .accessibilityIdentifier("object.locked")
                 .accessibilityValue(PathSectionView.accessibilityValue(section.locked))

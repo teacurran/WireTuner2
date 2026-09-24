@@ -298,6 +298,11 @@ import WTSync
         #expect(await model.revoke("old.example.com"))
         #expect(model.rows.map(\.host) == ["api.example.com", "new.example.com:8443"])
         HostsSheet.revoke("api.example.com", model)()
+        // The button's revoke runs in its own task; let it land before going offline, or its
+        // success can clear the offline message the checks below expect.
+        func revoked() -> Bool { model.rows.first { $0.host == "api.example.com" }?.permitted == false }
+        for _ in 0..<2_000 where !revoked() { await Task.yield() }
+        #expect(revoked())
         world.transport.update { $0.failure = DataServiceError.offline }
         #expect(!(await model.revoke("api.example.com")) && model.message == "Credentials need a connection to the WireTuner service.")
         world.transport.update { $0.failure = DataServiceError.offline }

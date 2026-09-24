@@ -398,6 +398,13 @@ UI tests toggling the glyph preferences.  The merge cases run as WTModel unit te
 in-process replicas (`PathMergeTests.swift`); point, handle and segment hits at the pick distance
 are WTApp unit tests at 100% and 1600% (`SelectionTests.swift`).
 
+NOTE: As built by DRAW-005.  The three preferences were wired with DRAW-003 (their Settings rows in
+`PreferenceCatalog`, `SelectionOverlay.GlyphStyle` read by every canvas, `DrawingSettings.fillWhenOpen`
+copied into `CreatePath.fillWhenOpen` by the drawing tools); this task adds the tests: changing
+*Smaller handles* or *Show solid points* marks every open window's overlay for redisplay at once,
+and a path drawn after turning on *Show fill for new open paths* has `fill_when_open = true` while
+one drawn before keeps `false` (`PathEditingToolTests`).
+
 === Build tasks
 
 [[DRAW-001]]

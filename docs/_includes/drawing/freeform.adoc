@@ -197,6 +197,24 @@ point is the end being extended, whose leaving handle smooths the join).  Pressu
 detection are not read by the Pencil (the Variable Stroke and Calligraphic Pens use them), and the
 fit-to-golden-corpus check is GEO-004's own test.
 
+NOTE: As built by DRAW-018 and DRAW-020 (`WTApp/Tools/VariableStrokePen.swift`, `PathToolPreferences.swift`).
+`CanvasEvent.isTablet` carries `NSEvent.subtype == .tabletPoint` (Sidecar's Apple Pencil arrives
+the same way, so nothing else is special-cased).  `StrokeWidthControl` maps a pen sample's pressure
+through the *Pressure curve* preference hook (`pressure ^ curve`, 1 linear, in the pen's sheet) onto
+*Min*…*Max*, keeps the bracket keys' width (1 pt steps, clamped) for mouse and trackpad samples,
+and ignores the bracket keys while the last sample was a pen in contact.  The Variable Stroke Pen
+fits the centreline with `StrokeFit` at the sheet's precision (kbd:[Option] spans straight,
+kbd:[Shift] constraining them) and offsets it by half the width -- interpolated along the stroke by
+arc length from the samples -- with semicircular caps, fitted as one closed contour within 0.03 pt
+(GEO-004's `CurveFitter`: GEO-003's offsetter takes a constant width only).  The stroke is one
+change "Variable Stroke"; with *Auto remove overlap* GEO-002's `Boolean.normalize` runs off the
+main thread afterwards and `RewritePath` (WTModel) replaces the contour, every point new (plus any
+further contours), inside the same undo group.  Deviation: a concurrent edit of a point the cleanup
+replaced is retained on the point's tombstone, but the review sheet lists the path as *both
+edited* -- WTSync's divergence raises *edit vs delete* for deleted nodes, not for deleted point
+elements.  The manual protocol for a tablet and for Sidecar is in xref:testing.adoc#tablet-input[Testing];
+it has not been run (no tablet or Sidecar iPad on the build machine).
+
 === Build tasks
 
 [[DRAW-016]]

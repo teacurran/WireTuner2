@@ -143,8 +143,8 @@ final class ToolManager {
 
     /// The pointer moved with no button down: the Info toolbar follows it.
     func pointerMoved(_ event: CanvasEvent) {
-        publishInfo(event)
         (activeTool as? any PointerTracking)?.pointerMoved(event)
+        publishInfo(event)
     }
 
     private func publishInfo(_ event: CanvasEvent) {

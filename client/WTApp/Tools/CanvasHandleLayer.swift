@@ -26,7 +26,7 @@ enum CanvasHandleLayers {
 
     /// A fresh set for one canvas.
     static func standard() -> [any CanvasHandleLayer] {
-        [EffectCenterHandles(), GradientHandles()]
+        [EffectCenterHandles(), GradientHandles(), TextPathHandle()]
     }
 
     /// A round handle of `size` view points at `point`: filled, or outlined when `hollow`.

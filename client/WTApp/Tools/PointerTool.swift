@@ -61,8 +61,12 @@ final class PointerTool: Tool, PointerTracking, ToolInfoPublishing {
     private var selectedOnPress = false
     /// The transform handles, while shown: the centre the user set (nil: the bounds' centre) and
     /// the selection they belong to.
-    private(set) var handlesShown = false
-    private(set) var handleCenter: Point?
+    private(set) var handlesShown = false {
+        didSet { TransformCenterLink.shared.touch() }
+    }
+    private(set) var handleCenter: Point? {
+        didSet { TransformCenterLink.shared.touch() }
+    }
     private var handleSelection: [SelectionID] = []
     /// The zone under the pointer (the cursor).
     private(set) var hoverZone: TransformHandles.Zone?
@@ -73,6 +77,8 @@ final class PointerTool: Tool, PointerTracking, ToolInfoPublishing {
     private(set) var cycle: (point: Point, stack: [SelectionID], index: Int)?
     /// The Info toolbar's name of the object cycled to ("Rectangle, 2 of 5").
     private(set) var cycleName: String?
+    /// The Info toolbar's name of the object under the pointer (names-notes.adoc; OBJ-021).
+    private(set) var hoverName: String?
 
     init(subselect: Bool = false) {
         alwaysSubselects = subselect
@@ -132,12 +138,24 @@ final class PointerTool: Tool, PointerTracking, ToolInfoPublishing {
     func activate(in context: ToolContext) {
         self.context = context
         context.host.showStatusMessage(Self.statusMessage)
+        TransformCenterLink.shared.register(TransformCenterLink.Endpoint(center: { [weak self] in self?.handles?.center },
+                                                                         move: { [weak self] in self?.moveHandleCenter(to: $0) ?? false }),
+                                            for: context.document)
     }
 
     func deactivate() {
         hideHandles()
         cancel()
+        if let context { TransformCenterLink.shared.unregister(context.document) }
         context = nil
+    }
+
+    /// The Transform panel typed a centre (OBJ-033): the handles' centre moves there.
+    func moveHandleCenter(to point: Point) -> Bool {
+        guard handles != nil, point.isFinite else { return false }
+        handleCenter = point
+        context?.host.setNeedsOverlayDisplay()
+        return true
     }
 
     private func subselects(_ modifiers: KeyModifiers) -> Bool {
@@ -202,6 +220,10 @@ final class PointerTool: Tool, PointerTracking, ToolInfoPublishing {
 
     func pointerMoved(_ e: CanvasEvent) {
         if let cycle, let context, e.viewPoint.distance(to: cycle.point) > context.selection.pickDistance() { resetCycle() }
+        if let context {
+            hoverName = context.selection.pick(at: e.viewPoint, viewport: context.viewport, subselect: alwaysSubselects)
+                .map { context.document.state.displayName(of: $0.id.opID) }
+        }
         guard handlesShown, let context else { return }
         let zone = handles?.zone(at: e.viewPoint, viewport: context.viewport)
         let copies = e.modifiers.contains(.option)
@@ -369,7 +391,8 @@ final class PointerTool: Tool, PointerTracking, ToolInfoPublishing {
         // (connectors.adoc): a selection of connectors alone neither moves nor copies.
         let movable = nodes.filter { context.document.state.nodeKind($0) != .connector }
         guard !movable.isEmpty else { return nil }
-        return copy ? DuplicateObjects(nodes, offset: .translation(delta), label: "Copy") : MoveObjects(movable, by: delta)
+        return copy ? DuplicateObjects(nodes, offset: .translation(delta), label: "Copy")
+            : NamedChange.move(MoveObjects(movable, by: delta), nodes: movable, state: context.document.state)
     }
 
     private func commitMove(_ delta: Vector, copy: Bool) {
@@ -412,8 +435,8 @@ final class PointerTool: Tool, PointerTracking, ToolInfoPublishing {
         cycleName = nil
     }
 
-    /// The Info toolbar names the object cycled to while cycling.
-    var info: ToolInfo { ToolInfo(objectKind: cycleName) }
+    /// The Info toolbar names the object cycled to while cycling, else the one under the pointer.
+    var info: ToolInfo { ToolInfo(objectKind: cycleName ?? hoverName) }
 
     /// Shift or Option pressed mid-drag changes what the release does.
     func flagsChanged(_ e: CanvasEvent) {
