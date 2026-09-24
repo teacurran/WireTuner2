@@ -181,7 +181,7 @@ public enum NodeCopier {
     /// Inserts every element of each SEQUENCE field of the message `message` (encoded as
     /// `payload`, at `prefix` on the copy); `wrap` encloses a message at `prefix` into a whole
     /// `NodeProps`.
-    private static func copySequences(_ message: String, payload: [UInt8], prefix: RegisterPath, node: OpID, schema: Schema,
+    static func copySequences(_ message: String, payload: [UInt8], prefix: RegisterPath, node: OpID, schema: Schema,
                                       wrap: ([UInt8]) -> [UInt8], builder: inout ChangeBuilder) throws {
         guard let fields = WireReader.fields(payload) else { return }
         for row in schema.fields(message) {

@@ -232,6 +232,22 @@ keep their stacking order (`Objects.stackingOrder`).  With *Remember layer info*
 "pixel test" is a comparison of every member's painted bounds before and after in the scene; the
 conformance vector for concurrent `layer_origins` inserts is left to the CRDT track.
 
+NOTE: As built by OBJ-017, render and model halves (`WTRender/GroupStrokes.swift`, `WTModel/GroupInspector.swift`,
+a three-line hook in `WTModel/DocumentScene.swift`).  `SetTransformAsUnit` writes `transform_as_unit` on each
+selected unlocked group (one register; "Transform as unit" / "... of N objects"); the builder rebuilds only the
+group, so the change summary names the group alone.  `GroupInspector.contents(of:)` is what the *Contents* row
+subselects: the live members, less the clip path of a clip group.  Deviation: the display list flattens enclosing
+transforms into each leaf and both renderers stroke in local space under the leaf's transform, so *off* (the
+default) is expressed by dividing the members' stroke widths, dashes, calligraphic nibs and custom tiles by the
+group matrix's scale factor (`GroupStrokes.children`), not by re-stroking a pasteboard-space path.  For a uniform
+scale, with any rotation or reflection, that is exactly the nominal-width stroke; under a non-uniform or skewed
+group matrix the width is the matrix's geometric-mean scale and the pen keeps the matrix's shape.  Strokes of text
+runs and widths inside live effects are not compensated.  Because *off* is the default, a scaled group now strokes
+at nominal width where earlier builds scaled its strokes; a symbol's artwork groups keep the earlier behaviour.
+The reference render is the corpus case `groupTransformAsUnit` (goldens at 1× and 4×, the bitmap/PDF check and
+Metal tile parity), and `GroupStrokesTests` measures 1 device row off and 3 on at 1×.  The Object panel rows and
+the checkbox are the UI task's.
+
 === Build tasks
 
 [[OBJ-016]]

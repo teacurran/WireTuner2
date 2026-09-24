@@ -168,6 +168,25 @@ Nothing beyond storing and relaying changes.  Ingest limits apply (10,000 ops pe
   Swatches and Color Mixer panels; *Paste In* reads the native pasteboard type.
 * Undo: one step per btn:[Change], grouped across split changes.
 
+NOTE: As built by OBJ-022 (`WTModel/AttributeQuery.swift`).  `AttributeQuery(criterion, in: scope).run(in:bounds:)` returns
+matching node ids in stacking order and writes nothing; `select(in:adding:)` is the Select tab's btn:[Find] with *Add to
+selection*.  Candidates are the objects on live, visible, unlocked, non-Guides layers, group members included (bitmaps,
+envelopes, perspective objects and SVG animations by raw kind, since they have no `NodeKind` yet); *Selection* searches the
+selected objects and everything inside them; *Page* keeps candidates whose bounds intersect the page rectangle -- the
+caller's bounds (the scene's), else the geometry bounds, a text block's frame, or the object's origin.  Colours match by
+swatch, by base and percent for an unnamed tint, or by equal inline value, over each row's live-kind colour, gradient stops
+and text runs' fill; *Style* reads `CommonProps.style` and a text's paragraph and character styles; *Font* resolves each run
+through `TextLayoutReading.attributes`; *Same as selection* and *Path shape* compare fills and strokes with element ids
+cleared.  *Path shape*: same contour count, point counts and closedness, and anchors plus handles in pasteboard space equal
+to the sample's under one least-squares similarity (uniform scale, rotation, translation; no reflection) within 10^-3^ of the
+shape's RMS size, points taken in drawing order; `PathShape.similarity(to:)` returns that matrix and `PathShape.fit(_:into:)`
+is *Transform to fit original* (the replacement's bounds scaled per axis onto the match's), for OBJ-023.  The Select tab UI
+and *Paste In* wells are OBJ-023's.  Deviation on the budget: over 50,000 objects the query itself takes about 43 ms by name
+and 3 ms by type (release, `make client-perf`), but only given the scope's candidates -- `AttributeQuery.candidates(_:in:)`,
+which the panel keeps per document revision and passes to `run(in:candidates:)`; walking the tree for them takes about
+195 ms, nearly all of it `NodeStore.children` sorting a 50,000-child layer on every read (WTCRDT; a cached child order there
+would bring the uncached query under 100 ms too).
+
 === Build tasks
 
 [[OBJ-022]]

@@ -1,0 +1,48 @@
+# crdt-conformance/vectors/registers/clip-path-target-deleted.textproto (OBJ-027; schema: crdt-conformance/schema/vector.proto)
+name: "registers/clip-path-target-deleted"
+description: "A clip group G clips with path P.  Replica 1 deletes P (subselected, Delete) while replica 2 chooses P again as G's clip path.  Both apply: P is deleted in place and G's clip_path register keeps the reference to P, which now dangles (on_dangling UNSET), so readers draw G's contents unclipped until a live child is chosen; restoring P clips again without a group op."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Create layer, clip group G, clip path P and content A"
+    ops { create { parent { counter: 4 } position: "\x80" props { layer { common { name: "Layer 1" } } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x80" props { group { common { name: "G" } kind: GROUP_KIND_CLIP } } } }
+    ops { create { parent { counter: 2 replica: 7 } position: "\x80" props { path { common { name: "P" } } } } }
+    ops { create { parent { counter: 2 replica: 7 } position: "\x81" props { rect { common { name: "A" } size { width: 10 height: 10 } } } } }
+    ops { set { node { counter: 2 replica: 7 }
+      paths { segments { field: 50 } segments { field: 4 } }
+      values { group { clip_path { id { counter: 3 replica: 7 } } } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 6 base_server_seq: 1 label: "Clear P"
+    ops { set_deleted { node { counter: 3 replica: 7 } deleted: true } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 6 base_server_seq: 1 label: "Choose clip path"
+    ops { set { node { counter: 2 replica: 7 }
+      paths { segments { field: 50 } segments { field: 4 } }
+      values { group { clip_path { id { counter: 3 replica: 7 } } } } } }
+  }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "04d1da0c335c2c4969a21cd7c9bc2f6acb357b24edc84a85bc055e699ea84d09"
+  snapshot_hash: "17cce46f66741a3e89077900440bd36022b4a358f32686b471c3de8068b86770"
+  node {
+    id { counter: 2 replica: 7 }
+    node_hash: "3e8c42a1a3081b792591a8332a910ba009948aee6c94d8e580e62044c84dc722"
+    register {
+      path { segments { field: 50 } segments { field: 4 } }
+      value { group { clip_path { id { counter: 3 replica: 7 } } } }
+      op { counter: 6 replica: 2 }
+      losing { counter: 5 replica: 7 }
+    }
+  }
+  node { id { counter: 3 replica: 7 } node_hash: "ba4de1dd2fc1cdc4d7df9326f20eaa578378a9c90a21850ba5456fda8a09e840" tree { parent { counter: 2 replica: 7 } position: "\x80" deleted: true } }
+}

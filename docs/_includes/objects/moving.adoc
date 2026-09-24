@@ -309,6 +309,23 @@ until 500 ms pass without a press, and a point sub-selection moves its points (`
 Snapping goes through the `SnappingContext` placeholder (GEO-005), and smart guides and the Info
 toolbar's move readout are OBJ-038/039's.
 
+NOTE: As built by OBJ-038 (`WTRender/SmartGuides/SmartGuideEngine.swift`).  `SmartGuideEngine(displayList:index:viewport:
+excludedItems:excludedNodes:hiddenLayers:pages:start:)` takes the top-level items whose bounds meet the viewport (through the
+hit tester's R-tree when given), less the gesture's items and nodes, the Guides layer's items and any hidden layer's run,
+keeps the 500 nearest the start point and adds the pages in view.  `guides(moving:tolerance:)` returns a `SmartGuideMatch`:
+the offset per axis that lands the moving bounds on the nearest edge-on-edge, centre-on-centre or equal-spacing alignment
+within the tolerance (the *Snap distance* in pasteboard units), and every `SmartGuide` that holds at the offset bounds
+(axis, position, span, kind, node ids, labelled value and, for spacing, each equal gap).  `sizeGuides(width:height:tolerance:)`
+does the size match.  `SmartGuideMatch.snapGuides(for:)` turns the match into lines for the gesture's snapping point, which go
+into DOC-016's `SnapSources.smartGuides` and so into the `Snapper` at the `smartGuide` kind GEO-005 already defined between
+guide and grid (no WTGeometry change was needed).  Deviations: candidates are top-level display items, so a group counts as one
+object (its members are not separate candidates); hidden objects and hidden layers are absent from the display list already,
+and `excludedNodes` / `hiddenLayers` cover callers whose list still carries them.  A row for equal spacing is the objects
+overlapping the moving bounds on the other axis; the engine detects continuing a row after (or before) its two nearest
+objects and sitting centred between the nearest neighbours on both sides, and pages take no part in spacing or size matches.
+The 0.2 ms budget is a `PerfBudget` in `SmartGuideEngineTests` (500 of 50,000 candidates), held in the perf run.  The overlay
+and the tools' use of it are OBJ-039's.
+
 === Build tasks
 
 [[OBJ-008]]

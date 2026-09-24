@@ -120,10 +120,10 @@ enum ReferenceCorpus {
         .text(TextRunItem(text: "Label", origin: Point(x: 76, y: 92), bounds: Rect(x: 76, y: 82, width: 44, height: 12), color: .black)),
     ])
 
-    /// REND-002's cases, the ATTR cases, the FX cases, the type cases, the derived-drawing cases
-    /// and the page furniture (DOC-009, DOC-016).
+    /// REND-002's cases, the ATTR cases, the FX cases, the type cases, the derived-drawing cases,
+    /// the page furniture (DOC-009, DOC-016) and groups' *Transform as unit* (OBJ-017).
     static let cases: [ReferenceCase] = baseCases + AttributeCorpus.cases + EffectCorpus.cases + TextCorpus.cases + FeatureCorpus.cases
-        + PageCorpus.cases
+        + PageCorpus.cases + GroupCorpus.cases
 
     static let baseCases: [ReferenceCase] = [
         ReferenceCase(name: "fillRules", list: list([

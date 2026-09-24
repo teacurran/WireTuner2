@@ -183,6 +183,18 @@ Nothing beyond storing and relaying changes.
 * Preferences: *Path operations consume original paths* (on), *Join non-touching paths*
   (off).
 
+NOTE: As built by OBJ-024 (`WTModel/JoinSplit.swift`).  `JoinObjects(nodes, snapDistance:)` takes paths, rectangles,
+ellipses and polygons (at least two unlocked); `snapDistance` is *Snap distance* in pasteboard units when *Join non-touching
+paths* is on, else nil (ends must be within 10^-6^).  Closed contours become sub-paths; open contours are joined end to end
+greedily (any end to any end, reversing as needed; the joint is one point at the ends' midpoint keeping the arriving in
+handle and the leaving out handle), the rest stay separate sub-paths.  The result keeps the backmost input's transform (so
+it does not move) with every other input re-expressed in that space, its stack in stack order, *Even/odd fill* and *Show fill
+for open paths*; it is created at the frontmost input's slot under its parent and the inputs are deleted; label `Join N
+paths`.  Deviation: the page's "identity transform, pasteboard-space contours" rule stays with CombineCommand (OBJ-025); Join
+keeps the backmost's matrix, because baking it would scale its strokes' look.  `SplitObjects` makes one path per contour of
+each composite at its slot (same transform, stack and settings), label `Split`.  The names avoid WTModel's point-level
+`JoinPaths`/`SplitPath` (editing-paths.adoc).  The two preferences and the menu items are WTApp's.
+
 === Build tasks
 
 [[OBJ-024]]

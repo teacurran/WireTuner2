@@ -172,6 +172,8 @@ public struct DocumentDisplayListBuilder: Sendable {
         var placed: Placed?
         /// A group's own attribute stack (its effects apply to the group as one shape, FX-002).
         var groupAppearance = Appearance()
+        /// A plain group's *Transform as unit* (OBJ-017): whether its matrix scales member strokes.
+        var groupStrokes = GroupStrokeMode.asUnit
         /// A blend or extrusion, drawn as a group with a live drawing (FX-024, FX-017).
         var wrapper: WrapperKind?
         /// Whether the node names a canvas (`CommonProps.canvas`): its placement is re-read on
@@ -521,6 +523,7 @@ public struct DocumentDisplayListBuilder: Sendable {
             }
             guard !children.isEmpty else { return nil }
             let live = built.wrapper.map { Wrappers.live($0, node: node, children: placedIDs, in: state) { self.cache[$0]?.path } }
+            children = GroupStrokes.children(children, groupTransform: built.transform, mode: built.groupStrokes)
             item = .group(GroupItem(children: children, appearance: built.groupAppearance, live: live))
             bounds = item.bounds
         } else if let placed = built.placed, placed.parentTransform == parentTransform {
@@ -630,6 +633,7 @@ public struct DocumentDisplayListBuilder: Sendable {
             built.item = PlacedFileDrawing.item(PlacedFiles.placedFile(placed, transform: transform))
         case .group(let group)?:
             built.groupAppearance = Appearances.resolve(group.appearance, order: order)
+            built.groupStrokes = GroupStrokeMode(transformAsUnit: group.transformAsUnit)
         default:
             break
         }

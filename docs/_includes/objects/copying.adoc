@@ -375,6 +375,45 @@ autoscrolls.  Only the native type and the PDF promise are written (the other pa
 OBJ-015's).  The Finder drop and the drag between windows are exercised by unit tests of the items, the
 promise and the canvas's drop methods; the session itself needs a real mouse.
 
+NOTE: As built by OBJ-014 (`WTModel/AttributePaste.swift`).  `AttributePayload(copying:from:)` reads the object's stack
+in stack order and, for text, the look attributes of its first character (font, face, size, leading, range kerning,
+baseline shift, horizontal scale, colour, stroke, effect, character style, case, overprint, axes and features -- not links,
+data fields, mentions, inline graphics, language or line-break controls, which belong to the words).  Deviations: the
+payload goes on the pasteboard under its own type `com.villagecompute.wiretuner.attributes` (same `ClipboardPayload`
+encoding, one node) so an attribute copy never pastes as an object; the three lists of a stack share one position space,
+which a typed `AppearanceProps` cannot carry, so each copied element's `id` holds its place in the stack (counter 1 =
+bottom, replica 0) and an effect's `attached_to` the place of its element; text attributes ride as `RichText.marks` values
+without anchors.  `PasteAttributes` deletes every live element of each target's stack in one `ElementDelete` and inserts
+the copies in stack order (nested sequences such as gradient stops after their element, attached effects re-pointed at
+the copies); a text target gets the attributes as marks over its whole text, and the look attributes it has that the
+payload does not name are cleared.  A text block takes no object stack and a path no type attributes (ignored parts);
+locked objects are skipped.  Label `Paste attributes` or `Paste attributes to N objects`.  Found while building: a
+`NodeCopier` copy (Paste, Clone, Duplicate) positions each of the three lists on its own, so a copied stack whose lists
+interleave (a stroke below a fill) comes out regrouped by list; Join and Split copy stacks through `PasteAttributes.insert`
+instead, and the other copies are left to their owner.
+
+NOTE: As built by OBJ-015 (`WTInterchange/Clipboard/ClipboardFormat.swift`, `ClipboardWriter.swift`,
+`ClipboardReader.swift`; `WTModel/ClipboardFormats.swift`).  `ClipboardSettings` holds the three
+preferences (*Clipboard formats*: every format on, {product} always; *Convert colors to*: *CMYK and RGB*;
+*Clipboard image resolution*: 144 ppi, 72--2,400).  `ClipboardExport.writer(copying:)` captures the
+selection as one export page cropped to its bounds (`ExportSnapshot`'s selection scope, text included)
+beside the native `ClipboardPayload`; `ClipboardWriter.types` lists the types of every enabled format
+that has something to carry -- `com.villagecompute.wiretuner.objects`, `com.adobe.pdf`,
+`public.svg-image`, `public.tiff` and `public.png`, and `public.rtf` and `public.utf8-plain-text` only
+when the selection holds text -- and `data(for:)` writes one type on demand through the export writers
+(PDF with the chosen colour conversion; SVG with images embedded; TIFF and PNG rasterized on a
+transparent background at the clipboard resolution), which backs `NSPasteboardItemDataProvider`.  A
+disabled format is not declared.  Paste takes the richest format present (`ClipboardReader.richest`:
+{product}, PDF, SVG, image, RTF, plain text); Paste Special lists `ClipboardReader.formats(in:)`, only
+the formats on the pasteboard.  A non-native format becomes an `ImportedScene` placed by
+`PlaceImportedScene`: PDF and SVG as editable paths through their importers, PNG (preferred) or TIFF as
+a bitmap object, RTF as a text block keeping each run's font, size and colour, plain text as a text
+block in Helvetica 12 pt.  Deviations: the SVG copy is always sRGB (SVG has no CMYK), so *Convert colors
+to* governs the PDF copy only; pasted text lands, like a pasted PDF, in a group named "Pasted"; that
+Preview, Keynote and browsers take the vector copies is not verified headless -- the tests round-trip
+the PDF and SVG copies back to editable paths instead.  The pasteboard wiring, the Copy Special and
+Paste Special sheets and the three preference rows are WTApp's.
+
 === Build tasks
 
 [[OBJ-010]]

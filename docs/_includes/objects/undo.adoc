@@ -109,6 +109,13 @@ NOTE: OBJ-036 was already delivered by APP-011 (`WTModel.UndoStack`, *Undo level
 the stack persisted by WTSync's local store) and APP-006's `UndoCommands` (titles from change labels,
 disabled when empty, the redo list cleared by a new change); the OBJ tasks add no undo machinery.
 Every command above is one change and one undo step, verified per command by WTModel's tests.
+OBJ-036's end-to-end checks are `WTModel/UndoRulesTests.swift`: titles from labels and the redo list cleared, *Undo levels* 5
+keeping five steps after ten changes, ten changes undoable after a relaunch (a `DocumentCore` rebuilt from the state and
+stack the local store persists; the store half is WTSync's `LocalStoreTests.theUndoStackIsPersistedCappedAndRebased`),
+and the rules per op kind -- creation (a remote edit stays on the tombstone), deletion (edits made in between come back),
+`MoveNode` (skipped when another user moved it since), `ElementInsert`, `TextInsert` and `TextDelete` (re-inserted as fresh
+characters).  Deviation: the multi-client merge test (A moves, B moves, A undoes; redo only onto an untouched value) runs on
+WTModel's two-replica pair rather than TEST-001's simulator.
 
 === Build tasks
 
