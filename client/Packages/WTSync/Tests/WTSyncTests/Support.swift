@@ -65,14 +65,35 @@ enum Fixture {
     }
 }
 
-/// A fresh directory for one test's stores.
+/// A fresh directory for one test's stores.  Every test's directory sits under one folder per
+/// test process, removed when the process exits; folders left by processes that crashed are swept
+/// once they are an hour old.  (Each store is a few hundred kilobytes and the suite makes hundreds,
+/// so leaving them behind filled the disk.)
 struct Scratch {
     let directory: URL
 
     init() {
-        directory = FileManager.default.temporaryDirectory.appending(path: "WTSyncTests-\(UUID().uuidString)")
+        directory = Scratch.processRoot.appending(path: UUID().uuidString)
         try! FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
     }
+
+    static let processRoot: URL = {
+        let temporary = FileManager.default.temporaryDirectory
+        let stale = Date().addingTimeInterval(-3600)
+        let names = (try? FileManager.default.contentsOfDirectory(atPath: temporary.path)) ?? []
+        for name in names where name.hasPrefix("WTSyncTests-") {
+            let url = temporary.appending(path: name)
+            let modified = (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
+            if let modified, modified < stale { try? FileManager.default.removeItem(at: url) }
+        }
+        let root = temporary.appending(path: "WTSyncTests-\(ProcessInfo.processInfo.processIdentifier)-\(UUID().uuidString)")
+        try! FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        Scratch.removeAtExit = root.path
+        atexit { if let path = Scratch.removeAtExit { try? FileManager.default.removeItem(atPath: path) } }
+        return root
+    }()
+
+    nonisolated(unsafe) private static var removeAtExit: String?
 
     func url(_ name: String = "doc") -> URL {
         directory.appending(components: name, "store.sqlite")
