@@ -15,6 +15,7 @@
 //    7 style         crdt-model.adoc       14 origin_layer  library/layers.adoc
 //   15-19 held for the core; a feature epic that needs a new CommonProps field takes the next
 //   free number from 20 and adds it to this table in the same change.
+//   20 library       collaboration/sharing.adoc (COLLAB-010)
 syntax = "proto3";
 
 package wiretuner.doc.v1;
@@ -421,4 +422,20 @@ message CommonProps {
   // "Remember layer info" preference is on; read by ungroup, split, guide release and
   // cross-document paste.  Empty = no memory (library/layers.adoc).
   string origin_layer = 14 [(buf.validate.field).string.max_len = 256];
+  // Where the node was copied from when it came from a team library (swatch, style, symbol):
+  // set by the copy command, rewritten only by "Update from Library", cleared by "Detach".
+  // ATOMIC: the three fields describe one source and are meaningless apart
+  // (collaboration/sharing.adoc, "Team libraries").  Unset = not from a library.
+  LibraryProvenance library = 20 [(wt.crdt.field).merge = MERGE_ATOMIC];
+}
+
+// The team library a node was copied from (collaboration/sharing.adoc, COLLAB-010).
+message LibraryProvenance {
+  // The team library document.
+  string library_document_id = 1 [(buf.validate.field).string.max_len = 64];
+  // The node copied, in the library document.
+  OpId source_node = 2;
+  // The library's head server_seq when copied; "Update from Library" compares it with the
+  // library's head.
+  uint64 source_server_seq = 3;
 }

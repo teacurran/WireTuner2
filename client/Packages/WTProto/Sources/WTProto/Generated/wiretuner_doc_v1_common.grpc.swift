@@ -15,6 +15,7 @@
 ///    7 style         crdt-model.adoc       14 origin_layer  library/layers.adoc
 ///   15-19 held for the core; a feature epic that needs a new CommonProps field takes the next
 ///   free number from 20 and adds it to this table in the same change.
+///   20 library       collaboration/sharing.adoc (COLLAB-010)
 
 // DO NOT EDIT.
 // swift-format-ignore-file

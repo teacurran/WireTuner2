@@ -139,6 +139,32 @@ public enum WTValidators {
         return out
     }
 
+    /// Validates `wiretuner.account.v1.FetchFontRequest`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Account_V1_FetchFontRequest, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if m.teamID.isEmpty {
+            out.append(ValidationViolation(fieldPath: "\(path)team_id", ruleID: "required", message: "value is required"))
+        }
+        do {
+            let v = m.teamID
+            if v.isEmpty {
+                out.append(ValidationViolation(fieldPath: "\(path)team_id", ruleID: "string.uuid_empty", message: "value is empty, which is not a valid UUID"))
+            } else if v.wholeMatch(of: Self.pattern0) == nil {
+                out.append(ValidationViolation(fieldPath: "\(path)team_id", ruleID: "string.uuid", message: "value must be a valid UUID"))
+            }
+        }
+        if m.sha256.isEmpty {
+            out.append(ValidationViolation(fieldPath: "\(path)sha256", ruleID: "required", message: "value is required"))
+        }
+        do {
+            let v = m.sha256
+            if v.count != 32 {
+                out.append(ValidationViolation(fieldPath: "\(path)sha256", ruleID: "bytes.len", message: "value length must be 32 bytes"))
+            }
+        }
+        return out
+    }
+
     /// Validates `wiretuner.account.v1.GetPreferencesRequest`; `path` prefixes every violation's field path.
     public static func validate(_ m: Wiretuner_Account_V1_GetPreferencesRequest, path: String = "") -> [ValidationViolation] {
         return []
@@ -216,6 +242,35 @@ public enum WTValidators {
     /// Validates `wiretuner.account.v1.ListDevicesRequest`; `path` prefixes every violation's field path.
     public static func validate(_ m: Wiretuner_Account_V1_ListDevicesRequest, path: String = "") -> [ValidationViolation] {
         var out: [ValidationViolation] = []
+        do {
+            let v = m.cursor
+            if v.unicodeScalars.count > 1024 {
+                out.append(ValidationViolation(fieldPath: "\(path)cursor", ruleID: "string.max_len", message: "value length must be at most 1024 characters"))
+            }
+        }
+        do {
+            let v = m.pageSize
+            if !(v <= 50) {
+                out.append(ValidationViolation(fieldPath: "\(path)page_size", ruleID: "uint32.lte", message: "value must be less than or equal to 50"))
+            }
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.account.v1.ListFontsRequest`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Account_V1_ListFontsRequest, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if m.teamID.isEmpty {
+            out.append(ValidationViolation(fieldPath: "\(path)team_id", ruleID: "required", message: "value is required"))
+        }
+        do {
+            let v = m.teamID
+            if v.isEmpty {
+                out.append(ValidationViolation(fieldPath: "\(path)team_id", ruleID: "string.uuid_empty", message: "value is empty, which is not a valid UUID"))
+            } else if v.wholeMatch(of: Self.pattern0) == nil {
+                out.append(ValidationViolation(fieldPath: "\(path)team_id", ruleID: "string.uuid", message: "value must be a valid UUID"))
+            }
+        }
         do {
             let v = m.cursor
             if v.unicodeScalars.count > 1024 {
@@ -358,6 +413,32 @@ public enum WTValidators {
                 out.append(ValidationViolation(fieldPath: "\(path)values[\(String(reflecting: k))]", ruleID: "string.pattern", message: "value does not match regex pattern `^[a-z][a-z0-9_]*(\\.[a-z0-9_]+)+$`"))
             }
             out += validate(v, path: "\(path)values[\(String(reflecting: k))].")
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.account.v1.RemoveFontRequest`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Account_V1_RemoveFontRequest, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if m.teamID.isEmpty {
+            out.append(ValidationViolation(fieldPath: "\(path)team_id", ruleID: "required", message: "value is required"))
+        }
+        do {
+            let v = m.teamID
+            if v.isEmpty {
+                out.append(ValidationViolation(fieldPath: "\(path)team_id", ruleID: "string.uuid_empty", message: "value is empty, which is not a valid UUID"))
+            } else if v.wholeMatch(of: Self.pattern0) == nil {
+                out.append(ValidationViolation(fieldPath: "\(path)team_id", ruleID: "string.uuid", message: "value must be a valid UUID"))
+            }
+        }
+        if m.sha256.isEmpty {
+            out.append(ValidationViolation(fieldPath: "\(path)sha256", ruleID: "required", message: "value is required"))
+        }
+        do {
+            let v = m.sha256
+            if v.count != 32 {
+                out.append(ValidationViolation(fieldPath: "\(path)sha256", ruleID: "bytes.len", message: "value length must be 32 bytes"))
+            }
         }
         return out
     }
@@ -620,6 +701,61 @@ public enum WTValidators {
             let v = m.historyRetentionDays
             if !(v >= 30 && v <= 3650) {
                 out.append(ValidationViolation(fieldPath: "\(path)history_retention_days", ruleID: "uint32.gte_lte", message: "value must be greater than or equal to 30 and less than or equal to 3650"))
+            }
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.account.v1.UploadFontHeader`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Account_V1_UploadFontHeader, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if m.teamID.isEmpty {
+            out.append(ValidationViolation(fieldPath: "\(path)team_id", ruleID: "required", message: "value is required"))
+        }
+        do {
+            let v = m.teamID
+            if v.isEmpty {
+                out.append(ValidationViolation(fieldPath: "\(path)team_id", ruleID: "string.uuid_empty", message: "value is empty, which is not a valid UUID"))
+            } else if v.wholeMatch(of: Self.pattern0) == nil {
+                out.append(ValidationViolation(fieldPath: "\(path)team_id", ruleID: "string.uuid", message: "value must be a valid UUID"))
+            }
+        }
+        if m.sha256.isEmpty {
+            out.append(ValidationViolation(fieldPath: "\(path)sha256", ruleID: "required", message: "value is required"))
+        }
+        do {
+            let v = m.sha256
+            if v.count != 32 {
+                out.append(ValidationViolation(fieldPath: "\(path)sha256", ruleID: "bytes.len", message: "value length must be 32 bytes"))
+            }
+        }
+        do {
+            let v = m.size
+            if !(v > 0 && v <= 67108864) {
+                out.append(ValidationViolation(fieldPath: "\(path)size", ruleID: "uint64.gt_lte", message: "value must be greater than 0 and less than or equal to 67108864"))
+            }
+        }
+        do {
+            let v = m.fileName
+            if v.unicodeScalars.count > 255 {
+                out.append(ValidationViolation(fieldPath: "\(path)file_name", ruleID: "string.max_len", message: "value length must be at most 255 characters"))
+            }
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.account.v1.UploadFontRequest`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Account_V1_UploadFontRequest, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if m.frame == nil {
+            out.append(ValidationViolation(fieldPath: "\(path)frame", ruleID: "required", message: "exactly one field is required in oneof"))
+        }
+        if case .header(let v)? = m.frame {
+            out += validate(v, path: "\(path)header.")
+        }
+        if case .chunk(let v)? = m.frame {
+            if v.count > 1048576 {
+                out.append(ValidationViolation(fieldPath: "\(path)chunk", ruleID: "bytes.max_len", message: "value length must be at most 1048576 bytes"))
             }
         }
         return out
@@ -2196,6 +2332,10 @@ public enum WTValidators {
             if v.unicodeScalars.count > 256 {
                 out.append(ValidationViolation(fieldPath: "\(path)origin_layer", ruleID: "string.max_len", message: "value length must be at most 256 characters"))
             }
+        }
+        if m.hasLibrary {
+            let v = m.library
+            out += validate(v, path: "\(path)library.")
         }
         return out
     }
@@ -4064,6 +4204,18 @@ public enum WTValidators {
         if m.hasSnapshotContents {
             let v = m.snapshotContents
             out += validate(v, path: "\(path)snapshot_contents.")
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.doc.v1.LibraryProvenance`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_LibraryProvenance, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        do {
+            let v = m.libraryDocumentID
+            if v.unicodeScalars.count > 64 {
+                out.append(ValidationViolation(fieldPath: "\(path)library_document_id", ruleID: "string.max_len", message: "value length must be at most 64 characters"))
+            }
         }
         return out
     }

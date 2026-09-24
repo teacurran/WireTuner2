@@ -107,6 +107,8 @@ public actor SimServer {
         public var fetchSnapshots = 0
         public var snapshots = 0
         public var forks = 0
+        /// `CreateBranch` calls that created a branch.
+        public var branches = 0
         public var retired = 0
         public var droppedLiveFrames = 0
         /// Pushes accepted whose reply was lost (the failover's commit-then-crash).
@@ -137,6 +139,8 @@ public actor SimServer {
         /// `document.stable_seq`: only ever raised.
         var stableSeq: UInt64 = 0
         var presence: [UInt64: Wiretuner_Sync_V1_PresenceUpdate] = [:]
+        /// A branch's parent (COLLAB-019): its roles are the parent's.
+        var parent: String?
 
         var head: UInt64 { UInt64(log.count) }
     }
@@ -421,7 +425,8 @@ public actor SimServer {
     }
 
     private func role(_ doc: Doc, _ account: String) throws -> Wiretuner_Account_V1_DocumentRole {
-        guard let role = doc.roles[account] else {
+        let roles = doc.parent.flatMap { documents[$0]?.roles } ?? doc.roles
+        guard let role = roles[account] else {
             throw SyncCallError(code: SyncCallError.permissionDenied, message: "no access")
         }
         return role
@@ -790,6 +795,96 @@ public actor SimServer {
             copy.serverSeqOf[change.replica, default: []].append(entry.serverSeq)
         }
         documents[newID] = copy
+    }
+}
+
+extension SimServer {
+    /// `BranchService.CreateBranch` as built (SRV-011, COLLAB-019; branches.adoc, "Server"): editor
+    /// on the parent; the branch holds the parent's log through `fork_server_seq` (0: the head) and
+    /// then `initial_changes`, each continuing its replica's seqs and bound to the caller on the
+    /// branch; roles resolve through the parent.  A retry with the same id and parent answers the
+    /// branch; the id taken by anything else is `DOCUMENT_EXISTS`.
+    public func createBranch(_ request: Wiretuner_Docs_V1_CreateBranchRequest, token: String, device: String) throws
+        -> Wiretuner_Docs_V1_CreateBranchResponse {
+        try available()
+        try checkDevice(device)
+        let caller = SimCaller(account: try account(token), device: device)
+        let parent = try document(request.parentDocumentID)
+        let role = try role(parent, caller.account)
+        guard role == .editor || role == .owner else {
+            throw SyncCallError(code: SyncCallError.permissionDenied, reason: .roleInsufficient, message: "not an editor")
+        }
+        func answer(_ branch: Doc, fork: UInt64) -> Wiretuner_Docs_V1_CreateBranchResponse {
+            .with {
+                $0.branch.branchDocumentID = branch.id
+                $0.branch.parentDocumentID = parent.id
+                $0.branch.name = request.name
+                $0.branch.forkServerSeq = fork
+                $0.branch.headSeq = branch.head
+            }
+        }
+        if let existing = documents[request.branchDocumentID] {
+            guard existing.parent == parent.id else {
+                throw SyncCallError(code: SyncCallError.failedPrecondition, reason: .documentExists, message: "id taken")
+            }
+            return answer(existing, fork: request.forkServerSeq)
+        }
+        let fork = request.forkServerSeq == 0 ? parent.head : request.forkServerSeq
+        guard fork <= parent.head else {
+            throw SyncCallError(code: SyncCallError.failedPrecondition, reason: .historyUnavailable, message: "beyond the head")
+        }
+        var branch = Doc(id: request.branchDocumentID)
+        branch.parent = parent.id
+        for entry in parent.log.prefix(Int(fork)) {
+            branch.log.append(entry)
+            branch.horizons.append(SimCollectionPoint(seq: 0, timeMs: 0))
+            branch.accepted[entry.change.replica, default: []].append((try? entry.change.serializedData()) ?? Data())
+            branch.serverSeqOf[entry.change.replica, default: []].append(entry.serverSeq)
+        }
+        let now = clock.nowMs()
+        for change in request.initialChanges {
+            if let binding = parent.bindings[change.replica], binding.account != caller.account {
+                stats.conflicts += 1
+                throw SyncCallError(code: SyncCallError.failedPrecondition, reason: .replicaConflict, message: "replica bound elsewhere")
+            }
+            let expected = UInt64(branch.accepted[change.replica]?.count ?? 0) + 1
+            guard change.seq == expected else {
+                stats.gaps += 1
+                throw SyncCallError(code: SyncCallError.aborted, reason: .seqGap, message: "expected \(expected), got \(change.seq)")
+            }
+            let entry = Wiretuner_Sync_V1_SequencedChange.with {
+                $0.serverSeq = branch.head + 1
+                $0.change = change
+                if let user = users[caller.account] { $0.author.displayName = user.name }
+            }
+            branch.log.append(entry)
+            branch.horizons.append(SimCollectionPoint(seq: 0, timeMs: 0))
+            branch.accepted[change.replica, default: []].append((try? change.serializedData()) ?? Data())
+            branch.serverSeqOf[change.replica, default: []].append(entry.serverSeq)
+            branch.bindings[change.replica] = caller
+            branch.replicas[change.replica] = ReplicaRow(lastSeenMs: now)
+        }
+        documents[branch.id] = branch
+        stats.branches += 1
+        return answer(branch, fork: fork)
+    }
+
+    /// The parent of `document`, when it is a branch.
+    public func parent(of document: String) -> String? {
+        documents[document]?.parent
+    }
+}
+
+extension SimServerTransport: DocumentCopyTransport {
+    public func fork(_ request: Wiretuner_Docs_V1_ForkRequest, token: String) async throws -> Wiretuner_Docs_V1_ForkResponse {
+        try await server.fork(request.sourceDocumentID, newID: request.newDocumentID, atServerSeq: request.atServerSeq,
+                              changes: request.changes, token: token)
+        return .with { $0.document.id = request.newDocumentID }
+    }
+
+    public func createBranch(_ request: Wiretuner_Docs_V1_CreateBranchRequest, token: String) async throws
+        -> Wiretuner_Docs_V1_CreateBranchResponse {
+        try await server.createBranch(request, token: token, device: device)
     }
 }
 

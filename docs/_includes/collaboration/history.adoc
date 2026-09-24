@@ -432,6 +432,31 @@ team setting, and the rule that blobs referenced by a pinned version are retaine
 
 === Client
 
+NOTE: As built by COLLAB-021 (`WTModel/RestoreDiff.swift`, `WTSync/VersionStates.swift`).
+`RestoreCommand(target:name:horizon:)` computes the diff in `execute` against the state it is
+performed on, so a restore is always exact whatever arrived since the confirmation;
+`RestoreCommand.summary(target:current:)` gives the confirmation's counts (`RestoreSummary`,
+with `sentence`) and is what the app runs in a detached task.  Beyond the op mapping above:
+a node deleted in the version and live now is deleted; an element whose position differs is
+moved (`ElementMove`); set members differ by `SetAdd`/`SetRemove`; registers under a sequence
+element or a newline go in one `SetFields` per element; re-inserted newlines get their paragraph
+registers, and formatting is rewritten as one `TextMark` per run of the version's value (the
+cleared value where the version has none) for every attribute that differs anywhere, since a
+re-inserted character may pick up an expanding mark; the right origin of re-inserted text skips
+tombstones stable at `horizon`.  A node of the version the document no longer holds (compacted)
+is not restored and is counted in `RestoreSummary.unrestorable`.  Deviation from the done-when's
+hash equality: a restore re-inserts elements and characters under fresh ids and writes registers
+under new op ids, so the restored state's `stateHash` can never equal the version's;
+`RestoreContent.hash` -- every live node's kind, place, register values, live elements in order,
+set members and text with its formatting runs, ids replaced by places and op ids, tombstones and
+comments left out -- is the equality the tests assert (and a second restore of the same version,
+which reads the re-inserted elements as new, keeps that hash).  `VersionStates.state(at:store:
+transport:token:)` builds the target: from the local log when `LocalStore.state(atServerSeq:)`
+can -- the seq at or after the local snapshot and at or before the applied head, and no local
+change the snapshot holds sequenced after the seq or not at all (the snapshot is written from the
+whole state, outbox included) -- else `FetchSnapshot` at or before the seq and `FetchChanges`
+through it.
+
 * `WTApp/History`: `HistoryPanel` (SwiftUI list with session rows, expansion, search, multi-
   select for compare), `VersionWindow` (read-only document window over a scratch `WTModel`
   built from a snapshot, with the restore bar), `NameVersionSheet`, the `BlameLine` and

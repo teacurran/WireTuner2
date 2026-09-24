@@ -459,6 +459,15 @@ message CommonProps {
 }
 ----
 
+As built by COLLAB-010 (`proto/wiretuner/doc/v1/common.proto`): `library` is `CommonProps`
+field 20, not 8 (8 is `navigation`; the numbering table there gives a feature the next free
+number from 20), and `library_document_id` is at most 64 characters.  The conformance vector
+`registers/library-update-vs-detach` holds the ATOMIC merge in both engines: a concurrent
+*Update from Library* and *Detach* leave one whole value, the greater OpId's.  The rest of the
+task -- `ShareService`, `LibraryService`, the `DocumentEvent` cases, `DocumentRole` (in
+`account/v1/team.proto`) and the `LINK_PASSWORD_REQUIRED` and `LINK_INVALID` reasons -- was built
+by PROTO-007 as noted below.
+
 `docs.v1` also gains `LibraryService` (COLLAB-010, COLLAB-012):
 
 [source,protobuf]
@@ -601,6 +610,21 @@ requests, transfer, link passwords, `team_members_only` and `revoke_on_expiry` a
 === Client
 
 NOTE: As built (COLLAB-013): offline, Share opens the sheet with a notice instead of a popover; Copy Link works only for links made on this Mac since launch (the token is returned once); destructive actions are confirmed inline.  Not built yet: the access-request page after a failed link open, team-member suggestions in Invite, Move to…, editing an existing link, and the request badge on the Share button.
+
+NOTE: As built by COLLAB-014 (`WTSync/AccessController.swift`, `WTSync/CopyTransport.swift`).
+`AccessController` follows `SyncClient.states()`: any `readOnly` state (a viewer or commenter
+role in `Welcome` or `RoleChanged`, `ROLE_INSUFFICIENT` on a push, `AccessRemoved`) makes the
+store read-only (`LocalStore.setReadOnly`: `perform`, `undo` and `redo` throw
+`LocalStore.Failure.readOnly`, remote changes still apply); when the outbox holds changes they
+are frozen with `SyncClient.holdOutbox(true)`, so they stay unsent even if the role is raised
+again before the person decides, and `status.unsent` drives the bar (`status.banner`).
+`saveAsCopy(name:)` forks at the applied head with the first 1,000 changes (and 1 MiB), sends the
+rest to the copy through `PushChanges`, then reverts the document (`SyncClient.discardUnsent`);
+`discard()` reverts it; `deleteStore()` stops the client and deletes the store after a removal.
+A raised role (a later editor `Welcome` or `RoleChanged`) makes the store editable again without
+reopening.  `CLIENT_TOO_OLD` is read-only without an offer.  The simulator scenario is
+`CollaborationScenarioTests.aLoweredRoleWithUnsentWorkSavesACopy` (500 unsent changes; the copy
+opened on another Mac equals the local state before the freeze).
 
 * `WTApp/Sharing`: `ShareSheet` (SwiftUI sheet: People, Invite, Links, Actions menu),
   `AccessRequestPage` (the page shown by `OpenLink` failures), `MoveToSpaceSheet`.  The

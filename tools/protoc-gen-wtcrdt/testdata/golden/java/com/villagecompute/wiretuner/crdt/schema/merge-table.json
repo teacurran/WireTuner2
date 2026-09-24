@@ -2493,6 +2493,17 @@
           "type": "string",
           "type_name": null
         },
+        "20": {
+          "element_message": null,
+          "local_only": false,
+          "name": "library",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.LibraryProvenance"
+        },
         "3": {
           "element_message": null,
           "local_only": false,
@@ -7187,6 +7198,43 @@
           "repeated": false,
           "type": "message",
           "type_name": "wiretuner.doc.v1.Subtree"
+        }
+      }
+    },
+    "wiretuner.doc.v1.LibraryProvenance": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "library_document_id",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "source_node",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.OpId"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "source_server_seq",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "uint64",
+          "type_name": null
         }
       }
     },
@@ -13531,5 +13579,5 @@
       "kind_field": 1
     }
   },
-  "version": "1050a4cbdc9a346351d65a8f91f867d4d95fae80d2c5820c75bb48ea9e1d305a"
+  "version": "859e184d98143f1c9a5b4a8999ae6f6feba5a3d84e5b7cc6b9795b67280cab60"
 }

@@ -140,6 +140,8 @@ public actor SyncClient {
     private var token: String?
     private var needsSignIn = false
     private var readOnly: ReadOnlyReason?
+    /// The outbox held by `holdOutbox` (COLLAB-014).
+    private var accessHold = false
     private var errorDetail: String?
     private var parked = false
     private var attempted = false
@@ -288,6 +290,35 @@ public actor SyncClient {
             restart?.fire()
             await publish("local changes discarded")
         }
+    }
+
+    // MARK: Access (COLLAB-014)
+
+    /// Holds the outbox whatever the role (`AccessController`): unsent changes made before a role
+    /// was lowered are offered as a copy or discarded, never sent, even once the role is raised
+    /// again before the person decides.
+    public func holdOutbox(_ held: Bool) {
+        accessHold = held
+        nudge.fire()
+        schedulePublish(held ? "outbox held" : "outbox released")
+    }
+
+    /// Why the document is read-only, if it is.
+    public var readOnlyReason: ReadOnlyReason? { readOnly }
+
+    /// Reverts the document to the server's state and uploads nothing, with or without a review
+    /// pending: *Discard*, and *Save as a Copy…* after the fork holds the unsent work (COLLAB-014),
+    /// and *Keep my changes on a branch* after the branch store holds it (COLLAB-017).
+    public func discardUnsent() async throws {
+        reviewEpoch += 1
+        let old = await store.replica
+        replica = try await store.discardLocalChanges()
+        pendingReview = nil
+        resetOutboxTracking()
+        report(.replicaRotated(from: old, to: replica))
+        report(.stateReplaced(serverSeq: 0))
+        restart?.fire()
+        await publish("local changes discarded")
     }
 
     /// Tells the pusher the outbox grew.
@@ -850,7 +881,7 @@ public actor SyncClient {
 
     // MARK: Pushing (SYNC-003, SYNC-005)
 
-    private var canPush: Bool { readOnly == nil && errorDetail == nil && pendingReview?.holdsOutbox != true }
+    private var canPush: Bool { readOnly == nil && errorDetail == nil && pendingReview?.holdsOutbox != true && !accessHold }
 
     /// Sends the outbox for as long as the session lasts.
     private func pushLoop() async throws -> SessionEnd {

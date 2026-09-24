@@ -1,0 +1,59 @@
+# crdt-conformance/vectors/registers/library-update-vs-detach.textproto (COLLAB-010; schema: crdt-conformance/schema/vector.proto)
+name: "registers/library-update-vs-detach"
+description: "CommonProps.library is ATOMIC: a concurrent Update from Library (a new provenance) and Detach (the register written unset) leave one whole value, the greater OpId's.  On layer A the Detach (2:2) beats the Update (2:1); on layer B the Update (3:2) beats the Detach (3:1): no field of the losing provenance survives."
+setup {
+    change {
+      replica: 7 seq: 1 start_counter: 1 label: "Copy two swatches from the library"
+      ops { create { parent { counter: 4 } position: "\x80" props { layer { common { name: "A" library { library_document_id: "lib-1" source_node { counter: 9 replica: 3 } source_server_seq: 10 } } } } } }
+      ops { create { parent { counter: 4 } position: "\x81" props { layer { common { name: "B" library { library_document_id: "lib-1" source_node { counter: 11 replica: 3 } source_server_seq: 10 } } } } } }
+    }
+}
+replica {
+    id: 1
+    change {
+      replica: 1 seq: 1 start_counter: 2 base_server_seq: 1 label: "Update A from Library, detach B"
+      ops { set { node { counter: 1 replica: 7 }
+        paths { segments { field: 150 } segments { field: 1 } segments { field: 20 } }
+        values { layer { common { library { library_document_id: "lib-1" source_node { counter: 9 replica: 3 } source_server_seq: 12 } } } } } }
+      ops { set { node { counter: 2 replica: 7 }
+        paths { segments { field: 150 } segments { field: 1 } segments { field: 20 } }
+        values { layer { } } } }
+    }
+}
+replica {
+    id: 2
+    change {
+      replica: 2 seq: 1 start_counter: 2 base_server_seq: 1 label: "Detach A, update B from Library"
+      ops { set { node { counter: 1 replica: 7 }
+        paths { segments { field: 150 } segments { field: 1 } segments { field: 20 } }
+        values { layer { } } } }
+      ops { set { node { counter: 2 replica: 7 }
+        paths { segments { field: 150 } segments { field: 1 } segments { field: 20 } }
+        values { layer { common { library { library_document_id: "lib-2" source_node { counter: 4 replica: 5 } source_server_seq: 3 } } } } } }
+    }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "74946e79cfca13fdd5a08eb10b7a9835ba722924a235f62467b36e5f5fe80ccd"
+  snapshot_hash: "db8d91a7606c7c99f1e63bb864142c7f14532e3291543c261c7a7c320a3fd4c9"
+  node {
+    id { counter: 1 replica: 7 }
+    node_hash: "0a2e9abbe4eaee83cc71c0564c46ea4ab3139f42cd85d4d8ef87babfbde7b0e8"
+    register {
+      path { segments { field: 150 } segments { field: 1 } segments { field: 20 } }
+      op { counter: 2 replica: 2 }
+      losing { counter: 1 replica: 7 } losing { counter: 2 replica: 1 }
+    }
+  }
+  node {
+    id { counter: 2 replica: 7 }
+    node_hash: "6a7aa3fa78af03371c7e2cf2bb0be8e0569283eba338b31772e8e74280a74425"
+    register {
+      path { segments { field: 150 } segments { field: 1 } segments { field: 20 } }
+      value { layer { common { library { library_document_id: "lib-2" source_node { counter: 4 replica: 5 } source_server_seq: 3 } } } }
+      op { counter: 3 replica: 2 }
+      losing { counter: 2 replica: 7 } losing { counter: 3 replica: 1 }
+    }
+  }
+}

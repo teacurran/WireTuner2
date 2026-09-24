@@ -252,6 +252,12 @@ public final class SimClient {
         return copyID
     }
 
+    /// Records `labels` as taken out of this document (moved to a copy or a branch), so the label
+    /// conservation check does not look for them in its log.
+    public func noteDiscarded(_ labels: [String]) {
+        discarded.formUnion(labels)
+    }
+
     /// Whether the transitions ever reached a state matching `match`.
     public func reached(_ match: (SyncState) -> Bool) -> Bool {
         transitions.contains { match($0.to) }

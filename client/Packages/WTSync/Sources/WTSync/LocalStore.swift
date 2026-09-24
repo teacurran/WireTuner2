@@ -70,6 +70,8 @@ public actor LocalStore: DocumentBackend {
         case diverged
         /// A stored row could not be read.
         case corrupt(String)
+        /// Local changes are refused: the caller can no longer edit the document (COLLAB-014).
+        case readOnly
     }
 
     /// A pending blob upload (docs/spec/offline.adoc, `blobs_pending`).
@@ -99,6 +101,8 @@ public actor LocalStore: DocumentBackend {
     public nonisolated let report: OpenReport
 
     private let options: Options
+    /// Whether local changes are refused (`setReadOnly`).
+    public private(set) var isReadOnly = false
     private var database: DatabaseQueue?
     private var core: DocumentCore
     private var diverged = false
@@ -308,6 +312,7 @@ public actor LocalStore: DocumentBackend {
     }
 
     public func perform(_ command: any Command, recording: DocumentCore.Recording) throws -> DocumentUpdate {
+        guard !isReadOnly else { throw Failure.readOnly }
         let change = try write { db, applied -> Wiretuner_Doc_V1_Change? in
             guard let outcome = try core.perform(command, recording: recording) else { return nil }
             applied = true
@@ -328,6 +333,7 @@ public actor LocalStore: DocumentBackend {
     }
 
     private func reverse(_ body: (inout DocumentCore) -> DocumentCore.Outcome?) throws -> DocumentUpdate {
+        guard !isReadOnly else { throw Failure.readOnly }
         let change = try write { db, applied -> Wiretuner_Doc_V1_Change? in
             guard let outcome = body(&core) else { return nil }
             applied = true
@@ -809,5 +815,226 @@ public actor LocalStore: DocumentBackend {
         return try database.read { db in
             try Data.fetchOne(db, sql: "SELECT value FROM view WHERE key = ?", arguments: [key])
         }
+    }
+
+    // MARK: Access (COLLAB-014)
+
+    /// Refuses (or accepts again) local changes: `perform`, `undo` and `redo` throw
+    /// `Failure.readOnly` while set, so no local change enters the outbox while the caller cannot
+    /// edit (sharing.adoc, "When your access changes mid-session").  Remote changes still apply.
+    public func setReadOnly(_ readOnly: Bool) {
+        isReadOnly = readOnly
+    }
+
+    /// Closes the store and deletes its directory (the caller's access was removed, and the offer
+    /// for its unsent changes was settled).
+    public func delete() async throws {
+        timer?.cancel()
+        timer = nil
+        try database?.close()
+        database = nil
+        try FileManager.default.removeItem(at: url.deletingLastPathComponent())
+    }
+
+    // MARK: Versions (COLLAB-021)
+
+    /// The state at `serverSeq` rebuilt from the local log (history.adoc, "Offline behavior"), or
+    /// nil when the log cannot rebuild it: the seq is before the local snapshot or after the
+    /// applied head, or the snapshot holds a local change the server sequenced after `serverSeq`
+    /// (or has not sequenced yet), whose effect cannot be taken out of it.
+    public func state(atServerSeq serverSeq: UInt64) throws -> EngineState? {
+        guard let database else { throw Failure.closed }
+        guard serverSeq <= core.lastServerSeq else { return nil }
+        return try database.read { db -> EngineState? in
+            var state = EngineState(schema: options.schema)
+            if let snapshot = try Row.fetchOne(db, sql: "SELECT server_seq, raw_size, data FROM snapshot WHERE id = 1") {
+                guard UInt64(sql: snapshot["server_seq"]) <= serverSeq else { return nil }
+                let impure = try Bool.fetchOne(db, sql: """
+                    SELECT EXISTS (SELECT 1 FROM changes WHERE in_snapshot = 1 AND local = 1 AND (server_seq IS NULL OR server_seq > ?))
+                    """, arguments: [serverSeq.sql])!
+                guard !impure else { return nil }
+                let raw = try Zstd.decompress(Array(snapshot["data"] as Data), size: snapshot["raw_size"])
+                state = try Snapshot.decode(raw, schema: options.schema)
+            }
+            let rows = try Row.fetchCursor(db, sql: """
+                SELECT server_seq, data FROM changes WHERE in_snapshot = 0 AND server_seq IS NOT NULL AND server_seq <= ?
+                ORDER BY server_seq
+                """, arguments: [serverSeq.sql])
+            while let row = try rows.next() {
+                state.apply(try Self.change(row["data"]), serverSeq: UInt64(sql: row["server_seq"]))
+            }
+            return state
+        }
+    }
+
+    // MARK: Branches (COLLAB-017)
+
+    /// One unsent change and one undo row as `exportBranch` copies them.
+    struct OutboxRow: Sendable {
+        var seq: UInt64
+        var label: String
+        var data: Data
+    }
+
+    struct UndoRow: Sendable {
+        var stack: String
+        var label: String
+        var inverse: Data
+        var updatedAt: Double
+    }
+
+    /// What a branch store is written from.
+    struct BranchWrite: Sendable {
+        var documentID: String
+        var meta: BranchMeta
+        var replica: UInt64
+        var hardware: String
+        var nextSeq: UInt64
+        var horizon: UInt64
+        var featureLevel: Int
+        var mergeTableVersion: String
+        var snapshotSize: Int
+        var snapshot: Data
+        var outbox: [OutboxRow]
+        var undo: [UndoRow]
+    }
+
+    private func branchRows() throws -> ([OutboxRow], [UndoRow]) {
+        guard let database else { throw Failure.closed }
+        let replica = core.replica
+        return try database.read { db in
+            let outbox = try Row.fetchAll(db, sql: "SELECT seq, label, data FROM changes WHERE local = 1 AND server_seq IS NULL AND replica = ? ORDER BY id",
+                                          arguments: [replica.sql])
+                .map { OutboxRow(seq: UInt64(sql: $0["seq"]), label: $0["label"], data: $0["data"]) }
+            let undo = try Row.fetchAll(db, sql: "SELECT stack, label, inverse, updated_at FROM undo ORDER BY id")
+                .map { UndoRow(stack: $0["stack"], label: $0["label"], inverse: $0["inverse"], updatedAt: $0["updated_at"]) }
+            return (outbox, undo)
+        }
+    }
+
+    /// The metadata of a branch store already at `url` for `documentID`; nil when there is none.
+    static func existingBranch(at url: URL, documentID: String) throws -> BranchMeta? {
+        guard FileManager.default.fileExists(atPath: url.path) else { return nil }
+        let existing = try DatabaseQueue(path: url.path)
+        defer { try? existing.close() }
+        let found = try existing.read { db -> (String, BranchMeta?)? in
+            guard try db.tableExists("meta"), let id = try String.fetchOne(db, sql: "SELECT document_id FROM meta WHERE id = 1") else { return nil }
+            return (id, try branchMeta(db))
+        }
+        guard let (id, meta) = found else { return nil }
+        guard id == documentID, let meta else { throw Failure.wrongDocument(id) }
+        return meta
+    }
+
+    static func writeBranch(_ branch: BranchWrite, at url: URL) throws {
+        let database = try DatabaseQueue(path: url.path)
+        try StoreSchema.migrator.migrate(database)
+        try database.write { db in
+            let meta = branch.meta
+            try db.execute(sql: """
+                INSERT INTO meta (id, document_id, replica_id, hardware_uuid, last_server_seq, next_seq, feature_level, merge_table_version,
+                                  horizon_seq, parent_document_id, branch_name, fork_server_seq, on_server, parent_replica, moved_through_seq)
+                VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
+                """, arguments: [branch.documentID, branch.replica.sql, branch.hardware, meta.forkServerSeq.sql, branch.nextSeq.sql,
+                                 branch.featureLevel, branch.mergeTableVersion, branch.horizon.sql, meta.parentDocumentID, meta.name,
+                                 meta.forkServerSeq.sql, meta.parentReplica.sql, meta.movedThroughSeq.sql])
+            try db.execute(sql: "INSERT INTO snapshot (id, server_seq, raw_size, data, written_at) VALUES (1, ?, ?, ?, ?)",
+                           arguments: [meta.forkServerSeq.sql, branch.snapshotSize, branch.snapshot, Date().timeIntervalSince1970])
+            for row in branch.outbox {
+                try db.execute(sql: "INSERT INTO changes (replica, seq, local, in_snapshot, label, data) VALUES (?, ?, 1, 1, ?, ?)",
+                               arguments: [branch.replica.sql, row.seq.sql, row.label, row.data])
+            }
+            for row in branch.undo {
+                try db.execute(sql: "INSERT INTO undo (stack, label, inverse, updated_at) VALUES (?, ?, ?, ?)",
+                               arguments: [row.stack, row.label, row.inverse, row.updatedAt])
+            }
+        }
+        try database.close()
+    }
+
+    /// Where a branch store came from (branches.adoc, "Client": `meta.parent_document_id`,
+    /// `meta.fork_server_seq`, and whether the server holds the branch).
+    public struct BranchMeta: Sendable, Hashable {
+        public var parentDocumentID: String
+        public var name: String
+        /// The parent head the branch was forked from.
+        public var forkServerSeq: UInt64
+        /// Whether `CreateBranch` has succeeded ("not yet on the server" until then).
+        public var onServer: Bool
+        /// For a branch made from the parent's outbox: the parent replica the changes carry and
+        /// the last seq moved; 0 otherwise.
+        public var parentReplica: UInt64
+        public var movedThroughSeq: UInt64
+
+        public init(parentDocumentID: String, name: String, forkServerSeq: UInt64, onServer: Bool,
+                    parentReplica: UInt64 = 0, movedThroughSeq: UInt64 = 0) {
+            self.parentDocumentID = parentDocumentID
+            self.name = name
+            self.forkServerSeq = forkServerSeq
+            self.onServer = onServer
+            self.parentReplica = parentReplica
+            self.movedThroughSeq = movedThroughSeq
+        }
+    }
+
+    /// This store's branch metadata; nil for a document that is not a branch.
+    public func branchMeta() throws -> BranchMeta? {
+        guard let database else { throw Failure.closed }
+        return try database.read { db in try Self.branchMeta(db) }
+    }
+
+    static func branchMeta(_ db: Database) throws -> BranchMeta? {
+        guard let row = try Row.fetchOne(db, sql: """
+            SELECT parent_document_id, branch_name, fork_server_seq, on_server, parent_replica, moved_through_seq FROM meta WHERE id = 1
+            """), let parent = row["parent_document_id"] as String? else { return nil }
+        return BranchMeta(parentDocumentID: parent, name: row["branch_name"] ?? "", forkServerSeq: UInt64(sql: row["fork_server_seq"] ?? 0),
+                          onServer: row["on_server"] ?? false, parentReplica: UInt64(sql: row["parent_replica"] ?? 0),
+                          movedThroughSeq: UInt64(sql: row["moved_through_seq"] ?? 0))
+    }
+
+    /// Records the branch's metadata (a branch opened from the server, or the server's answer).
+    public func setBranchMeta(_ meta: BranchMeta) throws {
+        try write { db, _ in
+            try db.execute(sql: """
+                UPDATE meta SET parent_document_id = ?, branch_name = ?, fork_server_seq = ?, on_server = ?, parent_replica = ?,
+                                moved_through_seq = ? WHERE id = 1
+                """, arguments: [meta.parentDocumentID, meta.name, meta.forkServerSeq.sql, meta.onServer, meta.parentReplica.sql,
+                                 meta.movedThroughSeq.sql])
+        }
+    }
+
+    /// *Keep my changes on a branch*, the local half (branches.adoc, "Offline-created branch"):
+    /// writes a new store for document `documentID` at `url` holding this store's current state as
+    /// its snapshot at the applied head (the fork point), this replica's unsent changes as its
+    /// outbox -- same replica id and seqs, which the server binds to the branch document -- and the
+    /// undo stack, with the branch metadata (`on_server` false).  The store is written in one
+    /// transaction; exporting again to a store that already holds the branch answers its metadata.
+    /// This store is not changed: the caller then reverts it (`SyncClient.discardUnsent`).
+    public func exportBranch(documentID: String, name: String, to url: URL) async throws -> BranchMeta {
+        guard database != nil else { throw Failure.closed }
+        if let existing = try Self.existingBranch(at: url, documentID: documentID) {
+            return existing
+        }
+        let (outbox, undo) = try branchRows()
+        let replica = core.replica
+        let meta = BranchMeta(parentDocumentID: self.documentID, name: name, forkServerSeq: core.lastServerSeq, onServer: false,
+                              parentReplica: replica, movedThroughSeq: outbox.last?.seq ?? 0)
+        let state = core.state
+        let fork = core.lastServerSeq
+        let (size, compressed) = await Task.detached(priority: .userInitiated) {
+            let snapshot = Snapshot.encode(state, serverSeq: fork)
+            return (snapshot.count, Zstd.compress(snapshot))
+        }.value
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let partial = URL(fileURLWithPath: url.path + ".partial")
+        try? FileManager.default.removeItem(at: partial)
+        let written = BranchWrite(documentID: documentID, meta: meta, replica: replica, hardware: options.hardwareUUID(),
+                                  nextSeq: core.nextSeq, horizon: core.horizon, featureLevel: options.featureLevel,
+                                  mergeTableVersion: options.mergeTableVersion, snapshotSize: size, snapshot: Data(compressed),
+                                  outbox: outbox, undo: undo)
+        try Self.writeBranch(written, at: partial)
+        // The rename is the commit point: a crash before it leaves only the partial file.
+        try FileManager.default.moveItem(at: partial, to: url)
+        return meta
     }
 }

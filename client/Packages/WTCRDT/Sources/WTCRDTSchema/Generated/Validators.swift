@@ -2333,6 +2333,10 @@ public enum WTValidators {
                 out.append(ValidationViolation(fieldPath: "\(path)origin_layer", ruleID: "string.max_len", message: "value length must be at most 256 characters"))
             }
         }
+        if m.hasLibrary {
+            let v = m.library
+            out += validate(v, path: "\(path)library.")
+        }
         return out
     }
 
@@ -4200,6 +4204,18 @@ public enum WTValidators {
         if m.hasSnapshotContents {
             let v = m.snapshotContents
             out += validate(v, path: "\(path)snapshot_contents.")
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.doc.v1.LibraryProvenance`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_LibraryProvenance, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        do {
+            let v = m.libraryDocumentID
+            if v.unicodeScalars.count > 64 {
+                out.append(ValidationViolation(fieldPath: "\(path)library_document_id", ruleID: "string.max_len", message: "value length must be at most 64 characters"))
+            }
         }
         return out
     }

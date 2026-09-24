@@ -80,6 +80,21 @@ enum StoreSchema {
         migrator.registerMigration("offline-3") { db in
             try db.execute(sql: "ALTER TABLE meta ADD COLUMN horizon_seq INTEGER NOT NULL DEFAULT 0")
         }
+        // COLLAB-017: a branch store's origin (branches.adoc, "Client"): the parent document, the
+        // branch's name, the parent head it was forked from, whether the server holds it yet, and
+        // for a branch made by *Keep my changes on a branch*, the parent replica and last seq it
+        // took from the parent's outbox (a move interrupted before the parent reverted completes
+        // on the next open).
+        migrator.registerMigration("collab-1") { db in
+            try db.execute(sql: """
+                ALTER TABLE meta ADD COLUMN parent_document_id TEXT;
+                ALTER TABLE meta ADD COLUMN branch_name TEXT;
+                ALTER TABLE meta ADD COLUMN fork_server_seq INTEGER;
+                ALTER TABLE meta ADD COLUMN on_server INTEGER;
+                ALTER TABLE meta ADD COLUMN parent_replica INTEGER;
+                ALTER TABLE meta ADD COLUMN moved_through_seq INTEGER;
+                """)
+        }
         return migrator
     }
 }

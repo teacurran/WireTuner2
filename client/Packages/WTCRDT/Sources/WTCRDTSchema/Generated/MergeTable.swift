@@ -93,7 +93,7 @@ public enum WTMergeTable {
     }
 
     /// SHA-256 (hex) of the canonical JSON table without its `version` key.
-    public static let version = "1050a4cbdc9a346351d65a8f91f867d4d95fae80d2c5820c75bb48ea9e1d305a"
+    public static let version = "859e184d98143f1c9a5b4a8999ae6f6feba5a3d84e5b7cc6b9795b67280cab60"
 
     /// The rows of every message, by fully qualified proto name.
     public static let messages: [String: MessagePolicy] = [
@@ -206,6 +206,7 @@ public enum WTMergeTable {
         "wiretuner.doc.v1.LayerProps": wiretuner_doc_v1_LayerProps,
         "wiretuner.doc.v1.Leading": wiretuner_doc_v1_Leading,
         "wiretuner.doc.v1.LensFill": wiretuner_doc_v1_LensFill,
+        "wiretuner.doc.v1.LibraryProvenance": wiretuner_doc_v1_LibraryProvenance,
         "wiretuner.doc.v1.LibrarySource": wiretuner_doc_v1_LibrarySource,
         "wiretuner.doc.v1.Light": wiretuner_doc_v1_Light,
         "wiretuner.doc.v1.LinkSource": wiretuner_doc_v1_LinkSource,
@@ -2808,6 +2809,17 @@ public enum WTMergeTable {
           "repeated": false,
           "type": "string",
           "type_name": null
+        },
+        "20": {
+          "element_message": null,
+          "local_only": false,
+          "name": "library",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.LibraryProvenance"
         },
         "3": {
           "element_message": null,
@@ -7503,6 +7515,43 @@ public enum WTMergeTable {
           "repeated": false,
           "type": "message",
           "type_name": "wiretuner.doc.v1.Subtree"
+        }
+      }
+    },
+    "wiretuner.doc.v1.LibraryProvenance": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "library_document_id",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "source_node",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.OpId"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "source_server_seq",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "uint64",
+          "type_name": null
         }
       }
     },
@@ -13847,7 +13896,7 @@ public enum WTMergeTable {
       "kind_field": 1
     }
   },
-  "version": "1050a4cbdc9a346351d65a8f91f867d4d95fae80d2c5820c75bb48ea9e1d305a"
+  "version": "859e184d98143f1c9a5b4a8999ae6f6feba5a3d84e5b7cc6b9795b67280cab60"
 }
 """#
 
@@ -15174,6 +15223,11 @@ public enum WTMergeTable {
             14: FieldPolicy(
                 fieldNumber: 14, name: "origin_layer", policy: .atomic, onDangling: .unset,
                 localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            20: FieldPolicy(
+                fieldNumber: 20, name: "library", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.LibraryProvenance",
                 elementMessage: nil, oneof: nil
             ),
         ]
@@ -17570,6 +17624,27 @@ public enum WTMergeTable {
             9: FieldPolicy(
                 fieldNumber: 9, name: "snapshot_contents", policy: .atomic, onDangling: .unset,
                 localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.Subtree",
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_LibraryProvenance = MessagePolicy(
+        name: "wiretuner.doc.v1.LibraryProvenance",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "library_document_id", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "source_node", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.OpId",
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "source_server_seq", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "uint64", repeated: false, typeName: nil,
                 elementMessage: nil, oneof: nil
             ),
         ]

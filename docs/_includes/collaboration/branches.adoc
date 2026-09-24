@@ -414,6 +414,26 @@ the parent).
 
 === Client
 
+NOTE: As built by COLLAB-017 (`WTSync/BranchStores.swift`, `LocalStore` branch methods, migration
+`collab-1`).  `meta` gains `parent_document_id`, `branch_name`, `fork_server_seq`, `on_server`,
+`parent_replica` and `moved_through_seq`.  `BranchStores.keepChangesOnBranch(parent:name:)` is
+`BranchLocalCreate`: `LocalStore.exportBranch` writes the branch store (in a `.partial` file
+renamed into place, so a crash leaves no half store) holding the parent's current state as its
+snapshot at the applied head (the fork point), the parent replica's unsent changes as its outbox
+(same replica id and seqs), and the undo stack -- the undo steps move with the changes instead of
+being discarded.  The parent then reverts through `SyncClient.discardUnsent()` (a new replica and
+a download of the server's state; it works with or without a pending review).
+`BranchStores.completeMoves(parent:)` finishes a move a crash interrupted (a branch store holds
+the parent replica's unsent changes through `moved_through_seq` and the parent still has them).
+`BranchCreator.ensureOnServer(_:)` is `BranchSyncState`: `CreateBranch` with the first unsent
+changes (at most 1,000 and 1 MiB) as `initial_changes`, which it records as accepted at the fork
+seq + 1, 2, ..., then `on_server`; the branch's own `SyncClient` sends the rest (`PushChanges`
+for a backlog).  On `REPLICA_CONFLICT` it salvages the unsent changes (a fresh replica) and
+creates the branch without them.  `BranchStores.branches(of:)` and `pendingCreations()` read
+branch stores' `meta` from disk for the popup and for creation at launch.  The multi-client
+simulator runs the done-when scenario (`CollaborationScenarioTests.offlineWorkKeptOnABranch`:
+5,000 unsent changes, native mode; 1,500 in gateway mode) against `SimServer.createBranch`.
+
 * `WTSync`: a branch store is a normal document store with `meta.parent_document_id` and
   `meta.fork_server_seq`; `BranchLocalCreate` implements the outbox move above;
   `BranchSyncState` tracks `on_server`.

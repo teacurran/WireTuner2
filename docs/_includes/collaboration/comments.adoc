@@ -535,6 +535,29 @@ As built (COLLAB-030, COLLAB-031; `api/.../comments`):
 
 === Client
 
+NOTE: As built by COLLAB-026 (`WTModel/CommentModel.swift`, `WTModel/CommentCommands.swift`).
+`CommentThreadModel` is a value built from the merged state (the app rebuilds it on each
+`DocumentEvent`, as the panels do), not an `@Observable` list: every visible thread in creation
+order with its pin number (its place among every thread ever created under `0:12`, so numbers
+never shift), `Anchoring` (`point`, `object`, `deleted` -- pin not drawn, panel name with
+"(deleted)" -- or `compacted` -- pin at `fallback_point`), the pin in pasteboard points (the
+anchor's `Objects.pasteboardTransform` applied to `point`), the page (the anchor's top-level
+object's page by the bounds rule of document-panel.adoc, else the stored `page` if live, else
+the page under the pin), `byActivity`, `byPage` (nil = pasteboard), `pins(showResolved:)` and
+an unread overlay (`unread:` comment ids per thread, `unreadCount`, `unreadTotal`).  The
+read-time normalizations are applied there; `members:` (accounts with access, nil = unknown)
+drops reactions and mention tags of accounts without access.  Commands: `CreateThread` and
+`MovePin` take a pasteboard point and convert it into the anchor's local space; `Reply` takes
+the opener's display name for its label ("Reply to Priya"); `EditComment` rewrites only the
+characters between the common prefix and suffix, clears tags that no longer stand, marks new
+ones and brings the `mentions` set in line in the same change (nothing is written for an
+unchanged body); `DeleteComment` also deletes the thread for a reply-less opener, and
+`DeleteThread` is the owner's *Delete Thread* (every comment's `deleted` and the thread's);
+`SetResolved` writes nothing when the register already holds the value; `React` toggles when
+`adding` is nil.  A body is sent in `TextInsert`s of at most 8,000 scalars.  Undo of a reply
+is the engine's: the element is deleted and characters others typed into it stay.  Author and
+account ids are the caller's account id, which the app supplies (WTModel knows no accounts).
+
 * `WTModel/Comments`: `CommentThreadModel` (observable list of threads with resolved pin
   positions, page grouping and unread overlay), commands `CreateThread`, `Reply`,
   `EditComment`, `DeleteComment`, `SetResolved`, `MovePin`, `React`.  Each command is one

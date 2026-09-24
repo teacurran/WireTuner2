@@ -44,7 +44,7 @@ public final class MergeTable {
   public record VariantPolicy(int kindField, List<Integer> caseFields) {}
 
   /** SHA-256 (hex) of the canonical JSON table without its version key. */
-  public static final String VERSION = "1050a4cbdc9a346351d65a8f91f867d4d95fae80d2c5820c75bb48ea9e1d305a";
+  public static final String VERSION = "859e184d98143f1c9a5b4a8999ae6f6feba5a3d84e5b7cc6b9795b67280cab60";
 
   /** The name of the JSON resource beside this class. */
   public static final String RESOURCE = "merge-table.json";
@@ -161,6 +161,7 @@ public final class MergeTable {
           Map.entry("wiretuner.doc.v1.LayerProps", table_wiretuner_doc_v1_LayerProps()),
           Map.entry("wiretuner.doc.v1.Leading", table_wiretuner_doc_v1_Leading()),
           Map.entry("wiretuner.doc.v1.LensFill", table_wiretuner_doc_v1_LensFill()),
+          Map.entry("wiretuner.doc.v1.LibraryProvenance", table_wiretuner_doc_v1_LibraryProvenance()),
           Map.entry("wiretuner.doc.v1.LibrarySource", table_wiretuner_doc_v1_LibrarySource()),
           Map.entry("wiretuner.doc.v1.Light", table_wiretuner_doc_v1_Light()),
           Map.entry("wiretuner.doc.v1.LinkSource", table_wiretuner_doc_v1_LinkSource()),
@@ -764,7 +765,8 @@ public final class MergeTable {
             Map.entry(11, new FieldPolicy(11, "halftone", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.Halftone", null, null)),
             Map.entry(12, new FieldPolicy(12, "data_binding", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.DataBinding", null, null)),
             Map.entry(13, new FieldPolicy(13, "text_wrap", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.TextWrap", null, null)),
-            Map.entry(14, new FieldPolicy(14, "origin_layer", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null))
+            Map.entry(14, new FieldPolicy(14, "origin_layer", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
+            Map.entry(20, new FieldPolicy(20, "library", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.LibraryProvenance", null, null))
         ));
   }
 
@@ -1656,6 +1658,16 @@ public final class MergeTable {
             Map.entry(7, new FieldPolicy(7, "objects_only", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
             Map.entry(8, new FieldPolicy(8, "snapshot", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
             Map.entry(9, new FieldPolicy(9, "snapshot_contents", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.Subtree", null, null))
+        ));
+  }
+
+  private static MessagePolicy table_wiretuner_doc_v1_LibraryProvenance() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.LibraryProvenance",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "library_document_id", Policy.ATOMIC, RefFallback.UNSET, false, "string", false, null, null, null)),
+            Map.entry(2, new FieldPolicy(2, "source_node", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.OpId", null, null)),
+            Map.entry(3, new FieldPolicy(3, "source_server_seq", Policy.ATOMIC, RefFallback.UNSET, false, "uint64", false, null, null, null))
         ));
   }
 

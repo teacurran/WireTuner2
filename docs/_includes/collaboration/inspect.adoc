@@ -260,6 +260,23 @@ disallows package export does not restrict snippets; they are artwork the viewer
   transformed geometry; overlap shown as the intersection), page-edge distances, point
   coordinates, kbd:[Shift] freeze.  Uses `REND-003` hit testing with the Pointer's pick
   distances; redraws on pointer move and never invalidates document tiles.
+
+NOTE: As built by COLLAB-035, the render half only (`WTRender/Inspect`).
+`InspectMeasurements.measure(hovered:selected:container:point:origin:)` gives what the overlay
+shows for one pointer position from axis-aligned pasteboard bounds the caller reads from the
+geometry kernel (`Objects.bounds`, so the numbers are the kernel's): the hovered outline; with a
+selection, the horizontal and vertical gaps (each through the middle of the span the two share,
+or through the hovered object's middle) or, when they intersect, the overlap; without one, the
+four distances to `container` (the page, or with kbd:[Option] the group or ruler area -- the
+caller picks it); and a hovered path point read from `origin`.  `InspectFormat` reads points in
+points, pixels (times the scale), millimeters, centimeters or inches with at most two decimals
+("200 px", "120 × 48 pt"); *Document units* is the caller mapping the document's unit onto one
+of these.  `InspectOverlayLayer` is a flipped `CALayer` of its own (so no document tile is ever
+invalidated) that draws through `InspectOverlayRenderer`: outline, capsule labels, lines with end
+ticks, the overlap tinted, at a constant on-screen size; `show(_:)` redraws only when what is
+shown changed, `frozen` is kbd:[Shift], `clear()` is the pointer leaving.  Not built:
+`InspectModeController` and the toolbar and menu commands (WTApp), and the 2 ms frame budget
+test, which needs the app's canvas.
 * `WTInterchange.Snippets`: `SVGSnippet` (the IO-019 `SVGWriter` over a selection-only
   display list with a tight `viewBox` and default options), `CSSSnippet`, `SwiftSnippet`,
   `PNGSnippet` (the IO-021 rasterizer at `scale × device scale`, transparent background).

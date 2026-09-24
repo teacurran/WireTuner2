@@ -25,6 +25,7 @@
 ///    7 style         crdt-model.adoc       14 origin_layer  library/layers.adoc
 ///   15-19 held for the core; a feature epic that needs a new CommonProps field takes the next
 ///   free number from 20 and adds it to this table in the same change.
+///   20 library       collaboration/sharing.adoc (COLLAB-010)
 
 #if canImport(FoundationEssentials)
 import FoundationEssentials
@@ -977,11 +978,54 @@ public nonisolated struct Wiretuner_Doc_V1_CommonProps: @unchecked Sendable {
     set {_uniqueStorage()._originLayer = newValue}
   }
 
+  /// Where the node was copied from when it came from a team library (swatch, style, symbol):
+  /// set by the copy command, rewritten only by "Update from Library", cleared by "Detach".
+  /// ATOMIC: the three fields describe one source and are meaningless apart
+  /// (collaboration/sharing.adoc, "Team libraries").  Unset = not from a library.
+  public var library: Wiretuner_Doc_V1_LibraryProvenance {
+    get {_storage._library ?? Wiretuner_Doc_V1_LibraryProvenance()}
+    set {_uniqueStorage()._library = newValue}
+  }
+  /// Returns true if `library` has been explicitly set.
+  public var hasLibrary: Bool {_storage._library != nil}
+  /// Clears the value of `library`. Subsequent reads from it will return its default value.
+  public mutating func clearLibrary() {_uniqueStorage()._library = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
   fileprivate var _storage = _StorageClass.defaultInstance
+}
+
+/// The team library a node was copied from (collaboration/sharing.adoc, COLLAB-010).
+public nonisolated struct Wiretuner_Doc_V1_LibraryProvenance: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The team library document.
+  public var libraryDocumentID: String = String()
+
+  /// The node copied, in the library document.
+  public var sourceNode: Wiretuner_Doc_V1_OpId {
+    get {_sourceNode ?? Wiretuner_Doc_V1_OpId()}
+    set {_sourceNode = newValue}
+  }
+  /// Returns true if `sourceNode` has been explicitly set.
+  public var hasSourceNode: Bool {self._sourceNode != nil}
+  /// Clears the value of `sourceNode`. Subsequent reads from it will return its default value.
+  public mutating func clearSourceNode() {self._sourceNode = nil}
+
+  /// The library's head server_seq when copied; "Update from Library" compares it with the
+  /// library's head.
+  public var sourceServerSeq: UInt64 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _sourceNode: Wiretuner_Doc_V1_OpId? = nil
 }
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
@@ -1923,7 +1967,7 @@ nonisolated extension Wiretuner_Doc_V1_DataBinding: SwiftProtobuf.Message, Swift
 
 nonisolated extension Wiretuner_Doc_V1_CommonProps: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".CommonProps"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}name\0\u{1}note\0\u{1}locked\0\u{1}transform\0\u{1}canvas\0\u{1}url\0\u{1}style\0\u{1}navigation\0\u{1}alt\0\u{1}decorative\0\u{1}halftone\0\u{3}data_binding\0\u{3}text_wrap\0\u{3}origin_layer\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}name\0\u{1}note\0\u{1}locked\0\u{1}transform\0\u{1}canvas\0\u{1}url\0\u{1}style\0\u{1}navigation\0\u{1}alt\0\u{1}decorative\0\u{1}halftone\0\u{3}data_binding\0\u{3}text_wrap\0\u{3}origin_layer\0\u{2}\u{6}library\0")
 
   fileprivate class _StorageClass {
     var _name: String = String()
@@ -1940,6 +1984,7 @@ nonisolated extension Wiretuner_Doc_V1_CommonProps: SwiftProtobuf.Message, Swift
     var _dataBinding: Wiretuner_Doc_V1_DataBinding? = nil
     var _textWrap: Wiretuner_Doc_V1_TextWrap? = nil
     var _originLayer: String = String()
+    var _library: Wiretuner_Doc_V1_LibraryProvenance? = nil
 
       // This property is used as the initial default value for new instances of the type.
       // The type itself is protecting the reference to its storage via CoW semantics.
@@ -1964,6 +2009,7 @@ nonisolated extension Wiretuner_Doc_V1_CommonProps: SwiftProtobuf.Message, Swift
       _dataBinding = source._dataBinding
       _textWrap = source._textWrap
       _originLayer = source._originLayer
+      _library = source._library
     }
   }
 
@@ -1996,6 +2042,7 @@ nonisolated extension Wiretuner_Doc_V1_CommonProps: SwiftProtobuf.Message, Swift
         case 12: try { try decoder.decodeSingularMessageField(value: &_storage._dataBinding) }()
         case 13: try { try decoder.decodeSingularMessageField(value: &_storage._textWrap) }()
         case 14: try { try decoder.decodeSingularStringField(value: &_storage._originLayer) }()
+        case 20: try { try decoder.decodeSingularMessageField(value: &_storage._library) }()
         default: break
         }
       }
@@ -2050,6 +2097,9 @@ nonisolated extension Wiretuner_Doc_V1_CommonProps: SwiftProtobuf.Message, Swift
       if !_storage._originLayer.isEmpty {
         try visitor.visitSingularStringField(value: _storage._originLayer, fieldNumber: 14)
       }
+      try { if let v = _storage._library {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 20)
+      } }()
     }
     try unknownFields.traverse(visitor: &visitor)
   }
@@ -2073,10 +2123,55 @@ nonisolated extension Wiretuner_Doc_V1_CommonProps: SwiftProtobuf.Message, Swift
         if _storage._dataBinding != rhs_storage._dataBinding {return false}
         if _storage._textWrap != rhs_storage._textWrap {return false}
         if _storage._originLayer != rhs_storage._originLayer {return false}
+        if _storage._library != rhs_storage._library {return false}
         return true
       }
       if !storagesAreEqual {return false}
     }
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Doc_V1_LibraryProvenance: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".LibraryProvenance"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}library_document_id\0\u{3}source_node\0\u{3}source_server_seq\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.libraryDocumentID) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._sourceNode) }()
+      case 3: try { try decoder.decodeSingularUInt64Field(value: &self.sourceServerSeq) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if !self.libraryDocumentID.isEmpty {
+      try visitor.visitSingularStringField(value: self.libraryDocumentID, fieldNumber: 1)
+    }
+    try { if let v = self._sourceNode {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    if self.sourceServerSeq != 0 {
+      try visitor.visitSingularUInt64Field(value: self.sourceServerSeq, fieldNumber: 3)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Wiretuner_Doc_V1_LibraryProvenance, rhs: Wiretuner_Doc_V1_LibraryProvenance) -> Bool {
+    if lhs.libraryDocumentID != rhs.libraryDocumentID {return false}
+    if lhs._sourceNode != rhs._sourceNode {return false}
+    if lhs.sourceServerSeq != rhs.sourceServerSeq {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

@@ -1,0 +1,49 @@
+# crdt-conformance/vectors/sequences/restore-reinserts-fresh-elements.textproto (COLLAB-021; schema: crdt-conformance/schema/vector.proto)
+name: "sequences/restore-reinserts-fresh-elements"
+description: "Restoring a version in which stop 3:7 was live, after it was deleted: the restore re-inserts it as a new element (6:1) with the old values at the old position instead of resurrecting the tombstone, and writes 2:7's offset back (7:1).  A concurrent edit of 2:7 (6:2) loses to the restore's newer write; the tombstone stays deleted."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Create"
+    ops { create { parent { counter: 4 } position: "\x80" props { test { label: "T" } } } }
+  }
+  change {
+    replica: 7 seq: 2 start_counter: 2 label: "Add stops"
+    ops { element_insert { node { counter: 1 replica: 7 } sequence { segments { field: 1000 } segments { field: 8 } } positions: ["\x80", "\x81"]
+      values { test { stops { offset: 0.25 color: "red" } stops { offset: 0.75 color: "blue" } } } } }
+  }
+  change {
+    replica: 7 seq: 3 start_counter: 4 label: "Delete the blue stop, move the red one"
+    ops { element_delete { node { counter: 1 replica: 7 } elements { segments { field: 1000 } segments { field: 8 } segments { element { counter: 3 replica: 7 } } } deleted: true } }
+    ops { set { node { counter: 1 replica: 7 } paths { segments { field: 1000 } segments { field: 8 } segments { element { counter: 2 replica: 7 } } segments { field: 2 } } values { test { stops { offset: 0.4 } } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 6 base_server_seq: 3 label: "Restore 'Two stops'"
+    ops { element_insert { node { counter: 1 replica: 7 } sequence { segments { field: 1000 } segments { field: 8 } } positions: ["\x81"]
+      values { test { stops { offset: 0.75 color: "blue" } } } } }
+    ops { set { node { counter: 1 replica: 7 } paths { segments { field: 1000 } segments { field: 8 } segments { element { counter: 2 replica: 7 } } segments { field: 2 } } values { test { stops { offset: 0.25 } } } } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 6 base_server_seq: 3 label: "Move the red stop"
+    ops { set { node { counter: 1 replica: 7 } paths { segments { field: 1000 } segments { field: 8 } segments { element { counter: 2 replica: 7 } } segments { field: 2 } } values { test { stops { offset: 0.5 } } } } }
+  }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "229278b694382b2030014d19976d9e48f68c92152cbdeb195ac201361d889e8f"
+  snapshot_hash: "7d6337bcd671d5ad5dca0a737de3797beebeef53cc7e1cb15b3ee8fd18739e07"
+  node {
+    id { counter: 1 replica: 7 }
+    node_hash: "fc8b88b2f701e2cb5d33130ee4a857efaf7a9aa2b3bf13f7566415c466965a54"
+    sequence { path { segments { field: 1000 } segments { field: 8 } } elements { counter: 2 replica: 7 } elements { counter: 6 replica: 1 } deleted { counter: 3 replica: 7 } }
+    register { path { segments { field: 1000 } segments { field: 8 } segments { element { counter: 2 replica: 7 } } segments { field: 2 } } value { test { stops { offset: 0.25 } } } op { counter: 7 replica: 1 }
+      losing { counter: 2 replica: 7 } losing { counter: 5 replica: 7 } losing { counter: 6 replica: 2 } }
+    register { path { segments { field: 1000 } segments { field: 8 } segments { element { counter: 6 replica: 1 } } segments { field: 3 } } value { test { stops { color: "blue" } } } op { counter: 6 replica: 1 } }
+  }
+}
