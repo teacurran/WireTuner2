@@ -31,7 +31,9 @@ enum PushMode: String, CaseIterable, Sendable, CustomTestStringConvertible {
         let path = try await Workload.createPath(people[0], points: 12)
         try await sim.settle()
         var random = sim.random.fork(1)
-        try await sim.run(for: .seconds(600), every: .seconds(3)) { _ in
+        // Ten simulated minutes as 200 steps 3 s apart: counted, not timed, so a loaded machine
+        // (edits taking longer while the clock runs) cannot shorten the workload.
+        try await sim.steps(200, every: .seconds(3)) { _ in
             for person in people where random.chance(0.8) {
                 for _ in 0..<random.within(1...5) {
                     await Workload.editPath(person, path.node, &random)
