@@ -1352,9 +1352,101 @@ default, the first fill's paint or black) and the builder draws it with `Barcode
 under its transform.  Commands: `InsertBarcode` ("Insert Barcode"; black fill), `SetBarcodeFields`
 ("Change barcode", one register per field given, so concurrent `value` and `symbology` edits both
 survive) and `ConvertBarcodesToPaths` ("Convert to Paths": one path of the bars' rectangles with
-the barcode's transform and stack; an unencodable barcode is left alone).  Bound fields are not
-substituted (WTModel has no record resolution yet), and the Object panel section and the
-*Insert Barcode…* menu item are not built.
+the barcode's transform and stack; an unencodable barcode is left alone).  Bound fields are
+substituted since DATA-003 (`RecordSubstitution.barcodeValue`, below): in the preview, in *Merge to
+Pages* copies and in merged output, and a value the symbology cannot encode is a report row.  The
+Object panel section and the *Insert Barcode…* menu item (WTApp) are not built.
+
+[[as-built-client]]
+==== As built (DATA-003; DATA-010, DATA-016, DATA-019, DATA-020 and DATA-021 model and client halves)
+
+What exists, where it differs from *Client* above, and what is left:
+
+Fields, sources and bindings (DATA-003; `WTModel/Data*.swift`)::
+* `DataModel` reads the block: fields with their display names (equal names, compared
+case-insensitively, suffix ` (2)` on every element id but the smallest), sources with the HTTP
+read-time defaults (`DataSourceInfo.http`), the connected source (dangling reads as none), each
+node's `DataBindingInfo` (a field of the wrong type for the kind, or a deleted one, is *missing*),
+placeholder spans and the uses of each field by id.  `DataFieldsPaths` names the registers.
+* Commands, each one labelled change undone through the ordinary inverse path: `AddFields` ("Add
+field"/"Add N fields"; also *Add Fields from Source* with `RecordSet.suggestedFields`),
+`RenameField`, `SetFieldType`, `SetFieldFormat`, `SetFieldTransform`, `DeleteField` (with
+`DeleteField.uses` for the confirmation), `RestoreField`, `AddSource` ("Connect source"; nested
+headers, parameters and mapping inserted as their own element ops), `EditSource` (registers below
+the variant by path), `SetSourceHeaders`, `SetSourceParams`, `SetActiveSource`, `RemoveSource`,
+`SetMapping`, `SetSample`, `BindToField`, `Unbind`, `InsertPlaceholder` and
+`ConvertTypedPlaceholder` (the Text tool's typed `{{name}}`, deleted and retyped under the mark in
+one change "Insert field", formatting of its first character kept).  The panel's validation is the
+commands': an invalid or duplicate name, a credential header or a non-`https` URL is refused with
+`DataEditError` before anything is written.
+* A typed name that matches no field is marked with the id `(0, 2^64-1)` (`DataPlaceholders.unknownField`),
+not the zero id: a `field` mark of the zero id is the attribute's cleared value, which the text
+engine reads as no mark.  Counter 0 is never a real element, so it always reads as missing.
+* `DataPlaceholders.unitRange` grows a selection or caret to whole placeholders (one unit for
+selecting and deleting); `DataNotices.fieldsRemoved(before:after:)` is the *field removed* live
+notice's feed; `DataValidation.problems` lists missing placeholders and bindings and, given a
+source's columns, used fields no column provides (the merge sheet's warning).
+
+Record resolution (DATA-003)::
+`RecordSet(model:source:raw:locale:timeZone:transforms:)` applies the mapping, then the transform
+(`FieldTransforming`, which `ScriptTransformer` implements), then coercion and the format: NUMBER
+through `NumberFormatter` with the pattern as its format, DATE read as ISO 8601 (date-only values
+formatted in UTC so the day never shifts) or the locale's short, medium and long forms and written
+with the pattern or *Short*/*Medium*/*Long*; an empty pattern is *As is* for both.  A value that
+cannot be read is placed as it is and reported (`MergeIssue`).  A transform's `record` holds the
+record's raw values by field name.  Embedded samples and pasted tables are read and written by
+`DataTable` (RFC 4180 CSV with a header row, TSV for pasted tables, JSON arrays of objects); the
+DATA-004 file readers with delimiter and encoding detection, bookmarks and *Embed Sample* are not
+built.
+
+Data service client (DATA-010, client half; `WTSync/DataSourceClient.swift`)::
+`DataSourceClient` lives in WTSync, not `WTInterchange.DataSources`: WTInterchange depends on
+neither gRPC nor WTModel.  `fetch` streams `DataFetchEvent`s and resumes a stream that drops after
+a page from that page's `next_cursor` (three times by default); `fetchAll` collects and caches the
+last complete fetch per document and source (JSON under `Caches/WireTuner/DataSources`), which
+`cachedRecords` answers offline; `fetchAsset`, `proxy`, the credential and allowlist calls follow
+the RPCs.  `GRPCDataSourceTransport` maps a rejection's `ErrorInfo` reason and metadata (`host`,
+`admins`) and `RetryInfo` to `DataServiceError`.  `DataScriptFetcher` is `wt.fetch`: on
+`HOST_NOT_ALLOWED` in a personal document it asks the window's consent closure once per host, puts
+the host on the account's scope and retries.  The Web API, credentials and *Show Hosts* sheets and
+the Document Info host list are WTApp's and not built.
+
+Preview (DATA-016, model half)::
+`DocumentDisplayListBuilder.substitution` (a `RecordSubstitution`) draws placeholders with the
+record's values before layout, bound barcodes with the bound value, and leaves out objects a
+visibility binding hides; `preview(_:state:)` sets it and invalidates only the nodes that read a
+field, writing nothing.  `DataPreviewState` is the window's record navigator state (never a
+document change: `data_preview` is local-only and is not written).  Image bindings are resolved
+(`RecordSubstitution.image`) but not drawn -- WTModel draws no image nodes yet -- and the tint,
+the data badges, the *Highlight data fields* preference and the overflow count are WTApp's and not
+built.
+
+Merge engine and Merge to Pages (DATA-019, DATA-020)::
+* `MergeEngine`: `MergeRange` (`1-50, 51-, 3`), grid cell offsets in both orders, the plan
+(`MergedPage`s; a set of template pages repeats per record), `shrink` in 0.5 pt steps with the
+layout-backed `fits`, and the sorted report.  Blank-line removal is `MergeText.removingBlankLines`:
+a removed last paragraph takes the newline before it, the paragraph before becoming the last.
+* `MergeToPages` builds one chunk: pages after the template (or the previous chunk's last page),
+named `<template> · <record>` (one per page) or `<template> · <n>` (grid), each holding deep copies
+with the record baked in (text rewritten with its formatting and paragraph registers, bindings
+cleared, barcodes and links set, hidden objects left out, pictures from a `MergeImageResolver`
+or unset and reported) and text flow links recreated between copies.  The template's objects are
+those whose bounds are on the page plus text blocks and images whose origin is (they have no
+geometry bounds before layout).  `NodeCopier` copies no TEXT field, so the text is written after
+the copy exists.  Shrink-to-fit needs the layout engine on the main actor: the caller passes the
+fitted texts (`fitted`), the command never lays out.
+* `Document.mergeToPages` performs the chunks (sized from a dry run so each change stays within
+10,000 ops) in one undo group, one step "Merge N records to pages"; a progress closure returning
+false cancels by undoing the group.  The *two merge runs* review entry in WTSync is not built.
+
+Merge to PDF and print (DATA-021, model and export halves)::
+`WTModel.MergeOutput` draws output page *n* on demand -- the template page's rectangle, the record's
+substitution, a grid's selected objects translated into their cells -- into an `ExportPage`, so
+nothing is written; `WTInterchange.MergeExport` writes one PDF or one PDF per record, names files
+with `MergeFileNames` (the export tokens plus `{field}`, collisions suffixed ` 2`, ` 3` ...) and
+stops after the current record when its progress closure says so.  One file per record is flat in
+memory; *One file* collects the pages before writing (the PDF writer is not incremental).  The
+`PrintPlanView` integration, the merge sheet and the progress sheet are WTApp's and not built.
 
 === Build tasks
 

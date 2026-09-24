@@ -113,6 +113,10 @@ public struct DocumentDisplayListBuilder: Sendable {
     public var guideColor = Color(red: 0, green: 1, blue: 1)
     /// How text nodes are laid out and drawn (`TextSceneLayout`); nil draws no text.
     public var textLayout: TextSceneLayout?
+    /// A data-merge record applied while drawing (DATA-016's preview, a merge to PDF or print):
+    /// placeholders and bound barcodes show its values and visibility bindings hide objects.
+    /// Changing it is a view invalidation (`DataPreviewScene`), never a document change.
+    public var substitution: RecordSubstitution?
     /// Node → the nodes drawn from it, as of the last build: a symbol from its master nodes and
     /// nested symbols, an instance from its symbol, a chart from its pictograph nodes.
     public private(set) var dependencies = DependencyIndex()
@@ -549,6 +553,7 @@ public struct DocumentDisplayListBuilder: Sendable {
             return built
         }
         guard let kind = state.nodeKind(node), kind != .layer, kind != .symbol else { return nil }
+        if let substitution, substitution.hides(node, state: state) { return nil }
         let props = EffectReading.completingSets(state.props(node), node: node, in: state)
         guard let common = NodeValues.common(props), !common.hasCanvas else { return nil }
         let transform = PathEditing.transform(common.transform)
@@ -587,6 +592,7 @@ public struct DocumentDisplayListBuilder: Sendable {
         case .barcode(let barcode)?:
             var spec = Barcodes.spec(barcode, appearance: Appearances.resolve(barcode.appearance, order: order))
             spec.transform = transform
+            if let substitution { spec.value = substitution.barcodeValue(node, props: barcode, state: state) }
             built.item = BarcodeRendering.item(spec)
         case .connector(let connector)?:
             let stored = StoredConnector(spec: Connectors.storedSpec(node, connector, appearance: Appearances.resolve(connector.appearance, order: order)),
@@ -594,7 +600,7 @@ public struct DocumentDisplayListBuilder: Sendable {
             connectors[node] = stored
             built = routed(node, stored, state: state)
         case .text?:
-            built.item = textLayout?.item(node, state: state)
+            built.item = textLayout?.item(node, state: state, substitution: substitution)
         case .placedFile(let placed)?:
             built.item = PlacedFileDrawing.item(PlacedFiles.placedFile(placed, transform: transform))
         case .group(let group)?:

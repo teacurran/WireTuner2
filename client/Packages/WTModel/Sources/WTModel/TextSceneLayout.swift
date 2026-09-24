@@ -24,4 +24,11 @@ public struct TextSceneLayout: @unchecked Sendable {
     public func item(_ node: OpID, state: EngineState) -> DisplayItem? {
         MainActor.assumeIsolated { TextLayoutReading.item(node, in: state, engine: engine) }
     }
+
+    /// `item(_:state:)` with a data-merge record applied (`RecordSubstitution`; nil draws the
+    /// text as stored).
+    public func item(_ node: OpID, state: EngineState, substitution: RecordSubstitution?) -> DisplayItem? {
+        guard let substitution else { return item(node, state: state) }
+        return MainActor.assumeIsolated { DataPreviewScene.item(node, in: state, engine: engine, substitution: substitution) }
+    }
 }
