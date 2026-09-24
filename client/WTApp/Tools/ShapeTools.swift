@@ -166,12 +166,13 @@ class ShapeDragTool: Tool, SpaceDragging, ToolInfoPublishing {
         switch shape {
         case .line:
             guard let line, line.start.distance(to: line.end) >= Self.minimumSize else { return nil }
-            var command = CreatePath.line(from: line.start, to: line.end)
+            var command = CreatePath.line(from: line.start, to: line.end, appearance: context?.newObjectAppearance() ?? Appearances.standard)
             command.fillWhenOpen = context?.drawing().fillWhenOpen ?? false
             return command
         case .rectangle, .ellipse:
             guard let frame, frame.size.width >= Self.minimumSize, frame.size.height >= Self.minimumSize else { return nil }
-            return CreateShape(shape == .rectangle ? .rectangle(CornerRadii()) : .ellipse, size: frame.size, transform: frame.transform)
+            return CreateShape(shape == .rectangle ? .rectangle(CornerRadii()) : .ellipse, size: frame.size, transform: frame.transform,
+                               appearance: context?.newObjectAppearance() ?? Appearances.standard)
         }
     }
 

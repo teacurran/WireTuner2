@@ -113,6 +113,10 @@ public struct DocumentDisplayListBuilder: Sendable {
     /// (`CanvasMembership`: the top-level objects placed on that canvas, FONT-003).  Set before
     /// the first build.
     public var canvasNode: OpID?
+    /// Objects hidden on this Mac (menu:View[Hide Selection], selecting.adoc; OBJ-007): left out
+    /// of the screen's scene -- so neither drawn, hit-tested nor selected -- but drawn by
+    /// `outputDisplayList`.  Changing it is a view invalidation (`invalidate`), never a change.
+    public var locallyHidden: Set<OpID> = []
     /// *Guide color* (preferences.adoc, cyan by default): objects on the Guides layer draw in it.
     public var guideColor = Color(red: 0, green: 1, blue: 1)
     /// How text nodes are laid out and drawn (`TextSceneLayout`); nil draws no text.
@@ -340,8 +344,13 @@ public struct DocumentDisplayListBuilder: Sendable {
     /// only, hidden ones only with `includeHidden`, no dimming or keyline.  Built from the same
     /// cached items as the canvas; the scene is not changed.
     public mutating func outputDisplayList(_ state: EngineState, includeHidden: Bool = false) -> DisplayList {
+        let hidden = locallyHidden
+        locallyHidden = []
         begin(state)
-        defer { end() }
+        defer {
+            end()
+            locallyHidden = hidden
+        }
         return ColorResolver.$current.withValue(ColorResolver(state)) {
             var scratch: [NodeID: SceneObject] = [:]
             let order = LayerOrder(state)
@@ -494,7 +503,7 @@ public struct DocumentDisplayListBuilder: Sendable {
     /// The item of `node` under `parentTransform`, recording it (and its members) in `objects`.
     private mutating func place(_ node: OpID, state: EngineState, parentTransform: AffineTransform, itemPath: [Int], parent: OpID?,
                                 context: Placing, objects: inout [NodeID: SceneObject]) -> DisplayItem? {
-        guard var built = built(node, state: state) else { return nil }
+        guard !locallyHidden.contains(node), var built = built(node, state: state) else { return nil }
         let transform = built.transform.concatenating(parentTransform)
         let locked = context.locked || built.locked
         let item: DisplayItem

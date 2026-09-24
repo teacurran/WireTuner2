@@ -358,6 +358,23 @@ keeps kbd:[Cmd+D] from the shortcut catalog and Clone has no default key (the gu
 and kbd:[Cmd+Shift+D] are left to the shortcut presets).  Paste In Front is kbd:[Cmd+Option+V] and
 Paste Behind kbd:[Cmd+Option+Shift+V].
 
+NOTE: As built by OBJ-013 (`WTApp/Tools/PointerTool.swift`, `WTApp/Document/ObjectDragging.swift`).
+kbd:[Option]-drag copying was OBJ-008's (`DuplicateObjects` on release); this adds the plus-sign cursor
+(`NSCursor.dragCopy`) whenever the release would copy -- kbd:[Option] pressed before or after the drag
+began, with *Option-drag copies paths* on -- so releasing kbd:[Option] before the drop shows the arrow
+and moves.  A Pointer move of the selection whose pointer leaves the window's content becomes an
+`NSDraggingSession` (the move itself is abandoned): one item carries the objects under the native type
+(the clipboard's `ClipboardPayload`), a second is an `NSFilePromiseProvider` for "<document> objects.pdf"
+written by the export pipeline (the Export sheet's PDF defaults with *Selection*).  Every document
+window's canvas takes the native type: the objects are pasted centred on the drop point on the window's
+active layer and selected, in one change (`Paste` with `.top(layer:center:)`, *Remember layer info* as
+for Paste).  Deviations: a drag out of the window always copies -- the source document is never changed,
+even when the drop is in another window of the same Mac (the page's "between documents" is a copy) -- and
+it begins only at the window's edge, not at the canvas's, because dragging to the canvas edge
+autoscrolls.  Only the native type and the PDF promise are written (the other pasteboard formats are
+OBJ-015's).  The Finder drop and the drag between windows are exercised by unit tests of the items, the
+promise and the canvas's drop methods; the session itself needs a real mouse.
+
 === Build tasks
 
 [[OBJ-010]]

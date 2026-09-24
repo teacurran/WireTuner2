@@ -60,6 +60,12 @@ struct DocumentEnvironment {
     var pasteImport: PasteImport?
     /// A document's first view opened (the Missing Fonts sheet and the embedded fonts, DOC-024).
     var documentDidOpen: @MainActor (DocumentWindowController) -> Void = { _ in }
+    /// The current colours new objects get over the document's defaults (the Tools panel's
+    /// wells, OBJ-037); nil follows the defaults.
+    var currentColors: @MainActor () -> (fill: DocumentDefaults.ColorChoice?, stroke: DocumentDefaults.ColorChoice?) = { (nil, nil) }
+    /// Writes a PDF of a window's selection (objects dragged to the Finder, OBJ-013): the app's
+    /// export pipeline; nil promises no file (tests).
+    var writeSelectionPDF: (@MainActor (DocumentWindowController, URL) async -> Bool)?
 
     /// A document `id` titled `title` whose model `openModel` opens.  A document created on
     /// this Mac (`isNew`) gets the new-document template as its first change.
@@ -122,7 +128,13 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
     /// The object commands (clipboard, duplicate, group, lock, arrange, nudge) and the tools'
     /// command sink.
     let objectEditing: ObjectEditing
+    /// Objects dragged out of this window and into it (OBJ-013).
+    let objectDragging: ObjectDragging
+    /// The window's Handoff activity (IO-036).
+    let handoff: WindowHandoff
     private(set) var toolManager: ToolManager!
+    /// menu:View[Hide Selection] and menu:View[Show All] for the document (OBJ-007).
+    var hiding: LocalHiding { documentHandle.hiding }
 
     private(set) var viewMode: ViewMode = .preview {
         didSet {
@@ -250,6 +262,9 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         collaboration = WindowCollaboration(session: session, presence: presence, syncStatus: syncStatus)
         objectEditing = ObjectEditing(document: document, selection: selection, pasteboard: environment.makePasteboard())
         objectEditing.rememberLayerInfo = { preferences[PreferenceCatalog.General.rememberLayerInfo] }
+        objectDragging = ObjectDragging(editing: objectEditing)
+        handoff = WindowHandoff(title: document.title)
+        _ = document.hiding
         selection.lassoContactSensitive = { preferences[SelectionToolOptions.lassoContactSensitive] }
 
         let window = NSWindow(
@@ -290,6 +305,16 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         context.textCaretChanged = { [weak self] caret in self?.collaboration.publisher?.caret(caret) }
         context.modifyPage = { [weak self] page in self?.presentModifyPageSheet(page: page) }
         context.confirm = { [weak self] message, detail in self?.confirm(message, detail) ?? false }
+        let currentColors = environment.currentColors
+        context.newObjectAppearance = {
+            let current = currentColors()
+            return DocumentDefaults.newObjectAppearance(in: document.state, fill: current.fill, stroke: current.stroke)
+        }
+        // *Changing object changes defaults* (OBJ-037): an object's attribute edit writes the
+        // defaults in the same change.
+        document.commandTransform = { command in
+            preferences[PreferenceCatalog.Object.changeSetsDefaults] ? DocumentDefaults.following(command) : command
+        }
         let manager = ToolManager(registry: environment.tools, context: context, initialTool: initialTool) { [environment] key in
             environment.runShortcut(key)
         }
@@ -304,6 +329,14 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         canvas.toolManager = manager
         installDocumentSetup(manager: manager)
         canvas.selectionController = selection
+        canvas.objectDrop = objectDragging
+        canvas.onDragOut = { [weak self] event in self?.beginObjectDrag(event) ?? false }
+        if let write = environment.writeSelectionPDF {
+            objectDragging.writePDF = { [weak self] url in
+                guard let self else { return false }
+                return await write(self, url)
+            }
+        }
         objectEditing.visibleCenter = { [weak canvas] in canvas.map { $0.viewport.toPasteboard($0.viewport.viewCenter) } }
         canvas.presence = presence
         canvas.showsRemoteSelections = { preferences[PreferenceCatalog.Sync.showSelections] }
@@ -368,6 +401,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         rulerHost.onVerticalScroll = { [weak self] value in self?.scrollVertically(to: value) }
 
         collaboration.install(on: self)
+        userActivity = handoff.activity
         window.center()
         restoreState()
         viewportDidChange(canvas.viewport)
@@ -473,6 +507,8 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         collaboration.contentDidChange(change)
         collaboration.review.model?.stateDidChange(documentHandle.state)
         updateLayerWarning()
+        // The Tools panel's wells show the document's defaults with nothing selected (OBJ-037).
+        if change.summary.touchedNodes.contains(NodeID(WellKnown.settings)) { onViewStateChange?(self) }
     }
 
     /// The layer *Edit current layer only* keeps picks on: the active layer while it is live, else
@@ -564,6 +600,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         updateRulers()
         canvas.setNeedsFurnitureDisplay()
         collaboration.publisher?.page(document.activePage.isSynthesized ? nil : document.activePage.id)
+        handoff.pageDidChange(document.currentPageIndex)
         updateTitle()
         onStructureChange?(self)
     }
@@ -607,6 +644,22 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         selection.model.ids.lazy.compactMap { self.documentHandle.item(for: $0) }.first.flatMap(WellColors.of)
     }
 
+    /// A Pointer move of the selection that left the window becomes a drag of the objects to
+    /// another window or application (OBJ-013); the move itself is abandoned.  False when no move
+    /// is in progress.
+    func beginObjectDrag(_ event: NSEvent) -> Bool {
+        guard let pointer = toolManager.activeTool as? PointerTool, pointer.gesture == .move, pointer.isDragging, !selection.model.isEmpty else { return false }
+        pointer.cancel()
+        // The session takes the mouse-up: the tool manager ends the press now.
+        toolManager.mouseUp(canvas.canvasEvent(event))
+        return objectDragging.begin(with: event, from: canvas) != nil
+    }
+
+    /// The document's default stroke and fill for the wells with nothing selected (OBJ-037).
+    var documentWells: (wells: WellColors, choices: (fill: DocumentDefaults.ColorChoice, stroke: DocumentDefaults.ColorChoice)) {
+        WellColors.defaults(in: documentHandle.state)
+    }
+
     // MARK: Snap and tool options
 
     func toggleSnap(_ kind: SnapSettings.Kind) {
@@ -633,6 +686,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         let scroller = canvas.navigation.scroller
         rulerHost.update(horizontal: scroller.horizontal(viewport), vertical: scroller.vertical(viewport), viewport: viewport)
         collaboration.publisher?.viewport(viewport)
+        handoff.viewDidChange(viewport)
         viewDidMove()
         statusBar.show(zoom: viewport.zoom)
         statusBar.show(rotation: viewport.rotationDegrees)
@@ -804,10 +858,22 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         if !pointCommands.isEmpty { return CommandBatch(pointCommands.count == 1 ? pointCommands[0].label : "Delete Points", pointCommands) }
         if !segmentCommands.isEmpty { return CommandBatch(segmentCommands.count == 1 ? segmentCommands[0].label : "Delete Segments", segmentCommands) }
         guard !current.isEmpty else { return nil }
-        return DeleteNodes(current.ids.map(\.opID))
+        return ClearObjects(current.ids.map(\.opID))
     }
     @objc func selectNone(_ sender: Any?) { selection.selectNone() }
     @objc func invertSelection(_ sender: Any?) { selection.invert() }
+    /// menu:Edit[Select > All in Document] (OBJ-006).
+    @objc func selectAllInDocument(_ sender: Any?) { selection.selectAllInDocument() }
+    /// menu:Edit[Select > Superselect] (kbd:[~]); the Pointer's transform handles climb with it.
+    @objc func superselect(_ sender: Any?) {
+        if let pointer = toolManager?.activeTool as? PointerTool, pointer.handlesShown {
+            pointer.superselect()
+        } else {
+            selection.superselect()
+        }
+    }
+    /// menu:Edit[Select > Subselect All].
+    @objc func subselectAll(_ sender: Any?) { selection.subselectAll() }
 
     // MARK: Clipboard (responder chain; OBJ-010)
 
@@ -844,13 +910,20 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
             case #selector(delete(_:)): return text.node != nil && text.marked == nil
             case #selector(cut(_:)), #selector(copy(_:)): return !text.selectedRange.isEmpty
             case #selector(paste(_:)): return text.canPaste
-            case #selector(selectNone(_:)), #selector(invertSelection(_:)): return false
+            case #selector(selectNone(_:)), #selector(invertSelection(_:)), #selector(selectAllInDocument(_:)),
+                 #selector(superselect(_:)), #selector(subselectAll(_:)): return false
             default: break
             }
         }
         switch selector {
         case #selector(selectAll(_:)), #selector(invertSelection(_:)):
             return selection.canSelectAll
+        case #selector(selectAllInDocument(_:)):
+            return !isEditingText && selection.canSelectAllInDocument
+        case #selector(superselect(_:)):
+            return !isEditingText && selection.canSuperselect
+        case #selector(subselectAll(_:)):
+            return !isEditingText && selection.canSubselectAll
         case #selector(selectNone(_:)):
             return !isEditingText && !selection.model.isEmpty
         case #selector(delete(_:)):
@@ -972,12 +1045,35 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         input?.deactivate()
         collaboration.review.dismiss()
         collaboration.tearDown()
+        handoff.invalidate()
         saveState()
         onClose?(self)
     }
 
     func windowDidBecomeMain(_ notification: Notification) {
+        handoff.activity.becomeCurrent()
         onBecomeMain?(self)
+    }
+
+    // MARK: Handoff (IO-036)
+
+    /// Where this window is, for the activity's user info.
+    var handoffPlace: HandoffActivity.Place {
+        HandoffActivity.Place(documentID: documentHandle.id, pageIndex: documentHandle.currentPageIndex, zoom: viewport.zoom,
+                              center: viewport.toPasteboard(viewport.viewCenter))
+    }
+
+    override func updateUserActivityState(_ userActivity: NSUserActivity) {
+        userActivity.addUserInfoEntries(from: HandoffActivity.userInfo(handoffPlace))
+        super.updateUserActivityState(userActivity)
+    }
+
+    /// Shows `place` (a Handoff from another Mac): its page, then its zoom centred on its point.
+    func apply(_ place: HandoffActivity.Place) {
+        documentHandle.selectPage(place.pageIndex)
+        var target = viewport
+        target.zoom = place.zoom
+        setViewport(canvas.navigation.centring(target, on: place.center))
     }
 
     func windowDidEndLiveResize(_ notification: Notification) {

@@ -190,7 +190,7 @@ people who prefer it.
 |Fill well |-- |The fill color of the selection. |xref:applying-color.adoc[Applying color]
 |Swap |kbd:[Shift+X] |Swaps stroke and fill colors. |xref:applying-color.adoc[Applying color]
 |None |kbd:[/] |Sets the active well to no color. |xref:applying-color.adoc[Applying color]
-|Default |kbd:[Shift+D] |Restores the default black stroke and white fill. |xref:default-attributes.adoc[Default attributes]
+|Default |kbd:[Shift+D] |Returns the colours to the document's default stroke and fill. |xref:default-attributes.adoc[Default attributes]
 |===
 
 === Snap section

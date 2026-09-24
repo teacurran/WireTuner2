@@ -307,6 +307,27 @@ final class DocumentHandle: Identifiable, CommandSink {
         notify(ContentChange(summary: summary, before: before, after: scene.displayList, change: nil))
     }
 
+    // MARK: Hidden on this Mac (OBJ-007)
+
+    /// Hiding on this Mac and its persistence in the local store's `view` table, made when the
+    /// first window opens (tests may set their own first).
+    lazy var hiding = LocalHiding(document: self)
+
+    /// The objects menu:View[Hide Selection] hid on this Mac: not drawn, hit-tested or selected.
+    var locallyHidden: Set<OpID> { builder.locallyHidden }
+
+    /// Hides exactly `nodes` on this Mac and redraws the ones whose state changed; not a document
+    /// change (nothing reaches the outbox or the undo list).  The selection drops what is hidden.
+    func setLocallyHidden(_ nodes: Set<OpID>) {
+        let changed = nodes.symmetricDifference(builder.locallyHidden)
+        guard !changed.isEmpty else { return }
+        builder.locallyHidden = nodes
+        let before = builder.scene.displayList
+        let (scene, summary) = builder.invalidate(changed, state: state)
+        invalidation.submit(summary, before: [before], after: [scene.displayList])
+        notify(ContentChange(summary: summary, before: before, after: scene.displayList, change: nil))
+    }
+
     // MARK: Text
 
     /// Lays out and draws the document's text with `engine` from now on (the document's
@@ -371,12 +392,16 @@ final class DocumentHandle: Identifiable, CommandSink {
 
     // MARK: Commands and undo
 
+    /// What every performed command passes through first (*Changing object changes defaults*,
+    /// OBJ-037: an object's attribute edit also writes the defaults); nil performs it as it is.
+    var commandTransform: (@MainActor (any WTModel.Command) -> any WTModel.Command)?
+
     /// Performs `command` as one change once the model is open.  A command that fails (a stale
     /// selection, an invalid value) is logged and performs nothing.
     @discardableResult
     func perform(_ command: any WTModel.Command) -> Task<Wiretuner_Doc_V1_Change?, Never> {
-        let placed = GlyphCanvas.placing(command, on: canvasNode)
-        return run { model in try await model.perform(placed) }
+        let command = GlyphCanvas.placing(commandTransform?(command) ?? command, on: canvasNode)
+        return run { model in try await model.perform(command) }
     }
 
     /// menu:Edit[Undo].

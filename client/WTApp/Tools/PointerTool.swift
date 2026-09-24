@@ -21,7 +21,7 @@ import WTRender
 /// and each drag is one change.  kbd:[~] goes up to the enclosing group keeping the centre;
 /// kbd:[Esc] or a double-click away puts the handles away.
 @MainActor
-final class PointerTool: Tool, PointerTracking {
+final class PointerTool: Tool, PointerTracking, ToolInfoPublishing {
     static let id: ToolID = .pointer
     static let subselectID: ToolID = "subselect"
     /// A drag shorter than this (view points) is a click.
@@ -67,13 +67,38 @@ final class PointerTool: Tool, PointerTracking {
     /// The zone under the pointer (the cursor).
     private(set) var hoverZone: TransformHandles.Zone?
     private var hoverCopies = false
+    /// kbd:[Control+Option]-click cycling (selecting.adoc, "Selecting through stacked objects";
+    /// OBJ-007): the objects under the click, top first, the one selected, and the view point the
+    /// stack was taken at; another click within the pick distance selects the next one down.
+    private(set) var cycle: (point: Point, stack: [SelectionID], index: Int)?
+    /// The Info toolbar's name of the object cycled to ("Rectangle, 2 of 5").
+    private(set) var cycleName: String?
 
     init(subselect: Bool = false) {
         alwaysSubselects = subselect
         toolID = subselect ? Self.subselectID : Self.id
     }
 
-    var cursor: NSCursor { handlesShown ? TransformHandles.cursor(hoverZone, copying: hoverCopies) : .arrow }
+    var cursor: NSCursor {
+        if isCopying { return .dragCopy }
+        return handlesShown ? TransformHandles.cursor(hoverZone, copying: hoverCopies) : .arrow
+    }
+
+    /// Whether the move in progress copies (kbd:[Option] with *Option-drag copies*, pressed before
+    /// or after the drag began; OBJ-013): the pointer shows a plus sign.
+    var isCopying: Bool {
+        guard gesture == .move, isDragging, let current, let context else { return false }
+        return current.modifiers.contains(.option) && context.optionDragCopies()
+    }
+
+    /// The cursor last shown for `isCopying`, so a change asks the canvas for the new cursor.
+    private var showsCopyCursor = false
+
+    private func updateCopyCursor() {
+        guard isCopying != showsCopyCursor else { return }
+        showsCopyCursor = isCopying
+        context?.host.toolCursorDidChange()
+    }
 
     var hasSomethingToCancel: Bool { start != nil || handlesShown }
 
@@ -176,6 +201,7 @@ final class PointerTool: Tool, PointerTracking {
     }
 
     func pointerMoved(_ e: CanvasEvent) {
+        if let cycle, let context, e.viewPoint.distance(to: cycle.point) > context.selection.pickDistance() { resetCycle() }
         guard handlesShown, let context else { return }
         let zone = handles?.zone(at: e.viewPoint, viewport: context.viewport)
         let copies = e.modifiers.contains(.option)
@@ -194,6 +220,12 @@ final class PointerTool: Tool, PointerTracking {
         selectedOnPress = false
         guard let context else { return }
         followSelection()
+        if e.modifiers.isSuperset(of: [.control, .option]) {
+            cycleSelection(at: e, context: context)
+            resetGesture()
+            return
+        }
+        resetCycle()
         if let handles, let zone = handles.zone(at: e.viewPoint, viewport: context.viewport) {
             if zone == .center, e.modifiers.contains(.shift) {
                 handleCenter = nil
@@ -250,6 +282,7 @@ final class PointerTool: Tool, PointerTracking {
     func mouseDragged(_ e: CanvasEvent) {
         guard start != nil else { return }
         current = e
+        updateCopyCursor()
     }
 
     func mouseUp(_ e: CanvasEvent) {
@@ -350,6 +383,38 @@ final class PointerTool: Tool, PointerTracking {
         }
     }
 
+    // MARK: Cycling (OBJ-007)
+
+    /// A kbd:[Control+Option]-click: the top-most object under the pointer, then on each further
+    /// click within the pick distance the next one down, wrapping at the bottom.  The Pointer
+    /// cycles through top-level objects, the Subselect tool through the members of containers.
+    private func cycleSelection(at e: CanvasEvent, context: ToolContext) {
+        var next: (point: Point, stack: [SelectionID], index: Int)
+        if let cycle, e.viewPoint.distance(to: cycle.point) <= context.selection.pickDistance() {
+            next = (cycle.point, cycle.stack.filter(context.document.isSelectable), cycle.index + 1)
+        } else {
+            next = (e.viewPoint, context.selection.stack(at: e.viewPoint, viewport: context.viewport, subselect: alwaysSubselects), 0)
+        }
+        guard !next.stack.isEmpty else {
+            resetCycle()
+            context.selection.model.clear()
+            return
+        }
+        next.index %= next.stack.count
+        cycle = next
+        let id = next.stack[next.index]
+        context.selection.model.set(Selection([id]))
+        cycleName = "\(ObjectNaming.name(of: id.opID, in: context.document.state)), \(next.index + 1) of \(next.stack.count)"
+    }
+
+    private func resetCycle() {
+        cycle = nil
+        cycleName = nil
+    }
+
+    /// The Info toolbar names the object cycled to while cycling.
+    var info: ToolInfo { ToolInfo(objectKind: cycleName) }
+
     /// Shift or Option pressed mid-drag changes what the release does.
     func flagsChanged(_ e: CanvasEvent) {
         if handlesShown, e.modifiers.contains(.option) != hoverCopies {
@@ -358,6 +423,7 @@ final class PointerTool: Tool, PointerTracking {
         }
         guard let current else { return }
         self.current = current.with(modifiers: e.modifiers, timestamp: e.timestamp)
+        updateCopyCursor()
     }
 
     /// kbd:[~] (or kbd:[`]) goes up a group while the handles are shown.
@@ -447,5 +513,6 @@ final class PointerTool: Tool, PointerTracking {
         current = nil
         gesture = .marquee
         selectedOnPress = false
+        updateCopyCursor()
     }
 }

@@ -113,6 +113,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let scripts = ScriptFeatures()
     /// Typeface documents: New Typeface, the glyph grid and tabs, Font Info, Metrics, Generate Fonts (FONT).
     private(set) lazy var typeface = TypefaceFeatures(preferences: preferences)
+    /// menu:File[Save Version…] and menu:File[Duplicate] (IO-003, IO-004).
+    let versions = VersionFeatures()
+    /// Handoff and Spotlight continuations (IO-035, IO-036).
+    let continuity = ContinuityOpener()
+    /// The Spotlight items of the documents on this Mac (IO-035).
+    let spotlight: SpotlightIndexer
 
     /// - Parameters:
     ///   - layoutStore: where the panel layout persists; `nil` keeps it in memory (tests).
@@ -126,9 +132,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         libraryStore: LibraryCacheStore? = nil, thumbnailDirectory: URL? = nil, library: LibraryModel? = nil,
         sessionStore: SessionStore? = nil, toolbarStore: ToolbarStore? = nil, layoutsDirectory: URL? = nil,
         shortcutSetsURL: URL? = nil, paletteHistoryURL: URL? = nil, collaboration: CollaborationServices? = nil,
-        syncConnector: (any SyncConnecting)? = nil, storesDirectory: @escaping @Sendable () throws -> URL = { try HeadlessUploads.defaultDirectory() }
+        syncConnector: (any SyncConnecting)? = nil, storesDirectory: @escaping @Sendable () throws -> URL = { try HeadlessUploads.defaultDirectory() },
+        spotlight: SpotlightIndexer = SpotlightIndexer(index: NoSpotlightIndex())
     ) {
         self.storesDirectory = storesDirectory
+        self.spotlight = spotlight
         layout = PanelLayoutController(registry: panels, store: layoutStore)
         preferences = PreferenceStore(defaults: defaults)
         snapSounds = SnapSoundPlayer(preferences: preferences)
@@ -192,14 +200,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
         environment.session = { sessions.session(for: $0) }
         environment.documentDidClose = { [weak self] document in
+            if let spotlight = self?.spotlight { Task { await spotlight.documentDidClose(document) } }
             sessions.documentDidClose(document)
             self?.fonts.documentDidClose(document)
         }
         environment.documentDidOpen = { [weak self] window in
             Task { await self?.fonts.documentDidOpen(window) }
             self?.documentSetup.documentDidOpen(window)
+            self?.versions.documentDidOpen(window)
         }
         environment.userName = { accountModel.profile?.displayName ?? "" }
+        let palette = toolPalette
+        environment.currentColors = { palette.currentChoices }
+        environment.writeSelectionPDF = { [weak self] window, url in await self?.writeSelectionPDF(of: window, to: url) ?? false }
         let reviewWork = launchEnvironment.makeReviewWork(account: accountModel, infoDictionary: Bundle.main.infoDictionary, defaults: defaults)
         environment.reviewWork = { accountModel.isSignedIn ? reviewWork : nil }
         environment.openDocument = { [weak self] id, name in
@@ -222,7 +235,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             libraryStore: LibraryCacheStore(url: LibraryCacheStore.defaultURL), thumbnailDirectory: ThumbnailCache.defaultDirectory,
             sessionStore: SessionStore(url: SessionStore.defaultURL), toolbarStore: ToolbarStore(url: ToolbarStore.defaultURL),
             layoutsDirectory: NamedLayoutStore.defaultDirectory, shortcutSetsURL: ShortcutSetStore.defaultURL,
-            paletteHistoryURL: PaletteHistory.defaultURL
+            paletteHistoryURL: PaletteHistory.defaultURL, spotlight: SpotlightIndexer(index: DefaultSpotlightIndex(), url: SpotlightIndexer.defaultURL)
         )
     }
 
@@ -257,6 +270,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         LibraryCommands.install(into: commands) { [weak self] in self?.showLibrary() }
         ShareCommands.install(into: commands, canShare: { documents.activeWindowController != nil }) { [weak self] in self?.showShare() }
         installImports()
+        installVersions()
+        installContinuity()
         CollaborationCommands.install(into: commands, window: { documents.activeWindowController }, preferences: preferences)
         PreferenceCommands.install(into: commands, store: preferences) { [weak self] in self?.showPreferences() }
         installTools()
@@ -347,6 +362,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         DrawingTools.install(into: tools)
         ToolOptionSheets.install(into: tools, store: preferences)
         let documents = documents!
+        VisibilityCommands.install(into: commands) { documents.activeWindowController }
         ObjectMenuCommands.install(into: commands) { documents.activeWindowController?.objectEditing }
         ConnectorCommands.install(commands: commands, tools: tools) { documents.activeWindowController?.objectEditing }
         tools.replace(TextTool.descriptor)
@@ -395,6 +411,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         toolPalette.viewMode = window?.viewMode
         toolPalette.snap = window?.snap
         toolPalette.selectionWells = window?.selectionWells
+        let defaults = window?.documentWells
+        toolPalette.documentWells = defaults?.wells
+        toolPalette.documentChoices = defaults?.choices
         activeSelection.model = window?.selection.model
         activeSelection.document = window?.documentHandle
         activeSelection.editing = window?.objectEditing
@@ -478,6 +497,53 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         ImportCommands.install(into: commands, hooks: ImportCommands.hooks(imports: imports, packages: packages) { documents.activeWindowController })
         installExports()
+    }
+
+    /// Save Version and Duplicate over the library's deferred creation (IO-003, IO-004).
+    func installVersions() {
+        let documents = documents!
+        let library = library
+        let preferences = preferences
+        let configuration = AuthConfiguration(infoDictionary: Bundle.main.infoDictionary)
+        versions.client = GRPCVersionClient(api: configuration.api, clientVersion: LaunchEnvironment.clientVersion(Bundle.main.infoDictionary),
+                                            deviceID: DeviceIdentity.current(defaults: preferences.defaults))
+        versions.accessToken = collaboration.accessToken
+        versions.asksForName = { preferences[PreferenceCatalog.Document.askVersionName] }
+        versions.recordDocument = { name, source in library.recordDocument(name: name, like: source).id }
+        versions.openDocument = { id, name in documents.open(documents.environment.makeDocument(id: id, title: name)).documentHandle }
+        versions.install(into: commands) { documents.activeWindowController }
+    }
+
+    /// Handoff and Spotlight continuations open documents through the library; Spotlight follows
+    /// trashing (IO-035, IO-036).
+    func installContinuity() {
+        let documents = documents!
+        let library = library
+        continuity.window = { documents.views(of: $0).first }
+        continuity.entry = { await library.document(withID: $0) }
+        continuity.isOnline = { library.isOnline }
+        continuity.open = { id, name in documents.open(documents.environment.makeDocument(id: id, title: name)) }
+        continuity.showLibrary = { [weak self] message in
+            self?.showLibrary()
+            library.show(message: message)
+        }
+        spotlight.thumbnail = { id in library.cache.documents[id]?.thumbnail.flatMap(library.thumbnails.data(for:)) }
+        let spotlight = spotlight
+        library.onTrashed = { id in Task { await spotlight.remove(id) } }
+    }
+
+    /// A Handoff from another Mac or a Spotlight result (IO-035, IO-036).
+    func application(_ application: NSApplication, continue userActivity: NSUserActivity,
+                     restorationHandler: @escaping ([any NSUserActivityRestoring]) -> Void) -> Bool {
+        continuity.continueActivity(userActivity) != nil
+    }
+
+    /// A PDF of `window`'s selection at `url` (objects dragged to the Finder, OBJ-013).
+    func writeSelectionPDF(of window: DocumentWindowController, to url: URL) async -> Bool {
+        var settings = ExportSettings()
+        settings.what = .selection
+        if case .exported = await exports.perform(settings, to: url, from: window) { return true }
+        return false
     }
 
     /// menu:WireTuner[Account…].

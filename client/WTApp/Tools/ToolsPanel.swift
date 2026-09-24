@@ -1,6 +1,7 @@
 import AppKit
 import Observation
 import SwiftUI
+import WTModel
 import WTProto
 import WTRender
 
@@ -95,8 +96,14 @@ final class ToolPaletteModel {
     var snap: SnapSettings?
     /// The selection's colours; nil with nothing selected (the wells then show the defaults).
     var selectionWells: WellColors?
-    /// The colours new objects get (Swap, None and Default act on them).
-    private(set) var defaultWells = WellColors.standard
+    /// The key document's default fill and stroke (default-attributes.adoc), and the colours they
+    /// are as choices; nil without a document (the wells then show black on white).
+    var documentWells: WellColors?
+    var documentChoices: (fill: DocumentDefaults.ColorChoice, stroke: DocumentDefaults.ColorChoice)?
+    /// Your current colours (applying-color.adoc, "The color wells"; OBJ-037): what the next object
+    /// gets over the document's defaults, yours alone; nil follows the document's default.
+    private(set) var currentFill: CurrentColor?
+    private(set) var currentStroke: CurrentColor?
     var activeWell: ActiveWell = .fill
     /// The well whose pop-up palette is open.
     var paletteWell: ActiveWell?
@@ -190,26 +197,49 @@ final class ToolPaletteModel {
 
     var wells: WellColors { selectionWells ?? defaultWells }
 
-    /// Swap, None and Default change the default colours; changing the selection's colours
+    /// The colours new objects get: the current colours over the document's defaults.
+    var defaultWells: WellColors {
+        let base = documentWells ?? .standard
+        return WellColors(stroke: currentStroke?.paint ?? base.stroke, fill: currentFill?.paint ?? base.fill)
+    }
+
+    /// The current colours as the drawing tools apply them (`DocumentDefaults.applying`).
+    var currentChoices: (fill: DocumentDefaults.ColorChoice?, stroke: DocumentDefaults.ColorChoice?) {
+        (currentFill?.choice, currentStroke?.choice)
+    }
+
+    /// Swap, None and Default change the current colours; changing the selection's colours
     /// waits for the model's appearance commands.
     var canEditWells: Bool { selectionWells == nil }
 
+    /// The colour `well` shows with nothing selected, as a current colour.
+    private func currentColor(_ well: ActiveWell) -> CurrentColor {
+        switch well {
+        case .fill: currentFill ?? CurrentColor(defaultWells.fill, choice: documentChoices?.fill)
+        case .stroke: currentStroke ?? CurrentColor(defaultWells.stroke, choice: documentChoices?.stroke)
+        }
+    }
+
     func swapWells() {
         guard canEditWells else { return }
-        defaultWells = WellColors(stroke: defaultWells.fill, fill: defaultWells.stroke)
+        let fill = currentColor(.fill), stroke = currentColor(.stroke)
+        currentFill = stroke
+        currentStroke = fill
     }
 
     func setActiveWellToNone() {
         guard canEditWells else { return }
         switch activeWell {
-        case .stroke: defaultWells.stroke = .none
-        case .fill: defaultWells.fill = .none
+        case .stroke: currentStroke = CurrentColor(choice: .noColor, paint: .none)
+        case .fill: currentFill = CurrentColor(choice: .noColor, paint: .none)
         }
     }
 
+    /// *Default*: the current colours follow the document's defaults again.
     func restoreDefaultWells() {
         guard canEditWells else { return }
-        defaultWells = .standard
+        currentFill = nil
+        currentStroke = nil
     }
 
     /// The model of `well`'s chip and pop-up palette; nil without the colour panels or a
@@ -230,9 +260,10 @@ final class ToolPaletteModel {
         paletteWell = nil
         if coloring?.apply(ref, name: name, to: well) == true { return }
         let paint = (coloring?.color(of: ref) ?? color).map(Paint.solid) ?? .none
+        let current = CurrentColor(choice: ref.none || paint == .none ? .noColor : .color(ref), paint: paint)
         switch well {
-        case .stroke: defaultWells.stroke = paint
-        case .fill: defaultWells.fill = paint
+        case .stroke: currentStroke = current
+        case .fill: currentFill = current
         }
     }
 

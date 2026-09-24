@@ -325,6 +325,12 @@ colour, not its reference.  The UI tests of *Done when* are unit tests hosted in
 (`ColorDropTests`: fill and stroke drops, each modifier, a group with and without kbd:[Option], the
 wells' picks and drops).
 
+NOTE: As built by OBJ-037 (default-attributes.adoc): the drawing tools now read the current colours,
+laid over the document's defaults (`DocumentDefaults.applying`), and a pick keeps its reference -- a
+swatch picked as the current colour is the swatch.  Unset current colours follow the front document's
+defaults, which the wells show; btn:[Default] clears them.  They are still the Tools panel's, one set
+for the app, rather than per-document `CurrentColors` view state.
+
 NOTE: As built by COLOR-006's `WTModel` half (`ColorResolver.swift`, `ColorUses.swift`,
 `SwatchIndex.swift`).  `ColorResolver` is the ladder above over the swatches of one state, with
 the tint chain rule and loop cut of xref:tints.adoc[Tints]; a spot base puts its ink on

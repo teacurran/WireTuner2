@@ -58,7 +58,7 @@ import WTRender
         guard case let .submenu(_, arrangeItems) = arrange else { return }
         #expect(arrangeItems.map(\.title) == ["Bring to Front", "Bring Forward", "Send Backward", "Send to Back"])
         guard case let .submenu(_, select)? = nodes.first(where: { $0.title == "Select" }) else { Issue.record("Select"); return }
-        #expect(select.map(\.title) == ["All", "None", "Invert Selection", "Superselect", "Subselect"])
+        #expect(select.map(\.title) == ["All", "None", "Invert Selection", "Superselect", "Subselect All"])
     }
 
     @Test func aMultipleSelectionAddsCombineAndKindItemsOnlyWhenAlike() {

@@ -444,7 +444,8 @@ struct GroupOfRectangles: WTModel.Command {
         let tree = MenuTreeBuilder.build(registry: commands, shortcuts: ShortcutSet.builtInDefault(commands: commands.commands))
         let select = tree.items(inMenu: "Edit")?.first { $0.title == "Select" }
         #expect(select?.commandIDs == [
-            SelectionCommands.ID.selectAll, ContextMenuCatalog.ID.superselect, ContextMenuCatalog.ID.subselect, SelectionCommands.ID.selectNone, SelectionCommands.ID.invert,
+            SelectionCommands.ID.selectAll, SelectionCommands.ID.selectAllInDocument, SelectionCommands.ID.selectNone, SelectionCommands.ID.invert,
+            ContextMenuCatalog.ID.superselect, ContextMenuCatalog.ID.subselect,
         ])
         #expect(ShortcutSet.builtInDefault(commands: commands.commands).conflicts().isEmpty)
         #expect(SelectionToolOptions.contactSensitive.defaultValue == false)
@@ -612,7 +613,7 @@ final class SelectionFlag {
         controller.delete(nil)
         await document.settle()
         #expect(document.selectableIDs() == [fixture.group, fixture.square])
-        #expect(document.undoTitle == "Undo Delete")
+        #expect(document.undoTitle == "Undo Delete 2 objects")
         let line = try #require(await document.addPath([Point(x: 300, y: 200), Point(x: 350, y: 200), Point(x: 350, y: 250)]))
         let contour = try #require(document.path(line)?.contours.first)
         let point = PointReference(node: line.node, contour: contour.id, point: contour.points[1].id)

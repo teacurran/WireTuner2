@@ -88,6 +88,12 @@ final class CanvasView: NSView, CanvasHost {
     /// Colours dragged over the canvas (applying-color.adoc, "Applying color to unselected
     /// objects"); nil refuses them.
     var colorDrop: CanvasColorDrop?
+    /// Objects dragged in from a document window (OBJ-013): pasted at the drop point; nil
+    /// refuses them.
+    var objectDrop: ObjectDragging?
+    /// A drag that left the window (OBJ-013): the Pointer's move becomes a dragging session when
+    /// this answers true.
+    var onDragOut: (@MainActor (NSEvent) -> Bool)?
     /// The modifiers held during a drag (kbd:[Shift], kbd:[Cmd], kbd:[Option] choose what a colour
     /// drop colours); replaceable in tests.
     var dragModifiers: @MainActor () -> KeyModifiers = { KeyEquivalentResolver.modifiers(NSEvent.modifierFlags) }
@@ -136,7 +142,7 @@ final class CanvasView: NSView, CanvasHost {
         setAccessibilityRole(.group)
         setAccessibilityIdentifier(Self.accessibilityIdentifier)
         setAccessibilityLabel("Canvas")
-        registerForDraggedTypes([.fileURL, ColorDrag.type, .color])
+        registerForDraggedTypes([.fileURL, ColorDrag.type, .color, ObjectDragging.type, SystemObjectPasteboard.legacyType])
 
         document.invalidation.add(tiles)
         documentObservation = document.observe { [weak self] change in self?.documentDidChange(change) }
@@ -162,6 +168,7 @@ final class CanvasView: NSView, CanvasHost {
 
     override func draggingUpdated(_ sender: any NSDraggingInfo) -> NSDragOperation {
         if !FileDrop.urls(from: sender.draggingPasteboard).isEmpty { return onFileDrop != nil ? .copy : [] }
+        if ObjectDragging.carriesObjects(sender.draggingPasteboard) { return objectDrop != nil ? .copy : [] }
         guard let colorDrop else { return [] }
         let over = colorDrop.update(sender.draggingPasteboard, at: dropPoint(sender), viewport: viewport, modifiers: dragModifiers())
         overlay.setNeedsDisplay()
@@ -178,6 +185,9 @@ final class CanvasView: NSView, CanvasHost {
         if !urls.isEmpty {
             guard let onFileDrop else { return false }
             return onFileDrop(urls, viewport.toPasteboard(dropPoint(sender)))
+        }
+        if ObjectDragging.carriesObjects(sender.draggingPasteboard) {
+            return objectDrop?.drop(sender.draggingPasteboard, at: viewport.toPasteboard(dropPoint(sender))) != nil
         }
         defer { overlay.setNeedsDisplay() }
         return colorDrop?.drop(sender.draggingPasteboard, at: dropPoint(sender), viewport: viewport, modifiers: dragModifiers()) != nil
@@ -415,7 +425,7 @@ final class CanvasView: NSView, CanvasHost {
             // Clicking the canvas ends preview mode (animation.adoc, "Client").
             endPreview()
         }
-        if event.modifierFlags.contains(.control), toolManager?.activeToolID != .zoom, let menu = contextMenu(for: event) {
+        if event.modifierFlags.contains(.control), toolManager?.activeToolID != .zoom, !cyclesSelection(event), let menu = contextMenu(for: event) {
             NSMenu.popUpContextMenu(menu, with: event, for: self)
             return
         }
@@ -424,6 +434,19 @@ final class CanvasView: NSView, CanvasHost {
         onPressAt?(translated.pasteboardPoint)
         toolManager?.mouseDown(translated)
         onPress?(true)
+    }
+
+    /// Whether `event` lies outside the window's content (a drag out of the window, OBJ-013).
+    func leftWindow(_ event: NSEvent) -> Bool {
+        guard let content = window?.contentView else { return false }
+        return !content.bounds.contains(content.convert(event.locationInWindow, from: nil))
+    }
+
+    /// kbd:[Control+Option]-click with the Pointer or Subselect tool cycles through stacked objects
+    /// (OBJ-007) instead of opening the context menu.
+    func cyclesSelection(_ event: NSEvent) -> Bool {
+        guard event.modifierFlags.contains(.option), let tool = toolManager?.activeToolID else { return false }
+        return tool == PointerTool.id || tool == PointerTool.subselectID
     }
 
     /// The Info toolbar follows the pointer (BASIC-011).
@@ -444,6 +467,11 @@ final class CanvasView: NSView, CanvasHost {
     }
 
     override func mouseDragged(with event: NSEvent) {
+        if leftWindow(event), onDragOut?(event) == true {
+            stopAutoscroll()
+            onPress?(false)
+            return
+        }
         let translated = canvasEvent(event)
         toolManager?.mouseDragged(translated)
         updateAutoscroll(translated)

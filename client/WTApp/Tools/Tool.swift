@@ -1,6 +1,8 @@
 import AppKit
 import WTCRDT
 import WTGeometry
+import WTModel
+import WTProto
 import WTRender
 
 /// Identifies a tool: `"pointer"`, `"hand"`, `"zoom"`, `"rectangle"`.  Stable: shortcut sets
@@ -243,6 +245,9 @@ struct ToolContext {
     /// Asks the person to confirm (a removal that takes objects with it): message, informative
     /// text; true goes ahead.  Outside a window it always goes ahead.
     var confirm: @MainActor (String, String) -> Bool = { _, _ in true }
+    /// The attribute stack a new object is born with (default-attributes.adoc; OBJ-037): the
+    /// document's defaults, with the window's current colours laid over them in a window.
+    var newObjectAppearance: @MainActor () -> Wiretuner_Doc_V1_AppearanceProps
 
     init(document: DocumentHandle, host: any CanvasHost, snapping: SnappingContext = SnappingContext(), selection: SelectionController? = nil) {
         self.document = document
@@ -250,6 +255,7 @@ struct ToolContext {
         self.snapping = snapping
         self.selection = selection ?? SelectionController(document: document)
         commandSink = document
+        newObjectAppearance = { DocumentDefaults.appearance(in: document.state) }
     }
     var viewport: Viewport { host.viewport }
 }

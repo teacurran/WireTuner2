@@ -700,6 +700,77 @@ not interleave" is not tested separately (each document's changes go through its
   Drive, no `NSUserActivity.persistentIdentifier` storage.
 * Undo: none of these commands write undoable changes except *Restore in place*, which is one
   change with the label "Restore version <name>".
++
+NOTE: As built by IO-003 (`WTApp/Versions/VersionSaving.swift`, `VersionClient.swift`,
+`VersionCommands.swift`).  menu:File[Save Version…] (kbd:[Cmd+S]) shows the sheet -- the name prefilled
+with the date and time, a note, btn:[Save Version] disabled while the name is blank -- or, with *Ask for a
+version name when saving* off, names the version with the date and time at once.  Either way the
+confirmation is the status bar's message ("Saved version “…”", with ", pending until your changes
+upload" when it waits), not a separate toast.  `VersionSaving` (one per open document) names the version
+with a client UUIDv7 id: with the outbox empty it calls `VersionService.NameVersion` at once with the
+head `server_seq`; otherwise, or when the call fails, the version waits with `server_seq` = the head then
+and `through_local_change` = the first op of the last local change it includes, and goes up (`flush`)
+whenever the document reaches *Saved to cloud* and on open, once that change is acknowledged.  After a
+rotation the anchor waits while the change is in the retired outbox; once salvage has re-issued it, the
+anchor moves to the newest outbox change with the same label (re-anchoring); an anchor the server does not
+know (`NOT_FOUND`) is sent again without it.  Deviation: `pending_versions` is not a table of its own but
+the `pending_versions` key of the store's `view` table (JSON), because the local store's schema is
+WTSync's and the rows need no query; it survives relaunch and rotation all the same.  The History panel
+that would mark a version pending is not built yet, and the two-client test is a unit test with two
+savers against one fake server rather than a simulator run.
++
+NOTE: As built by IO-004 (`WTModel/DocumentDuplicate.swift`, `WTApp/Versions/VersionCommands.swift`,
+`LibraryModel.recordDocument`).  menu:File[Duplicate] (kbd:[Cmd+Shift+S]) captures the document's state,
+records "<name> copy" in the library in the source's space and folder as a not-yet-created document
+(the *Waiting to upload* entry; `DocumentService.Create` runs at once or on the next refresh), opens it in
+a new window *without* the new-document template, and re-issues the captured state into it through
+`PackageReissue` in changes labelled "Duplicate", one undo step.  The copy shares no OpId with the
+original and takes none of the changes the original receives meanwhile (the plan reads a copy of the
+state); the canonical read-out equality is a WTModel test.  Blobs are not copied: the copy references the
+same hashes, which this Mac's blob cache already holds (a blob still waiting to upload from the original
+uploads with the original).  The 3-second design-point budget is not measured here.
++
+NOTE: As built by IO-035's app half (`WTModel/SpotlightContent.swift`,
+`WTApp/Continuity/SpotlightIndexer.swift`, `ContinuityOpener.swift`).  `SpotlightIndexer` builds the item
+when a document's last window closes, from the in-memory state: title (the document's name),
+`contentDescription`, `keywords` (read from the SET's members), `textContent` (every live text node in
+tree order, one per line, cut at 1 MiB on a character boundary), the library thumbnail and the
+modification time; the content type is the package UTI.  Deviation: whether the document changed is
+decided by a digest of exactly what the item holds, kept per document id in
+`Application Support/WireTuner/SpotlightIndex.json` rather than a head seq in a `spotlight_index` table of
+each store -- closing unchanged skips the rebuild, and a closed store never has to be opened.  Trashing
+through the library removes the item; *Remove Local Copy* is not built yet (`SpotlightIndexer.remove` is
+its hook).  A result opens through `application(_:continue:restorationHandler:)` and `ContinuityOpener`:
+the library entry (cached, else `DocumentService.Get`), a trashed document or an unreachable one showing
+the Library window with a message.  Unit-test launches index nothing (`NoSpotlightIndex`).  Not built:
+the snapshot-time rebuild (the item follows window closes), and the `WireTunerSpotlightImporter`
+extension for packages on disk: it needs the snapshot's zstd and protobuf decoding in an extension
+that otherwise links nothing but the zip reader, and is left for a later task.
++
+NOTE: As built by IO-034 (`client/WTExtensions/`, targets `WireTunerThumbnail` and `WireTunerPreview`
+in `project.yml`, embedded under the app's `PlugIns`).  Both are sandboxed with no network entitlement
+and link neither `WTModel` nor `WTInterchange`: they compile `WTExtensions/Shared/PackagePeek.swift`, a
+reader of the zip's central directory that inflates only `manifest.json`, `thumbnail.png` and
+`preview.pdf` from the memory-mapped file, and reads the manifest's display fields with
+`JSONSerialization`.  The same file is compiled into the app, whose tests read packages the export
+writes.  `ThumbnailProvider` draws the thumbnail fitted to the request with the *Offline changes* badge
+(an orange dot in the corner) when `unsynced_changes > 0` (checked with `qlmanage -t` on a package with
+unsynced changes); `PreviewViewController` shows the header -- title, "Exported by <name>" and the
+date, the unsynced note -- over page 1 in a `PDFView`, or over the thumbnail without `preview.pdf`.
+Deviation: the header has no page count, because the manifest carries none.  The 500 ms and 2 MiB
+figures are not measured here.
++
+NOTE: As built by IO-036 (`WTApp/Continuity/Handoff.swift`, `ContinuityOpener.swift`).  Each document
+window is the responder of its own `NSUserActivity` (`com.villagecompute.wiretuner.document`, declared in
+`NSUserActivityTypes`; handoff only, not searchable, no web page, no iCloud entitlement), made current when
+the window becomes main.  `WindowHandoff` marks it `needsSave` at once on a page or zoom change and 500 ms
+after scrolling stops; `updateUserActivityState(_:)` fills `{document_id, page_index, zoom, scroll_x,
+scroll_y}` -- under 100 bytes.  Deviation: `scroll_x`/`scroll_y` are the pasteboard point at the centre
+of the view, not the scroll origin, so a window of another size shows the same place.  The receiving app
+opens the document through `ContinuityOpener` (its window if open, else the library entry or a local copy
+here) and applies page, zoom and centre once the model is open; offline without a copy, or with an id
+the account cannot open, it shows the Library window with a message.  The two-Mac acceptance run is
+manual and not recorded here.
 
 === Build tasks
 

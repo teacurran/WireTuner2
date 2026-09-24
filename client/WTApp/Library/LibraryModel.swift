@@ -288,12 +288,24 @@ final class LibraryModel {
     /// and uploads on the next refresh.
     @discardableResult
     func createDocument(name: String = LibraryModel.untitled) -> LibraryDocument {
-        let target = creationTarget
+        let document = recordDocument(name: name)
+        open([document])
+        return document
+    }
+
+    /// A document not yet created on the server (IO-004's deferred creation): recorded with a
+    /// UUIDv7 in `source`'s space and folder (else where a new document goes), listed at once with
+    /// the *Waiting to upload* badge, and `DocumentService.Create` started -- offline it waits for
+    /// the next refresh.  Not opened: the caller opens it (a duplicate opens without the
+    /// new-document template, its content being re-issued into it).
+    @discardableResult
+    func recordDocument(name: String, like source: String? = nil) -> LibraryDocument {
+        let target = source.flatMap { cache.documents[$0] }.map { (spaceID: $0.spaceID, folderID: $0.folderID) } ?? creationTarget
         let document = LibraryDocument(
             id: makeID(), spaceID: target.spaceID, folderID: target.folderID, name: name, role: .owner, updatedAt: now(), isPendingUpload: true
         )
         cache.documents[document.id] = document
-        open([document])
+        save()
         let id = document.id
         pendingUploads[id] = Task { [weak self] in await self?.upload(id) }
         return document
@@ -368,10 +380,29 @@ final class LibraryModel {
         store(await perform { try await services.documents.rename(documentID: id, name: name, accessToken: $0) })
     }
 
-    func trash(_ id: String) async {
-        store(await perform { try await services.documents.trash(documentID: id, accessToken: $0) })
-        selection.remove(id)
+    /// The document `id` for opening by id (a Handoff or Spotlight continuation, IO-035/IO-036):
+    /// the cached entry, else `DocumentService.Get`, stored; nil offline or without access.
+    func document(withID id: String) async -> LibraryDocument? {
+        if let cached = cache.documents[id] { return cached }
+        let fetched = await perform { try await services.documents.get(documentID: id, accessToken: $0) }
+        store(fetched)
+        return fetched
     }
+
+    /// Shows `message` above the library's list (a continuation that could not open a document).
+    func show(message: String) {
+        errorMessage = message
+    }
+
+    func trash(_ id: String) async {
+        let trashed = await perform { try await services.documents.trash(documentID: id, accessToken: $0) }
+        store(trashed)
+        selection.remove(id)
+        if trashed != nil { onTrashed(id) }
+    }
+
+    /// A document was moved to the trash (Spotlight drops it, IO-035).
+    @ObservationIgnored var onTrashed: @MainActor (String) -> Void = { _ in }
 
     @discardableResult
     func duplicate(_ id: String) async -> LibraryDocument? {

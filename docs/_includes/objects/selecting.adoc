@@ -296,6 +296,31 @@ selection* for the Lasso is `SelectionController.lassoContactSensitive`.  The op
 Superselect/Subselect All and the Force-click stage beyond APP-006's are not part of this task.  The
 UI tests are unit tests of the tools against memory documents (`PointerMoveTests.swift`).
 
+NOTE: As built by OBJ-006 (`WTModel/SelectCommands.swift`, `WTApp/Selection/SelectionCommands.swift`,
+`SelectionController.swift`).  The scoping is `SelectScope`, pure functions over the window's
+`DocumentScene`: *All* takes the top-level objects whose bounds meet the active page, *All in Document*
+every top-level object, *Invert Selection* the page's complement; locked objects and objects on locked
+layers are skipped (`SceneObject.isEffectivelyLocked`), and hidden layers and objects hidden on this Mac
+are not in the scene at all.  *Superselect* replaces each selected member by its container (top-level
+objects stay) and is disabled when nothing selected has one; with the Pointer's transform handles shown
+it moves the handles as kbd:[~] does.  *Subselect All* selects the unlocked members of the selected
+containers, in draw order.  The new commands are responder-chain commands like *All* and *None*, so a
+focused text field disables them; *Superselect* and *Subselect All* sit below a line in the submenu (and
+the context menus' *Subselect* is *Subselect All*).  menu:Edit[Clear] on objects is `ClearObjects`, one
+change labelled `Delete N objects` (points and segments keep their own commands).
+
+NOTE: As built by OBJ-007 (`WTApp/Tools/PointerTool.swift`, `WTApp/Selection/LocalHiding.swift`).
+kbd:[Control+Option]-click reaches the Pointer and Subselect tools instead of the context menu; the stack
+is `SelectionController.stack(at:)` -- every object under the click, top first, top-level for the
+Pointer and members inside containers for the Subselect tool -- and each click within the pick distance
+selects the next one down, wrapping; moving farther than the pick distance, or any other click, starts
+over.  The Info toolbar's object field reads "Rectangle, 2 of 5" while cycling.  The hidden set is the
+`hidden` key of the local store's `view` table (JSON pairs of counter and replica); a memory document
+keeps it in memory.  `DocumentDisplayListBuilder.locallyHidden` leaves the nodes out of the screen's
+scene only: print and export still draw them (they are view state, and another Mac would draw them
+anyway).  Changing the set invalidates just those nodes -- no change, nothing in the outbox or the undo
+list.  A hidden node deleted by anyone, or missing when the document reopens, leaves the set.
+
 === Build tasks
 
 [[OBJ-005]]

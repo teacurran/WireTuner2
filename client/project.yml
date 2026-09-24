@@ -11,7 +11,7 @@ options:
   groupSortPosition: top
   # A stable file/group order keeps the committed pbxproj diff small.
   groupOrdering:
-    - order: [WTApp, WTAppTests, WTAppUITests, Config, Packages]
+    - order: [WTApp, WTAppTests, WTAppUITests, WTExtensions, Config, Packages]
 
 configs:
   Debug: debug
@@ -62,6 +62,8 @@ targets:
     sources:
       - path: WTApp
         excludes: ["Info.plist", "WireTuner.entitlements"]
+      # The Quick Look extensions' package reader, compiled into the app too so its tests cover it.
+      - path: WTExtensions/Shared
     info:
       path: WTApp/Info.plist
       properties:
@@ -90,6 +92,9 @@ targets:
         CFBundleURLTypes:
           - CFBundleURLName: com.villagecompute.wiretuner
             CFBundleURLSchemes: [wiretuner]
+        # Handoff between the account's Macs (saving.adoc, "Handing a document off to another Mac";
+        # IO-036): the document window's activity.  No iCloud entitlement is involved.
+        NSUserActivityTypes: [com.villagecompute.wiretuner.document]
         # The compose realm and API are plain HTTP on localhost.
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
@@ -157,6 +162,75 @@ targets:
       - package: WTText
       - package: WTInterchange
       - package: Sparkle
+      # The Quick Look extensions (saving.adoc, "Client"; IO-034), embedded under PlugIns.
+      - target: WireTunerThumbnail
+      - target: WireTunerPreview
+
+  # Quick Look for .wiretuner packages (IO-034): sandboxed, no network, no WTModel; they read
+  # the package's zip directory through WTExtensions/Shared/PackagePeek.swift.
+  WireTunerThumbnail:
+    type: app-extension
+    platform: macOS
+    sources:
+      - path: WTExtensions/Thumbnail
+        excludes: ["Info.plist", "WireTunerThumbnail.entitlements"]
+      - path: WTExtensions/Shared
+    info:
+      path: WTExtensions/Thumbnail/Info.plist
+      properties:
+        CFBundleDisplayName: WireTuner Thumbnail
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.quicklook.thumbnail
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).ThumbnailProvider
+          NSExtensionAttributes:
+            QLSupportedContentTypes: [com.villagecompute.wiretuner.package]
+            QLThumbnailMinimumDimension: 0
+    entitlements:
+      path: WTExtensions/Thumbnail/WireTunerThumbnail.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.villagecompute.wiretuner.thumbnail
+        GENERATE_INFOPLIST_FILE: NO
+        ENABLE_HARDENED_RUNTIME: YES
+        SKIP_INSTALL: YES
+    dependencies:
+      - sdk: QuickLookThumbnailing.framework
+
+  WireTunerPreview:
+    type: app-extension
+    platform: macOS
+    sources:
+      - path: WTExtensions/Preview
+        excludes: ["Info.plist", "WireTunerPreview.entitlements"]
+      - path: WTExtensions/Shared
+    info:
+      path: WTExtensions/Preview/Info.plist
+      properties:
+        CFBundleDisplayName: WireTuner Preview
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.quicklook.preview
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).PreviewViewController
+          NSExtensionAttributes:
+            QLSupportedContentTypes: [com.villagecompute.wiretuner.package]
+            QLSupportsSearchableItems: false
+    entitlements:
+      path: WTExtensions/Preview/WireTunerPreview.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.villagecompute.wiretuner.preview
+        GENERATE_INFOPLIST_FILE: NO
+        ENABLE_HARDENED_RUNTIME: YES
+        SKIP_INSTALL: YES
+    dependencies:
+      - sdk: QuickLookUI.framework
 
   WireTunerTests:
     type: bundle.unit-test

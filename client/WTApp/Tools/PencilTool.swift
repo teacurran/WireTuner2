@@ -177,8 +177,8 @@ final class PencilTool: Tool, PointerTracking {
             }
             return ContinuePath(node: continuation.node, contour: continuation.contour, end: continuation.end, points: local)
         }
-        return CreatePath(label: "Pencil", contours: [NewContour(points: points)], fillWhenOpen: settings.fillWhenOpen,
-                          layer: context.objectEditing?.activeLayer)
+        return CreatePath(label: "Pencil", contours: [NewContour(points: points)], appearance: context.newObjectAppearance(),
+                          fillWhenOpen: settings.fillWhenOpen, layer: context.objectEditing?.activeLayer)
     }
 
     func flagsChanged(_ e: CanvasEvent) {}

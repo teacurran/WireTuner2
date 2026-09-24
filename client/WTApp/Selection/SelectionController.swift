@@ -86,6 +86,17 @@ final class SelectionController {
         return nil
     }
 
+    /// Every object under `viewPoint`, top-most first, each once (kbd:[Control+Option]-click
+    /// cycling, OBJ-007): top-level objects, or with `subselect` the members inside containers.
+    func stack(at viewPoint: Point, viewport: Viewport, subselect: Bool) -> [SelectionID] {
+        var result: [SelectionID] = []
+        for hit in hitTester(viewport: viewport, subselect: subselect).hitTest(viewPoint: viewPoint) {
+            guard let id = document.selectionID(atItemPath: hit.itemPath), document.isSelectable(id), !result.contains(id) else { continue }
+            result.append(id)
+        }
+        return result
+    }
+
     /// What a subselect click on `hit` selects inside the object `id`.
     func subSelection(for hit: HitResult, in id: SelectionID) -> SubSelection? {
         guard let object = document.object(for: id) else { return nil }
@@ -142,9 +153,16 @@ final class SelectionController {
 
     // MARK: Commands
 
-    /// menu:Edit[Select > All]: every object on the current page.
+    /// menu:Edit[Select > All]: every unlocked, visible object whose bounds meet the current page
+    /// (`SelectScope.all`: locked objects, objects on locked or hidden layers and objects hidden
+    /// on this Mac are left out).
     func selectAll() {
-        model.set(Selection(document.selectableIDs(intersecting: document.currentPage)))
+        model.set(Selection(allOnPage.map(SelectionID.init)))
+    }
+
+    /// menu:Edit[Select > All in Document]: the same over every page and the pasteboard.
+    func selectAllInDocument() {
+        model.set(Selection(SelectScope.all(in: document.scene).map(SelectionID.init)))
     }
 
     /// menu:Edit[Select > None].
@@ -152,10 +170,30 @@ final class SelectionController {
 
     /// menu:Edit[Select > Invert Selection], on the current page.
     func invert() {
-        model.set(model.selection.inverted(within: document.selectableIDs(intersecting: document.currentPage)))
+        model.set(Selection(SelectScope.inverted(model.ids.map(\.opID), in: document.scene, page: document.currentPage).map(SelectionID.init)))
     }
 
-    var canSelectAll: Bool { !document.selectableIDs(intersecting: document.currentPage).isEmpty }
+    /// menu:Edit[Select > Superselect] (kbd:[~]): the containers of the selected members, one
+    /// level per invocation.
+    func superselect() {
+        guard let parents = SelectScope.superselect(model.ids.map(\.opID), in: document.scene) else { return }
+        model.set(Selection(parents.map(SelectionID.init)))
+    }
+
+    /// menu:Edit[Select > Subselect All]: every member of the selected containers.
+    func subselectAll() {
+        let members = SelectScope.subselectAll(model.ids.map(\.opID), in: document.scene)
+        guard !members.isEmpty else { return }
+        model.set(Selection(members.map(SelectionID.init)))
+    }
+
+    private var allOnPage: [OpID] { SelectScope.all(in: document.scene, page: document.currentPage) }
+
+    var canSelectAll: Bool { !allOnPage.isEmpty }
+    var canSelectAllInDocument: Bool { !SelectScope.all(in: document.scene).isEmpty }
+    /// Superselect is disabled at the top: nothing selected has a container.
+    var canSuperselect: Bool { SelectScope.superselect(model.ids.map(\.opID), in: document.scene) != nil }
+    var canSubselectAll: Bool { !SelectScope.subselectAll(model.ids.map(\.opID), in: document.scene).isEmpty }
 
     /// The pasteboard bounds of everything selected (Fit Selection), nil when nothing is.
     var selectedBounds: Rect? {

@@ -351,7 +351,8 @@ final class PenTool: Tool, PointerTracking, ToolInfoPublishing {
             }
             return
         }
-        let create = CreatePath(label: isBezigon ? "Bezigon" : "Pen", contours: [NewContour(points: [point])], fillWhenOpen: fillWhenOpen, layer: layer)
+        let create = CreatePath(label: isBezigon ? "Bezigon" : "Pen", contours: [NewContour(points: [point])],
+                                appearance: context?.newObjectAppearance() ?? Appearances.standard, fillWhenOpen: fillWhenOpen, layer: layer)
         guard let change = await sink.perform(create).value, let node = change.createdObjects.first,
               let contour = change.insertedElements(node, PathFields.contours).first,
               let id = change.insertedElements(node, PathFields.points(contour)).first else { return }

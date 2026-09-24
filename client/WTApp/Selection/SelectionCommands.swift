@@ -20,29 +20,44 @@ enum SelectionToolOptions {
 /// None / Invert Selection].  The three commands are responder-chain commands so a focused text
 /// field keeps its own Select All, and so kbd:[Tab] (Select None) is disabled -- and reaches the
 /// field -- while a field has focus; `DocumentWindowController` implements and validates them.
-/// OBJ-006 adds *All in Document*, *Superselect* and *Subselect All* beside them.
+/// OBJ-006 adds *All in Document*, *Superselect* and *Subselect All* beside them (the context
+/// menus' "edit.select.subselect" is *Subselect All*), responder-chain commands too.
 enum SelectionCommands {
     enum ID {
         static let selectAll = StandardCommands.ID.selectAll
+        static let selectAllInDocument: CommandID = "edit.select.allInDocument"
         static let selectNone: CommandID = "edit.select.none"
         static let invert: CommandID = "edit.select.invert"
+        static let superselect = ContextMenuCatalog.ID.superselect
+        static let subselectAll = ContextMenuCatalog.ID.subselect
     }
 
     static let submenu = "Select"
     static let selectAllSelector = "selectAll:"
+    static let selectAllInDocumentSelector = "selectAllInDocument:"
     static let selectNoneSelector = "selectNone:"
     static let invertSelector = "invertSelection:"
+    static let superselectSelector = "superselect:"
+    static let subselectAllSelector = "subselectAll:"
 
     static func commands() -> [Command] {
         let edit = StandardCommands.Menu.edit
         let path = MenuPath(edit, submenu, section: 1)
+        // Superselect and Subselect All below a line (selecting.adoc, "Selection commands").
+        let containers = MenuPath(edit, submenu, section: 1, subsection: 1)
         return [
             .responder(
                 id: ID.selectAll, title: "All", key: KeyEquivalent("a", .command), menu: path,
                 contexts: [.pasteboard, .page], keywords: ["select all"], selector: selectAllSelector
             ),
+            .responder(
+                id: ID.selectAllInDocument, title: "All in Document", key: KeyEquivalent("a", [.command, .shift]), menu: path,
+                keywords: ["select all", "every page", "pasteboard"], selector: selectAllInDocumentSelector
+            ),
             .responder(id: ID.selectNone, title: "None", key: KeyEquivalent("tab"), menu: path, keywords: ["deselect"], selector: selectNoneSelector),
             .responder(id: ID.invert, title: "Invert Selection", menu: path, keywords: ["inverse"], selector: invertSelector),
+            .responder(id: ID.superselect, title: "Superselect", key: KeyEquivalent("~"), menu: containers, keywords: ["parent", "group", "container"], selector: superselectSelector),
+            .responder(id: ID.subselectAll, title: "Subselect All", menu: containers, keywords: ["members", "contents"], selector: subselectAllSelector),
         ]
     }
 

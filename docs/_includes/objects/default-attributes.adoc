@@ -106,6 +106,30 @@ Nothing beyond storing and relaying changes.
   node's `defaults.appearance` path.
 * Preference: *Changing object changes defaults* (off).
 
+NOTE: As built by OBJ-037 (`WTModel/DocumentDefaults.swift`; `WTApp/Tools/Tool.swift`,
+`ToolsPanel.swift`, `WellColors.swift`).  `settings.proto`'s `Defaults` and the Object panel's
+empty-selection mode were already there (ATTR-001, ATTR-003: the stack commands take the settings node).
+`DocumentDefaults` is the `DefaultsProvider`: `appearance(in:)` copies the live fills and strokes of
+`defaults.appearance` with their element ids cleared -- the creation command's `ElementInsert`s give
+the copy fresh ids, so the object keeps no reference -- or reads as the built-in 1 pt black stroke with
+no fill when none is live.  The drawing tools (Rectangle, Ellipse, Line, Polygon and the shape family,
+Pen and Bezigon, Pencil) take `ToolContext.newObjectAppearance`, which in a window is the defaults with
+the person's *current colours* laid over them (applying-color.adoc: the Tools panel wells with nothing
+selected; a colour goes to the topmost Basic fill or stroke, adding one when there is none, *None*
+removes the list).  The current colours are the Tools panel's, one set for the app, not per-document
+view state; unset they follow the front document's defaults, which the wells show, and btn:[Default]
+clears them rather than restoring black on white.  *Changing object changes defaults* wraps an attribute
+edit of an object (`DocumentDefaults.following`, applied by `DocumentHandle.commandTransform` while the
+preference is on) in `AlsoChangingDefaults`: the edit, then -- in the same change, labelled "… (and
+defaults)" -- the default stack replaced by a copy of the edited object's live fills and strokes.
+`SetDefaultsStyle` writes `defaults.style` and replaces the stack with the style's attributes in one
+change; a dangling style reads as Normal.  The Styles panel that chooses it is not built yet.
+Deviations: effects are not copied onto new objects (their attachments name fill and stroke elements of
+the defaults), a new object's fills always sit below its strokes (`PathEditing.appearanceInserts`), and
+text tools keep their own defaults (`defaults.text` is TYPE's).  The conformance vector is not added here
+(`crdt-conformance/` is the crdt track's); the STRUCT-over-SEQUENCE merges are WTModel merge tests
+(`DocumentDefaultsTests`).
+
 === Build tasks
 
 [[OBJ-037]]

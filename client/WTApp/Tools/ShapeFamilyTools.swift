@@ -33,6 +33,8 @@ class DragDrawingTool: Tool, SpaceDragging, ToolInfoPublishing {
     var settings: DrawingSettings { context?.drawing() ?? DrawingSettings() }
     /// The layer new objects go on.
     var activeLayer: OpID? { context?.objectEditing?.activeLayer }
+    /// What the new object is born with (OBJ-037).
+    var newObjectAppearance: Wiretuner_Doc_V1_AppearanceProps { context?.newObjectAppearance() ?? Appearances.standard }
 
     func activate(in context: ToolContext) {
         self.context = context
@@ -115,7 +117,7 @@ class DragDrawingTool: Tool, SpaceDragging, ToolInfoPublishing {
     func createPath(_ path: VectorPath, label: String) -> CreatePath? {
         guard path.isRenderable else { return nil }
         return CreatePath(label: label, contours: path.contours.map { NewContour(closed: $0.closed, points: $0.points) },
-                          fillWhenOpen: settings.fillWhenOpen, layer: activeLayer)
+                          appearance: newObjectAppearance, fillWhenOpen: settings.fillWhenOpen, layer: activeLayer)
     }
 }
 
@@ -141,7 +143,7 @@ final class PolygonTool: DragDrawingTool {
 
     override func command() -> (any WTModel.Command)? {
         guard let shape, shape.shape.radius >= Self.minimumRadius else { return nil }
-        return CreatePolygon(shape.shape, center: shape.center, layer: activeLayer)
+        return CreatePolygon(shape.shape, center: shape.center, appearance: newObjectAppearance, layer: activeLayer)
     }
 
     override var preview: DisplayPath? {
