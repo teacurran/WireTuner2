@@ -169,6 +169,25 @@ public final class StatusExceptions {
         return StatusProto.toStatusRuntimeException(status);
     }
 
+    /**
+     * {@code INVALID_ARGUMENT} with no reason and a {@code google.rpc.BadRequest} naming
+     * {@code wt-device}: the call's device id is not a UUID (api-conventions.adoc, Metadata). No
+     * reason, so a push refused this way is never taken for a change to drop
+     * ({@code VALIDATION_FAILED}); a client can only report it. The value is quoted, cut to 64
+     * characters.
+     */
+    public static StatusRuntimeException invalidDevice(String value) {
+        String shown = value.length() > 64 ? value.substring(0, 64) + "..." : value;
+        BadRequest badRequest = BadRequest.newBuilder().addFieldViolations(BadRequest.FieldViolation.newBuilder()
+                .setField(GrpcMetadata.WT_DEVICE.name()).setDescription("must be a UUID")).build();
+        com.google.rpc.Status status = com.google.rpc.Status.newBuilder()
+                .setCode(Code.INVALID_ARGUMENT.getNumber())
+                .setMessage("wt-device must be a UUID, got \"" + shown + "\"")
+                .addDetails(Any.pack(badRequest))
+                .build();
+        return StatusProto.toStatusRuntimeException(status);
+    }
+
     /** {@code PERMISSION_DENIED / LINK_PASSWORD_REQUIRED}: the share link needs a password, or the one given is wrong. */
     public static StatusRuntimeException linkPasswordRequired() {
         return withReason(Code.PERMISSION_DENIED, ErrorReasons.LINK_PASSWORD_REQUIRED,

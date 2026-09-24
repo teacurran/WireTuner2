@@ -110,7 +110,15 @@ class AccountServiceTest {
     @Test
     void aCallWithoutADeviceHasNoDevice() {
         assertThat(me(token("wiretuner-mac"), null, null, null).hasDevice()).isFalse();
-        assertThat(me(token("wiretuner-mac"), "not-a-uuid", null, null).hasDevice()).isFalse();
+    }
+
+    /** TEST-001 finding (d): a device id that is not a UUID is refused rather than read as none. */
+    @Test
+    void aDeviceThatIsNotAUuidIsRefused() {
+        StatusRuntimeException e = meFailure("Bearer " + token("wiretuner-mac"), "not-a-uuid");
+        assertThat(e.getStatus().getCode()).isEqualTo(Status.Code.INVALID_ARGUMENT);
+        assertThat(e.getStatus().getDescription()).isEqualTo("wt-device must be a UUID, got \"not-a-uuid\"");
+        assertThat(StatusExceptions.reasonOf(e)).isEmpty();
     }
 
     @Test

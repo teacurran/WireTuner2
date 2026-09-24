@@ -8,7 +8,8 @@ import com.villagecompute.wiretuner.api.grpc.StatusExceptions;
 /**
  * Replica binding (docs/spec/security.adoc): a replica id is bound to (account, device) on first
  * use, and a call carrying it from any other principal is {@code REPLICA_CONFLICT}; a retired
- * replica is {@code REPLICA_EXPIRED}. A call without {@code wt-device} binds to the all-zero device.
+ * replica is {@code REPLICA_EXPIRED}. A call without {@code wt-device} binds to the all-zero device; one
+ * whose {@code wt-device} is not a UUID never gets here ({@code PrincipalInterceptor}).
  *
  * @param accountId the bound account
  * @param deviceId the bound device

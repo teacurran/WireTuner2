@@ -351,11 +351,11 @@ As built (SRV-007, SRV-013, D-067; `api/.../history`):
   lowers _C_ to the horizon of every change sequenced after it with a lower one (hot rows, and cold
   segments by their smallest horizon) until none is, and lowers _T_ to the smallest horizon clock
   after _C_; `document.collect_seq` / `collect_time_ms` hold it and every Ack answers it.  A
-  document whose replicas are all retired keeps its point.  Limits, recorded here: a change made
-  before its author received a publication but pushed after the author confirmed it (an outbox
-  sent after a reconnect's first acks) is credited with the newer horizon, and a replica new to the
-  document starts at horizon 0 (holding _C_ at 0 until it has acked twice); an exact horizon needs
-  the client to send it with the change (a proposed field on the push requests, SYNC track).
+  document whose replicas are all retired keeps its point.  A change made before its author
+  received a publication is never credited with that newer horizon: the client sends its
+  confirming ack only once every change made before the answer is accepted (sync-protocol.adoc).
+  Limit, recorded here: a replica new to the document starts at horizon 0 (holding _C_ at 0 until
+  it has acked twice).
   Subscribers are not sent the point on the stream (no `ServerFrame` case carries it); they
   receive it in their Ack answers every 2 seconds.
 * *Stability* (`Stability`, every 5 minutes).  Retires every replica whose `last_seen_at` (a push or

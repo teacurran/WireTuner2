@@ -234,7 +234,7 @@ responses.  A row is added here and a value there in the same change.
 
 |`authorization` |`Bearer <access token>` from Keycloak, on every call.
 |`wt-client` |`macos/<app version>/<build>`: feature gating and `CLIENT_TOO_OLD`.
-|`wt-device` |Stable per-install device id (not the replica id), for the account's device list.
+|`wt-device` |Stable per-install device id (not the replica id), for the account's device list: a UUID in canonical form; any other value is `INVALID_ARGUMENT` (a `BadRequest` naming `wt-device`), and a missing one binds to no device.
 |`wt-request-id` |Client-generated id echoed into server logs and traces.
 |===
 

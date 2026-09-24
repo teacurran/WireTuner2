@@ -1,5 +1,7 @@
 package com.villagecompute.wiretuner.api.auth;
 
+import java.util.regex.Pattern;
+
 import com.villagecompute.wiretuner.api.grpc.GrpcMetadata;
 import com.villagecompute.wiretuner.api.grpc.StatusExceptions;
 
@@ -7,6 +9,7 @@ import io.grpc.Metadata;
 import io.grpc.ServerCall;
 import io.grpc.ServerCallHandler;
 import io.grpc.ServerInterceptor;
+import io.grpc.StatusRuntimeException;
 import io.quarkus.grpc.GlobalInterceptor;
 
 import jakarta.enterprise.context.ApplicationScoped;
@@ -16,8 +19,11 @@ import jakarta.inject.Inject;
 /**
  * Runs after Quarkus's security interceptor has attached the deferred OIDC {@code SecurityIdentity}
  * to the request. Binds {@code wt-device} and {@code wt-client} for the {@link Principal}, and
- * fails closed: a call to any service but health and reflection without a bearer token is closed
- * with {@code UNAUTHENTICATED} before the handler runs. Token validation itself is asynchronous and
+ * fails closed: a call to any service but health and reflection whose {@code wt-device} is not a
+ * UUID is closed with {@code INVALID_ARGUMENT} (a {@code google.rpc.BadRequest} naming the key, no
+ * reason) -- a replica is bound to its device, so a malformed id must not quietly become the
+ * all-zero device every such caller would share -- and one without a bearer token with
+ * {@code UNAUTHENTICATED}, both before the handler runs. Token validation itself is asynchronous and
  * happens in {@link Principals#current()}, inside the call's reactive session, where the account
  * and device rows are also written.
  */
@@ -29,6 +35,8 @@ public class PrincipalInterceptor implements ServerInterceptor, Prioritized {
     static final String BEARER_PREFIX = "Bearer ";
     static final String HEALTH_SERVICE = "grpc.health.v1.Health";
     static final String REFLECTION_PREFIX = "grpc.reflection.";
+    /** The canonical 8-4-4-4-12 hex form ({@link java.util.UUID#fromString} also takes shorter groups). */
+    static final Pattern UUID_TEXT = Pattern.compile("[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}");
 
     @Inject
     CallMetadata callMetadata;
@@ -44,18 +52,32 @@ public class PrincipalInterceptor implements ServerInterceptor, Prioritized {
         if (isExempt(call.getMethodDescriptor().getServiceName())) {
             return next.startCall(call, headers);
         }
-        callMetadata.deviceId(headers.get(GrpcMetadata.WT_DEVICE));
+        String device = headers.get(GrpcMetadata.WT_DEVICE);
+        if (device != null && !isUuid(device)) {
+            return refuse(call, StatusExceptions.invalidDevice(device));
+        }
+        callMetadata.deviceId(device);
         callMetadata.clientVersion(headers.get(GrpcMetadata.WT_CLIENT));
         String authorization = headers.get(GrpcMetadata.AUTHORIZATION);
         if (!hasBearer(authorization)) {
-            call.close(StatusExceptions.unauthenticated("missing bearer token").getStatus(), new Metadata());
-            return new ServerCall.Listener<>() {
-                // the call is closed; nothing to listen for
-            };
+            return refuse(call, StatusExceptions.unauthenticated("missing bearer token"));
         }
         callMetadata.bearerPresent(true);
         callMetadata.authorization(authorization);
         return next.startCall(call, headers);
+    }
+
+    /** Closes the call with {@code error}'s status and details before the handler runs. */
+    private static <ReqT, RespT> ServerCall.Listener<ReqT> refuse(ServerCall<ReqT, RespT> call, StatusRuntimeException error) {
+        call.close(error.getStatus(), error.getTrailers());
+        return new ServerCall.Listener<>() {
+            // the call is closed; nothing to listen for
+        };
+    }
+
+    /** Whether a {@code wt-device} value is a UUID in its canonical form. */
+    static boolean isUuid(String value) {
+        return UUID_TEXT.matcher(value).matches();
     }
 
     /** Health (compose, the load balancer) and reflection (grpcurl in dev) carry no token. */

@@ -83,15 +83,39 @@ class InterceptorsTest {
         PrincipalInterceptor interceptor = principalInterceptor();
         Metadata headers = new Metadata();
         headers.put(GrpcMetadata.AUTHORIZATION, "bearer abc.def.ghi");
-        headers.put(GrpcMetadata.WT_DEVICE, "dev-1");
+        headers.put(GrpcMetadata.WT_DEVICE, "0f0e0d0c-0b0a-4908-8706-050403020100");
         headers.put(GrpcMetadata.WT_CLIENT, "macos/1.0/7");
         FakeCall call = new FakeCall(ME);
         interceptor.interceptCall(call, headers, call.handler());
         assertThat(call.started).isTrue();
         assertThat(interceptor.callMetadata.bearerPresent()).isTrue();
         assertThat(interceptor.callMetadata.authorization()).isEqualTo("bearer abc.def.ghi");
-        assertThat(interceptor.callMetadata.deviceId()).isEqualTo("dev-1");
+        assertThat(interceptor.callMetadata.deviceId()).isEqualTo("0f0e0d0c-0b0a-4908-8706-050403020100");
         assertThat(interceptor.callMetadata.clientVersion()).isEqualTo("macos/1.0/7");
+    }
+
+    /** TEST-001 finding (d): a device id that is not a UUID is refused, not bound to the all-zero device. */
+    @Test
+    void aDeviceThatIsNotAUuidIsRefused() {
+        for (String device : new String[] {"device-ana", "", "1-1-1-1-1", "0f0e0d0c-0b0a-4908-8706-05040302010", "sync-it-device"}) {
+            PrincipalInterceptor interceptor = principalInterceptor();
+            Metadata headers = new Metadata();
+            headers.put(GrpcMetadata.AUTHORIZATION, "Bearer abc.def.ghi");
+            headers.put(GrpcMetadata.WT_DEVICE, device);
+            FakeCall call = new FakeCall(ME);
+            interceptor.interceptCall(call, headers, call.handler());
+            assertThat(call.started).as(device).isFalse();
+            assertThat(call.closed.getCode()).as(device).isEqualTo(Status.Code.INVALID_ARGUMENT);
+            assertThat(call.closed.getDescription()).isEqualTo("wt-device must be a UUID, got \"" + device + "\"");
+            assertThat(interceptor.callMetadata.deviceId()).isNull();
+        }
+        // Either case of the canonical form is a UUID; a missing header is no device.
+        assertThat(PrincipalInterceptor.isUuid("0F0E0D0C-0B0A-4908-8706-050403020100")).isTrue();
+        Metadata headers = new Metadata();
+        headers.put(GrpcMetadata.AUTHORIZATION, "Bearer abc.def.ghi");
+        FakeCall call = new FakeCall(ME);
+        principalInterceptor().interceptCall(call, headers, call.handler());
+        assertThat(call.started).isTrue();
     }
 
     static PrincipalInterceptor principalInterceptor() {

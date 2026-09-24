@@ -35,7 +35,10 @@ public class CallMetadata {
         this.deviceId = value;
     }
 
-    /** The {@code wt-device} id as a UUID, or null when absent or malformed. */
+    /**
+     * The {@code wt-device} id as a UUID, or null when absent (or malformed, which a call never is:
+     * {@link PrincipalInterceptor} refuses it with {@code INVALID_ARGUMENT}).
+     */
     public UUID deviceUuid() {
         if (deviceId == null) {
             return null;

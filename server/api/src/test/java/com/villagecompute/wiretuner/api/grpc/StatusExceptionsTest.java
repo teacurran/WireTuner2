@@ -91,6 +91,20 @@ class StatusExceptionsTest {
     }
 
     @Test
+    void anInvalidDeviceNamesTheKeyWithoutAReason() {
+        StatusRuntimeException e = StatusExceptions.invalidDevice("device-ana");
+        assertThat(e.getStatus().getCode()).isEqualTo(Status.Code.INVALID_ARGUMENT);
+        assertThat(e.getStatus().getDescription()).isEqualTo("wt-device must be a UUID, got \"device-ana\"");
+        assertThat(StatusExceptions.reasonOf(e)).isEmpty();
+        com.google.rpc.Status status = StatusProto.fromThrowable(e);
+        assertThat(status.getDetailsList()).hasSize(1);
+        assertThat(status.getDetails(0).is(com.google.rpc.BadRequest.class)).isTrue();
+        String longValue = "x".repeat(100);
+        assertThat(StatusExceptions.invalidDevice(longValue).getStatus().getDescription())
+                .isEqualTo("wt-device must be a UUID, got \"" + "x".repeat(64) + "...\"");
+    }
+
+    @Test
     void foreignErrorsHaveNoDetails() {
         assertThat(StatusExceptions.reasonOf(new IllegalStateException("x"))).isEmpty();
         assertThat(StatusExceptions.retryDelayOf(new IllegalStateException("x"))).isEmpty();
