@@ -31,14 +31,21 @@ public struct SVGDocument: Sendable {
 /// Writes flattened pages as SVG.
 public struct SVGWriter: Sendable {
     public var options: SVGOptions
+    /// Where a page link to each document page number points (WEB-023): the page's own file
+    /// (`page-3.svg`) when pages are separate files, `#page-3` when they share one, the published
+    /// page (`page-3.html`, `#page-3`) for the HTML publisher.  A page link to a page without an
+    /// entry falls back to the object's URL.
+    public var pageHrefs: [Int: String] = [:]
 
-    public init(options: SVGOptions = .defaults) {
+    public init(options: SVGOptions = .defaults, pageHrefs: [Int: String] = [:]) {
         self.options = options
+        self.pageHrefs = pageHrefs
     }
 
     /// `page` as SVG; linked images go in `resourceFolder` (relative to the SVG).
     public func write(_ page: FlatPage, scene: ExportScene, resourceFolder: String = "images") -> SVGDocument {
         let build = SVGBuild(options: options, page: page, scene: scene, resourceFolder: resourceFolder)
+        build.pageHrefs = pageHrefs
         return build.document()
     }
 }
@@ -61,6 +68,8 @@ final class SVGBuild {
     var resources: [(path: String, data: Data)] = []
     var notes: [String] = []
     var wideColors = 0
+    /// Page links' targets by document page number (`SVGWriter.pageHrefs`).
+    var pageHrefs: [Int: String] = [:]
     /// Pasteboard → page space.
     let toPage: AffineTransform
 
@@ -86,6 +95,7 @@ final class SVGBuild {
         for node in page.nodes {
             write(node)
         }
+        writeTextLinks()
         var out = XMLStream(minify: options.minify)
         var text = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
         if !options.minify {
@@ -197,9 +207,12 @@ final class SVGBuild {
     // MARK: Elements
 
     func write(_ node: FlatNode) {
-        let link = scene.info(for: node.node)?.url
+        let link = anchor(scene.info(for: node.node))
         if let link {
-            body.start("a", [("xlink:href", link)])
+            body.start("a", link.attributes)
+            if let title = link.title {
+                body.element("title", text: title)
+            }
         }
         switch node {
         case .path(let path):
@@ -213,6 +226,47 @@ final class SVGBuild {
         }
         if link != nil {
             body.end()
+        }
+    }
+
+    // MARK: Links (WEB-005, WEB-023)
+
+    /// The `<a>` an object's click becomes: `xlink:href` from its page link (via `pageHrefs`) or
+    /// its URL completed by `WebLinks.href`, `target="_blank"` for *New tab*, and a `<title>`
+    /// child carrying the link's alt text.  Nil for no link or an address that cannot be made
+    /// valid (the output warnings list it).
+    func anchor(_ info: ExportNodeInfo?) -> (attributes: [(String, String?)], title: String?)? {
+        guard let info, info.url != nil || info.pageLink != nil else { return nil }
+        let href: String?
+        if let page = info.pageLink, let target = pageHrefs[page] {
+            href = target
+        } else {
+            href = info.url.flatMap(WebLinks.href)
+        }
+        guard let href else { return nil }
+        let target = info.linkTarget == .newTab && info.pageLink.flatMap({ pageHrefs[$0] }) == nil ? "_blank" : nil
+        return ([("xlink:href", href), ("target", target)], info.linkAlt)
+    }
+
+    /// Text-range links on this page: an anchor over each line of each range, holding an
+    /// invisible rectangle that takes the click (the glyphs stay where the text writer put them).
+    func writeTextLinks() {
+        for node in scene.textLinks.keys.sorted() {
+            for link in scene.textLinks[node]! {
+                guard let href = WebLinks.href(link.url) else { continue }
+                let rects = link.rects.compactMap { $0.intersection(page.bounds).nonEmpty }
+                guard !rects.isEmpty else { continue }
+                body.start("a", [("xlink:href", href)])
+                if let title = link.alt {
+                    body.element("title", text: title)
+                }
+                for rect in rects {
+                    let box = rect.applying(toPage)
+                    body.element("rect", [("x", number(box.minX)), ("y", number(box.minY)), ("width", number(box.width)), ("height", number(box.height)),
+                                          ("fill", "#000"), ("fill-opacity", "0")])
+                }
+                body.end()
+            }
         }
     }
 

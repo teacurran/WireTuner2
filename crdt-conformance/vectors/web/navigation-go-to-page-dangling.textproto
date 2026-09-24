@@ -1,0 +1,43 @@
+# crdt-conformance/vectors/web/navigation-go-to-page-dangling.textproto (WEB-001, WEB-021; schema: crdt-conformance/schema/vector.proto)
+name: "web/navigation-go-to-page-dangling"
+description: "Replica 1 links the object to page 3:7 while replica 2 deletes that page.  The go_to_page register keeps its NodeRef (REF_FALLBACK_UNSET is applied at read time, writing nothing) and the page is a tombstone, so restoring the page brings the link back."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Create"
+    ops { create { parent { counter: 4 } position: "\x80" props { layer { common { name: "Layer 1" } } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x80" props { rect { common { name: "Next" } size { width: 40 height: 20 } } } } }
+    ops { create { parent { counter: 2 } position: "\x80" props { page { common { name: "Two" } } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 4 base_server_seq: 1 label: "Link to page 2"
+    ops { set { node { counter: 2 replica: 7 }
+      paths { segments { field: 21 } segments { field: 1 } segments { field: 8 } segments { field: 3 } }
+      values { rect { common { navigation { go_to_page { id { counter: 3 replica: 7 } } } } } } } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 4 base_server_seq: 1 label: "Remove page"
+    ops { set_deleted { node { counter: 3 replica: 7 } deleted: true } }
+  }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "16b5076734afbf7a76ab32fc77f4ddb5126f95218b0c461a47e5753e7e4c51bf"
+  snapshot_hash: "d26ddd8464c27db5a47a0ba47329a3a74527fc663407237791b731e7bc032363"
+  node {
+    id { counter: 2 replica: 7 }
+    node_hash: ""
+    register { path { segments { field: 21 } segments { field: 1 } segments { field: 8 } segments { field: 3 } } value { rect { common { navigation { go_to_page { id { counter: 3 replica: 7 } } } } } } op { counter: 4 replica: 1 } }
+  }
+  node {
+    id { counter: 3 replica: 7 }
+    node_hash: ""
+    tree { parent { counter: 2 } position: "\x80" deleted: true }
+  }
+}

@@ -1,0 +1,39 @@
+# crdt-conformance/vectors/web/navigation-url-concurrent-links.textproto (WEB-001; schema: crdt-conformance/schema/vector.proto)
+name: "web/navigation-url-concurrent-links"
+description: "Two replicas link the same object to different URLs.  CommonProps.url is an ATOMIC register: the greater OpId (replica 2) wins and replica 1's write is retained as the losing write."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Create"
+    ops { create { parent { counter: 4 } position: "\x80" props { layer { common { name: "Layer 1" } } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x80" props { rect { common { name: "Button" } size { width: 40 height: 20 } } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 3 base_server_seq: 1 label: "Link"
+    ops { set { node { counter: 2 replica: 7 }
+      paths { segments { field: 21 } segments { field: 1 } segments { field: 6 } }
+      values { rect { common { url: "https://a.example" } } } } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 3 base_server_seq: 1 label: "Link"
+    ops { set { node { counter: 2 replica: 7 }
+      paths { segments { field: 21 } segments { field: 1 } segments { field: 6 } }
+      values { rect { common { url: "https://b.example" } } } } }
+  }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "0a89803eafaabad9341848c676197ac1ae75b6346656348863c441fc37e15e69"
+  snapshot_hash: "69fa545a91e60ad7572e2bf3307e58df612c22356e1cf071a45f14a08c679395"
+  node {
+    id { counter: 2 replica: 7 }
+    node_hash: ""
+    register { path { segments { field: 21 } segments { field: 1 } segments { field: 6 } } value { rect { common { url: "https://b.example" } } } op { counter: 3 replica: 2 } losing { counter: 3 replica: 1 } }
+  }
+}

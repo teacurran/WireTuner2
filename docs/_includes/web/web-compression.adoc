@@ -120,6 +120,17 @@ Nothing.
 settings on a background task, debounced 300 ms, cancelled on change.  The *Export* sheet itself
 belongs to the IO epic; this page contributes the presets and the estimate.
 
+NOTE: As built by WEB-006, the WTInterchange half (`WTInterchange/Export/WebExportPresets.swift`).
+`WebExportPreset` (format, scale 1× or 2×, quality, *Strip metadata*, transparency, matte) with
+`options()` giving the format's options and `scene(_:)` dropping Document Info when stripping;
+`WebExportPreset.builtIn` are the four *Web* presets.  `WebExportPresetStore` keeps the user's
+presets under `wt.export.presets` (built-in ids cannot be overwritten; formats this Mac cannot
+encode, such as AVIF before macOS 14, are left out of `all`); `WebPresetFile` reads and writes the
+versioned `.wtpreset` JSON.  `ExportSizeEstimate.bytes` exports to a scratch folder at the given
+settings and sums the files, so the estimate is the written size.  The one-second budget for a
+2,000 × 2,000-pixel page is a perf-run test (release, `WT_PERF=1`); in a debug build the rasterizer
+takes several seconds.  The Export sheet's preset pop-up and readout are the IO epic's sheet.
+
 === Build tasks
 
 [[WEB-006]]

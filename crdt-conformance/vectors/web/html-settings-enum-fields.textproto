@@ -1,0 +1,54 @@
+# crdt-conformance/vectors/web/html-settings-enum-fields.textproto (WEB-007; schema: crdt-conformance/schema/vector.proto)
+name: "web/html-settings-enum-fields"
+description: "Every enum option of the Default setting (1:7) is its own ATOMIC register.  Replica 1 writes all six enums; replica 2 concurrently writes layout, vector_format and font_mode to other values plus scale and image_quality.  The three enums both wrote go to the greater OpId (replica 2); page_mode, image_format and background keep replica 1's values; scale and quality stand."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Add HTML setting"
+    ops { element_insert { node { counter: 1 replica: 0 } sequence { segments { field: 2 } segments { field: 60 } } positions: ["\x80", "\x81"] values { settings { html_settings { name: "Default" } html_settings { name: "Web" layout: HTML_LAYOUT_WHOLE_PAGES } } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 3 base_server_seq: 1 label: "Change HTML setting"
+    ops { set { node { counter: 1 replica: 0 }
+      paths { segments { field: 2 } segments { field: 60 } segments { element { counter: 1 replica: 7 } } segments { field: 4 } }
+      paths { segments { field: 2 } segments { field: 60 } segments { element { counter: 1 replica: 7 } } segments { field: 5 } }
+      paths { segments { field: 2 } segments { field: 60 } segments { element { counter: 1 replica: 7 } } segments { field: 6 } }
+      paths { segments { field: 2 } segments { field: 60 } segments { element { counter: 1 replica: 7 } } segments { field: 8 } }
+      paths { segments { field: 2 } segments { field: 60 } segments { element { counter: 1 replica: 7 } } segments { field: 10 } }
+      paths { segments { field: 2 } segments { field: 60 } segments { element { counter: 1 replica: 7 } } segments { field: 13 } }
+      values { settings { html_settings { id { counter: 1 replica: 7 } layout: HTML_LAYOUT_POSITIONED_OBJECTS page_mode: HTML_PAGE_MODE_SEPARATE_FILES vector_format: HTML_VECTOR_FORMAT_PNG image_format: HTML_IMAGE_FORMAT_WEBP font_mode: HTML_FONT_MODE_SYSTEM background: HTML_BACKGROUND_TRANSPARENT } } } } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 3 base_server_seq: 1 label: "Change HTML setting"
+    ops { set { node { counter: 1 replica: 0 }
+      paths { segments { field: 2 } segments { field: 60 } segments { element { counter: 1 replica: 7 } } segments { field: 4 } }
+      paths { segments { field: 2 } segments { field: 60 } segments { element { counter: 1 replica: 7 } } segments { field: 6 } }
+      paths { segments { field: 2 } segments { field: 60 } segments { element { counter: 1 replica: 7 } } segments { field: 10 } }
+      paths { segments { field: 2 } segments { field: 60 } segments { element { counter: 1 replica: 7 } } segments { field: 7 } }
+      paths { segments { field: 2 } segments { field: 60 } segments { element { counter: 1 replica: 7 } } segments { field: 9 } }
+      values { settings { html_settings { id { counter: 1 replica: 7 } layout: HTML_LAYOUT_WHOLE_PAGES vector_format: HTML_VECTOR_FORMAT_SVG font_mode: HTML_FONT_MODE_OUTLINES scale: 3 image_quality: 55 } } } } }
+  }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "1d99bcbe7a03940c67c433f008eb33c4be31d926f14a05edf9d002b824fee137"
+  snapshot_hash: "1dd50f75e79f397272599faf04ab87bd1b71616a1e57715bcd27a54901e333e0"
+  node {
+    id { counter: 1 replica: 0 }
+    node_hash: ""
+    register { path { segments { field: 2 } segments { field: 60 } segments { element { counter: 1 replica: 7 } } segments { field: 4 } } value { settings { html_settings { layout: HTML_LAYOUT_WHOLE_PAGES } } } op { counter: 3 replica: 2 } losing { counter: 3 replica: 1 } }
+    register { path { segments { field: 2 } segments { field: 60 } segments { element { counter: 1 replica: 7 } } segments { field: 5 } } value { settings { html_settings { page_mode: HTML_PAGE_MODE_SEPARATE_FILES } } } op { counter: 3 replica: 1 } }
+    register { path { segments { field: 2 } segments { field: 60 } segments { element { counter: 1 replica: 7 } } segments { field: 6 } } value { settings { html_settings { vector_format: HTML_VECTOR_FORMAT_SVG } } } op { counter: 3 replica: 2 } losing { counter: 3 replica: 1 } }
+    register { path { segments { field: 2 } segments { field: 60 } segments { element { counter: 1 replica: 7 } } segments { field: 8 } } value { settings { html_settings { image_format: HTML_IMAGE_FORMAT_WEBP } } } op { counter: 3 replica: 1 } }
+    register { path { segments { field: 2 } segments { field: 60 } segments { element { counter: 1 replica: 7 } } segments { field: 10 } } value { settings { html_settings { font_mode: HTML_FONT_MODE_OUTLINES } } } op { counter: 3 replica: 2 } losing { counter: 3 replica: 1 } }
+    register { path { segments { field: 2 } segments { field: 60 } segments { element { counter: 1 replica: 7 } } segments { field: 13 } } value { settings { html_settings { background: HTML_BACKGROUND_TRANSPARENT } } } op { counter: 3 replica: 1 } }
+    register { path { segments { field: 2 } segments { field: 60 } segments { element { counter: 1 replica: 7 } } segments { field: 7 } } value { settings { html_settings { scale: 3 } } } op { counter: 3 replica: 2 } }
+    register { path { segments { field: 2 } segments { field: 60 } segments { element { counter: 1 replica: 7 } } segments { field: 9 } } value { settings { html_settings { image_quality: 55 } } } op { counter: 3 replica: 2 } }
+  }
+}

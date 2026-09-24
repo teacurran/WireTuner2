@@ -80,7 +80,7 @@ enum SVGValidator {
         "dc:title": [], "dc:creator": [], "dc:description": [], "dc:subject": [], "dc:language": [],
         "path": ["d"], "rect": ["x", "y", "width", "height"], "text": ["x", "y"],
         "image": ["x", "y", "width", "height", "preserveAspectRatio", "xlink:href"],
-        "a": ["xlink:href"],
+        "a": ["xlink:href", "target"], "title": [],
         "linearGradient": ["gradientUnits", "x1", "y1", "x2", "y2", "gradientTransform"],
         "radialGradient": ["gradientUnits", "cx", "cy", "r", "gradientTransform"],
         "stop": ["offset"], "clipPath": ["clipPathUnits"], "mask": ["maskUnits", "x", "y", "width", "height"],

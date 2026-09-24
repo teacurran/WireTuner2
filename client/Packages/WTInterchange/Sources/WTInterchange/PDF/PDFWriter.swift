@@ -61,6 +61,11 @@ final class PDFDocumentBuild {
     var convertedImages = 0
     /// Optional content groups by layer node, in first-use order.
     private(set) var layerGroups: [(node: NodeID, object: Int)] = []
+    /// The document page numbers of the exported pages, in order (page links, WEB-023).
+    lazy var pageNumbers: [Int] = WebLinks.pageNumbers(scene)
+    lazy var pageNumberSet = Set(pageNumbers)
+    /// Whether a page link was written: the catalog then names each page's destination.
+    var writesPageDestinations = false
 
     init(options: PDFOptions, scene: ExportScene, cmyk: any CMYKConverter = ProfileCMYKConverter()) {
         self.options = options
@@ -96,6 +101,10 @@ final class PDFDocumentBuild {
             ("Count", .int(pageObjects.count)),
         ]))
         var catalog: [(String, PDFValue)] = [("Type", .name("Catalog")), ("Pages", .reference(pagesObject))]
+        if writesPageDestinations {
+            // `/D /pageN` in a GoTo action names the page's fit-page destination.
+            catalog.append(("Dests", .dictionary(zip(pageNumbers, pageObjects).map { ("page\($0)", .array([.reference($1), .name("Fit")])) })))
+        }
         var info: Int?
         if options.includeDocumentInfo {
             info = objects.add(infoDictionary())
@@ -277,15 +286,36 @@ final class PDFDocumentBuild {
             dictionary.append(("ArtBox", .rect(box.minX, box.minY, box.maxX, box.maxY)))
         }
         dictionary += [("Resources", stream.resources.value), ("Contents", .reference(contents))]
+        if options.linksFromURLs {
+            // Text-range links: one annotation per line of the range (WEB-005).
+            for node in scene.textLinks.keys.sorted() {
+                for link in scene.textLinks[node]! {
+                    guard let href = WebLinks.href(link.url) else { continue }
+                    for rect in link.rects {
+                        if let box = rect.intersection(page.bounds).nonEmpty { stream.links.append((.uri(href), link.alt, box)) }
+                    }
+                }
+            }
+        }
         var annotations = stream.links.map { link -> PDFValue in
             let box = link.bounds.applying(base)
-            return .reference(objects.add(.dictionary([
+            let action: PDFValue
+            switch link.action {
+            case .uri(let url):
+                action = .dictionary([("S", .name("URI")), ("URI", .string(url))])
+            case .page(let number):
+                writesPageDestinations = true
+                action = .dictionary([("S", .name("GoTo")), ("D", .name("page\(number)"))])
+            }
+            var entries: [(String, PDFValue)] = [
                 ("Type", .name("Annot")),
                 ("Subtype", .name("Link")),
                 ("Rect", .rect(box.minX, box.minY, box.maxX, box.maxY)),
                 ("Border", .array([.int(0), .int(0), .int(0)])),
-                ("A", .dictionary([("S", .name("URI")), ("URI", .string(link.url))])),
-            ])))
+                ("A", action),
+            ]
+            if let alt = link.alt { entries.append(("Contents", .string(alt))) }
+            return .reference(objects.add(.dictionary(entries)))
         }
         // A note is a closed comment icon whose top-left corner is the object's.
         annotations += stream.notes.map { note -> PDFValue in
@@ -558,8 +588,9 @@ final class PDFStreamWriter {
     let resources = PDFResources()
     /// Pasteboard → this stream's default space (pattern matrices are relative to it).
     let patternBase: AffineTransform
-    /// Attached URLs and their pasteboard bounds.
-    var links: [(url: String, bounds: Rect)] = []
+    /// Links (URLs completed by `WebLinks.href`, or page links), their alt text and pasteboard
+    /// bounds.
+    var links: [(action: ExportLinkAction, alt: String?, bounds: Rect)] = []
     /// Object notes, with the object's name and pasteboard bounds.
     var notes: [(text: String, title: String?, bounds: Rect)] = []
 
@@ -573,8 +604,8 @@ final class PDFStreamWriter {
 
     func write(_ node: FlatNode) {
         let info = build.scene.info(for: node.node)
-        if options.linksFromURLs, let url = info?.url, let bounds = node.bounds {
-            links.append((url, bounds))
+        if options.linksFromURLs, let action = WebLinks.action(info, pages: build.pageNumberSet), let bounds = node.bounds {
+            links.append((action, info?.linkAlt, bounds))
         }
         if options.notesAsComments, let note = info?.note, !note.isEmpty, let bounds = node.bounds {
             notes.append((note, info?.name, bounds))

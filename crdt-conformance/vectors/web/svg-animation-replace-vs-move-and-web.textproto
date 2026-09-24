@@ -1,0 +1,62 @@
+# crdt-conformance/vectors/web/svg-animation-replace-vs-move-and-web.textproto (WEB-024; schema: crdt-conformance/schema/vector.proto)
+name: "web/svg-animation-replace-vs-move-and-web"
+description: "Replica 1 replaces the file (asset, natural_size, duration_ms, kinds, poster_time_ms and poster in one SetFields, poster left unset) while replica 2 moves the object and replica 3 turns autoplay off and loops once.  transform and the web props are independent registers, so the move and the playback settings survive the replace."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Place SVG animation"
+    ops { create { parent { counter: 4 } position: "\x80" props { layer { common { name: "Layer 1" } } } } }
+    ops { create { parent { counter: 9 } position: "\x80" props { asset { common { name: "spin.svg" } media_type: "image/svg+xml" } } } }
+    ops { create { parent { counter: 9 } position: "\x81" props { asset { common { name: "spin poster" } media_type: "image/png" } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x80" props { svg_animation { common { name: "Spinner" } asset { id { counter: 2 replica: 7 } } natural_size { width: 200 height: 100 } duration_ms: 2000 kinds { css: true } poster { id { counter: 3 replica: 7 } } } } } }
+    ops { create { parent { counter: 9 } position: "\x82" props { asset { common { name: "mine" } media_type: "image/png" } } } }
+    ops { create { parent { counter: 9 } position: "\x83" props { asset { common { name: "theirs" } media_type: "image/png" } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 7 base_server_seq: 1 label: "Replace SVG animation"
+    ops { set { node { counter: 4 replica: 7 }
+      paths { segments { field: 190 } segments { field: 2 } }
+      paths { segments { field: 190 } segments { field: 3 } }
+      paths { segments { field: 190 } segments { field: 4 } }
+      paths { segments { field: 190 } segments { field: 5 } }
+      paths { segments { field: 190 } segments { field: 6 } }
+      paths { segments { field: 190 } segments { field: 7 } }
+      values { svg_animation { asset { id { counter: 5 replica: 7 } } natural_size { width: 50 height: 60 } kinds { smil: true script: true } } } } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 7 base_server_seq: 1 label: "Move"
+    ops { set { node { counter: 4 replica: 7 }
+      paths { segments { field: 190 } segments { field: 1 } segments { field: 4 } }
+      values { svg_animation { common { transform { a: 1 d: 1 tx: 99 ty: 1 } } } } } }
+  }
+}
+replica {
+  id: 3
+  change {
+    replica: 3 seq: 1 start_counter: 7 base_server_seq: 1 label: "SVG Animation Playback"
+    ops { set { node { counter: 4 replica: 7 }
+      paths { segments { field: 190 } segments { field: 8 } segments { field: 1 } }
+      paths { segments { field: 190 } segments { field: 8 } segments { field: 2 } }
+      values { svg_animation { web { no_autoplay: true loop: LOOP_MODE_ONCE } } } } }
+  }
+}
+deliveries { order: [1, 2, 3] }
+deliveries { order: [3, 2, 1] }
+expect {
+  state_hash: "1d9519456a91c2a4749e4ac8433e648461f754c383a94a78c696e03440f324a4"
+  snapshot_hash: "27605cfd3947e82a51337c124ddc22b622a5c791c18649029aeae56062c5375e"
+  node {
+    id { counter: 4 replica: 7 }
+    node_hash: ""
+    register { path { segments { field: 190 } segments { field: 1 } segments { field: 4 } } value { svg_animation { common { transform { a: 1 d: 1 tx: 99 ty: 1 } } } } op { counter: 7 replica: 2 } }
+    register { path { segments { field: 190 } segments { field: 2 } } value { svg_animation { asset { id { counter: 5 replica: 7 } } } } op { counter: 7 replica: 1 } losing { counter: 4 replica: 7 } }
+    register { path { segments { field: 190 } segments { field: 7 } } op { counter: 7 replica: 1 } losing { counter: 4 replica: 7 } }
+    register { path { segments { field: 190 } segments { field: 8 } segments { field: 1 } } value { svg_animation { web { no_autoplay: true } } } op { counter: 7 replica: 3 } }
+    register { path { segments { field: 190 } segments { field: 8 } segments { field: 2 } } value { svg_animation { web { loop: LOOP_MODE_ONCE } } } op { counter: 7 replica: 3 } }
+  }
+}

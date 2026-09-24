@@ -6,6 +6,7 @@ import WTGeometry
 import WTInterchange
 import WTProto
 import WTRender
+import WTText
 
 /// What an export takes from the document (exporting.adoc, "Merge semantics"; IO-014's
 /// `SceneSnapshot`): an immutable `ExportScene` built on the main actor the instant the export
@@ -152,7 +153,8 @@ public struct ExportSnapshot: Sendable {
         let background = backgrounds[state.props(WellKnown.settings).settings.animation.background] ?? .pageColor
         let pages = request.pages.map(\.bounds)
         return ExportAnimation(frames: info.frames(pages: pages), fps: info.fps, loop: info.loop, background: background, displayList: displayList,
-                               area: area ?? pages.first ?? displayList.bounds ?? Rect(x: 0, y: 0, width: 1, height: 1), pageColor: request.pageColor)
+                               area: area ?? pages.first ?? displayList.bounds ?? Rect(x: 0, y: 0, width: 1, height: 1), pageColor: request.pageColor,
+                               autoplay: info.autoplay)
     }
 
     /// One text block per text node on the exported pages (export-text.adoc): every text node on
@@ -189,6 +191,34 @@ public struct ExportSnapshot: Sendable {
         return blocks
     }
 
+    /// The text-range links of the text nodes in `scene` laid out with `engine` (the window's
+    /// `DocumentFontIndex.layoutEngine`), one rectangle per line in pasteboard space (WEB-005):
+    /// the app assigns the result to `ExportScene.textLinks` after `capture`, which cannot lay out
+    /// text off the main actor.  Blocks under a deleted container are left out; exporters clip
+    /// the rectangles to each page.
+    @MainActor
+    public static func textLinks(_ state: EngineState, engine: TextLayoutEngine) -> [NodeID: [ExportTextLink]] {
+        var result: [NodeID: [ExportTextLink]] = [:]
+        for node in state.store.nodes.sorted() where state.store.kind(node) == TextFields.kind && Reachability.isReachable(node, in: state) {
+            guard let text = TextNode(node, in: state) else { continue }
+            let runs = TextLinks.runs(text)
+            guard !runs.isEmpty else { continue }
+            let layout = TextLayoutReading.layout(text, engine: engine)
+            let transform = Objects.pasteboardTransform(of: node, in: state)
+            let links = runs.compactMap { run -> ExportTextLink? in
+                let rects = layout.selection(from: run.range.lowerBound, to: run.range.upperBound).compactMap { quad -> Rect? in
+                    let points = quad.corners.map(transform.apply)
+                    guard let minX = points.map(\.x).min(), let maxX = points.map(\.x).max(), let minY = points.map(\.y).min(),
+                          let maxY = points.map(\.y).max() else { return nil }
+                    return Rect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
+                }
+                return rects.isEmpty ? nil : ExportTextLink(url: run.url, rects: rects)
+            }
+            if !links.isEmpty { result[NodeID(node)] = links }
+        }
+        return result
+    }
+
     static func story(_ text: TextNode) -> ExportStory {
         ExportStory(paragraphs: text.paragraphs.map { paragraph in
             let scalars = paragraph.range.compactMap(text.scalar(at:)).filter { $0 != "\n" }
@@ -213,6 +243,8 @@ struct ExportCapture {
     private(set) var postScript: [NodeID: ExportPostScript] = [:]
     private(set) var missing: [String] = []
     private var tried: Set<String> = []
+    /// Document page numbers (1-based) by page node, for page links.
+    private lazy var pageNumbers: [OpID: Int] = Dictionary(uniqueKeysWithValues: PageList(state).pages.map { ($0.id, $0.number) })
 
     init(state: EngineState, screen: DocumentScene, output: DisplayList, blob: @escaping (Data) -> Data?) {
         self.state = state
@@ -238,7 +270,9 @@ struct ExportCapture {
                 let page = request.pages[index]
                 let keep = output.itemBounds.indices.filter { output.itemBounds[$0]?.intersects(page.bounds) == true }
                 let bounds = request.includePageBoundary ? page.bounds : union(keep) ?? page.bounds
-                return self.page(keep, bounds: bounds, name: page.name, background: request.pageColor, bleed: page.bleed)
+                var exported = self.page(keep, bounds: bounds, name: page.name, background: request.pageColor, bleed: page.bleed)
+                exported.number = index + 1
+                return exported
             }
         case .area(let area):
             let keep = output.itemBounds.indices.filter { output.itemBounds[$0]?.intersects(area) == true }
@@ -306,8 +340,12 @@ struct ExportCapture {
             postScript[node] = ExportPostScript(data: data, boundingBox: bounds, bounds: bounds, transform: Objects.pasteboardTransform(of: id, in: state))
         }
         if let common = NodeValues.common(props) {
-            let info = ExportNodeInfo(name: Self.text(common.name), alt: Self.text(common.alt), decorative: common.decorative, url: Self.text(common.url),
-                                      isLayer: isLayer, note: Self.text(common.note))
+            // The navigation facts (WEB-005, WEB-023), with the read-time normalizations.
+            let navigation = NavigationInfo(common, in: state)
+            let info = ExportNodeInfo(name: Self.text(common.name), alt: Self.text(common.alt), decorative: common.decorative, url: navigation.url,
+                                      isLayer: isLayer, note: Self.text(common.note), linkAlt: navigation.alt,
+                                      linkTarget: navigation.target == .newTab ? .newTab : .sameWindow,
+                                      pageLink: navigation.goToPage.flatMap { pageNumbers[$0] })
             if info != ExportNodeInfo() { nodes[node] = info }
         }
     }

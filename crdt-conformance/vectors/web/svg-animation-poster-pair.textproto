@@ -1,0 +1,46 @@
+# crdt-conformance/vectors/web/svg-animation-poster-pair.textproto (WEB-024; schema: crdt-conformance/schema/vector.proto)
+name: "web/svg-animation-poster-pair"
+description: "Two replicas set different poster frames concurrently, each writing poster_time_ms and poster in one SetFields.  Both registers take the op's OpId, so the greater change (replica 2) wins both and the poster always matches its time."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Place SVG animation"
+    ops { create { parent { counter: 4 } position: "\x80" props { layer { common { name: "Layer 1" } } } } }
+    ops { create { parent { counter: 9 } position: "\x80" props { asset { common { name: "spin.svg" } media_type: "image/svg+xml" } } } }
+    ops { create { parent { counter: 9 } position: "\x81" props { asset { common { name: "spin poster" } media_type: "image/png" } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x80" props { svg_animation { common { name: "Spinner" } asset { id { counter: 2 replica: 7 } } natural_size { width: 200 height: 100 } duration_ms: 2000 kinds { css: true } poster { id { counter: 3 replica: 7 } } } } } }
+    ops { create { parent { counter: 9 } position: "\x82" props { asset { common { name: "mine" } media_type: "image/png" } } } }
+    ops { create { parent { counter: 9 } position: "\x83" props { asset { common { name: "theirs" } media_type: "image/png" } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 7 base_server_seq: 1 label: "Poster Frame"
+    ops { set { node { counter: 4 replica: 7 }
+      paths { segments { field: 190 } segments { field: 6 } }
+      paths { segments { field: 190 } segments { field: 7 } }
+      values { svg_animation { poster_time_ms: 500 poster { id { counter: 5 replica: 7 } } } } } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 7 base_server_seq: 1 label: "Poster Frame"
+    ops { set { node { counter: 4 replica: 7 }
+      paths { segments { field: 190 } segments { field: 6 } }
+      paths { segments { field: 190 } segments { field: 7 } }
+      values { svg_animation { poster_time_ms: 1200 poster { id { counter: 6 replica: 7 } } } } } }
+  }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "8cac042839f7aa60643f78e793134f542ad9931a83d23e6400ead84fd25f8894"
+  snapshot_hash: "1b0f1e1b613de752641fb424946f66256594ea8d108d420d3e6af8e718f2ff69"
+  node {
+    id { counter: 4 replica: 7 }
+    node_hash: ""
+    register { path { segments { field: 190 } segments { field: 6 } } value { svg_animation { poster_time_ms: 1200 } } op { counter: 7 replica: 2 } losing { counter: 7 replica: 1 } }
+    register { path { segments { field: 190 } segments { field: 7 } } value { svg_animation { poster { id { counter: 6 replica: 7 } } } } op { counter: 7 replica: 2 } losing { counter: 4 replica: 7 } losing { counter: 7 replica: 1 } }
+  }
+}

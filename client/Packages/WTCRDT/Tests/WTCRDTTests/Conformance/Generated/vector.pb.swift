@@ -1206,6 +1206,15 @@ nonisolated struct Wiretuner_Conformance_V1_TestMarkValue: Sendable {
     set {value = .feature(newValue)}
   }
 
+  /// a text-range link (WEB-001)
+  var link: String {
+    get {
+      if case .link(let v)? = value {return v}
+      return String()
+    }
+    set {value = .link(newValue)}
+  }
+
   var unknownFields = SwiftProtobuf.UnknownStorage()
 
   nonisolated enum OneOf_Value: Equatable, Sendable {
@@ -1218,6 +1227,8 @@ nonisolated struct Wiretuner_Conformance_V1_TestMarkValue: Sendable {
     case axes(WTProto.Wiretuner_Doc_V1_FontVariation)
     /// keyed by (feature, tag)
     case feature(Wiretuner_Conformance_V1_TestFeature)
+    /// a text-range link (WEB-001)
+    case link(String)
 
   }
 
@@ -3742,7 +3753,7 @@ nonisolated extension Wiretuner_Conformance_V1_TestTextMark: SwiftProtobuf.Messa
 
 nonisolated extension Wiretuner_Conformance_V1_TestMarkValue: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   static let protoMessageName: String = _protobuf_package + ".TestMarkValue"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}font_family\0\u{2}\u{2}size\0\u{2}\u{a}url\0\u{2}\u{7}axes\0\u{1}feature\0\u{2}\u{9}bold\0")
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}font_family\0\u{2}\u{2}size\0\u{2}\u{a}url\0\u{2}\u{7}axes\0\u{1}feature\0\u{2}\u{9}bold\0\u{2}\u{a}link\0")
 
   mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -3808,6 +3819,14 @@ nonisolated extension Wiretuner_Conformance_V1_TestMarkValue: SwiftProtobuf.Mess
           self.value = .bold(v)
         }
       }()
+      case 40: try {
+        var v: String?
+        try decoder.decodeSingularStringField(value: &v)
+        if let v = v {
+          if self.value != nil {try decoder.handleConflictingOneOf()}
+          self.value = .link(v)
+        }
+      }()
       default: break
       }
     }
@@ -3842,6 +3861,10 @@ nonisolated extension Wiretuner_Conformance_V1_TestMarkValue: SwiftProtobuf.Mess
     case .bold?: try {
       guard case .bold(let v)? = self.value else { preconditionFailure() }
       try visitor.visitSingularBoolField(value: v, fieldNumber: 30)
+    }()
+    case .link?: try {
+      guard case .link(let v)? = self.value else { preconditionFailure() }
+      try visitor.visitSingularStringField(value: v, fieldNumber: 40)
     }()
     case nil: break
     }

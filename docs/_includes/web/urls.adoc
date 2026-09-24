@@ -217,8 +217,9 @@ person's alt text and another's target both stand.
 Text-range `link` marks:: Peritext marks.  Two concurrent links on overlapping ranges resolve by
 the mark rules: in the overlap the later mark's value wins, outside it each range keeps its own.
 A link mark on a range that someone concurrently deleted vanishes with the characters; a link on a
-range someone concurrently typed inside grows to cover the typed characters (marks expand at the
-end, not at the start, per the Type pages).
+range someone concurrently typed inside grows to cover the typed characters.  Text typed at either
+edge of a link is not linked: a `link` mark is one of the marks that never grow (its end is anchored
+after its last character, per the Type pages' `TextMarks.expands`).
 Update everywhere:: One `Change` with one `SetFields` (or `TextMark`) per found node.  It is not
 transactional across nodes: an object linked to the old URL concurrently by someone else keeps the
 old URL, as the guide says.  No normalization is attempted.
@@ -265,6 +266,44 @@ Package `WTApp` for the panel and the view overlay, `WTModel` for the commands,
   node's page-space bounds, one per text line for ranges.  The SVG writer wraps nodes in `<a>`;
   text ranges are split into `<tspan>`s at mark boundaries by the text layout (TXT-001).
 
+NOTE: As built by WEB-001 (`WTModel/NavigationCommands.swift`, `NavigationIndex.swift`).  The
+commands are `SetLink(nodes, url:)` ("Link" / "Remove Link", "Change link on N objects" for
+several), `SetTextLink(node:from:to:url:)` (an `ApplyMark` of `link`), `SetLinkAlt` ("Link Alt
+Text"), `SetLinkTarget` ("Opens In"), `SetGoToPage` ("Link to page N" / "Remove page link", refusing
+anything but a live page) and `ReplaceLink(uses, with:)`, the model half of *Update everywhere*
+(WEB-003): one `SetFields` or `TextMark` per found use.  Inverses are the ordinary APP-011 ones.
+Every kind carries `CommonProps` as field 1, so the register paths are built from the node's kind
+number (`NavigationFields`) and a placed SVG animation or image takes links like a path.  Links are
+refused on layers, pages and settings, and URLs over 2,048 or alt text over 1,024 characters are
+refused before any change.  `NavigationInfo` applies the read-time rules (a blank `url` unset, an
+unspecified target *Same window*, a `go_to_page` that is not a live page unset, with the stored
+reference kept as `danglingPage` for *(deleted page)*) and derives `onClick` by the precedence rule.
+`DocumentIndex.links` is `LinkIndex`: it keeps the *carriers* (nodes whose own `url` or text marks
+hold a link, reachable or not), updated per applied change from the nodes its ops name (create,
+set, text insert, delete and mark), and filters by reachability when read -- a node under a deleted
+group or layer drops out -- so deletes, restores and moves (including a concurrent move the tree's
+move log re-orders) need no bookkeeping.  A randomized two-replica test checks it against a full
+scan after every step.  The conformance vectors are `crdt-conformance/vectors/web/navigation-*`
+and `link-*`; the vector schema's `TestMarkValue` gains `link = 40`, and its committed Swift was
+extended by hand because `make -C crdt-conformance generate` needs Go, which this Mac lacks.
+
+NOTE: As built by WEB-005 (`WTInterchange/Export/WebLinks.swift`, `SVG/SVGWriter.swift`,
+`PDF/PDFWriter.swift`; `WTModel/ExportSnapshot.swift`).  `ExportNodeInfo` carries `linkAlt`,
+`linkTarget` and `pageLink` (a document page number) beside `url`, filled by the snapshot through
+`NavigationInfo`.  `WebLinks.href` is the scheme completion (a scheme-less address whose first
+segment ends in a letters-only top-level domain that is not a file extension gets `https://`; an
+address with a scheme, a relative path, a fragment or `host:port` passes through; one that does not
+parse, holds a space outside `mailto:` or names `http(s)` without a host is invalid and dropped).
+The SVG writer wraps an object's element in `<a xlink:href>` with `target="_blank"` for *New tab*
+and a `<title>` child from the link's alt text.  *Deviation:* a text-range link is written as an
+`<a>` holding one invisible `<rect>` (fill-opacity 0) over each line of the range rather than by
+wrapping `<tspan>`s, because the text writer does not know the characters' offsets; the rectangles
+come from `ExportScene.textLinks`, which the app fills after `capture` with
+`ExportSnapshot.textLinks(_:engine:)` (text layout is main-actor state).  The PDF writer writes the
+completed URI, `/Contents` from the link's alt text, and one annotation per line of a text-range
+link.  `WebLinks.warnings` lists invalid links for the exporters' summaries and the publisher.  The
+wrapped element's own `<title>` from the object's alt text is IO-031's, not written here.
+
 === Build tasks
 
 [[WEB-001]]
@@ -273,7 +312,7 @@ Package `WTApp` for the panel and the view overlay, `WTModel` for the commands,
 Track:: client-model
 Depends on:: PROTO-003, CRDT-001, CRDT-006, APP-011
 Size:: S
-Delivers:: `NavigationProps` on `CommonProps` and the `link` text mark in `TextMarkValue`; `WTModel` commands `setLink(nodes:url:)`, `setLink(range:url:)`, `setAlt`, `setTarget`, with inverses; the link index (`DocumentIndex.links`) maintained from applied changes (implemented in `common.proto` (`NavigationProps`, unchanged since PROTO-003) and `text.proto` (`link` = 40) for the schema half; the `WTModel` commands and link index are client-model work still to do).
+Delivers:: `NavigationProps` on `CommonProps` and the `link` text mark in `TextMarkValue`; `WTModel` commands `setLink(nodes:url:)`, `setLink(range:url:)`, `setAlt`, `setTarget`, with inverses; the link index (`DocumentIndex.links`) maintained from applied changes (implemented in `common.proto` (`NavigationProps`, unchanged since PROTO-003) and `text.proto` (`link` = 40) for the schema half; the commands and `LinkIndex` in `WTModel/NavigationCommands.swift` and `NavigationIndex.swift`, as built above).
 Done when::
 * Setting, changing and clearing a link on an object and on a text range each produce one change with a correct inverse; undo restores the prior value only where the register is still this user's write.
 * Merge test: two replicas set different URLs on one object concurrently and converge on the greater OpId; two replicas link overlapping text ranges and converge per the mark rules.

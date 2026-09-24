@@ -387,6 +387,31 @@ resolved frame rate and loop, the stored background (unset reads as page colour)
 with its layer spans and the first exported page as the area.  The export shows the exporter's
 fraction and Cancel.  Animated SVG is not a format of the registry yet.
 
+NOTE: As built by WEB-015 (`WTModel/WebReleaseToLayers.swift`).  `ReleaseToLayers(nodes, mode:,
+reverse:, useExistingLayers:, sendToBack:, currentLayer:, textLayout:)` with `ReleaseMode.sequence`,
+`.build`, `.drop` and `.trail(n)` (`pieces(onLayer:count:)` is the assignment matrix).  Pieces, bottom
+first: a single selected group, blend or text block is taken apart; with several objects selected
+each is a piece, except that *Sequence* takes selected groups apart; a nested group is one piece.
+Group members keep their appearance through the group's transform; a blend's steps are baked one
+piece each (`ReleaseBlendSteps`, the per-step split of FX-024's baking) and its key objects move to
+the blend's slot; a text block gives one outlined piece per glyph with ink, and needs the window's
+text layout (`textLayout`, as the scene builder does) -- without one it is a single piece.  The
+first layer holding each piece receives the original (a `MoveNode`), later ones copies.  *Not built:*
+objects attached to a path.
+
+NOTE: As built by WEB-018, in part (`WTInterchange/Animation/AnimatedSVG.swift`).
+`AnimatedSVGExporter().documents(scene:options:pageHrefs:)` and `export(scene:options:to:)` write the
+animated SVG from `ExportScene.animation` (which gains `autoplay`): layers every frame shows over
+one area are written once in `<g class="bg">`, each frame is `<g class="f" id="fN">` (translated onto
+the first frame's page for the Pages sources), and each frame has its own `@keyframes wt-fN` with
+`step-end` timing and `visibility`, its share of the cycle stretched by its hold.  *Loop* sets the
+iteration count (one play keeps the last frame, `forwards`); without *Autoplay* the frames are paused
+on frame 1 and run while the pointer hovers or presses.  `AnimatedSVGOptions` overrides frame rate,
+loop, autoplay, background and pages.  *Deviation:* *Animated SVG* is not yet a case of
+`ExportFormat` (adding one changes exhaustive switches in WTApp, outside this task); the Export sheet
+reaches the exporter directly.  The headless WebKit sampling of frames is manual acceptance and was
+not recorded.
+
 === Build tasks
 
 [[WEB-014]]

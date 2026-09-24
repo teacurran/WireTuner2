@@ -16,11 +16,13 @@ public struct SVGExporter: Exporter {
     }
 
     /// Every page of `scene` as an SVG document.
-    public func documents(scene: ExportScene, options: SVGOptions, resourceFolder: (Int) -> String = { _ in "images" }) -> [SVGDocument] {
+    /// `pageHrefs` maps document page numbers to what page links point at (`SVGWriter.pageHrefs`).
+    public func documents(scene: ExportScene, options: SVGOptions, pageHrefs: [Int: String] = [:],
+                          resourceFolder: (Int) -> String = { _ in "images" }) -> [SVGDocument] {
         let flattener = SVGExporter.flattener(options: options, scene: scene)
         return scene.pages.enumerated().map { index, page in
             let flat = flattener.flatten(page, scene: scene)
-            var document = SVGWriter(options: options).write(flat.page, scene: scene, resourceFolder: resourceFolder(index))
+            var document = SVGWriter(options: options, pageHrefs: pageHrefs).write(flat.page, scene: scene, resourceFolder: resourceFolder(index))
             document.notes = flat.report.notes + document.notes
             return document
         }
@@ -35,8 +37,14 @@ public struct SVGExporter: Exporter {
         let urls = try destination.urls(count: scene.pages.count, format: .svg) { index in
             FileNamePattern.Values(name: scene.name, page: index + 1, pageName: scene.pages[index].name)
         }
-        let documents = documents(scene: scene, options: options) { urls[$0].deletingPathExtension().lastPathComponent }
+        // A page link goes to the exported file of its page (interactivity.adoc, "SVG").
+        var pageHrefs: [Int: String] = [:]
+        for (number, url) in zip(WebLinks.pageNumbers(scene), urls) {
+            pageHrefs[number] = url.lastPathComponent
+        }
+        let documents = documents(scene: scene, options: options, pageHrefs: pageHrefs) { urls[$0].deletingPathExtension().lastPathComponent }
         var summary = ExportSummary()
+        summary.notes += WebLinks.warnings(scene).filter { $0.kind == .invalidLink || $0.kind == .unusedLink }.map(\.message)
         do {
             for (document, url) in zip(documents, urls) {
                 try Data(document.text.utf8).write(to: url)

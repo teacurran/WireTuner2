@@ -159,6 +159,17 @@ Nothing beyond storing and relaying changes.
   exporter; the HTML publisher supplies `#page-N` or `page-N.html`.
 * Undo: one step per link set or cleared, labelled "Link to page N" / "Remove page link".
 
+NOTE: As built by WEB-023's exporter half (`WTInterchange/Export/WebLinks.swift`, `SVG/SVGExporter.swift`,
+`PDF/PDFWriter.swift`, `HTML/HTMLPublisher.swift`).  `ExportPage.number` is the document page number
+the snapshot gives each exported page; `WebLinks.action` resolves an object's click -- its page link
+when that page is in the output, else its completed URL.  PDF writes a GoTo action to a named
+destination (`/D /pageN`) and the catalog's `/Dests` maps each exported page to `[page /Fit]`.  The
+SVG exporter points a page link at the file it writes for that page (`SVGWriter.pageHrefs`); a page
+link to a page left out falls back to the object's URL.  The HTML publisher supplies `#page-N`
+(Stacked) or `page-N.html` (Separate files, `index.html` for the first page).  An object with both
+a link and a page target raises the unused-link warning (`ExportWarning.Kind.unusedLink`); a page
+link to a page left out raises `missingPage`.
+
 === Build tasks
 
 [[WEB-021]]

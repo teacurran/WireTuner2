@@ -1,0 +1,35 @@
+# crdt-conformance/vectors/web/link-marks-overlap.textproto (WEB-001; schema: crdt-conformance/schema/vector.proto)
+name: "web/link-marks-overlap"
+description: "Over 'abcdef' (chars 2:7 ... 7:7), replica 1 links a-e and replica 2 links d-f with another URL; link marks end after their last character (they never grow at the end).  In d-e the mark with the greater OpId (replica 2's) wins, outside the overlap each range keeps its own link."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Type"
+    ops { create { parent { counter: 4 } position: "\x80" props { text { common { name: "T" } } } } }
+    ops { text_insert { node { counter: 1 replica: 7 } text { segments { field: 130 } segments { field: 2 } } chars: "abcdef" } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 8 base_server_seq: 1 label: "Link"
+    ops { text_mark { node { counter: 1 replica: 7 } text { segments { field: 130 } segments { field: 2 } } start { char { counter: 2 replica: 7 } before: true } end { char { counter: 6 replica: 7 } } value { link: "https://a.example" } } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 8 base_server_seq: 1 label: "Link"
+    ops { text_mark { node { counter: 1 replica: 7 } text { segments { field: 130 } segments { field: 2 } } start { char { counter: 5 replica: 7 } before: true } end { char { counter: 7 replica: 7 } } value { link: "https://b.example" } } }
+  }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "aaa32058307aed12b46d620bc0bf268bb0b654603e742713fa618cfbb38cbd5c"
+  snapshot_hash: "0ed4cd5e00e47423e7d747d225b160e6c4174825c17e4fa8d42f1a151da952e8"
+  node {
+    id { counter: 1 replica: 7 }
+    node_hash: ""
+    text { path { segments { field: 130 } segments { field: 2 } } text: "abcdef" chars { counter: 2 replica: 7 } chars { counter: 3 replica: 7 } chars { counter: 4 replica: 7 } chars { counter: 5 replica: 7 } chars { counter: 6 replica: 7 } chars { counter: 7 replica: 7 } runs { start: 0 length: 3 attributes { value { link: "https://a.example" } mark { counter: 8 replica: 1 } } } runs { start: 3 length: 3 attributes { value { link: "https://b.example" } mark { counter: 8 replica: 2 } } } }
+  }
+}

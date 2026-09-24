@@ -284,6 +284,17 @@ the import pointer's marquee (kbd:[Shift] fills its width; IMG-005).
 * Undo: placing an animation is one step ("Place SVG animation"); every Object panel edit one
   step.
 
+NOTE: As built by WEB-024 (`WTModel/WebSvgAnimation.swift`).  `SvgAnimationInfo` reads a node with
+the read-time normalizations (a zero natural size 320 × 240, a poster time beyond a finite duration
+the duration, a dangling or non-asset `asset`/`poster` nil, the node then `isPlaceholder`).  The
+commands are `CreateSvgAnimation` ("Place SVG animation", on the drawing layer unless given),
+`SetSvgAnimationPoster` ("Poster Frame": `poster_time_ms` and `poster` in one `SetFields`, so both
+registers carry one OpId), `SetSvgAnimationWeb` ("SVG Animation Playback") and
+`ReplaceSvgAnimation` ("Replace SVG animation": the six file registers in one `SetFields`, leaving
+`transform` and `web`).  The kind is addressed by its number (190); `NodeKind` does not list it, so
+the object commands (move, transform) do not yet act on it.  The vectors are
+`crdt-conformance/vectors/web/svg-animation-*`.
+
 === Build tasks
 
 [[WEB-024]]
@@ -292,7 +303,7 @@ the import pointer's marquee (kbd:[Shift] fills its width; IMG-005).
 Track:: client-model
 Depends on:: PROTO-003, CRDT-001, APP-011
 Size:: S
-Delivers:: `SvgAnimationProps`, `SvgAnimationKinds` and `SvgAnimationWebProps` in the WEB kind block, commands to create, set poster, set web props and replace the asset with inverses, read-time normalizations (implemented in `svg_animation.proto` for the schema half (`svg_animation` = 190); the commands are client-model work still to do).
+Delivers:: `SvgAnimationProps`, `SvgAnimationKinds` and `SvgAnimationWebProps` in the WEB kind block, commands to create, set poster, set web props and replace the asset with inverses, read-time normalizations (implemented in `svg_animation.proto` for the schema half (`svg_animation` = 190); the commands in `WTModel/WebSvgAnimation.swift`, as built above).
 Done when::
 * Creating, editing and replacing produce one change each with correct inverses.
 * Merge test: two replicas set different poster times concurrently and converge with `poster` and `poster_time_ms` from the same winning change; a concurrent move survives a replace.

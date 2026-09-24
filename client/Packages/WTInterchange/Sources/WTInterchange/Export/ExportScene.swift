@@ -25,14 +25,26 @@ public struct ExportNodeInfo: Hashable, Sendable {
     public var isLayer: Bool
     /// The Object panel note (`CommonProps.note`): a PDF comment under *Notes as comments*.
     public var note: String?
+    /// The link's alt text (`NavigationProps.alt`, describing the destination): the `<title>` of
+    /// an SVG anchor, the contents of a PDF link, the `alt` of an image-map area (WEB-005).
+    public var linkAlt: String?
+    /// Where the link opens in HTML and SVG output (`NavigationProps.target`).
+    public var linkTarget: ExportLinkTarget
+    /// The page-to-page link (`NavigationProps.go_to_page`) as a document page number, 1-based;
+    /// it wins over `url` on click (WEB-023).
+    public var pageLink: Int?
 
-    public init(name: String? = nil, alt: String? = nil, decorative: Bool = false, url: String? = nil, isLayer: Bool = false, note: String? = nil) {
+    public init(name: String? = nil, alt: String? = nil, decorative: Bool = false, url: String? = nil, isLayer: Bool = false, note: String? = nil,
+                linkAlt: String? = nil, linkTarget: ExportLinkTarget = .sameWindow, pageLink: Int? = nil) {
         self.name = name
         self.alt = alt
         self.decorative = decorative
         self.url = url
         self.isLayer = isLayer
         self.note = note
+        self.linkAlt = linkAlt
+        self.linkTarget = linkTarget
+        self.pageLink = pageLink
     }
 }
 
@@ -130,14 +142,19 @@ public struct ExportPage: Sendable {
     public var nestedNodeIDs: [[Int]: NodeID]
     /// The bleed on every side, in points, when the page carries one (PDF bleed box).
     public var bleed: Double
+    /// The document page number (1-based) this page is, for page links (WEB-023); nil for an
+    /// output area or selection, when position + 1 is used.
+    public var number: Int?
 
-    public init(name: String? = nil, bounds: Rect, displayList: DisplayList, background: Color? = nil, nestedNodeIDs: [[Int]: NodeID] = [:], bleed: Double = 0) {
+    public init(name: String? = nil, bounds: Rect, displayList: DisplayList, background: Color? = nil, nestedNodeIDs: [[Int]: NodeID] = [:], bleed: Double = 0,
+                number: Int? = nil) {
         self.name = name
         self.bounds = bounds
         self.displayList = displayList
         self.background = background
         self.nestedNodeIDs = nestedNodeIDs
         self.bleed = bleed
+        self.number = number
     }
 
     /// The node the item at `indexPath` was built from, if any.
@@ -174,6 +191,10 @@ public struct ExportScene: Sendable {
     public var package: Data?
     /// The PostScript of placed EPS files by node, for EPS export's pass-through (IO-018).
     public var placedPostScript: [NodeID: ExportPostScript]
+    /// Text-range links (`link` marks) by text node, laid out one rectangle per line (WEB-005):
+    /// PDF writes an annotation per rectangle, SVG an anchor over each, HTML image maps a
+    /// `shape="rect"` area each.
+    public var textLinks: [NodeID: [ExportTextLink]] = [:]
 
     public init(name: String = "Untitled", pages: [ExportPage], info: ExportDocumentInfo = ExportDocumentInfo(), nodes: [NodeID: ExportNodeInfo] = [:], assets: [String: ExportAsset] = [:], rasterResolution: Double = 300, text: [ExportTextBlock] = [], animation: ExportAnimation? = nil, package: Data? = nil, placedPostScript: [NodeID: ExportPostScript] = [:]) {
         self.name = name

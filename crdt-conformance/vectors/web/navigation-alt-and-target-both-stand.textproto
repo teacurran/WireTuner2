@@ -1,0 +1,49 @@
+# crdt-conformance/vectors/web/navigation-alt-and-target-both-stand.textproto (WEB-001; schema: crdt-conformance/schema/vector.proto)
+name: "web/navigation-alt-and-target-both-stand"
+description: "One replica writes the link's alt text while another writes Opens in (NEW_TAB).  NavigationProps is a STRUCT, so navigation.alt and navigation.target are independent registers and both stand; a later concurrent alt from replica 3 wins the alt register by OpId."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Create"
+    ops { create { parent { counter: 4 } position: "\x80" props { layer { common { name: "Layer 1" } } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x80" props { rect { common { name: "Button" } size { width: 40 height: 20 } } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 3 base_server_seq: 1 label: "Link Alt Text"
+    ops { set { node { counter: 2 replica: 7 }
+      paths { segments { field: 21 } segments { field: 1 } segments { field: 8 } segments { field: 1 } }
+      values { rect { common { navigation { alt: "Order form" } } } } } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 3 base_server_seq: 1 label: "Opens In"
+    ops { set { node { counter: 2 replica: 7 }
+      paths { segments { field: 21 } segments { field: 1 } segments { field: 8 } segments { field: 2 } }
+      values { rect { common { navigation { target: LINK_TARGET_NEW_TAB } } } } } }
+  }
+}
+replica {
+  id: 3
+  change {
+    replica: 3 seq: 1 start_counter: 3 base_server_seq: 1 label: "Link Alt Text"
+    ops { set { node { counter: 2 replica: 7 }
+      paths { segments { field: 21 } segments { field: 1 } segments { field: 8 } segments { field: 1 } }
+      values { rect { common { navigation { alt: "Shop" } } } } } }
+  }
+}
+deliveries { order: [1, 2, 3] }
+deliveries { order: [3, 2, 1] }
+expect {
+  state_hash: "776c623221008b36d3975068d6fbc272ad6becbdcf4d71c26f5aef1e396edb59"
+  snapshot_hash: "d2d5042d76d9286f690eb48fe9fdae3c6e59848714ce0913807b84132d2eed00"
+  node {
+    id { counter: 2 replica: 7 }
+    node_hash: ""
+    register { path { segments { field: 21 } segments { field: 1 } segments { field: 8 } segments { field: 1 } } value { rect { common { navigation { alt: "Shop" } } } } op { counter: 3 replica: 3 } losing { counter: 3 replica: 1 } }
+    register { path { segments { field: 21 } segments { field: 1 } segments { field: 8 } segments { field: 2 } } value { rect { common { navigation { target: LINK_TARGET_NEW_TAB } } } } op { counter: 3 replica: 2 } }
+  }
+}

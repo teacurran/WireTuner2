@@ -1,0 +1,47 @@
+# crdt-conformance/vectors/web/svg-animation-dangling-asset.textproto (WEB-024; schema: crdt-conformance/schema/vector.proto)
+name: "web/svg-animation-dangling-asset"
+description: "Replica 1 deletes the SVG's asset node while replica 2 edits the poster time.  The asset register keeps its NodeRef (REF_FALLBACK_PLACEHOLDER: the node reads as a hatched placeholder, nothing is written) and the edit applies; restoring the asset brings the file back."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Place SVG animation"
+    ops { create { parent { counter: 4 } position: "\x80" props { layer { common { name: "Layer 1" } } } } }
+    ops { create { parent { counter: 9 } position: "\x80" props { asset { common { name: "spin.svg" } media_type: "image/svg+xml" } } } }
+    ops { create { parent { counter: 9 } position: "\x81" props { asset { common { name: "spin poster" } media_type: "image/png" } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x80" props { svg_animation { common { name: "Spinner" } asset { id { counter: 2 replica: 7 } } natural_size { width: 200 height: 100 } duration_ms: 2000 kinds { css: true } poster { id { counter: 3 replica: 7 } } } } } }
+    ops { create { parent { counter: 9 } position: "\x82" props { asset { common { name: "mine" } media_type: "image/png" } } } }
+    ops { create { parent { counter: 9 } position: "\x83" props { asset { common { name: "theirs" } media_type: "image/png" } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 7 base_server_seq: 1 label: "Delete"
+    ops { set_deleted { node { counter: 2 replica: 7 } deleted: true } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 7 base_server_seq: 1 label: "Poster Frame"
+    ops { set { node { counter: 4 replica: 7 }
+      paths { segments { field: 190 } segments { field: 6 } }
+      values { svg_animation { poster_time_ms: 800 } } } }
+  }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "c7f384b9caa1badd993763ecd0845bd4cc5cebd00154269aec1fd5c770ed746a"
+  snapshot_hash: "44f9b9294794537d7d1bcf00ed707450516d9a01b84b84cc97370bbe5bd9f103"
+  node {
+    id { counter: 4 replica: 7 }
+    node_hash: ""
+    register { path { segments { field: 190 } segments { field: 2 } } value { svg_animation { asset { id { counter: 2 replica: 7 } } } } op { counter: 4 replica: 7 } }
+    register { path { segments { field: 190 } segments { field: 6 } } value { svg_animation { poster_time_ms: 800 } } op { counter: 7 replica: 2 } }
+  }
+  node {
+    id { counter: 2 replica: 7 }
+    node_hash: ""
+    tree { parent { counter: 9 } position: "\x80" deleted: true }
+  }
+}

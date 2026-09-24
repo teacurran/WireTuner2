@@ -32,8 +32,12 @@ public struct ExportAnimation: Sendable {
     public var area: Rect
     /// The page colour (Document panel), for *Page color*.
     public var pageColor: Color?
+    /// *Autoplay*: exported SVG and HTML start playing on load; off shows frame 1 until the
+    /// viewer hovers or clicks (WEB-018).
+    public var autoplay: Bool
 
-    public init(frames: [AnimationFrame], fps: Double = FrameComposer.defaultFPS, loop: Bool = true, background: Background = .pageColor, displayList: DisplayList, area: Rect, pageColor: Color? = nil) {
+    public init(frames: [AnimationFrame], fps: Double = FrameComposer.defaultFPS, loop: Bool = true, background: Background = .pageColor, displayList: DisplayList, area: Rect, pageColor: Color? = nil,
+                autoplay: Bool = true) {
         self.frames = frames
         self.fps = fps
         self.loop = loop
@@ -41,6 +45,7 @@ public struct ExportAnimation: Sendable {
         self.displayList = displayList
         self.area = area
         self.pageColor = pageColor
+        self.autoplay = autoplay
     }
 }
 
