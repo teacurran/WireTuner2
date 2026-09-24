@@ -368,6 +368,22 @@ imported file in after reading it, `save(_:)` writing a `.wtcolors`.  The librar
 Photoshop fixtures are built byte by byte in the tests, since no Adobe application could be driven
 here.
 
+NOTE: As built by COLOR-013's WTApp half (`WTApp/ColorLibraries/`: `ColorLibraryMenu.swift`,
+`ColorLibrarySheet.swift`).  The Swatches Options menu lists the four bundled libraries by name,
+then -- panel menus are flat -- a disabled *My Libraries* header followed by the library files in
+`ColorLibraryRegistry`'s folder, then *Import…* and *Export…*.  Choosing a library opens the library
+sheet: a SwiftUI `LazyVGrid` of chips with names (the library's `columns` hint when set, otherwise
+as many columns as fit; a tint shows its base's colour tinted), a search field filtering by name or
+key, click to select, kbd:[Cmd]-click to toggle and kbd:[Shift]-click to extend a range over the
+visible chips.  Colours already in the document from the same library and key
+(`ColorLibraries.present`) are drawn ticked and dimmed and cannot be selected; btn:[Add] is one
+`ImportLibraryColors` change with the library's name as origin and the selected keys.  *Import…*
+reads a `.wtcolors`, `.ase`, `.aco` or `.act` file, copies it into *My Libraries*
+(`ColorLibraryRegistry.install`) and opens it in the sheet; a file that does not read is refused
+with an alert.  menu:Extensions[Colors > Import RGB Color Table…] reads an `.act` file and adds
+all its colours (sRGB process) in one change, in a group named after the file.  Tests:
+`ColorLibrarySheetTests` (WTAppTests, over the models, *My Libraries* in a temporary folder).
+
 === Build tasks
 
 [[COLOR-002]]

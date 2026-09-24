@@ -99,6 +99,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// menu:File[Export a Package…], menu:File[Open Package…] and packages opened from the Finder
     /// (IO-005, IO-006).
     private(set) lazy var packages = PackageController()
+    /// menu:File[Export…] and menu:File[Export Again] (IO-014).
+    private(set) lazy var exports = ExportController(defaults: preferences.defaults)
     /// The Missing Fonts sheet, the substitutions and each document's embedded fonts (DOC-024).
     private(set) lazy var fonts = DocumentFonts(preferences: preferences)
 
@@ -431,8 +433,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @discardableResult
     func open(_ url: URL) -> Bool {
-        if url.isFileURL, url.pathExtension == PackageController.fileExtension {
-            Task { await packages.open(url) }
+        if PackageController.opens(url) {
+            Task { await packages.openFile(url) }
             return true
         }
         guard InviteLink.token(in: url) != nil else { return false }
@@ -455,6 +457,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             fonts.team = TeamFontLibraryConnection(client: client, library: library, account: account)
         }
         ImportCommands.install(into: commands, hooks: ImportCommands.hooks(imports: imports, packages: packages) { documents.activeWindowController })
+        installExports()
     }
 
     /// menu:WireTuner[Account…].

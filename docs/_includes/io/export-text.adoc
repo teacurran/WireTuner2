@@ -193,6 +193,15 @@ alignment, spacing, super/subscript, baseline shift, indents, fixed line height,
 cells); the inline graphic is checked in the RTF text (a PNG `\pict`).
 The Word and Pages acceptance test needs a person at the Mac and was not run.
 
+NOTE: As built by IO-014 (`WTModel/ExportSnapshot.swift`).  The snapshot fills `ExportScene.text`
+from the document's text nodes rather than the display list: every text node on a printing layer
+(visible, or hidden with *Include hidden layers*), inside groups too, on the exported page holding
+its origin, numbered bottom to top per page; a selection exports the selected objects' text.
+*Deviation*: each block is its own story of plain paragraphs -- the paragraph's left, right and
+first-line indents, one run with the default attributes -- with no chain links, character
+attributes, styles, tables or inline graphics yet; mapping the text marks is TXT-001's reading
+work.
+
 === Build tasks
 
 [[IO-030]]

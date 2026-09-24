@@ -375,8 +375,17 @@ file and throws `ExportError.cancelled`.  Tests read the files back with ImageIO
 FFmpeg's `ffprobe` when installed.  The 300-frame 1920 × 1080 H.264 export (300 moving ellipses,
 2× anti-aliasing) is a perf-run test: 23.8 s in release on the development Mac, held to a 60 s
 budget the task sets (the page gives none), 10.000 s long with 300 frames.  Playing the
-files in Preview, Safari and QuickTime Player is manual acceptance and was not recorded; the Export
-sheet's options and the app's snapshot of the animation are WTApp/WTModel work still to do.
+files in Preview, Safari and QuickTime Player is manual acceptance and was not recorded.
+
+NOTE: As built by IO-014.  The Format menu lists *GIF (animated)*, *APNG*, *MP4 (H.264)* and *MP4
+(HEVC)*; their options sheet sets *Size* (scale, or an explicit pixel size), *Frame rate* (the
+document's, or a value), *Loop* (the document's, forever, or a count), *Background* (the
+document's, page colour, white, transparent), *Pages* (a page range, empty for every frame),
+anti-aliasing, and *Colors* and *Dither* for GIF or *Quality* for MP4.  `WTModel.ExportSnapshot`
+fills `ExportScene.animation` from `AnimationInfo` over the window's pages: the frame list, the
+resolved frame rate and loop, the stored background (unset reads as page colour), the canvas list
+with its layer spans and the first exported page as the area.  The export shows the exporter's
+fraction and Cancel.  Animated SVG is not a format of the registry yet.
 
 === Build tasks
 

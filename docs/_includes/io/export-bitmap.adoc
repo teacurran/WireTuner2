@@ -405,6 +405,15 @@ the matte test finds every kept edge pixel within 24/255 of the artwork over the
 noise image over 256 colours round-trips through the LZW table resets.  The palette preview in the
 options sheet is the dialog task's.
 
+NOTE: As built by IO-014.  The options sheets exist for every bitmap format: resolution, the 1×, 2×
+and 3× scales (the last one stays on), anti-aliasing, background, colour, RGB profile, profile
+embedding and overprint simulation, then the format's own options -- JPEG quality and progressive;
+WebP lossless and quality; HEIC quality; AVIF quality and speed; GIF palette, transparency and
+interlacing; TIFF compression and depth; Photoshop layers and depth; BMP and Targa depth (Targa's
+RLE); PNG depth, interlacing and compression -- with the palette (choice, colours, dither) for the
+8-bit depths, and the estimated size (exporting.adoc, IO-014 note).  Not built: the palette preview
+and *Bitmap Export Defaults* (IO-015).
+
 NOTE: As built by IO-023 (`Bitmap/PSDWriter.swift`, `Bitmap/PSDExporter.swift`).  Photoshop layers
 come from the page's top-level layer groups (`ExportNodeInfo.isLayer`), each named from its layer
 (`luni` Unicode names, an ASCII Pascal name with `?` for other characters) and each run of other

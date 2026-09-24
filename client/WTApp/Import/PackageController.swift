@@ -32,6 +32,9 @@ final class PackageController {
     /// Makes the new document an opened package becomes, named `title` (the library's pending
     /// creation, opened in a window).
     var createDocument: @MainActor (String) -> DocumentHandle? = { _ in nil }
+    /// Opens a PDF or EPS file that carries no package as a new document through the importer
+    /// (IO-028: the file falls through to the PDF or EPS importer).
+    var importAsDocument: @MainActor (URL) async -> DocumentHandle? = { _ in nil }
     var runSavePanel: @MainActor (NSSavePanel, NSWindow?) async -> URL? = ModalUI.url
     var runOpenPanel: @MainActor (NSOpenPanel, NSWindow?) async -> [URL] = ModalUI.urls
     var showAlert: @MainActor (String, String, NSWindow?) -> Void = ModalUI.alert
@@ -87,18 +90,29 @@ final class PackageController {
         panel.title = "Open Package"
         panel.prompt = "Open"
         panel.allowsMultipleSelection = false
-        panel.allowedContentTypes = [Self.contentType]
+        panel.allowedContentTypes = Self.openableTypes
         guard let url = await runOpenPanel(panel, nil).first else { return nil }
-        return await open(url)
+        return await openFile(url)
     }
 
     /// Opens the package at `url` as a new document; nil (after an alert) when it is refused.
     @discardableResult
     func open(_ url: URL) async -> DocumentHandle? {
         let opened: OpenedPackage
-        let state: EngineState
         do {
             opened = try await Task.detached(priority: .userInitiated) { try DocumentPackage.reader.open(contentsOf: url) }.value
+        } catch {
+            showAlert("“\(url.lastPathComponent)” could not be opened.", String(describing: error), nil)
+            return nil
+        }
+        return await open(opened, from: url)
+    }
+
+    /// Opens `opened` -- read from `url`, a package or the package a PDF or EPS file embeds -- as
+    /// a new document; nil (after an alert) when it is refused.
+    func open(_ opened: OpenedPackage, from url: URL) async -> DocumentHandle? {
+        let state: EngineState
+        do {
             state = try DocumentPackage.state(of: opened)
         } catch {
             showAlert("“\(url.lastPathComponent)” could not be opened.", String(describing: error), nil)

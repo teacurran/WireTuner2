@@ -488,6 +488,17 @@ works) or of an EPS (`%WireTunerPackage` block) when its manifest reads, and nil
 through to the PDF or EPS importer.  Wiring it into menu:File[Open Package…], Finder double-click and
 the import dispatch is WTApp's.  With the option on and no package in the scene the summary says so.
 
+NOTE: As built by IO-014's app half (`WTApp/Export/EmbeddedPackageOpening.swift`,
+`ExportCommands.swift`).  menu:File[Open Package…] offers packages, PDF and EPS files; a Finder
+double-click on a PDF or EPS file reaches the app through a `CFBundleDocumentTypes` entry (role
+Viewer, rank Alternate).  `PackageController.openFile(_:)` reads the file, opens the package
+`EmbeddedPackage.open` finds as a new document through the package importer (the same re-issue as a
+`.wiretuner`), and without one hands the file to `importAsDocument`: a new document named after the
+file with the file imported at the centre of its view.  A damaged embedded package is refused with
+its error.  The Export sheet's *Interactive* section (links, notes, bookmarks, passwords and
+permissions) is disabled under a PDF/X standard, and a preset stored with a password asks for it at
+export time.
+
 === Build tasks
 
 [[IO-025]]

@@ -25,6 +25,8 @@ final class ColorFeatures {
     let mixer: ColorMixerModel
     let tints: TintsModel
     let teamLibraries: TeamLibrariesModel
+    /// The bundled libraries, *My Libraries*, *Import…*, *Export…* and *Import RGB Color Table…*.
+    let libraries: ColorLibraryMenu
     /// The open documents (*Import from Document…*).
     var openDocuments: @MainActor () -> [DocumentHandle] = { [] }
 
@@ -35,6 +37,7 @@ final class ColorFeatures {
         mixer = ColorMixerModel(workspace: workspace, defaults: defaults)
         tints = TintsModel(workspace: workspace)
         teamLibraries = TeamLibrariesModel(workspace: workspace, client: libraryClient, teams: teams)
+        libraries = ColorLibraryMenu(workspace: workspace)
         let tints = tints
         swatchesPanel.loadTint = { tints.load($0) }
     }
@@ -76,7 +79,7 @@ final class ColorFeatures {
     /// The Swatches panel's Options menu with the sheets this feature owns.
     func swatchesMenu() -> [PanelMenuItem] {
         let hasDocument = workspace.swatches != nil
-        return swatchesPanel.optionsMenu(extras: [
+        return swatchesPanel.optionsMenu(extras: libraries.menuItems() + [
             PanelMenuItem(title: "Import from Document…", isEnabled: hasDocument) { [weak self] in self?.showImportFromDocument() },
             PanelMenuItem(title: teamLibraries.hasUpdates ? "Team Libraries… •" : "Team Libraries…", isEnabled: hasDocument && teamLibraries.client != nil) { [weak self] in
                 self?.showTeamLibraries()
@@ -115,6 +118,7 @@ final class ColorFeatures {
             ("nameAllColors", { [weak self] in self?.nameAllColors() }),
             ("sortColorListByName", { [weak self] in self?.sortColors() }),
             ("deleteUnusedNamedColors", { [weak self] in self?.showDeleteUnused() }),
+            ("importRGBColorTable", { [weak self] in self?.libraries.beginImportColorTable() }),
         ]
         return operations.compactMap { id, run in
             guard var descriptor = existing.descriptor(for: id) else { return nil }

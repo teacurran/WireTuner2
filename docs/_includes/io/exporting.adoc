@@ -288,6 +288,61 @@ Nothing beyond storing account preferences.
 * Undo: nothing to undo for sharing out; an item added through Services or the Share extension
   is one ordinary import change in the receiving document.
 
+
+NOTE: As built by IO-014 (`WTModel/ExportSnapshot.swift`; `WTApp/Export/`).  The `SceneSnapshot` is
+`WTModel.ExportSnapshot.capture(_:request:builder:blob:)`, run on the main actor when btn:[Export] is
+clicked: it rebuilds the document with a fresh `DocumentDisplayListBuilder` (the window's builder is
+the document's own; `ExportController.configureBuilder` lets the app set the builder's text layout)
+and takes `outputDisplayList` -- printing, non-Guides layers, hidden ones with *Include hidden
+layers* -- regrouped per page into one group per layer carrying the layer's node id, so exporters
+that write layers find them (`ExportNodeInfo.isLayer`); nested node ids come from the screen scene's
+item paths.  A page keeps the top-level objects whose bounds meet it; *Include page boundary* off
+trims it to their union; *Selected objects* keeps the top-level objects that are or contain a
+selected object and crops to them; *Output area* keeps what meets the area.  It fills the node
+facts (name, alt text, *Decorative*, URL, note), placed images' pixels from the blob cache (a JPEG's
+bytes kept), placed EPS programs (`placedPostScript`), Document Info (`DocumentMetadata`), the
+raster effects resolution, the animation for the animation formats, the text stories for Rich Text
+and Plain Text, and -- with *Embed {product} document* -- the package's `PackageContents`, which
+`ExportSnapshot.resolved()` writes with `PackageWriter` on the background task.  Blobs not on this
+Mac are listed (`missing`) and named in the summary.  The sheet is an `NSSavePanel` whose accessory
+(`ExportAccessory`) holds *Preset* (with *Save as Preset…* and *Delete Preset*), *Format* (the
+registry's available formats, the animation formats included), *What*, the range field
+(`PageRange.parse` takes `1-3, 6`, `2-`, `-4`), *Include page boundary*, *File names* with sample
+names when more than one file is written, *Open with* (the apps macOS lists for the type, per
+format) and *Reveal in Finder*, the sync note, "Not yet downloaded", the estimated size for bitmap
+formats and the reason btn:[Export] is refused -- the panel's delegate keeps the panel open with it.
+btn:[Options…] opens the format's options (`ExportOptionsSheet`: PDF with General, Compression,
+Fonts and color, Pages and marks, Interactive with the passwords and permissions -- disabled under a
+PDF/X standard, whose changes are listed -- and PDF/X; Adobe Illustrator; EPS; SVG with *Responsive*
+and the size unit; DXF; the bitmap formats with resolution, the 1×/2×/3× scales, anti-aliasing,
+background, colour, profile and each format's own options with the palette of the 8-bit depths; the
+four animation formats with *Size*, *Frame rate*, *Loop*, *Background*, *Pages*, *Colors*/*Dither* or
+*Quality*; Rich Text and Plain Text) as a sheet over the panel.  The export runs in
+`ExportPipeline`: a detached task writes into a staging folder (`itemReplacementDirectory` beside
+the destination) and a finished export's files, and any folder beside them, move into place, so a
+cancelled or failed export -- one file or a set -- leaves nothing.  `ExportProgress` carries the
+animation exporters' fraction and Cancel (the other exporters show an indeterminate bar and are
+cancelled when they return); the bar is a titlebar accessory of the window after
+`progressDelay` (one second), and cancelling the calling task cancels too.  Notes from the
+exporter and the snapshot show in an alert when the export is done; failures in another.
+*Deviations*: presets live on this Mac (`ExportPresetStore`, `UserDefaults`) until IO-015 moves them
+to account preferences, and `ExportMemory` (menu:File[Export Again]) is kept in `UserDefaults` by
+document id rather than `SettingsProps.last_export`, which the schema does not have yet; both keep
+the format, *What*, range, boundary, pattern, scales and *After export* across launches and the
+format options only for the session, since `export_options.proto` is not written.  Neither stores a
+password: a stored PDF password becomes a flag and the export asks for it (`PasswordPrompt`).  Export
+Again repeats without the sheet while the first file written is where it was (a security-scoped
+bookmark gives the sandbox access again) and opens the sheet prefilled otherwise.  The Output Area
+tool is a stub, so *Output area* is offered only when `ExportController.outputArea` answers a
+rectangle.  `{page}` is the page's position in the export (IO-013's exporters count the pages they
+are given), not its number in the document.  *Wait for downloads* is not offered.  A name collision
+inside a set is IO-013's `FileNamePattern.uniqueURLs`; the sheet cannot produce one while pages
+have no names.  The estimated size is the first file's pixel count times a typical encoded size per
+pixel for the format and quality, not a trial encode.  Drag export, Quick Export, the Share menu and
+Services are IO-015, IO-016 and IO-037.  The tests (`ExportTests`) run over the models with the
+stub exporter and the real PDF, SVG, GIF and text exporters; the "remote change during a 5-second
+export" case applies a local change on another layer during a half-second stub export.
+
 === Build tasks
 
 [[IO-014]]

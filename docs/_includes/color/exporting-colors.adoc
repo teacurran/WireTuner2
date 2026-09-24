@@ -245,6 +245,18 @@ menu:File[Make Team Color Library…] (a team picker) and menu:File[Publish Libr
 disabled without a document or a client and, once a listing has fallen back to the cache, offline
 with the explanation.  *Not done*: paste carrying named colours (the clipboard's, not this panel's).
 
+NOTE: As built by COLOR-018's sheet (`WTApp/ColorLibraries/ColorLibraryExportSheet.swift`).  The
+Swatches Options menu's *Export…* lists the document's colours with their tints indented, the
+defaults left out, all ticked; `ColorLibraries.library(named:swatches:list:)` builds the library
+(a ticked base brings its tints), with the sheet's name (the document's title by default), rows and
+columns (0 = the library sheet chooses, capped at 1,000) and notes.  Formats: *WireTuner color
+library* (`.wtcolors`), *Adobe Swatch Exchange* (`.ase`) and -- *added* -- *Photoshop swatches*
+(`.aco`), which COLOR-013's writer supports.  btn:[Save…] runs a save panel; *Also save to My
+Libraries* writes a `.wtcolors` copy into the folder too (`ColorLibraryRegistry.save`, always
+`.wtcolors` whatever the chosen format).  The writer's notes -- colours gamut-mapped into sRGB,
+spots written as process, tints written as plain colours -- and the *My Libraries* copy are listed
+in an alert after the file is written; nothing is shown when there is nothing to say.
+
 === Build tasks
 
 [[COLOR-018]]

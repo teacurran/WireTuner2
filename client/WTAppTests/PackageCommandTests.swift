@@ -57,7 +57,7 @@ import WTSync
             return [url]
         }
         let copy = try #require(await packages.controller.openPackage())
-        #expect(chosen.first?.allowedContentTypes == [PackageController.contentType])
+        #expect(chosen.first?.allowedContentTypes == PackageController.openableTypes)
         #expect(copy.title == "Untitled" && packages.created.count == 1)
         let model = try #require(copy.model)
         #expect(model.undoTitle == "Undo Import package")

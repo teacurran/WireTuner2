@@ -114,6 +114,12 @@ targets:
             CFBundleTypeRole: Editor
             LSHandlerRank: Owner
             LSItemContentTypes: [com.villagecompute.wiretuner.package]
+          # A PDF or EPS exported with *Embed WireTuner document* opens as the original (IO-028);
+          # one without a package opens through the importer as a new document.
+          - CFBundleTypeName: PDF or EPS Document
+            CFBundleTypeRole: Viewer
+            LSHandlerRank: Alternate
+            LSItemContentTypes: [com.adobe.pdf, com.adobe.encapsulated-postscript]
     entitlements:
       path: WTApp/WireTuner.entitlements
       properties:

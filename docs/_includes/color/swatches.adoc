@@ -483,11 +483,12 @@ or on the Add arrow they add, and a swatch from another document arrives with it
 wells show the selection's topmost Basic fill and stroke (mixed as `?`).  *Deviations*: the Options
 menu has Duplicate, Remove, Make Spot, Make Process, Convert to (sRGB, Display P3, CMYK), Hide /
 Show Names, New Group…, Import from Document…, Team Libraries… (a sheet, not a submenu: panel
-menus are flat) and Restore Deleted Colors…; Replace… (COLOR-015), the bundled libraries and
-Import… (COLOR-013's readers and sheet), Export… (COLOR-018) and Color Control… (COLOR-017, which
-waits for COLOR-014's commands) are not built, nor is menu:Extensions[Colors > Import RGB Color
-Table…] (no `.act` reader yet).  The UI tests run as WTAppTests over the models
-(`SwatchesPanelTests`).
+menus are flat) and Restore Deleted Colors…, and -- since COLOR-013's and COLOR-018's WTApp
+halves -- the bundled libraries, *My Libraries*, Import… and Export… (spot-process.adoc and
+exporting-colors.adoc notes), with menu:Extensions[Colors > Import RGB Color Table…] running.
+Replace… (COLOR-015) and Color Control… (COLOR-017, which waits for COLOR-014's commands) are not
+built.  The UI tests run as WTAppTests over the models (`SwatchesPanelTests`,
+`ColorLibrarySheetTests`).
 
 === Build tasks
 
