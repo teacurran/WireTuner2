@@ -179,6 +179,7 @@ import WTSync
         await Workload.rename(ana, shapes, "mine")
         await Workload.rename(ben, shapes, "theirs")
         try await sim.settle([ben])
+        sim.advance(by: .seconds(3_600))   // offline work, not a dropped connection (D-070)
         ana.goOnline()
         try await ana.waitFor("review") { $0 == .needsReview }
         let failure = await #expect(throws: Simulation.Failure.self) { try await sim.settle() }
@@ -222,21 +223,44 @@ import WTSync
         #expect(diverged?.description.contains("ana diverges from server at nodes [") == true)
     }
 
-    /// The same refusal for the op count loops: the replacement keeps one `Noop` per counter, so it
-    /// is over the limit again and is refused again, for as long as the session lasts (reported
-    /// with TEST-001; a change of more than 10,000 counters, such as a long paste, meets it).
-    @Test func aChangeRefusedForItsOpCountIsRefusedAgainForever() async throws {
+    /// TEST-001 finding (b): a change refused for its op count is replaced by one `Noop`, which is
+    /// within any limit, so each such change is refused once -- not once per counter, forever.
+    @Test func aChangeRefusedForItsOpCountIsRefusedOnce() async throws {
         var options = SimServer.Options()
         options.maxOps = 3
         let sim = try await Simulation(name: "refused-ops", seed: 5, scale: 0.005, serverOptions: options)
         defer { Task { await sim.shutdown() } }
         let ana = try await sim.addClient("ana")
         _ = try await Workload.createShapes(ana, count: 5)
-        try await Task.sleep(for: .milliseconds(300))
+        try await sim.settle()
         let refusals = await sim.server?.stats.validationFailures ?? 0
-        withKnownIssue("a VALIDATION_FAILED change over the op limit is resent as as many Noops, forever") {
-            #expect(refusals <= 1)
+        let dropped = ana.events.filter { if case .changeDropped = $0 { true } else { false } }.count
+        #expect(refusals > 0 && refusals == dropped, "\(refusals) refusals for \(dropped) dropped changes")
+        try await Task.sleep(for: .milliseconds(300))
+        #expect(await sim.server?.stats.validationFailures == refusals)
+        #expect(!ana.reached { if case .error = $0 { true } else { false } })
+    }
+
+    /// A client that knows the limit splits a change over it before sending (through salvage), so
+    /// nothing is refused and everyone converges.
+    @Test func aChangeOverTheLimitsIsSplitAndConverges() async throws {
+        var options = SimServer.Options()
+        options.maxOps = 3
+        let sim = try await Simulation(name: "split-ops", seed: 6, scale: 0.005, serverOptions: options)
+        defer { Task { await sim.shutdown() } }
+        let ana = try await sim.addClient("ana") { $0.changeLimits = ChangeLimits(ops: 3) }
+        let ben = try await sim.addClient("ben") { $0.changeLimits = ChangeLimits(ops: 3) }
+        let shapes = try await Workload.createShapes(ana, count: 5)
+        try await sim.settle()
+        var random = sim.random.fork(6)
+        for _ in 0..<5 {
+            await Workload.move(ben, shapes, &random)
         }
+        try await sim.settle()
+        try await sim.expectConverged()
+        #expect(await sim.server?.stats.validationFailures == 0)
+        #expect(await sim.server?.log(sim.documentID).allSatisfy { $0.change.ops.count <= 3 } == true)
+        #expect(ana.events.contains { if case .salvaged(let report) = $0 { report.reason == .oversized } else { false } })
     }
 
     /// A custom backend (how a test puts the compose server behind the proxies), and a published

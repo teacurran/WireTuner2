@@ -182,7 +182,7 @@ import WTProto
         let state = EngineState()
         #expect(rebase.remap(Fixture.moveTo(.wellKnown(4), 0.1 + 0.2)) == Fixture.moveTo(.wellKnown(4), 0.1 + 0.2))
         let change = Fixture.change(42, seq: 1, start: 10, [Fixture.createLayer("A"), Ops.noop()])
-        let ops = rebase.rebase(change, startCounter: 100, state: state)
+        let ops = rebase.rebase(change, startCounter: 100, state: state).ops
         #expect(ops?.count == 2 && ops?[1] == Ops.noop())
         #expect(rebase.map(OpID(counter: 10, replica: 42)) == OpID(counter: 100, replica: 50))
         #expect(rebase.map(OpID(counter: 12, replica: 42)) == OpID(counter: 12, replica: 42))
@@ -194,6 +194,74 @@ import WTProto
         let remapped = rebase.remap(op)
         #expect(remapped.set.values == props && OpID(remapped.set.node) == OpID(counter: 100, replica: 50))
         #expect(SalvageRebase.integer(NSNumber(value: 5)) == 5 && SalvageRebase.integer("7") == 7 && SalvageRebase.integer(true) == 1)
+    }
+
+    /// TEST-001 finding (b): a salvaged change over the limits is re-issued as consecutive changes
+    /// within them, each mapping its own ids.
+    @Test func aChangeOverTheLimitsIsReissuedInPieces() {
+        var rebase = SalvageRebase(replica: 50, reason: .oversized, limits: ChangeLimits(ops: 2))
+        var state = EngineState()
+        let a = OpID(counter: 10, replica: 42)
+        let b = OpID(counter: 12, replica: 42)
+        let change = Fixture.change(42, seq: 1, start: 10, [Fixture.createLayer("A"), Fixture.rename(a, "a"), Fixture.createLayer("B"),
+                                                            Fixture.rename(b, "b"), Fixture.createLayer("C")], label: "Paste")
+        let first = rebase.rebase(change, startCounter: 100, state: state)
+        #expect(first.next == 2 && first.ops == [Fixture.createLayer("A"), Fixture.rename(OpID(counter: 100, replica: 50), "a")])
+        state.apply(Fixture.change(50, seq: 1, start: 100, first.ops!))
+        let second = rebase.rebase(change, from: 2, startCounter: 200, state: state)
+        #expect(second.next == 4 && second.ops == [Fixture.createLayer("B"), Fixture.rename(OpID(counter: 200, replica: 50), "b")])
+        state.apply(Fixture.change(50, seq: 2, start: 200, second.ops!))
+        let third = rebase.rebase(change, from: 4, startCounter: 300, state: state)
+        #expect(third.next == 5 && third.ops == [Fixture.createLayer("C")])
+        #expect(rebase.map(a) == OpID(counter: 100, replica: 50) && rebase.map(OpID(counter: 11, replica: 42)) == OpID(counter: 101, replica: 50))
+        #expect(rebase.map(b) == OpID(counter: 200, replica: 50) && rebase.map(OpID(counter: 14, replica: 42)) == OpID(counter: 300, replica: 50))
+        #expect(rebase.report == SalvageReport(reason: .oversized, salvagedChanges: 1, recoveredChanges: 1, reissuedOps: 5))
+        #expect(!rebase.report.needsReview)
+        // By bytes: two layers do not fit, so each goes alone.
+        let size = ChangeLimits.headerSize(change) + ChangeLimits.size(of: Fixture.createLayer("A")) + 1
+        var bytes = SalvageRebase(replica: 50, reason: .oversized, limits: ChangeLimits(bytes: size))
+        #expect(bytes.rebase(change, startCounter: 100, state: EngineState()).next == 1)
+    }
+
+    @Test func droppedOpsEndAPieceWhenTheirNoopsWouldNotFit() {
+        var rebase = SalvageRebase(replica: 50, reason: .oversized, limits: ChangeLimits(ops: 4))
+        let state = EngineState()
+        let gone = OpID(counter: 99, replica: 8)
+        // Counters: rename 10, X 11, "abc" 12...14, Y 15, "defgh" 16...20, Z 21.
+        let change = Fixture.change(42, seq: 1, start: 10, [
+            Fixture.rename(gone, "x"), Fixture.createLayer("X"), Ops.textInsert(gone, Fixture.text, "abc"), Fixture.createLayer("Y"),
+            Ops.textInsert(gone, Fixture.text, "defgh"), Fixture.createLayer("Z"),
+        ])
+        // A drop before anything is issued is skipped; one whose Noops fit keeps its counters.
+        let first = rebase.rebase(change, startCounter: 100, state: state)
+        #expect(first.next == 3 && first.ops == [Fixture.createLayer("X"), Ops.noop(), Ops.noop(), Ops.noop()])
+        // Five Noops do not fit after Y: the piece ends, and the next one skips the drop.
+        let second = rebase.rebase(change, from: 3, startCounter: 200, state: state)
+        #expect(second.next == 4 && second.ops == [Fixture.createLayer("Y")])
+        let third = rebase.rebase(change, from: 4, startCounter: 300, state: state)
+        #expect(third.next == 6 && third.ops == [Fixture.createLayer("Z")])
+        #expect(rebase.report.dropped.map(\.opIndex) == [0, 2, 4] && rebase.report.reissuedOps == 3)
+        #expect(rebase.map(OpID(counter: 11, replica: 42)) == OpID(counter: 100, replica: 50))
+        #expect(rebase.map(OpID(counter: 15, replica: 42)) == OpID(counter: 200, replica: 50))
+        #expect(rebase.map(OpID(counter: 21, replica: 42)) == OpID(counter: 300, replica: 50))
+        #expect(rebase.map(OpID(counter: 16, replica: 42)) == OpID(counter: 16, replica: 42))
+        #expect(rebase.map(OpID(counter: 10, replica: 42)) == OpID(counter: 10, replica: 42))
+        // A piece of Noops only is not issued, and maps nothing.
+        let noops = rebase.rebase(Fixture.change(42, seq: 2, start: 30, [Ops.noop(), Ops.noop()]), startCounter: 400, state: state)
+        #expect(noops.ops == nil && noops.next == 2 && rebase.map(OpID(counter: 30, replica: 42)) == OpID(counter: 30, replica: 42))
+    }
+
+    @Test func theStoreReissuesAnOversizedChangeAsSeveral() async throws {
+        let store = try await LocalStore.open(documentID: "D1", at: scratch.url(), options: options())
+        try await perform(store, "Paste", (0..<5).map { Fixture.createLayer("P\($0)", position: [0x80, UInt8($0)]) })
+        try await store.beginSalvage(reason: .oversized)
+        let empty = await store.read { $0.store.nodes.count }
+        let report = try #require(try await store.applySalvage(recording: Fixture.recording(), limits: ChangeLimits(ops: 2)))
+        let outbox = try await store.outbox()
+        #expect(outbox.map(\.ops.count) == [2, 2, 1] && outbox.map(\.seq) == [1, 2, 3])
+        #expect(outbox.allSatisfy { $0.label == "Paste" && $0.replica == 43 })
+        #expect(report.reason == .oversized && report.recoveredChanges == 1 && report.reissuedOps == 5)
+        #expect(await store.read { $0.store.nodes.count } == empty + 5)
     }
 
     @Test func textDeleteRangesSplitAtChangeBoundaries() {

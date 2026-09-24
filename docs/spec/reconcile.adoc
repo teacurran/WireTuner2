@@ -34,6 +34,12 @@ Volume:: Count of unsent ops, count of remote ops, time since the previous sync.
 |===
 |Condition |Behavior |Why
 
+|Back within 15 minutes of the last sync with under 500 unsent ops (a dropped connection, not
+offline work), whatever overlaps
+|Merge and upload.  The toast offers *Review what changed*, read-only, listing any overlap.
+|The people were editing together a moment ago; live editing merges the same way without asking
+(xref:decisions.adoc#D-070[D-070]).
+
 |No overlap, either side under 500 ops
 |Silent merge.  Upload.  A brief "Merged N changes from A, B" toast.
 |Nothing to decide.
@@ -48,7 +54,7 @@ sheet in read-only mode.
 user resolves or accepts the merge and then uploads.
 |Small enough to look at each one.
 
-|Overlap over 20 nodes, or overlap on more than 25% of either set
+|Overlap over 20 nodes, or on 5 or more that are more than 25% of either set
 |Merge into a preview, open the review sheet in *whole-document* mode with three primary
 choices (below).
 |Per-object review would be tedious; the user needs a document-level decision.
@@ -76,7 +82,9 @@ xref:font-info.adoc[]).
 |===
 
 The thresholds are preferences with these defaults, and a team can raise the ask threshold to
-"always ask when anything overlaps" (xref:preferences.adoc[Preferences]).
+"always ask when anything overlaps" (xref:preferences.adoc[Preferences]), which asks after a
+dropped connection too.  The 15 minutes and the five objects of the share rule are fixed
+(xref:decisions.adoc#D-070[D-070]).  The rows after the first apply to offline work.
 
 NOTE: As built by SYNC-006 (`WTSync.Divergence`, `ReconcilePreferences`, `ReviewModel`).  The
 measurement runs once per session, after the download has reached `Welcome.head_seq` and before
@@ -99,12 +107,18 @@ move`, `both edited`).  `same register` compares field paths (one covering the o
 and remote writes from the change log and the merged value, and "the local write lost" means the
 merged value is not the local one and differs from it.  The decision rules are applied as
 written, with two readings: *Always ask when anything overlaps* sets the ask threshold to zero
-(any overlap opens the whole-document review), and the 25% share is of either side's object count,
-so a small session with one object in common is asked about as a whole.  Always-listed settings
+(any overlap opens the whole-document review), and the 25% share is of either side's object count.
+As first built, the share rule had no minimum and every reconnect was measured the same way, so a
+connection dropped for seconds while people edited one object opened the whole-document review
+(TEST-001's finding; xref:decisions.adoc#D-070[D-070] amended the rules): `ReconcilePreferences`
+now carries `briefGap` (15 minutes) and `shareMinimum` (5), neither of them a preference, and
+`Divergence.isBrief` -- a gap under `briefGap` with fewer unsent ops than *Auto-merge below* --
+turns any listed overlap into `suggestReview` unless *Always ask* is on.  Always-listed settings
 with no object overlap open the per-object review.  A catch-up that installed a snapshot knows
 only the remote tail after it, so such a merge always offers *Review what changed*.  The *gap* is
 the time since the store last caught up (`meta.last_synced_at`, SYNC-006's migration
-`offline-2`).  A review that holds the outbox is recorded in `meta` (`review_kind`,
+`offline-2`), which is not moved while a review holds the outbox: a relaunch or a reconnect with
+the review pending still measures from before the offline work.  A review that holds the outbox is recorded in `meta` (`review_kind`,
 `review_base_seq`), so a relaunch shows it again -- offline too -- and a reconnect measures again
 from the head before the first reconnect.  Measuring the design-point document with a day's
 20,000 unsent ops against 5,000 remote ones (1,000 objects overlapping) takes 97 ms in a release

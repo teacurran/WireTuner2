@@ -514,7 +514,11 @@ writes an op naming something collectable there; the server stores each change's
 publishes a collection point (C, T) lowered until no change sequenced after C has a lower
 horizon.  Every replica and the snapshotter collect at (C, T).  `AckResponse` gains
 `collect_seq` and `collect_time_ms`; SRV-007 and SRV-013 implement the server side
-(xref:crdt-model.adoc[CRDT model]).
+(xref:crdt-model.adoc[CRDT model]).  The server learns a replica's horizon only when the replica
+acks again after receiving it, so a client confirms every answer that raised the stable point and
+polls, backing off, while the point is below what it applied; it confirms only once the changes it
+made before the answer are accepted, and keeps its horizon across relaunches (TEST-001; the
+confirmation rule is on xref:sync-protocol.adoc[Sync protocol], "The client as built").
 
 [[D-068]]
 === D-068 The color module lives in WTRender
@@ -532,6 +536,23 @@ WebP, HEIC and AVIF are encoded by ImageIO where the running macOS provides the 
 libwebp or libavif is bundled.  On macOS 26 ImageIO encodes HEIC and AVIF (lossy only) and not
 WebP, so WebP export reports `encoderUnavailable` and lossless AVIF is refused.  Revisit if WebP
 export becomes a requirement or ImageIO gains the encoder (xref:export-bitmap.adoc[]).
+
+[[D-070]]
+=== D-070 A brief reconnect never holds the outbox; the share rule needs five objects in common
+The reconcile rules (xref:reconcile.adoc[Reconciling]) ran on every reconnect, so a connection
+dropped for a few seconds while people edit the same object held the outbox behind a review --
+and, since one object in common is 100% of a small session, the whole-document review.  The
+simulator found it (TEST-001).  The requirement the review serves is offline work of a day or
+two, with a choice only when the edits diverge heavily; a few seconds apart is live
+collaboration, which merges the same edits every second without asking.  So: a reconnect within
+15 minutes of the last sync with fewer unsent ops than *Auto-merge below* merges and uploads
+whatever overlaps, offering the overlap read-only in the toast's *Review what changed* (*Always
+ask when anything overlaps* still asks); and the 25% share opens the whole-document review only
+when at least five objects overlap, so one or two objects in common are listed one by one.  The
+15 minutes and the five objects are not preferences.  The gap stays measured from before the
+offline work while a review is pending, so a relaunch or a reconnect does not take the pending
+review for a brief drop.  Rejected: keeping the per-object hold for brief drops (still a sheet
+on every network blip, for conflicts live editing would have resolved the same way).
 
 == Open questions
 

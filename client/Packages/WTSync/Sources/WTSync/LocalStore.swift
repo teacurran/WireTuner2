@@ -197,7 +197,7 @@ public actor LocalStore: DocumentBackend {
             }
         }
         let core = DocumentCore(state: state, replica: replica, nextSeq: nextSeq, lastServerSeq: UInt64(sql: meta["last_server_seq"]),
-                                undoStack: UndoStack(undo: undo, redo: redo))
+                                undoStack: UndoStack(undo: undo, redo: redo), horizon: UInt64(sql: meta["horizon_seq"]))
         return (core, false, rotatedFrom)
     }
 
@@ -408,6 +408,15 @@ public actor LocalStore: DocumentBackend {
         return Coalescer.coalesce(log, rules: rules)
     }
 
+    /// The seq of the current replica's oldest local change still waiting for an acknowledgement.
+    public func oldestUnacknowledgedSeq() throws -> UInt64? {
+        guard let database else { throw Failure.closed }
+        return try database.read { db in
+            try Int64.fetchOne(db, sql: "SELECT MIN(seq) FROM changes WHERE local = 1 AND server_seq IS NULL AND replica = ?",
+                               arguments: [core.replica.sql]).map(UInt64.init(sql:))
+        }
+    }
+
     /// How many local changes of the current replica wait for an acknowledgement (the outbox).
     public func outboxCount() throws -> Int {
         guard let database else { throw Failure.closed }
@@ -467,10 +476,16 @@ public actor LocalStore: DocumentBackend {
         try await rewriteSnapshot()
     }
 
-    /// Records a stable point the server published (`DocumentCore.advanceHorizon`, D-067).  The
-    /// horizon is held in memory: every `Ack` answer publishes it again.
+    /// Records a stable point the server published (`DocumentCore.advanceHorizon`, D-067), and
+    /// keeps it in `meta.horizon_seq`: the server credits the changes this replica pushes after a
+    /// relaunch with the publication it confirmed before it, so the horizon they are made under
+    /// must not start again from 0.  A store that cannot be written keeps it in memory only.
     public func advanceHorizon(to stableSeq: UInt64) {
+        guard stableSeq > core.horizon else { return }
         core.advanceHorizon(to: stableSeq)
+        try? database?.write { db in
+            try db.execute(sql: "UPDATE meta SET horizon_seq = ? WHERE id = 1", arguments: [stableSeq.sql])
+        }
     }
 
     /// The newest stable point the server published to this replica.
@@ -702,7 +717,7 @@ public actor LocalStore: DocumentBackend {
             UPDATE meta SET replica_id = ?, next_seq = 1, last_server_seq = 0, hardware_uuid = ?,
                             review_kind = NULL, review_base_seq = NULL, salvage_report = NULL WHERE id = 1
             """, arguments: [replica.sql, options.hardwareUUID()])
-        core = DocumentCore(state: EngineState(schema: options.schema), replica: replica)
+        core = DocumentCore(state: EngineState(schema: options.schema), replica: replica, horizon: core.horizon)
     }
 
     /// How many salvaged changes wait to be re-issued.
@@ -712,21 +727,27 @@ public actor LocalStore: DocumentBackend {
     }
 
     /// Re-issues the salvaged changes against the current state as local changes of the current
-    /// replica (`SalvageRebase`), in one transaction, and returns what was recovered and dropped;
-    /// nil when nothing waits.
-    public func applySalvage(recording: DocumentCore.Recording) throws -> SalvageReport? {
+    /// replica (`SalvageRebase`), each as one change or, when it would not fit `limits`, as several
+    /// consecutive ones, in one transaction, and returns what was recovered and dropped; nil when
+    /// nothing waits.
+    public func applySalvage(recording: DocumentCore.Recording, limits: ChangeLimits = .server) throws -> SalvageReport? {
         guard let database else { throw Failure.closed }
         let rows = try database.read { db in try Row.fetchAll(db, sql: "SELECT reason, data FROM salvage ORDER BY id") }
         guard let first = rows.first else { return nil }
         let reason = SalvageReport.Reason(rawValue: first["reason"]) ?? .conflict
-        let shared = SalvageCommand.Shared(SalvageRebase(replica: core.replica, reason: reason))
+        let shared = SalvageCommand.Shared(SalvageRebase(replica: core.replica, reason: reason, limits: limits))
         let changes = try rows.map { try Self.change($0["data"]) }
         try write { db, applied in
             for change in changes {
-                guard let outcome = try core.perform(SalvageCommand(change: change, shared: shared), recording: recording) else { continue }
-                applied = true
-                try appendLocal(outcome.change!, db)
-                try persist(outcome.edit, db)
+                var from = 0
+                repeat {
+                    let outcome = try core.perform(SalvageCommand(change: change, from: from, shared: shared), recording: recording)
+                    from = max(shared.next, from + 1)
+                    guard let outcome else { continue }
+                    applied = true
+                    try appendLocal(outcome.change!, db)
+                    try persist(outcome.edit, db)
+                } while from < change.ops.count
             }
             try db.execute(sql: "DELETE FROM salvage")
         }

@@ -16,14 +16,24 @@ public struct ReconcilePreferences: Sendable, Hashable {
     public var alwaysAsk: Bool
     /// *Suggest review after*: a gap longer than this offers *Review what changed*.
     public var suggestReviewAfter: Duration
+    /// A reconnect after less than this, with fewer unsent ops than *Auto-merge below*, is a
+    /// dropped connection rather than offline work: it never holds the outbox (D-070).  Not a
+    /// preference.
+    public var briefGap: Duration
+    /// The share rule asks only when at least this many objects overlap (D-070): one object in
+    /// common is not "most of what both did".  Not a preference.
+    public var shareMinimum: Int
 
     public init(autoMergeBelow: Int = 500, askOverlapCount: Int = 20, askOverlapShare: Double = 0.25,
-                alwaysAsk: Bool = false, suggestReviewAfter: Duration = .seconds(12 * 3600)) {
+                alwaysAsk: Bool = false, suggestReviewAfter: Duration = .seconds(12 * 3600),
+                briefGap: Duration = .seconds(15 * 60), shareMinimum: Int = 5) {
         self.autoMergeBelow = autoMergeBelow
         self.askOverlapCount = askOverlapCount
         self.askOverlapShare = askOverlapShare
         self.alwaysAsk = alwaysAsk
         self.suggestReviewAfter = suggestReviewAfter
+        self.briefGap = briefGap
+        self.shareMinimum = shareMinimum
     }
 
     /// The defaults.
@@ -37,7 +47,9 @@ public struct ReconcilePreferences: Sendable, Hashable {
                              askOverlapCount: max(askOverlapCount, team.askOverlapCount),
                              askOverlapShare: max(askOverlapShare, team.askOverlapShare),
                              alwaysAsk: alwaysAsk || team.alwaysAsk,
-                             suggestReviewAfter: max(suggestReviewAfter, team.suggestReviewAfter))
+                             suggestReviewAfter: max(suggestReviewAfter, team.suggestReviewAfter),
+                             briefGap: max(briefGap, team.briefGap),
+                             shareMinimum: max(shareMinimum, team.shareMinimum))
     }
 }
 
@@ -118,11 +130,21 @@ public struct Divergence: Sendable, Hashable {
     public var overlapCount: Int { entries.lazy.filter { $0.setting == nil }.count }
 
     /// The decision rules with `preferences`.
+    ///
+    /// D-070: a brief reconnect -- a gap under `briefGap` with fewer unsent ops than *Auto-merge
+    /// below* -- merges and uploads whatever overlaps (the people were editing together a moment
+    /// ago, and live editing merges the same way without asking), offering the overlap read-only
+    /// through *Review what changed*; *Always ask* still asks.  After offline work the rows apply,
+    /// the share rule only from `shareMinimum` overlapping objects.
     public func decision(_ preferences: ReconcilePreferences) -> ReconcileDecision {
         let overlap = overlapCount
+        if !entries.isEmpty && !preferences.alwaysAsk && isBrief(preferences) {
+            return .suggestReview
+        }
         if overlap > 0 {
             let share = max(Double(overlap) / Double(max(localObjects, 1)), Double(overlap) / Double(max(remoteObjects, 1)))
-            if preferences.alwaysAsk || overlap > preferences.askOverlapCount || share > preferences.askOverlapShare {
+            if preferences.alwaysAsk || overlap > preferences.askOverlapCount
+                || (overlap >= preferences.shareMinimum && share > preferences.askOverlapShare) {
                 return .wholeDocument
             }
             return .perObject
@@ -135,6 +157,12 @@ public struct Divergence: Sendable, Hashable {
             return .suggestReview
         }
         return .silentMerge
+    }
+
+    /// A dropped connection rather than offline work (D-070): back within `briefGap`, with fewer
+    /// unsent ops than *Auto-merge below*.
+    public func isBrief(_ preferences: ReconcilePreferences) -> Bool {
+        gap < preferences.briefGap && localOps < preferences.autoMergeBelow
     }
 
     /// Measures `local` (the unsent local changes) against `remote` (the other replicas' changes

@@ -144,7 +144,9 @@ proceed (xref:crdt-model.adoc[CRDT model]).  A retired replica that reconnects g
   with the dropped items named.  The user can send, or keep the whole set as a branch.
 
 `REPLICA_CONFLICT` (a store restored from backup onto a second Mac while the first is still in
-use) takes the same rotation path without the salvage prose.
+use) takes the same rotation path without the salvage prose, and so does an unsent change over
+the server's limits (10,000 ops, 4 MiB -- a long paste), which salvage re-issues as several
+changes within them.
 
 NOTE: As built by SYNC-010 (`WTSync.SalvageRebase`, `LocalStore.beginSalvage` / `applySalvage`).
 The old replica's ops are already applied locally under ids the server never accepted (and, for a
@@ -154,17 +156,22 @@ local state would leave its ids behind.  Salvage therefore starts from the serve
 replicas' and the current one's) to a `salvage` table, and empties the store in one transaction;
 the next session subscribes from 0 and downloads the server's state (snapshot or replay); then,
 before anything is pushed, `applySalvage` re-issues each salvaged change as one change of the new
-replica through `DocumentCore.perform` (numbered, applied, written to the outbox and undoable).
-Its ops take the same counter offsets, so every id a salvaged change created maps by one delta
-per change, and a later op naming it -- as target, parent, text origin, field-path element or
+replica through `DocumentCore.perform` (numbered, applied, written to the outbox and undoable) --
+or, when it would not fit `ChangeLimits` (by op count, and by encoded size against its own
+fields' size), as several consecutive ones with its label.  Its ops take the same counter offsets
+within each re-issued change, so every id a salvaged change created maps by one delta per
+re-issued change, and a later op naming it -- as target, parent, text origin, field-path element or
 anywhere in its values -- is rewritten; a text delete range is split where it crosses changes.  An
 op naming something the state lacks (a tombstone garbage collection removed, or what a dropped op
 would have created) is dropped, its counters kept by `Noop`s, and listed with the change's label
-and the missing id; a change left with nothing is not issued.  After `REPLICA_EXPIRED`, or when
+and the missing id -- unless its `Noop`s would not fit, in which case the re-issued change ends
+before it and the next starts after it; a change left with nothing is not issued.  After `REPLICA_EXPIRED`, or when
 anything was dropped, the outbox is held and `SyncEvent.reviewNeeded` carries a recovered
 `ReviewModel` (send, or keep the set as a branch); a `REPLICA_CONFLICT` that dropped nothing just
-sends.  A store opened on another Mac (rotated at open) with unsent changes of the old replica is
-salvaged the same way when its first session starts.  Deviations: a change the server accepted
+sends, and so does an `oversized` salvage (TEST-001: the sync client starts one when the next change
+to send is over the limits and everything before it is accepted, rather than send a change the
+server must refuse).  A store opened on another Mac (rotated at open) with unsent changes of the
+old replica is salvaged the same way when its first session starts.  Deviations: a change the server accepted
 whose acknowledgement never arrived before the replica was retired cannot be told from an unsent
 one and is re-issued; `Document` has no reload yet, so after `SyncEvent.stateReplaced` WTApp
 reopens the window's façade over the store (WTModel follow-up: `Document.reload()`).

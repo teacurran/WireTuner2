@@ -57,6 +57,10 @@ enum PushMode: String, CaseIterable, Sendable, CustomTestStringConvertible {
                      "\(person.name) sees the others' presence")
             #expect(person.reached { if case .syncing = $0 { true } else { false } })
             #expect(person.reached { if case .offline = $0 { true } else { false } } || person.link.stats.droppedConnections == 0)
+            // A connection dropped for seconds while everyone edits the path merges without asking
+            // (TEST-001 finding c, D-070): no review ever held an outbox.
+            #expect(person.reviews == 0, "\(person.name) was asked to review \(person.reviews) times")
+            #expect(!person.reached { $0 == .needsReview })
         }
         #expect(people[0].state.isLive(path.node))
     }
@@ -246,20 +250,10 @@ enum PushMode: String, CaseIterable, Sendable, CustomTestStringConvertible {
         }
         let point = await server.collectionPoint(sim.documentID)
         sim.log.record(await server.describe(sim.documentID))
-        // D-067 as built cannot publish a point above 0: a change's recorded horizon is the
-        // publication its author confirmed by acking again, and WTSync acks only when its applied
-        // seq moves, so every change's horizon is at most its seq - 2 and the job's lowering step
-        // walks C down to 0 (reported with TEST-001; the salvage below runs onto an uncollected
-        // snapshot until it is fixed).
-        withKnownIssue("D-067: the collection point never rises above 0 with WTSync's acks") {
-            #expect((point?.seq ?? 0) >= deletion)
-        }
-        // Until then the point the job should have published is published directly: Ben and Cy
-        // are quiet with everything applied, so their head is a stable point.
-        if (point?.seq ?? 0) < deletion {
-            let head = await server.head(sim.documentID)
-            await server.publishCollectionPoint(SimCollectionPoint(seq: head, timeMs: sim.clock.nowMs()), for: sim.documentID)
-        }
+        // D-067: each client confirms the answers that raise the stable point, so at a quiet moment
+        // every live replica's horizon is the head and the job publishes it (TEST-001 finding a).
+        #expect((point?.seq ?? 0) >= deletion)
+        #expect(point.map { $0.timeMs > sim.clock.nowMs() - 86_400_000 } == true, "T is the clock of a recent publication")
         await server.takeSnapshot(sim.documentID)
         let replica = await away.store.replica
         #expect(await server.isRetired(replica, in: sim.documentID))
@@ -327,7 +321,8 @@ enum PushMode: String, CaseIterable, Sendable, CustomTestStringConvertible {
         try await sim.settle()
         var random = sim.random.fork(7)
         var benEdits = 0
-        try await sim.run(for: .seconds(120), every: .seconds(1)) { step in
+        // Counted steps, so the downgrade at step 30 happens however slow the machine is.
+        try await sim.steps(120, every: .seconds(1)) { step in
             await Workload.randomEdit(ana, shapes, &random)
             if step == 30 {
                 try await sim.grant(.viewer, to: ben.user)

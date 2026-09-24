@@ -180,13 +180,64 @@ enum SnapshotDownload {
     }
 }
 
-/// A change refused with `VALIDATION_FAILED`, rewritten as `Noop`s: the same replica, seq, label
-/// and counter range, so the replica's seqs and counters stay dense.
+/// The server's acceptance limits for one change (docs/spec/sync-protocol.adoc, "Server log"):
+/// 10,000 ops and 4 MiB encoded.  The sync client splits a change over them before sending it
+/// (through salvage, `LocalStore.applySalvage`), and salvage re-issues changes within them.
+public struct ChangeLimits: Sendable, Hashable {
+    /// The most ops in one change.
+    public var ops: Int
+    /// The most bytes one encoded change may take.
+    public var bytes: Int
+
+    public init(ops: Int = 10_000, bytes: Int = 4 << 20) {
+        self.ops = ops
+        self.bytes = bytes
+    }
+
+    /// The server's limits.
+    public static let server = ChangeLimits()
+
+    /// The room `change`'s own fields (replica, seq, counters, base, time, label) take when it is
+    /// re-issued: their encoding now, and 64 bytes for the re-issue's wider varints and a label
+    /// filled in.  What is left of `bytes` holds the ops.
+    static func headerSize(_ change: Wiretuner_Doc_V1_Change) -> Int {
+        var bare = change
+        bare.ops = []
+        return encodedSize(bare) + 64
+    }
+
+    /// Whether `change` is within the limits.
+    public func admits(_ change: Wiretuner_Doc_V1_Change) -> Bool {
+        change.ops.count <= ops && encodedSize(change) <= bytes
+    }
+
+    /// The bytes an op adds to an encoded change: its own encoding, its tag and its length.
+    static func size(of op: Wiretuner_Doc_V1_Op) -> Int {
+        let size = encodedSize(op)
+        return size + 1 + BulkFrames.varintBytes(UInt64(size)).count
+    }
+}
+
+/// A change refused with `VALIDATION_FAILED`, rewritten as one `Noop`: the same replica, seq,
+/// start counter and base, so the replica's seqs stay dense; the counters the refused ops took
+/// are a Lamport jump for the replica's next change (counters increase, they need not be dense
+/// across changes).  One op keeps the replacement inside any limit however many counters the
+/// refused change took -- a `Noop` per counter would be refused again for its count.  The label
+/// is cut to the 256 characters `Change.label` allows and a negative time is zeroed, so the
+/// replacement passes the rules the original may have broken.
 func noopChange(_ change: Wiretuner_Doc_V1_Change) -> Wiretuner_Doc_V1_Change {
     var noop = change
-    let counters = change.ops.reduce(0) { $0 + EngineState.counters($1) }
-    noop.ops = (0..<max(1, counters)).map { _ in Ops.noop() }
+    noop.ops = [Ops.noop()]
+    if noop.label.unicodeScalars.count > 256 {
+        noop.label = String(String.UnicodeScalarView(noop.label.unicodeScalars.prefix(256)))
+    }
+    noop.wallTimeMs = max(0, noop.wallTimeMs)
     return noop
+}
+
+/// Whether `change` is nothing but `Noop`s: a refusal of it cannot be answered by sending less.
+func isNoopOnly(_ change: Wiretuner_Doc_V1_Change) -> Bool {
+    change.ops.allSatisfy { if case .noop? = $0.op { true } else { false } }
 }
 
 /// A backlog going up through `PushChanges`: how many of its coalesced bytes lie at or below

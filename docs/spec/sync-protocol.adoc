@@ -188,7 +188,9 @@ log remains the only order.
   Each response is the ack: the outbox entry is marked sent.  The same change also arrives on
   the subscription as a `SequencedChange` carrying the caller's replica/seq; the client uses
   it only to keep its applied `server_seq` contiguous (the ops are already applied).
-. `Ack` calls go up every 2 s while the client is applying remote changes, and on close.
+. `Ack` calls go up every 2 s while the client is applying remote changes, and on close; once
+  more after an answer that raised the stable point, which confirms it (D-067); and, backing
+  off, while the stable point is below what the client applied.
 . Presence goes up as `UpdatePresence`, coalesced to 20 Hz; a final call with state `GONE` on
   close.
 . The server sends `Pong` after 15 s of silence on the stream.  A client that sees nothing for
@@ -274,6 +276,12 @@ As built (SRV-005, SRV-006):
   `last_accepted_seq` is the caller's replica's `last_seq` after the upload, so a client that lost
   the stream resumes from `Welcome.last_accepted_seq` and may resend overlapping changes, which are
   silently acked.
+* A `wt-device` that is not a UUID in its canonical 8-4-4-4-12 form is refused before the handler
+  runs, on every service but health and reflection (`PrincipalInterceptor`): `INVALID_ARGUMENT`
+  with a `google.rpc.BadRequest` naming `wt-device` and no `ErrorInfo` reason, so a refused push
+  is never taken for a change to drop.  As first built the value was parsed leniently and anything
+  else bound replicas to the all-zero device that a call without `wt-device` binds to, so every
+  client sending a malformed id shared one binding (TEST-001).
 
 === The client as built
 
@@ -309,9 +317,23 @@ or the `LocalStore` itself for a headless upload.  The settled details:
   SYNC-010); an editor role in a later `Welcome` or `RoleChanged` lifts it.  `PERMISSION_DENIED` on
   `Subscribe` is `readOnly(accessRemoved)` and `NOT_FOUND` is `error`, both halted until *Retry
   now*.  Deviation: a `VALIDATION_FAILED` change is not reverted locally -- WTSync has the change,
-  not the inverse the undo stack recorded for it -- but replaced in the outbox by `Noop`s over the
-  same counter range (the seqs stay dense), sent again, and reported as
+  not the inverse the undo stack recorded for it -- but replaced in the outbox by one `Noop` with
+  its seq, start counter and base (the seqs stay dense; the counters it took are a Lamport jump
+  for the replica's next change, since counters increase but need not be dense across changes),
+  its label cut to 256 characters and a negative time zeroed, sent again, and reported as
   `SyncEvent.changeDropped`; the local state keeps its effect until an inverse can be built for it.
+  As first built the replacement kept one `Noop` per counter, so a change refused for its op
+  count -- or any refused change of more than 10,000 counters, such as a long paste -- was refused
+  again for as long as the session lasted (TEST-001).  A refusal of the one-`Noop` replacement is
+  the `error` state until *Retry now*, never a resend loop.  Before that, a change over the limits
+  (`ChangeLimits`: 10,000 ops, 4 MiB, `SyncClient.Options.changeLimits`) is not sent at all: the
+  queue stops before it, and once everything sent before it is accepted and recorded in the store
+  the outbox goes through salvage (reason `oversized`, xref:offline.adoc#expiry[Offline]), which
+  re-issues every unsent change on the server's state from a fresh replica, a change over the
+  limits as several consecutive ones within them -- renumbering changes whose ids are applied
+  locally needs a fresh replica.  A single op over the byte limit cannot be split; it goes up, is
+  refused and replaced.  An `INVALID_ARGUMENT` without a reason on `Subscribe` or a push (the
+  server refusing a `wt-device` that is not a UUID) is the `error` state until *Retry now*.
 * *Tokens.*  An `UNAUTHENTICATED` answer asks the injected `TokenProvider` for a new token, once
   per refused token however many calls were refused with it; `TokenFailure.signInRequired`
   parks the client in `needsSignIn` until `signedIn()`.
@@ -332,11 +354,33 @@ or the `LocalStore` itself for a headless upload.  The settled details:
   `SyncEvent.catchUp` (compressed bytes of the snapshot, then seqs of the range); stopping the
   client cancels it.  An unreadable snapshot twice in a row is the `error` state.
 * *Horizon (D-067).*  Each `AckResponse.stable_seq` goes to the sink's `advanceHorizon(to:)`
-  (the `Document` forwards it to its `LocalStore`, whose `DocumentCore` holds the horizon, in
-  memory: every `Ack` republishes it).  `AckResponse.collect_seq` / `collect_time_ms` are reported
+  (the `Document` forwards it to its `LocalStore`, whose `DocumentCore` holds the horizon, and
+  the store keeps it in `meta.horizon_seq`, migration `offline-3`: the server credits the changes
+  pushed after a relaunch with the publication confirmed before it, so the horizon they are made
+  under must not start again from 0).  `AckResponse.collect_seq` / `collect_time_ms` are reported
   as `SyncEvent.collectionPoint`; zero means no collection.  Collecting at the point needs a
   `DocumentCore` entry point WTModel does not have yet.
-* *Timers.*  `Ack` every 2 s when the applied seq moved, and on stop; presence read at 20 Hz and sent
+* *Confirming acks (D-067, TEST-001).*  The server records a replica's horizon as the answer to
+  its previous `Ack`, confirmed by acking again, and credits each change with the horizon
+  confirmed when it arrives.  As first built the client acked only when its applied seq moved,
+  so every change's horizon was at most its seq - 2 and the Stability job's lowering step walked
+  the collection point down to 0: nothing was ever collected.  The client now also acks once
+  after an answer that raised the stable point (confirming it), and, while the stable point is
+  below its applied seq, polls from 2 s doubling to 60 s (`ackPollMax`) until it rises; at a quiet
+  moment every live replica's horizon becomes the head and the job publishes it.  A confirming
+  ack waits until every local change made before the answer arrived is accepted -- the server
+  would otherwise credit such a change with a horizon newer than the one it was made under (the
+  limit server.adoc records for an outbox sent after a reconnect's first acks) -- which holds the
+  first ack of a session with a backlog until the backlog is up, and keeps a client that holds
+  unsent changes it cannot push (a pending review, a read-only role) from acking until they are
+  up: its old acknowledgement holds the stable point meanwhile, which delays collection and
+  nothing else.  Chosen over sending the horizon
+  with each push (a new field on `Change` or the push requests): the server would still learn a
+  replica's current horizon, which bounds its future changes, only from a later `Ack`, so the
+  quiet-moment confirmation is needed either way, and the wait above makes the confirmed horizon
+  exact for every change without a proto change.
+* *Timers.*  `Ack` every 2 s when the applied seq moved or the last answer is to be confirmed,
+  polling as above, and on stop; presence read at 20 Hz and sent
   when it changed or 10 s after the last send (the server expires an entry after 15 s), `GONE` on
   stop; 45 s of silence ends the session; reconnects back off exponentially from 0.5 s to 30 s,
   scaled by a random 0.5-1.

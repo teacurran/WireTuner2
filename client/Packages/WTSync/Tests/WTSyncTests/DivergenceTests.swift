@@ -75,6 +75,9 @@ extension Fixture {
 }
 
 @Suite struct DivergenceTests {
+    /// A gap after offline work, past the brief-drop rule (D-070).
+    static let apart: Duration = .seconds(3600)
+
     // MARK: Decision rules, one test per row of reconcile.adoc
 
     @Test func noOverlapUnderTheThresholdMergesSilently() {
@@ -122,7 +125,7 @@ extension Fixture {
         for node in others {
             world.theirs([Fixture.note(node, "new")])
         }
-        let divergence = world.measure()
+        let divergence = world.measure(gap: Self.apart)
         #expect(divergence.overlapCount == 1)
         #expect(divergence.decision(.standard) == .perObject)
         #expect(divergence.decision(ReconcilePreferences(alwaysAsk: true)) == .wholeDocument)
@@ -140,17 +143,29 @@ extension Fixture {
             world.mine([Fixture.rename(node, "mine")])
             world.theirs([Fixture.note(node, "theirs")])
         }
-        let divergence = world.measure()
+        let divergence = world.measure(gap: Self.apart)
         #expect(divergence.overlapCount == 30)
         #expect(divergence.decision(.standard) == .wholeDocument)
         #expect(ReviewModel(divergence, decision: .wholeDocument).mode == .wholeDocument)
-        // Under the count, the share still asks: one of two objects is 50%.
+        // Under the count, the share asks from five objects in common: five of eight is 62%.
+        var shared = Divergent()
+        let eight = shared.layers(8)
+        for node in eight {
+            shared.mine([Fixture.rename(node, "a")])
+        }
+        for node in eight.prefix(5) {
+            shared.theirs([Fixture.note(node, "c")])
+        }
+        #expect(shared.measure(gap: Self.apart).decision(.standard) == .wholeDocument)
+        #expect(shared.measure(gap: Self.apart).decision(ReconcilePreferences(askOverlapShare: 1)) == .perObject)
+        #expect(shared.measure(gap: Self.apart).decision(ReconcilePreferences(shareMinimum: 6)) == .perObject)
+        // D-070: one of two objects is 50%, but one object in common is listed on its own.
         var small = Divergent()
         let two = small.layers(2)
         small.mine([Fixture.rename(two[0], "a"), Fixture.rename(two[1], "b")])
         small.theirs([Fixture.note(two[0], "c")])
-        #expect(small.measure().decision(.standard) == .wholeDocument)
-        #expect(small.measure().decision(ReconcilePreferences(askOverlapShare: 1)) == .perObject)
+        #expect(small.measure(gap: Self.apart).decision(.standard) == .perObject)
+        #expect(small.measure(gap: Self.apart).decision(ReconcilePreferences(shareMinimum: 1)) == .wholeDocument)
     }
 
     @Test func aLostLocalWriteToTheSameRegisterIsAlwaysListed() throws {
@@ -368,7 +383,7 @@ extension Fixture {
         let nodes = world.layers(2)
         world.mine([Fixture.rename(nodes[0], "mine")])
         world.theirs([Fixture.settings([2, 50, 1])])
-        let divergence = world.measure()
+        let divergence = world.measure(gap: Self.apart)
         #expect(divergence.overlapCount == 0 && divergence.decision(.standard) == .perObject)
         let entry = try #require(divergence.entries.first)
         #expect(entry.setting == .colorSettings && entry.actions == [.useTheirs] && entry.authors == [Divergent.priya])
@@ -448,15 +463,41 @@ extension Fixture {
         #expect(divergence.localOps == 5 && divergence.localObjects == 0)
     }
 
+    /// TEST-001 finding (c), D-070: a connection dropped for minutes while people edit the same
+    /// objects merges and uploads, offering the overlap read-only; offline work, a large outbox or
+    /// *Always ask* asks as before.
+    @Test func aBriefDropNeverHoldsTheOutbox() {
+        var world = Divergent()
+        let nodes = world.layers(30)
+        for node in nodes {
+            world.mine([Fixture.rename(node, "mine")])
+            world.theirs([Fixture.rename(node, "theirs")])
+        }
+        let brief = world.measure(gap: .seconds(20))
+        #expect(brief.isBrief(.standard) && brief.decision(.standard) == .suggestReview)
+        #expect(ReviewModel(brief, decision: .suggestReview).entries.count == 30)
+        #expect(brief.decision(ReconcilePreferences(alwaysAsk: true)) == .wholeDocument)
+        #expect(brief.decision(ReconcilePreferences(autoMergeBelow: 30)) == .wholeDocument)
+        #expect(world.measure(gap: .seconds(15 * 60)).decision(.standard) == .wholeDocument)
+        #expect(brief.decision(ReconcilePreferences(briefGap: .seconds(10))) == .wholeDocument)
+        // Nothing in common: the ordinary rules, silent here.
+        var apart = Divergent()
+        let two = apart.layers(2)
+        apart.mine([Fixture.rename(two[0], "a")])
+        apart.theirs([Fixture.rename(two[1], "b")])
+        #expect(apart.measure(gap: .seconds(20)).decision(.standard) == .silentMerge)
+    }
+
     // MARK: Preferences and the model
 
     @Test func teamFloorsTakeTheStricterValue() {
         let user = ReconcilePreferences(autoMergeBelow: 800, askOverlapCount: 10, askOverlapShare: 0.1, alwaysAsk: false,
-                                        suggestReviewAfter: .seconds(3600))
+                                        suggestReviewAfter: .seconds(3600), briefGap: .seconds(600), shareMinimum: 8)
         let team = ReconcilePreferences(autoMergeBelow: 400, askOverlapCount: 30, askOverlapShare: 0.5, alwaysAsk: true,
                                         suggestReviewAfter: .seconds(7200))
         #expect(user.floored(by: team) == ReconcilePreferences(autoMergeBelow: 400, askOverlapCount: 30, askOverlapShare: 0.5,
-                                                               alwaysAsk: true, suggestReviewAfter: .seconds(7200)))
+                                                               alwaysAsk: true, suggestReviewAfter: .seconds(7200),
+                                                               briefGap: .seconds(900), shareMinimum: 8))
         #expect(ReconcileDecision.perObject.holdsOutbox && ReconcileDecision.wholeDocument.holdsOutbox)
         #expect(!ReconcileDecision.silentMerge.holdsOutbox && !ReconcileDecision.suggestReview.holdsOutbox)
     }

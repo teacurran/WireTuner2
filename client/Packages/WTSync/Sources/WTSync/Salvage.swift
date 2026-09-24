@@ -15,6 +15,9 @@ public struct SalvageReport: Sendable, Hashable, Codable {
         case expired
         /// `REPLICA_CONFLICT`, or a store opened on another Mac: the same rotation, no prose.
         case conflict
+        /// An unsent change over the server's limits (`ChangeLimits`): the same rotation, re-issued
+        /// as changes within them, no prose.
+        case oversized
     }
 
     /// One dropped op, named for the review sheet.
@@ -55,65 +58,123 @@ public struct SalvageReport: Sendable, Hashable, Codable {
 
 /// The rebase of salvaged changes, one change at a time, onto a replica with fresh counters.
 ///
-/// Each salvaged change becomes one change of the new replica whose ops take the same counter
-/// offsets, so every id a salvaged change created maps by one delta per change -- a later op
-/// naming a salvaged node, element or character (in its target, its parent, a text origin, a
-/// field path or anywhere in its values) is rewritten to the new id.  An op naming something the
-/// current state does not have is dropped and listed; its counters are kept by `Noop`s so the
-/// deltas hold.  A change left with nothing is not issued, and its ids map nowhere.
+/// Each salvaged change becomes one change of the new replica -- or several consecutive ones when
+/// it would not fit `ChangeLimits` -- whose ops take the same counter offsets, so every id a
+/// salvaged change created maps by one delta per re-issued change: a later op naming a salvaged
+/// node, element or character (in its target, its parent, a text origin, a field path or anywhere
+/// in its values) is rewritten to the new id.  An op naming something the current state does not
+/// have is dropped and listed; its counters are kept by `Noop`s so the deltas hold, unless they
+/// would not fit, in which case the re-issued change ends before it and the next one starts after
+/// it.  A change left with nothing is not issued, and its ids map nowhere.
 struct SalvageRebase {
     struct Range {
         let start: UInt64
-        let end: UInt64
+        var end: UInt64
         let delta: UInt64
     }
 
     let replica: UInt64
+    let limits: ChangeLimits
     private(set) var ranges: [UInt64: [Range]] = [:]
     private(set) var report: SalvageReport
+    /// Whether the change being re-issued has had a change issued for it yet.
+    private var recovering = false
 
-    init(replica: UInt64, reason: SalvageReport.Reason) {
+    init(replica: UInt64, reason: SalvageReport.Reason, limits: ChangeLimits = .server) {
         self.replica = replica
+        self.limits = limits
         report = SalvageReport(reason: reason)
     }
 
-    /// The ops re-issuing `change` from `startCounter`, or nil when none survives.
-    mutating func rebase(_ change: Wiretuner_Doc_V1_Change, startCounter: UInt64, state: EngineState) -> [Wiretuner_Doc_V1_Op]? {
-        report.salvagedChanges += 1
-        let total = change.ops.reduce(UInt64(0)) { $0 &+ EngineState.counters($1) }
-        ranges[change.replica, default: []].append(Range(start: change.startCounter, end: change.startCounter &+ total,
-                                                         delta: startCounter &- change.startCounter))
+    /// The ops re-issuing `change` from op `from` onwards, starting at `startCounter`, as many as
+    /// fit one change within the limits (nil when none survives), and the index of the first op
+    /// left for the next change (the op count when the change is done).  Always moves past at
+    /// least one op, so a caller that loops until the change is done ends.
+    mutating func rebase(_ change: Wiretuner_Doc_V1_Change, from: Int = 0, startCounter: UInt64,
+                         state: EngineState) -> (ops: [Wiretuner_Doc_V1_Op]?, next: Int) {
+        if from == 0 {
+            report.salvagedChanges += 1
+            recovering = false
+        }
+        var origin = change.startCounter
+        for op in change.ops.prefix(from) {
+            origin &+= EngineState.counters(op)
+        }
+        let total = change.ops.dropFirst(from).reduce(origin) { $0 &+ EngineState.counters($1) }
+        let budget = limits.bytes - ChangeLimits.headerSize(change)
         var created: Set<OpID> = []
         var ops: [Wiretuner_Doc_V1_Op] = []
+        var bytes = 0
         var drops: [SalvageReport.Dropped] = []
         var kept = 0
         var counter = startCounter
-        for (index, op) in change.ops.enumerated() {
+        var index = from
+        var registered = false
+        while index < change.ops.count {
+            let op = change.ops[index]
             let count = EngineState.counters(op)
-            defer { counter &+= count }
+            let rewritten: Wiretuner_Doc_V1_Op
+            let size: Int
             if case .noop? = op.op {
-                ops.append(op)
-                continue
+                rewritten = op
+                size = ChangeLimits.size(of: op)
+            } else {
+                rewritten = remap(op)
+                if let missing = Self.missing(rewritten, state: state, created: created) {
+                    let drop = SalvageReport.Dropped(replica: change.replica, seq: change.seq, label: change.label, opIndex: index,
+                                                     op: Self.name(op), missingCounter: missing.counter, missingReplica: missing.replica)
+                    let noops = Int(count)
+                    let noopBytes = noops * ChangeLimits.size(of: Ops.noop())
+                    if ops.isEmpty {
+                        // Nothing issued yet: skip it, and start the change after it.
+                        drops.append(drop)
+                        origin &+= count
+                        index += 1
+                        continue
+                    }
+                    if ops.count + noops > limits.ops || bytes + noopBytes > budget {
+                        break   // the next change starts at this op, and skips it
+                    }
+                    drops.append(drop)
+                    ops += (0..<noops).map { _ in Ops.noop() }
+                    bytes += noopBytes
+                    counter &+= count
+                    index += 1
+                    continue
+                }
+                size = ChangeLimits.size(of: rewritten)
             }
-            let rewritten = remap(op)
-            if let missing = Self.missing(rewritten, state: state, created: created) {
-                drops.append(SalvageReport.Dropped(replica: change.replica, seq: change.seq, label: change.label, opIndex: index,
-                                                   op: Self.name(op), missingCounter: missing.counter, missingReplica: missing.replica))
-                ops += (0..<count).map { _ in Ops.noop() }
-                continue
+            if !ops.isEmpty && (ops.count + 1 > limits.ops || bytes + size > budget) {
+                break
             }
-            kept += 1
-            created.formUnion(Self.creates(rewritten, id: OpID(counter: counter, replica: replica)))
+            if !registered {
+                // Ops after this one may name what it creates: map this change's ids from here.
+                ranges[change.replica, default: []].append(Range(start: origin, end: total, delta: startCounter &- origin))
+                registered = true
+            }
+            if case .noop? = op.op {} else {
+                kept += 1
+                created.formUnion(Self.creates(rewritten, id: OpID(counter: counter, replica: replica)))
+            }
             ops.append(rewritten)
+            bytes += size
+            counter &+= count
+            index += 1
         }
         report.dropped += drops
         guard kept > 0 else {
-            ranges[change.replica]!.removeLast()
-            return nil
+            if registered {
+                ranges[change.replica]!.removeLast()
+            }
+            return (nil, index)
         }
-        report.recoveredChanges += 1
+        ranges[change.replica]![ranges[change.replica]!.count - 1].end = origin &+ (counter &- startCounter)
+        if !recovering {
+            report.recoveredChanges += 1
+            recovering = true
+        }
         report.reissuedOps += kept
-        return ops
+        return (ops, index)
     }
 
     // MARK: Remapping
@@ -272,29 +333,38 @@ struct SalvageRebase {
     }
 }
 
-/// One salvaged change re-issued through `DocumentCore.perform`, so it is numbered, applied,
-/// written to the outbox and recorded for undo like any local change.
+/// One salvaged change -- or the part of it from op `from` that fits one change -- re-issued
+/// through `DocumentCore.perform`, so it is numbered, applied, written to the outbox and recorded
+/// for undo like any local change.  Where the part ended is left in `Shared.next`.
 struct SalvageCommand: Command {
     /// The rebase every salvaged change of one salvage shares.
     final class Shared: Sendable {
         let rebase: Mutex<SalvageRebase>
+        private let position = Mutex(0)
 
         init(_ rebase: SalvageRebase) {
             self.rebase = Mutex(rebase)
         }
 
         var report: SalvageReport { rebase.withLock { $0.report } }
+        /// The first op of the change the last command left for the next one.
+        var next: Int {
+            get { position.withLock { $0 } }
+            set { position.withLock { $0 = newValue } }
+        }
     }
 
     let change: Wiretuner_Doc_V1_Change
+    let from: Int
     let shared: Shared
 
     var label: String { change.label.isEmpty ? "Recovered Changes" : change.label }
 
     func execute(_ builder: inout ChangeBuilder, state: EngineState) throws {
         let start = builder.startCounter
-        guard let ops = shared.rebase.withLock({ $0.rebase(change, startCounter: start, state: state) }) else { return }
-        for op in ops {
+        let (ops, next) = shared.rebase.withLock { $0.rebase(change, from: from, startCounter: start, state: state) }
+        shared.next = next
+        for op in ops ?? [] {
             builder.append(op)
         }
     }

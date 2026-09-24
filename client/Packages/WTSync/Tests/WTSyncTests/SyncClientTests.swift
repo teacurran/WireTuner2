@@ -339,7 +339,7 @@ import WTProto
         try await eventually("all accepted") { await server.acceptedSeqs(42) == [1, 2, 3, 4, 5] }
         try await harness.waitForEvent("event") { if case .changeDropped(2, "bad op") = $0 { true } else { false } }
         let dropped = await server.log.first { $0.change.seq == 2 }!.change
-        #expect(dropped.ops.allSatisfy { if case .noop = $0.op { true } else { false } })
+        #expect(dropped.ops == [Ops.noop()])
         try await eventually("acked") { try await harness.store.outboxCount() == 0 }
         try await harness.stop()
     }

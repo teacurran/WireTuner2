@@ -81,7 +81,7 @@ struct ComposeSimulationTests {
         var metadata = Metadata()
         metadata.addString("Bearer \(token)", forKey: "authorization")
         metadata.addString("macos/0.0.1/1", forKey: "wt-client")
-        metadata.addString("simulation", forKey: "wt-device")
+        metadata.addString(Simulation.deviceID(for: "simulation"), forKey: "wt-device")
         return try await withGRPCClient(transport: transport) { client in
             let me = try await Wiretuner_Account_V1_AccountService.Client(wrapping: client).me(Wiretuner_Account_V1_MeRequest(), metadata: metadata)
             var create = Wiretuner_Docs_V1_CreateRequest()
@@ -96,10 +96,10 @@ struct ComposeSimulationTests {
     nonisolated static func backend(_ clock: SimClock) -> SimulationBackend {
         SimulationBackend(
             name: "compose",
-            // The server reads `wt-device` as a UUID (anything else binds to the all-zero device,
-            // which every client would then share), so each client gets a fresh one.
-            upstream: { _, _ in
-                try GRPCSyncTransport.http2(api: api, identity: .init(clientVersion: "0.0.1/1", deviceID: UUID().uuidString.lowercased()))
+            // Each client's own device, the UUID `Simulation.deviceID(for:)` derived (the server
+            // refuses a `wt-device` that is not a UUID).
+            upstream: { _, device in
+                try GRPCSyncTransport.http2(api: api, identity: .init(clientVersion: "0.0.1/1", deviceID: device))
             },
             tokens: { _, link, _ in LinkedTokens(link: link) },
             createDocument: { _ in try await createDocument() },

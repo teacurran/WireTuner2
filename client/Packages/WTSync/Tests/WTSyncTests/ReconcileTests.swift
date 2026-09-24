@@ -10,8 +10,17 @@ import WTProto
 /// divergence before anything is pushed, holds the outbox while a review is pending, and salvages
 /// a retired replica's unsent changes.
 @Suite(.timeLimit(.minutes(2))) struct ReconcileTests {
-    /// A second client on a harness's store (the first one stopped: the app relaunched).
-    static func client(_ harness: Harness, options: SyncClient.Options = fastOptions()) -> (SyncClient, Collector<SyncEvent>) {
+    /// Options whose clock runs an hour ahead: the reconnect comes after offline work, not a
+    /// dropped connection (D-070).
+    static func apart() -> SyncClient.Options {
+        var options = fastOptions()
+        options.clock = { Date().addingTimeInterval(3600) }
+        return options
+    }
+
+    /// A second client on a harness's store (the first one stopped: the app relaunched), an hour
+    /// after the first one synced unless `options` say otherwise.
+    static func client(_ harness: Harness, options: SyncClient.Options = apart()) -> (SyncClient, Collector<SyncEvent>) {
         let client = SyncClient(store: harness.store, transport: FakeTransport(server: harness.server), tokens: FakeTokens(), options: options)
         return (client, Collector(client.events()))
     }
@@ -49,7 +58,8 @@ import WTProto
         await client.start()
         try await Self.waitFor(client, .needsReview)
         let review = try #require(await client.pendingReview)
-        #expect(review.mode == .wholeDocument && review.entries.count == 1 && review.entries[0].localWriteLost)
+        // One object in common is listed on its own, however small the session (D-070).
+        #expect(review.mode == .perObject && review.entries.count == 1 && review.entries[0].localWriteLost)
         #expect(review.authors == [ReviewAuthor(replica: 9, name: "Priya", ops: 1)])
         try await eventually("review event") { events.all.contains { if case .reviewNeeded = $0 { true } else { false } } }
         try await Task.sleep(for: .milliseconds(100))
@@ -86,6 +96,23 @@ import WTProto
         #expect(await server.acceptedSeqs(43).isEmpty)
         try await eventually("event") { events.all.contains { if case .replicaRotated(42, 43) = $0 { true } else { false } } }
         try await eventually("event") { events.all.contains { if case .stateReplaced(0) = $0 { true } else { false } } }
+        await client.stop()
+    }
+
+    /// TEST-001 finding (c), D-070: back within minutes, an object both sides edited is merged and
+    /// uploaded without holding the outbox; the overlap is offered read-only.
+    @Test func aBriefDropMergesAnOverlapWithoutHolding() async throws {
+        let harness = try await Self.synced()
+        let server = harness.server
+        try await Self.rename(harness, Self.n, "mine")
+        try await server.inject(Fixture.change(9, seq: 2, start: 1_000, [Fixture.rename(Self.n, "theirs")]))
+        let (client, events) = Self.client(harness, options: fastOptions())
+        await client.start()
+        try await harness.expectConverged()
+        try await eventually("merged") { events.all.contains { if case .merged = $0 { true } else { false } } }
+        let merge = try #require(await client.lastMerge)
+        #expect(merge.decision == .suggestReview && merge.mode == .readOnly && merge.entries.count == 1)
+        #expect(!events.all.contains { if case .reviewNeeded = $0 { true } else { false } })
         await client.stop()
     }
 
@@ -143,12 +170,13 @@ import WTProto
         try await Self.rename(harness, Self.n, "mine")
         try await Self.rename(harness, Self.m, "mine too")
         try await server.inject(Fixture.change(9, seq: 2, start: 1_000, [Fixture.note(Self.n, "theirs")]))
+        // *Always ask* asks even after a dropped connection.
         var options = fastOptions()
-        options.reconcile = { ReconcilePreferences(askOverlapShare: 1) }
+        options.reconcile = { ReconcilePreferences(alwaysAsk: true) }
         let (client, _) = Self.client(harness, options: options)
         await client.start()
         try await Self.waitFor(client, .needsReview)
-        #expect(await client.pendingReview?.mode == .perObject)
+        #expect(await client.pendingReview?.mode == .wholeDocument)
         // Use mine, performed as an ordinary change, then Done.
         let entry = try #require(await client.pendingReview?.entries.first)
         #expect(ReviewModel.useMine(entry) == nil)   // both edited: nothing to re-assert

@@ -82,13 +82,29 @@ import WTProto
         #expect(await iterator.next() == 2)
     }
 
-    @Test func noopRewritesKeepTheCounterRange() {
+    /// TEST-001 finding (b): a refused change becomes one `Noop` however many counters it took, so
+    /// the replacement is never over the op limit itself; it keeps the seq and start counter, and
+    /// is cut to what `Change` allows.
+    @Test func aNoopRewriteIsOneOp() {
         let change = Fixture.change(7, seq: 3, start: 10, [
-            Ops.textInsert(OpID(counter: 1, replica: 7), Fixture.text, "abc"), Fixture.createLayer("A"),
+            Ops.textInsert(OpID(counter: 1, replica: 7), Fixture.text, String(repeating: "a", count: 20_000)), Fixture.createLayer("A"),
         ], label: "Type")
         let noop = noopChange(change)
-        #expect(noop.ops.count == 4 && noop.seq == 3 && noop.startCounter == 10 && noop.label == "Type")
+        #expect(noop.ops == [Ops.noop()] && noop.seq == 3 && noop.startCounter == 10 && noop.label == "Type")
+        #expect(noopChange(noop) == noop && isNoopOnly(noop) && !isNoopOnly(change))
         #expect(noopChange(Fixture.change(7, seq: 1, start: 1, [])).ops.count == 1)
+        var odd = change
+        odd.label = String(repeating: "é", count: 300)
+        odd.wallTimeMs = -5
+        let cut = noopChange(odd)
+        #expect(cut.label.unicodeScalars.count == 256 && cut.wallTimeMs == 0 && noopChange(cut) == cut)
+    }
+
+    @Test func changeLimitsAreTheServers() {
+        let small = Fixture.change(7, seq: 1, start: 1, [Fixture.createLayer("A"), Fixture.createLayer("B")])
+        #expect(ChangeLimits.server == ChangeLimits(ops: 10_000, bytes: 4 << 20) && ChangeLimits.server.admits(small))
+        #expect(!ChangeLimits(ops: 1).admits(small) && !ChangeLimits(bytes: 10).admits(small))
+        #expect(ChangeLimits.size(of: Ops.noop()) == 4 && ChangeLimits.headerSize(small) > 64)
     }
 
     @Test func theStoreServesTheSyncClient() async throws {

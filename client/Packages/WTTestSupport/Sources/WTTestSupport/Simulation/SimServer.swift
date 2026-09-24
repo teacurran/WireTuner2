@@ -37,6 +37,8 @@ public struct SimCollectionPoint: Sendable, Hashable {
 /// simulation"): `SyncService` as docs/spec/sync-protocol.adoc and server.adoc specify and SRV-005,
 /// SRV-006 and SRV-013 built it, for any number of documents, people and devices.
 ///
+/// * *Device ids*: a `wt-device` that is not a UUID is refused with `INVALID_ARGUMENT` before
+///   anything else is read (`PrincipalInterceptor`), so no two clients share a binding by accident.
 /// * *Acceptance* in the server's order: a valid token (`UNAUTHENTICATED`/`TOKEN_EXPIRED` once it
 ///   has expired on the simulated clock), a writer's role (`ROLE_INSUFFICIENT`), a live replica
 ///   (`REPLICA_EXPIRED`), a replica bound to this account and device or unbound -- first use binds
@@ -97,6 +99,8 @@ public actor SimServer {
         public var roleRefusals = 0
         public var tokenRefusals = 0
         public var validationFailures = 0
+        /// Calls refused for a `wt-device` that is not a UUID.
+        public var malformedDevices = 0
         public var unavailable = 0
         public var acks = 0
         public var fetchChanges = 0
@@ -304,10 +308,10 @@ public actor SimServer {
         }
     }
 
-    /// Publishes (C, T) for `document` directly, as the Stability job would: for a scenario that
-    /// needs a collection point where the job, as built, cannot reach one (TEST-001's report on
-    /// D-067).  `seq` must be a stable point: every live replica applied it and nothing sequenced
-    /// after it names what a collection there drops.
+    /// Publishes (C, T) for `document` directly, as the Stability job would: for a test that needs
+    /// a given collection point without scripting the acks that let the job reach it.  `seq` must
+    /// be a stable point: every live replica applied it and nothing sequenced after it names what a
+    /// collection there drops.
     public func publishCollectionPoint(_ point: SimCollectionPoint, for document: String) {
         documents[document]?.collectionPoint = point
     }
@@ -374,6 +378,14 @@ public actor SimServer {
     }
 
     // MARK: Checks
+
+    /// `PrincipalInterceptor`: a `wt-device` that is not a UUID is `INVALID_ARGUMENT` (with no
+    /// reason: nothing a client can drop or rotate fixes it).
+    private func checkDevice(_ device: String) throws {
+        guard UUID(uuidString: device) == nil else { return }
+        stats.malformedDevices += 1
+        throw SyncCallError(code: SyncCallError.invalidArgument, message: "wt-device must be a UUID, got \"\(device)\"")
+    }
 
     private func available(database: Bool = true) throws {
         let now = ContinuousClock.now
@@ -532,6 +544,7 @@ public actor SimServer {
         let caller: SimCaller
         do {
             try available()
+            try checkDevice(device)
             caller = SimCaller(account: try account(token), device: device)
             doc = try document(request.documentID)
             role = try self.role(doc, caller.account)
@@ -601,6 +614,7 @@ public actor SimServer {
     func pushChange(_ request: Wiretuner_Sync_V1_PushChangeRequest, token: String, device: String) throws -> Wiretuner_Sync_V1_PushChangeResponse {
         stats.pushes += 1
         try available()
+        try checkDevice(device)
         let caller = SimCaller(account: try account(token), device: device)
         let serverSeq = try accept(request.change, in: request.documentID, caller: caller)
         try loseReplyIfFailingOver()
@@ -619,6 +633,7 @@ public actor SimServer {
     func pushChangeBatch(_ request: Wiretuner_Sync_V1_PushChangeBatchRequest, token: String, device: String) throws -> Wiretuner_Sync_V1_PushChangeBatchResponse {
         stats.batches += 1
         try available()
+        try checkDevice(device)
         let caller = SimCaller(account: try account(token), device: device)
         guard (1...32).contains(request.changes.count) else {
             stats.validationFailures += 1
@@ -643,6 +658,7 @@ public actor SimServer {
     func pushChanges(_ frames: [Wiretuner_Sync_V1_PushChangesRequest], token: String, device: String) throws -> Wiretuner_Sync_V1_PushChangesResponse {
         stats.bulkUploads += 1
         try available()
+        try checkDevice(device)
         let caller = SimCaller(account: try account(token), device: device)
         guard let document = frames.first?.documentID else {
             throw SyncCallError(code: SyncCallError.invalidArgument, reason: .validationFailed, message: "empty upload")
@@ -670,6 +686,7 @@ public actor SimServer {
 
     func updatePresence(_ request: Wiretuner_Sync_V1_UpdatePresenceRequest, token: String, device: String) throws {
         try available(database: false)
+        try checkDevice(device)
         let account = try account(token)
         _ = try role(try document(request.documentID), account)
         var update = request.presence
@@ -686,6 +703,7 @@ public actor SimServer {
     func ack(_ request: Wiretuner_Sync_V1_AckRequest, token: String, device: String) throws -> Wiretuner_Sync_V1_AckResponse {
         stats.acks += 1
         try available()
+        try checkDevice(device)
         let account = try account(token)
         var doc = try document(request.documentID)
         _ = try role(doc, account)
@@ -712,6 +730,7 @@ public actor SimServer {
         stats.fetchChanges += 1
         do {
             try available()
+            try checkDevice(device)
             let doc = try document(request.documentID)
             _ = try role(doc, try account(token))
             let until = request.untilServerSeq == 0 ? doc.head : min(request.untilServerSeq, doc.head)
@@ -733,6 +752,7 @@ public actor SimServer {
         stats.fetchSnapshots += 1
         do {
             try available()
+            try checkDevice(device)
             let doc = try document(request.documentID)
             _ = try role(doc, try account(token))
             guard let snapshot = doc.snapshot,

@@ -42,6 +42,12 @@ public actor SyncClient {
         public var frameBytes = 1 << 20
         /// How often applied changes are acknowledged.
         public var ackInterval: Duration = .seconds(2)
+        /// While the stable point is below the applied seq (someone has not acknowledged it yet),
+        /// `Ack` is repeated to learn when it rises, backing off from `ackInterval` to this.
+        public var ackPollMax: Duration = .seconds(60)
+        /// The server's limits for one change: an unsent change over them is split before it is
+        /// sent (D-067's report, TEST-001).
+        public var changeLimits = ChangeLimits.server
         /// How often presence is read (20 Hz), and the longest it goes unsent (the server expires
         /// an entry 15 s after its last update).
         public var presenceInterval: Duration = .milliseconds(50)
@@ -164,6 +170,17 @@ public actor SyncClient {
     private var replica: UInt64 = 0
     private var applied: UInt64 = 0
     private var ackedServerSeq: UInt64 = 0
+    /// The stable point the last `Ack` answered, and whether that answer raised it and no `Ack`
+    /// has confirmed it since (D-067: the server credits this replica's changes with the
+    /// publication it confirmed by acking again).
+    private var lastStable: UInt64 = 0
+    private var confirmDue = false
+    /// The highest local seq made before the last answer arrived: those changes were made under an
+    /// older horizon, so the answer is confirmed only once they are accepted.
+    private var confirmMark: UInt64 = 0
+    /// When the stable point may be asked about again, and the delay after that.
+    private var nextPoll = ContinuousClock.now
+    private var pollDelay: Duration = .zero
     private var lastAccepted: UInt64 = 0
     private var lastFrame = ContinuousClock.now
     private var lastPresence: Wiretuner_Sync_V1_PresenceUpdate?
@@ -180,6 +197,9 @@ public actor SyncClient {
     private var draining = false
     private var pausedUntil: ContinuousClock.Instant?
     private var backlog: Backlog?
+    /// The seq of an unsent change over `changeLimits`: the queue stops before it, and once
+    /// everything before it is accepted the outbox is split through salvage.
+    private var oversized: UInt64?
 
     /// A client for the document in `store`; remote changes go to `sink`, whose backend must be
     /// `store` (the store itself for a headless upload).
@@ -385,7 +405,7 @@ public actor SyncClient {
             await blobs?.setOnline(false)
             if wasUp {
                 report(.connection(false))
-                try? await store.markSynced(at: options.clock())
+                await markSynced(options.clock())
             }
             guard !Task.isCancelled else { break }
             if wasUp || end == .rotated || end == .restarted {
@@ -432,6 +452,11 @@ public actor SyncClient {
         applied = await store.lastServerSeq
         ackedServerSeq = applied
         sessionBase = applied
+        lastStable = 0
+        confirmDue = false
+        confirmMark = await store.nextSeq - 1
+        nextPoll = .now
+        pollDelay = options.ackInterval
         do {
             let token = try await accessToken()
             sessionToken = token
@@ -499,6 +524,11 @@ public actor SyncClient {
                     return .halted
                 case SyncCallError.notFound:
                     errorDetail = "The document no longer exists."
+                    return .halted
+                case SyncCallError.invalidArgument:
+                    // A request this Mac will make the same way however often it retries (a
+                    // malformed `wt-device`, say): the error state until *Retry now*.
+                    errorDetail = "The server refused this Mac's request: \(error.message)"
                     return .halted
                 default:
                     break
@@ -752,9 +782,16 @@ public actor SyncClient {
         }
     }
 
-    /// Acknowledges the applied sequence when it moved (it drives causal stability).
+    /// Acknowledges the applied sequence (it drives causal stability) when it moved; again when
+    /// the last answer raised the stable point, so the server records that publication as this
+    /// replica's horizon (D-067); and, backing off, while the stable point is below the applied
+    /// seq, to learn when it rises.  A confirming ack waits until every change made before the
+    /// answer arrived is accepted: the server credits the changes that reach it after the
+    /// confirmation with the confirmed horizon, so an older change must not be among them.
     private func sendAck() async throws {
-        guard applied > ackedServerSeq else { return }
+        let moved = applied > ackedServerSeq
+        let polling = lastStable < applied && ContinuousClock.now >= nextPoll
+        guard moved || confirmDue || polling, acked >= confirmMark else { return }
         let target = applied
         var request = Wiretuner_Sync_V1_AckRequest()
         request.documentID = documentID
@@ -764,6 +801,11 @@ public actor SyncClient {
         do {
             let response = try await transport.ack(request, token: token)
             ackedServerSeq = max(ackedServerSeq, target)
+            confirmDue = response.stableSeq > lastStable
+            pollDelay = confirmDue || moved ? options.ackInterval : min(pollDelay * 2, options.ackPollMax)
+            nextPoll = .now + pollDelay
+            lastStable = max(lastStable, response.stableSeq)
+            confirmMark = await store.nextSeq - 1
             report(.stable(response.stableSeq))
             await sink.advanceHorizon(to: response.stableSeq)
             if let point = CollectionPoint(response) {
@@ -825,6 +867,9 @@ public actor SyncClient {
                     if let until = pausedUntil {
                         pausedUntil = nil
                         try await Task.sleep(until: until, clock: .continuous)
+                    }
+                    if canPush {
+                        try await splitOversized()
                     }
                     if canPush && !options.gatewayMode {
                         let upcoming = try await upcoming()
@@ -938,6 +983,12 @@ public actor SyncClient {
             draining = true
             await publish("client too old")
         case .validationFailed?:
+            guard noopChange(change) != change else {
+                // Even the one-Noop replacement was refused: sending it again cannot help.
+                errorDetail = "A change could not be sent: the server refused it (\(error.message))."
+                logger.fault("replacement of change \(change.seq) refused: \(error.message, privacy: .public)")
+                throw SessionEnd.halted
+            }
             try await drop(change, error.message)
             draining = true
         default:
@@ -947,8 +998,9 @@ public actor SyncClient {
         }
     }
 
-    /// A change the server's validators refused: it is sent again as `Noop`s, keeping the seq and
-    /// counter range, and reported.  The local effects stay (see docs/spec/sync-protocol.adoc).
+    /// A change the server's validators refused: it is sent again as one `Noop`, keeping the seq
+    /// and start counter (`noopChange`), and reported.  The local effects stay (see
+    /// docs/spec/sync-protocol.adoc).
     private func drop(_ change: Wiretuner_Doc_V1_Change, _ message: String) async throws {
         let noop = noopChange(change)
         try await store.replaceUnsent(noop)
@@ -985,6 +1037,8 @@ public actor SyncClient {
         nextSeq = 1
         sent = [:]
         queue = []
+        oversized = nil
+        confirmMark = 0
     }
 
     /// Runs once a session has caught up to the head `Welcome` named, before anything is pushed
@@ -998,7 +1052,7 @@ public actor SyncClient {
         let now = options.clock()
         let epoch = reviewEpoch
         let recording = DocumentCore.Recording(limit: options.undoLevels, now: now)
-        if let salvage = try? await store.applySalvage(recording: recording) {
+        if let salvage = try? await store.applySalvage(recording: recording, limits: options.changeLimits) {
             report(.stateReplaced(serverSeq: applied))
             report(.salvaged(salvage))
             if salvage.needsReview {
@@ -1019,7 +1073,7 @@ public actor SyncClient {
                 }
             }
         }
-        try? await store.markSynced(at: now)
+        await markSynced(now)
         reconciled?.fire()
         nudge.fire()
         await blobs?.setOnline(true)
@@ -1040,6 +1094,14 @@ public actor SyncClient {
             lastMerge = review
             report(.merged(review))
         }
+    }
+
+    /// Records the moment the store caught up -- unless a review holds the outbox: the gap a later
+    /// measurement reads then still runs from before the offline work it asks about, so a
+    /// relaunch or a reconnect does not take the pending review for a brief drop (D-070).
+    private func markSynced(_ now: Date) async {
+        guard pendingReview?.holdsOutbox != true else { return }
+        try? await store.markSynced(at: now)
     }
 
     /// The time since the previous sync.
@@ -1088,6 +1150,31 @@ public actor SyncClient {
             // The changes in between are acknowledged in the store already.
             advanceAcked(to: first.seq - 1)
         }
+        // A change over the server's limits would be refused: the queue stops before it.  A
+        // change of one op cannot be split, and goes up to be refused and replaced (`drop`).
+        let limits = options.changeLimits
+        oversized = nil
+        if let index = queue.firstIndex(where: { $0.ops.count > 1 && !limits.admits($0) }) {
+            oversized = queue[index].seq
+            queue.removeSubrange(index...)
+        }
+    }
+
+    /// Splits the outbox once everything sent before the oversized change is accepted and recorded
+    /// so in the store (a bulk upload's changes are recorded when they echo): salvage (offline.adoc,
+    /// "Replica expiry and salvage") re-issues every unacknowledged change on the server's state as
+    /// changes within `changeLimits`, from a fresh replica -- the one way to renumber changes whose
+    /// ids are already applied locally.
+    private func splitOversized() async throws {
+        guard let seq = oversized, queue.isEmpty, highestSent <= acked,
+              try await store.oldestUnacknowledgedSeq() == seq else { return }
+        logger.notice("change \(seq) is over the server's limits: splitting the outbox")
+        let old = replica
+        replica = try await store.beginSalvage(reason: .oversized)
+        resetOutboxTracking()
+        report(.replicaRotated(from: old, to: replica))
+        report(.stateReplaced(serverSeq: 0))
+        throw SessionEnd.rotated
     }
 
     /// The next change to send: a resend from `sent`, else the next coalesced outbox change.

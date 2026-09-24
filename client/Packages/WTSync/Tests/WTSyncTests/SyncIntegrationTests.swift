@@ -16,7 +16,10 @@ struct SyncIntegrationTests {
     static let environment = ProcessInfo.processInfo.environment
     static let api = URL(string: environment["WT_SYNC_API"] ?? "http://localhost:8080")!
     static let keycloak = URL(string: environment["WT_SYNC_KEYCLOAK"] ?? "http://localhost:8180")!
-    static let identity = GRPCSyncTransport<HTTP2ClientTransport.Posix>.Identity(clientVersion: "0.0.1/1", deviceID: "sync-it-device")
+    /// The server refuses a `wt-device` that is not a UUID (TEST-001 finding d); both peers are
+    /// this one test device.
+    static let identity = GRPCSyncTransport<HTTP2ClientTransport.Posix>.Identity(clientVersion: "0.0.1/1",
+                                                                                 deviceID: "5ec0a1b2-7e57-4d0e-9a1c-000000000001")
 
     /// Resource-owner password grant against the compose realm (the `wiretuner-mac` client allows
     /// it), shared by both peers and retried: Keycloak answers concurrent grants unevenly.

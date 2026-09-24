@@ -74,6 +74,12 @@ enum StoreSchema {
                 );
                 """)
         }
+        // TEST-001's D-067 fix: the replica's horizon, so changes made after a relaunch, before the
+        // first Ack answer, still avoid what the server credits them with (the publication this
+        // replica confirmed before the relaunch).
+        migrator.registerMigration("offline-3") { db in
+            try db.execute(sql: "ALTER TABLE meta ADD COLUMN horizon_seq INTEGER NOT NULL DEFAULT 0")
+        }
         return migrator
     }
 }

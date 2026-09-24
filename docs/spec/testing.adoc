@@ -214,22 +214,32 @@ random modes, networks and skews under random partitions of up to 36 hours, rest
 first-time opener bootstrapping from a snapshot (`WT_SIM_SEEDS`, `WT_SIM_RUNS=n`).  The whole suite
 takes about 80 s (debug build, M-series), within TEST-001's 10 minutes in the package-tests step of
 CI.  Scenario 2 holds the time from *Keep the merged result* to convergence (1,000 changes, 30,000
-ops, up through `PushChanges` or batches) to a `PerfBudget` of 5 s (1.4 s measured, release).  Findings, each pinned by a
-known-issue test until fixed: *(a)* D-067 as built never publishes a collection point above 0 --
-the server credits a change with the publication its author confirmed by acking again, and
-`SyncClient` acks only when its applied seq moves, so every change's horizon is at most its seq - 2
-and the job's lowering step walks C down to 0 (scenario 5 publishes the point itself,
-`SimServer.publishCollectionPoint`, to exercise compaction and salvage's dropped ops); a
-confirming `Ack` when the last answer's `stable_seq` is below the applied seq, or the horizon sent
-with each push, would let C rise at the quiet points.  *(b)* A change refused with
-`VALIDATION_FAILED` for its op count is resent as one `Noop` per counter, over the limit again, for
-as long as the session lasts (403 refusals in 0.3 s here; a change of more than 10,000 counters,
-such as a long paste, meets it).  *(c)* Reconciling runs on every reconnect, so a connection
-dropped for a few seconds while people edit one object opens the whole-document review holding
-the outbox (one object in common is 100% of a small session); the simulated people settle it with
-*Keep the merged result*, as dismissing the sheet does.  *(d)* The server reads `wt-device` as a
-UUID and binds any other value to the all-zero device, so clients sending a non-UUID device share
-one binding (the compose backend sends UUIDs).
+ops, up through `PushChanges` or batches) to a `PerfBudget` of 5 s (1.4 s measured, release).  Findings, each fixed at the
+root and now held by an ordinary test: *(a)* D-067 as first built never published a collection
+point above 0 -- the server credits a change with the publication its author confirmed by acking
+again, and `SyncClient` acked only when its applied seq moved, so every change's horizon was at
+most its seq - 2 and the job's lowering step walked C down to 0.  The client now confirms every
+answer that raised the stable point, polls while the point is below its applied seq, waits for
+its older changes before confirming, and keeps its horizon across relaunches
+(xref:sync-protocol.adoc[Sync protocol], "The client as built"); scenario 5 expects the job's own
+point at or past the deletion, with a recent clock, and compacts and salvages on it
+(`SimServer.publishCollectionPoint` stays for tests that want a given point).  *(b)* A change
+refused with `VALIDATION_FAILED` for its op count was resent as one `Noop` per counter, over the
+limit again, for as long as the session lasted (403 refusals in 0.3 s; any change of more than
+10,000 counters, such as a long paste, met it).  The replacement is now one `Noop`, a refused
+replacement is the `error` state, and a change over the limits is split through salvage before it
+is sent (`SimulationChecksTests`: each over-limit change is refused once; clients that know the
+limit converge with none refused).  *(c)* Reconciling applied the review rules on every
+reconnect, so a connection dropped for a few seconds while people edited one object opened the
+whole-document review holding the outbox (one object in common is 100% of a small session);
+xref:decisions.adoc#D-070[D-070] merges a brief reconnect without holding and gives the share rule
+a five-object minimum, and scenario 1 expects no review at all.  *(d)* The server read `wt-device`
+leniently and bound any other value to the all-zero device, so clients sending a non-UUID device
+shared one binding; it now refuses one with `INVALID_ARGUMENT` (`PrincipalInterceptor`), and so
+does `SimServer`, whose clients' devices are UUIDs derived from their names
+(`Simulation.deviceID(for:)`); `SyncIntegrationTests` and the compose backend send UUIDs too.
+Scenario 7 counts its steps (`Simulation.steps`) rather than running for a simulated duration, so
+the downgrade at step 30 happens on a loaded machine too.
 
 == Geometry and rendering
 

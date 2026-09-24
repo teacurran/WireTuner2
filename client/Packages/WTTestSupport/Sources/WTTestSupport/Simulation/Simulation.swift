@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import Synchronization
 import WTCRDT
@@ -142,7 +143,8 @@ public final class Simulation {
     ///
     /// - Parameters:
     ///   - user: who is signed in (default: a new editor named after the client).
-    ///   - device: its `wt-device`; `hardware` its Mac's platform UUID (both default to the name).
+    ///   - device: names its `wt-device`, which is the UUID `deviceID(for:)` derives from it (a UUID
+    ///     is taken as it is); `hardware` its Mac's platform UUID (both default to the name).
     ///   - store: an existing store file to open (a copied one), else a new one.
     ///   - document: the document to open (default: the simulation's).
     ///   - skew: how far this Mac's clock is off.
@@ -158,7 +160,7 @@ public final class Simulation {
         if user.id != owner.id, document == nil, !granted.contains(user.id) {
             try await grant(.editor, to: user)
         }
-        let device = device ?? "device-\(name)"
+        let device = Self.deviceID(for: device ?? "device-\(name)")
         let link = NetworkLink(name: name, seed: SimRandom.mix(seed, UInt64(clients.count + 1)), clock: clock, conditions: conditions)
         let log = self.log
         link.observe { log.record($0) }
@@ -185,6 +187,19 @@ public final class Simulation {
             await client.start()
         }
         return client
+    }
+
+    /// The `wt-device` of the device named `name`: a name-based UUID (version 5 layout, SHA-1 of
+    /// the name), the same for the same name in every run; a UUID is its own id.  The server
+    /// refuses a `wt-device` that is not a UUID (TEST-001 finding d).
+    public nonisolated static func deviceID(for name: String) -> String {
+        if let uuid = UUID(uuidString: name) { return uuid.uuidString.lowercased() }
+        var bytes = Array(Insecure.SHA1.hash(data: Data("wt-device:\(name)".utf8)).prefix(16))
+        bytes[6] = 0x50 | (bytes[6] & 0x0F)
+        bytes[8] = 0x80 | (bytes[8] & 0x3F)
+        let uuid = UUID(uuid: (bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7],
+                               bytes[8], bytes[9], bytes[10], bytes[11], bytes[12], bytes[13], bytes[14], bytes[15]))
+        return uuid.uuidString.lowercased()
     }
 
     /// Sync options for simulated time: the client's timers short, its clock the simulated one.

@@ -11,6 +11,10 @@ import WTSync
     static let doc = "D1"
     static let alice = SimUser(id: "alice", name: "Alice")
     static let bob = SimUser(id: "bob", name: "Bob")
+    /// Devices, as the `wt-device` UUIDs the server requires.
+    static let d1 = Simulation.deviceID(for: "d1")
+    static let d2 = Simulation.deviceID(for: "d2")
+    static let d3 = Simulation.deviceID(for: "d3")
 
     /// A server with document D1 owned by Alice, Bob an editor, and a token for each.
     static func server(_ configure: (inout SimServer.Options) -> Void = { _ in }) async -> (SimServer, String, String) {
@@ -37,7 +41,7 @@ import WTSync
         return change
     }
 
-    static func push(_ server: SimServer, _ change: Wiretuner_Doc_V1_Change, token: String, device: String = "d1") async throws -> UInt64 {
+    static func push(_ server: SimServer, _ change: Wiretuner_Doc_V1_Change, token: String, device: String = SimServerTests.d1) async throws -> UInt64 {
         try await server.pushChange(.with { $0.documentID = doc; $0.change = change }, token: token, device: device).serverSeq
     }
 
@@ -69,7 +73,7 @@ import WTSync
         #expect(await Self.reason { _ = try await Self.push(server, Self.change(7, seq: 1, name: "other"), token: alice) } == .replicaConflict)
         #expect(await Self.reason { _ = try await Self.push(server, Self.change(7, seq: 3), token: alice) } == .seqGap)
         // The replica is bound to Alice's device.
-        #expect(await Self.reason { _ = try await Self.push(server, Self.change(7, seq: 2), token: alice, device: "d2") } == .replicaConflict)
+        #expect(await Self.reason { _ = try await Self.push(server, Self.change(7, seq: 2), token: alice, device: Self.d2) } == .replicaConflict)
         #expect(await Self.reason { _ = try await Self.push(server, Self.change(7, seq: 2), token: bob) } == .replicaConflict)
         var empty = Self.change(8, seq: 1)
         empty.ops = []
@@ -92,16 +96,47 @@ import WTSync
         #expect(known && !unknown)
     }
 
+    /// TEST-001 finding (d): a `wt-device` that is not a UUID is refused, on every call, before the
+    /// token or the document is read; it never binds a replica.
+    @Test func aDeviceIdThatIsNotAUuidIsRefused() async throws {
+        let (server, alice, _) = await Self.server()
+        let refusal = await #expect(throws: SyncCallError.self) {
+            _ = try await Self.push(server, Self.change(7, seq: 1), token: "garbage", device: "device-ana")
+        }
+        #expect(refusal?.code == SyncCallError.invalidArgument && refusal?.reason == nil)
+        #expect(refusal?.message == "wt-device must be a UUID, got \"device-ana\"")
+        let transport = SimServerTransport(server: server, device: "")
+        await #expect(throws: SyncCallError.self) { try await transport.pushChangeBatch(.with { $0.documentID = Self.doc }, token: alice) }
+        await #expect(throws: SyncCallError.self) { try await transport.pushChanges([], token: alice) }
+        await #expect(throws: SyncCallError.self) { try await transport.ack(.with { $0.documentID = Self.doc }, token: alice) }
+        await #expect(throws: SyncCallError.self) { try await transport.updatePresence(.with { $0.documentID = Self.doc }, token: alice) }
+        await #expect(throws: SyncCallError.self) {
+            for try await _ in transport.subscribe(.with { $0.documentID = Self.doc; $0.replica = 7 }, token: alice) {}
+        }
+        await #expect(throws: SyncCallError.self) {
+            for try await _ in transport.fetchChanges(.with { $0.documentID = Self.doc }, token: alice) {}
+        }
+        await #expect(throws: SyncCallError.self) {
+            for try await _ in transport.fetchSnapshot(.with { $0.documentID = Self.doc }, token: alice) {}
+        }
+        let stats = await server.stats
+        #expect(stats.malformedDevices == 8 && stats.tokenRefusals == 0)
+        #expect(await server.acceptedSeqs(7, in: Self.doc).isEmpty)
+        // Names become stable UUIDs; a UUID stays itself.
+        #expect(Self.d1 == Simulation.deviceID(for: "d1") && Self.d1 != Self.d2 && UUID(uuidString: Self.d1) != nil)
+        #expect(Simulation.deviceID(for: "0F0E0D0C-0B0A-4908-8706-050403020100") == "0f0e0d0c-0b0a-4908-8706-050403020100")
+    }
+
     @Test func documentsAndAccess() async throws {
         let (server, alice, _) = await Self.server()
         let stranger = SimUser(id: "carol", name: "Carol")
         await server.add(stranger)
         let carol = await server.issueToken(for: stranger.id, lifetime: .seconds(60))
         #expect(await Self.reason {
-            _ = try await server.pushChange(.with { $0.documentID = "D9"; $0.change = Self.change(7, seq: 1) }, token: alice, device: "d1")
+            _ = try await server.pushChange(.with { $0.documentID = "D9"; $0.change = Self.change(7, seq: 1) }, token: alice, device: Self.d1)
         } == .documentNotFound)
         #expect(await Self.reason { _ = try await Self.push(server, Self.change(9, seq: 1), token: carol) } == .unspecified)
-        let transport = SimServerTransport(server: server, device: "d1")
+        let transport = SimServerTransport(server: server, device: Self.d1)
         await #expect(throws: SyncCallError.self) {
             for try await _ in transport.fetchChanges(.with { $0.documentID = "D9" }, token: alice) {}
         }
@@ -129,7 +164,7 @@ import WTSync
 
     @Test func batchesAndBulkUploadsAnswerAPrefix() async throws {
         let (server, alice, _) = await Self.server()
-        let transport = SimServerTransport(server: server, device: "d1")
+        let transport = SimServerTransport(server: server, device: Self.d1)
         await #expect(throws: SyncCallError.self) {
             _ = try await transport.pushChangeBatch(.with { $0.documentID = Self.doc }, token: alice)
         }
@@ -152,7 +187,7 @@ import WTSync
     @Test func subscriptionsCarryWelcomeReplayPresenceAndEvents() async throws {
         let (server, alice, bob) = await Self.server { $0.pongAfter = .milliseconds(20) }
         _ = try await Self.push(server, Self.change(7, seq: 1), token: alice)
-        let transport = SimServerTransport(server: server, device: "d2")
+        let transport = SimServerTransport(server: server, device: Self.d2)
         let stream = transport.subscribe(.with {
             $0.documentID = Self.doc
             $0.replica = 9
@@ -193,7 +228,7 @@ import WTSync
 
     @Test func faultsFailCallsAndStreams() async throws {
         let (server, alice, _) = await Self.server()
-        let transport = SimServerTransport(server: server, device: "d1")
+        let transport = SimServerTransport(server: server, device: Self.d1)
         let stream = transport.subscribe(.with { $0.documentID = Self.doc; $0.replica = 7 }, token: alice)
         _ = try await Self.frames(stream, count: 2)
         await server.restartBus(outage: .seconds(20))
@@ -226,27 +261,27 @@ import WTSync
         let alice = await server.issueToken(for: Self.alice.id, lifetime: .seconds(365 * 86_400))
         let bob = await server.issueToken(for: Self.bob.id, lifetime: .seconds(365 * 86_400))
         _ = try await Self.push(server, Self.change(7, seq: 1), token: alice)
-        _ = try await server.pushChange(.with { $0.documentID = Self.doc; $0.change = Self.change(8, seq: 1, start: 5) }, token: bob, device: "d2")
-        _ = try await Self.push(server, Self.change(9, seq: 1, start: 9), token: alice, device: "d3")
+        _ = try await server.pushChange(.with { $0.documentID = Self.doc; $0.change = Self.change(8, seq: 1, start: 5) }, token: bob, device: Self.d2)
+        _ = try await Self.push(server, Self.change(9, seq: 1, start: 9), token: alice, device: Self.d3)
         var deletion = Self.change(7, seq: 2, start: 20)
         deletion.ops = [Ops.setDeleted(OpID(counter: 1, replica: 7))]
         _ = try await Self.push(server, deletion, token: alice)
         clock.advance(by: .seconds(91 * 86_400))
-        _ = try await server.ack(.with { $0.documentID = Self.doc; $0.replica = 7; $0.appliedServerSeq = 4 }, token: alice, device: "d1")
-        _ = try await server.ack(.with { $0.documentID = Self.doc; $0.replica = 8; $0.appliedServerSeq = 4 }, token: bob, device: "d2")
+        _ = try await server.ack(.with { $0.documentID = Self.doc; $0.replica = 7; $0.appliedServerSeq = 4 }, token: alice, device: Self.d1)
+        _ = try await server.ack(.with { $0.documentID = Self.doc; $0.replica = 8; $0.appliedServerSeq = 4 }, token: bob, device: Self.d2)
         await server.runStabilityJob()
         for _ in 0..<3 {
-            _ = try await server.ack(.with { $0.documentID = Self.doc; $0.replica = 7; $0.appliedServerSeq = 4 }, token: alice, device: "d1")
-            _ = try await server.ack(.with { $0.documentID = Self.doc; $0.replica = 8; $0.appliedServerSeq = 4 }, token: bob, device: "d2")
+            _ = try await server.ack(.with { $0.documentID = Self.doc; $0.replica = 7; $0.appliedServerSeq = 4 }, token: alice, device: Self.d1)
+            _ = try await server.ack(.with { $0.documentID = Self.doc; $0.replica = 8; $0.appliedServerSeq = 4 }, token: bob, device: Self.d2)
         }
         await server.runStabilityJob()
         #expect(await server.isRetired(9, in: Self.doc))
         #expect(await Self.reason {
-            _ = try await server.ack(.with { $0.documentID = Self.doc; $0.replica = 9; $0.appliedServerSeq = 4 }, token: alice, device: "d3")
+            _ = try await server.ack(.with { $0.documentID = Self.doc; $0.replica = 9; $0.appliedServerSeq = 4 }, token: alice, device: Self.d3)
         } == .replicaExpired)
         let point = try #require(await server.collectionPoint(Self.doc))
         #expect(point.seq == 4)
-        let answer = try await server.ack(.with { $0.documentID = Self.doc; $0.replica = 7; $0.appliedServerSeq = 4 }, token: alice, device: "d1")
+        let answer = try await server.ack(.with { $0.documentID = Self.doc; $0.replica = 7; $0.appliedServerSeq = 4 }, token: alice, device: Self.d1)
         #expect(answer.stableSeq == 4 && answer.collectSeq == 4)
         #expect(await server.state(Self.doc, collected: true).store.nodes.count < (await server.state(Self.doc)).store.nodes.count)
         await server.takeSnapshot(Self.doc)

@@ -69,6 +69,13 @@ actor FakeSyncServer {
     var disconnectAfterLive = false
     /// A collection point to answer every Ack with, as the unknown fields 2 and 3 (D-067).
     var collectionPoint: (seq: UInt64, timeMs: Int64)?
+    /// Ack answers say the stable point is at most this (another replica lags behind).
+    var stableCap: UInt64?
+    /// The acceptance limits (sync-protocol.adoc, "Server log"): a change over them is refused
+    /// with `VALIDATION_FAILED` every time it arrives.
+    var maxOps: Int?
+    var maxBytes: Int?
+    private(set) var validationFailures = 0
 
     init(documentID: String = "D1") {
         self.documentID = documentID
@@ -148,6 +155,10 @@ actor FakeSyncServer {
         guard change.seq == last + 1 else {
             gaps += 1
             throw SyncCallError(code: SyncCallError.aborted, reason: .seqGap, message: "expected \(last + 1), got \(change.seq)")
+        }
+        guard change.ops.count <= maxOps ?? .max, bytes.count <= maxBytes ?? .max else {
+            validationFailures += 1
+            throw SyncCallError(code: SyncCallError.invalidArgument, reason: .validationFailed, message: "change outside the limits")
         }
         accepted[change.replica, default: [:]][change.seq] = bytes
         let entry = Wiretuner_Sync_V1_SequencedChange.with {
@@ -359,7 +370,7 @@ actor FakeSyncServer {
         if let ackFailure { throw ackFailure }
         acks.append(request.appliedServerSeq)
         return .with {
-            $0.stableSeq = min(request.appliedServerSeq, head)
+            $0.stableSeq = min(request.appliedServerSeq, head, stableCap ?? .max)
             $0.collectSeq = collectionPoint?.seq ?? 0
             $0.collectTimeMs = collectionPoint?.timeMs ?? 0
         }
