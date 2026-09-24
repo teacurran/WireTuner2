@@ -1,0 +1,34 @@
+# crdt-conformance/vectors/library/origin-layer-atomic.textproto (LIB-006; schema: crdt-conformance/schema/vector.proto)
+name: "library/origin-layer-atomic"
+description: "CommonProps.origin_layer is an ATOMIC string register: two replicas remember different layer names on one object at once; the greater OpId (3:2) wins and replica 1's name is retained as a losing write."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Layer and rectangle"
+    ops { create { parent { counter: 4 } position: "\x80" props { layer { common { name: "Layer 1" } } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x80" props { rect { size { width: 10 height: 10 } } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 3 base_server_seq: 1 label: "Remember"
+    ops { set { node { counter: 2 replica: 7 } paths { segments { field: 21 } segments { field: 1 } segments { field: 14 } } values { rect { common { origin_layer: "Sketch" } } } } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 3 base_server_seq: 1 label: "Remember"
+    ops { set { node { counter: 2 replica: 7 } paths { segments { field: 21 } segments { field: 1 } segments { field: 14 } } values { rect { common { origin_layer: "Ink" } } } } }
+  }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "fcb59221b5e5eadc883cf7b053a15fef2f5b4c90e0ea32a6be92adfe6affb9a4"
+  snapshot_hash: "42f3feebe2f8fd1d2d1c17dd147da8d333c09f6e4d33807aac6053adec3ef4c8"
+  node {
+    id { counter: 2 replica: 7 }
+    register { path { segments { field: 21 } segments { field: 1 } segments { field: 14 } } value { rect { common { origin_layer: "Ink" } } } op { counter: 3 replica: 2 } losing { counter: 3 replica: 1 } }
+  }
+}

@@ -1864,6 +1864,18 @@ public enum WTValidators {
         return out
     }
 
+    /// Validates `wiretuner.doc.v1.CaseException`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_CaseException, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        do {
+            let v = m.word
+            if v.unicodeScalars.count > 256 {
+                out.append(ValidationViolation(fieldPath: "\(path)word", ruleID: "string.max_len", message: "value length must be at most 256 characters"))
+            }
+        }
+        return out
+    }
+
     /// Validates `wiretuner.doc.v1.Change`; `path` prefixes every violation's field path.
     public static func validate(_ m: Wiretuner_Doc_V1_Change, path: String = "") -> [ValidationViolation] {
         var out: [ValidationViolation] = []
@@ -5678,6 +5690,12 @@ public enum WTValidators {
             let v = m.print
             out += validate(v, path: "\(path)print.")
         }
+        do {
+            let v = m.printInfo
+            if v.count > 262144 {
+                out.append(ValidationViolation(fieldPath: "\(path)print_info", ruleID: "bytes.max_len", message: "value length must be at most 262144 bytes"))
+            }
+        }
         if m.hasView {
             let v = m.view
             out += validate(v, path: "\(path)view.")
@@ -5709,6 +5727,10 @@ public enum WTValidators {
         if m.hasInfo {
             let v = m.info
             out += validate(v, path: "\(path)info.")
+        }
+        if m.hasTextSettings {
+            let v = m.textSettings
+            out += validate(v, path: "\(path)text_settings.")
         }
         return out
     }
@@ -6454,6 +6476,21 @@ public enum WTValidators {
         if m.hasTailParagraph {
             let v = m.tailParagraph
             out += validate(v, path: "\(path)tail_paragraph.")
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.doc.v1.TextSettings`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_TextSettings, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        do {
+            let v = m.smallCapsPercent
+            if !(v >= 0 && v <= 100) {
+                out.append(ValidationViolation(fieldPath: "\(path)small_caps_percent", ruleID: "double.gte_lte", message: "value must be greater than or equal to 0 and less than or equal to 100"))
+            }
+        }
+        for (i, v) in m.caseExceptions.enumerated() {
+            out += validate(v, path: "\(path)case_exceptions[\(i)].")
         }
         return out
     }

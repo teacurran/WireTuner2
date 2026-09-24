@@ -2750,6 +2750,67 @@ public nonisolated struct Wiretuner_Doc_V1_ParagraphSettings: @unchecked Sendabl
   fileprivate var _storage = _StorageClass.defaultInstance
 }
 
+/// Document-wide Convert Case settings (editing-text.adoc, "Converting case"):
+/// `SettingsProps.text_settings`.  STRUCT: the size and the list merge independently.
+public nonisolated struct Wiretuner_Doc_V1_TextSettings: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Small capitals' size in percent of the type size; 0 (never set) reads as 75.
+  public var smallCapsPercent: Double = 0
+
+  /// Words that keep their spelling under the conversions each ticks.  SEQUENCE: added, edited
+  /// and removed individually; the order is the sheet's list.
+  public var caseExceptions: [Wiretuner_Doc_V1_CaseException] = []
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// One Convert Case exception: a word and the conversions that leave it as spelled here.
+/// Element of TextSettings.case_exceptions; each field is its own register.
+public nonisolated struct Wiretuner_Doc_V1_CaseException: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Element id (MERGE_SEQUENCE).
+  public var id: Wiretuner_Doc_V1_ElementId {
+    get {_id ?? Wiretuner_Doc_V1_ElementId()}
+    set {_id = newValue}
+  }
+  /// Returns true if `id` has been explicitly set.
+  public var hasID: Bool {self._id != nil}
+  /// Clears the value of `id`. Subsequent reads from it will return its default value.
+  public mutating func clearID() {self._id = nil}
+
+  /// The word as it must stay spelled ("iPhone"); matched without regard to case.
+  public var word: String = String()
+
+  /// Kept under Uppercase.
+  public var uppercase: Bool = false
+
+  /// Kept under Lowercase.
+  public var lowercase: Bool = false
+
+  /// Kept under Small Caps (drawn as typed).
+  public var smallCaps: Bool = false
+
+  /// Kept under Title.
+  public var title: Bool = false
+
+  /// Kept under Sentence.
+  public var sentence: Bool = false
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _id: Wiretuner_Doc_V1_ElementId? = nil
+}
+
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
 fileprivate nonisolated let _protobuf_package = "wiretuner.doc.v1"
@@ -5393,6 +5454,105 @@ nonisolated extension Wiretuner_Doc_V1_ParagraphSettings: SwiftProtobuf.Message,
       }
       if !storagesAreEqual {return false}
     }
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Doc_V1_TextSettings: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".TextSettings"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}small_caps_percent\0\u{3}case_exceptions\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularDoubleField(value: &self.smallCapsPercent) }()
+      case 2: try { try decoder.decodeRepeatedMessageField(value: &self.caseExceptions) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.smallCapsPercent.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.smallCapsPercent, fieldNumber: 1)
+    }
+    if !self.caseExceptions.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.caseExceptions, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Wiretuner_Doc_V1_TextSettings, rhs: Wiretuner_Doc_V1_TextSettings) -> Bool {
+    if lhs.smallCapsPercent != rhs.smallCapsPercent {return false}
+    if lhs.caseExceptions != rhs.caseExceptions {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Doc_V1_CaseException: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".CaseException"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}word\0\u{1}uppercase\0\u{1}lowercase\0\u{3}small_caps\0\u{1}title\0\u{1}sentence\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._id) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.word) }()
+      case 3: try { try decoder.decodeSingularBoolField(value: &self.uppercase) }()
+      case 4: try { try decoder.decodeSingularBoolField(value: &self.lowercase) }()
+      case 5: try { try decoder.decodeSingularBoolField(value: &self.smallCaps) }()
+      case 6: try { try decoder.decodeSingularBoolField(value: &self.title) }()
+      case 7: try { try decoder.decodeSingularBoolField(value: &self.sentence) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._id {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    if !self.word.isEmpty {
+      try visitor.visitSingularStringField(value: self.word, fieldNumber: 2)
+    }
+    if self.uppercase != false {
+      try visitor.visitSingularBoolField(value: self.uppercase, fieldNumber: 3)
+    }
+    if self.lowercase != false {
+      try visitor.visitSingularBoolField(value: self.lowercase, fieldNumber: 4)
+    }
+    if self.smallCaps != false {
+      try visitor.visitSingularBoolField(value: self.smallCaps, fieldNumber: 5)
+    }
+    if self.title != false {
+      try visitor.visitSingularBoolField(value: self.title, fieldNumber: 6)
+    }
+    if self.sentence != false {
+      try visitor.visitSingularBoolField(value: self.sentence, fieldNumber: 7)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Wiretuner_Doc_V1_CaseException, rhs: Wiretuner_Doc_V1_CaseException) -> Bool {
+    if lhs._id != rhs._id {return false}
+    if lhs.word != rhs.word {return false}
+    if lhs.uppercase != rhs.uppercase {return false}
+    if lhs.lowercase != rhs.lowercase {return false}
+    if lhs.smallCaps != rhs.smallCaps {return false}
+    if lhs.title != rhs.title {return false}
+    if lhs.sentence != rhs.sentence {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

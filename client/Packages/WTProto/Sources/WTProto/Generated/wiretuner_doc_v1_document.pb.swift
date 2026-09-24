@@ -19,6 +19,11 @@
 /// page fields reference messages in their own files (print, view, color_management, web, data,
 /// effects, perspective, font, file_info), recorded in the field-number tables below.
 
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
+import Foundation
+#endif
 import SwiftProtobuf
 
 // If the compiler emits an error on this type, it is because this file
@@ -634,7 +639,7 @@ public nonisolated struct Wiretuner_Doc_V1_Defaults: Sendable {
 ///    10-19   OBJ             objects/default-attributes.adoc (defaults 10)
 ///    20-29   FONT            typeface/typeface-documents.adoc (document_kind 20, font 21)
 ///    30-39   PRINT           printing/output-area.adoc (output_area 30), printing/printing.adoc
-///                            (print 31)
+///                            (print 31, print_info 32, local_only)
 ///    40-49   BASIC           basics/document-view.adoc (view 40, local_only)
 ///    50-59   CMS             cms/color-management.adoc (color 50)
 ///    60-69   WEB             web/publish-html.adoc (html_settings 60, html_setting_selected 61)
@@ -645,7 +650,8 @@ public nonisolated struct Wiretuner_Doc_V1_Defaults: Sendable {
 ///   100-119  free
 ///   120-129  IO              io/saving.adoc (snapshot_interval_override_s 120)
 ///   130-139  IO              io/file-info.adoc (info 130), io/exporting.adoc (last_export 131)
-///   140-     free; an epic takes the next block of ten and adds a row here.
+///   140-149  TYPE            type/editing-text.adoc (text_settings 140)
+///   150-     free; an epic takes the next block of ten and adds a row here.
 public nonisolated struct Wiretuner_Doc_V1_SettingsProps: @unchecked Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -752,6 +758,15 @@ public nonisolated struct Wiretuner_Doc_V1_SettingsProps: @unchecked Sendable {
   public var hasPrint: Bool {_storage._print != nil}
   /// Clears the value of `print`. Subsequent reads from it will return its default value.
   public mutating func clearPrint() {_uniqueStorage()._print = nil}
+
+  /// This Mac's archived NSPrintInfo for the document -- printer, paper, orientation, copies,
+  /// collate, range, printer options (PRINT block, printing/printing.adoc).  Never leaves the
+  /// device: the outbox drops any op whose path enters it, and the local store keeps it in its
+  /// `view` table.  Empty = never set up on this Mac.
+  public var printInfo: Data {
+    get {_storage._printInfo}
+    set {_uniqueStorage()._printInfo = newValue}
+  }
 
   /// This Mac's view state (BASIC block, view.proto).  Never leaves the device: the outbox drops
   /// any op whose path enters it.
@@ -861,6 +876,17 @@ public nonisolated struct Wiretuner_Doc_V1_SettingsProps: @unchecked Sendable {
   public var hasInfo: Bool {_storage._info != nil}
   /// Clears the value of `info`. Subsequent reads from it will return its default value.
   public mutating func clearInfo() {_uniqueStorage()._info = nil}
+
+  /// Convert Case settings: small caps size and the exceptions list (TYPE block, text.proto,
+  /// type/editing-text.adoc).  STRUCT.
+  public var textSettings: Wiretuner_Doc_V1_TextSettings {
+    get {_storage._textSettings ?? Wiretuner_Doc_V1_TextSettings()}
+    set {_uniqueStorage()._textSettings = newValue}
+  }
+  /// Returns true if `textSettings` has been explicitly set.
+  public var hasTextSettings: Bool {_storage._textSettings != nil}
+  /// Clears the value of `textSettings`. Subsequent reads from it will return its default value.
+  public mutating func clearTextSettings() {_uniqueStorage()._textSettings = nil}
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -1426,7 +1452,7 @@ nonisolated extension Wiretuner_Doc_V1_Defaults: SwiftProtobuf.Message, SwiftPro
 
 nonisolated extension Wiretuner_Doc_V1_SettingsProps: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SettingsProps"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}common\0\u{1}units\0\u{3}printer_resolution\0\u{1}grid\0\u{3}custom_page_sizes\0\u{3}custom_units\0\u{3}guides_locked\0\u{2}\u{3}defaults\0\u{4}\u{a}document_kind\0\u{1}font\0\u{4}\u{9}output_area\0\u{1}print\0\u{2}\u{9}view\0\u{2}\u{a}color\0\u{4}\u{a}html_settings\0\u{3}html_setting_selected\0\u{2}\u{9}animation\0\u{4}\u{a}data_fields\0\u{3}data_sources\0\u{3}data_source_active\0\u{3}data_preview\0\u{4}\u{7}raster_effects\0\u{3}perspective_grids\0\u{2}'info\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}common\0\u{1}units\0\u{3}printer_resolution\0\u{1}grid\0\u{3}custom_page_sizes\0\u{3}custom_units\0\u{3}guides_locked\0\u{2}\u{3}defaults\0\u{4}\u{a}document_kind\0\u{1}font\0\u{4}\u{9}output_area\0\u{1}print\0\u{3}print_info\0\u{2}\u{8}view\0\u{2}\u{a}color\0\u{4}\u{a}html_settings\0\u{3}html_setting_selected\0\u{2}\u{9}animation\0\u{4}\u{a}data_fields\0\u{3}data_sources\0\u{3}data_source_active\0\u{3}data_preview\0\u{4}\u{7}raster_effects\0\u{3}perspective_grids\0\u{2}'info\0\u{4}\u{a}text_settings\0")
 
   fileprivate class _StorageClass {
     var _common: Wiretuner_Doc_V1_CommonProps? = nil
@@ -1441,6 +1467,7 @@ nonisolated extension Wiretuner_Doc_V1_SettingsProps: SwiftProtobuf.Message, Swi
     var _font: Wiretuner_Doc_V1_FontProps? = nil
     var _outputArea: Wiretuner_Doc_V1_Rect? = nil
     var _print: Wiretuner_Doc_V1_PrintSettings? = nil
+    var _printInfo: Data = Data()
     var _view: Wiretuner_Doc_V1_ViewState? = nil
     var _color: Wiretuner_Doc_V1_ColorSettings? = nil
     var _htmlSettings: [Wiretuner_Doc_V1_HtmlSetting] = []
@@ -1453,6 +1480,7 @@ nonisolated extension Wiretuner_Doc_V1_SettingsProps: SwiftProtobuf.Message, Swi
     var _rasterEffects: Wiretuner_Doc_V1_RasterEffectSettings? = nil
     var _perspectiveGrids: [Wiretuner_Doc_V1_PerspectiveGrid] = []
     var _info: Wiretuner_Doc_V1_DocumentInfo? = nil
+    var _textSettings: Wiretuner_Doc_V1_TextSettings? = nil
 
       // This property is used as the initial default value for new instances of the type.
       // The type itself is protecting the reference to its storage via CoW semantics.
@@ -1475,6 +1503,7 @@ nonisolated extension Wiretuner_Doc_V1_SettingsProps: SwiftProtobuf.Message, Swi
       _font = source._font
       _outputArea = source._outputArea
       _print = source._print
+      _printInfo = source._printInfo
       _view = source._view
       _color = source._color
       _htmlSettings = source._htmlSettings
@@ -1487,6 +1516,7 @@ nonisolated extension Wiretuner_Doc_V1_SettingsProps: SwiftProtobuf.Message, Swi
       _rasterEffects = source._rasterEffects
       _perspectiveGrids = source._perspectiveGrids
       _info = source._info
+      _textSettings = source._textSettings
     }
   }
 
@@ -1517,6 +1547,7 @@ nonisolated extension Wiretuner_Doc_V1_SettingsProps: SwiftProtobuf.Message, Swi
         case 21: try { try decoder.decodeSingularMessageField(value: &_storage._font) }()
         case 30: try { try decoder.decodeSingularMessageField(value: &_storage._outputArea) }()
         case 31: try { try decoder.decodeSingularMessageField(value: &_storage._print) }()
+        case 32: try { try decoder.decodeSingularBytesField(value: &_storage._printInfo) }()
         case 40: try { try decoder.decodeSingularMessageField(value: &_storage._view) }()
         case 50: try { try decoder.decodeSingularMessageField(value: &_storage._color) }()
         case 60: try { try decoder.decodeRepeatedMessageField(value: &_storage._htmlSettings) }()
@@ -1529,6 +1560,7 @@ nonisolated extension Wiretuner_Doc_V1_SettingsProps: SwiftProtobuf.Message, Swi
         case 90: try { try decoder.decodeSingularMessageField(value: &_storage._rasterEffects) }()
         case 91: try { try decoder.decodeRepeatedMessageField(value: &_storage._perspectiveGrids) }()
         case 130: try { try decoder.decodeSingularMessageField(value: &_storage._info) }()
+        case 140: try { try decoder.decodeSingularMessageField(value: &_storage._textSettings) }()
         default: break
         }
       }
@@ -1577,6 +1609,9 @@ nonisolated extension Wiretuner_Doc_V1_SettingsProps: SwiftProtobuf.Message, Swi
       try { if let v = _storage._print {
         try visitor.visitSingularMessageField(value: v, fieldNumber: 31)
       } }()
+      if !_storage._printInfo.isEmpty {
+        try visitor.visitSingularBytesField(value: _storage._printInfo, fieldNumber: 32)
+      }
       try { if let v = _storage._view {
         try visitor.visitSingularMessageField(value: v, fieldNumber: 40)
       } }()
@@ -1613,6 +1648,9 @@ nonisolated extension Wiretuner_Doc_V1_SettingsProps: SwiftProtobuf.Message, Swi
       try { if let v = _storage._info {
         try visitor.visitSingularMessageField(value: v, fieldNumber: 130)
       } }()
+      try { if let v = _storage._textSettings {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 140)
+      } }()
     }
     try unknownFields.traverse(visitor: &visitor)
   }
@@ -1634,6 +1672,7 @@ nonisolated extension Wiretuner_Doc_V1_SettingsProps: SwiftProtobuf.Message, Swi
         if _storage._font != rhs_storage._font {return false}
         if _storage._outputArea != rhs_storage._outputArea {return false}
         if _storage._print != rhs_storage._print {return false}
+        if _storage._printInfo != rhs_storage._printInfo {return false}
         if _storage._view != rhs_storage._view {return false}
         if _storage._color != rhs_storage._color {return false}
         if _storage._htmlSettings != rhs_storage._htmlSettings {return false}
@@ -1646,6 +1685,7 @@ nonisolated extension Wiretuner_Doc_V1_SettingsProps: SwiftProtobuf.Message, Swi
         if _storage._rasterEffects != rhs_storage._rasterEffects {return false}
         if _storage._perspectiveGrids != rhs_storage._perspectiveGrids {return false}
         if _storage._info != rhs_storage._info {return false}
+        if _storage._textSettings != rhs_storage._textSettings {return false}
         return true
       }
       if !storagesAreEqual {return false}

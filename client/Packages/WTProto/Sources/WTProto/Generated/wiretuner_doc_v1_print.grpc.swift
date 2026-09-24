@@ -5,7 +5,8 @@
 /// print-preview.adoc and halftones.adoc).  SettingsProps.print holds them; SettingsProps
 /// .output_area is output-area.adoc's rectangle.  The Halftone message itself is in common.proto
 /// (docs/spec/decisions.adoc D-065) because CommonProps.halftone names it.  The archived
-/// NSPrintInfo (printer, paper, copies, range) is local state, never in the document.
+/// NSPrintInfo (printer, paper, copies, range) is local state, never shared: SettingsProps
+/// .print_info, marked local_only.
 
 // DO NOT EDIT.
 // swift-format-ignore-file

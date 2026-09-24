@@ -145,4 +145,28 @@ paste as a new block, drag-in with a following caret, kbd:[Option]-drop as plain
 Done when::
 * UI tests paste rich text into a caret and as a new block and verify marks.
 * Merge test: paste into a paragraph while another replica types elsewhere in it; both survive.
+
+NOTE: As built by TYPE-008 (`WTInterchange/Text/TextImport.swift`, `WTModel/TextImport.swift`).
+`TextImporter` reads RTF and RTFD through `NSAttributedString`, plain text and Markdown through
+the encoding rule above (a byte-order mark; valid UTF-8; else Foundation's detector with
+Windows-1252, Mac Roman, Shift-JIS and Latin-1 suggested, the guess named in the summary; the
+*Encoding* option forces one), into `ImportedTextFile`: paragraphs of `ExportTextRun`s -- the
+story the RTF export writes -- the pictures of an RTFD by placeholder offset, and the notes.  The
+single mapping table is `TextAttributeMapping` (WTModel): `marks`/`paragraph` for import,
+`attributes`/`style`/`story` for export.  Because the AppKit reader drops them, a scan of the RTF
+source recovers the paragraph and character style names, small and all caps, horizontal scale,
+tab leaders, right indents, keep-with-next and "don't hyphenate", laid over the attributed string
+character by character (when the counts disagree -- a table -- they are left out, with a note).
+`ImportText` writes one change ("Import text"): the block (click or drag frame), 64 KiB
+`TextInsert`s, one mark per attribute per stretch of equal runs, each paragraph's registers and
+tab stops, styles for names the document lacks, an image child with its `inline_graphic` mark
+per RTFD picture (`blobs` are the app's to store), and the summary as the block's note; plain
+text takes the given default attributes.  Deviations: styles an import creates carry no settings
+(the paragraphs' own registers and marks decide the look, since a register at its zero value
+cannot override a style's setting); all caps are imported as uppercase letters; superscript and
+subscript are a baseline shift of +33% / -14% of the size plus 58% of the size; an import is one
+change however many ops (splitting at 10,000 ops is not done yet).  The export side still writes
+plain runs (`ExportSnapshot.story`, IO-030); pointing it at `TextAttributeMapping.story` makes
+export use the table too.  The import cursor, the Finder drop and paste are client-ui work
+(TYPE-009).
 endif::spec[]

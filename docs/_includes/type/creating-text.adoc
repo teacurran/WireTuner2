@@ -497,7 +497,7 @@ into WTText's `TextContent` and block `TextContainer` and draws it through the d
 `DocumentFontIndex.layoutEngine`.  The scene draws text blocks through it (TYPE-003):
 `NodeKind.text` (130) is a kind WTModel reads and the object commands act on (moved, transformed,
 locked, deleted like any object; its `common` is field 1 and it has no attribute stack of its own
--- `block_appearance` is not drawn yet), and `DocumentDisplayListBuilder.textLayout` holds a
+-- `block_appearance` is drawn by the layout since TYPE-029), and `DocumentDisplayListBuilder.textLayout` holds a
 `TextSceneLayout` over the document's engine.  The engine's caches are main-actor state, so a
 builder given one must build on the main actor (the app's `DocumentHandle` does); builders
 without one -- export, baking, previews -- draw no text.  A font activation reaches the drawn text

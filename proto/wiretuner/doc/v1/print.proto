@@ -5,7 +5,8 @@
 // print-preview.adoc and halftones.adoc).  SettingsProps.print holds them; SettingsProps
 // .output_area is output-area.adoc's rectangle.  The Halftone message itself is in common.proto
 // (docs/spec/decisions.adoc D-065) because CommonProps.halftone names it.  The archived
-// NSPrintInfo (printer, paper, copies, range) is local state, never in the document.
+// NSPrintInfo (printer, paper, copies, range) is local state, never shared: SettingsProps
+// .print_info, marked local_only.
 syntax = "proto3";
 
 package wiretuner.doc.v1;
@@ -110,7 +111,7 @@ message PrintSettings {
   // ignored (angles are per plate).  ATOMIC: see Halftone.
   Halftone default_halftone = 18 [(wt.crdt.field).merge = MERGE_ATOMIC];
   // One entry per ink the user has touched; inks without an entry use defaults.  SEQUENCE.
-  // Two entries for one ink: the one with the greater element id wins on read.
+  // Two live entries for one ink: the one with the smallest element id wins on read.
   repeated PlateSettings plates = 19 [(wt.crdt.field).merge = MERGE_SEQUENCE];
   // Halftone plates in the app instead of leaving screening to the printer.
   bool screen_in_app = 20;

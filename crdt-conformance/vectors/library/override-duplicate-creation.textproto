@@ -1,0 +1,36 @@
+# crdt-conformance/vectors/library/override-duplicate-creation.textproto (LIB-024; schema: crdt-conformance/schema/vector.proto)
+name: "library/override-duplicate-creation"
+description: "Two replicas create an override for the same (master_node, property) at once: two live elements (5:1, 5:2), in position then id order, identical in both engines; the read-time rule (the greater element id, 5:2, wins) is WTModel's."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Symbol with an instance"
+    ops { create { parent { counter: 4 } position: "\x80" props { layer { common { name: "Layer 1" } visible: true printing: true } } } }
+    ops { create { parent { counter: 7 } position: "\x80" props { symbol { common { name: "Badge" } } } } }
+    ops { create { parent { counter: 2 replica: 7 } position: "\x80" props { rect { size { width: 10 height: 10 } } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x80" props { instance { symbol { id { counter: 2 replica: 7 } } } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 5 base_server_seq: 1 label: "Override fill"
+    ops { element_insert { node { counter: 4 replica: 7 } sequence { segments { field: 153 } segments { field: 3 } } positions: ["\x80"] values { instance { overrides { master_node { counter: 3 replica: 7 } property: OVERRIDE_PROPERTY_FILL fill { inline { rgb { r: 1 } } } } } } } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 5 base_server_seq: 1 label: "Override fill"
+    ops { element_insert { node { counter: 4 replica: 7 } sequence { segments { field: 153 } segments { field: 3 } } positions: ["\x80"] values { instance { overrides { master_node { counter: 3 replica: 7 } property: OVERRIDE_PROPERTY_FILL fill { inline { rgb { b: 1 } } } } } } } }
+  }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "99011e801a8d665cfe0847ea9a936b09a7ee06fa780efe3d2ec07f44f9952255"
+  snapshot_hash: "f8dd732489a24a548b19e218c0114832d9f84f429495ff9e0192a75034c44386"
+  node {
+    id { counter: 4 replica: 7 }
+    sequence { path { segments { field: 153 } segments { field: 3 } } elements { counter: 5 replica: 1 } elements { counter: 5 replica: 2 } }
+  }
+}

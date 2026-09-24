@@ -1,0 +1,74 @@
+# crdt-conformance/vectors/type/text-settings-case-exceptions.textproto (TYPE-015; schema: crdt-conformance/schema/vector.proto)
+name: "type/text-settings-case-exceptions"
+description: "TextSettings.case_exceptions is a SEQUENCE of STRUCT elements on the settings node (editing-text.adoc, Convert Case).  The list holds iPhone (1:7) and NASA (2:7).  Replica 1 renames iPhone to iPad and adds macOS at the end; replica 2 deletes NASA and adds Xcode at the same end position; replica 3 ticks Title on iPhone and sets the small caps size.  Both additions are kept, ordered at the tied position by element id; the rename and the tick are separate registers of one element and both apply; the deleted NASA stays a tombstone."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Convert Case Settings"
+    ops { element_insert { node { counter: 1 replica: 0 } sequence { segments { field: 2 } segments { field: 140 } segments { field: 2 } } positions: ["\x80", "\x81"]
+      values { settings { text_settings { case_exceptions { word: "iPhone" uppercase: true } case_exceptions { word: "NASA" lowercase: true } } } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 3 base_server_seq: 1 label: "Convert Case Settings"
+    ops { set { node { counter: 1 replica: 0 }
+      paths { segments { field: 2 } segments { field: 140 } segments { field: 2 } segments { element { counter: 1 replica: 7 } } segments { field: 2 } }
+      values { settings { text_settings { case_exceptions { id { counter: 1 replica: 7 } word: "iPad" } } } } } }
+    ops { element_insert { node { counter: 1 replica: 0 } sequence { segments { field: 2 } segments { field: 140 } segments { field: 2 } } positions: ["\x82"]
+      values { settings { text_settings { case_exceptions { word: "macOS" title: true } } } } } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 3 base_server_seq: 1 label: "Convert Case Settings"
+    ops { element_delete { node { counter: 1 replica: 0 } elements { segments { field: 2 } segments { field: 140 } segments { field: 2 } segments { element { counter: 2 replica: 7 } } } deleted: true } }
+    ops { element_insert { node { counter: 1 replica: 0 } sequence { segments { field: 2 } segments { field: 140 } segments { field: 2 } } positions: ["\x82"]
+      values { settings { text_settings { case_exceptions { word: "Xcode" title: true } } } } } }
+  }
+}
+replica {
+  id: 3
+  change {
+    replica: 3 seq: 1 start_counter: 3 base_server_seq: 1 label: "Convert Case Settings"
+    ops { set { node { counter: 1 replica: 0 }
+      paths { segments { field: 2 } segments { field: 140 } segments { field: 2 } segments { element { counter: 1 replica: 7 } } segments { field: 6 } }
+      paths { segments { field: 2 } segments { field: 140 } segments { field: 1 } }
+      values { settings { text_settings { small_caps_percent: 80 case_exceptions { id { counter: 1 replica: 7 } title: true } } } } } }
+  }
+}
+deliveries { order: [1, 2, 3] }
+deliveries { order: [3, 2, 1] }
+deliveries { order: [2, 3, 1] }
+expect {
+  state_hash: "7e9c7c116dc058c04a64b95da17dd61fef820e89a43289e83f53d5527df07ce6"
+  snapshot_hash: "3b9659428d7eb342d8bd0268cf4ef812988a0b249dd0d53ba03c9055f220f3bd"
+  node {
+    id { counter: 1 replica: 0 }
+    node_hash: ""
+    sequence { path { segments { field: 2 } segments { field: 140 } segments { field: 2 } }
+      elements { counter: 1 replica: 7 } elements { counter: 4 replica: 1 } elements { counter: 4 replica: 2 } deleted { counter: 2 replica: 7 } }
+    register {
+      path { segments { field: 2 } segments { field: 140 } segments { field: 1 } }
+      value { settings { text_settings { small_caps_percent: 80 } } }
+      op { counter: 3 replica: 3 }
+    }
+    register {
+      path { segments { field: 2 } segments { field: 140 } segments { field: 2 } segments { element { counter: 1 replica: 7 } } segments { field: 2 } }
+      value { settings { text_settings { case_exceptions { word: "iPad" } } } }
+      op { counter: 3 replica: 1 }
+      losing { counter: 1 replica: 7 }
+    }
+    register {
+      path { segments { field: 2 } segments { field: 140 } segments { field: 2 } segments { element { counter: 1 replica: 7 } } segments { field: 6 } }
+      value { settings { text_settings { case_exceptions { title: true } } } }
+      op { counter: 3 replica: 3 }
+    }
+    register {
+      path { segments { field: 2 } segments { field: 140 } segments { field: 2 } segments { element { counter: 4 replica: 2 } } segments { field: 2 } }
+      value { settings { text_settings { case_exceptions { word: "Xcode" } } } }
+      op { counter: 4 replica: 2 }
+    }
+  }
+}

@@ -1,0 +1,75 @@
+# crdt-conformance/vectors/registers/tint-rebase-on-replace.textproto (COLOR-015; schema: crdt-conformance/schema/vector.proto)
+name: "registers/tint-rebase-on-replace"
+description: "Replace color A -> B re-bases A's tint swatches by writing SwatchProps.parent (a NodeRef with the new base's colour cached) and deletes A.  Concurrently another replica changes one tint's percentage (an independent register: both survive) and re-bases the other tint onto C (the singular NodeRef is one whole value: the greater OpId, C, wins with its own cache; A stays deleted)."
+setup {
+    change {
+      replica: 7 seq: 1 start_counter: 1 label: "Swatches Grape, Plum, Fig and two tints of Grape"
+      ops { create { parent { counter: 5 } position: "\x80" props { swatch { common { name: "Grape" } value { cmyk { c: 0.5 m: 0.8 k: 0.1 } } } } } }
+      ops { create { parent { counter: 5 } position: "\x81" props { swatch { common { name: "Plum" } value { cmyk { c: 0.2 m: 0.9 y: 0.1 k: 0.3 } } } } } }
+      ops { create { parent { counter: 5 } position: "\x82" props { swatch { common { name: "Fig" } value { cmyk { c: 0.4 m: 0.6 y: 0.2 } } } } } }
+      ops { create { parent { counter: 5 } position: "\x83" props { swatch { common { name: "Pale grape" } parent { id { counter: 1 replica: 7 } cached: "grape" } tint_percent: 40 } } } }
+      ops { create { parent { counter: 5 } position: "\x84" props { swatch { common { name: "Grape wash" } parent { id { counter: 1 replica: 7 } cached: "grape" } tint_percent: 20 } } } }
+    }
+}
+replica {
+    id: 1
+    change {
+      replica: 1 seq: 1 start_counter: 6 base_server_seq: 1 label: "Replace \"Grape\" with \"Plum\""
+      ops { set { node { counter: 4 replica: 7 }
+        paths { segments { field: 70 } segments { field: 4 } }
+        values { swatch { parent { id { counter: 2 replica: 7 } cached: "plum" } } } } }
+      ops { set { node { counter: 5 replica: 7 }
+        paths { segments { field: 70 } segments { field: 4 } }
+        values { swatch { parent { id { counter: 2 replica: 7 } cached: "plum" } } } } }
+      ops { set_deleted { node { counter: 1 replica: 7 } deleted: true } }
+    }
+}
+replica {
+    id: 2
+    change {
+      replica: 2 seq: 1 start_counter: 6 base_server_seq: 1 label: "Change Pale grape to 60%, re-base Grape wash onto Fig"
+      ops { set { node { counter: 4 replica: 7 }
+        paths { segments { field: 70 } segments { field: 5 } }
+        values { swatch { tint_percent: 60 } } } }
+      ops { set { node { counter: 5 replica: 7 }
+        paths { segments { field: 70 } segments { field: 4 } }
+        values { swatch { parent { id { counter: 3 replica: 7 } cached: "fig" } } } } }
+    }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "5e2afbdbd9366a7c4c917d1b17ba8cda8e67aa74275e37c45b7b09f5969b476c"
+  snapshot_hash: "5ac2f8d9746e5407da84f251d1e1decf9e037375acbc25b10cf62b874c4bd391"
+  node {
+    id { counter: 4 replica: 7 }
+    node_hash: "70ed7a6608d7bdcae906ef9c2493eff1d31cdc383b9026dc30b98fa62329ec0a"
+    register {
+      path { segments { field: 70 } segments { field: 4 } }
+      value { swatch { parent { id { counter: 2 replica: 7 } cached: "plum" } } }
+      op { counter: 6 replica: 1 }
+      losing { counter: 4 replica: 7 }
+    }
+    register {
+      path { segments { field: 70 } segments { field: 5 } }
+      value { swatch { tint_percent: 60 } }
+      op { counter: 6 replica: 2 }
+      losing { counter: 4 replica: 7 }
+    }
+  }
+  node {
+    id { counter: 5 replica: 7 }
+    node_hash: "4e18c266aad433a1c2f985ace8903dd71a1f7784cc781d47b67b0600150b14c8"
+    register {
+      path { segments { field: 70 } segments { field: 4 } }
+      value { swatch { parent { id { counter: 3 replica: 7 } cached: "fig" } } }
+      op { counter: 7 replica: 2 }
+      losing { counter: 5 replica: 7 } losing { counter: 7 replica: 1 }
+    }
+  }
+  node {
+    id { counter: 1 replica: 7 }
+    node_hash: "684492568e8a39dc15f76acd116f1391ea11e86a294d438f75d896e0346da2ca"
+    tree { parent { counter: 5 } position: "\x80" deleted: true }
+  }
+}

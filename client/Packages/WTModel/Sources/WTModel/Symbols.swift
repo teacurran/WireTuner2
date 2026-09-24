@@ -74,11 +74,12 @@ public enum Symbols {
         return result
     }
 
-    /// The symbol `instance` draws, when that is a live symbol.
+    /// The symbol `instance` draws, when that is a live symbol and the instance does not cut a
+    /// nesting cycle.
     public static func symbol(of instance: OpID, in state: EngineState) -> OpID? {
         guard case .instance(let props)? = state.props(instance).kind, props.hasSymbol else { return nil }
         let symbol = OpID(props.symbol.id)
-        guard state.isLive(symbol), state.nodeKind(symbol) == .symbol else { return nil }
+        guard state.isLive(symbol), state.nodeKind(symbol) == .symbol, !isCut(instance, in: state) else { return nil }
         return symbol
     }
 
@@ -140,9 +141,82 @@ public enum Symbols {
         guard case .symbol(let symbol)? = state.props(target).kind else {
             return SymbolInstance(symbol: nil, transform: transform, appearance: appearance, placeholderName: state.store.exists(target) ? "not a symbol" : "")
         }
-        let live = state.isLive(target)
+        let live = state.isLive(target) && !isCut(node, in: state)
         return SymbolInstance(symbol: live ? NodeID(target) : nil, transform: transform, overrides: live ? renderOverrides(of: node, in: state) : [],
-                              appearance: appearance, placeholderName: symbol.common.name)
+                              appearance: appearance, placeholderName: symbol.common.name,
+                              placeholderRect: live ? nil : lastKnownBounds(of: target, origin: symbol.origin, in: state))
+    }
+
+    // MARK: Read-time normalizations (LIB-009)
+
+    /// The placeholder rectangle of an instance of the missing symbol `symbol` in instance space:
+    /// the bounds of the artwork a deleted symbol still holds (deleted nodes keep their
+    /// registers until compaction) about its origin; nil (72 × 72 pt) when there is none.
+    static func lastKnownBounds(of symbol: OpID, origin: Wiretuner_Doc_V1_Point, in state: EngineState) -> Rect? {
+        var bounds = Rect.null
+        for child in state.store.children(symbol) {
+            if let rect = Objects.bounds(of: child, in: state) { bounds = bounds.union(rect) }
+        }
+        return bounds.isNull ? nil : Rect(x: bounds.minX - origin.x, y: bounds.minY - origin.y, width: bounds.width, height: bounds.height)
+    }
+
+    /// The symbol whose artwork holds `node` (at any depth of grouping), when it is inside one.
+    public static func enclosingSymbol(of node: OpID, in state: EngineState) -> OpID? {
+        var current = state.store.placement(node)?.parent
+        while let id = current {
+            switch state.store.kind(id) {
+            case NodeKind.symbol.rawValue: return id
+            case NodeKind.layer.rawValue: return nil
+            default: current = state.store.placement(id)?.parent
+            }
+        }
+        return nil
+    }
+
+    /// Whether the nested instance `node` is where a nesting cycle is cut (library.adoc,
+    /// "Read-time normalizations"): it draws the placeholder at the second level.  Only an
+    /// instance inside a symbol's artwork can close a cycle, so instances on layers answer at
+    /// once.
+    public static func isCut(_ node: OpID, in state: EngineState) -> Bool {
+        guard enclosingSymbol(of: node, in: state) != nil else { return false }
+        return cutInstances(in: state).contains(node)
+    }
+
+    /// The nested instances that cut every nesting cycle: while the graph of symbols (an edge from
+    /// the symbol an instance sits in to the symbol it draws) has a cycle, the instance with the
+    /// smallest node id among those on a cycle is cut and its edge removed.  Deterministic on
+    /// every replica; nothing is written.
+    public static func cutInstances(in state: EngineState) -> Set<OpID> {
+        var edges: [(instance: OpID, from: OpID, to: OpID)] = []
+        for symbol in symbols(in: state) {
+            var pending = state.liveChildren(symbol)
+            while let next = pending.popLast() {
+                if case .instance(let props)? = state.props(next).kind {
+                    if props.hasSymbol, state.nodeKind(OpID(props.symbol.id)) == .symbol {
+                        edges.append((next, symbol, OpID(props.symbol.id)))
+                    }
+                } else {
+                    pending += state.liveChildren(next)
+                }
+            }
+        }
+        edges.sort { $0.instance < $1.instance }
+        var cut: Set<OpID> = []
+        func reaches(_ from: OpID, _ target: OpID) -> Bool {
+            var seen: Set<OpID> = [from]
+            var pending = [from]
+            while let next = pending.popLast() {
+                if next == target { return true }
+                for edge in edges where edge.from == next && !cut.contains(edge.instance) && seen.insert(edge.to).inserted {
+                    pending.append(edge.to)
+                }
+            }
+            return false
+        }
+        while let edge = edges.first(where: { !cut.contains($0.instance) && reaches($0.to, $0.from) }) {
+            cut.insert(edge.instance)
+        }
+        return cut
     }
 }
 

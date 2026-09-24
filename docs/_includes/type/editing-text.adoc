@@ -308,13 +308,15 @@ Fields on xref:creating-text.adoc[Creating text]: `TextMarkValue.case`,
 |Paragraph end |U+000A
 |===
 
-Document-level case settings live in the document's settings node:
+Document-level case settings live in the document's settings node, as
+`SettingsProps.text_settings = 140` (the TYPE block of `document.proto`); the messages are in
+`text.proto`:
 
 [source,protobuf]
 ----
-// Added to the settings node's props (DOC epic owns the container message).
+// SettingsProps.text_settings (STRUCT).
 message TextSettings {
-  double small_caps_percent = 1;                 // default 75
+  double small_caps_percent = 1;                 // 0 (never set) reads as 75
   repeated CaseException case_exceptions = 2 [(wt.crdt.field).merge = MERGE_SEQUENCE];
 }
 message CaseException {
@@ -498,6 +500,31 @@ Done when::
 * Merge test: Uppercase from one replica and an insert inside the word from another converge
   with the inserted characters present.
 * Conformance vector for `TextSettings.case_exceptions` as a SEQUENCE.
+
+NOTE: As built by TYPE-015 (`WTModel/TextCase.swift`; `WTText` `TextAttributes.smallCapsSize`).
+`ConvertCase` takes a node, two anchors and a `CaseConversion`; `SetTextCaseSettings` is the
+Settings sheet's btn:[OK] (one change, "Convert Case Settings": the size when it changed, and the
+exceptions list diffed element by element -- new ones inserted at the end, edited fields written,
+missing ones deleted); `TextCaseSettings` reads them (an unset size reads as 75).  Uppercase and
+Lowercase use each scalar's Unicode case mapping (so ß becomes SS); Title capitalizes the first
+letter of each word (runs of letters, digits, combining marks and apostrophes) and lowercases the
+rest; Sentence capitalizes the first letter after the start of the text, a paragraph or line end,
+or a `.`, `!` or `?` followed by white space, and lowercases the rest (a digit starts a sentence
+without a capital).  An exception matches a word without regard to case and, when it has as many
+scalars, gives the word its own spelling letter for letter ("the IPHONE" under Title with
+"iPhone" excepted is "The iPhone"); under Small Caps an excepted word is left out of the mark.
+Small Caps writes `case = SMALL_CAPS`, or the cleared value when every letter already has it.
+Deviation, recorded here: a mark anchored inside a rewritten run is not the only one that needs
+help -- a mark starting *before* the run's first character (as every mark `ApplyMark` writes does)
+would not cover the replacement, which sorts before that character, and an expanding mark ending
+just before the run would spread over it.  So for every attribute winning on the run, on the
+character before it, or of a mark anchored on the run's characters or ending just before it, the
+command writes a mark over the new characters carrying each old character's winning value (or the
+attribute's cleared value), one mark per stretch of equal values; "a bold mark covering exactly the
+converted word still covers it" and typing at its end continues it.  The *Small caps size* reaches
+layout as `TextAttributes.smallCapsSize` (WTText's own default stays 70%; the document's default
+is 75%).  The vector is `type/text-settings-case-exceptions`.  The Settings sheet and the menu
+items are client-ui work.
 
 [[TYPE-016]]
 ==== TYPE-016 Remote carets and selections

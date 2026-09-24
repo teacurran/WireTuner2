@@ -1,0 +1,34 @@
+# crdt-conformance/vectors/library/instance-ref-non-symbol.textproto (LIB-009; schema: crdt-conformance/schema/vector.proto)
+name: "library/instance-ref-non-symbol"
+description: "An instance whose symbol ref names a rectangle (a node that exists but is not a symbol) keeps the ref as written while the rectangle is edited concurrently; readers draw the placeholder labelled not a symbol."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Layer and rectangle"
+    ops { create { parent { counter: 4 } position: "\x80" props { layer { common { name: "Layer 1" } } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x80" props { rect { size { width: 10 height: 10 } } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 3 base_server_seq: 1 label: "Place"
+    ops { create { parent { counter: 1 replica: 7 } position: "\x81" props { instance { symbol { id { counter: 2 replica: 7 } } } } } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 3 base_server_seq: 1 label: "Rename"
+    ops { set { node { counter: 2 replica: 7 } paths { segments { field: 21 } segments { field: 1 } segments { field: 1 } } values { rect { common { name: "Box" } } } } }
+  }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "3624e424f90a5b3dc7c682b764faf06959785d0bbeb8bbad39b3fd45c8998027"
+  snapshot_hash: "8389e13513032877f40243bb55cc30dc5cfe8fe735fb6a7192aee64d5fd36eca"
+  node {
+    id { counter: 3 replica: 1 }
+    register { path { segments { field: 153 } segments { field: 2 } } value { instance { symbol { id { counter: 2 replica: 7 } } } } op { counter: 3 replica: 1 } }
+  }
+}

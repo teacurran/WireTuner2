@@ -783,14 +783,16 @@ public actor LocalStore: DocumentBackend {
         }
     }
 
-    /// Pending blobs in upload order: the thumbnail first, then the rest, largest last.
+    /// Pending blobs in upload order: the thumbnail first, then colour profiles (CMS-008: a
+    /// document renders through its working profiles, so they go before any image), then the
+    /// rest, largest last.
     public func pendingBlobs() throws -> [PendingBlob] {
         guard let database else { throw Failure.closed }
         return try database.read { db in
             try Row.fetchAll(db, sql: """
                 SELECT hash, path, tag, size, media_type FROM blobs_pending
-                ORDER BY (CASE WHEN tag = ? THEN 0 ELSE 1 END), size, hash
-                """, arguments: [Self.thumbnailTag])
+                ORDER BY (CASE WHEN tag = ? THEN 0 WHEN media_type = ? THEN 1 ELSE 2 END), size, hash
+                """, arguments: [Self.thumbnailTag, ProfileBlobs.mediaType])
                 .map { PendingBlob(hash: $0["hash"], path: $0["path"], tag: $0["tag"], size: $0["size"], mediaType: $0["media_type"]) }
         }
     }

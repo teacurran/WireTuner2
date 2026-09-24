@@ -792,3 +792,35 @@ message ParagraphSettings {
   // Letter spacing; unset = no selection.  ATOMIC.
   SpacingRange letter_spacing = 17 [(wt.crdt.field).merge = MERGE_ATOMIC];
 }
+
+// Document-wide Convert Case settings (editing-text.adoc, "Converting case"):
+// `SettingsProps.text_settings`.  STRUCT: the size and the list merge independently.
+message TextSettings {
+  // Small capitals' size in percent of the type size; 0 (never set) reads as 75.
+  double small_caps_percent = 1 [(buf.validate.field).double = {
+    gte: 0
+    lte: 100
+  }];
+  // Words that keep their spelling under the conversions each ticks.  SEQUENCE: added, edited
+  // and removed individually; the order is the sheet's list.
+  repeated CaseException case_exceptions = 2 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+}
+
+// One Convert Case exception: a word and the conversions that leave it as spelled here.
+// Element of TextSettings.case_exceptions; each field is its own register.
+message CaseException {
+  // Element id (MERGE_SEQUENCE).
+  ElementId id = 1;
+  // The word as it must stay spelled ("iPhone"); matched without regard to case.
+  string word = 2 [(buf.validate.field).string.max_len = 256];
+  // Kept under Uppercase.
+  bool uppercase = 3;
+  // Kept under Lowercase.
+  bool lowercase = 4;
+  // Kept under Small Caps (drawn as typed).
+  bool small_caps = 5;
+  // Kept under Title.
+  bool title = 6;
+  // Kept under Sentence.
+  bool sentence = 7;
+}

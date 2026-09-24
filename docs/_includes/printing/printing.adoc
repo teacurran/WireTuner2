@@ -387,7 +387,13 @@ reason in the comment.
 
 Local, never synced (`local_only`, kept in the local store's `view` table): the archived
 `NSPrintInfo` for the document (printer, paper, orientation, copies, collate, range, printer
-options), keyed by document id.
+options), keyed by document id.  It is the settings node's `print_info` register:
+
+[source,protobuf]
+----
+// SettingsProps (document.proto), PRINT block:
+bytes print_info = 32 [(buf.validate.field).bytes.max_len = 262144, (wt.crdt.field).local_only = true];
+----
 
 === Merge semantics
 
@@ -459,6 +465,31 @@ Nothing beyond storing and relaying changes.
   document edits.  Printing itself is not undoable and writes nothing.
 * Page ranges and *Selected objects only* are job parameters, not document state: they live on
   the `PrintPlan` input, not in `PrintSettings`.
+
+NOTE: As built by PRINT-002 (`WTModel/PrintSettings.swift`).  `DocumentPrintSettings` reads
+`SettingsProps.print` with the read-time normalizations above (scale outside 1..2000 or never set
+reads 100, negative bleed and overlap read 0, manual tiling under *Fit on paper* reads as none) and
+the effective plates in sheet order (C, M, Y, K, then spots by node id): of several live entries for
+one ink the smallest element id holds the plate and the others are listed as its `duplicates`; an
+entry with no ink, an unspecified process ink, a spot reference to a node that is not a live swatch
+or a swatch that is no longer a spot colour is ignored, and comes back when the swatch does.  A
+plate whose `angle` register was never written reads the ink's conventional angle (C 15°, M 75°,
+Y 0°, K and spots 45°); since proto3 does not encode a zero, an angle of 0° written for another ink
+also reads as its default.  `SetPrintSettings` writes one `PrintSetting` (every `PrintSettings`
+register, each `Marks` switch its own) as one `SetFields` labelled by it ("Change bleed", "Turn off
+crop marks"), or several as "Apply print preset" (the preset path of the pane), refusing values
+outside the protovalidate ranges.  `SetPlate(ink, print:angle:frequency:in:)` writes the effective
+entry's registers and deletes its duplicates in the same change, or on the first touch inserts an
+entry with `print` true unless given ("Turn off Magenta plate", "Change Magenta plate screen").  The
+archived `NSPrintInfo` is `SettingsProps.print_info` (32), a `local_only` bytes register added here
+(the page said only "the local store's `view` table"): `SetPrintInfo` ("Page Setup") writes it like
+any register, the outbox and the server strip it (crdt-model.adoc, "Local-only fields"), and the
+local store keeps it in `view` and restores it on every open (`WTSync` `PrintInfoStoreTests`).  Being
+a command, a Page Setup change is an undo step on this Mac; it never reaches collaborators.  WTApp's
+pane and menu:File[Page Setup…] are PRINT-003/PRINT-004's: they read `DocumentPrintSettings`,
+perform `SetPrintSettings`/`SetPlate` per control and `SetPrintInfo` with the keyed archive of the
+`NSPrintInfo` after Page Setup or Print, and unarchive `printInfo` when they build the print
+operation.
 
 === Build tasks
 

@@ -508,6 +508,22 @@ change ("Remove style Callout"); *Redefine* is one change ("Redefine style Callo
 
 Preferences:: *Auto-apply new styles to selection* (Object, default on).
 
+NOTE: As built by LIB-018 (`WTModel/LibraryGraphicStyles.swift`).  The resolver is `GraphicStyleResolver`, not
+`StyleResolver`: the TYPE epic owns text styles and the two are kept apart by name.  `update(state)`
+reads the `styles` collection (0:6) and resolves each graphic style down its chain, caching the result
+under a version made of the chain's ids and serialized properties, so a redefine resolves that style and
+its descendants again and nothing else (`rebuilt` counts them).  A category is *set* on a style or an
+object when its stack holds a live element (fills, strokes, effects) or `CommonProps.halftone` holds a
+value; resolution takes each category from the nearest style of the chain that governs and sets it,
+then the object's own set categories override, then `SettingsProps.defaults.appearance` fills the rest
+(an empty defaults stack reads as the built-in defaults).  `effective(of:)` gives the appearance, its
+sources and the overridden categories (the plus sign); `sources(of:)` reads only registers; `index(in:)`
+is the style-to-objects index.  Normalizations as listed above; in addition a deleted `based_on` target
+reads as unset (dangling), while an object's reference to a deleted style resolves through it.  The
+resolver is not yet wired into the scene builder or the Styles panel (LIB-019/020).  Vectors:
+`library/style-based-on-loop` and `library/style-ref-to-deleted-style`; the read-outs are WTModel tests
+(`LibraryGraphicStyleTests`), with the 50,000-object budget as a `PerfBudget`.
+
 === Build tasks
 
 [[LIB-017]]

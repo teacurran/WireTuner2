@@ -1,0 +1,38 @@
+# crdt-conformance/vectors/library/style-based-on-loop.textproto (LIB-018; schema: crdt-conformance/schema/vector.proto)
+name: "library/style-based-on-loop"
+description: "Two replicas make styles A and B each other's parent at once: both based_on registers hold their writes (the merge does not repair); readers cut the loop at the smaller node id, so A (1:7) reads with no parent and B inherits from A."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Two styles"
+    ops { create { parent { counter: 6 } position: "\x80" props { style { common { name: "A" } kind: STYLE_KIND_GRAPHIC } } } }
+    ops { create { parent { counter: 6 } position: "\x81" props { style { common { name: "B" } kind: STYLE_KIND_GRAPHIC } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 3 base_server_seq: 1 label: "Set parent"
+    ops { set { node { counter: 1 replica: 7 } paths { segments { field: 154 } segments { field: 4 } } values { style { based_on { id { counter: 2 replica: 7 } } } } } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 3 base_server_seq: 1 label: "Set parent"
+    ops { set { node { counter: 2 replica: 7 } paths { segments { field: 154 } segments { field: 4 } } values { style { based_on { id { counter: 1 replica: 7 } } } } } }
+  }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "d77b56de64b51d0f3ccd98476482156c533ce9719d1d1cfaa9025d5832d10a8d"
+  snapshot_hash: "831d299c4c15ffaacdfd866636a0ee4e46edb14f80e3373d2864e5296f927cb7"
+  node {
+    id { counter: 1 replica: 7 }
+    register { path { segments { field: 154 } segments { field: 4 } } value { style { based_on { id { counter: 2 replica: 7 } } } } op { counter: 3 replica: 1 } }
+  }
+  node {
+    id { counter: 2 replica: 7 }
+    register { path { segments { field: 154 } segments { field: 4 } } value { style { based_on { id { counter: 1 replica: 7 } } } } op { counter: 3 replica: 2 } }
+  }
+}

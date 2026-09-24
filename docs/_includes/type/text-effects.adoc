@@ -287,6 +287,23 @@ and tab stops are ignored in vertical blocks; `TextLayout.selection(from:to:)` g
 (and, from anchors, remote selections) turned with the line.  The Direction pop-up and the
 inspector note are client-ui work.
 
+NOTE: As built by TYPE-037 (`WTApp/Text/TextEffects.swift`, `TextFeatures.swift`; the Select tab's
+attribute in `WTApp/FindReplace`).  The *Effect* pop-up sits directly under the Character section
+(an inspector section of its own) and lists *None*, the six effects and *Edit…*; choosing an
+effect writes one `effect` mark with WTText's defaults (a pale yellow highlight; underline 2 pt
+below the baseline and strikethrough 3 pt above it, both at the font's thickness), *None* the
+cleared value.  *Edit…*, and menu:Text[Effect > <effect>] on text that already has that effect,
+open its sheet -- one sheet for highlight, underline and strikethrough, one each for inline,
+shadow and zoom -- which writes the whole `TextEffect` on btn:[OK]; colours are inline sRGB
+references from a colour well, the dash is typed as up to eight lengths.  menu:Text[Type Style >
+Underline] and *Strikethrough* always apply the defaults (no key equivalents: the guide gives
+none).  The Find & Replace panel's Select tab finds *Text effect*, any or one.  *Not delivered
+here*: the effects these controls write draw once `WTModel.TextLayoutReading.attributes` maps the
+`effect` mark onto `TextAttributes.effect` (it did not in the commit this was built on), and the
+conformance vector for `TextEffect` as a mark value belongs to `crdt-conformance/`, another track's
+directory.  The merge case (two replicas' shadow offsets: one whole effect) is in
+`TextEffectEditingTests`.
+
 === Build tasks
 
 [[TYPE-036]]
@@ -332,6 +349,24 @@ Done when::
   both node and character.
 * Merge test: two replicas paste different graphics at the same anchor; both appear, not
   interleaved with each other's characters.
+
+NOTE: As built by TYPE-038 (`WTModel/TextInlineGraphics.swift`; `DeleteText` and
+`TextLayoutReading` in `TextCommands.swift` and `TextLayoutReading.swift`).  `PasteInlineGraphic`
+is Paste Special's *Inline graphic*: the copied objects (several grouped) become one child of the
+text node, the U+FFFC and its `inline_graphic` mark, one change ("Paste").  `PlaceInlineGraphic`
+pastes a cut graphic: a `MoveNode` under the text node (and `deleted = false` when the cut deleted
+it) plus a new placeholder.  `DeleteText` marks a graphic deleted when the range holds every live
+placeholder naming it.  `RestoreInlineGraphic` is the Restore for an edited graphic someone
+deleted: `deleted = false` and, when no live placeholder names it, a new U+FFFC just after the
+tombstoned one with its mark.  `InlineGraphics.placements` lists a text's graphics;
+`TextReadingContext` carries each child's drawing -- `SubtreeRendering` of its subtree in its own
+space (paths, shapes and groups) with its drawn bounds -- into the layout, which places it on the
+baseline and advances by its width; a node named twice draws at the first placeholder, a missing
+or undrawable one (a deleted node, an image until images are drawn) the empty box.  In a styled
+paragraph a graphic is an override (TYPE-034's `overrides`).  Deviations: the graphic is not
+scaled by the `size` mark (its own bounds decide its size, as WTText's TYPE-036 layout does);
+"flows ... across a linked block" waits for linked flows (TYPE-007); in-place editing, selection
+drawing and the Text Editor placeholder are client-ui work.
 
 [[TYPE-039]]
 ==== TYPE-039 Flow Around Selection

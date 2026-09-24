@@ -201,10 +201,11 @@ same setting is LWW and reviewed as *same register* on the style node.  A style 
 change ("Edit style Heading") and, since text references the style, every paragraph updates
 on read with no ops to the text.
 
-Apply vs. edit text:: Applying a style to a paragraph writes `style`, writes each governed
-paragraph register to the style's value, and -- since marks are never removed -- writes one
-covering mark per governed character attribute carrying the style's value over the whole
-paragraph.  Concurrent formatting by another user ("they bolded a word while I applied the
+Apply vs. edit text:: Applying a style to a paragraph writes `style`, clears each governed
+paragraph register, and -- since marks are never removed -- writes one covering mark per governed
+character attribute carrying the attribute's *cleared* value over the whole paragraph, so the
+style's value shows through and follows later edits of the style (a covering mark carrying the
+style's value would be an override that stops the paragraph following the style).  Concurrent formatting by another user ("they bolded a word while I applied the
 style") is simply another mark or register write, ordered against the apply by OpId: the
 later one shows on the overlap, the rest of each side's change stands, and the review sheet
 lists the paragraph after offline work.  Neither user's change is silently dropped in the
@@ -264,6 +265,36 @@ Done when::
   shows on the overlap.
 * Merge test: delete style vs. apply style converges with the cached appearance.
 * Conformance vectors for `TextStyleAttrs` STRUCT and the CACHED fallback.
+
+NOTE: As built by TYPE-034 (`WTModel`: `TextStyles.swift`, `TextStyleAttributes.swift`,
+`TextStyleCommands.swift`).  `TextStyleResolver` is the `ResolvedTextAttributes` cache: built from
+a state, it resolves every paragraph and character style under 0:6 root to leaf and, on `update`,
+keeps each resolution whose chain's nodes are unchanged (`rebuilt` counts the others).  A
+style's parent reads as unset when it dangles, is deleted, names the style itself or is of the
+other kind; a loop is cut at its smallest node id; a deleted Normal Text reads as live and the
+smallest node id holds the role.  Resolution: document defaults (`SettingsProps.defaults.text`),
+the paragraph style chain, the paragraph's own registers (a register holding its zero value
+counts as unset, as `SetParagraph` writes clear), the character style chain (a `style` mark), the
+marks.  A paragraph with no `style` reads as Normal Text.  A style's fill counts only from a
+style whose *Style affects text color* is on.  A dangling reference, or one to a style of the
+wrong kind, reads through its `cached` bytes (none: no style).  `overrides(in:paragraph:)` names the
+paragraph registers and mark attributes that differ from the chain (an inline graphic always counts,
+text-effects.adoc).  Commands: `CreateTextStyle` (next free *Style-N* when unnamed; tab stops as
+elements), `CreateNormalTextStyle` (idempotent, not an undo step), `EditTextStyle` (named
+`TextStyleAttrs` registers; tab stops refused), `SetTextStyleTabs`, `RenameTextStyle`,
+`ApplyParagraphStyle`, `ApplyCharacterStyle`, `RemoveTextStyle`, and `SplitParagraph` with
+`followsNextStyle` (Return at the end of a paragraph gives the new paragraph the style's `next`).
+Deviations, recorded here: applying clears rather than writes the style's values (Merge semantics
+above); the covering marks of one apply span all the paragraphs it touches (one mark per
+attribute, not one per paragraph: a mark costs the engine about 8 ms on a 2,000-character text,
+so 10,000 per-paragraph marks were far over any budget); `RemoveTextStyle` also refreshes the
+cache of every reference to the removed style (paragraph registers, and `style` marks over the
+runs where they win) and folds the removed style's settings into each child it re-parents, so
+text using the style or a child renders identically afterwards even when the style was edited
+after it was applied.  Resolving 10,000 paragraphs after a style edit takes a few milliseconds
+(`PerfBudget`, 20 ms).  The document template does not create Normal Text yet (the template is
+DOC's; `CreateNormalTextStyle` is the command to add to it).  Vectors: `type/text-style-attrs-struct`
+and `type/style-cached-fallback`.  The Styles panel rows and sheets are TYPE-035.
 
 [[TYPE-035]]
 ==== TYPE-035 Styles panel text operations

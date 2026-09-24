@@ -384,6 +384,7 @@ public struct InsertText: Command {
 
 /// Deletes the live characters between two anchors (one `TextDelete` per run of consecutive
 /// ids).  Deleting a newline joins its paragraphs; the surviving terminator keeps its properties.
+/// Deleting an inline graphic's U+FFFC also marks its child node deleted (TYPE-038).
 /// Label "Delete text".  With `backspace` set (a Backspace keystroke from the Text tool, deleting
 /// one character) backspace runs group like typing: the step stays open at the character before
 /// the one deleted, and the next backspace joins it while the caret has not moved and under a
@@ -410,6 +411,10 @@ public struct DeleteText: Command {
         for op in TextEditing.deletes(node, Array(text.chars[range])) {
             builder.append(op)
         }
+        // An inline graphic goes with its character (text-effects, "Inline graphics").
+        for graphic in InlineGraphics.removed(by: range, in: text) where state.isLive(graphic) {
+            builder.append(Ops.setDeleted(graphic))
+        }
         guard backspace, range.count == 1 else {
             box.coalescing = .none
             return
@@ -422,19 +427,26 @@ public struct DeleteText: Command {
 
 /// kbd:[Return]: splits the paragraph at a caret by typing a newline whose `paragraph` registers
 /// are an explicit copy of the split paragraph's terminator (creating-text, "Paragraphs").  Its
-/// own undo step.  Label "Type".
+/// own undo step.  Label "Type".  With `followsNextStyle` (the Text tool's Return) and the caret
+/// at the end of a paragraph whose style names a *Next style*, the new paragraph after the caret
+/// takes that style in the same change (text-styles.adoc, "Next style").
 public struct SplitParagraph: Command {
     public var node: OpID
     public var at: Anchor
+    public var followsNextStyle: Bool
     public var label: String { "Type" }
 
-    public init(node: OpID, at: Anchor) {
+    public init(node: OpID, at: Anchor, followsNextStyle: Bool = false) {
         self.node = node
         self.at = at
+        self.followsNextStyle = followsNextStyle
     }
 
     public func execute(_ builder: inout ChangeBuilder, state: EngineState) throws {
         try InsertText(node: node, text: "\n", at: at).execute(&builder, state: state)
+        if followsNextStyle {
+            try TextStyleEditing.applyNext(node: node, at: at, state: state, builder: &builder)
+        }
     }
 }
 

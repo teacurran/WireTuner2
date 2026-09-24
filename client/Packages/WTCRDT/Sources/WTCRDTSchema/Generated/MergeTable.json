@@ -1261,6 +1261,87 @@
         }
       }
     },
+    "wiretuner.doc.v1.CaseException": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "id",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ElementId"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "word",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "uppercase",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "lowercase",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "small_caps",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "6": {
+          "element_message": null,
+          "local_only": false,
+          "name": "title",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "7": {
+          "element_message": null,
+          "local_only": false,
+          "name": "sentence",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        }
+      }
+    },
     "wiretuner.doc.v1.CharacterSettings": {
       "fields": {
         "1": {
@@ -10780,6 +10861,17 @@
           "type": "message",
           "type_name": "wiretuner.doc.v1.DocumentInfo"
         },
+        "140": {
+          "element_message": null,
+          "local_only": false,
+          "name": "text_settings",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.TextSettings"
+        },
         "2": {
           "element_message": null,
           "local_only": false,
@@ -10845,6 +10937,17 @@
           "repeated": false,
           "type": "message",
           "type_name": "wiretuner.doc.v1.PrintSettings"
+        },
+        "32": {
+          "element_message": null,
+          "local_only": true,
+          "name": "print_info",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bytes",
+          "type_name": null
         },
         "4": {
           "element_message": null,
@@ -12749,6 +12852,32 @@
         }
       }
     },
+    "wiretuner.doc.v1.TextSettings": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "small_caps_percent",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "2": {
+          "element_message": "wiretuner.doc.v1.CaseException",
+          "local_only": false,
+          "name": "case_exceptions",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "SEQUENCE",
+          "repeated": true,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.CaseException"
+        }
+      }
+    },
     "wiretuner.doc.v1.TextShadowEffect": {
       "fields": {
         "1": {
@@ -13579,5 +13708,5 @@
       "kind_field": 1
     }
   },
-  "version": "859e184d98143f1c9a5b4a8999ae6f6feba5a3d84e5b7cc6b9795b67280cab60"
+  "version": "9c8fccb6ee6af34683d96e1796fbc0272321d4919acd3deb6bd85a56c4fc4bb1"
 }

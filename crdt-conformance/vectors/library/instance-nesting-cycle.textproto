@@ -1,0 +1,40 @@
+# crdt-conformance/vectors/library/instance-nesting-cycle.textproto (LIB-009; schema: crdt-conformance/schema/vector.proto)
+name: "library/instance-nesting-cycle"
+description: "Replica 1 places an instance of S2 inside S1 while replica 2 places one of S1 inside S2: both instances are live and the state converges; readers cut the cycle at the instance with the smaller node id (3:1), which draws the placeholder, and nothing is written."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Two symbols"
+    ops { create { parent { counter: 7 } position: "\x80" props { symbol { common { name: "S1" } } } } }
+    ops { create { parent { counter: 7 } position: "\x81" props { symbol { common { name: "S2" } } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 3 base_server_seq: 1 label: "Nest"
+    ops { create { parent { counter: 1 replica: 7 } position: "\x80" props { instance { symbol { id { counter: 2 replica: 7 } } } } } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 3 base_server_seq: 1 label: "Nest"
+    ops { create { parent { counter: 2 replica: 7 } position: "\x80" props { instance { symbol { id { counter: 1 replica: 7 } } } } } }
+  }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "ede4ad4595bbec6e38b46a645b663ad0e58809c3a8810de513aebf90279eae0c"
+  snapshot_hash: "d3b5890319bd20e84a5f0558494b1485c6de619b742049be3ef95826ec93bc4f"
+  node {
+    id { counter: 3 replica: 1 }
+    tree { parent { counter: 1 replica: 7 } position: "\x80" }
+    register { path { segments { field: 153 } segments { field: 2 } } value { instance { symbol { id { counter: 2 replica: 7 } } } } op { counter: 3 replica: 1 } }
+  }
+  node {
+    id { counter: 3 replica: 2 }
+    tree { parent { counter: 2 replica: 7 } position: "\x80" }
+    register { path { segments { field: 153 } segments { field: 2 } } value { instance { symbol { id { counter: 1 replica: 7 } } } } op { counter: 3 replica: 2 } }
+  }
+}

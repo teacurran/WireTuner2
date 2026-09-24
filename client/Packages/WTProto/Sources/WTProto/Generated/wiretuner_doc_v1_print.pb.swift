@@ -15,7 +15,8 @@
 /// print-preview.adoc and halftones.adoc).  SettingsProps.print holds them; SettingsProps
 /// .output_area is output-area.adoc's rectangle.  The Halftone message itself is in common.proto
 /// (docs/spec/decisions.adoc D-065) because CommonProps.halftone names it.  The archived
-/// NSPrintInfo (printer, paper, copies, range) is local state, never in the document.
+/// NSPrintInfo (printer, paper, copies, range) is local state, never shared: SettingsProps
+/// .print_info, marked local_only.
 
 import SwiftProtobuf
 
@@ -317,7 +318,7 @@ public nonisolated struct Wiretuner_Doc_V1_PrintSettings: @unchecked Sendable {
   public mutating func clearDefaultHalftone() {_uniqueStorage()._defaultHalftone = nil}
 
   /// One entry per ink the user has touched; inks without an entry use defaults.  SEQUENCE.
-  /// Two entries for one ink: the one with the greater element id wins on read.
+  /// Two live entries for one ink: the one with the smallest element id wins on read.
   public var plates: [Wiretuner_Doc_V1_PlateSettings] {
     get {_storage._plates}
     set {_uniqueStorage()._plates = newValue}

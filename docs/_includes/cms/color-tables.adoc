@@ -152,6 +152,27 @@ Nothing.
   the document.  Replacing ColorSync with a bundled CMM for bit-exactness across versions is
   an open question recorded in xref:decisions.adoc[Decisions].
 
+NOTE: As built by CMS-014 (`WTRender/WTColor/SpotLibraries.swift`, `tools/spot-libraries/`;
+xref:decisions.adoc#D-072[D-072]).  The resource format is the sketched message, encoded and
+decoded by hand in its wire format (`WTColor.SpotLibrary.encoded()` / `init(decoding:)`, floats
+read back to six decimals) rather than through generated code: it is a bundle resource, not API,
+so it is not in `proto/`.  `tools/spot-libraries/generate.py` writes it from a CSV of name, Lab and
+nominal CMYK; no vendor data is bundled, only the development library `wiretuner-development` (six
+invented inks, compiled in as `SpotLibrary.placeholder`, byte-identical to the generator's output
+for `placeholder.csv`).  `SpotLibraryStore(directory:)` adds every `<id>.binpb` in the app bundle's
+`SpotLibraries` folder, each read on first use.  `previewColor(library:ink:nominal:tint:settings:)`
+returns a `SpotPreview`: managed, the ink's Lab tinted toward paper white in Lab (L toward 100, a
+and b scaled) and converted through `WTColor.Converter` into Working RGB (sRGB while a custom
+Working RGB is pending); unmanaged -- or when the library or ink is not here, with
+`libraryAvailable` false -- the nominal CMYK (the library's, else the swatch's) scaled by the tint
+in Working CMYK (Default CMYK while pending).  It also carries the display-list `Color` (CIELAB or
+CMYK) the canvas draws, and `cgColor()` tags the components with their profile.  Previews are
+cached per library, ink, nominal mix, tint and `SpotPreviewSettings` (managed flag, working
+profiles, intent), so toggling *Color manage spot colors* re-renders every chip without writing
+anything.  The Swatches panel's chips and its "library not available" mark are WTApp's and not
+wired: the panel should read `ColorSettings` into `SpotPreviewSettings`, ask one app-wide store
+for each spot swatch (`library`, `library_key`, its stored CMYK), and draw `cgColor()`.
+
 === Build tasks
 
 [[CMS-014]]

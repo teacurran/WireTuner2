@@ -236,6 +236,25 @@ The sheet is a window sheet with a SwiftUI body.  menu:Extensions[Colors > Color
 one-step extensions, *Convert to Grayscale* and *Randomize Named Colors* replace their stubs, and the
 Swatches panel's Options menu ends with *Color Control…*.
 
+NOTE: As built by COLOR-015 (`WTModel/SwatchReplacing.swift`).  `ReplaceSwatch(a, with:in:index:)`
+is one change labelled `Replace "Grape" with "Plum"`.  From the list (`.swatch(b)`) it reads A's
+live dependents from the `SwatchIndex` (the panel's, when passed) and rewrites each: a fill, stroke,
+gradient stop, effect colour or text mark naming A (a swatch reference or an unnamed tint's base)
+gets B with B's colour cached, a tint swatch of A gets `parent = B`, and A is deleted; a register
+under a removed element is left naming A.  B may be a protected swatch but not A or a tint of A
+(`SwatchError.loop`: A's tints would be re-based onto their own descendant).  Deviation: a
+`ColorRef` inside an ATOMIC message (a text effect's line colour in a style or a mark,
+`ColorUse.Location.nested`) cannot be rewritten one register at a time and keeps naming A, which then
+reads through its cache as after *Remove*.  From a library (`.library(color, origin:)`) A takes the
+colour's value (a library tint's resolved colour), `spot`, `library`, `library_key` and name (kept
+when another swatch holds it) in one `SetFields`, and a tint swatch stops being a tint.  White, Black
+and Registration are refused (`SwatchError.protected`); *None* is not a swatch.  10,000 references
+are rewritten in one change within the 100 ms budget (release, `WT_PERF=1`; the index passed as the
+panel does).  The conformance vector is `registers/tint-rebase-on-replace`.  The Replace sheet is
+WTApp's: a segmented source control, a swatch chooser listing the other swatches (not A's tints)
+and a library chooser from the colour libraries already offered by *Import*, performing
+`ReplaceSwatch` with the panel's index.
+
 === Build tasks
 
 [[COLOR-014]]

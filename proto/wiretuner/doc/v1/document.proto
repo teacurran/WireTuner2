@@ -250,7 +250,7 @@ message Defaults {
 //    10-19   OBJ             objects/default-attributes.adoc (defaults 10)
 //    20-29   FONT            typeface/typeface-documents.adoc (document_kind 20, font 21)
 //    30-39   PRINT           printing/output-area.adoc (output_area 30), printing/printing.adoc
-//                            (print 31)
+//                            (print 31, print_info 32, local_only)
 //    40-49   BASIC           basics/document-view.adoc (view 40, local_only)
 //    50-59   CMS             cms/color-management.adoc (color 50)
 //    60-69   WEB             web/publish-html.adoc (html_settings 60, html_setting_selected 61)
@@ -261,7 +261,8 @@ message Defaults {
 //   100-119  free
 //   120-129  IO              io/saving.adoc (snapshot_interval_override_s 120)
 //   130-139  IO              io/file-info.adoc (info 130), io/exporting.adoc (last_export 131)
-//   140-     free; an epic takes the next block of ten and adds a row here.
+//   140-149  TYPE            type/editing-text.adoc (text_settings 140)
+//   150-     free; an epic takes the next block of ten and adds a row here.
 message SettingsProps {
   // Shared registers.  Unused by the panel; present so every kind has `common = 1`.
   CommonProps common = 1;
@@ -295,6 +296,14 @@ message SettingsProps {
   Rect output_area = 30 [(wt.crdt.field).merge = MERGE_ATOMIC];
   // Document-wide print settings (PRINT block, print.proto).  STRUCT.
   PrintSettings print = 31;
+  // This Mac's archived NSPrintInfo for the document -- printer, paper, orientation, copies,
+  // collate, range, printer options (PRINT block, printing/printing.adoc).  Never leaves the
+  // device: the outbox drops any op whose path enters it, and the local store keeps it in its
+  // `view` table.  Empty = never set up on this Mac.
+  bytes print_info = 32 [
+    (buf.validate.field).bytes.max_len = 262144,
+    (wt.crdt.field).local_only = true
+  ];
   // This Mac's view state (BASIC block, view.proto).  Never leaves the device: the outbox drops
   // any op whose path enters it.
   ViewState view = 40 [(wt.crdt.field).local_only = true];
@@ -327,4 +336,7 @@ message SettingsProps {
   repeated PerspectiveGrid perspective_grids = 91 [(wt.crdt.field).merge = MERGE_SEQUENCE];
   // IPTC document metadata (IO block, file_info.proto).  STRUCT.
   DocumentInfo info = 130;
+  // Convert Case settings: small caps size and the exceptions list (TYPE block, text.proto,
+  // type/editing-text.adoc).  STRUCT.
+  TextSettings text_settings = 140;
 }

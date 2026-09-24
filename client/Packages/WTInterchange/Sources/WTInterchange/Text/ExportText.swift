@@ -39,8 +39,10 @@ public struct ExportTextAttributes: Hashable, Sendable {
     public var language: String?
     /// The character style's name, if the run carries one.
     public var styleName: String?
+    /// The face within the family ("Condensed Bold") when known; `bold` and `italic` summarize it.
+    public var fontFace: String?
 
-    public init(fontFamily: String = "Helvetica", size: Double = 12, bold: Bool = false, italic: Bool = false, color: Color = .black, underline: Bool = false, strikethrough: Bool = false, script: Script = .none, baselineShift: Double = 0, horizontalScale: Double = 1, tracking: Double = 0, smallCaps: Bool = false, allCaps: Bool = false, language: String? = nil, styleName: String? = nil) {
+    public init(fontFamily: String = "Helvetica", size: Double = 12, bold: Bool = false, italic: Bool = false, color: Color = .black, underline: Bool = false, strikethrough: Bool = false, script: Script = .none, baselineShift: Double = 0, horizontalScale: Double = 1, tracking: Double = 0, smallCaps: Bool = false, allCaps: Bool = false, language: String? = nil, styleName: String? = nil, fontFace: String? = nil) {
         self.fontFamily = fontFamily
         self.size = size
         self.bold = bold
@@ -56,6 +58,7 @@ public struct ExportTextAttributes: Hashable, Sendable {
         self.allCaps = allCaps
         self.language = language
         self.styleName = styleName
+        self.fontFace = fontFace
     }
 }
 

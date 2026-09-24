@@ -92,7 +92,9 @@ public struct PlaceInstance: Command {
 }
 
 /// *Swap*: points instances at another symbol (one ATOMIC register each).  Their overrides are
-/// keyed to the old symbol's nodes, so they read as nothing until swapped back.
+/// keyed to the old symbol's nodes, so they read as nothing until swapped back.  Any other object
+/// is deleted and an instance of the symbol takes its place (LIB-009), its origin at the object's
+/// bounds centre.
 public struct SwapSymbol: Command {
     public var instances: [OpID]
     public var symbol: OpID
@@ -107,8 +109,17 @@ public struct SwapSymbol: Command {
         guard state.isLive(symbol), state.nodeKind(symbol) == .symbol else { throw SymbolError.notASymbol(symbol) }
         var values = Wiretuner_Doc_V1_NodeProps()
         values.instance.symbol.id = symbol.proto
-        for instance in Objects.editable(instances, in: state) where state.nodeKind(instance) == .instance {
-            builder.append(Ops.set(instance, [SymbolFields.instanceSymbol], values: values))
+        for instance in Objects.editable(instances, in: state) {
+            guard state.nodeKind(instance) != .instance else {
+                builder.append(Ops.set(instance, [SymbolFields.instanceSymbol], values: values))
+                continue
+            }
+            guard let parent = Objects.parent(of: instance, in: state) else { continue }
+            let center = SymbolLibraryEditing.center(of: [instance], in: state)
+            let placement = AffineTransform.translation(x: center.x, y: center.y).concatenating(Objects.pasteboardTransform(ofSpace: parent, in: state).inverse)
+            let position = try Arranging.keys(next: instance, above: true, count: 1, in: state)[0]
+            builder.append(Ops.create(parent: parent, position: position, props: SymbolEditing.instanceProps(symbol, transform: placement)))
+            builder.append(Ops.setDeleted(instance))
         }
     }
 }

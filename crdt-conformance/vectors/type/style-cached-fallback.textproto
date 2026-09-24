@@ -1,0 +1,61 @@
+# crdt-conformance/vectors/type/style-cached-fallback.textproto (TYPE-034; schema: crdt-conformance/schema/vector.proto)
+name: "type/style-cached-fallback"
+description: "A paragraph's style reference (ParagraphProps.style, REF_FALLBACK_CACHED) is one ATOMIC register holding the style id and the cached TextStyleAttrs of its resolution (text-styles.adoc, Delete vs. apply).  Replica 1 removes the Heading style while replica 2 re-applies it with a fresh cache (size 24) and replica 3 applies Body with its cache (size 30).  The greater OpId (replica 3) wins the whole reference -- id and cache never mix -- replica 2's is kept as a loser, and the deleted Heading is a tombstone whose references resolve through their caches."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "New Paragraph Style"
+    ops { create { parent { counter: 6 } position: "\x80" props { style { common { name: "Heading" } kind: STYLE_KIND_PARAGRAPH text { character { size: 20 } } } } } }
+    ops { create { parent { counter: 6 } position: "\x81" props { style { common { name: "Body" } kind: STYLE_KIND_PARAGRAPH text { character { size: 30 } } } } } }
+  }
+  change {
+    replica: 7 seq: 2 start_counter: 3 label: "Type"
+    ops { create { parent { counter: 4 } position: "\x80" props { text { tail_paragraph { style { id { counter: 1 replica: 7 } cached: "\x12\x09\x19\x00\x00\x00\x00\x00\x00\x34\x40" } } } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 4 base_server_seq: 2 label: "Remove style"
+    ops { set_deleted { node { counter: 1 replica: 7 } deleted: true } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 4 base_server_seq: 2 label: "Apply style"
+    ops { set { node { counter: 3 replica: 7 }
+      paths { segments { field: 130 } segments { field: 8 } segments { field: 17 } }
+      values { text { tail_paragraph { style { id { counter: 1 replica: 7 } cached: "\x12\x09\x19\x00\x00\x00\x00\x00\x00\x38\x40" } } } } } }
+  }
+}
+replica {
+  id: 3
+  change {
+    replica: 3 seq: 1 start_counter: 4 base_server_seq: 2 label: "Apply style"
+    ops { set { node { counter: 3 replica: 7 }
+      paths { segments { field: 130 } segments { field: 8 } segments { field: 17 } }
+      values { text { tail_paragraph { style { id { counter: 2 replica: 7 } cached: "\x12\x09\x19\x00\x00\x00\x00\x00\x00\x3e\x40" } } } } } }
+  }
+}
+deliveries { order: [1, 2, 3] }
+deliveries { order: [3, 2, 1] }
+expect {
+  state_hash: "c4471b18ad1bd5bd7e1d73d79375a3acea3538379f11b008c5728832101d6b26"
+  snapshot_hash: "f96b5b854e99637e10a1715505ece34449b9d3b6df149f4f4672b5076638517b"
+  node {
+    id { counter: 1 replica: 7 }
+    node_hash: "c33afa8054de4d6f8d086d17623348f15b1ecf46e762a0e83dfbff3eeff9184b"
+    tree { parent { counter: 6 } position: "\x80" deleted: true }
+  }
+  node {
+    id { counter: 3 replica: 7 }
+    node_hash: "333d7b195ccab8fa9af330dccdb4cb21cba43478efd2a601dbeeba884a6d71a7"
+    register {
+      path { segments { field: 130 } segments { field: 8 } segments { field: 17 } }
+      value { text { tail_paragraph { style { id { counter: 2 replica: 7 } cached: "\x12\x09\x19\x00\x00\x00\x00\x00\x00\x3e\x40" } } } }
+      op { counter: 4 replica: 3 }
+      losing { counter: 3 replica: 7 }
+      losing { counter: 4 replica: 2 }
+    }
+  }
+}

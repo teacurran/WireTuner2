@@ -93,7 +93,7 @@ public enum WTMergeTable {
     }
 
     /// SHA-256 (hex) of the canonical JSON table without its `version` key.
-    public static let version = "859e184d98143f1c9a5b4a8999ae6f6feba5a3d84e5b7cc6b9795b67280cab60"
+    public static let version = "9c8fccb6ee6af34683d96e1796fbc0272321d4919acd3deb6bd85a56c4fc4bb1"
 
     /// The rows of every message, by fully qualified proto name.
     public static let messages: [String: MessagePolicy] = [
@@ -118,6 +118,7 @@ public enum WTMergeTable {
         "wiretuner.doc.v1.BrushSymbol": wiretuner_doc_v1_BrushSymbol,
         "wiretuner.doc.v1.BrushVariation": wiretuner_doc_v1_BrushVariation,
         "wiretuner.doc.v1.CalligraphicStroke": wiretuner_doc_v1_CalligraphicStroke,
+        "wiretuner.doc.v1.CaseException": wiretuner_doc_v1_CaseException,
         "wiretuner.doc.v1.CharacterSettings": wiretuner_doc_v1_CharacterSettings,
         "wiretuner.doc.v1.ChartCell": wiretuner_doc_v1_ChartCell,
         "wiretuner.doc.v1.ChartColumn": wiretuner_doc_v1_ChartColumn,
@@ -284,6 +285,7 @@ public enum WTMergeTable {
         "wiretuner.doc.v1.TextMarkValue": wiretuner_doc_v1_TextMarkValue,
         "wiretuner.doc.v1.TextOnPathProps": wiretuner_doc_v1_TextOnPathProps,
         "wiretuner.doc.v1.TextProps": wiretuner_doc_v1_TextProps,
+        "wiretuner.doc.v1.TextSettings": wiretuner_doc_v1_TextSettings,
         "wiretuner.doc.v1.TextShadowEffect": wiretuner_doc_v1_TextShadowEffect,
         "wiretuner.doc.v1.TextStyleAttrs": wiretuner_doc_v1_TextStyleAttrs,
         "wiretuner.doc.v1.TextWrap": wiretuner_doc_v1_TextWrap,
@@ -1575,6 +1577,87 @@ public enum WTMergeTable {
           "repeated": true,
           "type": "message",
           "type_name": "wiretuner.doc.v1.Contour"
+        }
+      }
+    },
+    "wiretuner.doc.v1.CaseException": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "id",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ElementId"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "word",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "uppercase",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "lowercase",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "small_caps",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "6": {
+          "element_message": null,
+          "local_only": false,
+          "name": "title",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
+        },
+        "7": {
+          "element_message": null,
+          "local_only": false,
+          "name": "sentence",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
         }
       }
     },
@@ -11097,6 +11180,17 @@ public enum WTMergeTable {
           "type": "message",
           "type_name": "wiretuner.doc.v1.DocumentInfo"
         },
+        "140": {
+          "element_message": null,
+          "local_only": false,
+          "name": "text_settings",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.TextSettings"
+        },
         "2": {
           "element_message": null,
           "local_only": false,
@@ -11162,6 +11256,17 @@ public enum WTMergeTable {
           "repeated": false,
           "type": "message",
           "type_name": "wiretuner.doc.v1.PrintSettings"
+        },
+        "32": {
+          "element_message": null,
+          "local_only": true,
+          "name": "print_info",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bytes",
+          "type_name": null
         },
         "4": {
           "element_message": null,
@@ -13066,6 +13171,32 @@ public enum WTMergeTable {
         }
       }
     },
+    "wiretuner.doc.v1.TextSettings": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "small_caps_percent",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "2": {
+          "element_message": "wiretuner.doc.v1.CaseException",
+          "local_only": false,
+          "name": "case_exceptions",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "SEQUENCE",
+          "repeated": true,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.CaseException"
+        }
+      }
+    },
     "wiretuner.doc.v1.TextShadowEffect": {
       "fields": {
         "1": {
@@ -13896,7 +14027,7 @@ public enum WTMergeTable {
       "kind_field": 1
     }
   },
-  "version": "859e184d98143f1c9a5b4a8999ae6f6feba5a3d84e5b7cc6b9795b67280cab60"
+  "version": "9c8fccb6ee6af34683d96e1796fbc0272321d4919acd3deb6bd85a56c4fc4bb1"
 }
 """#
 
@@ -14556,6 +14687,47 @@ public enum WTMergeTable {
             5: FieldPolicy(
                 fieldNumber: 5, name: "nib", policy: .atomic, onDangling: .unset,
                 localOnly: false, type: "message", repeated: true, typeName: "wiretuner.doc.v1.Contour",
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_CaseException = MessagePolicy(
+        name: "wiretuner.doc.v1.CaseException",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "id", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ElementId",
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "word", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "uppercase", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            4: FieldPolicy(
+                fieldNumber: 4, name: "lowercase", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            5: FieldPolicy(
+                fieldNumber: 5, name: "small_caps", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            6: FieldPolicy(
+                fieldNumber: 6, name: "title", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            7: FieldPolicy(
+                fieldNumber: 7, name: "sentence", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
                 elementMessage: nil, oneof: nil
             ),
         ]
@@ -19512,6 +19684,11 @@ public enum WTMergeTable {
                 localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.PrintSettings",
                 elementMessage: nil, oneof: nil
             ),
+            32: FieldPolicy(
+                fieldNumber: 32, name: "print_info", policy: .atomic, onDangling: .unset,
+                localOnly: true, type: "bytes", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
             40: FieldPolicy(
                 fieldNumber: 40, name: "view", policy: .structure, onDangling: .unset,
                 localOnly: true, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ViewState",
@@ -19570,6 +19747,11 @@ public enum WTMergeTable {
             130: FieldPolicy(
                 fieldNumber: 130, name: "info", policy: .structure, onDangling: .unset,
                 localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.DocumentInfo",
+                elementMessage: nil, oneof: nil
+            ),
+            140: FieldPolicy(
+                fieldNumber: 140, name: "text_settings", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.TextSettings",
                 elementMessage: nil, oneof: nil
             ),
         ]
@@ -20473,6 +20655,22 @@ public enum WTMergeTable {
                 fieldNumber: 8, name: "tail_paragraph", policy: .structure, onDangling: .unset,
                 localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ParagraphProps",
                 elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_TextSettings = MessagePolicy(
+        name: "wiretuner.doc.v1.TextSettings",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "small_caps_percent", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "case_exceptions", policy: .sequence, onDangling: .unset,
+                localOnly: false, type: "message", repeated: true, typeName: "wiretuner.doc.v1.CaseException",
+                elementMessage: "wiretuner.doc.v1.CaseException", oneof: nil
             ),
         ]
     )

@@ -1,0 +1,40 @@
+# crdt-conformance/vectors/library/override-concurrent-typing.textproto (LIB-024; schema: crdt-conformance/schema/vector.proto)
+name: "library/override-concurrent-typing"
+description: "Override.text is MERGE_TEXT inside a SEQUENCE element: two replicas type into the same TEXT override element 5:7 at once and Fugue merges both words, whole runs ordered by their first character's OpId, in every delivery order."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Symbol with an instance"
+    ops { create { parent { counter: 4 } position: "\x80" props { layer { common { name: "Layer 1" } visible: true printing: true } } } }
+    ops { create { parent { counter: 7 } position: "\x80" props { symbol { common { name: "Badge" } } } } }
+    ops { create { parent { counter: 2 replica: 7 } position: "\x80" props { rect { size { width: 10 height: 10 } } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x80" props { instance { symbol { id { counter: 2 replica: 7 } } } } } }
+  }
+  change {
+    replica: 7 seq: 2 start_counter: 5 label: "Override text"
+    ops { element_insert { node { counter: 4 replica: 7 } sequence { segments { field: 153 } segments { field: 3 } } positions: ["\x80"] values { instance { overrides { master_node { counter: 3 replica: 7 } property: OVERRIDE_PROPERTY_TEXT  } } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 6 base_server_seq: 2 label: "Type"
+    ops { text_insert { node { counter: 4 replica: 7 } text { segments { field: 153 } segments { field: 3 } segments { element { counter: 5 replica: 7 } } segments { field: 4 } } chars: "one" } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 6 base_server_seq: 2 label: "Type"
+    ops { text_insert { node { counter: 4 replica: 7 } text { segments { field: 153 } segments { field: 3 } segments { element { counter: 5 replica: 7 } } segments { field: 4 } } chars: "two" } }
+  }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "c7d7afe76edaaea17d9ab1b1c451167885502d8e5250c299ca46efc17e5d7e49"
+  snapshot_hash: "090460aeedade4ff3f8f24bf89ac7c070405d3d11cc8b21afba1342f5ab8941c"
+  node {
+    id { counter: 4 replica: 7 }
+    text { path { segments { field: 153 } segments { field: 3 } segments { element { counter: 5 replica: 7 } } segments { field: 4 } } text: "onetwo" chars { counter: 6 replica: 1 } chars { counter: 7 replica: 1 } chars { counter: 8 replica: 1 } chars { counter: 6 replica: 2 } chars { counter: 7 replica: 2 } chars { counter: 8 replica: 2 } runs { start: 0 length: 6 } }
+  }
+}

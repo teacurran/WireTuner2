@@ -520,6 +520,41 @@ upload is not built); the Document panel button waits for the Document panel; th
 profile* row is still the chooser the preferences catalog had, and *Embedded image profiles* is the
 Import row of xref:preferences.adoc[Preferences], where that page's table puts it.
 
+NOTE: As built by CMS-008 (`WTSync/ProfileBlobs.swift`; `LocalStore.pendingBlobs` ordering).
+`ProfileBlobs` wraps one `WTColor.ProfileRegistry` and the shared, content-addressed `BlobCache`, so
+two documents that reference one profile share one cached file.  `load(fileAt:queue:)` reads the
+`.icc` file, registers it (a copy of a bundled profile is recognized by hash and queues nothing;
+a file ColorSync cannot read is refused), caches it and queues its upload with media type
+`application/vnd.iccprofile`; `blobs_pending` orders the thumbnail first, then profiles, then
+everything else by size, so a profile chosen offline goes up before any image on reconnect.
+`install()` points the registry's `blobLoader` at the cache and `isAvailable` is
+`ColorSettings`' availability test; `requestMissing(in:queue:)` asks the blob queue for every
+pending custom profile of a state (downloaded once, lazily, verified against its hash), and
+`arrivals(_:watching:)` turns the queue's `available` events into the profiles that arrived.
+Until then `ColorSettings.pending` is set and the renderer draws through the bundled default of
+the profile's space; on arrival the caller re-reads `ColorSettings` and invalidates -- nothing is
+written.  WTSync reaches `WTColor` through WTModel's dependency on WTRender (no Package.swift
+change).  The WTApp glue is not built: *Other…* in the Color Settings sheet should call `load`
+instead of registering in-process only, the document handle should `install()` once, pass
+`isAvailable` to `ColorSettings`, call `requestMissing` when the colour settings change and
+redraw on `arrivals`; the 2 s end-to-end figure needs that glue and is not measured.
+
+NOTE: As built by CMS-009 (`WTSync/ColorSettingsReview.swift`).  The measurement already listed
+`DocumentSetting.colorSettings` for a remote write under `SettingsProps.color` (SYNC-006); a local
+change alone lists nothing on this Mac, as the task's *Done when* asks (the prose above says
+"yours or theirs"; the other replica lists yours).  `ColorSettingsReview(base:local:remote:authors:)`
+applies each side's changes to the state at the previous head (`LocalStore.state(atServerSeq:)`)
+and gives the row: `title` "Color settings changed by Priya" (several authors joined, an unnamed
+one "someone"), `changes` with each setting's old and new value -- profiles by name, and
+`sameNameDifferentData` ("same name, different data") when only the hash differs; a profile that
+defaults to another (default image RGB, composite proof) is listed only when either side set
+it -- and the choices: `useMine` (offered only when the local side changed the colour settings)
+and `useTheirs`, each a `ColorSettingsChoice`, `ChangeColorSettings` with the row's label, so it
+is one undoable change writing only the registers that differ.  *Use mine* writes the whole local
+colour settings back, including a profile the other side changed.  The review sheet's row is
+WTApp's and not built: `ReviewSheetModel` should show `title` and `changes`' `line`s for the
+setting entry and perform `useMine` / `useTheirs` instead of the no-op `useTheirs` it has now.
+
 === Build tasks
 
 [[CMS-001]]

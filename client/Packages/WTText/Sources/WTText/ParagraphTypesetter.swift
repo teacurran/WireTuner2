@@ -381,7 +381,7 @@ final class TypesetParagraph {
                     CFAttributedStringSetAttribute(attributed, single, uprightAttributeKey, kCFBooleanTrue)
                 } else if smallCap[scalarIndex] {
                     if smallCapFont == nil {
-                        smallCapFont = resolve(span.scaled(by: TextAttributes.smallCapsScale)).font
+                        smallCapFont = resolve(span.scaled(by: span.smallCapsSize > 0 && span.smallCapsSize <= 1 ? span.smallCapsSize : TextAttributes.smallCapsScale)).font
                     }
                     CFAttributedStringSetAttribute(attributed, single, kCTFontAttributeName, smallCapFont)
                 }

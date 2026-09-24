@@ -153,4 +153,19 @@ Done when::
   block.
 * Merge test: two replicas drop different colors on the same word; both converge to the later
   OpId's color.
+
+NOTE: As built by TYPE-029 (`WTModel/TextColor.swift`, `TextLayoutReading.swift`).  Glyph colour
+is `TextColor.fill`, `removeFill` (a fill of *None*: the text draws clear), `stroke` (a whole
+`BasicStroke`, 1 pt black by default) and `removeStroke`, each an `ApplyMark`.  The block's own
+fills and strokes are `AddTextBlockAppearance` (the first one also turns *Display border* on, in
+the same change), `RemoveTextBlockAppearance` and `SetTextBlockAppearance` (named registers of a
+row, `color` for a drop) on `TextProps.block_appearance`, read by `TextBlockAppearance.rows` and
+`appearance`.  Deviation: the ATTR commands (`AddAppearance` ...) do not take text nodes -- their
+stack owner reads no appearance field for `text` -- so these commands stand beside them; pointing
+`NodeValues.appearanceField(.text)` at 7 would let the ATTR editors edit block rows directly.
+Rendering: `TextLayoutReading` reads the glyph `stroke`, the `effect`, the paragraph rule with its
+own stroke, and hands WTText the block's appearance, which draws the fill behind the text and the
+strokes as the border and the column, row and paragraph rules (WTText, not WTRender, as TYPE-032
+recorded).  A deleted swatch keeps its colour through the reference's cache.  The Object panel's
+sub-rows and the drops are TYPE-030 and the client-ui tasks.
 endif::spec[]

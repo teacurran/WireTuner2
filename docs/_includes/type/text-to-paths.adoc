@@ -127,4 +127,22 @@ Done when::
 * Undo after editing a converted path restores the text block and removes the group.
 * Merge test: convert vs. concurrent typing converges; Restore yields the text with the typed
   characters beside the group.
+
+NOTE: As built by TYPE-044 (`WTText/TextOutlines.swift`, `WTModel/TextToPaths.swift`).
+`TextLayout.outlines(forContainer:transform:)` gives each inked glyph's outline (one
+`GlyphRun.outline`, CTFontCreatePathForGlyph, composed with the glyph's placement -- baseline
+shift, horizontal scale, path and vertical transforms -- and the container's transform), its
+character offset, colour, stroke and font, the effect shapes of TYPE-036's generators without
+zoom, and each inline graphic's placement.  `TextToPaths.conversion` (main actor: it lays out
+through the document's engine) captures a block's shapes in its parent's space, each glyph with
+the fill and stroke the text stores (a swatch reference stays one; a fill of *None* gives no
+fill), the block rectangle when `block_appearance` has a fill or stroke, the inline graphics'
+new transforms and the fonts drawn by a substitute (the Missing Fonts warning's list).
+`ConvertTextToPaths` writes captured conversions as one change ("Convert text to paths"): the
+group, named after the first three words, directly above the text; a path per shape (a glyph of
+several contours is one composite path whose holes wind the other way, filled non-zero); the
+rectangle at the bottom; the graphics moved in; `deleted = true` on the text and on the path
+text on a path follows.  A linked block is refused (`TextToPathsError.linked`); a block deleted
+after it was captured is skipped.  Synthesized bold (a face the family lacks) converts without
+its emboldening stroke.  The menu item, shortcut and the Missing Fonts sheet are client-ui work.
 endif::spec[]

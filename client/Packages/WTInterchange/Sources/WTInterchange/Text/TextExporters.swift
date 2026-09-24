@@ -52,3 +52,11 @@ public struct PlainTextExporter: Exporter {
         return try destination.writeSingle((try data(scene: scene, options: options), []), extension: format.fileExtension)
     }
 }
+
+extension RTFExporter {
+    /// `stories` as one RTF document (one page), as the exporter writes them: the text import's
+    /// round trip and a paste's RTF flavour.
+    public static func rtf(_ stories: [ExportStory]) -> Data {
+        Data(RTFWriter(options: RTFOptions()).document(stories.map { (page: 0, story: $0) }).utf8)
+    }
+}

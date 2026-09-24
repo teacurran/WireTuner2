@@ -174,6 +174,22 @@ extended in the backlog).  The server never renders a thumbnail.
   produce the informational alert with btn:[Quit] and btn:[Cancel], never a save prompt.
 * The built-in template content is a textproto resource in `WTModel` applied as one change.
 
+NOTE: As built by DOC-032 (`WTSync/ThumbnailCapture.swift`, `WTRender/Pages/ThumbnailRenderer.swift`).
+`ThumbnailCapture(store:queue:interval:render:)` notes where the document is (the store's next
+local seq and last server seq) when it opens; `captureIfChanged()` renders only when that moved,
+off the actor through the injected renderer, and hands the PNG to `BlobQueue.add(_:mediaType:tag:)`
+with `tag = THUMBNAIL`, which replaces any pending thumbnail and uploads it before every other
+blob; `start()` runs it every snapshot interval (five minutes by default) and `close()` stops the
+timer and captures once more.  Capturing never performs a command, so nothing enters the outbox.
+The default renderer, `ThumbnailCapture.firstPage`, draws the first page (the synthesized page of
+an unpaged document) of `DocumentDisplayListBuilder.outputDisplayList` through
+`ThumbnailRenderer.png`: the Core Graphics reference renderer at 512 px on the long edge
+(`ThumbnailRenderer.packageEdge` is the 1024 px render for IO-005), sRGB, transparent where
+nothing is drawn.  WTSync reaches WTRender through WTModel (no Package.swift change).  The WTApp
+glue is not built: the document handle should create one capture beside its blob queue, `start()`
+it on open and `await close()` it before the store closes.  The server's `thumbnail_blob` and the
+library window's download and display are unchanged (SRV-009, APP-009).
+
 NOTE: Deviations recorded by APP-009.  The Library window is `LibraryWindowController` over
 `LibraryModel` (`WTApp/Library`), talking to `DocumentService`, `TeamService.ListTeams` and
 `BlobService.Download` through `GRPCLibraryClient` (one connection per call, as

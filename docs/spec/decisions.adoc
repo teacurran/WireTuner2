@@ -567,6 +567,19 @@ decomposed.  `FontSource` is the seam, so fontc replaces the compiler without to
 model once the build machines carry a Rust toolchain.  Rejected for now: fontmake (a Python
 runtime in the app) and writing a feature compiler in Swift (a project of its own).
 
+[[D-072]]
+=== D-072 Spot libraries ship as a development placeholder until vendor data is licensed
+CMS-014 needs the licence check its task names before any vendor's spot data (PANTONE, HKS,
+TOYO, DIC) is bundled, and Q-002 says to ship none in v1.  The spot library resource format,
+the generator (`tools/spot-libraries/generate.py`, from a CSV of name, Lab and nominal CMYK) and
+`WTColor.SpotLibraryStore` are built; the only library compiled in is
+`wiretuner-development` (six invented inks, `WTColor.SpotLibrary.placeholder`), and the store
+reads any further `<id>.binpb` from the app bundle's `SpotLibraries` folder, which is empty.  A
+licensed library is added by running the generator on the vendor's file and copying the result
+into that folder; nothing in the code changes.  Swatches naming a library the app lacks preview
+from their nominal CMYK and are marked "library not available".  Rejected: deriving Lab values
+from published sRGB swatch books (still the vendor's data, and less accurate than measured Lab).
+
 == Open questions
 
 [[Q-001]]

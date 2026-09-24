@@ -223,9 +223,12 @@ public struct TextAttributes: Hashable, Sendable {
     public var noBreak: Bool
     /// "Inhibit hyphens in selection".
     public var noHyphen: Bool
-    /// `CaseStyle.SMALL_CAPS`: lowercase letters drawn as capitals at `smallCapsScale` of the
+    /// `CaseStyle.SMALL_CAPS`: lowercase letters drawn as capitals at `smallCapsSize` of the
     /// size, in any font (the OpenType `smcp` feature is `features["smcp"]`).
     public var smallCaps: Bool
+    /// The fraction of the size small capitals are drawn at: the document's *Small caps size*
+    /// (`TextSettings.small_caps_percent`, editing-text.adoc); `smallCapsScale` unless given.
+    public var smallCapsSize: Double
     /// OpenType features by tag.
     public var features: [String: FeatureState]
     /// Variation axis values by tag.
@@ -250,6 +253,7 @@ public struct TextAttributes: Hashable, Sendable {
         noBreak: Bool = false,
         noHyphen: Bool = false,
         smallCaps: Bool = false,
+        smallCapsSize: Double = TextAttributes.smallCapsScale,
         features: [String: FeatureState] = [:],
         axes: [String: Double] = [:],
         inlineGraphic: InlineGraphic? = nil
@@ -270,12 +274,13 @@ public struct TextAttributes: Hashable, Sendable {
         self.noBreak = noBreak
         self.noHyphen = noHyphen
         self.smallCaps = smallCaps
+        self.smallCapsSize = smallCapsSize
         self.features = features
         self.axes = axes
         self.inlineGraphic = inlineGraphic
     }
 
-    /// Small capitals are this fraction of the size.
+    /// Small capitals are this fraction of the size unless `smallCapsSize` says otherwise.
     public static let smallCapsScale = 0.7
 
     /// The baseline distance of a line holding this run (the line takes the maximum).

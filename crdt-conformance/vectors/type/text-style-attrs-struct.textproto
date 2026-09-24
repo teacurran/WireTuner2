@@ -1,0 +1,77 @@
+# crdt-conformance/vectors/type/text-style-attrs-struct.textproto (TYPE-034; schema: crdt-conformance/schema/vector.proto)
+name: "type/text-style-attrs-struct"
+description: "StyleProps.text (TextStyleAttrs) is STRUCT down to each optional setting (text-styles.adoc, Style edits).  A paragraph style sets size 11 and left indent 4.  Replica 1 sets the alignment and the size 12; replica 2 sets the size 14 and space above 6; replica 3 names a next style and unsets the left indent (no selection).  Different settings merge; the size is one register the greater OpId wins (replica 2), the others retained as losers; the clear is a write like any other."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "New Paragraph Style"
+    ops { create { parent { counter: 6 } position: "\x80" props { style { common { name: "Body" } kind: STYLE_KIND_PARAGRAPH
+      text { character { size: 11 } paragraph { left_indent: 4 } } } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 2 base_server_seq: 1 label: "Edit style Body"
+    ops { set { node { counter: 1 replica: 7 }
+      paths { segments { field: 154 } segments { field: 7 } segments { field: 3 } segments { field: 1 } }
+      paths { segments { field: 154 } segments { field: 7 } segments { field: 2 } segments { field: 3 } }
+      values { style { text { character { size: 12 } paragraph { alignment: ALIGNMENT_CENTER } } } } } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 2 base_server_seq: 1 label: "Edit style Body"
+    ops { set { node { counter: 1 replica: 7 }
+      paths { segments { field: 154 } segments { field: 7 } segments { field: 2 } segments { field: 3 } }
+      paths { segments { field: 154 } segments { field: 7 } segments { field: 3 } segments { field: 7 } }
+      values { style { text { character { size: 14 } paragraph { space_above: 6 } } } } } }
+  }
+}
+replica {
+  id: 3
+  change {
+    replica: 3 seq: 1 start_counter: 2 base_server_seq: 1 label: "Edit style Body"
+    ops { set { node { counter: 1 replica: 7 }
+      paths { segments { field: 154 } segments { field: 7 } segments { field: 1 } }
+      paths { segments { field: 154 } segments { field: 7 } segments { field: 3 } segments { field: 4 } }
+      values { style { text { next { id { counter: 1 replica: 7 } } } } } } }
+  }
+}
+deliveries { order: [1, 2, 3] }
+deliveries { order: [3, 1, 2] }
+expect {
+  state_hash: "bca02d876e25f45d73c3a20170469276c3f6f7dddffbe834cbf4c5d1341f0bb8"
+  snapshot_hash: "25cb9a2bd001bb00b4ba2626b2c45f3e19313532008a8529e8c9df9c7d11b43f"
+  node {
+    id { counter: 1 replica: 7 }
+    node_hash: "1da40830ea809c657facf26ec94148ae3538dcd9611f1fcb4b297175c27345c7"
+    register {
+      path { segments { field: 154 } segments { field: 7 } segments { field: 1 } }
+      value { style { text { next { id { counter: 1 replica: 7 } } } } }
+      op { counter: 2 replica: 3 }
+    }
+    register {
+      path { segments { field: 154 } segments { field: 7 } segments { field: 2 } segments { field: 3 } }
+      value { style { text { character { size: 14 } } } }
+      op { counter: 2 replica: 2 }
+      losing { counter: 1 replica: 7 }
+      losing { counter: 2 replica: 1 }
+    }
+    register {
+      path { segments { field: 154 } segments { field: 7 } segments { field: 3 } segments { field: 1 } }
+      value { style { text { paragraph { alignment: ALIGNMENT_CENTER } } } }
+      op { counter: 2 replica: 1 }
+    }
+    register {
+      path { segments { field: 154 } segments { field: 7 } segments { field: 3 } segments { field: 4 } }
+      op { counter: 2 replica: 3 }
+      losing { counter: 1 replica: 7 }
+    }
+    register {
+      path { segments { field: 154 } segments { field: 7 } segments { field: 3 } segments { field: 7 } }
+      value { style { text { paragraph { space_above: 6 } } } }
+      op { counter: 2 replica: 2 }
+    }
+  }
+}

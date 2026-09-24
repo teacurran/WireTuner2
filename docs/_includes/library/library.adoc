@@ -689,6 +689,37 @@ its symbol id even while it dangles, a chart from its pictograph nodes), rebuilt
 master edit repaints every instance and an override edit only its own.  Instances, charts and
 barcodes are objects to the object commands (`Objects.kinds`, with bounds).
 
+NOTE: As built by LIB-009 (the rest; `WTModel/SymbolLibraryCommands.swift`, additions to `Symbols.swift` and
+`SymbolCommands.swift`).  Commands: `CopyToSymbol` ("Copy to Symbol": deep copies flattened into symbol
+space, the selection untouched), `DuplicateSymbols` ("Duplicate Symbol" / "Duplicate N symbols": above
+the original in its folder, " copy" appended, `source` and `CommonProps.library` cleared),
+`ReplaceSymbolArtwork` ("Replace Symbol Artwork": the old artwork deleted, the objects moved in, the
+origin moved to their bounds centre, an instance where they were), `SwapSymbol` now also swaps ordinary
+objects (deleted, an instance at their bounds centre in their place), `RemoveSymbols` with
+`InstanceHandling.release` or `.delete` ("Remove symbol Star", "Remove symbol Star and 12 instances",
+"Remove 3 symbols and 12 instances", "Remove folder Icons": the instances outside the removed artwork
+released or deleted, then `deleted` on each symbol, every node of its artwork and each removed folder;
+a symbol already lifted out of a deleted inner folder is not the folder's to remove),
+`CreateSymbolFolder` ("New Folder", first free "Folder N") and `MoveSymbolsToFolder` ("Move to Folder" /
+"Move to Top Level"; a folder never into itself).  `Symbols.library(in:)` is the list with the
+deleted-folder rule (contents of a deleted folder at the top level).  Read-time: `Symbols.cutInstances`
+cuts every nesting cycle at the nested instance with the smallest node id (repeatedly, until the graph
+of symbols is acyclic); a cut instance reads as a placeholder named after its symbol, and
+`Symbols.symbol(of:)` answers nil for it, so bounds and release stop there too.  A placeholder of a
+deleted symbol is now the size of its last known bounds (the deleted artwork's bounds about the
+origin), 72 × 72 pt only when there is none -- the earlier deviation is gone.  Merge tests
+(`SymbolLibraryTests`): remove vs. concurrent place (placeholder with name and bounds; restoring the
+symbol re-renders it), release vs. artwork edit, replace vs. replace (both sets live), swap vs. swap
+(LWW, loser retained).  Conformance vectors `library/instance-nesting-cycle` and
+`library/instance-ref-non-symbol` pin the merged states; the cut and the "not a symbol" label are
+WTModel tests.  Still not built: a public `resolvedArtwork(of:)` (LIB-025).
+
+NOTE: As built by LIB-024.  The schema was already in `symbol.proto`; the generated merge table shows
+`InstanceProps.overrides` SEQUENCE (element `Override`), `Override.text` TEXT and `master_node`,
+`property`, `fill`, `stroke`, `hidden`, `image` ATOMIC (`image` with `on_dangling` UNSET).  Vectors:
+`library/override-concurrent-typing`, `override-fill-lww`, `override-reset-vs-typing`,
+`override-duplicate-creation`, identical in both engines.
+
 === Build tasks
 
 [[LIB-008]]

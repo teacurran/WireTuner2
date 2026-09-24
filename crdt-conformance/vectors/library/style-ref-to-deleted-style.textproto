@@ -1,0 +1,39 @@
+# crdt-conformance/vectors/library/style-ref-to-deleted-style.textproto (LIB-018; schema: crdt-conformance/schema/vector.proto)
+name: "library/style-ref-to-deleted-style"
+description: "Replica 1 removes a style while replica 2 applies it to a rectangle: the style is deleted but present and the object's style register holds the ref; readers resolve the object through the deleted style's registers until compaction."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Layer, style and rectangle"
+    ops { create { parent { counter: 4 } position: "\x80" props { layer { common { name: "Layer 1" } } } } }
+    ops { create { parent { counter: 6 } position: "\x80" props { style { common { name: "Callout" } kind: STYLE_KIND_GRAPHIC } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x80" props { rect { size { width: 10 height: 10 } } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 4 base_server_seq: 1 label: "Remove style"
+    ops { set_deleted { node { counter: 2 replica: 7 } deleted: true } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 4 base_server_seq: 1 label: "Apply style"
+    ops { set { node { counter: 3 replica: 7 } paths { segments { field: 21 } segments { field: 1 } segments { field: 7 } } values { rect { common { style { id { counter: 2 replica: 7 } } } } } } }
+  }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "e53d3352488442395a0230cdbfe61264cb0c57d3b6f1dcb88462b7624badba6c"
+  snapshot_hash: "1c2b0b4948c373555c56bae205dfdd540322a0724d95450fdda12ae9f5b382ea"
+  node {
+    id { counter: 2 replica: 7 }
+    tree { parent { counter: 6 } position: "\x80" deleted: true }
+  }
+  node {
+    id { counter: 3 replica: 7 }
+    register { path { segments { field: 21 } segments { field: 1 } segments { field: 7 } } value { rect { common { style { id { counter: 2 replica: 7 } } } } } op { counter: 4 replica: 2 } }
+  }
+}

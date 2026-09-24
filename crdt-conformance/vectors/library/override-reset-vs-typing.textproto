@@ -1,0 +1,40 @@
+# crdt-conformance/vectors/library/override-reset-vs-typing.textproto (LIB-024; schema: crdt-conformance/schema/vector.proto)
+name: "library/override-reset-vs-typing"
+description: "Reset (ElementDelete of the override) against a concurrent TextInsert into it: both apply, the element stays deleted with the typed text kept in its tombstone, so Restore brings the edit back."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Symbol with an instance"
+    ops { create { parent { counter: 4 } position: "\x80" props { layer { common { name: "Layer 1" } visible: true printing: true } } } }
+    ops { create { parent { counter: 7 } position: "\x80" props { symbol { common { name: "Badge" } } } } }
+    ops { create { parent { counter: 2 replica: 7 } position: "\x80" props { rect { size { width: 10 height: 10 } } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x80" props { instance { symbol { id { counter: 2 replica: 7 } } } } } }
+  }
+  change {
+    replica: 7 seq: 2 start_counter: 5 label: "Override text"
+    ops { element_insert { node { counter: 4 replica: 7 } sequence { segments { field: 153 } segments { field: 3 } } positions: ["\x80"] values { instance { overrides { master_node { counter: 3 replica: 7 } property: OVERRIDE_PROPERTY_TEXT  } } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 6 base_server_seq: 2 label: "Reset override"
+    ops { element_delete { node { counter: 4 replica: 7 } elements { segments { field: 153 } segments { field: 3 } segments { element { counter: 5 replica: 7 } } } deleted: true } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 6 base_server_seq: 2 label: "Type"
+    ops { text_insert { node { counter: 4 replica: 7 } text { segments { field: 153 } segments { field: 3 } segments { element { counter: 5 replica: 7 } } segments { field: 4 } } chars: "hi" } }
+  }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "5989e38c6e67f5b14d24f66fa5e512b720abf91f5b9d3a7c8f7c70506de96f83"
+  snapshot_hash: "5016ebb40af72f1d61096266aca39ea41a6ffc9781d2785410a3395d1af7e275"
+  node {
+    id { counter: 4 replica: 7 }
+    sequence { path { segments { field: 153 } segments { field: 3 } } deleted { counter: 5 replica: 7 } }
+  }
+}

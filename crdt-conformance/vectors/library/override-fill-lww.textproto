@@ -1,0 +1,40 @@
+# crdt-conformance/vectors/library/override-fill-lww.textproto (LIB-024; schema: crdt-conformance/schema/vector.proto)
+name: "library/override-fill-lww"
+description: "Override.fill is ATOMIC: two replicas recolor the same FILL override element concurrently; the greater OpId (6:2) wins whole, the element's creation and replica 1's write are retained as losing writes."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Symbol with an instance"
+    ops { create { parent { counter: 4 } position: "\x80" props { layer { common { name: "Layer 1" } visible: true printing: true } } } }
+    ops { create { parent { counter: 7 } position: "\x80" props { symbol { common { name: "Badge" } } } } }
+    ops { create { parent { counter: 2 replica: 7 } position: "\x80" props { rect { size { width: 10 height: 10 } } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x80" props { instance { symbol { id { counter: 2 replica: 7 } } } } } }
+  }
+  change {
+    replica: 7 seq: 2 start_counter: 5 label: "Override fill"
+    ops { element_insert { node { counter: 4 replica: 7 } sequence { segments { field: 153 } segments { field: 3 } } positions: ["\x80"] values { instance { overrides { master_node { counter: 3 replica: 7 } property: OVERRIDE_PROPERTY_FILL fill { inline { rgb { g: 1 } } } } } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 6 base_server_seq: 2 label: "Override fill"
+    ops { set { node { counter: 4 replica: 7 } paths { segments { field: 153 } segments { field: 3 } segments { element { counter: 5 replica: 7 } } segments { field: 5 } } values { instance { overrides { fill { inline { rgb { r: 1 } } } } } } } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 6 base_server_seq: 2 label: "Override fill"
+    ops { set { node { counter: 4 replica: 7 } paths { segments { field: 153 } segments { field: 3 } segments { element { counter: 5 replica: 7 } } segments { field: 5 } } values { instance { overrides { fill { inline { rgb { b: 1 } } } } } } } }
+  }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "11ff3853d175b5b61566ad26c4e20b410e7b1e8c2042b611959eb918eb61f4f1"
+  snapshot_hash: "25c77e15975e7385eb438ef70d89cb2a9c40edfec6011273b094abced30bbe30"
+  node {
+    id { counter: 4 replica: 7 }
+    register { path { segments { field: 153 } segments { field: 3 } segments { element { counter: 5 replica: 7 } } segments { field: 5 } } value { instance { overrides { fill { inline { rgb { b: 1 } } } } } } op { counter: 6 replica: 2 } losing { counter: 5 replica: 7 } losing { counter: 6 replica: 1 } }
+  }
+}
