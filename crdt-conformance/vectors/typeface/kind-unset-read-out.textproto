@@ -1,0 +1,33 @@
+# crdt-conformance/vectors/typeface/kind-unset-read-out.textproto (FONT-002; schema: crdt-conformance/schema/vector.proto)
+name: "typeface/kind-unset-read-out"
+description: "A document made before the kind existed: the settings node never has document_kind written while two replicas add pages.  Both engines converge with the register unset (the hash holds no document_kind write), which every client reads as a multi-page illustration."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Page"
+    ops { create { parent { counter: 2 } position: "\x80" props { page { geometry { width: 612 height: 792 } } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 2 base_server_seq: 1 label: "Add page"
+    ops { create { parent { counter: 2 } position: "\x81" props { page { geometry { width: 612 height: 792 } } } } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 2 base_server_seq: 1 label: "Rename page"
+    ops { set { node { counter: 1 replica: 7 } paths { segments { field: 3 } segments { field: 1 } segments { field: 1 } } values { page { common { name: "Cover" } } } } }
+  }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "279349b2ad4e446ace85f64d67fdbaa0e4dd498ab68fde2c98d5ebb6df26bd40"
+  snapshot_hash: "37bcebd30601730a81f6c2398ecab830dd74e8b8193980dcaf18b0cb9b62e2e6"
+  node {
+    id { counter: 2 }
+    tree { parent { } children { counter: 1 replica: 7 } children { counter: 2 replica: 1 } }
+  }
+}

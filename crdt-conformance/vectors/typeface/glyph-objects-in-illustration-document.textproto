@@ -1,0 +1,48 @@
+# crdt-conformance/vectors/typeface/glyph-objects-in-illustration-document.textproto (FONT-002; schema: crdt-conformance/schema/vector.proto)
+name: "typeface/glyph-objects-in-illustration-document"
+description: "Replica 1 converts a typeface to a multi-page illustration while replica 2 draws a rectangle on glyph A.  Both apply: the kind is multi-page and the rectangle keeps canvas = the glyph, so clients hide it with its glyph (objects on a glyph are not drawn on the pasteboard of an illustration) and converting back shows it again."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Typeface with glyph A and a layer"
+    ops { set { node { counter: 1 } paths { segments { field: 2 } segments { field: 20 } } values { settings { document_kind: DOCUMENT_KIND_TYPEFACE } } } }
+    ops { create { parent { counter: 11 } position: "\x80" props { glyph { name: "A" advance_width: 500 kind: GLYPH_KIND_BASE } } } }
+    ops { create { parent { counter: 4 } position: "\x80" props { layer { common { name: "Layer 1" } } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 4 base_server_seq: 1 label: "Convert to multi-page illustration"
+    ops { set { node { counter: 1 } paths { segments { field: 2 } segments { field: 20 } } values { settings { document_kind: DOCUMENT_KIND_ILLUSTRATION_MULTI_PAGE } } } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 4 base_server_seq: 1 label: "Draw on A"
+    ops { create { parent { counter: 3 replica: 7 } position: "\x80" props { rect { common { canvas { id { counter: 2 replica: 7 } } } size { width: 100 height: 700 } } } } }
+  }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "20c0d9db11e0e5d2d9b05ff77ed7f94aa8d4fa7d6f6225919781087d5b5d176d"
+  snapshot_hash: "960c278f2978ec61209f7f86aeb5d939ac875aed3d27b9b463d3d33ad0aa11d8"
+  node {
+    id { counter: 1 }
+    register {
+      path { segments { field: 2 } segments { field: 20 } }
+      value { settings { document_kind: DOCUMENT_KIND_ILLUSTRATION_MULTI_PAGE } }
+      op { counter: 4 replica: 1 }
+      losing { counter: 1 replica: 7 }
+    }
+  }
+  node {
+    id { counter: 4 replica: 2 }
+    register {
+      path { segments { field: 21 } segments { field: 1 } segments { field: 5 } }
+      value { rect { common { canvas { id { counter: 2 replica: 7 } } } } }
+      op { counter: 4 replica: 2 }
+    }
+  }
+}

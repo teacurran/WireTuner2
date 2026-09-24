@@ -1,0 +1,50 @@
+# crdt-conformance/vectors/typeface/upm-scale-vs-object-edit.textproto (FONT-005; schema: crdt-conformance/schema/vector.proto)
+name: "typeface/upm-scale-vs-object-edit"
+description: "Replica 1 scales the font from 1000 to 2000 units per em: it writes metrics.upm, the ascender and the rectangle's transform on glyph A (the scale goes through the transform).  Replica 2 concurrently edits the rectangle in object space (its size).  Different registers: both apply, so the edit is scaled with everything else."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Typeface with a rectangle on A"
+    ops { set { node { counter: 1 } paths { segments { field: 2 } segments { field: 21 } segments { field: 2 } segments { field: 1 } }
+      paths { segments { field: 2 } segments { field: 21 } segments { field: 2 } segments { field: 2 } }
+      values { settings { font { metrics { upm: 1000 ascender: 800 } } } } } }
+    ops { create { parent { counter: 11 } position: "\x80" props { glyph { name: "A" advance_width: 500 } } } }
+    ops { create { parent { counter: 4 } position: "\x80" props { layer { common { name: "Layer 1" } } } } }
+    ops { create { parent { counter: 3 replica: 7 } position: "\x80" props { rect { common { canvas { id { counter: 2 replica: 7 } } } size { width: 100 height: 700 } } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 5 base_server_seq: 1 label: "Scale to 2000 UPM"
+    ops { set { node { counter: 1 } paths { segments { field: 2 } segments { field: 21 } segments { field: 2 } segments { field: 1 } } values { settings { font { metrics { upm: 2000 } } } } } }
+    ops { set { node { counter: 1 } paths { segments { field: 2 } segments { field: 21 } segments { field: 2 } segments { field: 2 } } values { settings { font { metrics { ascender: 1600 } } } } } }
+    ops { set { node { counter: 4 replica: 7 } paths { segments { field: 21 } segments { field: 1 } segments { field: 4 } } values { rect { common { transform { a: 2 d: 2 } } } } } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 5 base_server_seq: 1 label: "Resize"
+    ops { set { node { counter: 4 replica: 7 } paths { segments { field: 21 } segments { field: 2 } } values { rect { size { width: 120 height: 700 } } } } }
+  }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "24b7c732ea8e461b0b1c84c3bbb09d9599f3e87d51b1298a577678d29c0c653d"
+  snapshot_hash: "cc61727a347869f4dd4ffaffbe3924ace86c1545c89f5c9e710f7a1648c25d52"
+  node {
+    id { counter: 4 replica: 7 }
+    register {
+      path { segments { field: 21 } segments { field: 1 } segments { field: 4 } }
+      value { rect { common { transform { a: 2 d: 2 } } } }
+      op { counter: 7 replica: 1 }
+    }
+    register {
+      path { segments { field: 21 } segments { field: 2 } }
+      value { rect { size { width: 120 height: 700 } } }
+      op { counter: 5 replica: 2 }
+      losing { counter: 4 replica: 7 }
+    }
+  }
+}

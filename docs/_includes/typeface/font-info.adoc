@@ -408,6 +408,15 @@ Nothing beyond storing and relaying changes; the protovalidate rules above run o
   bar, with *Reapply mine* when the user's own write lost and no button otherwise.
 * Undo: one step per pane; the UPM scale group is one step.
 
+NOTE: Deviations recorded by FONT-005.  The commands are `SetFontNames` (with
+`openFontLicense(copyright:)`), `SetFontMetrics` (the Windows metrics and the typo switch too),
+`SetFontOS2`, `SetMetricGuides` (show/hide and the extra lines) and `SetGeneratedFeatures`.
+`SetUnitsPerEm(_:scale:)` also scales every component's offset (the linear part is left: the
+source glyph scales itself), which the op list above leaves out and a scaled font needs; its
+`changes(in:)` returns the change group, which the caller performs inside one undo group.
+Writing 0 to a register clears it, so a field whose default is not 0 (x-height 500, say) reads its
+default again when set to 0; defaults of 0 (italic angle, line gap) are not written at all.
+
 === Build tasks
 
 [[FONT-005]]

@@ -370,6 +370,17 @@ Nothing beyond storing and relaying changes; validates anchor names and transfor
 * Preferences: *Snap to metric lines* (on), *Font preview text* (`Hamburgefonstiv`), under
   Settings > Typeface.
 
+NOTE: Deviations recorded by FONT-011 (render half), FONT-012 and FONT-013 (model halves) and
+FONT-014 (checks).  The metric lines, side bearing lines (slanted by the italic angle) and em box
+are `WTRender.GlyphCanvasRendering` items over a `GlyphCanvasFrame`, with the lines and their snap
+targets exposed for the canvas; the handles, labels and sheets are UI.  Components and anchors:
+the commands (`AddComponent` with anchor arithmetic and a cached outline, `SetComponentTransform`,
+`RemoveComponents`, `DecomposeComponents`, `AddAnchor`, `EditAnchor`) and every read-time
+normalization above are built in `WTModel`; *snap to anchors* and the mark attachment preview are
+UI.  The checks are `WTModel.FontValidation`: every row of the validation table except *wrong
+direction* (the flattener's union leaves directions correct, and the generator sets them), each
+row naming its glyph.  They run from the whole state, not incrementally.
+
 === Build tasks
 
 [[FONT-011]]

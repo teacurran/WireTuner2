@@ -1,0 +1,41 @@
+# crdt-conformance/vectors/typeface/kern-pair-created-twice.textproto (FONT-016; schema: crdt-conformance/schema/vector.proto)
+name: "typeface/kern-pair-created-twice"
+description: "Both replicas create the kern pair A V (FontProps.pairs, a SEQUENCE on the settings node) with different values.  The store keeps two elements with equal glyphs; every client reads the one with the greater element id (3:2, value -20) and lists the other as a duplicate, which the next set of that pair deletes."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Glyphs A and V"
+    ops { create { parent { counter: 11 } position: "\x80" props { glyph { name: "A" advance_width: 600 } } } }
+    ops { create { parent { counter: 11 } position: "\x81" props { glyph { name: "V" advance_width: 600 } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 3 base_server_seq: 1 label: "Kern pair"
+    ops { element_insert { node { counter: 1 } sequence { segments { field: 2 } segments { field: 21 } segments { field: 5 } } positions: "\x80"
+      values { settings { font { pairs { left { id { counter: 1 replica: 7 } } right { id { counter: 2 replica: 7 } } value: -10 } } } } } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 3 base_server_seq: 1 label: "Kern pair"
+    ops { element_insert { node { counter: 1 } sequence { segments { field: 2 } segments { field: 21 } segments { field: 5 } } positions: "\x80"
+      values { settings { font { pairs { left { id { counter: 1 replica: 7 } } right { id { counter: 2 replica: 7 } } value: -20 } } } } } }
+  }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "44b8af0d5acff374f5a2ad66fa7d02fe7d63d304ebd0626f0c770c2dc54893d1"
+  snapshot_hash: "2fa21172e8d413d86817a66a02df2e434789d58c66b887c92501a7b561538233"
+  node {
+    id { counter: 1 }
+    sequence { path { segments { field: 2 } segments { field: 21 } segments { field: 5 } } elements { counter: 3 replica: 1 } elements { counter: 3 replica: 2 } }
+    register {
+      path { segments { field: 2 } segments { field: 21 } segments { field: 5 } segments { element { counter: 3 replica: 2 } } segments { field: 4 } }
+      value { settings { font { pairs { value: -20 } } } }
+      op { counter: 3 replica: 2 }
+    }
+  }
+}

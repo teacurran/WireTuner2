@@ -405,6 +405,22 @@ patterns on ingest and does not know what a glyph is.
 * Undo: each conversion is one change; Convert Page to Glyph with *Move* is one undo step that
   returns the objects to the page.
 
+NOTE: Deviations recorded by FONT-002.  The conversions are one command,
+`WTModel.ConvertDocumentKind(to:options:)` (with `NewTypeface` for the New Typeface sheet), and the
+page commands are `ConvertPageToGlyph` and `CopyGlyphToPage`.  *Convert to illustration*'s page
+copies are a translation -- one unit per point, the ascender line at the page's top -- not a
+negation of y: stored space is y-down on both canvases, as the Client section says.  The
+canvas rules are `WTModel.CanvasMembership` (a glyph canvas naming a deleted glyph reads as the
+pasteboard in a typeface document, glyph content is hidden in an illustration document, content
+of a deleted master is drawn nowhere).  `DocumentDisplayListBuilder` does not consult it yet: the
+builder is being changed by another task, so the hook -- a `canvasNode` on the builder, the
+top-level objects filtered by `CanvasMembership.belongs` and the `!common.hasCanvas` guards in
+`built(_:state:)` replaced by `CanvasMembership.draws` -- is left to the typeface window task
+(FONT-003/FONT-004), which also needs it to draw a glyph canvas.  Until then the main pasteboard
+leaves out every object with a `canvas`, as before.  `DocumentKind` reads the one
+`document_kind` register rather than the whole settings node, so the canvas rules stay cheap per
+object.
+
 === Build tasks
 
 [[FONT-001]]

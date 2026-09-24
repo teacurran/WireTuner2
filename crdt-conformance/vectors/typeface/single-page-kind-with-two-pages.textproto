@@ -1,0 +1,42 @@
+# crdt-conformance/vectors/typeface/single-page-kind-with-two-pages.textproto (FONT-002; schema: crdt-conformance/schema/vector.proto)
+name: "typeface/single-page-kind-with-two-pages"
+description: "A single-page illustration where two replicas each add a page offline (a client refuses the add locally, but an older client or a race can write it).  Both pages are live and the kind stays single-page; clients read the layout as multi-page until the next conversion writes the truth.  Nothing is normalized in the store."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Single page"
+    ops { set { node { counter: 1 } paths { segments { field: 2 } segments { field: 20 } } values { settings { document_kind: DOCUMENT_KIND_ILLUSTRATION_SINGLE_PAGE } } } }
+    ops { create { parent { counter: 2 } position: "\x80" props { page { geometry { width: 612 height: 792 } } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 3 base_server_seq: 1 label: "Add page"
+    ops { create { parent { counter: 2 } position: "\x81" props { page { geometry { width: 612 height: 792 } } } } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 3 base_server_seq: 1 label: "Add page"
+    ops { create { parent { counter: 2 } position: "\x81" props { page { geometry { width: 500 height: 500 } } } } }
+  }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "9df62cd05370487aac0ef0cce77a7e580b4883a10ce63a978453523b6576935c"
+  snapshot_hash: "ec1818e72d8779162a52c39a9f2a3eb77c4d90efdff3a171d241b52d1a31879f"
+  node {
+    id { counter: 1 }
+    register {
+      path { segments { field: 2 } segments { field: 20 } }
+      value { settings { document_kind: DOCUMENT_KIND_ILLUSTRATION_SINGLE_PAGE } }
+      op { counter: 1 replica: 7 }
+    }
+  }
+  node {
+    id { counter: 2 }
+    tree { parent { } children { counter: 2 replica: 7 } children { counter: 3 replica: 1 } children { counter: 3 replica: 2 } }
+  }
+}

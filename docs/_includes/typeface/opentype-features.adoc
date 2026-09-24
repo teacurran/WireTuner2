@@ -217,6 +217,15 @@ Nothing beyond storing and relaying changes.
 * Undo: text editing groups by the text rules (a typed word, a paste); flags are one step each.
 * Preference: *Show generated features* (on), under Settings > Typeface.
 
+NOTE: Deviations recorded by FONT-015 and FONT-018.  The flattener is `WTRender.GlyphFlattener`
+over `GlyphSource`s that `WTModel.GlyphOutlines` reads from the state (shapes on printing layers
+with their transform chains, fills and strokes; components with the model's loop and dangling
+rules); `GlyphContours` holds the finishing steps (y flip, directions, extrema, rounding,
+quadratic conversion).  A component nesting deeper than eight levels reads as a placeholder at
+the ninth.  Kerning reaches the font through `GPOS` directly, not through generated feature text,
+and the feature file is not compiled (see xref:font-export.adoc[Generating and exchanging fonts]);
+FONT-019 is not built.
+
 === Build tasks
 
 [[FONT-015]]

@@ -1,0 +1,40 @@
+# crdt-conformance/vectors/typeface/component-loop-both-kept.textproto (FONT-012; schema: crdt-conformance/schema/vector.proto)
+name: "typeface/component-loop-both-kept"
+description: "Replica 1 makes A use B as a component while replica 2 makes B use A.  The store keeps both elements: the loop is cut on read by every client at the component element with the smallest element id (3:1), which renders as a placeholder labelled loop.  Nothing is written."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Glyphs A and B"
+    ops { create { parent { counter: 11 } position: "\x80" props { glyph { name: "A" advance_width: 500 } } } }
+    ops { create { parent { counter: 11 } position: "\x81" props { glyph { name: "B" advance_width: 500 } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 3 base_server_seq: 1 label: "Add component"
+    ops { element_insert { node { counter: 1 replica: 7 } sequence { segments { field: 220 } segments { field: 6 } } positions: "\x80"
+      values { glyph { components { glyph { id { counter: 2 replica: 7 } } } } } } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 3 base_server_seq: 1 label: "Add component"
+    ops { element_insert { node { counter: 2 replica: 7 } sequence { segments { field: 220 } segments { field: 6 } } positions: "\x80"
+      values { glyph { components { glyph { id { counter: 1 replica: 7 } } } } } } }
+  }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "3b2e20f44987b2eeead07b5977b8600d5ee826eee5ec98a83e80ab9c6e9e0858"
+  snapshot_hash: "829175740749d394de9f94955599d5e2038d70dc8fca8aad0a9cd4a2d0ddf0e9"
+  node {
+    id { counter: 1 replica: 7 }
+    sequence { path { segments { field: 220 } segments { field: 6 } } elements { counter: 3 replica: 1 } }
+  }
+  node {
+    id { counter: 2 replica: 7 }
+    sequence { path { segments { field: 220 } segments { field: 6 } } elements { counter: 3 replica: 2 } }
+  }
+}

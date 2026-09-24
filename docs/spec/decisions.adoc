@@ -554,6 +554,19 @@ offline work while a review is pending, so a relaunch or a reconnect does not ta
 review for a brief drop.  Rejected: keeping the per-object hold for brief drops (still a sheet
 on every network blip, for conflicts live editing would have resolved the same way).
 
+[[D-071]]
+=== D-071 Fonts compile with a built-in Swift compiler; fontc is deferred
+The stack named fontc, bundled as an XCFramework, with CI carrying a pinned Rust toolchain.  The
+build machines have no Rust toolchain, and FONT-018 was built as `WTInterchange.FontCompiler`
+instead: a Swift compiler with no third-party code that writes CFF or glyf/loca outlines, the
+metric, name, cmap and post tables, and the kerning model straight into GPOS, from a neutral
+`FontSource`.  Generated OTF, TTF and WOFF2 load in Core Text, and imported fonts round-trip.
+What it cannot do is compile feature files: a user's feature file, and generated `mark`, `mkmk`
+and `liga`, are reported as warnings, FONT-019 is not built, and composite glyphs are written
+decomposed.  `FontSource` is the seam, so fontc replaces the compiler without touching the
+model once the build machines carry a Rust toolchain.  Rejected for now: fontmake (a Python
+runtime in the app) and writing a feature compiler in Swift (a project of its own).
+
 == Open questions
 
 [[Q-001]]

@@ -1,0 +1,38 @@
+# crdt-conformance/vectors/typeface/kind-versus-kind.textproto (FONT-002; schema: crdt-conformance/schema/vector.proto)
+name: "typeface/kind-versus-kind"
+description: "Two concurrent conversions: replica 1 converts to a typeface, replica 2 to a single-page illustration.  document_kind is ATOMIC: the write with the greater OpId (2:2, the higher replica at the same counter) wins and the other is kept as a losing write, which the review sheet lists for both."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Page"
+    ops { create { parent { counter: 2 } position: "\x80" props { page { geometry { width: 612 height: 792 } } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 2 base_server_seq: 1 label: "Convert to typeface"
+    ops { set { node { counter: 1 } paths { segments { field: 2 } segments { field: 20 } } values { settings { document_kind: DOCUMENT_KIND_TYPEFACE } } } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 2 base_server_seq: 1 label: "Convert to single-page illustration"
+    ops { set { node { counter: 1 } paths { segments { field: 2 } segments { field: 20 } } values { settings { document_kind: DOCUMENT_KIND_ILLUSTRATION_SINGLE_PAGE } } } }
+  }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "a55b406795a5a48d5e4b80f5a8cde6dc40fcbe831db08cfe38fbb11107a37e20"
+  snapshot_hash: "10c8d018a35d1ffd4e40ac577a02591b5ed9d6f05ac997b47bad7732fe8e927c"
+  node {
+    id { counter: 1 }
+    register {
+      path { segments { field: 2 } segments { field: 20 } }
+      value { settings { document_kind: DOCUMENT_KIND_ILLUSTRATION_SINGLE_PAGE } }
+      op { counter: 2 replica: 2 }
+      losing { counter: 2 replica: 1 }
+    }
+  }
+}

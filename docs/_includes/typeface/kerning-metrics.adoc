@@ -300,6 +300,12 @@ Nothing beyond storing and relaying changes; validates the value ranges.
 * Spacing Overview: an `NSTableView` window with in-place editing through the glyph commands.
 * Undo: each drag, field commit, matrix cell, class edit or Auto Kern run is one step.
 
+NOTE: Deviations recorded by FONT-016.  The commands are `SetKernPair`, `RemoveKernPairs`,
+`SetClassKern`, `CreateKernClass`, `EditKernClass` (rename, add and remove members, remove),
+`RemoveAllKerning`, `MergeKernClasses` and `ApplyAutoKern` (the Auto Kern computation itself is
+FONT-021's).  The lookup tables are rebuilt from the state with each `Kerning` read rather than
+incrementally.  Setting a pair to 0 where no class applies writes nothing.
+
 === Build tasks
 
 [[FONT-016]]

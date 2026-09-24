@@ -295,6 +295,40 @@ strokes and effects).  Unknown `lib` keys are preserved in the document as an op
 Undo:: Imports into an existing document are one undo step.  Fix All Warnings is one step.
 Generation, installation and export are not document changes.
 
+NOTE: Deviations recorded by FONT-018, FONT-025, FONT-026 (model half) and FONT-027.  *Compiler*:
+fontc is not bundled.  The build machines carry no Rust toolchain, and an XCFramework of a
+third-party compiler built outside CI could not meet the task's own reproducibility bar, so
+`WTInterchange.FontCompiler` is the first option in the table above, scoped to what the model
+holds: a Swift compiler from `WTInterchange.FontSource` (the finished outlines, metrics, names,
+OS/2 values and kerning `WTModel.FontGeneration` snapshots) to OTF -- `CFF ` with unhinted,
+unsubroutinized Type 2 charstrings, cubic as drawn, a `FontMatrix` for an em other than 1000 --
+or TTF -- `glyf`/`loca` via `GlyphContours.quadratic` (half-unit cu2qu tolerance), clockwise,
+implied on-curve points dropped -- plus `head`, `hhea`, `hmtx`, `maxp`, `OS/2` (version 4,
+`USE_TYPO_METRICS`), `name` (Windows Unicode records; typographic family and style names for
+styles outside Regular/Italic/Bold/Bold Italic), `cmap` (format 4, and format 12 above the BMP)
+and `post` (2.0 names for TTF, 3.0 for OTF).  The kerning model compiles straight into a `GPOS`
+`kern` feature: one lookup of Extension subtables, pair (format 1) subtables before class
+(format 2) subtables so an exception wins over its classes exactly as the model's lookup does,
+split to keep every 16-bit offset in range.  There is no feature-file compiler: the user's
+`features` text is not compiled (a non-empty file is a warning, `featuresNotCompiled`, not an
+error), and the generated `mark`, `mkmk` and `liga` features are not produced (anchors that would
+attach are a warning, `attachmentNotCompiled`); `FeatureGenerator` and `FeatureChecker`
+(FONT-019) are not built.  Components are written decomposed (the flattened outline).  Identical
+sources give identical bytes (the `head` dates are zero unless `Options.date` is given).  The
+seam is still the neutral source, so a bundled compiler can replace this one without touching the
+model.  Core Text loads every generated font; fontTools reads them without complaint (checked by
+hand, not in CI).  *Install for Testing*: `TestFontInstaller` registers with
+`CTFontManagerRegisterFontsForURL` (the synchronous call) and the `Test` suffix is applied to the
+snapshot's names (`FontGenerationOptions.testSuffix`) rather than by rewriting a compiled `name`
+table.  *WOFF2*: as specified (null transforms, Brotli from `Compression`), plus `WOFF2Reader` for
+files with null transforms.  *OTF/TTF import*: `OpenTypeReader` reads the tables listed above
+except that GSUB (`liga` and every other substitution) and GPOS features other than `kern` are
+listed in the import report as not read -- the decompiler into feature text is not built -- and
+`GDEF` is not read; composite glyphs placed by point matching are placed at their origin and
+reported.  `WTModel.FontImport` writes the import as a change group ("Import <file> [i/n]": glyph
+batches, then the settings and kerning), one undo step, with the grid's collision rules on an
+import into an existing document.  UFO export and import (FONT-023, FONT-024) are not built.
+
 === Build tasks
 
 [[FONT-018]]

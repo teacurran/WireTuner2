@@ -62,8 +62,8 @@ engine feeds both renderers, so glyph positions cannot differ between screen and
 |Native sign-in sheet, no embedded web view holding passwords.
 
 |Font compilation
-|fontc (Rust, Apache-2.0) bundled as an XCFramework behind a C FFI, fed by our own UFO writer; WOFF2 written in Swift with Brotli from Compression.framework
-|Writing a CFF/TTF/feature compiler is a project of its own; fontmake needs a Python runtime.  The seam is UFO, so the compiler is replaceable (xref:font-export.adoc[Generating fonts]).  CI carries a pinned Rust toolchain for this one artifact.
+|A built-in Swift compiler (`WTInterchange.FontCompiler`: CFF and glyf/loca outlines, metric, name, cmap and post tables, kerning into GPOS) fed by a neutral `FontSource`; WOFF2 written in Swift with Brotli from Compression.framework (<<D-071>>)
+|No third-party code and no Rust toolchain on the build machines.  It has no feature-file compiler, so user feature files and generated `mark`/`mkmk`/`liga` wait for fontc (Rust, Apache-2.0), which can replace it behind `FontSource` without touching the model (xref:font-export.adoc[Generating fonts]).
 
 |Scripting
 |AppleScript (`NSScriptCommand` + sdef) and App Intents (Shortcuts)

@@ -1,0 +1,49 @@
+# crdt-conformance/vectors/typeface/glyph-components-and-anchors.textproto (FONT-001, FONT-012, FONT-013; schema: crdt-conformance/schema/vector.proto)
+name: "typeface/glyph-components-and-anchors"
+description: "A glyph built from two components and given two anchors on different replicas: components and anchors are SEQUENCE fields, Component.transform and GlyphAnchor.position ATOMIC.  Replica 1 inserts two components of A into B and then moves the second; replica 2 inserts anchors top and _top.  Everything survives and both engines agree on the element order."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Glyphs A and B"
+    ops { create { parent { counter: 11 } position: "\x80" props { glyph { name: "A" advance_width: 500 } } } }
+    ops { create { parent { counter: 11 } position: "\x81" props { glyph { name: "B" advance_width: 500 } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 3 base_server_seq: 1 label: "Add components"
+    ops { element_insert { node { counter: 2 replica: 7 } sequence { segments { field: 220 } segments { field: 6 } } positions: "\x80" positions: "\x81"
+      values { glyph { components { glyph { id { counter: 1 replica: 7 } } } components { glyph { id { counter: 1 replica: 7 } } transform { a: 1 d: 1 tx: 100 } } } } } }
+  }
+  change {
+    replica: 1 seq: 2 start_counter: 5 base_server_seq: 1 label: "Move component"
+    ops { set { node { counter: 2 replica: 7 } paths { segments { field: 220 } segments { field: 6 } segments { element { counter: 4 replica: 1 } } segments { field: 3 } }
+      values { glyph { components { id { counter: 4 replica: 1 } transform { a: 1 d: 1 tx: 150 ty: -700 } } } } } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 3 base_server_seq: 1 label: "Add anchors"
+    ops { element_insert { node { counter: 2 replica: 7 } sequence { segments { field: 220 } segments { field: 7 } } positions: "\x80" positions: "\x81"
+      values { glyph { anchors { name: "top" position { x: 250 y: -700 } role: ANCHOR_ROLE_BASE } anchors { name: "_top" position { x: 250 y: 0 } role: ANCHOR_ROLE_MARK } } } } }
+  }
+}
+deliveries { order: [1, 1, 2] }
+deliveries { order: [2, 1, 1] }
+deliveries { order: [1, 2, 1] }
+expect {
+  state_hash: "6b0a333eec319920e8279c01da39bbf5c1b7deab54458769f2c0b9422cefbd79"
+  snapshot_hash: "2bdd67c4afa7c8fe512e71d4d69b0633fd020cc29cfd59c34c2430276cf16e9a"
+  node {
+    id { counter: 2 replica: 7 }
+    sequence { path { segments { field: 220 } segments { field: 6 } } elements { counter: 3 replica: 1 } elements { counter: 4 replica: 1 } }
+    sequence { path { segments { field: 220 } segments { field: 7 } } elements { counter: 3 replica: 2 } elements { counter: 4 replica: 2 } }
+    register {
+      path { segments { field: 220 } segments { field: 6 } segments { element { counter: 4 replica: 1 } } segments { field: 3 } }
+      value { glyph { components { transform { a: 1 d: 1 tx: 150 ty: -700 } } } }
+      op { counter: 5 replica: 1 }
+      losing { counter: 4 replica: 1 }
+    }
+  }
+}

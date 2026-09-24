@@ -304,6 +304,24 @@ range per op.
   glyphs").
 * Preference *Glyph cell size* (Medium) under Settings > Typeface.
 
+NOTE: Deviations recorded by FONT-008 and FONT-009.  `GlyphIndex` is rebuilt from the state in one
+pass rather than incrementally from changes (a few milliseconds for a 3,000-glyph font, and every
+replica derives the same maps from the same state).  `GlyphNaming` bundles AGLFN 1.7 (586 names,
+Adobe's BSD licence in the file) rather than the full AGL.  The *Latin-1* starting set also adds
+the seven combining marks its accented letters are built from (`gravecomb`, `acutecomb`,
+`uni0302`, `tildecomb`, `uni0308`, `uni030A`, `uni0327`, mark kind, zero width); the components
+are placed at the origin until the glyphs have anchors.  Built: add (codepoint, name, range, set),
+rename, set and move codepoints, remove, restore, reorder, width, bearings and centring,
+transform, kind/colour/export/note, components and anchors (FONT-012/013 model halves),
+decompose.  Not built: copy, paste-replace, paste-new and paste as component (pasteboard glue for
+the UI task), remove overlaps, correct directions and add extrema as artwork rewrites (the
+generator applies them to its outlines; *Fix All Warnings* is the Generate sheet's task),
+*thirds*.  Thumbnails: `WTRender.GlyphThumbnail` renders the flattened outline (the generator's,
+so they match) at the three cell sizes, `GlyphThumbnailCache` keys them by glyph and a caller
+version, and `WTModel.GlyphInvalidation` names the glyphs a change reaches (the glyphs written,
+the glyphs whose canvas holds a touched object before or after the change, and their users
+through components).
+
 === Build tasks
 
 [[FONT-008]]
