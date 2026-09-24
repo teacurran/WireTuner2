@@ -94,7 +94,8 @@ final class DocumentController {
         views[document.id] = [controller]
         present(controller, show: show, placement: placement, front: front)
         activate(controller)
-        environment.documentDidOpen(controller)
+        // A glyph tab borrows its document's model: the document opened with its first window.
+        if document.canvasNode == nil { environment.documentDidOpen(controller) }
         return controller
     }
 
@@ -171,7 +172,8 @@ final class DocumentController {
     func sessionState() -> [WindowState] {
         var groups: [ObjectIdentifier: Int] = [:]
         var states: [WindowState] = []
-        for controller in allWindowControllers {
+        // Glyph tabs (FONT-003) are views of their document's model, not documents to reopen.
+        for controller in allWindowControllers where controller.documentHandle.canvasNode == nil {
             guard let window = controller.window else { continue }
             let siblings = window.tabbedWindows ?? [window]
             let groupKey = ObjectIdentifier(siblings.first ?? window)

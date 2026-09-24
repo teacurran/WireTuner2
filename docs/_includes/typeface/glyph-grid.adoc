@@ -322,6 +322,21 @@ version, and `WTModel.GlyphInvalidation` names the glyphs a change reaches (the 
 the glyphs whose canvas holds a touched object before or after the change, and their users
 through components).
 
+NOTE: Deviations recorded by FONT-010.  `WTApp.GlyphGridView` is a custom-drawn view in a scroll
+view (not an `NSCollectionView`): the three cell sizes (a pop-up in the grid's bar, not a
+preference), character or name labels, the colour tag, badges for collisions, *Export* off and
+components, the Custom / Unicode / Name orders, the search field (name, character or codepoint,
+`U+41`), click, Shift-click and Command-click selection, arrow keys, kbd:[Return] to open,
+kbd:[Delete] to remove (confirmed when a glyph has artwork) and type-to-jump.  Cell images come from
+`GlyphThumbnailSource`: a `GlyphThumbnailCache` whose per-glyph version advances for the glyphs
+`GlyphInvalidation` names on every model event (a font-level change redraws every cell).  The Add
+Glyph sheet takes characters, a codepoint or range (`U+00C0-U+00FF`) or a glyph name, and adds the
+Basic Latin or Latin-1 set.  The Glyph menu has Open Glyph, Add Glyph…, Remove Glyph, Previous and
+Next Glyph, Components and Anchors…, Convert Page to Glyph… and Copy Glyph to Page.  Not built:
+presence dots, encoding placeholders, drag reordering, the Select submenu, the Set Width/Bearing
+sheet for many glyphs, the Glyph section of the Object panel (a glyph tab's bar carries Width, LSB
+and RSB), and the collision notices.
+
 === Build tasks
 
 [[FONT-008]]

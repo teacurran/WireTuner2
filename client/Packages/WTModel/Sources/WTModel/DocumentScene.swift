@@ -109,6 +109,10 @@ public struct DocumentDisplayListBuilder: Sendable {
     public let canvas: CanvasID
     public private(set) var background: [DisplayItem]
     public private(set) var scene: DocumentScene
+    /// The master page or glyph whose canvas this builder draws; nil draws the main pasteboard
+    /// (`CanvasMembership`: the top-level objects placed on that canvas, FONT-003).  Set before
+    /// the first build.
+    public var canvasNode: OpID?
     /// *Guide color* (preferences.adoc, cyan by default): objects on the Guides layer draw in it.
     public var guideColor = Color(red: 0, green: 1, blue: 1)
     /// How text nodes are laid out and drawn (`TextSceneLayout`); nil draws no text.
@@ -166,6 +170,9 @@ public struct DocumentDisplayListBuilder: Sendable {
         var groupAppearance = Appearance()
         /// A blend or extrusion, drawn as a group with a live drawing (FX-024, FX-017).
         var wrapper: WrapperKind?
+        /// Whether the node names a canvas (`CommonProps.canvas`): its placement is re-read on
+        /// every build, since it depends on the glyph or master it names.
+        var namesCanvas = false
 
         /// A group, blend or extrusion: its item is made of its children's.
         var drawsChildren: Bool { kind == .group || wrapper != nil }
@@ -417,7 +424,7 @@ public struct DocumentDisplayListBuilder: Sendable {
             if layer.visible || includeHidden {
                 let layerTransform = layerTransform(layer.id, state: state)
                 let context = Placing(layer: layer.id, locked: layer.locked)
-                for child in order.objects(on: layer.id, in: state) {
+                for child in order.objects(on: layer.id, in: state) where belongs(child, state: state) {
                     guard let item = place(child, state: state, parentTransform: layerTransform, itemPath: [next], parent: nil, context: context,
                                            objects: &objects) else { continue }
                     items.append((item, NodeID(child)))
@@ -475,6 +482,13 @@ public struct DocumentDisplayListBuilder: Sendable {
     private struct Placing {
         var layer: OpID
         var locked: Bool
+    }
+
+    /// Whether top-level `node` is drawn on this builder's canvas.  A cached node that names no
+    /// canvas is on the pasteboard without reading its registers again.
+    private func belongs(_ node: OpID, state: EngineState) -> Bool {
+        if let cached = cache[node], !cached.namesCanvas { return canvasNode == nil }
+        return CanvasMembership.belongs(node, to: canvasNode, in: state)
     }
 
     /// The item of `node` under `parentTransform`, recording it (and its members) in `objects`.
@@ -546,18 +560,20 @@ public struct DocumentDisplayListBuilder: Sendable {
         }
         if let wrapper = WrapperKind.of(node, in: state) {
             let props = state.props(node)
-            guard let common = NodeValues.common(props), !common.hasCanvas else { return nil }
-            let built = Built(item: nil, kind: wrapper.nodeKind, path: nil, transform: PathEditing.transform(common.transform), elementPoints: [:],
+            guard let common = NodeValues.common(props), CanvasMembership.draws(common, on: canvasNode, in: state) else { return nil }
+            var built = Built(item: nil, kind: wrapper.nodeKind, path: nil, transform: PathEditing.transform(common.transform), elementPoints: [:],
                               leafContours: [:], locked: common.locked, wrapper: wrapper)
+            built.namesCanvas = common.hasCanvas
             cache[node] = built
             return built
         }
         guard let kind = state.nodeKind(node), kind != .layer, kind != .symbol else { return nil }
         if let substitution, substitution.hides(node, state: state) { return nil }
         let props = EffectReading.completingSets(state.props(node), node: node, in: state)
-        guard let common = NodeValues.common(props), !common.hasCanvas else { return nil }
+        guard let common = NodeValues.common(props), CanvasMembership.draws(common, on: canvasNode, in: state) else { return nil }
         let transform = PathEditing.transform(common.transform)
         var built = Built(item: nil, kind: kind, path: nil, transform: transform, elementPoints: [:], leafContours: [:], locked: common.locked)
+        built.namesCanvas = common.hasCanvas
         let order = AppearanceEditing.stack(node, in: state)
         switch props.kind {
         case .path(let path)?:

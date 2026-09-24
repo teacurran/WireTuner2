@@ -306,6 +306,17 @@ NOTE: Deviations recorded by FONT-016.  The commands are `SetKernPair`, `RemoveK
 FONT-021's).  The lookup tables are rebuilt from the state with each `Kerning` read rather than
 incrementally.  Setting a pair to 0 where no class applies writes nothing.
 
+NOTE: Deviations recorded by FONT-020 and FONT-021.  menu:Font[Metrics Window] opens one window per
+document: the sample text, a *Kern* switch, the setting drawn from the flattened outlines with
+`Kerning.value` between glyphs (a character without a glyph is a box), a click selecting the pair
+at the nearest join, the Kern field, btn:[−10] / btn:[+10], *Class* (writes `SetClassKern` for the
+two glyphs' classes), btn:[Remove Pair], btn:[Remove All Kerning] and the list of pairs.  The
+compiled preview is `FontGeneration.snapshot` → `FontCompiler.quickCompile` →
+`CTFontCreateWithGraphicsFont`, on demand rather than debounced.  Not built: drags on the setting
+(width, LSB, kern), text history and presets, editing values in the table, the Features pop-up
+(there is no feature compile), the Spacing Overview, and FONT-021's Kerning Classes editor and Auto
+Kern.
+
 === Build tasks
 
 [[FONT-016]]

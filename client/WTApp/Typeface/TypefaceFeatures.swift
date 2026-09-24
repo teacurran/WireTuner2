@@ -1,0 +1,489 @@
+import AppKit
+import Foundation
+import SwiftUI
+import WTCRDT
+import WTGeometry
+import WTInterchange
+import WTModel
+import WTProto
+
+/// The typeface features (the FONT epic's client-ui tasks; typeface-documents.adoc and the pages
+/// it links): menu:File[New Typeface…], menu:File[Open Font…], menu:File[Convert Document To],
+/// menu:File[Generate Fonts…], the Font and Glyph menus, the typeface window layout on every
+/// document window (`TypefaceWindowMode`) and the glyph tabs.  One object per app; the commands
+/// act on the front window.
+@MainActor
+final class TypefaceFeatures {
+    enum ID {
+        static let newTypeface: CommandID = "file.newTypeface"
+        static let openFont: CommandID = "file.openFont"
+        static let convertSingle: CommandID = "file.convertTo.singlePage"
+        static let convertMulti: CommandID = "file.convertTo.multiPage"
+        static let convertTypeface: CommandID = "file.convertTo.typeface"
+        static let generateFonts: CommandID = "file.generateFonts"
+        static let installForTesting: CommandID = "file.installForTesting"
+        static let fontInfo: CommandID = "font.info"
+        static let metricsWindow: CommandID = "font.metrics"
+        static let openGlyph: CommandID = "glyph.open"
+        static let addGlyph: CommandID = "glyph.add"
+        static let removeGlyphs: CommandID = "glyph.remove"
+        static let previousGlyph: CommandID = "glyph.previous"
+        static let nextGlyph: CommandID = "glyph.next"
+        static let convertPageToGlyph: CommandID = "glyph.convertPage"
+        static let copyGlyphToPage: CommandID = "glyph.copyToPage"
+        static let glyphParts: CommandID = "glyph.parts"
+        static let fitGlyph: CommandID = "view.fitGlyph"
+    }
+
+    enum Menu {
+        static let font = "Font"
+        static let glyph = "Glyph"
+        static let convert = "Convert Document To"
+    }
+
+    static let noDocument = "No document is open"
+    static let notTypeface = "The document is not a typeface"
+    static let noGlyph = "Select a glyph"
+    static let noGlyphCanvas = "Open a glyph first"
+
+    let preferences: PreferenceStore
+    /// The front document window.
+    private(set) var window: @MainActor () -> DocumentWindowController? = { nil }
+    /// The open documents (glyph tabs open through it).
+    private(set) weak var documents: DocumentController?
+    /// A new, empty document titled with the argument (the library's *New*).
+    var createDocument: @MainActor (String) -> DocumentHandle? = { _ in nil }
+    /// Where *Install for Testing* keeps its fonts.
+    var installer = TestFontInstaller(directory: TypefaceFeatures.testFontsDirectory())
+    /// The fonts *Install for Testing* registered, by document id.
+    private(set) var installed: [String: [URL]] = [:]
+    /// Every window's typeface layout.
+    private(set) var modes: [ObjectIdentifier: TypefaceWindowMode] = [:]
+    /// Each document's glyph cell images.
+    private var thumbnails: [String: GlyphThumbnailSource] = [:]
+    /// The Metrics windows by document id.
+    private(set) var metrics: [String: MetricsWindowController] = [:]
+    /// Runs an open panel for font files (replaced in tests).
+    var chooseFontFile: @MainActor (NSWindow?) async -> URL? = { window in
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = FontImportController.contentTypes
+        return await ModalUI.urls(panel, on: window).first
+    }
+    /// Shows a message (replaced in tests).
+    var alert: @MainActor (String, String, NSWindow?) -> Void = { message, detail, window in ModalUI.alert(message, detail, on: window) }
+
+    init(preferences: PreferenceStore) {
+        self.preferences = preferences
+    }
+
+    /// `~/Library/Application Support/WireTuner/TestFonts` (font-export.adoc, "Install for testing").
+    static func testFontsDirectory() -> URL {
+        URL.applicationSupportDirectory.appending(path: "WireTuner/TestFonts")
+    }
+
+    func install(commands: CommandRegistry, documents: DocumentController?, window: @escaping @MainActor () -> DocumentWindowController?) {
+        self.window = window
+        self.documents = documents
+        for command in self.commands() { commands.replace(command) }
+    }
+
+    // MARK: Windows
+
+    /// Gives `controller` the typeface layout (every document window gets one; it shows only for
+    /// a typeface document or a glyph tab).
+    @discardableResult
+    func attach(_ controller: DocumentWindowController) -> TypefaceWindowMode {
+        let key = ObjectIdentifier(controller)
+        if let existing = modes[key] { return existing }
+        let mode = TypefaceWindowMode(controller: controller, features: self)
+        modes[key] = mode
+        return mode
+    }
+
+    /// Forgets `controller`'s layout (its window closed).
+    func detach(_ controller: DocumentWindowController) {
+        modes[ObjectIdentifier(controller)] = nil
+    }
+
+    func mode(of controller: DocumentWindowController?) -> TypefaceWindowMode? {
+        controller.flatMap { modes[ObjectIdentifier($0)] }
+    }
+
+    /// The window showing the handle `id` (a document's grid window, or a glyph tab).
+    func gridWindow(of id: String) -> DocumentWindowController? {
+        documents?.windowControllers[id] ?? modes.values.map(\.controller).first { $0.documentHandle.id == id }
+    }
+
+    /// The glyph cell images of `document`, shared by its windows.
+    func thumbnails(for document: DocumentHandle) -> GlyphThumbnailSource {
+        let id = GlyphCanvas.documentID(ofTab: document.id)
+        if let existing = thumbnails[id] { return existing }
+        let source = GlyphThumbnailSource()
+        thumbnails[id] = source
+        return source
+    }
+
+    /// Opens `glyph` of the document `source` shows in a tab of `source`'s window (or brings its
+    /// tab forward); nil when the glyph is not live.
+    @discardableResult
+    func openGlyph(_ glyph: OpID, from source: DocumentWindowController) -> DocumentWindowController? {
+        let parent = gridWindow(of: GlyphCanvas.documentID(ofTab: source.documentHandle.id)) ?? source
+        let document = parent.documentHandle
+        guard let read = GlyphIndex(document.state)[glyph] else { return nil }
+        if let existing = gridWindow(of: GlyphCanvas.tabID(document: document.id, glyph: glyph)) {
+            existing.showWindow(nil)
+            return existing
+        }
+        let handle = GlyphCanvas.handle(for: read, of: document)
+        let controller: DocumentWindowController
+        if let documents {
+            controller = documents.open(handle, placement: .with(source.window!))
+        } else {
+            controller = DocumentWindowController(document: handle, environment: glyphEnvironment(parent.environment, parent: parent))
+            attach(controller)
+            source.window!.addTabbedWindow(controller.window!, ordered: .above)
+        }
+        controller.isPrimaryView = false
+        mode(of: controller)?.fitGlyph()
+        return controller
+    }
+
+    /// The environment a glyph tab of `parent`'s document is made with: the document's sync
+    /// session and presence, no close hook of its own.
+    func glyphEnvironment(_ environment: DocumentEnvironment, parent: DocumentWindowController?) -> DocumentEnvironment {
+        var environment = environment
+        guard let parent else { return environment }
+        let session = parent.session
+        let presence = parent.presence
+        let status = parent.syncStatus
+        environment.session = { _ in session }
+        environment.makePresence = { _ in presence }
+        environment.makeSyncStatus = { _ in status }
+        environment.documentDidClose = Self.keepOpen
+        return environment
+    }
+
+    /// A glyph tab's close hook: the model stays with its document.
+    static func keepOpen(_ document: DocumentHandle) {}
+
+    /// The document window factory with the typeface layout added: glyph tabs share their
+    /// document's session.
+    func windowFactory(base: @escaping @MainActor (DocumentHandle, DocumentEnvironment, ToolID, DocumentWindowState?) -> DocumentWindowController)
+        -> @MainActor (DocumentHandle, DocumentEnvironment, ToolID, DocumentWindowState?) -> DocumentWindowController {
+        { [unowned self] document, environment, tool, state in
+            var environment = environment
+            if document.canvasNode != nil {
+                environment = glyphEnvironment(environment, parent: gridWindow(of: GlyphCanvas.documentID(ofTab: document.id)))
+            }
+            let controller = base(document, environment, tool, state)
+            attach(controller)
+            return controller
+        }
+    }
+
+    // MARK: Commands
+
+    func commands() -> [Command] {
+        let file = StandardCommands.Menu.file
+        let window = self.window
+        let needsTypeface: @MainActor @Sendable () -> CommandValidation = {
+            guard let controller = window() else { return .disabled(Self.noDocument) }
+            return DocumentKind(controller.documentHandle.state) == .typeface ? .enabled : .disabled(Self.notTypeface)
+        }
+        let needsGlyphs: @MainActor @Sendable () -> CommandValidation = { [unowned self] in
+            guard let controller = window() else { return .disabled(Self.noDocument) }
+            guard DocumentKind(controller.documentHandle.state) == .typeface else { return .disabled(Self.notTypeface) }
+            return targetGlyphs(in: controller).isEmpty ? .disabled(Self.noGlyph) : .enabled
+        }
+        let needsGlyphCanvas: @MainActor @Sendable () -> CommandValidation = {
+            window()?.documentHandle.canvasNode == nil ? .disabled(Self.noGlyphCanvas) : .enabled
+        }
+        func convert(_ kind: DocumentKind) -> @MainActor @Sendable () -> CommandValidation {
+            {
+                guard let controller = window() else { return .disabled(Self.noDocument) }
+                return .checked(DocumentKind(controller.documentHandle.state) == kind)
+            }
+        }
+        let fontMenu = Menu.font, glyphMenu = Menu.glyph
+        return [
+            Command(id: ID.newTypeface, title: "New Typeface…", key: KeyEquivalent("n", [.command, .option]), menu: MenuPath(file),
+                    keywords: ["font", "typeface", "glyphs"], action: .perform { [unowned self] in presentNewTypeface() }),
+            Command(id: ID.openFont, title: "Open Font…", menu: MenuPath(file), keywords: ["otf", "ttf", "woff", "import font"],
+                    action: .perform { [unowned self] in openFontFile() }),
+            Command(id: ID.convertSingle, title: DocumentKind.singlePage.title, menu: MenuPath(file, Menu.convert, section: 1), keywords: ["convert", "kind"],
+                    validation: convert(.singlePage), action: .perform { [unowned self] in presentConvert(to: .singlePage) }),
+            Command(id: ID.convertMulti, title: DocumentKind.multiPage.title, menu: MenuPath(file, Menu.convert, section: 1), keywords: ["convert", "kind"],
+                    validation: convert(.multiPage), action: .perform { [unowned self] in presentConvert(to: .multiPage) }),
+            Command(id: ID.convertTypeface, title: DocumentKind.typeface.title, menu: MenuPath(file, Menu.convert, section: 1), keywords: ["convert", "kind", "font"],
+                    validation: convert(.typeface), action: .perform { [unowned self] in presentConvert(to: .typeface) }),
+            Command(id: ID.generateFonts, title: "Generate Fonts…", menu: MenuPath(file, section: 2), keywords: ["otf", "ttf", "woff2", "export font"],
+                    validation: needsTypeface, action: .perform { [unowned self] in presentGenerate() }),
+            Command(id: ID.installForTesting, title: "Install for Testing", menu: MenuPath(file, section: 2), keywords: ["font", "test", "install"],
+                    validation: needsTypeface, action: .perform { [unowned self] in installForTesting() }),
+            Command(id: ID.fontInfo, title: "Font Info…", menu: MenuPath(fontMenu), keywords: ["names", "metrics", "units per em", "os/2"],
+                    validation: needsTypeface, action: .perform { [unowned self] in presentFontInfo() }),
+            Command(id: ID.metricsWindow, title: "Metrics Window", key: KeyEquivalent("m", [.command, .option]), menu: MenuPath(fontMenu),
+                    keywords: ["kerning", "spacing"], validation: needsTypeface, action: .perform { [unowned self] in showMetrics() }),
+            Command(id: ID.openGlyph, title: "Open Glyph", menu: MenuPath(glyphMenu), keywords: ["edit glyph"],
+                    validation: needsGlyphs, action: .perform { [unowned self] in openSelectedGlyphs() }),
+            Command(id: ID.addGlyph, title: "Add Glyph…", menu: MenuPath(glyphMenu), keywords: ["new glyph", "character"],
+                    validation: needsTypeface, action: .perform { [unowned self] in presentAddGlyph() }),
+            Command(id: ID.removeGlyphs, title: "Remove Glyph", menu: MenuPath(glyphMenu), keywords: ["delete glyph"],
+                    validation: needsGlyphs, action: .perform { [unowned self] in removeSelectedGlyphs() }),
+            Command(id: ID.previousGlyph, title: "Previous Glyph", key: KeyEquivalent("left", [.command, .option]), menu: MenuPath(glyphMenu, section: 1),
+                    validation: needsGlyphCanvas, action: .perform { [unowned self] in stepGlyph(by: -1) }),
+            Command(id: ID.nextGlyph, title: "Next Glyph", key: KeyEquivalent("right", [.command, .option]), menu: MenuPath(glyphMenu, section: 1),
+                    validation: needsGlyphCanvas, action: .perform { [unowned self] in stepGlyph(by: 1) }),
+            Command(id: ID.glyphParts, title: "Components and Anchors…", menu: MenuPath(glyphMenu, section: 1), keywords: ["component", "anchor", "decompose"],
+                    validation: needsGlyphCanvas, action: .perform { [unowned self] in presentGlyphParts() }),
+            Command(id: ID.convertPageToGlyph, title: "Convert Page to Glyph…", menu: MenuPath(glyphMenu, section: 2), keywords: ["sketch", "page"],
+                    validation: needsTypeface, action: .perform { [unowned self] in presentConvertPage() }),
+            Command(id: ID.copyGlyphToPage, title: "Copy Glyph to Page", menu: MenuPath(glyphMenu, section: 2), keywords: ["sketch", "page"],
+                    validation: needsGlyphs, action: .perform { [unowned self] in copySelectedGlyphsToPages() }),
+            Command(id: ID.fitGlyph, title: "Fit Glyph", menu: MenuPath(StandardCommands.Menu.view, section: StandardCommands.Section.viewZoom),
+                    keywords: ["zoom", "glyph"], validation: needsGlyphCanvas, action: .perform { [unowned self] in mode(of: window())?.fitGlyph() }),
+        ]
+    }
+
+    /// The glyphs a Glyph menu command acts on: a glyph tab's glyph, else the grid's selection.
+    func targetGlyphs(in controller: DocumentWindowController) -> [OpID] {
+        if let glyph = controller.documentHandle.canvasNode { return [glyph] }
+        return mode(of: controller)?.grid?.model.selection ?? []
+    }
+
+    // MARK: Actions
+
+    /// menu:File[New Typeface…]: the sheet on the front window, or a window of its own when no
+    /// document is open.
+    @discardableResult
+    func presentNewTypeface() -> NSWindow {
+        let model = NewTypefaceModel(create: createTypefaceFromSheet)
+        return present("sheet.newTypeface", on: window()?.window) { close in NewTypefaceSheet(model: model, close: close) }
+    }
+
+    /// The New Typeface sheet's btn:[Create].
+    func createTypefaceFromSheet(_ choice: NewTypefaceModel.Choice) {
+        createTypeface(choice)
+    }
+
+    /// Creates the document the New Typeface sheet described.  *From a font file…* asks for the
+    /// file and imports it into the new document.
+    @discardableResult
+    func createTypeface(_ choice: NewTypefaceModel.Choice) -> Task<DocumentHandle?, Never> {
+        let title = choice.family.isEmpty ? "Untitled Typeface" : "\(choice.family) \(choice.style)".trimmingCharacters(in: .whitespaces)
+        guard let document = createDocument(title) else { return Task { nil } }
+        let fromFile = choice.set == .fromFile
+        let command = NewTypeface(family: choice.family, style: choice.style, upm: choice.upm, set: choice.set.glyphSet)
+        let perform = document.perform(command)
+        return Task { [unowned self] in
+            _ = await perform.value
+            if fromFile, let url = await chooseFontFile(gridWindow(of: document.id)?.window) {
+                _ = await FontImportController(document: document).importFile(url, newDocument: true)?.value
+            }
+            return document
+        }
+    }
+
+    /// menu:File[Open Font…]: an OTF, TTF or WOFF2 file, imported into the front typeface
+    /// document, or into a new typeface document when the front one is not a typeface.  The
+    /// import's report is shown when it has anything to say.
+    @discardableResult
+    func openFontFile() -> Task<[String]?, Never> {
+        let front = window()
+        return Task { [unowned self] in
+            guard let url = await chooseFontFile(front?.window) else { return nil }
+            let target: DocumentHandle
+            let newDocument: Bool
+            if let front, DocumentKind(front.documentHandle.state) == .typeface {
+                target = gridDocument(of: front)
+                newDocument = false
+            } else {
+                guard let created = createDocument(url.deletingPathExtension().lastPathComponent) else { return nil }
+                target = created
+                newDocument = true
+            }
+            guard let task = FontImportController(document: target).importFile(url, newDocument: newDocument) else {
+                alert("“\(url.lastPathComponent)” could not be opened", FontImportController.unreadable, front?.window)
+                return nil
+            }
+            let report = await task.value
+            if !report.isEmpty { alert("Imported “\(url.lastPathComponent)”", report.joined(separator: "\n"), front?.window) }
+            return report
+        }
+    }
+
+    /// menu:File[Convert Document To]: the sheet saying what happens.
+    @discardableResult
+    func presentConvert(to kind: DocumentKind) -> NSWindow? {
+        guard let controller = window() else { return nil }
+        let model = ConvertDocumentModel(document: gridDocument(of: controller), kind: kind, perform: controller.typefacePerform)
+        return present("sheet.convertDocument", on: controller.window) { close in ConvertDocumentSheet(model: model, close: close) }
+    }
+
+    /// menu:Font[Font Info…].
+    @discardableResult
+    func presentFontInfo() -> NSWindow? {
+        guard let controller = window() else { return nil }
+        let model = FontInfoModel(document: gridDocument(of: controller))
+        return present("sheet.fontInfo", on: controller.window) { close in FontInfoSheet(model: model, close: close) }
+    }
+
+    /// The Generate Fonts sheet's model for `controller`'s document: a problem row opens its
+    /// glyph in `controller`, installs are remembered for *Remove Test Fonts*.
+    func generateModel(for controller: DocumentWindowController) -> GenerateFontsModel {
+        let document = gridDocument(of: controller)
+        let model = GenerateFontsModel(document: document, installer: installer)
+        model.openGlyph = { [unowned self] glyph in openGlyph(glyph, from: controller) }
+        model.didInstall = { [unowned self] urls in installed[document.id, default: []] += urls }
+        model.removeInstalled = { [unowned self] in
+            installer.remove(installed[document.id] ?? [])
+            installed[document.id] = nil
+        }
+        return model
+    }
+
+    /// menu:File[Generate Fonts…].
+    @discardableResult
+    func presentGenerate() -> NSWindow? {
+        guard let controller = window() else { return nil }
+        let model = generateModel(for: controller)
+        return present("sheet.generateFonts", on: controller.window) { close in GenerateFontsSheet(model: model, close: close) }
+    }
+
+    /// menu:File[Install for Testing]: an OTF of the front typeface with the *Test* suffix,
+    /// registered for this user; a failure says why.
+    @discardableResult
+    func installForTesting() -> Task<URL?, Never> {
+        guard let controller = window() else { return Task { nil } }
+        let model = generateModel(for: controller)
+        return Task { [unowned self] in
+            let url = await model.installForTesting().value
+            if url == nil { alert("Install for Testing failed", model.message ?? "", controller.window) }
+            return url
+        }
+    }
+
+    /// menu:Font[Metrics Window]: one window per document.
+    @discardableResult
+    func showMetrics() -> MetricsWindowController? {
+        guard let controller = window() else { return nil }
+        let document = gridDocument(of: controller)
+        let metricsWindow = metrics[document.id] ?? MetricsWindowController(document: document)
+        metrics[document.id] = metricsWindow
+        metricsWindow.onClose = { [unowned self] in metrics[document.id] = nil }
+        metricsWindow.showWindow(nil)
+        return metricsWindow
+    }
+
+    /// menu:Glyph[Open Glyph]: each selected glyph in its own tab.
+    func openSelectedGlyphs() {
+        guard let controller = window() else { return }
+        for glyph in targetGlyphs(in: controller) { openGlyph(glyph, from: controller) }
+    }
+
+    /// menu:Glyph[Add Glyph…].
+    @discardableResult
+    func presentAddGlyph() -> NSWindow? {
+        guard let controller = window() else { return nil }
+        let model = AddGlyphModel(document: gridDocument(of: controller), after: targetGlyphs(in: controller).last, perform: controller.typefacePerform)
+        return present("sheet.addGlyph", on: controller.window) { close in AddGlyphSheet(model: model, close: close) }
+    }
+
+    /// menu:Glyph[Remove Glyph]: confirmed when any of the glyphs has artwork.
+    @discardableResult
+    func removeSelectedGlyphs() -> Task<Wiretuner_Doc_V1_Change?, Never>? {
+        guard let controller = window() else { return nil }
+        let document = gridDocument(of: controller)
+        let glyphs = targetGlyphs(in: controller)
+        guard !glyphs.isEmpty else { return nil }
+        let state = document.state
+        let drawn = glyphs.contains { !GlyphArtwork.objectIDs(on: $0, in: state).isEmpty }
+        if drawn, !controller.confirm("Remove \(glyphs.count == 1 ? "this glyph" : "\(glyphs.count) glyphs") and its artwork?",
+                                        "The artwork drawn on it is removed too.  You can undo this.") {
+            return nil
+        }
+        if controller.documentHandle.canvasNode != nil { controller.window?.close() }
+        return document.perform(RemoveGlyphs(glyphs, in: state))
+    }
+
+    /// Cmd+Option+Left / Right in a glyph tab: the previous or next glyph in grid order opens in
+    /// place of this tab.
+    @discardableResult
+    func stepGlyph(by offset: Int) -> DocumentWindowController? {
+        guard let controller = window(), let glyph = controller.documentHandle.canvasNode else { return nil }
+        let index = GlyphIndex(controller.documentHandle.state)
+        guard let position = index.glyphs.firstIndex(where: { $0.id == glyph }) else { return nil }
+        let next = index.glyphs[(position + offset + index.glyphs.count) % index.glyphs.count]
+        guard next.id != glyph else { return controller }
+        let opened = openGlyph(next.id, from: controller)
+        controller.window?.close()
+        return opened
+    }
+
+    /// menu:Glyph[Components and Anchors…] in a glyph tab.
+    @discardableResult
+    func presentGlyphParts() -> NSWindow? {
+        guard let controller = window(), let glyph = controller.documentHandle.canvasNode else { return nil }
+        let model = GlyphPartsModel(document: controller.documentHandle, glyph: glyph, perform: controller.typefacePerform)
+        return present("sheet.glyphParts", on: controller.window) { close in GlyphPartsSheet(model: model, close: close) }
+    }
+
+    /// menu:Glyph[Convert Page to Glyph…]: the active (Sketches) page; the glyph opens.
+    @discardableResult
+    func presentConvertPage() -> NSWindow? {
+        guard let controller = window(), controller.documentHandle.canvasNode == nil else { return nil }
+        let document = controller.documentHandle
+        let model = ConvertPageModel(document: document, page: document.activePage.id) { [unowned self] command in
+            convertPage(command, in: controller)
+        }
+        return present("sheet.convertPage", on: controller.window) { close in ConvertPageSheet(model: model, close: close) }
+    }
+
+    /// Performs Convert Page to Glyph in `controller` and opens the glyph it made.
+    @discardableResult
+    func convertPage(_ command: ConvertPageToGlyph, in controller: DocumentWindowController) -> Task<Bool, Never> {
+        let task = controller.objectEditing.perform(command)
+        return Task { [unowned self] in
+            _ = await task.value
+            return GlyphIndex(controller.documentHandle.state).glyph(named: command.name).flatMap { openGlyph($0.id, from: controller) } != nil
+        }
+    }
+
+    /// menu:Glyph[Copy Glyph to Page]: one Sketches page per glyph, one change each.
+    @discardableResult
+    func copySelectedGlyphsToPages() -> [Task<Wiretuner_Doc_V1_Change?, Never>] {
+        guard let controller = window() else { return [] }
+        let document = gridDocument(of: controller)
+        return targetGlyphs(in: controller).map { document.perform(CopyGlyphToPage($0)) }
+    }
+
+    // MARK: Helpers
+
+    /// The handle of the document `controller` shows (a glyph tab's document, not the tab's).
+    func gridDocument(of controller: DocumentWindowController) -> DocumentHandle {
+        gridWindow(of: GlyphCanvas.documentID(ofTab: controller.documentHandle.id))?.documentHandle ?? controller.documentHandle
+    }
+
+    /// A SwiftUI sheet on `window`, or in a window of its own when there is none.
+    func present<Content: View>(_ identifier: String, on window: NSWindow?, @ViewBuilder content: (@escaping @MainActor () -> Void) -> Content) -> NSWindow {
+        TypefaceSheets.present(identifier, on: window, content: content)
+    }
+}
+
+extension DocumentWindowController {
+    /// How the typeface sheets perform: the window's object commands.
+    func typefacePerform(_ command: any WTModel.Command) -> Task<Wiretuner_Doc_V1_Change?, Never>? {
+        objectEditing.perform(command)
+    }
+}
+
+extension AppDelegate {
+    /// The FONT epic's commands and the typeface layout on every document window.
+    func installTypeface() {
+        let documents = documents!
+        let library = library
+        typeface.createDocument = { title in documents.document(id: library.createDocument(name: title).id) }
+        typeface.install(commands: commands, documents: documents) { documents.activeWindowController }
+        documents.makeWindowController = typeface.windowFactory(base: documents.makeWindowController)
+    }
+}

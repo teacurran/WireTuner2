@@ -412,14 +412,32 @@ copies are a translation -- one unit per point, the ascender line at the page's 
 negation of y: stored space is y-down on both canvases, as the Client section says.  The
 canvas rules are `WTModel.CanvasMembership` (a glyph canvas naming a deleted glyph reads as the
 pasteboard in a typeface document, glyph content is hidden in an illustration document, content
-of a deleted master is drawn nowhere).  `DocumentDisplayListBuilder` does not consult it yet: the
-builder is being changed by another task, so the hook -- a `canvasNode` on the builder, the
-top-level objects filtered by `CanvasMembership.belongs` and the `!common.hasCanvas` guards in
-`built(_:state:)` replaced by `CanvasMembership.draws` -- is left to the typeface window task
-(FONT-003/FONT-004), which also needs it to draw a glyph canvas.  Until then the main pasteboard
-leaves out every object with a `canvas`, as before.  `DocumentKind` reads the one
+of a deleted master is drawn nowhere).  `DocumentDisplayListBuilder` consults it through the hook FONT-003 added: a `canvasNode` on the
+builder (nil for the main pasteboard), the top-level objects filtered by `CanvasMembership.belongs`
+(a cached object that names no canvas skips the register read) and the `!common.hasCanvas` guards
+in `built(_:state:)` replaced by `CanvasMembership.draws`.  `DocumentKind` reads the one
 `document_kind` register rather than the whole settings node, so the canvas rules stay cheap per
 object.
+
+NOTE: Deviations recorded by FONT-003 and FONT-004.  `WTApp.TypefaceFeatures` holds the commands --
+menu:File[New Typeface…] (kbd:[Cmd+Option+N]; the four starting sets, no team templates yet),
+menu:File[Open Font…] (see xref:font-export.adoc[Generating and exchanging fonts]) and
+menu:File[Convert Document To] with its sheet and options -- and `WTApp.TypefaceWindowMode` is the
+layout every document window gets (`TypefaceFeatures.windowFactory` wraps the document controller's
+factory; there is no separate `TypefaceWindowController`).  The *Glyphs* / *Sketches* switch is a
+title-bar accessory, and the grid covers the canvas area in Glyphs.  A glyph tab is an ordinary
+document window over a *glyph handle*: a `DocumentHandle` with `canvasNode` = the glyph that shares
+the document's model, draws `GlyphCanvasRendering`'s decoration as its background and passes every
+command through `CanvasPlacedCommand`, which writes `CommonProps.canvas` = the glyph on each
+top-level object the command creates, in the same change.  Tabs are registered with the document
+controller as `<document id>#glyph-<glyph id>`, use the document's sync session and presence, are
+not saved in the window session, and close when their glyph is removed or the kind changes from
+typeface.  kbd:[Cmd+Option+Left] / kbd:[Cmd+Option+Right] replace the tab with the neighbouring
+glyph; the glyph strip is the glyph bar's previous/next buttons.  The canvas scrolls over an em
+beyond the glyph (`GlyphCanvas.scrollBounds`), and snapping includes the metric lines.  Not built:
+the hidden page controls of a single-page document, the font-unit rulers and the Object and
+Transform panels' font-y presentation, the 10-unit grid, paste conversion into a glyph (FONT-004),
+and XCUITest UI tests -- the flows are covered by unit tests that drive the windows.
 
 === Build tasks
 

@@ -417,6 +417,15 @@ source glyph scales itself), which the op list above leaves out and a scaled fon
 Writing 0 to a register clears it, so a field whose default is not 0 (x-height 500, say) reads its
 default again when set to 0; defaults of 0 (italic angle, line gap) are not written at all.
 
+NOTE: Deviations recorded by FONT-006.  The Font Info sheet is a SwiftUI sheet with a segmented
+pane switch (Names, Metrics, OS/2, Guides, Features).  btn:[OK] writes the fields changed since
+the sheet opened, one command per pane, and a new units per em with *Scale glyphs to the new em*
+as `SetUnitsPerEm.changes(in:)` in one undo group.  The PostScript name, version, URLs, vendor ID
+and numeric ranges are checked before anything is written.  The Guides pane shows and hides the
+lines and adds an extra line; the Features pane is the three generate switches.  Not built: the
+remote-change dots, the progress sheet for large rescales, the canvas notice for a remote metric
+change, the licence preset, editing and removing extra lines, the colour wells and PANOSE.
+
 === Build tasks
 
 [[FONT-005]]

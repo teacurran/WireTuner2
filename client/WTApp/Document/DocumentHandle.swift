@@ -112,15 +112,22 @@ final class DocumentHandle: Identifiable, CommandSink {
     private var previewScene: DocumentScene?
     /// The nodes the preview draws differently: repainted when it changes or ends.
     private var previewTouched: Set<NodeID> = []
+    /// The glyph whose canvas this handle draws, nil for the pasteboard: a glyph tab's handle
+    /// shares the document's model (FONT-003, `GlyphCanvas`).
+    private(set) var canvasNode: OpID?
+    /// What a glyph canvas draws instead of the page furniture (its metric lines and em box).
+    var canvasBackground: (@MainActor (EngineState) -> [DisplayItem])?
 
     /// A document whose model is ready (a memory document, tests).
     init(id: String = UUID().uuidString, title: String, replicaID: String = UUID().uuidString,
-         model: WTModel.Document, invalidation: InvalidationBatcher = InvalidationBatcher()) {
+         model: WTModel.Document, canvasNode: OpID? = nil, invalidation: InvalidationBatcher = InvalidationBatcher()) {
         self.id = id
         self.title = title
         self.replicaID = replicaID
         self.invalidation = invalidation
+        self.canvasNode = canvasNode
         builder = DocumentDisplayListBuilder(canvas: CanvasID(id), background: [Self.pagesItem(pageList)])
+        builder.canvasNode = canvasNode
         builder.textLayout = TextSceneLayout(engine: textEngine)
         attach(model)
     }
@@ -155,7 +162,7 @@ final class DocumentHandle: Identifiable, CommandSink {
         self.model = model
         pageList = PageList(model.state)
         builder.rebuild(model.state)
-        _ = builder.setBackground([Self.pagesItem(pageList)], state: model.state)
+        _ = builder.setBackground(backgroundItems(model.state), state: model.state)
         modelObservation = model.observe { [weak self] event in self?.modelDidChange(event) }
         // The template's swatches and first page are not content to draw.
         let template: Set<UInt32> = [SwatchFields.kind, PageFields.kind]
@@ -186,7 +193,8 @@ final class DocumentHandle: Identifiable, CommandSink {
 
     /// Closes the model's backend (the window closed its last view).
     func close() {
-        guard let model else { return }
+        // A glyph canvas's handle borrows the document's model.
+        guard let model, canvasNode == nil else { return }
         if let token = modelObservation { model.stopObserving(token) }
         let backend = model.backend
         Task { await DocumentOpener.close(backend) }
@@ -210,9 +218,9 @@ final class DocumentHandle: Identifiable, CommandSink {
         var summary = applied
         let previousPages = pageList
         let pagesChanged = readPages(event.after)
-        if pagesChanged.furniture {
+        if pagesChanged.furniture || (canvasBackground != nil && backgroundItems(event.after) != builder.background) {
             // The page furniture is the scene's background: a page added, moved or resized redraws it.
-            let (_, redrawn) = builder.setBackground([Self.pagesItem(pageList)], state: event.after)
+            let (_, redrawn) = builder.setBackground(backgroundItems(event.after), state: event.after)
             summary.merge(redrawn)
         }
         if previewCommand != nil { summary = refreshPreview(summary) }
@@ -323,6 +331,19 @@ final class DocumentHandle: Identifiable, CommandSink {
         return layout
     }
 
+    /// The background items: `canvasBackground`'s, else the page furniture.
+    private func backgroundItems(_ state: EngineState) -> [DisplayItem] {
+        canvasBackground?(state) ?? [Self.pagesItem(pageList)]
+    }
+
+    /// Draws the background again from `canvasBackground` (set after the handle was made).
+    func refreshBackground() {
+        let before = displayList
+        let (_, summary) = builder.setBackground(backgroundItems(state), state: state)
+        invalidation.submit(summary, before: [before], after: [displayList])
+        notify(ContentChange(summary: summary, before: before, after: displayList, change: nil))
+    }
+
     /// The page furniture (DOC-009, `PageRendering`): the pasteboard, every page's white sheet,
     /// bleed line and outline, as one group at index 0 so adding or removing a page never
     /// renumbers the objects after it.  The active page's emphasis, the grid, guides and presence
@@ -340,7 +361,8 @@ final class DocumentHandle: Identifiable, CommandSink {
     /// selection, an invalid value) is logged and performs nothing.
     @discardableResult
     func perform(_ command: any WTModel.Command) -> Task<Wiretuner_Doc_V1_Change?, Never> {
-        run { model in try await model.perform(command) }
+        let placed = GlyphCanvas.placing(command, on: canvasNode)
+        return run { model in try await model.perform(placed) }
     }
 
     /// menu:Edit[Undo].

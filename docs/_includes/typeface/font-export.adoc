@@ -329,6 +329,17 @@ reported.  `WTModel.FontImport` writes the import as a change group ("Import <fi
 batches, then the settings and kerning), one undo step, with the grid's collision rules on an
 import into an existing document.  UFO export and import (FONT-023, FONT-024) are not built.
 
+NOTE: Deviations recorded by FONT-026 (UI half), FONT-025's menu item and FONT-027's option.  The
+Generate Fonts sheet lists `FontGeneration.snapshot`'s problems (errors block Generate; btn:[Show]
+opens the glyph), offers OTF, TTF and WOFF2 (a `WOFF2Writer` wrap of the OTF), *Add .notdef and
+space when missing* and *Keep overlaps*, and writes `<PostScript name>.<extension>` into a chosen
+folder.  btn:[Install for Testing] (also menu:File[Install for Testing]) registers an OTF with the
+*Test* suffix through `TestFontInstaller`; btn:[Remove Test Fonts] unregisters this session's
+installs.  menu:File[Open Font…] reads an OTF, TTF or WOFF2 (`WOFF2Reader`) with `OpenTypeReader`
+and writes `FontImport.plan`'s commands in one undo group, into the front typeface or a new
+typeface document, and shows the plan's report.  Not built: Fix All Warnings, background progress,
+the sync-state reminder, and the fontbakery checks.
+
 === Build tasks
 
 [[FONT-018]]

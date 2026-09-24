@@ -185,7 +185,7 @@ extension DocumentWindowController {
         let pages = document.pageList
         let tester = selection.hitTester(viewport: viewport, subselect: false)
         let excluded = Set(selection.model.ids.compactMap { list.index(of: $0.node) })
-        let sources = SnapSources(grid: pages.grid(on: document.activePage), guides: pages.snapGuides, guideObjects: SnapSources.guideObjects(in: list),
+        let sources = SnapSources(grid: pages.grid(on: document.activePage), guides: pages.snapGuides + document.canvasSnapGuides, guideObjects: SnapSources.guideObjects(in: list),
                                   displayList: list, index: tester.index, excludedItems: excluded)
         let toggles = SnapToggles(grid: snap.grid, guides: snap.guides, points: snap.point, objects: snap.object,
                                   smartGuides: environment.preferences[PreferenceCatalog.General.smartGuides])

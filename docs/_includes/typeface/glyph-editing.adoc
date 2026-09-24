@@ -381,6 +381,18 @@ UI.  The checks are `WTModel.FontValidation`: every row of the validation table 
 direction* (the flattener's union leaves directions correct, and the generator sets them), each
 row naming its glyph.  They run from the whole state, not incrementally.
 
+NOTE: Deviations recorded by FONT-011 (UI half) and FONT-017.  A glyph tab draws the metric lines,
+side bearings and em box as its canvas background (over a white ground), redrawn when a change
+alters them, and its snapping takes `GlyphCanvasRendering.snapGuides` as guides.  The glyph bar
+under the tab's title bar shows the glyph's name and Unicode and its Width, LSB and RSB from
+`GlyphOutlines.metrics`; typing writes `SetGlyphWidth` or `SetGlyphBearings`, and btn:[Center]
+centres.  menu:View[Fit Glyph] fits the em box.  menu:Glyph[Components and Anchors…] lists the
+components (source, offset, *removed* or *loop*) with add by glyph name, remove, decompose and
+decompose all, and the anchors (name, position in font y, role) with add, move, role and remove --
+one change per button.  Not built: the draggable bearing handles and their readout, labels drawn in
+screen space, the anchor overlay and its hit-testing, the mark attachment preview, the Find
+Problems panel and the preview strip (FONT-017).
+
 === Build tasks
 
 [[FONT-011]]

@@ -107,6 +107,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private(set) lazy var exports = ExportController(defaults: preferences.defaults)
     /// The Missing Fonts sheet, the substitutions and each document's embedded fonts (DOC-024).
     private(set) lazy var fonts = DocumentFonts(preferences: preferences)
+    /// Typeface documents: New Typeface, the glyph grid and tabs, Font Info, Metrics, Generate Fonts (FONT).
+    private(set) lazy var typeface = TypefaceFeatures(preferences: preferences)
 
     /// - Parameters:
     ///   - layoutStore: where the panel layout persists; `nil` keeps it in memory (tests).
@@ -262,6 +264,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         installContextMenus()
         layersPanel.clickMoves = { preferences[PreferenceCatalog.Panels.layerClickMoves] }
         installDocumentSetup()
+        installTypeface()
         colors.install(commands: commands, panels: panels, extensions: toolbars.extensions) { documents.documents }
         PanelCatalog.register(into: panels, selection: activeSelection, help: helpModel, layers: layersPanel)
         panels.registerIfAbsent(ToolsPanel.descriptor(model: toolPalette))
