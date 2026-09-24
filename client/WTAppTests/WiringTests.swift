@@ -106,8 +106,7 @@ private func mouse(_ type: NSEvent.EventType, x: CGFloat, in window: NSWindow) -
     @Test func theDockHandleAndTabsReadTheirDragFromTheEventQueue() {
         let environment = TestEnvironment()
         let layout = environment.layout
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 400, height: 200), styleMask: [.titled], backing: .buffered, defer: false)
-        window.isReleasedWhenClosed = false
+        let window = TestWindow.make(NSRect(x: 0, y: 0, width: 400, height: 200))
         defer { window.close() }
         let handle = DockHandleView(edge: .right, layout: layout)
         window.contentView?.addSubview(handle)

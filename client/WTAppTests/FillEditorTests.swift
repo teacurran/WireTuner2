@@ -231,8 +231,7 @@ import WTRender
         let state = PatternEditorState()
         var written: [[UInt8]] = []
         PatternGrid.wire(view, state: state, document: PatternEditorState.cleared()) { written.append($0) }
-        let window = NSWindow(contentRect: view.frame, styleMask: [.borderless], backing: .buffered, defer: false)
-        window.isReleasedWhenClosed = false
+        let window = TestWindow.make(view.frame, styleMask: [.borderless])
         window.contentView = view
         func event(_ type: NSEvent.EventType, _ x: Double, _ y: Double) -> NSEvent {
             NSEvent.mouseEvent(with: type, location: view.convert(NSPoint(x: x, y: y), to: nil), modifierFlags: [], timestamp: 0,

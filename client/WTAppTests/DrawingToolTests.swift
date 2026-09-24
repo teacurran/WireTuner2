@@ -322,8 +322,8 @@ import WTRender
             let descriptor = try #require(registry.descriptor(for: id))
             let controller = try #require(descriptor.options?())
             #expect(controller.title == "\(descriptor.title) Options")
-            let window = NSWindow(contentViewController: controller)
-            let parent = NSWindow(contentRect: .init(x: 0, y: 0, width: 400, height: 300), styleMask: [.titled], backing: .buffered, defer: true)
+            let window = TestWindow.make(contentViewController: controller)
+            let parent = TestWindow.make(.init(x: 0, y: 0, width: 400, height: 300), defer: true)
             parent.beginSheet(window)
             ToolOptionsPlaceholder.close(window)
         }

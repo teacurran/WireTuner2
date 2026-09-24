@@ -90,6 +90,8 @@ final class ColorWorkspace {
         let window = NSWindow(contentViewController: NSHostingController(rootView: content))
         window.title = title
         window.identifier = NSUserInterfaceItemIdentifier(identifier)
+        // Without a front window it shows as a closable window of its own; `sheets` owns it.
+        window.isReleasedWhenClosed = false
         sheets[identifier] = window
         presentSheet(window)
     }

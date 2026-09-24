@@ -6,6 +6,29 @@ import WTProto
 import WTRender
 @testable import WireTuner
 
+/// Windows a test makes itself.  An `NSWindow` is released when closed by default, a release
+/// ARC does not know about: closing one a test (or its sheet) still holds over-releases it, and
+/// an in-flight sheet or ordering animation (`_NSWindowTransformAnimation`) then touches the
+/// freed window when the run loop next drains -- crashing the test host in a later test.  These
+/// are kept alive by their owner, not by `close()`, and do not animate.
+@MainActor
+enum TestWindow {
+    static func make(_ rect: NSRect = NSRect(x: 0, y: 0, width: 400, height: 300), styleMask: NSWindow.StyleMask = [.titled], defer deferred: Bool = false) -> NSWindow {
+        prepare(NSWindow(contentRect: rect, styleMask: styleMask, backing: .buffered, defer: deferred))
+    }
+
+    static func make(contentViewController: NSViewController) -> NSWindow {
+        prepare(NSWindow(contentViewController: contentViewController))
+    }
+
+    @discardableResult
+    static func prepare(_ window: NSWindow) -> NSWindow {
+        window.isReleasedWhenClosed = false
+        window.animationBehavior = .none
+        return window
+    }
+}
+
 /// A throwaway `UserDefaults` suite, removed by `remove()`.
 @MainActor
 final class TestDefaults {

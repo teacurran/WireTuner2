@@ -69,6 +69,8 @@ final class ManageExtensionsController {
         let window = NSWindow(contentViewController: hosting)
         window.identifier = NSUserInterfaceItemIdentifier("extensions.manage")
         window.title = "Manage Extensions"
+        // `close()` closes it when it is not a sheet; this controller owns it, not AppKit.
+        window.isReleasedWhenClosed = false
         self.hosting = hosting
         self.window = window
         if let parent {

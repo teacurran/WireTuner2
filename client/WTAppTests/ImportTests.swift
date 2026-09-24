@@ -187,7 +187,7 @@ final class FileDragging: NSObject, @preconcurrency NSDraggingInfo {
         buttons.confirm()
         #expect(pressed == [false, true])
 
-        let parent = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 400, height: 300), styleMask: [.titled], backing: .buffered, defer: false)
+        let parent = TestWindow.make(NSRect(x: 0, y: 0, width: 400, height: 300))
         let presented = ImportOptionsSheet.present(model, on: parent)
         #expect(parent.attachedSheet === presented || parent.sheets.contains(presented))
         try #require(presented.contentViewController as? NSHostingController<ImportOptionsForm>).rootView.finish(true)
@@ -215,7 +215,7 @@ final class FileDragging: NSObject, @preconcurrency NSDraggingInfo {
         hosting.layoutSubtreeIfNeeded()
         // Options… for an SVG goes on the window the accessory names.
         accessory.select(world.files.directory.appending(path: "a.svg"))
-        let parent = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 400, height: 300), styleMask: [.titled], backing: .buffered, defer: false)
+        let parent = TestWindow.make(NSRect(x: 0, y: 0, width: 400, height: 300))
         accessory.window = { parent }
         accessory.showOptions()
         let sheet = try #require(accessory.sheet)
@@ -392,7 +392,7 @@ final class FileDragging: NSObject, @preconcurrency NSDraggingInfo {
     }
 
     @Test func panelsRunAsSheetsOnTheWindow() async {
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 600, height: 400), styleMask: [.titled], backing: .buffered, defer: false)
+        let window = TestWindow.make(NSRect(x: 0, y: 0, width: 600, height: 400))
         let open = NSOpenPanel()
         let chosen = Task { await ModalUI.urls(open, on: window) }
         #expect(await eventually { window.attachedSheet != nil })
@@ -408,7 +408,7 @@ final class FileDragging: NSObject, @preconcurrency NSDraggingInfo {
     @Test func alertsGoOnTheWindowAsSheets() {
         let environment = TestEnvironment()
         defer { environment.suite.remove() }
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 400, height: 300), styleMask: [.titled], backing: .buffered, defer: false)
+        let window = TestWindow.make(NSRect(x: 0, y: 0, width: 400, height: 300))
         ImportController(preferences: environment.preferences).showAlert("Message", "Detail", window)
         #expect(window.attachedSheet != nil)
         if let sheet = window.attachedSheet { window.endSheet(sheet) }

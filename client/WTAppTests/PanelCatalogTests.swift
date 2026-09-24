@@ -385,8 +385,7 @@ private func catalogRegistry(tools: Bool = true) -> PanelRegistry {
         let layout = PanelLayoutController(registry: registry)
         layout.load()
         let floating = FloatingPanelsController(panels: registry, layout: layout)
-        let parent = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 400, height: 300), styleMask: [.titled], backing: .buffered, defer: false)
-        parent.isReleasedWhenClosed = false
+        let parent = TestWindow.make(NSRect(x: 0, y: 0, width: 400, height: 300))
         floating.parentWindow = { parent }
         layout.update { $0.float(group: "layers", frame: LayoutRect(x: 100, y: 100, width: 260, height: 320)) }
         let window = floating.windows["layers"]
@@ -398,8 +397,7 @@ private func catalogRegistry(tools: Bool = true) -> PanelRegistry {
         #expect(layout.layout.floating.first?.frame.x == 150)
         window?.windowDidMove(Notification(name: NSWindow.didMoveNotification))
         window?.windowDidEndLiveResize(Notification(name: NSWindow.didEndLiveResizeNotification))
-        let other = NSWindow(contentRect: .zero, styleMask: [.titled], backing: .buffered, defer: false)
-        other.isReleasedWhenClosed = false
+        let other = TestWindow.make(.zero)
         floating.parentWindow = { other }
         floating.reattach()
         #expect(window?.parent === other)

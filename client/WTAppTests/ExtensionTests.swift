@@ -206,7 +206,7 @@ import Testing
         controller.close()
 
         // As a sheet on a document window.
-        let parent = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 400, height: 400), styleMask: [.titled], backing: .buffered, defer: false)
+        let parent = TestWindow.make(NSRect(x: 0, y: 0, width: 400, height: 400))
         let sheet = controller.show(attachedTo: parent)
         #expect(sheet.identifier?.rawValue == "extensions.manage")
         controller.close()

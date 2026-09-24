@@ -292,8 +292,7 @@ import WTRender
 
     @Test func pointerAndKeyEventsReachTheToolManager() async throws {
         let (canvas, manager) = canvas()
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 400, height: 300), styleMask: [.titled], backing: .buffered, defer: false)
-        window.isReleasedWhenClosed = false
+        let window = TestWindow.make(NSRect(x: 0, y: 0, width: 400, height: 300))
         window.contentView = canvas
         defer { window.close() }
         manager.select(.rectangle)

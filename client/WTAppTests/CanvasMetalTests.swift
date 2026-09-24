@@ -29,8 +29,7 @@ import WTRender
         let canvas = CanvasView(document: .memory(title: "Metal"), tiles: CanvasView.makeTiles(), frame: NSRect(x: 0, y: 0, width: 400, height: 300))
         #expect(canvas.backend == .metal)
         #expect(!canvas.tiles.isDisplayLinkRunning)
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 400, height: 300), styleMask: [.titled], backing: .buffered, defer: false)
-        window.isReleasedWhenClosed = false
+        let window = TestWindow.make(NSRect(x: 0, y: 0, width: 400, height: 300))
         window.contentView = canvas
         #expect(canvas.tiles.isDisplayLinkRunning)
         window.contentView = NSView()

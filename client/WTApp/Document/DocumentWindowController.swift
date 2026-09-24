@@ -551,6 +551,8 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         guard let options = descriptor.options, let window else { return nil }
         let sheet = NSWindow(contentViewController: options())
         sheet.identifier = NSUserInterfaceItemIdentifier("tool-options.\(descriptor.id.rawValue)")
+        // `ToolOptionsPlaceholder.close` may close it; ARC owns it, not AppKit.
+        sheet.isReleasedWhenClosed = false
         window.beginSheet(sheet)
         return sheet
     }

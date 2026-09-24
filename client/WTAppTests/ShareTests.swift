@@ -464,7 +464,7 @@ extension ShareMember {
         server.roster = ShareRoster(members: [ShareSheetModelTests.owner], teamAccess: nil)
         let online = Box(true)
         let presenter = SharePresenter(services: server.services(), accountID: { FakeCollaborationServer.me }, isOnline: { online.value })
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 600, height: 400), styleMask: [.titled], backing: .buffered, defer: false)
+        let window = TestWindow.make(NSRect(x: 0, y: 0, width: 600, height: 400))
         defer { window.close() }
         let model = presenter.present(ShareSheetModelTests.document, on: window)
         #expect(model != nil && presenter.sheet?.identifier == SharePresenter.identifier)

@@ -197,9 +197,7 @@ import Testing
         var ran = 0
         model.register(id: "stub") { [PaletteItem(id: "x", title: "Run Me", kind: .command, symbolName: "star", run: { ran += 1 })] }
         let controller = CommandPaletteController(model: model)
-        let window = NSWindow(contentRect: NSRect(x: 100, y: 100, width: 900, height: 600), styleMask: [.titled], backing: .buffered, defer: false)
-        window.isReleasedWhenClosed = false
-        window.animationBehavior = .none
+        let window = TestWindow.make(NSRect(x: 100, y: 100, width: 900, height: 600))
         let field = NSTextField()
         window.contentView?.addSubview(field)
         window.makeKeyAndOrderFront(nil)

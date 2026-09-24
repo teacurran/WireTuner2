@@ -66,12 +66,10 @@ import WTRender
         defer { controller.close() }
         let identifier = NSToolbar.Identifier("wiretuner.tests.\(UUID().uuidString)")
         defer { UserDefaults.standard.removeObject(forKey: "NSToolbar Configuration \(identifier)") }
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 800, height: 300), styleMask: [.titled], backing: .buffered, defer: false)
-        window.isReleasedWhenClosed = false
+        let window = TestWindow.make(NSRect(x: 0, y: 0, width: 800, height: 300))
         let first = MainToolbarController(environment: environment.document, window: window, identifier: identifier)
         first.toolbar.insertItem(withItemIdentifier: MainToolbarController.itemIdentifier(for: StandardCommands.ID.zoomIn), at: 0)
-        let second = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 800, height: 300), styleMask: [.titled], backing: .buffered, defer: false)
-        second.isReleasedWhenClosed = false
+        let second = TestWindow.make(NSRect(x: 0, y: 0, width: 800, height: 300))
         let again = MainToolbarController(environment: environment.document, window: second, identifier: identifier)
         #expect(again.toolbar.items.first?.itemIdentifier == MainToolbarController.itemIdentifier(for: StandardCommands.ID.zoomIn))
         window.close()

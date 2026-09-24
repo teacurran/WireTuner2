@@ -42,7 +42,7 @@ import WTRender
         #expect(model.hiddenActiveWarning != nil)
         state.renaming = layer
         state.pendingRemoval = [layer]
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 320, height: 320), styleMask: [.titled], backing: .buffered, defer: false)
+        let window = TestWindow.make(NSRect(x: 0, y: 0, width: 320, height: 320))
         window.contentView = NSHostingView(rootView: LayersList(model: model))
         window.contentView?.layoutSubtreeIfNeeded()
         window.displayIfNeeded()

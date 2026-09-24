@@ -145,11 +145,11 @@ final class ColorPanelFixture {
         fixture.workspace.dismiss("test.sheet")
         #expect(fixture.workspace.sheets.isEmpty)
         // A sheet on a real window ends through its parent.
-        let parent = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 300, height: 200), styleMask: [.titled], backing: .buffered, defer: false)
+        let parent = TestWindow.make(NSRect(x: 0, y: 0, width: 300, height: 200))
         fixture.workspace.presentSheet = { parent.beginSheet($0) }
         fixture.workspace.present(Text("Hi"), title: "Sheet", identifier: "attached")
         fixture.workspace.dismiss("attached")
-        let loose = NSWindow(contentViewController: NSHostingController(rootView: Text("Loose")))
+        let loose = TestWindow.make(contentViewController: NSHostingController(rootView: Text("Loose")))
         ColorWorkspace.beginSheet(loose)
         loose.orderOut(nil)
         parent.close()

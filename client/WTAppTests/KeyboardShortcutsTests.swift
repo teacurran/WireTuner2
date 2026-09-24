@@ -281,9 +281,7 @@ import Testing
         #expect(!capture.capture(TestEvents.key("", keyCode: 0)))
         capture.show(nil)
         #expect(capture.label.stringValue == KeyCaptureView.prompt && capture.acceptsFirstResponder)
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 200, height: 50), styleMask: [.titled], backing: .buffered, defer: false)
-        window.isReleasedWhenClosed = false
-        window.animationBehavior = .none
+        let window = TestWindow.make(NSRect(x: 0, y: 0, width: 200, height: 50))
         window.contentView?.addSubview(capture)
         window.makeFirstResponder(capture)
         #expect(capture.performKeyEquivalent(with: TestEvents.key("j", keyCode: 38, flags: .command)))
@@ -343,8 +341,7 @@ import Testing
 
     @Test func clickingTheCaptureFieldFocusesIt() {
         let capture = KeyCaptureView(frame: NSRect(x: 0, y: 0, width: 160, height: 24))
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 200, height: 50), styleMask: [.titled], backing: .buffered, defer: false)
-        window.isReleasedWhenClosed = false
+        let window = TestWindow.make(NSRect(x: 0, y: 0, width: 200, height: 50))
         window.contentView?.addSubview(capture)
         let click = NSEvent.mouseEvent(
             with: .leftMouseDown, location: NSPoint(x: 5, y: 5), modifierFlags: [], timestamp: 0, windowNumber: window.windowNumber,

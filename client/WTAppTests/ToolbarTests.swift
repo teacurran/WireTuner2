@@ -388,7 +388,7 @@ final class FakeDraggingInfo: NSObject, @preconcurrency NSDraggingInfo {
         #expect(view.insertionIndex(at: NSPoint(x: 10, y: 10_000)) == 0)
 
         // Window updates revalidate.
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 600, height: 40), styleMask: [.titled], backing: .buffered, defer: false)
+        let window = TestWindow.make(NSRect(x: 0, y: 0, width: 600, height: 40))
         window.contentView = view
         NotificationCenter.default.post(name: NSWindow.didUpdateNotification, object: window)
         window.contentView = NSView()

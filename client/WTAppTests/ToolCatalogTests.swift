@@ -189,7 +189,7 @@ import WTRender
         #expect(controller.presentToolOptions(ToolCatalog.all.first { $0.id == "pen" }!) == nil)
         let options = ToolOptionsPlaceholder.controller(title: "Lasso")
         #expect(options.title == "Lasso Options")
-        let window = NSWindow(contentViewController: options)
+        let window = TestWindow.make(contentViewController: options)
         ToolOptionsPlaceholder.close(window)
         ToolOptionsPlaceholder.close(nil)
         if let sheet { ToolOptionsPlaceholder.close(sheet) }
