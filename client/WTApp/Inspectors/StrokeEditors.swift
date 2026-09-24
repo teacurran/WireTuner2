@@ -7,7 +7,7 @@ import WTProto
 import WTRender
 
 /// What the stroke editors read and the commands they perform (ATTR-006 Basic, ATTR-015
-/// Calligraphic, Custom and Pattern; the brush pop-up and its sheet are ATTR-009).  Every value is
+/// Calligraphic, Custom and Pattern; the brush pop-up and its sheet are `BrushControls`, ATTR-009).  Every value is
 /// nil when the selected objects' strokes differ; every edit is one change over all of them.
 @MainActor
 struct StrokeEditorModel {
@@ -508,9 +508,8 @@ struct StrokeEditorView: View {
 
     @ViewBuilder private var brush: some View {
         AttributeColorControl(title: "Color", color: model.brushColor, identifier: "stroke.brush.color", document: model.context.document, commit: model.context.committing(model.setBrushColor))
+        BrushControls(model: BrushControlsModel(context: model.context))
         CommitField(title: "Width %", value: model.brushWidth, identifier: "stroke.brush.width", commit: model.context.committing(model.setBrushWidth))
-        Text("Brushes are chosen and edited with the brush pop-up once the brush editor is available.")
-            .font(.caption).foregroundStyle(.secondary)
     }
 }
 

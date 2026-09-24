@@ -37,7 +37,7 @@ import WTRender
         let scene = Self.scene(a.state)
         guard case .group(let group)? = scene.object(wrapper)?.item, case .extrude(let spec)? = group.live else { Issue.record("no extrusion"); return }
         #expect(spec.length == 40 && spec.surface == .shaded && group.children.count == 1)
-        #expect(scene.object(path)?.parent == wrapper && scene.object(wrapper)?.kind == .group)
+        #expect(scene.object(path)?.parent == wrapper && scene.object(wrapper)?.kind == .extrude && WrapperKind.extrude.nodeKind == .extrude)
         // No nesting.
         #expect(throws: WrapperError.nestedExtrusion(path)) { try a.perform(Extrude([path], vanishingPoint: .zero)) }
         let other = try Self.square(&a, x: 50)

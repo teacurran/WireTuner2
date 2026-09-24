@@ -92,7 +92,9 @@ struct ContextMenuResolver {
             if !selection.model.selection.contains(hit.id) {
                 selection.model.set(Selection([hit.id]))
             }
-            let kinds = selection.model.ids.compactMap { document.item(for: $0) }.map(ContextObjectKind.init(item:))
+            let kinds = selection.model.ids.compactMap { id in
+                document.object(for: id).map { $0.kind == .blend ? .blend : ContextObjectKind(item: $0.item) }
+            }
             return .objects(kinds.isEmpty ? [.path] : kinds)
         }
         if let guide = guide(viewPoint) { return guide }

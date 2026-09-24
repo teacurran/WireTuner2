@@ -31,10 +31,8 @@ import WTRender
         await Self.perform(model.setBasicColor(Self.red), fixture)
         await Self.perform(model.setBasicOverprint(true), fixture)
         #expect(Self.settings(fixture).basic.color == Self.red && Self.settings(fixture).basic.overprint)
-        #expect(model.setKind(.gradient) == nil && FillEditorView.choose(.gradient, model: model) != nil)
         for (kind, _) in FillEditorModel.kinds where kind != .gradient {
-            #expect(FillEditorView.choose(kind, model: Self.model(fixture)) == nil)
-            await fixture.document.settle()
+            await Self.perform(Self.model(fixture).setKind(kind), fixture)
             #expect(Self.model(fixture).kind == kind)
             AttributeFixture.render(FillEditorView(model: Self.model(fixture)))
         }

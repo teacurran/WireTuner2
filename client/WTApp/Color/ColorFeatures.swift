@@ -29,6 +29,8 @@ final class ColorFeatures {
     let libraries: ColorLibraryMenu
     /// The open documents (*Import from Document…*).
     var openDocuments: @MainActor () -> [DocumentHandle] = { [] }
+    /// The Options menu's *Color Control…* (COLOR-017's sheet), once installed.
+    var colorControl: (@MainActor () -> PanelMenuItem)?
 
     init(selection: ActiveSelection, preferences: PreferenceStore? = nil, defaults: UserDefaults? = nil, libraryClient: ColorLibraryClient? = nil,
          teams: @escaping @MainActor () -> [TeamLibrariesModel.Team] = { [] }) {
@@ -85,7 +87,7 @@ final class ColorFeatures {
                 self?.showTeamLibraries()
             },
             PanelMenuItem(title: "Restore Deleted Colors…", isEnabled: hasDocument) { [weak self] in self?.showRestoreDeleted() },
-        ])
+        ] + (colorControl.map { [$0()] } ?? []))
     }
 
     // MARK: Commands

@@ -31,19 +31,33 @@ struct PropertiesTree: Equatable {
     @MainActor
     init(list: AttributesListModel, members: [OpID] = []) {
         root = Row(key: .root, title: list.rootTitle, icon: "cube", item: nil)
-        var children = list.displayRows.map { Row(key: .row($0.id), title: $0.summary, icon: $0.icon, item: $0) }
+        let effects = list.targets.first.map { EffectReading.entries($0, in: list.document.state) } ?? []
+        var children = list.displayRows.map { Row(key: .row($0.id), title: Self.title($0, effects: effects), icon: $0.icon, item: $0) }
         if !members.isEmpty { children.append(Row(key: .contents, title: "Contents", icon: "folder", item: nil)) }
         self.children = children
         self.members = members
     }
 
+    /// A row's title: its description; an effect is named by its kind ("Unsupported effect
+    /// (update WireTuner)" for one this build does not know) and indented under the fill or stroke
+    /// it is attached to (live-effects.adoc, "Effects in the Object panel").
+    static func title(_ item: AttributeRowItem, effects: [EffectEntry]) -> String {
+        guard item.list == .effects, let entry = effects.first(where: { $0.row == item.id }) else { return item.summary }
+        return entry.attachment == .object ? entry.title : "↳ \(entry.title)"
+    }
+
     /// The stack rows (display order), without *Contents*.
     var rowCount: Int { children.count { $0.item != nil } }
+
+    /// The kinds whose members *Contents* lists: groups, and the key objects of a blend or the
+    /// shape inside an extrusion.
+    static let containers: Set<NodeKind> = [.group, .blend, .extrude]
 
     /// The members *Contents* subselects: the children of the one selected group that are objects.
     @MainActor
     static func members(_ list: AttributesListModel) -> [OpID] {
-        guard list.targets.count == 1, let target = list.targets.first, list.document.object(for: SelectionID(target))?.kind == .group else { return [] }
+        guard list.targets.count == 1, let target = list.targets.first,
+              let kind = list.document.object(for: SelectionID(target))?.kind, containers.contains(kind) else { return [] }
         return list.document.state.store.children(target).filter { list.document.object(for: SelectionID($0)) != nil }
     }
 }
@@ -88,6 +102,9 @@ final class PropertiesOutlineController: NSObject, NSOutlineViewDataSource, NSOu
         /// with kbd:[Option].
         var move: @MainActor (_ from: Int, _ to: Int, _ duplicate: Bool) -> Void = { _, _, _ in }
         var dropColor: @MainActor (NSPasteboard, AttributeRowItem) -> Bool = { _, _ in false }
+        /// An effect row (display position) dropped on a fill or stroke row, or on the root row
+        /// (nil): the effect is attached there.
+        var attach: @MainActor (_ from: Int, _ onto: AttributeRowItem?) -> Void = { _, _ in }
         var remove: @MainActor () -> Void = {}
         var openContents: @MainActor () -> Void = {}
     }
@@ -197,7 +214,8 @@ final class PropertiesOutlineController: NSObject, NSOutlineViewDataSource, NSOu
     func outlineView(_ outlineView: NSOutlineView, validateDrop info: any NSDraggingInfo, proposedItem item: Any?, proposedChildIndex index: Int) -> NSDragOperation {
         guard let tree else { return [] }
         let key = (item as? PropertiesItem)?.key
-        if info.draggingPasteboard.string(forType: Self.rowType) != nil {
+        if let from = info.draggingPasteboard.string(forType: Self.rowType).flatMap(Int.init) {
+            if index == NSOutlineViewDropOnItemIndex, let key, attachTarget(from: from, onto: key) { return .move }
             guard key == .root, index >= 0 else { return [] }
             if index > tree.rowCount { outlineView.setDropItem(self.item(.root), dropChildIndex: tree.rowCount) }
             return optionHeld() ? .copy : .move
@@ -210,12 +228,23 @@ final class PropertiesOutlineController: NSObject, NSOutlineViewDataSource, NSOu
     func outlineView(_ outlineView: NSOutlineView, acceptDrop info: any NSDraggingInfo, item: Any?, childIndex index: Int) -> Bool {
         let key = (item as? PropertiesItem)?.key
         if let from = info.draggingPasteboard.string(forType: Self.rowType).flatMap(Int.init) {
+            if index == NSOutlineViewDropOnItemIndex, let key, attachTarget(from: from, onto: key) {
+                actions.attach(from, key == .root ? nil : row(key)?.item)
+                return true
+            }
             guard key == .root, let tree else { return false }
             actions.move(from, min(max(index, 0), tree.rowCount), optionHeld())
             return true
         }
         guard let key, let target = colorTarget(key) else { return false }
         return actions.dropColor(info.draggingPasteboard, target)
+    }
+
+    /// Whether the row at display position `from` is an effect that a drop on `key` attaches:
+    /// onto a fill or stroke row, or back to the object's own row.
+    func attachTarget(from: Int, onto key: PropertiesKey) -> Bool {
+        guard let tree, tree.children.indices.contains(from), tree.children[from].item?.list == .effects else { return false }
+        return key == .root || colorTarget(key) != nil
     }
 
     /// The stack row a colour dropped on `key` colours: fills and strokes, not effects.

@@ -205,13 +205,18 @@ final class ObjectEditing: CommandSink {
         return performSelectingCreated(GroupObjects(selectedNodes, layer: activeLayer, rememberLayerInfo: rememberLayerInfo()))
     }
 
-    /// Ungroup: the members stay selected (a converted shape's path is selected instead).
+    /// Ungroup: the members stay selected (a converted shape's path is selected instead).  A blend
+    /// is released (blends.adoc, "Releasing a blend"): its key objects and the baked steps.
     @discardableResult
     func ungroup() -> Task<Void, Never>? {
         guard hasSelection else { return nil }
         let state = document.state
-        let members = selectedNodes.flatMap { node in state.nodeKind(node) == .group ? state.liveChildren(node) : [] }
-        let command = Ungroup(selectedNodes, rememberLayerInfo: rememberLayerInfo())
+        let members = selectedNodes.flatMap { node in [.group, .blend].contains(state.nodeKind(node)) ? state.liveChildren(node) : [] }
+        let blends = selectedNodes.filter { state.nodeKind($0) == .blend }
+        let others = selectedNodes.filter { state.nodeKind($0) != .blend }
+        let command: any WTModel.Command = blends.isEmpty ? Ungroup(selectedNodes, rememberLayerInfo: rememberLayerInfo())
+            : others.isEmpty ? ReleaseBlend(blends) as any WTModel.Command
+            : CompositeCommand("Ungroup", [ReleaseBlend(blends), Ungroup(others, rememberLayerInfo: rememberLayerInfo())])
         let task = perform(command)
         let model = selection.model
         return Task { @MainActor in
@@ -222,7 +227,7 @@ final class ObjectEditing: CommandSink {
 
     var canUngroup: Bool {
         let state = document.state
-        return selectedNodes.contains { [.group, .rect, .ellipse, .polygon].contains(state.nodeKind($0)) }
+        return selectedNodes.contains { [.group, .rect, .ellipse, .polygon, .blend].contains(state.nodeKind($0)) }
     }
 
     @discardableResult

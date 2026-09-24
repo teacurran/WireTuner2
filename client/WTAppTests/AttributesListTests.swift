@@ -66,7 +66,7 @@ final class AttributeFixture {
                 && AttributesListModel.kindName(.polygon) == "Polygon" && AttributesListModel.kindName(.group) == "Group"
                 && AttributesListModel.kindName(.layer) == "Layer")
         #expect([NodeKind.chart, .symbol, .instance, .barcode].map(AttributesListModel.kindName) == ["Chart", "Symbol", "Instance", "Barcode"])
-        #expect([NodeKind.connector, .placedFile].map(AttributesListModel.kindName) == ["Connector", "Placed File"])
+        #expect([NodeKind.connector, .placedFile, .brush, .blend, .extrude].map(AttributesListModel.kindName) == ["Connector", "Placed File", "Brush", "Blend", "Extrusion"])
         #expect(AttributeRowItem(index: 0, list: .effects, kind: nil, summary: "", hidden: .off, targets: list.rows[0].targets).icon == "sparkles")
     }
 
@@ -100,7 +100,7 @@ final class AttributeFixture {
         #expect(list.rows.filter { $0.list == .effects }.count == 1 && AttributesListView.selected(list, state) == nil)
         AttributesListView.remove(list, state)
         AttributesListView.duplicate(list, state)
-        #expect(document.undoTitle == "Undo Remove Effect", "nothing selected: nothing to remove")
+        #expect(document.undoTitle == "Undo Remove effect", "nothing selected: nothing to remove")
 
         // The visibility checkbox.
         AttributesListView.actions(list, state, members: [], selection: nil).setVisible(list.rows[0], false)

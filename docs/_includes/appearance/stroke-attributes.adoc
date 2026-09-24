@@ -538,8 +538,7 @@ its encoded `Arrowhead`, base64) in the Presets folder; a dash made in the Dash 
 lengths ("6-3").  The arrowhead pop-ups list the built-in heads (`Arrowhead.builtIns`, copied through
 `InlineShapes.arrowhead`), the saved ones and those strokes in the document use; *New…* is disabled
 and kbd:[Option]-click applies the head until the Arrowhead Editor (ATTR-030) exists.  The Brush
-kind shows its colour and width percentage only; the brush pop-up, its action menu and the Edit
-Brush sheet are ATTR-009, which needs the brush model (ATTR-008).  btn:[Paste In] takes a path with
+kind's brush pop-up, action menu and Edit Brush sheet came with ATTR-009 (below).  btn:[Paste In] takes a path with
 one closed contour, a rectangle, an ellipse or a polygon from the objects pasteboard and maps its
 control bounds onto the unit square (`Subtrees.nib`); btn:[Copy Out] writes the nib at its width,
 height and angle.  The 64 built-in patterns are `WTApp/Inspectors/Resources/PatternPresets.json`
@@ -564,6 +563,21 @@ resolved with its symbols' artwork, so brush strokes draw their symbols; a path 
 depends on the brush node and the brush on its symbols, so editing a symbol's artwork redraws the
 strokes.  The seed-on-duplicate conformance vector belongs to `crdt-conformance/` and is proposed
 in the task report.
+
+NOTE: As built by ATTR-009 (`WTApp/Inspectors/BrushControls.swift`, `BrushEditor.swift`,
+`WTApp/Effects/EffectFeatures.swift`).  The brush pop-up applies a brush to every selected stroke
+(`ApplyBrush`); the action menu's *Edit…*, *Duplicate* and *Remove…* act on the brush the strokes
+share.  The Edit Brush sheet edits a draft: *Include symbols* adds any Library symbol with btn:[+];
+the arrows move the selected symbol toward the top or bottom of the stack; *Flare* is offered only
+where the table allows it (Spray offsets, Paint scaling) and switching mode drops a Flare the new
+mode does not offer.  btn:[OK] on a brush in use asks *Change* or *Create* (a copy for the selected
+strokes); *Remove…* asks *Release* or *Delete*.  The preview is the draft applied to a copy of the
+document, the brush copied into a small document of its own (`BrushFile.document`) with a stroked
+sample path, and that document drawn -- the same drawing the canvas makes, recomputed on every
+change.  menu:Modify[Brush > Create Brush…] opens the same sheet with *Copy* / *Convert*.  Import and
+export use a file panel and a picker over the file's (or the document's) brushes; a brush file is a
+package written by `PackageWriter`.  As ATTR-008 records, imported artwork keeps its colours as
+values, so no swatches are added.
 
 === Build tasks
 

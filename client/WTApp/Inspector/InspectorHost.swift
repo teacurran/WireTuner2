@@ -61,7 +61,7 @@ struct ObjectPanelBody: View {
     /// What the row editors read: *Default line weights* from the app's preferences when the panel
     /// has them, and the window's pasteboard.
     static func environment(_ selection: ActiveSelection?) -> InspectorRowEnvironment {
-        InspectorRowEnvironment(widthPresets: widthPresets(selection), pasteboard: selection?.editing?.pasteboard)
+        InspectorRowEnvironment(widthPresets: widthPresets(selection), pasteboard: selection?.editing?.pasteboard, selection: selection?.model?.selection)
     }
 
     static func widthPresets(_ selection: ActiveSelection?) -> [String] {

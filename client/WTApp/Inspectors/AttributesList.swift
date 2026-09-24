@@ -22,8 +22,12 @@ final class AttributesState {
     var selected: AppearanceRow?
     /// The targets `selected` was chosen for; another selection resets it.
     private(set) var targets: [OpID] = []
+    /// Where the canvas learns which row is edited (effect centre and gradient handles).
+    @ObservationIgnored let focus: InspectorFocus
 
-    init() {}
+    init(focus: InspectorFocus = .shared) {
+        self.focus = focus
+    }
 
     /// The selection for `targets`: cleared when they changed.
     func selection(for targets: [OpID]) -> AppearanceRow? {
@@ -34,6 +38,7 @@ final class AttributesState {
     func select(_ row: AppearanceRow?, targets: [OpID]) {
         self.targets = targets
         selected = row
+        focus.set(row, targets: targets)
     }
 }
 
@@ -114,7 +119,9 @@ struct AttributesListModel {
         if isDefaults { return "Default attributes" }
         switch targets.count {
         case 0: return "No attributes"
-        case 1: return document.object(for: SelectionID(targets[0])).map { Self.kindName($0.kind) } ?? "Object"
+        case 1:
+            guard let object = document.object(for: SelectionID(targets[0])) else { return "Object" }
+            return object.kind == .extrude ? ExtrudeReading.title(targets[0], in: document.state) : Self.kindName(object.kind)
         default: return "\(targets.count) objects"
         }
     }
@@ -134,6 +141,9 @@ struct AttributesListModel {
         case .connector: "Connector"
         case .placedFile: "Placed File"
         case .text: "Text"
+        case .brush: "Brush"
+        case .blend: "Blend"
+        case .extrude: "Extrusion"
         }
     }
 
@@ -155,14 +165,13 @@ struct AttributesListModel {
         return command
     }
 
-    /// btn:[Add Effect]: an effect of `kind` with its default settings.
-    func addEffect(_ kind: Wiretuner_Doc_V1_EffectKind, above selected: AttributeRowItem?) -> AddAppearance? {
+    /// btn:[Add Effect] (live-effects.adoc, "To add a live effect"): an effect of `kind` with its
+    /// default settings on every target -- attached to the selected fill or stroke, else at the
+    /// object level above the selected effect or at the top of the stack.
+    func addEffect(_ kind: Wiretuner_Doc_V1_EffectKind, above selected: AttributeRowItem?) -> AddEffect? {
         guard !targets.isEmpty else { return nil }
-        var effect = Wiretuner_Doc_V1_Effect()
-        effect.settings.kind = kind
-        var command = AddAppearance.effect(targets, effect)
-        command.aboveRows = Self.aboveRows(selected)
-        return command
+        guard let selected, selected.list != .effects else { return AddEffect(targets, kind: kind, above: Self.aboveRows(selected)) }
+        return AddEffect(targets, kind: kind, attachTo: Self.aboveRows(selected))
     }
 
     static func aboveRows(_ selected: AttributeRowItem?) -> [OpID: AppearanceRow] {
@@ -171,7 +180,8 @@ struct AttributesListModel {
 
     /// btn:[Remove Item], kbd:[Delete], *Remove*.
     func remove(_ item: AttributeRowItem) -> any WTModel.Command {
-        CompositeCommand("Remove \(Self.noun(item.list))", item.targets.map { RemoveAppearance(node: $0.node, row: $0.row) })
+        if item.list == .effects { return RemoveEffect(item.targets.map(\.pair)) }
+        return CompositeCommand("Remove \(Self.noun(item.list))", item.targets.map { RemoveAppearance(node: $0.node, row: $0.row) })
     }
 
     /// *Duplicate*: directly above the original on every target.
@@ -197,7 +207,43 @@ struct AttributesListModel {
         let landing = to > from ? to - 1 : to
         let index = count - 1 - min(max(landing, 0), count - 1)
         guard index != item.index else { return nil }
+        if item.list == .effects { return reorderEffect(item, toStack: index) }
         return ReorderAttribute(item.targets.map(\.pair), to: index)
+    }
+
+    /// Where an effect dragged to stack position `index` lands (live-effects.adoc, "To reorder
+    /// effects"): among the effects of its own group -- the object level or the fill or stroke it
+    /// is attached to -- at the place the drop leaves it.  One change over every target.
+    func reorderEffect(_ item: AttributeRowItem, toStack index: Int) -> (any WTModel.Command)? {
+        let state = document.state
+        let moves = item.targets.compactMap { target -> (any WTModel.Command)? in
+            let entries = EffectReading.entries(target.node, in: state)
+            guard let entry = entries.first(where: { $0.row == target.row }), entry.attachment != .skipped else { return nil }
+            var order = AppearanceEditing.stack(target.node, in: state).filter { $0 != target.row }
+            order.insert(target.row, at: min(index, order.count))
+            let group = order.filter { row in row == target.row || entries.first { $0.row == row }?.attachment == entry.attachment }
+            return ReorderEffect(node: target.node, row: target.row, to: group.firstIndex(of: target.row)!, attachTo: Self.attachedRow(entry.attachment))
+        }
+        return moves.isEmpty ? nil : CompositeCommand("Reorder effects", moves)
+    }
+
+    /// The fill or stroke an attachment names; nil for the object level.
+    static func attachedRow(_ attachment: EffectAttachment) -> AppearanceRow? {
+        if case .element(let row) = attachment { return row }
+        return nil
+    }
+
+    /// An effect row dropped on a fill or stroke row (or, `onto` nil, on the object's own row):
+    /// the effect moves to the end of that element's effects, attached to it.  Nil when the
+    /// dragged row is not an effect or the target is one.
+    func attach(fromDisplay from: Int, onto: AttributeRowItem?) -> (any WTModel.Command)? {
+        guard (0..<rows.count).contains(from), onto?.list != .effects else { return nil }
+        let item = displayRows[from]
+        guard item.list == .effects else { return nil }
+        let moves = item.targets.enumerated().map { index, target -> any WTModel.Command in
+            ReorderEffect(node: target.node, row: target.row, to: Int.max, attachTo: onto?.targets[index].row)
+        }
+        return CompositeCommand("Reorder effects", moves)
     }
 
     /// A colour dropped on a row: that element only, on every target.

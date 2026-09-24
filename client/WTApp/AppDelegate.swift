@@ -88,6 +88,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Where the launch looks for stores to upload headlessly (the documents folder in the app).
     let storesDirectory: @Sendable () throws -> URL
     private(set) var menuTarget: CommandMenuTarget?
+    /// The effects, brush and colour-adjustment UI (FX-003 ... COLOR-017).
+    private(set) var effects: EffectFeatures?
     /// The colour panels, sheets and commands (COLOR, CMS epics).
     private(set) lazy var colors = ColorFeatures(
         selection: activeSelection, preferences: preferences, defaults: preferences.defaults,
@@ -334,6 +336,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ObjectMenuCommands.install(into: commands) { documents.activeWindowController?.objectEditing }
         ConnectorCommands.install(commands: commands, tools: tools) { documents.activeWindowController?.objectEditing }
         tools.replace(TextTool.descriptor)
+        let effects = EffectFeatures(target: { documents.activeWindowController?.objectEditing }, tools: { documents.activeWindowController?.toolManager })
+        effects.install(commands: commands, tools: tools, extensions: toolbars.extensions)
+        colors.colorControl = { effects.colorControlMenuItem() }
+        self.effects = effects
         let palette = toolPalette
         let toolCommands = tools.commands(
             activate: { id in palette.pressShortcut(id) },

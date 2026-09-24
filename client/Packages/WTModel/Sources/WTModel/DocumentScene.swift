@@ -162,6 +162,9 @@ public struct DocumentDisplayListBuilder: Sendable {
         var groupAppearance = Appearance()
         /// A blend or extrusion, drawn as a group with a live drawing (FX-024, FX-017).
         var wrapper: WrapperKind?
+
+        /// A group, blend or extrusion: its item is made of its children's.
+        var drawsChildren: Bool { kind == .group || wrapper != nil }
     }
 
     private struct Placed: Sendable {
@@ -456,7 +459,7 @@ public struct DocumentDisplayListBuilder: Sendable {
             nested += built.sources.map { (node, $0) }
             return SymbolNode(id: NodeID(node), content: .instance(instance))
         }
-        if built.kind == .group {
+        if built.drawsChildren {
             let transform = built.transform.concatenating(parentTransform)
             let members = state.liveChildren(node).compactMap { symbolNode($0, state: state, parentTransform: transform, nested: &nested) }
             return SymbolNode(id: NodeID(node), content: .group(GroupItem(children: []), members: members))
@@ -478,7 +481,7 @@ public struct DocumentDisplayListBuilder: Sendable {
         let locked = context.locked || built.locked
         let item: DisplayItem
         let bounds: Rect?
-        if built.kind == .group {
+        if built.drawsChildren {
             var children: [DisplayItem] = []
             var placedIDs: [OpID] = []
             let inner = Placing(layer: context.layer, locked: locked)
@@ -540,7 +543,7 @@ public struct DocumentDisplayListBuilder: Sendable {
         if let wrapper = WrapperKind.of(node, in: state) {
             let props = state.props(node)
             guard let common = NodeValues.common(props), !common.hasCanvas else { return nil }
-            let built = Built(item: nil, kind: .group, path: nil, transform: PathEditing.transform(common.transform), elementPoints: [:],
+            let built = Built(item: nil, kind: wrapper.nodeKind, path: nil, transform: PathEditing.transform(common.transform), elementPoints: [:],
                               leafContours: [:], locked: common.locked, wrapper: wrapper)
             cache[node] = built
             return built

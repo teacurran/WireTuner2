@@ -111,6 +111,9 @@ struct AttributesListView: View {
         selection?.set(Selection(members.map(SelectionID.init)))
     }
 
+    /// The btn:[Add Effect] menu's sections: vector effects, raster effects, Transparency.
+    static let effectGroups = [EffectMenu.vector, EffectMenu.raster, EffectMenu.transparency]
+
     /// What the properties list's rows do: every action is the model's command.
     static func actions(_ model: AttributesListModel, _ state: AttributesState, members: [OpID], selection: SelectionModel?) -> PropertiesOutlineController.Actions {
         PropertiesOutlineController.Actions(
@@ -118,6 +121,7 @@ struct AttributesListView: View {
             setVisible: { item, visible in model.perform(model.setHidden(item, !visible)) },
             move: { from, to, duplicate in move(IndexSet(integer: from), to: to, model: model, duplicate: duplicate) },
             dropColor: { pasteboard, item in drop(from: pasteboard, on: item, model: model) },
+            attach: { from, onto in model.perform(model.attach(fromDisplay: from, onto: onto)) },
             remove: { remove(model, state) },
             openContents: { openContents(members, selection: selection) }
         )
@@ -150,8 +154,11 @@ struct AttributesListView: View {
             Button("Add Fill", action: Self.adding(model.add(.fills, above: selectedItem), model: model, state: state))
                 .accessibilityIdentifier("attributes.add-fill")
             Menu("Add Effect") {
-                ForEach(AttributeNames.effectKinds, id: \.0) { kind, name in
-                    Button(name, action: Self.adding(model.addEffect(kind, above: selectedItem), model: model, state: state))
+                ForEach(Self.effectGroups.indices, id: \.self) { group in
+                    if group > 0 { Divider() }
+                    ForEach(Self.effectGroups[group], id: \.0) { kind, name in
+                        Button(name, action: Self.adding(model.addEffect(kind, above: selectedItem), model: model, state: state))
+                    }
                 }
             }
             .fixedSize()

@@ -156,6 +156,11 @@ final class DocumentHandle: Identifiable, CommandSink {
     private var modelObservation: WTModel.Document.ObservationToken?
     private var observers: [UUID: @MainActor (ContentChange) -> Void] = [:]
     private var structureObservers: [UUID: @MainActor () -> Void] = [:]
+    /// The command the canvases show as if performed (`preview`), and the scene drawn with it.
+    private(set) var previewCommand: (any WTModel.Command)?
+    private var previewScene: DocumentScene?
+    /// The nodes the preview draws differently: repainted when it changes or ends.
+    private var previewTouched: Set<NodeID> = []
 
     /// A document whose model is ready (a memory document, tests).
     init(id: String = UUID().uuidString, title: String, pages: [Rect] = [Pasteboard.letterPage], replicaID: String = UUID().uuidString,
@@ -238,20 +243,68 @@ final class DocumentHandle: Identifiable, CommandSink {
     // MARK: Scene
 
     var scene: DocumentScene { builder.scene }
-    var displayList: DisplayList { builder.scene.displayList }
+    /// What the canvases draw: the scene, or the preview over it while there is one.
+    var displayList: DisplayList { previewScene?.displayList ?? builder.scene.displayList }
     /// The merged state the scene was built from (empty until the model opens).
     var state: EngineState { model?.state ?? EngineState() }
 
     private func modelDidChange(_ event: DocumentEvent) {
-        let before = builder.scene.displayList
+        let before = displayList
         let origin: ChangeOrigin = event.origin == .remote || event.origin == .reload ? .remote : .local
         // A reload (the state replaced wholesale) rebuilds everything; a change the nodes it touched.
-        let (scene, summary) = event.origin == .reload
+        let (_, applied) = event.origin == .reload
             ? builder.reload(event.after, origin: origin)
             : builder.apply(event.change, state: event.after, origin: origin)
+        let summary = previewCommand == nil ? applied : refreshPreview(applied)
         changeCount += 1
-        invalidation.submit(summary, before: [before], after: [scene.displayList])
-        notify(ContentChange(summary: summary, before: before, after: scene.displayList, change: event.change))
+        invalidation.submit(summary, before: [before], after: [displayList])
+        notify(ContentChange(summary: summary, before: before, after: displayList, change: event.change))
+    }
+
+    // MARK: Preview (COLOR-017)
+
+    /// Shows `command` on every canvas of the document as if it were performed, without a change
+    /// (Color Control's *Preview*, editing-colors.adoc): nothing reaches the outbox or the undo
+    /// list.  Changes keep applying underneath -- a remote edit of a previewed object redraws with
+    /// the preview still over it -- until `preview(nil)` shows the document again.
+    func preview(_ command: (any WTModel.Command)?) {
+        let before = displayList
+        previewCommand = command
+        var summary = ChangeSummary(origin: .local)
+        for node in previewTouched { summary.touch(node) }
+        summary = refreshPreview(summary)
+        invalidation.submit(summary, before: [before], after: [displayList])
+        notify(ContentChange(summary: summary, before: before, after: displayList, change: nil))
+    }
+
+    /// Whether the canvases show a preview.
+    var isPreviewing: Bool { previewScene != nil }
+
+    /// Rebuilds the preview over the current scene: the command's change applied to a copy of the
+    /// state and of the scene builder.  The nodes it draws differently, before and now, join
+    /// `summary`.  No preview when the command writes nothing or fails.
+    private func refreshPreview(_ summary: ChangeSummary) -> ChangeSummary {
+        var merged = summary
+        for node in previewTouched { merged.touch(node) }
+        previewScene = nil
+        previewTouched = []
+        guard let command = previewCommand, let model else { return merged }
+        var state = model.state
+        var changes = ChangeBuilder(replica: model.replica, startCounter: state.clock.peek)
+        guard (try? command.execute(&changes, state: state)) != nil, !changes.ops.isEmpty else { return merged }
+        var change = Wiretuner_Doc_V1_Change()
+        change.replica = model.replica
+        change.startCounter = changes.startCounter
+        change.label = command.label
+        change.ops = changes.ops
+        _ = state.applyLocal(change)
+        var copy = builder
+        let (scene, previewed) = copy.apply(change, state: state, origin: .local)
+        previewScene = scene
+        previewTouched = previewed.touchedNodes
+        for node in previewTouched { merged.touch(node) }
+        merged.isStructural = merged.isStructural || previewed.isStructural
+        return merged
     }
 
     /// Lays out and draws `nodes` again without a change to the document: text whose fonts now

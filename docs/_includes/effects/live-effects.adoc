@@ -853,6 +853,29 @@ rebuilds every cached item.  The appearance copy/paste and graphic-style command
 yet; object copies carry effects because `NodeCopier` copies every sequence.  FX-001 wrote no
 conformance vectors, so the dangling-`attached_to` rule is covered by WTModel tests.
 
+NOTE: As built by FX-003 (`WTApp/Inspector/Effects/EffectEditors.swift`, `EffectCenterHandles.swift`,
+`WTApp/Inspectors/AttributesList.swift`, `AttributesListView.swift`, `WTApp/Inspector/PropertiesOutline.swift`,
+`WTApp/Tools/CanvasHandleLayer.swift`).  btn:[Add Effect] lists the vector effects, then Bevel and
+Emboss, Blur, Shadow and Sharpen, then Transparency, each performing `AddEffect`: with a fill or
+stroke selected in the list the effect is attached to it, with an effect selected it goes above it,
+otherwise at the top.  The *Effect* pop-up is `SetEffectKind`; btn:[Remove Item] and kbd:[Delete]
+on an effect row are `RemoveEffect`.  Dragging an effect row reorders it within its own group
+(`ReorderEffect`); dropping it on a fill or stroke row attaches it there, and dropping it on the
+object's own row returns it to the object level (an addition the page does not name).  Attached
+effects are titled "↳ Bend" under their element, an unknown kind "Unsupported effect (update
+{product})".  The forms cover Bend, Duet, Expand Path, Ragged, Sketch and Transform with every option
+of the tables, and Corners (*Radius*, *Style*, *All* / *Selected points*, btn:[Add Selection],
+btn:[Remove Selection]) and Combine (*Operation*, with the "Combine applies to groups" note); the
+raster and Transparency forms (FX-008, FX-014), the Corners widgets and the rectangle's dimmed
+*Radius* (FX-047) and Combine's btn:[Expand] (FX-049) are not built, and those kinds show a note.
+A centre or move typed in one field writes the ATOMIC point with the other coordinate as it
+stands; *Copies* and *Miter limit* clamp to their ranges; only *Width* of Expand Path shows an
+out-of-range stored value in red.  The centre handles and the Duet axis arm are a canvas handle
+layer that the tool manager presses before the tool, drawn under the Pointer and Subselect tools
+only, for the effect row the Object panel has selected (`InspectorFocus`); a drag writes on every
+move inside one undo group and kbd:[Esc] undoes it; kbd:[Shift] snaps the axis to 15°.  The UI
+tests are app-hosted (`WTAppTests/EffectEditorTests.swift`, `CanvasHandleTests.swift`).
+
 === Build tasks
 
 [[FX-001]]

@@ -374,10 +374,9 @@ solves in 3.0 ms in release (41 ms in debug); the gate enforces 5 ms in release 
 manual's examples are the golden renders (`effectsExtrude`).
 
 NOTE: As built by FX-017 (`WTModel/ExtrudeCommands.swift`, `Wrappers.swift`, `Baking.swift`).
-`NodeKind` has no `extrude` case yet: WTApp switches over `NodeKind` exhaustively, so the kind is
-added together with its UI.  Until then `WrapperKind` names the wrapper kinds, the scene records an
-extrusion as a `.group` object with an `ExtrudeSpec` on its `GroupItem`, and the commands find the
-wrapper from it or any node inside it.  Commands: `Extrude` ("Extrude"; length, vanishing point
+`WrapperKind` names the wrapper kinds and the commands find the wrapper from it or any node inside
+it; since FX-020 `NodeKind` has `extrude` (101) and the scene records an extrusion under it, with
+an `ExtrudeSpec` on its `GroupItem`.  Commands: `Extrude` ("Extrude"; length, vanishing point
 and a Shaded surface lit from the top left, ambient 30, light 80 -- the working defaults),
 `RemoveExtrusion`, `ReleaseExtrusion`, `ResetExtrusion`, `ShareVanishingPoints`, `EditExtrusion`
 (any registers) and `PasteExtrudeProfile` ("Paste profile"; one open contour of two or more
@@ -389,6 +388,23 @@ flattener can only rasterize are left out.  The draw order puts the child of the
 (the one extruded) and the rest after it.  Two replicas extruding one path concurrently make two
 wrappers; the path's move resolves to one of them, so one extrusion draws and the other is an empty
 extrusion that draws nothing -- the same on every replica.
+
+NOTE: As built by FX-020 and FX-021 (`WTApp/Tools/ExtrudeTool.swift`, `WTApp/Effects/ExtrudeMenu.swift`,
+`WTApp/Inspector/Extrude/ExtrudeSection.swift`).  `NodeKind.extrude` joins `Objects.kinds`, so the
+Pointer and the transformation tools move and transform an extrusion by the `extrude` node's own
+transform rather than the flat shape's; the solid is the same and the vanishing point, in pasteboard
+space, stays put.  The drag previews the front outline, a rear outline 30% of the way to the pointer
+and the edges joining them, not the shaded solid, and releases `Extrude` at the default depth
+(36 pt).  The centre point and the rotation circle belong to the flat shape's bounds; the depth
+control sits on the axis toward the vanishing point at the depth (no farther than the vanishing
+point); a double-click on an extrusion enters rotate mode even over its centre point.  Tumbling is
+0.5° per view point dragged (x from vertical, y from horizontal motion), the spin follows the
+pointer's angle about the centre, and kbd:[Shift] snaps all three angles to 15°.  menu:Modify[Extrude
+> Extrude] points the solid at the current page's centre.  *Share Vanishing Points* pushes a
+one-click tool over the window's tool; kbd:[Esc] or another tool ends it without a change.  The
+panel's *Position X* and *Y* are the flat shape's centre; typing them moves the extrusion.
+btn:[Paste In] refuses anything but one open path of two or more points with "Paste In takes one
+open path of two or more points: copy it first."
 
 === Build tasks
 

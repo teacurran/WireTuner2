@@ -48,6 +48,13 @@ public enum NodeKind: UInt32, Sendable, CaseIterable {
     /// A text block, text on a path or area text (creating-text.adoc, "Data model").
     case text = 130
     case group = 50
+    /// A brush in the brushes collection (0:8), painting the symbols it names
+    /// (stroke-attributes.adoc, "Brush strokes").
+    case brush = 80
+    /// A blend of its key objects, drawn through the interpolated steps (blends.adoc).
+    case blend = 100
+    /// An extrusion wrapping one flat shape, drawn as a solid (extrude.adoc).
+    case extrude = 101
     case layer = 150
     /// A symbol's master: its children are the artwork (library.adoc).
     case symbol = 151

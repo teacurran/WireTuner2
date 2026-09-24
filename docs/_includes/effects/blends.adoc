@@ -320,9 +320,9 @@ and step's bounds centre is placed; Rotate on path turns by the tangent's absolu
 Keyline draws the steps.  Performance: a 1,000-step blend of two 50-point paths interpolates in
 4.5 ms in release (105 ms in debug); the gate enforces 10 ms in release builds.
 
-NOTE: As built by FX-024 (`WTModel/BlendCommands.swift`, `Wrappers.swift`, `Baking.swift`).  As
-for extrusions, `blend` is not a `NodeKind` case yet; `WrapperKind` names it and the scene records a
-blend as a `.group` object whose `GroupItem.live` is the resolved `BlendSpec`.  Commands: `Blend`
+NOTE: As built by FX-024 (`WTModel/BlendCommands.swift`, `Wrappers.swift`, `Baking.swift`).  Since
+FX-027 `NodeKind` has `blend` (100); the scene records a blend under it with the resolved `BlendSpec`
+as its `GroupItem.live`, and blends move and transform as objects.  Commands: `Blend`
 (from the selection in stacking order, point to point with a point chosen per object; objects from
 several parents are collected on top of the active layer and keep their place on the page),
 `AddToBlend`, `SetBlendPoint` ("Move blend point"), `EditBlend` (any register but `path` and
@@ -335,6 +335,21 @@ placed between its key objects: the whole blend is expanded by the `Flattener` a
 measuring each key object's share and a one-step blend of each span; when the shares do not add up
 (a key the interpolation skips) no steps are baked.  Steps become process colours, as the guide
 says releasing does.
+
+NOTE: As built by FX-027 and FX-028 (`WTApp/Tools/BlendTool.swift`, `WTApp/Effects/BlendMenu.swift`,
+`WTApp/Inspector/Blend/BlendSection.swift`, `WTApp/Document/ObjectEditing.swift`).  The rubber band
+draws the two objects blended in six steps, half transparent, with the model's interpolator
+(a live `BlendSpec` group rendered into the overlay).  A drag starting on a blend adds the target
+(`AddToBlend`); with kbd:[Option] it joins the blend to the target path.  The blend points are drawn
+for selected blends only, and a dragged point lands on the key object's nearest anchor; blend points
+apply to path key objects (a rectangle's derived points have no element ids).  A refusing target
+shows the model's sentence in the status bar on release.  menu:Modify[Combine > Blend] and
+menu:Extensions[Create > Blend] are disabled with that sentence when the selection cannot be
+blended; *Join Blend to Path* is `modify.combine.joinBlendToPath` in the Combine submenu; *Split*
+acts on joined blends only (OBJ-024's path Split is not built); *Blend Steps…* opens a one-field
+sheet; menu:Modify[Ungroup] and menu:Modify[Blend > Release] release blends (`ReleaseBlend`, beside
+`Ungroup` for the rest of a mixed selection).  In the panel *Steps* shows 0 with "Chosen from the
+color difference" until it is written.
 
 === Build tasks
 

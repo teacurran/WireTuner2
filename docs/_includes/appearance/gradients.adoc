@@ -286,6 +286,21 @@ the rest of the normalizations; `GradientReading.tombstoneColor` reads a removed
 *Restore*.  "No stops reads as a Basic fill of the object's default fill color" is read as the
 fill's own Basic colour (what switching it to Basic shows).
 
+NOTE: As built by ATTR-025 and ATTR-026 (`WTApp/Inspectors/GradientEditor.swift`,
+`GradientHandles.swift`, `WTApp/Tools/CanvasHandleLayer.swift`).  Choosing *Gradient* in the *Fill type*
+pop-up is `ChooseGradient`, and Gradient to Basic is `ConvertGradientToBasic`.  *Count* is enabled
+for Repeat and Reflect.  The ramp edits one object's fill at a time (with several objects selected
+the form's pop-ups edit all of them and the ramp says so).  A click selects a stop and its colour
+well shows below the ramp -- the double-click popover of the Client section -- and recolours it;
+a drag moves it (`MoveGradientStop`), kbd:[Cmd] copies (`CopyGradientStop`), 16 points above or below
+the ramp removes it (`RemoveGradientStop`, refused for the ends and when two stops are left); a
+colour dropped on a thumb recolours that stop, anywhere else it adds one.  The dragged stop is drawn
+under the pointer whatever arrives meanwhile.  The handles are a canvas handle layer under the
+Pointer and Subselect tools for the selected objects' own visible Gradient fills (not a selected
+group's members); the fill selected in the Object panel is drawn in full colour.  A handle drag
+writes `axis` on every move inside one undo group; kbd:[Esc] undoes it.  kbd:[Option] on a Radial or
+Rectangle end scales and turns the other end with it.
+
 === Build tasks
 
 [[ATTR-023]]

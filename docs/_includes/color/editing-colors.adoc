@@ -226,6 +226,16 @@ entries and the Color Control sheet are WTApp's (COLOR-017); the conformance vec
 `inline` written over a `swatch` reference belongs to `crdt-conformance/` and is proposed in the
 task report (a WTModel test pins the same write).
 
+NOTE: As built by COLOR-017 (`WTApp/Color/ColorControlSheet.swift`, `WTApp/Effects/EffectFeatures.swift`,
+`WTApp/Document/DocumentHandle.swift`).  The preview is not a colour override table in `WTRender`:
+`DocumentHandle.preview` applies the command's change to a copy of the state and of the scene
+builder and the canvases draw that scene, so the preview is exactly what btn:[Apply] writes; a local
+or remote change rebuilds it over the new state, and only the nodes it draws differently repaint.
+Nothing reaches the outbox or the undo list until btn:[Apply].  Changing the mode resets the fields.
+The sheet is a window sheet with a SwiftUI body.  menu:Extensions[Colors > Color Control…], the
+one-step extensions, *Convert to Grayscale* and *Randomize Named Colors* replace their stubs, and the
+Swatches panel's Options menu ends with *Color Control…*.
+
 === Build tasks
 
 [[COLOR-014]]

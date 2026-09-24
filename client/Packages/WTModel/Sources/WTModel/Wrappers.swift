@@ -4,14 +4,21 @@ import WTProto
 import WTRender
 
 /// The wrapper node kinds WTModel draws and edits (blends.adoc, extrude.adoc): a node whose live
-/// children are drawn through a derived drawing.  They are not `NodeKind` cases yet -- WTApp
-/// switches over `NodeKind` exhaustively -- so the scene records a wrapper as a `.group` object
-/// and the wrapper commands read the raw kind.
+/// children are drawn through a derived drawing.  The scene records a wrapper under its own
+/// `NodeKind` with its children as members, the way it records a group.
 public enum WrapperKind: UInt32, Sendable, CaseIterable {
     /// `BlendProps` (FX-023).
     case blend = 100
     /// `ExtrudeProps` (FX-016).
     case extrude = 101
+
+    /// The node kind the scene records the wrapper as.
+    public var nodeKind: NodeKind {
+        switch self {
+        case .blend: .blend
+        case .extrude: .extrude
+        }
+    }
 
     /// The wrapper kind of `node`, if it is one (live or not).
     public static func of(_ node: OpID, in state: EngineState) -> WrapperKind? {

@@ -53,6 +53,26 @@ import WTRender
         #expect(pointedSpec.blendPoints == [BlendPoint(child: 0, anchor: 2), BlendPoint(child: 1, anchor: 2)])
     }
 
+    @Test func blendsAndExtrusionsMoveAndTransformAsObjects() throws {
+        var a = Replica(0xA)
+        let start = try Self.square(&a, x: 0)
+        let end = try Self.square(&a, x: 100, red: 0)
+        try a.perform(Blend([start, end]))
+        let blend = try #require(Self.blend(of: start, a.state))
+        #expect(Objects.isObject(blend, in: a.state) && Self.scene(a.state).object(blend)?.kind == .blend && WrapperKind.blend.nodeKind == .blend)
+        let before = try #require(Self.scene(a.state).object(blend)?.bounds)
+        try a.perform(MoveObjects([blend], by: Vector(dx: 10, dy: 5)))
+        let moved = try #require(Self.scene(a.state).object(blend)?.bounds)
+        #expect(abs(moved.minX - before.minX - 10) < 1e-6 && abs(moved.minY - before.minY - 5) < 1e-6)
+        #expect(Objects.transform(of: blend, in: a.state).tx == 10, "the blend's own transform moves it with its key objects")
+        let path = try Self.square(&a, x: 300)
+        try a.perform(Extrude([path], vanishingPoint: Point(x: 0, y: 0)))
+        let wrapper = try #require(a.state.store.placement(path)?.parent)
+        #expect(Objects.isObject(wrapper, in: a.state))
+        try a.perform(TransformObjects([wrapper], matrix: .scale(x: 2, y: 2), about: .zero, kind: .scale))
+        #expect(Objects.transform(of: wrapper, in: a.state).a == 2)
+    }
+
     @Test func eligibilityRefusesWithAReason() throws {
         var a = Replica(0xA)
         let one = try Self.square(&a, x: 0)

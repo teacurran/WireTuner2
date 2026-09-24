@@ -30,18 +30,37 @@ final class ToolManager {
     private(set) var pushedTool: (any Tool)?
     private var instances: [ToolID: any Tool] = [:]
     private var lastEvent: CanvasEvent?
+    /// Handles drawn over the selection tools (effect centres, gradient handles), pressed first.
+    var handleLayers: [any CanvasHandleLayer] = CanvasHandleLayers.standard()
+    /// The layer whose handle is being dragged.
+    private(set) var handleDrag: (any CanvasHandleLayer)?
+    /// The focus whose changes redraw the overlay (the handles follow the Object panel's row).
+    private let focus: InspectorFocus
+    private var focusObservation: UUID?
 
-    init(registry: ToolRegistry, context: ToolContext, initialTool: ToolID = .pointer, runShortcut: @escaping @MainActor (KeyEquivalent) -> Bool = { _ in false }) {
+    init(registry: ToolRegistry, context: ToolContext, initialTool: ToolID = .pointer, focus: InspectorFocus = .shared,
+         runShortcut: @escaping @MainActor (KeyEquivalent) -> Bool = { _ in false }) {
         self.registry = registry
         self.context = context
         self.runShortcut = runShortcut
+        self.focus = focus
         let initial = registry.contains(initialTool) ? initialTool : .pointer
         machine = TemporaryToolMachine(baseTool: initial)
         let tool = registry.makeTool(initial)
         activeTool = tool
         instances[initial] = tool
         tool.activate(in: context)
+        let host = context.host
+        focusObservation = focus.observe { [weak host] in host?.setNeedsOverlayDisplay() }
     }
+
+    isolated deinit {
+        if let focusObservation { focus.stopObserving(focusObservation) }
+    }
+
+    /// Whether the handle layers take presses and draw: under the Pointer and Subselect tools,
+    /// not while a tool is pushed.
+    var handlesApply: Bool { pushedTool == nil && CanvasHandleLayers.tools.contains(activeToolID) }
 
     var baseToolID: ToolID { machine.baseTool }
     var activeToolID: ToolID { activeTool.toolID }
@@ -109,6 +128,12 @@ final class ToolManager {
     // MARK: Pointer events
 
     func mouseDown(_ event: CanvasEvent) {
+        if handlesApply, let layer = handleLayers.first(where: { $0.press(event, context: context) }) {
+            handleDrag = layer
+            publishInfo(event)
+            context.host.setNeedsOverlayDisplay()
+            return
+        }
         machine.mouseDown()
         lastEvent = event
         activeTool.mouseDown(event)
@@ -128,6 +153,12 @@ final class ToolManager {
     }
 
     func mouseDragged(_ event: CanvasEvent) {
+        if let handleDrag {
+            handleDrag.drag(event, context: context)
+            publishInfo(event)
+            context.host.setNeedsOverlayDisplay()
+            return
+        }
         guard !machine.isSuppressingDrag else { return }
         lastEvent = event
         activeTool.mouseDragged(event)
@@ -136,6 +167,13 @@ final class ToolManager {
     }
 
     func mouseUp(_ event: CanvasEvent) {
+        if let handleDrag {
+            self.handleDrag = nil
+            handleDrag.release(event, context: context)
+            publishInfo(event)
+            context.host.setNeedsOverlayDisplay()
+            return
+        }
         let suppressed = machine.isSuppressingDrag
         if !suppressed { activeTool.mouseUp(event) }
         publishInfo(event)
@@ -238,6 +276,10 @@ final class ToolManager {
 
     /// Esc: the tool abandons its gesture; the rest of a drag is swallowed.
     func cancel() {
+        if let handleDrag {
+            self.handleDrag = nil
+            handleDrag.cancel(context: context)
+        }
         activeTool.cancel()
         machine.cancel()
         context.host.setNeedsOverlayDisplay()
@@ -246,6 +288,9 @@ final class ToolManager {
     // MARK: Overlay
 
     func drawOverlay(in ctx: CGContext, viewport: Viewport) {
+        if handlesApply {
+            for layer in handleLayers { layer.draw(in: ctx, viewport: viewport, context: context) }
+        }
         activeTool.drawOverlay(in: ctx, viewport: viewport)
     }
 }

@@ -84,7 +84,7 @@ struct FillEditorModel {
     /// Where Paste In reads and Copy Out writes.
     var pasteboard: (any ObjectPasteboard)?
 
-    /// Gradient is listed but chosen and edited with the gradient ramp editor (ATTR-025).
+    /// The *Fill type* pop-up.
     static let kinds: [(Wiretuner_Doc_V1_FillKind, String)] = [
         (.basic, "Basic"), (.gradient, "Gradient"), (.lens, "Lens"), (.custom, "Custom"), (.pattern, "Pattern"), (.textured, "Textured"),
         (.tiled, "Tiled"),
@@ -107,9 +107,12 @@ struct FillEditorModel {
         } ?? nil
     }
 
-    /// Choosing a kind; nil for Gradient, which the gradient commands choose.
-    func setKind(_ kind: Wiretuner_Doc_V1_FillKind) -> (any WTModel.Command)? {
-        kind == .gradient ? nil : SetAttributeKind(pairs, fill: kind)
+    /// Choosing a kind: Gradient starts a two-stop ramp when the fill has none (`ChooseGradient`);
+    /// a Gradient fill switched to Basic takes the ramp's left colour (`ConvertGradientToBasic`).
+    func setKind(_ kind: Wiretuner_Doc_V1_FillKind) -> any WTModel.Command {
+        if kind == .gradient { return ChooseGradient(pairs) }
+        if kind == .basic, self.kind == .gradient { return ConvertGradientToBasic(pairs) }
+        return SetAttributeKind(pairs, fill: kind)
     }
 
     /// The preview of the first fill.
@@ -358,9 +361,10 @@ struct FillEditorView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            AttributePicker(title: "Fill type", value: model.kind, choices: FillEditorModel.kinds, identifier: "fill.kind", commit: choose)
+            AttributePicker(title: "Fill type", value: model.kind, choices: FillEditorModel.kinds, identifier: "fill.kind",
+                            commit: model.context.committing(model.setKind))
             switch model.kind {
-            case .gradient?: Text("Gradients are edited in the gradient editor.").font(.caption).foregroundStyle(.secondary)
+            case .gradient?: GradientEditorView(model: GradientEditorModel(context: model.context))
             case .lens?: lens
             case .custom?: custom
             case .pattern?: pattern
@@ -375,15 +379,7 @@ struct FillEditorView: View {
         }
     }
 
-    private func choose(_ kind: Wiretuner_Doc_V1_FillKind) { message = Self.choose(kind, model: model) }
     private func paste() { message = Self.paste(model) }
-
-    /// Choosing a kind; the note to show when it cannot be chosen here.
-    static func choose(_ kind: Wiretuner_Doc_V1_FillKind, model: FillEditorModel) -> String? {
-        guard let command = model.setKind(kind) else { return "Gradients are made with the gradient editor." }
-        model.context.perform(command)
-        return nil
-    }
 
     /// btn:[Paste In]: performs the paste, or returns the refusal to show.
     static func paste(_ model: FillEditorModel) -> String? {

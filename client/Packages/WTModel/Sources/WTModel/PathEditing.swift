@@ -304,7 +304,7 @@ enum NodeValues {
         case .instance: props.instance.appearance = stack
         case .barcode: props.barcode.appearance = stack
         case .connector: props.connector.appearance = stack
-        case .layer, .chart, .symbol, .placedFile, .text: break
+        case .layer, .chart, .symbol, .placedFile, .text, .brush, .blend, .extrude: break
         }
         return props
     }
@@ -328,6 +328,9 @@ enum NodeValues {
         case .connector: props.connector.common = common
         case .placedFile: props.placedFile.common = common
         case .text: props.text.common = common
+        case .brush: props.brush.common = common
+        case .blend: props.blend.common = common
+        case .extrude: props.extrude.common = common
         }
         return props
     }
@@ -355,6 +358,7 @@ enum NodeValues {
         case .text(let text)?: text.common
         case .blend(let blend)?: blend.common
         case .extrude(let extrude)?: extrude.common
+        case .brush(let brush)?: brush.common
         default: nil
         }
     }
@@ -387,7 +391,7 @@ enum NodeValues {
         case .instance: props.instance.appearance = appearance
         case .barcode: props.barcode.appearance = appearance
         case .connector: props.connector.appearance = appearance
-        case .layer, .chart, .symbol, .placedFile, .text: break
+        case .layer, .chart, .symbol, .placedFile, .text, .brush, .blend, .extrude: break
         }
         return props
     }
@@ -403,7 +407,7 @@ enum NodeValues {
         case .instance: 4
         case .barcode: 7
         case .connector: 4
-        case .layer, .chart, .symbol, .placedFile, .text: nil
+        case .layer, .chart, .symbol, .placedFile, .text, .brush, .blend, .extrude: nil
         }
     }
 }

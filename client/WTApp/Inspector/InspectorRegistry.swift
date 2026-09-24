@@ -33,6 +33,8 @@ struct InspectorSection: Identifiable {
 struct InspectorRowEnvironment {
     var widthPresets: [String] = PreferenceCatalog.Object.defaultLineWeights.defaultValue
     var pasteboard: (any ObjectPasteboard)?
+    /// The window's selection (a Corners effect's *Selected points*).
+    var selection: Selection?
 }
 
 /// The Object panel's editor registry (APP-007): root-row sections per node kind and the editor of
@@ -69,8 +71,9 @@ final class InspectorRegistry {
             ?? AnyView(Text("\(context.item.summary) has no editor.").font(.caption).foregroundStyle(.secondary))
     }
 
-    /// The sections and row editors WireTuner ships: point, path, rectangle, polygon, connector and
-    /// text sections, the common attributes, and the stroke, fill and effect row editors.
+    /// The sections and row editors WireTuner ships: point, path, rectangle, polygon, connector,
+    /// text, blend and extrusion sections, the common attributes, and the stroke, fill and effect
+    /// row editors.
     static let standard: InspectorRegistry = {
         let registry = InspectorRegistry()
         registry.register(InspectorSection(id: "point", order: 10, kinds: [.path]) { model in
@@ -100,9 +103,10 @@ final class InspectorRegistry {
         registry.registerRowEditor(for: .fills) { context, environment in
             AnyView(FillEditorView(model: FillEditorModel(context: context, pasteboard: environment.pasteboard)))
         }
-        registry.registerRowEditor(for: .effects) { context, _ in
-            AnyView(Text("\(context.item.summary) is edited with the effect editors.").font(.caption).foregroundStyle(.secondary))
+        registry.registerRowEditor(for: .effects) { context, environment in
+            AnyView(EffectEditorView(model: EffectEditorModel(context: context, selection: environment.selection)))
         }
+        EffectSections.register(into: registry)
         return registry
     }()
 }
