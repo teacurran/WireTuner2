@@ -233,6 +233,40 @@ Nothing beyond storing and relaying changes.
 * Undo: each guide add/move/delete is one change; sheet operations are one change per button
   press.
 
+NOTE: As built by DOC-016 (`WTRender/Pages/GridRendering.swift`, `SnapSources.swift`).  Grid:
+`GridSpec(size:origin:relative:)` and `GridRendering.item(_:in:zoom:color:)`, one fill of
+one-device-pixel squares at the intersections inside an area; `stride(size:zoom:)` is 1 while dots
+are 4 px or more apart, else the smallest k putting every k-th line 8 px apart; an area holding
+more than 250,000 dots draws nothing.  The grid's origin is the active page's zero point
+(`PageList.grid(on:)`) -- the spec named none, so this is recorded here.  The canvas builds the
+item per tile or frame for the visible area and passes it as `PageRendering.item(grid:)` (DOC-009);
+a full 2560 × 1600 view builds well inside a frame at every zoom.  Snapping: the resolver and
+priority are GEO-005's `Snapper`; `SnapEngine(snapDistance:zoom:toggles:)` gathers the
+candidates -- points (anchors and control points) and paths of the canvas's display list items in
+reach through the hit tester's R-tree, leaving out the dragged items and the Guides layer's items;
+page guides (`PageList.snapGuides`, pasteboard space, masters' guides on their children); guide
+objects (`SnapSources.guideObjects(in:)`, the Guides layer's contours, at guide priority); smart
+guides; and the grid, absolute or, with *Relative grid*, through the drag origin
+(`resolveDrag(of:by:)`, so a move keeps the in-cell offset).  `suspended` (kbd:[Control]) returns no
+snap; `SnapToggles` are the View menu's switches.  `SnapFeedback` names what won (point badge,
+path, guide with the crossing guide, guide object, smart guide, grid).  App glue (not in this
+task's directories): `WTApp`'s placeholder `SnappingContext.snap` should build `SnapSources` once
+per drag from the canvas's hit tester and `PageList`, call `SnapEngine.resolve`, and map
+`SnapResult.kind` to its sound kind (`.point` → point, `.path` → object, `.guide` → guide, `.grid` →
+grid).
+
+NOTE: As built by DOC-017 (`WTModel/GuideCommands.swift`).  `GuideOwner` is a page's or master's
+`guides` sequence.  `AddGuides(on:axis:at:)` ("Add guide" / "Add N guides"; one `ElementInsert` per
+page, all in one change), `MoveGuide(on:_:to:)` ("Move guide"; writes every coincident element of
+the row), `DeleteGuides` ("Delete guide(s)"), `ReleaseGuides(on:_:layer:)` ("Release guide(s)": the
+`ElementDelete` and, per guide, a `CreatePath` line bleed to bleed with an empty attribute stack;
+on a master the line gets `canvas` = the master) and DOC-002's `SetGuidesLocked`.
+`GuidePlacement.byCount` and `byIncrement` compute the sheet's positions (at most 1,000).  Read
+rules in `PageGuide.read`: coincident guides are one row holding every id; an unspecified axis is
+horizontal; a guide outside the page is kept.  Conformance vectors: none added -- `guides` uses the
+existing SEQUENCE policy, and the coincident read-out is a `WTModel` rule tested in
+`GuideCommandTests`.
+
 === Build tasks
 
 [[DOC-016]]

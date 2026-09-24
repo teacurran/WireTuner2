@@ -35,7 +35,7 @@ struct ReferenceCase: Sendable {
     /// fast modes' image boxes).  A hairline is one device pixel in a bitmap but one point in a
     /// PDF page, so the bitmap/PDF comparison of these runs at 1× only.
     var hasHairlines: Bool {
-        viewMode != .preview || name == "hairlines" || FeatureCorpus.hairlineCases.contains(name)
+        viewMode != .preview || name == "hairlines" || FeatureCorpus.hairlineCases.contains(name) || PageCorpus.hairlineCases.contains(name)
     }
 
     var renderer: CoreGraphicsRenderer {
@@ -120,8 +120,10 @@ enum ReferenceCorpus {
         .text(TextRunItem(text: "Label", origin: Point(x: 76, y: 92), bounds: Rect(x: 76, y: 82, width: 44, height: 12), color: .black)),
     ])
 
-    /// REND-002's cases, the ATTR cases, the FX cases, the type cases and the derived-drawing cases.
+    /// REND-002's cases, the ATTR cases, the FX cases, the type cases, the derived-drawing cases
+    /// and the page furniture (DOC-009, DOC-016).
     static let cases: [ReferenceCase] = baseCases + AttributeCorpus.cases + EffectCorpus.cases + TextCorpus.cases + FeatureCorpus.cases
+        + PageCorpus.cases
 
     static let baseCases: [ReferenceCase] = [
         ReferenceCase(name: "fillRules", list: list([

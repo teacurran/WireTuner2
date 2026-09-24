@@ -68,7 +68,13 @@ enum StrokeExpansion {
         let width = stroke.style.isHairline ? hairlineWidth : min(stroke.style.width, 16_164)
         let geometry = StrokeGeometry(path: path, stroke: stroke)
         var result: [PaintedRegion] = []
-        let body = outline(geometry.body.contours, style: stroke.style, width: width, tolerance: tolerance)
+        var bodyStyle = stroke.style
+        if bodyStyle.isHairline && bodyStyle.dashInDevicePixels {
+            // Device-pixel dashes: one hairline width is one device pixel in local units.
+            bodyStyle.dash = bodyStyle.dash.map { $0 * hairlineWidth }
+            bodyStyle.dashPhase *= hairlineWidth
+        }
+        let body = outline(geometry.body.contours, style: bodyStyle, width: width, tolerance: tolerance)
         if !body.isEmpty {
             result.append(.fill(body, .nonZero, stroke.paint))
         }

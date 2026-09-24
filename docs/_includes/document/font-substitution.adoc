@@ -287,6 +287,19 @@ substitute, replace, remember, cancel, reopening without the sheet, embedded fon
 library through a fake), with a remembered substitution checked through the document's
 `FontManager` since text is not drawn yet.
 
+NOTE: As built by DOC-025 (`WTModel/FontReplacement.swift`).  `ReplaceFont(old:new:)` (and
+`ReplaceFont([Replacement])` for several) moves DOC-024's app-side `ReplaceFonts` into `WTModel`
+unchanged in behaviour: over every drawn text node (`DocumentFontIndex.faces(in:)`), each run whose
+own marks name the old face (family, and style when the old face names one, ignoring case) gets a
+`font_family` mark -- and a `font_style` mark when the new face names a style -- expanding like
+typing, one change "Replace font <old> with <new>" or "Replace N fonts"; other marks are kept and
+runs styled only by a character style are left.  Tests: every run of 200,000 characters in one
+change inside the 200 ms budget; replace vs. replace (the later mark wins over the whole span);
+replace vs. typing inside the span (the new text takes the replacement); undo restores the old
+face on the runs this change wrote and leaves characters another replica re-marked since.  App
+glue (not in this task's directories): `WTApp/Fonts` should drop its `ReplaceFonts` and perform
+`WTModel.ReplaceFont` with the same replacements.
+
 === Build tasks
 
 [[DOC-024]]

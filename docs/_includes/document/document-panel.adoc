@@ -391,6 +391,44 @@ Nothing beyond storing and relaying changes.  The server validates the ranges ab
 * Undo grouping: each committed field is one change labelled "Change page size", "Change bleed",
   "Change units", and so on.
 
+NOTE: As built by DOC-002 (`WTModel/PageSetup.swift`, `PageSetupCommands.swift`,
+`PageObjects.swift`).  `PageList(state)` reads the live pages under 0:2 in page order (numbers,
+effective geometry and bleed -- the master's while `master` names a live `master_page`, the
+page's own otherwise -- own registers, ruler origin defaulting to `(0, height)`, guides) and the
+live masters under 0:3; `DocumentSettings(state)` reads units, resolution, grid, custom sizes and
+units, and the guide lock.  The normalizations above are read rules only: a preset naming no
+standard or live custom size reads `""`; a stored geometry out of range reads Letter-sized; bleed
+clamps to 0...720; a dangling or wrong-kind `master` reads unset; `units.custom` without a live
+element reads points; resolution 0 reads 300; grid size 0 reads *12 pt* (one pica -- the spec
+named no default, so this is recorded here); no live page reads as one Letter page at the
+pasteboard origin with the id `PageList.synthesizedID` (0:2), and any command given that id writes
+it first (`CreateNode`).  Commands, one change each: `SetPageGeometry` "Change page size",
+`SetPageOrientation` "Change orientation", `SetBleed` "Change bleed" (children of a master are
+skipped; a master page given as the target is written itself), `SetPrinterResolution` "Change
+printer resolution", `SetUnits` "Change units", `AddCustomPageSize` "Add page size",
+`EditCustomPageSize` "Change page size" (rename and resize are separate registers; pages and
+masters using the size's name follow it in the same change, keeping their orientation),
+`RemoveCustomPageSize` "Remove page size" (nothing else written: pages read Custom until a restore),
+and for the rulers and grid pages `AddCustomUnit`/`EditCustomUnit`/`RemoveCustomUnit`, `SetGrid`
+"Change grid", `SetGuidesLocked` and `SetRulerOrigin` "Move zero point" / "Reset zero point".
+Objects on a page: `PageObjectIndex(scene:pages:)` bulk-loads a REND-003 `RTree` of the scene's
+top-level objects' bound centres and answers `objects(on:)` (50,000 objects in well under the
+5 ms budget), giving an object centred where bleed rectangles overlap to the lower-numbered page;
+commands, which see only the state, use `PageObjects.objects(on:in:pages:)`.  Deviation: the
+*Done when* asks for conformance vectors for the four normalizations, but they are read rules of
+`WTModel`, not merge policy -- the `crdt-conformance` runners compare merged engine state, which is
+the same whichever way it is read -- so they are covered by `PageSetupTests` and
+`PageCommandTests` instead.  Also built on top: `WTModel.Units` (DOC-003, `Units.swift`):
+`LengthUnit` (the eight built-in units and `.custom(id)`, their stored `UnitChoice`, factors and
+display precisions) and `Units(settings)` with `parse` (a number without a suffix is in the
+document unit, except as a factor of `*` or the divisor of `/`, where it is a plain number; a
+length times a length, or division by zero, is invalid; a custom unit's name wins only when longer
+than a built-in match; `p6` alone is six points), `format` (picas as `NpM`), `rounded` and
+`convert`.  Not built: the Document panel, the Page Sizes sheet and the units pop-up (DOC-004,
+DOC-005, DOC-014); the app's `DocumentHandle.pages` still holds the window's own page rectangles
+and should read `PageList(model.state)` (with `frames(active:presence:)` for drawing and
+`exportPages` for the Export sheet) when the panel lands.
+
 === Build tasks
 
 [[DOC-001]]

@@ -203,6 +203,27 @@ retention.
 * Object panel btn:[Links…] opens the window with the selected asset's row selected.
 * Undo: each action is one change; extract's file write is not undoable (the relink is).
 
+NOTE: As built by DOC-022 (`WTModel/LinkCommands.swift`).  `AssetLink` reads an asset's link
+record; `LinkStatus.of(_:device:fileSystem:)` computes *Embedded*, *Linked*, *Linked (modified)*
+(source modification time newer, at millisecond precision), *Unavailable* (missing here, or a path
+owned by another device, named) and *Library*, per Mac and never stored.  Commands, one change
+each: `UpdateLink` "Update link" and `UpdateAllLinks` "Update all links" (hash, size and media type
+from the new `ImportedBlob` with `link` in one `SetFields`, so the triple stays consistent -- the
+media type is written by Update too, not only by Change), `RelinkAsset` "Relink", `EmbedAsset`
+"Embed" (the display name is kept), `ExtractAsset` "Extract" (after `LinkFiles.extract` wrote the
+file) and `RepairLinks` "Relink missing files".  A command carrying a blob exposes it for the caller
+to store in the blob queue before performing, as import does.  `LinkSearch.autoRelink` (async, off
+the main actor) looks for each of this device's broken links beside its old path, then breadth
+first under the *Search for missing links in* folder to ten levels and 20,000 entries; another
+Mac's links are never searched.  Deviation: `AssetProps.bookmark` is `local_only`, but nothing in
+the outbox strips local-only paths yet, so a bookmark written as a register would be sent; the
+search returns each bookmark in `FoundLink` for the app to keep in the local store's `view` table
+under `FoundLink.bookmarkKey(asset)`, and only `link` (its `path`) is written.  `LinkReview` names
+what a lost `link` write did (embed, relink, update) for the review sheet's entry; the entry
+itself is `WTSync`'s.  Not built: the Links window, the Object panel button and the preferences
+(DOC-023); `WTInterchange`'s re-read for Update and Change is the import decoders' job, called by
+the app.
+
 === Build tasks
 
 [[DOC-021]]

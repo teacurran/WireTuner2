@@ -222,6 +222,22 @@ Nothing beyond storing and relaying changes.
 * Library panel integration (LIB epic): master pages are listed by the Library panel from the
   `masters` collection; drag-and-drop to a page calls `apply`.
 
+NOTE: As built by DOC-010 (`WTModel/MasterCommands.swift`; the read rule is DOC-002's
+`Page.geometry`/`Page.bleed`, with `ownGeometry`/`ownBleed` for the masked registers).
+`NewMasterPage(from:name:)` "New master page" (`Master N`, N one more than the largest),
+`ConvertToMasterPage` "Convert to master page" (one `SetFields` of `canvas` and `transform` per
+object), `ApplyMasterPage` "Apply master page", `DetachFromMaster` "Detach from master page" (the
+*None* item: writes the master's geometry and bleed into the page with `master` unset, in one
+`SetFields`), `ReleaseChildPages(_:in:)` (label "Release page N from <master> [master:<counter>:<replica>]";
+the copies go in one group per layer, named "Released master content", at the bottom of the
+layer with the page origin as the group's transform; each copied root's `canvas` is cleared after
+the `NodeCopier` create), `DeleteMasterPage` and `RenamePage` (pages and masters: "Rename page" /
+"Rename master page").  `MasterContent.objects(of:in:)` lists a master's objects by layer;
+`MasterContent.releasedMaster(fromLabel:)` parses the tag for DOC-013.  Conformance vectors for the
+dangling-master read-outs: a `WTModel` read rule, tested in `MasterCommandTests` (as DOC-002).  Not
+built: master content rendering on children (DOC-011, which changes `DocumentDisplayListBuilder`),
+the master tab (DOC-012) and the reconcile overlaps (DOC-013).
+
 === Build tasks
 
 [[DOC-010]]

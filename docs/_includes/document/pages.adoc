@@ -250,6 +250,37 @@ Nothing beyond storing and relaying changes.
   corner.
 * Page selector and Add Page button are in the window's bottom bar (APP-002).
 
+NOTE: As built by DOC-006 (`WTModel/PageCommands.swift`).  `AddPages(count:geometry:bleed:master:after:)`
+("Add page" / "Add N pages"; geometry, bleed and master default to the `after` page's own;
+top-aligned with it; the first new page's origin is the rightmost bleed edge plus one inch plus the
+new page's bleed), `DuplicatePage` ("Duplicate page": the add plus `NodeCopier` deep copies of the
+objects on the page, each followed by a `transform` write moving it with the page),
+`RemovePages(_:in:)` ("Remove page N" / "Remove N pages"; objects whose bounds lie inside a removed
+page's bleed rectangle are deleted, locked ones excepted; removing every page is refused with
+`PageSetupError.lastPage`), `MovePage(_:by:withContents:)` ("Move page"; the origin is kept on the
+222-inch pasteboard; contents move through `MoveObjects`, so locked objects stay), `ReorderPage`
+("Move page N", a `MoveNode` under 0:2), `RotatePages` ("Rotate page"; a child of a master is
+refused with `childOfMaster`) and `ModifyPage` ("Modify page", one `SetFields` of whichever of
+geometry, bleed and master changed).  The zero-pages read-out and its "next command writes it" rule
+are in DOC-002's `PageList`; the review entry "all pages were removed; a page was added" is
+`WTSync`'s (not built).  Conformance vectors for the zero-pages read-out: as for DOC-002, it is a
+`WTModel` read rule, tested in `PageCommandTests`.
+
+NOTE: As built by DOC-009 (`WTRender/Pages/PageRendering.swift`).  `PageRendering.item(_:style:output:grid:)`
+is one group: the pasteboard fill (*Pasteboard color*, `PageStyle.pasteboard`), a white fill per
+page, the canvas's grid items, then per page the bleed rectangle as a dotted hairline, the outline
+as a hairline (the active page's in `activeOutlineColor`, drawn last) and the presence dots (one per
+colour, left to right inside the top-left corner, `presenceDotDiameter` device pixels at
+`pixelSize` points per pixel).  `output: .print` keeps only the page fills.  So that the bleed
+line's dots stay the same at every zoom, `StrokeStyle` gained `dashInDevicePixels` (hairlines only:
+the dash is scaled by the hairline width, one device pixel, in `StrokeExpansion`, so Core Graphics
+and Metal agree).  The goldens `pageFurniture`, `pageFurniturePrint` and `pageGrid` join the
+reference corpus (Metal parity and the bitmap/PDF gate included).  WTModel's
+`PageList.frames(active:presence:)` makes the `PageFrame`s.  App glue (not in this task's
+directories): `DocumentHandle.pagesItem` should become `PageRendering.item(pageList.frames(...),
+style:)` as the scene's background item, with the grid item inserted per canvas; only the presence
+dots depend on the zoom.
+
 === Build tasks
 
 [[DOC-006]]

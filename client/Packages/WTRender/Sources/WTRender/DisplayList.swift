@@ -87,6 +87,10 @@ public struct StrokeStyle: Hashable, Sendable {
     /// Alternating dash and gap lengths; empty for a solid stroke.
     public var dash: [Double]
     public var dashPhase: Double
+    /// On a hairline, `dash` and `dashPhase` are in device pixels rather than local units, so
+    /// the pattern looks the same at every zoom (the page furniture's dotted bleed line, DOC-009).
+    /// Ignored on a stroke with a width.
+    public var dashInDevicePixels: Bool
 
     public init(
         width: Double = 1,
@@ -94,7 +98,8 @@ public struct StrokeStyle: Hashable, Sendable {
         join: LineJoin = .miter,
         miterLimit: Double = 10,
         dash: [Double] = [],
-        dashPhase: Double = 0
+        dashPhase: Double = 0,
+        dashInDevicePixels: Bool = false
     ) {
         self.width = width
         self.cap = cap
@@ -102,6 +107,7 @@ public struct StrokeStyle: Hashable, Sendable {
         self.miterLimit = miterLimit
         self.dash = dash
         self.dashPhase = dashPhase
+        self.dashInDevicePixels = dashInDevicePixels
     }
 
     /// How far, in local units, the stroked outline can extend beyond the path's control
