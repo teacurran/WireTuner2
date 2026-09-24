@@ -13,7 +13,7 @@ import WTProto
 /// (CRDT-009) and garbage collection (`collect`, CRDT-010).
 public struct EngineState: Sendable {
     /// Version of the merge semantics this engine implements, as wt-crdt's `Engine.VERSION`.
-    public static let version = "0.4.0"
+    public static let version = "0.5.0"
 
     /// How long a deleted node stays restorable before garbage collection compacts it: 30 days
     /// (crdt-model.adoc, "Garbage collection").
@@ -40,8 +40,16 @@ public struct EngineState: Sendable {
     public var clock = LamportClock()
     /// The merged state.
     public internal(set) var store = NodeStore()
-    /// The inverse steps of the local change being applied (`applyLocal`), else nil.
+    /// The inverse steps of the local change being applied (`applyLocal`), else nil.  While it is
+    /// set the change is local, so its local-only writes apply (`LocalOnly`).
     private var recording: [Inverse.Step]?
+    /// The local-only registers the last `applyLocal` wrote, as the writes now holding them: what
+    /// a persistent backend keeps beside the outbox (the change it stores is `LocalOnly.strip`ped).
+    public private(set) var localOnlyWrites: [Write] = []
+    /// Whether the last `applyLocal`'s change carries anything `LocalOnly.strip` takes out (a path
+    /// or a value of a local-only field, written or not): only then does the outbox need the
+    /// stripped change.  Judged on the bytes the ops are applied from, so it costs no encoding.
+    public private(set) var localOnlyCarried = false
 
     /// An engine over `schema` (the generated merge table by default).
     public init(schema: Schema = .generated) {
@@ -77,8 +85,14 @@ public struct EngineState: Sendable {
     /// Applies a local change (one this replica just made) and returns its inverse: the prior
     /// value of everything it changed, from which `undoChange` builds the change that undoes it
     /// (crdt-model.adoc, "Undo").
+    ///
+    /// Only a local change writes local-only registers (`LocalOnly`); `localOnlyWrites` lists what
+    /// this one wrote.  Applied any other way -- remote, replayed from the log -- a local-only write
+    /// is a no-op.
     public mutating func applyLocal(_ change: Wiretuner_Doc_V1_Change) -> Inverse {
         recording = []
+        localOnlyWrites = []
+        localOnlyCarried = false
         apply(change)
         let steps = recording!
         recording = nil
@@ -102,6 +116,29 @@ public struct EngineState: Sendable {
 
     private mutating func record(_ step: Inverse.Step) {
         recording?.append(step)
+    }
+
+    // Writes one assignment of `op` to `node`: a shared register, or -- only while a local change
+    // applies -- a local-only one.  Returns whether the write now holds the register.
+    private mutating func assign(_ node: OpID, _ write: PathResolver.Assignment, _ op: OpID) -> Bool {
+        guard write.localOnly else { return store.write(node, write.path, write.value, op) }
+        guard recording != nil, store.writeLocal(node, write.path, write.value, op) else { return false }
+        localOnlyWrites.append(Write(node: node, path: write.path, value: write.value, op: op))
+        return true
+    }
+
+    // While a local change applies, notes whether an op's encoded NodeProps carry a local-only field.
+    private mutating func noteLocalOnly(_ bytes: [UInt8]) {
+        if recording != nil, !localOnlyCarried, LocalOnly.strip(props: bytes, schema: schema) != nil {
+            localOnlyCarried = true
+        }
+    }
+
+    /// Restores local-only registers a persistent backend kept (`localOnlyWrites`, or
+    /// `NodeStore.localWrites`), each by the last-writer-wins rule, after the shared state was
+    /// loaded or replaced.
+    public mutating func restoreLocalOnly(_ writes: [Write]) {
+        store.restoreLocal(writes)
     }
 
     /// Applies one op with id `id` (its first counter).  An op below its replica's stable counter
@@ -154,7 +191,9 @@ public struct EngineState: Sendable {
             }
         case .setAdd(let add):
             let node = OpID(add.node)
-            if let (path, row, members) = members(node, add.set, add.values) {
+            let bytes = Self.bytes(add.values)
+            noteLocalOnly(bytes)
+            if let (path, row, members) = members(node, add.set, bytes) {
                 for member in members {
                     let present = !store.liveTags(node, path, member).isEmpty
                     if store.addMember(node, path, member, SetAddition(op: id, seq: context.seq)) {
@@ -165,7 +204,9 @@ public struct EngineState: Sendable {
             }
         case .setRemove(let remove):
             let node = OpID(remove.node)
-            if let (path, row, members) = members(node, remove.set, remove.values) {
+            let bytes = Self.bytes(remove.values)
+            noteLocalOnly(bytes)
+            if let (path, row, members) = members(node, remove.set, bytes) {
                 for member in members {
                     let present = !store.liveTags(node, path, member).isEmpty
                     store.removeMember(node, path, member, SetRemoval(op: id, seq: context.seq, base: context.baseServerSeq))
@@ -186,12 +227,14 @@ public struct EngineState: Sendable {
     }
 
     private mutating func create(_ create: Wiretuner_Doc_V1_CreateNode, id: OpID) {
-        guard let props = WireMessage.parse(Self.bytes(create.props)) else { return }
+        let bytes = Self.bytes(create.props)
+        noteLocalOnly(bytes)
+        guard let props = WireMessage.parse(bytes) else { return }
         let kind = props.lastMessage(of: schema.kinds)
         guard kind != 0, store.create(id, kind: kind) else { return }
         record(.created(node: id))
         for write in resolver.initial(kind: kind, props: props) {
-            store.write(id, write.path, write.value, id)
+            _ = assign(id, write, id)
         }
         store.applyTree(op: id, node: id, parent: OpID(create.parent), position: Array(create.position), creates: true)
     }
@@ -199,12 +242,17 @@ public struct EngineState: Sendable {
     private mutating func set(_ set: Wiretuner_Doc_V1_SetFields, id: OpID) {
         let node = OpID(set.node)
         let kind = store.kind(node)
-        guard kind != 0, let values = WireMessage.parse(Self.bytes(set.values)) else { return }
+        let bytes = Self.bytes(set.values)
+        noteLocalOnly(bytes)
+        if recording != nil, !localOnlyCarried {
+            localOnlyCarried = set.paths.contains { RegisterPath($0).map { LocalOnly.enters(schema, $0) } ?? false }
+        }
+        guard kind != 0, let values = WireMessage.parse(bytes) else { return }
         for path in set.paths {
             let writes = resolver.resolve(kind: kind, path: path, values: values) { exists(node, $0) }
             for write in writes ?? [] {
                 let prior = store.register(node, write.path)
-                if store.write(node, write.path, write.value, id) {
+                if assign(node, write, id) {
                     record(.register(node: node, path: write.path, prior: prior, wrote: id))
                 }
             }
@@ -215,7 +263,9 @@ public struct EngineState: Sendable {
     // i-th occurrence of the SEQUENCE field in `values`, its initial field values.
     private mutating func insert(_ insert: Wiretuner_Doc_V1_ElementInsert, id: OpID) {
         let node = OpID(insert.node)
-        guard let values = WireMessage.parse(Self.bytes(insert.values)),
+        let bytes = Self.bytes(insert.values)
+        noteLocalOnly(bytes)
+        guard let values = WireMessage.parse(bytes),
               case .field(let sequence, let row, let container)? = walk(node, insert.sequence, values: values),
               row.policy == .sequence, let message = row.typeName else { return }
         let occurrences = container?.occurrences(UInt32(row.fieldNumber)) ?? []
@@ -226,16 +276,17 @@ public struct EngineState: Sendable {
             record(.elementInserted(node: node, element: path))
             let value = index < occurrences.count ? occurrences[index] : nil
             for write in resolver.initial(element: message, at: path, values: value) {
-                store.write(node, write.path, write.value, element)
+                _ = assign(node, write, element)
             }
         }
     }
 
-    // The SET field `path` names on `node`, its row, and the members `props` holds there.
+    // The SET field `path` names on `node`, its row, and the members the encoded NodeProps `props`
+    // holds there.
     private func members(
-        _ node: OpID, _ path: Wiretuner_Doc_V1_FieldPath, _ props: Wiretuner_Doc_V1_NodeProps
+        _ node: OpID, _ path: Wiretuner_Doc_V1_FieldPath, _ props: [UInt8]
     ) -> (RegisterPath, Schema.FieldPolicy, [[UInt8]])? {
-        guard let values = WireMessage.parse(Self.bytes(props)) else { return nil }
+        guard let values = WireMessage.parse(props) else { return nil }
         return members(walk(node, path, values: values))
     }
 

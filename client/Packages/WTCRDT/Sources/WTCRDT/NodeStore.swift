@@ -75,6 +75,10 @@ public struct NodeStore: Sendable {
 
     private var created: [OpID: UInt32] = [:]
     private var registers: [OpID: [RegisterPath: Register]] = [:]
+    /// Local-only registers (`LocalOnly`): written by this replica's local changes only, by the
+    /// last-writer-wins rule and without a change log.  Not part of the state hash, a snapshot,
+    /// `registers(_:)` or `nodes`; `register(_:_:)` reads them.
+    private var local: [OpID: [RegisterPath: Register]] = [:]
     private var log: [OpID: [RegisterPath: [Write]]] = [:]
     private var deletedFlags: [OpID: Cell<Bool>] = [:]
     /// Elements by node, then by element path (the SEQUENCE field's path plus the element id).
@@ -180,9 +184,43 @@ public struct NodeStore: Sendable {
         return true
     }
 
-    /// The register at `path` of `node`, or nil when it was never written.
+    /// The register at `path` of `node`, or nil when it was never written.  A local-only
+    /// register is read from the local registers (a value an older replica merged into the shared
+    /// state before local-only paths were ignored is read when there is no local one).
     public func register(_ node: OpID, _ path: RegisterPath) -> Register? {
-        registers[node]?[path]
+        local[node]?[path] ?? registers[node]?[path]
+    }
+
+    /// Applies one local-only register write by the last-writer-wins rule (no change log: the
+    /// conflict review never shows local-only values).  Returns whether it now holds the register.
+    @discardableResult
+    mutating func writeLocal(_ node: OpID, _ path: RegisterPath, _ value: [UInt8]?, _ op: OpID) -> Bool {
+        if let current = local[node]?[path], current.op >= op {
+            return false
+        }
+        local[node, default: [:]][path] = Register(value: value, op: op)
+        return true
+    }
+
+    /// The local-only registers of `node`, in path order.
+    public func localRegisters(_ node: OpID) -> [(path: RegisterPath, register: Register)] {
+        (local[node] ?? [:]).sorted { $0.key < $1.key }.map { (path: $0.key, register: $0.value) }
+    }
+
+    /// Every local-only register as the write that holds it, by node then path: what a local store
+    /// keeps beside the shared state so the values survive a relaunch (`restoreLocal`).
+    public var localWrites: [Write] {
+        local.keys.sorted().flatMap { node in
+            localRegisters(node).map { Write(node: node, path: $0.path, value: $0.register.value, op: $0.register.op) }
+        }
+    }
+
+    /// Restores local-only registers kept beside the shared state (`localWrites`), each by the
+    /// last-writer-wins rule.
+    public mutating func restoreLocal(_ writes: [Write]) {
+        for write in writes {
+            writeLocal(write.node, write.path, write.value, write.op)
+        }
     }
 
     /// Every register of `node`, in path order.
@@ -542,6 +580,7 @@ public struct NodeStore: Sendable {
             return false
         }
         registers[node] = registers[node]?.filter { !under($0.key) }.nilIfEmpty
+        local[node] = local[node]?.filter { !under($0.key) }.nilIfEmpty
         log[node] = log[node]?.filter { !under($0.key) }.nilIfEmpty
         sets[node] = sets[node]?.filter { !under($0.key) }.nilIfEmpty
         texts[node] = texts[node]?.filter { !under($0.key) }.nilIfEmpty
@@ -561,6 +600,7 @@ public struct NodeStore: Sendable {
             for member in subtree {
                 created[member] = nil
                 registers[member] = nil
+                local[member] = nil
                 log[member] = nil
                 deletedFlags[member] = nil
                 deletedTimes[member] = nil

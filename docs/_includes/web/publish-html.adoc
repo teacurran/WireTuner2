@@ -405,13 +405,15 @@ The commands are `AddHTMLSetting` ("Add HTML setting", every option written), `R
 materializes it as an element holding its name and the edited fields only; *adding* a setting to a
 document that has only the synthesized Default materializes the Default first in the same change,
 so the Default never disappears.  The first setting is the Default and cannot be deleted.  Two
-replicas materializing the Default concurrently keep two elements.  *Deviation:* `location` and
-`html_setting_selected` are `local_only`, but nothing strips local-only paths from the outbox yet
-(the same gap as `AssetProps.bookmark`, linking-embedding.adoc), so no command writes them: the app
-keeps both in the local store's `view` table under `HTMLSettingsLocal.locationKey(_:)` and
-`selectedKey`.  For the same reason there is no conformance vector for `location` (neither engine
-treats `local_only` yet); a WTModel test checks that no op carries either path.  The vectors are
-`crdt-conformance/vectors/web/html-settings-*`.
+replicas materializing the Default concurrently keep two elements.  The two `local_only` fields
+are written like the rest -- `SetHTMLSettingLocation` "Set HTML location" (materializing the
+synthesized Default first) and `SelectHTMLSetting` "Select HTML setting", neither undoable (view
+state) -- and stay on this Mac (xref:crdt-model.adoc#local-only[Local-only fields]): the outbox
+never carries them, the local store keeps them beside it.  `HTMLSettingInfo.location` and
+`HTMLSettings.remembered` / `selected` read them; a WTModel test checks the other replica sees
+neither.  (WEB-007 first kept both under ad-hoc `view` keys because nothing stripped local-only
+paths then.)  The vectors are `crdt-conformance/vectors/web/html-settings-*`, and for `location`
+and the selection `registers/local-only-writes-ignored` and `registers/local-only-strip`.
 
 NOTE: As built by WEB-008, in part (`WTInterchange/HTML/HTMLPublisher.swift`, `HTMLImageMap.swift`).
 `HTMLPublisher(settings:).publish(scene)` returns an `HTMLBundle` (relative paths and bytes, sorted,

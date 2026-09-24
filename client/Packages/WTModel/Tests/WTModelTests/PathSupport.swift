@@ -18,19 +18,20 @@ struct Replica {
 
     var state: EngineState { core.state }
 
-    /// Performs `command`; returns its change (nil when it appended nothing).
+    /// Performs `command`; returns its change (nil when it appended nothing).  What it sends is
+    /// the change as it enters the outbox (without local-only writes).
     @discardableResult
     mutating func perform(_ command: any Command) throws -> Wiretuner_Doc_V1_Change? {
         let outcome = try core.perform(command, recording: DocumentCore.Recording(limit: 100, now: Self.now))
-        if let change = outcome?.change { sent.append(change) }
+        if let change = outcome?.outbox { sent.append(change) }
         return outcome?.change
     }
 
     @discardableResult
     mutating func undo() -> Wiretuner_Doc_V1_Change? {
-        let change = core.undo(recording: DocumentCore.Recording(limit: 100, now: Self.now))?.change
-        if let change { sent.append(change) }
-        return change
+        let outcome = core.undo(recording: DocumentCore.Recording(limit: 100, now: Self.now))
+        if let change = outcome?.outbox { sent.append(change) }
+        return outcome?.change
     }
 
     /// Applies `changes` from another replica.

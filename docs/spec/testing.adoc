@@ -28,6 +28,7 @@ deliveries { order: [2, 1] collect { after: 1 stable_seq: 2 now_ms: 0 } }
                                            # garbage collection after that many changes (CRDT-010)
 position { lo: "\x80" seed: 2 expect: "\x81\xce\x0f" }   # fractional positions, byte for byte
 append_run { seed: 1 count: 1000 max_length: 40 last: "..." }
+strip { change { ... } expect { ... } }    # LocalOnly.strip of a change, alike in both engines
 expect {
   state_hash: "…"                          # hex SHA-256, crdt-model.adoc "Canonical encoding"
   snapshot_hash: "…"                       # hex SHA-256 of the encoded DocumentSnapshot (CRDT-009)
@@ -35,6 +36,7 @@ expect {
     id { counter: 1 replica: 7 }
     node_hash: "…"                         # optional: lets a mismatch name the node
     register { path { ... } value { ... } op { ... } losing { ... } }   # read-outs; no value = unset
+    register { path { ... } absent: true }                              # never written (a local-only path)
     tree { parent { ... } position: "..." deleted: false children { ... } }
     sequence { path { ... } elements { ... } deleted { ... } }         # live elements and tombstones, in order
     set { path { ... } members { ... } }                               # exactly these members
@@ -80,6 +82,10 @@ policy, declares a message MERGE_VARIANT, or adds a row, for that vector only (t
 of CRDT-001 declares `NavigationProps` a variant because doc.v1 has none yet).  Vectors avoid
 `-0.0` and NaN payloads: swift-protobuf omits `-0.0` where protobuf-java writes it, so the two
 languages encode the same text differently.
+
+A vector's `strip` cases run `LocalOnly.strip` (xref:crdt-model.adoc#local-only[Local-only
+fields]) on each `change` and compare the result with `expect` as a message; `registers/local-only-*`
+use them, and `absent: true` on an expected register, for what never reaches the state.
 
 A delivery's `collect` entries (CRDT-010) run `collect(stableSeq:now:)` after `after` of its
 changes (0: right after the setup); since every delivery must reach one state, a vector that

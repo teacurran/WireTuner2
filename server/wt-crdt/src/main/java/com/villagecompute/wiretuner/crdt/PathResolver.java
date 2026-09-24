@@ -32,11 +32,15 @@ import java.util.function.Predicate;
  * <p>Element segments are transparent in {@code values}: the sparse message holds, at a SEQUENCE
  * field, only the element the path names, and at a TEXT field a {@code RichText} whose
  * {@code chars} hold only the character the path names.
+ *
+ * <p>A register at or beneath a {@code local_only} field is marked {@code localOnly}
+ * (docs/spec/crdt-model.adoc, "Local-only fields"): this engine never writes it, since every
+ * change it applies is remote to it.
  */
 final class PathResolver {
 
-    /** One register write: where, and the value ({@code null} = unset). */
-    record Assignment(RegisterPath path, byte[] value) {
+    /** One register write: where, the value ({@code null} = unset), and whether it is local-only. */
+    record Assignment(RegisterPath path, byte[] value, boolean localOnly) {
     }
 
     /**
@@ -143,21 +147,22 @@ final class PathResolver {
             return null;
         }
         List<Assignment> out = new ArrayList<>();
+        boolean local = LocalOnly.enters(schema, target.path());
         if (!target.isField()) {
-            expand(target.message(), target.path(), target.value(), true, target.reserved(), new HashSet<>(), out);
+            expand(target.message(), target.path(), target.value(), true, target.reserved(), local, new HashSet<>(), out);
             return out;
         }
         FieldPolicy row = target.row();
         WireMessage container = target.value();
         int number = row.fieldNumber();
         if (row.policy() == Policy.ATOMIC) {
-            return List.of(new Assignment(target.path(), records(container, number)));
+            return List.of(new Assignment(target.path(), records(container, number), local));
         }
         if (!isStruct(row)) {
             return null;
         }
         expand(row.typeName(), target.path(), container == null ? null : container.message(number), true, 0,
-                new HashSet<>(), out);
+                local, new HashSet<>(), out);
         return out;
     }
 
@@ -165,14 +170,14 @@ final class PathResolver {
     List<Assignment> initial(int kind, WireMessage props) {
         FieldPolicy row = schema.field(Schema.ROOT, kind);
         List<Assignment> out = new ArrayList<>();
-        expand(row.typeName(), RegisterPath.of(kind), props.message(kind), false, 0, new HashSet<>(), out);
+        expand(row.typeName(), RegisterPath.of(kind), props.message(kind), false, 0, row.localOnly(), new HashSet<>(), out);
         return out;
     }
 
     /** The registers a new element's values set: every leaf present except its id. */
     List<Assignment> initialElement(String message, RegisterPath path, WireMessage values) {
         List<Assignment> out = new ArrayList<>();
-        expand(message, path, values, false, ELEMENT_RESERVED, new HashSet<>(), out);
+        expand(message, path, values, false, ELEMENT_RESERVED, LocalOnly.enters(schema, path), new HashSet<>(), out);
         return out;
     }
 
@@ -189,10 +194,11 @@ final class PathResolver {
     /**
      * Appends the registers beneath {@code message} at {@code prefix}. With {@code absentAsUnset}
      * every leaf is written; without it only leaves present in {@code value} are. A message
-     * already on the current branch is not entered again.
+     * already on the current branch is not entered again. {@code local} says the walk has crossed a
+     * {@code local_only} field: everything beneath it is local-only.
      */
     private void expand(String message, RegisterPath prefix, WireMessage value, boolean absentAsUnset,
-            int reserved, Set<String> branch, List<Assignment> out) {
+            int reserved, boolean local, Set<String> branch, List<Assignment> out) {
         if (!absentAsUnset && value == null || !branch.add(message)) {
             return;
         }
@@ -207,11 +213,12 @@ final class PathResolver {
                 continue;
             }
             RegisterPath path = prefix.child(number);
+            boolean localOnly = local || row.localOnly();
             if (row.policy() == Policy.ATOMIC) {
-                out.add(new Assignment(path, records(value, number)));
+                out.add(new Assignment(path, records(value, number), localOnly));
             } else {
                 WireMessage sub = value == null ? null : value.message(number);
-                expand(row.typeName(), path, sub, absentAsUnset, 0, branch, out);
+                expand(row.typeName(), path, sub, absentAsUnset, 0, localOnly, branch, out);
             }
         }
         branch.remove(message);

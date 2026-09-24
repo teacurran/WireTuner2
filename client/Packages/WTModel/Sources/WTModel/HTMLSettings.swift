@@ -6,21 +6,21 @@ import WTProto
 // semantics"): `SettingsProps.html_settings` (60, SEQUENCE of `HtmlSetting`, each a STRUCT so
 // concurrent edits to different options both apply) and the synthesized *Default*.  The two
 // `local_only` fields -- `HtmlSetting.location` (3) and `SettingsProps.html_setting_selected` (61)
-// -- are never written as registers: nothing strips local-only paths from the outbox yet
-// (linking-embedding.adoc records the same deviation for `AssetProps.bookmark`), so the app keeps
-// them in the local store's `view` table under `HTMLSettingsLocal`'s keys.
+// -- are written like any other field by `SetHTMLSettingLocation` and `SelectHTMLSetting`; they
+// stay on this Mac (crdt-model.adoc, "Local-only fields": the outbox never carries them, the
+// local store keeps them beside it).
 
 /// Register paths of the HTML settings on the settings node (0:1).
 public enum HTMLSettingsFields {
     /// `SettingsProps.html_settings`.
     public static let settings = RegisterPath([SettingsFields.kind, 60])
-    /// `SettingsProps.html_setting_selected` (local_only; never written, see above).
+    /// `SettingsProps.html_setting_selected` (local_only).
     public static let selected = RegisterPath([SettingsFields.kind, 61])
 
     /// Field `number` of setting element `id`.
     public static func field(_ id: OpID, _ number: UInt32) -> RegisterPath { settings.element(id).child(number) }
     public static func name(_ id: OpID) -> RegisterPath { field(id, 2) }
-    /// `HtmlSetting.location` (local_only; never written).
+    /// `HtmlSetting.location` (local_only).
     public static func location(_ id: OpID) -> RegisterPath { field(id, 3) }
 
     /// The longest name and title.
@@ -61,12 +61,15 @@ public struct HTMLSettingInfo: Hashable, Sendable {
     /// share a name (read-time only).
     public var displayName: String
     public var settings: HTMLPublishSettings
+    /// The output folder on this Mac (`location`, local-only); empty when none was chosen here.
+    public var location: String
 
-    public init(id: OpID?, name: String, displayName: String? = nil, settings: HTMLPublishSettings) {
+    public init(id: OpID?, name: String, displayName: String? = nil, settings: HTMLPublishSettings, location: String = "") {
         self.id = id
         self.name = name
         self.displayName = displayName ?? name
         self.settings = settings
+        self.location = location
     }
 
     /// The synthesized Default.
@@ -128,9 +131,17 @@ public struct HTMLSettings: Hashable, Sendable {
             seen[element.name] = count
             let display = count == 1 ? element.name : "\(element.name) (\(count))"
             return HTMLSettingInfo(id: OpID(counter: element.id.counter, replica: element.id.replica), name: element.name, displayName: display,
-                                   settings: HTMLSettingInfo.settings(element))
+                                   settings: HTMLSettingInfo.settings(element), location: element.location)
         }
+        let props = state.props(WellKnown.settings).settings
+        remembered = props.hasHtmlSettingSelected ? OpID(counter: props.htmlSettingSelected.counter, replica: props.htmlSettingSelected.replica) : nil
     }
+
+    /// The setting this Mac's Publish sheet last selected (`html_setting_selected`, local-only).
+    public var remembered: OpID?
+
+    /// The setting the Publish sheet selects: the remembered one while it exists, else the first.
+    public var selected: HTMLSettingInfo { selected(remembered) }
 
     /// Whether the list is the synthesized Default alone (nothing stored).
     public var isSynthesized: Bool { settings.count == 1 && settings[0].id == nil }
@@ -140,20 +151,9 @@ public struct HTMLSettings: Hashable, Sendable {
         settings.first { $0.id == id }
     }
 
-    /// The setting the Publish sheet selects: the one this Mac remembered
-    /// (`HTMLSettingsLocal.selectedKey`) while it exists, else the first.
+    /// The setting `remembered` names while it exists, else the first.
     public func selected(_ remembered: OpID?) -> HTMLSettingInfo {
         remembered.flatMap(setting) ?? settings[0]
-    }
-}
-
-/// The keys of the Mac-local HTML setting values in the local store's `view` table: *Location*
-/// per setting (the synthesized Default under "default") and the Publish sheet's selection.
-public enum HTMLSettingsLocal {
-    public static let selectedKey = "html.selected"
-
-    public static func locationKey(_ setting: OpID?) -> String {
-        setting.map { "html.location.\($0.counter).\($0.replica)" } ?? "html.location.default"
     }
 }
 
@@ -325,5 +325,50 @@ public struct DeleteHTMLSetting: Command {
         try HTMLSettingsEditing.live(setting, in: state)
         guard HTMLSettings(state).settings.first?.id != setting else { throw HTMLSettingsError.cannotDeleteDefault }
         builder.append(Ops.elementDelete(WellKnown.settings, [HTMLSettingsFields.settings.element(setting)]))
+    }
+}
+
+/// The Setup sheet's *Location* for a setting on this Mac (nil: the synthesized Default,
+/// materialized first): the `local_only` `location` register, which never leaves the Mac.  An
+/// empty path clears it.  "Set HTML location"; not undoable (view state).
+public struct SetHTMLSettingLocation: Command {
+    public var setting: OpID?
+    public var location: String
+    public var label: String { "Set HTML location" }
+    public var recordsUndo: Bool { false }
+
+    public init(_ setting: OpID?, to location: String) {
+        self.setting = setting
+        self.location = location
+    }
+
+    public func execute(_ builder: inout ChangeBuilder, state: EngineState) throws {
+        guard location.utf8.count <= 4096 else { throw HTMLSettingsError.invalidValue("location") }
+        if let setting { try HTMLSettingsEditing.live(setting, in: state) }
+        // The synthesized Default is materialized; nil on a document that has settings is its first.
+        let id = try setting ?? HTMLSettingsEditing.materializeDefault(&builder, state: state)?.id ?? HTMLSettings(state).settings[0].id!
+        var element = Wiretuner_Doc_V1_HtmlSetting()
+        element.location = location
+        builder.append(Ops.set(WellKnown.settings, [HTMLSettingsFields.location(id)], values: HTMLSettingsFields.values(id, element)))
+    }
+}
+
+/// The Publish sheet's setting choice on this Mac: the `local_only` `html_setting_selected`
+/// register (nil clears it: the first setting is selected).  "Select HTML setting"; not undoable.
+public struct SelectHTMLSetting: Command {
+    public var setting: OpID?
+    public var label: String { "Select HTML setting" }
+    public var recordsUndo: Bool { false }
+
+    public init(_ setting: OpID?) {
+        self.setting = setting
+    }
+
+    public func execute(_ builder: inout ChangeBuilder, state: EngineState) throws {
+        if let setting { try HTMLSettingsEditing.live(setting, in: state) }
+        let values = SettingsFields.values { props in
+            if let setting { props.htmlSettingSelected = setting.elementID }
+        }
+        builder.append(Ops.set(WellKnown.settings, [HTMLSettingsFields.selected], values: values))
     }
 }

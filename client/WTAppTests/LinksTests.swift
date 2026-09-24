@@ -154,7 +154,7 @@ import WTRender
         }
         #expect(found.map(\.asset) == [world.asset] && world.link()?.path == deep.appending(path: "photo.png").path)
         #expect(world.document.undoTitle == "Undo Relink missing files")
-        #expect(await MissingLinks.bookmark(world.asset, of: world.document) == Data([7]), "kept in the view table, not the document")
+        #expect(await MissingLinks.bookmark(world.asset, of: world.document) == Data([7]), "kept as the asset's local-only bookmark")
         let none = await MissingLinks.repair(world.document, device: "this-mac", searchFolder: nil) { world.setup.window.objectEditing.perform($0) }
         #expect(none.isEmpty)
         // The app searches when a document opens, when the preference is on.

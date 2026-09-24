@@ -1,0 +1,95 @@
+# crdt-conformance/vectors/registers/local-only-writes-ignored.textproto (schema: crdt-conformance/schema/vector.proto)
+name: "registers/local-only-writes-ignored"
+description: "A change that still carries local-only writes (an older client's, before the outbox stripped them) changes nothing local-only in either engine: view state, the HTML setting selection and folder, and an asset's bookmark stay absent whether written by SetFields, CreateNode or ElementInsert, and a whole-struct write neither sets nor clears them. The shared writes beside them apply as usual."
+setup {
+    change {
+      replica: 7 seq: 1 start_counter: 1 label: "Place and add a setting"
+      ops { create { parent { counter: 4 } position: "\x80"
+        props { asset { common { name: "photo.jpg" } media_type: "image/jpeg" bookmark: "\x01\x02\x03" } } } }
+      ops { element_insert { node { counter: 1 }
+        sequence { segments { field: 2 } segments { field: 60 } }
+        positions: "\x80"
+        values { settings { html_settings { name: "Web" location: "/Users/a/site" layout: HTML_LAYOUT_WHOLE_PAGES } } } } }
+    }
+}
+replica {
+    id: 1
+    change {
+      replica: 1 seq: 1 start_counter: 3 base_server_seq: 1 label: "Zoom, select, relink"
+      ops { set { node { counter: 1 }
+        paths { segments { field: 2 } segments { field: 40 } segments { field: 1 } }
+        paths { segments { field: 2 } segments { field: 61 } }
+        paths { segments { field: 2 } segments { field: 7 } }
+        values { settings { view { magnification: 4 } html_setting_selected { counter: 2 replica: 7 } guides_locked: true } } } }
+      ops { set { node { counter: 1 replica: 7 }
+        paths { segments { field: 5 } segments { field: 6 } }
+        paths { segments { field: 5 } segments { field: 4 } }
+        values { asset { bookmark: "\x09" media_type: "image/png" } } } }
+      ops { set { node { counter: 1 }
+        paths { segments { field: 2 } segments { field: 60 } segments { element { counter: 2 replica: 7 } } segments { field: 3 } }
+        values { settings { html_settings { location: "/Users/b/site" } } } } }
+    }
+}
+replica {
+    id: 2
+    change {
+      replica: 2 seq: 1 start_counter: 3 base_server_seq: 1 label: "Rename the setting, reset the view"
+      ops { set { node { counter: 1 }
+        paths { segments { field: 2 } segments { field: 60 } segments { element { counter: 2 replica: 7 } } }
+        values { settings { html_settings { name: "Site" location: "/Users/c/site" } } } } }
+      ops { set { node { counter: 1 }
+        paths { segments { field: 2 } segments { field: 40 } }
+        values { settings { view { magnification: 1 grid_visible: true } } } } }
+    }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "ca3cd27f5f86443b1caffa96798c708fcec6f4a8a09351a8cfc2d3d2f27bc85e"
+  snapshot_hash: "70cc636aa8511764d6b525720439f6e64c9ebceb39dcb7b607d4318e82f1b9d3"
+  node {
+    id { counter: 1 replica: 0 }
+    node_hash: "ef7eda5a4e6ddb8ec0f7acc52e78352ce11bfce89f0d8545610308d77a25ce14"
+    register {
+      path { segments { field: 2 } segments { field: 40 } segments { field: 1 } }
+      absent: true
+    }
+    register {
+      path { segments { field: 2 } segments { field: 40 } segments { field: 11 } }
+      absent: true
+    }
+    register {
+      path { segments { field: 2 } segments { field: 61 } }
+      absent: true
+    }
+    register {
+      path { segments { field: 2 } segments { field: 60 } segments { element { counter: 2 replica: 7 } } segments { field: 3 } }
+      absent: true
+    }
+    register {
+      path { segments { field: 2 } segments { field: 60 } segments { element { counter: 2 replica: 7 } } segments { field: 2 } }
+      value { settings { html_settings { name: "Site" } } }
+      op { counter: 3 replica: 2 }
+      losing { counter: 2 replica: 7 }
+    }
+    register {
+      path { segments { field: 2 } segments { field: 7 } }
+      value { settings { guides_locked: true } }
+      op { counter: 3 replica: 1 }
+    }
+  }
+  node {
+    id { counter: 1 replica: 7 }
+    node_hash: "377b70dcce84722adecd34e1b1871250041d91b67f5d1fa9347f29b4108509cc"
+    register {
+      path { segments { field: 5 } segments { field: 6 } }
+      absent: true
+    }
+    register {
+      path { segments { field: 5 } segments { field: 4 } }
+      value { asset { media_type: "image/png" } }
+      op { counter: 4 replica: 1 }
+      losing { counter: 1 replica: 7 }
+    }
+  }
+}

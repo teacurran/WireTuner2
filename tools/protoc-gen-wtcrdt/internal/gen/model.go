@@ -169,11 +169,58 @@ func BuildTable(plugin *protogen.Plugin, warn io.Writer) (*Table, error) {
 		sort.Slice(msg.Fields, func(a, b int) bool { return msg.Fields[a].Number < msg.Fields[b].Number })
 		table.Messages[name] = msg
 	}
+	problems = append(problems, checkLocalOnly(table)...)
 	if len(problems) > 0 {
 		sort.Strings(problems)
 		return nil, errors.New(strings.Join(problems, "\n"))
 	}
 	return table, nil
+}
+
+// checkLocalOnly reports local_only fields the engines cannot keep on the device
+// (crdt-model.adoc, "Local-only fields"): only registers are local-only, so the field must be
+// ATOMIC, or a STRUCT or VARIANT message with nothing but registers beneath it -- a SEQUENCE,
+// SET or TEXT field below would need element, member or character ops kept locally.
+func checkLocalOnly(table *Table) []string {
+	var problems []string
+	for _, name := range table.MessageNames() {
+		for _, f := range table.Messages[name].Fields {
+			if !f.LocalOnly {
+				continue
+			}
+			where := name + "." + f.Name
+			switch f.Policy {
+			case PolicySequence, PolicySet, PolicyText:
+				problems = append(problems, fmt.Sprintf("%s: local_only requires an ATOMIC, STRUCT or VARIANT field; this field is %s", where, f.Policy))
+			case PolicyStruct, PolicyVariant:
+				if inner := collectionBeneath(table, f.TypeName, map[string]bool{}); inner != "" {
+					problems = append(problems, fmt.Sprintf("%s: local_only requires only registers beneath it; %s is not one", where, inner))
+				}
+			}
+		}
+	}
+	return problems
+}
+
+// collectionBeneath names the first SEQUENCE, SET or TEXT field reached from message through
+// STRUCT and VARIANT fields, or "".
+func collectionBeneath(table *Table, message string, seen map[string]bool) string {
+	msg, ok := table.Messages[message]
+	if !ok || seen[message] {
+		return ""
+	}
+	seen[message] = true
+	for _, f := range msg.Fields {
+		switch f.Policy {
+		case PolicySequence, PolicySet, PolicyText:
+			return fmt.Sprintf("%s.%s (%s)", message, f.Name, f.Policy)
+		case PolicyStruct, PolicyVariant:
+			if inner := collectionBeneath(table, f.TypeName, seen); inner != "" {
+				return inner
+			}
+		}
+	}
+	return ""
 }
 
 func collectMessages(msgs protoreflect.MessageDescriptors, into map[protoreflect.FullName]protoreflect.MessageDescriptor) {

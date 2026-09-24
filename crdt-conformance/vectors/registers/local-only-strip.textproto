@@ -1,0 +1,95 @@
+# crdt-conformance/vectors/registers/local-only-strip.textproto (schema: crdt-conformance/schema/vector.proto)
+name: "registers/local-only-strip"
+description: "LocalOnly.strip takes local-only writes out of a change alike in both engines: a SetFields naming only local-only paths becomes a Noop (keeping its counter); a mixed one keeps its shared paths and loses the local-only values; CreateNode props and ElementInsert values lose local-only fields at any depth (an element's id stays); a whole-struct write loses the view beneath it; a change with nothing local-only comes back as it was."
+setup {
+    change {
+      replica: 7 seq: 1 start_counter: 1 label: "Setup"
+      ops { create { parent { counter: 4 } position: "\x80" props { asset { common { name: "photo.jpg" } } } } }
+    }
+}
+strip {
+  change {
+    replica: 1 seq: 1 start_counter: 2 label: "Zoom"
+    ops { set { node { counter: 1 }
+      paths { segments { field: 2 } segments { field: 40 } segments { field: 1 } }
+      paths { segments { field: 2 } segments { field: 40 } segments { field: 2 } }
+      values { settings { view { magnification: 4 scroll_origin { x: 10 y: 20 } } } } } }
+    ops { set { node { counter: 1 }
+      paths { segments { field: 2 } segments { field: 61 } } } }
+  }
+  expect {
+    replica: 1 seq: 1 start_counter: 2 label: "Zoom"
+    ops { noop { } }
+    ops { noop { } }
+  }
+}
+strip {
+  change {
+    replica: 1 seq: 2 start_counter: 4 label: "Relink"
+    ops { set { node { counter: 1 replica: 7 }
+      paths { segments { field: 5 } segments { field: 6 } }
+      paths { segments { field: 5 } segments { field: 5 } }
+      values { asset { bookmark: "\x09\x08" link { path: "/Users/a/photo.jpg" } } } } }
+    ops { set { node { counter: 1 }
+      paths { segments { field: 2 } }
+      values { settings { guides_locked: true view { grid_visible: true } data_preview { showing: true } } } } }
+  }
+  expect {
+    replica: 1 seq: 2 start_counter: 4 label: "Relink"
+    ops { set { node { counter: 1 replica: 7 }
+      paths { segments { field: 5 } segments { field: 5 } }
+      values { asset { link { path: "/Users/a/photo.jpg" } } } } }
+    ops { set { node { counter: 1 }
+      paths { segments { field: 2 } }
+      values { settings { guides_locked: true } } } }
+  }
+}
+strip {
+  change {
+    replica: 1 seq: 3 start_counter: 6 label: "Place and add settings"
+    ops { create { parent { counter: 4 } position: "\x81"
+      props { asset { common { name: "b.png" } bookmark: "\x01" } } } }
+    ops { element_insert { node { counter: 1 }
+      sequence { segments { field: 2 } segments { field: 60 } }
+      positions: "\x80" positions: "\x81"
+      values { settings { html_settings { id { counter: 7 replica: 1 } name: "A" location: "/a" } html_settings { name: "B" location: "/b" title: "B" } } } } }
+    ops { set { node { counter: 1 }
+      paths { segments { field: 2 } segments { field: 60 } segments { element { counter: 7 replica: 1 } } segments { field: 3 } }
+      paths { segments { field: 2 } segments { field: 60 } segments { element { counter: 7 replica: 1 } } segments { field: 2 } }
+      values { settings { html_settings { name: "A2" location: "/a2" } } } } }
+  }
+  expect {
+    replica: 1 seq: 3 start_counter: 6 label: "Place and add settings"
+    ops { create { parent { counter: 4 } position: "\x81"
+      props { asset { common { name: "b.png" } } } } }
+    ops { element_insert { node { counter: 1 }
+      sequence { segments { field: 2 } segments { field: 60 } }
+      positions: "\x80" positions: "\x81"
+      values { settings { html_settings { id { counter: 7 replica: 1 } name: "A" } html_settings { name: "B" title: "B" } } } } }
+    ops { set { node { counter: 1 }
+      paths { segments { field: 2 } segments { field: 60 } segments { element { counter: 7 replica: 1 } } segments { field: 2 } }
+      values { settings { html_settings { name: "A2" } } } } }
+  }
+}
+strip {
+  change {
+    replica: 1 seq: 4 start_counter: 9 label: "Rename"
+    ops { set { node { counter: 1 replica: 7 }
+      paths { segments { field: 5 } segments { field: 1 } segments { field: 1 } }
+      values { asset { common { name: "c.jpg" } } } } }
+    ops { move { node { counter: 1 replica: 7 } parent { counter: 4 } position: "\x82" } }
+    ops { noop { } }
+  }
+  expect {
+    replica: 1 seq: 4 start_counter: 9 label: "Rename"
+    ops { set { node { counter: 1 replica: 7 }
+      paths { segments { field: 5 } segments { field: 1 } segments { field: 1 } }
+      values { asset { common { name: "c.jpg" } } } } }
+    ops { move { node { counter: 1 replica: 7 } parent { counter: 4 } position: "\x82" } }
+    ops { noop { } }
+  }
+}
+expect {
+  state_hash: "69c3bbe25607ec816317c7b9527d31b598513130562044d2fd3d88b24dfe584f"
+  snapshot_hash: "32cc0ccedac161d32580409c6c5da3ff4d386d66dd75f70086493ff2adcf2c50"
+}

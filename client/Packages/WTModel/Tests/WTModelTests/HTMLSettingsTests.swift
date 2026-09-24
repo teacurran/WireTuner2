@@ -167,13 +167,20 @@ import WTProto
         #expect(HTMLSettings(pair.b.state).setting(id)?.settings.vectorFormat == .png)
     }
 
-    @Test func theLocalOnlyFieldsNeverReachTheWire() throws {
-        var a = Replica(1)
-        try a.perform(AddHTMLSetting(name: "Web"))
-        let id = try #require(HTMLSettings(a.state).settings[1].id)
-        try a.perform(EditHTMLSetting(id, settings: .defaults, options: Set(HTMLSettingOption.allCases)))
-        try a.perform(RenameHTMLSetting(id, to: "Site"))
-        for change in a.sent {
+    @Test func theLocalOnlyFieldsStayOnThisMac() throws {
+        var pair = Pair()
+        try pair.a.perform(AddHTMLSetting(name: "Web"))
+        let id = try #require(HTMLSettings(pair.a.state).settings[1].id)
+        try pair.a.perform(SetHTMLSettingLocation(id, to: "/Users/a/site"))
+        try pair.a.perform(SetHTMLSettingLocation(nil, to: "/Users/a/default"))
+        try pair.a.perform(SelectHTMLSetting(id))
+        let settings = HTMLSettings(pair.a.state)
+        #expect(settings.setting(id)?.location == "/Users/a/site")
+        #expect(settings.settings[0].location == "/Users/a/default")
+        #expect(settings.remembered == id && settings.selected.name == "Web")
+        #expect(pair.a.core.undoStack.undo.count == 1)   // location and selection are view state: not undoable
+        // Neither field is on the wire: the other replica sees the setting without them.
+        for change in pair.a.sent {
             for op in change.ops {
                 if case .set(let set) = op.op {
                     let paths = set.paths.map(RegisterPath.init)
@@ -184,10 +191,27 @@ import WTProto
                 }
             }
         }
-        #expect(HTMLSettingsLocal.locationKey(nil) == "html.location.default")
-        #expect(HTMLSettingsLocal.locationKey(id) == "html.location.\(id.counter).\(id.replica)")
-        #expect(HTMLSettingsLocal.selectedKey == "html.selected")
-        #expect(HTMLSettings(a.state).selected(id).name == "Site")
+        pair.sync()
+        let theirs = HTMLSettings(pair.b.state)
+        #expect(theirs.setting(id)?.location == "" && theirs.remembered == nil && theirs.selected.name == "Default")
+        #expect(pair.a.state.stateHash == pair.b.state.stateHash)
+        // A setting added with a location keeps it here only; clearing the selection selects the first.
+        try pair.a.perform(SelectHTMLSetting(nil))
+        #expect(HTMLSettings(pair.a.state).selected.name == "Default")
+        #expect(throws: HTMLSettingsError.unknownSetting(OpID(counter: 99, replica: 9))) {
+            try pair.a.perform(SelectHTMLSetting(OpID(counter: 99, replica: 9)))
+        }
+        #expect(throws: HTMLSettingsError.invalidValue("location")) {
+            try pair.a.perform(SetHTMLSettingLocation(id, to: String(repeating: "x", count: 4097)))
+        }
+    }
+
+    @Test func settingTheDefaultsLocationMaterializesIt() throws {
+        var a = Replica(1)
+        try a.perform(SetHTMLSettingLocation(nil, to: "/Users/a/out"))
+        let settings = HTMLSettings(a.state)
+        #expect(!settings.isSynthesized && settings.settings[0].name == "Default" && settings.settings[0].location == "/Users/a/out")
+        #expect(a.sent.count == 1 && a.sent[0].ops.count == 2 && a.sent[0].ops[1].noop == Wiretuner_Doc_V1_Noop())
     }
 
     @Test func concurrentMaterializationsOfTheDefaultKeepBoth() throws {

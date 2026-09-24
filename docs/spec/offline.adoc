@@ -21,7 +21,7 @@ Each open document lives in a SQLite database (GRDB) under
 |`changes` |Every change applied since the snapshot: remote (with `server_seq`) and local (with `seq`, `sent_at` null until acked).  This is the outbox.
 |`undo` |The undo/redo stack with inverse changes.
 |`blobs_pending` |Hashes of blobs waiting to upload, with their local file paths and an optional tag.  The document's thumbnail (tag `THUMBNAIL`, rendered on close and at the snapshot interval) is one row here; a newer thumbnail replaces the pending one.
-|`view` |Zoom, scroll, open panels, current page -- `local_only` fields.
+|`view` |Zoom, scroll, open panels, current page -- `local_only` fields: one row per local-only register a local change wrote (`crdt.local/<node>/<path>`), plus window state the app keeps by key.
 |===
 
 Opening a document loads the snapshot, replays `changes`, and connects.  If the network is down
@@ -53,7 +53,12 @@ left as it was.  The design-point document opens in 0.77 s (release, M-series; s
 == Outbox and coalescing
 
 A local change is appended to `changes` in the same transaction that applies it to the
-in-memory state.  Nothing can be lost between "I saw it on screen" and "it is queued".
+in-memory state.  Nothing can be lost between "I saw it on screen" and "it is queued".  What is
+appended is the change without its local-only writes (xref:crdt-model.adoc#local-only[Local-only
+fields]); the registers those wrote go to `view` in the same transaction (`LocalOnlyRows`: node and
+op ids, the `FieldPath`, the value or unset) and are restored on top of the state whenever the
+store loads or replaces it -- opening, `installSnapshot`, and the reset `beginSalvage` and
+`discardLocalChanges` start from.  A branch store (`exportBranch`) does not copy them.
 
 While offline, consecutive local changes are *coalesced* before sending when doing so cannot
 change the merged result:

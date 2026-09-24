@@ -20,11 +20,16 @@ import WTProto
 /// Element segments are transparent in `values`: the sparse message holds, at a SEQUENCE field,
 /// only the element the path names, and at a TEXT field a `RichText` whose `chars` hold only the
 /// character the path names.
+///
+/// A register at or beneath a `local_only` field (crdt-model.adoc, "Local-only fields") is marked
+/// `localOnly`: the engine writes it only while applying a local change, into the replica's
+/// local registers, and a remote change's write to it is a no-op.
 struct PathResolver: Sendable {
-    /// One register write: where, and the value (nil = unset).
+    /// One register write: where, the value (nil = unset), and whether the register is local-only.
     struct Assignment: Equatable {
         let path: RegisterPath
         let value: [UInt8]?
+        var localOnly = false
     }
 
     /// Where a path ends.
@@ -111,14 +116,16 @@ struct PathResolver: Sendable {
         switch walk(kind: kind, path: path, values: values, elementExists: elementExists) {
         case .field(let at, let row, let container)?:
             let number = row.fieldNumber
+            let local = LocalOnly.enters(schema, at)
             if row.policy == .atomic {
-                return [Assignment(path: at, value: container?.records(UInt32(number)))]
+                return [Assignment(path: at, value: container?.records(UInt32(number)), localOnly: local)]
             }
             guard Self.isStruct(row) else { return nil }
             expand(row.typeName!, at, container?.message(UInt32(number)), absentAsUnset: true,
-                   reserved: 0, &branch, &out)
+                   reserved: 0, local: local, &branch, &out)
         case .element(let at, let message, let value, let reserved)?:
-            expand(message, at, value, absentAsUnset: true, reserved: reserved, &branch, &out)
+            expand(message, at, value, absentAsUnset: true, reserved: reserved, local: LocalOnly.enters(schema, at),
+                   &branch, &out)
         case nil:
             return nil
         }
@@ -128,18 +135,18 @@ struct PathResolver: Sendable {
     /// The registers a `CreateNode`'s props set: every leaf present, nothing else.
     func initial(kind: UInt32, props: WireMessage) -> [Assignment] {
         let row = schema.field(Schema.root, Int(kind))!
-        return initial(row.typeName!, RegisterPath([kind]), props.message(kind), reserved: 0)
+        return initial(row.typeName!, RegisterPath([kind]), props.message(kind), reserved: 0, local: row.localOnly)
     }
 
     /// The registers a new element's values set: every leaf present except its id.
     func initial(element message: String, at path: RegisterPath, values: WireMessage?) -> [Assignment] {
-        initial(message, path, values, reserved: Self.elementReserved)
+        initial(message, path, values, reserved: Self.elementReserved, local: LocalOnly.enters(schema, path))
     }
 
-    private func initial(_ message: String, _ path: RegisterPath, _ value: WireMessage?, reserved: Int) -> [Assignment] {
+    private func initial(_ message: String, _ path: RegisterPath, _ value: WireMessage?, reserved: Int, local: Bool) -> [Assignment] {
         var out: [Assignment] = []
         var branch: Set<String> = []
-        expand(message, path, value, absentAsUnset: false, reserved: reserved, &branch, &out)
+        expand(message, path, value, absentAsUnset: false, reserved: reserved, local: local, &branch, &out)
         return out
     }
 
@@ -151,10 +158,11 @@ struct PathResolver: Sendable {
     /// Appends the registers beneath `message` at `prefix`.  With `absentAsUnset` every leaf is
     /// written (a STRUCT write or clear); without it only leaves present in `value` are (a
     /// CreateNode or an inserted element).  A message already on the current branch is not entered
-    /// again, so a recursive schema expands finitely and identically in both engines.
+    /// again, so a recursive schema expands finitely and identically in both engines.  `local`
+    /// says the walk has crossed a `local_only` field: everything beneath it is local-only.
     private func expand(
         _ message: String, _ prefix: RegisterPath, _ value: WireMessage?, absentAsUnset: Bool,
-        reserved: Int, _ branch: inout Set<String>, _ out: inout [Assignment]
+        reserved: Int, local: Bool, _ branch: inout Set<String>, _ out: inout [Assignment]
     ) {
         guard absentAsUnset || value != nil, branch.insert(message).inserted else { return }
         let variant = schema.variant(message)
@@ -165,11 +173,12 @@ struct PathResolver: Sendable {
                 && variant!.caseFields.contains(row.fieldNumber)
             guard row.policy == .atomic || Self.isStruct(row), !skippedCase, absentAsUnset || present else { continue }
             let path = prefix.child(number)
+            let localOnly = local || row.localOnly
             if row.policy == .atomic {
-                out.append(Assignment(path: path, value: value?.records(number)))
+                out.append(Assignment(path: path, value: value?.records(number), localOnly: localOnly))
             } else {
                 expand(row.typeName!, path, value?.message(number), absentAsUnset: absentAsUnset,
-                       reserved: 0, &branch, &out)
+                       reserved: 0, local: localOnly, &branch, &out)
             }
         }
         branch.remove(message)

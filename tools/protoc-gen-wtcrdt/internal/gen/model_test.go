@@ -151,6 +151,12 @@ message TestProps { repeated Other items = 2; }`,
 			"TestProps.items: a repeated message field has no default merge policy"},
 		"map unannotated": {`message TestProps { map<string, double> m = 2; }`,
 			"TestProps.m: a map field has no default merge policy"},
+		"local_only on a set": {`message TestProps { repeated string s = 2 [(wt.crdt.field) = {merge: MERGE_SET, local_only: true}]; }`,
+			"TestProps.s: local_only requires an ATOMIC, STRUCT or VARIANT field; this field is SET"},
+		"local_only over a sequence": {`message Stop { ElementId id = 1; }
+message View { repeated Stop stops = 1 [(wt.crdt.field).merge = MERGE_SEQUENCE]; }
+message TestProps { View v = 2 [(wt.crdt.field).local_only = true]; }`,
+			"TestProps.v: local_only requires only registers beneath it; wiretuner.doc.v1.View.stops (SEQUENCE) is not one"},
 		"on_dangling off a NodeRef": {`message TestProps { OpId r = 2 [(wt.crdt.field).on_dangling = REF_FALLBACK_CACHED]; }`,
 			"TestProps.r: on_dangling is only meaningful on a wiretuner.doc.v1.NodeRef field"},
 	}

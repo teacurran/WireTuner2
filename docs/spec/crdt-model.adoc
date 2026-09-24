@@ -153,7 +153,9 @@ enum RefFallback {
 message FieldOptions {
   Merge merge = 1;
   RefFallback on_dangling = 2;
-  // Never leaves the device: view state stored in the document for convenience.
+  // Never leaves the device: view state stored in the document for convenience
+  // (<<local-only>>).  Only on an ATOMIC field, or a STRUCT or VARIANT one with nothing but
+  // registers beneath it.
   bool local_only = 3;
 }
 
@@ -294,6 +296,57 @@ The engines use the table's policies as given.  A singular `NodeRef` field is on
 (*References* below) because `protoc-gen-wtcrdt` emits ATOMIC as its default policy, so an id's
 counter and replica can never come from two different writes.  (CRDT-001 normalised this in the
 engines; the generator does it since CRDT-002, which changed the merge table's `version`.)
+
+[[local-only]]
+=== Local-only fields
+
+A `local_only` field is view state or a per-Mac value the document keeps for convenience -- zoom
+and scroll (`SettingsProps.view`), the HTML setting selection and output folder, a linked file's
+security-scoped bookmark (`AssetProps.bookmark`) -- that never leaves the device.  A register is
+local-only when the walk to it crosses a field whose merge-table row says `local_only`: the field
+itself, or a STRUCT, VARIANT or SEQUENCE field above it (`LocalOnly.enters` in both engines; the
+walk is the one of <<field-paths>>, element segments skipped, so it needs no state).
+`protoc-gen-wtcrdt` accepts `local_only` only on an ATOMIC field or on a STRUCT or VARIANT field
+with no SEQUENCE, SET or TEXT field beneath it: local-only state is registers, never elements,
+members or characters.
+
+* *Merging.*  Neither engine merges a local-only register from a change: applied remotely (and
+  replayed from a log), a write to one is a deterministic no-op, whether it comes from
+  `SetFields`, `CreateNode.props` or `ElementInsert.values`, and a whole-STRUCT write above one
+  neither sets nor clears it.  Local-only registers are therefore never in the state hash, a
+  snapshot or garbage collection, and every replica's hash agrees
+  (`registers/local-only-writes-ignored`).  A register an older engine merged into the shared
+  state before this rule stays there, hashed like any other, and reads until this replica writes
+  its own.
+* *Local writes.*  WTCRDT's `applyLocal` -- the one way a replica applies its own new change --
+  writes local-only registers into the replica's local registers (`NodeStore.localRegisters`,
+  last writer wins by OpId, no change log), which `register` and WTModel's `props` read like the
+  rest, and lists them in `localOnlyWrites`.  Undo records and restores them like any register;
+  the undo stack is local.  wt-crdt never writes one: every change is remote to the server.
+* *The outbox.*  `LocalOnly.strip` takes a change's local-only content out: a `SetFields` loses
+  the paths that enter a local-only field and becomes a `Noop` (keeping its counter) when none is
+  left, and the `NodeProps` of `CreateNode`, `SetFields`, `ElementInsert`, `SetAdd` and `SetRemove`
+  loses its local-only fields at any depth -- the wire records of a STRUCT, VARIANT or SEQUENCE
+  field are stripped in place (an element's `id` and a character's engine fields 1-5 untouched),
+  a changed record written again as tag, length and payload, everything else copied as it came.
+  Both engines strip alike (`registers/local-only-strip`); the walk looks only into messages a
+  local-only field can be reached from (`Schema.localOnlyReach` in WTCRDT).  WTModel's
+  `DocumentCore` applies the whole change and hands the backend the stripped one
+  (`Outcome.outbox`; `applyLocal` notes, from the bytes it applies, whether the change carries
+  anything to strip -- `localOnlyCarried` -- so a change without any is passed on as it is) with
+  the local-only writes (`Outcome.localOnly`); `WTSync.LocalStore` appends the stripped change to the outbox and
+  keeps the writes in the `view` table in the same transaction (offline.adoc), and restores them
+  whenever it loads or replaces the state (open, snapshot install, salvage, discard).  Since the
+  outbox, the snapshot and the shared state never hold them, nothing built from those -- a push,
+  a bulk upload, salvage, a branch, a fork, a package export (`PackageReissue` also skips them) --
+  carries a local-only value.
+* *The server* strips every pushed change the same way before it checks and logs it
+  (sync-protocol.adoc, "Server log"), so an older client's local-only writes are neither refused
+  nor stored.
+
+As built to close the gap DOC-022 and WEB-007 recorded as deviations (their workarounds -- values
+kept under ad-hoc `view` keys -- are gone); the merge semantics' version is 0.5.0 in both
+engines.
 
 == Operations
 

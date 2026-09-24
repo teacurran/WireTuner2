@@ -18,12 +18,40 @@ public struct Schema: Sendable {
     private let variants: [String: VariantPolicy]
     /// The field numbers of `NodeProps.kind`: the node kinds this table knows.
     public let kinds: Set<UInt32>
+    /// The messages a `local_only` field can be reached from through STRUCT, VARIANT, SEQUENCE and
+    /// TEXT fields (`LocalOnly`), the messages declaring one included: `LocalOnly.strip` looks
+    /// into no other.
+    public let localOnlyReach: Set<String>
 
     private init(messages: [String: [Int: FieldPolicy]], variants: [String: VariantPolicy]) {
         self.messages = messages
         self.variants = variants
         let root = messages[Self.root] ?? [:]
         kinds = Set(root.values.filter { $0.oneof == Self.kindOneof }.map { UInt32($0.fieldNumber) })
+        localOnlyReach = Self.reach(messages)
+    }
+
+    // The fixpoint of "declares a local_only field, or has a field into a message that reaches one".
+    private static func reach(_ messages: [String: [Int: FieldPolicy]]) -> Set<String> {
+        func inner(_ row: FieldPolicy) -> String? {
+            guard let typeName = row.typeName else { return nil }
+            switch row.policy {
+            case .structure, .variant, .sequence: return typeName
+            case .text: return messages[typeName]?[1]?.typeName
+            default: return nil
+            }
+        }
+        var reach = Set(messages.filter { $0.value.values.contains(where: \.localOnly) }.keys)
+        var grew = !reach.isEmpty
+        while grew {
+            grew = false
+            for (name, rows) in messages where !reach.contains(name)
+                && rows.values.contains(where: { inner($0).map(reach.contains) ?? false }) {
+                reach.insert(name)
+                grew = true
+            }
+        }
+        return reach
     }
 
     /// The generated table (protoc-gen-wtcrdt over proto/).

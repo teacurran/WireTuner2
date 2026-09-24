@@ -255,8 +255,8 @@ final class LinksModel {
 /// The missing-link search when a document opens (linking-embedding.adoc, "Broken links when
 /// opening"): with *Search for missing links* on, this Mac's broken links are looked for beside
 /// their old path and under the *Missing links folder*; the ones found are relinked in one change
-/// ("Relink missing files") and their bookmarks kept in the document's local `view` table under
-/// `FoundLink.bookmarkKey` -- never in a change.
+/// ("Relink missing files") that also writes each one's bookmark to the asset's local-only
+/// `bookmark`, which never leaves this Mac.
 @MainActor
 enum MissingLinks {
     /// Searches for `document`'s broken links and repairs them; returns what was found.
@@ -270,32 +270,11 @@ enum MissingLinks {
         }.value
         guard !found.isEmpty else { return [] }
         _ = await perform(RepairLinks(found)).value
-        await keepBookmarks(found, for: document)
         return found
     }
 
-    /// The bookmarks of a memory document (tests), by document and key.
-    private(set) static var memoryBookmarks: [String: [String: Data]] = [:]
-
-    /// Stores each found link's bookmark in the local store's `view` table (a memory document
-    /// keeps them for the session).
-    static func keepBookmarks(_ found: [FoundLink], for document: DocumentHandle) async {
-        let store = await document.openedModel()?.backend as? LocalStore
-        for link in found {
-            guard let bookmark = link.bookmark else { continue }
-            let key = FoundLink.bookmarkKey(link.asset)
-            if let store {
-                try? await store.setViewValue(bookmark, forKey: key)
-            } else {
-                memoryBookmarks[document.id, default: [:]][key] = bookmark
-            }
-        }
-    }
-
-    /// The bookmark kept for `asset` of `document`.
+    /// The bookmark this Mac keeps for `asset` of `document`.
     static func bookmark(_ asset: OpID, of document: DocumentHandle) async -> Data? {
-        let key = FoundLink.bookmarkKey(asset)
-        if let store = await document.openedModel()?.backend as? LocalStore { return try? await store.viewValue(forKey: key) }
-        return memoryBookmarks[document.id]?[key]
+        AssetLink.read(asset, in: document.state)?.bookmark
     }
 }

@@ -178,7 +178,6 @@ import WTRender
         let embedded = try #require(model.rows.first { $0.status == "Embedded" })
         #expect(model.infoLines(embedded.id).contains { $0 == ("Source", "Embedded") })
         #expect(await MissingLinks.bookmark(OpID(counter: 1, replica: 1), of: world.document) == nil)
-        await MissingLinks.keepBookmarks([FoundLink(asset: world.asset, path: "/x")], for: world.document)
     }
 
     @Test func theWindowWiresTheRulersCornerAndCanvas() async throws {

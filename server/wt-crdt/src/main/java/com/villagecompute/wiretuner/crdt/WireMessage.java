@@ -36,6 +36,21 @@ final class WireMessage {
         this.fields = fields;
     }
 
+    /** Every record, in order. */
+    List<Field> fields() {
+        return fields;
+    }
+
+    /** The whole record {@code field} (tag and payload), as on the wire. */
+    byte[] record(Field field) {
+        return Arrays.copyOfRange(bytes, field.start(), field.end());
+    }
+
+    /** The payload of record {@code field} (empty for a VARINT record). */
+    byte[] payload(Field field) {
+        return Arrays.copyOfRange(bytes, field.payloadStart(), field.end());
+    }
+
     /**
      * Parses {@code bytes}, or returns {@code null} when they are not a well-formed message
      * (truncated, an over-long varint, field number 0 or above 2^29-1, a group, an unknown wire

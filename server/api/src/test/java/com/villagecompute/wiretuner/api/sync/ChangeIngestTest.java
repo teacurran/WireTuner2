@@ -56,6 +56,29 @@ class ChangeIngestTest extends SyncTestSupport {
     }
 
     @Test
+    void localOnlyWritesAreStrippedBeforeTheyAreLogged() {
+        UUID doc = document(ALICE);
+        var stub = blocking(ALICE, null);
+        long replica = replicaId();
+        FieldPath zoom = FieldPath.newBuilder().addSegments(PathSegment.newBuilder().setField(2))
+                .addSegments(PathSegment.newBuilder().setField(40)).addSegments(PathSegment.newBuilder().setField(1)).build();
+        var values = com.villagecompute.wiretuner.doc.v1.NodeProps.newBuilder().setSettings(
+                com.villagecompute.wiretuner.doc.v1.SettingsProps.newBuilder()
+                        .setView(com.villagecompute.wiretuner.doc.v1.ViewState.newBuilder().setMagnification(4)));
+        Change zoomed = Change.newBuilder().setReplica(replica).setSeq(1).setStartCounter(1).setLabel("Zoom")
+                .addOps(Op.newBuilder().setSet(SetFields.newBuilder().setNode(OpId.newBuilder().setCounter(1)).addPaths(zoom)
+                        .setValues(values)))
+                .build();
+        assertThat(push(stub, doc, zoomed)).isEqualTo(1);
+        Change logged = Change.newBuilder(zoomed).setOps(0, Op.newBuilder()
+                .setNoop(com.villagecompute.wiretuner.doc.v1.Noop.getDefaultInstance())).build();
+        assertThat((byte[]) value("SELECT bytes FROM change_log WHERE document_id = ? AND server_seq = 1", doc))
+                .isEqualTo(logged.toByteArray());
+        // A retry of the same change strips to the same bytes: acknowledged, not a conflict.
+        assertThat(push(stub, doc, zoomed)).isEqualTo(1);
+    }
+
+    @Test
     void aReplicaWithoutDeviceBindsToTheZeroDevice() {
         UUID doc = document(ALICE);
         long replica = replicaId();

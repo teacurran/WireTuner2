@@ -24,6 +24,13 @@ A change is accepted when:
 . every message passes protovalidate; every op names a field path the merge table knows;
 . the change is within limits: 10,000 ops, 4 MiB encoded.
 
+Before these checks the server takes out any local-only writes (`ChangeRules.withoutLocalOnly`,
+wt-crdt's `LocalOnly.strip`; xref:crdt-model.adoc#local-only[Local-only fields]): a current client
+never sends one, and an older client's are dropped rather than refused, since refusing would
+strand the rest of its change.  A `SetFields` naming only local-only paths becomes a `Noop`, so
+the replica's counters stay dense.  What is logged, fanned out and compared with a retry is the
+stripped change, so a retry of the same change is still an identical-content ack.
+
 Accepted changes are written to Postgres in one transaction with the replica's new seq, then
 published on Valkey to every server node holding a subscription on the document.
 

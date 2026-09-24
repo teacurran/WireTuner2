@@ -42,6 +42,12 @@ struct WireMessage {
         return WireMessage(bytes: bytes, fields: fields)
     }
 
+    /// Every record in order: its field number, wire type, the whole record (tag and payload) and
+    /// the payload alone (for a VARINT record the payload is empty).
+    var allRecords: [(number: UInt32, wireType: Int, record: ArraySlice<UInt8>, payload: ArraySlice<UInt8>)] {
+        fields.map { ($0.number, $0.wireType, bytes[$0.start..<$0.end], bytes[$0.payloadStart..<$0.end]) }
+    }
+
     /// Whether any record has field number `number`.
     func has(_ number: UInt32) -> Bool {
         fields.contains { $0.number == number }

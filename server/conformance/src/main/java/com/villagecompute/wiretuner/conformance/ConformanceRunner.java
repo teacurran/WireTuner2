@@ -18,9 +18,11 @@ import com.villagecompute.wiretuner.conformance.v1.PositionCase;
 import com.villagecompute.wiretuner.conformance.v1.Replica;
 import com.villagecompute.wiretuner.conformance.v1.SchemaOverride;
 import com.villagecompute.wiretuner.conformance.v1.SchemaOverrides;
+import com.villagecompute.wiretuner.conformance.v1.StripCase;
 import com.villagecompute.wiretuner.conformance.v1.Vector;
 import com.villagecompute.wiretuner.crdt.Engine;
 import com.villagecompute.wiretuner.crdt.FractionalIndex;
+import com.villagecompute.wiretuner.crdt.LocalOnly;
 import com.villagecompute.wiretuner.crdt.OpId;
 import com.villagecompute.wiretuner.crdt.Placement;
 import com.villagecompute.wiretuner.crdt.Register;
@@ -213,6 +215,7 @@ public final class ConformanceRunner {
         Schema schema = schema(vector, failures);
         List<List<Change>> orders = deliveryOrders(vector, failures);
         checkPositions(vector, failures);
+        checkStrips(vector, schema, failures);
         for (int i = 0; i < orders.size() && i < vector.getDeliveriesCount(); i++) {
             for (Collect collect : vector.getDeliveries(i).getCollectList()) {
                 if (collect.getAfter() > orders.get(i).size()) {
@@ -347,6 +350,19 @@ public final class ConformanceRunner {
 
     private static String hex(byte[] bytes) {
         return HexFormat.of().formatHex(bytes);
+    }
+
+    /** Strips every {@code strip} case's change ({@link LocalOnly#strip}) and compares with its expectation. */
+    static void checkStrips(Vector vector, Schema schema, List<String> failures) {
+        for (int i = 0; i < vector.getStripCount(); i++) {
+            StripCase check = vector.getStrip(i);
+            com.villagecompute.wiretuner.doc.v1.Change stripped = LocalOnly.strip(schema, docChange(check.getChange()));
+            com.villagecompute.wiretuner.doc.v1.Change expected = docChange(check.getExpect());
+            if (!stripped.equals(expected)) {
+                failures.add("strip " + i + ": expected " + TextFormat.shortDebugString(expected) + ", got "
+                        + TextFormat.shortDebugString(stripped));
+            }
+        }
     }
 
     /** Generates every {@code position} and {@code append_run} of the vector and compares. */
@@ -626,6 +642,12 @@ public final class ConformanceRunner {
             return;
         }
         Register actual = engine.register(node, path);
+        if (expected.getAbsent()) {
+            if (actual != null) {
+                failures.add("node " + node + " register " + path + ": expected absent, got " + actual);
+            }
+            return;
+        }
         byte[] value = expected.hasValue()
                 ? engine.registerValue(docProps(expected.getValue()), engine.store().kind(node), path) : null;
         Register want = new Register(value, OpId.of(expected.getOp()));

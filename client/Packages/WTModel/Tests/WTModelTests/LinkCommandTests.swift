@@ -156,9 +156,11 @@ final class MemoryFileSystem: LinkFileSystem, Sendable {
         let repaired = try #require(AssetLink.read(mine, in: a.state))
         #expect(repaired.path == deep && repaired.sourceModified == Self.modified && repaired.sha256 == Self.blob("v1").sha256)
         #expect(AssetLink.read(theirs, in: a.state)?.path == "/Users/b/photo.png")
-        // The bookmark never enters a change: it goes to the view table under this key.
-        #expect(!change.ops.contains { $0.set.paths.contains { RegisterPath($0) == RegisterPath([5, 6]) } })
-        #expect(FoundLink.bookmarkKey(mine) == "link.bookmark.\(mine.counter):\(mine.replica)")
+        // The bookmark is the asset's local-only register: read here, never in what is sent.
+        #expect(repaired.bookmark == Data(deep.utf8))
+        #expect(change.ops.contains { $0.set.paths.contains { RegisterPath($0) == AssetFields.bookmark } })
+        #expect(!a.sent.last!.ops.contains { $0.set.paths.contains { RegisterPath($0) == AssetFields.bookmark } })
+        #expect(a.sent.last!.ops.allSatisfy { $0.set.values.asset.bookmark.isEmpty })
         #expect(try a.perform(RepairLinks(found)) == nil)
     }
 

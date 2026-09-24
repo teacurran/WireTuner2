@@ -36,7 +36,7 @@ import java.util.Map;
 public final class Engine {
 
     /** Version of the merge semantics this engine implements (docs/spec/crdt-model.adoc). */
-    public static final String VERSION = "0.4.0";
+    public static final String VERSION = "0.5.0";
 
     /** How long a deleted node stays restorable before garbage collection compacts it: 30 days. */
     public static final long DELETED_NODE_RETENTION_MS = 30L * 24 * 60 * 60 * 1000;
@@ -318,7 +318,9 @@ public final class Engine {
         }
         record(new Inverse.Created(id));
         for (PathResolver.Assignment write : resolver.initial(kind, props)) {
-            store.write(id, write.path(), write.value(), id);
+            if (!write.localOnly()) {
+                store.write(id, write.path(), write.value(), id);
+            }
         }
         store.applyTree(id, id, OpId.of(create.getParent()), create.getPosition().toByteArray(), true);
     }
@@ -334,6 +336,9 @@ public final class Engine {
             List<PathResolver.Assignment> writes = resolver.resolve(kind, path, values, at -> exists(node, at));
             if (writes != null) {
                 for (PathResolver.Assignment write : writes) {
+                    if (write.localOnly()) {
+                        continue;
+                    }
                     Register prior = store.register(node, write.path());
                     if (store.write(node, write.path(), write.value(), id)) {
                         record(new Inverse.RegisterStep(node, write.path(), prior, id));
@@ -364,7 +369,9 @@ public final class Engine {
             record(new Inverse.ElementInserted(node, path));
             WireMessage value = index < occurrences.size() ? occurrences.get(index) : null;
             for (PathResolver.Assignment write : resolver.initialElement(row.typeName(), path, value)) {
-                store.write(node, write.path(), write.value(), element);
+                if (!write.localOnly()) {
+                    store.write(node, write.path(), write.value(), element);
+                }
             }
         }
     }

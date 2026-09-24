@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.villagecompute.wiretuner.api.grpc.StatusExceptions;
+import com.villagecompute.wiretuner.crdt.LocalOnly;
 import com.villagecompute.wiretuner.crdt.Schema;
 import com.villagecompute.wiretuner.crdt.schema.MergeTable.FieldPolicy;
 import com.villagecompute.wiretuner.doc.v1.Change;
@@ -28,6 +29,18 @@ public final class ChangeRules {
     public static final int MAX_FRAME_BYTES = 1024 * 1024;
 
     private ChangeRules() {
+    }
+
+    /**
+     * The change without its local-only writes (docs/spec/crdt-model.adoc, "Local-only fields";
+     * docs/spec/sync-protocol.adoc, Server log): a current client strips them before a change
+     * enters its outbox, and an older one's are taken out here rather than refused, since a
+     * refusal would strand the rest of its change. A {@code SetFields} naming only local-only
+     * paths becomes a {@code Noop}, so the replica's counters stay dense. The same change object
+     * when there is nothing to strip.
+     */
+    public static Change withoutLocalOnly(Schema schema, Change change) {
+        return LocalOnly.strip(schema, change);
     }
 
     /** Throws {@code VALIDATION_FAILED} unless the change is within limits and names only known paths. */

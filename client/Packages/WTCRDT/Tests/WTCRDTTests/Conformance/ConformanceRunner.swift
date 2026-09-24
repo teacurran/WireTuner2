@@ -73,6 +73,7 @@ enum ConformanceRunner {
         let schema = schema(vector, &failures)
         let orders = deliveryOrders(vector, &failures)
         checkPositions(vector, &failures)
+        checkStrips(vector, schema, &failures)
         for (index, order) in orders.enumerated() where index < vector.deliveries.count {
             for point in vector.deliveries[index].collect where Int(point.after) > order.count {
                 failures.append("delivery \(describe(vector, index)) collects after change \(point.after) of \(order.count)")
@@ -296,6 +297,16 @@ enum ConformanceRunner {
         }
     }
 
+    /// Strips every `strip` case's change (`LocalOnly.strip`) and compares with its expectation.
+    static func checkStrips(_ vector: Vector, _ schema: Schema, _ failures: inout [String]) {
+        for (index, check) in vector.strip.enumerated() {
+            let stripped = LocalOnly.strip(docChange(check.change), schema: schema)
+            if stripped != docChange(check.expect) {
+                failures.append("strip \(index): expected \(docChange(check.expect).textFormatString()), got \(stripped.textFormatString())")
+            }
+        }
+    }
+
     private static func describe(_ vector: Vector, _ index: Int) -> String {
         index < vector.deliveries.count ? "\(vector.deliveries[index].order)" : "(replica order)"
     }
@@ -440,6 +451,12 @@ enum ConformanceRunner {
             return
         }
         let actual = engine.register(node, path)
+        if expected.absent {
+            if let actual {
+                failures.append("node \(node) register \(path): expected absent, got \(actual)")
+            }
+            return
+        }
         let values = try! Wiretuner_Doc_V1_NodeProps(serializedBytes: bytes(expected.value))
         let value = expected.hasValue ? engine.registerValue(in: values, kind: engine.store.kind(node), path: path) : nil
         let want = Register(value: value, op: OpID(expected.op))

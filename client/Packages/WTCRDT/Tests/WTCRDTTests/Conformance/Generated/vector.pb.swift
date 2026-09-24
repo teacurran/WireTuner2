@@ -94,12 +94,51 @@ nonisolated struct Wiretuner_Conformance_V1_Vector: Sendable {
   /// Runs of sequential appends both engines must generate byte for byte (CRDT-003).
   var appendRun: [Wiretuner_Conformance_V1_AppendRun] = []
 
+  /// Local-only stripping both engines must do alike (docs/spec/crdt-model.adoc, "Local-only
+  /// fields"): each case's change through `LocalOnly.strip` must equal its expectation.
+  var strip: [Wiretuner_Conformance_V1_StripCase] = []
+
   var unknownFields = SwiftProtobuf.UnknownStorage()
 
   init() {}
 
   fileprivate var _setup: Wiretuner_Conformance_V1_Setup? = nil
   fileprivate var _expect: Wiretuner_Conformance_V1_Expect? = nil
+}
+
+/// One change through `LocalOnly.strip` (WTCRDT) / `LocalOnly.strip` (wt-crdt), with the generated
+/// merge table plus the test kinds.
+nonisolated struct Wiretuner_Conformance_V1_StripCase: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The change as a replica applies it locally, local-only writes included.
+  var change: Wiretuner_Conformance_V1_Change {
+    get {_change ?? Wiretuner_Conformance_V1_Change()}
+    set {_change = newValue}
+  }
+  /// Returns true if `change` has been explicitly set.
+  var hasChange: Bool {self._change != nil}
+  /// Clears the value of `change`. Subsequent reads from it will return its default value.
+  mutating func clearChange() {self._change = nil}
+
+  /// The change without them: what enters the outbox and the server's log.
+  var expect: Wiretuner_Conformance_V1_Change {
+    get {_expect ?? Wiretuner_Conformance_V1_Change()}
+    set {_expect = newValue}
+  }
+  /// Returns true if `expect` has been explicitly set.
+  var hasExpect: Bool {self._expect != nil}
+  /// Clears the value of `expect`. Subsequent reads from it will return its default value.
+  mutating func clearExpect() {self._expect = nil}
+
+  var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  init() {}
+
+  fileprivate var _change: Wiretuner_Conformance_V1_Change? = nil
+  fileprivate var _expect: Wiretuner_Conformance_V1_Change? = nil
 }
 
 /// The shared starting point.
@@ -1465,6 +1504,13 @@ nonisolated struct Wiretuner_Conformance_V1_ExpectRegister: @unchecked Sendable 
     set {_uniqueStorage()._losing = newValue}
   }
 
+  /// Expect the register never written (no stamp, not even unset): `value` and `op` are ignored.
+  /// A local-only register a change wrote stays absent (crdt-model.adoc, "Local-only fields").
+  var absent: Bool {
+    get {_storage._absent}
+    set {_uniqueStorage()._absent = newValue}
+  }
+
   var unknownFields = SwiftProtobuf.UnknownStorage()
 
   init() {}
@@ -1843,7 +1889,7 @@ fileprivate nonisolated let _protobuf_package = "wiretuner.conformance.v1"
 
 nonisolated extension Wiretuner_Conformance_V1_Vector: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   static let protoMessageName: String = _protobuf_package + ".Vector"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}name\0\u{1}description\0\u{1}setup\0\u{1}replica\0\u{1}deliveries\0\u{1}expect\0\u{3}schema_override\0\u{1}position\0\u{3}append_run\0")
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}name\0\u{1}description\0\u{1}setup\0\u{1}replica\0\u{1}deliveries\0\u{1}expect\0\u{3}schema_override\0\u{1}position\0\u{3}append_run\0\u{1}strip\0")
 
   mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -1860,6 +1906,7 @@ nonisolated extension Wiretuner_Conformance_V1_Vector: SwiftProtobuf.Message, Sw
       case 7: try { try decoder.decodeRepeatedMessageField(value: &self.schemaOverride) }()
       case 8: try { try decoder.decodeRepeatedMessageField(value: &self.position) }()
       case 9: try { try decoder.decodeRepeatedMessageField(value: &self.appendRun) }()
+      case 10: try { try decoder.decodeRepeatedMessageField(value: &self.strip) }()
       default: break
       }
     }
@@ -1897,6 +1944,9 @@ nonisolated extension Wiretuner_Conformance_V1_Vector: SwiftProtobuf.Message, Sw
     if !self.appendRun.isEmpty {
       try visitor.visitRepeatedMessageField(value: self.appendRun, fieldNumber: 9)
     }
+    if !self.strip.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.strip, fieldNumber: 10)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -1910,6 +1960,46 @@ nonisolated extension Wiretuner_Conformance_V1_Vector: SwiftProtobuf.Message, Sw
     if lhs.schemaOverride != rhs.schemaOverride {return false}
     if lhs.position != rhs.position {return false}
     if lhs.appendRun != rhs.appendRun {return false}
+    if lhs.strip != rhs.strip {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Conformance_V1_StripCase: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  static let protoMessageName: String = _protobuf_package + ".StripCase"
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}change\0\u{1}expect\0")
+
+  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._change) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._expect) }()
+      default: break
+      }
+    }
+  }
+
+  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._change {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._expect {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  static func ==(lhs: Wiretuner_Conformance_V1_StripCase, rhs: Wiretuner_Conformance_V1_StripCase) -> Bool {
+    if lhs._change != rhs._change {return false}
+    if lhs._expect != rhs._expect {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -4161,13 +4251,14 @@ nonisolated extension Wiretuner_Conformance_V1_ExpectNode: SwiftProtobuf.Message
 
 nonisolated extension Wiretuner_Conformance_V1_ExpectRegister: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   static let protoMessageName: String = _protobuf_package + ".ExpectRegister"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}path\0\u{1}value\0\u{1}op\0\u{1}losing\0")
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}path\0\u{1}value\0\u{1}op\0\u{1}losing\0\u{1}absent\0")
 
   fileprivate class _StorageClass {
     var _path: WTProto.Wiretuner_Doc_V1_FieldPath? = nil
     var _value: Wiretuner_Conformance_V1_NodeProps? = nil
     var _op: WTProto.Wiretuner_Doc_V1_OpId? = nil
     var _losing: [WTProto.Wiretuner_Doc_V1_OpId] = []
+    var _absent: Bool = false
 
       // This property is used as the initial default value for new instances of the type.
       // The type itself is protecting the reference to its storage via CoW semantics.
@@ -4182,6 +4273,7 @@ nonisolated extension Wiretuner_Conformance_V1_ExpectRegister: SwiftProtobuf.Mes
       _value = source._value
       _op = source._op
       _losing = source._losing
+      _absent = source._absent
     }
   }
 
@@ -4204,6 +4296,7 @@ nonisolated extension Wiretuner_Conformance_V1_ExpectRegister: SwiftProtobuf.Mes
         case 2: try { try decoder.decodeSingularMessageField(value: &_storage._value) }()
         case 3: try { try decoder.decodeSingularMessageField(value: &_storage._op) }()
         case 4: try { try decoder.decodeRepeatedMessageField(value: &_storage._losing) }()
+        case 5: try { try decoder.decodeSingularBoolField(value: &_storage._absent) }()
         default: break
         }
       }
@@ -4228,6 +4321,9 @@ nonisolated extension Wiretuner_Conformance_V1_ExpectRegister: SwiftProtobuf.Mes
       if !_storage._losing.isEmpty {
         try visitor.visitRepeatedMessageField(value: _storage._losing, fieldNumber: 4)
       }
+      if _storage._absent != false {
+        try visitor.visitSingularBoolField(value: _storage._absent, fieldNumber: 5)
+      }
     }
     try unknownFields.traverse(visitor: &visitor)
   }
@@ -4241,6 +4337,7 @@ nonisolated extension Wiretuner_Conformance_V1_ExpectRegister: SwiftProtobuf.Mes
         if _storage._value != rhs_storage._value {return false}
         if _storage._op != rhs_storage._op {return false}
         if _storage._losing != rhs_storage._losing {return false}
+        if _storage._absent != rhs_storage._absent {return false}
         return true
       }
       if !storagesAreEqual {return false}

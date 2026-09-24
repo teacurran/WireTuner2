@@ -215,11 +215,12 @@ file) and `RepairLinks` "Relink missing files".  A command carrying a blob expos
 to store in the blob queue before performing, as import does.  `LinkSearch.autoRelink` (async, off
 the main actor) looks for each of this device's broken links beside its old path, then breadth
 first under the *Search for missing links in* folder to ten levels and 20,000 entries; another
-Mac's links are never searched.  Deviation: `AssetProps.bookmark` is `local_only`, but nothing in
-the outbox strips local-only paths yet, so a bookmark written as a register would be sent; the
-search returns each bookmark in `FoundLink`, the app keeps it in the local store's `view` table
-under `FoundLink.bookmarkKey(asset)` (`MissingLinks.keepBookmarks`), and only `link` (its `path`) is
-written.  `LinkReview` names
+Mac's links are never searched.  The search returns each bookmark in `FoundLink`, and `RepairLinks`
+writes it to `AssetProps.bookmark` beside `link` (its `path`); `bookmark` is `local_only`, so it
+applies and persists on this Mac only and the outbox never carries it
+(xref:crdt-model.adoc#local-only[Local-only fields]); `AssetLink.bookmark` reads it.  (DOC-022
+first kept bookmarks under ad-hoc `view` keys because nothing stripped local-only paths then.)
+`LinkReview` names
 what a lost `link` write did (embed, relink, update) for the review sheet's entry; the entry
 itself is `WTSync`'s.
 

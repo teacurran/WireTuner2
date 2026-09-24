@@ -72,6 +72,18 @@ message Vector {
   repeated PositionCase position = 8;
   // Runs of sequential appends both engines must generate byte for byte (CRDT-003).
   repeated AppendRun append_run = 9;
+  // Local-only stripping both engines must do alike (docs/spec/crdt-model.adoc, "Local-only
+  // fields"): each case's change through `LocalOnly.strip` must equal its expectation.
+  repeated StripCase strip = 10;
+}
+
+// One change through `LocalOnly.strip` (WTCRDT) / `LocalOnly.strip` (wt-crdt), with the generated
+// merge table plus the test kinds.
+message StripCase {
+  // The change as a replica applies it locally, local-only writes included.
+  Change change = 1;
+  // The change without them: what enters the outbox and the server's log.
+  Change expect = 2;
 }
 
 // The shared starting point.
@@ -374,6 +386,9 @@ message ExpectRegister {
   wiretuner.doc.v1.OpId op = 3;
   // The OpIds of the retained losing writes, ascending.
   repeated wiretuner.doc.v1.OpId losing = 4;
+  // Expect the register never written (no stamp, not even unset): `value` and `op` are ignored.
+  // A local-only register a change wrote stays absent (crdt-model.adoc, "Local-only fields").
+  bool absent = 5;
 }
 
 // A node's place in the tree.

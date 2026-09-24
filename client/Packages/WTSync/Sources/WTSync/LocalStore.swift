@@ -13,7 +13,10 @@ import WTProto
 /// applied is on disk, and a transaction that fails leaves no trace in the file.
 ///
 /// Opening loads the snapshot and replays the changes after it; the snapshot is rewritten on close
-/// and every `Options.snapshotInterval` while open.  The store records the Mac it was created on:
+/// and every `Options.snapshotInterval` while open.  A local change's local-only writes
+/// (crdt-model.adoc, "Local-only fields") are in neither: the outbox holds the change without them
+/// and the `view` table keeps the registers they wrote (`LocalOnlyRows`), restored whenever the
+/// state is loaded or replaced.  The store records the Mac it was created on:
 /// opened on another Mac (a backup restore, a copy), it rotates to a new replica id.
 public actor LocalStore: DocumentBackend {
     /// How a store opens.
@@ -152,6 +155,7 @@ public actor LocalStore: DocumentBackend {
                 core.replay(try Self.change(row["data"]), serverSeq: (row["server_seq"] as Int64?).map(UInt64.init(sql:)))
                 replayed += 1
             }
+            core.restoreLocalOnly(try LocalOnlyRows.all(db))
         }
         self.database = database
         self.core = core
@@ -317,7 +321,8 @@ public actor LocalStore: DocumentBackend {
             guard let outcome = try core.perform(command, recording: recording) else { return nil }
             applied = true
             try checkFault()
-            try appendLocal(outcome.change!, db)
+            try appendLocal(outcome.outbox!, db)
+            try LocalOnlyRows.keep(outcome.localOnly, db)
             try persist(outcome.edit, db)
             return outcome.change
         }
@@ -338,8 +343,9 @@ public actor LocalStore: DocumentBackend {
             guard let outcome = body(&core) else { return nil }
             applied = true
             try checkFault()
-            if let change = outcome.change {
+            if let change = outcome.outbox {
                 try appendLocal(change, db)
+                try LocalOnlyRows.keep(outcome.localOnly, db)
             }
             try persist(outcome.edit, db)
             return outcome.change
@@ -474,6 +480,7 @@ public actor LocalStore: DocumentBackend {
             while let row = try rows.next() {
                 fresh.replay(try Self.change(row["data"]), serverSeq: (row["server_seq"] as Int64?).map(UInt64.init(sql:)))
             }
+            fresh.restoreLocalOnly(try LocalOnlyRows.all(db))
             core = fresh
             applied = true
             try checkFault()
@@ -724,6 +731,7 @@ public actor LocalStore: DocumentBackend {
                             review_kind = NULL, review_base_seq = NULL, salvage_report = NULL WHERE id = 1
             """, arguments: [replica.sql, options.hardwareUUID()])
         core = DocumentCore(state: EngineState(schema: options.schema), replica: replica, horizon: core.horizon)
+        core.restoreLocalOnly(try LocalOnlyRows.all(db))
     }
 
     /// How many salvaged changes wait to be re-issued.
@@ -751,7 +759,8 @@ public actor LocalStore: DocumentBackend {
                     from = max(shared.next, from + 1)
                     guard let outcome else { continue }
                     applied = true
-                    try appendLocal(outcome.change!, db)
+                    try appendLocal(outcome.outbox!, db)
+                    try LocalOnlyRows.keep(outcome.localOnly, db)
                     try persist(outcome.edit, db)
                 } while from < change.ops.count
             }
@@ -1036,5 +1045,62 @@ public actor LocalStore: DocumentBackend {
         // The rename is the commit point: a crash before it leaves only the partial file.
         try FileManager.default.moveItem(at: partial, to: url)
         return meta
+    }
+}
+
+/// The local-only registers of a store (crdt-model.adoc, "Local-only fields"), one `view` row
+/// each under `crdt.local/<node>/<path>`: the value is the node and op ids (big-endian counter and
+/// replica), the `FieldPath`'s length and bytes, then 1 and the register's records, or 0 for unset.
+enum LocalOnlyRows {
+    static let prefix = "crdt.local/"
+
+    /// Upserts the rows of `writes` (each the write now holding its register).
+    static func keep(_ writes: [Write], _ db: Database) throws {
+        for write in writes {
+            try db.execute(sql: "INSERT OR REPLACE INTO view (key, value) VALUES (?, ?)",
+                           arguments: [key(write.node, write.path), try encode(write)])
+        }
+    }
+
+    /// Every row, decoded; a row that does not decode is skipped.
+    static func all(_ db: Database) throws -> [Write] {
+        try Data.fetchAll(db, sql: "SELECT value FROM view WHERE key >= ? AND key < ? ORDER BY key",
+                          arguments: [prefix, String(prefix.dropLast()) + "0"]).compactMap(decode)
+    }
+
+    static func key(_ node: OpID, _ path: RegisterPath) -> String {
+        "\(prefix)\(node.counter):\(node.replica)/\(path)"
+    }
+
+    static func encode(_ write: Write) throws -> Data {
+        var out = Data()
+        for value in [write.node.counter, write.node.replica, write.op.counter, write.op.replica] {
+            withUnsafeBytes(of: value.bigEndian) { out.append(contentsOf: $0) }
+        }
+        let path = try write.path.proto.serializedData()
+        withUnsafeBytes(of: UInt32(path.count).bigEndian) { out.append(contentsOf: $0) }
+        out.append(path)
+        if let value = write.value {
+            out.append(1)
+            out.append(contentsOf: value)
+        } else {
+            out.append(0)
+        }
+        return out
+    }
+
+    static func decode(_ data: Data) -> Write? {
+        let bytes = [UInt8](data)
+        func integer(_ at: Int, _ width: Int) -> UInt64 {
+            bytes[at..<at + width].reduce(0) { $0 << 8 | UInt64($1) }
+        }
+        guard bytes.count >= 37 else { return nil }
+        let count = Int(integer(32, 4))
+        guard bytes.count >= 37 + count,
+              let proto = try? Wiretuner_Doc_V1_FieldPath(serializedBytes: Array(bytes[36..<36 + count])),
+              let path = RegisterPath(proto) else { return nil }
+        let flag = bytes[36 + count]
+        return Write(node: OpID(counter: integer(0, 8), replica: integer(8, 8)), path: path,
+                     value: flag == 1 ? Array(bytes[(37 + count)...]) : nil, op: OpID(counter: integer(16, 8), replica: integer(24, 8)))
     }
 }

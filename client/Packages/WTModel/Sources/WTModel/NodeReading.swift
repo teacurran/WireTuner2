@@ -93,9 +93,10 @@ extension EngineState {
         store.element(node, sequence.element(element))?.position.current.value
     }
 
-    /// The merged properties of `node` as a typed message: every register that holds a value,
-    /// placed at its path, and every live sequence element in sequence order with its `id` set
-    /// (tombstoned elements and everything under them are left out).  TEXT fields are not read.
+    /// The merged properties of `node` as a typed message: every register that holds a value (this
+    /// replica's local-only registers included), placed at its path, and every live sequence
+    /// element in sequence order with its `id` set (tombstoned elements and everything under them
+    /// are left out).  TEXT fields are not read.
     public func props(_ node: OpID) -> Wiretuner_Doc_V1_NodeProps {
         let kind = store.kind(node)
         guard kind != 0 else { return Wiretuner_Doc_V1_NodeProps() }
@@ -104,7 +105,15 @@ extension EngineState {
         for (path, element) in store.elements(node) where !element.isDeleted {
             root.markElement(at: path)
         }
-        for (path, register) in store.registers(node) {
+        // Local-only registers (crdt-model.adoc, "Local-only fields") read like the rest; one this
+        // replica wrote stands over a value an older replica merged into the shared state.
+        var registers = store.registers(node)
+        let local = store.localRegisters(node)
+        if !local.isEmpty {
+            let overridden = Set(local.map(\.path))
+            registers = registers.filter { !overridden.contains($0.path) } + local
+        }
+        for (path, register) in registers {
             if let value = register.value {
                 root.leafNode(at: path)?.leaf = value
             }

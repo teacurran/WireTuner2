@@ -70,12 +70,25 @@ public struct DocumentCore: Sendable {
         }
     }
 
-    /// What applying a local change, an undo or a redo did: the change to append to the outbox
-    /// (nil when an undo or redo found nothing left to change) and the undo edit to persist (nil
-    /// when the change changed nothing undoable).
+    /// What applying a local change, an undo or a redo did: the change applied (nil when an undo
+    /// or redo found nothing left to change), the undo edit to persist (nil when the change changed
+    /// nothing undoable), and the change as it enters the outbox -- without its local-only writes
+    /// (`LocalOnly.strip`, crdt-model.adoc "Local-only fields") -- with the local-only registers it
+    /// wrote, which a persistent backend keeps beside the outbox so they survive a relaunch.
     public struct Outcome: Sendable {
         public var change: Wiretuner_Doc_V1_Change?
         public var edit: UndoEdit?
+        /// `change` without its local-only writes: what the outbox keeps and the server receives.
+        public var outbox: Wiretuner_Doc_V1_Change?
+        /// The local-only registers `change` wrote, as the writes now holding them.
+        public var localOnly: [Write] = []
+
+        init(change: Wiretuner_Doc_V1_Change?, edit: UndoEdit?, state: EngineState) {
+            self.change = change
+            self.edit = edit
+            outbox = change.map { state.localOnlyCarried ? LocalOnly.strip($0, schema: state.schema) : $0 }
+            localOnly = change == nil ? [] : state.localOnlyWrites
+        }
     }
 
     /// Builds `command`'s change against the current state, applies it locally and records its
@@ -101,7 +114,7 @@ public struct DocumentCore: Sendable {
         if let edit {
             undoStack.apply(edit)
         }
-        return Outcome(change: change, edit: edit)
+        return Outcome(change: change, edit: edit, state: state)
     }
 
     /// Undoes the top undo step: emits the change restoring what this user wrote where the state
@@ -114,7 +127,7 @@ public struct DocumentCore: Sendable {
         let (change, inverse) = reverse(top, verb: "Undo", now: recording.now)
         let edit = UndoEdit.undo(redo: UndoEntry(label: top.label, inverse: inverse, updatedAt: recording.now))
         undoStack.apply(edit)
-        return Outcome(change: change, edit: edit)
+        return Outcome(change: change, edit: edit, state: state)
     }
 
     /// Redoes the top redo step, symmetric to `undo`: re-applies where the state still holds the
@@ -125,7 +138,7 @@ public struct DocumentCore: Sendable {
         let edit = UndoEdit.redo(undo: UndoEntry(label: top.label, inverse: inverse, updatedAt: recording.now),
                                  limit: recording.limit)
         undoStack.apply(edit)
-        return Outcome(change: change, edit: edit)
+        return Outcome(change: change, edit: edit, state: state)
     }
 
     private mutating func reverse(_ entry: UndoEntry, verb: String, now: Date) -> (Wiretuner_Doc_V1_Change?, Inverse) {
@@ -151,6 +164,12 @@ public struct DocumentCore: Sendable {
     /// is the store's own record, so it does not move.
     public mutating func replay(_ change: Wiretuner_Doc_V1_Change, serverSeq: UInt64?) {
         state.apply(change, serverSeq: serverSeq)
+    }
+
+    /// Restores the local-only registers a persistent backend kept (`Outcome.localOnly`) after the
+    /// shared state was loaded or replaced: they are in no change and no snapshot.
+    public mutating func restoreLocalOnly(_ writes: [Write]) {
+        state.restoreLocalOnly(writes)
     }
 
     /// Records the server sequence of this replica's change `seq` (its ack).

@@ -118,16 +118,23 @@ public class ChangeIngest {
     }
 
     /**
-     * Accepts one change; the result is its {@code server_seq}. What the change does to comments is
+     * Accepts one change; the result is its {@code server_seq}. Local-only writes are taken out
+     * first ({@link ChangeRules#withoutLocalOnly}), so what is logged, fanned out and compared with
+     * a retry never carries them. What the change does to comments is
      * checked against the caller's role before the write and recorded after it, before the change is
      * fanned out (COLLAB-030).
      */
     public Uni<Long> accept(Pusher pusher, UUID documentId, Change change) {
         long started = System.nanoTime();
-        return Uni.createFrom().item(change)
+        Change pushed = ChangeRules.withoutLocalOnly(schema, change);
+        if (pushed != change) {
+            LOG.debugf("stripped local-only writes from %s replica %s seq %d", documentId,
+                    Long.toUnsignedString(change.getReplica()), change.getSeq());
+        }
+        return Uni.createFrom().item(pushed)
                 .invoke(c -> ChangeRules.check(schema, c))
                 .chain(c -> comments.check(pusher, documentId, CommentOps.parse(c)))
-                .chain(checked -> write(pusher, documentId, change, checked, started));
+                .chain(checked -> write(pusher, documentId, pushed, checked, started));
     }
 
     private Uni<Long> write(Pusher pusher, UUID documentId, Change change, CommentIndex.Checked checked, long started) {

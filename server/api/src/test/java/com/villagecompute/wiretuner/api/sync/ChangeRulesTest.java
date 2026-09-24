@@ -193,4 +193,26 @@ class ChangeRulesTest {
                 .addOps(Op.newBuilder().setSet(SetFields.newBuilder().addPaths(path(1))))
                 .build())).isInstanceOf(StatusRuntimeException.class);
     }
+
+    @Test
+    void localOnlyWritesAreStrippedNotRefused() {
+        Schema generated = Schema.generated();
+        FieldPath zoom = FieldPath.newBuilder().addSegments(PathSegment.newBuilder().setField(2))
+                .addSegments(PathSegment.newBuilder().setField(40)).addSegments(PathSegment.newBuilder().setField(1)).build();
+        FieldPath locked = FieldPath.newBuilder().addSegments(PathSegment.newBuilder().setField(2))
+                .addSegments(PathSegment.newBuilder().setField(7)).build();
+        var values = com.villagecompute.wiretuner.doc.v1.NodeProps.newBuilder().setSettings(
+                com.villagecompute.wiretuner.doc.v1.SettingsProps.newBuilder().setGuidesLocked(true)
+                        .setView(com.villagecompute.wiretuner.doc.v1.ViewState.newBuilder().setMagnification(4)));
+        Change change = Change.newBuilder().setReplica(9).setSeq(1).setStartCounter(1)
+                .addOps(Op.newBuilder().setSet(SetFields.newBuilder().addPaths(zoom).addPaths(locked).setValues(values)))
+                .addOps(Op.newBuilder().setSet(SetFields.newBuilder().addPaths(zoom).setValues(values)))
+                .build();
+        Change stripped = ChangeRules.withoutLocalOnly(generated, change);
+        assertThat(stripped.getOps(0).getSet().getPathsList()).containsExactly(locked);
+        assertThat(stripped.getOps(0).getSet().getValues().getSettings().hasView()).isFalse();
+        assertThat(stripped.getOps(1)).isEqualTo(Op.newBuilder().setNoop(Noop.getDefaultInstance()).build());
+        assertThatCode(() -> ChangeRules.check(generated, stripped)).doesNotThrowAnyException();
+        assertThat(ChangeRules.withoutLocalOnly(generated, stripped)).isSameAs(stripped);
+    }
 }

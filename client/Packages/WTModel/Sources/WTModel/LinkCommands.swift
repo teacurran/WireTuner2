@@ -19,6 +19,9 @@ public enum AssetFields {
     public static let mediaType = RegisterPath([5, 4])
     /// ATOMIC: kind, path, device and modification time describe one source.
     public static let link = RegisterPath([5, 5])
+    /// The security-scoped bookmark of a local file on this Mac: `local_only`, never on the wire
+    /// (crdt-model.adoc, "Local-only fields").
+    public static let bookmark = RegisterPath([5, 6])
 
     public static func values(_ build: (inout Wiretuner_Doc_V1_AssetProps) -> Void) -> Wiretuner_Doc_V1_NodeProps {
         var props = Wiretuner_Doc_V1_NodeProps()
@@ -49,6 +52,8 @@ public struct AssetLink: Identifiable, Hashable, Sendable {
     public var libraryDocument: String
     /// The source's modification time when the blob was last read from it.
     public var sourceModified: Date?
+    /// This Mac's security-scoped bookmark of the file (`bookmark`, local-only); nil when none.
+    public var bookmark: Data?
 
     public init(id: OpID, props: Wiretuner_Doc_V1_AssetProps) {
         self.id = id
@@ -66,6 +71,7 @@ public struct AssetLink: Identifiable, Hashable, Sendable {
         device = props.link.device
         libraryDocument = props.link.libraryDocument
         sourceModified = props.link.sourceModifiedMs == 0 ? nil : Date(timeIntervalSince1970: Double(props.link.sourceModifiedMs) / 1000)
+        bookmark = props.bookmark.isEmpty ? nil : props.bookmark
     }
 
     /// The file name the link searches for.
@@ -300,8 +306,8 @@ public struct ExtractAsset: Command {
 }
 
 /// One link the missing-link search repaired: where the file is now and its security-scoped
-/// bookmark, which the caller keeps in the local store's `view` table (`bookmarkKey`) -- a
-/// bookmark is only meaningful on this Mac and never enters a change.
+/// bookmark, which `RepairLinks` writes to the asset's `local_only` `bookmark` -- meaningful only on
+/// this Mac, so it never leaves it.
 public struct FoundLink: Hashable, Sendable {
     public var asset: OpID
     public var path: String
@@ -312,15 +318,11 @@ public struct FoundLink: Hashable, Sendable {
         self.path = path
         self.bookmark = bookmark
     }
-
-    /// The `view` key of an asset's bookmark.
-    public static func bookmarkKey(_ asset: OpID) -> String {
-        "link.bookmark.\(asset.counter):\(asset.replica)"
-    }
 }
 
-/// Writes the repaired paths of this Mac's links (the link register with only `path` changed),
-/// one change "Relink missing files".
+/// Writes the repaired paths of this Mac's links (the link register with only `path` changed)
+/// and, beside each, its bookmark (local-only: the outbox never carries it), one change "Relink
+/// missing files".
 public struct RepairLinks: Command {
     public var found: [FoundLink]
     public var label: String { "Relink missing files" }
@@ -335,7 +337,14 @@ public struct RepairLinks: Command {
             var link = state.props(item.asset).asset.link
             guard link.kind == .localFile, link.path != item.path else { continue }
             link.path = String(item.path.prefix(4096))
-            builder.append(LinkEditing.link(item.asset, link))
+            guard let bookmark = item.bookmark else {
+                builder.append(LinkEditing.link(item.asset, link))
+                continue
+            }
+            builder.append(Ops.set(item.asset, [AssetFields.link, AssetFields.bookmark], values: AssetFields.values {
+                $0.link = link
+                $0.bookmark = bookmark
+            }))
         }
     }
 }
