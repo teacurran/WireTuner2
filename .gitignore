@@ -34,3 +34,6 @@ docs/inspo/*.pdf
 
 # Agent worktrees
 .claude/worktrees/
+# The egress test stub's self-signed wt.test certificate (password "changeit"): test fixture, not a secret.
+!server/api/src/test/resources/egress/stub.p12
+!server/api/src/test/resources/egress/stub-cert.pem
