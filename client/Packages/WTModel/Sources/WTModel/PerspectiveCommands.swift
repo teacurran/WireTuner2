@@ -9,9 +9,9 @@ import WTRender
 // `PageProps.perspective_grid` (20); an attached object is wrapped in a `perspective` node (kind
 // 103) holding its plane and cell placement, the object inside staying flat.
 //
-// WTModel reads the wrapper by its raw kind here rather than as a `NodeKind`/`WrapperKind` case:
-// the scene (`DocumentScene`) and WTApp switch over those enums, so adding the case is the scene
-// hook's change (`PerspectiveReading.live` gives the `LiveGroup` it draws).
+// The scene reads the wrapper as `NodeKind.perspective` / `WrapperKind.perspective` and draws it
+// through `PerspectiveReading.live` and `drawOrder` (`Wrappers`); the reading here goes by the raw
+// kind, which is the same number.
 
 /// Register paths of the perspective schema.
 public enum PerspectiveFields {

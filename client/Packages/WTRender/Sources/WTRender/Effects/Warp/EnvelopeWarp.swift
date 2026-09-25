@@ -201,18 +201,28 @@ struct EnvelopeWarp: Hashable, Sendable {
 
 enum EnvelopeResolver {
     static func entries(_ spec: EnvelopeSpec, children: [DisplayItem]) -> [DerivedGroup.Entry] {
-        guard let warp = EnvelopeWarp(spec) else {
+        guard let warp = EnvelopeWarp(spec), let back = spec.transform.inverted() else {
             return children.enumerated().map { DerivedGroup.Entry(item: $0.element, origin: $0.offset) }
+        }
+        let place = spec.transform
+        let map: (Point) -> Point
+        if place.isIdentity {
+            map = { warp.map($0) }
+        } else {
+            map = { point in place.apply(warp.map(back.apply(point))) }
         }
         var entries: [DerivedGroup.Entry] = []
         for (index, child) in children.enumerated() {
-            if let item = WarpSource.mapped(WarpSource.plainPaths(child), map: warp.map) {
+            if let item = WarpSource.mapped(WarpSource.plainPaths(child), map: map) {
                 entries.append(DerivedGroup.Entry(item: item, origin: index))
             }
         }
         if spec.showMap {
+            // The mesh and the envelope's contours (the envelope and any others a merge left).
             let stroke = StrokePaint(paint: .solid(Color(red: 0.2, green: 0.45, blue: 0.9)), style: StrokeStyle(width: 0))
-            entries.append(DerivedGroup.Entry(item: .path(PathItem(path: warp.mesh(), appearance: Appearance([.stroke(stroke)]))), origin: nil))
+            var outline = warp.mesh()
+            outline.elements += spec.contour.elements
+            entries.append(DerivedGroup.Entry(item: .path(PathItem(path: outline, appearance: Appearance([.stroke(stroke)]), transform: place)), origin: nil))
         }
         return entries
     }

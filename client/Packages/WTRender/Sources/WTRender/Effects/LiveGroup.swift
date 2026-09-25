@@ -176,9 +176,13 @@ public struct ExtrudeSpec: Hashable, Sendable {
 
 // MARK: - Envelopes
 
-/// `EnvelopeProps`, resolved to pasteboard space.
+/// `EnvelopeProps`, resolved.  The contour and source rectangle are in the envelope's own space,
+/// which `transform` places on the pasteboard (the identity: they are in pasteboard space): the
+/// children, drawn in pasteboard space, are taken into envelope space, warped there and placed
+/// back, so a rotated or skewed envelope warps exactly as an upright one.
 public struct EnvelopeSpec: Hashable, Sendable {
-    /// The envelope outline: the first live closed contour is the envelope.
+    /// The envelope outline: the first live closed contour is the envelope; with `showMap` every
+    /// contour is drawn as the envelope's outline.
     public var contour: DisplayPath
     /// The rectangle the contents are mapped from.
     public var sourceBounds: Rect
@@ -187,12 +191,16 @@ public struct EnvelopeSpec: Hashable, Sendable {
     public var corners: [Int?]
     /// Draw the warp map (view state).
     public var showMap: Bool
+    /// Envelope space → pasteboard.
+    public var transform: AffineTransform
 
-    public init(contour: DisplayPath, sourceBounds: Rect, corners: [Int?] = [nil, nil, nil, nil], showMap: Bool = false) {
+    public init(contour: DisplayPath, sourceBounds: Rect, corners: [Int?] = [nil, nil, nil, nil], showMap: Bool = false,
+                transform: AffineTransform = .identity) {
         self.contour = contour
         self.sourceBounds = sourceBounds
         self.corners = corners
         self.showMap = showMap
+        self.transform = transform
     }
 }
 

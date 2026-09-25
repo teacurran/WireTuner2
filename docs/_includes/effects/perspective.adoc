@@ -339,10 +339,12 @@ trimmed, at most 64 characters and unique when written; duplicates after a merge
 page holding the centre of its flat child's bounds (else the first page).  *Option+Shift clone*: the
 copies are pinned to a new grid element holding the old geometry (`PerspectiveProps.grid`), so they
 stay where the objects were while the originals travel with the edited grid -- one change, new
-nodes.  *Scene hook*: the wrapper is read by its raw kind (103), not as a `NodeKind` or
-`WrapperKind` case, because the scene and WTApp switch over those enums; until `DocumentScene` draws
-kind 103 as a wrapper with `PerspectiveReading.live` and `drawOrder`, an attached object is not drawn
-on the canvas.  `ReleaseWithPerspective` draws the children from a scratch copy of the state in which
+nodes.  *Scene hook*: `DocumentScene` draws kind 103 as a wrapper (`NodeKind.perspective`,
+`WrapperKind.perspective`) through `PerspectiveReading.live` and `drawOrder`; the wrapper's drawing
+depends on the settings node and the pages, so a grid edit repaints every attached object
+(`PerspectiveSceneTests`).  Attached objects move, delete and arrange as one object
+(`Objects.kinds`); a move of the wrapper has no visible effect, the position coming from
+`cell_position`.  `ReleaseWithPerspective` draws the children from a scratch copy of the state in which
 they are unwrapped (`PerspectiveBaking.item`), so it does not wait for the hook.
 
 === Build tasks

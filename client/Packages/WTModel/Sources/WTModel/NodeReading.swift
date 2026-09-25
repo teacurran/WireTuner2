@@ -55,6 +55,10 @@ public enum NodeKind: UInt32, Sendable, CaseIterable {
     case blend = 100
     /// An extrusion wrapping one flat shape, drawn as a solid (extrude.adoc).
     case extrude = 101
+    /// An envelope warping its contents to its outline (path-effects.adoc, "Envelopes").
+    case envelope = 102
+    /// An object attached to a perspective grid plane, drawn projected (perspective.adoc).
+    case perspective = 103
     case layer = 150
     /// A symbol's master: its children are the artwork (library.adoc).
     case symbol = 151

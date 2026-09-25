@@ -305,7 +305,7 @@ enum NodeValues {
         case .barcode: props.barcode.appearance = stack
         case .connector: props.connector.appearance = stack
         case .text: props.text.blockAppearance = stack
-        case .layer, .chart, .symbol, .placedFile, .brush, .blend, .extrude, .image, .svgAnimation: break
+        case .layer, .chart, .symbol, .placedFile, .brush, .blend, .extrude, .envelope, .perspective, .image, .svgAnimation: break
         }
         return props
     }
@@ -332,6 +332,8 @@ enum NodeValues {
         case .brush: props.brush.common = common
         case .blend: props.blend.common = common
         case .extrude: props.extrude.common = common
+        case .envelope: props.envelope.common = common
+        case .perspective: props.perspective.common = common
         case .image: props.image.common = common
         case .svgAnimation: props.svgAnimation.common = common
         }
@@ -361,6 +363,8 @@ enum NodeValues {
         case .text(let text)?: text.common
         case .blend(let blend)?: blend.common
         case .extrude(let extrude)?: extrude.common
+        case .envelope(let envelope)?: envelope.common
+        case .perspective(let perspective)?: perspective.common
         case .brush(let brush)?: brush.common
         case .image(let image)?: image.common
         case .svgAnimation(let animation)?: animation.common
@@ -398,7 +402,7 @@ enum NodeValues {
         case .barcode: props.barcode.appearance = appearance
         case .connector: props.connector.appearance = appearance
         case .text: props.text.blockAppearance = appearance
-        case .layer, .chart, .symbol, .placedFile, .brush, .blend, .extrude, .image, .svgAnimation: break
+        case .layer, .chart, .symbol, .placedFile, .brush, .blend, .extrude, .envelope, .perspective, .image, .svgAnimation: break
         }
         return props
     }
@@ -416,7 +420,7 @@ enum NodeValues {
         case .connector: 4
         // A text node's own fills and strokes (`block_appearance`, TYPE-029).
         case .text: 7
-        case .layer, .chart, .symbol, .placedFile, .brush, .blend, .extrude, .image, .svgAnimation: nil
+        case .layer, .chart, .symbol, .placedFile, .brush, .blend, .extrude, .envelope, .perspective, .image, .svgAnimation: nil
         }
     }
 }

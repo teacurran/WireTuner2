@@ -226,6 +226,28 @@ a path is not drawn on the canvas until TYPE-041 wires the layout into the scene
 are the registers it will read.  Tests: `TextBlockSectionTests` (each control's register, the
 handle with and without kbd:[Option], concurrent drags converging on the later offset).
 
+NOTE: As built by TYPE-041 (`WTModel/TextOnPathCommands.swift`; the layout hook in
+`TextLayoutReading.swift`).  `AttachTextToPath` ("Attach to path", or "Flow inside path" with
+`mode = INSIDE`) moves the path under the text keeping its place on the page (its transform
+re-expressed under the text's) and writes `on_path` whole -- the mode, *Rotate around path*, both
+runs on the baseline, the path hidden, no offsets -- so settings from an earlier attachment are
+cleared; it refuses a text already on a path and anything but a `path` node (shapes are
+converted first).  `DetachTextFromPath` ("Detach from path"; the text or its path selected) moves
+every live `path` child out just below the text with the text's transform baked in (so attach
+then detach returns the path unchanged), clears `on_path`, keeps only the translation of the
+text's transform and sets the block's width to the path's width.  With the state,
+`TextLayoutReading.container` builds the `PathText` container from the path child's first
+renderable contour (the child's own transform applied), the stored mode, orientation, alignments
+(unspecified reads as the first named value), offsets, and the block's inset and adjustments;
+the scene, data-merge previews and Text to Paths lay text out through it.  *Show path* draws the
+path under the glyphs; further `path` children draw on top.  *Not delivered*: linking a block
+onto a path as INSIDE, the Text menu and toolbar buttons (TYPE-017), and the caret, selection and
+hit testing of the text editing session, which still lay out the block
+(`TextEditingSession`, `DocumentHandle` in WTApp pass no state).  Tests: `TextOnPathTests`
+(attach, draw, detach round trip, normalizations; merges: attach vs. concurrent path delete falls
+back to a block and Restore brings the attachment back; two replicas attaching one path to
+different texts converge, the loser a plain block).
+
 === Build tasks
 
 [[TYPE-041]]

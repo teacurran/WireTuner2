@@ -54,6 +54,8 @@ public struct NodeTree: Hashable, Sendable {
         case .text?: .text
         case .blend?: .blend
         case .extrude?: .extrude
+        case .envelope?: .envelope
+        case .perspective?: .perspective
         case .image?: .image
         case .svgAnimation?: .svgAnimation
         default: nil
@@ -88,6 +90,8 @@ public struct NodeTree: Hashable, Sendable {
             case .text?: assign(&props.text.common)
             case .blend?: assign(&props.blend.common)
             case .extrude?: assign(&props.extrude.common)
+            case .envelope?: assign(&props.envelope.common)
+            case .perspective?: assign(&props.perspective.common)
             case .image?: assign(&props.image.common)
             case .svgAnimation?: assign(&props.svgAnimation.common)
             default: break

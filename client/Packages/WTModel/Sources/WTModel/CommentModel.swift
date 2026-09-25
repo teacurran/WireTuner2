@@ -410,7 +410,8 @@ public struct CommentThreadModel: Sendable {
     static let kindNames: [NodeKind: String] = [
         .path: "Path", .rect: "Rectangle", .ellipse: "Ellipse", .polygon: "Polygon", .text: "Text", .group: "Group",
         .instance: "Symbol Instance", .layer: "Layer", .chart: "Chart", .connector: "Connector", .barcode: "Barcode",
-        .placedFile: "Placed File", .blend: "Blend", .extrude: "Extrusion", .image: "Image", .svgAnimation: "SVG Animation",
+        .placedFile: "Placed File", .blend: "Blend", .extrude: "Extrusion", .envelope: "Envelope",
+        .perspective: "Perspective Object", .image: "Image", .svgAnimation: "SVG Animation",
     ]
 }
 

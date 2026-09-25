@@ -92,7 +92,11 @@ public struct DocumentScene: Hashable, Sendable {
 /// layer's run of items with its rendering rules: locked, background, keyline, highlight, Guides;
 /// hidden layers contribute nothing), deleted nodes skipped, each object a top-level item tagged
 /// with its node id (group members nested), transforms flattened, attribute stacks resolved.
-/// Symbol instances draw their symbol's artwork through `SymbolRenderer` (LIB-010/026), charts
+/// Wrappers -- blends, extrusions, envelopes and perspective objects (`WrapperKind`) -- draw their
+/// live children through a WTRender live group (`Wrappers.live`: an envelope's warp is resolved in
+/// its own space by `EnvelopeReading.spec`, a projection by `PerspectiveReading.live`), and a
+/// change to a member repaints the wrapper.  Symbol instances draw their symbol's artwork through
+/// `SymbolRenderer` (LIB-010/026), charts
 /// their `ChartLayout` (DRAW-032), barcodes their bars (DATA-018), images their pixels through
 /// WTRender's image drawing (`ImageNodes.item`, IMG-004: the window's `ImageStore` supplies the
 /// pixels, the placeholder draws until they arrive) and placed SVG animations their poster frame
@@ -179,13 +183,14 @@ public struct DocumentDisplayListBuilder: Sendable {
         var groupAppearance = Appearance()
         /// A plain group's *Transform as unit* (OBJ-017): whether its matrix scales member strokes.
         var groupStrokes = GroupStrokeMode.asUnit
-        /// A blend or extrusion, drawn as a group with a live drawing (FX-024, FX-017).
+        /// A blend, extrusion, envelope or perspective object, drawn as a group with a live drawing
+        /// (FX-024, FX-017, FX-038, FX-042).
         var wrapper: WrapperKind?
         /// Whether the node names a canvas (`CommonProps.canvas`): its placement is re-read on
         /// every build, since it depends on the glyph or master it names.
         var namesCanvas = false
 
-        /// A group, blend or extrusion: its item is made of its children's.
+        /// A group or wrapper: its item is made of its children's.
         var drawsChildren: Bool { kind == .group || wrapper != nil }
     }
 
@@ -285,6 +290,15 @@ public struct DocumentDisplayListBuilder: Sendable {
         // A touched group moves its members; a touched layer everything on it.
         for (id, object) in all {
             if let parent = object.parent, affected.contains(NodeID(parent)) { affected.insert(id) }
+        }
+        // A wrapper's drawing is derived from its members (blend steps, an extrusion's faces, an
+        // envelope's warp, a projection): a touched member repaints every wrapper around it.
+        for id in Array(affected) {
+            var current = all[id]?.parent
+            while let parent = current, let object = all[NodeID(parent)] {
+                if WrapperKind(rawValue: object.kind.rawValue) != nil { affected.insert(NodeID(parent)) }
+                current = object.parent
+            }
         }
         for node in touched.keys where state.nodeKind(node) == .layer {
             for child in state.store.children(node) { affected.insert(NodeID(child)) }
@@ -531,7 +545,7 @@ public struct DocumentDisplayListBuilder: Sendable {
                 }
             }
             guard !children.isEmpty else { return nil }
-            let live = built.wrapper.map { Wrappers.live($0, node: node, children: placedIDs, in: state) { self.cache[$0]?.path } }
+            let live = built.wrapper.map { Wrappers.live($0, node: node, children: placedIDs, transform: transform, in: state) { self.cache[$0]?.path } }
             children = GroupStrokes.children(children, groupTransform: built.transform, mode: built.groupStrokes)
             item = .group(GroupItem(children: children, appearance: built.groupAppearance, live: live))
             bounds = item.bounds
@@ -585,6 +599,8 @@ public struct DocumentDisplayListBuilder: Sendable {
             var built = Built(item: nil, kind: wrapper.nodeKind, path: nil, transform: PathEditing.transform(common.transform), elementPoints: [:],
                               leafContours: [:], locked: common.locked, wrapper: wrapper)
             built.namesCanvas = common.hasCanvas
+            // A projection reads the grids (settings) and the page its object is on.
+            if wrapper == .perspective { built.sources = [WellKnown.settings] + PageList(state).pages.filter { !$0.isSynthesized }.map(\.id) }
             cache[node] = built
             return built
         }

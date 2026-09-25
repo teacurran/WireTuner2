@@ -3,20 +3,26 @@ import WTGeometry
 import WTProto
 import WTRender
 
-/// The wrapper node kinds WTModel draws and edits (blends.adoc, extrude.adoc): a node whose live
-/// children are drawn through a derived drawing.  The scene records a wrapper under its own
+/// The wrapper node kinds WTModel draws and edits (blends.adoc, extrude.adoc, path-effects.adoc
+/// "Envelopes", perspective.adoc): a node whose live children are drawn through a derived drawing.  The scene records a wrapper under its own
 /// `NodeKind` with its children as members, the way it records a group.
 public enum WrapperKind: UInt32, Sendable, CaseIterable {
     /// `BlendProps` (FX-023).
     case blend = 100
     /// `ExtrudeProps` (FX-016).
     case extrude = 101
+    /// `EnvelopeProps` (FX-037).
+    case envelope = 102
+    /// `PerspectiveProps` (FX-040).
+    case perspective = 103
 
     /// The node kind the scene records the wrapper as.
     public var nodeKind: NodeKind {
         switch self {
         case .blend: .blend
         case .extrude: .extrude
+        case .envelope: .envelope
+        case .perspective: .perspective
         }
     }
 
@@ -29,23 +35,33 @@ public enum WrapperKind: UInt32, Sendable, CaseIterable {
 /// Reading wrappers and lowering them to WTRender's `LiveGroup` (the read-time normalizations of
 /// blends.adoc and extrude.adoc).
 public enum Wrappers {
-    /// The wrapper's live children in the order the display list holds them: a blend's in sibling
-    /// order (its key objects bottom first, and the path); an extrusion's with the child of the
-    /// smallest node id first -- the one extruded -- and the others after it in sibling order,
-    /// drawn flat above (extrude.adoc, "More than one live child").
+    /// The wrapper's live children in the order the display list holds them: a blend's and an
+    /// envelope's in sibling order (a blend's key objects bottom first, and the path); an
+    /// extrusion's and a perspective object's with the child of the smallest node id first -- the
+    /// one extruded or projected -- and the others after it in sibling order, drawn flat above
+    /// (extrude.adoc, "More than one live child"; perspective.adoc, read-time normalizations).
     public static func drawOrder(_ node: OpID, _ kind: WrapperKind, in state: EngineState) -> [OpID] {
-        let children = state.liveChildren(node)
-        guard kind == .extrude, let first = children.min() else { return children }
-        return [first] + children.filter { $0 != first }
+        switch kind {
+        case .perspective: return PerspectiveReading.drawOrder(node, in: state)
+        case .extrude:
+            let children = state.liveChildren(node)
+            guard let first = children.min() else { return children }
+            return [first] + children.filter { $0 != first }
+        case .blend, .envelope: return state.liveChildren(node)
+        }
     }
 
     /// The live group of wrapper `node` drawn over `children` (its placed children, in draw
-    /// order); `path` gives a placed child's geometry for resolving blend points.
-    static func live(_ kind: WrapperKind, node: OpID, children: [OpID], in state: EngineState, path: (OpID) -> VectorPath?) -> LiveGroup {
+    /// order); `path` gives a placed child's geometry for resolving blend points, and `transform`
+    /// is the wrapper's own space → pasteboard (an envelope's outline is in that space).
+    static func live(_ kind: WrapperKind, node: OpID, children: [OpID], transform: AffineTransform = .identity, in state: EngineState,
+                     path: (OpID) -> VectorPath?) -> LiveGroup {
         let props = state.props(node)
         switch kind {
         case .blend: return .blend(blend(props.blend, children: children, in: state, path: path))
         case .extrude: return .extrude(extrude(props.extrude))
+        case .envelope: return .envelope(EnvelopeReading.spec(node, transform: transform, in: state))
+        case .perspective: return PerspectiveReading.live(node, in: state)
         }
     }
 

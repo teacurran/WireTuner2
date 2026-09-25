@@ -389,6 +389,28 @@ import struct WTRender.StrokeStyle
         #expect(entries.count == 3 && entries.last?.origin == nil)
     }
 
+    @Test func anEnvelopeWarpsInItsOwnSpace() {
+        // A rotated identity envelope leaves its contents where they are.
+        let child = Self.square(Rect(x: 10, y: 10, width: 20, height: 20))
+        let rotation = AffineTransform.rotation(radians: 0.4).concatenating(.translation(x: 30, y: -5))
+        let turned = EnvelopeResolver.entries(EnvelopeSpec(contour: DisplayPath(rect: Self.source), sourceBounds: Self.source, transform: rotation),
+                                              children: [child.transformed(by: rotation)])
+        #expect(approx(turned[0].item.geometricBounds!.minPoint, child.transformed(by: rotation).geometricBounds!.minPoint, tolerance: 1e-6))
+        // A moved corner lands where the envelope's transform places it.
+        let moved = DisplayPath(polygon: [Point(x: 0, y: 0), Point(x: 100, y: 0), Point(x: 130, y: 90), Point(x: 0, y: 60)])
+        let shift = AffineTransform.translation(x: 200, y: 50)
+        let corner = C.path(DisplayPath(polygon: [Point(x: 90, y: 50), Point(x: 100, y: 50), Point(x: 100, y: 60), Point(x: 90, y: 60)]), [C.fill(.black)])
+        let warped = EnvelopeResolver.entries(EnvelopeSpec(contour: moved, sourceBounds: Self.source, corners: [0, 1, 2, 3], showMap: true, transform: shift),
+                                              children: [corner.transformed(by: shift)])
+        #expect(approx(warped[0].item.geometricBounds!.maxPoint, Point(x: 330, y: 140), tolerance: 1e-6))
+        // Show Map draws the mesh and the contour through the transform.
+        #expect(warped[1].item.geometricBounds!.minX >= 199)
+        // A transform that cannot be inverted draws the contents unwarped.
+        let flat = EnvelopeResolver.entries(EnvelopeSpec(contour: moved, sourceBounds: Self.source, transform: AffineTransform(a: 0, b: 0, c: 0, d: 0, tx: 0, ty: 0)),
+                                            children: [child])
+        #expect(flat.map(\.item) == [child])
+    }
+
     // MARK: Perspective
 
     static let grid = PerspectiveGridSpec.defaultGrid(page: Rect(x: 0, y: 0, width: 256, height: 160))

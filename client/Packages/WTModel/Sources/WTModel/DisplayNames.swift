@@ -19,6 +19,8 @@ extension NodeKind {
         case .brush: "Brush"
         case .blend: "Blend"
         case .extrude: "Extrusion"
+        case .envelope: "Envelope"
+        case .perspective: "Perspective Object"
         case .layer: "Layer"
         case .symbol: "Symbol"
         case .instance: "Symbol Instance"

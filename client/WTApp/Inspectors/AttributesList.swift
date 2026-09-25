@@ -146,6 +146,8 @@ struct AttributesListModel {
         case .brush: "Brush"
         case .blend: "Blend"
         case .extrude: "Extrusion"
+        case .envelope: "Envelope"
+        case .perspective: "Perspective Object"
         }
     }
 

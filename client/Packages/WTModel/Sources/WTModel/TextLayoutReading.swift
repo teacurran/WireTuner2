@@ -12,8 +12,9 @@ import WTText
 /// auto sizing, inset, columns, rows, adjustments, direction and its own fill and stroke
 /// (`block_appearance`, TYPE-029).  With a context, text styles resolve (TYPE-034: defaults,
 /// paragraph style, the paragraph's registers, character style, marks) and small capitals take
-/// the document's *Small caps size* (TYPE-015).  Text on a path and linked flows (TYPE-007) are
-/// laid out as ordinary blocks.
+/// the document's *Small caps size* (TYPE-015).  With the state, text on a path (`on_path` set and
+/// a live `path` child) is laid out along or inside that path (`pathText`, TYPE-041); linked flows
+/// (TYPE-007) are laid out as ordinary blocks.
 public enum TextLayoutReading {
     /// The content of `text`, colours resolved through `colors`; with `context`, styles resolved,
     /// small capitals sized and inline graphics drawn (a node referred to twice is drawn at the
@@ -49,9 +50,16 @@ public enum TextLayoutReading {
                            charIDs: text.chars.map { CharID(counter: $0.counter, replica: $0.replica) })
     }
 
-    /// The block container of `text` (`TextProps.block` and the node's transform), with the block's
-    /// own fills and strokes `appearance` (`TextBlockAppearance.appearance`).
-    public static func container(_ text: TextNode, appearance: Appearance = Appearance()) -> TextContainer {
+    /// The container of `text`: with `state`, its path when it is on one (`pathText`); else its
+    /// block (`TextProps.block` and the node's transform), with the block's own fills and strokes
+    /// `appearance` (`TextBlockAppearance.appearance`).
+    public static func container(_ text: TextNode, appearance: Appearance = Appearance(), state: EngineState? = nil) -> TextContainer {
+        if let state, let path = pathText(text, in: state) { return .path(path) }
+        return .block(block(text, appearance: appearance))
+    }
+
+    /// The block of `text` (`TextProps.block` and the node's transform) with `appearance`.
+    static func block(_ text: TextNode, appearance: Appearance = Appearance()) -> TextBlock {
         let stored = text.props.block
         var block = TextBlock(width: stored.width, height: stored.height, autoWidth: stored.autoWidth, autoHeight: stored.autoHeight,
                               transform: PathEditing.transform(text.props.common.transform), appearance: appearance,
@@ -68,16 +76,67 @@ public enum TextLayoutReading {
                                      copyfitMinPercent: adjust.copyfitMinPercent == 0 ? 100 : adjust.copyfitMinPercent,
                                      copyfitMaxPercent: adjust.copyfitMaxPercent == 0 ? 100 : adjust.copyfitMaxPercent)
         block.direction = stored.direction == .vertical ? .vertical : .horizontal
-        return .block(block)
+        return block
+    }
+
+    // MARK: Text on a path
+
+    /// The path text `text` is attached to or flowed inside (text-on-path.adoc, "Read-time
+    /// normalizations"): its live `path` child of the smallest node id while `on_path` is set; nil
+    /// -- an ordinary block -- without `on_path` or without such a child.
+    public static func path(of text: TextNode, in state: EngineState) -> OpID? {
+        guard text.props.hasOnPath else { return nil }
+        return state.liveChildren(text.id).filter { state.nodeKind($0) == .path }.min()
+    }
+
+    /// `on_path` as WTText lays it out: the path's first renderable contour in the text's space
+    /// (the path child's own transform applied; the node's transform places it), the mode,
+    /// orientation, alignments (unspecified reads as the first named value: along, rotate, none)
+    /// and offsets, and for text inside the path the block's inset and column adjustments.  Nil
+    /// when the text is not on a path (`path(of:in:)`) or the path has no contour to follow.
+    public static func pathText(_ text: TextNode, in state: EngineState) -> PathText? {
+        guard let path = path(of: text, in: state),
+              let contour = Objects.localPath(path, in: state)?.contours.first(where: \.isRenderable) else { return nil }
+        let toText = Objects.transform(of: path, in: state)
+        let stored = text.props.onPath
+        let settings = block(text)
+        let orientations: [Wiretuner_Doc_V1_PathOrientation: PathText.Orientation] = [
+            .vertical: .vertical, .skewHorizontal: .skewHorizontal, .skewVertical: .skewVertical,
+        ]
+        func alignment(_ value: Wiretuner_Doc_V1_PathAlignment) -> PathText.Alignment {
+            switch value {
+            case .baseline: .baseline
+            case .ascent: .ascent
+            case .descent: .descent
+            default: .none
+            }
+        }
+        return PathText(contour: Contour(segments: contour.segments.map { $0.cubic.applying(toText) }, closed: contour.closed),
+                        mode: stored.mode == .inside ? .inside : .along, orientation: orientations[stored.orientation] ?? .rotate,
+                        top: alignment(stored.top), bottom: alignment(stored.bottom), offsetStart: stored.offsetStart, offsetEnd: stored.offsetEnd,
+                        inset: settings.inset, adjust: settings.adjust, transform: settings.transform)
     }
 
     /// Lays `text` out with `engine` (the document's `DocumentFontIndex.layoutEngine`); with
-    /// `state`, as the scene draws it (styles, inline graphics and the block's appearance).
+    /// `state`, as the scene draws it (styles, inline graphics, the block's appearance and its
+    /// path when it is on one).
     @MainActor
     public static func layout(_ text: TextNode, engine: TextLayoutEngine, colors: ColorResolver? = nil, state: EngineState? = nil) -> TextLayout {
         guard let state else { return engine.layout(content(text, colors: colors), in: [container(text)]) }
         return engine.layout(content(text, colors: colors, context: TextReadingContext(text.id, in: state)),
-                             in: [container(text, appearance: TextBlockAppearance.appearance(text.id, in: state))])
+                             in: [container(text, appearance: TextBlockAppearance.appearance(text.id, in: state), state: state)])
+    }
+
+    /// What text on a path draws besides its glyphs, in pasteboard space through the node's own
+    /// transform: below them its path when *Show path* is on, above them any further `path`
+    /// children (after concurrent attaches, drawn as ordinary children on top).
+    static func pathDrawing(_ text: TextNode, in state: EngineState) -> (below: [DisplayItem], above: [DisplayItem]) {
+        guard let path = path(of: text, in: state) else { return ([], []) }
+        let transform = PathEditing.transform(text.props.common.transform)
+        func drawn(_ node: OpID) -> DisplayItem? { SubtreeRendering.item(NodeTree(node, state: state), parent: transform) }
+        let below = text.props.onPath.showPath ? [drawn(path)].compactMap { $0 } : []
+        let others = state.liveChildren(text.id).filter { $0 != path && state.nodeKind($0) == .path }
+        return (below, others.compactMap(drawn))
     }
 
     /// The nodes the drawing of text node `node` reads besides itself (for the scene's dependency
@@ -90,11 +149,14 @@ public enum TextLayoutReading {
 
     /// The display item drawing text node `node` of `state`: a group of the laid-out block's items
     /// (glyph runs in pasteboard space through the node's own transform; the scene applies the
-    /// enclosing groups' and layer's).  Nil when it is not a text node or draws nothing.
+    /// enclosing groups' and layer's) -- for text on a path, with the path's drawing
+    /// (`pathDrawing`).  Nil when it is not a text node or draws nothing.
     @MainActor
     public static func item(_ node: OpID, in state: EngineState, engine: TextLayoutEngine) -> DisplayItem? {
         guard let text = TextNode(node, in: state) else { return nil }
-        let items = layout(text, engine: engine, colors: ColorResolver.current ?? ColorResolver(state), state: state).displayItems(forContainer: 0)
+        let glyphs = layout(text, engine: engine, colors: ColorResolver.current ?? ColorResolver(state), state: state).displayItems(forContainer: 0)
+        let path = pathDrawing(text, in: state)
+        let items = path.below + glyphs + path.above
         return items.isEmpty ? nil : .group(GroupItem(children: items))
     }
 

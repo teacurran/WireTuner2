@@ -1,0 +1,58 @@
+# crdt-conformance/vectors/type/text-on-path-struct.textproto (TYPE-041; schema: crdt-conformance/schema/vector.proto)
+name: "type/text-on-path-struct"
+description: "TextProps.on_path (TextOnPathProps) is STRUCT: each setting is its own register (text-on-path.adoc, Merge semantics).  A text attached along a path.  Replica 1 turns the glyphs upright and aligns the top run by ascent; replica 2 drags the text 12 pt along (offset_start) and aligns the top run by descent.  Different settings merge; the top alignment is one register the greater OpId wins (replica 2), the other retained as a loser."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Attach to path"
+    ops { create { parent { counter: 4 } position: "\x80" props { text { common { name: "Sign" }
+      on_path { mode: PATH_TEXT_MODE_ALONG orientation: PATH_ORIENTATION_ROTATE top: PATH_ALIGNMENT_BASELINE bottom: PATH_ALIGNMENT_BASELINE } } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 2 base_server_seq: 1 label: "Text on path"
+    ops { set { node { counter: 1 replica: 7 }
+      paths { segments { field: 130 } segments { field: 6 } segments { field: 2 } }
+      paths { segments { field: 130 } segments { field: 6 } segments { field: 4 } }
+      values { text { on_path { orientation: PATH_ORIENTATION_VERTICAL top: PATH_ALIGNMENT_ASCENT } } } } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 2 base_server_seq: 1 label: "Move Text on Path"
+    ops { set { node { counter: 1 replica: 7 }
+      paths { segments { field: 130 } segments { field: 6 } segments { field: 4 } }
+      paths { segments { field: 130 } segments { field: 6 } segments { field: 6 } }
+      values { text { on_path { top: PATH_ALIGNMENT_DESCENT offset_start: 12 } } } } }
+  }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "a8a61b5f434c4b1a28ef5bf92637810388f5f6897cfd6c48e2150e5a142c64ff"
+  snapshot_hash: "61f5f7ea90672cacdfac13056c32ae0dc201176e6fd017caab1a7ac6d5e45904"
+  node {
+    id { counter: 1 replica: 7 }
+    node_hash: "bf0f591aa03d925e4396ba5749e0f501c41c43eeac873d094bbf7027f6d057b2"
+    register {
+      path { segments { field: 130 } segments { field: 6 } segments { field: 2 } }
+      value { text { on_path { orientation: PATH_ORIENTATION_VERTICAL } } }
+      op { counter: 2 replica: 1 }
+      losing { counter: 1 replica: 7 }
+    }
+    register {
+      path { segments { field: 130 } segments { field: 6 } segments { field: 4 } }
+      value { text { on_path { top: PATH_ALIGNMENT_DESCENT } } }
+      op { counter: 2 replica: 2 }
+      losing { counter: 1 replica: 7 }
+      losing { counter: 2 replica: 1 }
+    }
+    register {
+      path { segments { field: 130 } segments { field: 6 } segments { field: 6 } }
+      value { text { on_path { offset_start: 12 } } }
+      op { counter: 2 replica: 2 }
+    }
+  }
+}

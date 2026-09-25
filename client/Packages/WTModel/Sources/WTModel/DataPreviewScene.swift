@@ -16,8 +16,9 @@ public enum DataPreviewScene {
     public static func item(_ node: OpID, in state: EngineState, engine: TextLayoutEngine, substitution: RecordSubstitution) -> DisplayItem? {
         guard let text = TextNode(node, in: state) else { return nil }
         let colors = ColorResolver.current ?? ColorResolver(state)
-        let layout = engine.layout(substitution.content(text, state: state, colors: colors), in: [TextLayoutReading.container(text)])
-        let items = layout.displayItems(forContainer: 0)
+        let layout = engine.layout(substitution.content(text, state: state, colors: colors), in: [TextLayoutReading.container(text, state: state)])
+        let path = TextLayoutReading.pathDrawing(text, in: state)
+        let items = path.below + layout.displayItems(forContainer: 0) + path.above
         return items.isEmpty ? nil : .group(GroupItem(children: items))
     }
 
