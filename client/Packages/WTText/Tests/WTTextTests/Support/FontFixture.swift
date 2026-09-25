@@ -102,8 +102,6 @@ enum FontFixture {
 
     /// A scratch directory for activated font files.
     static func directory() -> URL {
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("WTTextFontTests-\(UUID().uuidString)", isDirectory: true)
-        try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
-        return url
+        ScratchFolders.directory()
     }
 }

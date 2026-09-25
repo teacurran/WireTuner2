@@ -1,0 +1,40 @@
+# crdt-conformance/vectors/library/style-redefine-in-place.textproto (LIB-019; schema: crdt-conformance/schema/vector.proto)
+name: "library/style-redefine-in-place"
+description: "Two replicas redefine one style at once.  The redefine command diffs the new look against the style's own stack and edits matching elements in place, writing only the registers that differ: replica 1 recolours the fill (settings.basic.color), replica 2 hides it (hidden).  They are different registers of one SEQUENCE element, so both apply and the style still has one fill; nothing is listed for review."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Style with a fill"
+    ops { create { parent { counter: 6 } position: "\x80" props { style { common { name: "Callout" } kind: STYLE_KIND_GRAPHIC behavior { fills: true strokes: true effects: true halftone: true } } } } }
+    ops { element_insert { node { counter: 1 replica: 7 } sequence { segments { field: 154 } segments { field: 6 } segments { field: 1 } } positions: ["\x80"] values { style { appearance { fills { settings { kind: FILL_KIND_BASIC basic { color { inline { rgb { r: 0.1 } } } } } } } } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 3 base_server_seq: 1 label: "Redefine style Callout"
+    ops { set { node { counter: 1 replica: 7 }
+      paths { segments { field: 154 } segments { field: 6 } segments { field: 1 } segments { element { counter: 2 replica: 7 } } segments { field: 3 } segments { field: 2 } segments { field: 1 } }
+      values { style { appearance { fills { id { counter: 2 replica: 7 } settings { kind: FILL_KIND_BASIC basic { color { inline { rgb { r: 0.7 } } } } } } } } } } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 3 base_server_seq: 1 label: "Redefine style Callout"
+    ops { set { node { counter: 1 replica: 7 }
+      paths { segments { field: 154 } segments { field: 6 } segments { field: 1 } segments { element { counter: 2 replica: 7 } } segments { field: 2 } }
+      values { style { appearance { fills { id { counter: 2 replica: 7 } hidden: true settings { kind: FILL_KIND_BASIC basic { color { inline { rgb { r: 0.1 } } } } } } } } } } }
+  }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "e249fdec88b33e8dfd180a532b7b6f924c7c599b969fbe7461bb607afef6097c"
+  snapshot_hash: "a309579c121593f1b650d956ba928f0ed06f5a186fa95e63f1f7ceee227b9ac4"
+  node {
+    id { counter: 1 replica: 7 }
+    sequence { path { segments { field: 154 } segments { field: 6 } segments { field: 1 } } elements { counter: 2 replica: 7 } }
+    register { path { segments { field: 154 } segments { field: 6 } segments { field: 1 } segments { element { counter: 2 replica: 7 } } segments { field: 3 } segments { field: 2 } segments { field: 1 } } value { style { appearance { fills { settings { basic { color { inline { rgb { r: 0.7 } } } } } } } } } op { counter: 3 replica: 1 } losing { counter: 2 replica: 7 } }
+    register { path { segments { field: 154 } segments { field: 6 } segments { field: 1 } segments { element { counter: 2 replica: 7 } } segments { field: 2 } } value { style { appearance { fills { hidden: true } } } } op { counter: 3 replica: 2 } }
+  }
+}

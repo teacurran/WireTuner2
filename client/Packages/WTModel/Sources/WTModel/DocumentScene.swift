@@ -147,6 +147,8 @@ public struct DocumentDisplayListBuilder: Sendable {
     private var routing: Set<OpID> = []
     /// While building: each layer's transform, read once.
     private var layerTransforms: [OpID: AffineTransform] = [:]
+    /// The graphic styles, read at the start of each build (LIB-019, `StyleAppearance`).
+    private var graphicStyles = GraphicStyleResolver()
     /// Each connector as stored (`Connectors.storedSpec`) with its own `locked`, kept until the
     /// connector itself is touched: a connector rerouted because an object it joins changed
     /// re-checks its ends against the document and is routed again without reading its registers.
@@ -377,6 +379,7 @@ public struct DocumentDisplayListBuilder: Sendable {
 
     private mutating func begin(_ state: EngineState) {
         building = LayerOrder(state)
+        graphicStyles.update(state)
         attachments = [:]
         layerTransforms = [:]
     }
@@ -587,12 +590,13 @@ public struct DocumentDisplayListBuilder: Sendable {
         }
         guard let kind = state.nodeKind(node), kind != .layer, kind != .symbol else { return nil }
         if let substitution, substitution.hides(node, state: state) { return nil }
-        let props = EffectReading.completingSets(state.props(node), node: node, in: state)
+        var props = EffectReading.completingSets(state.props(node), node: node, in: state)
         guard let common = NodeValues.common(props), CanvasMembership.draws(common, on: canvasNode, in: state) else { return nil }
         let transform = PathEditing.transform(common.transform)
         var built = Built(item: nil, kind: kind, path: nil, transform: transform, elementPoints: [:], leafContours: [:], locked: common.locked)
         built.namesCanvas = common.hasCanvas
-        let order = AppearanceEditing.stack(node, in: state)
+        var order = AppearanceEditing.stack(node, in: state)
+        let styleSources = StyleAppearance.apply(graphicStyles, to: &props, order: &order, node: node, state: state)
         switch props.kind {
         case .path(let path)?:
             let model = VectorPath(path, node: node, state: state)
@@ -652,7 +656,7 @@ public struct DocumentDisplayListBuilder: Sendable {
         default:
             break
         }
-        built.sources += Brushes.referenced(NodeValues.appearance(props))
+        built.sources += Brushes.referenced(NodeValues.appearance(props)) + styleSources
         cache[node] = built
         return built
     }

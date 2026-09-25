@@ -528,8 +528,7 @@ struct SVGImportConversionTests {
         let png = SVGImportFixture.png()
         let base64 = png.base64EncodedString()
         let percent = png.map { String(format: "%%%02X", $0) }.joined()
-        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("SVGImportImages-\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let directory = ScratchFolders.directory()
         try png.write(to: directory.appendingPathComponent("pic.png"))
         let body = """
         <image id="a" x="10" y="10" width="40" height="40" xlink:href="data:image/png;base64,\(base64)"/>

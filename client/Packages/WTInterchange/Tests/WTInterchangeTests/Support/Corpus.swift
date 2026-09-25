@@ -280,9 +280,7 @@ enum Corpus {
 
     /// A temporary directory for files a test writes.
     static func directory() -> URL {
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("WTInterchangeTests-\(UUID().uuidString)")
-        try! FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
-        return url
+        ScratchFolders.directory()
     }
 
     /// Writes `image` as PNG to `$TMPDIR/WTInterchangeFailures/<name>.png` for inspection.

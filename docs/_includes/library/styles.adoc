@@ -519,10 +519,72 @@ then the object's own set categories override, then `SettingsProps.defaults.appe
 (an empty defaults stack reads as the built-in defaults).  `effective(of:)` gives the appearance, its
 sources and the overridden categories (the plus sign); `sources(of:)` reads only registers; `index(in:)`
 is the style-to-objects index.  Normalizations as listed above; in addition a deleted `based_on` target
-reads as unset (dangling), while an object's reference to a deleted style resolves through it.  The
-resolver is not yet wired into the scene builder or the Styles panel (LIB-019/020).  Vectors:
+reads as unset (dangling), while an object's reference to a deleted style resolves through it.  Vectors:
 `library/style-based-on-loop` and `library/style-ref-to-deleted-style`; the read-outs are WTModel tests
 (`LibraryGraphicStyleTests`), with the 50,000-object budget as a `PerfBudget`.
+
+[NOTE]
+====
+As built by LIB-019 (`WTModel/StyleCommands.swift`, `StyleStacks.swift`, `StyleIndex.swift`,
+`StyleAppearance.swift`).  The commands are `CreateGraphicStyle` (from a selection, from Normal, from a
+style, from the defaults; `applyTo` carries the selection when *Auto-apply new styles to selection* is
+on), `CreateNormalGraphicStyle` (template, not an undo step; *New from Normal* creates Normal in the same
+change when a document has none), `DuplicateGraphicStyle`, `RenameGraphicStyle`, `ApplyGraphicStyle`,
+`RedefineGraphicStyle` (from an object, another style or the defaults), `RemoveGraphicStyle`,
+`RemoveUnusedGraphicStyles`, `SetGraphicStyleParent` (with `candidates(for:)` for the pop-up),
+`SetGraphicStyleBehavior` and `SelectGraphicStyleAsDefaults`; `GraphicStyleDefaults` answers the plus
+signs.  Copy and Paste Attributes stay OBJ-014's: a pasted stack is the target's own, so it reads as
+overrides.  Labels: "New style", "Duplicate style", "Rename style", "Apply style <name>", "Redefine style
+<name>", "Remove style <name>", "Remove unused styles", "Style behavior", "Default attributes".  Where the
+build refines the text above:
+
+* *Clearing a stack.*  Only a register can be cleared to unset; fills, strokes and effects are SEQUENCEs,
+  so *Apply* clears them with an `ElementDelete` of the object's live elements in each governed list.  A
+  concurrent edit of a deleted element stays on its tombstone (the loser, retained); a fill or stroke a
+  collaborator inserts concurrently survives, so the override wins, as the "override wins" case above
+  describes.  The halftone register is always listed with no value in the same `SetFields` as the style
+  reference, even when this replica sees no override, so a concurrent override competes by LWW.  Vector:
+  `library/style-apply-clears-override`.
+* *Redefine* writes only the governed categories where the new look differs from what the style resolves
+  to now: a category the look leaves as the style inherits it stays inherited, and categories the style
+  does not govern are ignored.  Within each list the stored element and the new element at the same index
+  are paired when their kinds match and only the registers that differ are written; unpaired elements are
+  deleted or inserted next to their neighbours in the list, and an element whose nested sequence (a
+  gradient's stops) differs is replaced.  Redefining from an object that uses the style clears that
+  object's overrides in the redefined categories in the same change.  Vector:
+  `library/style-redefine-in-place`.
+* *Remove* bakes onto each object only the categories whose look would change once it points at the
+  parent (or Normal, or no style), keeps overrides it already has, and folds into each child style the
+  categories it inherited through the removed style, turning on the child's behaviour for them when its
+  behaviour is explicit.  Detaching a style from its parent folds the same way.
+* *Remove Unused* keeps the ancestors of styles in use as well as Normal.
+* *Default attributes.*  `SettingsProps.defaults` (with `defaults.style`) is shared, not `local_only`, in
+  `document.proto`; `SelectGraphicStyleAsDefaults` writes it as an ordinary undoable change.
+* *Scene.*  `DocumentDisplayListBuilder` reads a `GraphicStyleResolver` at the start of each build and
+  hands each object to `StyleAppearance.apply`: an object with a style is drawn from its own set
+  categories over its chain over the defaults, and records the chain (and the settings node, when a
+  category falls back to the defaults) as the nodes it is drawn from, so a redefinition, a parent change
+  or a defaults edit redraws exactly its users.  An object with no style is drawn from its registers as
+  before.  When fills and strokes come from different nodes the fills are drawn below the strokes;
+  from one node, in that node's order.  The halftone screen is not part of the drawn look.
+* *Index.*  `GraphicStyleIndex` is the style-to-objects index kept change by change: `refresh` re-reads
+  each touched node with its subtree and, for a touched style, the objects whose reference names it.
+* *Normal in new documents.*  `DocumentTemplate` does not yet run `CreateNormalGraphicStyle` (proposed
+  to the template's owner).
+
+The merge tests are `StyleMergeTests`; the commands, index and scene are covered by `StyleCommandTests`
+and `StyleSceneTests`.
+====
+
+NOTE: LIB-020 (the Styles panel) is WTApp work and is not built.  The package half is ready for it: the
+panel lists `GraphicStyleFields.styles(in:_:)` (and the TYPE epic's text styles), previews each through
+`StyleStacks`/`GraphicStyleResolver.resolved`, clicks `ApplyGraphicStyle` with a selection or
+`SelectGraphicStyleAsDefaults` without, drops `CreateGraphicStyle(.selection)` on an empty area and
+`RedefineGraphicStyle(.object/.style)` on a style, renames with `RenameGraphicStyle`, shows the plus
+sign from `GraphicStyleDefaults.isModified` and `overrides(of:)`, fills the Parent pop-up from
+`SetGraphicStyleParent.candidates(for:in:)` and the Remove Unused sheet from
+`RemoveUnusedGraphicStyles.unused(in:)`, and keeps a `GraphicStyleIndex` refreshed from each applied
+change for highlighting and counts.
 
 === Build tasks
 

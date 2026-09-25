@@ -7,8 +7,7 @@ import WTProto
 /// JSONPath subset (the server's shared vectors, unchanged), and file bookmarks.
 @Suite struct DataFileReaderTests {
     static func file(_ name: String, _ data: Data) throws -> URL {
-        let directory = FileManager.default.temporaryDirectory.appending(path: "DataFileReaderTests-\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let directory = ScratchFolders.directory()
         let url = directory.appending(path: name)
         try data.write(to: url)
         return url
