@@ -580,6 +580,21 @@ into that folder; nothing in the code changes.  Swatches naming a library the ap
 from their nominal CMYK and are marked "library not available".  Rejected: deriving Lab values
 from published sRGB swatch books (still the vendor's data, and less accurate than measured Lab).
 
+[[D-073]]
+=== D-073 The shared packages stay platform-neutral for later iPhone and iPad apps
+iPhone and iPad apps are planned, each with its own design rather than a port of the desktop
+window.  What they should share with the Mac app is everything below the interface: the
+document model, merge, sync, rendering, text, geometry and interchange.  So the Swift packages
+(`WTCRDT`, `WTGeometry`, `WTProto`, `WTModel`, `WTRender`, `WTText`, `WTSync`, `WTInterchange`,
+`WTTestSupport`) import no AppKit or UIKit outside `#if canImport(...)` branches, declare an iOS
+platform beside macOS, and build for iOS in CI; logic that does not draw a control (document
+sessions, the sync connector, account and library models, command definitions, view models'
+state machines) moves into packages as it is touched instead of growing in `WTApp`, which keeps
+only AppKit views, windows and menus.  Rendering already goes through Metal and Core Graphics,
+and text through Core Text, which both platforms have.  Rejected: Mac Catalyst or a shared
+SwiftUI interface (the mobile design is its own), and porting later (the AppKit dependencies
+would have spread by then).
+
 == Open questions
 
 [[Q-001]]
