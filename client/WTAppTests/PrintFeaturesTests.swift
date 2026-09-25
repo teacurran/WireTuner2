@@ -258,63 +258,24 @@ struct PrintWorld {
         await world.document.settle()
         let operation = try #require(operations.first)
         #expect(operation.jobTitle == world.document.title && operation.printPanel.accessoryControllers.count == 1)
-        let view = try #require(operation.view as? PrintSheetsView)
-        #expect(view.job.sheetCount == 1)
+        let view = try #require(operation.view as? PrintPlanView)
+        #expect(view.plan.count == 1 && view.title == world.document.title)
         // A pane change rebuilds the job (the output area, once there is one).
         let pane = try #require(world.features.pane)
         _ = await world.document.perform(SetOutputArea(Rect(x: world.center.x - 60, y: world.center.y - 60, width: 120, height: 120))).value
         pane.source = .outputArea
         pane.changed()
-        #expect(view.job.sheetCount == 1 && view.job.scene.pages.first?.bounds.width == 120)
+        #expect(view.plan.count == 1 && view.plan.pages.first?.bounds.width == 120)
+        // The dialog stopped following the document once it closed.
+        let session = try #require(world.features.session)
+        let rebuilds = session.rebuilds
+        await world.document.addRectangles([Rect(x: world.center.x, y: world.center.y, width: 10, height: 10)])
+        #expect(session.rebuilds == rebuilds)
         world.features.runPrint = { _ in false }
         #expect(!world.features.print())
         // A damaged archive falls back to the shared print info.
         _ = await world.document.perform(SetPrintInfo(Data([1, 2, 3]))).value
         #expect(PrintFeatures.printInfo(for: world.document).paperSize.width > 0)
-    }
-
-    // MARK: The print job
-
-    @Test func sheetsScaleCentreAndOffsetOnThePaper() async throws {
-        let world = PrintWorld()
-        defer { world.close() }
-        await world.document.addRectangles([Rect(x: world.center.x - 50, y: world.center.y - 50, width: 100, height: 100)])
-        let job = try #require(PrintJob.make(for: world.window, source: .pages, blobs: BlobPlacement()))
-        #expect(job.sheetCount == 1)
-        #expect(PrintJob.make(for: world.window, source: .outputArea, blobs: BlobPlacement()) == nil)
-        let imageable = CGRect(x: 18, y: 18, width: 576, height: 756)
-        let page = try #require(job.pdf?.page(at: 1)).getBoxRect(.mediaBox)
-        let placed = try #require(job.placement(ofSheet: 0, imageable: imageable))
-        #expect(abs(placed.width - page.width) < 1e-6 && abs(placed.midX - imageable.midX) < 1e-6)
-        #expect(job.placement(ofSheet: 5, imageable: imageable) == nil)
-        var variable = job
-        variable.settings.scaleMode = .variable
-        variable.settings.scaleX = 50
-        variable.settings.scaleY = 200
-        variable.settings.offset = Point(x: 10, y: 20)
-        let stretched = try #require(variable.placement(ofSheet: 0, imageable: imageable))
-        #expect(abs(stretched.width - page.width / 2) < 1e-6 && abs(stretched.height - page.height * 2) < 1e-6)
-        #expect(abs(stretched.midX - (imageable.midX + 10)) < 1e-6 && abs(stretched.midY - (imageable.midY - 20)) < 1e-6)
-        var fit = job
-        fit.settings.scaleMode = .fit
-        #expect(fit.scale(of: Size(width: 1152, height: 1512), imageable: imageable) == (0.5, 0.5))
-        #expect(fit.scale(of: Size(width: 0, height: 10), imageable: imageable) == (1, 1))
-        fit.settings.flatness = 2
-        let context = PrintWorld.context(width: 612, height: 792)
-        fit.draw(sheet: 0, in: context, imageable: imageable)
-        fit.draw(sheet: 3, in: context, imageable: imageable)
-        // The print view stacks one paper-sized stripe per sheet.
-        let info = NSPrintInfo()
-        let view = PrintSheetsView(job: job, printInfo: info)
-        var range = NSRange()
-        #expect(view.knowsPageRange(&range) && range == NSRange(location: 1, length: 1) && !view.isFlipped)
-        #expect(view.rectForPage(1).height == info.paperSize.height && view.rectForPage(9) == view.rectForPage(1))
-        view.drawSheets(in: context, dirty: view.bounds)
-        view.drawSheets(in: context, dirty: .zero)
-        let image = try #require(view.bitmapImageRepForCachingDisplay(in: view.bounds))
-        view.cacheDisplay(in: view.bounds, to: image)
-        let empty = PrintJob(scene: ExportSceneFallback.empty, settings: job.settings, pdf: nil)
-        #expect(empty.sheetCount == 0)
     }
 
     // MARK: The pane
@@ -338,7 +299,8 @@ struct PrintWorld {
         pane.center()
         pane.setDefaultScreen(shape: .line)
         pane.setDefaultScreen(frequency: 85)
-        #expect(pane.inks.count >= 4)
+        // The protected Black and Registration swatches are not spot rows.
+        #expect(pane.inks == [.cyan, .magenta, .yellow, .black])
         pane.setPlate(.magenta, print: false)
         await document.settle()
         #expect(performed == ["Change bleed", "Change scaling", "Turn on crop marks", "Change offset", "Change halftone screen", "Change halftone screen",
@@ -348,10 +310,13 @@ struct PrintWorld {
         #expect(settings.bleed == 9 && settings.scaleMode == .variable && settings.marks == [.crop] && settings.defaultHalftone.frequency == 85)
         let rows = pane.plates
         #expect(Array(rows.map(\.name).prefix(4)) == ["Cyan", "Magenta", "Yellow", "Black"] && rows[1].print == false && rows[0].angle == 15 && rows[0].frequency == 85)
-        #expect(pane.summary.map(\.value) == ["Pages", "100% × 100%", "Composite", "9 pt"])
+        #expect(pane.summary.map(\.value) == ["Pages", "100% × 100%", "None", "Composite", "9 pt", "0"])
         pane.commit(.scaleMode(.fit))
         await document.settle()
         #expect(pane.summary[1].value == "Fit on paper")
+        pane.commit(.tile(.automatic))
+        await document.settle()
+        #expect(performed.last == "Change tiling" && pane.summary[2].value == "Automatic")
         pane.commit(.scaleMode(.uniform))
         await document.settle()
         #expect(pane.summary[1].value == "100%")
@@ -369,12 +334,16 @@ struct PrintWorld {
         PrintPaneView.separations(pane).wrappedValue = true
         PrintPaneView.mark(pane, .registration).wrappedValue = true
         PrintPaneView.shape(pane).wrappedValue = 4
+        PrintPaneView.tile(pane).wrappedValue = .manual
+        // Nothing was selected: *Selected objects only* stays off.
+        PrintPaneView.selectedOnly(pane).wrappedValue = true
+        #expect(!PrintPaneView.selectedOnly(pane).wrappedValue && pane.effectiveSelection == nil)
         for item in [PrintPaneView.pageBoundaries] + PrintPaneView.outputSwitches + PrintPaneView.imagingSwitches {
             PrintPaneView.binding(pane, item).wrappedValue = true
             await document.settle()
             #expect(PrintPaneView.binding(pane, item).wrappedValue, "\(item.id)")
         }
-        for item in [PrintPaneView.scaleX, PrintPaneView.scaleY, PrintPaneView.bleed] + PrintPaneView.offsets + PrintPaneView.imagingNumbers {
+        for item in [PrintPaneView.scaleX, PrintPaneView.scaleY, PrintPaneView.bleed, PrintPaneView.overlap] + PrintPaneView.offsets + PrintPaneView.imagingNumbers {
             PrintPaneView.commit(pane, item)(80)
             await document.settle()
             #expect(item.value(pane.settings) == 80, "\(item.id)")
@@ -383,6 +352,7 @@ struct PrintWorld {
         await document.settle()
         #expect(pane.settings.rasterizeDPI == 0)
         #expect(PrintPaneView.scaleMode(pane).wrappedValue == .variable && PrintPaneView.separations(pane).wrappedValue)
+        #expect(PrintPaneView.tile(pane).wrappedValue == .manual)
         #expect(PrintPaneView.mark(pane, .registration).wrappedValue && PrintPaneView.shape(pane).wrappedValue == 4)
         let row = try #require(pane.plates.first)
         PrintPaneView.platePrint(pane, row).wrappedValue = false
@@ -395,12 +365,12 @@ struct PrintWorld {
         await document.settle()
         #expect(!PrintPaneView.platePrint(pane, pane.plates[0]).wrappedValue && pane.plates[0].angle == 360 && pane.plates[0].frequency == 120)
         #expect(pane.settings.defaultHalftone.frequency == 600 && PrintPaneModel.frequency(0, or: 60) == 60)
-        Render.view(PrintPaneView(model: pane), size: CGSize(width: 440, height: 560))
+        Render.view(PrintPaneView(model: pane), size: CGSize(width: 440, height: 600))
         // The accessory controller hosts it, summarises it and bumps its preview key path.
         let accessory = PrintAccessoryController(model: pane)
         _ = accessory.view
         #expect(accessory.keyPathsForValuesAffectingPreview() == ["revision"])
-        #expect(accessory.localizedSummaryItems().count == 4)
+        #expect(accessory.localizedSummaryItems().count == 6)
         pane.changed()
         #expect(accessory.revision == 1)
     }

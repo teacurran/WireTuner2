@@ -501,12 +501,8 @@ boundaries*; *Scale* with X, Y, *Offset* and btn:[Center]; *Separations* with a 
 (print, angle, frequency), *Print spot colors as process*, the halftone screen's shape and frequency, *Screen in
 {product}* and *Ignore object screens*; the four marks and *Bleed*; *Emulsion down*, *Negative*, *Include hidden layers*,
 *Flatness*, *Print text as outlines* and *Rasterize at*.  The preview repaginates through `keyPathsForValuesAffectingPreview`
-(a revision bumped on each commit).  Until the print plan (PRINT-003) exists, `PrintJob` prints composite sheets only: each
-page (or the output area) of an `ExportSnapshot` written as a PDF by the export pipeline, drawn one sheet per page
-scaled by *Uniform*/*Variable*/*Fit on paper*, centred on the printable area and moved by the offset, with the flatness
-set on the context.  Not built here (PRINT-003 to PRINT-006): tiling, marks and bleed drawn, separations, emulsion and
-negative, *Selected objects only*, presets through the print info dictionary, and the focused-field rule beyond the
-Object panel's `CommitField`.
+(a revision bumped on each commit).  The glue's composite-only `PrintJob` (each page written as a PDF by the export
+pipeline) was replaced by the print plan's view; see the PRINT-003/PRINT-004 app note below.
 NOTE: As built by PRINT-003, PRINT-005 and PRINT-006 (pipeline; `WTInterchange/Print`, `WTModel/PrintSnapshot.swift`,
 additions in `WTRender`).  The plan is platform-neutral (D-073): `PrintRequest` holds the snapshot as an `ExportScene`, the
 settings as `PrintOptions` (read-time normalized again), the paper as `PrintPaper` (size and printable area in points, *top-left
@@ -539,6 +535,33 @@ pane's registers and plate rows as `WTPrint*` property-list entries (spot rows k
 `NSPrintOperation`, `PrintAccessoryController`) is WTApp's: its view paginates by `PrintPlan.count`, draws
 `PrintSheetRenderer.draw` for the sheet in `rectForPage` (plus the overlays when `NSPrintOperation.current?.isPreview`), and
 the pane re-plans on every commit and remote change.
+
+NOTE: As built by PRINT-003 and PRINT-004 (app; `WTApp/Print/PrintJob.swift`, `PrintSession.swift`, `PrintPane.swift`,
+`PrintFeatures.swift`).  menu:File[Print…] opens a `PrintSession`: `PrintJob.paper` reads the operation's `NSPrintInfo`
+(oriented `paperSize`, `imageablePageBounds` flipped to the plan's top-left origin, the printer's `NSDeviceResolution` when
+it reports one), `PrintSnapshot.capture` takes the document with the pane's *Print* choice (`.outputArea(OutputArea.read)`
+while there is an area), the window's text layout and blobs and, with *Selected objects only*, the selection the window had
+when the dialog opened, and `PrintPlan` plans it.  `PrintPlanView` stacks one paper-sized stripe per sheet: `knowsPageRange`
+is `1...plan.count`, `rectForPage` the stripe, `draw` calls `PrintSheetRenderer.draw` (its base renderer drawing placed
+images from the window's `ImageStore`) and, in the panel's preview, `drawPreviewOverlays`; `printJobTitle` is the document
+name and `pageHeader` the sheet's name.  The session makes the plan again -- and resizes the view -- when the document
+revision (a pane commit or a collaborator's change, followed through the document's observers while the dialog is open),
+the *Print* choice, *Selected objects only* or the panel's paper (noticed at each pagination) changes, and bumps the
+accessory's preview key path after a document change.  The pane adds *Selected objects only* (a switch combined with *Pages*
+or *Output area*, disabled when nothing was selected), a *Tiling* group (*None*, *Automatic*, *Manual*, disabled under *Fit
+on paper*; *Overlap* for automatic tiling), the sheet count, the plan's `clippingWarning` at its foot, and a *Tiling* and
+*Sheets* line in the collapsed summary; the ink list's rows are `PrintSnapshot.inks` of the captured pages (the process
+inks and the spot inks the artwork uses -- the protected Black and Registration swatches are no longer listed as spot
+rows).  Presets: after every document change the session writes `PrintPresets.preset(state)` as `WTPrint*` entries into
+the operation's `printInfo.dictionary()`, so the panel's *Presets* menu saves them with the paper and printer; whenever
+the panel hands the accessory its print info (`representedObject`), the pane appears or the summary is read, `WTPrint*`
+entries that differ from the document's (a preset was chosen) are read with `PrintPreset.read` and performed as one
+`ApplyPrintPreset`.  Deviations from the bullets above: AppKit has no `NSPrintOperation.isPreview`, so the view draws the
+overlays while the accessory's pane is on screen (the panel is open; the job spools after it closes); the operation keeps
+`canSpawnSeparateThread` off because the view reads main-actor document state; `keyPathsForValuesAffectingPreview` lists
+one revision bumped on every commit and document change rather than every setting; and the dialog's page range selects
+sheets (the panel paginates by sheet), so the session passes no `pageRange` to the plan -- with neither tiling nor
+separations a sheet is a page.
 
 === Build tasks
 

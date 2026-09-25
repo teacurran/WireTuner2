@@ -114,6 +114,13 @@ Nothing beyond storing and relaying changes.
 * Remote changes to the document while the dialog is open post the same invalidation, so the
   preview redraws when artwork or settings change under it.
 
+NOTE: As built by PRINT-004 (`WTApp/Print/PrintJob.swift`, `PrintSession.swift`).  AppKit has no `isPreview` on
+`NSPrintOperation`; `PrintPlanView` draws `PrintSheetRenderer.drawPreviewOverlays` after each sheet while the accessory's
+pane is on screen, which is while the panel shows its preview -- the job spools after the panel closes.  Each sheet's name
+(`OutputSheet.name`) is the view's `pageHeader`; the pane shows the sheet count and, beneath its groups, the plan's
+`clippingWarning`.  The preview repaginates through the accessory's `revision` key path, bumped on every commit and after
+every document change (a collaborator's included) once the session has made the plan again.
+
 === Build tasks
 
 The preview overlays, sheet naming and the clipping warning are delivered by

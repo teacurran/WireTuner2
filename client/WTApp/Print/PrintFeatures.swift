@@ -90,13 +90,16 @@ final class PrintFeatures {
     var window: @MainActor () -> DocumentWindowController? = { nil }
     /// The blobs a print snapshot reads.
     var blobs = BlobPlacement()
+    /// The window's image store, which placed images print from.
+    var imageStore: @MainActor (DocumentWindowController) -> ImageStore? = { _ in nil }
     private(set) var windows: [ObjectIdentifier: (window: DocumentWindowController, print: WindowPrint, closing: NSObjectProtocol?)] = [:]
     /// Runs the print operation (the Print dialog); true when it printed.  Replaceable in tests.
     var runPrint: @MainActor (NSPrintOperation) -> Bool = { $0.run() }
     /// Runs Page Setup on `info`; true on OK.  Replaceable in tests.
     var runPageLayout: @MainActor (NSPrintInfo) -> Bool = { NSPageLayout().runModal(with: $0) == NSApplication.ModalResponse.OK.rawValue }
-    /// The last pane shown (tests read it).
-    private(set) var pane: PrintPaneModel?
+    /// The last Print dialog shown (tests read it).
+    private(set) var session: PrintSession?
+    var pane: PrintPaneModel? { session?.pane }
 
     init(defaults: UserDefaults) {
         self.defaults = defaults
@@ -167,31 +170,29 @@ final class PrintFeatures {
         return window.objectEditing.perform(SetPrintInfo(archive))
     }
 
-    /// menu:File[Print…]: the Print dialog with the *{product}* pane; after printing, the dialog's
-    /// printer and paper are kept for the document on this Mac.
+    /// menu:File[Print…]: the Print dialog with the *{product}* pane over the print plan's view
+    /// (`PrintSession`); after printing, the dialog's printer and paper are kept for the document
+    /// on this Mac.  *Selected objects only* offers the selection the window has now.
     @discardableResult
     func print() -> Bool {
         guard let window = window() else { return false }
         let document = window.documentHandle
         let info = Self.printInfo(for: document)
-        let pane = PrintPaneModel(document: document) { [weak window] command in window?.objectEditing.perform(command) }
-        self.pane = pane
-        let accessory = PrintAccessoryController(model: pane)
-        let job = PrintJob.make(for: window, source: pane.effectiveSource, blobs: blobs)
-        let view = PrintSheetsView(job: job ?? PrintJob(scene: ExportSceneFallback.empty, settings: pane.settings, pdf: nil), printInfo: info)
-        let blobs = blobs
-        pane.onChange = { [weak view, weak window, weak pane] in
-            guard let view, let window, let pane, let job = PrintJob.make(for: window, source: pane.effectiveSource, blobs: blobs) else { return }
-            view.job = job
-            view.setFrameSize(NSSize(width: view.paper.width, height: view.paper.height * CGFloat(max(job.sheetCount, 1))))
-            view.needsDisplay = true
+        let selection = Set(window.selection.model.ids.map(\.node))
+        let session = PrintSession(document: document, info: info, selection: selection, imageStore: imageStore(window), blobs: blobs) { [weak window] command in
+            window?.objectEditing.perform(command)
         }
-        let operation = NSPrintOperation(view: view, printInfo: info)
+        self.session = session
+        let operation = NSPrintOperation(view: session.view, printInfo: info)
+        session.info = operation.printInfo
+        session.writePreset()
         operation.jobTitle = document.title
         operation.showsPrintPanel = true
         operation.showsProgressPanel = true
-        operation.printPanel.addAccessoryController(accessory)
+        operation.printPanel.addAccessoryController(session.accessory)
         operation.printPanel.options.formUnion([.showsPaperSize, .showsOrientation, .showsScaling, .showsPreview, .showsCopies, .showsPageRange])
+        session.start()
+        defer { session.end() }
         guard runPrint(operation) else { return false }
         if let archive = Self.archive(operation.printInfo) { window.objectEditing.perform(SetPrintInfo(archive)) }
         return true
@@ -233,17 +234,13 @@ final class PrintFeatures {
     }
 }
 
-/// An empty scene for a print view with nothing to print.
-enum ExportSceneFallback {
-    static let empty = WTInterchange.ExportScene(pages: [])
-}
-
 extension AppDelegate {
     /// The Output Area tool and menu items, Page Setup and Print, the Halftones panel, and the
     /// Export sheet's *Output area* choice reading the document's area.
     func installPrinting() {
         let documents = documents!
         printing.blobs = imports.blobs
+        printing.imageStore = { [images] window in images.attach(window).store }
         exports.outputArea = { window in OutputArea.read(window.documentHandle.state) }
         printing.install(commands: commands, tools: tools, panels: panels, selection: activeSelection) { documents.activeWindowController }
     }

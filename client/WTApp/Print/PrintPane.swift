@@ -3,28 +3,53 @@ import Observation
 import SwiftUI
 import WTCRDT
 import WTGeometry
+import WTInterchange
 import WTModel
 import WTProto
+import WTRender
 
 /// The *{product}* pane of the Print dialog as a model (printing.adoc; the PRINT-002 glue): every
 /// control reads `DocumentPrintSettings` from the document on each render -- so a collaborator's
 /// change shows at once -- and each commit performs one labelled `SetPrintSettings` or `SetPlate`.
-/// What to print (pages or the output area) is the job's, kept here and never in the document.
+/// What to print (pages or the output area, *Selected objects only*) is the job's, kept here and
+/// never in the document.  The session shows each plan it makes here: the sheet count, the ink
+/// list's artwork and the clipping warning beneath the preview.
 @MainActor
 @Observable
 final class PrintPaneModel {
     @ObservationIgnored let document: DocumentHandle
     @ObservationIgnored let perform: @MainActor (any WTModel.Command) -> Void
+    /// The objects selected when the dialog opened; nil when nothing was.
+    @ObservationIgnored let selection: Set<NodeID>?
     /// *Pages* or *Output area*.
     var source: PrintSource = .pages
+    /// *Selected objects only*.
+    var selectedOnly = false
+    /// The sheets of the current plan.
+    private(set) var sheetCount = 0
+    /// `PrintPlan.clippingWarning` of the current plan.
+    private(set) var warning: String?
+    /// The captured pages' lists of the current plan: the ink list's spot rows are the spots they use.
+    @ObservationIgnored private(set) var lists: [DisplayList]?
     /// Bumped on every commit: the accessory's preview key path.
     private(set) var revision = 0
     /// Called after every commit (the preview repaginates).
     @ObservationIgnored var onChange: @MainActor () -> Void = {}
 
-    init(document: DocumentHandle, perform: @escaping @MainActor (any WTModel.Command) -> Void) {
+    init(document: DocumentHandle, selection: Set<NodeID>? = nil, perform: @escaping @MainActor (any WTModel.Command) -> Void) {
         self.document = document
+        self.selection = selection.flatMap { $0.isEmpty ? nil : $0 }
         self.perform = perform
+    }
+
+    /// The selection a job prints: the dialog's when *Selected objects only* is on.
+    var effectiveSelection: Set<NodeID>? { selectedOnly ? selection : nil }
+
+    /// Shows `plan`: its sheet count, lists and warning.
+    func show(_ plan: PrintPlan) {
+        sheetCount = plan.count
+        warning = plan.clippingWarning
+        lists = plan.request.scene.pages.map(\.displayList)
     }
 
     var settings: DocumentPrintSettings {
@@ -53,10 +78,10 @@ final class PrintPaneModel {
 
     // MARK: Plates
 
-    /// One row per process ink and per spot swatch of the document.
+    /// The ink list's rows (`PrintSnapshot.inks`): the process inks and the spot inks the printed
+    /// artwork uses -- never the protected Black and Registration swatches.
     var inks: [PrintInk] {
-        let spots = SwatchList(document.state).swatches.filter { $0.isSpot && !$0.isTint }.map { PrintInk.spot($0.id) }
-        return [.cyan, .magenta, .yellow, .black] + spots
+        PrintSnapshot.inks(document.state, lists: lists ?? [document.displayList])
     }
 
     struct PlateRow: Equatable, Identifiable {
@@ -110,8 +135,10 @@ final class PrintPaneModel {
         case .variable: scale = "\(Self.number(s.scaleX))% × \(Self.number(s.scaleY))%"
         case .fit: scale = "Fit on paper"
         }
-        return [("Print", effectiveSource.title), ("Scale", scale), ("Output", s.separations ? "Separations" : "Composite"),
-                ("Bleed", "\(Self.number(s.bleed)) pt")]
+        let what = selectedOnly && selection != nil ? "\(effectiveSource.title), selected objects" : effectiveSource.title
+        let tiling: [DocumentPrintSettings.TileMode: String] = [.none: "None", .automatic: "Automatic", .manual: "Manual"]
+        return [("Print", what), ("Scale", scale), ("Tiling", tiling[s.tile]!), ("Output", s.separations ? "Separations" : "Composite"),
+                ("Bleed", "\(Self.number(s.bleed)) pt"), ("Sheets", "\(sheetCount)")]
     }
 
     static func number(_ value: Double) -> String {
@@ -129,6 +156,14 @@ struct PrintPaneView: View {
 
     static func scaleMode(_ model: PrintPaneModel) -> Binding<DocumentPrintSettings.ScaleMode> {
         Binding(get: { model.settings.scaleMode }, set: { model.commit(.scaleMode($0)) })
+    }
+
+    static func selectedOnly(_ model: PrintPaneModel) -> Binding<Bool> {
+        Binding(get: { model.selectedOnly && model.selection != nil }, set: { model.selectedOnly = $0; model.changed() })
+    }
+
+    static func tile(_ model: PrintPaneModel) -> Binding<DocumentPrintSettings.TileMode> {
+        Binding(get: { model.settings.tile }, set: { model.commit(.tile($0)) })
     }
 
     static func separations(_ model: PrintPaneModel) -> Binding<Bool> {
@@ -186,6 +221,7 @@ struct PrintPaneView: View {
         Number(title: "Offset X", id: "print.offsetX", value: { $0.offset.x }, setting: { value, s in .offset(Point(x: value, y: s.offset.y)) }),
         Number(title: "Offset Y", id: "print.offsetY", value: { $0.offset.y }, setting: { value, s in .offset(Point(x: s.offset.x, y: value)) }),
     ]
+    static let overlap = Number(title: "Overlap", id: "print.tileOverlap", value: { $0.tileOverlap }, setting: { value, _ in .tileOverlap(min(max(value, 0), 720)) })
     static let bleed = Number(title: "Bleed", id: "print.bleed", value: { $0.bleed }, setting: { value, _ in .bleed(min(max(value, 0), 720)) })
     static let imagingNumbers: [Number] = [
         Number(title: "Flatness", id: "print.flatness", value: { $0.flatness }, setting: { value, _ in .flatness(min(max(value, 0), 100)) }),
@@ -233,6 +269,7 @@ struct PrintPaneView: View {
                     Text(PrintSource.outputArea.title).tag(PrintSource.outputArea).disabled(!model.hasOutputArea)
                 }
                 .accessibilityIdentifier("print.source")
+                Toggle("Selected objects only", isOn: Self.selectedOnly(model)).accessibilityIdentifier("print.selectedOnly").disabled(model.selection == nil)
                 toggle(Self.pageBoundaries)
             }
             Section("Scale") {
@@ -246,6 +283,16 @@ struct PrintPaneView: View {
                 if settings.scaleMode == .variable { field(Self.scaleY, settings) }
                 ForEach(Self.offsets, id: \.id) { field($0, settings) }
                 Button("Center", action: model.center).accessibilityIdentifier("print.center")
+            }
+            Section("Tiling") {
+                Picker("Tiling", selection: Self.tile(model)) {
+                    Text("None").tag(DocumentPrintSettings.TileMode.none)
+                    Text("Automatic").tag(DocumentPrintSettings.TileMode.automatic)
+                    Text("Manual").tag(DocumentPrintSettings.TileMode.manual)
+                }
+                .accessibilityIdentifier("print.tile")
+                .disabled(settings.scaleMode == .fit)
+                field(Self.overlap, settings).disabled(settings.tile != .automatic || settings.scaleMode == .fit)
             }
             Section("Output") {
                 Toggle("Separations", isOn: Self.separations(model)).accessibilityIdentifier("print.separations")
@@ -276,20 +323,31 @@ struct PrintPaneView: View {
                 ForEach(Self.imagingSwitches, id: \.id) { toggle($0) }
                 ForEach(Self.imagingNumbers, id: \.id) { field($0, settings) }
             }
+            Section {
+                Text(model.sheetCount == 1 ? "1 sheet" : "\(model.sheetCount) sheets").accessibilityIdentifier("print.sheets")
+                if let warning = model.warning {
+                    Label(warning, systemImage: "exclamationmark.triangle").foregroundStyle(.orange).accessibilityIdentifier("print.clippingWarning")
+                }
+            }
         }
         .formStyle(.grouped)
-        .frame(width: 440, height: 560)
+        .frame(width: 440, height: 600)
     }
 }
 
 /// The Print dialog's *{product}* pane (`NSPrintPanelAccessorizing`): the SwiftUI pane in the
 /// panel, its summary for the collapsed dialog, and a preview key path bumped on every commit so
-/// the panel's preview repaginates.
+/// the panel's preview repaginates.  The panel hands the accessory its print info as the
+/// represented object -- at setup and again when a preset is chosen -- and each time that
+/// happens, the pane appears or the summary is read, `onPrintInfo` lets the session apply a
+/// preset the print info holds.
 @MainActor
 final class PrintAccessoryController: NSViewController, NSPrintPanelAccessorizing {
     let model: PrintPaneModel
     /// Observed by the print panel's preview.
     @objc dynamic var revision = 0
+    /// The print info may hold a preset the document does not have yet.
+    var onPrintInfo: @MainActor () -> Void = {}
 
     init(model: PrintPaneModel) {
         self.model = model
@@ -309,9 +367,22 @@ final class PrintAccessoryController: NSViewController, NSPrintPanelAccessorizin
         view = NSHostingView(rootView: PrintPaneView(model: model))
     }
 
+    override var representedObject: Any? {
+        didSet { onPrintInfo() }
+    }
+
+    override func viewWillAppear() {
+        super.viewWillAppear()
+        onPrintInfo()
+    }
+
+    /// Whether the panel is on screen: its preview is drawing, not the spooled job.
+    var isShowing: Bool { isViewLoaded && view.window?.isVisible == true }
+
     nonisolated func localizedSummaryItems() -> [[NSPrintPanel.AccessorySummaryKey: String]] {
         MainActor.assumeIsolated {
-            model.summary.map { [.itemName: $0.name, .itemDescription: $0.value] }
+            onPrintInfo()
+            return model.summary.map { [.itemName: $0.name, .itemDescription: $0.value] }
         }
     }
 

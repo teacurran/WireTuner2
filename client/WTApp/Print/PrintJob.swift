@@ -15,141 +15,143 @@ enum PrintSource: String, CaseIterable, Identifiable, Sendable {
     var title: String { self == .pages ? "Pages" : "Output area" }
 }
 
-/// One print job's sheets, composite only (printing.adoc, "Scaling"): each page -- or the output
-/// area -- drawn as one sheet through the export pipeline's PDF writer, scaled by the document's
-/// *Scale* settings and centred on the paper plus the *Offset*.  Tiling, marks and separations are
-/// the print plan's (PRINT-003, PRINT-005, PRINT-006).
-struct PrintJob {
-    /// The document's pages (or the output area) as the export pipeline sees them.
-    var scene: ExportScene
-    var settings: DocumentPrintSettings
-    /// The PDF of every sheet, one PDF page per sheet.
-    var pdf: CGPDFDocument?
-
-    init(scene: ExportScene, settings: DocumentPrintSettings, pdf: Data?) {
-        self.scene = scene
-        self.settings = settings
-        self.pdf = pdf.flatMap { CGDataProvider(data: $0 as CFData) }.flatMap(CGPDFDocument.init)
+/// One print job (PRINT-003): the document captured by `PrintSnapshot` into a `PrintRequest` --
+/// every page, or the output area, on the queue's paper, with *Selected objects only* -- and the
+/// `PrintPlan` of its sheets (pages × tiles × plates) that the print view draws.
+enum PrintJob {
+    /// The queue's paper: `NSPrintInfo`'s oriented paper size, its printable area flipped to the
+    /// plan's top-left origin, and the printer's resolution when it reports one.
+    @MainActor
+    static func paper(_ info: NSPrintInfo) -> PrintPaper {
+        let size = info.paperSize
+        let bounds = info.imageablePageBounds
+        let imageable = bounds.isEmpty ? nil : Rect(x: Double(bounds.minX), y: Double(size.height - bounds.maxY), width: Double(bounds.width), height: Double(bounds.height))
+        let resolution = (info.printer.deviceDescription[.resolution] as? NSValue).map { Double($0.sizeValue.width) }
+        return PrintPaper(size: Size(width: Double(size.width), height: Double(size.height)), imageable: imageable, resolution: resolution)
     }
 
-    /// The snapshot for `source`: every page, or the output area when there is one (nil otherwise).
+    /// The request for `document`: `source` (the output area only while there is one), on `paper`,
+    /// limited to `selection` when given.
     @MainActor
-    static func scene(of window: DocumentWindowController, source: PrintSource, blobs: BlobPlacement) -> ExportScene? {
-        let document = window.documentHandle
+    static func request(_ document: DocumentHandle, source: PrintSource, paper: PrintPaper, selection: Set<NodeID>?, blobs: BlobPlacement) -> PrintRequest {
         let state = document.state
-        let pages = document.pageList.exportPages
-        let scope: ExportSnapshot.Scope
-        switch source {
-        case .pages:
-            scope = .pages(Array(pages.indices))
-        case .outputArea:
-            guard let area = OutputArea.read(state) else { return nil }
-            scope = .area(area)
+        let from: PrintSnapshot.Source
+        if source == .outputArea, let area = OutputArea.read(state) {
+            from = .outputArea(area)
+        } else {
+            from = .pages
         }
-        let settings = DocumentPrintSettings(state)
-        let request = ExportSnapshot.Request(name: document.title, pages: pages, scope: scope,
-                                             includePageBoundary: source == .pages || settings.printPageBoundary,
-                                             includeHidden: settings.includeHiddenLayers, pageColor: nil)
         var builder = DocumentDisplayListBuilder(canvas: CanvasID("print-\(document.id)"))
         builder.textLayout = TextSceneLayout(engine: document.textEngine)
-        return ExportSnapshot.capture(state, request: request, builder: builder, blob: { blobs.cached($0) }).scene
+        let request = PrintSnapshot.Request(name: document.title, source: from, paper: paper, selection: selection)
+        return PrintSnapshot.capture(state, request: request, builder: builder, blob: { blobs.cached($0) })
     }
 
-    /// The job for `window`: its scene written as a PDF, one page per sheet.
+    /// The plan of the job for `document`.
     @MainActor
-    static func make(for window: DocumentWindowController, source: PrintSource, blobs: BlobPlacement) -> PrintJob? {
-        guard let scene = scene(of: window, source: source, blobs: blobs) else { return nil }
-        let data = try? PDFExporter().data(scene: scene, options: PDFOptions()).data
-        return PrintJob(scene: scene, settings: DocumentPrintSettings(window.documentHandle.state), pdf: data)
+    static func plan(_ document: DocumentHandle, source: PrintSource, paper: PrintPaper, selection: Set<NodeID>?, blobs: BlobPlacement) -> PrintPlan {
+        PrintPlan(request(document, source: source, paper: paper, selection: selection, blobs: blobs))
     }
 
-    var sheetCount: Int { pdf?.numberOfPages ?? 0 }
-
-    /// The scale factors of a sheet of `size` on paper whose printable area is `imageable`.
-    func scale(of size: Size, imageable: CGRect) -> (x: Double, y: Double) {
-        switch settings.scaleMode {
-        case .uniform:
-            return (settings.scaleX / 100, settings.scaleX / 100)
-        case .variable:
-            return (settings.scaleX / 100, settings.scaleY / 100)
-        case .fit:
-            guard size.width > 0, size.height > 0 else { return (1, 1) }
-            let fit = min(Double(imageable.width) / size.width, Double(imageable.height) / size.height)
-            return (fit, fit)
-        }
-    }
-
-    /// Where sheet `index`'s artwork goes on the paper (unflipped paper coordinates): centred on the
-    /// printable area, moved by the offset (x right, y down as the document has it).
-    func placement(ofSheet index: Int, imageable: CGRect) -> CGRect? {
-        guard let page = pdf?.page(at: index + 1) else { return nil }
-        let box = page.getBoxRect(.mediaBox)
-        let (sx, sy) = scale(of: Size(width: Double(box.width), height: Double(box.height)), imageable: imageable)
-        let width = Double(box.width) * sx, height = Double(box.height) * sy
-        let x = Double(imageable.midX) - width / 2 + settings.offset.x
-        let y = Double(imageable.midY) - height / 2 - settings.offset.y
-        return CGRect(x: x, y: y, width: width, height: height)
-    }
-
-    /// Draws sheet `index` into `context` (unflipped) on paper whose printable area is `imageable`.
-    func draw(sheet index: Int, in context: CGContext, imageable: CGRect) {
-        guard let page = pdf?.page(at: index + 1), let target = placement(ofSheet: index, imageable: imageable) else { return }
-        let box = page.getBoxRect(.mediaBox)
-        context.saveGState()
-        if settings.flatness > 0 { context.setFlatness(CGFloat(settings.flatness)) }
-        context.translateBy(x: target.minX, y: target.minY)
-        context.scaleBy(x: target.width / box.width, y: target.height / box.height)
-        context.translateBy(x: -box.minX, y: -box.minY)
-        context.drawPDFPage(page)
-        context.restoreGState()
+    /// The sheet renderer drawing placed images from `store` (the window's `ImageStore`).
+    static func renderer(imageStore store: ImageStore?) -> PrintSheetRenderer {
+        var base = CoreGraphicsRenderer()
+        base.imageStore = store
+        return PrintSheetRenderer(base: base)
     }
 }
 
-/// The view `NSPrintOperation` prints: one paper-sized stripe per sheet, stacked top to bottom,
-/// so both the print loop and the panel's preview paginate by `rectForPage`.
+/// The view `NSPrintOperation` prints (PRINT-003; printing.adoc and print-preview.adoc,
+/// "Client"): one paper-sized stripe per sheet of the plan, stacked top to bottom, so the print
+/// loop and the panel's preview both paginate by `rectForPage`.  Each stripe is drawn by
+/// `PrintSheetRenderer`, and in the panel's preview the non-printing overlays follow.  When the
+/// panel's paper changes, pagination reports it so the plan is made again for the new paper.
 @MainActor
-final class PrintSheetsView: NSView {
-    var job: PrintJob
-    let paper: NSSize
-    let imageable: CGRect
+final class PrintPlanView: NSView {
+    private(set) var plan: PrintPlan
+    var renderer: PrintSheetRenderer
+    /// The job title (the document's name).
+    let title: String
+    /// Whether the panel's preview is drawing (the panel is on screen); sheets for the spooled job
+    /// never get the overlays.
+    var isPreview: @MainActor () -> Bool = { false }
+    /// The paper the running operation prints on, read at each pagination.
+    var currentPaper: @MainActor () -> PrintPaper? = { NSPrintOperation.current.map { PrintJob.paper($0.printInfo) } }
+    /// Called when pagination finds the paper changed (the session plans again and calls `show`).
+    var onPaperChange: @MainActor (PrintPaper) -> Void = { _ in }
+    /// Sheets that could not be drawn (out of memory), counted for the tests.
+    private(set) var failedSheets = 0
 
-    init(job: PrintJob, printInfo: NSPrintInfo) {
-        self.job = job
-        paper = printInfo.paperSize
-        imageable = printInfo.imageablePageBounds
-        super.init(frame: NSRect(x: 0, y: 0, width: paper.width, height: paper.height * CGFloat(max(job.sheetCount, 1))))
+    init(plan: PrintPlan, renderer: PrintSheetRenderer, title: String) {
+        self.plan = plan
+        self.renderer = renderer
+        self.title = title
+        super.init(frame: Self.frame(for: plan))
     }
 
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 
+    static func frame(for plan: PrintPlan) -> NSRect {
+        let paper = plan.request.paper.size
+        return NSRect(x: 0, y: 0, width: paper.width, height: paper.height * Double(max(plan.count, 1)))
+    }
+
+    var paperSize: NSSize { NSSize(width: plan.request.paper.size.width, height: plan.request.paper.size.height) }
+
+    /// Shows `plan`: resized to its sheets and redrawn.
+    func show(_ plan: PrintPlan) {
+        self.plan = plan
+        setFrameSize(Self.frame(for: plan).size)
+        needsDisplay = true
+    }
+
     override var isFlipped: Bool { false }
 
+    override var printJobTitle: String { title }
+
     override func knowsPageRange(_ range: NSRangePointer) -> Bool {
-        range.pointee = NSRange(location: 1, length: max(job.sheetCount, 1))
+        if let paper = currentPaper(), paper != plan.request.paper { onPaperChange(paper) }
+        range.pointee = NSRange(location: 1, length: max(plan.count, 1))
         return true
     }
 
     /// Sheet `page` (1-based): the stripe from the top.
     override func rectForPage(_ page: Int) -> NSRect {
-        let count = max(job.sheetCount, 1)
+        let count = max(plan.count, 1)
         let index = min(max(page, 1), count) - 1
+        let paper = paperSize
         return NSRect(x: 0, y: paper.height * CGFloat(count - 1 - index), width: paper.width, height: paper.height)
+    }
+
+    /// The name of sheet `page` (1-based): `Page 1, row 2 column 1, Magenta`.
+    func sheetName(_ page: Int) -> String? {
+        plan.sheets.indices.contains(page - 1) ? plan.sheets[page - 1].name : nil
+    }
+
+    /// The header AppKit prints when *Print header and footer* is on: the sheet's name.
+    override var pageHeader: NSAttributedString {
+        NSAttributedString(string: NSPrintOperation.current.flatMap { sheetName($0.currentPage) } ?? title)
     }
 
     override func draw(_ dirtyRect: NSRect) {
         guard let context = NSGraphicsContext.current?.cgContext else { return }
-        drawSheets(in: context, dirty: dirtyRect)
+        drawSheets(in: context, dirty: dirtyRect, preview: isPreview())
     }
 
-    /// Draws every sheet whose stripe meets `dirty`.
-    func drawSheets(in context: CGContext, dirty: CGRect) {
-        for index in 0..<job.sheetCount {
+    /// Draws every sheet whose stripe meets `dirty`, with the preview overlays when `preview`.
+    func drawSheets(in context: CGContext, dirty: CGRect, preview: Bool) {
+        for index in plan.sheets.indices {
             let stripe = rectForPage(index + 1)
             guard stripe.intersects(dirty) else { continue }
             context.saveGState()
             context.translateBy(x: stripe.minX, y: stripe.minY)
-            job.draw(sheet: index, in: context, imageable: imageable)
+            do {
+                try renderer.draw(sheet: index, of: plan, into: context)
+            } catch {
+                failedSheets += 1
+            }
+            if preview { PrintSheetRenderer.drawPreviewOverlays(sheet: index, of: plan, into: context) }
             context.restoreGState()
         }
     }
