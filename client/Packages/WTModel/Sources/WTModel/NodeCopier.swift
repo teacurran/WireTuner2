@@ -17,23 +17,36 @@ public struct NodeTree: Hashable, Sendable {
     /// from a state records it and `NodeCopier` recreates the interleaving.  Nil (or one that
     /// does not match the lists' lengths) reads as the fills, then the strokes, then the effects.
     public var stackOrder: [AppearanceList]?
+    /// Each TEXT field holding live characters, by its path in the source (`props` cannot carry
+    /// one: a text block's `TextProps.text`, an instance's override texts).  A path through a
+    /// SEQUENCE element names the source element; the copy writes it under the element's copy.
+    public var texts: [RegisterPath: CopiedText]
 
-    public init(props: Wiretuner_Doc_V1_NodeProps, children: [NodeTree] = [], source: OpID? = nil, stackOrder: [AppearanceList]? = nil) {
+    public init(props: Wiretuner_Doc_V1_NodeProps, children: [NodeTree] = [], source: OpID? = nil, stackOrder: [AppearanceList]? = nil,
+                texts: [RegisterPath: CopiedText] = [:]) {
         self.props = props
         self.children = children
         self.source = source
         self.stackOrder = stackOrder
+        self.texts = texts
     }
 
-    /// `node` as merged, with its live children (deleted descendants are left out) and its stack
-    /// order.
+    /// `node` as merged, with its live children (deleted descendants are left out), its stack
+    /// order and its texts.
     public init(_ node: OpID, state: EngineState) {
         var order: [AppearanceList]?
         if case .object? = StackOwner.of(node, in: state) {
             let rows = AppearanceEditing.stack(node, in: state)
             if !rows.isEmpty { order = rows.map(\.list) }
         }
-        self.init(props: state.props(node), children: state.liveChildren(node).map { NodeTree($0, state: state) }, source: node, stackOrder: order)
+        self.init(props: state.props(node), children: state.liveChildren(node).map { NodeTree($0, state: state) }, source: node, stackOrder: order,
+                  texts: Self.texts(of: node, in: state))
+    }
+
+    /// The text of a text block (`TextProps.text`); nil when it has none.
+    public var text: CopiedText? {
+        get { texts[TextFields.text] }
+        set { texts[TextFields.text] = newValue }
     }
 
     /// The kind WTModel knows this node as.
@@ -175,11 +188,19 @@ public struct NodeTree: Hashable, Sendable {
 /// list positioned on its own would regroup them) and each attached effect stays attached to
 /// the copy of its element.
 ///
-/// Not copied: SET members and TEXT fields (no kind WTModel copies has them yet), a group's
-/// `layer_origins` (written once at grouping time) and a layer's `merged_into`.  A group's
-/// `clip_path` is rewritten to the copy of the clipping child.  A connector end attached to a node
-/// copied with it is re-attached to the copy (same side and point); an end attached to anything
-/// outside the copy is left unset -- a free end at its point (connectors.adoc).
+/// Each TEXT field the tree carries (`NodeTree.texts`) is written after the node's children exist:
+/// fresh characters, one mark per span of each winning value (links, styles, data-merge
+/// placeholders and the rest kept as they are), the paragraph registers and tab stops on each
+/// newline.  An `inline_graphic` naming a node copied in the same operation (the graphic is the
+/// text node's child, so copying the block copies it) is rewritten to the copy; one naming
+/// anything else is left unset (not written: an unset reference reads as no mark).  A text block on a path keeps its path, which is its child.
+///
+/// Not copied: SET members, a group's `layer_origins` (written once at grouping time) and a
+/// layer's `merged_into`.  A group's `clip_path` is rewritten to the copy of the clipping child.  A
+/// connector end attached to a node copied with it is re-attached to the copy (same side and
+/// point); an end attached to anything outside the copy is left unset -- a free end at its point
+/// (connectors.adoc).  A text block's `next_link` / `prev_link` likewise: to the copy of the linked
+/// block when both are copied, else unset (the copy of a chain's head holds the whole story).
 public enum NodeCopier {
     /// Appends the ops creating a copy of `tree` under `parent` at `position`; returns the copy's
     /// id.
@@ -194,9 +215,19 @@ public enum NodeCopier {
 
     /// Appends the ops pointing references inside copied trees at the copies, once every copy
     /// exists (`mapping`: source → copy, across every tree of one paste): a group's `clip_path`,
-    /// and each connector end attached to a copied node (left free by the create).
+    /// each connector end attached to a copied node (left free by the create) and each text flow
+    /// link to a copied block (left unset by the create).
     static func rewriteReferences(in trees: [NodeTree], mapping: [OpID: OpID], builder: inout ChangeBuilder) {
         let all = trees.flatMap(\.flattened)
+        for original in all {
+            guard case .text(let text)? = original.props.kind, let source = original.source, let copy = mapping[source] else { continue }
+            for (field, ref) in [(UInt32(4), text.nextLink), (UInt32(5), text.prevLink)] where ref.hasID {
+                guard let target = mapping[OpID(ref.id)] else { continue }
+                var value = Wiretuner_Doc_V1_NodeProps()
+                if field == 4 { value.text.nextLink.id = target.proto } else { value.text.prevLink.id = target.proto }
+                builder.append(Ops.set(copy, [RegisterPath([TextFields.kind, field])], values: value))
+            }
+        }
         for original in all {
             guard case .connector(let connector)? = original.props.kind, let source = original.source, let copy = mapping[source] else { continue }
             for (end, path) in [(connector.start, ConnectorFields.start), (connector.end, ConnectorFields.end)] {
@@ -237,6 +268,12 @@ public enum NodeCopier {
                 props.connector[keyPath: path].clearNode()
                 props.connector[keyPath: path].side = .unspecified
             }
+        case .text?:
+            // The characters are written from `tree.texts` (below); flow links once every copy
+            // exists (`rewriteReferences`).
+            props.text.clearText()
+            props.text.clearNextLink()
+            props.text.clearPrevLink()
         default:
             break
         }
@@ -247,14 +284,27 @@ public enum NodeCopier {
         if let source = tree.source { mapping[source] = node }
         if let kind = tree.kind, let stack { try PasteAttributes.insert(stack, into: node, kind: kind, schema: schema, builder: &builder) }
         let bytes: [UInt8] = try props.serializedBytes()
+        var elements: [OpID: OpID] = [:]
         if let kind = WireReader.fields(bytes)?.last, kind.wireType == 2,
            let typeName = schema.field(Schema.root, Int(kind.number))?.typeName {
             try copySequences(typeName, payload: kind.payload, prefix: RegisterPath([kind.number]), node: node, schema: schema,
-                              wrap: { Wire.field(kind.number, $0) }, builder: &builder)
+                              wrap: { Wire.field(kind.number, $0) }, builder: &builder, elements: &elements)
         }
         let keys = try PathEditing.keys(between: nil, and: nil, count: tree.children.count)
         for (child, key) in zip(tree.children, keys) {
             _ = try create(child, parent: node, position: key, schema: schema, builder: &builder, mapping: &mapping)
+        }
+        // The texts, once the children (inline graphics) exist; a text inside an element that was
+        // not copied (deleted since) is left behind.
+        for (path, text) in tree.texts.sorted(by: { $0.key < $1.key }) {
+            var segments: [RegisterPath.Segment] = []
+            for segment in path.segments {
+                guard case .element(let id) = segment else { segments.append(segment); continue }
+                guard let copy = elements[id] else { break }
+                segments.append(.element(copy))
+            }
+            guard segments.count == path.segments.count else { continue }
+            write(text, into: node, field: RegisterPath(segments: segments), mapping: mapping, builder: &builder)
         }
         return node
     }
@@ -273,6 +323,14 @@ public enum NodeCopier {
     /// `NodeProps`.
     static func copySequences(_ message: String, payload: [UInt8], prefix: RegisterPath, node: OpID, schema: Schema,
                                       wrap: ([UInt8]) -> [UInt8], builder: inout ChangeBuilder) throws {
+        var elements: [OpID: OpID] = [:]
+        try copySequences(message, payload: payload, prefix: prefix, node: node, schema: schema, wrap: wrap, builder: &builder, elements: &elements)
+    }
+
+    /// `copySequences`, noting each inserted element's copy by the source element's id in
+    /// `elements`.
+    static func copySequences(_ message: String, payload: [UInt8], prefix: RegisterPath, node: OpID, schema: Schema,
+                              wrap: ([UInt8]) -> [UInt8], builder: inout ChangeBuilder, elements: inout [OpID: OpID]) throws {
         guard let fields = WireReader.fields(payload) else { return }
         for row in schema.fields(message) {
             let number = UInt32(row.fieldNumber)
@@ -281,7 +339,7 @@ public enum NodeCopier {
             switch row.policy {
             case .structure where !row.repeated, .variant where !row.repeated:
                 try copySequences(typeName, payload: records.last!.payload, prefix: prefix.child(number), node: node, schema: schema,
-                                  wrap: { wrap(Wire.field(number, $0)) }, builder: &builder)
+                                  wrap: { wrap(Wire.field(number, $0)) }, builder: &builder, elements: &elements)
             case .sequence:
                 let path = prefix.child(number)
                 let values = try Wiretuner_Doc_V1_NodeProps(serializedBytes: wrap(records.flatMap(\.record)))
@@ -289,9 +347,15 @@ public enum NodeCopier {
                 let first = builder.append(Ops.elementInsert(node, path, positions: keys, values: values))
                 for (index, record) in records.enumerated() {
                     let element = OpID(counter: first.counter + UInt64(index), replica: first.replica)
-                    let body = (WireReader.fields(record.payload) ?? []).filter { $0.number != 1 }.flatMap(\.record)
+                    let parts = WireReader.fields(record.payload) ?? []
+                    if let id = parts.last(where: { $0.number == 1 && $0.wireType == 2 }),
+                       let source = (try? Wiretuner_Doc_V1_ElementId(serializedBytes: id.payload)).flatMap(OpID.init(element:)) {
+                        elements[source] = element
+                    }
+                    let body = parts.filter { $0.number != 1 }.flatMap(\.record)
                     try copySequences(typeName, payload: body, prefix: path.element(element), node: node, schema: schema,
-                                      wrap: { wrap(Wire.field(number, Wire.field(1, Wire.elementID(element)) + $0)) }, builder: &builder)
+                                      wrap: { wrap(Wire.field(number, Wire.field(1, Wire.elementID(element)) + $0)) }, builder: &builder,
+                                      elements: &elements)
                 }
             default:
                 continue

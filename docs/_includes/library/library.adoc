@@ -739,7 +739,7 @@ hash and media type into the pixel source), and every text block's text (`Resolv
 `ResolvedArtworkCache` keeps it per instance (`builds` counts resolutions) and `invalidate(by:state:)` drops only the instances a
 change reaches -- the instance itself, or anything under its symbol or a symbol nested in it (a folder change drops everything).
 *Release Instance* now bakes image overrides and gives text blocks the override's text or the master's -- it copied no characters
-before, since `NodeCopier` copies no TEXT field.  Swap sets overrides aside by the read-time rule (they read as nothing under the
+before; the text now rides on the resolved tree (`NodeTree.texts`) and `NodeCopier` writes it with the copy.  Swap sets overrides aside by the read-time rule (they read as nothing under the
 new symbol and return on a swap back).  Merge tests: reset vs. edit, duplicate creation, master node deleted vs. edit, swap vs.
 edit.  Not built: text overrides are resolved but not yet drawn by instances (the builder lays out the master's words), and the
 Text tool's hit test inside an instance (WTApp).

@@ -144,11 +144,13 @@ enum TextEditing {
     /// A `TextMark` of `value` over the live characters `first` ... `last`, with the end anchor
     /// the attribute's expansion rule gives (creating-text, "Marks"): before `next` (the
     /// character after `last`, tombstones included; zero: the end of the text) for an expanding
-    /// attribute, after `last` for one that never grows.
-    static func mark(_ node: OpID, _ value: Wiretuner_Doc_V1_TextMarkValue, first: OpID, last: OpID, next: OpID) -> Wiretuner_Doc_V1_Op {
+    /// attribute, after `last` for one that never grows.  `field` is the TEXT field (`TextProps.text`
+    /// unless given).
+    static func mark(_ node: OpID, _ value: Wiretuner_Doc_V1_TextMarkValue, first: OpID, last: OpID, next: OpID,
+                     field: RegisterPath = TextFields.text) -> Wiretuner_Doc_V1_Op {
         var mark = Wiretuner_Doc_V1_TextMark()
         mark.node = node.proto
-        mark.text = TextFields.text.proto
+        mark.text = field.proto
         mark.start.char = first.elementID
         mark.start.before = true
         if TextMarks.expands(value) {

@@ -149,7 +149,10 @@ public struct ReleaseInstances: Command {
             group.group.kind = .group
             let position = try Arranging.keys(next: instance, above: true, count: 1, in: state)[0]
             let created = builder.append(Ops.create(parent: parent, position: position, props: group))
+            // Text blocks carry their text as the instance shows it: a text override's, else the
+            // master's (LIB-025); `NodeCopier` writes it.
             var trees = state.liveChildren(symbol).compactMap { SymbolEditing.resolved($0, state: state, overrides) }
+                .map { SymbolEditing.overridingTexts($0, instance: instance, overrides: overrides, state: state) }
             let keys = try PathEditing.keys(between: nil, and: nil, count: trees.count)
             var mapping: [OpID: OpID] = [:]
             for index in trees.indices {
@@ -157,12 +160,6 @@ public struct ReleaseInstances: Command {
                 try NodeCopier.create(trees[index], parent: created, position: keys[index], schema: state.schema, builder: &builder, mapping: &mapping)
             }
             NodeCopier.rewriteReferences(in: trees, mapping: mapping, builder: &builder)
-            // Text blocks get their text as the instance shows it: a text override's, else the
-            // master's (LIB-025).
-            for (master, copy) in mapping.sorted(by: { $0.key < $1.key }) where state.nodeKind(master) == .text {
-                let text = Symbols.resolvedText(master, instance: instance, overrides: overrides, in: state)
-                TextCopying.copy(text.string, runs: text.runs, into: copy, field: TextFields.text, builder: &builder)
-            }
             builder.append(Ops.setDeleted(instance))
         }
     }
@@ -314,7 +311,8 @@ enum SymbolEditing {
     /// likewise.
     static func resolved(_ node: OpID, state: EngineState, _ overrides: [OverrideKey: Wiretuner_Doc_V1_Override]) -> NodeTree? {
         if overrides[OverrideKey(master: node, property: .hidden)]?.hidden == true { return nil }
-        var tree = NodeTree(props: state.props(node), children: state.liveChildren(node).compactMap { resolved($0, state: state, overrides) }, source: node)
+        var tree = NodeTree(props: state.props(node), children: state.liveChildren(node).compactMap { resolved($0, state: state, overrides) }, source: node,
+                            texts: NodeTree.texts(of: node, in: state))
         // An image override swaps the pixel source for the asset's blob (LIB-025); a dangling one
         // reads as the master's image.
         if let image = overrides[OverrideKey(master: node, property: .image)], image.hasImage, case .image? = tree.props.kind,
@@ -337,6 +335,20 @@ enum SymbolEditing {
             }
             tree.props = NodeValues.replacing(appearance, of: kind, in: tree.props)
         }
+        return tree
+    }
+
+    /// `tree` (resolved for `instance`) with each text block's text replaced by the instance's
+    /// live text override of it, where there is one (library.adoc, "Overriding parts of an
+    /// instance").
+    static func overridingTexts(_ tree: NodeTree, instance: OpID, overrides: [OverrideKey: Wiretuner_Doc_V1_Override],
+                                state: EngineState) -> NodeTree {
+        var tree = tree
+        if case .text? = tree.props.kind, let master = tree.source, let override = overrides[OverrideKey(master: master, property: .text)],
+           let element = OpID(element: override.id), state.text(instance, SymbolFields.overrideText(element)) != nil {
+            tree.text = CopiedText(instance, SymbolFields.overrideText(element), in: state)
+        }
+        tree.children = tree.children.map { overridingTexts($0, instance: instance, overrides: overrides, state: state) }
         return tree
     }
 }

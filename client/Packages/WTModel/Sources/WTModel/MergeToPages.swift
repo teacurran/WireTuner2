@@ -110,11 +110,10 @@ public struct MergeToPages: Command {
     private func copy(_ objects: [OpID], offset: Vector, record: Int, substitution: RecordSubstitution, state: EngineState,
                       tops: inout [OpID: [UInt8]], builder: inout ChangeBuilder) throws {
         var mapping: [OpID: OpID] = [:]
-        var texts: [(source: OpID, text: MergeText)] = []
         var trees: [NodeTree] = []
         for node in objects {
             guard let layer = state.store.placement(node)?.parent,
-                  var tree = baked(NodeTree(node, state: state), record: record, substitution: substitution, state: state, texts: &texts) else { continue }
+                  var tree = baked(NodeTree(node, state: state), record: record, substitution: substitution, state: state) else { continue }
             let lower = tops[layer] ?? state.store.children(layer).last.flatMap { state.store.placement($0)?.position }
             let key = try PathEditing.keys(between: lower, and: nil, count: 1)[0]
             tops[layer] = key
@@ -133,30 +132,14 @@ public struct MergeToPages: Command {
             }
             trees.append(tree)
         }
+        // Flow links: to the copy of the linked block when it was copied too, else none.
         NodeCopier.rewriteReferences(in: trees, mapping: mapping, builder: &builder)
-        for (source, text) in texts {
-            guard let copy = mapping[source] else { continue }
-            MergeTextWriter.write(text, into: copy, builder: &builder)
-            // Flow links: to the copy of the linked block when it was copied too, else none.
-            let props = state.props(source).text
-            for (field, ref) in [(UInt32(4), props.nextLink), (UInt32(5), props.prevLink)] where ref.hasID {
-                var value = Wiretuner_Doc_V1_NodeProps()
-                if let target = mapping[OpID(ref.id)] {
-                    if field == 4 { value.text.nextLink.id = target.proto } else { value.text.prevLink.id = target.proto }
-                } else {
-                    value.text = .init()
-                }
-                builder.append(Ops.set(copy, [RegisterPath([TextFields.kind, field])], values: value))
-            }
-        }
     }
 
     /// `tree` with the record baked in: nil when a visibility binding hides it; bindings
-    /// cleared; barcode values, links and pictures set; text nodes noted in `texts` (written after
-    /// the copy exists: `NodeCopier` does not copy TEXT fields) with their links cleared until
-    /// they are rewritten.
-    private func baked(_ tree: NodeTree, record: Int, substitution: RecordSubstitution, state: EngineState,
-                       texts: inout [(source: OpID, text: MergeText)]) -> NodeTree? {
+    /// cleared; barcode values, links and pictures set; a text block's text replaced by the
+    /// record's (`NodeCopier` writes it into the copy).
+    private func baked(_ tree: NodeTree, record: Int, substitution: RecordSubstitution, state: EngineState) -> NodeTree? {
         guard let source = tree.source else { return tree }
         if substitution.hides(source, state: state) { return nil }
         var tree = tree
@@ -170,12 +153,11 @@ public struct MergeToPages: Command {
             if let pixels = images?(value) { tree.props.image.pixels = pixels } else { tree.props.image.clearPixels() }
         }
         if case .text? = tree.props.kind, let text = TextNode(source, in: state) {
-            texts.append((source, fitted[MergeFitKey(record: record, node: source)] ?? substitution.mergeText(text, state: state)))
-            tree.props.text.clearNextLink()
-            tree.props.text.clearPrevLink()
+            let merged = CopiedText(fitted[MergeFitKey(record: record, node: source)] ?? substitution.mergeText(text, state: state))
+            tree.text = merged.string.isEmpty ? nil : merged
         }
         Self.setCommon(&tree.props) { $0.clearDataBinding() }
-        tree.children = tree.children.compactMap { baked($0, record: record, substitution: substitution, state: state, texts: &texts) }
+        tree.children = tree.children.compactMap { baked($0, record: record, substitution: substitution, state: state) }
         return tree
     }
 
@@ -220,53 +202,6 @@ public struct MergeFitKey: Hashable, Sendable {
     public init(record: Int, node: OpID) {
         self.record = record
         self.node = node
-    }
-}
-
-/// Writing a `MergeText` into a newly created text node: one `TextInsert` of the whole string,
-/// one mark per run and format value (a paragraph's last run also covers its newline), the
-/// paragraph registers on each newline and its tab stops.
-enum MergeTextWriter {
-    static func write(_ text: MergeText, into node: OpID, builder: inout ChangeBuilder) {
-        let string = text.string
-        let count = string.unicodeScalars.count
-        guard count > 0 else { return }
-        let first = builder.append(Ops.textInsert(node, TextFields.text, string))
-        func id(_ offset: Int) -> OpID { OpID(counter: first.counter + UInt64(offset), replica: first.replica) }
-        var offset = 0
-        for (index, paragraph) in text.paragraphs.enumerated() {
-            let terminated = index < text.paragraphs.count - 1
-            for (runIndex, run) in paragraph.runs.enumerated() {
-                let length = run.text.unicodeScalars.count
-                let covers = length + (terminated && runIndex == paragraph.runs.count - 1 ? 1 : 0)
-                if covers > 0 {
-                    let next = offset + covers < count ? id(offset + covers) : .zero
-                    for value in run.formats {
-                        builder.append(TextEditing.mark(node, value, first: id(offset), last: id(offset + covers - 1), next: next))
-                    }
-                }
-                offset += length
-            }
-            guard terminated else { continue }
-            let newline = id(offset)
-            var props = paragraph.props
-            let tabs = props.tabs
-            props.tabs = []
-            let fields = TextEditing.presentFields(props)
-            if !fields.isEmpty {
-                builder.append(Ops.set(node, fields.map { TextFields.paragraph(newline).child($0) }, values: TextEditing.paragraphValues(props, newline: true)))
-            }
-            if !tabs.isEmpty, let keys = try? PathEditing.keys(between: nil, and: nil, count: tabs.count) {
-                let copies = tabs.map { tab in
-                    var stop = tab
-                    stop.clearID()
-                    return stop
-                }
-                builder.append(Ops.elementInsert(node, TextFields.paragraph(newline).child(TextFields.tabsField), positions: keys,
-                                                 values: TextEditing.paragraphValues(.with { $0.tabs = copies }, newline: true)))
-            }
-            offset += 1
-        }
     }
 }
 

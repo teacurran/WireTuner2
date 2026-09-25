@@ -11,7 +11,9 @@ import WTProto
 /// (nodes 1, layer_names 2, assets 3, bounds 4, source_document 5; `ClipboardNode` props 1,
 /// children 2, source_id 3, plus stack_order 4: one byte per attribute-stack row, bottom first,
 /// the row's `AppearanceProps` list number, since the typed props cannot show how the lists
-/// interleave).  No assets are carried: swatches, styles, symbols and brushes are not nodes yet,
+/// interleave, and texts 5: one record per TEXT field holding live characters, its `FieldPath` as
+/// field 1 and its contents as a `RichText` field 2 -- live characters numbered 1 ... n on
+/// replica 0, paragraphs on the newlines, one mark per span).  No assets are carried: swatches, styles, symbols and brushes are not nodes yet,
 /// and colours are inline.
 public struct ClipboardPayload: Hashable, Sendable {
     /// The pasteboard type.
@@ -77,6 +79,9 @@ public struct ClipboardPayload: Hashable, Sendable {
         for child in node.children { out += Wire.field(2, encode(child)) }
         if let source = node.source { out += Wire.field(3, Wire.bytes { try source.proto.serializedBytes() }) }
         if let order = node.stackOrder { out += Wire.field(4, order.map { UInt8($0.rawValue) }) }
+        for (path, text) in node.texts.sorted(by: { $0.key < $1.key }) {
+            out += Wire.field(5, Wire.field(1, Wire.bytes { try path.proto.serializedBytes() }) + Wire.field(2, Wire.bytes { try text.richText.serializedBytes() }))
+        }
         return out
     }
 
@@ -124,6 +129,14 @@ public struct ClipboardPayload: Hashable, Sendable {
                 // An unknown list number leaves the order unset (fills, strokes, effects).
                 let order = field.payload.compactMap { AppearanceList(rawValue: UInt32($0)) }
                 tree.stackOrder = order.count == field.payload.count ? order : nil
+            case 5:
+                // A text whose path or contents do not read is left out.
+                let parts = WireReader.fields(field.payload) ?? []
+                guard let path = parts.last(where: { $0.number == 1 && $0.wireType == 2 })
+                    .flatMap({ try? Wiretuner_Doc_V1_FieldPath(serializedBytes: $0.payload) }).flatMap(RegisterPath.init),
+                    let rich = try? Wiretuner_Doc_V1_RichText(serializedBytes: parts.last(where: { $0.number == 2 && $0.wireType == 2 })?.payload ?? [])
+                else { continue }
+                tree.texts[path] = CopiedText(rich)
             default:
                 continue
             }

@@ -162,20 +162,22 @@ public struct TextNode: Sendable {
     // MARK: Reading paragraph registers
 
     /// The `ParagraphProps` each newline's registers hold, in one pass over the node's registers
-    /// (tab stops, a SEQUENCE under the newline, in their order).
-    static func paragraphRegisters(_ node: OpID, in state: EngineState) -> [OpID: Wiretuner_Doc_V1_ParagraphProps] {
+    /// (tab stops, a SEQUENCE under the newline, in their order).  `field` is the TEXT field
+    /// (`TextProps.text` unless given: an override's text has paragraphs too).
+    static func paragraphRegisters(_ node: OpID, field: RegisterPath = TextFields.text,
+                                   in state: EngineState) -> [OpID: Wiretuner_Doc_V1_ParagraphProps] {
         var trees: [OpID: PropsTree] = [:]
         func tree(_ newline: OpID) -> PropsTree {
             if let existing = trees[newline] { return existing }
-            let root = PropsTree(path: TextFields.paragraph(newline))
+            let root = PropsTree(path: field.element(newline).child(TextFields.paragraphField))
             trees[newline] = root
             return root
         }
         for (path, element) in state.store.elements(node) where !element.isDeleted {
-            if let (newline, suffix) = paragraphSuffix(path) { tree(newline).markElement(at: suffix) }
+            if let (newline, suffix) = paragraphSuffix(path, field: field) { tree(newline).markElement(at: suffix) }
         }
         for (path, register) in state.store.registers(node) {
-            guard let value = register.value, let (newline, suffix) = paragraphSuffix(path) else { continue }
+            guard let value = register.value, let (newline, suffix) = paragraphSuffix(path, field: field) else { continue }
             tree(newline).leafNode(at: suffix)?.leaf = value
         }
         return trees.compactMapValues { root in
@@ -185,12 +187,13 @@ public struct TextNode: Sendable {
     }
 
     /// The newline and the path below `TextChar.paragraph` of a register or element path under
-    /// `[130, 2, <newline>, 6]`.
-    static func paragraphSuffix(_ path: RegisterPath) -> (OpID, RegisterPath)? {
+    /// `[<field>, <newline>, 6]` (`field` `[130, 2]` unless given).
+    static func paragraphSuffix(_ path: RegisterPath, field: RegisterPath = TextFields.text) -> (OpID, RegisterPath)? {
         let segments = path.segments
-        guard segments.count > 4, segments[0] == .field(TextFields.kind), segments[1] == .field(2),
-              case .element(let newline) = segments[2], segments[3] == .field(TextFields.paragraphField) else { return nil }
-        return (newline, RegisterPath(segments: Array(segments[4...])))
+        let depth = field.segments.count
+        guard segments.count > depth + 2, Array(segments[..<depth]) == field.segments,
+              case .element(let newline) = segments[depth], segments[depth + 1] == .field(TextFields.paragraphField) else { return nil }
+        return (newline, RegisterPath(segments: Array(segments[(depth + 2)...])))
     }
 }
 

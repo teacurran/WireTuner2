@@ -344,8 +344,8 @@ carries no assets (swatches, styles, symbols and brushes are not nodes yet; colo
 copied root's transform is its pasteboard transform (enclosing groups baked in) and a paste
 re-expresses it in the destination parent's space.  Copies go through `NodeCopier`, which is generic
 over every kind: `CreateNode` with the full props, then one `ElementInsert` per SEQUENCE field found
-through the merge table (nested ones after their parent element), then the children; SET members and
-TEXT fields are not copied yet, a group's `clip_path` is rewritten to the copied child and its
+through the merge table (nested ones after their parent element), then the children; SET members are
+not copied, TEXT fields are (below), a group's `clip_path` is rewritten to the copied child and its
 `layer_origins` dropped.  `Paste` places on top of the active layer (centred on the visible area),
 or `inFront`/`behind` an anchor inside its parent (never below a clip path); *Remember layer info*
 finds the layer by name or creates it once per paste.  Only the native pasteboard type is written
@@ -368,6 +368,27 @@ order stacks fills, then strokes, then effects.  The pasteboard carries the orde
 field 4 (`stack_order`, one byte per row naming its `AppearanceProps` list); a payload with an
 unknown list number reads without an order.  Copies of text blocks, blends, extrusions, images and
 placed SVG animations keep their paste offset (their transforms were not written before).
+
+NOTE: As built: copies carry their text.  `NodeTree.texts` holds every TEXT field of a node that has
+live characters -- a text block's `TextProps.text`, an instance's override texts -- by its source path, as
+`CopiedText`: the live string, one run per span of each winning mark value, and each newline's
+`ParagraphProps` (tab stops included).  `NodeCopier` writes each after the node's children exist: one
+`TextInsert` per 16,384 scalars, one `TextMark` per span with the attribute's expansion rule, the
+paragraph registers and a fresh `ElementInsert` of the tab stops on each newline; a text inside a
+SEQUENCE element goes under the element's copy.  Links, character styles, data-merge placeholders and
+the other values are kept as they are (a style or placeholder in another document resolves as a dangling
+one does).  An `inline_graphic` naming a node copied in the same operation -- the graphic is the text
+node's child, so copying the block copies it -- names the copy; one naming anything else is not written,
+which reads as an unset reference (the empty box).  A text block's `next_link` / `prev_link` follow the
+same rule as other references: to the copy of the linked block when both are copied, else unset, so a
+copied chain head holds the whole story and a member copied without its head is an unlinked block with its
+own (dormant) text.  A block on a path keeps its path, which is its child.  Every copy path goes through
+this: Paste (and In Front / Behind, and between documents, where the pasteboard carries the texts as
+`ClipboardNode` field 5 -- a `FieldPath` 1 and a `RichText` 2 whose characters are numbered 1 ... n on
+replica 0), Duplicate, Clone, kbd:[Option]-drag, Paste Contents, Paste Special > *Inline graphic*,
+*Release Instance* (the resolved trees carry the override's text where there is one), *Merge to Pages*
+(the record's text replaces the tree's) and every other `NodeCopier` caller.  Before, a copied text block
+was empty.  `PackageReissue` (Duplicate document, templates) copies TEXT fields itself.
 
 NOTE: As built by OBJ-013 (`WTApp/Tools/PointerTool.swift`, `WTApp/Document/ObjectDragging.swift`).
 kbd:[Option]-drag copying was OBJ-008's (`DuplicateObjects` on release); this adds the plus-sign cursor

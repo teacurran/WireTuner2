@@ -1432,8 +1432,8 @@ with the record baked in (text rewritten with its formatting and paragraph regis
 cleared, barcodes and links set, hidden objects left out, pictures from a `MergeImageResolver`
 or unset and reported) and text flow links recreated between copies.  The template's objects are
 those whose bounds are on the page plus text blocks and images whose origin is (they have no
-geometry bounds before layout).  `NodeCopier` copies no TEXT field, so the text is written after
-the copy exists.  Shrink-to-fit needs the layout engine on the main actor: the caller passes the
+geometry bounds before layout).  The record's text rides on the copied tree (`NodeTree.text`) and
+`NodeCopier` writes it with the copy, inline graphics naming the copy's own children.  Shrink-to-fit needs the layout engine on the main actor: the caller passes the
 fitted texts (`fitted`), the command never lays out.
 * `Document.mergeToPages` performs the chunks (sized from a dry run so each change stays within
 10,000 ops) in one undo group, one step "Merge N records to pages"; a progress closure returning
