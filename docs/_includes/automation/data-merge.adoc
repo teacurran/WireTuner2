@@ -1437,7 +1437,8 @@ the copy exists.  Shrink-to-fit needs the layout engine on the main actor: the c
 fitted texts (`fitted`), the command never lays out.
 * `Document.mergeToPages` performs the chunks (sized from a dry run so each change stays within
 10,000 ops) in one undo group, one step "Merge N records to pages"; a progress closure returning
-false cancels by undoing the group.  The *two merge runs* review entry in WTSync is not built.
+false cancels by undoing the group.  The *two merge runs* review entry is built in WTSync with
+DATA-023 (below).
 
 Merge to PDF and print (DATA-021, model and export halves)::
 `WTModel.MergeOutput` draws output page *n* on demand -- the template page's rectangle, the record's
@@ -1447,6 +1448,41 @@ with `MergeFileNames` (the export tokens plus `{field}`, collisions suffixed ` 2
 stops after the current record when its progress closure says so.  One file per record is flat in
 memory; *One file* collects the pages before writing (the PDF writer is not incremental).  The
 `PrintPlanView` integration, the merge sheet and the progress sheet are WTApp's and not built.
+
+Review rows and multi-client scenarios (DATA-023; `WTSync/DataMergeReview.swift`, simulator `WTTestSupportTests/Simulation/DataMergeScenarioTests`)::
+* `Divergence.measure` adds two kinds of row beside the object entries, both always listed (like
+the colour-settings row, they make the decision *per object* and hold the outbox, except after a
+brief reconnect under D-070): `mergeRuns` and `removedFields`, carried to `ReviewModel`.
+* *Two merge runs* (`MergeRunConflict`): a run is consecutive changes of one replica whose labels
+end in `Merge N record(s) to pages` (a prefix is allowed, so scripted labels match); its pages are
+the `page` nodes they created and its objects the created nodes whose parent they did not create.
+A run *follows* the nearest page before its first page, in page order, that no run on either side
+created -- the template, or the page the merge was placed after.  A local and a remote run
+following the same page make one row (several runs on one side after that page are joined).  The
+choices are commands against the merged state: *Keep both, one after the other* (`MoveNode` of the
+later run's live pages, in their current order, between the earlier run's last page and the next
+other page; "later" is the run whose first page id is greater; nil when already in order), *Remove
+theirs* and *Remove mine* (`SetDeleted` on that run's pages and objects).  The live notice for two
+runs arriving while both are online is WTApp's and not built.
+* *Field removed with N bindings* (`FieldRemovedEntry`): a field element one side left deleted
+(its last `ElementDelete` in that side's changes) that is still deleted after the merge and is used
+-- bound, or a placeholder -- by a live node the *other* side created or wrote; `uses` counts every
+use in the merged state, `deletedLocally` says which side deleted it, and *Restore* is
+`RestoreField`.  A deletion nobody else touched a use of is not listed.
+* Embedded samples are never listed: a write under `DataSource.sample` (settings field 81, element,
+field 5) is left out of the touch sets, as print settings are.  Other concurrent writes to the
+settings node still make the ordinary settings row: two people adding fields meet as *Both edited*
+on the document settings, two renaming one field as *Same attribute* with both names.
+* The scenarios run against the in-process server in every `swift test` of WTTestSupport (and in
+`make client-sim`): rename vs bind, delete vs placeholder (the row and its *Restore*), duplicate
+names, URL vs header, sample race, two merge runs with each choice, merge vs template edit, an API
+source fetched by two clients, an offline day of field and source edits (one *Same attribute* row),
+and a package round trip whose zip, snapshot, manifest and blobs hold the credential's name but
+never its secret.  *Deviation:* the fetch runs against `SimDataService` (`WTTestSupport`), an
+in-process stand-in for the data service with the allowlist, the credential check and paging; the
+compose-stack variant (`ComposeDataScenarioTests`) needs `WT_SIM_COMPOSE=1` and `WT_SIM_DATA_URL`,
+an https JSON API the compose server may reach, because the SSRF guard refuses private addresses
+and the stack has no public fixture.
 
 [[as-built-ui]]
 ==== As built (DATA-004; DATA-017; DATA-010, DATA-016, DATA-018, DATA-020 and DATA-021 WTApp halves)

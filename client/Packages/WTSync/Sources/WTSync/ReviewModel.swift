@@ -191,6 +191,10 @@ public struct ReviewModel: Sendable, Hashable {
     public var remoteObjects: Int
     public var authors: [ReviewAuthor]
     public var entries: [ReviewEntry]
+    /// The *two merge runs* rows (data-merge.adoc), each with its three choices.
+    public var mergeRuns: [MergeRunConflict] = []
+    /// The *field removed with N bindings* rows, each with *Restore*.
+    public var removedFields: [FieldRemovedEntry] = []
     /// For `.recovered`: what salvage re-issued and dropped.
     public var recovered: SalvageReport?
     public var documentActions: [DocumentAction]
@@ -218,6 +222,8 @@ public struct ReviewModel: Sendable, Hashable {
             .map { ReviewAuthor(replica: $0.key, name: names[$0.key] ?? "", ops: $0.value) }
             .sorted { ($1.ops, $0.replica) < ($0.ops, $1.replica) }
         entries = divergence.entries
+        mergeRuns = divergence.mergeRuns
+        removedFields = divergence.removedFields
         recovered = nil
         documentActions = mode == .readOnly ? [] : [.keepMerged, .saveCopy, .keepBranch]
     }

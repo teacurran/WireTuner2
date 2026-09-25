@@ -1,0 +1,43 @@
+# crdt-conformance/vectors/fills/lens-snapshot-vs-snapshot.textproto (ATTR-020; schema: crdt-conformance/schema/vector.proto)
+name: "fills/lens-snapshot-vs-snapshot"
+description: "Two replicas take a lens Snapshot concurrently, each writing snapshot = true and its own snapshot_contents in one change.  snapshot_contents is an ATOMIC Subtree: the later change (4:2) wins both registers whole, so the lens shows one complete picture (a 7 x 3 square, not a mix); replica 1's writes are kept as losing."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Create"
+    ops { create { parent { counter: 4 } position: "\x80" props { layer { common { name: "Layer 1" } visible: true printing: true } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x80" props { rect { common { name: "Lens" } size { width: 50 height: 50 } } } } }
+    ops { element_insert { node { counter: 2 replica: 7 } sequence { segments { field: 21 } segments { field: 4 } segments { field: 1 } } positions: ["\x80"] values { rect { appearance { fills { settings { kind: FILL_KIND_LENS lens { type: LENS_TYPE_INVERT amount: 50 } } } } } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 4 base_server_seq: 1 label: "Snapshot"
+    ops { set { node { counter: 2 replica: 7 }
+      paths { segments { field: 21 } segments { field: 4 } segments { field: 1 } segments { element { counter: 3 replica: 7 } } segments { field: 3 } segments { field: 4 } segments { field: 8 } }
+      paths { segments { field: 21 } segments { field: 4 } segments { field: 1 } segments { element { counter: 3 replica: 7 } } segments { field: 3 } segments { field: 4 } segments { field: 9 } }
+      values { rect { appearance { fills { settings { lens { snapshot: true snapshot_contents { nodes { parent: -1 props: "\252\001\024\022\022\011\000\000\000\000\000\000\024\100\021\000\000\000\000\000\000\024\100" } nodes { parent: -1 props: "\252\001\024\022\022\011\000\000\000\000\000\000\000\100\021\000\000\000\000\000\000\000\100" } } } } } } } } } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 4 base_server_seq: 1 label: "Snapshot"
+    ops { set { node { counter: 2 replica: 7 }
+      paths { segments { field: 21 } segments { field: 4 } segments { field: 1 } segments { element { counter: 3 replica: 7 } } segments { field: 3 } segments { field: 4 } segments { field: 8 } }
+      paths { segments { field: 21 } segments { field: 4 } segments { field: 1 } segments { element { counter: 3 replica: 7 } } segments { field: 3 } segments { field: 4 } segments { field: 9 } }
+      values { rect { appearance { fills { settings { lens { snapshot: true snapshot_contents { nodes { parent: -1 props: "\252\001\024\022\022\011\000\000\000\000\000\000\034\100\021\000\000\000\000\000\000\010\100" } } } } } } } } } }
+  }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "d69560eef4c79139a90cf4885e601f54f0f9b0670a113ba6730da5a0f3c4438b"
+  snapshot_hash: "78cf8077ef198139d4a6ce78ae0317515888e46c5250b7a89afc954cf6e47b8f"
+  node {
+    id { counter: 2 replica: 7 }
+    node_hash: ""
+    register { path { segments { field: 21 } segments { field: 4 } segments { field: 1 } segments { element { counter: 3 replica: 7 } } segments { field: 3 } segments { field: 4 } segments { field: 8 } } value { rect { appearance { fills { settings { lens { snapshot: true } } } } } } op { counter: 4 replica: 2 } losing { counter: 4 replica: 1 } }
+    register { path { segments { field: 21 } segments { field: 4 } segments { field: 1 } segments { element { counter: 3 replica: 7 } } segments { field: 3 } segments { field: 4 } segments { field: 9 } } value { rect { appearance { fills { settings { lens { snapshot_contents { nodes { parent: -1 props: "\252\001\024\022\022\011\000\000\000\000\000\000\034\100\021\000\000\000\000\000\000\010\100" } } } } } } } } op { counter: 4 replica: 2 } losing { counter: 4 replica: 1 } }
+  }
+}

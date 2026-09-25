@@ -74,6 +74,9 @@ public struct PDFOptions: ExportOptions, Hashable {
     public var notesAsComments: Bool
     /// Named pages as bookmarks (the outline).
     public var bookmarksFromPageNames: Bool
+    /// *Comments as annotations* (COLLAB-033): each open comment thread as a `/Text` annotation
+    /// at its pin, replies as `/Text` annotations replying to the opener.  Off by default.
+    public var commentsAsAnnotations = false
     /// Required to open the file; empty for none.  Never stored in a preset.
     public var openPassword: String
     /// Required to print, copy or edit beyond the permissions below; empty for none.
@@ -198,6 +201,7 @@ public struct PDFOptions: ExportOptions, Hashable {
         force(\.embedPackage, false, "the embedded document package left out (PDF/X forbids attachments)")
         force(\.linksFromURLs, false, "links left out (PDF/X allows no annotations on the page)")
         force(\.notesAsComments, false, "comments left out (PDF/X allows no annotations on the page)")
+        force(\.commentsAsAnnotations, false, "comment threads left out (PDF/X allows no annotations on the page)")
         force(\.bookmarksFromPageNames, false, "bookmarks left out (interactive features are off for PDF/X)")
         force(\.openPassword, "", "the open password removed (PDF/X forbids encryption)")
         force(\.permissionsPassword, "", "the permissions password removed (PDF/X forbids encryption)")

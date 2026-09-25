@@ -324,6 +324,27 @@ wall is the frontal plane (u right, v up), the floor's v recedes to the vanishin
 projects as glyph outlines; `PerspectivePlacement.inverse` is the caret map.  The grid overlay is
 FX-043's.
 
+NOTE: As built by FX-041 (`WTModel/PerspectiveCommands.swift`).  Commands and labels:
+`AttachToPerspectiveGrid` ("Attach to perspective grid": the wrapper at the object's slot with plane,
+cell placement and the page's grid), `MoveOnGrid` ("Move on grid"), `FlipOnGrid` ("Flip on grid"),
+`ResizeOnGrid` ("Resize on grid": ± cells, an automatic size resolved to the flat size first, never
+below one cell), `RemovePerspective` ("Remove perspective"), `ReleaseWithPerspective` ("Release with
+perspective": a group of the projected drawing baked through the export flattener, the wrapper
+deleted with its child), `DefineGrid` ("Define grid": a copy of another grid, or the built-in grid of
+a page in page coordinates, optionally made a page's grid in the same change), `DuplicateGrid`
+("<name> 2", "<name> 3" ...), `RenameGrid`, `DeleteGrid`, `SetPageGrid`, `EditGrid` (any option or
+geometry field, labelled by the gesture: "Move vanishing point") and `CloneOnGrid`.  Names are
+trimmed, at most 64 characters and unique when written; duplicates after a merge display with
+" 2", " 3" in element-id order (`PerspectiveReading.grids`).  The page an attached object is on is the
+page holding the centre of its flat child's bounds (else the first page).  *Option+Shift clone*: the
+copies are pinned to a new grid element holding the old geometry (`PerspectiveProps.grid`), so they
+stay where the objects were while the originals travel with the edited grid -- one change, new
+nodes.  *Scene hook*: the wrapper is read by its raw kind (103), not as a `NodeKind` or
+`WrapperKind` case, because the scene and WTApp switch over those enums; until `DocumentScene` draws
+kind 103 as a wrapper with `PerspectiveReading.live` and `drawOrder`, an attached object is not drawn
+on the canvas.  `ReleaseWithPerspective` draws the children from a scratch copy of the state in which
+they are unwrapped (`PerspectiveBaking.item`), so it does not wait for the hook.
+
 === Build tasks
 
 [[FX-040]]

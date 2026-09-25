@@ -456,6 +456,59 @@ objects]); FX-035 and FX-036 are covered by it except Mirror's keyline preview o
 outline (the overlay draws each copy's bounds) and 3D Rotation's trackball: the drag's two
 components are two independent angles.
 
+NOTE: As built by FX-031 (`WTModel/PathAlterCommands.swift`, with Add Points in `PathTools.swift`),
+in WTModel rather than `WTGeometry/Distort/`.  `Fractalize` ("Fractalize") replaces each drawn
+segment by four: its first and last thirds as they were (de Casteljau), and a spike of two straight
+segments whose apex stands off the segment's midpoint by `√3/6` of its chord -- outward, away from
+the enclosed area on a closed contour, on the right of travel on an open one.  The path's own points
+keep their ids (only their handles shorten), so a concurrent drag of one of them survives; a square
+becomes 16 segments.
+
+NOTE: As built by FX-030 (`WTApp/Effects/Distort/DistortFeatures.swift`; `ExtensionRegistry.performWithPreviousSettings`,
+`ToolbarController.commandPress`).  The Operations toolbar is the Extension Operations toolbar of
+xref:toolbars.adoc[Toolbars] (menu:Window[Toolbars > Extension Operations]); its buttons and the
+menu:Extensions[Create] and menu:Extensions[Distort] submenus come from `ExtensionCatalog` and validate
+against the selection.  *Add Points* (WTModel's `AddPoints`) and *Fractalize* (a `RewritePath` per
+selected path) run on the selected paths; *Emboss* and *Trap* stay stubs (FX-034, PRINT).  The
+Distort submenu's *Roughen…*, *Fisheye Lens…*, *Bend…*, *Smudge…* and *3D Rotation…* choose that tool in
+the front window and open its options sheet.  kbd:[Cmd]-click on an operation's toolbar button runs it
+with the settings its sheet captured last (its defaults the first time) without the sheet -- the
+generic mechanism Emboss will use.  Fractalize splits each segment into thirds by arc length and puts
+an equilateral spike on the outward side of the middle third (outward from the contour's winding;
+the left of travel for an open path).
+
+NOTE: As built by FX-032 (`WTApp/Effects/Distort/DistortKernels.swift`, `DistortTools.swift`,
+`DistortPreferences.swift`).  *Deviation*: the kernels live in `WTApp/Effects/Distort/` rather than
+`WTGeometry/Distort/` -- they work on the app's `VectorPoint` contours and write `RewritePath`
+(existing points keep their ids, so a concurrent drag of one merges point by point); the Bend tool's
+kernel is the Bend effect's (`WTRender` `BendKernel`) arithmetic reproduced on anchors and handle ends,
+and renders the same outline as the effect of the same size.  Roughen samples every 72 / *Amount* pt
+by arc length and moves every point along the normal by `random(−1, 1) × distance × 0.1` with one
+random seed per press (preview and result agree); *Smooth* gives Catmull-Rom curve points.  The lens
+curve is `x^(1 / (1 + 2p))` for a convex perspective `p` and `x^(1 − 2p)` for a concave one.  The
+Fisheye drag draws the circle *across* the drag; with kbd:[Option] the press is the centre and the
+drag the radius.  The tools reshape paths; select a shape's path to distort it.  Options are the
+tools' preferences (their sheets list them).
+
+NOTE: As built by FX-033 (`WTApp/Effects/Distort/CopyTools.swift`; the change is WTModel's
+`CopiesBehind`).  Each object's copies are deep copies placed behind it and grouped with it in its
+slot (`CreateNode(group)`, the copies, `MoveNode` of the object to the top), one change "Smudge" or
+"Add shadow"; colours move toward their targets in process CMYK (`CopiesBehind.mix`).  Smudge makes
+`distance / 2 pt` copies, the farthest fully in the smudge colours; more than 1,000 new objects
+(nested ones counted) is refused with "Smudging would create more than 1,000 objects".  The Shadow
+tool refuses text, bitmaps, placed files and clipping groups.  *Deviations*: Soft Edge's concentric
+insets are scaled copies (each inset by its share of *Soft edge* × half the smaller side) rather than
+GEO-003 offsets; Zoom is 25 steps interpolated linearly (the blend's default count); btn:[Apply]
+previews by performing the shadow on the front window's selection and undoing it on the next
+btn:[Apply] or btn:[Cancel] (btn:[OK] keeps it).  The merge case (shadow vs. a concurrent delete of
+the original: the copies remain) is `CopyToolTests`.
+
+NOTE: The FX-035 and FX-036 remainders are built (`WTApp/Effects/Distort/Keylines.swift`,
+`WTApp/Tools/Rotation3DTool.swift`): Mirror's and 3D Rotation's previews draw every selected object's
+outline (every path of a group, the bounds of anything without a path), and the 3D rotation is a
+trackball turn -- about the page axis perpendicular to the drag by an angle proportional to its
+length -- with kbd:[Shift] snapping the angle and the drag's heading to 45° steps.
+
 === Build tasks
 
 [[FX-030]]

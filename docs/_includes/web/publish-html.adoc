@@ -425,10 +425,30 @@ bitmap exporter (clamped to 16,384 pixels with a warning) with image maps, *Font
 SVG writer's text modes, *Page background*, *Title*, and the document's animation written into SVG
 pages (Layers source, unless *Still*).  Image-map areas follow each linked object's outline
 (curves subdivided to a quarter point), one `rect` per line of a text-range link, `alt` from the
-link's alt text or the object's.  *Not built yet:* the `images/` folder in the chosen format and
-quality (SVG pages embed their bitmaps), WOFF2 subsets with the `fsType` check (the SVG writer's own
-font embedding is used), placed SVG animations (WEB-028), HTML5 validation and the headless WebKit
-comparison of the corpus.
+link's alt text or the object's.  SVG pages (and object files) are written with
+`SVGWriter.linkedFiles` (`SVGLinkedFiles.swift`): placed bitmaps go to `images/` in the setting's
+format and quality -- a placed JPEG keeps its own bytes under JPEG, a bitmap with transparency is PNG
+under JPEG, WebP falls back to PNG where ImageIO cannot encode it -- and embedded fonts to `fonts/`
+as WOFF2 (`WOFF2Writer`) of the TrueType subset of the glyphs the page uses, each file named by the
+first 16 bytes of its SHA-256 in hex, so the same image or subset on several pages is one file.  A
+font whose `fsType` forbids embedding (or that has no TrueType outlines, or is a variable instance)
+is outlined, and the SVG writer reports it (`SVGDocument.outlinedFonts`), which the bundle raises as
+an *outlined font* warning on the text's node.  Deviation: a page (or object) SVG that links images
+or fonts is embedded with `<object>`, like a page with links, because an SVG loaded by `<img>` loads
+no other file.  Placed SVG animations (`ExportScene.svgAnimations`, `HTML/HTMLAnimations.swift`)
+play unless *Poster only*: the node's item in the page is emptied (so the poster is not drawn and no
+other item moves) and the file is put back over the page, in the `<section>` after the page's
+picture, in a `<div class="anim">` whose CSS `transform` is the node's transform (natural size in
+points, `transform-origin: 0 0`), inlined with its XML declaration, doctype, comments, `<script>`
+and `on…` attributes removed (a `scriptAnimation` warning when it had script); a file
+with script under *Allow scripts* is written to `animations/<hash>.svg` and embedded with
+`<object>` instead.  *On the web* becomes `style.css` rules on the wrapper's id: paused without
+autoplay or until `:hover` for *Play on hover*, `animation-iteration-count` infinite or 1 for *Loop*
+and *Once* (CSS animations only; SMIL timelines play as the file says).  Deviations: the animations
+sit above the whole page picture, so an object stacked above a placed animation is drawn beneath it;
+posters are not written to `animations/` (the page no longer draws them).  *Not built yet:* HTML5
+validation and the headless WebKit comparison of the corpus, and the WTModel half that fills
+`ExportScene.svgAnimations` from `svg_animation` nodes (`SvgAnimationInfo` and the asset blobs).
 
 NOTE: As built by WEB-010, in part (`WTInterchange/Export/ExportWarnings.swift`).  `ExportWarnings`
 is the sink: `ExportWarning(kind, node:, page:, message)`, duplicates dropped, a stable order (page,

@@ -245,7 +245,11 @@ shared one binding; it now refuses one with `INVALID_ARGUMENT` (`PrincipalInterc
 does `SimServer`, whose clients' devices are UUIDs derived from their names
 (`Simulation.deviceID(for:)`); `SyncIntegrationTests` and the compose backend send UUIDs too.
 Scenario 7 counts its steps (`Simulation.steps`) rather than running for a simulated duration, so
-the downgrade at step 30 happens on a loaded machine too.
+the downgrade at step 30 happens on a loaded machine too.  Feature scenarios run in the same suite
+(their suites' names end in `ScenarioTests`, so `make client-sim` picks them up): comments in the
+review and in restore (COLLAB-032, `CommentScenarioTests`), the colour list (COLOR-022,
+`SwatchScenarioTests`) and data merge (DATA-023, `DataMergeScenarioTests`, with `SimDataService`
+standing in for the data service); together they add about 10 s to the suite.
 
 == Geometry and rendering
 

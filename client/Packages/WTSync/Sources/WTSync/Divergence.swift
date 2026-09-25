@@ -125,9 +125,17 @@ public struct Divergence: Sendable, Hashable {
     public var remoteComplete: Bool
     /// The overlapping objects and the always-listed setting changes, most severe first.
     public var entries: [ReviewEntry]
+    /// A local and a remote *Merge to Pages* after the same page (data-merge.adoc): always listed.
+    public var mergeRuns: [MergeRunConflict] = []
+    /// Fields one side deleted that objects the other side wrote use (data-merge.adoc): always listed.
+    public var removedFields: [FieldRemovedEntry] = []
 
     /// Objects changed on both sides (setting entries not counted).
     public var overlapCount: Int { entries.lazy.filter { $0.setting == nil }.count }
+
+    /// Whether the review has any row: an overlap, an always-listed setting, merge runs or a
+    /// removed field.
+    public var hasRows: Bool { !entries.isEmpty || !mergeRuns.isEmpty || !removedFields.isEmpty }
 
     /// The decision rules with `preferences`.
     ///
@@ -138,7 +146,7 @@ public struct Divergence: Sendable, Hashable {
     /// the share rule only from `shareMinimum` overlapping objects.
     public func decision(_ preferences: ReconcilePreferences) -> ReconcileDecision {
         let overlap = overlapCount
-        if !entries.isEmpty && !preferences.alwaysAsk && isBrief(preferences) {
+        if hasRows && !preferences.alwaysAsk && isBrief(preferences) {
             return .suggestReview
         }
         if overlap > 0 {
@@ -149,7 +157,7 @@ public struct Divergence: Sendable, Hashable {
             }
             return .perObject
         }
-        if !entries.isEmpty {
+        if hasRows {
             return .perObject
         }
         if localOps >= preferences.autoMergeBelow || remoteOps >= preferences.autoMergeBelow
@@ -201,7 +209,9 @@ public struct Divergence: Sendable, Hashable {
         }
         entries.sort { ($0.sortKey, $0.node) < ($1.sortKey, $1.node) }
         return Divergence(localOps: mine.ops, remoteOps: theirs.ops, localObjects: mine.nodes.count, remoteObjects: theirs.nodes.count,
-                          remoteOpsByReplica: theirs.opsByReplica, gap: gap, remoteComplete: remoteComplete, entries: entries)
+                          remoteOpsByReplica: theirs.opsByReplica, gap: gap, remoteComplete: remoteComplete, entries: entries,
+                          mergeRuns: DataMergeReview.conflicts(local: local, remote: remote, state: state),
+                          removedFields: DataMergeReview.removedFields(local: local, remote: remote, state: state))
     }
 }
 
@@ -342,10 +352,14 @@ struct Side {
     }
 
     /// Whether a register write counts: on the settings node, print settings, the output area and
-    /// view state are never listed (reconcile.adoc), and color and font-level writes are recorded
-    /// as always-listed settings as well.
+    /// view state are never listed (reconcile.adoc), nor is a data source's embedded sample (a
+    /// sample is disposable, data-merge.adoc), and color and font-level writes are recorded as
+    /// always-listed settings as well.
     private mutating func classify(_ node: OpID, _ path: RegisterPath, _ replica: UInt64) -> Bool {
         guard node == .wellKnown(1), path.fields.first == 2, path.fields.count > 1 else { return true }
+        if path.fields.count > 2, path.fields[1] == 81, path.fields[2] == 5 {
+            return false
+        }
         switch path.fields[1] {
         case 30, 31, 40, 61, 83:
             return false

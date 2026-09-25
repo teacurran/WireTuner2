@@ -287,6 +287,39 @@ test, which needs the app's canvas.
   selection yields byte-identical snippets, which the tests snapshot.
 * Undo: none.  Copy actions do not enter the undo stack.
 
+NOTE: As built by COLLAB-036 (`WTInterchange/Snippets/`).  A snippet is made from a
+`SnippetObject`: the object's display item (pasteboard space) plus what the display list does not
+keep -- its kind (`rectangle`, `roundedRectangle(radius:)`, `ellipse`, `path`, `text`, `other`), name
+and node, opacity, paragraph leading and tracking, the swatch names of its colours, and the reasons
+the caller already knows no snippet can express (a blend, an extrusion); fills, the topmost stroke,
+shadows and glows and text runs are read from the item.  `SnippetOptions` carries the notation,
+the unit and the scale.  `SVGSnippet.make` is the SVG writer with its default options over a page
+tight around the item's drawing.  `CSSSnippet.make` writes `:root` custom properties for every colour
+(the swatch name as a slug, `--color-N` otherwise) and one rule named after the object (`.object`
+without a name): `width`/`height` from the geometry's bounds, `background` (the topmost fill: solid,
+`linear-gradient` with the axis's angle, `radial-gradient` at the centre), `border` (solid or
+dashed) and `border-radius` for rectangles, rounded rectangles and ellipses (`50%`), `box-shadow`
+(inner shadows and glows `inset`), `opacity`, and for text the first run's font, `line-height`,
+`letter-spacing` and `color`, each further run as `span:nth-of-type(n)`.  `SwiftSnippet.make` returns
+the declarations (the `Color` extension of swatch-named colours, `static let brandRed`) and the view
+expression as described above (`Circle()` when the ellipse's sides are equal, `.overlay` of the
+stroked shape, `.shadow` for outer shadows only, `.lineSpacing` as leading minus 1.2 × size); lengths
+are points.  `PNGSnippet.make` is the bitmap rasterizer at the scale with a transparent background,
+and `fileName` gives `Logo mark@2x.png`.  What CSS or SwiftUI cannot express (paints other than
+solid, linear and radial; effects other than shadows; several fills; a free path or other object in
+CSS) is named in a comment, CSS then using the SVG snippet as a `data:` background and Swift quoting
+it in a block comment.  Colours (`SnippetColors`): sRGB and Display P3 through Core Graphics'
+ColorSync conversion of the tagged colour, OKLCH exactly from XYZ (written to three decimals of a
+percent, five of chroma and three of hue, so it round-trips to sRGB within 0.001), CMYK through the
+export `CMYKConverter` as `device-cmyk(…)`.  The tests check content and byte-identical reruns in
+every notation and unit, re-import each SVG snippet and compare renders, compile every Swift snippet
+with `swiftc` and compare the shapes' `ImageRenderer` output at 2× with the PNG snippet, and compare
+colours with WTColor's direct `ColorSyncTransform`.  Deviations: the snippets take a
+`SnippetObject` rather than a selection-only display list alone (the kind, leading and swatch names
+are not in the display list); the CSS for a rotated object gives its axis-aligned bounds; the PNG
+snippet draws placed images as their placeholders, as the bitmap rasterizer does.  The
+`SnippetObject` for a selection is built by the Inspect panel (COLLAB-037).
+
 NOTE: As built by COLLAB-035's app half (`WTApp/Collaboration/InspectMode.swift`).  menu:View[Inspect
 Mode] (kbd:[Cmd+Shift+I]) toggles `InspectModeController` per window: an `InspectOverlayLayer` is
 inserted above the presence layer and follows the viewport, `InspectTool` is pushed over the

@@ -76,8 +76,14 @@ public struct HTMLPublisher: Sendable {
                                     pageBackground: false, minify: true, includeDocumentInfo: false)
         let flattener = SVGExporter.flattener(options: svgOptions, scene: scene)
         let animated = animatedPages(scene, options: svgOptions, pageHrefs: pageHrefs)
-        for (index, page) in scene.pages.enumerated() {
+        var animationRules: [String]?
+        for index in scene.pages.indices {
             let number = numbers[index]
+            let overlay = HTMLAnimations.overlay(scene.pages[index], number: number, scene: scene, settings: settings)
+            let page = overlay.page
+            files += overlay.files
+            warnings.append(contentsOf: overlay.warnings)
+            if !overlay.elements.isEmpty { animationRules = (animationRules ?? []) + overlay.rules }
             let flat = flattener.flatten(page, scene: scene)
             for note in flat.report.notes where note.contains("rasteriz") {
                 warnings.append(ExportWarning(.rasterizedEffect, page: number, "Page \(number): \(note)."))
@@ -91,7 +97,7 @@ public struct HTMLPublisher: Sendable {
             case .positionedObjects:
                 body = try positionedObjects(page, number: number, scene: scene, svgOptions: svgOptions, pageHrefs: pageHrefs, files: &files, warnings: &warnings)
             }
-            bodies.append("<section id=\"page-\(number)\" class=\"page\" style=\"width:\(HTMLText.number(size.width))px;height:\(HTMLText.number(size.height))px\">\(body)</section>")
+            bodies.append("<section id=\"page-\(number)\" class=\"page\" style=\"width:\(HTMLText.number(size.width))px;height:\(HTMLText.number(size.height))px\">\(body)\(overlay.elements.joined())</section>")
         }
         var links = WebLinks.warnings(scene)
         if settings.vectorFormat == .png {
@@ -112,8 +118,11 @@ public struct HTMLPublisher: Sendable {
                 files.append((index == 0 ? "index.html" : "page-\(numbers[index]).html", html(title: title, body: body + nav)))
             }
         }
-        files.append(("style.css", Data(stylesheet(scene).utf8)))
-        let sorted = files.sorted { $0.0 < $1.0 }.map { (path: $0.0, data: $0.1) }
+        files.append(("style.css", Data((stylesheet(scene) + animationStyles(animationRules)).utf8)))
+        // Pages share content-named images and fonts: each path once.
+        var seen = Set<String>()
+        let unique = files.filter { seen.insert($0.0).inserted }
+        let sorted = unique.sorted { $0.0 < $1.0 }.map { (path: $0.0, data: $0.1) }
         return HTMLBundle(files: sorted, warnings: ExportWarnings(warnings.sorted))
     }
 
@@ -134,6 +143,31 @@ public struct HTMLPublisher: Sendable {
         return documents?.count == scene.pages.count ? documents : nil
     }
 
+    /// Where SVG pages put their images and fonts: `images/` and `fonts/` beside `pages/` and
+    /// `objects/`, in the setting's image format and quality.
+    var linkedFiles: SVGLinkedFiles {
+        SVGLinkedFiles(imageFolder: "../images", fontFolder: "../fonts", imageFormat: settings.imageFormat, imageQuality: settings.imageQuality)
+    }
+
+    /// Adds an SVG page's linked images and fonts to the bundle (their paths relative to the
+    /// bundle) and warns about text outlined because its font forbids embedding.
+    func addLinkedFiles(_ document: SVGDocument, page number: Int, files: inout [(String, Data)], warnings: inout ExportWarnings) {
+        for resource in document.resources {
+            files.append((String(resource.path.dropFirst(3)), resource.data))
+        }
+        for font in document.outlinedFonts {
+            let reason = font.restricted ? "its license does not allow embedding" : "it cannot be embedded as a subset"
+            warnings.append(ExportWarning(.outlinedFont, node: font.node, page: number, "Page \(number): \(font.postScriptName) was converted to outlines because \(reason)."))
+        }
+    }
+
+    /// The rules of placed animations' wrappers; nothing when the bundle has none.
+    func animationStyles(_ rules: [String]?) -> String {
+        guard let rules else { return "" }
+        return ([".anim{position:absolute;left:0;top:0;display:block;transform-origin:0 0}", ".anim>svg{display:block;width:100%;height:100%}"] + rules)
+            .joined(separator: "\n") + "\n"
+    }
+
     // MARK: Whole pages
 
     func wholePage(_ page: ExportPage, flat: FlatPage, number: Int, scene: ExportScene, svgOptions: SVGOptions, pageHrefs: [Int: String],
@@ -144,10 +178,12 @@ public struct HTMLPublisher: Sendable {
         switch settings.vectorFormat {
         case .svg:
             let path = "pages/page-\(number).svg"
-            let document = animated ?? SVGWriter(options: svgOptions, pageHrefs: pageHrefs).write(flat, scene: scene)
+            let document = animated ?? SVGWriter(options: svgOptions, pageHrefs: pageHrefs, linkedFiles: linkedFiles).write(flat, scene: scene)
             files.append((path, Data(document.text.utf8)))
-            // `<img>` does not follow anchors: a page with links is embedded as an object.
-            if document.text.contains("<a ") {
+            addLinkedFiles(document, page: number, files: &files, warnings: &warnings)
+            // `<img>` follows no anchors and loads no other file: a page with links, images or
+            // fonts is embedded as an object.
+            if document.text.contains("<a ") || !document.resources.isEmpty {
                 return "<object data=\"\(path)\" type=\"image/svg+xml\" \(dimensions) aria-label=\"\(alt)\"></object>"
             }
             return "<img src=\"\(path)\" \(dimensions) alt=\"\(alt)\">"
@@ -215,9 +251,10 @@ public struct HTMLPublisher: Sendable {
                 let alt = HTMLText.escape(scene.info(for: nested[[0]])?.alt ?? "")
                 switch settings.vectorFormat {
                 case .svg:
-                    let document = SVGWriter(options: svgOptions, pageHrefs: pageHrefs).write(flat, scene: scene)
+                    let document = SVGWriter(options: svgOptions, pageHrefs: pageHrefs, linkedFiles: linkedFiles).write(flat, scene: scene)
                     files.append((name + ".svg", Data(document.text.utf8)))
-                    let tag = document.text.contains("<a ") ? "<object data=\"\(name).svg\" type=\"image/svg+xml\" style=\"\(style)\" aria-label=\"\(alt)\"></object>"
+                    addLinkedFiles(document, page: number, files: &files, warnings: &warnings)
+                    let tag = document.text.contains("<a ") || !document.resources.isEmpty ? "<object data=\"\(name).svg\" type=\"image/svg+xml\" style=\"\(style)\" aria-label=\"\(alt)\"></object>"
                         : "<img src=\"\(name).svg\" style=\"\(style)\" alt=\"\(alt)\">"
                     elements.append(tag)
                 case .png:

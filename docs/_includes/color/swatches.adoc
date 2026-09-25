@@ -468,6 +468,21 @@ the conformance vectors (`crdt-conformance/`, another track's directory); the me
 WTModel tests through two in-process replicas (`SwatchMergeTests.swift`), and the index test
 applies changes in an order neither replica saw.
 
+NOTE: As built by COLOR-022 (`WTTestSupportTests/Simulation/SwatchScenarioTests`, run by
+`make client-sim` and every `swift test` of WTTestSupport).  Five scenarios against the in-process
+server, each ending in `expectConverged` and a read-out -- the panel's names in list order and every
+object's resolved fill -- that every client shares and that matches the expected one: a recolor storm
+(five clients, forty steps of `RedefineSwatch` with latency and reordering; the expected colour is
+the one written by the change holding the register's winning op), *Delete Unused Named Colors* on a
+partitioned client racing *Apply* of an unused colour (the objects keep the colour from the cache,
+the swatch is in no panel, *Restore Deleted Colors* re-links them), sort vs drag vs add on three
+partitioned clients (every swatch kept, one order everywhere, a later sort canonical everywhere),
+removing a base while a tint of it is made and applied (the tint stays with *base color removed*
+and its cached colour), and *Name All Colors* on two partitioned clients (both sets kept, the
+duplicates read ` (2)`, no object changes look).  The review rows *used a color that was deleted*
+and *made a tint of a color that was deleted* are not built in WTSync, so these scenarios settle
+without a review; they are not part of COLOR-022's checks.
+
 NOTE: As built by COLOR-007 (`WTApp/Color/SwatchesPanel.swift`; the shared `ColorWorkspace`,
 `ColorDrag` and `ColorFeatures`).  `SwatchesPanelModel` holds the panel's local state -- the
 selected swatches, *Hide Names*, collapsed groups, the rename field -- and its actions; the body is

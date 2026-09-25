@@ -172,6 +172,11 @@ URLs]).
 |Object notes from the Object panel become PDF comment annotations positioned on the object
 (xref:names-notes.adoc[Names and notes]).  Useful for review PDFs.  Off for print.
 
+|*Comments as annotations*
+|Each open comment thread becomes a PDF comment on the object it is pinned to, with its replies
+threaded under it, author and time (xref:comments.adoc[Comments]).  Resolved threads are left
+out.  Off by default.
+
 |*Bookmarks from page names*
 |Named pages become bookmarks in the PDF's navigation pane.
 

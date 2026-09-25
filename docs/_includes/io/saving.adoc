@@ -620,9 +620,14 @@ for the update prompt), a `merge_table_version` above the client's, a missing or
 and a blob whose bytes do not hash to its name; listed blobs absent from the zip are simply not
 restored.  It returns the manifest, the snapshot bytes, the verified blobs, the thumbnail and the
 preview (nil when absent).  `PackageReader.manifest(of:)` and `thumbnail(of:)` read one entry for
-Quick Look and Spotlight.  The zip has no zip64: a package over 4 GiB is refused.  Still to do:
-the design-point timing and `qpdf --check` (not installed; the tests open `preview.pdf` with
-`CGPDFDocument` and check its one page and box instead).
+Quick Look and Spotlight.  The zip has no zip64: a package over 4 GiB is refused.  The
+design-point timing is `PackageDesignPointTests`: 50,000 objects on page 1 (drawn into the thumbnail
+and the preview), a snapshot of 160 bytes a node and 20 blobs of 256 KiB, held to 5 s in the perf
+run (a tenth of the volume otherwise); `preview.pdf` passes `qpdf --check` wherever qpdf is
+installed (`/opt/homebrew/bin/qpdf`; the test falls back to `CGPDFDocument` without it).  The
+writer carries the state hash it is given; that it matches the live state is WTModel's
+`PackageReissueTests.exportThenImportReadsTheSameAsTheSource` (the design-point document's own
+timing, snapshot encoding included, would be a WTModel perf test and is not written).
 +
 NOTE: As built by the `WTModel` and `WTApp` halves of IO-005 and IO-006
 (`WTModel/PackageExport.swift`, `PackageReissue.swift`, `WTApp/Import/PackageController.swift`).

@@ -1,0 +1,44 @@
+# crdt-conformance/vectors/fills/lens-type-vs-objects-only.textproto (ATTR-020; schema: crdt-conformance/schema/vector.proto)
+name: "fills/lens-type-vs-objects-only"
+description: "Choosing a lens writes type and, in the same change, centerpoint_shown, objects_only and snapshot false (replica 1, Magnify); replica 2 concurrently turns Objects only on.  Each option is its own register: the type stands from replica 1 and objects_only from the later replica 2, so the merged lens is Magnify with Objects only on -- acceptable and visible, as fill-attributes.adoc says."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Create"
+    ops { create { parent { counter: 4 } position: "\x80" props { layer { common { name: "Layer 1" } visible: true printing: true } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x80" props { rect { common { name: "Lens" } size { width: 50 height: 50 } } } } }
+    ops { element_insert { node { counter: 2 replica: 7 } sequence { segments { field: 21 } segments { field: 4 } segments { field: 1 } } positions: ["\x80"] values { rect { appearance { fills { settings { kind: FILL_KIND_LENS lens { type: LENS_TYPE_INVERT amount: 50 } } } } } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 4 base_server_seq: 1 label: "Change lens"
+    ops { set { node { counter: 2 replica: 7 }
+      paths { segments { field: 21 } segments { field: 4 } segments { field: 1 } segments { element { counter: 3 replica: 7 } } segments { field: 3 } segments { field: 4 } segments { field: 1 } }
+      paths { segments { field: 21 } segments { field: 4 } segments { field: 1 } segments { element { counter: 3 replica: 7 } } segments { field: 3 } segments { field: 4 } segments { field: 5 } }
+      paths { segments { field: 21 } segments { field: 4 } segments { field: 1 } segments { element { counter: 3 replica: 7 } } segments { field: 3 } segments { field: 4 } segments { field: 7 } }
+      paths { segments { field: 21 } segments { field: 4 } segments { field: 1 } segments { element { counter: 3 replica: 7 } } segments { field: 3 } segments { field: 4 } segments { field: 8 } }
+      values { rect { appearance { fills { settings { lens { type: LENS_TYPE_MAGNIFY } } } } } } } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 4 base_server_seq: 1 label: "Objects only"
+    ops { set { node { counter: 2 replica: 7 }
+      paths { segments { field: 21 } segments { field: 4 } segments { field: 1 } segments { element { counter: 3 replica: 7 } } segments { field: 3 } segments { field: 4 } segments { field: 7 } }
+      values { rect { appearance { fills { settings { lens { objects_only: true } } } } } } } }
+  }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "51820d76bd41a5878af1c180713f5e360ba25cf825c14c7910194fd34db03ba6"
+  snapshot_hash: "d28d11f159d6104936c26da347c78be77a9ebacb08b22d489c00f2f8dc1a030e"
+  node {
+    id { counter: 2 replica: 7 }
+    node_hash: ""
+    register { path { segments { field: 21 } segments { field: 4 } segments { field: 1 } segments { element { counter: 3 replica: 7 } } segments { field: 3 } segments { field: 4 } segments { field: 1 } } value { rect { appearance { fills { settings { lens { type: LENS_TYPE_MAGNIFY } } } } } } op { counter: 4 replica: 1 } losing { counter: 3 replica: 7 } }
+    register { path { segments { field: 21 } segments { field: 4 } segments { field: 1 } segments { element { counter: 3 replica: 7 } } segments { field: 3 } segments { field: 4 } segments { field: 7 } } value { rect { appearance { fills { settings { lens { objects_only: true } } } } } } op { counter: 4 replica: 2 } losing { counter: 4 replica: 1 } }
+  }
+}

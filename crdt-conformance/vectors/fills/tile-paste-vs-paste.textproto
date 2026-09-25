@@ -1,0 +1,40 @@
+# crdt-conformance/vectors/fills/tile-paste-vs-paste.textproto (ATTR-020; schema: crdt-conformance/schema/vector.proto)
+name: "fills/tile-paste-vs-paste"
+description: "Two replicas Paste In different tiles into one tiled fill concurrently.  tile is an ATOMIC Subtree: the later write (4:2) wins whole -- its one node, none of replica 1's two -- and replica 1's tile is kept as losing, for the review to show both."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Create"
+    ops { create { parent { counter: 4 } position: "\x80" props { layer { common { name: "Layer 1" } visible: true printing: true } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x80" props { rect { common { name: "Lens" } size { width: 50 height: 50 } } } } }
+    ops { element_insert { node { counter: 2 replica: 7 } sequence { segments { field: 21 } segments { field: 4 } segments { field: 1 } } positions: ["\x80"] values { rect { appearance { fills { settings { kind: FILL_KIND_TILED tiled { scale_x: 100 scale_y: 100 } } } } } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 4 base_server_seq: 1 label: "Paste In"
+    ops { set { node { counter: 2 replica: 7 }
+      paths { segments { field: 21 } segments { field: 4 } segments { field: 1 } segments { element { counter: 3 replica: 7 } } segments { field: 3 } segments { field: 8 } segments { field: 1 } }
+      values { rect { appearance { fills { settings { tiled { tile { nodes { parent: -1 props: "\252\001\024\022\022\011\000\000\000\000\000\000\020\100\021\000\000\000\000\000\000\020\100" } nodes { parent: -1 props: "\252\001\024\022\022\011\000\000\000\000\000\000\360\077\021\000\000\000\000\000\000\042\100" } } } } } } } } } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 4 base_server_seq: 1 label: "Paste In"
+    ops { set { node { counter: 2 replica: 7 }
+      paths { segments { field: 21 } segments { field: 4 } segments { field: 1 } segments { element { counter: 3 replica: 7 } } segments { field: 3 } segments { field: 8 } segments { field: 1 } }
+      values { rect { appearance { fills { settings { tiled { tile { nodes { parent: -1 props: "\252\001\024\022\022\011\000\000\000\000\000\000\030\100\021\000\000\000\000\000\000\000\100" } } } } } } } } } }
+  }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "ce619c24bec305c21f361eb3925efd856faa3fc28585798a8b936acd47271fad"
+  snapshot_hash: "5a9ae93a34d97e613d640812a862064e918ba9766b093600d41fe9432e75aa94"
+  node {
+    id { counter: 2 replica: 7 }
+    node_hash: ""
+    register { path { segments { field: 21 } segments { field: 4 } segments { field: 1 } segments { element { counter: 3 replica: 7 } } segments { field: 3 } segments { field: 8 } segments { field: 1 } } value { rect { appearance { fills { settings { tiled { tile { nodes { parent: -1 props: "\252\001\024\022\022\011\000\000\000\000\000\000\030\100\021\000\000\000\000\000\000\000\100" } } } } } } } } op { counter: 4 replica: 2 } losing { counter: 4 replica: 1 } }
+  }
+}

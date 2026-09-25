@@ -432,6 +432,27 @@ not know as a path, shape or group (images, placed files, text), or one with a t
 is refused with the message, as is more than 20,000 nodes.  The angle dial is a circular
 `NSSlider` writing on mouse-up; the preview draws the tiled fill itself.
 
+NOTE: As built by ATTR-020 (`WTModel/LensSnapshots.swift`; the capture and expansion half is
+`Subtrees.swift`, above).  `SnapshotLens` ("Snapshot") writes `snapshot = true` and
+`snapshot_contents` in one change per lens row; `LensSnapshots.capture` takes every live object on a
+visible layer drawn before the lens object -- earlier layers, earlier siblings, and the earlier
+siblings of each group holding it -- whose geometric bounds meet the lens's, as detached copies whose
+roots carry their transform into the lens object's own space.  Only what a `Subtree` can draw is
+captured (paths, shapes and groups): text, images and placed files beneath a lens are left out of the
+frozen picture, and a lens or tiled fill inside it renders as the render track says.  More than
+20,000 nodes or a node over 2 MiB is refused with "There is too much artwork under this lens to
+freeze." -- never truncated.  Paste In is `EditAttribute.pasteIn` ("Paste In", `tile` whole);
+`Subtrees.payload` now measures the tile by its geometric bounds, as a copy is measured, so a tile
+captured again from its own Copy Out is byte-identical.  The lens-type change is ATTR-013's
+`EditAttribute.lensType`.  Conformance vectors: `vectors/fills/` (snapshot vs snapshot, tile paste
+vs paste, lens type vs objects only).
+
+NOTE: As built by ATTR-022 (`WTApp/Inspectors/LensCenterHandles.swift`, one of `CanvasHandleLayers.standard`).
+Each selected object whose lens fill shows its centerpoint gets a handle at `centerpoint` (object-local)
+or, unset, at the centre of its own bounds; dragging writes `centerpoint` on every move inside one
+undo group ("Move lens centerpoint", one step; kbd:[Esc] undoes it) and kbd:[Shift]-click clears it
+("Reset lens centerpoint").  Deselected objects show none.
+
 === Build tasks
 
 [[ATTR-016]]

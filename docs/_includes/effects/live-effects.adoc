@@ -876,6 +876,16 @@ only, for the effect row the Object panel has selected (`InspectorFocus`); a dra
 move inside one undo group and kbd:[Esc] undoes it; kbd:[Shift] snaps the axis to 15°.  The UI
 tests are app-hosted (`WTAppTests/EffectEditorTests.swift`, `CanvasHandleTests.swift`).
 
+NOTE: As built by FX-049 (`WTModel/CombineExpand.swift`).  `ExpandCombine` ("Expand Combine") takes
+the combined outline from the scene's drawing of the group with its own stack replaced by one black
+fill under the Combine, expanded to plain paths by the export flattener -- the outline WTRender
+derives for the live group -- and writes it as a `path` in the group's parent's space (pasteboard
+space on a layer) with the identity transform, just above the group, with the group's name, note
+and URL and its attribute stack minus the object-level Combine (effects attached to fills and
+strokes stay attached, renumbered through Copy Attributes' stack copy); then the group is deleted
+with its members.  A group whose Combine is hidden, or that has none, is skipped.  The btn:[Expand]
+button in the Combine form is WTApp's.
+
 === Build tasks
 
 [[FX-001]]

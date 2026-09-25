@@ -330,6 +330,9 @@ final class PDFDocumentBuild {
             }
             return .reference(objects.add(.dictionary(entries)))
         }
+        if options.commentsAsAnnotations {
+            annotations += commentAnnotations(on: page.bounds, base: base)
+        }
         if !annotations.isEmpty {
             dictionary.append(("Annots", .array(annotations)))
         }

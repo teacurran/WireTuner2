@@ -26,6 +26,9 @@ public struct SVGDocument: Sendable {
     public var resources: [(path: String, data: Data)]
     /// What the writer changed (outlined fonts, clipped colours).
     public var notes: [String]
+    /// Text outlined because its font could not be embedded, by font and node (the HTML
+    /// publisher's *outlined font* warnings, WEB-008).
+    public var outlinedFonts: [SVGOutlinedFont] = []
 }
 
 /// Writes flattened pages as SVG.
@@ -36,16 +39,21 @@ public struct SVGWriter: Sendable {
     /// page (`page-3.html`, `#page-3`) for the HTML publisher.  A page link to a page without an
     /// entry falls back to the object's URL.
     public var pageHrefs: [Int: String] = [:]
+    /// The HTML publisher's shared folders (WEB-008): when set, images and embedded fonts are
+    /// written as content-named files there instead of as `options.images` and data URLs say.
+    public var linkedFiles: SVGLinkedFiles?
 
-    public init(options: SVGOptions = .defaults, pageHrefs: [Int: String] = [:]) {
+    public init(options: SVGOptions = .defaults, pageHrefs: [Int: String] = [:], linkedFiles: SVGLinkedFiles? = nil) {
         self.options = options
         self.pageHrefs = pageHrefs
+        self.linkedFiles = linkedFiles
     }
 
     /// `page` as SVG; linked images go in `resourceFolder` (relative to the SVG).
     public func write(_ page: FlatPage, scene: ExportScene, resourceFolder: String = "images") -> SVGDocument {
         let build = SVGBuild(options: options, page: page, scene: scene, resourceFolder: resourceFolder)
         build.pageHrefs = pageHrefs
+        build.linkedFiles = linkedFiles
         return build.document()
     }
 }
@@ -70,6 +78,9 @@ final class SVGBuild {
     var wideColors = 0
     /// Page links' targets by document page number (`SVGWriter.pageHrefs`).
     var pageHrefs: [Int: String] = [:]
+    /// Content-named image and font files in shared folders (`SVGWriter.linkedFiles`).
+    var linkedFiles: SVGLinkedFiles?
+    var outlinedFonts: [SVGOutlinedFont] = []
     /// Pasteboard → page space.
     let toPage: AffineTransform
 
@@ -139,7 +150,7 @@ final class SVGBuild {
         if wideColors > 0 {
             notes.append("\(wideColors) wide-gamut color\(wideColors == 1 ? "" : "s") written as Display P3 with an sRGB fallback")
         }
-        return SVGDocument(text: text + (options.minify ? "" : "\n") + out.text + (options.minify ? "" : "\n"), resources: resources, notes: notes)
+        return SVGDocument(text: text + (options.minify ? "" : "\n") + out.text + (options.minify ? "" : "\n"), resources: resources, notes: notes, outlinedFonts: outlinedFonts)
     }
 
     /// `fragment` (written at indentation 0) shifted right by `levels`.
@@ -556,6 +567,7 @@ final class SVGBuild {
         if options.text == .asTextEmbedFonts {
             guard let embedded = embeddedFamily(for: run, facts: facts) else {
                 notes.append("font \(facts.postScriptName) cannot be embedded; its text is written as outlines")
+                outlinedFonts.append(SVGOutlinedFont(postScriptName: facts.postScriptName, node: text.node, restricted: !facts.embeddable))
                 writePath(FlatPath(path: run.outline, transform: text.transform, paint: .color(text.color), node: text.node))
                 return
             }
@@ -594,6 +606,10 @@ final class SVGBuild {
         let glyphs = Set(collectGlyphs(of: key, in: page.nodes))
         // A font with TrueType outlines always subsets.
         let data = FontProgram.trueTypeSubset(of: run.font.ctFont, glyphs: glyphs)!
+        if let linkedFiles, let url = linkedFont(data, in: linkedFiles) {
+            fontFaces.append("@font-face{font-family:'\(family)';src:url(\(url)) format('woff2')}")
+            return family
+        }
         fontFaces.append("@font-face{font-family:'\(family)';src:url(\(ImageEncoding.dataURL(data, mime: "font/ttf"))) format('truetype')}")
         return family
     }
@@ -619,21 +635,25 @@ final class SVGBuild {
         let rect = translationOnly ? image.rect.applying(toPage) : image.rect
         let original = image.rasterized ? nil : image.jpegData
         let reference: String
-        switch options.images {
-        case .embed:
-            if let original {
-                reference = ImageEncoding.dataURL(original, mime: "image/jpeg")
-            } else {
-                reference = ImageEncoding.dataURL(png(image.image), mime: "image/png")
-            }
-        case .link, .linkOriginals:
-            let index = resources.count + 1
-            if options.images == .linkOriginals, let original {
-                reference = "\(resourceFolder)/image-\(index).jpg"
-                resources.append((reference, original))
-            } else {
-                reference = "\(resourceFolder)/image-\(index).png"
-                resources.append((reference, png(image.image)))
+        if let linkedFiles {
+            reference = linkedImage(image.image, original: original, in: linkedFiles)
+        } else {
+            switch options.images {
+            case .embed:
+                if let original {
+                    reference = ImageEncoding.dataURL(original, mime: "image/jpeg")
+                } else {
+                    reference = ImageEncoding.dataURL(png(image.image), mime: "image/png")
+                }
+            case .link, .linkOriginals:
+                let index = resources.count + 1
+                if options.images == .linkOriginals, let original {
+                    reference = "\(resourceFolder)/image-\(index).jpg"
+                    resources.append((reference, original))
+                } else {
+                    reference = "\(resourceFolder)/image-\(index).png"
+                    resources.append((reference, png(image.image)))
+                }
             }
         }
         body.element("image", [

@@ -195,6 +195,12 @@ public struct ExportScene: Sendable {
     /// PDF writes an annotation per rectangle, SVG an anchor over each, HTML image maps a
     /// `shape="rect"` area each.
     public var textLinks: [NodeID: [ExportTextLink]] = [:]
+    /// The document's comment threads (COLLAB-033), for the PDF writer's *Comments as
+    /// annotations*; empty unless the snapshot was taken for PDF with that option on.
+    public var comments: [ExportCommentThread] = []
+    /// Placed SVG animations by node (WEB-008): the HTML publisher plays them in place of the
+    /// posters the display list draws.  Empty for every other output.
+    public var svgAnimations: [NodeID: ExportSVGAnimation] = [:]
 
     public init(name: String = "Untitled", pages: [ExportPage], info: ExportDocumentInfo = ExportDocumentInfo(), nodes: [NodeID: ExportNodeInfo] = [:], assets: [String: ExportAsset] = [:], rasterResolution: Double = 300, text: [ExportTextBlock] = [], animation: ExportAnimation? = nil, package: Data? = nil, placedPostScript: [NodeID: ExportPostScript] = [:]) {
         self.name = name

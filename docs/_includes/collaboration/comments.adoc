@@ -617,6 +617,34 @@ shows "<name> mentioned you" with btn:[Show] in the bar above the canvas (the pa
 dots (`ListMentionedDocuments`), the Pointer tool querying pins, `editing` presence while the
 composer has focus, and the UI tests (the app-hosted `CommentsFeatureTests` drive the same paths).
 
+NOTE: As built by COLLAB-032 (`WTSync/Divergence.swift`, `WTModel/RestoreDiff.swift`; tests
+`WTSyncTests/CommentReviewTests`, simulator `WTTestSupportTests/Simulation/CommentScenarioTests`).
+The measurement leaves every node in `0:12` (the collection and anything under a `comment_thread`)
+out of both touch sets and out of `localObjects`/`remoteObjects`; the thread's ops still count in
+`localOps`, so a large offline batch of comments can only *suggest* a review (read-only), never hold
+the outbox.  The "open thread anchored here" touch is read from the merged state when the remote side
+deleted anything: an unresolved, live thread's `anchor` makes its object a candidate, and the row is
+the ordinary *Edited and deleted* one with `ReviewEntry.anchoredComment` set and the actions
+*Restore* (`SetDeleted(false)`, `ReviewModel.restore`) and *Use theirs*; restoring re-resolves the
+anchor, so the pin returns with no write under `0:12`.  `RestoreCommand` skips `0:12` in its diff.
+The simulator scenario writes 200 threads offline against 200 remote moves and renames of the
+pinned objects in both push modes and expects no review rows and no held outbox.
+
+NOTE: As built by COLLAB-033's writer half (`WTInterchange/PDF/PDFComments.swift`,
+`Export/ExportComments.swift`).  `PDFOptions.commentsAsAnnotations` (off by default) writes, for
+every thread in `ExportScene.comments` that is open, has a comment and whose pin (pasteboard points)
+lies on the exported page, one `/Text` annotation for the opener -- a closed comment icon whose
+top-left corner is the pin, `/T` the author's display name, `/Contents` the text, `/M` and
+`/CreationDate` from `wall_time_ms` -- and one `/Text` annotation per reply over the same icon
+with `/IRT` naming the opener and `/RT /R`.  Deleted comments are left out by the caller.  Under a
+PDF/X standard the option is forced off with its own fix line, "comment threads left out (PDF/X
+allows no annotations on the page)", beside the notes' "comments left out".  Only the PDF writer
+reads `ExportScene.comments`; tests assert the SVG, HTML, EPS and PNG output of a commented scene
+equals the uncommented one's, and the PDF passes `qpdf --check`.  Not built: the WTModel half
+(filling `ExportScene.comments` from `CommentThreadModel` with display names when the option is
+on) and the *Comments as annotations* checkbox in the Export sheet's *Interactive* section
+(WTApp, disabled under PDF/X like its neighbours).
+
 === Build tasks
 
 [[COLLAB-025]]
