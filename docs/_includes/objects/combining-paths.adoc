@@ -195,6 +195,11 @@ keeps the backmost's matrix, because baking it would scale its strokes' look.  `
 each composite at its slot (same transform, stack and settings), label `Split`.  The names avoid WTModel's point-level
 `JoinPaths`/`SplitPath` (editing-paths.adoc).  The two preferences and the menu items are WTApp's.
 
+NOTE: As built by OBJ-024's menu items (`WTApp/Edit/EditFeatures.swift`).  menu:Modify[Join] (kbd:[Cmd+J]) performs
+`JoinObjects` with the *Snap distance* over the zoom when *Join non-touching paths* is on; menu:Modify[Split]
+(kbd:[Cmd+Shift+J]) wraps the Split it finds: selected points split there as before, otherwise the selected composite paths
+come apart (`SplitObjects`).
+
 === Build tasks
 
 [[OBJ-024]]

@@ -491,6 +491,23 @@ perform `SetPrintSettings`/`SetPlate` per control and `SetPrintInfo` with the ke
 `NSPrintInfo` after Page Setup or Print, and unarchive `printInfo` when they build the print
 operation.
 
+NOTE: As built by the PRINT-002 app glue (`WTApp/Print/PrintFeatures.swift`, `PrintPane.swift`, `PrintJob.swift`).
+menu:File[Page Setup…] runs `NSPageLayout` on the document's print info on this Mac (its `print_info` archive, else a copy
+of the shared one) and on OK performs `SetPrintInfo` with the keyed archive; menu:File[Print…] runs `NSPrintOperation` with
+the *{product}* pane (`PrintAccessoryController`) and, after printing, stores the operation's print info the same way.
+The pane reads `DocumentPrintSettings` on every render and each control commits one `SetPrintSettings` or `SetPlate`:
+*Print* (*Pages* or *Output area*, the latter disabled without an area -- a job parameter kept on the pane) and *Print page
+boundaries*; *Scale* with X, Y, *Offset* and btn:[Center]; *Separations* with a row per process ink and per spot swatch
+(print, angle, frequency), *Print spot colors as process*, the halftone screen's shape and frequency, *Screen in
+{product}* and *Ignore object screens*; the four marks and *Bleed*; *Emulsion down*, *Negative*, *Include hidden layers*,
+*Flatness*, *Print text as outlines* and *Rasterize at*.  The preview repaginates through `keyPathsForValuesAffectingPreview`
+(a revision bumped on each commit).  Until the print plan (PRINT-003) exists, `PrintJob` prints composite sheets only: each
+page (or the output area) of an `ExportSnapshot` written as a PDF by the export pipeline, drawn one sheet per page
+scaled by *Uniform*/*Variable*/*Fit on paper*, centred on the printable area and moved by the offset, with the flatness
+set on the context.  Not built here (PRINT-003 to PRINT-006): tiling, marks and bleed drawn, separations, emulsion and
+negative, *Selected objects only*, presets through the print info dictionary, and the focused-field rule beyond the
+Object panel's `CommitField`.
+
 === Build tasks
 
 [[PRINT-001]]

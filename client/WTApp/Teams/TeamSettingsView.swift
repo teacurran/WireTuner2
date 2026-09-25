@@ -14,6 +14,7 @@ struct TeamSettingsView: View {
                     TeamMembersSection(model: model)
                     if model.canAdminister { TeamInvitesSection(model: model) }
                     TeamAccessSection(model: model)
+                    TeamHistorySection(model: model)
                     TeamWorkspaceSection(model: model)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)

@@ -79,6 +79,7 @@ final class DocumentSetupFeatures {
         let document = window.documentHandle
         model.storeBlob = { blob in try await blobs.store([blob], for: document) }
         model.cachedBlob = { blobs.cached($0) }
+        model.isUploading = { [weak window] sha256 in window.map { LinkUploads.isUploading(sha256, in: $0) } ?? false }
         model.chooseFile = { [weak window] in await ModalUI.urls(NSOpenPanel(), on: window?.window).first }
         model.chooseDestination = { [weak window] name in
             let panel = NSSavePanel()

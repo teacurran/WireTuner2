@@ -569,7 +569,9 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
                 keepBothOffset: { preferences[PreferenceCatalog.Sync.keepBothOffset] }, userName: environment.userName()
             )
             if let session, session.store != nil { context.keepOnBranch = { name in try await session.keepChangesOnBranch(name: name) } }
+            if let store = session?.store { context.baseState = { seq in try? await store.state(atServerSeq: seq) } }
             let model = ReviewSheetModel(review: review, merged: document.state, local: local, remote: remote, context: context)
+            await model.loadColorSettings()
             self?.collaboration.review.present(model, on: self?.window)
         }
     }

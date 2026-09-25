@@ -5,7 +5,8 @@ import WTRender
 /// Handles a feature draws on the canvas over the selection tools, pressed before the tool sees
 /// the press: the centre handles and Duet axis of the effect selected in the Object panel
 /// (live-effects.adoc, "Controls") and the handles of the selected objects' gradient fills
-/// (gradients.adoc, "Handles").  A drag is one undo step; the tool never hears it.
+/// (gradients.adoc, "Handles"), and the lens centerpoints (ATTR-022).  A drag is one undo step;
+/// the tool never hears it.
 @MainActor
 protocol CanvasHandleLayer: AnyObject {
     /// Takes a press on one of the layer's handles (true) or leaves it to the tool.
@@ -26,7 +27,7 @@ enum CanvasHandleLayers {
 
     /// A fresh set for one canvas.
     static func standard() -> [any CanvasHandleLayer] {
-        [EffectCenterHandles(), GradientHandles(), TextPathHandle()]
+        [EffectCenterHandles(), GradientHandles(), TextPathHandle(), LensCenterHandles()]
     }
 
     /// A round handle of `size` view points at `point`: filled, or outlined when `hollow`.

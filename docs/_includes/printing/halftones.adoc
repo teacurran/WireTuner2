@@ -142,6 +142,16 @@ per top-level item, so a group's screen covers its members and a member's own sc
 is not separable; resolution through groups (PRINT-010) needs member-level spans in WTRender's
 `ScreenAssignment`.
 
+NOTE: As built by PRINT-010 (`WTApp/Print/HalftonesPanel.swift`; `WTModel/ObjectHalftones.swift`, a new file).
+`SetObjectHalftone(nodes, halftone:)` writes `CommonProps.halftone` whole on each unlocked object ("Change halftone of N
+objects"), nil unsetting it (btn:[Use document settings]); the panel changes one part of each object's own screen and
+writes it whole, one change for the selection, and shows `Mixed` where the objects differ.  `ObjectHalftones.effective`
+resolves an object's screen through its enclosing groups (own, else the nearest group's).  Deviations: the angle dial is
+a slider stepping 15° (the custom `NSControl` is not built) beside the typed field, and the frequency slider is
+logarithmic from 1 to 600 lpi as specified; the screener still reads top-level objects' own screens
+(`Halftones.objectScreens`), so feeding it the group resolution needs member-level spans in `ScreenAssignment`.  The
+*Ignore object screens* checkbox is in the print pane.  Merge tests: `OutputAreaTests` (WTModel).
+
 === Build tasks
 
 [[PRINT-010]]

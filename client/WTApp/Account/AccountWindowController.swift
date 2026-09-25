@@ -92,15 +92,7 @@ struct AccountView: View {
 
     @ViewBuilder private var signedIn: some View {
         if let profile = model.profile {
-            Text("Linked identities").font(.subheadline.bold())
-            ForEach(profile.identities) { identity in
-                HStack {
-                    Text(identity.provider.capitalized)
-                    Text(identity.email).foregroundStyle(.secondary)
-                    if identity.isRelay { Text("Hidden email").font(.caption) }
-                    if !identity.emailVerified { Text("Unverified").font(.caption).foregroundStyle(.orange) }
-                }
-            }
+            LinkedIdentitiesView(identities: profile.identities) { [model] in LinkedIdentities.manage(model) }
             Text("Devices").font(.subheadline.bold())
             ForEach(model.shownDevices) { device in
                 HStack {

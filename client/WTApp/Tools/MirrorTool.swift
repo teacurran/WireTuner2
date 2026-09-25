@@ -195,22 +195,18 @@ final class MirrorTool: Tool {
         return true
     }
 
-    /// Keylines of every copy.
+    /// Keylines of every copy: each selected object's outline (every path of a group) reflected.
     func drawOverlay(in ctx: CGContext, viewport: Viewport) {
         guard let context, let center else { return }
         let settings = effective
-        ctx.setStrokeColor(NSColor.controlAccentColor.cgColor)
-        ctx.setLineWidth(1)
+        let outlines = Keylines.contours(context.selection.selection.ids.map(\.opID), document: context.document)
         for matrix in MirrorGeometry.matrices(settings, angle: angle) {
             let about = WTGeometry.AffineTransform.translation(Vector(dx: -center.x, dy: -center.y)).concatenating(matrix)
                 .concatenating(.translation(Vector(dx: center.x, dy: center.y)))
-            for id in context.selection.selection.ids {
-                guard let bounds = Objects.bounds(of: id.opID, in: context.document.state) else { continue }
-                let corners = [Point(x: bounds.minX, y: bounds.minY), Point(x: bounds.maxX, y: bounds.minY), Point(x: bounds.maxX, y: bounds.maxY),
-                               Point(x: bounds.minX, y: bounds.maxY)].map { viewport.toView(about.apply($0)) }
-                ctx.addLines(between: corners.map(\.cgPoint) + [corners[0].cgPoint])
-            }
+            Keylines.add(outlines.map { DistortKernels.mapped($0, about.apply) }, to: ctx, viewport: viewport)
         }
+        ctx.setStrokeColor(NSColor.controlAccentColor.cgColor)
+        ctx.setLineWidth(1)
         ctx.strokePath()
     }
 

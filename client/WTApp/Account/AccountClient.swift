@@ -37,6 +37,8 @@ struct AccountProfile: Equatable, Sendable {
     var devices: [Device]
     /// The account id: the id of the personal library space.
     var accountID: String = ""
+    /// Blob storage of each space the account uploads into (`MeResponse.storage`, IO-008/IO-009).
+    var storage: [StorageUsage] = []
 
     static func methodTitle(_ method: String) -> String {
         switch method {
@@ -64,7 +66,8 @@ extension AccountProfile {
                 )
             },
             devices: response.hasDevice ? [Device(response.device)] : [],
-            accountID: account.id
+            accountID: account.id,
+            storage: response.storage.map(StorageUsage.init)
         )
     }
 }

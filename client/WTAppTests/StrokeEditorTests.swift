@@ -293,7 +293,7 @@ import WTRender
         await fixture.document.settle()
         #expect(Self.basic(fixture).dash.name == "Dotted")
         _ = StrokeEditorView.dashAction(nil, model: model) { _ in }
-        StrokeEditorView.unavailable()
+        StrokeEditorView.newArrowhead(end: true, model: model)()
         WidthField.preset(8, model: model, command: model.setBasicWidth)()
         await fixture.document.settle()
         #expect(Self.basic(fixture).width == 8)

@@ -160,6 +160,15 @@ final class ToolbarController {
         return perform(command)
     }
 
+    /// A kbd:[Cmd]-click (a press with Command held that did not become a drag): an extension
+    /// operation runs with its previous settings, skipping its sheet (FX-030); anything else is an
+    /// ordinary press.
+    @discardableResult
+    func commandPress(_ command: CommandID) -> Bool {
+        guard !isCustomizing, let descriptor = extensions.descriptor(forCommand: command), descriptor.isOperation else { return press(command) }
+        return extensions.performWithPreviousSettings(descriptor.id)
+    }
+
     // MARK: Showing and hiding
 
     func isVisible(_ toolbar: ToolbarID) -> Bool { layout.isVisible(toolbar.panelID) }

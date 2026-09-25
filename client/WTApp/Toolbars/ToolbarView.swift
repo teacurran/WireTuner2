@@ -175,6 +175,12 @@ final class ToolbarButton: NSButton, NSDraggingSource {
         toolbarView.refreshStates()
     }
 
+    /// A kbd:[Cmd]-click that did not become a drag.
+    func commandPressed() {
+        toolbarView.controller.commandPress(command)
+        toolbarView.refreshStates()
+    }
+
     /// A drag starts when the controller allows it (customizing, or Command held); otherwise
     /// the press is an ordinary click.
     override func mouseDown(with event: NSEvent) {
@@ -183,7 +189,7 @@ final class ToolbarButton: NSButton, NSDraggingSource {
             return
         }
         guard let next = window?.nextEvent(matching: [.leftMouseDragged, .leftMouseUp]), next.type == .leftMouseDragged else {
-            pressed(nil)
+            commandPressed()
             return
         }
         beginDrag(with: event)

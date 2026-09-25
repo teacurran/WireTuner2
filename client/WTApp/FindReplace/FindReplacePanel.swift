@@ -20,9 +20,19 @@ final class FindReplaceState {
     /// The attributes the panel has (find-replace.adoc's tables, as far as they are built).
     enum Attribute: String, CaseIterable, Identifiable {
         case font, textEffect
+        // The object attributes of the Select tab (OBJ-022's query; `ObjectAttributeSearch`).
+        case name, objectType, sameAs, pathShape, strokeWidth, size, halftone, overprint
         var id: String { rawValue }
-        var title: String { self == .font ? "Font" : "Text effect" }
-        /// The Replace tab has *Font*; text effects are found, not replaced.
+        var title: String {
+            switch self {
+            case .font: "Font"
+            case .textEffect: "Text effect"
+            default: objectAttribute!.title
+            }
+        }
+        /// The object attribute this is, nil for the type attributes.
+        var objectAttribute: ObjectAttributeSearch.Attribute? { ObjectAttributeSearch.Attribute(rawValue: rawValue) }
+        /// The Replace tab has *Font*; text effects and the object attributes are found, not replaced.
         static func available(in tab: Tab) -> [Attribute] { tab == .replace ? [.font] : allCases }
     }
 
@@ -33,6 +43,8 @@ final class FindReplaceState {
     var from = FontCriteria()
     var to = FontReplacement()
     var effect = EffectCriteria.any
+    /// The object attributes' settings and the candidates cache.
+    let objects = ObjectAttributeSearch()
     /// *Add to selection* (page, document) or *Remove from selection* (selection scope).
     var adjustSelection = false
     /// The count shown at the bottom of the panel.
@@ -62,6 +74,15 @@ final class FindReplaceState {
         switch attribute {
         case .font: found = search.find(in: scope) { from.matches($0) }
         case .textEffect: found = search.find(in: scope) { effect.matches($0) }
+        default:
+            objects.attribute = attribute.objectAttribute!
+            guard let objectsFound = objects.find(document: document, selection: model.selection, scope: scope) else {
+                result = "Nothing to find"
+                return []
+            }
+            model.set(TypeAttributeSearch.selection(after: objectsFound, current: model.selection, scope: scope, adjust: adjustSelection))
+            result = objectsFound.count == 1 ? "1 object found" : "\(objectsFound.count) objects found"
+            return objectsFound
         }
         model.set(TypeAttributeSearch.selection(after: found, current: model.selection, scope: scope, adjust: adjustSelection))
         result = found.count == 1 ? "1 block found" : "\(found.count) blocks found"
@@ -186,6 +207,8 @@ struct FindReplacePanelBody: View {
                     }
                 } else if state.attribute == .font {
                     Self.fontCriteria("Font", $state.from)
+                } else if let object = state.attribute.objectAttribute {
+                    ObjectAttributeFields(search: state.objects, attribute: object)
                 } else {
                     Picker("Effect", selection: Self.effect(state)) {
                         Text(Self.effectTitle(.any)).tag(Self.effectTitle(.any))

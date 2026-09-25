@@ -203,6 +203,8 @@ final class DocumentHandle: Identifiable, CommandSink {
     // MARK: Scene
 
     var scene: DocumentScene { builder.scene }
+    /// The symbols' artwork as of the last build (the Library panel's preview, LIB-011).
+    var symbolLibrary: SymbolLibrary { builder.library }
     /// What the canvases draw: the scene, or the preview over it while there is one.
     var displayList: DisplayList { previewScene?.displayList ?? builder.scene.displayList }
     /// The merged state the scene was built from (empty until the model opens).

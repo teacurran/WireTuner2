@@ -130,6 +130,7 @@ final class PointerTool: Tool, PointerTracking, ToolInfoPublishing {
         let delta = current.pasteboardPoint - start.pasteboardPoint
         guard let context else { return delta }
         guard current.modifiers.contains(.shift) else {
+            if gesture == .move { Self.trackSmartGuides(context, start: start.pasteboardPoint, delta: delta) }
             return context.snapping.snapDrag(of: start.pasteboardPoint, by: delta, viewport: context.viewport)
         }
         return context.drawing().constraint.constrain(delta)
@@ -518,6 +519,7 @@ final class PointerTool: Tool, PointerTracking, ToolInfoPublishing {
             shown.draw(in: ctx, viewport: viewport, color: NSColor.controlAccentColor.cgColor)
         }
         let preview = movePreview + handlePreview
+        if let context { SmartGuideLink.shared.draw(context.document.id, in: ctx, viewport: viewport) }
         guard !preview.isEmpty else { return }
         let path = CGMutablePath()
         for outline in preview { SelectionOverlay.add(outline, transform: viewport.pasteboardToView, to: path) }
@@ -532,6 +534,7 @@ final class PointerTool: Tool, PointerTracking, ToolInfoPublishing {
     }
 
     private func resetGesture() {
+        if let context { SmartGuideLink.shared.end(context.document.id) }
         start = nil
         current = nil
         gesture = .marquee

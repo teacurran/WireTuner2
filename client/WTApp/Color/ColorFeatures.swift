@@ -81,7 +81,7 @@ final class ColorFeatures {
     /// The Swatches panel's Options menu with the sheets this feature owns.
     func swatchesMenu() -> [PanelMenuItem] {
         let hasDocument = workspace.swatches != nil
-        return swatchesPanel.optionsMenu(extras: libraries.menuItems() + [
+        return swatchesPanel.optionsMenu(extras: [replaceMenuItem()] + libraries.menuItems() + [
             PanelMenuItem(title: "Import from Document…", isEnabled: hasDocument) { [weak self] in self?.showImportFromDocument() },
             PanelMenuItem(title: teamLibraries.hasUpdates ? "Team Libraries… •" : "Team Libraries…", isEnabled: hasDocument && teamLibraries.client != nil) { [weak self] in
                 self?.showTeamLibraries()
@@ -161,7 +161,9 @@ final class ColorFeatures {
     }
 
     func showColorSettings() {
-        workspace.present(ColorSettingsSheet(model: ColorSettingsModel(workspace: workspace)), title: "Color Settings", identifier: ColorSettingsModel.sheet)
+        let model = ColorSettingsModel(workspace: workspace)
+        model.loadFile = ProfileBlobGlue.shared?.loader(for: workspace.document)
+        workspace.present(ColorSettingsSheet(model: model), title: "Color Settings", identifier: ColorSettingsModel.sheet)
     }
 
     /// *Team Libraries…*: the sheet, refreshed from the server (or the cache offline).

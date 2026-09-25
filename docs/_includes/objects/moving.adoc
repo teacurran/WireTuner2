@@ -326,6 +326,13 @@ objects and sitting centred between the nearest neighbours on both sides, and pa
 The 0.2 ms budget is a `PerfBudget` in `SmartGuideEngineTests` (500 of 50,000 candidates), held in the perf run.  The overlay
 and the tools' use of it are OBJ-039's.
 
+NOTE: As built by OBJ-039, in part (`WTApp/Edit/SmartGuides.swift`, three lines in `Tools/PointerTool.swift`, one in
+`Document/DocumentSetupWindow.swift`).  During a Pointer move with *Smart guides* on and kbd:[Control] up, the window's
+`SmartGuideEngine` (built at the first drag event from the objects in view, the selection left out, and the pages) answers
+the moved bounds; its match goes into `SnapSources.smartGuides`, so the move snaps to it, and the Pointer's overlay draws
+the edge and centre lines and the spacing gaps in the *Smart guide color*.  The session ends with the gesture.  Not built:
+size badges on transform-handle drags, the kbd:[Option]-hover measurements, and smart guides for the drawing tools.
+
 === Build tasks
 
 [[OBJ-008]]

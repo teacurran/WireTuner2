@@ -131,6 +131,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private(set) lazy var editingPanels = EditingPanels(defaults: preferences.defaults)
     /// The Spotlight items of the documents on this Mac (IO-035).
     let spotlight: SpotlightIndexer
+    /// The Output Area tool, Page Setup, Print and the Halftones panel (PRINT-002, PRINT-010, PRINT-011).
+    private(set) lazy var printing = PrintFeatures(defaults: preferences.defaults)
+    /// The Edit and Modify menus' object commands and the clipboard formats (OBJ-014 ... OBJ-039).
+    private(set) lazy var editMenu = EditFeatures(preferences: preferences)
+    /// menu:File[Document Info…] (IO-011).
+    let documentInfo = DocumentInfoFeatures()
+    /// *Storage almost full* and the retry when space frees (IO-009).
+    let storage = StorageMonitor()
 
     /// - Parameters:
     ///   - layoutStore: where the panel layout persists; `nil` keeps it in memory (tests).
@@ -207,8 +215,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         environment.makePasteboard = { SystemObjectPasteboard() }
         environment.importFiles = { [weak self] window, urls, point in self?.imports.drop(urls, on: window, at: point) ?? false }
         environment.pasteImport = PasteImport(
-            canPaste: { [weak self] in self?.imports.canPaste(from: .general) ?? false },
-            paste: { [weak self] window in Task { await self?.imports.paste(from: .general, on: window) } }
+            canPaste: { [weak self] in (self?.imports.canPaste(from: .general) ?? false) || (self?.editMenu.takesPaste(from: .general) ?? false) },
+            paste: { [weak self] window in
+                Task {
+                    // SVG, rich text and plain text are the clipboard reader's; files, PDF and images the importer's.
+                    if self?.editMenu.takesPaste(from: EditFeatures.pasteboard(of: window)) == true {
+                        await self?.editMenu.pasteRichest(on: window)
+                    } else {
+                        await self?.imports.paste(from: .general, on: window)
+                    }
+                }
+            }
         )
         environment.session = { sessions.session(for: $0) }
         environment.documentDidClose = { [weak self] document in
@@ -224,6 +241,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.collaborationUI.attach(window)
             self?.web.attach(window)
             self?.images.attach(window)
+            ProfileBlobGlue.shared?.watch(window.documentHandle)
+            self?.printing.attach(window)
+            self?.editMenu.attach(window)
+            self?.attachWindowGlue(window)
         }
         environment.userName = { accountModel.profile?.displayName ?? "" }
         let palette = toolPalette
@@ -304,10 +325,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         editingPanels.showPanel = { [weak self] in self?.layout.showPanel($0) }
         editingPanels.install(panels: panels, commands: commands, selection: activeSelection) { documents.activeWindowController?.objectEditing }
         TextFeatures.install(into: commands) { documents.activeWindowController }
+        installTextStyles()
         installComments()
         installCollaborationUI()
         installWeb()
         installImages()
+        installPrinting()
+        installEditing()
+        installWindowGlue()
         colors.install(commands: commands, panels: panels, extensions: toolbars.extensions) { documents.documents }
         PanelCatalog.register(into: panels, selection: activeSelection, help: helpModel, layers: layersPanel)
         panels.registerIfAbsent(ToolsPanel.descriptor(model: toolPalette))
@@ -392,6 +417,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let effects = EffectFeatures(target: { documents.activeWindowController?.objectEditing }, tools: { documents.activeWindowController?.toolManager })
         effects.install(commands: commands, tools: tools, extensions: toolbars.extensions)
         PathEditingFeatures.install(tools: tools, commands: commands, store: preferences) { documents.activeWindowController?.objectEditing }
+        installEffectTools()
+        installEyedropper()
+        installProfileBlobs()
+        installSymbolLibrary()
+        installArrowheadEditor()
         colors.colorControl = { effects.colorControlMenuItem() }
         self.effects = effects
         let palette = toolPalette

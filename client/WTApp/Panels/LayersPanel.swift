@@ -106,6 +106,21 @@ struct LayersPanelModel {
         command.map { editing.perform($0) }
     }
 
+    /// Moving objects to `layer` (layers.adoc, "The Guides layer and guide paths"; LIB-006's glue):
+    /// onto the Guides layer they become guides (`ConvertToGuides`), and guide objects moved onto
+    /// an ordinary layer are released to it (`ReleaseGuideObjects`), each remembering or restoring
+    /// their layer with *Remember layer info*; anything else simply moves.
+    func moveCommand(_ nodes: [OpID], to layer: OpID) -> any WTModel.Command {
+        let order = self.order
+        let remember = editing.rememberLayerInfo()
+        let state = document.state
+        if let guides = order.guides {
+            if layer == guides { return ConvertToGuides(nodes, rememberLayerInfo: remember) }
+            if nodes.allSatisfy({ Objects.parent(of: $0, in: state) == guides }) { return ReleaseGuideObjects(nodes, layer: layer, rememberLayerInfo: remember) }
+        }
+        return MoveObjectsToLayer(nodes, to: layer)
+    }
+
     // MARK: Columns
 
     static func value(_ flag: SetLayerFlag.Flag, of layer: LayerInfo) -> Bool {
@@ -167,7 +182,7 @@ struct LayersPanelModel {
         editing.activeLayer = layer
         state.touch()
         guard state.clickMoves(), !nodes.isEmpty, !selectionLayers.allSatisfy({ $0 == layer }) else { return nil }
-        return perform(MoveObjectsToLayer(nodes, to: layer))
+        return perform(moveCommand(nodes, to: layer))
     }
 
     /// Double-click: rename (not the Guides layer).
@@ -295,7 +310,7 @@ struct LayersPanelModel {
     func moveSelection(to layer: OpID) -> Task<Wiretuner_Doc_V1_Change?, Never>? {
         let nodes = editing.selectedNodes
         guard !nodes.isEmpty else { return nil }
-        return perform(MoveObjectsToLayer(nodes, to: layer))
+        return perform(moveCommand(nodes, to: layer))
     }
 
     /// *All On* / *All Off*.

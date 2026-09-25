@@ -150,6 +150,8 @@ struct TeamDetail: Equatable, Sendable, Identifiable {
     /// The caller's role; nil when the server did not say.
     var callerRole: TeamRole?
     var workspace = WorkspaceInfo()
+    /// `Team.history_retention_days`: 0 while unset (the default window, `TeamHistory`).
+    var historyRetentionDays = 0
 }
 
 extension TeamDetail {
@@ -157,7 +159,7 @@ extension TeamDetail {
         self.init(
             id: team.id, name: team.name, slug: team.slug, memberCount: Int(team.memberCount),
             defaultDocumentRole: DocumentRole(team.defaultDocumentRole), callerRole: TeamRole(team.callerRole),
-            workspace: WorkspaceInfo(team.workspace)
+            workspace: WorkspaceInfo(team.workspace), historyRetentionDays: Int(team.historyRetentionDays)
         )
     }
 }

@@ -10,6 +10,8 @@ final class SyncIndicatorModel {
     var state: SyncState = .saved
     var details = SyncDetails()
     var isPopoverShown = false
+    /// *Storage almost full* for the document's space (`StorageMonitor`, IO-009); nil below 90%.
+    var storageNote: String?
     @ObservationIgnored var onAction: @MainActor (SyncAction) -> Void = { _ in }
 
     init() {}
@@ -64,6 +66,10 @@ struct SyncPopoverView: View {
         VStack(alignment: .leading, spacing: 8) {
             Label(model.state.label, systemImage: model.state.symbolName).font(.headline).accessibilityIdentifier("sync.popover.state")
             if let explanation = model.explanation { Text(explanation).font(.callout).fixedSize(horizontal: false, vertical: true) }
+            if let storage = model.storageNote {
+                Label(storage, systemImage: "externaldrive.badge.exclamationmark").font(.callout).foregroundStyle(.orange)
+                    .accessibilityIdentifier("sync.popover.storage")
+            }
             Text(model.lastSyncedText()).font(.caption).foregroundStyle(.secondary)
             if let collaborators = model.collaboratorsText { Text(collaborators).font(.caption).foregroundStyle(.secondary) }
             if !model.state.actions.isEmpty {

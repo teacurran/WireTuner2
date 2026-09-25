@@ -247,6 +247,14 @@ style rows and the options menu; the Style Behavior sheet and the Object panel's
 mode are TYPE tasks.  Undo: one step per style edit, apply, redefine, rename or remove
 ("Remove style" is one change deleting the node and rewriting children's `based_on`).
 
+NOTE: The Character section's style controls are built (`WTApp/Text/Styles/TextStyleSection.swift`, the Object
+panel section `textStyle`): *Style* and *Character style* pop-ups read what the targeted paragraphs or
+runs share (blank when mixed) with *+* after the current style when the text overrides it, and apply
+as one change; the *Styles* menu makes a paragraph or character style from the attributes the
+selection shares (disagreeing fields unset), based on the current paragraph style, redefines the
+current paragraph style from the selection, renames and removes it.  *None* in *Character style* writes
+the cleared `style` mark.  The Styles panel itself waits for LIB-020.
+
 === Build tasks
 
 [[TYPE-034]]

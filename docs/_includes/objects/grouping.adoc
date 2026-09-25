@@ -248,6 +248,11 @@ The reference render is the corpus case `groupTransformAsUnit` (goldens at 1× a
 Metal tile parity), and `GroupStrokesTests` measures 1 device row off and 3 on at 1×.  The Object panel rows and
 the checkbox are the UI task's.
 
+NOTE: As built by OBJ-017's UI (`WTApp/Edit/GroupSection.swift`, `EditFeatures.swift`).  The Object panel's group section
+has *Transform as unit* (`SetTransformAsUnit` over the selected groups, `Mixed` when they differ) and the *Contents* row
+("3 objects"; a double-click or btn:[Select Contents] subselects `GroupInspector.contents`); menu:Modify[Group Transforms
+as Unit] toggles it with a check mark.
+
 === Build tasks
 
 [[OBJ-016]]

@@ -425,6 +425,18 @@ Preview, Keynote and browsers take the vector copies is not verified headless --
 the PDF and SVG copies back to editable paths instead.  The pasteboard wiring, the Copy Special and
 Paste Special sheets and the three preference rows are WTApp's.
 
+NOTE: As built by the app half of OBJ-014 and OBJ-015 (`WTApp/Edit/EditFeatures.swift`, `ClipboardFormats.swift`).
+menu:Edit[Special > Copy Attributes] (kbd:[Cmd+Option+C]) puts the first selected object's `AttributePayload` on the
+window's pasteboard under `com.villagecompute.wiretuner.attributes`; *Paste Attributes* performs `PasteAttributes` on the
+selection.  Each window's clipboard is a `FormatsPasteboard`: a Copy declares every enabled format of
+`ClipboardExport.writer(copying:)`, the native payload written at once and the others promised through an
+`NSPasteboardItemDataProvider`.  Paste takes the native payload first; otherwise, when the richest format is SVG, rich text
+or plain text the clipboard reader places it (`PlaceImportedScene`, centred and selected), and PDF, images and files keep
+the import path.  menu:Edit[Special > Copy Special…] and *Paste Special…* are sheets listing the formats (Paste Special only
+those on the pasteboard).  The preferences under Export are *Clipboard formats* (the format names, {product} always on),
+*Convert colors to* (*CMYK*, *RGB*, *CMYK and RGB*) and *Clipboard image resolution* (144 ppi); *Convert colors to* changed
+from *Unchanged* to these values, which `ClipboardColors` names.
+
 === Build tasks
 
 [[OBJ-010]]

@@ -777,6 +777,12 @@ here) and applies page, zoom and centre once the model is open; offline without 
 the account cannot open, it shows the Library window with a message.  The two-Mac acceptance run is
 manual and not recorded here.
 
+NOTE: As built by IO-009's app part (`WTApp/Sync/StorageMonitor.swift`).  `AccountService.Me`'s `storage` is read into
+`AccountProfile.storage`; `StorageMonitor` reads it when a window opens, puts *Storage almost full — 9.3 GB of 10 GB used*
+in the window's sync popover at 90% or more, and while a window is *Storage full* reads it again every five minutes,
+performing *Retry now* on the window as soon as its space has room.  Deviations: the poll is `Me`, not a blob `Stat`;
+the library window's banner is not built (the library window is another task's).
+
 === Build tasks
 
 [[IO-001]]

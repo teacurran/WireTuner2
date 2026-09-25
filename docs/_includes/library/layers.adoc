@@ -706,6 +706,10 @@ and two concurrent pastes creating two layers of one name are WTModel tests
 review-sheet side (no conflict rows for the two pastes) is WTSync's measurement, unchanged: two
 creates share no node.
 
+NOTE: The Layers panel's Guides glue is built: moving objects onto the Guides layer (a click with *Clicking a
+layer moves the selection*, or *Move Selection to This Layer*) is `ConvertToGuides`, and moving guide
+objects onto an ordinary layer is `ReleaseGuideObjects`, both with *Remember layer info*.
+
 === Build tasks
 
 [[LIB-001]]

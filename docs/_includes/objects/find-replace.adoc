@@ -187,6 +187,13 @@ which the panel keeps per document revision and passes to `run(in:candidates:)`;
 195 ms, nearly all of it `NodeStore.children` sorting a 50,000-child layer on every read (WTCRDT; a cached child order there
 would bring the uncached query under 100 ms too).
 
+NOTE: As built by the Select tab's object attributes (`WTApp/Edit/AttributeSelect.swift`, `FindReplace/FindReplacePanel.swift`).
+The Select tab offers *Name*, *Object type*, *Same as selection*, *Path shape*, *Stroke width*, *Size*, *Halftone* and
+*Overprint* beside the type attributes; btn:[Find] runs `AttributeQuery` over the scope's candidates, which
+`ObjectAttributeSearch` keeps per document and revision (walked again only after a change), and *Same as selection* and
+*Path shape* leave out their sample.  The colour and style wells, *Paste In* and the Replace tab's object attributes
+(OBJ-023) are not built.
+
 === Build tasks
 
 [[OBJ-022]]

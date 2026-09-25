@@ -11,7 +11,8 @@ import WTRender
 /// kbd:[Cmd] the stroke.  A group takes the colour on every object in it; kbd:[Option] colours only
 /// the member under the pointer.  Dropping on empty pasteboard does nothing.  The drop is one
 /// change (`ApplyColor`); a swatch dragged from another document is created here first
-/// (`ColorDrop`).
+/// (`ColorDrop`).  A swatch dropped with kbd:[Control], kbd:[Option] or kbd:[Cmd+Option] makes a
+/// gradient on the member under the pointer instead (`GradientDrop`, ATTR-028).
 @MainActor
 final class CanvasColorDrop {
     /// What a drop at the pointer colours.
@@ -49,7 +50,9 @@ final class CanvasColorDrop {
     /// The object and paint under `viewPoint`: the top-level object, or with kbd:[Option] the
     /// member of a group that was hit.  Nil over empty pasteboard.
     func target(at viewPoint: Point, viewport: Viewport, modifiers: KeyModifiers) -> Target? {
-        let hits = selection.hitTester(viewport: viewport, subselect: modifiers.contains(.option)).hitTest(viewPoint: viewPoint)
+        // Option (and a gradient drop's Control) takes the member under the pointer (ATTR-028).
+        let member = modifiers.contains(.option) || modifiers.contains(.control)
+        let hits = selection.hitTester(viewport: viewport, subselect: member).hitTest(viewPoint: viewPoint)
         for hit in hits {
             guard let id = document.selectionID(atItemPath: hit.itemPath), let bounds = document.object(for: id)?.bounds else { continue }
             return Target(node: id.opID, target: Self.paint(for: hit.kind, modifiers: modifiers), bounds: bounds)
@@ -78,8 +81,12 @@ final class CanvasColorDrop {
         guard let payload = ColorDrag.read(from: pasteboard, defaultSpace: defaultSpace()),
               let target = target(at: viewPoint, viewport: viewport, modifiers: modifiers) else { return nil }
         let document = document
+        let point = viewport.toPasteboard(viewPoint)
         return Task { @MainActor in
             let ref = await ColorDrop.reference(for: payload, in: document)
+            if let gradient = GradientDrop.command(ref, on: target.node, at: point, modifiers: modifiers, document: document) {
+                return await document.perform(gradient).value
+            }
             return await document.perform(ApplyColor([target.node], target: target.target, color: ref, name: payload.name)).value
         }
     }

@@ -33,6 +33,9 @@ struct ReviewContext {
     var keepOnBranch: (@MainActor (String) async throws -> String)?
     /// The local user's name, for "Copy from Priya's offline edits".
     var userName: String = ""
+    /// The state at a server seq (`LocalStore.state(atServerSeq:)`): the previous head the colour
+    /// settings row reads what each side changed from (CMS-009); nil without a local store.
+    var baseState: (@MainActor (UInt64) async -> EngineState?)?
     var makeID: @MainActor () -> String = { UUIDv7.make() }
     var now: @MainActor () -> Date = { Date() }
 }
@@ -88,6 +91,8 @@ final class ReviewSheetModel {
     @ObservationIgnored let context: ReviewContext
     @ObservationIgnored private(set) var merged: EngineState
     @ObservationIgnored let sides: ChangeSides
+    @ObservationIgnored private let localChanges: [Wiretuner_Doc_V1_Change]
+    @ObservationIgnored private let remoteChanges: [Wiretuner_Doc_V1_Change]
     @ObservationIgnored private let localNodes: [OpID]
     @ObservationIgnored private let remoteNodes: [(node: OpID, replica: UInt64)]
     var filter: Filter
@@ -101,12 +106,17 @@ final class ReviewSheetModel {
     /// The sheet is done (resolved or closed).
     private(set) var isFinished = false
     @ObservationIgnored var onFinish: @MainActor () -> Void = {}
+    /// The colour settings row's reading (CMS-009): who changed what, and *Use mine* /
+    /// *Use theirs*; nil until `loadColorSettings` finds a remote colour settings change.
+    private(set) var colorSettings: ColorSettingsReview?
 
     init(review: ReviewModel, merged: EngineState, local: [Wiretuner_Doc_V1_Change] = [], remote: [Wiretuner_Doc_V1_Change] = [],
          context: ReviewContext) {
         self.review = review
         self.merged = merged
         self.context = context
+        localChanges = local
+        remoteChanges = remote
         sides = ChangeSides(local: local, remote: remote)
         let listed = Set(review.entries.map(\.node))
         var seen = listed
@@ -154,7 +164,7 @@ final class ReviewSheetModel {
 
     var rows: [Row] {
         let conflicts = review.entries.sorted { ($0.kind, $0.id) < ($1.kind, $1.id) }.map { entry in
-            Row(id: entry.id, node: entry.node, name: entry.setting?.title ?? ObjectNaming.name(of: entry.node, in: merged),
+            Row(id: entry.id, node: entry.node, name: settingTitle(entry) ?? ObjectNaming.name(of: entry.node, in: merged),
                 kind: entry.kind.title, entry: entry)
         }
         let mine = localNodes.map { Row(id: "mine:\($0)", node: $0, name: ObjectNaming.name(of: $0, in: merged), kind: "Changed by you", entry: nil) }
@@ -218,10 +228,36 @@ final class ReviewSheetModel {
     /// Whether the per-object choices apply (a held review; a read-only one only looks).
     var allowsChoices: Bool { review.mode != .readOnly && !isFinished }
 
-    /// The choices offered for the selected row.
+    /// The choices offered for the selected row (the colour settings row's own when it is read).
     var actions: [ReviewAction] {
         guard allowsChoices, let entry = selectedRow?.entry else { return [] }
+        if entry.setting == .colorSettings, let colorSettings { return colorSettings.actions }
         return entry.actions
+    }
+
+    // MARK: The colour settings row (CMS-009)
+
+    /// A setting entry's title: "Color settings changed by Priya" once read.
+    func settingTitle(_ entry: ReviewEntry) -> String? {
+        guard let setting = entry.setting else { return nil }
+        if setting == .colorSettings, let colorSettings { return colorSettings.title }
+        return setting.title
+    }
+
+    /// The changed settings' lines ("Working CMYK: Generic CMYK → Coated FOGRA39") of the selected
+    /// colour settings row.
+    var settingLines: [String] {
+        guard selectedRow?.entry?.setting == .colorSettings, let colorSettings else { return [] }
+        return colorSettings.changes.map(\.line)
+    }
+
+    /// Reads the colour settings row from the state at the previous head; nothing without a
+    /// setting entry, a base state or a remote colour settings change.
+    func loadColorSettings() async {
+        guard review.entries.contains(where: { $0.setting == .colorSettings }), let baseState = context.baseState,
+              let work = try? await context.localWork(), let base = await baseState(work.baseSeq) else { return }
+        colorSettings = ColorSettingsReview(base: base, local: localChanges, remote: remoteChanges,
+                                            authors: remoteChanges.map { authorName($0.replica) })
     }
 
     static func actionTitle(_ action: ReviewAction) -> String {
@@ -244,6 +280,9 @@ final class ReviewSheetModel {
     func perform(_ action: ReviewAction) -> Task<Wiretuner_Doc_V1_Change?, Never>? {
         guard allowsChoices, let row = selectedRow, let entry = row.entry else { return nil }
         reviewed.insert(entry.id)
+        if entry.setting == .colorSettings, let colorSettings {
+            return action == .useMine ? colorSettings.useMine.map(context.perform) : context.perform(colorSettings.useTheirs)
+        }
         switch action {
         case .useTheirs:
             return nil

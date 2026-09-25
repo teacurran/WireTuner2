@@ -135,6 +135,18 @@ Nothing beyond storing and relaying changes.
   clips to the rect, draws page outlines (0.25 pt, black) when asked, and treats the rect as
   the page for marks, bleed and tiling.
 
+NOTE: As built by PRINT-011 (`WTApp/Print/OutputAreaTool.swift`, `PrintFeatures.swift`; `WTModel/OutputArea.swift`, a new
+file).  `SetOutputArea(rect, kind:)` writes the one register ("Define output area", "Move output area", "Resize output
+area", "Remove output area" -- nil writes it unset) and `OutputArea.read` applies the read-time normalizations.  The tool
+defines by dragging outside the area (kbd:[Shift] square, kbd:[Option] from the centre), resizes by the eight handles
+(kbd:[Shift] proportional, kbd:[Option] about the centre), moves by a drag on the boundary or inside, nudges with the arrow
+keys by one document unit (ten with kbd:[Shift]), and removes on a click outside or kbd:[Delete]; points snap as every
+dragged point does.  Each window draws the dashed rectangle after its furniture in every tool; menu:View[Output Area > Show]
+is kept per document in this Mac's user defaults (`WTOutputAreaShown.<document>`) rather than the local store's `view`
+table, and menu:View[Output Area > Remove] writes the register unset.  The Export sheet's *Output area* reads the area.
+The *Done when* UI tests are unit tests hosted in the app (`PrintFeaturesTests`); the conformance vector is not added
+(the register uses the existing ATOMIC policy).
+
 === Build tasks
 
 [[PRINT-011]]

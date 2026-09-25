@@ -416,13 +416,23 @@ struct StrokeEditorView: View {
         { chooseDash(choice, option: option(), model: model, edit: edit) }
     }
 
-    /// An arrowhead pop-up item's action.
-    static func arrowheadAction(_ head: Wiretuner_Doc_V1_Arrowhead?, end: Bool, model: StrokeEditorModel) -> () -> Void {
-        { model.context.perform(model.setArrowhead(head, end: end)) }
+    /// An arrowhead pop-up item's action: kbd:[Option]-click opens the Arrowhead Editor on the head
+    /// (ATTR-030).
+    static func arrowheadAction(_ head: Wiretuner_Doc_V1_Arrowhead?, end: Bool, model: StrokeEditorModel,
+                                option: @escaping @MainActor () -> Bool = { optionHeld }) -> () -> Void {
+        {
+            if option(), let head {
+                ArrowheadEditing.edit(head, end: end, model: model)
+            } else {
+                model.context.perform(model.setArrowhead(head, end: end))
+            }
+        }
     }
 
-    /// *New…* until the Arrowhead Editor (ATTR-030) exists.
-    static func unavailable() {}
+    /// *New…*: the Arrowhead Editor on an empty canvas.
+    static func newArrowhead(end: Bool, model: StrokeEditorModel) -> () -> Void {
+        { ArrowheadEditing.edit(nil, end: end, model: model) }
+    }
 
     private func editDash(_ editor: DashEditorModel) { dashEditor = editor }
     private func paste() { message = Self.paste(model) }
@@ -459,7 +469,7 @@ struct StrokeEditorView: View {
                 Button(StrokeEditorModel.title(head), action: Self.arrowheadAction(head, end: end, model: model))
             }
             Divider()
-            Button("New…", action: Self.unavailable).disabled(true)
+            Button("New…", action: Self.newArrowhead(end: end, model: model))
             Button("Manage Arrowheads…") { managingArrowheads = true }
         }
         .accessibilityIdentifier(end ? "stroke.basic.end-arrowhead" : "stroke.basic.start-arrowhead")

@@ -36,7 +36,7 @@ enum PreferencesPage {
             "Paste formats", "Downsample images larger than", "Embedded image profiles",
         ]),
         (.exporting, [
-            "Copy formats", "Convert colors to", "Include TIFF preview in EPS", "Include Quick Look thumbnail",
+            "Clipboard formats", "Convert colors to", "Clipboard image resolution", "Include TIFF preview in EPS", "Include Quick Look thumbnail",
             "Bitmap export resolution", "Bitmap export anti-aliasing", "Default background", "Embed color profile",
             "Quick Export preset", "Drag export format", "Multi-page file name pattern", "Open exported file with", "Preview browser",
         ]),
@@ -73,7 +73,7 @@ enum PreferencesPage {
 
     /// Rows the page marks local: the local categories plus the "(local)" notes.
     static let localRows: Set<String> = [
-        "Default image editor", "Remember window size and location", "Paste formats", "Copy formats", "Open exported file with",
+        "Default image editor", "Remember window size and location", "Paste formats", "Clipboard formats", "Open exported file with",
         "Preview browser", "Smart guide color", "Color management", "Monitor, composite and separations profiles",
         "Sync preferences with my account", "Offline snapshot interval", "Highlight data fields", "Show script console on error",
     ]
@@ -82,7 +82,7 @@ enum PreferencesPage {
 @Suite @MainActor struct PreferenceCatalogTests {
     @Test func catalogCoversEveryRowOfThePage() {
         let pageRows = PreferencesPage.rows.flatMap(\.1)
-        #expect(pageRows.count == 126, "the page's tables have 126 rows")
+        #expect(pageRows.count == 127, "the page's tables have 127 rows")
         let mapped = Set(PreferenceCatalog.all.map(\.pageRow))
         let unmapped = pageRows.filter { !mapped.contains($0) }
         #expect(unmapped.isEmpty, "rows without a key: \(unmapped)")
@@ -92,8 +92,8 @@ enum PreferencesPage {
             let keys = PreferenceCatalog.keys(in: category)
             #expect(Array(NSOrderedSet(array: keys.map(\.pageRow))) as? [String] == rows, "\(category) rows in page order")
         }
-        // 126 rows; four rows hold several values, adding 1 + 1 + 1 + 2 keys.
-        #expect(PreferenceCatalog.all.count == 131)
+        // 127 rows; four rows hold several values, adding 1 + 1 + 1 + 2 keys.
+        #expect(PreferenceCatalog.all.count == 132)
         for (row, ids) in PreferencesPage.compoundRows {
             #expect(PreferenceCatalog.all.filter { $0.pageRow == row }.map(\.id) == ids)
         }

@@ -126,6 +126,10 @@ effects) and graphic styles act on a text block's own fills and strokes as on an
 copies keep its stack order.  Copy and Paste Attributes still carry a text block's type attributes
 only, never its block stack.
 
+NOTE: The Object panel's colour rows are built (`WTApp/Text/Styles/TextColorSection.swift`, section
+`textColor`): the glyph *Fill* well and *None*, the glyph *Stroke* on or off, and the block's
+*Background* and *Border* rows added or removed, each one change.
+
 === Build tasks
 
 [[TYPE-029]]

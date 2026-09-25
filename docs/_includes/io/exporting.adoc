@@ -332,9 +332,8 @@ the format, *What*, range, boundary, pattern, scales and *After export* across l
 format options only for the session, since `export_options.proto` is not written.  Neither stores a
 password: a stored PDF password becomes a flag and the export asks for it (`PasswordPrompt`).  Export
 Again repeats without the sheet while the first file written is where it was (a security-scoped
-bookmark gives the sandbox access again) and opens the sheet prefilled otherwise.  The Output Area
-tool is a stub, so *Output area* is offered only when `ExportController.outputArea` answers a
-rectangle.  `{page}` is the page's position in the export (IO-013's exporters count the pages they
+bookmark gives the sandbox access again) and opens the sheet prefilled otherwise.  *Output area* is offered while
+the document has an output area (`ExportController.outputArea` reads `OutputArea.read`, PRINT-011).  `{page}` is the page's position in the export (IO-013's exporters count the pages they
 are given), not its number in the document.  *Wait for downloads* is not offered.  A name collision
 inside a set is IO-013's `FileNamePattern.uniqueURLs`; the sheet cannot produce one while pages
 have no names.  The estimated size is the first file's pixel count times a typical encoded size per

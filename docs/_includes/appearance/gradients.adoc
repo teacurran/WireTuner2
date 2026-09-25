@@ -301,6 +301,15 @@ group's members); the fill selected in the Object panel is drawn in full colour.
 writes `axis` on every move inside one undo group; kbd:[Esc] undoes it.  kbd:[Option] on a Radial or
 Rectangle end scales and turns the other end with it.
 
+NOTE: As built by ATTR-028 (`WTApp/Color/GradientDrop.swift`, from `CanvasColorDrop`).  A swatch dropped with
+kbd:[Control] makes a Linear gradient from the drop point through the object's centre to the far
+side (left to right when dropped on the centre), with kbd:[Option] a Radial and with kbd:[Cmd+Option] a
+Contour gradient centred at the drop point reaching the farthest corner; the first stop is the swatch
+(its reference), the last the fill's current Basic colour (white when it has none).  One
+`ApplyGradient` on the object under the pointer -- a group's member.  *Deviation*: the gradient rules
+apply to swatch drags only; any other colour drag keeps COLOR-011's modifiers, where kbd:[Option] alone
+colours the member solid.
+
 === Build tasks
 
 [[ATTR-023]]

@@ -105,6 +105,9 @@ struct ReviewSheetView: View {
                 .font(.callout)
                 .accessibilityIdentifier("review.property.\(property.title)")
             }
+            ForEach(model.settingLines, id: \.self) { line in
+                Text(line).font(.callout).accessibilityIdentifier("review.setting.line")
+            }
             ForEach(model.paragraphRows) { paragraph in
                 VStack(alignment: .leading, spacing: 4) {
                     Self.diffText(paragraph.diff).accessibilityIdentifier("review.diff")

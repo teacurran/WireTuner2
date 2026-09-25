@@ -255,6 +255,11 @@ WTApp's: a segmented source control, a swatch chooser listing the other swatches
 and a library chooser from the colour libraries already offered by *Import*, performing
 `ReplaceSwatch` with the panel's index.
 
+NOTE: The Replace sheet is built (`WTApp/Color/ReplaceSwatchSheet.swift`, *Replace…* in the Swatches panel's
+Options menu, enabled for one selected swatch that is not White, Black or Registration): *Color list*
+lists the other swatches without the swatch's own tints; *Library* offers the bundled libraries and
+*My Libraries*; btn:[Replace] performs `ReplaceSwatch` with the panel's index.
+
 === Build tasks
 
 [[COLOR-014]]

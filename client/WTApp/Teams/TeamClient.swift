@@ -21,6 +21,8 @@ protocol TeamClient: Sendable {
     func removeDomain(teamID: String, domain: String, accessToken: String) async throws
     func setWorkspaceSettings(teamID: String, settings: WorkspaceSettingsValue, accessToken: String) async throws -> WorkspaceInfo
     func acceptInvite(token: String, accessToken: String) async throws -> TeamDetail
+    /// `UpdateTeam.history_retention_days` (`TeamHistory`).
+    func setHistoryRetention(teamID: String, days: Int, accessToken: String) async throws -> TeamDetail
 }
 
 /// `AccountService.ListDevices` and `RevokeDevice` for the account window (SEC-003).

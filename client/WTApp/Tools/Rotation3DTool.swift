@@ -46,34 +46,55 @@ struct Rotation3DSettings: Equatable, Sendable {
 /// The projection of a 3D rotation (path-effects.adoc, "Client": "rotate the outline about the
 /// chosen origin in 3D by the drag vector (trackball), project with a perspective of focal length
 /// `distance` from the projection point; Easy mode fixes projection at the rotation origin").
-/// Pasteboard space, y down, z toward the viewer.
+/// Pasteboard space, y down, z toward the viewer.  A drag turns the object as a trackball does:
+/// about the axis in the page perpendicular to the drag, by an angle proportional to its length --
+/// so a diagonal drag tilts along the diagonal instead of combining two independent turns.
 struct Rotation3D: Equatable, Sendable {
-    /// Radians about the page's vertical axis (a horizontal drag) and its horizontal axis (a
-    /// vertical drag).
-    var yaw: Double
-    var pitch: Double
+    /// The rotation matrix (rows).
+    var matrix: [[Double]]
 
-    /// Half a degree per view point dragged; kbd:[Shift] snaps each angle to 45° steps.
+    /// Half a degree per view point dragged; kbd:[Shift] snaps the angle and the drag's direction
+    /// to 45° steps.
     static let radiansPerPoint = 0.5 * .pi / 180
 
+    /// `R = Ry(yaw) · Rx(pitch)`: radians about the page's vertical axis and its horizontal axis.
     init(yaw: Double, pitch: Double) {
-        self.yaw = yaw
-        self.pitch = pitch
-    }
-
-    init(drag: Vector, constrained: Bool) {
-        var yaw = drag.dx * Self.radiansPerPoint, pitch = drag.dy * Self.radiansPerPoint
-        if constrained {
-            yaw = (yaw / (.pi / 4)).rounded() * (.pi / 4)
-            pitch = (pitch / (.pi / 4)).rounded() * (.pi / 4)
-        }
-        self.init(yaw: yaw, pitch: pitch)
-    }
-
-    /// The rotation matrix `R = Ry(yaw) · Rx(pitch)` (rows).
-    var matrix: [[Double]] {
         let (cy, sy, cx, sx) = (cos(yaw), sin(yaw), cos(pitch), sin(pitch))
-        return [[cy, sy * sx, sy * cx], [0, cx, -sx], [-sy, cy * sx, cy * cx]]
+        matrix = [[cy, sy * sx, sy * cx], [0, cx, -sx], [-sy, cy * sx, cy * cx]]
+    }
+
+    /// `angle` radians about the unit axis `(x, y, z)` (Rodrigues).
+    init(axis: (x: Double, y: Double, z: Double), angle: Double) {
+        let length = (axis.x * axis.x + axis.y * axis.y + axis.z * axis.z).squareRoot()
+        guard length > 0 else {
+            matrix = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
+            return
+        }
+        let (x, y, z) = (axis.x / length, axis.y / length, axis.z / length)
+        let (c, s) = (cos(angle), sin(angle))
+        let t = 1 - c
+        matrix = [[t * x * x + c, t * x * y - s * z, t * x * z + s * y],
+                  [t * x * y + s * z, t * y * y + c, t * y * z - s * x],
+                  [t * x * z - s * y, t * y * z + s * x, t * z * z + c]]
+    }
+
+    /// The trackball turn of a drag of `drag` view points: about `(dy, dx, 0)` by
+    /// `|drag| × radiansPerPoint` (a horizontal drag turns about the vertical axis, a vertical
+    /// one about the horizontal axis).
+    init(drag: Vector, constrained: Bool) {
+        var angle = drag.length * Self.radiansPerPoint
+        var direction = drag
+        if constrained, drag.lengthSquared > 0 {
+            angle = (angle / (.pi / 4)).rounded() * (.pi / 4)
+            let heading = (atan2(drag.dy, drag.dx) / (.pi / 4)).rounded() * (.pi / 4)
+            direction = Vector(dx: cos(heading), dy: sin(heading))
+        }
+        self.init(axis: (direction.dy, direction.dx, 0), angle: angle)
+    }
+
+    /// Whether the rotation turns nothing.
+    var isIdentity: Bool {
+        (0..<3).allSatisfy { row in (0..<3).allSatisfy { column in abs(matrix[row][column] - (row == column ? 1 : 0)) < 1e-12 } }
     }
 
     /// `point` turned about `origin` and projected from the eye `distance` above `eye`.
@@ -186,7 +207,7 @@ final class Rotation3DTool: Tool, PointerTracking {
 
     func command() -> (any WTModel.Command)? {
         guard let context, let rotation, let origin = place(settings().rotateFrom) else { return nil }
-        guard rotation.yaw != 0 || rotation.pitch != 0 else { return nil }
+        guard !rotation.isIdentity else { return nil }
         let current = settings()
         let nodes = context.selection.selection.ids.map(\.opID)
         guard current.expert, let eye = place(current.projectFrom) else {
@@ -225,15 +246,10 @@ final class Rotation3DTool: Tool, PointerTracking {
         guard let context, let rotation, let origin = place(settings().rotateFrom) else { return }
         let current = settings()
         let eye = (current.expert ? place(current.projectFrom) : nil) ?? origin
+        let outlines = Keylines.contours(context.selection.selection.ids.map(\.opID), document: context.document)
+        Keylines.add(outlines.map { DistortKernels.mapped($0) { rotation.project($0, origin: origin, eye: eye, distance: current.distance) } }, to: ctx, viewport: viewport)
         ctx.setStrokeColor(NSColor.controlAccentColor.cgColor)
         ctx.setLineWidth(1)
-        for id in context.selection.selection.ids {
-            guard let bounds = Objects.bounds(of: id.opID, in: context.document.state) else { continue }
-            let corners = [Point(x: bounds.minX, y: bounds.minY), Point(x: bounds.maxX, y: bounds.minY), Point(x: bounds.maxX, y: bounds.maxY),
-                           Point(x: bounds.minX, y: bounds.maxY)]
-                .map { viewport.toView(rotation.project($0, origin: origin, eye: eye, distance: current.distance)) }
-            ctx.addLines(between: corners.map(\.cgPoint) + [corners[0].cgPoint])
-        }
         ctx.strokePath()
     }
 

@@ -88,6 +88,8 @@ final class ExtensionRegistry {
     private(set) var descriptors: [ExtensionDescriptor] = []
     private(set) var disabled: Set<String>
     private(set) var repeatState: ExtensionRepeatState?
+    /// The settings each operation's sheet captured last (kbd:[Cmd]-click replays them).
+    private(set) var lastParameters: [String: ExtensionParameters] = [:]
     let defaults: UserDefaults?
     /// Called after a descriptor is replaced or the disabled set changes (menus and toolbars
     /// rebuild).
@@ -182,7 +184,21 @@ final class ExtensionRegistry {
     @discardableResult
     func perform(_ id: String) -> Bool {
         guard let descriptor = descriptor(for: id), descriptor.isOperation, validation(of: descriptor).isEnabled, let run = descriptor.run else { return false }
-        repeatState = ExtensionRepeatState(extensionID: id, parameters: run(nil))
+        let parameters = run(nil)
+        repeatState = ExtensionRepeatState(extensionID: id, parameters: parameters)
+        if let parameters { lastParameters[id] = parameters }
+        return true
+    }
+
+    /// kbd:[Cmd]-click on an operation's toolbar button (path-effects.adoc, "Embossing"; FX-030):
+    /// it runs with the settings its sheet captured last -- none yet: its defaults -- without the
+    /// sheet, and is recorded for Repeat.  Returns whether it ran.
+    @discardableResult
+    func performWithPreviousSettings(_ id: String) -> Bool {
+        guard let descriptor = descriptor(for: id), descriptor.isOperation, validation(of: descriptor).isEnabled, let run = descriptor.run else { return false }
+        let parameters = lastParameters[id] ?? [:]
+        _ = run(parameters)
+        repeatState = ExtensionRepeatState(extensionID: id, parameters: parameters)
         return true
     }
 

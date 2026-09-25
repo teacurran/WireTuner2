@@ -184,6 +184,12 @@ is what the caller puts on the pasteboard first.  `ChooseClipPath` writes the on
 `Ungroup`, which already bakes and moves every child of a clip group.  The conformance vector is
 `crdt-conformance/vectors/registers/clip-path-target-deleted.textproto`.  Menu items and shortcuts are WTApp's.
 
+NOTE: As built by OBJ-027's UI (`WTApp/Edit/EditFeatures.swift`, `GroupSection.swift`).  menu:Edit[Paste Contents]
+(kbd:[Cmd+Shift+V]) performs `PasteContents` with the pasteboard's objects into the one selected closed path or clip group;
+menu:Edit[Cut Contents] (kbd:[Cmd+Shift+X]) writes `CutContents.payload` to the pasteboard and performs `CutContents`.  The
+Object panel's group section shows *Clip path* (its name, or *No clip path*) with *Choose Clip Path…*, a menu of the group's
+children that can clip (`ChooseClipPath`), and the *Contents* row.  The contents handle is not built.
+
 === Build tasks
 
 [[OBJ-027]]

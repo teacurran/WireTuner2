@@ -108,7 +108,10 @@ struct LayerRow: View {
     static func column(_ model: LayersPanelModel, _ flag: SetLayerFlag.Flag, _ layer: LayerInfo, _ index: Int) -> (CGFloat) -> Void {
         { dy in
             let rows = Int((dy / LayersPanelBody.rowHeight).rounded())
-            if rows == 0 {
+            if rows == 0, !modifiers().contains(.option), let guides = GuidesLayer.toggle(flag, layer: layer) {
+                // The Guides layer's check mark and padlock drive the guides too (DOC-018).
+                model.perform(guides)
+            } else if rows == 0 {
                 model.perform(model.toggle(flag, layer: layer.id, allLayers: modifiers().contains(.option)))
             } else {
                 model.perform(model.dragToggle(flag, from: index, through: index + rows))

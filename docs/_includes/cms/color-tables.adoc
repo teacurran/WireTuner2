@@ -173,6 +173,11 @@ anything.  The Swatches panel's chips and its "library not available" mark are W
 wired: the panel should read `ColorSettings` into `SpotPreviewSettings`, ask one app-wide store
 for each spot swatch (`library`, `library_key`, its stored CMYK), and draw `cgColor()`.
 
+NOTE: The Swatches panel's spot chips are wired (`WTApp/Color/SpotChips.swift`): a spot swatch with a library
+(or a tint of one, at the tint's strength) shows `SpotLibraryStore.previewColor` for the document's
+colour settings, from one app-wide store over the bundle's `SpotLibraries`, and a "library not
+available" mark when the library or ink is not here.
+
 === Build tasks
 
 [[CMS-014]]

@@ -216,7 +216,7 @@ import WTRender
         let linear = rotation.affine.apply(Point(x: 0.001, y: 0.002))
         #expect(abs(projected.x - 50 - linear.x) < 1e-8 && abs(projected.y - 50 - linear.y) < 1e-8)
         #expect(Rotation3D(yaw: 0, pitch: 0).project(Point(x: 3, y: 4), origin: origin, eye: origin, distance: 500) == Point(x: 3, y: 4), "rotation by 0 is identity")
-        #expect(Rotation3D(drag: Vector(dx: 100, dy: 0), constrained: true).yaw == .pi / 4)
+        #expect(Rotation3D(drag: Vector(dx: 100, dy: 0), constrained: true) == Rotation3D(yaw: .pi / 4, pitch: 0))
         // In a window-less context: the tool writes one TransformObjects about the selection's centre.
         let document = DocumentHandle.memory(title: "3D")
         let rect = await document.addRectangles([Rect(x: 0, y: 0, width: 100, height: 40)])[0]

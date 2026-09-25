@@ -109,6 +109,11 @@ via GEO-001 winding.  Effects reuse TYPE-036's geometry generators.  `WTModel` b
 in one change with a label from the first words.  The Missing Fonts warning reuses TXT-002's
 sheet in a "convert with substitutes?" mode.
 
+NOTE: menu:Text[Convert to Paths] is built (`WTApp/Text/Styles/TextMenuFeatures.swift`): every selected block is
+captured with the document's layout engine and converted in one `ConvertTextToPaths`; a linked block
+refuses with an alert, and fonts drawn by a substitute are named in one.  *Deviation*: no key
+equivalent -- kbd:[Cmd+Shift+P] is menu:File[Page Setup…].
+
 === Build tasks
 
 [[TYPE-044]]

@@ -555,6 +555,16 @@ colour settings back, including a profile the other side changed.  The review sh
 WTApp's and not built: `ReviewSheetModel` should show `title` and `changes`' `line`s for the
 setting entry and perform `useMine` / `useTheirs` instead of the no-op `useTheirs` it has now.
 
+NOTE: The WTApp glue of CMS-008 and CMS-009 is built (`WTApp/Color/ProfileBlobGlue.swift`,
+`ColorSettingsSheet.swift`, `WTApp/Review/ReviewSheetModel.swift`).  One `ProfileBlobs` over the app's
+blob cache is installed at launch; the Color Settings sheet's *Other…* and installed profiles load
+through it (cached, and queued on the document's sync blob queue; without a session only registered
+here); every document asks its queue for missing custom profiles when it opens and after each change,
+each profile once.  The canvas does not read `ColorSettings` yet, so there is nothing to redraw on
+arrival.  The review sheet reads the colour settings row from the state at the previous head
+(`LocalStore.state(atServerSeq:)`, through `ReviewContext.baseState`): its title, one line per changed
+setting and *Use mine* / *Use theirs* performing the row's `ColorSettingsChoice`.
+
 === Build tasks
 
 [[CMS-001]]

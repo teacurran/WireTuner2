@@ -289,9 +289,10 @@ never write a change.  `SnappingContext.snap` resolves through `SnapEngine` with
 builds (grid, `PageList.snapGuides`, guide objects, the hit tester's R-tree with the selection left
 out, the window's snap toggles and the *Smart guides* preference), kbd:[Control] suspends, and a
 snap onto a new target plays its sound (a path as *object*); the Pointer tool snaps a move by the
-pressed point, the drawing tools their points, the Page tool its pages.  Not built: *Dragging a
-guide scrolls the window* (guides do not auto-scroll), and the Layers panel's padlock and eye on
-the Guides layer (the LIB epic's panel does not list it yet).  The *Done when* UI tests are unit
+pressed point, the drawing tools their points, the Page tool its pages.  *Dragging a guide scrolls the
+window* gates the canvas auto-scroll while a guide is dragged (`GuidesLayer.autoscrolls`), and in the
+Layers panel the Guides layer's check mark also shows or hides the front window's ruler guides (view
+state) and its padlock writes `SetGuidesLocked` with the layer flag in one change (`Document/GuidesLayer.swift`).  The *Done when* UI tests are unit
 tests hosted in the app (`GridGuidesTests`, `SetupSheetTests`).
 
 === Build tasks

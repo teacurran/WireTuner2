@@ -239,9 +239,9 @@ file) and performs `ExtractAsset`.  When a document's first view opens and *Sear
 links* is on, `MissingLinks.repair` runs `LinkSearch.autoRelink` off the main actor with the
 *Missing links folder* and performs `RepairLinks`.  The *Embed images upon import* preference was
 already the importer's.  Deviations: Update and Change store the file's bytes with the type its
-extension names rather than decoding it as import does; the Object panel's btn:[Links…] and the
-uploading badge are not built (the Object panel has no image section yet, and blob upload progress
-is not exposed per asset); the *Done when* UI tests are unit tests hosted in the app
+extension names rather than decoding it as import does; the Object panel's btn:[Links…] (the `links` section of a
+selected image or placed file, opening the window on its row) and the *Uploading* badge (a row whose blob
+waits to upload from this Mac, `Links/LinkUploads.swift`) came later; the *Done when* UI tests are unit tests hosted in the app
 (`LinksTests`).
 
 === Build tasks

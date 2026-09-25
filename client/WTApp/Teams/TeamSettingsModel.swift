@@ -27,6 +27,8 @@ final class TeamSettingsModel: Identifiable {
         case removeDomain(WorkspaceDomainInfo)
         case setDefaultRole(DocumentRole)
         case setSwitch(WorkspaceSwitch, Bool)
+        /// The history window, in days (`TeamHistory`).
+        case setHistoryDays(Int)
         case done
     }
 
@@ -132,6 +134,13 @@ final class TeamSettingsModel: Identifiable {
         Binding(get: { [weak self] in self?.team?.defaultDocumentRole ?? .viewer }, set: { [weak self] role in self?.send(.setDefaultRole(role)) })
     }
 
+    /// The team's history window in days (the default while unset).
+    var historyDays: Int { TeamHistory.days(team?.historyRetentionDays ?? 0) }
+
+    var historyDaysBinding: Binding<Int> {
+        Binding(get: { [weak self] in self?.historyDays ?? TeamHistory.defaultDays }, set: { [weak self] days in self?.send(.setHistoryDays(days)) })
+    }
+
     // MARK: Actions
 
     /// A button's action; the sheet's buttons hold these rather than closures of their own.
@@ -161,6 +170,7 @@ final class TeamSettingsModel: Identifiable {
         case let .removeDomain(domain): await removeDomain(domain)
         case let .setDefaultRole(role): await setDefaultRole(role)
         case let .setSwitch(workspaceSwitch, value): await setSwitch(workspaceSwitch, value)
+        case let .setHistoryDays(days): await setHistoryDays(days)
         case .done: onDone()
         }
     }
@@ -272,6 +282,15 @@ final class TeamSettingsModel: Identifiable {
         _ = await run { token in
             let workspace = try await self.services.teams.setWorkspaceSettings(teamID: self.teamID, settings: settings, accessToken: token)
             self.team?.workspace = workspace
+        }
+    }
+
+    private func setHistoryDays(_ days: Int) async {
+        guard days != historyDays, TeamHistory.range.contains(days) else { return }
+        _ = await run { token in
+            let updated = try await self.services.teams.setHistoryRetention(teamID: self.teamID, days: days, accessToken: token)
+            self.team?.historyRetentionDays = updated.historyRetentionDays
+            self.notice = "History is now kept for \(TeamHistory.title(TeamHistory.days(updated.historyRetentionDays)))."
         }
     }
 }

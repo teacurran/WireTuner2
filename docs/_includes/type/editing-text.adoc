@@ -394,6 +394,11 @@ matching on the merged plain string with a map back to character ids.
 Undo grouping:: Replace All, Convert Case and each spelling change are one step; typing
 follows the rule on xref:creating-text.adoc[Creating text].
 
+NOTE: menu:Text[Convert Case] is built (`WTApp/Text/Styles/TextMenuFeatures.swift`): *UPPERCASE*, *lowercase*,
+*Title Case*, *Sentence case* and *Small Caps* convert the Text tool's selection or the selected
+blocks (one change; a caret converts nothing), and *Settings…* opens the sheet with *Small caps size*
+and the exceptions list, whose btn:[OK] is one `SetTextCaseSettings`.
+
 === Build tasks
 
 [[TYPE-010]]

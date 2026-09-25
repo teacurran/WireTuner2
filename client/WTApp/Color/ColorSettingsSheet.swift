@@ -65,6 +65,10 @@ final class ColorSettingsModel {
     @ObservationIgnored private lazy var installed: [WTColor.InstalledProfile] = registry.installedProfiles()
     /// *Other…*'s open panel; replaceable in tests.
     @ObservationIgnored var chooseFile: @MainActor (Field) async -> URL? = ColorSettingsModel.openPanel
+    /// Loads a chosen `.icc` file as a document profile: through the shared blob cache, queued for
+    /// upload so collaborators get it (CMS-008's `ProfileBlobs.load`, wired by `ProfileBlobGlue`);
+    /// nil registers it in this process only.
+    @ObservationIgnored var loadFile: (@MainActor (URL) async throws -> WTColor.ProfileRef)?
 
     static let sheet = "color-settings-sheet"
 
@@ -130,7 +134,23 @@ final class ColorSettingsModel {
         guard let choice = choices(field).first(where: { $0.id == id }) else { return }
         switch choice.source {
         case .profile(let ref): set(ref, for: field)
-        case .file(let url): load(url, for: field)
+        case .file(let url): loadChosen(url, for: field)
+        }
+    }
+
+    /// A chosen file: through `loadFile` when there is one, else registered here.
+    @discardableResult
+    func loadChosen(_ url: URL, for field: Field) -> Task<Void, Never>? {
+        guard let loadFile else {
+            load(url, for: field)
+            return nil
+        }
+        return Task { @MainActor in
+            do {
+                self.accept(try await loadFile(url), for: field)
+            } catch {
+                self.refusal = "\(url.lastPathComponent) is not an ICC profile."
+            }
         }
     }
 
@@ -140,6 +160,11 @@ final class ColorSettingsModel {
             refusal = "\(url.lastPathComponent) is not an ICC profile."
             return
         }
+        accept(ref, for: field)
+    }
+
+    /// Chooses a loaded profile when its space fits the field.
+    func accept(_ ref: WTColor.ProfileRef, for field: Field) {
         guard ref.space == field.space else {
             refusal = "\(ref.name) is not \(field.space == .cmyk ? "a CMYK" : "an RGB") profile."
             return
@@ -162,7 +187,7 @@ final class ColorSettingsModel {
     @discardableResult
     func other(_ field: Field) -> Task<Void, Never> {
         Task { @MainActor in
-            if let url = await self.chooseFile(field) { self.load(url, for: field) }
+            if let url = await self.chooseFile(field) { await self.loadChosen(url, for: field)?.value }
         }
     }
 

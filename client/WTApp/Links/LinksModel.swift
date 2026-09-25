@@ -57,6 +57,8 @@ final class LinksModel {
     @ObservationIgnored var selectObjects: @MainActor ([OpID]) -> Void = { _ in }
     /// The person whose Mac a device id is ("Priya"), for *Unavailable* links of another Mac.
     @ObservationIgnored var deviceOwner: @MainActor (String) -> String? = { _ in nil }
+    /// Whether a blob (SHA-256) is still uploading from this Mac (the *Uploading* badge, `LinkUploads`).
+    @ObservationIgnored var isUploading: @MainActor (Data) -> Bool = { _ in false }
 
     init(document: DocumentHandle, device: String, perform: @escaping @MainActor (any WTModel.Command) -> Task<Wiretuner_Doc_V1_Change?, Never>) {
         self.document = document
@@ -77,7 +79,7 @@ final class LinksModel {
             let corner = placed.compactMap { Objects.bounds(of: $0, in: state) }.first.map { Point(x: $0.minX, y: $0.minY) }
             let page = corner.flatMap(pages.page(containing:)).map { "\($0.number)" } ?? "Pasteboard"
             return Row(id: link.id, name: link.fileName, kind: Self.kind(of: link.mediaType), size: Self.size(link.byteSize), page: page,
-                       status: statusText(status), isBroken: status.isBroken, isLibrary: link.kind == .library,
+                       status: LinkUploads.status(statusText(status), uploading: isUploading(link.sha256)), isBroken: status.isBroken, isLibrary: link.kind == .library,
                        canUpdate: status == .modified || status == .linked)
         }
     }

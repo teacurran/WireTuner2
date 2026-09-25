@@ -229,6 +229,16 @@ EXIF survives inside a PDF and TIFF export" is not covered: the PDF writer keeps
 bytes (and its EXIF) only when `ExportAsset.jpegData` is supplied, and a TIFF export is a
 rendering with no place for another image's EXIF.
 
+NOTE: As built by IO-011 (`WTApp/Info/DocumentInfoSheet.swift`; `WTModel/DocumentInfoCommands.swift`, a new file).
+`SetDocumentInfo(field, value)` writes one `DocumentInfo` register ("Change Document Info"), refusing values past the
+limits and a web statement that is not a URL; `SetDocumentKeywords` adds and removes keywords on the add-wins set (a removal
+takes every spelling of the word); `DocumentInfoValues` applies the read-time trimming, sorting and case collapsing.  The
+sheet (menu:File[Document Info…], kbd:[Cmd+Option+I]) lays out the four sections with a counter per text field; a field
+keeps its draft while focused and commits on Return or losing focus; creators and supplemental categories are typed
+comma-separated; keywords are tokens with a remove button and a field that adds on Return; the creator is prefilled with
+the signed-in name.  Deviations: the keyword field is SwiftUI rather than a hosted `NSTokenField`, the library search over
+keywords is not built (the library cache holds no keywords), and *Date created* is not prefilled.
+
 === Build tasks
 
 [[IO-010]]

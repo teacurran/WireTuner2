@@ -137,8 +137,13 @@ enum PreferenceCatalog {
 
     enum Export {
         static let c = PreferenceCategory.exporting
-        static let copyFormats = PreferenceKey<[String]>("export.copy_formats", "Copy formats", category: c, scope: .local, default: ["PDF", "SVG", "WireTuner", "Image"], control: .list, help: "copying")
-        static let convertColors = PreferenceKey<String>("export.convert_colors", "Convert colors to", category: c, default: "unchanged", control: choices([("unchanged", "Unchanged"), ("cmyk", "CMYK"), ("rgb", "RGB")]), help: "copying")
+        /// *Clipboard formats* (OBJ-015): the formats a Copy writes besides WireTuner's own.
+        static let copyFormats = PreferenceKey<[String]>("export.copy_formats", "Clipboard formats", category: c, scope: .local,
+                                                         default: ["WireTuner", "PDF", "SVG", "Image", "Rich text", "Plain text"], control: .list, help: "copying")
+        static let convertColors = PreferenceKey<String>("export.convert_colors", "Convert colors to", category: c, default: "cmykAndRGB",
+                                                         control: choices([("cmyk", "CMYK"), ("rgb", "RGB"), ("cmykAndRGB", "CMYK and RGB")]), help: "copying")
+        static let clipboardResolution = PreferenceKey<Int>("export.clipboard_resolution", "Clipboard image resolution", category: c, default: 144,
+                                                            control: steps(72...2400, "ppi"), help: "copying")
         static let epsTIFFPreview = PreferenceKey<Bool>("export.eps_tiff_preview", "Include TIFF preview in EPS", category: c, default: true, control: .toggle, help: "export-vector")
         static let quickLookThumbnail = PreferenceKey<Bool>("export.quicklook_thumbnail", "Include Quick Look thumbnail", category: c, default: true, control: .toggle, help: "exporting")
         static let bitmapResolution = PreferenceKey<Int>("export.bitmap_resolution", "Bitmap export resolution", category: c, default: 72, control: numberChoices([(72, "72 dpi"), (144, "144 dpi"), (300, "300 dpi")]), help: "export-bitmap")
@@ -152,7 +157,7 @@ enum PreferenceCatalog {
         static let previewBrowser = PreferenceKey<String>("export.preview_browser", "Preview browser", category: c, scope: .local, default: "", control: .chooser(placeholder: "System default"), help: "svg-animation")
 
         static let all: [AnyPreferenceKey] = [
-            copyFormats.erased, convertColors.erased, epsTIFFPreview.erased, quickLookThumbnail.erased,
+            copyFormats.erased, convertColors.erased, clipboardResolution.erased, epsTIFFPreview.erased, quickLookThumbnail.erased,
             bitmapResolution.erased, bitmapAntialiasing.erased, defaultBackground.erased, embedProfile.erased,
             quickExportPreset.erased, dragFormat.erased, pageNamePattern.erased, openWith.erased, previewBrowser.erased,
         ]

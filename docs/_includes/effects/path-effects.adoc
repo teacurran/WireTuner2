@@ -451,6 +451,37 @@ plain paths: effects resolved to their vector geometry (raster stages drop out),
 outlines filled with the text colour, transforms baked in.  `EnvelopeWarp.inverse` is the caret
 map; Show Map draws 8 × 8 iso-curves as hairlines.
 
+NOTE: As built by FX-039's model half (`WTModel/EnvelopeCommands.swift`; the scene hook in
+`Wrappers.swift`/`DocumentScene.swift`).  The scene reads kind 102 as `NodeKind.envelope` /
+`WrapperKind.envelope` and draws it as a live group (`EnvelopeReading.spec`).  Deviation: the
+contour and `source_bounds` stay in the envelope's own space and `EnvelopeSpec.transform` (that
+space → pasteboard) places them -- the children are taken into envelope space, warped and placed
+back -- so an envelope inside a rotated or skewed group warps exactly; `EnvelopeSpec` in
+pasteboard space could not express a rotated source rectangle.  Corners resolve to anchor
+positions of the first live contour; a deleted corner reads as the live point nearest it in the
+contour's stored order (the following one on a tie).  With *Show Map* every live contour is drawn
+as the outline with the mesh.  A change to any member repaints the wrapper around it (blends and
+extrusions included).  Commands and labels: `CreateEnvelope` ("Create envelope": the preset's
+outline on the selection's bounds, which become `source_bounds`; objects from several parents are
+collected on top of the active layer, as Blend does), `PasteAsEnvelope` ("Paste as envelope": the
+copied path's first closed contour of four or more points, where it was on the page, corners the
+points nearest its bounds' corners), `ToggleEnvelopeMap` ("Show map" / "Hide map", local-only),
+`ReleaseEnvelope` ("Release envelope": baked through the export flattener; text becomes glyph
+outlines when the command is given the document's `TextSceneLayout`), `RemoveEnvelope` ("Remove
+envelope") and `EnvelopeReading.asPath` (Copy as Path: the outline as path props for the
+clipboard).  The selection's bounds are the caller's (the canvas scene, which lays out text);
+without them they are measured from a scene without text layout.  Presets: `EnvelopePreset`
+(outline in the unit square with four corner indices; built-in Rectangle, Arch, Bulge, Squeeze
+and Flag; `init(name:envelope:in:)` saves one from an envelope relative to its source rectangle)
+stored as one preferences string each (`encoded`: `corners|points|name`) in a string list, an
+empty list reading as the defaults.  *Not delivered*: the menu items, the Envelope toolbar and
+its pop-up, preset storage under a preferences key and Delete Preset (FX-039's client-ui half);
+editing the envelope contour with the path tools (`PathEditing` edits kind 20 only), and the
+empty envelope's selectable outline (an envelope with no live contents draws nothing, its title
+"Empty envelope").  Tests: `EnvelopeCommandTests` (each command and its inverse, presets, the
+read-time normalizations, and the merges: point drag vs. content text edit both keep, release vs.
+content edit restored by undo, remove vs. edit).
+
 NOTE: The Mirror and 3D Rotation tools were built by OBJ-035 (see xref:transforming.adoc[Transforming
 objects]); FX-035 and FX-036 are covered by it except Mirror's keyline preview of every object's
 outline (the overlay draws each copy's bounds) and 3D Rotation's trackball: the drag's two

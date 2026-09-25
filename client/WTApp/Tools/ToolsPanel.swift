@@ -259,6 +259,12 @@ final class ToolPaletteModel {
     func choose(_ ref: Wiretuner_Doc_V1_ColorRef, name: String = "", color: RenderColor? = nil, for well: ActiveWell) {
         paletteWell = nil
         if coloring?.apply(ref, name: name, to: well) == true { return }
+        setCurrent(ref, color: color, for: well)
+    }
+
+    /// `well`'s current colour becomes `ref`, whatever is selected (a pick with nothing selected,
+    /// and the Eyedropper's click, COLOR-012).
+    func setCurrent(_ ref: Wiretuner_Doc_V1_ColorRef, color: RenderColor? = nil, for well: ActiveWell) {
         let paint = (coloring?.color(of: ref) ?? color).map(Paint.solid) ?? .none
         let current = CurrentColor(choice: ref.none || paint == .none ? .noColor : .color(ref), paint: paint)
         switch well {

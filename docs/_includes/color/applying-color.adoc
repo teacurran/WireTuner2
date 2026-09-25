@@ -347,6 +347,18 @@ a change touching a swatch rebuilds only the objects using it, through tints of 
 `DependencyIndex` dependents: symbol instances, charts).  An unset `ColorRef` still reads black in
 the display list, as it did before (existing documents and goldens).  The merge test and vectors run as WTModel tests (`SwatchMergeTests.swift`).
 
+NOTE: As built by COLOR-012 (`WTApp/Color/Eyedropper/`).  The Eyedropper samples through the window's hit
+tester: text takes its first glyph fill mark (black when none), a Basic fill or stroke its colour
+reference as stored -- a swatch stays a swatch, an unnamed colour keeps its space -- and anything
+else (a gradient, a pattern, a lens) the pixel the renderer draws there, as an unnamed colour in the
+*Default color space for new colors*.  kbd:[Option] takes the stroke when the object has a Basic one.
+A click (under 3 view points of movement) makes the colour the active well's current colour and
+loads it into the Color Mixer; a drag drops it on the object under the pointer with the canvas drop's
+rules (`CanvasColorDrop`), one `ApplyColor` change.  Sampling writes nothing.  The cursor carries a
+chip of the colour.  *Not built here*: drops on the Tools panel wells and the Swatches panel (the
+tool drags inside the canvas only), and bitmap pixels through the image's profile (image nodes are
+not drawn by the scene yet; the pixel path is ready for them).
+
 === Build tasks
 
 [[COLOR-006]]

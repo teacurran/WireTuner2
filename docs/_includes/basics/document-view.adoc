@@ -508,8 +508,9 @@ preferences page's *Image display* (High resolution, Proxy, Gray boxes), which t
 the primary view promotes the next, and closing every view (kbd:[Option]-click) closes the
 additional views first so the primary view's state is the one saved.  A new view is a tab beside
 the view it copies; each view has its own selection; session restore reopens every view.
-*Preview in Browser*: `BrowserPreview` takes a `BrowserPreviewExporter` (WEB-029's SVG/HTML
-exporter; none is installed yet, so the command is disabled with that reason as its tooltip);
+*Preview in Browser*: `BrowserPreview` takes a `BrowserPreviewExporter`, `WebPreviewExporter`
+(WEB-009's `HTMLPublisher` with the document's selected HTML setting: the current page, or every page when the
+document has links or frames, opening the current page's file);
 exports go to `NSTemporaryDirectory()/WireTuner/Preview/<document id>/`, open with the *Preview
 browser* preference's application when one is chosen, and are removed at quit.  *Rotation*: the
 compass shows the size of the turn (the needle shows its direction) and hides at 0°; clockwise is

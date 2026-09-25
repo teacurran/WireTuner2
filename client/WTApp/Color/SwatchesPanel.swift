@@ -477,7 +477,7 @@ struct SwatchesPanelBody: View {
         LazyVGrid(columns: Array(repeating: GridItem(.fixed(20), spacing: 4), count: 10), spacing: 4) {
             ForEach(model.visibleSwatches) { swatch in
                 Button(action: Self.clicking(swatch.id, model)) {
-                    ColorChipView(chip: .color(swatch.color), size: CGSize(width: 20, height: 20))
+                    ColorChipView(chip: .color(model.chipColor(swatch)), size: CGSize(width: 20, height: 20))
                         .overlay(Rectangle().stroke(SwiftUI.Color.primary, lineWidth: model.selected.contains(swatch.id) ? 2 : 0))
                 }
                 .buttonStyle(.plain)
@@ -504,7 +504,7 @@ struct SwatchRowView: View {
 
     var body: some View {
         HStack(spacing: 6) {
-            ColorChipView(chip: .color(swatch.color))
+            ColorChipView(chip: .color(model.chipColor(swatch)))
                 .onDrag(SwatchesPanelBody.dragging(swatch.id, model))
             if model.renaming == swatch.id {
                 TextField("Name", text: Self.renameBinding(model))
@@ -522,6 +522,9 @@ struct SwatchRowView: View {
             Spacer()
             if swatch.baseRemoved {
                 Image(systemName: "exclamationmark.triangle").help("Base color removed").accessibilityIdentifier("swatches.base-removed")
+            }
+            if model.libraryMissing(swatch) {
+                Image(systemName: "questionmark.square.dashed").help(SpotChips.unavailable).accessibilityIdentifier("swatches.library-missing")
             }
             if let badge = swatch.badge {
                 Text(badge).font(.caption2).foregroundStyle(.secondary)

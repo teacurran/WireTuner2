@@ -579,6 +579,15 @@ export use a file panel and a picker over the file's (or the document's) brushes
 package written by `PackageWriter`.  As ATTR-008 records, imported artwork keeps its colours as
 values, so no swatches are added.
 
+NOTE: As built by ATTR-030 (`WTApp/Inspectors/Arrowheads/ArrowheadEditor.swift`).  The editor is a window with a
+`CanvasView` over a scratch document and a `ToolManager` over the app's own Pointer, Pen, Bezigon,
+Rectangle and Ellipse descriptors (no drawing code of its own).  One arrowhead unit is 20 pt with the
+endpoint at a fixed point; the reference stroke, the dashed endpoint marker and the `path_trim`
+marker are drawn through the canvas's overlay hook.  btn:[New] reads every drawn path back into units
+(`InlineShapes.contours`), names it ("Custom" when unnamed), saves it with the presets on this Mac
+and writes it to the pop-up's end of the stroke; *New…* opens it empty and kbd:[Option]-click on a head
+opens it loaded.  Existing strokes keep their copy.
+
 === Build tasks
 
 [[ATTR-005]]

@@ -720,6 +720,16 @@ NOTE: As built by LIB-024.  The schema was already in `symbol.proto`; the genera
 `library/override-concurrent-typing`, `override-fill-lww`, `override-reset-vs-typing`,
 `override-duplicate-creation`, identical in both engines.
 
+NOTE: The symbol half of LIB-011 is built (`WTApp/Library/Symbols/`): the Library panel lists folders and
+symbols as an outline with instance counts, sorted by name or count (click a header again to reverse),
+with click, kbd:[Shift]-click and kbd:[Cmd]-click selection, a preview of the selected symbol, in-place rename
+(`RenameLibraryEntry`, "Rename"), the bottom buttons and the options menu: *New Graphic*, *Copy to
+Symbol*, *New Folder*, *Duplicate*, *Remove* (with the Release / Delete Instances sheet when a symbol
+has instances), *Swap*, *Place* (at the view's centre), *Replace Artwork*, *Move to* a folder or the top
+level, *Preview*.  menu:Modify[Symbol] has *Convert to Symbol* (kbd:[F8]), *Copy to Symbol*, *Release
+Instance* and *Show in Library*.  *Not built yet*: the drag gestures (from and to the canvas, onto a
+symbol), the *Kind* and *Date* columns, master pages, *Edit*, *Import…*, *Export…* and *Show*.
+
 === Build tasks
 
 [[LIB-008]]

@@ -205,7 +205,9 @@ func squarePDF() -> Data {
         delegate.applicationDidFinishLaunching(Notification(name: NSApplication.didFinishLaunchingNotification))
         let window = try #require(delegate.activeDocumentWindow)
         let paste = try #require(window.environment.pasteImport)
-        #expect(paste.canPaste() == delegate.imports.canPaste(from: .general))
+        // Paste imports files, images and PDF data, or the richer clipboard formats (SVG, rich and
+        // plain text) the Edit menu takes (OBJ-015).
+        #expect(paste.canPaste() == (delegate.imports.canPaste(from: .general) || delegate.editMenu.takesPaste(from: .general)))
         paste.paste(window)
         #expect(delegate.toolPalette.coloring != nil && delegate.fonts.team == nil)
         #expect(await eventually { delegate.fonts.index(for: window.documentHandle.id) != nil })

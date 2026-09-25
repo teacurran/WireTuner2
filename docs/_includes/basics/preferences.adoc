@@ -139,8 +139,9 @@ document should look the same for everyone.
 |===
 |Preference |Default |Effect
 
-|Copy formats |PDF, SVG, {product}, Image |The pasteboard types written when you copy (local). xref:copying.adoc[Copying]
-|Convert colors to |Unchanged |The color space of copied artwork: Unchanged, CMYK, RGB. xref:copying.adoc[Copying]
+|Clipboard formats |{product}, PDF, SVG, Image, Rich text, Plain text |The formats written to the clipboard when you copy; {product}'s own is always written (local). xref:copying.adoc[Copying]
+|Convert colors to |CMYK and RGB |The colors of the PDF copy: CMYK, RGB, or CMYK and RGB (each color as the document holds it). xref:copying.adoc[Copying]
+|Clipboard image resolution |144 ppi |The resolution of the TIFF and PNG copies, 72--2,400 ppi. xref:copying.adoc[Copying]
 |Include TIFF preview in EPS |On |Exported EPS files carry a bitmap preview for applications that cannot render PostScript. xref:export-vector.adoc[Exporting vector formats]
 |Include Quick Look thumbnail |On |Exported files carry a thumbnail for the Finder. xref:exporting.adoc[Exporting]
 |Bitmap export resolution |72 dpi |Default for bitmap export: 72, 144 or 300. xref:export-bitmap.adoc[Exporting bitmaps]
