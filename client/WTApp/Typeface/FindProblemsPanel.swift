@@ -41,7 +41,7 @@ final class FindProblemsModel {
     var document: DocumentHandle? { selection?.document }
 
     /// The glyph the front window edits, when it is a glyph tab.
-    var currentGlyph: OpID? { document?.canvasNode }
+    var currentGlyph: OpID? { document?.glyphCanvasNode }
 
     /// The problems in the scope.
     var problems: [FontProblem] {

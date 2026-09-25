@@ -38,13 +38,13 @@ enum DocumentOpener {
         return WTModel.Document(memory: core, undoLevels: undoLevels)
     }
 
-    /// Writes a new document's template as its first changes (swatches.adoc, "Default colors";
-    /// the first page, Letter centred on the pasteboard): a local store opened for a document
-    /// created on this Mac.  Not undo steps; nothing is written when the document already has
-    /// the defaults, and no page when it has one.
+    /// Writes a new document's template as its first change (creating-opening.adoc; DOC-019's
+    /// `CreateDocument`, "Created": one Letter page centred on the pasteboard, then the defaults of
+    /// swatches.adoc and the rest of `DocumentTemplate`): a local store opened for a document
+    /// created on this Mac.  Not an undo step; nothing is written on a document that already has
+    /// content.
     static func applyTemplate(to document: WTModel.Document) async {
-        if PageList(document.state).isSynthesized { _ = try? await document.perform(ReplacePageRects.newDocument) }
-        _ = try? await document.perform(DocumentTemplate())
+        _ = try? await document.perform(CreateDocument(.builtIn))
     }
 
     /// The opener that makes memory documents.

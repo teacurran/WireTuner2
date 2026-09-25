@@ -3,12 +3,11 @@ import SwiftUI
 import WTRender
 
 /// The New View sheet (document-view.adoc, "Named views"): a name for the view the Zoom tool's
-/// Shift-drag or menu:View[Custom > New…] captured.  Named views are document nodes that
-/// BASIC-014 and BASIC-015 deliver; until then the sheet shows the captured target and OK or
-/// Cancel close it without writing anything.
+/// Shift-drag or menu:View[Custom > New…] captured.  btn:[OK] saves it with the document (a
+/// `custom_view` node, BASIC-015); Cancel writes nothing.
 enum NamedViewSheet {
     static let identifier = NSUserInterfaceItemIdentifier("named-view-sheet")
-    static let pendingNote = "Named views are saved with the document once named views arrive."
+    static let sharedNote = "Named views are saved with the document, so everyone who opens it can recall them."
 
     /// "View at 400%" for a target.
     static func summary(of target: Viewport) -> String {
@@ -36,7 +35,7 @@ struct NamedViewSheetView: View {
             TextField("Name", text: $name, prompt: Text("View name"))
                 .accessibilityIdentifier("named-view.name")
             Text(summary).font(.callout)
-            Text(NamedViewSheet.pendingNote).font(.caption).foregroundStyle(.secondary)
+            Text(NamedViewSheet.sharedNote).font(.caption).foregroundStyle(.secondary)
             HStack {
                 Spacer()
                 Button("Cancel") { finish(nil) }.keyboardShortcut(.cancelAction).accessibilityIdentifier("named-view.cancel")

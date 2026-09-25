@@ -340,7 +340,7 @@ final class ColorPanelFixture {
         let empty = WTModel.Document(memory: DocumentCore(state: EngineState(), replica: 0x77))
         await DocumentOpener.applyTemplate(to: empty)
         #expect(SwatchList(empty.state).swatches.map(\.name) == ["White", "Black", "Registration"] && !empty.canUndo)
-        #expect(empty.lastChange?.label == "Default colors")
+        #expect(empty.lastChange?.label == "Created")
         let test = TestEnvironment()
         var environment = test.document
         environment.openModel = { _ in WTModel.Document(memory: DocumentCore(state: EngineState(), replica: 0x78)) }

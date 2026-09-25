@@ -331,6 +331,12 @@ out too.  The sample is always in the result, and kbd:[Shift] (`adding`) keeps t
 IMG-030 fills: `SelectSimilar.items(classifier:)` offers it only when a `ShapeClassifying` is installed.  Nothing is written.  The
 menu items and the status-bar message are WTApp's (not built).
 
+NOTE: As built by OBJ-042's app half (`WTApp/Objects/CombineAndSimilar.swift`, `SelectSimilarCommands`).
+menu:Edit[Select > Similar > Fill / Stroke / Fill and Stroke] (and *Shape* when a `ShapeClassifying` is installed) run
+`SelectSimilar.run` on the key window's active page (the document on an unpaged document), with kbd:[Shift] held as the item is
+chosen adding to the selection; the new selection is set and the status bar shows the count.  Disabled ("Select one object") with no
+or several objects selected.
+
 === Build tasks
 
 [[OBJ-005]]

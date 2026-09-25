@@ -22,6 +22,14 @@ struct TraceSettings: Codable, Equatable {
     var resolution = 2.0
     /// The wand's colour tolerance, 0 ... 255.
     var tolerance = 32
+    /// *Tracer* (IMG-029): the raw value of `Trace.Tracer`; nil (settings saved before it) reads
+    /// as *Classic*.
+    var tracerName: String?
+
+    var tracer: Trace.Tracer {
+        get { tracerName.flatMap(Trace.Tracer.init(rawValue:)) ?? .classic }
+        set { tracerName = newValue.rawValue }
+    }
 
     static let key = "trace.options"
 
@@ -402,11 +410,18 @@ final class TraceFeatures {
         showProgress(self, context)
         let box = TraceProgressBox()
         box.receive = { [weak self] value in self?.progress = value }
+        let photo = settings.tracer == .photo
         let task = Task { [self] in
             do {
-                let result = try await Trace.trace(bitmap, options: options, transform: transform) { value in box.send(value) }
-                finish()
-                place(result, source: source, name: nil, in: context)
+                if photo {
+                    let result = try await PhotoTrace.trace(bitmap, options: options, transform: transform) { value in box.send(value) }
+                    finish()
+                    placePhoto(result, source: source, in: context)
+                } else {
+                    let result = try await Trace.trace(bitmap, options: options, transform: transform) { value in box.send(value) }
+                    finish()
+                    place(result, source: source, name: nil, in: context)
+                }
             } catch {
                 finish()
                 message = "The trace was cancelled"
@@ -431,17 +446,27 @@ final class TraceFeatures {
     func place(_ result: Trace.Result, source: OpID?, name: String?, in context: ToolContext) -> Task<Void, Never> {
         let state = context.document.state
         let sourceName = source.map { ObjectNaming.name(of: $0, in: state) }
-        let children: [ImportedNode] = result.paths.map { traced in
-            let contours = traced.contours.map(Self.imported)
-            let stroke = traced.stroke.map { ImportedStroke(paint: .solid($0), style: StrokeStyle(width: traced.strokeWidth ?? 1)) }
-            return .path(ImportedPath(contours: contours, fill: traced.fill.map { .solid(traced.color ?? $0) } ?? .none, stroke: stroke))
-        }
-        let group = ImportedGroup(children: children, name: name ?? sourceName.map { "Trace of \($0)" } ?? "Trace")
+        let children = Self.imported(result.paths)
+        return place(ImportedGroup(children: children, name: name ?? sourceName.map { "Trace of \($0)" } ?? "Trace"), source: source, in: context)
+    }
+
+    /// `group` above `source` (or on the current layer), one change.
+    @discardableResult
+    func place(_ group: ImportedGroup, source: OpID?, in context: ToolContext) -> Task<Void, Never> {
         let layer = context.objectEditing?.activeLayer
         let sink = context.commandSink
         return Task { [weak self] in
             let change = await sink.perform(PlaceTrace(group, above: source, layer: layer)).value
             if change == nil { self?.message = "Nothing was traced" }
+        }
+    }
+
+    /// Traced paths as imported ones.
+    static func imported(_ paths: [Trace.TracedPath]) -> [ImportedNode] {
+        paths.map { traced in
+            let contours = traced.contours.map(Self.imported)
+            let stroke = traced.stroke.map { ImportedStroke(paint: .solid($0), style: StrokeStyle(width: traced.strokeWidth ?? 1)) }
+            return .path(ImportedPath(contours: contours, fill: traced.fill.map { .solid(traced.color ?? $0) } ?? .none, stroke: stroke))
         }
     }
 
@@ -488,6 +513,10 @@ struct TraceOptionsSheet: View {
 
     var body: some View {
         Form {
+            Picker("Tracer", selection: $features.settings.tracer) {
+                ForEach(Trace.Tracer.allCases, id: \.self) { Text(PhotoTrace.title($0)).tag($0) }
+            }
+            .accessibilityIdentifier("trace.tracer")
             Stepper("Colors \(features.settings.colors)", value: $features.settings.colors, in: 2...256)
             Toggle("Grays", isOn: $features.settings.grays)
             Stepper("Noise tolerance \(features.settings.noise)", value: $features.settings.noise, in: 0...20)

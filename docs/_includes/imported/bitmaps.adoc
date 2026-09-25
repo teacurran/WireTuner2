@@ -384,6 +384,11 @@ scale not above 100% at which the effective resolution is a whole-number fractio
 by whole numbers, so a 300 ppi image on a 600 dpi document snaps to 100%, 50%, 33.3%, 25% ... and 200%, 300% ....
 `effectivePPI(of:in:)` is the effective resolution through the transform chain.  Not built: the Pointer tool's use of it (WTApp).
 
+NOTE: As built by IMG-004's app half (`WTApp/Objects/ShapeHandles.swift`, `ImageResolutionHandles`).  With kbd:[Option] held, a
+press on a corner of the one selected image's frame (Pointer or Subselect tool) is taken before the tool's Option-copy: the drag
+scales the image about the opposite corner to `ImageResolution.snapped` of the proposed scale, previewing the frame and the
+percentage, and one "Scale" change (`TransformObjects`) lands on release.
+
 NOTE: As built by IMG-027 (`WTRender/Images/SubjectMask.swift`, `VisionSubjectSegmenter.swift`).
 The Vision request sits behind the `SubjectSegmenter` protocol; `VisionSubjectSegmenter` runs
 `VNGenerateForegroundInstanceMaskRequest` on the image reduced to at most 4 MP

@@ -202,6 +202,12 @@ path under Subselect).  `ContentsHandle.position(of:in:state:)` is the handle (t
 Reference renders: `clipGroupSlots` in WTRender's corpus (goldens and Metal parity).  Not built: the handle overlay and drag in the
 Pointer tool (WTApp); the Object panel rows are OBJ-027's.
 
+NOTE: As built by OBJ-028's app half (`WTApp/Objects/ShapeHandles.swift`, `ClipContentsHandle`).  A canvas handle layer over the
+Pointer and Subselect tools draws the contents handle at `ContentsHandle.position` of the one selected clip group; dragging it
+previews the contents' outlines moving and writes `MoveContents` on release (one change, "Move contents"); a double-click on it
+subselects the contents.  Deviation: the handle shows whenever one clip group is selected as a whole, not only while the Object
+panel's *Contents* row is selected (the panel keeps no row selection).
+
 === Build tasks
 
 [[OBJ-027]]

@@ -259,6 +259,22 @@ origin or bleed changed -- so a remote edit to a master object repaints just tho
 presence and the stale-release and deleted-master notices (DOC-012) can now be built on it.  Reference render
 `masterContentOnAChild` (goldens and Metal parity).
 
+NOTE: As built by DOC-012's rest (`WTApp/Masters/MasterTabs.swift`).  btn:[Edit] beside the *Master Page* pop-up is enabled when
+every selected page follows one master and opens it in a tab of the document window (`MasterTabs.open`): a `DocumentHandle` over
+the document's model with `canvasNode` = the master (`MasterCanvas`, id `<document>#master-<id>`), whose background is the master's
+page at the canvas origin with its bleed, and whose commands put the objects they create on the master (`CanvasPlacedCommand`,
+shared with the glyph tabs).  The tab shares the document's session and presence (the window factory treats it as it does a glyph
+tab; `GlyphCanvas.documentID(ofTab:)` reads both kinds of tab id), is not a primary view and is not saved with the session, hides the
+page selector, follows the master's name and closes when the master is deleted; closing it needs no save.  The glyph-tab layout reads
+`glyphCanvasNode` (a canvas node that is not a master).  The live notices (`MasterNotices`, in the window's banner beside the page
+notices): after this person's release (a change whose label carries the master tag; `MasterRelease` reads its pages and copy groups),
+someone else's change writing on that master within two minutes posts "Priya changed Master A while you released page 4" with *Update
+the copies* (`UpdateReleaseCopies`, "Update the copies": the copy groups deleted and the master's current objects copied again as
+`ReleaseChildPages` does, one change); someone else deleting a master that live pages follow posts "Tom deleted Master A; 2 pages are
+ordinary pages now" with *Restore*.  Not built: presence on masters ("on Master A"), the Document panel, rulers, guides and Page tool
+acting on the master while its tab is frontmost, and opening a master from the Library panel (the LIB epic's master list).  When
+DOC-013's `ReleaseReview`/`UpdateReleasedCopies` land in WTSync, `MasterRelease` and `UpdateReleaseCopies` should give way to them.
+
 === Build tasks
 
 [[DOC-010]]

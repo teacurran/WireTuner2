@@ -34,6 +34,18 @@ final class PanelRegistry {
         return true
     }
 
+    /// Replaces the descriptor with `descriptor.id` in place, keeping its registration order (a
+    /// feature adding a section to another feature's panel); registers it when absent.
+    func replace(_ descriptor: PanelDescriptor) {
+        guard byID[descriptor.id] != nil else {
+            registerIfAbsent(descriptor)
+            return
+        }
+        byID[descriptor.id] = descriptor
+        registrationOrder = registrationOrder.map { $0.id == descriptor.id ? descriptor : $0 }
+        onChange?()
+    }
+
     func descriptor(for id: PanelID) -> PanelDescriptor? { byID[id] }
 
     func contains(_ id: PanelID) -> Bool { byID[id] != nil }

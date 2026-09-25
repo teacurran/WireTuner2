@@ -53,7 +53,7 @@ final class TypefaceWindowMode {
         closeObserver = NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: controller.window, queue: .main) {
             [weak self] _ in MainActor.assumeIsolated { self?.windowWillClose() }
         }
-        if document.canvasNode != nil { configureGlyphCanvas() }
+        if document.glyphCanvasNode != nil { configureGlyphCanvas() }
         update()
     }
 
@@ -72,7 +72,7 @@ final class TypefaceWindowMode {
     }
 
     private func contentDidChange() {
-        if DocumentKind.layout(controller.documentHandle.state) != layout || controller.documentHandle.canvasNode != nil {
+        if DocumentKind.layout(controller.documentHandle.state) != layout || controller.documentHandle.glyphCanvasNode != nil {
             update()
         } else {
             grid?.reload()
@@ -83,7 +83,7 @@ final class TypefaceWindowMode {
     func update() {
         let document = controller.documentHandle
         layout = DocumentKind.layout(document.state)
-        if let glyph = document.canvasNode {
+        if let glyph = document.glyphCanvasNode {
             // A glyph tab lives only while its glyph does, in a typeface.
             guard layout == .typeface, GlyphIndex(document.state)[glyph] != nil else {
                 closeWindow(controller)

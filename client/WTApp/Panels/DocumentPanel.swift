@@ -245,6 +245,10 @@ struct DocumentPanelControls: View {
         { model.setResolution(Int($0)) }
     }
 
+    static func editMaster(_ model: DocumentPanelModel) -> () -> Void {
+        { if let master = MasterTabs.editableMaster(in: model.window) { DocumentPanelModel.editMaster(model.window, master) } }
+    }
+
     static func masterName(_ master: MasterPage) -> String {
         master.name.isEmpty ? "Master" : master.name
     }
@@ -282,9 +286,9 @@ struct DocumentPanelControls: View {
                     ForEach(model.masters) { Text(Self.masterName($0)).tag(OpID?.some($0.id)) }
                 }
                 .accessibilityIdentifier("document.master")
-                Button("Edit", action: Command.noop)
-                    .disabled(true)
-                    .help(DocumentPanelModel.masterTabPending)
+                Button("Edit", action: Self.editMaster(model))
+                    .disabled(MasterTabs.editableMaster(in: model.window) == nil)
+                    .help(MasterTabs.editableMaster(in: model.window) == nil ? MasterTabs.noSingleMaster : "")
                     .accessibilityIdentifier("document.master.edit")
             }
             if state.showsList {
@@ -311,8 +315,9 @@ struct DocumentPanelControls: View {
 }
 
 extension DocumentPanelModel {
-    /// Why *Edit* is disabled: the master page tab needs master content rendering (DOC-011).
-    static let masterTabPending = "Editing master pages in their own tab arrives with master content rendering"
+    /// btn:[Edit] beside the *Master Page* pop-up: opens the selected pages' master in its tab
+    /// (`MasterTabs`, DOC-012); the app sets it at launch.
+    static var editMaster: @MainActor (DocumentWindowController, OpID) -> Void = { _, _ in }
 }
 
 /// The page list (pages.adoc, "Page order"): pages in page order with their number, name and

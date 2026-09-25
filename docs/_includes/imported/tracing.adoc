@@ -297,6 +297,12 @@ none is bundled yet, so the *Photo* tracer runs its subject-and-background fallb
 are drawn in code with injected instances and class maps.  Not built: the *Tracer* option in the sheet and preferences and a
 sub-group per region on placement (WTApp); the 4 MP budget is a `PerfBudget` of the perf run.
 
+NOTE: As built by IMG-029's app half (`WTApp/Images/PhotoTrace.swift`, `TraceTool.swift`).  The Trace tool's options sheet has
+*Tracer* (*Classic*, *Photo*), kept with the other trace options (`TraceSettings.tracerName`; settings saved before it read as
+*Classic*).  *Photo* runs `Trace.tracePhoto` over the sampled pixels with `VisionSubjectSegmenter` and `CoreMLClassMapper.bundled()`
+and places one group ("Trace of …") holding one sub-group per region that traced to something, named after the region, largest
+first; a single region's paths go straight into the group.  The tracer is not yet a Preferences row.
+
 === Build tasks
 
 [[IMG-021]]

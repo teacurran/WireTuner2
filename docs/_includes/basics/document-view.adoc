@@ -539,6 +539,17 @@ redefine vs. redefine, delete vs. redefine with *Restore* bringing the edit back
 redefine); the review sheet's *Restore* row is the generic edit-vs-delete one.  Not built: the New View and Edit Views sheets, the
 Custom submenu and magnification pop-up, recall animation and the Zoom tool gesture (WTApp).
 
+NOTE: As built by BASIC-015's app half (`WTApp/Views/NamedViewFeatures.swift`, `EditViewsSheet.swift`).  The New View sheet's
+btn:[OK] writes `CreateCustomView` with the view it was opened on -- the Zoom tool's kbd:[Shift]-drag (after the zoom) or
+menu:View[Custom > New…] -- as `NamedViews.target(fitting:viewSize:mode:)` of the visible area and the window's drawing mode.
+menu:View[Custom] lists the key window's document's views after *Previous* (one command per view, re-registered and the menu bar
+rebuilt when the names change or another window becomes key); choosing one, or its name in the status bar's magnification pop-up
+(which lists the views after the Fit entries), recalls it -- magnification, mode and scroll origin, the window's rotation kept --
+and pushes the window's `NamedViewRecall`, which *Previous* swaps (disabled with fewer than two live recalled views).  *Edit…* opens
+the Edit Views sheet: the views in menu order, a name renamed when its edit is committed ("Rename View"), btn:[Redefine] with the
+window's current view, btn:[Delete], drag to reorder ("Reorder Views"); each is one change as it is made, btn:[OK] closes.
+Deviations: recall is not animated, and the Previous pair lives with the window (it is not written into the local `ViewState`).
+
 === Build tasks
 
 [[BASIC-012]]

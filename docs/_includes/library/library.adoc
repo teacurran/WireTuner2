@@ -751,6 +751,10 @@ new symbol and return on a swap back).  Merge tests: reset vs. edit, duplicate c
 edit.  Not built: text overrides are resolved but not yet drawn by instances (the builder lays out the master's words), and the
 Text tool's hit test inside an instance (WTApp).
 
+NOTE: LIB-025's app half is still not built: editing a text block inside an instance with the Text tool (`OverrideText`) waits for
+instances to draw their text overrides, which is a change to the scene builder and the symbol renderer (WTModel, WTRender), not
+glue: until then an override typed on the canvas would not show.
+
 === Build tasks
 
 [[LIB-008]]

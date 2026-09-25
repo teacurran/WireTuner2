@@ -728,15 +728,17 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
 
     func togglePageRulers() { pageRulersVisible.toggle() }
 
-    // MARK: Named views (BASIC-012 stub of BASIC-015)
+    // MARK: Named views (BASIC-012, BASIC-015)
 
     /// The New View sheet for `target`: the Zoom tool's Shift-drag and View > Custom > New….
-    /// Named views are document nodes (BASIC-014/015); until they land the sheet names the view
-    /// and OK only closes it.
+    /// btn:[OK] writes the named view (`createNamedView`, "New View").
     @discardableResult
     func presentNamedViewSheet(target: Viewport) -> NSWindow? {
         guard let window, namedViewSheet == nil else { return nil }
-        let sheet = NamedViewSheet.window(target: target) { [weak self] _ in self?.endNamedViewSheet() }
+        let sheet = NamedViewSheet.window(target: target) { [weak self] name in
+            if let name { self?.createNamedView(name, from: target) }
+            self?.endNamedViewSheet()
+        }
         namedViewSheet = sheet
         window.beginSheet(sheet)
         return sheet

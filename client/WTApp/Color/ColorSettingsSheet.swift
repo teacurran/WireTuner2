@@ -274,6 +274,13 @@ struct ColorSettingsSheet: View {
         { model.other(field) }
     }
 
+    /// btn:[Profiles…]: the document's profiles (`ProfilesSheet`, CMS-010); the app sets it at launch.
+    static var showProfiles: @MainActor (DocumentHandle) -> Void = { _ in }
+
+    static func profiles(_ model: ColorSettingsModel) -> () -> Void {
+        { if let document = model.workspace.document { showProfiles(document) } }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Color Settings").font(.headline)
@@ -305,6 +312,7 @@ struct ColorSettingsSheet: View {
             }
             if let refusal = model.refusal { Text(refusal).font(.caption).foregroundStyle(.red).accessibilityIdentifier("color-settings.refusal") }
             HStack {
+                Button("Profiles…", action: Self.profiles(model)).disabled(model.workspace.document == nil).accessibilityIdentifier("color-settings.profiles")
                 Spacer()
                 Button("Cancel", action: model.cancel).keyboardShortcut(.cancelAction)
                 Button("OK", action: ColorAction.run(model.ok)).keyboardShortcut(.defaultAction).accessibilityIdentifier("color-settings.ok")

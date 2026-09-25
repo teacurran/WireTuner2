@@ -212,7 +212,7 @@ final class PreviewStripHost {
     /// Adds the strip to a glyph tab (nothing for other windows).
     @discardableResult
     static func attach(_ window: DocumentWindowController, preferences: PreferenceStore, open: @escaping @MainActor (OpID) -> Void) -> PreviewStripHost? {
-        guard let glyph = window.documentHandle.canvasNode, hosts[ObjectIdentifier(window)] == nil else { return nil }
+        guard let glyph = window.documentHandle.glyphCanvasNode, hosts[ObjectIdentifier(window)] == nil else { return nil }
         let model = PreviewStripModel(document: window.documentHandle, glyph: glyph, text: preferences[PreferenceCatalog.Typeface.previewText])
         model.open = open
         let host = PreviewStripHost(model: model)

@@ -222,6 +222,11 @@ WTModel test compares the vector's change with a fresh one up to positions (rege
 template changes).  Not built: the local store creation and the deferred `DocumentService.Create` (WTSync), and the app's use of
 `newDocument` (WTApp).
 
+NOTE: As built by DOC-019's app half (`WTApp/Document/DocumentOpener.swift`, `WTApp/Glue/DocumentGlueFeatures.swift`).  menu:File[New]
+records the document with a `DocumentCreation.newDocumentID` UUIDv7 and its local store's first change is `CreateDocument(.builtIn)`
+("Created", not an undo step), replacing the page-then-template pair of changes.  Not built: creating from a template document
+(`.document(state, name:)`) in the template gallery.
+
 === Build tasks
 
 [[DOC-019]]

@@ -190,6 +190,11 @@ writes `radius` and `rotation`, the circle `inner_radius`, `auto_inner` off and 
 radius only.  The conformance vector `registers/polygon-radius-rotation-concurrent` holds the concurrent `radius` and `rotation`
 writes in both engines.  Not built: drawing the handles and routing Subselect drags to them (WTApp).
 
+NOTE: As built by DRAW-010's app half (`WTApp/Objects/ShapeHandles.swift`, `PolygonShapeHandles`).  With the Subselect tool a
+canvas handle layer draws each selected unlocked polygon's diamond and a star's circle, and takes presses on them before the tool:
+each drag event writes `PolygonHandles.drag` (kbd:[Shift] keeps the angle) inside one undo group, so the drag is one undo step, and
+kbd:[Esc] undoes it.
+
 === Build tasks
 
 [[DRAW-010]]

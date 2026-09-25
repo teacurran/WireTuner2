@@ -214,6 +214,12 @@ rotations), because GEO-002's corpus lives in WTGeometry's test target; each cas
 areas against `Boolean` directly.  Transparency is OBJ-026's.  The menu:Modify[Combine] items and the Path Operations toolbar are
 WTApp's (not built).
 
+NOTE: As built by OBJ-025's app half (`WTApp/Objects/CombineAndSimilar.swift`, `CombineCommands`).  menu:Modify[Combine > Union /
+Divide / Intersect / Punch / Crop] and the Path Operations toolbar's buttons perform `CombineCommand` on the selection; *Path
+operations consume original paths* inverted by kbd:[Shift] decides whether the originals stay, and the item's title then reads
+"Union (keep originals)".  Disabled with "Select two or more closed paths" (Divide: "Select two or more paths").  The results are
+selected.
+
 === Build tasks
 
 [[OBJ-024]]

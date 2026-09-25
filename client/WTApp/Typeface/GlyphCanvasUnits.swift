@@ -9,7 +9,7 @@ import WTModel
 @MainActor
 enum GlyphCanvasUnits {
     /// Whether `document` draws a glyph canvas.
-    static func isGlyphCanvas(_ document: DocumentHandle) -> Bool { document.canvasNode != nil }
+    static func isGlyphCanvas(_ document: DocumentHandle) -> Bool { document.glyphCanvasNode != nil }
 
     /// The y a field shows for stored `y`.
     static func shown(y: Double, in document: DocumentHandle) -> Double {

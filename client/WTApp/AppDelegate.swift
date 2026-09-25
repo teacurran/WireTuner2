@@ -142,6 +142,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Envelopes, text on a path, perspective, Show Links, the path clean-ups and the Inspect
     /// panel (FX-039, TYPE-017, FX-043, FX-044, WEB-004, DRAW-030, COLLAB-036).
     private(set) lazy var modelGlue = ModelGlueFeatures(preferences: preferences)
+    /// Master page tabs, named views, Select Similar, Combine, the canvas handles, team libraries
+    /// and the Profiles sheet (commit cbda22a's app half: DOC-012, BASIC-015, OBJ-042, OBJ-025 ...).
+    private(set) lazy var documentGlue = DocumentGlueFeatures(preferences: preferences) { [weak self] in self?.activeDocumentWindow }
 
     /// - Parameters:
     ///   - layoutStore: where the panel layout persists; `nil` keeps it in memory (tests).
@@ -250,6 +253,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.attachWindowGlue(window)
             self?.attachEditorExtras(window)
             self?.attachModelGlue(window)
+            self?.attachDocumentGlue(window)
             self?.attachTypeAndDrawingFeatures(window)
         }
         environment.userName = { accountModel.profile?.displayName ?? "" }
@@ -343,6 +347,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         installModelGlue()
         installTypeAndDrawingFeatures()
         colors.install(commands: commands, panels: panels, extensions: toolbars.extensions) { documents.documents }
+        installDocumentGlue()
         PanelCatalog.register(into: panels, selection: activeSelection, help: helpModel, layers: layersPanel)
         panels.registerIfAbsent(ToolsPanel.descriptor(model: toolPalette))
         installToolbars()
