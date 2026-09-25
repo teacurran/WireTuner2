@@ -3647,6 +3647,26 @@ public enum WTValidators {
         return out
     }
 
+    /// Validates `wiretuner.doc.v1.GradientSwatchProps`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_GradientSwatchProps, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if m.hasCommon {
+            let v = m.common
+            out += validate(v, path: "\(path)common.")
+        }
+        if m.hasGradient {
+            let v = m.gradient
+            out += validate(v, path: "\(path)gradient.")
+        }
+        do {
+            let v = m.group
+            if v.unicodeScalars.count > 128 {
+                out.append(ValidationViolation(fieldPath: "\(path)group", ruleID: "string.max_len", message: "value length must be at most 128 characters"))
+            }
+        }
+        return out
+    }
+
     /// Validates `wiretuner.doc.v1.GrayRamp`; `path` prefixes every violation's field path.
     public static func validate(_ m: Wiretuner_Doc_V1_GrayRamp, path: String = "") -> [ValidationViolation] {
         var out: [ValidationViolation] = []
@@ -3742,6 +3762,68 @@ public enum WTValidators {
             if !(v >= 0 && v <= 600) {
                 out.append(ValidationViolation(fieldPath: "\(path)frequency", ruleID: "double.gte_lte", message: "value must be greater than or equal to 0 and less than or equal to 600"))
             }
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.doc.v1.HoseOptions`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_HoseOptions, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        do {
+            let v = m.order
+            if case .UNRECOGNIZED = v {
+                out.append(ValidationViolation(fieldPath: "\(path)order", ruleID: "enum.defined_only", message: "value must be one of the defined enum values"))
+            }
+        }
+        do {
+            let v = m.spacing
+            if case .UNRECOGNIZED = v {
+                out.append(ValidationViolation(fieldPath: "\(path)spacing", ruleID: "enum.defined_only", message: "value must be one of the defined enum values"))
+            }
+        }
+        if !(m.gridSize == 0) {
+            let v = m.gridSize
+            if !(v > 0) {
+                out.append(ValidationViolation(fieldPath: "\(path)grid_size", ruleID: "double.gt", message: "value must be greater than 0"))
+            }
+        }
+        do {
+            let v = m.spacingAmount
+            if !(v >= 0 && v <= 200) {
+                out.append(ValidationViolation(fieldPath: "\(path)spacing_amount", ruleID: "double.gte_lte", message: "value must be greater than or equal to 0 and less than or equal to 200"))
+            }
+        }
+        do {
+            let v = m.scale
+            if case .UNRECOGNIZED = v {
+                out.append(ValidationViolation(fieldPath: "\(path)scale", ruleID: "enum.defined_only", message: "value must be one of the defined enum values"))
+            }
+        }
+        if !(m.scalePercent == 0) {
+            let v = m.scalePercent
+            if !(v >= 1 && v <= 200) {
+                out.append(ValidationViolation(fieldPath: "\(path)scale_percent", ruleID: "double.gte_lte", message: "value must be greater than or equal to 1 and less than or equal to 200"))
+            }
+        }
+        do {
+            let v = m.rotation
+            if case .UNRECOGNIZED = v {
+                out.append(ValidationViolation(fieldPath: "\(path)rotation", ruleID: "enum.defined_only", message: "value must be one of the defined enum values"))
+            }
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.doc.v1.HoseSetProps`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_HoseSetProps, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if m.hasCommon {
+            let v = m.common
+            out += validate(v, path: "\(path)common.")
+        }
+        if m.hasOptions {
+            let v = m.options
+            out += validate(v, path: "\(path)options.")
         }
         return out
     }
@@ -4484,11 +4566,17 @@ public enum WTValidators {
         if case .connector(let v)? = m.kind {
             out += validate(v, path: "\(path)connector.")
         }
+        if case .hoseSet(let v)? = m.kind {
+            out += validate(v, path: "\(path)hose_set.")
+        }
         if case .group(let v)? = m.kind {
             out += validate(v, path: "\(path)group.")
         }
         if case .swatch(let v)? = m.kind {
             out += validate(v, path: "\(path)swatch.")
+        }
+        if case .gradientSwatch(let v)? = m.kind {
+            out += validate(v, path: "\(path)gradient_swatch.")
         }
         if case .brush(let v)? = m.kind {
             out += validate(v, path: "\(path)brush.")

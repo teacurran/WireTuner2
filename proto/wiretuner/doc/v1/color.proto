@@ -1,6 +1,7 @@
 // proto/wiretuner/doc/v1/color.proto
 //
-// The `swatch` node kind (docs/_includes/color/swatches.adoc, COLOR-001).  Swatches are nodes
+// The `swatch` and `gradient_swatch` node kinds (docs/_includes/color/swatches.adoc, COLOR-001;
+// docs/_includes/appearance/gradients.adoc, ATTR-029).  Swatches are nodes
 // under the well-known `swatches` collection (0:5); a swatch's sibling position is the list
 // order and its `CommonProps.name` is the swatch name.  None is not a node: it is the `none`
 // case of ColorRef.  `ColorSpace`, `Color`, `Cmyk`, `Rgb`, `Lab`, `ColorRef` and `InlineTint`
@@ -12,6 +13,7 @@ package wiretuner.doc.v1;
 
 import "buf/validate/validate.proto";
 import "wiretuner/doc/v1/common.proto";
+import "wiretuner/doc/v1/gradient.proto";
 import "wt/crdt/options.proto";
 
 option java_multiple_files = true;
@@ -63,4 +65,19 @@ message SwatchProps {
   string library = 8 [(buf.validate.field).string.max_len = 128];
   // The color's key in that library ("PANTONE 300 C").
   string library_key = 9 [(buf.validate.field).string.max_len = 128];
+}
+
+// NodeProps.kind case `gradient_swatch` (COLOR block, ATTR-029): a gradient kept for reuse,
+// listed in the swatches collection (0:5) after the color swatches.  Applying one copies its
+// ramp and registers into a fill; nothing references it afterwards, so editing or removing it
+// changes no object.  STRUCT: a rename and a ramp edit from two people both survive.
+message GradientSwatchProps {
+  // The swatch name (CommonProps.name, ATOMIC) and the other shared registers.
+  CommonProps common = 1;
+  // The gradient: type, behavior and count registers and the stops SEQUENCE (stop colors keep
+  // their swatch references).  `axis` and `ramp` are unused: an applied gradient takes Auto size
+  // geometry on each object.
+  GradientFill gradient = 2;
+  // Group header this swatch is listed under; empty = ungrouped.
+  string group = 3 [(buf.validate.field).string.max_len = 128];
 }

@@ -1,0 +1,64 @@
+# crdt-conformance/vectors/gradients/swatch-application-vs-application.textproto (ATTR-029; schema: crdt-conformance/schema/vector.proto)
+name: "gradients/swatch-application-vs-application"
+description: "Two replicas apply different gradient swatches to one fill at once.  Each deletes the old stops, inserts its own stops tagged with its application (the first new stop's id, 7:1 or 7:2) and writes the type and the ATOMIC ramp register in one set op.  Both inserts survive in the SEQUENCE, but the greater OpId (9:2) wins type and ramp together, so the ramp reads only replica 2's stops: the later application wins in full."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Create"
+    ops { create { parent { counter: 4 } position: "\x80" props { layer { common { name: "Layer 1" } visible: true printing: true } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x80" props { rect { common { name: "Box" } size { width: 50 height: 50 } } } } }
+    ops { element_insert { node { counter: 2 replica: 7 } sequence { segments { field: 21 } segments { field: 4 } segments { field: 1 } } positions: ["\x80"] values { rect { appearance { fills { settings { kind: FILL_KIND_GRADIENT gradient { type: GRADIENT_TYPE_LINEAR } } } } } } } }
+    ops { element_insert { node { counter: 2 replica: 7 } sequence { segments { field: 21 } segments { field: 4 } segments { field: 1 } segments { element { counter: 3 replica: 7 } } segments { field: 3 } segments { field: 3 } segments { field: 5 } } positions: ["\x80", "\x81"]
+      values { rect { appearance { fills { settings { gradient { stops { offset: 0 color { inline { rgb { r: 0 g: 0 b: 0 } space: COLOR_SPACE_SRGB } } } stops { offset: 1 color { inline { rgb { r: 1 g: 1 b: 1 } space: COLOR_SPACE_SRGB } } } } } } } } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 6 base_server_seq: 1 label: "Apply gradient"
+    ops { element_delete { node { counter: 2 replica: 7 }
+      elements { segments { field: 21 } segments { field: 4 } segments { field: 1 } segments { element { counter: 3 replica: 7 } } segments { field: 3 } segments { field: 3 } segments { field: 5 } segments { element { counter: 4 replica: 7 } } }
+      elements { segments { field: 21 } segments { field: 4 } segments { field: 1 } segments { element { counter: 3 replica: 7 } } segments { field: 3 } segments { field: 3 } segments { field: 5 } segments { element { counter: 5 replica: 7 } } }
+      deleted: true } }
+    ops { element_insert { node { counter: 2 replica: 7 } sequence { segments { field: 21 } segments { field: 4 } segments { field: 1 } segments { element { counter: 3 replica: 7 } } segments { field: 3 } segments { field: 3 } segments { field: 5 } } positions: ["\x82", "\x83"]
+      values { rect { appearance { fills { settings { gradient {
+        stops { offset: 0 color { inline { rgb { r: 1 g: 0 b: 0 } space: COLOR_SPACE_SRGB } } ramp { counter: 7 replica: 1 } }
+        stops { offset: 1 color { inline { rgb { r: 1 g: 1 b: 0 } space: COLOR_SPACE_SRGB } } ramp { counter: 7 replica: 1 } } } } } } } } } }
+    ops { set { node { counter: 2 replica: 7 }
+      paths { segments { field: 21 } segments { field: 4 } segments { field: 1 } segments { element { counter: 3 replica: 7 } } segments { field: 3 } segments { field: 3 } segments { field: 1 } }
+      paths { segments { field: 21 } segments { field: 4 } segments { field: 1 } segments { element { counter: 3 replica: 7 } } segments { field: 3 } segments { field: 3 } segments { field: 7 } }
+      values { rect { appearance { fills { settings { gradient { type: GRADIENT_TYPE_RADIAL ramp { counter: 7 replica: 1 } } } } } } } } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 6 base_server_seq: 1 label: "Apply gradient"
+    ops { element_delete { node { counter: 2 replica: 7 }
+      elements { segments { field: 21 } segments { field: 4 } segments { field: 1 } segments { element { counter: 3 replica: 7 } } segments { field: 3 } segments { field: 3 } segments { field: 5 } segments { element { counter: 4 replica: 7 } } }
+      elements { segments { field: 21 } segments { field: 4 } segments { field: 1 } segments { element { counter: 3 replica: 7 } } segments { field: 3 } segments { field: 3 } segments { field: 5 } segments { element { counter: 5 replica: 7 } } }
+      deleted: true } }
+    ops { element_insert { node { counter: 2 replica: 7 } sequence { segments { field: 21 } segments { field: 4 } segments { field: 1 } segments { element { counter: 3 replica: 7 } } segments { field: 3 } segments { field: 3 } segments { field: 5 } } positions: ["\x82", "\x83"]
+      values { rect { appearance { fills { settings { gradient {
+        stops { offset: 0 color { inline { rgb { r: 0 g: 0 b: 1 } space: COLOR_SPACE_SRGB } } ramp { counter: 7 replica: 2 } }
+        stops { offset: 1 color { inline { rgb { r: 0 g: 1 b: 1 } space: COLOR_SPACE_SRGB } } ramp { counter: 7 replica: 2 } } } } } } } } } }
+    ops { set { node { counter: 2 replica: 7 }
+      paths { segments { field: 21 } segments { field: 4 } segments { field: 1 } segments { element { counter: 3 replica: 7 } } segments { field: 3 } segments { field: 3 } segments { field: 1 } }
+      paths { segments { field: 21 } segments { field: 4 } segments { field: 1 } segments { element { counter: 3 replica: 7 } } segments { field: 3 } segments { field: 3 } segments { field: 7 } }
+      values { rect { appearance { fills { settings { gradient { type: GRADIENT_TYPE_CONE ramp { counter: 7 replica: 2 } } } } } } } } }
+  }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "02ed7a662587229b9fe6ec902da3ef848469f599fe93e82013efbb3787b67447"
+  snapshot_hash: "0579783768baad0e18bd248aa6a2617dbe0572f46940cb8631d001a15643f4e0"
+  node {
+    id { counter: 2 replica: 7 }
+    node_hash: "b75c75a868cde2f5facf7a1a837acc7901d7192955844e93fbf74470a7805b79"
+    register { path { segments { field: 21 } segments { field: 4 } segments { field: 1 } segments { element { counter: 3 replica: 7 } } segments { field: 3 } segments { field: 3 } segments { field: 7 } } value { rect { appearance { fills { settings { gradient { ramp { counter: 7 replica: 2 } } } } } } } op { counter: 9 replica: 2 } losing { counter: 9 replica: 1 } }
+    register { path { segments { field: 21 } segments { field: 4 } segments { field: 1 } segments { element { counter: 3 replica: 7 } } segments { field: 3 } segments { field: 3 } segments { field: 1 } } value { rect { appearance { fills { settings { gradient { type: GRADIENT_TYPE_CONE } } } } } } op { counter: 9 replica: 2 } losing { counter: 3 replica: 7 } losing { counter: 9 replica: 1 } }
+    sequence { path { segments { field: 21 } segments { field: 4 } segments { field: 1 } segments { element { counter: 3 replica: 7 } } segments { field: 3 } segments { field: 3 } segments { field: 5 } }
+      elements { counter: 7 replica: 1 } elements { counter: 7 replica: 2 } elements { counter: 8 replica: 1 } elements { counter: 8 replica: 2 }
+      deleted { counter: 4 replica: 7 } deleted { counter: 5 replica: 7 } }
+  }
+}

@@ -25,6 +25,7 @@ mapping {
   proto_file_path: "wiretuner/doc/v1/glyph.proto"
   proto_file_path: "wiretuner/doc/v1/gradient.proto"
   proto_file_path: "wiretuner/doc/v1/group.proto"
+  proto_file_path: "wiretuner/doc/v1/hose.proto"
   proto_file_path: "wiretuner/doc/v1/image.proto"
   proto_file_path: "wiretuner/doc/v1/layer.proto"
   proto_file_path: "wiretuner/doc/v1/node.proto"

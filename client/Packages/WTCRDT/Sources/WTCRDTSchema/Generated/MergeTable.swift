@@ -93,7 +93,7 @@ public enum WTMergeTable {
     }
 
     /// SHA-256 (hex) of the canonical JSON table without its `version` key.
-    public static let version = "9c8fccb6ee6af34683d96e1796fbc0272321d4919acd3deb6bd85a56c4fc4bb1"
+    public static let version = "3d708bbc463dca0c537f3038e4115c9e850a9659566848c5624008b8fcf68636"
 
     /// The rows of every message, by fully qualified proto name.
     public static let messages: [String: MessagePolicy] = [
@@ -182,11 +182,14 @@ public enum WTMergeTable {
         "wiretuner.doc.v1.GradientAxis": wiretuner_doc_v1_GradientAxis,
         "wiretuner.doc.v1.GradientFill": wiretuner_doc_v1_GradientFill,
         "wiretuner.doc.v1.GradientStop": wiretuner_doc_v1_GradientStop,
+        "wiretuner.doc.v1.GradientSwatchProps": wiretuner_doc_v1_GradientSwatchProps,
         "wiretuner.doc.v1.GrayRamp": wiretuner_doc_v1_GrayRamp,
         "wiretuner.doc.v1.GridSettings": wiretuner_doc_v1_GridSettings,
         "wiretuner.doc.v1.GroupProps": wiretuner_doc_v1_GroupProps,
         "wiretuner.doc.v1.Guide": wiretuner_doc_v1_Guide,
         "wiretuner.doc.v1.Halftone": wiretuner_doc_v1_Halftone,
+        "wiretuner.doc.v1.HoseOptions": wiretuner_doc_v1_HoseOptions,
+        "wiretuner.doc.v1.HoseSetProps": wiretuner_doc_v1_HoseSetProps,
         "wiretuner.doc.v1.HtmlSetting": wiretuner_doc_v1_HtmlSetting,
         "wiretuner.doc.v1.HttpHeader": wiretuner_doc_v1_HttpHeader,
         "wiretuner.doc.v1.HttpParam": wiretuner_doc_v1_HttpParam,
@@ -6163,6 +6166,17 @@ public enum WTMergeTable {
           "repeated": false,
           "type": "bool",
           "type_name": null
+        },
+        "7": {
+          "element_message": null,
+          "local_only": false,
+          "name": "ramp",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ElementId"
         }
       }
     },
@@ -6200,6 +6214,54 @@ public enum WTMergeTable {
           "repeated": false,
           "type": "message",
           "type_name": "wiretuner.doc.v1.ColorRef"
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "ramp",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ElementId"
+        }
+      }
+    },
+    "wiretuner.doc.v1.GradientSwatchProps": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "common",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.CommonProps"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "gradient",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.GradientFill"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "group",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
         }
       }
     },
@@ -6407,6 +6469,124 @@ public enum WTMergeTable {
           "repeated": false,
           "type": "double",
           "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.HoseOptions": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "order",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.HoseOrder"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "spacing",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.HoseSpacing"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "grid_size",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "spacing_amount",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "scale",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.HoseScale"
+        },
+        "6": {
+          "element_message": null,
+          "local_only": false,
+          "name": "scale_percent",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "7": {
+          "element_message": null,
+          "local_only": false,
+          "name": "rotation",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.HoseRotation"
+        },
+        "8": {
+          "element_message": null,
+          "local_only": false,
+          "name": "angle",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.HoseSetProps": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "common",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.CommonProps"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "options",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.HoseOptions"
         }
       }
     },
@@ -8413,6 +8593,17 @@ public enum WTMergeTable {
           "type": "message",
           "type_name": "wiretuner.doc.v1.ConnectorProps"
         },
+        "26": {
+          "element_message": null,
+          "local_only": false,
+          "name": "hose_set",
+          "on_dangling": "UNSET",
+          "oneof": "kind",
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.HoseSetProps"
+        },
         "260": {
           "element_message": null,
           "local_only": false,
@@ -8478,6 +8669,17 @@ public enum WTMergeTable {
           "repeated": false,
           "type": "message",
           "type_name": "wiretuner.doc.v1.SwatchProps"
+        },
+        "71": {
+          "element_message": null,
+          "local_only": false,
+          "name": "gradient_swatch",
+          "on_dangling": "UNSET",
+          "oneof": "kind",
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.GradientSwatchProps"
         },
         "80": {
           "element_message": null,
@@ -14027,7 +14229,7 @@ public enum WTMergeTable {
       "kind_field": 1
     }
   },
-  "version": "9c8fccb6ee6af34683d96e1796fbc0272321d4919acd3deb6bd85a56c4fc4bb1"
+  "version": "3d708bbc463dca0c537f3038e4115c9e850a9659566848c5624008b8fcf68636"
 }
 """#
 
@@ -17037,6 +17239,11 @@ public enum WTMergeTable {
                 localOnly: false, type: "bool", repeated: false, typeName: nil,
                 elementMessage: nil, oneof: nil
             ),
+            7: FieldPolicy(
+                fieldNumber: 7, name: "ramp", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ElementId",
+                elementMessage: nil, oneof: nil
+            ),
         ]
     )
 
@@ -17056,6 +17263,32 @@ public enum WTMergeTable {
             3: FieldPolicy(
                 fieldNumber: 3, name: "color", policy: .atomic, onDangling: .unset,
                 localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ColorRef",
+                elementMessage: nil, oneof: nil
+            ),
+            4: FieldPolicy(
+                fieldNumber: 4, name: "ramp", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ElementId",
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_GradientSwatchProps = MessagePolicy(
+        name: "wiretuner.doc.v1.GradientSwatchProps",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "common", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.CommonProps",
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "gradient", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.GradientFill",
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "group", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "string", repeated: false, typeName: nil,
                 elementMessage: nil, oneof: nil
             ),
         ]
@@ -17171,6 +17404,68 @@ public enum WTMergeTable {
             3: FieldPolicy(
                 fieldNumber: 3, name: "frequency", policy: .atomic, onDangling: .unset,
                 localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_HoseOptions = MessagePolicy(
+        name: "wiretuner.doc.v1.HoseOptions",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "order", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "enum", repeated: false, typeName: "wiretuner.doc.v1.HoseOrder",
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "spacing", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "enum", repeated: false, typeName: "wiretuner.doc.v1.HoseSpacing",
+                elementMessage: nil, oneof: nil
+            ),
+            3: FieldPolicy(
+                fieldNumber: 3, name: "grid_size", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            4: FieldPolicy(
+                fieldNumber: 4, name: "spacing_amount", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            5: FieldPolicy(
+                fieldNumber: 5, name: "scale", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "enum", repeated: false, typeName: "wiretuner.doc.v1.HoseScale",
+                elementMessage: nil, oneof: nil
+            ),
+            6: FieldPolicy(
+                fieldNumber: 6, name: "scale_percent", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            7: FieldPolicy(
+                fieldNumber: 7, name: "rotation", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "enum", repeated: false, typeName: "wiretuner.doc.v1.HoseRotation",
+                elementMessage: nil, oneof: nil
+            ),
+            8: FieldPolicy(
+                fieldNumber: 8, name: "angle", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_HoseSetProps = MessagePolicy(
+        name: "wiretuner.doc.v1.HoseSetProps",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "common", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.CommonProps",
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "options", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.HoseOptions",
                 elementMessage: nil, oneof: nil
             ),
         ]
@@ -18144,6 +18439,11 @@ public enum WTMergeTable {
                 localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ConnectorProps",
                 elementMessage: nil, oneof: "kind"
             ),
+            26: FieldPolicy(
+                fieldNumber: 26, name: "hose_set", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.HoseSetProps",
+                elementMessage: nil, oneof: "kind"
+            ),
             50: FieldPolicy(
                 fieldNumber: 50, name: "group", policy: .structure, onDangling: .unset,
                 localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.GroupProps",
@@ -18152,6 +18452,11 @@ public enum WTMergeTable {
             70: FieldPolicy(
                 fieldNumber: 70, name: "swatch", policy: .structure, onDangling: .unset,
                 localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.SwatchProps",
+                elementMessage: nil, oneof: "kind"
+            ),
+            71: FieldPolicy(
+                fieldNumber: 71, name: "gradient_swatch", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.GradientSwatchProps",
                 elementMessage: nil, oneof: "kind"
             ),
             80: FieldPolicy(

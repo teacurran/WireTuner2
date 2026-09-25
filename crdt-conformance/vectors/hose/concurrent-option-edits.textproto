@@ -1,0 +1,42 @@
+# crdt-conformance/vectors/hose/concurrent-option-edits.textproto (DRAW-038; schema: crdt-conformance/schema/vector.proto)
+name: "hose/concurrent-option-edits"
+description: "Two replicas change one hose set's options at once.  HoseOptions is STRUCT: replica 1's spacing amount and replica 2's scale both hold; both changed the order, an ATOMIC register, so the greater OpId (2:2) wins and 2:1 is kept as losing."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "New hose set"
+    ops { create { parent { counter: 7 } position: "\x80" props { hose_set { common { name: "Leaves" } options { order: HOSE_ORDER_LOOP spacing: HOSE_SPACING_VARIABLE spacing_amount: 100 } } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 2 base_server_seq: 1 label: "Change hose options"
+    ops { set { node { counter: 1 replica: 7 }
+      paths { segments { field: 26 } segments { field: 2 } segments { field: 1 } }
+      paths { segments { field: 26 } segments { field: 2 } segments { field: 4 } }
+      values { hose_set { options { order: HOSE_ORDER_RANDOM spacing_amount: 50 } } } } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 2 base_server_seq: 1 label: "Change hose options"
+    ops { set { node { counter: 1 replica: 7 }
+      paths { segments { field: 26 } segments { field: 2 } segments { field: 1 } }
+      paths { segments { field: 26 } segments { field: 2 } segments { field: 6 } }
+      values { hose_set { options { order: HOSE_ORDER_BACK_AND_FORTH scale_percent: 150 } } } } }
+  }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "6b28580e648bfc1d623a86300f04a228bf0f22dd593219ea87350549d7a489e7"
+  snapshot_hash: "42464825b5185be65143fd12752cbceaffeda8a754a11df03e6d7f58baad054d"
+  node {
+    id { counter: 1 replica: 7 }
+    node_hash: "86c45407a7a4cd4457e3a2949e028e6431228093a4553d51b61d406b3c846cc7"
+    register { path { segments { field: 26 } segments { field: 2 } segments { field: 1 } } value { hose_set { options { order: HOSE_ORDER_BACK_AND_FORTH } } } op { counter: 2 replica: 2 } losing { counter: 1 replica: 7 } losing { counter: 2 replica: 1 } }
+    register { path { segments { field: 26 } segments { field: 2 } segments { field: 4 } } value { hose_set { options { spacing_amount: 50 } } } op { counter: 2 replica: 1 } losing { counter: 1 replica: 7 } }
+    register { path { segments { field: 26 } segments { field: 2 } segments { field: 6 } } value { hose_set { options { scale_percent: 150 } } } op { counter: 2 replica: 2 } }
+  }
+}

@@ -1,0 +1,40 @@
+# crdt-conformance/vectors/gradients/gradient-swatch-rename-vs-recolor.textproto (ATTR-029; schema: crdt-conformance/schema/vector.proto)
+name: "gradients/gradient-swatch-rename-vs-recolor"
+description: "A gradient swatch is renamed on one replica while a stop of its ramp is recolored on another.  GradientSwatchProps is STRUCT and the stops a SEQUENCE: the name and the stop colour are different registers, so both hold."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Add gradient swatch"
+    ops { create { parent { counter: 5 } position: "\x80" props { gradient_swatch { common { name: "Sunset" } gradient { type: GRADIENT_TYPE_LINEAR } } } } }
+    ops { element_insert { node { counter: 1 replica: 7 } sequence { segments { field: 71 } segments { field: 2 } segments { field: 5 } } positions: ["\x80", "\x81"]
+      values { gradient_swatch { gradient { stops { offset: 0 color { inline { rgb { r: 1 g: 0.5 b: 0 } space: COLOR_SPACE_SRGB } } } stops { offset: 1 color { inline { rgb { r: 0.5 g: 0 b: 0.5 } space: COLOR_SPACE_SRGB } } } } } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 4 base_server_seq: 1 label: "Rename gradient"
+    ops { set { node { counter: 1 replica: 7 } paths { segments { field: 71 } segments { field: 1 } segments { field: 1 } }
+      values { gradient_swatch { common { name: "Dusk" } } } } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 4 base_server_seq: 1 label: "Recolor stop"
+    ops { set { node { counter: 1 replica: 7 } paths { segments { field: 71 } segments { field: 2 } segments { field: 5 } segments { element { counter: 2 replica: 7 } } segments { field: 3 } }
+      values { gradient_swatch { gradient { stops { color { inline { rgb { r: 1 g: 0 b: 0 } space: COLOR_SPACE_SRGB } } } } } } } }
+  }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "0d675d5869562e156800c90f03ca2e1e7455dc7cd8cd2a8c622136b8b8d7ce61"
+  snapshot_hash: "8b221cc115cafac530b74f6c89e9fe336178489bfa6e34f0b50d59193d602123"
+  node {
+    id { counter: 1 replica: 7 }
+    node_hash: "fc4d646a8d15e8e6991fbb65c9dc0e0e53ebe1861cef9bb7196465740809128f"
+    register { path { segments { field: 71 } segments { field: 1 } segments { field: 1 } } value { gradient_swatch { common { name: "Dusk" } } } op { counter: 4 replica: 1 } losing { counter: 1 replica: 7 } }
+    register { path { segments { field: 71 } segments { field: 2 } segments { field: 5 } segments { element { counter: 2 replica: 7 } } segments { field: 3 } } value { gradient_swatch { gradient { stops { color { inline { rgb { r: 1 g: 0 b: 0 } space: COLOR_SPACE_SRGB } } } } } } op { counter: 4 replica: 2 } losing { counter: 2 replica: 7 } }
+    sequence { path { segments { field: 71 } segments { field: 2 } segments { field: 5 } } elements { counter: 2 replica: 7 } elements { counter: 3 replica: 7 } }
+  }
+}

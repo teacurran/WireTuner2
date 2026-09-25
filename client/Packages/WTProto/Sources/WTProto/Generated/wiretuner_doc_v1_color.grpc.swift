@@ -1,6 +1,7 @@
 /// proto/wiretuner/doc/v1/color.proto
 ///
-/// The `swatch` node kind (docs/_includes/color/swatches.adoc, COLOR-001).  Swatches are nodes
+/// The `swatch` and `gradient_swatch` node kinds (docs/_includes/color/swatches.adoc, COLOR-001;
+/// docs/_includes/appearance/gradients.adoc, ATTR-029).  Swatches are nodes
 /// under the well-known `swatches` collection (0:5); a swatch's sibling position is the list
 /// order and its `CommonProps.name` is the swatch name.  None is not a node: it is the `none`
 /// case of ColorRef.  `ColorSpace`, `Color`, `Cmyk`, `Rgb`, `Lab`, `ColorRef` and `InlineTint`

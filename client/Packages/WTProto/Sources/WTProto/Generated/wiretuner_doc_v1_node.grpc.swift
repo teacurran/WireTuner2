@@ -12,9 +12,10 @@
 ///
 ///   Block     Epic    Cases so far
 ///   1-19      DOC     1 document, 2 settings, 3 page, 4 master_page, 5 asset
-///   20-49     DRAW    20 path, 21 rect, 22 ellipse, 23 polygon, 24 chart, 25 connector
+///   20-49     DRAW    20 path, 21 rect, 22 ellipse, 23 polygon, 24 chart, 25 connector,
+///                     26 hose_set (DRAW-038)
 ///   50-69     OBJ     50 group
-///   70-79     COLOR   70 swatch
+///   70-79     COLOR   70 swatch, 71 gradient_swatch (ATTR-029)
 ///   80-99     ATTR    80 brush
 ///   100-129   FX      100 blend, 101 extrude, 102 envelope, 103 perspective
 ///   130-149   TYPE    130 text (text styles are `style` nodes of kind PARAGRAPH/CHARACTER)

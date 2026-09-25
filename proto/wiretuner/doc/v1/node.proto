@@ -12,9 +12,10 @@
 //
 //   Block     Epic    Cases so far
 //   1-19      DOC     1 document, 2 settings, 3 page, 4 master_page, 5 asset
-//   20-49     DRAW    20 path, 21 rect, 22 ellipse, 23 polygon, 24 chart, 25 connector
+//   20-49     DRAW    20 path, 21 rect, 22 ellipse, 23 polygon, 24 chart, 25 connector,
+//                     26 hose_set (DRAW-038)
 //   50-69     OBJ     50 group
-//   70-79     COLOR   70 swatch
+//   70-79     COLOR   70 swatch, 71 gradient_swatch (ATTR-029)
 //   80-99     ATTR    80 brush
 //   100-129   FX      100 blend, 101 extrude, 102 envelope, 103 perspective
 //   130-149   TYPE    130 text (text styles are `style` nodes of kind PARAGRAPH/CHARACTER)
@@ -44,6 +45,7 @@ import "wiretuner/doc/v1/envelope.proto";
 import "wiretuner/doc/v1/extrude.proto";
 import "wiretuner/doc/v1/glyph.proto";
 import "wiretuner/doc/v1/group.proto";
+import "wiretuner/doc/v1/hose.proto";
 import "wiretuner/doc/v1/image.proto";
 import "wiretuner/doc/v1/layer.proto";
 import "wiretuner/doc/v1/path.proto";
@@ -83,7 +85,8 @@ enum WellKnown {
   WELL_KNOWN_SWATCHES = 5;
   // 0:6, the styles collection: graphic and text styles.
   WELL_KNOWN_STYLES = 6;
-  // 0:7, the symbols collection (Library panel); each symbol's children are its objects.
+  // 0:7, the symbols collection (Library panel): symbols, symbol folders and hose sets; each
+  // symbol's and hose set's children are its objects.
   WELL_KNOWN_SYMBOLS = 7;
   // 0:8, the brushes collection.
   WELL_KNOWN_BRUSHES = 8;
@@ -149,10 +152,14 @@ message NodeProps {
     ChartProps chart = 24;
     // A connector line joining two objects (DRAW block, connector.proto).
     ConnectorProps connector = 25;
+    // A Graphic Hose set under 0:7, its children the hose's objects (DRAW block, hose.proto).
+    HoseSetProps hose_set = 26;
     // A group of objects (OBJ block).
     GroupProps group = 50;
     // A color or tint swatch under 0:5 (COLOR block, color.proto).
     SwatchProps swatch = 70;
+    // A gradient swatch under 0:5 (COLOR block, color.proto).
+    GradientSwatchProps gradient_swatch = 71;
     // A brush under 0:8 (ATTR block, stroke.proto).
     BrushProps brush = 80;
     // A blend of key objects (FX block, blend.proto).

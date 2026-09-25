@@ -16,9 +16,12 @@ public enum GradientFields {
     public static let axis: [UInt32] = [3, 4]
     public static let stops: [UInt32] = [3, 5]
     public static let overprint: [UInt32] = [3, 6]
-    /// A stop's `offset` and `color`, relative to its element.
+    /// The application whose stops make the ramp (ATTR-029, `GradientFill.ramp`).
+    public static let ramp: [UInt32] = [3, 7]
+    /// A stop's `offset`, `color` and `ramp`, relative to its element.
     public static let stopOffset: UInt32 = 2
     public static let stopColor: UInt32 = 3
+    public static let stopRamp: UInt32 = 4
 }
 
 /// One stop of a ramp as read.
@@ -45,8 +48,10 @@ public struct NormalizedGradient: Hashable, Sendable {
 /// Reading gradients.
 public enum GradientReading {
     /// The live stops of `gradient` in ramp order: offset (clamped to 0 ... 1), then element id.
+    /// Only stops of the fill's current ramp are read: a stop whose `ramp` is not the fill's
+    /// belongs to an application a later one replaced (ATTR-029; both unset counts as equal).
     public static func ramp(_ gradient: Wiretuner_Doc_V1_GradientFill) -> [GradientRampStop] {
-        gradient.stops.map { stop in
+        gradient.stops.filter { $0.ramp == gradient.ramp }.map { stop in
             let offset = stop.offset.isFinite ? min(max(stop.offset, 0), 1) : 0
             return GradientRampStop(id: OpID(element: stop.id) ?? .zero, offset: offset, color: stop.color)
         }.sorted { a, b in a.offset != b.offset ? a.offset < b.offset : a.id < b.id }
@@ -128,17 +133,21 @@ enum GradientEditing {
         return AppearanceEditing.values(owner) { $0.fills = [fill] }
     }
 
-    /// `ElementInsert`s of `stops` (offset, colour) into the fill's ramp after its last stop.
+    /// `ElementInsert`s of `stops` (offset, colour) into the fill's ramp after its last stop, each
+    /// stamped with `ramp` -- by default the fill's current ramp, so a stop added to a ramp that a
+    /// concurrent application replaces goes with it.
     static func insert(_ stops: [(offset: Double, color: Wiretuner_Doc_V1_ColorRef)], node: OpID, owner: StackOwner, row: AppearanceRow,
-                       state: EngineState, builder: inout ChangeBuilder) throws {
+                       state: EngineState, ramp: Wiretuner_Doc_V1_ElementId? = nil, builder: inout ChangeBuilder) throws {
         let sequence = self.stops(owner, row)
         let last = state.liveElements(node, sequence).last.flatMap { state.position(node, sequence, $0) }
         let keys = try PathEditing.keys(between: last, and: nil, count: stops.count)
+        let stamp = ramp ?? AttributeEntry.read(node, row, owner: owner, state: state).fill.settings.gradient.ramp
         var gradient = Wiretuner_Doc_V1_GradientFill()
         gradient.stops = stops.map { stop in
             var value = Wiretuner_Doc_V1_GradientStop()
             value.offset = min(max(stop.offset, 0), 1)
             value.color = stop.color
+            if stamp != Wiretuner_Doc_V1_ElementId() { value.ramp = stamp }
             return value
         }
         builder.append(Ops.elementInsert(node, sequence, positions: keys, values: values(owner, gradient)))
@@ -178,7 +187,7 @@ public struct ChooseGradient: Command {
             let base = GradientEditing.settings(owner, row)
             var gradient = Wiretuner_Doc_V1_GradientFill()
             var fields = [AttributeFields.kind]
-            let fresh = entry.fill.settings.gradient.stops.isEmpty
+            let fresh = GradientReading.ramp(entry.fill.settings.gradient).isEmpty
             if fresh {
                 gradient.type = type
                 fields.append(GradientFields.type)
@@ -418,7 +427,9 @@ public struct ConvertGradientToBasic: Command {
 /// gradient to a group applies it to every object in the group individually"), gets `gradient`
 /// on its topmost fill -- kind, type, behavior, count, axis (unset: Auto size, so each object
 /// fits its own bounds) and a ramp replacing the old stops -- or on a new fill when it has none.
-/// Labelled "Apply gradient" or "Apply gradient to 3 objects".
+/// The new stops and the fill's `ramp` register name this application (the first new stop's
+/// id), written with the other registers, so of two concurrent applications the later wins in
+/// full (ATTR-029).  Labelled "Apply gradient" or "Apply gradient to 3 objects".
 public struct ApplyGradient: Command {
     public var nodes: [OpID]
     public var gradient: Wiretuner_Doc_V1_GradientFill
@@ -451,16 +462,22 @@ public struct ApplyGradient: Command {
         guard stops.count >= 2 else { throw ObjectEditError.invalidValue("stops") }
         var registers = gradient
         registers.stops = []
-        let fields = [AttributeFields.kind, GradientFields.type, GradientFields.behavior, GradientFields.repeatCount, GradientFields.axis]
+        registers.clearRamp()
+        let fields = [AttributeFields.kind, GradientFields.type, GradientFields.behavior, GradientFields.repeatCount, GradientFields.axis,
+                      GradientFields.ramp]
         for node in Self.leaves(nodes, in: state) {
             let owner = try AppearanceEditing.owner(node, in: state)
             if let top = AppearanceEditing.stack(node, in: state).last(where: { $0.list == .fills }) {
                 let sequence = GradientEditing.stops(owner, top)
                 let old = state.liveElements(node, sequence).map { sequence.element($0) }
-                builder.append(Ops.set(node, fields.map { GradientEditing.settings(owner, top).appending($0) },
-                                       values: GradientEditing.values(owner, registers, kind: .gradient)))
                 if !old.isEmpty { builder.append(Ops.elementDelete(node, old)) }
-                try GradientEditing.insert(stops, node: node, owner: owner, row: top, state: state, builder: &builder)
+                // The application is named by the id its first stop is about to take.
+                let application = OpID(counter: builder.nextCounter, replica: builder.replica).elementID
+                try GradientEditing.insert(stops, node: node, owner: owner, row: top, state: state, ramp: application, builder: &builder)
+                var applied = registers
+                applied.ramp = application
+                builder.append(Ops.set(node, fields.map { GradientEditing.settings(owner, top).appending($0) },
+                                       values: GradientEditing.values(owner, applied, kind: .gradient)))
             } else {
                 // A new fill takes the registers with its insert; its stops are a sequence of
                 // their own, inserted once the fill exists.
@@ -469,14 +486,20 @@ public struct ApplyGradient: Command {
                                                                values: GradientEditing.values(owner, registers, kind: .gradient)))
                 let row = AppearanceRow(.fills, element)
                 let keys = try PathEditing.keys(between: nil, and: nil, count: stops.count)
+                let application = OpID(counter: builder.nextCounter, replica: builder.replica).elementID
                 var ramp = Wiretuner_Doc_V1_GradientFill()
                 ramp.stops = stops.map { stop in
                     var value = Wiretuner_Doc_V1_GradientStop()
                     value.offset = stop.offset
                     value.color = stop.color
+                    value.ramp = application
                     return value
                 }
                 builder.append(Ops.elementInsert(node, GradientEditing.stops(owner, row), positions: keys, values: GradientEditing.values(owner, ramp)))
+                var named = Wiretuner_Doc_V1_GradientFill()
+                named.ramp = application
+                builder.append(Ops.set(node, [GradientEditing.settings(owner, row).appending(GradientFields.ramp)],
+                                       values: GradientEditing.values(owner, named)))
             }
         }
     }

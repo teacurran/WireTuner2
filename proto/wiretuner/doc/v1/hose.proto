@@ -1,0 +1,108 @@
+// proto/wiretuner/doc/v1/hose.proto
+//
+// The `hose_set` node kind (docs/_includes/drawing/graphic-hose.adoc, DRAW-038): a Graphic Hose
+// set kept in the document.  A set is a child of the well-known `symbols` collection (0:7),
+// beside symbols, so the Library panel can list it.  Its children are the hose's objects in
+// sibling order (usually a `group`, or an `instance` for a symbol member); they are never drawn
+// on the pasteboard.  Only the first ten live children are sprayed (read normalization).  A
+// library hose (`.wthose`) carries the same messages; its library identity is a UUID in
+// `CommonProps.note`, prefixed `wt-hose:`.
+syntax = "proto3";
+
+package wiretuner.doc.v1;
+
+import "buf/validate/validate.proto";
+import "wiretuner/doc/v1/common.proto";
+
+option java_multiple_files = true;
+option java_package = "com.villagecompute.wiretuner.doc.v1";
+option optimize_for = SPEED;
+
+// The order in which a spray takes the set's objects.
+enum HoseOrder {
+  // Reads as LOOP.
+  HOSE_ORDER_UNSPECIFIED = 0;
+  // In order, over and over.
+  HOSE_ORDER_LOOP = 1;
+  // Forward, then backward, then forward again.
+  HOSE_ORDER_BACK_AND_FORTH = 2;
+  // Any object at each step.
+  HOSE_ORDER_RANDOM = 3;
+}
+
+// How far apart sprayed objects land.
+enum HoseSpacing {
+  // Reads as VARIABLE.
+  HOSE_SPACING_UNSPECIFIED = 0;
+  // On a grid of `grid_size` cells, whatever the drag speed.
+  HOSE_SPACING_GRID = 1;
+  // From `spacing_amount`, scaled by the drag speed.
+  HOSE_SPACING_VARIABLE = 2;
+  // Variable, plus a random deviation of up to `spacing_amount`.
+  HOSE_SPACING_RANDOM = 3;
+}
+
+// How sprayed objects are scaled.
+enum HoseScale {
+  // Reads as UNIFORM.
+  HOSE_SCALE_UNSPECIFIED = 0;
+  // Every object at `scale_percent`.
+  HOSE_SCALE_UNIFORM = 1;
+  // Each object between 1% and `scale_percent`.
+  HOSE_SCALE_RANDOM = 2;
+}
+
+// How sprayed objects are rotated.
+enum HoseRotation {
+  // Reads as UNIFORM.
+  HOSE_ROTATION_UNSPECIFIED = 0;
+  // Every object at `angle`.
+  HOSE_ROTATION_UNIFORM = 1;
+  // Each object `angle` further than the one before.
+  HOSE_ROTATION_INCREMENTAL = 2;
+  // Each object at any angle.
+  HOSE_ROTATION_RANDOM = 3;
+}
+
+// NodeProps.kind case `hose_set` (DRAW block).  STRUCT: the name and each option are separate
+// registers, so a rename and an option change from two people both hold.
+message HoseSetProps {
+  // The set's name (CommonProps.name) and the other shared registers.  `note` holds the
+  // library identity (`wt-hose:<UUID>`) of a set copied from a library hose.
+  CommonProps common = 1;
+  // The spray options.  STRUCT: each option is a separate decision; the same option edited
+  // twice is LWW.
+  HoseOptions options = 2;
+}
+
+// A hose's spray options.  Every field is its own ATOMIC register.
+message HoseOptions {
+  // The order the objects are taken in.
+  HoseOrder order = 1 [(buf.validate.field).enum.defined_only = true];
+  // How spacing is decided.
+  HoseSpacing spacing = 2 [(buf.validate.field).enum.defined_only = true];
+  // The GRID cell size, points.  0 or less (never set) reads as 36.
+  double grid_size = 3 [
+    (buf.validate.field).double.gt = 0,
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+  // VARIABLE: tight (0) to loose (200); RANDOM: the deviation, 0 .. 200.
+  double spacing_amount = 4 [(buf.validate.field).double = {
+    gte: 0
+    lte: 200
+  }];
+  // How scale is decided.
+  HoseScale scale = 5 [(buf.validate.field).enum.defined_only = true];
+  // UNIFORM: the scale; RANDOM: the largest scale.  1 .. 200 percent; 0 (never set) reads 100.
+  double scale_percent = 6 [
+    (buf.validate.field).double = {
+      gte: 1
+      lte: 200
+    },
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
+  // How rotation is decided.
+  HoseRotation rotation = 7 [(buf.validate.field).enum.defined_only = true];
+  // UNIFORM: the angle; INCREMENTAL: the step.  Radians; NaN or infinite reads as 0.
+  double angle = 8;
+}

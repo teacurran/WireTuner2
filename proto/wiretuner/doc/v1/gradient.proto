@@ -64,6 +64,12 @@ message GradientFill {
   repeated GradientStop stops = 5 [(wt.crdt.field).merge = MERGE_SEQUENCE];
   // Print-time overprint.
   bool overprint = 6;
+  // The application whose stops make the ramp (ATTR-029): the element id of the first stop an
+  // application (a gradient swatch, a modifier drop) inserted.  ATOMIC, written with the
+  // application's registers, so of two concurrent applications the later wins in full: the ramp
+  // reads only the live stops whose `ramp` equals this (both unset counts as equal).  Unset on
+  // a fill no application has written.
+  ElementId ramp = 7 [(wt.crdt.field).merge = MERGE_ATOMIC];
 }
 
 // A gradient's handles in object-local coordinates.  ATOMIC wherever used.
@@ -89,4 +95,7 @@ message GradientStop {
   }];
   // Swatch reference or inline color.  ATOMIC.
   ColorRef color = 3 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // The GradientFill.ramp in force when the stop was inserted; never written afterwards.  A
+  // stop whose `ramp` is not the fill's belongs to a replaced ramp and is not read.  ATOMIC.
+  ElementId ramp = 4 [(wt.crdt.field).merge = MERGE_ATOMIC];
 }

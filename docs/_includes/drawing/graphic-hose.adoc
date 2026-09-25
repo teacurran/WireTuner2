@@ -110,10 +110,10 @@ message HoseSetProps {
 message HoseOptions {
   HoseOrder order = 1;                        // LOOP (default), BACK_AND_FORTH, RANDOM
   HoseSpacing spacing = 2;                    // GRID, VARIABLE (default), RANDOM
-  double grid_size = 3 [(buf.validate.field).double.gt = 0];       // pt
+  double grid_size = 3 [(buf.validate.field).double.gt = 0];       // pt; 0 = unset
   double spacing_amount = 4 [(buf.validate.field).double = {gte: 0, lte: 200}];
   HoseScale scale = 5;                        // UNIFORM (default), RANDOM
-  double scale_percent = 6 [(buf.validate.field).double = {gte: 1, lte: 200}];
+  double scale_percent = 6 [(buf.validate.field).double = {gte: 1, lte: 200}];  // 0 = unset
   HoseRotation rotation = 7;                  // UNIFORM (default), INCREMENTAL, RANDOM
   double angle = 8;                           // radians
 }
@@ -187,6 +187,44 @@ watches it with a dispatch source, loads bundles lazily, writes new library sets
 the shipped defaults from the app bundle on first launch and on *Restore default hoses*.
 
 Undo:: One group per spray stroke ("Spray N objects"), per set edit.
+
+NOTE: As built by DRAW-038 (`proto/wiretuner/doc/v1/hose.proto`, `WTModel/HoseSets.swift`,
+`HoseLibrary.swift`, `HosePreview.swift`, `WTRender/Hose/HoseSpray.swift`).  `hose_set` is
+`NodeProps` case 26; the enum values carry their `HOSE_ORDER_`, `HOSE_SPACING_`, `HOSE_SCALE_` and
+`HOSE_ROTATION_` prefixes, unspecified reading as the defaults; `grid_size` and `scale_percent`
+ignore their range rules at zero (the never-set value the normalizations read as 36 pt and 100%)
+and `angle` has none (NaN or infinite reads 0).  Commands: `CreateHoseSet`, `RenameHoseSet` (names
+are trimmed, non-empty and unique among the document's sets), `DuplicateHoseSet` (the copy has no
+library identity), `DeleteHoseSet`, `RestoreHoseSet`, `AddHoseObject` (btn:[Paste In]: one copied
+object as it is, several as a group, centred on the origin so a spray places objects by their
+centre; refused at ten live objects), `RemoveHoseObject`, `SetHoseOptions` (one path per option),
+`ImportHoseSet` (the library copy, skipped when a live set has the identity; with two after a
+merge the smaller id is used) and `SprayHose` (one `CreateNode` tree per placement on top of the
+active or drawing layer; `SprayHose.strokes` splits a stroke at the op limit, every piece labelled
+with the whole stroke's count).  `HoseSets.set` applies the read normalizations: `objects` is the
+first ten live children, `extras` the rest.  *Deviation*: a `.wthose` bundle's `hose.binpb` is the
+native pasteboard encoding (`ClipboardPayload` with the set as its one node), not a
+`Subtree`: the same doc.v1 messages plus each object's attribute-stack order, which a `Subtree`
+cannot carry, so the round trip is lossless.  `preview.png` is optional and written by the app.
+*Deviation*: the default hoses (Dots, Stars, Leaves) are built in code by `HoseDefaults` rather
+than copied from the app bundle, so the packages carry no resources; they are installed when the
+library folder does not exist yet (the first launch) and by *Restore default hoses*, matched by
+their fixed identities.  `HoseLibrary.startWatching` reports the folder's bundles on every change
+through a dispatch source (a dropped bundle is seen well within 1 s).  The spray layout
+(`HoseSprayer`) fixes the numbers the Client section leaves open: variable spacing is
+`extent × (0.1 + spacing_amount / 100)` times the speed factor (drag speed over 400 pt/s, clamped
+to 0.5 ... 3), where `extent` is the largest side of the set's objects; random spacing is
+`extent` times the speed factor times `1 + u × spacing_amount / 200` for `u` in −1 ... 1 (at least
+0.1 × extent); grid places one object per cell the drag enters, at the cell's centre; the press
+places the first object.  Back and forth runs `0, 1, …, n−1, n−2, …, 1, 0`; incremental rotation
+is `k × angle`, the first object unrotated; random scale is uniform in 1% ... `scale_percent`.
+kbd:[Left]/kbd:[Right] multiply the spacing by 0.8 and 1.25, kbd:[Up]/kbd:[Down] the scale by 0.8
+and 1.25.  `HosePreview` gives the overlay's and the *Contents* pop-up's display items (paths,
+shapes and groups; text, images and instances are left out of the preview only).  The tool and
+the sheet (DRAW-039, DRAW-040) are not built: the tool feeds `HoseSprayer` its drag samples, draws
+`HosePreview.items` in the overlay, runs `ImportHoseSet` first for a library hose and
+`SprayHose.strokes` on mouse-up inside one undo group; the sheet lists `HoseSets.list` then
+`HoseLibrary.entries`, and maps its buttons to the commands above.
 
 === Build tasks
 

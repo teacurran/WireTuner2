@@ -153,6 +153,8 @@ message GradientFill {
   // sequence position (see Merge semantics).
   repeated GradientStop stops = 5 [(wt.crdt.field).merge = MERGE_SEQUENCE];
   bool overprint = 6;
+  // The application whose stops make the ramp (ATTR-029): the first stop it inserted.
+  ElementId ramp = 7 [(wt.crdt.field).merge = MERGE_ATOMIC];
 }
 // Enum values carry their GRADIENT_TYPE_ / GRADIENT_BEHAVIOR_ prefixes in gradient.proto.
 enum GradientType { GRADIENT_TYPE_UNSPECIFIED = 0; LINEAR = 1; LOGARITHMIC = 2; RADIAL = 3;
@@ -171,6 +173,14 @@ message GradientStop {
   ElementId id = 1;
   double offset = 2;                   // 0 .. 1 along the ramp
   ColorRef color = 3 [(wt.crdt.field).merge = MERGE_ATOMIC];   // swatch reference or inline color
+  ElementId ramp = 4 [(wt.crdt.field).merge = MERGE_ATOMIC];    // GradientFill.ramp at insert
+}
+
+// proto/wiretuner/doc/v1/color.proto: NodeProps case 71 under 0:5 (ATTR-029)
+message GradientSwatchProps {
+  CommonProps common = 1;              // name
+  GradientFill gradient = 2;           // type, behavior, count, stops; axis and ramp unused
+  string group = 3;
 }
 ----
 
@@ -192,6 +202,15 @@ Same stop, same field: later wins.  Remove vs. recolor: the tombstone holds the 
 review offers *Restore*, which re-inserts a stop with that offset and color.  Two users adding
 stops at the same offset produce two stops; the read-out orders them by id and the ramp shows
 both.
+
+Gradient applications (a gradient swatch, a modifier drop)::
+An application deletes the old stops, inserts its own -- each tagged with the application, the id
+its first stop takes -- and writes the type, behavior, count, axis and the ATOMIC `ramp` register
+naming the application in one set op.  Two concurrent applications both insert, but one set op
+wins every register at once, and the ramp reads only live stops whose tag equals `ramp`, so the
+later application wins in full.  A stop added (or copied) is tagged with the fill's `ramp` as it
+was, so a stop added to a ramp a concurrent application replaced goes with that ramp.  Stops with
+no tag on a fill with no `ramp` (everything written before ATTR-029) read as before.
 
 Ramp order::
 Determined at read time by sorting live stops by `offset`, then element id.  Sequence
@@ -309,6 +328,24 @@ Contour gradient centred at the drop point reaching the farthest corner; the fir
 `ApplyGradient` on the object under the pointer -- a group's member.  *Deviation*: the gradient rules
 apply to swatch drags only; any other colour drag keeps COLOR-011's modifiers, where kbd:[Option] alone
 colours the member solid.
+NOTE: As built by ATTR-029 (`WTModel/GradientSwatches.swift`, the `ramp` register in
+`GradientCommands.swift`).  A gradient swatch is a `gradient_swatch` node (case 71, COLOR block)
+under 0:5 beside the colour swatches, which `SwatchList` does not list; `GradientSwatches.list`
+reads them in sibling order.  `AddGradientSwatch` (from a fill, or from any `GradientFill`) keeps
+the type, behavior, count, overprint and the ramp's offsets and colours -- swatch references
+intact -- but not the axis, which is object geometry: `ApplyGradientSwatch` goes through
+`ApplyGradient`, so each object takes Auto size geometry and a fill → swatch → fill round trip
+returns the same gradient apart from the handles.  Names default to "Gradient", "Gradient 2", ...;
+a typed name another gradient swatch holds is refused.  `RenameGradientSwatch` and
+`RemoveGradientSwatches` complete the set; objects keep what was applied.
+`GradientSwatches.gradient` gives the renderer's `Gradient` with stop colours resolved through a
+`ColorResolver`, so a Swatches-panel chip follows a recoloured stop swatch.  *Deviation*: "the
+later application wins in full" needs the `GradientFill.ramp` register and the `GradientStop.ramp`
+tag (see Merge semantics); a SEQUENCE alone keeps both applications' stops.  The Swatches panel's
+gradient chips, the ramp drag onto the panel and the click that applies one (WTApp) are not built:
+the panel lists `GradientSwatches.list` after the colours, draws each chip by filling a rectangle
+with `GradientSwatches.gradient`, and runs `AddGradientSwatch(node:row:in:)` on a ramp drop and
+`ApplyGradientSwatch` on a click with objects selected.
 
 === Build tasks
 

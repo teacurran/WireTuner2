@@ -1,0 +1,40 @@
+# crdt-conformance/vectors/hose/delete-set-vs-add-object.textproto (DRAW-038; schema: crdt-conformance/schema/vector.proto)
+name: "hose/delete-set-vs-add-object"
+description: "Replica 1 deletes a hose set while replica 2 adds an object to it.  The set is deleted and the object is inside it, live, on every replica: restoring the set (clearing its deleted flag) brings the object back with it."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "New hose set"
+    ops { create { parent { counter: 7 } position: "\x80" props { hose_set { common { name: "Stars" } } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x80" props { group { common { name: "Object" } } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 3 base_server_seq: 1 label: "Delete hose set"
+    ops { set_deleted { node { counter: 1 replica: 7 } deleted: true } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 3 base_server_seq: 1 label: "Add object"
+    ops { create { parent { counter: 1 replica: 7 } position: "\x81" props { group { common { name: "Object" } } } } }
+  }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "fb3033c2e67f8327433eb65acd7df666c59cf194846b5b293d18d185cacac1ed"
+  snapshot_hash: "c21fed8efcbfaa80d94c3013ce47fa69bec5971a5f7088d7be70764b404f12b6"
+  node {
+    id { counter: 1 replica: 7 }
+    node_hash: "18f2a2f16abed59595d862a8bcd295baf60a33c933f32cf4ab8b26620df5533f"
+    tree { parent { counter: 7 } position: "\x80" deleted: true children { counter: 2 replica: 7 } children { counter: 3 replica: 2 } }
+  }
+  node {
+    id { counter: 3 replica: 2 }
+    node_hash: "39016f30007a75b5cc3c230ffeb254e5e25c50f8b150a1155d2cfda82f42a22b"
+    tree { parent { counter: 1 replica: 7 } position: "\x81" }
+  }
+}

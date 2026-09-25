@@ -5844,6 +5844,17 @@
           "repeated": false,
           "type": "bool",
           "type_name": null
+        },
+        "7": {
+          "element_message": null,
+          "local_only": false,
+          "name": "ramp",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ElementId"
         }
       }
     },
@@ -5881,6 +5892,54 @@
           "repeated": false,
           "type": "message",
           "type_name": "wiretuner.doc.v1.ColorRef"
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "ramp",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ElementId"
+        }
+      }
+    },
+    "wiretuner.doc.v1.GradientSwatchProps": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "common",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.CommonProps"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "gradient",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.GradientFill"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "group",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "string",
+          "type_name": null
         }
       }
     },
@@ -6088,6 +6147,124 @@
           "repeated": false,
           "type": "double",
           "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.HoseOptions": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "order",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.HoseOrder"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "spacing",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.HoseSpacing"
+        },
+        "3": {
+          "element_message": null,
+          "local_only": false,
+          "name": "grid_size",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "spacing_amount",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "scale",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.HoseScale"
+        },
+        "6": {
+          "element_message": null,
+          "local_only": false,
+          "name": "scale_percent",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "7": {
+          "element_message": null,
+          "local_only": false,
+          "name": "rotation",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "enum",
+          "type_name": "wiretuner.doc.v1.HoseRotation"
+        },
+        "8": {
+          "element_message": null,
+          "local_only": false,
+          "name": "angle",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.HoseSetProps": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "common",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.CommonProps"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "options",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.HoseOptions"
         }
       }
     },
@@ -8094,6 +8271,17 @@
           "type": "message",
           "type_name": "wiretuner.doc.v1.ConnectorProps"
         },
+        "26": {
+          "element_message": null,
+          "local_only": false,
+          "name": "hose_set",
+          "on_dangling": "UNSET",
+          "oneof": "kind",
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.HoseSetProps"
+        },
         "260": {
           "element_message": null,
           "local_only": false,
@@ -8159,6 +8347,17 @@
           "repeated": false,
           "type": "message",
           "type_name": "wiretuner.doc.v1.SwatchProps"
+        },
+        "71": {
+          "element_message": null,
+          "local_only": false,
+          "name": "gradient_swatch",
+          "on_dangling": "UNSET",
+          "oneof": "kind",
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.GradientSwatchProps"
         },
         "80": {
           "element_message": null,
@@ -13708,5 +13907,5 @@
       "kind_field": 1
     }
   },
-  "version": "9c8fccb6ee6af34683d96e1796fbc0272321d4919acd3deb6bd85a56c4fc4bb1"
+  "version": "3d708bbc463dca0c537f3038e4115c9e850a9659566848c5624008b8fcf68636"
 }

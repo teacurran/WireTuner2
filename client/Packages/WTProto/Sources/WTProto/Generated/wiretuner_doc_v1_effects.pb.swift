@@ -1319,40 +1319,52 @@ public nonisolated struct Wiretuner_Doc_V1_SharpenEffect: Sendable {
 }
 
 /// Transparency effect (transparency.adoc).
-public nonisolated struct Wiretuner_Doc_V1_TransparencyEffect: Sendable {
+public nonisolated struct Wiretuner_Doc_V1_TransparencyEffect: @unchecked Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   /// Which transparency.
-  public var style: Wiretuner_Doc_V1_TransparencyStyle = .unspecified
+  public var style: Wiretuner_Doc_V1_TransparencyStyle {
+    get {_storage._style}
+    set {_uniqueStorage()._style = newValue}
+  }
 
   /// BASIC: 0 opaque .. 100 invisible.
-  public var amount: UInt32 = 0
+  public var amount: UInt32 {
+    get {_storage._amount}
+    set {_uniqueStorage()._amount = newValue}
+  }
 
   /// FEATHER: points, at least 0.
-  public var radius: Double = 0
+  public var radius: Double {
+    get {_storage._radius}
+    set {_uniqueStorage()._radius = newValue}
+  }
 
   /// FEATHER: 0 .. 100.
-  public var softness: UInt32 = 0
+  public var softness: UInt32 {
+    get {_storage._softness}
+    set {_uniqueStorage()._softness = newValue}
+  }
 
   /// GRADIENT_MASK: the ATTR gradient (gradient.proto) whose stop luminance is 1 - alpha.
   /// STRUCT with its stops a SEQUENCE, exactly as in a gradient fill, so stop edits merge
   /// individually.  Its `overprint` is ignored.
   public var mask: Wiretuner_Doc_V1_GradientFill {
-    get {_mask ?? Wiretuner_Doc_V1_GradientFill()}
-    set {_mask = newValue}
+    get {_storage._mask ?? Wiretuner_Doc_V1_GradientFill()}
+    set {_uniqueStorage()._mask = newValue}
   }
   /// Returns true if `mask` has been explicitly set.
-  public var hasMask: Bool {self._mask != nil}
+  public var hasMask: Bool {_storage._mask != nil}
   /// Clears the value of `mask`. Subsequent reads from it will return its default value.
-  public mutating func clearMask() {self._mask = nil}
+  public mutating func clearMask() {_uniqueStorage()._mask = nil}
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
-  fileprivate var _mask: Wiretuner_Doc_V1_GradientFill? = nil
+  fileprivate var _storage = _StorageClass.defaultInstance
 }
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
@@ -2261,51 +2273,95 @@ nonisolated extension Wiretuner_Doc_V1_TransparencyEffect: SwiftProtobuf.Message
   public static let protoMessageName: String = _protobuf_package + ".TransparencyEffect"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}style\0\u{1}amount\0\u{1}radius\0\u{1}softness\0\u{1}mask\0")
 
+  fileprivate class _StorageClass {
+    var _style: Wiretuner_Doc_V1_TransparencyStyle = .unspecified
+    var _amount: UInt32 = 0
+    var _radius: Double = 0
+    var _softness: UInt32 = 0
+    var _mask: Wiretuner_Doc_V1_GradientFill? = nil
+
+      // This property is used as the initial default value for new instances of the type.
+      // The type itself is protecting the reference to its storage via CoW semantics.
+      // This will force a copy to be made of this reference when the first mutation occurs;
+      // hence, it is safe to mark this as `nonisolated(unsafe)`.
+      static nonisolated(unsafe) let defaultInstance = _StorageClass()
+
+    private init() {}
+
+    init(copying source: _StorageClass) {
+      _style = source._style
+      _amount = source._amount
+      _radius = source._radius
+      _softness = source._softness
+      _mask = source._mask
+    }
+  }
+
+  fileprivate mutating func _uniqueStorage() -> _StorageClass {
+    if !isKnownUniquelyReferenced(&_storage) {
+      _storage = _StorageClass(copying: _storage)
+    }
+    return _storage
+  }
+
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularEnumField(value: &self.style) }()
-      case 2: try { try decoder.decodeSingularUInt32Field(value: &self.amount) }()
-      case 3: try { try decoder.decodeSingularDoubleField(value: &self.radius) }()
-      case 4: try { try decoder.decodeSingularUInt32Field(value: &self.softness) }()
-      case 5: try { try decoder.decodeSingularMessageField(value: &self._mask) }()
-      default: break
+    _ = _uniqueStorage()
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      while let fieldNumber = try decoder.nextFieldNumber() {
+        // The use of inline closures is to circumvent an issue where the compiler
+        // allocates stack space for every case branch when no optimizations are
+        // enabled. https://github.com/apple/swift-protobuf/issues/1034
+        switch fieldNumber {
+        case 1: try { try decoder.decodeSingularEnumField(value: &_storage._style) }()
+        case 2: try { try decoder.decodeSingularUInt32Field(value: &_storage._amount) }()
+        case 3: try { try decoder.decodeSingularDoubleField(value: &_storage._radius) }()
+        case 4: try { try decoder.decodeSingularUInt32Field(value: &_storage._softness) }()
+        case 5: try { try decoder.decodeSingularMessageField(value: &_storage._mask) }()
+        default: break
+        }
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    // The use of inline closures is to circumvent an issue where the compiler
-    // allocates stack space for every if/case branch local when no optimizations
-    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
-    // https://github.com/apple/swift-protobuf/issues/1182
-    if self.style != .unspecified {
-      try visitor.visitSingularEnumField(value: self.style, fieldNumber: 1)
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every if/case branch local when no optimizations
+      // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+      // https://github.com/apple/swift-protobuf/issues/1182
+      if _storage._style != .unspecified {
+        try visitor.visitSingularEnumField(value: _storage._style, fieldNumber: 1)
+      }
+      if _storage._amount != 0 {
+        try visitor.visitSingularUInt32Field(value: _storage._amount, fieldNumber: 2)
+      }
+      if _storage._radius.bitPattern != 0 {
+        try visitor.visitSingularDoubleField(value: _storage._radius, fieldNumber: 3)
+      }
+      if _storage._softness != 0 {
+        try visitor.visitSingularUInt32Field(value: _storage._softness, fieldNumber: 4)
+      }
+      try { if let v = _storage._mask {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
+      } }()
     }
-    if self.amount != 0 {
-      try visitor.visitSingularUInt32Field(value: self.amount, fieldNumber: 2)
-    }
-    if self.radius.bitPattern != 0 {
-      try visitor.visitSingularDoubleField(value: self.radius, fieldNumber: 3)
-    }
-    if self.softness != 0 {
-      try visitor.visitSingularUInt32Field(value: self.softness, fieldNumber: 4)
-    }
-    try { if let v = self._mask {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
-    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Wiretuner_Doc_V1_TransparencyEffect, rhs: Wiretuner_Doc_V1_TransparencyEffect) -> Bool {
-    if lhs.style != rhs.style {return false}
-    if lhs.amount != rhs.amount {return false}
-    if lhs.radius != rhs.radius {return false}
-    if lhs.softness != rhs.softness {return false}
-    if lhs._mask != rhs._mask {return false}
+    if lhs._storage !== rhs._storage {
+      let storagesAreEqual: Bool = withExtendedLifetime((lhs._storage, rhs._storage)) { (_args: (_StorageClass, _StorageClass)) in
+        let _storage = _args.0
+        let rhs_storage = _args.1
+        if _storage._style != rhs_storage._style {return false}
+        if _storage._amount != rhs_storage._amount {return false}
+        if _storage._radius != rhs_storage._radius {return false}
+        if _storage._softness != rhs_storage._softness {return false}
+        if _storage._mask != rhs_storage._mask {return false}
+        return true
+      }
+      if !storagesAreEqual {return false}
+    }
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

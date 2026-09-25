@@ -22,9 +22,10 @@
 ///
 ///   Block     Epic    Cases so far
 ///   1-19      DOC     1 document, 2 settings, 3 page, 4 master_page, 5 asset
-///   20-49     DRAW    20 path, 21 rect, 22 ellipse, 23 polygon, 24 chart, 25 connector
+///   20-49     DRAW    20 path, 21 rect, 22 ellipse, 23 polygon, 24 chart, 25 connector,
+///                     26 hose_set (DRAW-038)
 ///   50-69     OBJ     50 group
-///   70-79     COLOR   70 swatch
+///   70-79     COLOR   70 swatch, 71 gradient_swatch (ATTR-029)
 ///   80-99     ATTR    80 brush
 ///   100-129   FX      100 blend, 101 extrude, 102 envelope, 103 perspective
 ///   130-149   TYPE    130 text (text styles are `style` nodes of kind PARAGRAPH/CHARACTER)
@@ -84,7 +85,8 @@ public nonisolated enum Wiretuner_Doc_V1_WellKnown: SwiftProtobuf.Enum, Swift.Ca
   /// 0:6, the styles collection: graphic and text styles.
   case styles // = 6
 
-  /// 0:7, the symbols collection (Library panel); each symbol's children are its objects.
+  /// 0:7, the symbols collection (Library panel): symbols, symbol folders and hose sets; each
+  /// symbol's and hose set's children are its objects.
   case symbols // = 7
 
   /// 0:8, the brushes collection.
@@ -339,6 +341,15 @@ public nonisolated struct Wiretuner_Doc_V1_NodeProps: Sendable {
     set {kind = .connector(newValue)}
   }
 
+  /// A Graphic Hose set under 0:7, its children the hose's objects (DRAW block, hose.proto).
+  public var hoseSet: Wiretuner_Doc_V1_HoseSetProps {
+    get {
+      if case .hoseSet(let v)? = kind {return v}
+      return Wiretuner_Doc_V1_HoseSetProps()
+    }
+    set {kind = .hoseSet(newValue)}
+  }
+
   /// A group of objects (OBJ block).
   public var group: Wiretuner_Doc_V1_GroupProps {
     get {
@@ -355,6 +366,15 @@ public nonisolated struct Wiretuner_Doc_V1_NodeProps: Sendable {
       return Wiretuner_Doc_V1_SwatchProps()
     }
     set {kind = .swatch(newValue)}
+  }
+
+  /// A gradient swatch under 0:5 (COLOR block, color.proto).
+  public var gradientSwatch: Wiretuner_Doc_V1_GradientSwatchProps {
+    get {
+      if case .gradientSwatch(let v)? = kind {return v}
+      return Wiretuner_Doc_V1_GradientSwatchProps()
+    }
+    set {kind = .gradientSwatch(newValue)}
   }
 
   /// A brush under 0:8 (ATTR block, stroke.proto).
@@ -554,10 +574,14 @@ public nonisolated struct Wiretuner_Doc_V1_NodeProps: Sendable {
     case chart(Wiretuner_Doc_V1_ChartProps)
     /// A connector line joining two objects (DRAW block, connector.proto).
     case connector(Wiretuner_Doc_V1_ConnectorProps)
+    /// A Graphic Hose set under 0:7, its children the hose's objects (DRAW block, hose.proto).
+    case hoseSet(Wiretuner_Doc_V1_HoseSetProps)
     /// A group of objects (OBJ block).
     case group(Wiretuner_Doc_V1_GroupProps)
     /// A color or tint swatch under 0:5 (COLOR block, color.proto).
     case swatch(Wiretuner_Doc_V1_SwatchProps)
+    /// A gradient swatch under 0:5 (COLOR block, color.proto).
+    case gradientSwatch(Wiretuner_Doc_V1_GradientSwatchProps)
     /// A brush under 0:8 (ATTR block, stroke.proto).
     case brush(Wiretuner_Doc_V1_BrushProps)
     /// A blend of key objects (FX block, blend.proto).
@@ -710,7 +734,7 @@ nonisolated extension Wiretuner_Doc_V1_Node: SwiftProtobuf.Message, SwiftProtobu
 
 nonisolated extension Wiretuner_Doc_V1_NodeProps: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".NodeProps"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}document\0\u{1}settings\0\u{1}page\0\u{3}master_page\0\u{1}asset\0\u{2}\u{f}path\0\u{1}rect\0\u{1}ellipse\0\u{1}polygon\0\u{1}chart\0\u{1}connector\0\u{2}\u{19}group\0\u{2}\u{14}swatch\0\u{2}\u{a}brush\0\u{2}\u{14}blend\0\u{1}extrude\0\u{1}envelope\0\u{1}perspective\0\u{2}\u{1b}text\0\u{2}\u{14}layer\0\u{1}symbol\0\u{3}symbol_folder\0\u{1}instance\0\u{1}style\0\u{2}\u{10}image\0\u{3}placed_file\0\u{4}\u{13}svg_animation\0\u{4}\u{14}comment_thread\0\u{2}\u{a}glyph\0\u{2}\u{14}barcode\0\u{1}script\0\u{4}\u{13}custom_view\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}document\0\u{1}settings\0\u{1}page\0\u{3}master_page\0\u{1}asset\0\u{2}\u{f}path\0\u{1}rect\0\u{1}ellipse\0\u{1}polygon\0\u{1}chart\0\u{1}connector\0\u{3}hose_set\0\u{2}\u{18}group\0\u{2}\u{14}swatch\0\u{3}gradient_swatch\0\u{2}\u{9}brush\0\u{2}\u{14}blend\0\u{1}extrude\0\u{1}envelope\0\u{1}perspective\0\u{2}\u{1b}text\0\u{2}\u{14}layer\0\u{1}symbol\0\u{3}symbol_folder\0\u{1}instance\0\u{1}style\0\u{2}\u{10}image\0\u{3}placed_file\0\u{4}\u{13}svg_animation\0\u{4}\u{14}comment_thread\0\u{2}\u{a}glyph\0\u{2}\u{14}barcode\0\u{1}script\0\u{4}\u{13}custom_view\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -861,6 +885,19 @@ nonisolated extension Wiretuner_Doc_V1_NodeProps: SwiftProtobuf.Message, SwiftPr
           self.kind = .connector(v)
         }
       }()
+      case 26: try {
+        var v: Wiretuner_Doc_V1_HoseSetProps?
+        var hadOneofValue = false
+        if let current = self.kind {
+          hadOneofValue = true
+          if case .hoseSet(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.kind = .hoseSet(v)
+        }
+      }()
       case 50: try {
         var v: Wiretuner_Doc_V1_GroupProps?
         var hadOneofValue = false
@@ -885,6 +922,19 @@ nonisolated extension Wiretuner_Doc_V1_NodeProps: SwiftProtobuf.Message, SwiftPr
         if let v = v {
           if hadOneofValue {try decoder.handleConflictingOneOf()}
           self.kind = .swatch(v)
+        }
+      }()
+      case 71: try {
+        var v: Wiretuner_Doc_V1_GradientSwatchProps?
+        var hadOneofValue = false
+        if let current = self.kind {
+          hadOneofValue = true
+          if case .gradientSwatch(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.kind = .gradientSwatch(v)
         }
       }()
       case 80: try {
@@ -1189,6 +1239,10 @@ nonisolated extension Wiretuner_Doc_V1_NodeProps: SwiftProtobuf.Message, SwiftPr
       guard case .connector(let v)? = self.kind else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 25)
     }()
+    case .hoseSet?: try {
+      guard case .hoseSet(let v)? = self.kind else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 26)
+    }()
     case .group?: try {
       guard case .group(let v)? = self.kind else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 50)
@@ -1196,6 +1250,10 @@ nonisolated extension Wiretuner_Doc_V1_NodeProps: SwiftProtobuf.Message, SwiftPr
     case .swatch?: try {
       guard case .swatch(let v)? = self.kind else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 70)
+    }()
+    case .gradientSwatch?: try {
+      guard case .gradientSwatch(let v)? = self.kind else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 71)
     }()
     case .brush?: try {
       guard case .brush(let v)? = self.kind else { preconditionFailure() }

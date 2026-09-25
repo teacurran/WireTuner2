@@ -186,11 +186,26 @@ public nonisolated struct Wiretuner_Doc_V1_GradientFill: Sendable {
   /// Print-time overprint.
   public var overprint: Bool = false
 
+  /// The application whose stops make the ramp (ATTR-029): the element id of the first stop an
+  /// application (a gradient swatch, a modifier drop) inserted.  ATOMIC, written with the
+  /// application's registers, so of two concurrent applications the later wins in full: the ramp
+  /// reads only the live stops whose `ramp` equals this (both unset counts as equal).  Unset on
+  /// a fill no application has written.
+  public var ramp: Wiretuner_Doc_V1_ElementId {
+    get {_ramp ?? Wiretuner_Doc_V1_ElementId()}
+    set {_ramp = newValue}
+  }
+  /// Returns true if `ramp` has been explicitly set.
+  public var hasRamp: Bool {self._ramp != nil}
+  /// Clears the value of `ramp`. Subsequent reads from it will return its default value.
+  public mutating func clearRamp() {self._ramp = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
   fileprivate var _axis: Wiretuner_Doc_V1_GradientAxis? = nil
+  fileprivate var _ramp: Wiretuner_Doc_V1_ElementId? = nil
 }
 
 /// A gradient's handles in object-local coordinates.  ATOMIC wherever used.
@@ -269,12 +284,24 @@ public nonisolated struct Wiretuner_Doc_V1_GradientStop: Sendable {
   /// Clears the value of `color`. Subsequent reads from it will return its default value.
   public mutating func clearColor() {self._color = nil}
 
+  /// The GradientFill.ramp in force when the stop was inserted; never written afterwards.  A
+  /// stop whose `ramp` is not the fill's belongs to a replaced ramp and is not read.  ATOMIC.
+  public var ramp: Wiretuner_Doc_V1_ElementId {
+    get {_ramp ?? Wiretuner_Doc_V1_ElementId()}
+    set {_ramp = newValue}
+  }
+  /// Returns true if `ramp` has been explicitly set.
+  public var hasRamp: Bool {self._ramp != nil}
+  /// Clears the value of `ramp`. Subsequent reads from it will return its default value.
+  public mutating func clearRamp() {self._ramp = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
   fileprivate var _id: Wiretuner_Doc_V1_ElementId? = nil
   fileprivate var _color: Wiretuner_Doc_V1_ColorRef? = nil
+  fileprivate var _ramp: Wiretuner_Doc_V1_ElementId? = nil
 }
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
@@ -291,7 +318,7 @@ nonisolated extension Wiretuner_Doc_V1_GradientBehavior: SwiftProtobuf._ProtoNam
 
 nonisolated extension Wiretuner_Doc_V1_GradientFill: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GradientFill"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}type\0\u{1}behavior\0\u{3}repeat_count\0\u{1}axis\0\u{1}stops\0\u{1}overprint\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}type\0\u{1}behavior\0\u{3}repeat_count\0\u{1}axis\0\u{1}stops\0\u{1}overprint\0\u{1}ramp\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -305,6 +332,7 @@ nonisolated extension Wiretuner_Doc_V1_GradientFill: SwiftProtobuf.Message, Swif
       case 4: try { try decoder.decodeSingularMessageField(value: &self._axis) }()
       case 5: try { try decoder.decodeRepeatedMessageField(value: &self.stops) }()
       case 6: try { try decoder.decodeSingularBoolField(value: &self.overprint) }()
+      case 7: try { try decoder.decodeSingularMessageField(value: &self._ramp) }()
       default: break
       }
     }
@@ -333,6 +361,9 @@ nonisolated extension Wiretuner_Doc_V1_GradientFill: SwiftProtobuf.Message, Swif
     if self.overprint != false {
       try visitor.visitSingularBoolField(value: self.overprint, fieldNumber: 6)
     }
+    try { if let v = self._ramp {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 7)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -343,6 +374,7 @@ nonisolated extension Wiretuner_Doc_V1_GradientFill: SwiftProtobuf.Message, Swif
     if lhs._axis != rhs._axis {return false}
     if lhs.stops != rhs.stops {return false}
     if lhs.overprint != rhs.overprint {return false}
+    if lhs._ramp != rhs._ramp {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -394,7 +426,7 @@ nonisolated extension Wiretuner_Doc_V1_GradientAxis: SwiftProtobuf.Message, Swif
 
 nonisolated extension Wiretuner_Doc_V1_GradientStop: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GradientStop"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}offset\0\u{1}color\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}offset\0\u{1}color\0\u{1}ramp\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -405,6 +437,7 @@ nonisolated extension Wiretuner_Doc_V1_GradientStop: SwiftProtobuf.Message, Swif
       case 1: try { try decoder.decodeSingularMessageField(value: &self._id) }()
       case 2: try { try decoder.decodeSingularDoubleField(value: &self.offset) }()
       case 3: try { try decoder.decodeSingularMessageField(value: &self._color) }()
+      case 4: try { try decoder.decodeSingularMessageField(value: &self._ramp) }()
       default: break
       }
     }
@@ -424,6 +457,9 @@ nonisolated extension Wiretuner_Doc_V1_GradientStop: SwiftProtobuf.Message, Swif
     try { if let v = self._color {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
     } }()
+    try { if let v = self._ramp {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -431,6 +467,7 @@ nonisolated extension Wiretuner_Doc_V1_GradientStop: SwiftProtobuf.Message, Swif
     if lhs._id != rhs._id {return false}
     if lhs.offset != rhs.offset {return false}
     if lhs._color != rhs._color {return false}
+    if lhs._ramp != rhs._ramp {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

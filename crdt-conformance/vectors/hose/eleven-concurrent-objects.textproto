@@ -1,0 +1,43 @@
+# crdt-conformance/vectors/hose/eleven-concurrent-objects.textproto (DRAW-038; schema: crdt-conformance/schema/vector.proto)
+name: "hose/eleven-concurrent-objects"
+description: "Two replicas Paste In objects to one hose set at once: replica 1 adds six, replica 2 five.  Both sets of inserts apply and the set holds eleven live children in one order (position, then id) on every replica; the client sprays only the first ten in that order (graphic-hose.adoc, read-time normalizations)."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "New hose set"
+    ops { create { parent { counter: 7 } position: "\x80" props { hose_set { common { name: "Leaves" } options { order: HOSE_ORDER_LOOP spacing: HOSE_SPACING_VARIABLE spacing_amount: 100 } } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 2 base_server_seq: 1 label: "Add objects"
+    ops { create { parent { counter: 1 replica: 7 } position: "\x80" props { group { common { name: "Object" } } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x81" props { group { common { name: "Object" } } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x82" props { group { common { name: "Object" } } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x83" props { group { common { name: "Object" } } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x84" props { group { common { name: "Object" } } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x85" props { group { common { name: "Object" } } } } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 2 base_server_seq: 1 label: "Add objects"
+    ops { create { parent { counter: 1 replica: 7 } position: "\x80" props { group { common { name: "Object" } } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x81" props { group { common { name: "Object" } } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x82" props { group { common { name: "Object" } } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x83" props { group { common { name: "Object" } } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x84" props { group { common { name: "Object" } } } } }
+  }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "5b8a9faa80669f620d0030f0b15aac0664bcf3605a7ce85cfbb5d8a01da87c79"
+  snapshot_hash: "4d28946479b290a939fce88db2faee041341d722baa43e4e2f2ed22384bc36ba"
+  node {
+    id { counter: 1 replica: 7 }
+    node_hash: "eab2b8fed409cda17c6c4fee26f0803cef22e525ea4ac19dc4c9eeb3398f3681"
+    tree { parent { counter: 7 } position: "\x80" children { counter: 2 replica: 1 } children { counter: 2 replica: 2 } children { counter: 3 replica: 1 } children { counter: 3 replica: 2 } children { counter: 4 replica: 1 } children { counter: 4 replica: 2 } children { counter: 5 replica: 1 } children { counter: 5 replica: 2 } children { counter: 6 replica: 1 } children { counter: 6 replica: 2 } children { counter: 7 replica: 1 } }
+  }
+}

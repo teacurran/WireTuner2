@@ -89,7 +89,7 @@ public enum Appearances {
         switch settings.kind {
         case .gradient:
             // No live stops reads as a Basic fill (gradients.adoc, "Read-time normalizations").
-            guard !settings.gradient.stops.isEmpty else { return basic(settings.basic.color, rule: rule, overprint: settings.gradient.overprint) }
+            guard !GradientReading.ramp(settings.gradient).isEmpty else { return basic(settings.basic.color, rule: rule, overprint: settings.gradient.overprint) }
             return FillPaint(paint: .gradient(gradient(settings.gradient)), rule: rule, overprint: settings.gradient.overprint)
         case .lens:
             let lens = settings.lens

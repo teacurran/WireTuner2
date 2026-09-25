@@ -33,6 +33,7 @@ import "wiretuner/doc/v1/envelope.proto";
 import "wiretuner/doc/v1/extrude.proto";
 import "wiretuner/doc/v1/glyph.proto";
 import "wiretuner/doc/v1/group.proto";
+import "wiretuner/doc/v1/hose.proto";
 import "wiretuner/doc/v1/image.proto";
 import "wiretuner/doc/v1/layer.proto";
 import "wiretuner/doc/v1/ops.proto";
@@ -227,8 +228,10 @@ message NodeProps {
     wiretuner.doc.v1.PolygonProps polygon = 23;
     wiretuner.doc.v1.ChartProps chart = 24;
     wiretuner.doc.v1.ConnectorProps connector = 25;
+    wiretuner.doc.v1.HoseSetProps hose_set = 26;
     wiretuner.doc.v1.GroupProps group = 50;
     wiretuner.doc.v1.SwatchProps swatch = 70;
+    wiretuner.doc.v1.GradientSwatchProps gradient_swatch = 71;
     wiretuner.doc.v1.BrushProps brush = 80;
     wiretuner.doc.v1.BlendProps blend = 100;
     wiretuner.doc.v1.ExtrudeProps extrude = 101;

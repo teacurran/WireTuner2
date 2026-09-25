@@ -10,7 +10,8 @@
 
 /// proto/wiretuner/doc/v1/color.proto
 ///
-/// The `swatch` node kind (docs/_includes/color/swatches.adoc, COLOR-001).  Swatches are nodes
+/// The `swatch` and `gradient_swatch` node kinds (docs/_includes/color/swatches.adoc, COLOR-001;
+/// docs/_includes/appearance/gradients.adoc, ATTR-029).  Swatches are nodes
 /// under the well-known `swatches` collection (0:5); a swatch's sibling position is the list
 /// order and its `CommonProps.name` is the swatch name.  None is not a node: it is the `none`
 /// case of ColorRef.  `ColorSpace`, `Color`, `Cmyk`, `Rgb`, `Lab`, `ColorRef` and `InlineTint`
@@ -148,6 +149,48 @@ public nonisolated struct Wiretuner_Doc_V1_SwatchProps: Sendable {
   fileprivate var _parent: Wiretuner_Doc_V1_NodeRef? = nil
 }
 
+/// NodeProps.kind case `gradient_swatch` (COLOR block, ATTR-029): a gradient kept for reuse,
+/// listed in the swatches collection (0:5) after the color swatches.  Applying one copies its
+/// ramp and registers into a fill; nothing references it afterwards, so editing or removing it
+/// changes no object.  STRUCT: a rename and a ramp edit from two people both survive.
+public nonisolated struct Wiretuner_Doc_V1_GradientSwatchProps: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The swatch name (CommonProps.name, ATOMIC) and the other shared registers.
+  public var common: Wiretuner_Doc_V1_CommonProps {
+    get {_common ?? Wiretuner_Doc_V1_CommonProps()}
+    set {_common = newValue}
+  }
+  /// Returns true if `common` has been explicitly set.
+  public var hasCommon: Bool {self._common != nil}
+  /// Clears the value of `common`. Subsequent reads from it will return its default value.
+  public mutating func clearCommon() {self._common = nil}
+
+  /// The gradient: type, behavior and count registers and the stops SEQUENCE (stop colors keep
+  /// their swatch references).  `axis` and `ramp` are unused: an applied gradient takes Auto size
+  /// geometry on each object.
+  public var gradient: Wiretuner_Doc_V1_GradientFill {
+    get {_gradient ?? Wiretuner_Doc_V1_GradientFill()}
+    set {_gradient = newValue}
+  }
+  /// Returns true if `gradient` has been explicitly set.
+  public var hasGradient: Bool {self._gradient != nil}
+  /// Clears the value of `gradient`. Subsequent reads from it will return its default value.
+  public mutating func clearGradient() {self._gradient = nil}
+
+  /// Group header this swatch is listed under; empty = ungrouped.
+  public var group: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _common: Wiretuner_Doc_V1_CommonProps? = nil
+  fileprivate var _gradient: Wiretuner_Doc_V1_GradientFill? = nil
+}
+
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
 fileprivate nonisolated let _protobuf_package = "wiretuner.doc.v1"
@@ -225,6 +268,50 @@ nonisolated extension Wiretuner_Doc_V1_SwatchProps: SwiftProtobuf.Message, Swift
     if lhs.group != rhs.group {return false}
     if lhs.library != rhs.library {return false}
     if lhs.libraryKey != rhs.libraryKey {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Doc_V1_GradientSwatchProps: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".GradientSwatchProps"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}common\0\u{1}gradient\0\u{1}group\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._common) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._gradient) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.group) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._common {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._gradient {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    if !self.group.isEmpty {
+      try visitor.visitSingularStringField(value: self.group, fieldNumber: 3)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Wiretuner_Doc_V1_GradientSwatchProps, rhs: Wiretuner_Doc_V1_GradientSwatchProps) -> Bool {
+    if lhs._common != rhs._common {return false}
+    if lhs._gradient != rhs._gradient {return false}
+    if lhs.group != rhs.group {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
